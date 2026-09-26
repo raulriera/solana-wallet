@@ -59,7 +59,8 @@ struct PortfolioTests {
                 let data = Data(#"""
                     {"page":1,"limit":2,"items":[
                         {"id":"collectible","interface":"V1_NFT",
-                         "content":{"metadata":{"name":"Example Collectible"},"links":{"image":false}},
+                         "content":{"metadata":{"name":"Example Collectible","symbol":false},
+                                    "links":{"image":false},"files":[{"uri":false,"mime":"image/png"}]},
                          "token_info":{"balance":1,"decimals":0}},
                         {"id":"first-mint","interface":"FungibleToken",
                          "token_info":{"balance":42,"decimals":6}}

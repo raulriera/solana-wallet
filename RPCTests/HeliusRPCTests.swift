@@ -282,23 +282,34 @@ struct HeliusRPCTests {
         #expect(parameters["options"] as? [String: Bool] == ["showFungible": true, "showNativeBalance": true])
     }
 
-    /// Verifies that a malformed image link preserves the asset and the rest of the page.
+    /// Verifies that malformed display fields preserve exact balances and healthy metadata.
     ///
     /// - Parameters:
-    ///   - files: The synthetic file metadata available as an image fallback.
-    ///   - expectedImageURL: The fallback URL, or `nil` when no image is available.
+    ///   - content: The synthetic content containing malformed display metadata.
+    ///   - expectedName: The available name, or `nil` when malformed or missing.
+    ///   - expectedSymbol: The available symbol, or `nil` when malformed or missing.
+    ///   - expectedImageURL: The available image, or `nil` when none can be decoded.
     /// - Throws: An RPC error or a failed test prerequisite.
-    @Test("get assets preserves holdings when an image link is not a string", arguments: [
-        ("[]", nil as String?),
-        (#"[{"uri":"https://example.com/fallback.png","mime":"image/png"}]"#, "https://example.com/fallback.png"),
+    @Test("get assets preserves holdings when display metadata is malformed", arguments: [
+        (#"{"metadata":{"name":"Example Collectible"},"links":{"image":false},"files":[]}"#,
+         "Example Collectible", nil as String?, nil as String?),
+        (#"{"metadata":{"name":"Example Collectible"},"links":{"image":false},"files":[{"uri":"https://example.com/fallback.png","mime":"image/png"}]}"#,
+         "Example Collectible", nil, "https://example.com/fallback.png"),
+        (#"{"metadata":{"name":false,"symbol":"EX"},"links":{"image":"https://example.com/token.png"}}"#,
+         nil, "EX", "https://example.com/token.png"),
+        (#"{"metadata":{"name":"Example Collectible","symbol":false},"files":[false,{"uri":false,"mime":"image/png"},{"uri":"https://example.com/ignored.png","mime":false},{"uri":"https://example.com/fallback.png","mime":"image/png"}]}"#,
+         "Example Collectible", nil, "https://example.com/fallback.png"),
+        (#"{"metadata":false,"links":false,"files":false}"#, nil, nil, nil),
+        ("false", nil, nil, nil),
     ])
-    func getAssetsPreservesHoldingsWhenAnImageLinkIsNotAString(files: String, expectedImageURL: String?) async throws {
+    func getAssetsPreservesHoldingsWhenDisplayMetadataIsMalformed(
+        content: String, expectedName: String?, expectedSymbol: String?, expectedImageURL: String?
+    ) async throws {
         let transport = StubTransport { request in
             try reply(to: request, payload: #"""
                 "result":{"page":1,"limit":1000,"items":[
-                    {"id":"collectible","interface":"V1_NFT",
-                     "content":{"metadata":{"name":"Example Collectible"},
-                                "links":{"image":false},"files":\#(files)}},
+                    {"id":"collectible","interface":"V1_NFT","content":\#(content),
+                     "token_info":{"balance":1,"decimals":0,"symbol":false}},
                     {"id":"mint-address","interface":"FungibleToken",
                      "token_info":{"balance":42,"decimals":6}}
                 ],"nativeBalance":{"lamports":12345}}
@@ -310,12 +321,34 @@ struct HeliusRPCTests {
 
         #expect(response.items.map(\.id) == ["collectible", "mint-address"])
         let collectible = try #require(response.items.first)
-        #expect(collectible.name == "Example Collectible")
+        #expect(collectible.name == expectedName)
+        #expect(collectible.symbol == expectedSymbol)
         #expect(collectible.imageURL?.absoluteString == expectedImageURL)
+        #expect(collectible.balance == 1)
+        #expect(collectible.decimals == 0)
         let token = try #require(response.items.last)
         #expect(token.balance == 42)
         #expect(token.decimals == 6)
         #expect(response.nativeBalance?.lamports == 12345)
+    }
+
+    /// Verifies that metadata recovery never accepts malformed asset identity or amounts.
+    ///
+    /// - Parameter asset: A synthetic asset with an invalid required identity or supplied amount.
+    @Test("get assets rejects malformed identity and amount fields", arguments: [
+        #"{"id":false,"interface":"FungibleToken"}"#,
+        #"{"id":"mint","interface":"FungibleToken","token_info":{"balance":"unknown","decimals":6}}"#,
+        #"{"id":"mint","interface":"FungibleToken","token_info":{"balance":42,"decimals":1.5}}"#,
+    ])
+    func getAssetsRejectsMalformedIdentityAndAmountFields(asset: String) async {
+        let transport = StubTransport { request in
+            try reply(to: request, payload: #""result":{"page":1,"limit":1000,"items":[\#(asset)]}"#)
+        }
+        let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
+
+        await #expect(throws: RPCError.decoding) {
+            try await rpc.send(GetAssetsByOwner(owner: address))
+        }
     }
 
     /// Verifies that a token remains available when metadata and prices are absent.

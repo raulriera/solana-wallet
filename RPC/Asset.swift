@@ -43,22 +43,20 @@ public struct Asset: Decodable, Sendable {
 
     /// Decodes an asset without requiring metadata or market prices.
     ///
-    /// A non-string image link is treated as missing, allowing an image file
-    /// to supply the URL while preserving the asset's other metadata.
+    /// Malformed display metadata is treated as unavailable for that field.
+    /// Identity, balances, decimal precision, and supplied prices remain strictly decoded.
     ///
     /// - Parameter decoder: The decoder containing the DAS asset.
-    /// - Throws: A decoding error if an identity or supplied balance is malformed.
+    /// - Throws: A decoding error if identity, balance, precision, or price data is malformed.
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)
         interface = try container.decode(String.self, forKey: .interface)
-        let content = try container.decodeIfPresent(Content.self, forKey: .content)
+        let content = try? container.decodeIfPresent(Content.self, forKey: .content)
         let token = try container.decodeIfPresent(Token.self, forKey: .token)
-        name = content?.metadata?.name
-        symbol = token?.symbol ?? content?.metadata?.symbol
-        let image = content?.links?.image
-            ?? content?.files?.first(where: { $0.mime?.hasPrefix("image/") == true })?.uri
-        imageURL = image.flatMap(URL.init(string:))
+        name = content?.name
+        symbol = token?.symbol ?? content?.symbol
+        imageURL = content?.imageURL
         balance = token?.balance
         decimals = token?.decimals
         price = token?.price
@@ -70,36 +68,38 @@ public struct Asset: Decodable, Sendable {
     }
 
     private struct Content: Decodable {
-        let metadata: Metadata?
-        let links: Links?
-        let files: [File]?
-    }
-
-    private struct Metadata: Decodable {
         let name: String?
         let symbol: String?
-    }
+        let imageURL: URL?
 
-    private struct Links: Decodable {
-        let image: String?
-
-        /// Decodes an image link while treating non-string values as unavailable.
+        /// Decodes display fields independently and selects an available image.
         ///
-        /// - Parameter decoder: The decoder containing the link metadata.
-        /// - Throws: A decoding error if the links container isn't an object.
+        /// - Parameter decoder: The decoder containing the asset's content.
+        /// - Throws: A decoding error if the content isn't an object or a file entry can't be consumed.
         init(from decoder: any Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
-            image = try? container.decodeIfPresent(String.self, forKey: .image)
+            let metadata = try? container.nestedContainer(keyedBy: CodingKeys.self, forKey: .metadata)
+            name = try? metadata?.decode(String.self, forKey: .name)
+            symbol = try? metadata?.decode(String.self, forKey: .symbol)
+
+            let links = try? container.nestedContainer(keyedBy: CodingKeys.self, forKey: .links)
+            let image = try? links?.decode(String.self, forKey: .image)
+            var imageURL = image.flatMap(URL.init(string:))
+            if imageURL == nil, var files = try? container.nestedUnkeyedContainer(forKey: .files) {
+                while imageURL == nil, !files.isAtEnd {
+                    let fileDecoder = try files.superDecoder()
+                    guard let file = try? fileDecoder.container(keyedBy: CodingKeys.self),
+                          let mime = try? file.decode(String.self, forKey: .mime), mime.hasPrefix("image/"),
+                          let uri = try? file.decode(String.self, forKey: .uri) else { continue }
+                    imageURL = URL(string: uri)
+                }
+            }
+            self.imageURL = imageURL
         }
 
         private enum CodingKeys: String, CodingKey {
-            case image
+            case metadata, name, symbol, links, image, files, uri, mime
         }
-    }
-
-    private struct File: Decodable {
-        let uri: String?
-        let mime: String?
     }
 
     private struct Token: Decodable {
@@ -107,6 +107,18 @@ public struct Asset: Decodable, Sendable {
         let decimals: UInt8?
         let symbol: String?
         let price: Price?
+
+        /// Decodes exact token values while allowing an unavailable display symbol.
+        ///
+        /// - Parameter decoder: The decoder containing the token's balance and valuation.
+        /// - Throws: A decoding error if supplied balance, precision, or price data is malformed.
+        init(from decoder: any Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            balance = try container.decodeIfPresent(UInt64.self, forKey: .balance)
+            decimals = try container.decodeIfPresent(UInt8.self, forKey: .decimals)
+            symbol = try? container.decodeIfPresent(String.self, forKey: .symbol)
+            price = try container.decodeIfPresent(Price.self, forKey: .price)
+        }
 
         private enum CodingKeys: String, CodingKey {
             case balance, decimals, symbol
