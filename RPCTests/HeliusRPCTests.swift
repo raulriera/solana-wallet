@@ -62,6 +62,87 @@ struct HeliusRPCTests {
         #expect(query == [URLQueryItem(name: "api-key", value: "test-key")])
     }
 
+    /// Verifies the blockhash request, its expiry height, and its independent ledger slot.
+    ///
+    /// - Parameters:
+    ///   - query: The request using default or explicit ledger configuration.
+    ///   - expectedCommitment: The confirmation level expected in the outgoing request.
+    ///   - expectedSlot: The minimum evaluation slot, or `nil` when it should be omitted.
+    /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
+    @Test("get latest blockhash returns a blockhash expiry height and slot", arguments: [
+        (GetLatestBlockhash(), "confirmed", UInt64?.none),
+        (GetLatestBlockhash(commitment: .finalized, minContextSlot: 12340), "finalized", 12340),
+    ])
+    func getLatestBlockhashReturnsABlockhashExpiryHeightAndSlot(
+        query: GetLatestBlockhash, expectedCommitment: String, expectedSlot: UInt64?
+    ) async throws {
+        let transport = StubTransport { request in
+            try reply(to: request, payload: #""result":{"context":{"slot":12345},"value":{"blockhash":"EkSnNWid2cvwEVnVx9aBqawnmiCNiDgp3gUdkDPTKN1N","lastValidBlockHeight":9007199254740993}}"#)
+        }
+        let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
+
+        let response = try await rpc.send(query)
+
+        #expect(response.value.blockhash == "EkSnNWid2cvwEVnVx9aBqawnmiCNiDgp3gUdkDPTKN1N")
+        #expect(response.value.lastValidBlockHeight == 9_007_199_254_740_993)
+        #expect(response.context.slot == 12345)
+        let request = try #require(await transport.requests.first)
+        let body = try requestBody(request)
+        let parameters = try #require(body["params"] as? [[String: Any]])
+        #expect(body["method"] as? String == "getLatestBlockhash")
+        #expect(parameters.count == 1)
+        let configuration = try #require(parameters.first)
+        #expect(configuration["commitment"] as? String == expectedCommitment)
+        #expect(configuration["minContextSlot"] as? UInt64 == expectedSlot)
+        #expect(configuration.count == (expectedSlot == nil ? 1 : 2))
+    }
+
+    /// Verifies that a blockhash without its required expiry cannot be returned to a caller.
+    @Test("get latest blockhash rejects a response without an expiry height")
+    func getLatestBlockhashRejectsAResponseWithoutAnExpiryHeight() async {
+        let transport = StubTransport { request in
+            try reply(to: request, payload: #""result":{"context":{"slot":12345},"value":{"blockhash":"EkSnNWid2cvwEVnVx9aBqawnmiCNiDgp3gUdkDPTKN1N"}}"#)
+        }
+        let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
+
+        await #expect(throws: RPCError.decoding) {
+            try await rpc.send(GetLatestBlockhash())
+        }
+    }
+
+    /// Verifies the height request and exact integer decoding without a context envelope.
+    ///
+    /// - Parameters:
+    ///   - query: The request using default or explicit ledger configuration.
+    ///   - expectedCommitment: The confirmation level expected in the outgoing request.
+    ///   - expectedSlot: The minimum evaluation slot, or `nil` when it should be omitted.
+    /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
+    @Test("get block height returns the current ledger height", arguments: [
+        (GetBlockHeight(), "confirmed", UInt64?.none),
+        (GetBlockHeight(commitment: .processed, minContextSlot: 12340), "processed", 12340),
+    ])
+    func getBlockHeightReturnsTheCurrentLedgerHeight(
+        query: GetBlockHeight, expectedCommitment: String, expectedSlot: UInt64?
+    ) async throws {
+        let transport = StubTransport { request in
+            try reply(to: request, payload: #""result":9007199254740993"#)
+        }
+        let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
+
+        let height = try await rpc.send(query)
+
+        #expect(height == 9_007_199_254_740_993)
+        let request = try #require(await transport.requests.first)
+        let body = try requestBody(request)
+        let parameters = try #require(body["params"] as? [[String: Any]])
+        #expect(body["method"] as? String == "getBlockHeight")
+        #expect(parameters.count == 1)
+        let configuration = try #require(parameters.first)
+        #expect(configuration["commitment"] as? String == expectedCommitment)
+        #expect(configuration["minContextSlot"] as? UInt64 == expectedSlot)
+        #expect(configuration.count == (expectedSlot == nil ? 1 : 2))
+    }
+
     /// Verifies the account request and its decoded state, bytes, and ledger slot.
     ///
     /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
