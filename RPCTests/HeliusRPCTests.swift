@@ -120,6 +120,59 @@ struct HeliusRPCTests {
         }
     }
 
+    /// Verifies the outgoing address order and the corresponding accounts and ledger slot.
+    ///
+    /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
+    @Test("get multiple accounts returns accounts in request order")
+    func getMultipleAccountsReturnsAccountsInRequestOrder() async throws {
+        let addresses = [address, "11111111111111111111111111111111"]
+        let transport = StubTransport { request in
+            try reply(to: request, payload: #"""
+                "result":{"context":{"slot":12345},"value":[
+                    {"lamports":200,"owner":"11111111111111111111111111111111","data":["AQ==","base64"],"executable":false,"rentEpoch":18446744073709551615,"space":1},
+                    {"lamports":100,"owner":"11111111111111111111111111111111","data":["Ag==","base64"],"executable":false,"rentEpoch":18446744073709551615,"space":1}
+                ]}
+                """#)
+        }
+        let rpc: any RPC = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
+
+        let response = try await rpc.send(GetMultipleAccounts(addresses: addresses))
+
+        #expect(response.value.map { $0?.lamports } == [200, 100])
+        #expect(response.context.slot == 12345)
+        let requests = await transport.requests
+        #expect(requests.count == 1)
+        let request = try #require(requests.first)
+        let body = try requestBody(request)
+        let parameters = try #require(body["params"] as? [Any])
+        #expect(body["method"] as? String == "getMultipleAccounts")
+        #expect(parameters.count == 2)
+        #expect(parameters.first as? [String] == addresses)
+        #expect(parameters.last as? [String: String] == ["commitment": "confirmed", "encoding": "base64"])
+    }
+
+    /// Verifies that a missing account retains its position between existing accounts.
+    ///
+    /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
+    @Test("get multiple accounts preserves missing account positions")
+    func getMultipleAccountsPreservesMissingAccountPositions() async throws {
+        let addresses = [address, "11111111111111111111111111111111", "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"]
+        let transport = StubTransport { request in
+            try reply(to: request, payload: #"""
+                "result":{"context":{"slot":12345},"value":[
+                    {"lamports":200,"owner":"11111111111111111111111111111111","data":["AQ==","base64"],"executable":false,"rentEpoch":18446744073709551615,"space":1},
+                    null,
+                    {"lamports":100,"owner":"11111111111111111111111111111111","data":["Ag==","base64"],"executable":false,"rentEpoch":18446744073709551615,"space":1}
+                ]}
+                """#)
+        }
+        let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
+
+        let response = try await rpc.send(GetMultipleAccounts(addresses: addresses))
+
+        #expect(response.value.map { $0?.lamports } == [200, nil, 100])
+    }
+
     /// Verifies the parameterless version request and its decoded node metadata.
     ///
     /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.

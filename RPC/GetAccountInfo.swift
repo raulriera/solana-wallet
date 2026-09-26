@@ -60,12 +60,6 @@ public struct GetAccountInfo: RPCRequest {
     public func encode(to encoder: any Encoder) throws {
         var parameters = encoder.unkeyedContainer()
         try parameters.encode(address)
-        try parameters.encode(Configuration(commitment: commitment))
-    }
-
-    /// The configuration object following the address in the parameter array.
-    private struct Configuration: Encodable {
-        let commitment: Commitment
-        let encoding = "base64"
+        try parameters.encode(AccountConfiguration(commitment: commitment))
     }
 }
