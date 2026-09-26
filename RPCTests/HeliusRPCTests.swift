@@ -173,6 +173,188 @@ struct HeliusRPCTests {
         #expect(response.value.map { $0?.lamports } == [200, nil, 100])
     }
 
+    /// Verifies filter encoding and the returned account's address, state, and ledger slot.
+    ///
+    /// - Parameters:
+    ///   - filter: The mint or token program used to select token accounts.
+    ///   - expectedFilter: The single filter field expected in the outgoing request.
+    /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
+    @Test("get token accounts returns account addresses and slot", arguments: [
+        (GetTokenAccountsByOwner.Filter.mint("So11111111111111111111111111111111111111112"),
+         ["mint": "So11111111111111111111111111111111111111112"]),
+        (.program("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
+         ["programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"]),
+    ])
+    func getTokenAccountsReturnsAccountAddressesAndSlot(
+        filter: GetTokenAccountsByOwner.Filter,
+        expectedFilter: [String: String]
+    ) async throws {
+        let transport = StubTransport { request in
+            try reply(to: request, payload: #"""
+                "result":{"context":{"slot":12345},"value":[
+                    {"pubkey":"BGocb4GEpbTFm8UFV2VsDSaBXHELPfAXrvd4vtt8QWrA","account":{
+                        "lamports":2039280,"owner":"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+                        "data":["AQIDBA==","base64"],"executable":false,"rentEpoch":18446744073709551615,"space":4
+                    }}
+                ]}
+                """#)
+        }
+        let rpc: any RPC = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
+
+        let response = try await rpc.send(GetTokenAccountsByOwner(owner: address, filter: filter))
+
+        #expect(response.value.count == 1)
+        let entry = try #require(response.value.first)
+        #expect(entry.address == "BGocb4GEpbTFm8UFV2VsDSaBXHELPfAXrvd4vtt8QWrA")
+        #expect(entry.account.owner == "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
+        #expect(entry.account.lamports == 2_039_280)
+        #expect(response.context.slot == 12345)
+        let request = try #require(await transport.requests.first)
+        let body = try requestBody(request)
+        let parameters = try #require(body["params"] as? [Any])
+        try #require(parameters.count == 3)
+        #expect(body["method"] as? String == "getTokenAccountsByOwner")
+        #expect(parameters[0] as? String == address)
+        #expect(parameters[1] as? [String: String] == expectedFilter)
+        #expect(parameters[2] as? [String: String] == ["commitment": "confirmed", "encoding": "base64"])
+    }
+
+    /// Verifies that a lookup with no matching accounts returns an empty array and its context.
+    ///
+    /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
+    @Test("get token accounts returns an empty collection when none match")
+    func getTokenAccountsReturnsAnEmptyCollectionWhenNoneMatch() async throws {
+        let transport = StubTransport { request in
+            try reply(to: request, payload: #""result":{"context":{"slot":12345},"value":[]}"#)
+        }
+        let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
+
+        let response = try await rpc.send(GetTokenAccountsByOwner(
+            owner: address,
+            filter: .program("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
+        ))
+
+        #expect(response.value.isEmpty)
+        #expect(response.context.slot == 12345)
+    }
+
+    /// Verifies named DAS parameters and exact balances, metadata, prices, and indexing information.
+    ///
+    /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
+    @Test("get assets returns token balances metadata and native SOL")
+    func getAssetsReturnsTokenBalancesMetadataAndNativeSOL() async throws {
+        let transport = StubTransport { request in
+            try reply(to: request, payload: #"""
+                "result":{"last_indexed_slot":12345,"page":2,"limit":1000,"items":[{
+                    "id":"mint-address","interface":"FungibleToken",
+                    "content":{"metadata":{"name":"Example Token","symbol":"EX"},"links":{"image":"https://example.com/token.png"}},
+                    "token_info":{"balance":9007199254740993,"decimals":6,
+                        "price_info":{"price_per_token":0.1000000000000000001,"total_price":20.25,"currency":"USD"}}
+                }],"nativeBalance":{"lamports":1234567890,"price_per_sol":120.5,"total_price":148.765430745}}
+                """#)
+        }
+        let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
+
+        let response = try await rpc.send(GetAssetsByOwner(owner: address, page: 2))
+
+        let asset = try #require(response.items.first)
+        #expect(asset.id == "mint-address")
+        #expect(asset.balance == 9_007_199_254_740_993)
+        #expect(asset.decimals == 6)
+        #expect(asset.name == "Example Token")
+        #expect(asset.symbol == "EX")
+        #expect(asset.imageURL?.absoluteString == "https://example.com/token.png")
+        #expect(asset.price?.perToken == Decimal(string: "0.1000000000000000001"))
+        #expect(asset.price?.total == Decimal(string: "20.25"))
+        #expect(asset.price?.currency == "USD")
+        #expect(response.nativeBalance?.lamports == 1_234_567_890)
+        #expect(response.nativeBalance?.pricePerSOL == Decimal(string: "120.5"))
+        #expect(response.lastIndexedSlot == 12345)
+        #expect(response.page == 2)
+        #expect(response.limit == 1000)
+        let request = try #require(await transport.requests.first)
+        let body = try requestBody(request)
+        let parameters = try #require(body["params"] as? [String: Any])
+        #expect(body["method"] as? String == "getAssetsByOwner")
+        #expect(parameters["ownerAddress"] as? String == address)
+        #expect(parameters["page"] as? Int == 2)
+        #expect(parameters["limit"] as? Int == 1000)
+        #expect(parameters["options"] as? [String: Bool] == ["showFungible": true, "showNativeBalance": true])
+    }
+
+    /// Verifies that a malformed image link preserves the asset and the rest of the page.
+    ///
+    /// - Parameters:
+    ///   - files: The synthetic file metadata available as an image fallback.
+    ///   - expectedImageURL: The fallback URL, or `nil` when no image is available.
+    /// - Throws: An RPC error or a failed test prerequisite.
+    @Test("get assets preserves holdings when an image link is not a string", arguments: [
+        ("[]", nil as String?),
+        (#"[{"uri":"https://example.com/fallback.png","mime":"image/png"}]"#, "https://example.com/fallback.png"),
+    ])
+    func getAssetsPreservesHoldingsWhenAnImageLinkIsNotAString(files: String, expectedImageURL: String?) async throws {
+        let transport = StubTransport { request in
+            try reply(to: request, payload: #"""
+                "result":{"page":1,"limit":1000,"items":[
+                    {"id":"collectible","interface":"V1_NFT",
+                     "content":{"metadata":{"name":"Example Collectible"},
+                                "links":{"image":false},"files":\#(files)}},
+                    {"id":"mint-address","interface":"FungibleToken",
+                     "token_info":{"balance":42,"decimals":6}}
+                ],"nativeBalance":{"lamports":12345}}
+                """#)
+        }
+        let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
+
+        let response = try await rpc.send(GetAssetsByOwner(owner: address))
+
+        #expect(response.items.map(\.id) == ["collectible", "mint-address"])
+        let collectible = try #require(response.items.first)
+        #expect(collectible.name == "Example Collectible")
+        #expect(collectible.imageURL?.absoluteString == expectedImageURL)
+        let token = try #require(response.items.last)
+        #expect(token.balance == 42)
+        #expect(token.decimals == 6)
+        #expect(response.nativeBalance?.lamports == 12345)
+    }
+
+    /// Verifies that a token remains available when metadata and prices are absent.
+    ///
+    /// - Throws: An RPC error or a failed test prerequisite.
+    @Test("get assets preserves balances without metadata or prices")
+    func getAssetsPreservesBalancesWithoutMetadataOrPrices() async throws {
+        let transport = StubTransport { request in
+            try reply(to: request, payload: #""result":{"page":1,"limit":1000,"items":[{"id":"unknown-mint","interface":"FungibleToken","token_info":{"balance":18446744073709551615,"decimals":9}}]}"#)
+        }
+        let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
+
+        let response = try await rpc.send(GetAssetsByOwner(owner: address))
+
+        let asset = try #require(response.items.first)
+        #expect(asset.balance == UInt64.max)
+        #expect(asset.name == nil)
+        #expect(asset.symbol == nil)
+        #expect(asset.imageURL == nil)
+        #expect(asset.price == nil)
+        #expect(response.lastIndexedSlot == nil)
+    }
+
+    /// Verifies that a wallet without assets retains an explicit zero native balance.
+    ///
+    /// - Throws: An RPC error.
+    @Test("get assets returns an empty asset list and zero native SOL")
+    func getAssetsReturnsAnEmptyAssetListAndZeroNativeSOL() async throws {
+        let transport = StubTransport { request in
+            try reply(to: request, payload: #""result":{"page":1,"limit":1000,"items":[],"nativeBalance":{"lamports":0}}"#)
+        }
+        let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
+
+        let response = try await rpc.send(GetAssetsByOwner(owner: address))
+
+        #expect(response.items.isEmpty)
+        #expect(response.nativeBalance?.lamports == 0)
+    }
+
     /// Verifies the parameterless version request and its decoded node metadata.
     ///
     /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.

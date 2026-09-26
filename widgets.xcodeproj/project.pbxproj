@@ -10,6 +10,11 @@
 		A10000000000000000000008 /* RPC.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A10000000000000000000001 /* RPC.framework */; };
 		A10000000000000000000009 /* RPC.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A10000000000000000000001 /* RPC.framework */; };
 		A1000000000000000000000A /* RPC.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = A10000000000000000000001 /* RPC.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		A20000000000000000000008 /* Portfolio.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* Portfolio.framework */; };
+		A20000000000000000000009 /* Portfolio.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* Portfolio.framework */; };
+		A2000000000000000000000A /* Portfolio.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* Portfolio.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		A20000000000000000000020 /* RPC.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A10000000000000000000001 /* RPC.framework */; };
+		A20000000000000000000021 /* RPC.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A10000000000000000000001 /* RPC.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -20,6 +25,13 @@
 			remoteGlobalIDString = A10000000000000000000014;
 			remoteInfo = RPC;
 		};
+		A20000000000000000000012 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 000000000000000000000000 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A20000000000000000000014;
+			remoteInfo = Portfolio;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -29,6 +41,7 @@
 			dstSubfolder = Frameworks;
 			files = (
 				A1000000000000000000000A /* RPC.framework in Embed Frameworks */,
+				A2000000000000000000000A /* Portfolio.framework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 		};
@@ -40,6 +53,8 @@
 		A10000000000000000000002 /* RPCTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = RPCTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A10000000000000000000003 /* Shared.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Shared.xcconfig; sourceTree = "<group>"; };
 		A10000000000000000000004 /* Local.example.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.example.xcconfig; sourceTree = "<group>"; };
+		A20000000000000000000001 /* Portfolio.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Portfolio.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		A20000000000000000000002 /* PortfolioTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = PortfolioTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -58,6 +73,16 @@
 			path = RPCTests;
 			sourceTree = "<group>";
 		};
+		A20000000000000000000005 /* Portfolio */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Portfolio;
+			sourceTree = "<group>";
+		};
+		A20000000000000000000006 /* PortfolioTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = PortfolioTests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -65,6 +90,7 @@
 			isa = PBXFrameworksBuildPhase;
 			files = (
 				A10000000000000000000008 /* RPC.framework in Frameworks */,
+				A20000000000000000000008 /* Portfolio.framework in Frameworks */,
 			);
 		};
 		A10000000000000000000010 /* Frameworks */ = {
@@ -78,6 +104,19 @@
 				A10000000000000000000009 /* RPC.framework in Frameworks */,
 			);
 		};
+		A20000000000000000000010 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+				A20000000000000000000020 /* RPC.framework in Frameworks */,
+			);
+		};
+		A20000000000000000000011 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+				A20000000000000000000021 /* RPC.framework in Frameworks */,
+				A20000000000000000000009 /* Portfolio.framework in Frameworks */,
+			);
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -86,7 +125,9 @@
 			children = (
 				000000000000000000000010 /* widgets */,
 				A10000000000000000000005 /* RPC */,
+				A20000000000000000000005 /* Portfolio */,
 				A10000000000000000000006 /* RPCTests */,
+				A20000000000000000000006 /* PortfolioTests */,
 				A10000000000000000000007 /* Configuration */,
 				000000000000000000000020 /* Products */,
 			);
@@ -97,7 +138,9 @@
 			children = (
 				000000000000000000000120 /* widgets.app */,
 				A10000000000000000000001 /* RPC.framework */,
+				A20000000000000000000001 /* Portfolio.framework */,
 				A10000000000000000000002 /* RPCTests.xctest */,
+				A20000000000000000000002 /* PortfolioTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -127,6 +170,7 @@
 			);
 			dependencies = (
 				A10000000000000000000013 /* PBXTargetDependency */,
+				A20000000000000000000013 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				000000000000000000000010 /* widgets */,
@@ -175,6 +219,48 @@
 			productReference = A10000000000000000000002 /* RPCTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		A20000000000000000000014 /* Portfolio */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A20000000000000000000016 /* Build configuration list for PBXNativeTarget "Portfolio" */;
+			buildPhases = (
+				A2000000000000000000000C /* Sources */,
+				A20000000000000000000010 /* Frameworks */,
+				A2000000000000000000000E /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A10000000000000000000013 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				A20000000000000000000005 /* Portfolio */,
+			);
+			name = Portfolio;
+			productName = Portfolio;
+			productReference = A20000000000000000000001 /* Portfolio.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		A20000000000000000000015 /* PortfolioTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A20000000000000000000017 /* Build configuration list for PBXNativeTarget "PortfolioTests" */;
+			buildPhases = (
+				A2000000000000000000000D /* Sources */,
+				A20000000000000000000011 /* Frameworks */,
+				A2000000000000000000000F /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A20000000000000000000013 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				A20000000000000000000006 /* PortfolioTests */,
+			);
+			name = PortfolioTests;
+			productName = PortfolioTests;
+			productReference = A20000000000000000000002 /* PortfolioTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -206,7 +292,9 @@
 			targets = (
 				000000000000000100000000 /* widgets */,
 				A10000000000000000000014 /* RPC */,
+				A20000000000000000000014 /* Portfolio */,
 				A10000000000000000000015 /* RPCTests */,
+				A20000000000000000000015 /* PortfolioTests */,
 			);
 		};
 /* End PBXProject section */
@@ -223,6 +311,16 @@
 			);
 		};
 		A1000000000000000000000F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+		A2000000000000000000000E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+		A2000000000000000000000F /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
 			);
@@ -245,6 +343,16 @@
 			files = (
 			);
 		};
+		A2000000000000000000000C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
+		A2000000000000000000000D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -252,6 +360,11 @@
 			isa = PBXTargetDependency;
 			target = A10000000000000000000014 /* RPC */;
 			targetProxy = A10000000000000000000012 /* PBXContainerItemProxy */;
+		};
+		A20000000000000000000013 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A20000000000000000000014 /* Portfolio */;
+			targetProxy = A20000000000000000000012 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -542,6 +655,88 @@
 			};
 			name = Release;
 		};
+		A20000000000000000000018 /* Debug configuration for PBXNativeTarget "Portfolio" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEFINES_MODULE = YES;
+				DEVELOPMENT_TEAM = R64MTWS872;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).Portfolio";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		A20000000000000000000019 /* Release configuration for PBXNativeTarget "Portfolio" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEFINES_MODULE = YES;
+				DEVELOPMENT_TEAM = R64MTWS872;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).Portfolio";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		A2000000000000000000001A /* Debug configuration for PBXNativeTarget "PortfolioTests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = R64MTWS872;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).PortfolioTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "";
+			};
+			name = Debug;
+		};
+		A2000000000000000000001B /* Release configuration for PBXNativeTarget "PortfolioTests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = R64MTWS872;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).PortfolioTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -574,6 +769,22 @@
 			buildConfigurations = (
 				A1000000000000000000001A /* Debug configuration for PBXNativeTarget "RPCTests" */,
 				A1000000000000000000001B /* Release configuration for PBXNativeTarget "RPCTests" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		A20000000000000000000016 /* Build configuration list for PBXNativeTarget "Portfolio" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A20000000000000000000018 /* Debug configuration for PBXNativeTarget "Portfolio" */,
+				A20000000000000000000019 /* Release configuration for PBXNativeTarget "Portfolio" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		A20000000000000000000017 /* Build configuration list for PBXNativeTarget "PortfolioTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A2000000000000000000001A /* Debug configuration for PBXNativeTarget "PortfolioTests" */,
+				A2000000000000000000001B /* Release configuration for PBXNativeTarget "PortfolioTests" */,
 			);
 			defaultConfigurationName = Release;
 		};
