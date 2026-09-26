@@ -15,6 +15,10 @@ public enum RPCError: Error, Sendable, Equatable {
     case http(statusCode: Int, retryAfter: String?)
     /// The server returned a JSON-RPC error code and a sanitized message.
     case server(code: Int, message: String)
+    /// The server rejected submission during preflight simulation with code `-32002`.
+    ///
+    /// The message and simulation diagnostics omit the client's credentials.
+    case preflight(message: String, simulation: SimulateTransaction.Value)
     /// The response failed JSON-RPC envelope validation.
     case invalidResponse(InvalidResponse)
 

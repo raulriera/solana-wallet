@@ -23,7 +23,7 @@ public struct GetLatestBlockhash: RPCRequest {
     }
 
     /// A recent blockhash and the block height through which transactions may use it.
-    public struct Value: Decodable, Sendable {
+    public struct Value: Decodable, Sendable, Equatable {
         /// The base-58 encoded blockhash to include in a transaction.
         public let blockhash: String
 

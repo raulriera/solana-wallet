@@ -17,6 +17,28 @@ struct JSONRPCResponse<Value: Decodable>: Decodable {
     struct ServerError: Decodable, Error {
         let code: Int
         let message: String
+        let simulation: SimulateTransaction.Value?
+
+        /// Decodes an RPC rejection and any recognized preflight simulation diagnostics.
+        ///
+        /// A missing or malformed diagnostic payload doesn't discard the server's code
+        /// and message. Error data from other RPC failures has a different schema.
+        ///
+        /// - Parameter decoder: The decoder containing the server's error payload.
+        /// - Throws: A decoding error if the error code or message is missing or malformed.
+        init(from decoder: any Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            code = try container.decode(Int.self, forKey: .code)
+            message = try container.decode(String.self, forKey: .message)
+            simulation = code == -32002
+                ? try? container.decode(SimulateTransaction.Value.self, forKey: .data)
+                : nil
+        }
+
+        /// The field names in a JSON-RPC server error.
+        private enum CodingKeys: String, CodingKey {
+            case code, message, data
+        }
     }
 
     /// The fields used to decode a JSON-RPC response envelope.

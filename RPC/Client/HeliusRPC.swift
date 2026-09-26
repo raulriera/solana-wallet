@@ -110,6 +110,12 @@ public struct HeliusRPC: RPC, CustomStringConvertible, CustomDebugStringConverti
         case .success(let value):
             return value
         case .failure(let error):
+            if let simulation = error.simulation {
+                throw RPCError.preflight(
+                    message: redactor.redact(error.message),
+                    simulation: redactor.redact(simulation)
+                )
+            }
             throw RPCError.server(code: error.code, message: redactor.redact(error.message))
         }
     }

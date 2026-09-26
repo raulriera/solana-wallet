@@ -18,42 +18,16 @@ struct HeliusRPCTests {
     ])
     func requestsUseTheSelectedNetworkEndpoint(network: Network, expectedHost: String) async throws {
         let transport = StubTransport { request in
-            try reply(to: request, payload: #""result":{"solana-core":"3.0.0","feature-set":2891131721}"#)
+            try reply(to: request, payload: #""result":12345"#)
         }
         let rpc: any RPC = HeliusRPC(apiKey: "test-key", network: network, transport: transport)
 
-        _ = try await rpc.send(GetVersion())
+        _ = try await rpc.send(GetBlockHeight())
 
         let request = try #require(await transport.requests.first)
         #expect(request.url?.host() == expectedHost)
         #expect(rpc.network == network)
-    }
-
-    /// Verifies the outgoing balance request and its exact lamports and slot.
-    ///
-    /// The fixture's balance exceeds `Double`'s exact integer range to detect
-    /// precision loss during decoding.
-    ///
-    /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
-    @Test("get balance returns wallet lamports and slot")
-    func getBalanceReturnsWalletLamportsAndSlot() async throws {
-        let transport = StubTransport { request in
-            try reply(to: request, payload: #""result":{"context":{"slot":12345},"value":9007199254740993}"#)
-        }
-        let rpc: any RPC = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
-
-        let balance = try await rpc.send(GetBalance(address: address))
-
-        #expect(balance.value == 9_007_199_254_740_993)
-        #expect(balance.context.slot == 12345)
-        let request = try #require(await transport.requests.first)
-        let body = try requestBody(request)
-        let parameters = try #require(body["params"] as? [Any])
-        #expect(body["jsonrpc"] as? String == "2.0")
-        #expect(body["method"] as? String == "getBalance")
-        #expect(parameters.count == 2)
-        #expect(parameters.first as? String == address)
-        #expect((parameters.last as? [String: String])?["commitment"] == "confirmed")
+        #expect(try requestBody(request)["jsonrpc"] as? String == "2.0")
         #expect(request.httpMethod == "POST")
         #expect(request.value(forHTTPHeaderField: "Content-Type") == "application/json")
         #expect(request.timeoutInterval == 30)
@@ -209,180 +183,339 @@ struct HeliusRPCTests {
         }
     }
 
-    /// Verifies the account request and its decoded state, bytes, and ledger slot.
+    /// Verifies simulation diagnostics and the base64 transaction's execution options.
     ///
-    /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
-    @Test("get account returns owner lamports data and slot")
-    func getAccountReturnsOwnerLamportsDataAndSlot() async throws {
-        let transport = StubTransport { request in
-            try reply(to: request, payload: #""result":{"context":{"slot":12345},"value":{"lamports":9007199254740993,"owner":"11111111111111111111111111111111","data":["AQIDBA==","base64"],"executable":false,"rentEpoch":18446744073709551615,"space":4}}"#)
-        }
-        let rpc: any RPC = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
-
-        let response = try await rpc.send(GetAccountInfo(address: address))
-
-        let account = try #require(response.value)
-        #expect(account.owner == "11111111111111111111111111111111")
-        #expect(account.lamports == 9_007_199_254_740_993)
-        #expect(account.data == Data([1, 2, 3, 4]))
-        #expect(!account.isExecutable)
-        #expect(account.rentEpoch == UInt64.max)
-        #expect(account.space == 4)
-        #expect(response.context.slot == 12345)
-        let request = try #require(await transport.requests.first)
-        let body = try requestBody(request)
-        let parameters = try #require(body["params"] as? [Any])
-        #expect(body["method"] as? String == "getAccountInfo")
-        #expect(parameters.count == 2)
-        #expect(parameters.first as? String == address)
-        #expect(parameters.last as? [String: String] == ["commitment": "confirmed", "encoding": "base64"])
-    }
-
-    /// Verifies that a nonexistent account produces a nil value with its ledger context.
+    /// The bytes are a transport fixture, not a constructed transaction.
     ///
+    /// - Parameters:
+    ///   - query: The request using default or explicit execution options.
+    ///   - expectedCommitment: The confirmation level expected in the request.
+    ///   - expectedSlot: The minimum evaluation slot, or `nil` when omitted.
+    ///   - expectedVerification: Whether signature verification should be requested.
     /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
-    @Test("get account returns nil when the account does not exist")
-    func getAccountReturnsNilWhenTheAccountDoesNotExist() async throws {
+    @Test("simulation returns logs compute usage fee and slot", arguments: [
+        (SimulateTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00])), "confirmed", UInt64?.none, false),
+        (SimulateTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00]), commitment: .finalized,
+                             minContextSlot: 12340, verifiesSignatures: true), "finalized", 12340, true),
+    ])
+    func simulationReturnsLogsComputeUsageFeeAndSlot(
+        query: SimulateTransaction, expectedCommitment: String, expectedSlot: UInt64?, expectedVerification: Bool
+    ) async throws {
         let transport = StubTransport { request in
-            try reply(to: request, payload: #""result":{"context":{"slot":12345},"value":null}"#)
+            try reply(to: request, payload: #"""
+                "result":{"context":{"slot":12345},"value":{
+                    "err":null,"logs":["Program log: transfer","Program 11111111111111111111111111111111 success"],
+                    "unitsConsumed":1714,"loadedAccountsDataSize":413,"fee":5000,"replacementBlockhash":null
+                }}
+                """#)
         }
         let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
 
-        let response = try await rpc.send(GetAccountInfo(address: address))
+        let response = try await rpc.send(query)
 
-        #expect(response.value == nil)
         #expect(response.context.slot == 12345)
+        #expect(response.value.error == nil)
+        #expect(response.value.logs == ["Program log: transfer", "Program 11111111111111111111111111111111 success"])
+        #expect(response.value.unitsConsumed == 1714)
+        #expect(response.value.loadedAccountsDataSize == 413)
+        #expect(response.value.fee == 5000)
+        #expect(response.value.replacementBlockhash == nil)
+        let request = try #require(await transport.requests.first)
+        let body = try requestBody(request)
+        let parameters = try #require(body["params"] as? [Any])
+        #expect(body["method"] as? String == "simulateTransaction")
+        #expect(parameters.count == 2)
+        #expect(parameters.first as? String == "gfv/AA==")
+        let configuration = try #require(parameters.last as? [String: Any])
+        #expect(configuration["encoding"] as? String == "base64")
+        #expect(configuration["commitment"] as? String == expectedCommitment)
+        #expect(configuration["minContextSlot"] as? UInt64 == expectedSlot)
+        #expect(configuration["sigVerify"] as? Bool == expectedVerification)
+        #expect(configuration["replaceRecentBlockhash"] as? Bool == false)
+        #expect(configuration.count == (expectedSlot == nil ? 4 : 5))
     }
 
-    /// Verifies that malformed base64 account data produces a decoding failure.
-    @Test("get account rejects invalid base64 data")
-    func getAccountRejectsInvalidBase64Data() async {
+    /// Verifies that execution failures retain available diagnostics without becoming RPC errors.
+    ///
+    /// - Parameters:
+    ///   - value: The simulation outcome encoded by the fixture.
+    ///   - expectedError: The expected transaction failure.
+    ///   - expectedLogs: The available logs, or `nil` when execution never began.
+    ///   - expectedUnits: The consumed compute units, or `nil` if unavailable.
+    /// - Throws: An RPC error if the fixture response can't be decoded.
+    @Test("simulation preserves transaction failures and available diagnostics", arguments: [
+        (#"{"err":{"InstructionError":[0,{"Custom":6001}]},"logs":["Program log: insufficient funds"],"unitsConsumed":120}"#,
+         TransactionError(name: "InstructionError", details: .array([.integer(0), .object(["Custom": .integer(6001)])])),
+         ["Program log: insufficient funds"], UInt64?(120)),
+        (#"{"err":"BlockhashNotFound","logs":null,"unitsConsumed":null}"#,
+         TransactionError(name: "BlockhashNotFound", details: nil), [String]?.none, UInt64?.none),
+    ])
+    func simulationPreservesTransactionFailuresAndAvailableDiagnostics(
+        value: String, expectedError: TransactionError, expectedLogs: [String]?, expectedUnits: UInt64?
+    ) async throws {
         let transport = StubTransport { request in
-            try reply(to: request, payload: #""result":{"context":{"slot":12345},"value":{"lamports":100,"owner":"11111111111111111111111111111111","data":["%%%","base64"],"executable":false,"rentEpoch":18446744073709551615,"space":4}}"#)
+            try reply(to: request, payload: #""result":{"context":{"slot":12345},"value":\#(value)}"#)
+        }
+        let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
+
+        let response = try await rpc.send(SimulateTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00])))
+
+        #expect(response.context.slot == 12345)
+        #expect(response.value.error == expectedError)
+        #expect(response.value.logs == expectedLogs)
+        #expect(response.value.unitsConsumed == expectedUnits)
+        #expect(response.value.fee == nil)
+        #expect(response.value.loadedAccountsDataSize == nil)
+        #expect(response.value.replacementBlockhash == nil)
+    }
+
+    /// Verifies blockhash replacement options and the returned replacement's expiry height.
+    ///
+    /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
+    @Test("simulation returns the replacement blockhash and expiry height")
+    func simulationReturnsTheReplacementBlockhashAndExpiryHeight() async throws {
+        let transport = StubTransport { request in
+            try reply(to: request, payload: #"""
+                "result":{"context":{"slot":12345},"value":{"err":null,"replacementBlockhash":{
+                    "blockhash":"EkSnNWid2cvwEVnVx9aBqawnmiCNiDgp3gUdkDPTKN1N","lastValidBlockHeight":12000
+                }}}
+                """#)
+        }
+        let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
+
+        let response = try await rpc.send(SimulateTransaction(
+            transaction: Data([0x81, 0xFB, 0xFF, 0x00]), replacesRecentBlockhash: true
+        ))
+
+        let replacement = try #require(response.value.replacementBlockhash)
+        #expect(replacement.blockhash == "EkSnNWid2cvwEVnVx9aBqawnmiCNiDgp3gUdkDPTKN1N")
+        #expect(replacement.lastValidBlockHeight == 12000)
+        let request = try #require(await transport.requests.first)
+        let parameters = try #require(try requestBody(request)["params"] as? [Any])
+        let configuration = try #require(parameters.last as? [String: Any])
+        #expect(configuration["replaceRecentBlockhash"] as? Bool == true)
+        #expect(configuration["sigVerify"] as? Bool == false)
+    }
+
+    /// Verifies that a missing execution-error field can't be mistaken for success.
+    @Test("simulation rejects a response without an execution outcome")
+    func simulationRejectsAResponseWithoutAnExecutionOutcome() async {
+        let transport = StubTransport { request in
+            try reply(to: request, payload: #""result":{"context":{"slot":12345},"value":{"logs":[]}}"#)
         }
         let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
 
         await #expect(throws: RPCError.decoding) {
-            try await rpc.send(GetAccountInfo(address: address))
+            try await rpc.send(SimulateTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00])))
         }
     }
 
-    /// Verifies the outgoing address order and the corresponding accounts and ledger slot.
+    /// Verifies unchanged transaction bytes, submission options, and the returned signature.
     ///
+    /// - Parameters:
+    ///   - query: The request using default or explicit submission options.
+    ///   - expectedCommitment: The preflight confirmation level expected in the request.
+    ///   - expectedSlot: The minimum evaluation slot, or `nil` when omitted.
+    ///   - expectedSkip: Whether preflight checks should be skipped.
+    ///   - expectedRetries: The node's retry limit, or `nil` when omitted.
     /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
-    @Test("get multiple accounts returns accounts in request order")
-    func getMultipleAccountsReturnsAccountsInRequestOrder() async throws {
-        let addresses = [address, "11111111111111111111111111111111"]
+    @Test("send transaction returns the accepted signature and preserves signed bytes", arguments: [
+        (SendTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00])), "confirmed", UInt64?.none, false, UInt64?(0)),
+        (SendTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00]), preflightCommitment: .processed,
+                         minContextSlot: 12340, skipsPreflight: true, maxRetries: 2), "processed", 12340, true, 2),
+        (SendTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00]), maxRetries: nil), "confirmed", nil, false, nil),
+    ])
+    func sendTransactionReturnsTheAcceptedSignatureAndPreservesSignedBytes(
+        query: SendTransaction, expectedCommitment: String, expectedSlot: UInt64?, expectedSkip: Bool, expectedRetries: UInt64?
+    ) async throws {
+        let signature = "2id3YC2jK9G5Wo2phDx4gJVAew8DcY5NAojnVuao8rkxwPYPe8cSwE5GzhEgJA2y8fVjDEo6iR6ykBvDxrTQrtpb"
         let transport = StubTransport { request in
-            try reply(to: request, payload: #"""
-                "result":{"context":{"slot":12345},"value":[
-                    {"lamports":200,"owner":"11111111111111111111111111111111","data":["AQ==","base64"],"executable":false,"rentEpoch":18446744073709551615,"space":1},
-                    {"lamports":100,"owner":"11111111111111111111111111111111","data":["Ag==","base64"],"executable":false,"rentEpoch":18446744073709551615,"space":1}
-                ]}
-                """#)
-        }
-        let rpc: any RPC = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
-
-        let response = try await rpc.send(GetMultipleAccounts(addresses: addresses))
-
-        #expect(response.value.map { $0?.lamports } == [200, 100])
-        #expect(response.context.slot == 12345)
-        let requests = await transport.requests
-        #expect(requests.count == 1)
-        let request = try #require(requests.first)
-        let body = try requestBody(request)
-        let parameters = try #require(body["params"] as? [Any])
-        #expect(body["method"] as? String == "getMultipleAccounts")
-        #expect(parameters.count == 2)
-        #expect(parameters.first as? [String] == addresses)
-        #expect(parameters.last as? [String: String] == ["commitment": "confirmed", "encoding": "base64"])
-    }
-
-    /// Verifies that a missing account retains its position between existing accounts.
-    ///
-    /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
-    @Test("get multiple accounts preserves missing account positions")
-    func getMultipleAccountsPreservesMissingAccountPositions() async throws {
-        let addresses = [address, "11111111111111111111111111111111", "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"]
-        let transport = StubTransport { request in
-            try reply(to: request, payload: #"""
-                "result":{"context":{"slot":12345},"value":[
-                    {"lamports":200,"owner":"11111111111111111111111111111111","data":["AQ==","base64"],"executable":false,"rentEpoch":18446744073709551615,"space":1},
-                    null,
-                    {"lamports":100,"owner":"11111111111111111111111111111111","data":["Ag==","base64"],"executable":false,"rentEpoch":18446744073709551615,"space":1}
-                ]}
-                """#)
+            try reply(to: request, payload: #""result":"\#(signature)""#)
         }
         let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
 
-        let response = try await rpc.send(GetMultipleAccounts(addresses: addresses))
+        let result = try await rpc.send(query)
 
-        #expect(response.value.map { $0?.lamports } == [200, nil, 100])
-    }
-
-    /// Verifies filter encoding and the returned account's address, state, and ledger slot.
-    ///
-    /// - Parameters:
-    ///   - filter: The mint or token program used to select token accounts.
-    ///   - expectedFilter: The single filter field expected in the outgoing request.
-    /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
-    @Test("get token accounts returns account addresses and slot", arguments: [
-        (GetTokenAccountsByOwner.Filter.mint("So11111111111111111111111111111111111111112"),
-         ["mint": "So11111111111111111111111111111111111111112"]),
-        (.program("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
-         ["programId": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"]),
-    ])
-    func getTokenAccountsReturnsAccountAddressesAndSlot(
-        filter: GetTokenAccountsByOwner.Filter,
-        expectedFilter: [String: String]
-    ) async throws {
-        let transport = StubTransport { request in
-            try reply(to: request, payload: #"""
-                "result":{"context":{"slot":12345},"value":[
-                    {"pubkey":"BGocb4GEpbTFm8UFV2VsDSaBXHELPfAXrvd4vtt8QWrA","account":{
-                        "lamports":2039280,"owner":"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-                        "data":["AQIDBA==","base64"],"executable":false,"rentEpoch":18446744073709551615,"space":4
-                    }}
-                ]}
-                """#)
-        }
-        let rpc: any RPC = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
-
-        let response = try await rpc.send(GetTokenAccountsByOwner(owner: address, filter: filter))
-
-        #expect(response.value.count == 1)
-        let entry = try #require(response.value.first)
-        #expect(entry.address == "BGocb4GEpbTFm8UFV2VsDSaBXHELPfAXrvd4vtt8QWrA")
-        #expect(entry.account.owner == "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
-        #expect(entry.account.lamports == 2_039_280)
-        #expect(response.context.slot == 12345)
+        #expect(result == signature)
+        #expect(await transport.requests.count == 1)
         let request = try #require(await transport.requests.first)
         let body = try requestBody(request)
         let parameters = try #require(body["params"] as? [Any])
-        try #require(parameters.count == 3)
-        #expect(body["method"] as? String == "getTokenAccountsByOwner")
-        #expect(parameters[0] as? String == address)
-        #expect(parameters[1] as? [String: String] == expectedFilter)
-        #expect(parameters[2] as? [String: String] == ["commitment": "confirmed", "encoding": "base64"])
+        #expect(body["method"] as? String == "sendTransaction")
+        #expect(parameters.count == 2)
+        #expect(parameters.first as? String == "gfv/AA==")
+        let configuration = try #require(parameters.last as? [String: Any])
+        #expect(configuration["encoding"] as? String == "base64")
+        #expect(configuration["preflightCommitment"] as? String == expectedCommitment)
+        #expect(configuration["minContextSlot"] as? UInt64 == expectedSlot)
+        #expect(configuration["skipPreflight"] as? Bool == expectedSkip)
+        #expect(configuration["maxRetries"] as? UInt64 == expectedRetries)
+        #expect(configuration.count == 3 + (expectedSlot == nil ? 0 : 1) + (expectedRetries == nil ? 0 : 1))
     }
 
-    /// Verifies that a lookup with no matching accounts returns an empty array and its context.
-    ///
-    /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
-    @Test("get token accounts returns an empty collection when none match")
-    func getTokenAccountsReturnsAnEmptyCollectionWhenNoneMatch() async throws {
+    /// Verifies that preflight rejection retains its execution failure and simulation diagnostics.
+    @Test("send transaction preserves preflight errors and simulation logs without resubmitting")
+    func sendTransactionPreservesPreflightErrorsAndSimulationLogsWithoutResubmitting() async {
         let transport = StubTransport { request in
-            try reply(to: request, payload: #""result":{"context":{"slot":12345},"value":[]}"#)
+            try reply(to: request, payload: #"""
+                "error":{"code":-32002,"message":"Transaction simulation failed","data":{
+                    "err":{"InstructionError":[0,{"Custom":1}]},
+                    "logs":["Transfer: insufficient lamports"],"unitsConsumed":150,
+                    "loadedAccountsDataSize":142,"fee":5000,"replacementBlockhash":null
+                }}
+                """#)
         }
         let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
 
-        let response = try await rpc.send(GetTokenAccountsByOwner(
-            owner: address,
-            filter: .program("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
-        ))
+        await #expect(throws: RPCError.preflight(
+            message: "Transaction simulation failed",
+            simulation: SimulateTransaction.Value(
+                error: TransactionError(name: "InstructionError", details: .array([.integer(0), .object(["Custom": .integer(1)])])),
+                logs: ["Transfer: insufficient lamports"], unitsConsumed: 150,
+                loadedAccountsDataSize: 142, fee: 5000, replacementBlockhash: nil
+            )
+        )) {
+            try await rpc.send(SendTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00])))
+        }
+        #expect(await transport.requests.count == 1)
+    }
 
-        #expect(response.value.isEmpty)
+    /// Verifies that absent or unrecognized diagnostic data doesn't hide the server's rejection.
+    ///
+    /// - Parameters:
+    ///   - code: The server's rejection code.
+    ///   - dataField: An optional JSON field containing error-specific diagnostics.
+    @Test("send transaction retains server errors without recognized preflight diagnostics", arguments: [
+        (-32002, ""),
+        (-32002, #","data":null"#),
+        (-32002, #","data":{"logs":[]}"#),
+        (-32602, #","data":{"err":null,"logs":[]}"#),
+    ])
+    func sendTransactionRetainsServerErrorsWithoutRecognizedPreflightDiagnostics(code: Int, dataField: String) async {
+        let transport = StubTransport { request in
+            try reply(to: request, payload: #""error":{"code":\#(code),"message":"Submission rejected"\#(dataField)}"#)
+        }
+        let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
+
+        await #expect(throws: RPCError.server(code: code, message: "Submission rejected")) {
+            try await rpc.send(SendTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00])))
+        }
+    }
+
+    /// Verifies status order, confirmation levels, and default or explicit history lookup.
+    ///
+    /// - Parameter searchesHistory: Whether to query beyond the recent status cache.
+    /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
+    @Test("get signature statuses returns confirmation levels and processing slots", arguments: [false, true])
+    func getSignatureStatusesReturnsConfirmationLevelsAndProcessingSlots(searchesHistory: Bool) async throws {
+        let signatures = ["processed-signature", "confirmed-signature", "finalized-signature"]
+        let transport = StubTransport { request in
+            try reply(to: request, payload: #"""
+                "result":{"context":{"slot":12345},"value":[
+                    {"slot":12344,"confirmations":0,"err":null,"confirmationStatus":"processed"},
+                    {"slot":12330,"confirmations":14,"err":null,"confirmationStatus":"confirmed"},
+                    {"slot":12000,"confirmations":null,"err":null,"confirmationStatus":"finalized"}
+                ]}
+                """#)
+        }
+        let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
+        let query = searchesHistory
+            ? GetSignatureStatuses(signatures: signatures, searchesTransactionHistory: true)
+            : GetSignatureStatuses(signatures: signatures)
+
+        let response = try await rpc.send(query)
+
         #expect(response.context.slot == 12345)
+        try #require(response.value.count == 3)
+        let processed = try #require(response.value[0])
+        let confirmed = try #require(response.value[1])
+        let finalized = try #require(response.value[2])
+        #expect(processed.slot == 12344)
+        #expect(processed.confirmations == 0)
+        #expect(processed.confirmationStatus == .processed)
+        #expect(processed.error == nil)
+        #expect(confirmed.slot == 12330)
+        #expect(confirmed.confirmations == 14)
+        #expect(confirmed.confirmationStatus == .confirmed)
+        #expect(confirmed.error == nil)
+        #expect(finalized.slot == 12000)
+        #expect(finalized.confirmations == nil)
+        #expect(finalized.confirmationStatus == .finalized)
+        #expect(finalized.error == nil)
+        #expect(await transport.requests.count == 1)
+        let request = try #require(await transport.requests.first)
+        let body = try requestBody(request)
+        let parameters = try #require(body["params"] as? [Any])
+        #expect(body["method"] as? String == "getSignatureStatuses")
+        #expect(parameters.count == 2)
+        #expect(parameters.first as? [String] == signatures)
+        #expect(parameters.last as? [String: Bool] == ["searchTransactionHistory": searchesHistory])
+    }
+
+    /// Verifies that an unknown signature retains its position beside a known transaction.
+    ///
+    /// - Throws: An RPC error or a failed test prerequisite.
+    @Test("get signature statuses preserves missing transaction positions")
+    func getSignatureStatusesPreservesMissingTransactionPositions() async throws {
+        let transport = StubTransport { request in
+            try reply(to: request, payload: #"""
+                "result":{"context":{"slot":12345},"value":[
+                    null,{"slot":12344,"confirmations":0,"err":null,"confirmationStatus":null}
+                ]}
+                """#)
+        }
+        let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
+
+        let response = try await rpc.send(GetSignatureStatuses(signatures: ["unknown-signature", "known-signature"]))
+
+        try #require(response.value.count == 2)
+        #expect(response.value[0] == nil)
+        let status = try #require(response.value[1])
+        #expect(status.slot == 12344)
+        #expect(status.confirmationStatus == nil)
+    }
+
+    /// Verifies that a confirmed transaction can retain an execution failure as status data.
+    ///
+    /// - Throws: An RPC error or a failed test prerequisite.
+    @Test("get signature statuses returns execution failures for confirmed transactions")
+    func getSignatureStatusesReturnsExecutionFailuresForConfirmedTransactions() async throws {
+        let transport = StubTransport { request in
+            try reply(to: request, payload: #"""
+                "result":{"context":{"slot":12345},"value":[{
+                    "slot":12340,"confirmations":4,"err":{"InstructionError":[0,{"Custom":1}]},
+                    "confirmationStatus":"confirmed"
+                }]}
+                """#)
+        }
+        let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
+
+        let response = try await rpc.send(GetSignatureStatuses(signatures: ["failed-signature"]))
+
+        try #require(response.value.count == 1)
+        let status = try #require(response.value[0])
+        #expect(status.confirmationStatus == .confirmed)
+        #expect(status.error == TransactionError(
+            name: "InstructionError", details: .array([.integer(0), .object(["Custom": .integer(1)])])
+        ))
+    }
+
+    /// Verifies that omitted fields can't be mistaken for successful or finalized execution.
+    ///
+    /// - Parameter status: A status missing its execution error or confirmation count field.
+    @Test("get signature statuses rejects missing execution or confirmation fields", arguments: [
+        #"{"slot":12340,"confirmations":4,"confirmationStatus":"confirmed"}"#,
+        #"{"slot":12340,"err":null,"confirmationStatus":"confirmed"}"#,
+    ])
+    func getSignatureStatusesRejectsMissingExecutionOrConfirmationFields(status: String) async {
+        let transport = StubTransport { request in
+            try reply(to: request, payload: #""result":{"context":{"slot":12345},"value":[\#(status)]}"#)
+        }
+        let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
+
+        await #expect(throws: RPCError.decoding) {
+            try await rpc.send(GetSignatureStatuses(signatures: ["example-signature"]))
+        }
     }
 
     /// Verifies named DAS parameters and exact balances, metadata, prices, and indexing information.
@@ -535,54 +668,47 @@ struct HeliusRPCTests {
         #expect(response.nativeBalance?.lamports == 0)
     }
 
-    /// Verifies the parameterless version request and its decoded node metadata.
-    ///
-    /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
-    @Test("get version returns node version and feature set")
-    func getVersionReturnsNodeVersionAndFeatureSet() async throws {
-        let transport = StubTransport { request in
-            try reply(to: request, payload: #""result":{"solana-core":"3.0.0","feature-set":2891131721}"#)
-        }
-        let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
-
-        let version = try await rpc.send(GetVersion())
-
-        #expect(version.solanaCore == "3.0.0")
-        #expect(version.featureSet == 2_891_131_721)
-        let request = try #require(await transport.requests.first)
-        let body = try requestBody(request)
-        #expect(body["method"] as? String == "getVersion")
-        #expect((body["params"] as? [String]) == [])
-    }
-
     /// Verifies that an invalid-address rejection preserves the server's code and message.
-    @Test("get balance reports an invalid wallet address")
-    func getBalanceReportsAnInvalidWalletAddress() async {
+    @Test("get assets reports an invalid wallet address")
+    func getAssetsReportsAnInvalidWalletAddress() async {
         let transport = StubTransport { request in
             try reply(to: request, payload: #""error":{"code":-32602,"message":"Invalid param: WrongSize"}"#)
         }
         let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
 
         await #expect(throws: RPCError.server(code: -32602, message: "Invalid param: WrongSize")) {
-            try await rpc.send(GetBalance(address: "invalid-address"))
+            try await rpc.send(GetAssetsByOwner(owner: "invalid-address"))
         }
     }
 
     /// Verifies that server errors returned by the client omit its API key and endpoint.
     ///
-    /// - Parameter network: The Solana network whose authenticated endpoint to redact.
-    @Test("server errors hide API keys and authenticated URLs", arguments: [Network.mainnet, .devnet])
-    func serverErrorsHideAPIKeysAndAuthenticatedURLs(network: Network) async {
+    /// - Parameters:
+    ///   - network: The Solana network whose authenticated endpoint to redact.
+    ///   - includesSimulation: Whether the rejection contains preflight simulation logs.
+    @Test("server errors hide API keys and authenticated URLs", arguments: [Network.mainnet, .devnet], [false, true])
+    func serverErrorsHideAPIKeysAndAuthenticatedURLs(network: Network, includesSimulation: Bool) async {
         let apiKey = "test-key"
+        let code = includesSimulation ? -32002 : -32603
         let transport = StubTransport { request in
             let endpoint = try #require(request.url?.absoluteString)
+            let diagnostics = includesSimulation
+                ? #","data":{"err":"BlockhashNotFound","logs":["Request \#(endpoint) failed for \#(apiKey)"]}"#
+                : ""
             return try reply(to: request,
-                             payload: #""error":{"code":-32603,"message":"Request \#(endpoint) failed for \#(apiKey)"}"#)
+                             payload: #""error":{"code":\#(code),"message":"Request \#(endpoint) failed for \#(apiKey)"\#(diagnostics)}"#)
         }
         let rpc = HeliusRPC(apiKey: apiKey, network: network, transport: transport)
+        let message = "Request [redacted] failed for [redacted]"
+        let expectedError: RPCError = includesSimulation
+            ? .preflight(message: message, simulation: SimulateTransaction.Value(
+                error: TransactionError(name: "BlockhashNotFound", details: nil), logs: [message],
+                unitsConsumed: nil, loadedAccountsDataSize: nil, fee: nil, replacementBlockhash: nil
+            ))
+            : .server(code: code, message: message)
 
-        await #expect(throws: RPCError.server(code: -32603, message: "Request [redacted] failed for [redacted]")) {
-            try await rpc.send(GetVersion())
+        await #expect(throws: expectedError) {
+            try await rpc.send(SendTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00])))
         }
     }
 
@@ -596,7 +722,7 @@ struct HeliusRPCTests {
         let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
 
         await #expect(throws: RPCError.http(statusCode: 429, retryAfter: "5")) {
-            try await rpc.send(GetBalance(address: address))
+            try await rpc.send(GetBlockHeight())
         }
         #expect(await transport.requests.count == 1)
     }
@@ -605,13 +731,13 @@ struct HeliusRPCTests {
     @Test("responses belonging to another request are rejected")
     func responsesBelongingToAnotherRequestAreRejected() async {
         let transport = StubTransport { request in
-            try reply(to: request, payload: #""result":{"context":{"slot":12345},"value":100}"#,
+            try reply(to: request, payload: #""result":100"#,
                       id: "another-request")
         }
         let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
 
         await #expect(throws: RPCError.invalidResponse(.mismatchedID)) {
-            try await rpc.send(GetBalance(address: address))
+            try await rpc.send(GetBlockHeight())
         }
     }
 
@@ -662,7 +788,7 @@ struct HeliusRPCTests {
             throw URLError(.cancelled)
         }
         let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
-        let task = Task { @concurrent in try await rpc.send(GetVersion()) }
+        let task = Task { @concurrent in try await rpc.send(GetBlockHeight()) }
         defer {
             task.cancel()
             startedContinuation.finish()
@@ -708,69 +834,4 @@ private struct CodingCancellationRequest: RPCRequest {
             if throwsCancellation { throw CancellationError() }
         }
     }
-}
-
-/// A transport that records requests and delegates responses to a fixture closure.
-private actor StubTransport: HTTPTransport {
-    private(set) var requests: [URLRequest] = []
-    private(set) var observedCancellation = false
-    private let respond: @Sendable (URLRequest) async throws -> (Data, URLResponse)
-
-    /// Creates a transport with a fixture response handler.
-    ///
-    /// - Parameter respond: The closure that produces a response or throws an error.
-    init(respond: @escaping @Sendable (URLRequest) async throws -> (Data, URLResponse)) {
-        self.respond = respond
-    }
-
-    /// Records a request and awaits its fixture response.
-    ///
-    /// - Parameter request: The outgoing request to record and pass to the handler.
-    /// - Returns: The response body and metadata produced by the handler.
-    /// - Throws: Any error thrown by the fixture handler.
-    func data(for request: URLRequest) async throws -> (Data, URLResponse) {
-        requests.append(request)
-        do {
-            return try await respond(request)
-        } catch {
-            observedCancellation = Task.isCancelled
-            throw error
-        }
-    }
-}
-
-/// Decodes an outgoing request body as a JSON object for assertions.
-///
-/// - Parameter request: The HTTP request whose body to inspect.
-/// - Returns: The request's JSON object, keyed by field name.
-/// - Throws: A JSON parsing error, or a test prerequisite error if the body is
-///   missing or isn't an object.
-private func requestBody(_ request: URLRequest) throws -> [String: Any] {
-    let data = try #require(request.httpBody)
-    return try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
-}
-
-/// Creates an HTTP fixture response containing a JSON-RPC envelope.
-///
-/// - Parameters:
-///   - request: The request supplying the URL and default response identifier.
-///   - payload: A JSON member containing either `result` or `error`.
-///   - status: The HTTP status code. The default is 200.
-///   - headers: The response header fields. The default is an empty dictionary.
-///   - id: A response identifier override, or `nil` to echo the request's identifier.
-/// - Returns: The encoded response envelope and its HTTP metadata.
-/// - Throws: A JSON parsing error, or a test prerequisite error if required
-///   request fields or response metadata can't be obtained.
-private func reply(
-    to request: URLRequest,
-    payload: String,
-    status: Int = 200,
-    headers: [String: String] = [:],
-    id: String? = nil
-) throws -> (Data, URLResponse) {
-    let requestID = try #require(requestBody(request)["id"] as? String)
-    let url = try #require(request.url)
-    let response = try #require(HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: headers))
-    let data = Data(#"{"jsonrpc":"2.0","id":"\#(id ?? requestID)",\#(payload)}"#.utf8)
-    return (data, response)
 }
