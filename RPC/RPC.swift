@@ -1,5 +1,8 @@
 /// A type that sends typed remote procedure calls.
 public protocol RPC: Sendable {
+    /// The Solana network that receives the client's requests.
+    var network: Network { get }
+
     /// Sends a request and returns the result described by its response type.
     ///
     /// - Parameter request: The RPC method and parameters to send.

@@ -6,6 +6,29 @@ import Testing
 struct HeliusRPCTests {
     private let address = "83astBRguLMdt2h5U1Tpdq5tjFoJ6noeGwaY3mDLVcri"
 
+    /// Verifies that requests reach the Helius endpoint for the selected network.
+    ///
+    /// - Parameters:
+    ///   - network: The Solana network selected when creating the client.
+    ///   - expectedHost: The Helius host that should receive the request.
+    /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
+    @Test("requests use the selected network endpoint", arguments: [
+        (Network.mainnet, "mainnet.helius-rpc.com"),
+        (.devnet, "devnet.helius-rpc.com"),
+    ])
+    func requestsUseTheSelectedNetworkEndpoint(network: Network, expectedHost: String) async throws {
+        let transport = StubTransport { request in
+            try reply(to: request, payload: #""result":{"solana-core":"3.0.0","feature-set":2891131721}"#)
+        }
+        let rpc: any RPC = HeliusRPC(apiKey: "test-key", network: network, transport: transport)
+
+        _ = try await rpc.send(GetVersion())
+
+        let request = try #require(await transport.requests.first)
+        #expect(request.url?.host() == expectedHost)
+        #expect(rpc.network == network)
+    }
+
     /// Verifies the outgoing balance request and its exact lamports and slot.
     ///
     /// The fixture's balance exceeds `Double`'s exact integer range to detect
@@ -17,7 +40,7 @@ struct HeliusRPCTests {
         let transport = StubTransport { request in
             try reply(to: request, payload: #""result":{"context":{"slot":12345},"value":9007199254740993}"#)
         }
-        let rpc: any RPC = HeliusRPC(apiKey: "test-key", transport: transport)
+        let rpc: any RPC = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
 
         let balance = try await rpc.send(GetBalance(address: address))
 
@@ -33,7 +56,6 @@ struct HeliusRPCTests {
         #expect((parameters.last as? [String: String])?["commitment"] == "confirmed")
         #expect(request.httpMethod == "POST")
         #expect(request.value(forHTTPHeaderField: "Content-Type") == "application/json")
-        #expect(request.url?.host() == "devnet.helius-rpc.com")
         #expect(request.timeoutInterval == 30)
         let url = try #require(request.url)
         let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
@@ -48,7 +70,7 @@ struct HeliusRPCTests {
         let transport = StubTransport { request in
             try reply(to: request, payload: #""result":{"solana-core":"3.0.0","feature-set":2891131721}"#)
         }
-        let rpc = HeliusRPC(apiKey: "test-key", transport: transport)
+        let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
 
         let version = try await rpc.send(GetVersion())
 
@@ -66,7 +88,7 @@ struct HeliusRPCTests {
         let transport = StubTransport { request in
             try reply(to: request, payload: #""error":{"code":-32602,"message":"Invalid param: WrongSize"}"#)
         }
-        let rpc = HeliusRPC(apiKey: "test-key", transport: transport)
+        let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
 
         await #expect(throws: RPCError.server(code: -32602, message: "Invalid param: WrongSize")) {
             try await rpc.send(GetBalance(address: "invalid-address"))
@@ -74,15 +96,17 @@ struct HeliusRPCTests {
     }
 
     /// Verifies that server errors returned by the client omit its API key and endpoint.
-    @Test("server errors hide API keys and authenticated URLs")
-    func serverErrorsHideAPIKeysAndAuthenticatedURLs() async {
+    ///
+    /// - Parameter network: The Solana network whose authenticated endpoint to redact.
+    @Test("server errors hide API keys and authenticated URLs", arguments: [Network.mainnet, .devnet])
+    func serverErrorsHideAPIKeysAndAuthenticatedURLs(network: Network) async {
         let apiKey = "test-key"
         let transport = StubTransport { request in
             let endpoint = try #require(request.url?.absoluteString)
             return try reply(to: request,
                              payload: #""error":{"code":-32603,"message":"Request \#(endpoint) failed for \#(apiKey)"}"#)
         }
-        let rpc = HeliusRPC(apiKey: apiKey, transport: transport)
+        let rpc = HeliusRPC(apiKey: apiKey, network: network, transport: transport)
 
         await #expect(throws: RPCError.server(code: -32603, message: "Request [redacted] failed for [redacted]")) {
             try await rpc.send(GetVersion())
@@ -96,7 +120,7 @@ struct HeliusRPCTests {
             try reply(to: request, payload: #""error":{"code":-32005,"message":"Too many requests"}"#,
                       status: 429, headers: ["Retry-After": "5"])
         }
-        let rpc = HeliusRPC(apiKey: "test-key", transport: transport)
+        let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
 
         await #expect(throws: RPCError.http(statusCode: 429, retryAfter: "5")) {
             try await rpc.send(GetBalance(address: address))
@@ -111,7 +135,7 @@ struct HeliusRPCTests {
             try reply(to: request, payload: #""result":{"context":{"slot":12345},"value":100}"#,
                       id: "another-request")
         }
-        let rpc = HeliusRPC(apiKey: "test-key", transport: transport)
+        let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
 
         await #expect(throws: RPCError.invalidResponse(.mismatchedID)) {
             try await rpc.send(GetBalance(address: address))
@@ -132,7 +156,7 @@ struct HeliusRPCTests {
             for await _ in pending {}
             throw URLError(.cancelled)
         }
-        let rpc = HeliusRPC(apiKey: "test-key", transport: transport)
+        let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
         let task = Task { @concurrent in try await rpc.send(GetVersion()) }
         defer {
             task.cancel()

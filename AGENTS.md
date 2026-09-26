@@ -2,6 +2,7 @@
 
 - Keep this file lean: user-approved restrictions and clarifications only.
 - Use Conventional Commits format for every commit.
+- Do not add module-name prefixes to types; rely on the module namespace.
 - Keep every approach Simple, Easy to change, Don't Repeat Yourself, and Single Concern.
 - Use protocol-oriented programming throughout: depend on protocols and inject concrete implementations.
 - iOS 27.1+ with full iPhone Duo support; no older-iOS compatibility paths.
