@@ -1,13 +1,10 @@
 import Foundation
-import Synchronization
 
 /// Serializes cache access and shares each wallet's active refresh between consumers.
 actor RefreshCoordinator {
     private let source: any SnapshotFetching
     private let store: any SnapshotStoring
     private var flights: [CacheKey: Flight] = [:]
-    // Synchronous callers capture a generation before their subscription task can be delayed.
-    private nonisolated let subscriptionGenerations = Mutex<[String: UUID]>([:])
 
     /// Creates a coordinator with independent network and storage dependencies.
     ///
@@ -19,51 +16,39 @@ actor RefreshCoordinator {
         self.store = store
     }
 
-    /// Returns the wallet generation used to reject subscriptions queued before removal.
+    /// Registers an independent update stream and starts or joins the wallet's refresh.
     ///
-    /// - Parameter owner: The wallet whose subscription is being created.
-    /// - Returns: The current generation, captured without an actor suspension.
-    nonisolated func subscriptionGeneration(for owner: String) -> UUID {
-        subscriptionGenerations.withLock { generations in
-            if let generation = generations[owner] { return generation }
-            let generation = UUID()
-            generations[owner] = generation
-            return generation
-        }
-    }
-
-    /// Registers a consumer and starts a refresh if one isn't already running.
-    ///
-    /// - Parameters:
-    ///   - owner: The wallet to refresh.
-    ///   - id: The consumer's unique identifier.
-    ///   - subscriptionGeneration: The wallet generation captured before scheduling registration.
-    ///   - continuation: The consumer's independent update stream.
-    func subscribe(owner: String, id: UUID, subscriptionGeneration: UUID, continuation: AsyncStream<Update>.Continuation) {
-        guard !Task.isCancelled,
-              subscriptionGeneration == self.subscriptionGeneration(for: owner) else {
+    /// - Parameter owner: The wallet whose holdings to retrieve.
+    /// - Returns: A registered stream, or a finished stream if the calling task is cancelled.
+    func updates(for owner: String) -> AsyncStream<Update> {
+        let (stream, continuation) = AsyncStream<Update>.makeStream(bufferingPolicy: .bufferingNewest(2))
+        guard !Task.isCancelled else {
             continuation.finish()
-            return
+            return stream
         }
+        let id = UUID()
         let key = CacheKey(owner: owner, network: source.network)
+        continuation.onTermination = { @Sendable _ in
+            Task { @concurrent in await self.unsubscribe(key: key, id: id) }
+        }
         if var flight = flights[key] {
             flight.consumers[id] = continuation
             flights[key] = flight
             if let initial = flight.initial { continuation.yield(initial) }
-            return
+            return stream
         }
         let generation = UUID()
         flights[key] = Flight(generation: generation, consumers: [id: continuation])
         flights[key]?.task = Task { await refresh(key: key, generation: generation) }
+        return stream
     }
 
     /// Detaches one consumer and cancels work only when no consumers remain.
     ///
     /// - Parameters:
-    ///   - owner: The wallet being observed.
+    ///   - key: The wallet and network being observed.
     ///   - id: The departing consumer's identifier.
-    func unsubscribe(owner: String, id: UUID) {
-        let key = CacheKey(owner: owner, network: source.network)
+    private func unsubscribe(key: CacheKey, id: UUID) {
         guard var flight = flights[key] else { return }
         flight.consumers.removeValue(forKey: id)
         if flight.consumers.isEmpty {
@@ -79,7 +64,6 @@ actor RefreshCoordinator {
     /// - Parameter owner: The wallet whose local data to remove.
     /// - Throws: A file-system error if the saved snapshot can't be removed.
     func removeData(for owner: String) throws {
-        subscriptionGenerations.withLock { $0[owner] = UUID() }
         let key = CacheKey(owner: owner, network: source.network)
         if let flight = flights.removeValue(forKey: key) {
             flight.task?.cancel()

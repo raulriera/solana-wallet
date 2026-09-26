@@ -21,7 +21,8 @@ struct PortfolioTests {
             return page(for: request, assets: request.page == 1 ? [asset(units: 9_007_199_254_740_993)] : [])
         }
         let service = Portfolio(rpc: rpc, store: fixture.store, pageSize: 1)
-        var iterator = service.updates(for: "wallet").makeAsyncIterator()
+        let updates = await service.updates(for: "wallet")
+        var iterator = updates.makeAsyncIterator()
 
         let initial = try #require(await iterator.next())
         #expect(initial.snapshot == cached)
@@ -71,7 +72,8 @@ struct PortfolioTests {
             return page(for: request, assets: request.page == 2 ? [asset(units: 7)] : [])
         }
         let service = Portfolio(rpc: rpc, store: fixture.store, pageSize: 2)
-        var iterator = service.updates(for: "wallet").makeAsyncIterator()
+        let updates = await service.updates(for: "wallet")
+        var iterator = updates.makeAsyncIterator()
         _ = try #require(await iterator.next())
 
         let updated = try #require(await iterator.next())
@@ -101,7 +103,8 @@ struct PortfolioTests {
         defer { fixture.removeFiles() }
         let rpc = StubRPC { _ in throw RPCError.transport(.notConnectedToInternet) }
         let service = Portfolio(rpc: rpc, store: fixture.store)
-        var iterator = service.updates(for: "wallet").makeAsyncIterator()
+        let updates = await service.updates(for: "wallet")
+        var iterator = updates.makeAsyncIterator()
 
         let initial = try #require(await iterator.next())
         #expect(initial.snapshot == nil)
@@ -129,7 +132,8 @@ struct PortfolioTests {
             return page(for: request, assets: [asset(units: 100)])
         }
         let service = Portfolio(rpc: rpc, store: fixture.store, pageSize: 1)
-        var iterator = service.updates(for: "wallet").makeAsyncIterator()
+        let updates = await service.updates(for: "wallet")
+        var iterator = updates.makeAsyncIterator()
         _ = await iterator.next()
 
         let failed = try #require(await iterator.next())
@@ -149,7 +153,8 @@ struct PortfolioTests {
         let store = WriteFailingStore(cached: cached)
         let rpc = StubRPC { request in page(for: request, assets: []) }
         let service = Portfolio(rpc: rpc, store: store)
-        var iterator = service.updates(for: "wallet").makeAsyncIterator()
+        let updates = await service.updates(for: "wallet")
+        var iterator = updates.makeAsyncIterator()
         let initial = try #require(await iterator.next())
         #expect(initial.snapshot == cached)
 
@@ -175,7 +180,8 @@ struct PortfolioTests {
                                       items: [], nativeBalance: NativeBalance(lamports: 0, pricePerSOL: nil, totalPrice: nil))
         }
         let service = Portfolio(rpc: rpc, store: fixture.store)
-        var iterator = service.updates(for: "wallet").makeAsyncIterator()
+        let updates = await service.updates(for: "wallet")
+        var iterator = updates.makeAsyncIterator()
         _ = await iterator.next()
 
         let updated = try #require(await iterator.next())
@@ -195,7 +201,8 @@ struct PortfolioTests {
         defer { fixture.removeFiles() }
         let rpc = StubRPC { request in page(for: request, assets: [asset(units: 1)]) }
         let service = Portfolio(rpc: rpc, store: fixture.store, pageSize: 1)
-        var iterator = service.updates(for: "wallet").makeAsyncIterator()
+        let updates = await service.updates(for: "wallet")
+        var iterator = updates.makeAsyncIterator()
         _ = await iterator.next()
 
         let failed = try #require(await iterator.next())
@@ -226,7 +233,8 @@ struct PortfolioTests {
             return page(for: request, assets: [asset(units: 100)])
         }
         let service = Portfolio(rpc: rpc, store: fixture.store)
-        var iterator = service.updates(for: "wallet").makeAsyncIterator()
+        let updates = await service.updates(for: "wallet")
+        var iterator = updates.makeAsyncIterator()
         _ = try #require(await iterator.next())
         var startedIterator = started.makeAsyncIterator()
         _ = try #require(await startedIterator.next())
@@ -240,26 +248,28 @@ struct PortfolioTests {
         try await service.removeData(for: "wallet")
     }
 
-    /// Verifies removal before actor registration without depending on task scheduling order.
+    /// Verifies that immediate removal closes the returned stream without restoring saved holdings.
     ///
     /// - Throws: A fixture setup error or failed prerequisite.
-    @Test("removing wallet data rejects subscriptions queued before removal", .timeLimit(.minutes(1)))
-    func removingWalletDataRejectsSubscriptionsQueuedBeforeRemoval() async throws {
+    @Test("removing wallet data immediately after subscribing leaves no saved snapshot", .timeLimit(.minutes(1)))
+    func removingWalletDataImmediatelyAfterSubscribingLeavesNoSavedSnapshot() async throws {
         let fixture = Fixture()
         defer { fixture.removeFiles() }
         let key = CacheKey(owner: "wallet", network: .mainnet)
         try fixture.store.save(snapshot(owner: "wallet", network: .mainnet, units: 3), for: key)
-        let rpc = StubRPC { request in page(for: request, assets: []) }
-        let coordinator = RefreshCoordinator(source: SnapshotFetcher(rpc: rpc, pageSize: 1), store: fixture.store)
-        let generation = coordinator.subscriptionGeneration(for: "wallet")
-        let (stream, continuation) = AsyncStream<Update>.makeStream()
+        let (pending, release) = AsyncStream<Void>.makeStream()
+        defer { release.finish() }
+        let rpc = StubRPC { request in
+            for await _ in pending {}
+            return page(for: request, assets: [])
+        }
+        let service: any PortfolioProviding = Portfolio(rpc: rpc, store: fixture.store)
+        let updates = await service.updates(for: "wallet")
 
-        try await coordinator.removeData(for: "wallet")
-        await coordinator.subscribe(owner: "wallet", id: UUID(), subscriptionGeneration: generation, continuation: continuation)
+        try await service.removeData(for: "wallet")
+        release.finish()
 
-        var iterator = stream.makeAsyncIterator()
-        #expect(await iterator.next() == nil)
-        #expect(await rpc.requests.isEmpty)
+        for await update in updates { #expect(update.isRefreshing) }
         #expect(fixture.store.snapshot(for: key) == nil)
     }
 
@@ -285,7 +295,8 @@ struct PortfolioTests {
         let rpc = StubRPC(network: network) { _ in throw RPCError.transport(.notConnectedToInternet) }
         let recreatedStore = FileSnapshotStore(directory: fixture.directory)
         let service = Portfolio(rpc: rpc, store: recreatedStore)
-        var iterator = service.updates(for: owner).makeAsyncIterator()
+        let updates = await service.updates(for: owner)
+        var iterator = updates.makeAsyncIterator()
 
         let initial = try #require(await iterator.next())
         let failed = try #require(await iterator.next())
@@ -294,6 +305,45 @@ struct PortfolioTests {
         #expect(initial.snapshot?.network == network)
         #expect(initial.holdings.first?.amount?.units == expectedUnits)
         #expect(failed.snapshot == initial.snapshot)
+    }
+
+    /// Verifies that ending the final subscription stops networking while retaining cached holdings.
+    ///
+    /// - Throws: A fixture setup error or failed prerequisite.
+    @Test("cancelling the last consumer stops its request and preserves cached holdings", .timeLimit(.minutes(1)))
+    func cancellingTheLastConsumerStopsItsRequestAndPreservesCachedHoldings() async throws {
+        let fixture = Fixture()
+        defer { fixture.removeFiles() }
+        let key = CacheKey(owner: "wallet", network: .mainnet)
+        let cached = snapshot(owner: "wallet", network: .mainnet, units: 3)
+        try fixture.store.save(cached, for: key)
+        let (pending, release) = AsyncStream<Void>.makeStream()
+        let (started, startedContinuation) = AsyncStream<Void>.makeStream()
+        let (cancelled, cancelledContinuation) = AsyncStream<Void>.makeStream()
+        defer { release.finish(); startedContinuation.finish(); cancelledContinuation.finish() }
+        let rpc = StubRPC { request in
+            startedContinuation.yield(())
+            for await _ in pending {}
+            if Task.isCancelled { cancelledContinuation.yield(()) }
+            try Task.checkCancellation()
+            return page(for: request, assets: [])
+        }
+        let service: any PortfolioProviding = Portfolio(rpc: rpc, store: fixture.store)
+        let consumer = Task { @concurrent in
+            let updates = await service.updates(for: "wallet")
+            for await _ in updates {}
+        }
+        defer { consumer.cancel() }
+        var startedIterator = started.makeAsyncIterator()
+        _ = try #require(await startedIterator.next())
+
+        consumer.cancel()
+        await consumer.value
+
+        var cancelledIterator = cancelled.makeAsyncIterator()
+        _ = try #require(await cancelledIterator.next())
+        #expect(await rpc.requests.count == 1)
+        #expect(fixture.store.snapshot(for: key) == cached)
     }
 
     /// Verifies that cancelling one consumer leaves another consumer's shared refresh running.
@@ -317,14 +367,16 @@ struct PortfolioTests {
         }
         let service = Portfolio(rpc: rpc, store: fixture.store)
         let first = Task {
-            for await _ in service.updates(for: "wallet") { observedContinuation.yield(()) }
+            let updates = await service.updates(for: "wallet")
+            for await _ in updates { observedContinuation.yield(()) }
         }
         defer { first.cancel() }
         var observedIterator = observed.makeAsyncIterator()
         _ = try #require(await observedIterator.next())
         var startedIterator = started.makeAsyncIterator()
         _ = try #require(await startedIterator.next())
-        var second = service.updates(for: "wallet").makeAsyncIterator()
+        let updates = await service.updates(for: "wallet")
+        var second = updates.makeAsyncIterator()
         _ = try #require(await second.next())
         #expect(await rpc.requests.count == 1)
 

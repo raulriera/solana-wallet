@@ -26,22 +26,13 @@ public struct Portfolio: PortfolioProviding {
     ///
     /// The service owns cache lookup, pagination, persistence, and failure fallback.
     /// Each caller receives its own stream while concurrent callers share the refresh.
+    /// Registration completes before this method returns; the refresh arrives through the stream.
     ///
     /// - Parameter owner: The wallet address whose holdings to retrieve.
     /// - Returns: A finite stream of complete states. Cancelling its consuming task
     ///   detaches that consumer without clearing cached data.
-    public func updates(for owner: String) -> AsyncStream<Update> {
-        let id = UUID()
-        let generation = coordinator.subscriptionGeneration(for: owner)
-        let (stream, continuation) = AsyncStream<Update>.makeStream(bufferingPolicy: .bufferingNewest(2))
-        let subscription = Task { @concurrent in
-            await coordinator.subscribe(owner: owner, id: id, subscriptionGeneration: generation, continuation: continuation)
-        }
-        continuation.onTermination = { @Sendable _ in
-            subscription.cancel()
-            Task { @concurrent in await coordinator.unsubscribe(owner: owner, id: id) }
-        }
-        return stream
+    public func updates(for owner: String) async -> AsyncStream<Update> {
+        await coordinator.updates(for: owner)
     }
 
     /// Removes locally retained holdings and stops the wallet's active refresh.
