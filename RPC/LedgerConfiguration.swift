@@ -1,4 +1,4 @@
-/// The shared confirmation and evaluation limits for reading ledger progress.
+/// The shared confirmation and evaluation limits for ledger requests.
 struct LedgerConfiguration: Encodable {
     /// The confirmation level requested for the ledger state.
     let commitment: Commitment

@@ -143,6 +143,72 @@ struct HeliusRPCTests {
         #expect(configuration.count == (expectedSlot == nil ? 1 : 2))
     }
 
+    /// Verifies the base64 message, ledger configuration, and decoded fee and slot.
+    ///
+    /// The bytes are an encoding fixture; this test doesn't construct a transaction.
+    ///
+    /// - Parameters:
+    ///   - query: The request using default or explicit ledger configuration.
+    ///   - expectedCommitment: The confirmation level expected in the outgoing request.
+    ///   - expectedSlot: The minimum evaluation slot, or `nil` when it should be omitted.
+    /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
+    @Test("get fee for message returns fee lamports and slot", arguments: [
+        (GetFeeForMessage(message: Data([0x81, 0xFB, 0xFF, 0x00])), "confirmed", UInt64?.none),
+        (GetFeeForMessage(message: Data([0x81, 0xFB, 0xFF, 0x00]), commitment: .finalized, minContextSlot: 12340), "finalized", 12340),
+    ])
+    func getFeeForMessageReturnsFeeLamportsAndSlot(
+        query: GetFeeForMessage, expectedCommitment: String, expectedSlot: UInt64?
+    ) async throws {
+        let transport = StubTransport { request in
+            try reply(to: request, payload: #""result":{"context":{"slot":12345},"value":5000}"#)
+        }
+        let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
+
+        let response = try await rpc.send(query)
+
+        #expect(response.value == 5000)
+        #expect(response.context.slot == 12345)
+        let request = try #require(await transport.requests.first)
+        let body = try requestBody(request)
+        let parameters = try #require(body["params"] as? [Any])
+        #expect(body["method"] as? String == "getFeeForMessage")
+        #expect(parameters.count == 2)
+        #expect(parameters.first as? String == "gfv/AA==")
+        let configuration = try #require(parameters.last as? [String: Any])
+        #expect(configuration["commitment"] as? String == expectedCommitment)
+        #expect(configuration["minContextSlot"] as? UInt64 == expectedSlot)
+        #expect(configuration.count == (expectedSlot == nil ? 1 : 2))
+    }
+
+    /// Verifies that an unavailable fee remains distinct from a zero-lamport fee.
+    ///
+    /// - Throws: An RPC error if the fixture response can't be decoded.
+    @Test("get fee for message preserves an unavailable fee and its slot")
+    func getFeeForMessagePreservesAnUnavailableFeeAndItsSlot() async throws {
+        let transport = StubTransport { request in
+            try reply(to: request, payload: #""result":{"context":{"slot":12345},"value":null}"#)
+        }
+        let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
+
+        let response = try await rpc.send(GetFeeForMessage(message: Data([0x81, 0xFB, 0xFF, 0x00])))
+
+        #expect(response.value == nil)
+        #expect(response.context.slot == 12345)
+    }
+
+    /// Verifies that an omitted fee field is rejected rather than treated as an unavailable fee.
+    @Test("get fee for message rejects a response without a fee field")
+    func getFeeForMessageRejectsAResponseWithoutAFeeField() async {
+        let transport = StubTransport { request in
+            try reply(to: request, payload: #""result":{"context":{"slot":12345}}"#)
+        }
+        let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
+
+        await #expect(throws: RPCError.decoding) {
+            try await rpc.send(GetFeeForMessage(message: Data([0x81, 0xFB, 0xFF, 0x00])))
+        }
+    }
+
     /// Verifies the account request and its decoded state, bytes, and ledger slot.
     ///
     /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
