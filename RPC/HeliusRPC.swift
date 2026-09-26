@@ -69,17 +69,17 @@ public struct HeliusRPC: RPC, CustomStringConvertible, CustomDebugStringConverti
         do {
             httpRequest.httpBody = try JSONEncoder().encode(JSONRPCRequest(id: id, params: request))
         } catch {
+            try checkCancellation(after: error)
             throw RPCError.encoding
         }
+        try Task.checkCancellation()
 
         let data: Data
         let response: URLResponse
         do {
             (data, response) = try await transport.data(for: httpRequest)
         } catch {
-            if Task.isCancelled || error is CancellationError || (error as? URLError)?.code == .cancelled {
-                throw CancellationError()
-            }
+            try checkCancellation(after: error)
             // Foundation errors may contain the authenticated URL in userInfo.
             throw RPCError.transport((error as? URLError)?.code ?? .unknown)
         }
@@ -97,11 +97,12 @@ public struct HeliusRPC: RPC, CustomStringConvertible, CustomDebugStringConverti
         let reply: JSONRPCResponse<Request.Response>
         do {
             reply = try JSONDecoder().decode(JSONRPCResponse<Request.Response>.self, from: data)
-        } catch let error as RPCError {
-            throw error
         } catch {
+            try checkCancellation(after: error)
+            if let error = error as? RPCError { throw error }
             throw RPCError.decoding
         }
+        try Task.checkCancellation()
         guard reply.id == id else {
             throw RPCError.invalidResponse(.mismatchedID)
         }
@@ -110,6 +111,16 @@ public struct HeliusRPC: RPC, CustomStringConvertible, CustomDebugStringConverti
             return value
         case .failure(let error):
             throw RPCError.server(code: error.code, message: redactor.redact(error.message))
+        }
+    }
+
+    /// Preserves cancellation before classifying a request failure.
+    ///
+    /// - Parameter error: The error from encoding, transport, or decoding.
+    /// - Throws: `CancellationError` if the task or underlying operation was cancelled.
+    private func checkCancellation(after error: any Error) throws {
+        if Task.isCancelled || error is CancellationError || (error as? URLError)?.code == .cancelled {
+            throw CancellationError()
         }
     }
 }

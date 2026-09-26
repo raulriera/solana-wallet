@@ -468,6 +468,38 @@ struct HeliusRPCTests {
         }
     }
 
+    /// Verifies cancellation before networking even if the encoder returns normally.
+    ///
+    /// - Parameter throwsCancellation: Whether the encoder also throws after cancelling its task.
+    @Test("cancelling during encoding prevents the HTTP request", arguments: [false, true])
+    func cancellingDuringEncodingPreventsTheHTTPRequest(throwsCancellation: Bool) async {
+        let transport = StubTransport { request in try reply(to: request, payload: #""result":false"#) }
+        let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
+        let task = Task { @concurrent in
+            try await rpc.send(CodingCancellationRequest(cancelsDuringEncoding: true, throwsCancellation: throwsCancellation))
+        }
+
+        await #expect(throws: CancellationError.self) { try await task.value }
+        #expect(await transport.requests.isEmpty)
+    }
+
+    /// Verifies that cancellation during decoding never becomes a result or decoding error.
+    ///
+    /// - Parameter throwsCancellation: Whether the decoder also throws after cancelling its task.
+    @Test("cancelling during decoding surfaces a cancellation error", arguments: [false, true])
+    func cancellingDuringDecodingSurfacesACancellationError(throwsCancellation: Bool) async {
+        let transport = StubTransport { request in
+            try reply(to: request, payload: #""result":\#(throwsCancellation)"#)
+        }
+        let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
+        let task = Task { @concurrent in
+            try await rpc.send(CodingCancellationRequest(cancelsDuringEncoding: false, throwsCancellation: throwsCancellation))
+        }
+
+        await #expect(throws: CancellationError.self) { try await task.value }
+        #expect(await transport.requests.count == 1)
+    }
+
     /// Verifies transport cancellation after an RPC request has started.
     ///
     /// Streams coordinate request startup and cancellation without timed sleeps.
@@ -496,6 +528,38 @@ struct HeliusRPCTests {
 
         await #expect(throws: CancellationError.self) { try await task.value }
         #expect(await transport.observedCancellation)
+    }
+}
+
+/// A request that triggers cancellation inside a synchronous coding operation.
+private struct CodingCancellationRequest: RPCRequest {
+    static let method = "example"
+    let cancelsDuringEncoding: Bool
+    let throwsCancellation: Bool
+
+    /// Encodes empty parameters and optionally cancels the encoding task.
+    ///
+    /// - Parameter encoder: The encoder receiving the request parameters.
+    /// - Throws: `CancellationError` when the fixture is configured to throw during encoding.
+    func encode(to encoder: any Encoder) throws {
+        _ = encoder.unkeyedContainer()
+        if cancelsDuringEncoding {
+            withUnsafeCurrentTask { $0?.cancel() }
+            if throwsCancellation { throw CancellationError() }
+        }
+    }
+
+    /// A response that deterministically cancels its own decoding task.
+    struct Response: Decodable, Sendable {
+        /// Decodes whether to throw, then cancels the current task.
+        ///
+        /// - Parameter decoder: The decoder containing the fixture's throwing behavior.
+        /// - Throws: A decoding error, or `CancellationError` when configured to throw.
+        init(from decoder: any Decoder) throws {
+            let throwsCancellation = try decoder.singleValueContainer().decode(Bool.self)
+            withUnsafeCurrentTask { $0?.cancel() }
+            if throwsCancellation { throw CancellationError() }
+        }
     }
 }
 
