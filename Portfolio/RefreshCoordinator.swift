@@ -100,14 +100,16 @@ actor RefreshCoordinator {
         flights[key]?.initial = initial
         for continuation in flights[key]?.consumers.values ?? [:].values { continuation.yield(initial) }
 
+        var available = cached
         do {
             let snapshot = try await source.snapshot(for: key.owner)
             try Task.checkCancellation()
             guard flights[key]?.generation == generation else { return }
+            available = snapshot
             try store.save(snapshot, for: key)
             finish(key: key, generation: generation, update: Update(snapshot: snapshot, phase: .ready))
         } catch {
-            let update = Task.isCancelled ? nil : Update(snapshot: cached, phase: .failed(error))
+            let update = Task.isCancelled ? nil : Update(snapshot: available, phase: .failed(error))
             finish(key: key, generation: generation, update: update)
         }
     }

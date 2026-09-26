@@ -138,6 +138,28 @@ struct PortfolioTests {
         #expect(fixture.store.snapshot(for: key) == cached)
     }
 
+    /// Verifies that unavailable storage doesn't hide a complete network result.
+    ///
+    /// - Parameter cachedUnits: The preceding balance, or `nil` for an uncached wallet.
+    /// - Throws: A failed test prerequisite.
+    @Test("cache write failures retain freshly retrieved holdings", arguments: [nil, UInt64(3)])
+    func cacheWriteFailuresRetainFreshlyRetrievedHoldings(cachedUnits: UInt64?) async throws {
+        let cached = cachedUnits.map { snapshot(owner: "wallet", network: .mainnet, units: $0) }
+        let store = WriteFailingStore(cached: cached)
+        let rpc = StubRPC { request in page(for: request, assets: []) }
+        let service = Portfolio(rpc: rpc, store: store)
+        var iterator = service.updates(for: "wallet").makeAsyncIterator()
+        let initial = try #require(await iterator.next())
+        #expect(initial.snapshot == cached)
+
+        let updated = try #require(await iterator.next())
+
+        #expect(updated.holdings.first?.amount == Amount(units: 100, decimals: 9))
+        #expect((updated.error as? CocoaError)?.code == .fileWriteOutOfSpace)
+        #expect(!updated.isRefreshing)
+        #expect(await iterator.next() == nil)
+    }
+
     /// Verifies that a successful empty token list removes previously held tokens.
     ///
     /// - Throws: A fixture setup error or failed prerequisite.
@@ -324,6 +346,31 @@ private struct Fixture {
 
     /// Removes only this test's temporary files.
     func removeFiles() { try? FileManager.default.removeItem(at: directory) }
+}
+
+/// A snapshot store that simulates unavailable disk space.
+private struct WriteFailingStore: SnapshotStoring {
+    let cached: Snapshot?
+
+    /// Returns the preceding snapshot without accessing the file system.
+    ///
+    /// - Parameter key: The wallet and network being read.
+    /// - Returns: The fixture's preceding snapshot.
+    func snapshot(for key: CacheKey) -> Snapshot? { cached }
+
+    /// Rejects a write because the simulated disk is full.
+    ///
+    /// - Parameters:
+    ///   - snapshot: The new snapshot that couldn't be saved.
+    ///   - key: The wallet and network being written.
+    /// - Throws: The file-system out-of-space error.
+    func save(_ snapshot: Snapshot, for key: CacheKey) throws { throw CocoaError(.fileWriteOutOfSpace) }
+
+    /// Rejects removal from this immutable test store.
+    ///
+    /// - Parameter key: The wallet and network being removed.
+    /// - Throws: The file-system write-permission error.
+    func remove(for key: CacheKey) throws { throw CocoaError(.fileWriteNoPermission) }
 }
 
 /// An RPC test double that records requests and returns public typed fixtures.

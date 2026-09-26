@@ -4,7 +4,8 @@ public protocol PortfolioProviding: Sendable {
     ///
     /// - Parameter owner: The wallet address whose portfolio to retrieve.
     /// - Returns: A finite sequence containing initial state and, unless cancelled,
-    ///   a completed or failed refresh. Failures retain the preceding snapshot.
+    ///   a completed or failed refresh. Retrieval failures retain the preceding
+    ///   snapshot; persistence failures retain the freshly retrieved snapshot.
     func updates(for owner: String) -> AsyncStream<Update>
 
     /// Removes locally retained portfolio data and cancels its active refresh.

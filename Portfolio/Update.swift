@@ -6,7 +6,7 @@ public struct Update: Sendable {
         case refreshing
         /// The new snapshot has been retrieved and saved.
         case ready
-        /// The refresh failed, leaving the preceding snapshot intact.
+        /// Retrieval or persistence failed, retaining the latest complete snapshot.
         case failed(any Error)
     }
 
