@@ -62,6 +62,64 @@ struct HeliusRPCTests {
         #expect(query == [URLQueryItem(name: "api-key", value: "test-key")])
     }
 
+    /// Verifies the account request and its decoded state, bytes, and ledger slot.
+    ///
+    /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
+    @Test("get account returns owner lamports data and slot")
+    func getAccountReturnsOwnerLamportsDataAndSlot() async throws {
+        let transport = StubTransport { request in
+            try reply(to: request, payload: #""result":{"context":{"slot":12345},"value":{"lamports":9007199254740993,"owner":"11111111111111111111111111111111","data":["AQIDBA==","base64"],"executable":false,"rentEpoch":18446744073709551615,"space":4}}"#)
+        }
+        let rpc: any RPC = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
+
+        let response = try await rpc.send(GetAccountInfo(address: address))
+
+        let account = try #require(response.value)
+        #expect(account.owner == "11111111111111111111111111111111")
+        #expect(account.lamports == 9_007_199_254_740_993)
+        #expect(account.data == Data([1, 2, 3, 4]))
+        #expect(!account.isExecutable)
+        #expect(account.rentEpoch == UInt64.max)
+        #expect(account.space == 4)
+        #expect(response.context.slot == 12345)
+        let request = try #require(await transport.requests.first)
+        let body = try requestBody(request)
+        let parameters = try #require(body["params"] as? [Any])
+        #expect(body["method"] as? String == "getAccountInfo")
+        #expect(parameters.count == 2)
+        #expect(parameters.first as? String == address)
+        #expect(parameters.last as? [String: String] == ["commitment": "confirmed", "encoding": "base64"])
+    }
+
+    /// Verifies that a nonexistent account produces a nil value with its ledger context.
+    ///
+    /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
+    @Test("get account returns nil when the account does not exist")
+    func getAccountReturnsNilWhenTheAccountDoesNotExist() async throws {
+        let transport = StubTransport { request in
+            try reply(to: request, payload: #""result":{"context":{"slot":12345},"value":null}"#)
+        }
+        let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
+
+        let response = try await rpc.send(GetAccountInfo(address: address))
+
+        #expect(response.value == nil)
+        #expect(response.context.slot == 12345)
+    }
+
+    /// Verifies that malformed base64 account data produces a decoding failure.
+    @Test("get account rejects invalid base64 data")
+    func getAccountRejectsInvalidBase64Data() async {
+        let transport = StubTransport { request in
+            try reply(to: request, payload: #""result":{"context":{"slot":12345},"value":{"lamports":100,"owner":"11111111111111111111111111111111","data":["%%%","base64"],"executable":false,"rentEpoch":18446744073709551615,"space":4}}"#)
+        }
+        let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
+
+        await #expect(throws: RPCError.decoding) {
+            try await rpc.send(GetAccountInfo(address: address))
+        }
+    }
+
     /// Verifies the parameterless version request and its decoded node metadata.
     ///
     /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.

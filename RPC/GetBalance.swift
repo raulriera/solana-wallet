@@ -3,31 +3,8 @@ public struct GetBalance: RPCRequest {
     /// The JSON-RPC method name for retrieving an account balance.
     public static let method = "getBalance"
 
-    /// The confirmation level of the state used to answer a balance request.
-    public enum Commitment: String, Encodable, Sendable {
-        /// Uses state that the node has processed.
-        case processed
-        /// Uses state that the cluster has confirmed.
-        case confirmed
-        /// Uses state that the cluster has finalized.
-        case finalized
-    }
-
     /// An account balance and the context in which it was read.
     public struct Response: Decodable, Sendable {
-        /// The ledger context of the balance response.
-        public struct Context: Decodable, Sendable {
-            /// The slot at which the node evaluated the request.
-            public let slot: UInt64
-
-            /// Creates a ledger context for a balance response.
-            ///
-            /// - Parameter slot: The slot at which the node evaluated the request.
-            public init(slot: UInt64) {
-                self.slot = slot
-            }
-        }
-
         /// The ledger context associated with the returned balance.
         public let context: Context
 
