@@ -217,6 +217,29 @@ struct PortfolioTests {
         try await service.removeData(for: "wallet")
     }
 
+    /// Verifies removal before actor registration without depending on task scheduling order.
+    ///
+    /// - Throws: A fixture setup error or failed prerequisite.
+    @Test("removing wallet data rejects subscriptions queued before removal", .timeLimit(.minutes(1)))
+    func removingWalletDataRejectsSubscriptionsQueuedBeforeRemoval() async throws {
+        let fixture = Fixture()
+        defer { fixture.removeFiles() }
+        let key = CacheKey(owner: "wallet", network: .mainnet)
+        try fixture.store.save(snapshot(owner: "wallet", network: .mainnet, units: 3), for: key)
+        let rpc = StubRPC { request in page(for: request, assets: []) }
+        let coordinator = RefreshCoordinator(source: SnapshotFetcher(rpc: rpc, pageSize: 1), store: fixture.store)
+        let generation = coordinator.subscriptionGeneration(for: "wallet")
+        let (stream, continuation) = AsyncStream<Update>.makeStream()
+
+        try await coordinator.removeData(for: "wallet")
+        await coordinator.subscribe(owner: "wallet", id: UUID(), subscriptionGeneration: generation, continuation: continuation)
+
+        var iterator = stream.makeAsyncIterator()
+        #expect(await iterator.next() == nil)
+        #expect(await rpc.requests.isEmpty)
+        #expect(fixture.store.snapshot(for: key) == nil)
+    }
+
     /// Verifies disk reuse by a new service while keeping wallet and network identities separate.
     ///
     /// - Parameters:

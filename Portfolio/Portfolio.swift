@@ -32,11 +32,14 @@ public struct Portfolio: PortfolioProviding {
     ///   detaches that consumer without clearing cached data.
     public func updates(for owner: String) -> AsyncStream<Update> {
         let id = UUID()
+        let generation = coordinator.subscriptionGeneration(for: owner)
         let (stream, continuation) = AsyncStream<Update>.makeStream(bufferingPolicy: .bufferingNewest(2))
-        let subscription = Task { await coordinator.subscribe(owner: owner, id: id, continuation: continuation) }
+        let subscription = Task { @concurrent in
+            await coordinator.subscribe(owner: owner, id: id, subscriptionGeneration: generation, continuation: continuation)
+        }
         continuation.onTermination = { @Sendable _ in
             subscription.cancel()
-            Task { await coordinator.unsubscribe(owner: owner, id: id) }
+            Task { @concurrent in await coordinator.unsubscribe(owner: owner, id: id) }
         }
         return stream
     }
