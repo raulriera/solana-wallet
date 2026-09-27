@@ -1,6 +1,6 @@
 # Portfolio
 
-- `Portfolio` implements `PortfolioProviding`; RPC owns DAS requests and response decoding.
+- `Portfolio` implements `PortfolioProviding`; RPC owns the selected provider's DAS requests and response decoding. Portfolio depends on the provider-neutral RPC contract.
 - Await `updates(for:)` to register a consumer, then read its stream for one cache-and-refresh cycle. Registration completes before the stream returns; network results arrive through the stream.
 - Persist snapshots by wallet and network. Reuse existing data before refreshing; a missing snapshot is distinct from a successfully empty wallet.
 - Replace stored holdings only after all pages succeed. Fetch failures and cancellation preserve the preceding snapshot and its retrieval time. Storage failures expose the fresh snapshot alongside the error.

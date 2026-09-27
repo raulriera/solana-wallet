@@ -2,6 +2,8 @@
 
 Build for the agreed Simplified and Advanced wallet experiences. A test or hypothetical future use alone doesn't justify an RPC method.
 
+Connect directly to interchangeable Solana RPC/DAS providers; no app-owned backend or proxy. Helius is the current implementation. Keep provider-specific endpoints, authentication, and extensions inside RPC; consumers depend on provider-neutral protocols.
+
 | Feature | RPC need |
 | --- | --- |
 | Create/import seed phrases; view/copy address | None. Keep these local. |
