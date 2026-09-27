@@ -9,6 +9,7 @@
 - iOS 27.1+ with full iPhone Duo support; no older-iOS compatibility paths.
 - Swift 6 with the latest compiler, SDK APIs, Apple guidance, and supported upcoming language features. No deprecated approaches.
 - Pure Swift and Apple frameworks; avoid third-party dependencies where reasonable.
+- Use `'/Applications/SF Symbols.app/Contents/Executables/sfsymbols'` when interacting with SF Symbols.
 - Follow the Swift Concurrency plugin's `swift-concurrency` skill.
 - Follow [references/testing.md](references/testing.md) when writing or reviewing tests.
 - Document every function and initializer using Apple DocC conventions.
