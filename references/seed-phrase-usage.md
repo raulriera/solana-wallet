@@ -18,4 +18,4 @@ Research checked September 27, 2026. Approved storage and recovery requirements 
 - Avoid automatic clipboard export. If copying is explicitly offered, use [`localOnly`](https://developer.apple.com/documentation/uikit/uipasteboard/optionskey/localonly.md) and [`expirationDate`](https://developer.apple.com/documentation/uikit/uipasteboard/optionskey/expirationdate.md); these limit propagation and lifetime, not all local exposure.
 - After known phrase exposure, migrate to a wallet generated from fresh entropy. Changing the app PIN, reinstalling, or selecting another account under the same phrase does not revoke the leaked secret. [Solana recovery guidance](https://solana.com/news/8-2-2022-application-wallet-incident).
 
-Current Wallet performs local derivation without persistence or networking. These practices do not certify future storage, signing, or UI integrations.
+Wallet performs local derivation; Vault supplies separate device-only persistence. These practices and offline tests don't certify device authentication, signing, or future UI integrations.

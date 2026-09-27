@@ -1,0 +1,189 @@
+import Dispatch
+import Foundation
+import LocalAuthentication
+import Security
+import Synchronization
+import Testing
+import Wallet
+@testable import Vault
+
+/// Verifies storage behavior with isolated Keychain data and no biometric prompts.
+@Suite(.timeLimit(.minutes(1)))
+struct KeychainStoreTests {
+    /// Verifies complete recovery and the device-only biometric policy in the outgoing query.
+    @Test("saved recovery preserves the phrase passphrase and account path")
+    func savedRecoveryPreservesThePhrasePassphraseAndAccountPath() async throws {
+        let keychain = KeychainStub()
+        let store: any RecoveryStoring = KeychainStore(service: "test.recovery", keychain: keychain)
+        let id = UUID()
+        let original = try Fixtures.recovery()
+        try await store.save(original, for: id)
+
+        let recovered = try await store.recovery(for: id, reason: "Reveal recovery phrase")
+
+        #expect(recovered.phrase.words == original.phrase.words)
+        #expect(recovered.passphrase == " TREZOR ")
+        #expect(recovered.path.description == "m/44'/501'/1'/0'")
+        #expect(keychain.state.withLock { $0.hasRequiredProtection })
+        #expect(keychain.state.withLock { $0.queriedOnlyLocalItems })
+        #expect(keychain.state.withLock { $0.ranOffMainThread })
+        #expect(keychain.state.withLock { $0.promptReasons } == ["Reveal recovery phrase"])
+        #expect(!keychain.state.withLock { $0.permitsFallback })
+    }
+
+    /// Verifies that a duplicate save never replaces an existing wallet's secrets.
+    @Test("saving an existing wallet preserves its original recovery material")
+    func savingAnExistingWalletPreservesItsOriginalRecoveryMaterial() async throws {
+        let keychain = KeychainStub()
+        let store = KeychainStore(service: "test.recovery", keychain: keychain)
+        let id = UUID()
+        let original = try Fixtures.recovery()
+        try await store.save(original, for: id)
+        let replacement = Recovery(phrase: original.phrase, passphrase: "different", path: original.path)
+
+        await #expect(throws: KeychainStore.Failure.duplicateWallet) { try await store.save(replacement, for: id) }
+
+        let recovered = try await store.recovery(for: id, reason: "Recover wallet")
+        #expect(recovered.passphrase == original.passphrase)
+    }
+
+    /// Verifies distinct error mapping and retention after unsuccessful authentication or missing access.
+    /// - Parameter status: The Security failure returned by the read operation.
+    @Test("failed recovery reads preserve stored material", arguments: [
+        errSecAuthFailed, errSecUserCanceled, errSecItemNotFound, errSecInteractionNotAllowed,
+    ])
+    func failedRecoveryReadsPreserveStoredMaterial(status: OSStatus) async throws {
+        let keychain = KeychainStub()
+        let store = KeychainStore(service: "test.recovery", keychain: keychain)
+        let id = UUID()
+        try await store.save(Fixtures.recovery(), for: id)
+        let original = keychain.state.withLock { $0.items }
+        keychain.state.withLock { $0.readStatus = status }
+
+        await #expect {
+            try await store.recovery(for: id, reason: "Recover wallet")
+        } throws: { error in
+            switch status {
+            case errSecUserCanceled: return error is CancellationError
+            case errSecAuthFailed: return error as? KeychainStore.Failure == .authenticationFailed
+            case errSecItemNotFound: return error as? KeychainStore.Failure == .recoveryUnavailable
+            default: return error as? KeychainStore.Failure == .interactionNotAllowed
+            }
+        }
+        #expect(keychain.state.withLock { $0.items } == original)
+        keychain.state.withLock { $0.readStatus = errSecSuccess }
+        let recovered = try await store.recovery(for: id, reason: "Try recovery again")
+        #expect(recovered.passphrase == " TREZOR ")
+    }
+
+    /// Verifies that canceling an in-flight read invalidates its context and preserves storage.
+    @Test("cancelling recovery invalidates authentication without deleting the wallet")
+    func cancellingRecoveryInvalidatesAuthenticationWithoutDeletingTheWallet() async throws {
+        let (started, signal) = AsyncStream<Void>.makeStream()
+        let blocked = Mutex(false)
+        let timedOut = Mutex(false)
+        let release = DispatchSemaphore(value: 0)
+        let keychain = KeychainStub(
+            contextFactory: {
+                TestContext { if blocked.withLock({ $0 }) { release.signal() } }
+            },
+            beforeRead: {
+                blocked.withLock { $0 = true }
+                signal.yield(())
+                // Simulate the blocking Security call only on the dedicated background queue.
+                if release.wait(timeout: .now() + 5) == .timedOut { timedOut.withLock { $0 = true } }
+            }
+        )
+        let store = KeychainStore(service: "test.recovery", keychain: keychain)
+        let id = UUID()
+        try await store.save(Fixtures.recovery(), for: id)
+        let original = keychain.state.withLock { $0.items }
+        let read = Task { @concurrent in try await store.recovery(for: id, reason: "Recover wallet") }
+        defer { read.cancel(); release.signal(); signal.finish() }
+        for await _ in started { break }
+
+        read.cancel()
+
+        await #expect(throws: CancellationError.self) { try await read.value }
+        #expect(!timedOut.withLock { $0 })
+        #expect(keychain.state.withLock { $0.items } == original)
+    }
+
+    /// Verifies that unavailable biometrics never cause weaker or unusable storage.
+    @Test("saving without available biometrics stores no recovery material")
+    func savingWithoutAvailableBiometricsStoresNoRecoveryMaterial() async throws {
+        let keychain = KeychainStub(contextFactory: { TestContext(available: false) })
+        let store = KeychainStore(service: "test.recovery", keychain: keychain)
+        let recovery = try Fixtures.recovery()
+
+        await #expect(throws: KeychainStore.Failure.protectionUnavailable) {
+            try await store.save(recovery, for: UUID())
+        }
+        #expect(keychain.state.withLock { $0.items.isEmpty })
+    }
+
+    /// Verifies that canceled callers don't reach Security or open authentication prompts.
+    @Test("already cancelled recovery never queries the Keychain")
+    func alreadyCancelledRecoveryNeverQueriesTheKeychain() async {
+        let keychain = KeychainStub()
+        let store = KeychainStore(service: "test.recovery", keychain: keychain)
+        let (gate, continuation) = AsyncStream<Void>.makeStream()
+        let task = Task { @concurrent in
+            for await _ in gate {}
+            return try await store.recovery(for: UUID(), reason: "Recover wallet")
+        }
+        task.cancel()
+        continuation.finish()
+
+        await #expect(throws: CancellationError.self) { try await task.value }
+        #expect(keychain.state.withLock { $0.readCount } == 0)
+    }
+
+    /// Verifies exact deletion scope across wallet identifiers and service namespaces.
+    @Test("deleting recovery preserves other wallets and namespaces")
+    func deletingRecoveryPreservesOtherWalletsAndNamespaces() async throws {
+        let keychain = KeychainStub()
+        let store = KeychainStore(service: "test.recovery", keychain: keychain)
+        let otherStore = KeychainStore(service: "test.other", keychain: keychain)
+        let id = UUID()
+        let otherID = UUID()
+        let recovery = try Fixtures.recovery()
+        try await store.save(recovery, for: id)
+        try await store.save(recovery, for: otherID)
+        try await otherStore.save(recovery, for: id)
+
+        try await store.deleteRecovery(for: id)
+        try await store.deleteRecovery(for: id)
+
+        await #expect(throws: KeychainStore.Failure.recoveryUnavailable) {
+            try await store.recovery(for: id, reason: "Recover wallet")
+        }
+        let first = try await store.recovery(for: otherID, reason: "Recover other wallet")
+        let second = try await otherStore.recovery(for: id, reason: "Recover other namespace")
+        #expect(first.phrase.words == recovery.phrase.words)
+        #expect(second.phrase.words == recovery.phrase.words)
+        #expect(keychain.state.withLock { $0.items.count } == 2)
+        #expect(keychain.state.withLock { $0.queriedOnlyLocalItems })
+    }
+
+    /// Verifies that malformed or unsupported stored values fail without exposing or deleting them.
+    /// - Parameter invalid: A public malformed fixture returned by the test Keychain.
+    @Test("invalid stored recovery is rejected without being erased", arguments: [
+        "not-json",
+        "{\"version\":2,\"phrase\":\"secret-marker\",\"passphrase\":\"secret-marker\",\"path\":\"m\"}",
+        "{\"version\":1,\"phrase\":\"secret-marker\",\"passphrase\":\"secret-marker\",\"path\":\"m\"}",
+    ])
+    func invalidStoredRecoveryIsRejectedWithoutBeingErased(invalid: String) async throws {
+        let keychain = KeychainStub()
+        let store = KeychainStore(service: "test.recovery", keychain: keychain)
+        let id = UUID()
+        try await store.save(Fixtures.recovery(), for: id)
+        let original = keychain.state.withLock { $0.items }
+        keychain.state.withLock { $0.dataOverride = Data(invalid.utf8) }
+
+        await #expect(throws: KeychainStore.Failure.invalidRecovery) {
+            try await store.recovery(for: id, reason: "Recover wallet")
+        }
+        #expect(keychain.state.withLock { $0.items } == original)
+    }
+}

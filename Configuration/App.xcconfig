@@ -1,0 +1,2 @@
+// Merge direct dynamic dependencies in Release; retain dynamic linking in Debug.
+MERGED_BINARY_TYPE = automatic

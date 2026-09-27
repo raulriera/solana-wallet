@@ -1,3 +1,4 @@
+import Encoding
 import CryptoKit
 
 /// A service that creates recovery phrases and derives Solana addresses without networking or persistence.
