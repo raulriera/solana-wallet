@@ -1,6 +1,6 @@
 # Seed phrase handling
 
-Research checked September 27, 2026. Storage and UI policies still require agreement.
+Research checked September 27, 2026. Approved storage and recovery requirements are in [wallet.md](wallet.md); UI remains a later milestone.
 
 ## Incident lessons
 
@@ -14,7 +14,7 @@ Research checked September 27, 2026. Storage and UI policies still require agree
 - Preserve standard words, checksums, Unicode normalization, passphrases, and derivation paths. Backups must retain any passphrase and account path needed for recovery. Verify published [BIP-39](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki) and [SLIP-0010](https://github.com/satoshilabs/slips/blob/master/slip-0010.md) vectors; use only public fixtures.
 - Keep phrases, passphrases, seeds, and private keys out of logs, analytics, crash payloads, support messages, Helius requests, and AI/PCC prompts. Masked wrapper descriptions do not protect explicitly accessed contents.
 - Minimize secret copies and lifetime. Swift `String`/`Array`, `Sendable`, task cancellation, and framework boundaries do not guarantee memory erasure or isolation from other code in the process.
-- Before persistence, agree on [Keychain accessibility and item-level authentication](https://developer.apple.com/documentation/localauthentication/accessing-keychain-items-with-face-id-or-touch-id.md), backup, and synchronization. Never use preferences, portfolio caches, source files, or xcconfig for wallet secrets. Biometric unlock does not replace recovery backups.
+- Enforce [Keychain accessibility and item-level authentication](https://developer.apple.com/documentation/localauthentication/accessing-keychain-items-with-face-id-or-touch-id.md) under the approved device-only policy. Never use preferences, portfolio caches, source files, or xcconfig for wallet secrets. Biometric unlock does not replace recovery backups.
 - Avoid automatic clipboard export. If copying is explicitly offered, use [`localOnly`](https://developer.apple.com/documentation/uikit/uipasteboard/optionskey/localonly.md) and [`expirationDate`](https://developer.apple.com/documentation/uikit/uipasteboard/optionskey/expirationdate.md); these limit propagation and lifetime, not all local exposure.
 - After known phrase exposure, migrate to a wallet generated from fresh entropy. Changing the app PIN, reinstalling, or selecting another account under the same phrase does not revoke the leaked secret. [Solana recovery guidance](https://solana.com/news/8-2-2022-application-wallet-incident).
 

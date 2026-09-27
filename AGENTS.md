@@ -18,6 +18,7 @@
 - Add RPC methods only for concrete needs of agreed wallet features; follow [references/rpc-scope.md](references/rpc-scope.md), not endpoint coverage.
 - Helius is the only live Solana RPC provider; no app-owned backend/proxy.
 - Use Helius DAS for all portfolio data; follow [references/portfolio.md](references/portfolio.md).
+- Keep wallet recovery material device-only, excluded from iCloud sync and backups; follow [references/wallet.md](references/wallet.md).
 - Agree on architecture before implementation; work on one concern at a time.
 - Request documentation as Markdown by appending `.md`. Apple API docs: `https://developer.apple.com/documentation/<path>.md`; tutorials/design guidance: `https://developer.apple.com/tutorials/data/<path>.md`.
 
