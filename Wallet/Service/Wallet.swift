@@ -1,7 +1,7 @@
 import Encoding
 import CryptoKit
 
-/// A service that creates recovery phrases and derives Solana addresses without networking or persistence.
+/// A service that creates recovery phrases, derives addresses, and signs locally without persistence.
 public struct Wallet: WalletProviding {
     private let entropy: any EntropyProviding
 
@@ -49,9 +49,7 @@ public struct Wallet: WalletProviding {
         path: DerivationPath = .solana
     ) async throws -> String {
         try Task.checkCancellation()
-        let seed = try SeedDerivation.seed(for: phrase, passphrase: passphrase)
-        let privateKey = try KeyDerivation.privateKey(seed: seed, path: path)
-        let key = try Curve25519.Signing.PrivateKey(rawRepresentation: privateKey)
+        let key = try KeyDerivation.signingKey(for: phrase, passphrase: passphrase, path: path)
         let address = Base58.encode(Array(key.publicKey.rawRepresentation))
         try Task.checkCancellation()
         return address

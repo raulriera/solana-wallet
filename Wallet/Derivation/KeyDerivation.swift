@@ -2,6 +2,22 @@ import CryptoKit
 
 /// Hardened SLIP-0010 Ed25519 key derivation.
 enum KeyDerivation {
+    /// Recovers a CryptoKit signing key using the wallet's standard derivation pipeline.
+    ///
+    /// - Parameters:
+    ///   - phrase: The validated recovery words.
+    ///   - passphrase: The original BIP-39 passphrase.
+    ///   - path: The hardened account path.
+    /// - Returns: An Ed25519 key for use only within the current operation.
+    /// - Throws: `CancellationError` if cancelled, or a cryptographic error.
+    static func signingKey(
+        for phrase: RecoveryPhrase, passphrase: String, path: DerivationPath
+    ) throws -> Curve25519.Signing.PrivateKey {
+        let seed = try SeedDerivation.seed(for: phrase, passphrase: passphrase)
+        let bytes = try privateKey(seed: seed, path: path)
+        return try Curve25519.Signing.PrivateKey(rawRepresentation: bytes)
+    }
+
     /// Derives the Ed25519 private key at a hardened path.
     ///
     /// - Parameters:

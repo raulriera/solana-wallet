@@ -7,7 +7,9 @@
 - CryptoKit supplies SHA-256, HMAC-SHA512, and Ed25519. Security supplies secure randomness. Standard word-list data is included locally; no third-party runtime dependency.
 - The shared [Encoding](encoding.md) framework supplies Base58 address encoding; Wallet doesn't maintain a separate codec.
 - Verification uses published vectors and independently derived addresses. Only public test phrases are fixtures.
-- `Vault` implements secure persistence and biometric access. Transaction signing remains a later milestone; UI remains last.
+- `Wallet` also implements `MessageSigning`: `signature(for:using:expectedAddress:passphrase:path:)` signs exact bytes with CryptoKit after strict Base58 validation and a recovered-account check. Address derivation and signing share the same key derivation pipeline. Signing is `@concurrent`, checks cancellation, retains no secret state, and neither authenticates nor interprets transaction intent; the caller owns those steps.
+- Verify signatures cryptographically, not by deterministic byte equality: [CryptoKit may randomize signatures](https://developer.apple.com/documentation/cryptokit/curve25519/signing/privatekey/signature(for:).md). Tests use public fixtures, reject mismatched and Unicode-lookalike senders, and verify cancellation. Swift does not guarantee secret memory erasure.
+- `Vault` implements secure persistence and biometric access. Signing and assembly are verified offline and through a [live devnet transfer](transactions.md); application orchestration and UI remain later milestones.
 - Approved storage access: current biometric enrollment only, with no device-passcode fallback. Enrollment changes require recovery from the backup phrase and any original BIP-39 passphrase.
 - Approved storage boundary: a separate `Vault` framework exposes `RecoveryStoring`, implemented by `KeychainStore`, for saving, retrieving, and deleting recovery material.
 - Storage is device-only: no iCloud synchronization or cloud backup of recovery material. Use non-synchronizing Keychain items with `kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly` and `biometryCurrentSet`.

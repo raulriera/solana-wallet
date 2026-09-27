@@ -14,4 +14,8 @@ public enum ValidationError: Error, Sendable, Equatable {
     case invalidLoadedAccountsDataSizeLimit
     /// The heap size is outside the supported range or isn't a multiple of 1 KiB.
     case invalidHeapSize
+    /// The message header or size doesn't support a single-signer V1 transaction.
+    case invalidMessage
+    /// The signature isn't 64 bytes or doesn't verify against the message's signer.
+    case invalidSignature
 }
