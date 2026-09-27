@@ -15,6 +15,9 @@
 		A2000000000000000000000A /* Portfolio.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* Portfolio.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		A20000000000000000000020 /* RPC.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A10000000000000000000001 /* RPC.framework */; };
 		A20000000000000000000021 /* RPC.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A10000000000000000000001 /* RPC.framework */; };
+		A30000000000000000000008 /* Wallet.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A30000000000000000000001 /* Wallet.framework */; };
+		A30000000000000000000009 /* Wallet.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A30000000000000000000001 /* Wallet.framework */; };
+		A3000000000000000000000A /* Wallet.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = A30000000000000000000001 /* Wallet.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -32,6 +35,13 @@
 			remoteGlobalIDString = A20000000000000000000014;
 			remoteInfo = Portfolio;
 		};
+		A30000000000000000000012 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 000000000000000000000000 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A30000000000000000000014;
+			remoteInfo = Wallet;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -42,6 +52,7 @@
 			files = (
 				A1000000000000000000000A /* RPC.framework in Embed Frameworks */,
 				A2000000000000000000000A /* Portfolio.framework in Embed Frameworks */,
+				A3000000000000000000000A /* Wallet.framework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 		};
@@ -55,6 +66,8 @@
 		A10000000000000000000004 /* Local.example.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.example.xcconfig; sourceTree = "<group>"; };
 		A20000000000000000000001 /* Portfolio.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Portfolio.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		A20000000000000000000002 /* PortfolioTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = PortfolioTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A30000000000000000000001 /* Wallet.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Wallet.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		A30000000000000000000002 /* WalletTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = WalletTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -83,6 +96,16 @@
 			path = PortfolioTests;
 			sourceTree = "<group>";
 		};
+		A30000000000000000000005 /* Wallet */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Wallet;
+			sourceTree = "<group>";
+		};
+		A30000000000000000000006 /* WalletTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = WalletTests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -91,6 +114,7 @@
 			files = (
 				A10000000000000000000008 /* RPC.framework in Frameworks */,
 				A20000000000000000000008 /* Portfolio.framework in Frameworks */,
+				A30000000000000000000008 /* Wallet.framework in Frameworks */,
 			);
 		};
 		A10000000000000000000010 /* Frameworks */ = {
@@ -117,6 +141,17 @@
 				A20000000000000000000009 /* Portfolio.framework in Frameworks */,
 			);
 		};
+		A30000000000000000000010 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
+		A30000000000000000000011 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+				A30000000000000000000009 /* Wallet.framework in Frameworks */,
+			);
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -126,8 +161,10 @@
 				000000000000000000000010 /* widgets */,
 				A10000000000000000000005 /* RPC */,
 				A20000000000000000000005 /* Portfolio */,
+				A30000000000000000000005 /* Wallet */,
 				A10000000000000000000006 /* RPCTests */,
 				A20000000000000000000006 /* PortfolioTests */,
+				A30000000000000000000006 /* WalletTests */,
 				A10000000000000000000007 /* Configuration */,
 				000000000000000000000020 /* Products */,
 			);
@@ -139,8 +176,10 @@
 				000000000000000000000120 /* widgets.app */,
 				A10000000000000000000001 /* RPC.framework */,
 				A20000000000000000000001 /* Portfolio.framework */,
+				A30000000000000000000001 /* Wallet.framework */,
 				A10000000000000000000002 /* RPCTests.xctest */,
 				A20000000000000000000002 /* PortfolioTests.xctest */,
+				A30000000000000000000002 /* WalletTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -171,6 +210,7 @@
 			dependencies = (
 				A10000000000000000000013 /* PBXTargetDependency */,
 				A20000000000000000000013 /* PBXTargetDependency */,
+				A30000000000000000000013 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				000000000000000000000010 /* widgets */,
@@ -261,6 +301,45 @@
 			productReference = A20000000000000000000002 /* PortfolioTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		A30000000000000000000014 /* Wallet */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A30000000000000000000016 /* Build configuration list for PBXNativeTarget "Wallet" */;
+			buildPhases = (
+				A3000000000000000000000C /* Sources */,
+				A30000000000000000000010 /* Frameworks */,
+				A3000000000000000000000E /* Resources */,
+			);
+			buildRules = (
+			);
+			fileSystemSynchronizedGroups = (
+				A30000000000000000000005 /* Wallet */,
+			);
+			name = Wallet;
+			productName = Wallet;
+			productReference = A30000000000000000000001 /* Wallet.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		A30000000000000000000015 /* WalletTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A30000000000000000000017 /* Build configuration list for PBXNativeTarget "WalletTests" */;
+			buildPhases = (
+				A3000000000000000000000D /* Sources */,
+				A30000000000000000000011 /* Frameworks */,
+				A3000000000000000000000F /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A30000000000000000000013 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				A30000000000000000000006 /* WalletTests */,
+			);
+			name = WalletTests;
+			productName = WalletTests;
+			productReference = A30000000000000000000002 /* WalletTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -293,8 +372,10 @@
 				000000000000000100000000 /* widgets */,
 				A10000000000000000000014 /* RPC */,
 				A20000000000000000000014 /* Portfolio */,
+				A30000000000000000000014 /* Wallet */,
 				A10000000000000000000015 /* RPCTests */,
 				A20000000000000000000015 /* PortfolioTests */,
+				A30000000000000000000015 /* WalletTests */,
 			);
 		};
 /* End PBXProject section */
@@ -321,6 +402,16 @@
 			);
 		};
 		A2000000000000000000000F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+		A3000000000000000000000E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+		A3000000000000000000000F /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
 			);
@@ -353,6 +444,16 @@
 			files = (
 			);
 		};
+		A3000000000000000000000C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
+		A3000000000000000000000D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -365,6 +466,11 @@
 			isa = PBXTargetDependency;
 			target = A20000000000000000000014 /* Portfolio */;
 			targetProxy = A20000000000000000000012 /* PBXContainerItemProxy */;
+		};
+		A30000000000000000000013 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A30000000000000000000014 /* Wallet */;
+			targetProxy = A30000000000000000000012 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -737,6 +843,88 @@
 			};
 			name = Release;
 		};
+		A30000000000000000000018 /* Debug configuration for PBXNativeTarget "Wallet" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEFINES_MODULE = YES;
+				DEVELOPMENT_TEAM = R64MTWS872;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).Wallet";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		A30000000000000000000019 /* Release configuration for PBXNativeTarget "Wallet" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEFINES_MODULE = YES;
+				DEVELOPMENT_TEAM = R64MTWS872;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).Wallet";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		A3000000000000000000001A /* Debug configuration for PBXNativeTarget "WalletTests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = R64MTWS872;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).WalletTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "";
+			};
+			name = Debug;
+		};
+		A3000000000000000000001B /* Release configuration for PBXNativeTarget "WalletTests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = R64MTWS872;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).WalletTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -785,6 +973,22 @@
 			buildConfigurations = (
 				A2000000000000000000001A /* Debug configuration for PBXNativeTarget "PortfolioTests" */,
 				A2000000000000000000001B /* Release configuration for PBXNativeTarget "PortfolioTests" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		A30000000000000000000016 /* Build configuration list for PBXNativeTarget "Wallet" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A30000000000000000000018 /* Debug configuration for PBXNativeTarget "Wallet" */,
+				A30000000000000000000019 /* Release configuration for PBXNativeTarget "Wallet" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		A30000000000000000000017 /* Build configuration list for PBXNativeTarget "WalletTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A3000000000000000000001A /* Debug configuration for PBXNativeTarget "WalletTests" */,
+				A3000000000000000000001B /* Release configuration for PBXNativeTarget "WalletTests" */,
 			);
 			defaultConfigurationName = Release;
 		};

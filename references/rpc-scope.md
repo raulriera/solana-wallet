@@ -11,4 +11,4 @@ Build for the agreed Simplified and Advanced wallet experiences. A test or hypot
 
 - Confidential transfers remain conditional; agree on feasibility and the concrete flow before adding support.
 - Raw account, rent-exemption, and node-version queries are outside the current scope. Add them only when an agreed feature needs them.
-- RPC completion means the agreed flows have the communication they need. Next, revisit [simulation explanations](transaction-simulation.md); UI remains last.
+- RPC completion means the agreed flows have the communication they need. AI exploration is parked; [Wallet](wallet.md) creation and recovery are next. UI remains last.
