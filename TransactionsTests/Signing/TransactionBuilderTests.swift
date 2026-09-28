@@ -4,6 +4,18 @@ import Transactions
 
 /// Verifies V1 signature placement and failure boundaries through the public assembler.
 struct TransactionBuilderTests {
+    /// Verifies simulation preserves the message and reserves the trailing signature field.
+    @Test("unsigned simulations preserve V1 messages with one empty signature slot")
+    func unsignedSimulationsPreserveMessageWithEmptySignature() throws {
+        let message = try SignedTransferFixture.bytes(SignedTransferFixture.message)
+        let builder: any TransactionBuilding = TransactionBuilder()
+
+        let transaction = try builder.simulationTransaction(for: message)
+
+        let signedFixture = try SignedTransferFixture.bytes(SignedTransferFixture.transaction)
+        #expect(transaction == signedFixture.dropLast(64) + Data(repeating: 0, count: 64))
+    }
+
     /// Verifies the complete envelope against an independently signed Solana SDK fixture.
     @Test("signed SOL transfers match Solana SDK V1 transaction bytes")
     func signedTransfersMatchSolanaTransactionBytes() throws {
@@ -104,6 +116,9 @@ struct TransactionBuilderTests {
 
         #expect(throws: ValidationError.invalidMessage) {
             try TransactionBuilder().transaction(for: message, signature: Data(repeating: 0, count: 64))
+        }
+        #expect(throws: ValidationError.invalidMessage) {
+            try TransactionBuilder().simulationTransaction(for: message)
         }
     }
 }

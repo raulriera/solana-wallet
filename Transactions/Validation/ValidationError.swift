@@ -18,4 +18,14 @@ public enum ValidationError: Error, Sendable, Equatable {
     case invalidMessage
     /// The signature isn't 64 bytes or doesn't verify against the message's signer.
     case invalidSignature
+    /// The complete V1 envelope has invalid framing, bounds, accounts, or indices.
+    case invalidTransaction
+    /// The envelope isn't encoded in the supported V1 transaction format.
+    case unsupportedVersion
+    /// The message uses configuration bits whose meaning isn't supported.
+    case unsupportedConfiguration
+    /// The selected account doesn't have a required signature slot in this message.
+    case signerNotRequired
+    /// The selected account's signature slot is already occupied.
+    case signatureAlreadyPresent
 }

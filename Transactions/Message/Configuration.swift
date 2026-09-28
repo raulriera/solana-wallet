@@ -32,12 +32,20 @@ public struct Configuration: Sendable {
         guard (1...67_108_864).contains(loadedAccountsDataSizeLimit) else {
             throw ValidationError.invalidLoadedAccountsDataSizeLimit
         }
-        if let heapSize, !(32_768...262_144).contains(heapSize) || heapSize % 1_024 != 0 {
-            throw ValidationError.invalidHeapSize
-        }
+        try Self.validateHeapSize(heapSize)
         self.priorityFeeLamports = priorityFeeLamports
         self.computeUnitLimit = computeUnitLimit
         self.loadedAccountsDataSizeLimit = loadedAccountsDataSizeLimit
         self.heapSize = heapSize
+    }
+
+    /// Validates the heap rule shared by construction and wire decoding.
+    ///
+    /// - Parameter heapSize: The requested bytes, or `nil` for the protocol default.
+    /// - Throws: ``ValidationError/invalidHeapSize`` for an out-of-range or unaligned value.
+    static func validateHeapSize(_ heapSize: UInt32?) throws {
+        if let heapSize, !(32_768...262_144).contains(heapSize) || heapSize % 1_024 != 0 {
+            throw ValidationError.invalidHeapSize
+        }
     }
 }
