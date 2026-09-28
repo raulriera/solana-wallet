@@ -6,11 +6,10 @@ Internal app coordination follows [architecture](architecture.md). Services live
 
 These decisions extend the current single-provider implementation described below.
 
-- Include public Solana mainnet as a built-in provider. Providers can be activated; one enabled provider receives one submission, and multiple enabled providers receive concurrent submissions.
+- Include public Solana mainnet as a built-in provider. Submission eligibility depends only on activation, network, and support for the chosen route. One eligible provider receives one submission; multiple eligible providers receive concurrent submissions.
 - Submit the exact same signed transaction to every enabled provider on its network. Keep one signature and confirmation outcome; never rebuild or resign per provider.
 - Attempt each route once. Retain independent errors so one failed provider does not cancel another submission. An acknowledgment establishes acceptance, not execution; dispatch failures can leave delivery unknown.
 - Offer Helius Sender as an optional additional submission route through provider-neutral capabilities. Any required tip belongs in preparation, review, and signing; it remains payable if another route lands the transaction.
-- DAS is not required for submission. Portfolio behavior without DAS remains deferred.
 
 ## Current implementation
 

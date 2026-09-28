@@ -2,7 +2,7 @@
 
 Build for the agreed Simplified and Advanced wallet experiences. A test or hypothetical future use alone doesn't justify an RPC method.
 
-Connect directly to interchangeable Solana RPC providers; no app-owned backend or proxy. DAS is an optional capability, required for portfolio data but not submission. Helius is the current implementation. Keep provider-specific endpoints, authentication, and extensions inside RPC; consumers depend on provider-neutral protocols. App workflow coordination follows [architecture](architecture.md).
+Connect directly to interchangeable Solana RPC providers; no app-owned backend or proxy. Helius is the current implementation. Keep provider-specific endpoints, authentication, and extensions inside RPC; consumers depend on provider-neutral protocols. DAS serves portfolio viewing only; see [portfolio](portfolio.md). App workflow coordination follows [architecture](architecture.md).
 
 | Feature | RPC need |
 | --- | --- |
@@ -14,7 +14,7 @@ Connect directly to interchangeable Solana RPC providers; no app-owned backend o
 - Confidential transfers remain conditional; agree on feasibility and the concrete flow before adding support.
 - Account reads serve token-transfer prerequisites; general account exploration, rent-exemption, and node-version queries remain outside the current scope.
 - RPC completion means the agreed flows have the communication they need. Human-readable simulation explanations remain a separate milestone; AI exploration is parked. UI remains last.
-- Approved next: include public Solana mainnet (`https://api.mainnet.solana.com`) as a built-in provider, allow provider activation, and submit through every enabled provider on the transaction's network. Helius Sender is an optional additional capability; see [submission decisions](transfers.md#approved-next-submission-behavior). Non-DAS portfolio behavior remains deferred.
+- Approved next: include public Solana mainnet (`https://api.mainnet.solana.com`) as a built-in provider, allow provider activation, and submit through every enabled provider on the transaction's network. Helius Sender is an optional additional capability; see [submission decisions](transfers.md#approved-next-submission-behavior).
 
 ## Rate limits
 
