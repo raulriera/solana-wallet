@@ -37,6 +37,14 @@ nonisolated struct Preparation: Sendable {
     let fee: GetFeeForMessage.Response
     /// The execution outcome and diagnostics, including unsuccessful execution.
     let simulation: SimulateTransaction.Response
+    /// The estimated SOL deposit in lamports for a locally prepared token destination.
+    ///
+    /// Zero means the destination already exists; `nil` means this preparation
+    /// doesn't estimate account creation. The deposit stays in the recipient's
+    /// account and is separate from network fees, tips, and the token amount.
+    /// Rent queries have no slot context; account or rent changes can alter the
+    /// actual debit before execution. This value isn't a guaranteed total cost.
+    let destinationAccountRent: UInt64?
 
     /// Service tips added during local preparation, separate from the network fee.
     ///
@@ -51,9 +59,6 @@ nonisolated struct Preparation: Sendable {
     }
 
     /// The reviewed token debit, recipient, fee, and account-creation requirement, when locally constructed.
-    ///
-    /// Destination-account rent is separate from the network fee. Account creation
-    /// is indicated by `createsDestination`; its rent amount isn't estimated here.
     var tokenTransfer: TokenTransfer? {
         guard case .token(let transfer, _, _, _) = source else { return nil }
         return transfer
@@ -77,13 +82,16 @@ nonisolated struct Preparation: Sendable {
     ///   - network: The selected network used for all observations.
     ///   - fee: The total network fee and evaluation context.
     ///   - simulation: The transaction's execution result and evaluation context.
+    ///   - destinationAccountRent: The estimated destination deposit, or `nil` when unestimated.
     init(source: Source, signer: Address, transaction: Transaction, network: Network,
-         fee: GetFeeForMessage.Response, simulation: SimulateTransaction.Response) {
+         fee: GetFeeForMessage.Response, simulation: SimulateTransaction.Response,
+         destinationAccountRent: UInt64? = nil) {
         self.source = source
         self.signer = signer
         self.transaction = transaction
         self.network = network
         self.fee = fee
         self.simulation = simulation
+        self.destinationAccountRent = destinationAccountRent
     }
 }

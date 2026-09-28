@@ -29,6 +29,9 @@ struct TokenPreparationTests {
         #expect(transfer.source.address.value == example.source)
         #expect(transfer.createsDestination)
         #expect(transfer.expectedFee == nil)
+        let rent = try await rpc.send(GetMinimumBalanceForRentExemption(dataLength: example.program == .token ? 165 : 170))
+        #expect(preparation.destinationAccountRent == rent)
+        #expect(rent > 0)
         #expect(preparation.tips.isEmpty)
         #expect(preparation.network == .devnet)
         #expect(preparation.fee.value == 5_000)
@@ -38,6 +41,18 @@ struct TokenPreparationTests {
         #expect(preparation.transaction.instructions.count == 2)
         #expect(preparation.transaction.signatures.allSatisfy { $0.allSatisfy { $0 == 0 } })
         try await PreparationValidator(rpc: rpc).validate(preparation)
+    }
+
+    /// Verifies a real existing ATA doesn't add another account-creation deposit.
+    @Test("devnet token preparation reports zero rent for an existing destination", .timeLimit(.minutes(2)))
+    func existingDestinationHasNoCreationRent() async throws {
+        let rpc = try devnetRPC()
+        let preparation = try await preparation(for: Self.examples[1], to: nil, rpc: rpc)
+
+        #expect(preparation.tokenTransfer?.createsDestination == false)
+        #expect(preparation.destinationAccountRent == 0)
+        #expect(preparation.transaction.instructions.count == 1)
+        #expect(preparation.simulation.value.error == nil)
     }
 
     /// Verifies a reviewed token debit or service payment cannot disagree with the signed message.
@@ -91,11 +106,11 @@ struct TokenPreparationTests {
     ///
     /// - Parameters:
     ///   - example: The public mint and source account to read.
-    ///   - recipient: The unfunded wallet whose receiving account must be created.
+    ///   - recipient: The receiving wallet, or `nil` for the source account's owner.
     ///   - rpc: The real devnet client.
     /// - Returns: A one-unit preparation through the app's coordinator contract.
     /// - Throws: A missing live fixture, preparation, or cancellation error.
-    private func preparation(for example: Example, to recipient: Address, rpc: any RPC) async throws -> Preparation {
+    private func preparation(for example: Example, to recipient: Address?, rpc: any RPC) async throws -> Preparation {
         let sourceAddress = try Address(example.source)
         let state = try await rpc.send(GetMultipleAccounts(addresses: [sourceAddress.value]))
         let account = try #require(state.value.first ?? nil)
@@ -107,10 +122,10 @@ struct TokenPreparationTests {
                                                loadedAccountsDataSizeLimit: 1_048_576)
         if example.program == .token2022 {
             return try await coordinator.prepareTokenTransfer(mint: Address(example.mint), amount: 1,
-                from: source.owner, to: recipient, configuration: configuration)
+                from: source.owner, to: recipient ?? source.owner, configuration: configuration)
         }
         return try await coordinator.prepareTokenTransfer(mint: Address(example.mint), amount: 1,
-            from: source.owner, to: recipient, configuration: configuration, source: sourceAddress, memo: nil)
+            from: source.owner, to: recipient ?? source.owner, configuration: configuration, source: sourceAddress, memo: nil)
     }
 
     /// Creates a real devnet client using the test runner's ignored local configuration.

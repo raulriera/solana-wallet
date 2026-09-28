@@ -88,7 +88,7 @@ nonisolated struct Preparer: TransactionPreparing {
         return try await evaluate(transaction, source: .external(validity.context), signer: signer, network: network)
     }
 
-    /// Retrieves fee and simulation observations for each preparation path.
+    /// Retrieves fee, simulation, and applicable destination-rent estimates concurrently.
     ///
     /// - Parameters:
     ///   - transaction: The exact inspected message and existing signature slots.
@@ -107,11 +107,12 @@ nonisolated struct Preparer: TransactionPreparing {
             transaction: transaction.serializedRepresentation, commitment: .confirmed, minContextSlot: source.context.slot,
             verifiesSignatures: false, replacesRecentBlockhash: false
         ))
-        let observations = try await (fee, simulation)
+        async let rent = destinationAccountRent(for: source)
+        let observations = try await (fee, simulation, rent)
         try Task.checkCancellation()
         return Preparation(
             source: source, signer: signer, transaction: transaction, network: network,
-            fee: observations.0, simulation: observations.1
+            fee: observations.0, simulation: observations.1, destinationAccountRent: observations.2
         )
     }
 

@@ -2,6 +2,20 @@ import RPC
 import Transactions
 
 extension Preparer {
+    /// Estimates the destination deposit without treating token amounts as SOL rent.
+    ///
+    /// - Parameter source: The validated local intent or external transaction context.
+    /// - Returns: The deposit in lamports, zero for an existing token destination,
+    ///   or `nil` for preparation paths whose account allocations aren't interpreted.
+    /// - Throws: An RPC or cancellation error; failed estimates are never replaced with zero.
+    func destinationAccountRent(for source: Preparation.Source) async throws -> UInt64? {
+        guard case .token(let transfer, _, _, _) = source else { return nil }
+        guard let size = transfer.destinationAccountSize else { return 0 }
+        let rent = try await rpc.send(GetMinimumBalanceForRentExemption(dataLength: size))
+        // ATA creation always deposits at least one lamport, matching the program.
+        return max(1, rent)
+    }
+
     /// Reads consistent token account state and evaluates the exact transfer and service payments.
     ///
     /// Mint discovery determines associated addresses. A subsequent batch rereads

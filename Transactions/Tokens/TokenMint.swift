@@ -12,6 +12,23 @@ public struct TokenMint: Sendable {
     public let decimals: UInt8
     let data: TokenData
 
+    /// Account extensions required by the mint extensions supported for transfers.
+    private var requiredAccountExtensions: [(type: UInt16, length: UInt64)] {
+        let extensions: [(mint: UInt16, account: UInt16, length: UInt64)] = [
+            (1, 2, 8),   // TransferFeeConfig → TransferFeeAmount.
+            (14, 15, 1), // TransferHook → TransferHookAccount, including disabled hooks.
+            (26, 27, 0), // Pausable → PausableAccount, including unpaused mints.
+        ]
+        return extensions.filter { data.extensions[$0.mint] != nil }.map { ($0.account, $0.length) }
+    }
+
+    /// The ATA allocation size after transfer validation has rejected unsupported extensions.
+    var associatedAccountSize: UInt64 {
+        guard program == .token2022 else { return 165 }
+        // 165 base bytes, one account-type byte, and ImmutableOwner's four-byte TLV header.
+        return requiredAccountExtensions.reduce(170) { $0 + 4 + $1.length }
+    }
+
     /// Decodes an initialized mint from either supported token program.
     ///
     /// - Parameters:
@@ -92,8 +109,8 @@ public struct TokenMint: Sendable {
     /// - Parameter account: An existing source or destination account for this mint.
     /// - Throws: ``TokenError/accountMismatch`` when a required account extension is absent.
     func validateExtensions(of account: TokenAccount) throws {
-        for (mintExtension, accountExtension): (UInt16, UInt16) in [(1, 2), (14, 15), (26, 27)] {
-            if data.extensions[mintExtension] != nil, account.data.extensions[accountExtension] == nil {
+        for entry in requiredAccountExtensions {
+            if account.data.extensions[entry.type] == nil {
                 throw TokenError.accountMismatch
             }
         }

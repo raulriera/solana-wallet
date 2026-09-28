@@ -19,6 +19,13 @@ public struct TokenTransfer: Sendable {
     public let expectedFee: UInt64?
     /// Whether the transaction includes idempotent destination-account creation.
     public let createsDestination: Bool
+    /// The new destination's allocation size in bytes, or `nil` for an existing account.
+    ///
+    /// Includes immutable ownership and required mint extensions for Token-2022.
+    /// Use this size to query rent; the source account may have a different size.
+    public var destinationAccountSize: UInt64? {
+        createsDestination ? mint.associatedAccountSize : nil
+    }
     /// An optional UTF-8 memo placed immediately before the transfer.
     public let memo: String?
 
