@@ -7,7 +7,17 @@
   `get balance returns wallet lamports`, not `get balance is successful`.
 - Verify RPC integrations with the actual clients on devnet, including submission
   and confirmation. Do not add fake RPC implementations. Keep test credentials in
-  ignored local configuration and recovery material out of source, logs, and disk.
+  ignored local configuration and recovery material out of source, logs, and ordinary files.
+- Before requesting any funding, save test recovery in the device-only Vault and
+  verify it by reading back and deriving the same address. Retain both ends of
+  funded transfers across runs, reuse their balances, and return funds after fees.
+  Storage or identity failures stop setup; never silently replace a funded wallet.
+  Run funded tests on the retained simulator with `-parallel-testing-enabled NO`;
+  disposable simulator clones and resets cannot retain control of funded accounts.
+- For tests needing real biometrics, follow the local
+  [biometric-tests skill](../.agents/skills/biometric-tests/SKILL.md). It explains
+  local simulator selection, enrollment commands, opt-in tests, and
+  authentication events. Never toggle enrollment on the retained wallet simulator.
 - Verify public construction from a consumer using ordinary `import`; `@testable`
   can hide access restrictions. Keep implementation helpers internal; don't make
   them public for tests. Skip tests that only repeat initializer assignments.
@@ -17,3 +27,9 @@
   observed network behavior; do not claim they exhaust provider races or outages.
 - Test redaction independently, plus one focused client test proving returned
   errors hide fake credentials. Helper tests alone cannot verify client wiring.
+
+Verified on iPhone Duo / iOS 27.1 (2026-09-28): the real Keychain test rejected
+saving without Touch ID enrollment and left no readable item; with enrollment,
+save/read passed. Each mode executed one test and skipped the opposite case.
+Reads completed without a prompt, so hardware biometric enforcement remains
+unverified. These checks use public fixtures and require no devnet funds.

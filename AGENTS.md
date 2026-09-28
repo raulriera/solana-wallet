@@ -1,6 +1,7 @@
 # Project constraints
 
 - Keep this file lean: user-approved restrictions and clarifications only.
+- Keep skills machine-independent: discover local devices and paths instead of hardcoding them.
 - Use Conventional Commits format for every commit.
 - Commit or explicitly discard each milestone before starting the next; keep completed milestones in separate commits.
 - Do not add module-name prefixes to types; rely on the module namespace.
@@ -17,6 +18,7 @@
 - Follow the Swift Concurrency plugin's `swift-concurrency` skill.
 - Follow [references/testing.md](references/testing.md) when writing or reviewing tests.
 - Verify RPC integrations with real clients on devnet; do not add fake RPC implementations for tests.
+- Never request funding for a wallet without verified, retained recovery. Reuse controlled devnet test wallets and return test funds after fees; never discard funded wallet recovery.
 - Document every function and initializer using Apple DocC conventions.
 - Solana V1 transactions only.
 - Support SPL Token and Token-2022 together through shared token-transfer APIs.
