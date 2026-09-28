@@ -16,6 +16,7 @@
 - Use `'/Applications/SF Symbols.app/Contents/Executables/sfsymbols'` when interacting with SF Symbols.
 - Follow the Swift Concurrency plugin's `swift-concurrency` skill.
 - Follow [references/testing.md](references/testing.md) when writing or reviewing tests.
+- Verify RPC integrations with real clients on devnet; do not add fake RPC implementations for tests.
 - Document every function and initializer using Apple DocC conventions.
 - Solana V1 transactions only.
 - Support SPL Token and Token-2022 together through shared token-transfer APIs.

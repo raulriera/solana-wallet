@@ -11,11 +11,21 @@ nonisolated struct Submitter: TransactionSubmitting {
         case transactionMismatch
         /// The provider acknowledged another signature; the local transaction may still have been received.
         case responseMismatch(expectedSignature: String)
-        /// No enabled provider serves the transaction's network.
-        case noEnabledProviders
+        /// No supplied RPC serves the transaction's network.
+        case noProviders
     }
 
-    private let providers: [Provider]
+    /// Every RPC failed to acknowledge a transaction whose delivery may remain unknown.
+    struct Rejection: Error, Sendable {
+        /// The locally verified identifier available for subsequent status lookup.
+        let signature: String
+        /// The network on which submission was attempted.
+        let network: Network
+        /// The independent errors returned by the RPCs, including rate-limit details.
+        let errors: [any Error]
+    }
+
+    private let rpcs: [any RPC]
     private let validator: any PreparationValidating
     private let transactionBuilder: any TransactionBuilding
 
@@ -23,12 +33,12 @@ nonisolated struct Submitter: TransactionSubmitting {
     ///
     /// - Parameters:
     ///   - rpc: The provider used for prerequisite checks.
-    ///   - providers: The configured submission providers, or `nil` to submit through `rpc` alone.
+    ///   - rpcs: Every RPC to submit through, or `nil` to use `rpc` alone.
     ///   - messageBuilder: The encoder that checks locally constructed transfer intent.
     ///   - transactionBuilder: The validator for all required transaction signatures.
-    init(rpc: any RPC, providers: [Provider]? = nil, messageBuilder: any MessageBuilding = MessageBuilder(),
+    init(rpc: any RPC, rpcs: [any RPC]? = nil, messageBuilder: any MessageBuilding = MessageBuilder(),
          transactionBuilder: any TransactionBuilding = TransactionBuilder()) {
-        self.providers = providers ?? [Provider(rpc: rpc)]
+        self.rpcs = rpcs ?? [rpc]
         self.transactionBuilder = transactionBuilder
         validator = PreparationValidator(rpc: rpc, messageBuilder: messageBuilder, transactionBuilder: transactionBuilder)
     }
@@ -39,14 +49,17 @@ nonisolated struct Submitter: TransactionSubmitting {
     /// commitment and the newest reviewed slot. Cancellation after dispatch doesn't
     /// revoke a transaction; its locally known signature remains the lookup identifier.
     ///
+    /// All RPC requests start concurrently. The operation finishes after the attempts
+    /// settle, succeeds if any RPC acknowledges the signature, and owns all cancellation.
+    ///
     /// - Parameter signed: The exact approved result of the signing workflow.
-    /// - Returns: A receipt after the first matching acknowledgment; it owns remaining deliveries.
+    /// - Returns: A plain receipt with the accepted signature and network.
     /// - Throws: A prerequisite, signature, RPC, acknowledgment, or cancellation error.
     @concurrent
     func submit(_ signed: SignedTransaction) async throws -> Submission {
         try Task.checkCancellation()
-        let eligible = providers.filter { $0.isEnabled && $0.rpc.network == signed.preparation.network }
-        guard !eligible.isEmpty else { throw Failure.noEnabledProviders }
+        let rpcs = rpcs.filter { $0.network == signed.preparation.network }
+        guard !rpcs.isEmpty else { throw Failure.noProviders }
         let bytes = signed.transaction.serializedRepresentation
         let transaction = try transactionBuilder.validateSignatures(in: bytes)
         guard transaction == signed.transaction, transaction.message == signed.preparation.message else {
@@ -59,12 +72,36 @@ nonisolated struct Submitter: TransactionSubmitting {
         }
         try await validator.validate(signed.preparation)
         try Task.checkCancellation()
-        let broadcast = Broadcast(providers: eligible, request: SendTransaction(
+        let request = SendTransaction(
             transaction: bytes, preflightCommitment: .confirmed, minContextSlot: signed.preparation.minimumSlot,
             skipsPreflight: false, maxRetries: 0
-        ), signature: signature, network: signed.preparation.network)
-        try await broadcast.waitForAcceptance()
+        )
+        let errors = await withTaskGroup(of: Result<Void, any Error>.self) { group in
+            for rpc in rpcs {
+                group.addTask {
+                    do {
+                        try Task.checkCancellation()
+                        let acknowledged = try await rpc.send(request)
+                        try Task.checkCancellation()
+                        guard acknowledged == signature else {
+                            throw Failure.responseMismatch(expectedSignature: signature)
+                        }
+                        return .success(())
+                    } catch {
+                        return .failure(error)
+                    }
+                }
+            }
+            var errors: [any Error] = []
+            for await result in group {
+                if case .failure(let error) = result { errors.append(error) }
+            }
+            return errors
+        }
         try Task.checkCancellation()
-        return Submission(signature: signature, network: signed.preparation.network, broadcast: broadcast)
+        guard errors.count < rpcs.count else {
+            throw Rejection(signature: signature, network: signed.preparation.network, errors: errors)
+        }
+        return Submission(signature: signature, network: signed.preparation.network)
     }
 }

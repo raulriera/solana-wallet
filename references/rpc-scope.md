@@ -14,7 +14,7 @@ Connect directly to interchangeable Solana RPC providers; no app-owned backend o
 - Confidential transfers remain conditional; agree on feasibility and the concrete flow before adding support.
 - Account reads serve token-transfer prerequisites; general account exploration, rent-exemption, and node-version queries remain outside the current scope.
 - RPC completion means the agreed flows have the communication they need. Human-readable simulation explanations remain a separate milestone; AI exploration is parked. UI remains last.
-- Public Solana mainnet (`https://api.mainnet.solana.com`) is built in. App submission filters configured providers by activation and network, then broadcasts concurrently. Optional Helius Sender remains next; see [submission policy](transfers.md#submission-policy).
+- Public Solana mainnet (`https://api.mainnet.solana.com`) is built in. App submission broadcasts concurrently through every supplied RPC on the transaction's network. Optional Helius Sender remains next; see [submission policy](transfers.md#submission-policy).
 
 ## Rate limits
 

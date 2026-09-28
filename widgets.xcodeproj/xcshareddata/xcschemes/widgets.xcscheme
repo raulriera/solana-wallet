@@ -10,7 +10,13 @@
       </BuildActionEntry>
     </BuildActionEntries>
   </BuildAction>
-  <TestAction buildConfiguration="Debug" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.IDEFoundation.Launcher.LLDB" shouldUseLaunchSchemeArgsEnv="YES">
+  <TestAction buildConfiguration="Debug" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.IDEFoundation.Launcher.LLDB" shouldUseLaunchSchemeArgsEnv="NO">
+    <MacroExpansion>
+      <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="000000000000000100000000" BuildableName="widgets.app" BlueprintName="widgets" ReferencedContainer="container:widgets.xcodeproj"/>
+    </MacroExpansion>
+    <EnvironmentVariables>
+      <EnvironmentVariable key="HELIUS_API_KEY" value="$(HELIUS_API_KEY)" isEnabled="YES"/>
+    </EnvironmentVariables>
     <Testables>
       <TestableReference skipped="NO" parallelizable="YES">
         <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="A70000000000000000000015" BuildableName="widgetsTests.xctest" BlueprintName="widgetsTests" ReferencedContainer="container:widgets.xcodeproj"/>
