@@ -14,3 +14,9 @@ Connect directly to interchangeable Solana RPC/DAS providers; no app-owned backe
 - Confidential transfers remain conditional; agree on feasibility and the concrete flow before adding support.
 - Raw account, rent-exemption, and node-version queries are outside the current scope. Add them only when an agreed feature needs them.
 - RPC completion means the agreed flows have the communication they need. Human-readable simulation explanations remain a separate milestone; AI exploration is parked. UI remains last.
+
+## Rate limits
+
+- Keep requests single-attempt. Expose HTTP `429` through `RPCError.http(statusCode:retryAfter:)`, preserving the sanitized `Retry-After` header. No shared rate limiter, cooldown, or automatic retries.
+- Consumers decide presentation and recovery. Portfolio keeps its cached snapshot and exposes the refresh error; the app may silently ignore the warning.
+- Transaction submission surfaces the rate-limit error so the app can tell the user to wait. Do not automatically resubmit.

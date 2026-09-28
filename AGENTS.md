@@ -20,6 +20,7 @@
 - Solana V1 transactions only.
 - Separate frameworks by concern; all Solana RPC and DAS communication belongs in the RPC/API framework.
 - Keep RPC and DAS contracts provider-neutral; Helius is the current implementation, and providers must be interchangeable behind protocols.
+- Surface RPC rate-limit errors to consumers; do not add automatic throttling or retries in RPC.
 - Add RPC methods only for concrete needs of agreed wallet features; follow [references/rpc-scope.md](references/rpc-scope.md), not endpoint coverage.
 - Keep the app decentralized: no app-owned backend or proxy. Connect directly to Solana RPC providers that also offer DAS.
 - Use the selected provider's DAS interface for all portfolio data; follow [references/portfolio.md](references/portfolio.md).
