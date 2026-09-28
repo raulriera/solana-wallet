@@ -1,0 +1,190 @@
+import Foundation
+import Testing
+import Transactions
+
+/// Verifies both token programs through the same public transfer construction API.
+struct TokenTransferTests {
+    /// Verifies transfers and idempotent ATA creation against independent SDK instructions.
+    ///
+    /// - Parameter fixture: An original-token or Token-2022 example with an existing or absent ATA.
+    @Test("token transfers match SDK instructions and account privileges", arguments: TokenFixtures.transfers)
+    func tokenTransfersMatchSDK(_ fixture: TokenFixture) throws {
+        let transfer = try TokenTransfer(sender: Address(TokenFixtures.sender), recipient: Address(TokenFixtures.recipient),
+                                         mint: fixture.mint(), source: fixture.source(),
+                                         destination: fixture.createsDestination ? nil : fixture.target(), amount: fixture.amount)
+        let builder: any TokenMessageBuilding = MessageBuilder()
+        let message = try builder.message(for: transfer, recentBlockhash: MessageFixture.zeroBlockhash,
+                                          configuration: configuration())
+        let decoder = TransactionDecoder()
+        let result = try decoder.decode(TransactionBuilder().simulationTransaction(for: message))
+        let reference = try decoder.decode(base64: fixture.wire)
+        #expect(transfer.destination.value == fixture.destination)
+        #expect(transfer.expectedFee == nil)
+        #expect(result.requests == reference.requests)
+        #expect(result.lifetimeSpecifier == reference.lifetimeSpecifier)
+        #expect(result.accounts.first == reference.accounts.first)
+        #expect(result.instructions.count == reference.instructions.count)
+        // Account ordering can differ between compilers. Compare instructions by
+        // resolved address and role, retaining each instruction's account order.
+        for (actual, expected) in zip(result.instructions, reference.instructions) {
+            #expect(result.accounts[actual.programIndex] == reference.accounts[expected.programIndex])
+            #expect(actual.accountIndices.map { result.accounts[$0] } == expected.accountIndices.map { reference.accounts[$0] })
+            #expect(actual.data == expected.data)
+        }
+    }
+
+    /// Verifies the fee boundary, ceiling division, maximum cap, and UInt64 overflow safety.
+    @Test("Token-2022 transfers assert the epoch fee with exact rounding and caps")
+    func feeTransfersAssertEpochFee() throws {
+        let fixture = TokenFixtures.transfers[2]
+        let examples: [(amount: UInt64, epoch: UInt64, fee: UInt64)] = [
+            (1, 99, 1), (10_001, 99, 26), (10_001, 100, 50), (.max, 100, 50)
+        ]
+        for (index, example) in examples.enumerated() {
+            let transfer = try TokenTransfer(sender: Address(TokenFixtures.sender), recipient: Address(TokenFixtures.recipient),
+                                             mint: fixture.mint(TokenFixtures.feeMint), source: fixture.source(Data(base64Encoded: TokenFixtures.feeSource)),
+                                             destination: fixture.target(TokenFixtures.feeDestination), amount: example.amount, epoch: example.epoch)
+            let message = try MessageBuilder().message(for: transfer, recentBlockhash: MessageFixture.zeroBlockhash,
+                                                       configuration: configuration())
+            let result = try TransactionDecoder().decode(TransactionBuilder().simulationTransaction(for: message))
+            #expect(transfer.expectedFee == example.fee)
+            #expect(result.instructions.last?.data == Data(base64Encoded: TokenFixtures.feeInstructions[index]))
+        }
+    }
+
+    /// Verifies a missing epoch cannot silently select a fee schedule.
+    @Test("fee-bearing transfers require an observed ledger epoch")
+    func feeTransfersRequireEpoch() throws {
+        let fixture = TokenFixtures.transfers[2]
+        #expect(throws: TokenError.epochRequired) {
+            try TokenTransfer(sender: Address(TokenFixtures.sender), recipient: Address(TokenFixtures.recipient),
+                              mint: fixture.mint(TokenFixtures.feeMint), source: fixture.source(),
+                              destination: fixture.target(), amount: 1)
+        }
+    }
+
+    /// Verifies a fee mint cannot use an existing account without withheld-fee storage.
+    @Test("fee-bearing transfers reject a destination missing its required fee extension")
+    func feeTransfersRequireAccountExtension() throws {
+        let fixture = TokenFixtures.transfers[2]
+        #expect(throws: TokenError.accountMismatch) {
+            try TokenTransfer(sender: Address(TokenFixtures.sender), recipient: Address(TokenFixtures.recipient),
+                              mint: fixture.mint(TokenFixtures.feeMint),
+                              source: fixture.source(Data(base64Encoded: TokenFixtures.feeSource)),
+                              destination: fixture.target(), amount: 1, epoch: 100)
+        }
+    }
+
+    /// Verifies incoming memo requirements produce a signed memo immediately before the transfer.
+    @Test("memo-required transfers place the memo immediately before the token instruction")
+    func memoImmediatelyPrecedesTransfer() throws {
+        let fixture = TokenFixtures.transfers[2]
+        let transfer = try TokenTransfer(sender: Address(TokenFixtures.sender), recipient: Address(TokenFixtures.recipient),
+                                         mint: fixture.mint(), source: fixture.source(),
+                                         destination: fixture.target(TokenFixtures.memoAccount), amount: 1, memo: "Invoice 42")
+        let message = try MessageBuilder().message(for: transfer, recentBlockhash: MessageFixture.zeroBlockhash,
+                                                   configuration: configuration())
+        let result = try TransactionDecoder().decode(TransactionBuilder().simulationTransaction(for: message))
+        #expect(result.instructions.count == 2)
+        #expect(result.instructions[0].data == Data("Invoice 42".utf8))
+        #expect(result.accounts[result.instructions[0].programIndex].address.value == "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr")
+        #expect(result.accounts[result.instructions[0].accountIndices[0]].isSigner)
+        #expect(result.instructions[1].data.first == 12)
+    }
+
+    /// Verifies a required memo cannot be omitted even when token funds are sufficient.
+    @Test("memo-required transfers reject a missing memo")
+    func memoTransfersRejectMissingMemo() throws {
+        let fixture = TokenFixtures.transfers[2]
+        #expect(throws: TokenError.memoRequired) {
+            try TokenTransfer(sender: Address(TokenFixtures.sender), recipient: Address(TokenFixtures.recipient),
+                              mint: fixture.mint(), source: fixture.source(),
+                              destination: fixture.target(TokenFixtures.memoAccount), amount: 1)
+        }
+    }
+
+    /// Verifies a different token authority cannot be substituted by the caller.
+    @Test("token transfers reject a sender who does not own the source account")
+    func unrelatedSenderIsRejected() throws {
+        let fixture = TokenFixtures.transfers[0]
+        #expect(throws: TokenError.accountMismatch) {
+            try TokenTransfer(sender: Address(TokenFixtures.recipient), recipient: Address(TokenFixtures.sender),
+                              mint: fixture.mint(), source: fixture.source(), destination: nil, amount: 1)
+        }
+    }
+
+    /// Verifies program selection comes from the mint and account observations together.
+    @Test("token transfers reject accounts belonging to another token program")
+    func mixedProgramsAreRejected() throws {
+        #expect(throws: TokenError.accountMismatch) {
+            try TokenTransfer(sender: Address(TokenFixtures.sender), recipient: Address(TokenFixtures.recipient),
+                              mint: TokenFixtures.transfers[2].mint(), source: TokenFixtures.transfers[0].source(),
+                              destination: nil, amount: 1)
+        }
+    }
+
+    /// Verifies the recipient's address cannot be paired with another wallet's account state.
+    @Test("token transfers reject a destination controlled by another wallet")
+    func unrelatedDestinationIsRejected() throws {
+        let fixture = TokenFixtures.transfers[0]
+        let wrongOwner = try TokenAccount(address: Address(fixture.destination), programOwner: Address(fixture.program),
+                                          data: #require(Data(base64Encoded: fixture.sourceData)))
+        #expect(throws: TokenError.accountMismatch) {
+            try TokenTransfer(sender: Address(TokenFixtures.sender), recipient: Address(TokenFixtures.recipient),
+                              mint: fixture.mint(), source: fixture.source(), destination: wrongOwner, amount: 1)
+        }
+    }
+
+    /// Verifies an observed source balance cannot be exceeded locally.
+    @Test("token transfers reject an amount above the source balance")
+    func insufficientBalanceIsRejected() throws {
+        let fixture = TokenFixtures.transfers[0]
+        var bytes = try #require(Data(base64Encoded: fixture.sourceData))
+        bytes.replaceSubrange(64..<72, with: repeatElement(UInt8(0), count: 8))
+        #expect(throws: TokenError.insufficientBalance) {
+            try TokenTransfer(sender: Address(TokenFixtures.sender), recipient: Address(TokenFixtures.recipient),
+                              mint: fixture.mint(), source: fixture.source(bytes), destination: nil, amount: 1)
+        }
+    }
+
+    /// Verifies a mint's default-frozen state prevents constructing an unusable new account.
+    @Test("new token accounts reject a mint whose default account state is frozen")
+    func frozenDefaultIsRejected() throws {
+        let fixture = TokenFixtures.transfers[2]
+        #expect(throws: TokenError.frozenAccount) {
+            try TokenTransfer(sender: Address(TokenFixtures.sender), recipient: Address(TokenFixtures.recipient),
+                              mint: fixture.mint(TokenFixtures.frozenMint), source: fixture.source(), destination: nil, amount: 1)
+        }
+    }
+
+    /// Verifies hook programs cannot be silently dropped from transaction construction.
+    @Test("transfers report a hook extension that requires additional accounts")
+    func hooksAreReportedAsUnsupported() throws {
+        let fixture = TokenFixtures.transfers[2]
+        #expect(throws: TokenError.unsupportedExtension(14)) {
+            try TokenTransfer(sender: Address(TokenFixtures.sender), recipient: Address(TokenFixtures.recipient),
+                              mint: fixture.mint(TokenFixtures.hookMint), source: fixture.source(), destination: nil, amount: 1)
+        }
+    }
+
+    /// Verifies truncated and duplicate TLV entries cannot influence transfer fee interpretation.
+    @Test("mint decoding rejects truncated and duplicate extensions")
+    func malformedExtensionsAreRejected() throws {
+        let fixture = TokenFixtures.transfers[2]
+        let bytes = try #require(Data(base64Encoded: TokenFixtures.feeMint))
+        let malformed = [Data(bytes.dropLast()), bytes + bytes.dropFirst(166)]
+        for data in malformed {
+            #expect(throws: TokenError.invalidAccount) {
+                try TokenMint(address: Address(TokenFixtures.mint), owner: Address(fixture.program), data: data)
+            }
+        }
+    }
+
+    /// Supplies explicit resource requests shared by the independent SDK examples.
+    ///
+    /// - Returns: The same limits used by the fixture generator.
+    /// - Throws: A validation error if fixture constants become invalid.
+    private func configuration() throws -> Configuration {
+        try Configuration(priorityFeeLamports: 0, computeUnitLimit: 200_000, loadedAccountsDataSizeLimit: 65_536)
+    }
+}

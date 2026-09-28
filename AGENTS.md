@@ -18,6 +18,7 @@
 - Follow [references/testing.md](references/testing.md) when writing or reviewing tests.
 - Document every function and initializer using Apple DocC conventions.
 - Solana V1 transactions only.
+- Support SPL Token and Token-2022 together through shared token-transfer APIs.
 - Separate frameworks by concern; all Solana RPC and DAS communication belongs in the RPC/API framework.
 - Keep RPC and DAS contracts provider-neutral; Helius is the current implementation, and providers must be interchangeable behind protocols.
 - Surface RPC rate-limit errors to consumers; do not add automatic throttling or retries in RPC.

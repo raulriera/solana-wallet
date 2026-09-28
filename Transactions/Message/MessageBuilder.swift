@@ -1,7 +1,6 @@
-import Encoding
 public import Foundation
 
-/// A stateless encoder for single-instruction V1 SOL transfer messages.
+/// A stateless encoder for V1 SOL and token transfer messages.
 public struct MessageBuilder: MessageBuilding {
     /// Creates a message builder with no network, storage, or signing dependencies.
     public init() {}
@@ -24,34 +23,14 @@ public struct MessageBuilder: MessageBuilding {
         recentBlockhash: String,
         configuration: Configuration
     ) throws -> Data {
-        guard let blockhash = Base58.decode(recentBlockhash, byteCount: 32) else {
-            throw ValidationError.invalidBlockhash
-        }
-        let sendsToSelf = transfer.sender == transfer.recipient
-        let programIndex: UInt8 = sendsToSelf ? 1 : 2
-        let recipientIndex: UInt8 = sendsToSelf ? 0 : 1
-
-        // Version, one writable signer, no read-only signers, one read-only program.
-        var message = Data([0x81, 1, 0, 1])
-        let configurationMask: UInt32 = configuration.heapSize == nil ? 0x0f : 0x1f
-        message.appendLittleEndian(configurationMask)
-        message.append(contentsOf: blockhash)
-        message.append(contentsOf: [1, programIndex + 1])
-        message.append(contentsOf: transfer.sender.bytes)
-        if !sendsToSelf { message.append(contentsOf: transfer.recipient.bytes) }
-        message.append(contentsOf: repeatElement(UInt8(0), count: 32)) // System Program.
-
-        message.appendLittleEndian(configuration.priorityFeeLamports)
-        message.appendLittleEndian(configuration.computeUnitLimit)
-        message.appendLittleEndian(configuration.loadedAccountsDataSizeLimit)
-        if let heapSize = configuration.heapSize { message.appendLittleEndian(heapSize) }
-
-        // Instruction header: program index, two accounts, twelve data bytes.
-        message.append(contentsOf: [programIndex, 2])
-        message.appendLittleEndian(UInt16(12))
-        message.append(contentsOf: [0, recipientIndex])
-        message.appendLittleEndian(UInt32(2)) // SystemInstruction.transfer discriminant.
-        message.appendLittleEndian(transfer.lamports)
-        return message
+        var data = Data()
+        data.appendLittleEndian(UInt32(2)) // SystemInstruction.transfer.
+        data.appendLittleEndian(transfer.lamports)
+        let instruction = MessageEncoder.Instruction(
+            program: try Address("11111111111111111111111111111111"),
+            accounts: [(transfer.sender, true), (transfer.recipient, true)], data: data
+        )
+        return try MessageEncoder.encode(payer: transfer.sender, instructions: [instruction],
+                                         recentBlockhash: recentBlockhash, configuration: configuration)
     }
 }
