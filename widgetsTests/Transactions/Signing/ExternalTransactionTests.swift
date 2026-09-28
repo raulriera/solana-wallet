@@ -18,25 +18,24 @@ struct ExternalTransactionTests {
         let signingRPC = SigningRPC(fee: 15_000)
         let store = SigningRecoveryStore(recovery: recovery)
         let coordinator: any TransactionCoordinating = TransactionCoordinator(
-            preparer: Preparer(rpc: preparationRPC), signer: Signer(rpc: signingRPC, store: store), submitter: Submitter(rpc: signingRPC), confirmer: Confirmer(rpc: signingRPC)
+            rpc: preparationRPC, preparer: Preparer(rpc: preparationRPC), signer: Signer(rpc: signingRPC, store: store), submitter: Submitter(rpc: signingRPC), confirmer: Confirmer(rpc: signingRPC)
         )
         var input = expected.bytes
         input.insert(0xff, at: input.startIndex)
         input = input.dropFirst() // Exercise Foundation data with a nonzero start index.
 
-        let preparation = try await coordinator.prepare(TransactionDecoder().decode(input), for: expected.signer)
+        let preparation = try await coordinator.simulate(TransactionDecoder().decode(input), using: Account(id: UUID(), address: expected.signer))
         #expect(await store.reads.isEmpty)
-        let signed = try await coordinator.sign(preparation, for: UUID(), reason: "Approve reviewed transaction")
+        let signed = try await coordinator.sign(preparation)
 
         #expect(preparation.transaction == expected.transaction)
-        #expect(preparation.bytes == input)
-        #expect(preparation.signer == expected.signer)
+        #expect(preparation.transaction.serializedRepresentation == input)
         let reference = try ExternalFixture.signed(hasPayerSignature: hasPayerSignature)
-        #expect(signed.transaction.serializedRepresentation.dropLast(64) == reference.dropLast(64))
+        #expect(signed.serializedRepresentation.dropLast(64) == reference.dropLast(64))
         let key = try Curve25519.Signing.PublicKey(rawRepresentation: Data(reference.dropFirst(74).prefix(32)))
-        #expect(key.isValidSignature(signed.transaction.serializedRepresentation.suffix(64), for: preparation.message))
+        #expect(key.isValidSignature(signed.serializedRepresentation.suffix(64), for: preparation.transaction.message))
         #expect(try TransactionBuilder().transaction(byAdding: reference.suffix(64), for: expected.signer, to: input).serializedRepresentation == reference)
-        #expect(signed.isFullySigned == hasPayerSignature)
+        #expect(signed.signatures.allSatisfy { $0.contains(where: { $0 != 0 }) } == hasPayerSignature)
         #expect(await store.reads.count == 1)
         let requests = await preparationRPC.requests
         #expect(requests.count == 3)
@@ -127,18 +126,18 @@ struct ExternalTransactionTests {
                                     validitySlot: stage == "stale context" ? 399 : 403)
         let store = SigningRecoveryStore(recovery: try SigningFixture().recovery)
         let wallet = RecordingWallet()
-        let coordinator = TransactionCoordinator(preparer: Preparer(rpc: preparationRPC),
+        let coordinator = TransactionCoordinator(rpc: preparationRPC, preparer: Preparer(rpc: preparationRPC),
             signer: Signer(rpc: signingRPC, store: store, wallet: wallet), submitter: Submitter(rpc: signingRPC), confirmer: Confirmer(rpc: signingRPC))
 
         if stage == "preparation" {
             await #expect(throws: Preparer.Failure.invalidBlockhash) {
-                try await coordinator.prepare(expected.transaction, for: expected.signer)
+                try await coordinator.simulate(expected.transaction, using: Account(id: UUID(), address: expected.signer))
             }
             #expect(await preparationRPC.requests.count == 1)
         } else {
-            let preparation = try await coordinator.prepare(expected.transaction, for: expected.signer)
+            let preparation = try await coordinator.simulate(expected.transaction, using: Account(id: UUID(), address: expected.signer))
             await #expect(throws: PreparationValidator.Failure.expired) {
-                try await coordinator.sign(preparation, for: UUID(), reason: "Approve transaction")
+                try await coordinator.sign(preparation)
             }
         }
 

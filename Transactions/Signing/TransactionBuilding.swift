@@ -2,22 +2,12 @@ public import Foundation
 
 /// A type that validates and assembles V1 signature slots without changing messages.
 public protocol TransactionBuilding: Sendable {
-    /// Appends an empty signature slot for simulation without signing.
+    /// Appends an empty slot for every required signer without signing.
     ///
     /// - Parameter message: Unsigned V1 bytes produced by ``MessageBuilding``.
     /// - Returns: Transaction bytes for simulation with signature verification disabled.
-    /// - Throws: ``ValidationError/invalidMessage`` for an unsupported header or size.
+    /// - Throws: A structural validation error for an unsupported header, size, or message.
     func simulationTransaction(for message: Data) throws -> Data
-
-    /// Verifies a signature and appends it to the original V1 message.
-    ///
-    /// - Parameters:
-    ///   - message: Unsigned V1 bytes produced by ``MessageBuilding``.
-    ///   - signature: The 64-byte Ed25519 signature covering those exact bytes.
-    /// - Returns: Transaction bytes for simulation or submission through RPC.
-    /// - Throws: ``ValidationError/invalidMessage`` for an unsupported header or size,
-    ///   or ``ValidationError/invalidSignature`` if signature verification fails.
-    func transaction(for message: Data, signature: Data) throws -> Data
 
     /// Decodes an envelope and verifies each occupied signature slot.
     ///

@@ -10,14 +10,14 @@ nonisolated struct Preparer: TransactionPreparing {
         case invalidBlockhash
         /// The selected submission service requires a larger reviewed priority fee.
         case priorityFeeTooLow(minimumLamports: UInt64)
-        /// A mint or source token account doesn't exist on the selected network.
-        case missingAccount(Address)
-        /// Account observations have an unexpected count or an older ledger context.
-        case inconsistentAccounts
+        /// Provider observations conflict with the requested ledger context or exact message.
+        case inconsistentResponse
+        /// The provider omitted the resource usage needed to estimate V1 limits.
+        case resourceUsageUnavailable
     }
-    let rpc: any RPC
-    let messageBuilder: any MessageBuilding & TokenMessageBuilding
-    let transactionBuilder: any TransactionBuilding
+    private let rpc: any RPC
+    private let messageBuilder: any MessageBuilding
+    private let transactionBuilder: any TransactionBuilding
     private let requirements: [SubmissionRequirements]
 
     /// Creates a service with a provider and local V1 encoders.
@@ -30,7 +30,7 @@ nonisolated struct Preparer: TransactionPreparing {
     init(
         rpc: any RPC,
         rpcs: [any RPC]? = nil,
-        messageBuilder: any MessageBuilding & TokenMessageBuilding = MessageBuilder(),
+        messageBuilder: any MessageBuilding = MessageBuilder(),
         transactionBuilder: any TransactionBuilding = TransactionBuilder()
     ) {
         self.rpc = rpc
@@ -39,34 +39,64 @@ nonisolated struct Preparer: TransactionPreparing {
         requirements = (rpcs ?? [rpc]).filter { $0.network == rpc.network }.compactMap(\.submissionRequirements)
     }
 
-    /// Builds and evaluates the same unsigned message at confirmed commitment.
+    /// Compiles and simulates ordered instructions without accessing wallet recovery.
     ///
-    /// Fee estimation and simulation run concurrently, at or after the blockhash's
-    /// context slot. Simulation neither verifies signatures nor replaces the blockhash.
-    /// Each request is attempted once; signing and submission are separate operations.
+    /// Automatic resource estimation happens before the final review. Explicit
+    /// configuration is preserved. No instructions or requests change after review.
     ///
     /// - Parameters:
-    ///   - transfer: The validated native SOL transfer.
-    ///   - configuration: The explicit priority fee and execution resource limits.
-    /// - Returns: Immutable review data, including unsuccessful simulation results.
-    /// - Throws: ``Failure/priorityFeeTooLow(minimumLamports:)`` if a service requires a
-    ///   higher fee, a construction or RPC error, or `CancellationError` if cancelled.
+    ///   - instructions: The ordered invocations composing one atomic transaction.
+    ///   - payer: The transaction fee payer, independent of instruction authorities.
+    ///   - signer: The wallet account selected for later signing.
+    ///   - configuration: Explicit requests, or `nil` to estimate resources.
+    ///   - minimumSlot: The earliest ledger context permitted by resolved instructions.
+    /// - Returns: The exact final transaction, fee, expiry, and simulation diagnostics.
+    /// - Throws: A composition, resource estimation, RPC, or cancellation error.
     @concurrent
-    func prepare(_ transfer: Transfer, configuration: Configuration) async throws -> Preparation {
+    func prepare(_ instructions: [Instruction], payer: Address, signer: Address,
+                 configuration: Configuration? = nil, minimumSlot: UInt64? = nil) async throws -> Preparation {
         try Task.checkCancellation()
-        let tips = try serviceTips(from: transfer.sender, configuration: configuration)
-        let transfers = [transfer] + tips
-        let network = rpc.network
-        let blockhash = try await rpc.send(GetLatestBlockhash(commitment: .confirmed))
+        let minimumFee = requirements.map(\.minimumPriorityFeeLamports).max() ?? 0
+        var requests = try configuration ?? Configuration(priorityFeeLamports: minimumFee,
+            computeUnitLimit: 1_400_000, loadedAccountsDataSizeLimit: 67_108_864)
+        guard requests.priorityFeeLamports >= minimumFee else {
+            throw Failure.priorityFeeTooLow(minimumLamports: minimumFee)
+        }
+        let tips = try requirements.map {
+            try SystemProgram.transfer(from: payer, to: Address($0.tipRecipient), lamports: $0.tipLamports)
+        }
+        let invocations = instructions + tips
+        let blockhash = try await rpc.send(GetLatestBlockhash(commitment: .confirmed, minContextSlot: minimumSlot))
         try Task.checkCancellation()
-        let message = try messageBuilder.message(
-            for: transfers, recentBlockhash: blockhash.value.blockhash, configuration: configuration
-        )
-        let transaction = try transactionBuilder.validateSignatures(in:
-            transactionBuilder.simulationTransaction(for: message), for: transfer.sender
-        )
-        return try await evaluate(transaction, source: .transfer(transfers, configuration, blockhash),
-                                  signer: transfer.sender, network: network)
+        guard blockhash.context.slot >= (minimumSlot ?? 0) else { throw Failure.inconsistentResponse }
+        var message = try messageBuilder.message(instructions: invocations, payer: payer,
+            recentBlockhash: blockhash.value.blockhash, configuration: requests)
+        var transaction = try transactionBuilder.validateSignatures(in:
+            transactionBuilder.simulationTransaction(for: message), for: signer)
+        var context = blockhash.context.slot
+        if configuration == nil {
+            let estimate = try await rpc.send(SimulateTransaction(transaction: transaction.serializedRepresentation,
+                commitment: .confirmed, minContextSlot: context, verifiesSignatures: false,
+                replacesRecentBlockhash: false))
+            try Task.checkCancellation()
+            guard estimate.context.slot >= context, estimate.value.replacementBlockhash == nil else {
+                throw Failure.inconsistentResponse
+            }
+            context = estimate.context.slot
+            if estimate.value.error == nil {
+                guard let units = estimate.value.unitsConsumed, let bytes = estimate.value.loadedAccountsDataSize,
+                      units <= 1_400_000, bytes <= 67_108_864 else { throw Failure.resourceUsageUnavailable }
+                requests = try Configuration(priorityFeeLamports: minimumFee,
+                    computeUnitLimit: UInt32(min(1_400_000, max(1, units + (units + 9) / 10))),
+                    loadedAccountsDataSizeLimit: UInt32(min(67_108_864, max(1, bytes + (bytes + 9) / 10))))
+                message = try messageBuilder.message(instructions: invocations, payer: payer,
+                    recentBlockhash: blockhash.value.blockhash, configuration: requests)
+                transaction = try transactionBuilder.validateSignatures(in:
+                    transactionBuilder.simulationTransaction(for: message), for: signer)
+            }
+        }
+        return try await evaluate(transaction, source: .local(invocations, payer, requests, blockhash),
+                                  signer: signer, network: rpc.network, minimumSlot: context, tips: requirements)
     }
 
     /// Validates an imported transaction and its blockhash without accessing protected recovery.
@@ -88,48 +118,36 @@ nonisolated struct Preparer: TransactionPreparing {
         return try await evaluate(transaction, source: .external(validity.context), signer: signer, network: network)
     }
 
-    /// Retrieves fee, simulation, and applicable destination-rent estimates concurrently.
+    /// Retrieves the fee and final simulation concurrently.
     ///
     /// - Parameters:
     ///   - transaction: The exact inspected message and existing signature slots.
     ///   - source: The original construction intent or external validity context.
     ///   - signer: The selected required signer.
     ///   - network: The provider's network captured before the first request.
+    ///   - minimumSlot: The latest resource-estimation context, when applicable.
+    ///   - tips: The service payments added before compilation.
     /// - Returns: An immutable review that retains execution failures and unknown fees.
     /// - Throws: An RPC error or cancellation; structured child requests are cancelled together.
-    func evaluate(_ transaction: Transaction, source: Preparation.Source, signer: Address,
-                          network: Network) async throws -> Preparation {
+    private func evaluate(_ transaction: Transaction, source: Preparation.Source, signer: Address,
+                  network: Network, minimumSlot: UInt64? = nil,
+                  tips: [SubmissionRequirements] = []) async throws -> Preparation {
         try Task.checkCancellation()
         async let fee = rpc.send(GetFeeForMessage(
-            message: transaction.message, commitment: .confirmed, minContextSlot: source.context.slot
+            message: transaction.message, commitment: .confirmed, minContextSlot: minimumSlot ?? source.context.slot
         ))
         async let simulation = rpc.send(SimulateTransaction(
-            transaction: transaction.serializedRepresentation, commitment: .confirmed, minContextSlot: source.context.slot,
+            transaction: transaction.serializedRepresentation, commitment: .confirmed, minContextSlot: minimumSlot ?? source.context.slot,
             verifiesSignatures: false, replacesRecentBlockhash: false
         ))
-        async let rent = destinationAccountRent(for: source)
-        let observations = try await (fee, simulation, rent)
+        let observations = try await (fee, simulation)
         try Task.checkCancellation()
+        let floor = minimumSlot ?? source.context.slot
+        guard observations.0.context.slot >= floor, observations.1.context.slot >= floor,
+              observations.1.value.replacementBlockhash == nil else { throw Failure.inconsistentResponse }
         return Preparation(
             source: source, signer: signer, transaction: transaction, network: network,
-            fee: observations.0, simulation: observations.1, destinationAccountRent: observations.2
+            fee: observations.0, simulation: observations.1, tips: tips
         )
-    }
-
-    /// Validates the selected service's fee floor and constructs its reviewed payments.
-    ///
-    /// - Parameters:
-    ///   - sender: The transaction signer paying the service tips.
-    ///   - configuration: The explicit priority fee, which is never increased automatically.
-    /// - Returns: The selected clients' native SOL tips.
-    /// - Throws: A fee requirement or transfer validation error.
-    func serviceTips(from sender: Address, configuration: Configuration) throws -> [Transfer] {
-        let minimumFee = requirements.map(\.minimumPriorityFeeLamports).max() ?? 0
-        guard configuration.priorityFeeLamports >= minimumFee else {
-            throw Failure.priorityFeeTooLow(minimumLamports: minimumFee)
-        }
-        return try requirements.map {
-            try Transfer(sender: sender, recipient: Address($0.tipRecipient), lamports: $0.tipLamports)
-        }
     }
 }

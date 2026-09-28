@@ -17,31 +17,28 @@ struct SigningTests {
         let store = SigningRecoveryStore(recovery: fixture.recovery)
         let wallet = RecordingWallet()
         let coordinator: any TransactionCoordinating = TransactionCoordinator(
-            preparer: Preparer(rpc: PreparationRPC(fixture: fixture.preparation)),
+            rpc: rpc, configuration: fixture.configuration, preparer: Preparer(rpc: PreparationRPC(fixture: fixture.preparation)),
             signer: Signer(rpc: rpc, store: store, wallet: wallet), submitter: Submitter(rpc: rpc), confirmer: Confirmer(rpc: rpc)
         )
         let walletID = UUID()
 
-        let preparation = try await coordinator.prepare(fixture.transfer, configuration: fixture.configuration)
+        let preparation = try await coordinator.simulate([fixture.transfer], using: Account(id: walletID, address: fixture.transfer.accounts[0].address))
         #expect(await store.reads.isEmpty)
-        let signed = try await coordinator.sign(preparation, for: walletID, reason: "Approve this SOL transfer")
+        let signed = try await coordinator.sign(preparation)
 
         let key = try Curve25519.Signing.PublicKey(rawRepresentation: #require(
             Data(base64Encoded: "avQk/DwMx04ex+GYBKContNRuDzLEt0PObiUpqRJYxI=")
         ))
-        #expect(signed.transaction.serializedRepresentation.dropLast(64) == fixture.message)
-        #expect(key.isValidSignature(signed.transaction.serializedRepresentation.suffix(64), for: fixture.message))
-        let source = try PreparationFixture.source(signed.preparation)
-        #expect(signed.isFullySigned)
-        #expect(source.transfer.recipient == fixture.transfer.recipient)
-        #expect(source.transfer.lamports == fixture.transfer.lamports)
-        #expect(source.blockhash.value == fixture.blockhash.value)
+        #expect(signed.serializedRepresentation.dropLast(64) == fixture.message)
+        #expect(key.isValidSignature(signed.serializedRepresentation.suffix(64), for: fixture.message))
+        #expect(signed.signature != nil)
+        #expect(signed.message == preparation.transaction.message)
         #expect(await wallet.messages == [fixture.message])
         let reads = await store.reads
         #expect(reads.count == 1)
         let read = try #require(reads.first)
         #expect(read.walletID == walletID)
-        #expect(read.reason == "Approve this SOL transfer")
+        #expect(read.reason == "Approve transaction")
         let requests = await rpc.requests
         #expect(requests.count == 3)
         let heights = requests.compactMap { $0 as? GetBlockHeight }
@@ -63,9 +60,9 @@ struct SigningTests {
         var fixture = try SigningFixture()
         switch changed {
         case "amount":
-            fixture.transfer = try Transfer(sender: fixture.transfer.sender, recipient: fixture.transfer.recipient, lamports: 2)
+            fixture.transfer = try SystemProgram.transfer(from: fixture.transfer.accounts[0].address, to: fixture.transfer.accounts[1].address, lamports: 2)
         case "recipient":
-            fixture.transfer = try Transfer(sender: fixture.transfer.sender, recipient: fixture.transfer.sender, lamports: 1)
+            fixture.transfer = try SystemProgram.transfer(from: fixture.transfer.accounts[0].address, to: fixture.transfer.accounts[0].address, lamports: 1)
         case "priority fee":
             fixture.configuration = try Configuration(priorityFeeLamports: 6_000, computeUnitLimit: 20_000,
                                                        loadedAccountsDataSizeLimit: 65_536, heapSize: 65_536)

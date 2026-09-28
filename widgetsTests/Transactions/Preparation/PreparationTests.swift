@@ -14,12 +14,12 @@ struct PreparationTests {
         let rpc = PreparationRPC(fixture: expected)
         let service: any TransactionPreparing = Preparer(rpc: rpc)
 
-        let result = try await service.prepare(expectedSource.transfer, configuration: PreparationFixture.configuration())
+        let result = try await service.prepare([expectedSource.instruction], payer: expectedSource.payer, signer: expected.signer, configuration: PreparationFixture.configuration(), minimumSlot: nil)
         let resultSource = try PreparationFixture.source(result)
 
-        #expect(resultSource.transfer.sender == expectedSource.transfer.sender)
-        #expect(resultSource.transfer.recipient == expectedSource.transfer.recipient)
-        #expect(resultSource.transfer.lamports == 1)
+        #expect(resultSource.instruction.accounts[0].address == expectedSource.instruction.accounts[0].address)
+        #expect(resultSource.instruction.accounts[1].address == expectedSource.instruction.accounts[1].address)
+        #expect(resultSource.instruction.data == expectedSource.instruction.data)
         #expect(resultSource.configuration.priorityFeeLamports == 5_000)
         #expect(resultSource.configuration.computeUnitLimit == 20_000)
         #expect(resultSource.configuration.loadedAccountsDataSizeLimit == 65_536)
@@ -59,13 +59,13 @@ struct PreparationTests {
         let expectedSource = try PreparationFixture.source(expected)
         let service = Preparer(rpc: PreparationRPC(fixture: expected))
 
-        let result = try await service.prepare(expectedSource.transfer, configuration: PreparationFixture.configuration())
+        let result = try await service.prepare([expectedSource.instruction], payer: expectedSource.payer, signer: expected.signer, configuration: PreparationFixture.configuration(), minimumSlot: nil)
         let resultSource = try PreparationFixture.source(result)
 
         #expect(result.simulation.value.error == error)
         #expect(result.simulation.value.logs == ["Transfer: insufficient lamports 0, need 1"])
-        #expect(resultSource.transfer.recipient == expectedSource.transfer.recipient)
-        #expect(resultSource.transfer.lamports == 1)
+        #expect(resultSource.instruction.accounts[1].address == expectedSource.instruction.accounts[1].address)
+        #expect(resultSource.instruction.data == expectedSource.instruction.data)
         #expect(result.fee.value == 10_000)
         #expect(resultSource.blockhash.value.lastValidBlockHeight == 550)
     }
@@ -77,7 +77,7 @@ struct PreparationTests {
         let expectedSource = try PreparationFixture.source(expected)
         let service = Preparer(rpc: PreparationRPC(fixture: expected))
 
-        let result = try await service.prepare(expectedSource.transfer, configuration: PreparationFixture.configuration())
+        let result = try await service.prepare([expectedSource.instruction], payer: expectedSource.payer, signer: expected.signer, configuration: PreparationFixture.configuration(), minimumSlot: nil)
 
         #expect(result.fee.value == nil)
         #expect(result.simulation.value == expected.simulation.value)
@@ -93,7 +93,7 @@ struct PreparationTests {
         let service = Preparer(rpc: rpc)
 
         await #expect(throws: failure) {
-            try await service.prepare(expectedSource.transfer, configuration: PreparationFixture.configuration())
+            try await service.prepare([expectedSource.instruction], payer: expectedSource.payer, signer: expected.signer, configuration: PreparationFixture.configuration(), minimumSlot: nil)
         }
 
         #expect(await rpc.requests.count == 1)
@@ -109,7 +109,7 @@ struct PreparationTests {
         let rpc = PreparationRPC(fixture: expected, simulationGate: gate)
         let service = Preparer(rpc: rpc)
         let operation = Task { @concurrent in
-            try await service.prepare(expectedSource.transfer, configuration: configuration)
+            try await service.prepare([expectedSource.instruction], payer: expectedSource.payer, signer: expected.signer, configuration: configuration, minimumSlot: nil)
         }
         defer { operation.cancel() }
         await gate.waitUntilStarted()

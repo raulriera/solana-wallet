@@ -23,7 +23,7 @@ nonisolated struct Signer: TransactionSigning {
         rpc: any RPC,
         store: any RecoveryStoring,
         wallet: any MessageSigning = Wallet(),
-        messageBuilder: any MessageBuilding & TokenMessageBuilding = MessageBuilder(),
+        messageBuilder: any MessageBuilding = MessageBuilder(),
         transactionBuilder: any TransactionBuilding = TransactionBuilder()
     ) {
         validator = PreparationValidator(rpc: rpc, messageBuilder: messageBuilder, transactionBuilder: transactionBuilder)

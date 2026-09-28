@@ -1,45 +1,42 @@
 import RPC
 import Transactions
 
-extension Preparer {
-    /// Estimates the destination deposit without treating token amounts as SOL rent.
-    ///
-    /// - Parameter source: The validated local intent or external transaction context.
-    /// - Returns: The deposit in lamports, zero for an existing token destination,
-    ///   or `nil` for preparation paths whose account allocations aren't interpreted.
-    /// - Throws: An RPC or cancellation error; failed estimates are never replaced with zero.
-    func destinationAccountRent(for source: Preparation.Source) async throws -> UInt64? {
-        guard case .token(let transfer, _, _, _) = source else { return nil }
-        guard let size = transfer.destinationAccountSize else { return 0 }
-        let rent = try await rpc.send(GetMinimumBalanceForRentExemption(dataLength: size))
-        // ATA creation always deposits at least one lamport, matching the program.
-        return max(1, rent)
+/// Resolves token instruction prerequisites through either first-party token program.
+nonisolated struct TokenTransfers {
+    /// An account observation that cannot supply consistent instruction prerequisites.
+    enum Failure: Error, Sendable, Equatable {
+        /// A required mint or source account is absent.
+        case missingAccount(Address)
+        /// Account observations have an unexpected count or an older ledger context.
+        case inconsistentAccounts
     }
 
-    /// Reads consistent token account state and evaluates the exact transfer and service payments.
+    private let rpc: any RPC
+
+    /// Creates account discovery using the transaction workflow's read provider.
+    /// - Parameter rpc: The provider for consistent token account observations.
+    init(rpc: any RPC) { self.rpc = rpc }
+
+    /// Reads consistent token account state for composable transfer instructions.
     ///
     /// Mint discovery determines associated addresses. A subsequent batch rereads
-    /// the mint with both accounts at one confirmed slot. Epoch and blockhash reads
+    /// the mint with both accounts at one confirmed slot. Epoch reads
     /// cannot precede that snapshot. No request is retried automatically.
     ///
     /// - Parameters:
     ///   - mint: The on-chain mint address.
     ///   - amount: The requested positive debit in raw token units.
-    ///   - sender: The token owner and sole signer paying SOL fees and rent.
+    ///   - sender: The token owner authorizing the transfer.
     ///   - recipient: The wallet receiving tokens at its associated token account.
-    ///   - configuration: The explicit fee and execution resource limits.
     ///   - source: A specific source account, or `nil` for the sender's associated account.
     ///   - memo: An optional memo placed immediately before the token transfer.
-    /// - Returns: Immutable token review data, including simulation failures.
+    /// - Returns: The validated instruction source, its minimum context, and estimated account deposit.
     /// - Throws: An account, token validation, construction, RPC, or cancellation error.
     @concurrent
-    func prepareTokenTransfer(mint: Address, amount: UInt64, from sender: Address, to recipient: Address,
-                              configuration: Configuration, source: Address? = nil,
-                              memo: String? = nil) async throws -> Preparation {
+    func transfer(mint: Address, amount: UInt64, from sender: Address, to recipient: Address,
+                  source: Address? = nil, memo: String? = nil) async throws -> (transfer: TokenTransfer, slot: UInt64, rent: UInt64) {
         try Task.checkCancellation()
         guard amount > 0 else { throw ValidationError.invalidAmount }
-        let tips = try serviceTips(from: sender, configuration: configuration)
-        let network = rpc.network
         let discovery = try await accounts(at: [mint])
         guard let discoveredAccount = discovery.value[0] else { throw Failure.missingAccount(mint) }
         let discoveredMint = try TokenMint(address: mint, owner: Address(discoveredAccount.owner), data: discoveredAccount.data)
@@ -65,16 +62,14 @@ extension Preparer {
         }
         let transfer = try TokenTransfer(sender: sender, recipient: recipient, mint: currentMint, source: tokenSource,
                                          destination: destination, amount: amount, epoch: epoch, memo: memo)
-        let blockhash = try await rpc.send(GetLatestBlockhash(commitment: .confirmed, minContextSlot: minimumSlot))
+        let rent: UInt64
+        if let size = transfer.destinationAccountSize {
+            rent = max(1, try await rpc.send(GetMinimumBalanceForRentExemption(dataLength: size)))
+        } else {
+            rent = 0
+        }
         try Task.checkCancellation()
-        guard blockhash.context.slot >= minimumSlot else { throw Failure.inconsistentAccounts }
-        let message = try messageBuilder.message(for: transfer, tips: tips, recentBlockhash: blockhash.value.blockhash,
-                                                 configuration: configuration)
-        let transaction = try transactionBuilder.validateSignatures(in:
-            transactionBuilder.simulationTransaction(for: message), for: sender
-        )
-        return try await evaluate(transaction, source: .token(transfer, tips, configuration, blockhash),
-                                  signer: sender, network: network)
+        return (transfer, minimumSlot, rent)
     }
 
     /// Reads ordered account data while enforcing the requested count and ledger floor.

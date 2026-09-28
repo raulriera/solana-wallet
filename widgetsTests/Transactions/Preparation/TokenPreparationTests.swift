@@ -34,13 +34,11 @@ struct TokenPreparationTests {
         #expect(rent > 0)
         #expect(preparation.tips.isEmpty)
         #expect(preparation.network == .devnet)
-        #expect(preparation.fee.value == 5_000)
-        #expect(preparation.simulation.value.error == nil)
-        #expect(preparation.simulation.value.replacementBlockhash == nil)
-        #expect(preparation.simulation.context.slot >= preparation.source.context.slot)
+        #expect(preparation.fee == 5_000)
+        #expect(preparation.diagnostics.value.error == nil)
+        #expect(preparation.diagnostics.value.replacementBlockhash == nil)
         #expect(preparation.transaction.instructions.count == 2)
         #expect(preparation.transaction.signatures.allSatisfy { $0.allSatisfy { $0 == 0 } })
-        try await PreparationValidator(rpc: rpc).validate(preparation)
     }
 
     /// Verifies a real existing ATA doesn't add another account-creation deposit.
@@ -52,31 +50,7 @@ struct TokenPreparationTests {
         #expect(preparation.tokenTransfer?.createsDestination == false)
         #expect(preparation.destinationAccountRent == 0)
         #expect(preparation.transaction.instructions.count == 1)
-        #expect(preparation.simulation.value.error == nil)
-    }
-
-    /// Verifies a reviewed token debit or service payment cannot disagree with the signed message.
-    ///
-    /// - Parameter altersTip: Whether to add an unencoded tip instead of changing the token debit.
-    @Test("token review changes are rejected before signing", .timeLimit(.minutes(2)), arguments: [false, true])
-    func alteredTokenReviewIsRejected(altersTip: Bool) async throws {
-        let rpc = try devnetRPC()
-        let recipient = try Address(await Wallet().address(for: Wallet().recoveryPhrase()))
-        let original = try await preparation(for: Self.examples[0], to: recipient, rpc: rpc)
-        guard case .token(let transfer, _, let configuration, let blockhash) = original.source else {
-            Issue.record("Expected a locally constructed token preparation")
-            return
-        }
-        let altered = try TokenTransfer(sender: transfer.sender, recipient: transfer.recipient,
-            mint: transfer.mint, source: transfer.source, destination: nil, amount: altersTip ? 1 : 2)
-        let tips = altersTip ? [try Transfer(sender: transfer.sender, recipient: recipient, lamports: 5_000)] : []
-        let review = Preparation(source: .token(altered, tips, configuration, blockhash),
-            signer: original.signer, transaction: original.transaction, network: original.network,
-            fee: original.fee, simulation: original.simulation)
-
-        await #expect(throws: PreparationValidator.Failure.messageMismatch) {
-            try await PreparationValidator(rpc: rpc).validate(review)
-        }
+        #expect(preparation.diagnostics.value.error == nil)
     }
 
     /// Verifies default source-account discovery reports an unfunded wallet's missing token account.
@@ -87,17 +61,15 @@ struct TokenPreparationTests {
     func missingSourceIsReported(_ example: Example) async throws {
         let rpc = try devnetRPC()
         let sender = try Address(await Wallet().address(for: Wallet().recoveryPhrase()))
-        let coordinator: any TransactionCoordinating = try TransactionCoordinator(
+        let coordinator = try TransactionCoordinator(
             rpc: rpc, store: KeychainStore(service: "widgetsTests.TokenPreparation")
         )
-        let configuration = try Configuration(priorityFeeLamports: 0, computeUnitLimit: 200_000,
-                                               loadedAccountsDataSizeLimit: 1_048_576)
 
         await #expect {
-            try await coordinator.prepareTokenTransfer(mint: Address(example.mint), amount: 1,
-                from: sender, to: sender, configuration: configuration)
+            try await coordinator.transfer(1, token: Address(example.mint),
+                using: Account(id: UUID(), address: sender), to: sender)
         } throws: { error in
-            guard case Preparer.Failure.missingAccount(let address) = error else { return false }
+            guard case TokenTransfers.Failure.missingAccount(let address) = error else { return false }
             return address.value != example.mint && address != sender
         }
     }
@@ -110,22 +82,17 @@ struct TokenPreparationTests {
     ///   - rpc: The real devnet client.
     /// - Returns: A one-unit preparation through the app's coordinator contract.
     /// - Throws: A missing live fixture, preparation, or cancellation error.
-    private func preparation(for example: Example, to recipient: Address?, rpc: any RPC) async throws -> Preparation {
+    private func preparation(for example: Example, to recipient: Address?, rpc: any RPC) async throws -> Simulation {
         let sourceAddress = try Address(example.source)
         let state = try await rpc.send(GetMultipleAccounts(addresses: [sourceAddress.value]))
         let account = try #require(state.value.first ?? nil)
         let source = try TokenAccount(address: sourceAddress, programOwner: Address(account.owner), data: account.data)
-        let coordinator: any TransactionCoordinating = try TransactionCoordinator(
+        let coordinator = try TransactionCoordinator(
             rpc: rpc, store: KeychainStore(service: "widgetsTests.TokenPreparation")
         )
-        let configuration = try Configuration(priorityFeeLamports: 0, computeUnitLimit: 200_000,
-                                               loadedAccountsDataSizeLimit: 1_048_576)
-        if example.program == .token2022 {
-            return try await coordinator.prepareTokenTransfer(mint: Address(example.mint), amount: 1,
-                from: source.owner, to: recipient ?? source.owner, configuration: configuration)
-        }
-        return try await coordinator.prepareTokenTransfer(mint: Address(example.mint), amount: 1,
-            from: source.owner, to: recipient ?? source.owner, configuration: configuration, source: sourceAddress, memo: nil)
+        return try await coordinator.transfer(1, token: Address(example.mint),
+            using: Account(id: UUID(), address: source.owner), to: recipient ?? source.owner,
+            source: example.program == .token ? sourceAddress : nil)
     }
 
     /// Creates a real devnet client using the test runner's ignored local configuration.

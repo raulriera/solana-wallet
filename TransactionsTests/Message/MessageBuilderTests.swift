@@ -15,12 +15,12 @@ struct MessageBuilderTests {
     ])
     func transfersPreservePaymentAndTip(tipLamports: UInt64, expectedMessage: String) throws {
         let sender = try Address(MessageFixture.sender)
-        let transfer = try Transfer(sender: sender, recipient: Address(MessageFixture.recipient), lamports: 1_000_000)
-        let tip = try Transfer(sender: sender, recipient: Address("4ACfpUFoaSD9bfPdeu6DBt89gB6ENTeHBXCAi87NhDEE"),
+        let transfer = try SystemProgram.transfer(from: sender, to: Address(MessageFixture.recipient), lamports: 1_000_000)
+        let tip = try SystemProgram.transfer(from: sender, to: Address("4ACfpUFoaSD9bfPdeu6DBt89gB6ENTeHBXCAi87NhDEE"),
                                lamports: tipLamports)
         let configuration = try Configuration(priorityFeeLamports: 5_000, computeUnitLimit: 20_000,
                                                loadedAccountsDataSizeLimit: 65_536)
-        let message = try MessageBuilder().message(for: [transfer, tip],
+        let message = try MessageBuilder().message(instructions: [transfer, tip], payer: sender,
             recentBlockhash: "11111111111111111111111111111111", configuration: configuration)
         let signature = Data(repeating: 0, count: 64)
         let actual = try TransactionDecoder().decode(message + signature)
@@ -39,22 +39,12 @@ struct MessageBuilderTests {
         }
     }
 
-    /// Verifies a batch cannot introduce an unaccounted-for payer or omit its payer.
-    ///
-    /// - Parameter empty: Whether to omit transfers instead of supplying conflicting senders.
-    @Test("SOL transfer batches require one shared fee payer", arguments: [true, false])
-    func batchesRequireOneFeePayer(empty: Bool) throws {
-        let sender = try Address(MessageFixture.sender)
-        let recipient = try Address(MessageFixture.recipient)
-        let transfers = try empty ? [] : [
-            Transfer(sender: sender, recipient: recipient, lamports: 1),
-            Transfer(sender: recipient, recipient: sender, lamports: 1),
-        ]
-        let configuration = try MessageFixture.transfers[0].configuration()
-
+    /// Verifies an empty composition cannot produce a wallet transaction.
+    @Test("empty instruction compositions are rejected")
+    func emptyCompositionsAreRejected() throws {
         #expect(throws: ValidationError.invalidMessage) {
-            try MessageBuilder().message(for: transfers,
-                recentBlockhash: "11111111111111111111111111111111", configuration: configuration)
+            try MessageBuilder().message(instructions: [], payer: Address(MessageFixture.sender),
+                recentBlockhash: MessageFixture.zeroBlockhash, configuration: MessageFixture.transfers[0].configuration())
         }
     }
 
@@ -64,9 +54,8 @@ struct MessageBuilderTests {
     @Test("SOL transfers match Solana SDK V1 message bytes", arguments: MessageFixture.transfers)
     func transfersMatchSolanaMessages(_ fixture: MessageFixture) throws {
         let builder: any MessageBuilding = MessageBuilder()
-        let transfer = try Transfer(sender: Address(MessageFixture.sender),
-                                    recipient: Address(MessageFixture.recipient), lamports: fixture.lamports)
-        let message = try builder.message(for: transfer, recentBlockhash: fixture.blockhash,
+        let transfer = try SystemProgram.transfer(from: Address(MessageFixture.sender), to: Address(MessageFixture.recipient), lamports: fixture.lamports)
+        let message = try builder.message(instructions: [transfer], payer: transfer.accounts[0].address, recentBlockhash: fixture.blockhash,
                                           configuration: fixture.configuration())
 
         #expect(message == Data(base64Encoded: fixture.message))
@@ -77,8 +66,8 @@ struct MessageBuilderTests {
     func selfTransfersReuseSignerAndPreserveMaximumLamports() throws {
         let fixture = MessageFixture.selfTransfer
         let sender = try Address(MessageFixture.sender)
-        let transfer = try Transfer(sender: sender, recipient: sender, lamports: fixture.lamports)
-        let message = try MessageBuilder().message(for: transfer, recentBlockhash: fixture.blockhash,
+        let transfer = try SystemProgram.transfer(from: sender, to: sender, lamports: fixture.lamports)
+        let message = try MessageBuilder().message(instructions: [transfer], payer: transfer.accounts[0].address, recentBlockhash: fixture.blockhash,
                                                    configuration: fixture.configuration())
 
         #expect(message == Data(base64Encoded: fixture.message))
@@ -87,12 +76,11 @@ struct MessageBuilderTests {
     /// Verifies malformed blockhashes fail before message bytes are returned.
     @Test("message construction rejects an invalid recent blockhash")
     func messageConstructionRejectsInvalidBlockhash() throws {
-        let transfer = try Transfer(sender: Address(MessageFixture.sender),
-                                    recipient: Address(MessageFixture.recipient), lamports: 1)
+        let transfer = try SystemProgram.transfer(from: Address(MessageFixture.sender), to: Address(MessageFixture.recipient), lamports: 1)
         let configuration = try MessageFixture.transfers[0].configuration()
 
         #expect(throws: ValidationError.invalidBlockhash) {
-            try MessageBuilder().message(for: transfer, recentBlockhash: "invalid", configuration: configuration)
+            try MessageBuilder().message(instructions: [transfer], payer: transfer.accounts[0].address, recentBlockhash: "invalid", configuration: configuration)
         }
     }
 }

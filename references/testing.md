@@ -21,6 +21,7 @@
 - Verify public construction from a consumer using ordinary `import`; `@testable`
   can hide access restrictions. Keep implementation helpers internal; don't make
   them public for tests. Skip tests that only repeat initializer assignments.
+- Verify generic instruction compilation against independent SDK fixtures, including mixed programs and multiple signers. Exercise the app consumer through simulation and explicit confirmation; test shared validation once.
 - Test internal app workflows in app-hosted `widgetsTests` using `@testable import widgets`;
   continue using ordinary imports for their framework contracts and response values.
 - Use local fixtures for decoding, cryptography, and validation. Live tests prove

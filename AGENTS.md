@@ -20,14 +20,14 @@
 - Verify RPC integrations with real clients on devnet; do not add fake RPC implementations for tests.
 - Never request funding for a wallet without verified, retained recovery. Reuse controlled devnet test wallets and return test funds after fees; never discard funded wallet recovery.
 - Document every function and initializer using Apple DocC conventions.
-- Solana V1 transactions only.
+- Solana V1 transactions only; compose ordered instructions through one shared transaction pipeline. Transfers are instruction helpers, not a separate transaction model.
 - Support SPL Token and Token-2022 together through shared token-transfer APIs.
 - Separate frameworks by concern; all Solana RPC and DAS communication belongs in the RPC/API framework.
 - Keep RPC and DAS contracts provider-neutral; Helius is the current implementation, and providers must be interchangeable behind protocols.
 - Surface RPC rate-limit errors to consumers; do not add automatic throttling or retries in RPC.
 - Add RPC methods only for concrete needs of agreed wallet features; follow [references/rpc-scope.md](references/rpc-scope.md), not endpoint coverage.
 - Keep the app decentralized: no app-owned backend or proxy. Connect directly to Solana RPC providers.
-- Use one submission strategy: `none` sends identical signed bytes concurrently through configured same-network ordinary RPCs; `standard` and `premium` use Sender exclusively. Follow [references/transfers.md](references/transfers.md).
+- Use one submission strategy: `none` sends identical signed bytes concurrently through configured same-network ordinary RPCs; `standard` and `premium` use Sender exclusively. Follow [references/transaction-workflow.md](references/transaction-workflow.md).
 - Use the selected provider's DAS interface only for portfolio viewing; keep DAS out of transaction submission contracts, validation, and routing. Follow [references/portfolio.md](references/portfolio.md).
 - Keep wallet recovery material device-only, excluded from iCloud sync and backups; follow [references/wallet.md](references/wallet.md).
 - Agree on architecture before implementation; work on one concern at a time.

@@ -19,19 +19,19 @@ struct TransactionBuilderTests {
     /// Verifies the complete envelope against an independently signed Solana SDK fixture.
     @Test("signed SOL transfers match Solana SDK V1 transaction bytes")
     func signedTransfersMatchSolanaTransactionBytes() throws {
-        let transfer = try Transfer(sender: Address(SignedTransferFixture.sender),
-                                    recipient: Address(MessageFixture.recipient), lamports: 1_000_000_000)
+        let transfer = try SystemProgram.transfer(from: Address(SignedTransferFixture.sender), to: Address(MessageFixture.recipient), lamports: 1_000_000_000)
         let configuration = try Configuration(priorityFeeLamports: 5_000, computeUnitLimit: 20_000,
                                                loadedAccountsDataSizeLimit: 65_536)
-        let message = try MessageBuilder().message(for: transfer, recentBlockhash: MessageFixture.zeroBlockhash,
+        let message = try MessageBuilder().message(instructions: [transfer], payer: transfer.accounts[0].address, recentBlockhash: MessageFixture.zeroBlockhash,
                                                    configuration: configuration)
         let builder: any TransactionBuilding = TransactionBuilder()
 
         let transaction = try builder.transaction(
-            for: message, signature: SignedTransferFixture.bytes(SignedTransferFixture.signature)
+            byAdding: SignedTransferFixture.bytes(SignedTransferFixture.signature),
+            for: Address(SignedTransferFixture.sender), to: builder.simulationTransaction(for: message)
         )
 
-        #expect(transaction == (try SignedTransferFixture.bytes(SignedTransferFixture.transaction)))
+        #expect(transaction.serializedRepresentation == (try SignedTransferFixture.bytes(SignedTransferFixture.transaction)))
     }
 
     /// Verifies a signature can't be reused after changing the transfer amount.
@@ -42,7 +42,9 @@ struct TransactionBuilderTests {
         let signature = try SignedTransferFixture.bytes(SignedTransferFixture.signature)
 
         #expect(throws: ValidationError.invalidSignature) {
-            try TransactionBuilder().transaction(for: message, signature: signature)
+            try TransactionBuilder().transaction(byAdding: signature,
+                for: TransactionDecoder().decode(TransactionBuilder().simulationTransaction(for: message)).accounts[0].address,
+                to: TransactionBuilder().simulationTransaction(for: message))
         }
     }
 
@@ -53,7 +55,9 @@ struct TransactionBuilderTests {
         let signature = try SignedTransferFixture.bytes(SignedTransferFixture.otherSignature)
 
         #expect(throws: ValidationError.invalidSignature) {
-            try TransactionBuilder().transaction(for: message, signature: signature)
+            try TransactionBuilder().transaction(byAdding: signature,
+                for: TransactionDecoder().decode(TransactionBuilder().simulationTransaction(for: message)).accounts[0].address,
+                to: TransactionBuilder().simulationTransaction(for: message))
         }
     }
 
@@ -69,7 +73,9 @@ struct TransactionBuilderTests {
         let signature = identity + Data(repeating: 0, count: 32)
 
         #expect(throws: ValidationError.invalidSignature) {
-            try TransactionBuilder().transaction(for: message, signature: signature)
+            try TransactionBuilder().transaction(byAdding: signature,
+                for: TransactionDecoder().decode(TransactionBuilder().simulationTransaction(for: message)).accounts[0].address,
+                to: TransactionBuilder().simulationTransaction(for: message))
         }
     }
 
@@ -80,7 +86,9 @@ struct TransactionBuilderTests {
         let signature = try SignedTransferFixture.bytes(SignedTransferFixture.identityNonceSignature)
 
         #expect(throws: ValidationError.invalidSignature) {
-            try TransactionBuilder().transaction(for: message, signature: signature)
+            try TransactionBuilder().transaction(byAdding: signature,
+                for: TransactionDecoder().decode(TransactionBuilder().simulationTransaction(for: message)).accounts[0].address,
+                to: TransactionBuilder().simulationTransaction(for: message))
         }
     }
 
@@ -92,15 +100,16 @@ struct TransactionBuilderTests {
         let message = try SignedTransferFixture.bytes(SignedTransferFixture.message)
 
         #expect(throws: ValidationError.invalidSignature) {
-            try TransactionBuilder().transaction(for: message, signature: Data(repeating: 0, count: count))
+            try TransactionBuilder().transaction(byAdding: Data(repeating: 0, count: count),
+                for: Address(SignedTransferFixture.sender), to: TransactionBuilder().simulationTransaction(for: message))
         }
     }
 
-    /// Verifies inputs outside this milestone's single-signer V1 contract are rejected.
+    /// Verifies inputs outside the V1 structural contract are rejected.
     ///
     /// - Parameter input: An empty, unsupported, truncated, or oversized message.
     @Test("transaction assembly rejects unsupported message headers and sizes", arguments: [
-        "empty", "legacy", "v0", "multiple signers", "readonly signer", "truncated accounts", "oversized"
+        "empty", "legacy", "v0", "too many signers", "readonly signer", "truncated accounts", "oversized"
     ])
     func unsupportedMessagesAreRejected(_ input: String) throws {
         var message = try SignedTransferFixture.bytes(SignedTransferFixture.message)
@@ -108,16 +117,13 @@ struct TransactionBuilderTests {
         case "empty": message = Data()
         case "legacy": message[0] = 1
         case "v0": message[0] = 0x80
-        case "multiple signers": message[1] = 2
+        case "too many signers": message[1] = 13
         case "readonly signer": message[2] = 1
         case "truncated accounts": message = Data(message.prefix(73))
         default: message = Data(message + Data(repeating: 0, count: 4_096))
         }
 
-        #expect(throws: ValidationError.invalidMessage) {
-            try TransactionBuilder().transaction(for: message, signature: Data(repeating: 0, count: 64))
-        }
-        #expect(throws: ValidationError.invalidMessage) {
+        #expect(throws: (any Error).self) {
             try TransactionBuilder().simulationTransaction(for: message)
         }
     }

@@ -2,7 +2,7 @@ import Testing
 import Transactions
 
 /// Verifies native transfer input restrictions through the public API.
-struct TransferTests {
+struct SystemProgramTests {
     /// Verifies zero lamports cannot become a wallet transfer instruction.
     @Test("SOL transfers reject zero lamports")
     func transfersRejectZeroLamports() throws {
@@ -10,7 +10,7 @@ struct TransferTests {
         let recipient = try Address(MessageFixture.recipient)
 
         #expect(throws: ValidationError.invalidAmount) {
-            try Transfer(sender: sender, recipient: recipient, lamports: 0)
+            try SystemProgram.transfer(from: sender, to: recipient, lamports: 0)
         }
     }
 
@@ -23,8 +23,7 @@ struct TransferTests {
         let program = try Address(MessageFixture.zeroBlockhash)
 
         #expect(throws: ValidationError.programAddressAsTransferAccount) {
-            try Transfer(sender: programIsSender ? program : account,
-                         recipient: programIsSender ? account : program, lamports: 1)
+            try SystemProgram.transfer(from: programIsSender ? program : account, to: programIsSender ? account : program, lamports: 1)
         }
     }
 }

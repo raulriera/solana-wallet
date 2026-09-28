@@ -8,18 +8,15 @@ import Transactions
 nonisolated struct Preparation: Sendable {
     /// The construction intent or the context that validated an externally supplied hash.
     enum Source: Sendable {
-        /// A primary SOL transfer followed by service tips, configuration, and block-height expiry.
-        case transfer([Transfer], Configuration, GetLatestBlockhash.Response)
-        /// A validated token transfer, separate SOL tips, configuration, and block-height expiry.
-        case token(TokenTransfer, [Transfer], Configuration, GetLatestBlockhash.Response)
+        /// Ordered local instructions, their fee payer, resource requests, and original expiry.
+        case local([Instruction], Address, Configuration, GetLatestBlockhash.Response)
         /// Externally supplied bytes whose recent blockhash was checked at this context.
         case external(Context)
 
         /// The baseline context for fee estimation, simulation, and subsequent validation.
         var context: Context {
             switch self {
-            case .transfer(_, _, let blockhash): blockhash.context
-            case .token(_, _, _, let blockhash): blockhash.context
+            case .local(_, _, _, let blockhash): blockhash.context
             case .external(let context): context
             }
         }
@@ -37,32 +34,8 @@ nonisolated struct Preparation: Sendable {
     let fee: GetFeeForMessage.Response
     /// The execution outcome and diagnostics, including unsuccessful execution.
     let simulation: SimulateTransaction.Response
-    /// The estimated SOL deposit in lamports for a locally prepared token destination.
-    ///
-    /// Zero means the destination already exists; `nil` means this preparation
-    /// doesn't estimate account creation. The deposit stays in the recipient's
-    /// account and is separate from network fees, tips, and the token amount.
-    /// Rent queries have no slot context; account or rent changes can alter the
-    /// actual debit before execution. This value isn't a guaranteed total cost.
-    let destinationAccountRent: UInt64?
-
-    /// Service tips added during local preparation, separate from the network fee.
-    ///
-    /// Imported transactions remain unchanged; their original instructions require
-    /// independent interpretation and aren't represented by this property.
-    var tips: [Transfer] {
-        switch source {
-        case .transfer(let transfers, _, _): Array(transfers.dropFirst())
-        case .token(_, let tips, _, _): tips
-        case .external: []
-        }
-    }
-
-    /// The reviewed token debit, recipient, fee, and account-creation requirement, when locally constructed.
-    var tokenTransfer: TokenTransfer? {
-        guard case .token(let transfer, _, _, _) = source else { return nil }
-        return transfer
-    }
+    /// Service requirements whose tip instructions were included before simulation.
+    let tips: [SubmissionRequirements]
 
     /// The exact unsigned message used for fee estimation and signing.
     var message: Data { transaction.message }
@@ -82,16 +55,16 @@ nonisolated struct Preparation: Sendable {
     ///   - network: The selected network used for all observations.
     ///   - fee: The total network fee and evaluation context.
     ///   - simulation: The transaction's execution result and evaluation context.
-    ///   - destinationAccountRent: The estimated destination deposit, or `nil` when unestimated.
+    ///   - tips: The service payments added to the instruction collection.
     init(source: Source, signer: Address, transaction: Transaction, network: Network,
          fee: GetFeeForMessage.Response, simulation: SimulateTransaction.Response,
-         destinationAccountRent: UInt64? = nil) {
+         tips: [SubmissionRequirements] = []) {
         self.source = source
         self.signer = signer
         self.transaction = transaction
         self.network = network
         self.fee = fee
         self.simulation = simulation
-        self.destinationAccountRent = destinationAccountRent
+        self.tips = tips
     }
 }

@@ -13,9 +13,9 @@ struct TokenTransferTests {
         let sender = try Address(TokenFixtures.sender)
         let transfer = try TokenTransfer(sender: sender, recipient: Address(TokenFixtures.recipient),
                                          mint: fixture.mint(), source: fixture.source(), destination: nil, amount: 1)
-        let tip = try Transfer(sender: sender, recipient: Address(TokenFixtures.recipient), lamports: 5_000)
-        let builder: any TokenMessageBuilding = MessageBuilder()
-        let message = try builder.message(for: transfer, tips: [tip], recentBlockhash: MessageFixture.zeroBlockhash,
+        let tip = try SystemProgram.transfer(from: sender, to: Address(TokenFixtures.recipient), lamports: 5_000)
+        let builder: any MessageBuilding = MessageBuilder()
+        let message = try builder.message(instructions: transfer.instructions() + [tip], payer: transfer.sender, recentBlockhash: MessageFixture.zeroBlockhash,
                                           configuration: configuration())
         let transaction = try TransactionDecoder().decode(TransactionBuilder().simulationTransaction(for: message))
 
@@ -23,23 +23,9 @@ struct TokenTransferTests {
         let instruction = transaction.instructions[2]
         #expect(transaction.instructions[1].data.first == 12)
         #expect(transaction.accounts[instruction.programIndex].address.value == "11111111111111111111111111111111")
-        #expect(instruction.accountIndices.map { transaction.accounts[$0].address } == [sender, tip.recipient])
+        #expect(instruction.accountIndices.map { transaction.accounts[$0].address } == [sender, tip.accounts[1].address])
         #expect(instruction.data == Data([2, 0, 0, 0, 0x88, 0x13, 0, 0, 0, 0, 0, 0]))
         #expect(transaction.accounts.filter(\.isSigner).map(\.address) == [sender])
-    }
-
-    /// Verifies token service payments cannot introduce another funding account.
-    @Test("token transfers reject a service tip paid by another sender")
-    func tokenTransfersRejectAnotherTipPayer() throws {
-        let fixture = TokenFixtures.transfers[0]
-        let transfer = try TokenTransfer(sender: Address(TokenFixtures.sender), recipient: Address(TokenFixtures.recipient),
-                                         mint: fixture.mint(), source: fixture.source(), destination: nil, amount: 1)
-        let tip = try Transfer(sender: Address(TokenFixtures.recipient), recipient: Address(TokenFixtures.sender), lamports: 1)
-
-        #expect(throws: ValidationError.invalidMessage) {
-            try MessageBuilder().message(for: transfer, tips: [tip], recentBlockhash: MessageFixture.zeroBlockhash,
-                                         configuration: configuration())
-        }
     }
 
     /// Verifies transfers and idempotent ATA creation against independent SDK instructions.
@@ -50,8 +36,8 @@ struct TokenTransferTests {
         let transfer = try TokenTransfer(sender: Address(TokenFixtures.sender), recipient: Address(TokenFixtures.recipient),
                                          mint: fixture.mint(), source: fixture.source(),
                                          destination: fixture.createsDestination ? nil : fixture.target(), amount: fixture.amount)
-        let builder: any TokenMessageBuilding = MessageBuilder()
-        let message = try builder.message(for: transfer, recentBlockhash: MessageFixture.zeroBlockhash,
+        let builder: any MessageBuilding = MessageBuilder()
+        let message = try builder.message(instructions: transfer.instructions(), payer: transfer.sender, recentBlockhash: MessageFixture.zeroBlockhash,
                                           configuration: configuration())
         let decoder = TransactionDecoder()
         let result = try decoder.decode(TransactionBuilder().simulationTransaction(for: message))
@@ -82,7 +68,7 @@ struct TokenTransferTests {
             let transfer = try TokenTransfer(sender: Address(TokenFixtures.sender), recipient: Address(TokenFixtures.recipient),
                                              mint: fixture.mint(TokenFixtures.feeMint), source: fixture.source(Data(base64Encoded: TokenFixtures.feeSource)),
                                              destination: fixture.target(TokenFixtures.feeDestination), amount: example.amount, epoch: example.epoch)
-            let message = try MessageBuilder().message(for: transfer, recentBlockhash: MessageFixture.zeroBlockhash,
+            let message = try MessageBuilder().message(instructions: transfer.instructions(), payer: transfer.sender, recentBlockhash: MessageFixture.zeroBlockhash,
                                                        configuration: configuration())
             let result = try TransactionDecoder().decode(TransactionBuilder().simulationTransaction(for: message))
             #expect(transfer.expectedFee == example.fee)
@@ -120,7 +106,7 @@ struct TokenTransferTests {
         let transfer = try TokenTransfer(sender: Address(TokenFixtures.sender), recipient: Address(TokenFixtures.recipient),
                                          mint: fixture.mint(), source: fixture.source(),
                                          destination: fixture.target(TokenFixtures.memoAccount), amount: 1, memo: "Invoice 42")
-        let message = try MessageBuilder().message(for: transfer, recentBlockhash: MessageFixture.zeroBlockhash,
+        let message = try MessageBuilder().message(instructions: transfer.instructions(), payer: transfer.sender, recentBlockhash: MessageFixture.zeroBlockhash,
                                                    configuration: configuration())
         let result = try TransactionDecoder().decode(TransactionBuilder().simulationTransaction(for: message))
         #expect(result.instructions.count == 2)

@@ -26,17 +26,15 @@ enum PreparationFixture {
     /// - Returns: A typed fixture for the injected provider and service assertions.
     /// - Throws: A validation error if the fixture's public addresses are invalid.
     static func preparation(fee: UInt64? = 10_000, error: TransactionError? = nil) throws -> Preparation {
-        let transfer = try Transfer(
-            sender: Address("4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T"),
-            recipient: Address("9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM"), lamports: 1
+        let transfer = try SystemProgram.transfer(from: Address("4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T"), to: Address("9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM"), lamports: 1
         )
         let message = try #require(Data(base64Encoded:
             "gQEAAR8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEDMhz6Wt0YXoiTpf2IAT7E1+Ei3tRjVMrf9Q2VY5XnW2B+jAiHYL/eHd3PMsF/IJuCQu5SqvEx+s2I0OosbQsG8gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAiBMAAAAAAAAgTgAAAAABAAAAAQACAgwAAAECAAAAAQAAAAAAAAA="
         ))
         return Preparation(
-            source: .transfer([transfer], try configuration(), .init(context: Context(slot: 400), value: .init(
+            source: .local([transfer], transfer.accounts[0].address, try configuration(), .init(context: Context(slot: 400), value: .init(
                 blockhash: "11111111111111111111111111111111", lastValidBlockHeight: 550
-            ))), signer: transfer.sender,
+            ))), signer: transfer.accounts[0].address,
             transaction: try TransactionDecoder().decode(message + Data(repeating: 0, count: 64)), network: .devnet,
             fee: .init(context: Context(slot: 401), value: fee),
             simulation: .init(context: Context(slot: 402), value: .init(
@@ -52,13 +50,13 @@ enum PreparationFixture {
     /// - Returns: The original transfer, configuration, and blockhash observation.
     /// - Throws: A test failure if the review wasn't constructed from a SOL transfer.
     static func source(_ preparation: Preparation) throws -> (
-        transfer: Transfer, configuration: Configuration, blockhash: GetLatestBlockhash.Response
+        instruction: Instruction, payer: Address, configuration: Configuration, blockhash: GetLatestBlockhash.Response
     ) {
-        guard case .transfer(let transfers, let configuration, let blockhash) = preparation.source,
-              let transfer = transfers.first else {
+        guard case .local(let instructions, let payer, let configuration, let blockhash) = preparation.source,
+              let instruction = instructions.first else {
             Issue.record("Expected native transfer construction details")
             throw ValidationError.invalidTransaction
         }
-        return (transfer, configuration, blockhash)
+        return (instruction, payer, configuration, blockhash)
     }
 }

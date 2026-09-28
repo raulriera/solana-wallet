@@ -1,3 +1,4 @@
+import Foundation
 import RPC
 import Testing
 import Transactions
@@ -51,15 +52,15 @@ struct StrategyTests {
     func senderRequiresReviewedPriorityFee(strategy: TransactionCoordinator.Strategy,
                                           requestedFee: UInt64, minimumFee: UInt64) async throws {
         let rpc = Solana()
-        let coordinator = try TransactionCoordinator(rpc: rpc,
-            store: KeychainStore(service: "widgetsTests.Strategy"), rpcs: [rpc], strategy: strategy)
-        let transfer = try Transfer(sender: Address("4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T"),
-                                    recipient: Address("9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM"), lamports: 1)
+        let transfer = try SystemProgram.transfer(from: Address("4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T"), to: Address("9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM"), lamports: 1)
         let configuration = try Configuration(priorityFeeLamports: requestedFee,
                                                computeUnitLimit: 20_000, loadedAccountsDataSizeLimit: 65_536)
 
+        let coordinator = try TransactionCoordinator(rpc: rpc,
+            store: KeychainStore(service: "widgetsTests.Strategy"), rpcs: [rpc], strategy: strategy, configuration: configuration)
+
         await #expect(throws: Preparer.Failure.priorityFeeTooLow(minimumLamports: minimumFee)) {
-            try await coordinator.prepare(transfer, configuration: configuration)
+            try await coordinator.simulate([transfer], using: Account(id: UUID(), address: transfer.accounts[0].address))
         }
     }
 

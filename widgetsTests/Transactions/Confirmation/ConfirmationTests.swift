@@ -14,13 +14,7 @@ struct ConfirmationTests {
     func confirmationWaitsForExecution(_ commitment: Commitment) async throws {
         let rpc = ConfirmationRPC(responses: [response(nil), response(status(.processed)),
                                               response(status(nil)), response(status(commitment))])
-        let recovery = try SigningFixture().recovery
-        let coordinator: any TransactionCoordinating = TransactionCoordinator(
-            preparer: Preparer(rpc: rpc), signer: Signer(rpc: rpc, store: SigningRecoveryStore(recovery: recovery)),
-            submitter: Submitter(rpc: rpc), confirmer: Confirmer(rpc: rpc, clock: pollingClock())
-        )
-
-        let confirmation = try await coordinator.confirm(submission)
+        let confirmation = try await Confirmer(rpc: rpc, clock: pollingClock()).confirm(submission)
 
         #expect(confirmation == Confirmation(submission: submission, slot: 405,
                                              commitment: commitment, outcome: .succeeded))

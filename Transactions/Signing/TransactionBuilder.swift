@@ -12,36 +12,21 @@ public struct TransactionBuilder: TransactionBuilding {
         self.decoder = decoder
     }
 
-    /// Appends a placeholder signature to a single-signer V1 message.
+    /// Appends an empty slot for each required signer and validates the complete envelope.
     ///
-    /// These bytes only support simulation with signature verification disabled.
-    /// They do not authorize a transfer and cannot be submitted as a signed transaction.
-    ///
-    /// - Parameter message: The unsigned bytes returned by ``MessageBuilding``.
-    /// - Returns: The unchanged message followed by one empty 64-byte signature slot.
-    /// - Throws: ``ValidationError/invalidMessage`` for an unsupported header or size.
+    /// - Parameter message: A compiled V1 message, excluding signatures.
+    /// - Returns: The unchanged message with ordered placeholder signatures for simulation.
+    /// - Throws: A validation error for an unsupported header, malformed message, or oversized envelope.
     public func simulationTransaction(for message: Data) throws -> Data {
-        try validateMessage(message)
-        return message + Data(repeating: 0, count: 64)
-    }
-
-    /// Verifies the message's sole signer before appending the V1 signature field.
-    ///
-    /// The signer comes from the message's first account, not a separate caller value.
-    /// This operation checks the header, size, and signature; it doesn't parse
-    /// instruction payloads, authorize a transfer, or establish network validity.
-    ///
-    /// - Parameters:
-    ///   - message: The unsigned bytes returned by ``MessageBuilding``.
-    ///   - signature: The Ed25519 signature over the entire message.
-    /// - Returns: The message followed by its signature, with no padding or length prefix.
-    /// - Throws: ``ValidationError/invalidMessage`` for an unsupported header or size,
-    ///   or ``ValidationError/invalidSignature`` for a missing or invalid signature.
-    public func transaction(for message: Data, signature: Data) throws -> Data {
-        try validateMessage(message)
-        let publicKey = message.dropFirst(42).prefix(32)
-        try verify(signature, publicKey: publicKey, message: message)
-        return message + signature
+        guard message.count >= 2, message.first == 0x81 else { throw ValidationError.invalidMessage }
+        let count = Int(message[message.startIndex + 1])
+        guard (1...12).contains(count), message.count + count * 64 <= 4_096 else {
+            throw ValidationError.invalidMessage
+        }
+        let envelope = message + Data(repeating: 0, count: count * 64)
+        let decoded = try decoder.decode(envelope)
+        guard decoded.message == message else { throw ValidationError.invalidMessage }
+        return envelope
     }
 
     /// Decodes an envelope and verifies every occupied signature slot.
@@ -123,22 +108,6 @@ public struct TransactionBuilder: TransactionBuilding {
         let signer = try Curve25519.Signing.PublicKey(rawRepresentation: publicKey)
         guard signer.isValidSignature(signature, for: message) else {
             throw ValidationError.invalidSignature
-        }
-    }
-
-    /// Checks the header and size shared by simulated and signed envelopes.
-    ///
-    /// - Parameter message: The bytes whose single-signer V1 layout to check.
-    /// - Throws: ``ValidationError/invalidMessage`` for an unsupported header or size.
-    private func validateMessage(_ message: Data) throws {
-        // V1's fixed header ends at byte 42; the account array starts with the signer.
-        let header = Array(message.prefix(42))
-        guard header.count == 42, header[0] == 0x81,
-              header[1] == 1, header[2] == 0,
-              (1...64).contains(header[41]), header[3] < header[41],
-              message.count >= 42 + Int(header[41]) * 32,
-              message.count <= 4_096 - 64 else {
-            throw ValidationError.invalidMessage
         }
     }
 }

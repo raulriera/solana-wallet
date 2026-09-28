@@ -3,7 +3,7 @@
 /// Account observations must come from the same network and a consistent ledger
 /// context. Construction cannot establish provider honesty or prevent later state changes.
 public struct TokenTransfer: Sendable {
-    /// The token owner and sole transaction signer, who also pays fees and account rent.
+    /// The token owner whose signature authorizes the transfer.
     public let sender: Address
     /// The recipient wallet, distinct from its associated token account.
     public let recipient: Address
@@ -32,7 +32,7 @@ public struct TokenTransfer: Sendable {
     /// Validates account relationships and the extensions needed for construction.
     ///
     /// - Parameters:
-    ///   - sender: The source owner and transaction fee payer.
+    ///   - sender: The source owner authorizing the token debit.
     ///   - recipient: The wallet whose associated account receives the tokens.
     ///   - mint: The initialized mint observed through RPC.
     ///   - source: The source account observed through RPC.
