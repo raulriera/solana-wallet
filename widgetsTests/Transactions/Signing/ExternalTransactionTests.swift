@@ -18,7 +18,7 @@ struct ExternalTransactionTests {
         let signingRPC = SigningRPC(fee: 15_000)
         let store = SigningRecoveryStore(recovery: recovery)
         let coordinator: any TransactionCoordinating = TransactionCoordinator(
-            preparer: Preparer(rpc: preparationRPC), signer: Signer(rpc: signingRPC, store: store), submitter: Submitter(rpc: signingRPC)
+            preparer: Preparer(rpc: preparationRPC), signer: Signer(rpc: signingRPC, store: store), submitter: Submitter(rpc: signingRPC), confirmer: Confirmer(rpc: signingRPC)
         )
         var input = expected.bytes
         input.insert(0xff, at: input.startIndex)
@@ -128,7 +128,7 @@ struct ExternalTransactionTests {
         let store = SigningRecoveryStore(recovery: try SigningFixture().recovery)
         let wallet = RecordingWallet()
         let coordinator = TransactionCoordinator(preparer: Preparer(rpc: preparationRPC),
-            signer: Signer(rpc: signingRPC, store: store, wallet: wallet), submitter: Submitter(rpc: signingRPC))
+            signer: Signer(rpc: signingRPC, store: store, wallet: wallet), submitter: Submitter(rpc: signingRPC), confirmer: Confirmer(rpc: signingRPC))
 
         if stage == "preparation" {
             await #expect(throws: Preparer.Failure.invalidBlockhash) {

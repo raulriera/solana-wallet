@@ -15,7 +15,7 @@ struct SubmissionTests {
                                 acknowledgment: ExternalFixture.signature)
         let coordinator: any TransactionCoordinating = TransactionCoordinator(
             preparer: Preparer(rpc: PreparationRPC(fixture: fixture)),
-            signer: Signer(rpc: SigningRPC(fee: 15_000), store: store), submitter: Submitter(rpc: rpc)
+            signer: Signer(rpc: SigningRPC(fee: 15_000), store: store), submitter: Submitter(rpc: rpc), confirmer: Confirmer(rpc: rpc)
         )
 
         let preparation = try await coordinator.prepare(fixture.transaction, for: fixture.signer)
