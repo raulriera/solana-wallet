@@ -23,7 +23,8 @@
 - Keep RPC and DAS contracts provider-neutral; Helius is the current implementation, and providers must be interchangeable behind protocols.
 - Surface RPC rate-limit errors to consumers; do not add automatic throttling or retries in RPC.
 - Add RPC methods only for concrete needs of agreed wallet features; follow [references/rpc-scope.md](references/rpc-scope.md), not endpoint coverage.
-- Keep the app decentralized: no app-owned backend or proxy. Connect directly to Solana RPC providers that also offer DAS.
+- Keep the app decentralized: no app-owned backend or proxy. Connect directly to Solana RPC providers; DAS is an optional provider capability.
+- Submit the same signed transaction concurrently through all enabled providers on its network; Helius Sender is an optional additional route. Follow [references/transfers.md](references/transfers.md).
 - Use the selected provider's DAS interface for all portfolio data; follow [references/portfolio.md](references/portfolio.md).
 - Keep wallet recovery material device-only, excluded from iCloud sync and backups; follow [references/wallet.md](references/wallet.md).
 - Agree on architecture before implementation; work on one concern at a time.

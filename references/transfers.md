@@ -2,6 +2,18 @@
 
 Internal app coordination follows [architecture](architecture.md). Services live under `widgets/Transactions`; app-hosted `widgetsTests` covers their behavior.
 
+## Approved next submission behavior
+
+These decisions extend the current single-provider implementation described below.
+
+- Include public Solana mainnet as a built-in provider. Providers can be activated; one enabled provider receives one submission, and multiple enabled providers receive concurrent submissions.
+- Submit the exact same signed transaction to every enabled provider on its network. Keep one signature and confirmation outcome; never rebuild or resign per provider.
+- Attempt each route once. Retain independent errors so one failed provider does not cancel another submission. An acknowledgment establishes acceptance, not execution; dispatch failures can leave delivery unknown.
+- Offer Helius Sender as an optional additional submission route through provider-neutral capabilities. Any required tip belongs in preparation, review, and signing; it remains payable if another route lands the transaction.
+- DAS is not required for submission. Portfolio behavior without DAS remains deferred.
+
+## Current implementation
+
 - Create `TransactionCoordinator: TransactionCoordinating` once with `RPC` and `RecoveryStoring`. It delegates to internal `TransactionPreparing`, `TransactionSigning`, `TransactionSubmitting`, and `TransactionConfirming` services; callers don't assemble workflow helpers.
 - `prepare(transfer, configuration:)` constructs a native SOL message with a confirmed blockhash and known block-height expiry.
 - `prepare(transaction, for: signer)` accepts a typed `Transaction` from the import boundary, verifies existing signatures, and requires an empty slot for the selected account. `IsBlockhashValid` checks its original recent blockhash. It never replaces bytes or infers a network from them. Durable-nonce transactions remain unsupported.
