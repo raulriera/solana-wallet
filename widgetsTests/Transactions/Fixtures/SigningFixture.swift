@@ -19,7 +19,7 @@ struct SigningFixture {
 
     /// The review value constructed through the internal initializer.
     var preparation: Preparation {
-        Preparation(source: .transfer(transfer, configuration, blockhash), signer: transfer.sender,
+        Preparation(source: .transfer([transfer], configuration, blockhash), signer: transfer.sender,
                     transaction: Transaction(message: message, lifetimeSpecifier: inspection.lifetimeSpecifier,
                                              accounts: inspection.accounts, requests: inspection.requests,
                                              instructions: inspection.instructions, signatures: inspection.signatures),

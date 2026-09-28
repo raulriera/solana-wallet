@@ -8,8 +8,8 @@ import Transactions
 nonisolated struct Preparation: Sendable {
     /// The construction intent or the context that validated an externally supplied hash.
     enum Source: Sendable {
-        /// A locally constructed SOL transfer, its configuration, and block-height expiry.
-        case transfer(Transfer, Configuration, GetLatestBlockhash.Response)
+        /// A primary SOL transfer followed by service tips, configuration, and block-height expiry.
+        case transfer([Transfer], Configuration, GetLatestBlockhash.Response)
         /// Externally supplied bytes whose recent blockhash was checked at this context.
         case external(Context)
 
@@ -34,6 +34,15 @@ nonisolated struct Preparation: Sendable {
     let fee: GetFeeForMessage.Response
     /// The execution outcome and diagnostics, including unsuccessful execution.
     let simulation: SimulateTransaction.Response
+
+    /// Service tips added during local preparation, separate from the network fee.
+    ///
+    /// Imported transactions remain unchanged; their original instructions require
+    /// independent interpretation and aren't represented by this property.
+    var tips: [Transfer] {
+        guard case .transfer(let transfers, _, _) = source else { return [] }
+        return Array(transfers.dropFirst())
+    }
 
     /// The exact unsigned message used for fee estimation and signing.
     var message: Data { transaction.message }

@@ -17,7 +17,7 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
     ///   - store: The recovery store that authenticates access to the selected wallet.
     ///   - rpcs: Every RPC available for submission, or `nil` to use `rpc` alone.
     init(rpc: any RPC = Solana(), store: any RecoveryStoring, rpcs: [any RPC]? = nil) {
-        self.init(preparer: Preparer(rpc: rpc), signer: Signer(rpc: rpc, store: store),
+        self.init(preparer: Preparer(rpc: rpc, rpcs: rpcs), signer: Signer(rpc: rpc, store: store),
                   submitter: Submitter(rpc: rpc, rpcs: rpcs), confirmer: Confirmer(rpc: rpc))
     }
 

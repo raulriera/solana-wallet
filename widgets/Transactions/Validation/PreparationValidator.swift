@@ -85,11 +85,11 @@ nonisolated struct PreparationValidator: PreparationValidating {
               preparation.simulation.context.slot >= preparation.source.context.slot else {
             throw Failure.inconsistentPreparation
         }
-        if case .transfer(let transfer, let configuration, let blockhash) = preparation.source {
+        if case .transfer(let transfers, let configuration, let blockhash) = preparation.source {
             let message = try messageBuilder.message(
-                for: transfer, recentBlockhash: blockhash.value.blockhash, configuration: configuration
+                for: transfers, recentBlockhash: blockhash.value.blockhash, configuration: configuration
             )
-            guard message == preparation.message, preparation.signer == transfer.sender else {
+            guard message == preparation.message, preparation.signer == transfers.first?.sender else {
                 throw Failure.messageMismatch
             }
         }

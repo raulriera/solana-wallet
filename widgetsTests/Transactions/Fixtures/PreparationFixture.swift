@@ -34,7 +34,7 @@ enum PreparationFixture {
             "gQEAAR8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEDMhz6Wt0YXoiTpf2IAT7E1+Ei3tRjVMrf9Q2VY5XnW2B+jAiHYL/eHd3PMsF/IJuCQu5SqvEx+s2I0OosbQsG8gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAiBMAAAAAAAAgTgAAAAABAAAAAQACAgwAAAECAAAAAQAAAAAAAAA="
         ))
         return Preparation(
-            source: .transfer(transfer, try configuration(), .init(context: Context(slot: 400), value: .init(
+            source: .transfer([transfer], try configuration(), .init(context: Context(slot: 400), value: .init(
                 blockhash: "11111111111111111111111111111111", lastValidBlockHeight: 550
             ))), signer: transfer.sender,
             transaction: try TransactionDecoder().decode(message + Data(repeating: 0, count: 64)), network: .devnet,
@@ -54,7 +54,8 @@ enum PreparationFixture {
     static func source(_ preparation: Preparation) throws -> (
         transfer: Transfer, configuration: Configuration, blockhash: GetLatestBlockhash.Response
     ) {
-        guard case .transfer(let transfer, let configuration, let blockhash) = preparation.source else {
+        guard case .transfer(let transfers, let configuration, let blockhash) = preparation.source,
+              let transfer = transfers.first else {
             Issue.record("Expected native transfer construction details")
             throw ValidationError.invalidTransaction
         }

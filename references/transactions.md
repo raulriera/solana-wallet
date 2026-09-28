@@ -1,6 +1,6 @@
 # Transactions
 
-- `MessageBuilder` implements `MessageBuilding` for local, single-instruction V1 SOL transfers. `Transfer` supplies validated `Address` values and positive `UInt64` lamports; the sender pays fees.
+- `MessageBuilder` implements `MessageBuilding` for one or more local V1 SOL transfers sharing one sender. The same encoder supports a payment followed by service tips. `Transfer` supplies validated `Address` values and positive `UInt64` lamports; the sender pays fees.
 - `MessageBuilder` also implements `TokenMessageBuilding` for SPL Token and Token-2022 through one `TokenTransfer` API. Both share the V1 encoder with SOL; all construction remains local and single-signer.
 - Decode `TokenMint` and `TokenAccount` from raw RPC bytes and program owners. Transfers validate the source authority, mint/program relationships, balances, recipient ATA, frozen state, and required extensions. RPC observations must share a network and consistent ledger context; they do not prove provider honesty or freshness.
 - Recipient ATA derivation includes the token program. An absent destination adds idempotent ATA creation, funded by the sender; rent is separate from the token amount and transaction fee. Public-address derivation uses SHA-256 and a bounded Ed25519 curve-membership check, separate from signing.

@@ -3,6 +3,9 @@ public protocol RPC: Sendable {
     /// The Solana network that receives the client's requests.
     var network: Network { get }
 
+    /// Additional payments required for submission, or `nil` for ordinary RPC delivery.
+    var submissionRequirements: SubmissionRequirements? { get }
+
     /// Sends a request and returns the result described by its response type.
     ///
     /// - Parameter request: The RPC method and parameters to send.
@@ -10,6 +13,11 @@ public protocol RPC: Sendable {
     /// - Throws: `CancellationError` if the operation is cancelled, or ``RPCError``
     ///   if the request can't be encoded, delivered, validated, or decoded.
     func send<Request: RPCRequest>(_ request: Request) async throws -> Request.Response
+}
+
+extension RPC {
+    /// Ordinary RPC delivery requires no additional service payment.
+    public var submissionRequirements: SubmissionRequirements? { nil }
 }
 
 /// A typed RPC method whose encoded value supplies its parameters.

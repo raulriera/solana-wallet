@@ -4,29 +4,35 @@ import Transactions
 
 /// A stateless service that evaluates exact V1 bytes through an injected RPC provider.
 nonisolated struct Preparer: TransactionPreparing {
-    /// A supplied lifetime specifier that can't enter the recent-blockhash workflow.
+    /// A preparation requirement that the supplied transaction or configuration doesn't meet.
     enum Failure: Error, Sendable, Equatable {
         /// The node cannot confirm the supplied value as a valid recent blockhash.
         case invalidBlockhash
+        /// The selected submission service requires a larger reviewed priority fee.
+        case priorityFeeTooLow(minimumLamports: UInt64)
     }
     private let rpc: any RPC
     private let messageBuilder: any MessageBuilding
     private let transactionBuilder: any TransactionBuilding
+    private let requirements: [SubmissionRequirements]
 
     /// Creates a service with a provider and local V1 encoders.
     ///
     /// - Parameters:
     ///   - rpc: The provider supplying the blockhash, fee, and simulation.
+    ///   - rpcs: Submission clients whose same-network payment requirements must be reviewed.
     ///   - messageBuilder: The unsigned message encoder. The default is `MessageBuilder`.
     ///   - transactionBuilder: The simulation envelope encoder. The default is `TransactionBuilder`.
     init(
         rpc: any RPC,
+        rpcs: [any RPC]? = nil,
         messageBuilder: any MessageBuilding = MessageBuilder(),
         transactionBuilder: any TransactionBuilding = TransactionBuilder()
     ) {
         self.rpc = rpc
         self.messageBuilder = messageBuilder
         self.transactionBuilder = transactionBuilder
+        requirements = (rpcs ?? [rpc]).filter { $0.network == rpc.network }.compactMap(\.submissionRequirements)
     }
 
     /// Builds and evaluates the same unsigned message at confirmed commitment.
@@ -39,20 +45,29 @@ nonisolated struct Preparer: TransactionPreparing {
     ///   - transfer: The validated native SOL transfer.
     ///   - configuration: The explicit priority fee and execution resource limits.
     /// - Returns: Immutable review data, including unsuccessful simulation results.
-    /// - Throws: A construction or RPC error, or `CancellationError` if cancelled.
+    /// - Throws: ``Failure/priorityFeeTooLow(minimumLamports:)`` if a service requires a
+    ///   higher fee, a construction or RPC error, or `CancellationError` if cancelled.
     @concurrent
     func prepare(_ transfer: Transfer, configuration: Configuration) async throws -> Preparation {
         try Task.checkCancellation()
+        let minimumFee = requirements.map(\.minimumPriorityFeeLamports).max() ?? 0
+        guard configuration.priorityFeeLamports >= minimumFee else {
+            throw Failure.priorityFeeTooLow(minimumLamports: minimumFee)
+        }
+        let tips = try requirements.map {
+            try Transfer(sender: transfer.sender, recipient: Address($0.tipRecipient), lamports: $0.tipLamports)
+        }
+        let transfers = [transfer] + tips
         let network = rpc.network
         let blockhash = try await rpc.send(GetLatestBlockhash(commitment: .confirmed))
         try Task.checkCancellation()
         let message = try messageBuilder.message(
-            for: transfer, recentBlockhash: blockhash.value.blockhash, configuration: configuration
+            for: transfers, recentBlockhash: blockhash.value.blockhash, configuration: configuration
         )
         let transaction = try transactionBuilder.validateSignatures(in:
             transactionBuilder.simulationTransaction(for: message), for: transfer.sender
         )
-        return try await evaluate(transaction, source: .transfer(transfer, configuration, blockhash),
+        return try await evaluate(transaction, source: .transfer(transfers, configuration, blockhash),
                                   signer: transfer.sender, network: network)
     }
 
