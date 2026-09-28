@@ -18,7 +18,7 @@ struct SigningTests {
         let wallet = RecordingWallet()
         let coordinator: any TransactionCoordinating = TransactionCoordinator(
             preparer: Preparer(rpc: PreparationRPC(fixture: fixture.preparation)),
-            signer: Signer(rpc: rpc, store: store, wallet: wallet)
+            signer: Signer(rpc: rpc, store: store, wallet: wallet), submitter: Submitter(rpc: rpc)
         )
         let walletID = UUID()
 
