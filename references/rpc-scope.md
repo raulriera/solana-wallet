@@ -2,7 +2,7 @@
 
 Build for the agreed Simplified and Advanced wallet experiences. A test or hypothetical future use alone doesn't justify an RPC method.
 
-Connect directly to interchangeable Solana RPC/DAS providers; no app-owned backend or proxy. Helius is the current implementation. Keep provider-specific endpoints, authentication, and extensions inside RPC; consumers depend on provider-neutral protocols.
+Connect directly to interchangeable Solana RPC/DAS providers; no app-owned backend or proxy. Helius is the current implementation. Keep provider-specific endpoints, authentication, and extensions inside RPC; consumers depend on provider-neutral protocols. App workflow coordination follows [architecture](architecture.md).
 
 | Feature | RPC need |
 | --- | --- |
@@ -13,4 +13,4 @@ Connect directly to interchangeable Solana RPC/DAS providers; no app-owned backe
 
 - Confidential transfers remain conditional; agree on feasibility and the concrete flow before adding support.
 - Raw account, rent-exemption, and node-version queries are outside the current scope. Add them only when an agreed feature needs them.
-- RPC completion means the agreed flows have the communication they need. AI exploration is parked; [Wallet](wallet.md) creation and recovery are next. UI remains last.
+- RPC completion means the agreed flows have the communication they need. Human-readable simulation explanations remain a separate milestone; AI exploration is parked. UI remains last.

@@ -6,7 +6,10 @@
 - Do not add module-name prefixes to types; rely on the module namespace.
 - Keep project files grouped by concern in real folders that Xcode mirrors; group related tests accordingly.
 - Keep every approach Simple, Easy to change, Don't Repeat Yourself, and Single Concern.
+- Prioritize developer experience: express intent with typed APIs and encapsulate serialization and transport details inside services.
 - Use protocol-oriented programming throughout: depend on protocols and inject concrete implementations.
+- Compose wallet workflows in internal app services/coordinators, outside views; keep frameworks focused on reusable concerns. Follow [references/architecture.md](references/architecture.md).
+- Expose only contracts and values needed across module boundaries; keep implementation helpers internal or private.
 - iOS 27.1+ with full iPhone Duo support; no older-iOS compatibility paths.
 - Swift 6 with the latest compiler, SDK APIs, Apple guidance, and supported upcoming language features. No deprecated approaches.
 - Pure Swift and Apple frameworks; avoid third-party dependencies where reasonable.

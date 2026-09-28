@@ -1,0 +1,230 @@
+import CryptoKit
+import Foundation
+import RPC
+import Testing
+import Transactions
+@testable import widgets
+import Vault
+import Wallet
+
+/// Verifies review-to-signature boundaries through the internal signing service.
+struct SigningTests {
+    /// Verifies the real wallet signs reviewed bytes using the stored passphrase and path.
+    @Test("an authenticated wallet signs the exact reviewed transfer at its last valid block height")
+    func signingPreservesReviewedMessage() async throws {
+        let fixture = try SigningFixture()
+        let rpc = SigningRPC(heights: [550, 550])
+        let store = SigningRecoveryStore(recovery: fixture.recovery)
+        let wallet = RecordingWallet()
+        let coordinator: any TransactionCoordinating = TransactionCoordinator(
+            preparer: Preparer(rpc: PreparationRPC(fixture: fixture.preparation)),
+            signer: Signer(rpc: rpc, store: store, wallet: wallet)
+        )
+        let walletID = UUID()
+
+        let preparation = try await coordinator.prepare(fixture.transfer, configuration: fixture.configuration)
+        #expect(await store.reads.isEmpty)
+        let signed = try await coordinator.sign(preparation, for: walletID, reason: "Approve this SOL transfer")
+
+        let key = try Curve25519.Signing.PublicKey(rawRepresentation: #require(
+            Data(base64Encoded: "avQk/DwMx04ex+GYBKContNRuDzLEt0PObiUpqRJYxI=")
+        ))
+        #expect(signed.transaction.serializedRepresentation.dropLast(64) == fixture.message)
+        #expect(key.isValidSignature(signed.transaction.serializedRepresentation.suffix(64), for: fixture.message))
+        let source = try PreparationFixture.source(signed.preparation)
+        #expect(signed.isFullySigned)
+        #expect(source.transfer.recipient == fixture.transfer.recipient)
+        #expect(source.transfer.lamports == fixture.transfer.lamports)
+        #expect(source.blockhash.value == fixture.blockhash.value)
+        #expect(await wallet.messages == [fixture.message])
+        let reads = await store.reads
+        #expect(reads.count == 1)
+        let read = try #require(reads.first)
+        #expect(read.walletID == walletID)
+        #expect(read.reason == "Approve this SOL transfer")
+        let requests = await rpc.requests
+        #expect(requests.count == 3)
+        let heights = requests.compactMap { $0 as? GetBlockHeight }
+        #expect(heights.count == 2)
+        #expect(heights.allSatisfy { $0.commitment == .confirmed && $0.minContextSlot == 402 })
+        let fee = try #require(requests.compactMap { $0 as? GetFeeForMessage }.first)
+        #expect(fee.message == fixture.message)
+        #expect(fee.commitment == .confirmed)
+        #expect(fee.minContextSlot == 402)
+    }
+
+    /// Verifies changing either review metadata or encoded bytes cannot reach recovery access.
+    ///
+    /// - Parameter changed: The part of the preparation altered after simulation.
+    @Test("altered transfer details cannot unlock a wallet for a different message", arguments: [
+        "amount", "recipient", "priority fee", "message"
+    ])
+    func changedReviewCannotUnlockWallet(_ changed: String) async throws {
+        var fixture = try SigningFixture()
+        switch changed {
+        case "amount":
+            fixture.transfer = try Transfer(sender: fixture.transfer.sender, recipient: fixture.transfer.recipient, lamports: 2)
+        case "recipient":
+            fixture.transfer = try Transfer(sender: fixture.transfer.sender, recipient: fixture.transfer.sender, lamports: 1)
+        case "priority fee":
+            fixture.configuration = try Configuration(priorityFeeLamports: 6_000, computeUnitLimit: 20_000,
+                                                       loadedAccountsDataSizeLimit: 65_536, heapSize: 65_536)
+        default:
+            fixture.message[fixture.message.count - 8] ^= 1
+        }
+        let rpc = SigningRPC()
+        let store = SigningRecoveryStore(recovery: fixture.recovery)
+        let signer = Signer(rpc: rpc, store: store)
+
+        await #expect(throws: PreparationValidator.Failure.messageMismatch) {
+            try await signer.sign(fixture.preparation, for: UUID(), reason: "Approve transfer")
+        }
+
+        #expect(await store.reads.isEmpty)
+        #expect(await rpc.requests.isEmpty)
+    }
+
+    /// Verifies incomplete or conflicting observations cannot authorize recovery access.
+    ///
+    /// - Parameter condition: The invalid observation presented for signing.
+    @Test("failed or inconsistent review results cannot unlock recovery", arguments: [
+        "failed simulation", "unknown fee", "conflicting fee", "replacement blockhash", "stale context", "understated fee"
+    ])
+    func invalidReviewCannotUnlockRecovery(_ condition: String) async throws {
+        var fixture = try SigningFixture()
+        var expected = PreparationValidator.Failure.inconsistentPreparation
+        var error: TransactionError?
+        var simulationFee: UInt64? = 10_000
+        var replacement: GetLatestBlockhash.Value?
+        var slot: UInt64 = 402
+        switch condition {
+        case "failed simulation":
+            error = TransactionError(name: "InsufficientFundsForFee", details: nil)
+            expected = .simulationFailed
+        case "unknown fee":
+            fixture.fee = .init(context: Context(slot: 401), value: nil)
+            expected = .feeUnavailable
+        case "conflicting fee": simulationFee = 20_000
+        case "replacement blockhash": replacement = fixture.blockhash.value
+        case "stale context": slot = 399
+        default: fixture.fee = .init(context: Context(slot: 401), value: 1)
+        }
+        fixture.simulation = .init(context: Context(slot: slot), value: .init(
+            error: error, logs: nil, unitsConsumed: nil, loadedAccountsDataSize: nil,
+            fee: simulationFee, replacementBlockhash: replacement
+        ))
+        let rpc = SigningRPC()
+        let store = SigningRecoveryStore(recovery: fixture.recovery)
+        let signer = Signer(rpc: rpc, store: store)
+
+        await #expect(throws: expected) {
+            try await signer.sign(fixture.preparation, for: UUID(), reason: "Approve transfer")
+        }
+
+        #expect(await store.reads.isEmpty)
+        #expect(await rpc.requests.isEmpty)
+    }
+
+    /// Verifies a provider switch cannot sign a preparation made on another network.
+    @Test("a network mismatch rejects signing before wallet access")
+    func networkMismatchRejectsSigning() async throws {
+        var fixture = try SigningFixture()
+        fixture.network = .mainnet
+        let rpc = SigningRPC()
+        let store = SigningRecoveryStore(recovery: fixture.recovery)
+        let signer = Signer(rpc: rpc, store: store)
+
+        await #expect(throws: PreparationValidator.Failure.networkMismatch) {
+            try await signer.sign(fixture.preparation, for: UUID(), reason: "Approve transfer")
+        }
+
+        #expect(await store.reads.isEmpty)
+        #expect(await rpc.requests.isEmpty)
+    }
+
+    /// Verifies expiry before or during authentication never reaches the message signer.
+    ///
+    /// - Parameter expiresDuringAuthentication: Whether the first expiry check still passes.
+    @Test("expired preparations never reach the message signer", arguments: [false, true])
+    func expiredPreparationsNeverReachSigner(expiresDuringAuthentication: Bool) async throws {
+        let fixture = try SigningFixture()
+        let rpc = SigningRPC(heights: expiresDuringAuthentication ? [500, 551] : [551])
+        let store = SigningRecoveryStore(recovery: fixture.recovery)
+        let wallet = RecordingWallet()
+        let signer = Signer(rpc: rpc, store: store, wallet: wallet)
+
+        await #expect(throws: PreparationValidator.Failure.expired) {
+            try await signer.sign(fixture.preparation, for: UUID(), reason: "Approve transfer")
+        }
+
+        #expect(await store.reads.count == (expiresDuringAuthentication ? 1 : 0))
+        #expect(await wallet.messages.isEmpty)
+    }
+
+    /// Verifies changed or unavailable fees require another review before authentication.
+    ///
+    /// - Parameter fee: The fee now reported by the provider.
+    @Test("a changed network fee requires another review before unlocking", arguments: [UInt64(11_000), nil])
+    func changedFeeRequiresReview(_ fee: UInt64?) async throws {
+        let fixture = try SigningFixture()
+        let rpc = SigningRPC(fee: fee)
+        let store = SigningRecoveryStore(recovery: fixture.recovery)
+        let signer = Signer(rpc: rpc, store: store)
+
+        await #expect(throws: PreparationValidator.Failure.feeChanged) {
+            try await signer.sign(fixture.preparation, for: UUID(), reason: "Approve transfer")
+        }
+
+        #expect(await store.reads.isEmpty)
+        #expect(await rpc.requests.count == 2)
+    }
+
+    /// Verifies a failed biometric read cannot fall through to signing.
+    @Test("denied wallet authentication prevents message signing")
+    func deniedAuthenticationPreventsSigning() async throws {
+        let fixture = try SigningFixture()
+        let store = SigningRecoveryStore(recovery: fixture.recovery, failure: .authenticationFailed)
+        let wallet = RecordingWallet()
+        let signer = Signer(rpc: SigningRPC(), store: store, wallet: wallet)
+
+        await #expect(throws: KeychainStore.Failure.authenticationFailed) {
+            try await signer.sign(fixture.preparation, for: UUID(), reason: "Approve transfer")
+        }
+
+        #expect(await store.reads.count == 1)
+        #expect(await wallet.messages.isEmpty)
+    }
+
+    /// Verifies the reviewed sender, rather than a recovered substitute, reaches the actual wallet.
+    @Test("recovery for another account cannot sign the reviewed sender's transfer")
+    func anotherAccountCannotSignTransfer() async throws {
+        let fixture = try SigningFixture()
+        let otherAccount = Recovery(phrase: fixture.recovery.phrase, passphrase: "", path: .solana)
+        let store = SigningRecoveryStore(recovery: otherAccount)
+        let signer = Signer(rpc: SigningRPC(), store: store)
+
+        await #expect(throws: SigningError.signerMismatch) {
+            try await signer.sign(fixture.preparation, for: UUID(), reason: "Approve transfer")
+        }
+    }
+
+    /// Verifies late recovery cannot produce a signature after the calling task is cancelled.
+    @Test("cancelling authentication discards late recovery without signing", .timeLimit(.minutes(1)))
+    func cancellationDiscardsLateRecovery() async throws {
+        let fixture = try SigningFixture()
+        let gate = Suspension()
+        let store = SigningRecoveryStore(recovery: fixture.recovery, gate: gate)
+        let wallet = RecordingWallet()
+        let signer = Signer(rpc: SigningRPC(), store: store, wallet: wallet)
+        let operation = Task { @concurrent in
+            try await signer.sign(fixture.preparation, for: UUID(), reason: "Approve transfer")
+        }
+        defer { operation.cancel() }
+        await gate.waitUntilStarted()
+
+        operation.cancel()
+
+        await #expect(throws: CancellationError.self) { try await operation.value }
+        #expect(await wallet.messages.isEmpty)
+    }
+}
