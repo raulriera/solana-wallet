@@ -2,7 +2,7 @@ import Foundation
 
 /// A client for Helius Sender's optional mainnet transaction-submission service.
 ///
-/// Add this client alongside ordinary RPC clients. It serves submission methods;
+/// Use this client as the selected submission route. It serves submission methods;
 /// preparation and confirmation continue through an ordinary RPC client.
 public struct Sender: RPC {
     /// The Sender routing tier selected by the app's settings.

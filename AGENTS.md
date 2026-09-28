@@ -25,7 +25,7 @@
 - Surface RPC rate-limit errors to consumers; do not add automatic throttling or retries in RPC.
 - Add RPC methods only for concrete needs of agreed wallet features; follow [references/rpc-scope.md](references/rpc-scope.md), not endpoint coverage.
 - Keep the app decentralized: no app-owned backend or proxy. Connect directly to Solana RPC providers.
-- Submit the same signed transaction concurrently through all enabled providers on its network; Helius Sender is an optional additional route. Follow [references/transfers.md](references/transfers.md).
+- Use one submission strategy: `none` sends identical signed bytes concurrently through configured same-network ordinary RPCs; `standard` and `premium` use Sender exclusively. Follow [references/transfers.md](references/transfers.md).
 - Use the selected provider's DAS interface only for portfolio viewing; keep DAS out of transaction submission contracts, validation, and routing. Follow [references/portfolio.md](references/portfolio.md).
 - Keep wallet recovery material device-only, excluded from iCloud sync and backups; follow [references/wallet.md](references/wallet.md).
 - Agree on architecture before implementation; work on one concern at a time.

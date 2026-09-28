@@ -5,6 +5,34 @@ import Vault
 
 /// The app's typed entry point for preparing, signing, submitting, and confirming V1 transactions.
 nonisolated struct TransactionCoordinator: TransactionCoordinating {
+    /// The mutually exclusive submission strategy selected in app settings.
+    enum Strategy: Sendable, CaseIterable, Equatable {
+        /// Submits through all configured ordinary RPCs without a Sender service tip.
+        case none
+        /// Submits only through Sender's lower-cost delivery route.
+        case standard
+        /// Submits only through Sender's broader delivery routes, with a higher tip.
+        case premium
+
+        /// Selects submission clients for one strategy and network.
+        ///
+        /// - Parameters:
+        ///   - network: The network used for preparation and confirmation.
+        ///   - rpcs: The ordinary RPC candidates used when Sender is disabled.
+        /// - Returns: Same-network ordinary RPCs or one Sender client.
+        /// - Throws: ``Submitter/Failure/noProviders`` if the strategy has no route on this network.
+        func clients(for network: Network, from rpcs: [any RPC]) throws -> [any RPC] {
+            let candidates: [any RPC] = switch self {
+            case .none: rpcs.filter { $0.submissionRequirements == nil }
+            case .standard: [Sender(tier: .standard)]
+            case .premium: [Sender(tier: .premium)]
+            }
+            let clients = candidates.filter { $0.network == network }
+            guard !clients.isEmpty else { throw Submitter.Failure.noProviders }
+            return clients
+        }
+    }
+
     private let preparer: any TransactionPreparing
     private let signer: any TransactionSigning
     private let submitter: any TransactionSubmitting
@@ -15,10 +43,14 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
     /// - Parameters:
     ///   - rpc: The provider used for prerequisites, simulation, and confirmation. Public mainnet is the default.
     ///   - store: The recovery store that authenticates access to the selected wallet.
-    ///   - rpcs: Every RPC available for submission, or `nil` to use `rpc` alone.
-    init(rpc: any RPC = Solana(), store: any RecoveryStoring, rpcs: [any RPC]? = nil) {
-        self.init(preparer: Preparer(rpc: rpc, rpcs: rpcs), signer: Signer(rpc: rpc, store: store),
-                  submitter: Submitter(rpc: rpc, rpcs: rpcs), confirmer: Confirmer(rpc: rpc))
+    ///   - rpcs: Ordinary RPC candidates for `.none`, or `nil` to use `rpc` alone.
+    ///   - strategy: The submission strategy. The default disables Sender.
+    /// - Throws: ``Submitter/Failure/noProviders`` if no selected route serves the read client's network.
+    init(rpc: any RPC = Solana(), store: any RecoveryStoring, rpcs: [any RPC]? = nil,
+         strategy: Strategy = .none) throws {
+        let clients = try strategy.clients(for: rpc.network, from: rpcs ?? [rpc])
+        self.init(preparer: Preparer(rpc: rpc, rpcs: clients), signer: Signer(rpc: rpc, store: store),
+                  submitter: Submitter(rpc: rpc, rpcs: clients), confirmer: Confirmer(rpc: rpc))
     }
 
     /// Creates a workflow with independently supplied transaction services.
