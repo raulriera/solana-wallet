@@ -10,6 +10,8 @@ nonisolated struct Preparation: Sendable {
     enum Source: Sendable {
         /// A primary SOL transfer followed by service tips, configuration, and block-height expiry.
         case transfer([Transfer], Configuration, GetLatestBlockhash.Response)
+        /// A validated token transfer, separate SOL tips, configuration, and block-height expiry.
+        case token(TokenTransfer, [Transfer], Configuration, GetLatestBlockhash.Response)
         /// Externally supplied bytes whose recent blockhash was checked at this context.
         case external(Context)
 
@@ -17,6 +19,7 @@ nonisolated struct Preparation: Sendable {
         var context: Context {
             switch self {
             case .transfer(_, _, let blockhash): blockhash.context
+            case .token(_, _, _, let blockhash): blockhash.context
             case .external(let context): context
             }
         }
@@ -30,7 +33,7 @@ nonisolated struct Preparation: Sendable {
     let transaction: Transaction
     /// The network explicitly selected for this review; wire bytes don't identify it.
     let network: Network
-    /// The total fee, including priority fees, or `nil` when unknown, with its context.
+    /// The network fee, including priority fees, or `nil` when unknown, with its context.
     let fee: GetFeeForMessage.Response
     /// The execution outcome and diagnostics, including unsuccessful execution.
     let simulation: SimulateTransaction.Response
@@ -40,8 +43,20 @@ nonisolated struct Preparation: Sendable {
     /// Imported transactions remain unchanged; their original instructions require
     /// independent interpretation and aren't represented by this property.
     var tips: [Transfer] {
-        guard case .transfer(let transfers, _, _) = source else { return [] }
-        return Array(transfers.dropFirst())
+        switch source {
+        case .transfer(let transfers, _, _): Array(transfers.dropFirst())
+        case .token(_, let tips, _, _): tips
+        case .external: []
+        }
+    }
+
+    /// The reviewed token debit, recipient, fee, and account-creation requirement, when locally constructed.
+    ///
+    /// Destination-account rent is separate from the network fee. Account creation
+    /// is indicated by `createsDestination`; its rent amount isn't estimated here.
+    var tokenTransfer: TokenTransfer? {
+        guard case .token(let transfer, _, _, _) = source else { return nil }
+        return transfer
     }
 
     /// The exact unsigned message used for fee estimation and signing.

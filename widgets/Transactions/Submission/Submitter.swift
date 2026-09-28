@@ -36,7 +36,8 @@ nonisolated struct Submitter: TransactionSubmitting {
     ///   - rpcs: Every RPC to submit through, or `nil` to use `rpc` alone.
     ///   - messageBuilder: The encoder that checks locally constructed transfer intent.
     ///   - transactionBuilder: The validator for all required transaction signatures.
-    init(rpc: any RPC, rpcs: [any RPC]? = nil, messageBuilder: any MessageBuilding = MessageBuilder(),
+    init(rpc: any RPC, rpcs: [any RPC]? = nil,
+         messageBuilder: any MessageBuilding & TokenMessageBuilding = MessageBuilder(),
          transactionBuilder: any TransactionBuilding = TransactionBuilder()) {
         self.rpcs = rpcs ?? [rpc]
         self.transactionBuilder = transactionBuilder

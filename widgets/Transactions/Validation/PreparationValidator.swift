@@ -22,7 +22,7 @@ nonisolated struct PreparationValidator: PreparationValidating {
     enum Failure: Error, Sendable, Equatable {
         /// The selected provider serves a different network from the reviewed preparation.
         case networkMismatch
-        /// The encoded message differs from the reviewed inspection or native transfer intent.
+        /// The encoded message differs from the reviewed inspection or local transfer intent.
         case messageMismatch
         /// Simulation reported that the transaction couldn't execute.
         case simulationFailed
@@ -37,16 +37,16 @@ nonisolated struct PreparationValidator: PreparationValidating {
     }
 
     private let rpc: any RPC
-    private let messageBuilder: any MessageBuilding
+    private let messageBuilder: any MessageBuilding & TokenMessageBuilding
     private let transactionBuilder: any TransactionBuilding
 
     /// Creates prerequisite checks with a provider and reusable transaction validators.
     ///
     /// - Parameters:
     ///   - rpc: The provider used for current fee and lifetime observations.
-    ///   - messageBuilder: The encoder used to check native transfer intent.
+    ///   - messageBuilder: The encoder used to check SOL and token transfer intent.
     ///   - transactionBuilder: The structural and signature validator.
-    init(rpc: any RPC, messageBuilder: any MessageBuilding = MessageBuilder(),
+    init(rpc: any RPC, messageBuilder: any MessageBuilding & TokenMessageBuilding = MessageBuilder(),
          transactionBuilder: any TransactionBuilding = TransactionBuilder()) {
         self.rpc = rpc
         self.messageBuilder = messageBuilder
@@ -70,7 +70,7 @@ nonisolated struct PreparationValidator: PreparationValidating {
               fee.value == preparation.fee.value else { throw Failure.feeChanged }
     }
 
-    /// Checks that review metadata agrees with exact message bytes and any native transfer intent.
+    /// Checks that review metadata agrees with exact message bytes and any local transfer intent.
     ///
     /// - Parameter preparation: The review data to validate before signing or submission.
     /// - Throws: ``Failure`` for inconsistent or unsuccessful review data, or an encoding error.
@@ -85,13 +85,22 @@ nonisolated struct PreparationValidator: PreparationValidating {
               preparation.simulation.context.slot >= preparation.source.context.slot else {
             throw Failure.inconsistentPreparation
         }
-        if case .transfer(let transfers, let configuration, let blockhash) = preparation.source {
+        switch preparation.source {
+        case .transfer(let transfers, let configuration, let blockhash):
             let message = try messageBuilder.message(
                 for: transfers, recentBlockhash: blockhash.value.blockhash, configuration: configuration
             )
             guard message == preparation.message, preparation.signer == transfers.first?.sender else {
                 throw Failure.messageMismatch
             }
+        case .token(let transfer, let tips, let configuration, let blockhash):
+            let message = try messageBuilder.message(
+                for: transfer, tips: tips, recentBlockhash: blockhash.value.blockhash, configuration: configuration
+            )
+            guard message == preparation.message, preparation.signer == transfer.sender else {
+                throw Failure.messageMismatch
+            }
+        case .external: break
         }
         let decoded = try transactionBuilder.validateSignatures(in: preparation.bytes, for: preparation.signer)
         guard decoded == preparation.transaction else { throw Failure.messageMismatch }
@@ -104,7 +113,7 @@ nonisolated struct PreparationValidator: PreparationValidating {
     func validateLifetime(_ preparation: Preparation) async throws {
         try Task.checkCancellation()
         switch preparation.source {
-        case .transfer(_, _, let blockhash):
+        case .transfer(_, _, let blockhash), .token(_, _, _, let blockhash):
             let height = try await rpc.send(GetBlockHeight(
                 commitment: .confirmed, minContextSlot: preparation.minimumSlot
             ))

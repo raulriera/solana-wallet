@@ -4,6 +4,44 @@ import Transactions
 
 /// Verifies both token programs through the same public transfer construction API.
 struct TokenTransferTests {
+    /// Verifies a service payment follows the token instruction and shares the fee payer.
+    ///
+    /// - Parameter fixture: A transfer with idempotent ATA creation for either token program.
+    @Test("token transfers include the exact SOL service tip after the checked transfer",
+          arguments: TokenFixtures.transfers.filter(\.createsDestination))
+    func tokenTransfersIncludeServiceTip(_ fixture: TokenFixture) throws {
+        let sender = try Address(TokenFixtures.sender)
+        let transfer = try TokenTransfer(sender: sender, recipient: Address(TokenFixtures.recipient),
+                                         mint: fixture.mint(), source: fixture.source(), destination: nil, amount: 1)
+        let tip = try Transfer(sender: sender, recipient: Address(TokenFixtures.recipient), lamports: 5_000)
+        let builder: any TokenMessageBuilding = MessageBuilder()
+        let message = try builder.message(for: transfer, tips: [tip], recentBlockhash: MessageFixture.zeroBlockhash,
+                                          configuration: configuration())
+        let transaction = try TransactionDecoder().decode(TransactionBuilder().simulationTransaction(for: message))
+
+        try #require(transaction.instructions.count == 3)
+        let instruction = transaction.instructions[2]
+        #expect(transaction.instructions[1].data.first == 12)
+        #expect(transaction.accounts[instruction.programIndex].address.value == "11111111111111111111111111111111")
+        #expect(instruction.accountIndices.map { transaction.accounts[$0].address } == [sender, tip.recipient])
+        #expect(instruction.data == Data([2, 0, 0, 0, 0x88, 0x13, 0, 0, 0, 0, 0, 0]))
+        #expect(transaction.accounts.filter(\.isSigner).map(\.address) == [sender])
+    }
+
+    /// Verifies token service payments cannot introduce another funding account.
+    @Test("token transfers reject a service tip paid by another sender")
+    func tokenTransfersRejectAnotherTipPayer() throws {
+        let fixture = TokenFixtures.transfers[0]
+        let transfer = try TokenTransfer(sender: Address(TokenFixtures.sender), recipient: Address(TokenFixtures.recipient),
+                                         mint: fixture.mint(), source: fixture.source(), destination: nil, amount: 1)
+        let tip = try Transfer(sender: Address(TokenFixtures.recipient), recipient: Address(TokenFixtures.sender), lamports: 1)
+
+        #expect(throws: ValidationError.invalidMessage) {
+            try MessageBuilder().message(for: transfer, tips: [tip], recentBlockhash: MessageFixture.zeroBlockhash,
+                                         configuration: configuration())
+        }
+    }
+
     /// Verifies transfers and idempotent ATA creation against independent SDK instructions.
     ///
     /// - Parameter fixture: An original-token or Token-2022 example with an existing or absent ATA.

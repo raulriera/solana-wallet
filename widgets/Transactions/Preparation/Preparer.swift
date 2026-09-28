@@ -10,10 +10,14 @@ nonisolated struct Preparer: TransactionPreparing {
         case invalidBlockhash
         /// The selected submission service requires a larger reviewed priority fee.
         case priorityFeeTooLow(minimumLamports: UInt64)
+        /// A mint or source token account doesn't exist on the selected network.
+        case missingAccount(Address)
+        /// Account observations have an unexpected count or an older ledger context.
+        case inconsistentAccounts
     }
-    private let rpc: any RPC
-    private let messageBuilder: any MessageBuilding
-    private let transactionBuilder: any TransactionBuilding
+    let rpc: any RPC
+    let messageBuilder: any MessageBuilding & TokenMessageBuilding
+    let transactionBuilder: any TransactionBuilding
     private let requirements: [SubmissionRequirements]
 
     /// Creates a service with a provider and local V1 encoders.
@@ -26,7 +30,7 @@ nonisolated struct Preparer: TransactionPreparing {
     init(
         rpc: any RPC,
         rpcs: [any RPC]? = nil,
-        messageBuilder: any MessageBuilding = MessageBuilder(),
+        messageBuilder: any MessageBuilding & TokenMessageBuilding = MessageBuilder(),
         transactionBuilder: any TransactionBuilding = TransactionBuilder()
     ) {
         self.rpc = rpc
@@ -50,13 +54,7 @@ nonisolated struct Preparer: TransactionPreparing {
     @concurrent
     func prepare(_ transfer: Transfer, configuration: Configuration) async throws -> Preparation {
         try Task.checkCancellation()
-        let minimumFee = requirements.map(\.minimumPriorityFeeLamports).max() ?? 0
-        guard configuration.priorityFeeLamports >= minimumFee else {
-            throw Failure.priorityFeeTooLow(minimumLamports: minimumFee)
-        }
-        let tips = try requirements.map {
-            try Transfer(sender: transfer.sender, recipient: Address($0.tipRecipient), lamports: $0.tipLamports)
-        }
+        let tips = try serviceTips(from: transfer.sender, configuration: configuration)
         let transfers = [transfer] + tips
         let network = rpc.network
         let blockhash = try await rpc.send(GetLatestBlockhash(commitment: .confirmed))
@@ -90,7 +88,7 @@ nonisolated struct Preparer: TransactionPreparing {
         return try await evaluate(transaction, source: .external(validity.context), signer: signer, network: network)
     }
 
-    /// Retrieves fee and simulation observations for either preparation path.
+    /// Retrieves fee and simulation observations for each preparation path.
     ///
     /// - Parameters:
     ///   - transaction: The exact inspected message and existing signature slots.
@@ -99,7 +97,7 @@ nonisolated struct Preparer: TransactionPreparing {
     ///   - network: The provider's network captured before the first request.
     /// - Returns: An immutable review that retains execution failures and unknown fees.
     /// - Throws: An RPC error or cancellation; structured child requests are cancelled together.
-    private func evaluate(_ transaction: Transaction, source: Preparation.Source, signer: Address,
+    func evaluate(_ transaction: Transaction, source: Preparation.Source, signer: Address,
                           network: Network) async throws -> Preparation {
         try Task.checkCancellation()
         async let fee = rpc.send(GetFeeForMessage(
@@ -115,5 +113,22 @@ nonisolated struct Preparer: TransactionPreparing {
             source: source, signer: signer, transaction: transaction, network: network,
             fee: observations.0, simulation: observations.1
         )
+    }
+
+    /// Validates the selected service's fee floor and constructs its reviewed payments.
+    ///
+    /// - Parameters:
+    ///   - sender: The transaction signer paying the service tips.
+    ///   - configuration: The explicit priority fee, which is never increased automatically.
+    /// - Returns: The selected clients' native SOL tips.
+    /// - Throws: A fee requirement or transfer validation error.
+    func serviceTips(from sender: Address, configuration: Configuration) throws -> [Transfer] {
+        let minimumFee = requirements.map(\.minimumPriorityFeeLamports).max() ?? 0
+        guard configuration.priorityFeeLamports >= minimumFee else {
+            throw Failure.priorityFeeTooLow(minimumLamports: minimumFee)
+        }
+        return try requirements.map {
+            try Transfer(sender: sender, recipient: Address($0.tipRecipient), lamports: $0.tipLamports)
+        }
     }
 }

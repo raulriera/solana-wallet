@@ -9,12 +9,14 @@ extension MessageBuilder: TokenMessageBuilding {
     ///
     /// - Parameters:
     ///   - transfer: The validated token accounts, amount, fee, and optional memo.
+    ///   - tips: Service payments from the same sender, following the token instruction.
     ///   - recentBlockhash: The exact blockhash to encode without refreshing it.
     ///   - configuration: The explicit fee and resource limits.
     /// - Returns: An unsigned V1 message with one required signer.
-    /// - Throws: ``ValidationError`` for an invalid blockhash or oversized message.
-    public func message(for transfer: TokenTransfer, recentBlockhash: String,
+    /// - Throws: ``ValidationError`` for a different tip payer, invalid blockhash, or oversized message.
+    public func message(for transfer: TokenTransfer, tips: [Transfer], recentBlockhash: String,
                         configuration: Configuration) throws -> Data {
+        guard tips.allSatisfy({ $0.sender == transfer.sender }) else { throw ValidationError.invalidMessage }
         let program = try Address(transfer.mint.program.rawValue)
         var instructions: [MessageEncoder.Instruction] = []
         if transfer.createsDestination {
@@ -36,6 +38,7 @@ extension MessageBuilder: TokenMessageBuilding {
         instructions.append(.init(program: program,
                                   accounts: [(transfer.source.address, true), (transfer.mint.address, false),
                                              (transfer.destination, true), (transfer.sender, false)], data: payload))
+        instructions += try tips.map(MessageEncoder.Instruction.init(transfer:))
         return try MessageEncoder.encode(payer: transfer.sender, instructions: instructions,
                                          recentBlockhash: recentBlockhash, configuration: configuration)
     }

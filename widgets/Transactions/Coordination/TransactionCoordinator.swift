@@ -79,6 +79,25 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
         try await preparer.prepare(transfer, configuration: configuration)
     }
 
+    /// Prepares a token transfer without exposing account discovery or transaction encoding.
+    ///
+    /// - Parameters:
+    ///   - mint: The on-chain mint, which determines SPL Token or Token-2022 processing.
+    ///   - amount: The debit in raw token units, before any token transfer fee.
+    ///   - sender: The token owner and transaction fee payer.
+    ///   - recipient: The receiving wallet; its associated token account is derived internally.
+    ///   - configuration: The explicit priority fee and execution resource limits.
+    ///   - source: An optional non-associated source account. The default uses the sender's associated account.
+    ///   - memo: An optional memo for the transfer. The default is `nil`.
+    /// - Returns: Exact token intent, service tips, fee, expiry, and simulation observations.
+    /// - Throws: A preparation error or cancellation.
+    func prepareTokenTransfer(mint: Address, amount: UInt64, from sender: Address, to recipient: Address,
+                              configuration: Configuration, source: Address? = nil,
+                              memo: String? = nil) async throws -> Preparation {
+        try await preparer.prepareTokenTransfer(mint: mint, amount: amount, from: sender, to: recipient,
+                                               configuration: configuration, source: source, memo: memo)
+    }
+
     /// Prepares an imported V1 transaction for the selected required signer.
     ///
     /// - Parameters:

@@ -25,14 +25,7 @@ public struct MessageBuilder: MessageBuilding {
     ) throws -> Data {
         guard let sender = transfers.first?.sender,
               transfers.allSatisfy({ $0.sender == sender }) else { throw ValidationError.invalidMessage }
-        let program = try Address("11111111111111111111111111111111")
-        let instructions = transfers.map { transfer in
-            var data = Data()
-            data.appendLittleEndian(UInt32(2)) // SystemInstruction.transfer.
-            data.appendLittleEndian(transfer.lamports)
-            return MessageEncoder.Instruction(program: program,
-                accounts: [(sender, true), (transfer.recipient, true)], data: data)
-        }
+        let instructions = try transfers.map(MessageEncoder.Instruction.init(transfer:))
         return try MessageEncoder.encode(payer: sender, instructions: instructions,
                                          recentBlockhash: recentBlockhash, configuration: configuration)
     }
