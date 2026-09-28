@@ -93,11 +93,34 @@ struct SubmissionTests {
     func submissionFailuresDoNotRetry(_ failure: RPCError) async throws {
         let rpc = SubmissionRPC(checks: SigningRPC(fee: 15_000, validities: [true]),
                                 acknowledgment: ExternalFixture.signature, failure: failure)
+        let other = SubmissionRPC(checks: SigningRPC(), acknowledgment: ExternalFixture.signature,
+                                  failure: .transport(.notConnectedToInternet))
+        let providers = [Provider(rpc: rpc), Provider(rpc: other)]
         let signed = try ExternalFixture.signedResult()
 
-        await #expect(throws: failure) { try await Submitter(rpc: rpc).submit(signed) }
+        do {
+            _ = try await Submitter(rpc: rpc, providers: providers).submit(signed)
+            Issue.record("Submission unexpectedly received an acknowledgment")
+        } catch let error as Broadcast.Failure {
+            #expect(error.signature == ExternalFixture.signature)
+            #expect(error.network == .devnet)
+            let attempt = try #require(error.attempts.first { $0.providerID == providers[0].id })
+            #expect(error.attempts.count == 2)
+            if case .failure(let underlying) = attempt.result {
+                #expect(underlying as? RPCError == failure)
+            } else {
+                Issue.record("Rejected request was reported as accepted")
+            }
+            let second = try #require(error.attempts.first { $0.providerID == providers[1].id })
+            if case .failure(let underlying) = second.result {
+                #expect(underlying as? RPCError == .transport(.notConnectedToInternet))
+            } else {
+                Issue.record("Offline provider was reported as accepted")
+            }
+        }
 
         #expect(await rpc.requests.filter { $0 is SendTransaction }.count == 1)
+        #expect(await other.requests.count == 1)
         #expect(signed.signature == ExternalFixture.signature)
     }
 
@@ -107,8 +130,17 @@ struct SubmissionTests {
         let rpc = SubmissionRPC(checks: SigningRPC(fee: 15_000, validities: [true]), acknowledgment: "another-signature")
         let signed = try ExternalFixture.signedResult()
 
-        await #expect(throws: Submitter.Failure.responseMismatch(expectedSignature: ExternalFixture.signature)) {
-            try await Submitter(rpc: rpc).submit(signed)
+        do {
+            _ = try await Submitter(rpc: rpc).submit(signed)
+            Issue.record("Submission accepted an unrelated signature")
+        } catch let error as Broadcast.Failure {
+            #expect(error.signature == ExternalFixture.signature)
+            let attempt = try #require(error.attempts.first)
+            if case .failure(let underlying) = attempt.result {
+                #expect(underlying as? Submitter.Failure == .responseMismatch(expectedSignature: ExternalFixture.signature))
+            } else {
+                Issue.record("Unrelated signature was reported as accepted")
+            }
         }
 
         #expect(await rpc.requests.filter { $0 is SendTransaction }.count == 1)

@@ -3,7 +3,7 @@ import Testing
 
 /// Records submission attempts while delegating prerequisite reads to an isolated provider.
 actor SubmissionRPC: RPC {
-    nonisolated let network: Network = .devnet
+    nonisolated let network: Network
     private let checks: any RPC
     private let acknowledgment: String
     private let failure: RPCError?
@@ -17,7 +17,10 @@ actor SubmissionRPC: RPC {
     ///   - acknowledgment: The transaction identifier returned after dispatch.
     ///   - failure: An optional provider error returned instead of acknowledgment.
     ///   - gate: An optional suspension that returns late after cancellation.
-    init(checks: any RPC, acknowledgment: String, failure: RPCError? = nil, gate: Suspension? = nil) {
+    ///   - network: The network advertised for submission routing.
+    init(checks: any RPC, acknowledgment: String, failure: RPCError? = nil, gate: Suspension? = nil,
+         network: Network = .devnet) {
+        self.network = network
         self.checks = checks
         self.acknowledgment = acknowledgment
         self.failure = failure

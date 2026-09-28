@@ -11,21 +11,24 @@ nonisolated struct Submitter: TransactionSubmitting {
         case transactionMismatch
         /// The provider acknowledged another signature; the local transaction may still have been received.
         case responseMismatch(expectedSignature: String)
+        /// No enabled provider serves the transaction's network.
+        case noEnabledProviders
     }
 
-    private let rpc: any RPC
+    private let providers: [Provider]
     private let validator: any PreparationValidating
     private let transactionBuilder: any TransactionBuilding
 
     /// Creates submission with the same prerequisites used by signing.
     ///
     /// - Parameters:
-    ///   - rpc: The provider used for prerequisite checks and the single submission attempt.
+    ///   - rpc: The provider used for prerequisite checks.
+    ///   - providers: The configured submission providers, or `nil` to submit through `rpc` alone.
     ///   - messageBuilder: The encoder that checks locally constructed transfer intent.
     ///   - transactionBuilder: The validator for all required transaction signatures.
-    init(rpc: any RPC, messageBuilder: any MessageBuilding = MessageBuilder(),
+    init(rpc: any RPC, providers: [Provider]? = nil, messageBuilder: any MessageBuilding = MessageBuilder(),
          transactionBuilder: any TransactionBuilding = TransactionBuilder()) {
-        self.rpc = rpc
+        self.providers = providers ?? [Provider(rpc: rpc)]
         self.transactionBuilder = transactionBuilder
         validator = PreparationValidator(rpc: rpc, messageBuilder: messageBuilder, transactionBuilder: transactionBuilder)
     }
@@ -37,11 +40,13 @@ nonisolated struct Submitter: TransactionSubmitting {
     /// revoke a transaction; its locally known signature remains the lookup identifier.
     ///
     /// - Parameter signed: The exact approved result of the signing workflow.
-    /// - Returns: A receipt only when the provider acknowledges the expected signature.
+    /// - Returns: A receipt after the first matching acknowledgment; it owns remaining deliveries.
     /// - Throws: A prerequisite, signature, RPC, acknowledgment, or cancellation error.
     @concurrent
     func submit(_ signed: SignedTransaction) async throws -> Submission {
         try Task.checkCancellation()
+        let eligible = providers.filter { $0.isEnabled && $0.rpc.network == signed.preparation.network }
+        guard !eligible.isEmpty else { throw Failure.noEnabledProviders }
         let bytes = signed.transaction.serializedRepresentation
         let transaction = try transactionBuilder.validateSignatures(in: bytes)
         guard transaction == signed.transaction, transaction.message == signed.preparation.message else {
@@ -54,12 +59,12 @@ nonisolated struct Submitter: TransactionSubmitting {
         }
         try await validator.validate(signed.preparation)
         try Task.checkCancellation()
-        let acknowledged = try await rpc.send(SendTransaction(
+        let broadcast = Broadcast(providers: eligible, request: SendTransaction(
             transaction: bytes, preflightCommitment: .confirmed, minContextSlot: signed.preparation.minimumSlot,
             skipsPreflight: false, maxRetries: 0
-        ))
+        ), signature: signature, network: signed.preparation.network)
+        try await broadcast.waitForAcceptance()
         try Task.checkCancellation()
-        guard acknowledged == signature else { throw Failure.responseMismatch(expectedSignature: signature) }
-        return Submission(signature: signature, network: signed.preparation.network)
+        return Submission(signature: signature, network: signed.preparation.network, broadcast: broadcast)
     }
 }

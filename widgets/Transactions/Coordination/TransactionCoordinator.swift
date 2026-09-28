@@ -13,11 +13,12 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
     /// Creates the wallet workflow with a shared provider and protected recovery store.
     ///
     /// - Parameters:
-    ///   - rpc: The provider used for prerequisites, simulation, submission, and confirmation.
+    ///   - rpc: The provider used for prerequisites, simulation, and confirmation. Public mainnet is the default.
     ///   - store: The recovery store that authenticates access to the selected wallet.
-    init(rpc: any RPC, store: any RecoveryStoring) {
+    ///   - providers: The submission selections, or `nil` to submit through `rpc` alone.
+    init(rpc: any RPC = Solana(), store: any RecoveryStoring, providers: [Provider]? = nil) {
         self.init(preparer: Preparer(rpc: rpc), signer: Signer(rpc: rpc, store: store),
-                  submitter: Submitter(rpc: rpc), confirmer: Confirmer(rpc: rpc))
+                  submitter: Submitter(rpc: rpc, providers: providers), confirmer: Confirmer(rpc: rpc))
     }
 
     /// Creates a workflow with independently supplied transaction services.
@@ -75,8 +76,8 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
     /// Submits a signed result without requiring the caller to serialize or configure RPC.
     ///
     /// - Parameter signed: The approved result of signing, with every required signature present.
-    /// - Returns: The accepted signature and network; execution confirmation is separate.
-    /// - Throws: A validation, RPC, or cancellation error. Dispatch failures can leave receipt unknown.
+    /// - Returns: The first receipt, owning remaining deliveries; execution confirmation is separate.
+    /// - Throws: A validation, aggregate delivery, or cancellation error. Delivery can remain unknown.
     func submit(_ signed: SignedTransaction) async throws -> Submission {
         try await submitter.submit(signed)
     }
