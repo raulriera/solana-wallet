@@ -2,6 +2,7 @@
 
 - Keep this file lean: user-approved restrictions and clarifications only.
 - Use Conventional Commits format for every commit.
+- Commit or explicitly discard each milestone before starting the next; keep completed milestones in separate commits.
 - Do not add module-name prefixes to types; rely on the module namespace.
 - Keep project files grouped by concern in real folders that Xcode mirrors; group related tests accordingly.
 - Keep every approach Simple, Easy to change, Don't Repeat Yourself, and Single Concern.
