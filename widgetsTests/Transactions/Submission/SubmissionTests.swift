@@ -7,31 +7,52 @@ import Wallet
 
 /// Exercises submission through real Helius and public Solana devnet clients.
 struct SubmissionTests {
-    /// Verifies both RPCs observe the same newly signed transaction after concurrent submission.
-    @Test("devnet RPCs submit one signed transfer and confirm the same signature", .timeLimit(.minutes(10)))
+    /// Verifies 0.001 SOL reaches a controlled recipient and the remainder returns after fees.
+    @Test("devnet submission delivers 0.001 SOL and returns it between retained wallets", .timeLimit(.minutes(10)))
     func devnetSubmissionConfirmsOneSignature() async throws {
         let rpcs = try devnetRPCs()
-        let wallet = Wallet()
-        let phrase = try wallet.recoveryPhrase()
-        let address = try await wallet.address(for: phrase)
-        try await fund(address, using: rpcs)
-        let sender = try Address(address)
-        let transfer = try Transfer(sender: sender, recipient: sender, lamports: 1)
-        let preparation = try await Preparer(rpc: rpcs[0]).prepare(transfer, configuration: configuration())
+        let sender = try await DevnetWallets.address(for: DevnetWallets.senderID)
+        let recipient = try await DevnetWallets.address(for: DevnetWallets.recipientID)
+        try await fund(sender.value, using: rpcs)
+        let coordinator = try TransactionCoordinator(rpc: rpcs[0], store: DevnetWallets.store, rpcs: rpcs)
+        let initialAccounts = try await rpcs[0].send(GetMultipleAccounts(addresses: [sender.value, recipient.value]))
+        let senderBalance = try #require(initialAccounts.value[0]).lamports
+        let recipientBalance = initialAccounts.value[1]?.lamports ?? 0
+        let transfer = try Transfer(sender: sender, recipient: recipient, lamports: 1_000_000)
+        let preparation = try await coordinator.prepare(transfer, configuration: configuration())
         try #require(preparation.simulation.value.error == nil)
-        let signature = try await wallet.signature(for: preparation.message, using: phrase, expectedAddress: address)
-        let transaction = try TransactionBuilder().transaction(byAdding: signature, for: sender, to: preparation.bytes)
-        let signed = SignedTransaction(preparation: preparation, transaction: transaction)
+        let fee = try #require(preparation.fee.value)
+        try #require(fee < transfer.lamports)
+        let signed = try await coordinator.sign(preparation, for: DevnetWallets.senderID, reason: "Send 0.001 devnet SOL")
 
-        let submission = try await Submitter(rpc: rpcs[0], rpcs: rpcs).submit(signed)
+        let submission = try await coordinator.submit(signed)
 
         #expect(submission.signature == signed.signature)
         #expect(submission.network == .devnet)
         for rpc in rpcs {
             let confirmation = try await Confirmer(rpc: rpc).confirm(submission)
-            #expect(confirmation.outcome == .succeeded)
+            try #require(confirmation.outcome == .succeeded)
+            let accounts = try await rpc.send(GetMultipleAccounts(addresses: [recipient.value],
+                                                                  minContextSlot: confirmation.slot))
+            let destination = try #require(accounts.value.first ?? nil)
+            #expect(destination.lamports == recipientBalance + transfer.lamports)
         }
-        print("Devnet submission confirmed by Helius and Solana: \(submission.signature)")
+        print("Devnet delivered 0.001 SOL to \(recipient.value): \(submission.signature)")
+
+        let refund = try Transfer(sender: recipient, recipient: sender, lamports: transfer.lamports - fee)
+        let returnPreparation = try await coordinator.prepare(refund, configuration: configuration())
+        try #require(returnPreparation.fee.value == fee)
+        let returnSigned = try await coordinator.sign(returnPreparation, for: DevnetWallets.recipientID,
+                                                       reason: "Return devnet test funds")
+        let returned = try await coordinator.submit(returnSigned)
+        let confirmation = try await coordinator.confirm(returned)
+        try #require(confirmation.outcome == .succeeded)
+        let finalAccounts = try await rpcs[0].send(GetMultipleAccounts(
+            addresses: [sender.value, recipient.value], minContextSlot: confirmation.slot
+        ))
+        #expect(finalAccounts.value[0]?.lamports == senderBalance - fee * 2)
+        #expect((finalAccounts.value[1]?.lamports ?? 0) == recipientBalance)
+        print("Devnet funds returned to retained wallet \(sender.value): \(returned.signature)")
     }
 
     /// Verifies real validators reject an unfunded payer, independently for each RPC.
@@ -96,7 +117,7 @@ struct SubmissionTests {
         return [HeliusRPC(apiKey: key, network: .devnet), Solana(network: .devnet)]
     }
 
-    /// Supplies explicit V1 resource limits for a one-lamport transfer to the payer itself.
+    /// Supplies explicit V1 resource limits for a small native transfer.
     ///
     /// - Returns: A zero-priority-fee configuration with enough resources for a native transfer.
     /// - Throws: A validation error if the configuration is invalid.
@@ -104,16 +125,18 @@ struct SubmissionTests {
         try Configuration(priorityFeeLamports: 0, computeUnitLimit: 20_000, loadedAccountsDataSizeLimit: 65_536)
     }
 
-    /// Funds a fresh memory-only wallet through the real devnet faucet.
+    /// Reuses the retained wallet's balance before requesting small devnet faucet funding.
     ///
     /// If both faucets are unavailable, the public address is printed for manual
-    /// devnet funding while the recovery phrase remains in this test process only.
+    /// devnet funding; its recovery is already verified in the protected Vault.
     ///
     /// - Parameters:
-    ///   - address: The fresh devnet wallet's public address.
+    ///   - address: The retained devnet wallet's public address.
     ///   - rpcs: The real devnet clients that can request funding and read its status.
     /// - Throws: A funding or cancellation error; no mainnet RPC is used.
     private func fund(_ address: String, using rpcs: [any RPC]) async throws {
+        let current = try await rpcs[0].send(GetMultipleAccounts(addresses: [address]))
+        if let account = current.value.first ?? nil, account.lamports >= 1_005_000 { return }
         for rpc in rpcs {
             do {
                 let signature = try await rpc.send(Airdrop(address: address))
@@ -126,12 +149,13 @@ struct SubmissionTests {
                 print("Devnet faucet unavailable: \(error)")
             }
         }
-        print("Devnet funding required for memory-only test wallet: \(address)")
+        let notice = "Devnet funding required for Vault-retained test wallet: \(address)\n"
+        FileHandle.standardError.write(Data(notice.utf8))
         let deadline = ContinuousClock.now.advanced(by: .seconds(480))
         while ContinuousClock.now < deadline {
             try await Task.sleep(for: .seconds(5))
             let accounts = try await rpcs[0].send(GetMultipleAccounts(addresses: [address]))
-            if let account = accounts.value.first ?? nil, account.lamports >= 10_000 { return }
+            if let account = accounts.value.first ?? nil, account.lamports >= 1_005_000 { return }
         }
         throw SetupFailure.fundingUnavailable
     }
@@ -152,7 +176,7 @@ struct SubmissionTests {
         func encode(to encoder: any Encoder) throws {
             var values = encoder.unkeyedContainer()
             try values.encode(address)
-            try values.encode(UInt64(1_000_000))
+            try values.encode(UInt64(10_000_000))
         }
     }
 }

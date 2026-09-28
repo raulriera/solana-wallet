@@ -18,7 +18,7 @@
       <EnvironmentVariable key="HELIUS_API_KEY" value="$(HELIUS_API_KEY)" isEnabled="YES"/>
     </EnvironmentVariables>
     <Testables>
-      <TestableReference skipped="NO" parallelizable="YES">
+      <TestableReference skipped="NO" parallelizable="NO">
         <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="A70000000000000000000015" BuildableName="widgetsTests.xctest" BlueprintName="widgetsTests" ReferencedContainer="container:widgets.xcodeproj"/>
       </TestableReference>
     </Testables>
