@@ -12,8 +12,8 @@ struct SenderTests {
     ///   - requestedFee: A priority fee below the selected tier's requirement.
     ///   - minimumFee: The expected minimum total priority fee.
     @Test("Sender preparation rejects a priority fee below its requirement", arguments: [
-        (Sender.Tier.swqosOnly, UInt64(0), UInt64(1)),
-        (.max, UInt64(4_999), UInt64(5_000)),
+        (Sender.Tier.standard, UInt64(0), UInt64(1)),
+        (.premium, UInt64(4_999), UInt64(5_000)),
     ])
     func senderRequiresReviewedPriorityFee(tier: Sender.Tier, requestedFee: UInt64, minimumFee: UInt64) async throws {
         let rpc = Solana()

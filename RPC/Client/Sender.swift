@@ -7,10 +7,10 @@ import Foundation
 public struct Sender: RPC {
     /// The Sender routing tier selected by the app's settings.
     public enum Tier: Sendable, CaseIterable, Equatable {
-        /// Stake-weighted routing with a 5,000-lamport minimum tip.
-        case swqosOnly
-        /// All Sender routes with a 1,000,000-lamport minimum tip.
-        case max
+        /// Lower-cost delivery through Helius's stake-weighted routing.
+        case standard
+        /// Broader delivery through all Helius Sender routes, with a higher tip.
+        case premium
     }
 
     /// Sender's documented endpoints serve mainnet.
@@ -32,11 +32,11 @@ public struct Sender: RPC {
         self.tier = tier
         submissionRequirements = SubmissionRequirements(
             tipRecipient: Self.tipAccounts.randomElement()!,
-            tipLamports: tier == .max ? 1_000_000 : 5_000,
-            minimumPriorityFeeLamports: tier == .max ? 5_000 : 1
+            tipLamports: tier == .premium ? 1_000_000 : 5_000,
+            minimumPriorityFeeLamports: tier == .premium ? 5_000 : 1
         )
         var endpoint = URL(string: "https://sender.helius-rpc.com/fast")!
-        if tier == .swqosOnly {
+        if tier == .standard {
             endpoint.append(queryItems: [URLQueryItem(name: "swqos_only", value: "true")])
         }
         client = HTTPClient(endpoint: endpoint, transport: URLSessionTransport(),
