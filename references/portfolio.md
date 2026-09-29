@@ -1,5 +1,6 @@
 # Portfolio
 
+- Include native SOL and fungible tokens only; exclude NFTs and other asset kinds. Request fungibles at the DAS source and enforce the same scope before creating holdings. Older mixed-asset caches are incompatible and must refresh before providing holdings.
 - Required data: exact amounts, name, symbol, valuation, and rich metadata. Valuations must support independent live updates; refresh scheduling remains to be agreed.
 - `Portfolio` implements `PortfolioProviding`; RPC owns the selected provider's DAS requests and response decoding. Portfolio depends on the provider-neutral RPC contract.
 - DAS is exclusively for portfolio viewing. Use the selected provider's DAS capability for holdings and metadata; behavior without DAS remains deferred.

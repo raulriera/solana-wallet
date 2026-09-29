@@ -6,7 +6,7 @@ protocol SnapshotFetching: Sendable {
     /// The network queried by the source.
     var network: Network { get }
 
-    /// Retrieves every page of a wallet's holdings.
+    /// Retrieves native SOL and every page of a wallet's fungible token holdings.
     ///
     /// - Parameter owner: The wallet address to query.
     /// - Returns: A complete portfolio snapshot.
@@ -20,7 +20,7 @@ struct SnapshotFetcher: SnapshotFetching {
     let pageSize: Int
     var network: Network { rpc.network }
 
-    /// Retrieves DAS pages and maps their assets into portfolio holdings.
+    /// Retrieves fungible DAS pages and maps their assets into portfolio holdings.
     ///
     /// - Parameter owner: The wallet address to query.
     /// - Returns: The complete holdings and their indexing information.
@@ -36,7 +36,7 @@ struct SnapshotFetcher: SnapshotFetching {
 
         while true {
             try Task.checkCancellation()
-            let response = try await rpc.send(GetAssetsByOwner(
+            let response = try await rpc.send(GetFungibleAssetsByOwner(
                 owner: owner, page: page, limit: pageSize, includesNativeBalance: page == 1
             ))
             guard response.page == page, response.limit > 0,
@@ -53,12 +53,14 @@ struct SnapshotFetcher: SnapshotFetching {
             }
             if response.items.isEmpty { break }
 
-            var addedCount = 0
+            var newAssetCount = 0
             for asset in response.items where assetIDs.insert(asset.id).inserted {
+                newAssetCount += 1
+                // Keep the portfolio scope even if a provider ignores the request's filter.
+                guard asset.interface == "FungibleToken" || asset.interface == "FungibleAsset" else { continue }
                 holdings.append(holding(for: asset))
-                addedCount += 1
             }
-            guard addedCount > 0, page < Int.max else { throw FetchError.invalidPage }
+            guard newAssetCount > 0, page < Int.max else { throw FetchError.invalidPage }
             page += 1
         }
         // Native SOL has no asset content in DAS. Resolve only its image through

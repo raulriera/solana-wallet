@@ -1,7 +1,7 @@
-/// A request for one page of a wallet's DAS assets, including fungible tokens.
-public struct GetAssetsByOwner: RPCRequest {
-    /// The DAS method name for listing a wallet's assets.
-    public static let method = "getAssetsByOwner"
+/// A request for one page of a wallet's fungible tokens, excluding NFTs.
+public struct GetFungibleAssetsByOwner: RPCRequest {
+    /// The DAS method that supports filtering a wallet's assets by token type.
+    public static let method = "searchAssets"
 
     /// One page of indexed assets and optional native SOL information.
     public struct Response: Decodable, Sendable {
@@ -47,7 +47,7 @@ public struct GetAssetsByOwner: RPCRequest {
     /// Whether the response should include native SOL information.
     public let includesNativeBalance: Bool
 
-    /// Creates a request for one page of a wallet's indexed holdings.
+    /// Creates a request for one page of a wallet's indexed fungible holdings.
     ///
     /// - Parameters:
     ///   - owner: The wallet address. The server validates this value.
@@ -68,6 +68,7 @@ public struct GetAssetsByOwner: RPCRequest {
     public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(owner, forKey: .owner)
+        try container.encode("fungible", forKey: .tokenType)
         try container.encode(page, forKey: .page)
         try container.encode(limit, forKey: .limit)
         try container.encode(Options(showNativeBalance: includesNativeBalance), forKey: .options)
@@ -75,11 +76,10 @@ public struct GetAssetsByOwner: RPCRequest {
 
     private enum CodingKeys: String, CodingKey {
         case owner = "ownerAddress"
-        case page, limit, options
+        case page, limit, options, tokenType
     }
 
     private struct Options: Encodable {
-        let showFungible = true
         let showCollectionMetadata = true
         let showUnverifiedCollections = true
         let showNativeBalance: Bool

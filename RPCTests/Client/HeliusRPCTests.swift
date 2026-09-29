@@ -535,7 +535,7 @@ struct HeliusRPCTests {
         }
         let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
 
-        let response = try await rpc.send(GetAssetsByOwner(owner: address, page: 2))
+        let response = try await rpc.send(GetFungibleAssetsByOwner(owner: address, page: 2))
 
         let asset = try #require(response.items.first)
         #expect(asset.id == "mint-address")
@@ -555,11 +555,12 @@ struct HeliusRPCTests {
         let request = try #require(await transport.requests.first)
         let body = try requestBody(request)
         let parameters = try #require(body["params"] as? [String: Any])
-        #expect(body["method"] as? String == "getAssetsByOwner")
+        #expect(body["method"] as? String == "searchAssets")
+        #expect(parameters["tokenType"] as? String == "fungible")
         #expect(parameters["ownerAddress"] as? String == address)
         #expect(parameters["page"] as? Int == 2)
         #expect(parameters["limit"] as? Int == 1000)
-        #expect(parameters["options"] as? [String: Bool] == ["showFungible": true, "showNativeBalance": true,
+        #expect(parameters["options"] as? [String: Bool] == ["showNativeBalance": true,
             "showCollectionMetadata": true, "showUnverifiedCollections": true])
     }
 
@@ -598,7 +599,7 @@ struct HeliusRPCTests {
         }
         let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
 
-        let response = try await rpc.send(GetAssetsByOwner(owner: address))
+        let response = try await rpc.send(GetFungibleAssetsByOwner(owner: address))
 
         #expect(response.items.map(\.id) == ["collectible", "mint-address"])
         let collectible = try #require(response.items.first)
@@ -628,7 +629,7 @@ struct HeliusRPCTests {
         let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
 
         await #expect(throws: RPCError.decoding) {
-            try await rpc.send(GetAssetsByOwner(owner: address))
+            try await rpc.send(GetFungibleAssetsByOwner(owner: address))
         }
     }
 
@@ -642,7 +643,7 @@ struct HeliusRPCTests {
         }
         let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
 
-        let response = try await rpc.send(GetAssetsByOwner(owner: address))
+        let response = try await rpc.send(GetFungibleAssetsByOwner(owner: address))
 
         let asset = try #require(response.items.first)
         #expect(asset.balance == UInt64.max)
@@ -663,7 +664,7 @@ struct HeliusRPCTests {
         }
         let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
 
-        let response = try await rpc.send(GetAssetsByOwner(owner: address))
+        let response = try await rpc.send(GetFungibleAssetsByOwner(owner: address))
 
         #expect(response.items.isEmpty)
         #expect(response.nativeBalance?.lamports == 0)
@@ -678,7 +679,7 @@ struct HeliusRPCTests {
         let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
 
         await #expect(throws: RPCError.server(code: -32602, message: "Invalid param: WrongSize")) {
-            try await rpc.send(GetAssetsByOwner(owner: "invalid-address"))
+            try await rpc.send(GetFungibleAssetsByOwner(owner: "invalid-address"))
         }
     }
 

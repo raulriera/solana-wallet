@@ -59,8 +59,8 @@ struct PortfolioTests {
             if request.page == 1 {
                 let data = Data(#"""
                     {"page":1,"limit":2,"items":[
-                        {"id":"collectible","interface":"V1_NFT",
-                         "content":{"metadata":{"name":"Example Collectible","symbol":false},
+                        {"id":"fungible-asset","interface":"FungibleAsset",
+                         "content":{"metadata":{"name":"Example Fungible","symbol":false},
                                     "links":{"image":false},"files":[{"uri":false,"mime":"image/png"}]},
                          "token_info":{"balance":1,"decimals":0}},
                         {"id":"first-mint","interface":"FungibleToken",
@@ -81,14 +81,14 @@ struct PortfolioTests {
 
         #expect(updated.error == nil)
         #expect(!updated.isRefreshing)
-        #expect(result.holdings.map(\.id) == [.nativeSOL, .asset("collectible"), .asset("first-mint"), .asset("mint")])
+        #expect(result.holdings.map(\.id) == [.nativeSOL, .asset("fungible-asset"), .asset("first-mint"), .asset("mint")])
         #expect(result.holdings.map(\.amount) == [
             Amount(units: 100, decimals: 9), Amount(units: 1, decimals: 0),
             Amount(units: 42, decimals: 6), Amount(units: 7, decimals: 6),
         ])
-        let collectible = try #require(result.holdings.first { $0.id == .asset("collectible") })
-        #expect(collectible.name == "Example Collectible")
-        #expect(collectible.imageURL == nil)
+        let fungible = try #require(result.holdings.first { $0.id == .asset("fungible-asset") })
+        #expect(fungible.name == "Example Fungible")
+        #expect(fungible.imageURL == nil)
         #expect(await http.requests.map(\.page) == [1, 2, 3])
         #expect(fixture.store.snapshot(for: CacheKey(owner: "wallet", network: .mainnet)) == result)
         #expect(await iterator.next() == nil)
@@ -442,7 +442,7 @@ private func asset(units: UInt64) -> Asset {
 ///   - lamports: The native balance returned when requested.
 /// - Returns: A JSON DAS page.
 /// - Throws: A JSON encoding error.
-private func page(for request: GetAssetsByOwner, assets: [Asset], lamports: UInt64 = 100) throws -> Data {
+private func page(for request: GetFungibleAssetsByOwner, assets: [Asset], lamports: UInt64 = 100) throws -> Data {
     var value: [String: Any] = ["last_indexed_slot": 12345, "page": request.page, "limit": request.limit,
         "items": assets.map { ["id": $0.id, "interface": $0.interface,
             "token_info": ["balance": $0.balance as Any? ?? NSNull(), "decimals": $0.decimals as Any? ?? NSNull()]] }]

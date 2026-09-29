@@ -5,9 +5,9 @@ import Testing
 /// DAS HTTP fixtures decoded by the real RPC client during portfolio refreshes.
 actor AssetResponses: HTTPTransport {
     private nonisolated let network: Network
-    private(set) var requests: [GetAssetsByOwner] = []
+    private(set) var requests: [GetFungibleAssetsByOwner] = []
     private(set) var assetRequests: [String] = []
-    private let respond: @Sendable (GetAssetsByOwner) async throws -> Data
+    private let respond: @Sendable (GetFungibleAssetsByOwner) async throws -> Data
     private let assetResponse: @Sendable (String) async throws -> Data
 
     /// The real provider client receiving the fixture's HTTP responses.
@@ -23,7 +23,7 @@ actor AssetResponses: HTTPTransport {
     init(network: Network = .mainnet,
          assetResponse: @escaping @Sendable (String) async throws -> Data = { id in
              Data(#"{"id":"\#(id)","interface":"FungibleToken","content":{"metadata":{"name":"Wrapped SOL","symbol":"SOL"},"links":{"image":"https://example.com/sol.png"}}}"#.utf8)
-         }, respond: @escaping @Sendable (GetAssetsByOwner) async throws -> Data) {
+         }, respond: @escaping @Sendable (GetFungibleAssetsByOwner) async throws -> Data) {
         self.network = network
         self.respond = respond
         self.assetResponse = assetResponse
@@ -43,12 +43,13 @@ actor AssetResponses: HTTPTransport {
             assetRequests.append(id)
             result = try await assetResponse(id)
         } else {
-            try #require(body["method"] as? String == "getAssetsByOwner")
+            try #require(body["method"] as? String == "searchAssets")
+            #expect(params["tokenType"] as? String == "fungible")
             let options = try #require(params["options"] as? [String: Bool])
             #expect(options["showCollectionMetadata"] == true)
             #expect(options["showUnverifiedCollections"] == true)
             try #require(options["showNativeBalance"] != nil)
-            let query = try GetAssetsByOwner(owner: #require(params["ownerAddress"] as? String),
+            let query = try GetFungibleAssetsByOwner(owner: #require(params["ownerAddress"] as? String),
                 page: #require(params["page"] as? Int), limit: #require(params["limit"] as? Int),
                 includesNativeBalance: options["showNativeBalance"] == true)
             requests.append(query)

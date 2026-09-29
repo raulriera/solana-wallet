@@ -34,6 +34,9 @@ extension SubmissionTests {
         #expect(snapshot.network == .devnet)
         #expect(snapshot.holdings.first { $0.id == .nativeSOL }?.amount == Amount(units: lamports, decimals: 9))
         #expect(snapshot.holdings.first { $0.id == .nativeSOL }?.imageURL != nil)
+        #expect(snapshot.holdings.allSatisfy {
+            $0.id == .nativeSOL || $0.metadata?.kind == "FungibleToken" || $0.metadata?.kind == "FungibleAsset"
+        })
         #expect(Set(snapshot.holdings.map(\.id)).count == snapshot.holdings.count)
         #expect(store.snapshot(for: key) == snapshot)
         #expect(await updates.next() == nil)

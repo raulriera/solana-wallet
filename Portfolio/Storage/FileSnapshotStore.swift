@@ -5,6 +5,8 @@ import RPC
 /// A store that persists one versioned JSON snapshot per wallet and network.
 struct FileSnapshotStore: SnapshotStoring {
     let directory: URL
+    /// Mixed-asset snapshots predate the fungible-only portfolio scope and cannot be reused.
+    private static let version = 2
 
     /// Reads a stored snapshot, treating unavailable or incompatible files as cache misses.
     ///
@@ -13,7 +15,7 @@ struct FileSnapshotStore: SnapshotStoring {
     func snapshot(for key: CacheKey) -> Snapshot? {
         guard let data = try? Data(contentsOf: fileURL(for: key)),
               let envelope = try? JSONDecoder().decode(Envelope.self, from: data),
-              envelope.version == 1,
+              envelope.version == Self.version,
               envelope.snapshot.owner == key.owner,
               envelope.snapshot.network == key.network else { return nil }
         return envelope.snapshot
@@ -26,7 +28,7 @@ struct FileSnapshotStore: SnapshotStoring {
     ///   - key: The wallet and network under which to store it.
     /// - Throws: An encoding or file-system error if the write fails.
     func save(_ snapshot: Snapshot, for key: CacheKey) throws {
-        let data = try JSONEncoder().encode(Envelope(version: 1, snapshot: snapshot))
+        let data = try JSONEncoder().encode(Envelope(version: Self.version, snapshot: snapshot))
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try data.write(to: fileURL(for: key), options: .atomic)
     }
