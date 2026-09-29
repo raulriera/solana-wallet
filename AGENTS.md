@@ -24,7 +24,7 @@
 - Support SPL Token and Token-2022 together through shared token-transfer APIs. Review and agree on each Token-2022 extension with the user before implementing it.
 - Separate frameworks by concern; all Solana RPC, DAS, and price-provider communication belongs in the RPC/API framework.
 - Keep RPC, DAS, and pricing contracts provider-neutral. Helius and Jupiter are implementations; providers must be interchangeable behind protocols and transform responses into shared types.
-- Surface RPC rate-limit errors to consumers; do not add automatic throttling or retries in RPC.
+- Surface rate-limit errors to consumers; do not automatically retry. Pace price-provider batches within their request budgets; do not throttle Solana RPC or DAS requests.
 - Add RPC methods only for concrete needs of agreed wallet features; follow [references/rpc-scope.md](references/rpc-scope.md), not endpoint coverage.
 - Keep the app decentralized: no app-owned backend or proxy. Connect directly to Solana RPC providers.
 - Use one submission strategy: `none` sends identical signed bytes concurrently through configured same-network ordinary RPCs; `standard` and `premium` use Sender exclusively. Follow [references/transaction-workflow.md](references/transaction-workflow.md).

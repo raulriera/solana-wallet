@@ -44,20 +44,78 @@ struct JupiterTests {
     }
 
     /// Verifies callers can supply multiple batches without knowing Jupiter's request limit.
-    @Test("price requests deduplicate mints and batch fifty at a time")
-    func batchesUniqueMints() async throws {
+    /// - Parameter authenticated: Whether the provider uses the free-key request budget.
+    @Test("price batches respect the keyless and free-key budgets", arguments: [false, true])
+    func batchesUniqueMints(authenticated: Bool) async throws {
         let transport = StubTransport { request in
             let values = try requestedMints(request).map { #""\#($0)":{"usdPrice":1}"# }
             return try priceReply(to: request, body: "{" + values.joined(separator: ",") + "}")
         }
         let mints = (0..<51).map { "mint-\($0)" }
-        let quotes = try await Jupiter(transport: transport).prices(for: mints + mints)
+        let startedAt = ContinuousClock.now
+        let source = Jupiter(apiKey: authenticated ? "fixture-key" : nil, transport: transport)
+        let quotes = try await source.prices(for: mints + mints)
 
+        let interval: Duration = authenticated ? .milliseconds(1_500) : .seconds(3)
+        #expect(startedAt.duration(to: .now) >= interval)
         #expect(Set(quotes.keys) == Set(mints))
         let requests = await transport.requests
         #expect(try requests.map { try requestedMints($0).count } == [50, 1])
         #expect(try requests.flatMap(requestedMints) == mints)
-        #expect(requests.allSatisfy { $0.value(forHTTPHeaderField: "x-api-key") == nil })
+        #expect(requests.allSatisfy {
+            $0.value(forHTTPHeaderField: "x-api-key") == (authenticated ? "fixture-key" : nil)
+        })
+    }
+
+    /// Verifies copied providers share pacing across separate lookups and every batch.
+    @Test("provider copies share the price budget across calls and batches", .timeLimit(.minutes(1)))
+    func copiesSharePacing() async throws {
+        let clock = ManualClock()
+        let startedAt = clock.now
+        let transport = StubTransport { try priceReply(to: $0, body: "{}") }
+        let source = Jupiter(transport: transport, pacer: RequestPacer(interval: .seconds(3), clock: clock))
+        _ = try await source.prices(for: ["initial"])
+        let copy = source
+        let operation = Task { try await copy.prices(for: (0..<51).map { "mint-\($0)" }) }
+        defer { operation.cancel() }
+        var waits = clock.waits.makeAsyncIterator()
+
+        let first = try #require(await waits.next())
+        #expect(first == startedAt.advanced(by: .seconds(3)))
+        #expect(await transport.requests.count == 1)
+        clock.advance(to: first)
+        let second = try #require(await waits.next())
+        #expect(second == first.advanced(by: .seconds(3)))
+        #expect(await transport.requests.count == 2)
+        clock.advance(to: second)
+        _ = try await operation.value
+
+        #expect(try await transport.requests.map { try requestedMints($0).count } == [1, 50, 1])
+    }
+
+    /// Verifies cancelling a queued batch prevents its HTTP attempt and preserves the next slot.
+    @Test("cancelling a waiting batch stops without consuming a price request", .timeLimit(.minutes(1)))
+    func cancellationStopsWaitingBatch() async throws {
+        let clock = ManualClock()
+        let transport = StubTransport { try priceReply(to: $0, body: "{}") }
+        let source = Jupiter(transport: transport, pacer: RequestPacer(interval: .seconds(3), clock: clock))
+        let operation = Task { try await source.prices(for: (0..<51).map { "mint-\($0)" }) }
+        defer { operation.cancel() }
+        var waits = clock.waits.makeAsyncIterator()
+        let deadline = try #require(await waits.next())
+        #expect(await transport.requests.count == 1)
+
+        operation.cancel()
+        await #expect(throws: CancellationError.self) { try await operation.value }
+        #expect(await transport.requests.count == 1)
+
+        #expect(try await source.prices(for: []).isEmpty)
+        let next = Task { try await source.prices(for: ["next"]) }
+        defer { next.cancel() }
+        #expect(await waits.next() == deadline)
+        clock.advance(to: deadline)
+        _ = try await next.value
+        #expect(await transport.requests.count == 2)
     }
 
     /// Verifies an empty set doesn't consume provider requests.

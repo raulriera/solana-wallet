@@ -8,8 +8,14 @@ public struct Jupiter: PriceProviding, CustomStringConvertible, CustomDebugStrin
     private let apiKey: String?
     private let transport: any HTTPTransport
     private let redactor: any TextRedactor
+    private let pacer: any RequestPacing
 
     /// Creates a mainnet price provider with an ephemeral URL session.
+    ///
+    /// Reuse this provider across wallets to share its request budget. Requests are
+    /// spaced at twenty per minute without a key, or forty with a key. Copies share
+    /// the same budget; separately initialized providers and other devices do not.
+    /// Jupiter's organisation-wide quota may still produce rate-limit errors.
     /// - Parameter apiKey: An optional Jupiter API key; `nil` uses keyless access.
     public init(apiKey: String? = nil) {
         self.init(apiKey: apiKey, transport: URLSessionTransport())
@@ -19,10 +25,14 @@ public struct Jupiter: PriceProviding, CustomStringConvertible, CustomDebugStrin
     /// - Parameters:
     ///   - apiKey: An optional key sent only in the authentication header.
     ///   - transport: The transport performing real requests or supplying HTTP test fixtures.
-    init(apiKey: String? = nil, transport: any HTTPTransport) {
+    ///   - pacer: Shared request admission control, or `nil` for conservative free-tier pacing.
+    init(apiKey: String? = nil, transport: any HTTPTransport, pacer: (any RequestPacing)? = nil) {
         self.apiKey = apiKey
         self.transport = transport
         redactor = SecretRedactor(secrets: apiKey.map { [$0] } ?? [])
+        self.pacer = pacer ?? RequestPacer(
+            interval: apiKey == nil ? .seconds(3) : .milliseconds(1_500), clock: ContinuousClock()
+        )
     }
 
     /// A textual representation that omits authentication credentials.
@@ -30,9 +40,10 @@ public struct Jupiter: PriceProviding, CustomStringConvertible, CustomDebugStrin
     /// A debugging representation that omits authentication credentials.
     public var debugDescription: String { description }
 
-    /// Retrieves available prices in sequential batches of at most fifty unique mints.
+    /// Retrieves available prices in paced, sequential batches of at most fifty unique mints.
     ///
-    /// Batching is internal to the adapter. Each batch is attempted once; a failure
+    /// Batching and pacing are internal to the adapter and shared across concurrent calls.
+    /// Each batch is attempted once; a failure
     /// prevents partial success from reaching the consumer. No holdings or metadata
     /// requests, polling, fallback, or retries are performed.
     /// - Parameter mints: Mainnet mint addresses; duplicates are ignored.
@@ -69,6 +80,7 @@ public struct Jupiter: PriceProviding, CustomStringConvertible, CustomDebugStrin
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         if let apiKey { request.setValue(apiKey, forHTTPHeaderField: "x-api-key") }
+        try await pacer.wait()
         let data = try await transport.responseData(for: request, redactor: redactor)
         do {
             return try JSONDecoder().decode([String: Value?].self, from: data)
