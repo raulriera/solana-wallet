@@ -32,4 +32,4 @@ Complete framework work before App/UI work.
 | Transactions | Further capabilities are parked; current SOL and supported-token flows remain available. The goal is all Token-2022 extensions, reviewed and agreed individually before implementation. |
 | Wallet | Complete for local derivation and SOL-only discovery across twenty addresses in two path families, with one RPC lookup per scan; verified on devnet. See [Wallet](wallet.md). |
 | Vault | Implemented and tested, including real simulator Keychain checks. Keep the specific device-validation caveat in [Wallet](wallet.md) separate from framework test status. |
-| Portfolio | Complete for the agreed DAS holdings, persistent cache, and refresh scope. Currency conversion and behavior without DAS remain deferred; see [Portfolio](portfolio.md). |
+| Portfolio | Remaining: rich metadata, live valuation updates, and live token-metadata verification. Pricing source and refresh policy require agreement. Currency conversion and behavior without DAS remain deferred; see [Portfolio](portfolio.md). |

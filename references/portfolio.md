@@ -1,5 +1,6 @@
 # Portfolio
 
+- Required data: exact amounts, name, symbol, valuation, and rich metadata. Valuations must support live updates; the pricing source and refresh policy remain to be agreed.
 - `Portfolio` implements `PortfolioProviding`; RPC owns the selected provider's DAS requests and response decoding. Portfolio depends on the provider-neutral RPC contract.
 - DAS is exclusively for portfolio viewing. Portfolio uses the selected provider's DAS capability for all portfolio data; behavior without DAS remains deferred.
 - Await `updates(for:)` to register a consumer, then read its stream for one cache-and-refresh cycle. Registration completes before the stream returns; network results arrive through the stream.
