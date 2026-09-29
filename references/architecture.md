@@ -23,13 +23,13 @@ Program helpers produce `Instruction` values; adding an operation must not intro
 
 ## Framework milestones
 
-Complete framework work before App/UI work.
+Complete framework work before App/UI work. The agreed framework scope is complete; the deferred capabilities below remain separate milestones.
 
 | Framework | Status |
 | --- | --- |
 | Encoding | Complete for the current scope. |
-| RPC | Devnet transaction and account-discovery workflows verified. A priority-fee provider limitation remains documented in [RPC scope](rpc-scope.md#provider-limitations). |
+| RPC | Complete for the agreed transaction, discovery, DAS, pricing, and confirmed account-subscription workflows. The priority-fee provider limitation remains documented in [RPC scope](rpc-scope.md#provider-limitations). |
 | Transactions | Further capabilities are parked; current SOL and supported-token flows remain available. The goal is all Token-2022 extensions, reviewed and agreed individually before implementation. |
 | Wallet | Complete for local derivation and SOL-only discovery across twenty addresses in two path families, with one RPC lookup per scan; verified on devnet. See [Wallet](wallet.md). |
 | Vault | Implemented and tested, including real simulator Keychain checks. Keep the specific device-validation caveat in [Wallet](wallet.md) separate from framework test status. |
-| Portfolio | Includes native SOL and fungible tokens with rich metadata, native SOL image resolution, independently refreshed prices, paced price requests, separate five-minute freshness checks, explicit reloads, and confirmed-change observation with bounded indexer reconciliation. NFTs, currency conversion, and behavior without DAS remain deferred; see [Portfolio](portfolio.md). |
+| Portfolio | Complete for native SOL and fungible tokens: rich metadata, native SOL image resolution, independently refreshed prices, paced price requests, separate five-minute freshness checks, explicit reloads, and confirmed-change observation with bounded indexer reconciliation. NFTs, currency conversion, and behavior without DAS remain deferred; see [Portfolio](portfolio.md). |
