@@ -1,7 +1,7 @@
 import Foundation
 public import RPC
 
-/// A portfolio service that delivers persisted holdings and automatically refreshes them through DAS.
+/// A portfolio service that delivers persisted holdings and refreshes stale or explicitly reloaded data.
 public struct Portfolio: PortfolioProviding {
     private let coordinator: RefreshCoordinator
 
@@ -21,28 +21,35 @@ public struct Portfolio: PortfolioProviding {
     ///   - store: The persistent snapshot store.
     ///   - pageSize: The DAS page size. The default is 1,000.
     ///   - prices: An optional same-network price provider.
-    init(rpc: any RPC, store: any SnapshotStoring, pageSize: Int = 1_000, prices: (any PriceProviding)? = nil) {
-        coordinator = RefreshCoordinator(source: SnapshotFetcher(rpc: rpc, pageSize: pageSize), store: store, prices: prices)
+    ///   - now: The current time used to evaluate cache age and record price refreshes.
+    init(rpc: any RPC, store: any SnapshotStoring, pageSize: Int = 1_000, prices: (any PriceProviding)? = nil,
+         now: @escaping @Sendable () -> Date = { Date() }) {
+        coordinator = RefreshCoordinator(source: SnapshotFetcher(rpc: rpc, pageSize: pageSize), store: store,
+                                         prices: prices, now: now)
     }
 
-    /// Returns existing state followed by one holdings refresh and the configured independent prices.
+    /// Returns cached state, refreshing holdings and independent prices according to the policy.
     ///
     /// The service owns cache lookup, pagination, persistence, and failure fallback.
     /// Each caller receives its own stream while concurrent callers share the refresh.
     /// Registration completes before this method returns; the refresh arrives through the stream.
     ///
-    /// - Parameter owner: The wallet address whose holdings to retrieve.
+    /// - Parameters:
+    ///   - owner: The wallet address whose holdings to retrieve.
+    ///   - policy: Whether to reuse fresh data or reload when opening the view or refreshing explicitly.
     /// - Returns: A finite stream of complete states. Cancelling its consuming task
     ///   detaches that consumer without clearing cached data.
-    public func updates(for owner: String) async -> AsyncStream<Update> {
-        await coordinator.updates(for: owner)
+    public func updates(for owner: String, policy: RefreshPolicy) async -> AsyncStream<Update> {
+        await coordinator.updates(for: owner, policy: policy)
     }
 
     /// Refreshes only valuations for existing holdings, retaining balances, metadata, and their retrieval time.
-    /// - Parameter owner: The wallet whose cached holdings to revalue.
+    /// - Parameters:
+    ///   - owner: The wallet whose cached holdings to revalue.
+    ///   - policy: Whether to reuse recent prices or request new quotes regardless of age.
     /// - Returns: Cached state followed by refreshed prices or an error, without scheduling another cycle.
-    public func priceUpdates(for owner: String) async -> AsyncStream<Update> {
-        await coordinator.updates(for: owner, scope: .prices)
+    public func priceUpdates(for owner: String, policy: RefreshPolicy) async -> AsyncStream<Update> {
+        await coordinator.updates(for: owner, scope: .prices, policy: policy)
     }
 
     /// Removes locally retained holdings and stops the wallet's active refresh.

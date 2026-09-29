@@ -44,13 +44,17 @@ extension SubmissionTests {
         let recreated: any PortfolioProviding = Portfolio(rpc: rpc, store: FileSnapshotStore(directory: directory))
         var reused = await recreated.updates(for: owner).makeAsyncIterator()
         let cached = try #require(await reused.next())
-        #expect(cached.isRefreshing)
+        #expect(!cached.isRefreshing)
         #expect(cached.snapshot == snapshot)
-        let refreshed = try #require(await reused.next())
+        #expect(await reused.next() == nil)
+
+        var reloaded = await recreated.updates(for: owner, policy: .reload).makeAsyncIterator()
+        #expect(try #require(await reloaded.next()).isRefreshing)
+        let refreshed = try #require(await reloaded.next())
         if let error = refreshed.error { throw error }
         #expect(refreshed.snapshot?.owner == owner)
         #expect(refreshed.snapshot?.network == .devnet)
-        #expect(await reused.next() == nil)
+        #expect(await reloaded.next() == nil)
 
         try await recreated.removeData(for: owner)
         #expect(store.snapshot(for: key) == nil)

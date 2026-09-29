@@ -4,6 +4,16 @@ import RPC
 /// Revalues holdings without fetching balances or descriptive metadata.
 struct SnapshotPricer: Sendable {
     let provider: any PriceProviding
+    private let now: @Sendable () -> Date
+
+    /// Creates a repricer with an independent lookup timestamp.
+    /// - Parameters:
+    ///   - provider: The source of normalized quotes for these holdings.
+    ///   - now: The clock used to record successful lookup completion.
+    init(provider: any PriceProviding, now: @escaping @Sendable () -> Date = { Date() }) {
+        self.provider = provider
+        self.now = now
+    }
 
     /// Checks that prices describe the same network as the wallet's holdings.
     /// - Parameter network: The network whose holdings are being refreshed.
@@ -40,7 +50,8 @@ struct SnapshotPricer: Sendable {
                            imageURL: holding.imageURL, valuation: valuation, metadata: holding.metadata)
         }
         return Snapshot(owner: snapshot.owner, network: snapshot.network, holdings: holdings,
-                        fetchedAt: snapshot.fetchedAt, lastIndexedSlot: snapshot.lastIndexedSlot)
+                        fetchedAt: snapshot.fetchedAt, lastIndexedSlot: snapshot.lastIndexedSlot,
+                        pricesFetchedAt: now())
     }
 
     /// Identifies the token market for a holding without merging native SOL and Wrapped SOL balances.

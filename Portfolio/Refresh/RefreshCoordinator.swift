@@ -6,6 +6,7 @@ actor RefreshCoordinator {
     private let source: any SnapshotFetching
     private let store: any SnapshotStoring
     private let pricer: SnapshotPricer?
+    private let now: @Sendable () -> Date
     private var flights: [CacheKey: Flight] = [:]
 
     /// Creates a coordinator with independent network and storage dependencies.
@@ -14,10 +15,13 @@ actor RefreshCoordinator {
     ///   - source: The complete-snapshot source.
     ///   - store: The persistent snapshot store.
     ///   - prices: An optional price provider used for full and price-only refreshes.
-    init(source: any SnapshotFetching, store: any SnapshotStoring, prices: (any PriceProviding)? = nil) {
+    ///   - now: The clock for freshness checks and successful price retrievals.
+    init(source: any SnapshotFetching, store: any SnapshotStoring, prices: (any PriceProviding)? = nil,
+         now: @escaping @Sendable () -> Date = { Date() }) {
         self.source = source
         self.store = store
-        pricer = prices.map { SnapshotPricer(provider: $0) }
+        self.now = now
+        pricer = prices.map { SnapshotPricer(provider: $0, now: now) }
     }
 
     /// Registers an independent update stream and starts or joins the wallet's refresh.
@@ -25,21 +29,23 @@ actor RefreshCoordinator {
     /// - Parameters:
     ///   - owner: The wallet whose holdings to retrieve.
     ///   - scope: Whether to refresh all data or only the cached holdings' prices.
+    ///   - policy: Whether to reuse fresh data or perform a network refresh regardless of age.
     /// - Returns: A registered stream, or a finished stream if the calling task is cancelled.
-    func updates(for owner: String, scope: Scope = .holdings) -> AsyncStream<Update> {
+    func updates(for owner: String, scope: Scope = .holdings, policy: RefreshPolicy) -> AsyncStream<Update> {
         let (stream, continuation) = AsyncStream<Update>.makeStream(bufferingPolicy: .bufferingNewest(2))
         guard !Task.isCancelled else {
             continuation.finish()
             return stream
         }
         let key = CacheKey(owner: owner, network: source.network)
+        let cached = store.snapshot(for: key)
         if scope == .prices, pricer == nil {
-            let cached = store.snapshot(for: key)
             continuation.yield(Update(snapshot: cached, phase: .refreshing))
             continuation.yield(Update(snapshot: cached, phase: .failed(PriceError.providerUnavailable)))
             continuation.finish()
             return stream
         }
+        let requiredScope = scopeRequiringRefresh(scope, policy: policy, cached: cached)
         let id = UUID()
         continuation.onTermination = { @Sendable _ in
             Task { @concurrent in await self.unsubscribe(key: key, id: id) }
@@ -47,7 +53,7 @@ actor RefreshCoordinator {
         if var flight = flights[key] {
             flight.consumers[id] = continuation
             if let initial = flight.initial { continuation.yield(initial) }
-            if scope == .holdings, flight.scope == .prices {
+            if requiredScope == .holdings, flight.scope == .prices {
                 // A full refresh also satisfies price consumers; obsolete price work cannot overwrite its balances.
                 flight.task?.cancel()
                 flight.generation = UUID()
@@ -58,10 +64,42 @@ actor RefreshCoordinator {
             flights[key] = flight
             return stream
         }
+        guard let requiredScope else {
+            continuation.yield(Update(snapshot: cached, phase: .ready))
+            continuation.finish()
+            return stream
+        }
         let generation = UUID()
-        flights[key] = Flight(generation: generation, scope: scope, consumers: [id: continuation])
+        flights[key] = Flight(generation: generation, scope: requiredScope, consumers: [id: continuation])
         flights[key]?.task = Task { await refresh(key: key, generation: generation) }
         return stream
+    }
+
+    /// Selects only the data whose retrieval time requires another request.
+    /// - Parameters:
+    ///   - scope: The data requested by the consumer.
+    ///   - policy: Whether freshness checks may skip networking.
+    ///   - cached: The wallet's preceding complete snapshot, if any.
+    /// - Returns: Required network work, or `nil` when the cached snapshot is sufficient.
+    private func scopeRequiringRefresh(_ scope: Scope, policy: RefreshPolicy, cached: Snapshot?) -> Scope? {
+        guard policy == .ifStale, let cached else { return scope }
+        // A fresh cache must not hide a misconfigured provider's network error.
+        if let pricer, pricer.provider.network != source.network { return scope }
+        let currentTime = now()
+        if scope == .holdings, !isFresh(cached.fetchedAt, at: currentTime) { return .holdings }
+        if pricer != nil, !isFresh(cached.pricesFetchedAt, at: currentTime) { return .prices }
+        return nil
+    }
+
+    /// Checks the five-minute lifetime without treating future or invalid dates as fresh.
+    /// - Parameters:
+    ///   - retrievedAt: The last successful retrieval time, or `nil` if not yet checked.
+    ///   - currentTime: The clock value shared by this request's freshness checks.
+    /// - Returns: Whether the timestamp is less than five minutes old and not in the future.
+    private func isFresh(_ retrievedAt: Date?, at currentTime: Date) -> Bool {
+        guard let retrievedAt else { return false }
+        let age = currentTime.timeIntervalSince(retrievedAt)
+        return age.isFinite && age >= 0 && age < 300
     }
 
     /// Detaches one consumer and cancels work only when no consumers remain.
