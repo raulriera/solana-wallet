@@ -28,7 +28,7 @@ Complete framework work before App/UI work. Current decisions (September 28, 202
 | Framework | Status |
 | --- | --- |
 | Encoding | Complete for the current scope. |
-| RPC | Next: verify the complete workflows with actual clients on devnet. |
+| RPC | Devnet transaction workflows verified. A priority-fee provider limitation remains documented in [RPC scope](rpc-scope.md#verification). |
 | Transactions | Further capabilities are parked; current SOL and supported-token flows remain available. The goal is all Token-2022 extensions, reviewed and agreed individually before implementation. |
 | Wallet | Automatic account/path discovery is a planned feature; its architecture and discovery policy still need agreement. |
 | Vault | Implemented and tested, including real simulator Keychain checks. Keep the specific device-validation caveat in [Wallet](wallet.md) separate from framework test status. |

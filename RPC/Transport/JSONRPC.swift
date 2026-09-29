@@ -10,7 +10,8 @@ struct JSONRPCRequest<Request: RPCRequest>: Encodable {
 
 /// A validated JSON-RPC envelope containing a result or a server error.
 struct JSONRPCResponse<Value: Decodable>: Decodable {
-    let id: String
+    /// A server error may be unattributed; the caller still requires matching IDs for results.
+    let id: String?
     let result: Result<Value, ServerError>
 
     /// The error payload supplied by a JSON-RPC server.
@@ -49,7 +50,8 @@ struct JSONRPCResponse<Value: Decodable>: Decodable {
     /// Creates a response by decoding and validating its JSON-RPC envelope.
     ///
     /// The envelope must declare version 2.0 and contain exactly one of `result`
-    /// or `error`. The caller is responsible for matching ``id`` to its request.
+    /// or `error`. The caller requires matching identifiers for results and
+    /// attributed errors, while preserving server errors with a null identifier.
     ///
     /// - Parameter decoder: The decoder containing the response envelope.
     /// - Throws: `RPCError.invalidResponse` if the version or envelope is invalid,
@@ -59,7 +61,7 @@ struct JSONRPCResponse<Value: Decodable>: Decodable {
         guard try container.decode(String.self, forKey: .jsonrpc) == "2.0" else {
             throw RPCError.invalidResponse(.unsupportedVersion)
         }
-        id = try container.decode(String.self, forKey: .id)
+        id = try container.decode(String?.self, forKey: .id)
         guard container.contains(.result) != container.contains(.error) else {
             throw RPCError.invalidResponse(.invalidEnvelope)
         }

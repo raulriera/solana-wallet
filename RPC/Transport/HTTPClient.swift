@@ -78,13 +78,12 @@ struct HTTPClient: Sendable, CustomStringConvertible, CustomDebugStringConvertib
             throw RPCError.decoding
         }
         try Task.checkCancellation()
-        guard reply.id == id else {
-            throw RPCError.invalidResponse(.mismatchedID)
-        }
         switch reply.result {
         case .success(let value):
+            guard reply.id == id else { throw RPCError.invalidResponse(.mismatchedID) }
             return value
         case .failure(let error):
+            guard reply.id == nil || reply.id == id else { throw RPCError.invalidResponse(.mismatchedID) }
             if let simulation = error.simulation {
                 throw RPCError.preflight(
                     message: redactor.redact(error.message),
