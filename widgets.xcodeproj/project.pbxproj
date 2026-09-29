@@ -197,6 +197,11 @@
 			path = widgetsTests;
 			sourceTree = "<group>";
 		};
+		A80000000000000000000001 /* TestSupport */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = TestSupport;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -312,6 +317,7 @@
 				A50000000000000000000006 /* TransactionsTests */,
 				A60000000000000000000006 /* EncodingTests */,
 				A40000000000000000000006 /* VaultTests */,
+				A80000000000000000000001 /* TestSupport */,
 				A10000000000000000000007 /* Configuration */,
 				000000000000000000000020 /* Products */,
 			);
@@ -411,6 +417,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				A10000000000000000000006 /* RPCTests */,
+				A80000000000000000000001 /* TestSupport */,
 			);
 			name = RPCTests;
 			productName = RPCTests;
@@ -453,6 +460,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				A20000000000000000000006 /* PortfolioTests */,
+				A80000000000000000000001 /* TestSupport */,
 			);
 			name = PortfolioTests;
 			productName = PortfolioTests;

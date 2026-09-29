@@ -1,11 +1,12 @@
 import Foundation
 
 /// A client that sends typed JSON-RPC requests to Helius on a selected Solana network.
-public struct HeliusRPC: RPC, CustomStringConvertible, CustomDebugStringConvertible {
+public struct HeliusRPC: RPC, AccountChangeProviding, CustomStringConvertible, CustomDebugStringConvertible {
     /// The Solana network that receives the client's requests.
     public let network: Network
 
     private let client: HTTPClient
+    private let subscriptions: SubscriptionClient
 
     /// Creates a client with an ephemeral URL session on the selected network.
     ///
@@ -23,11 +24,13 @@ public struct HeliusRPC: RPC, CustomStringConvertible, CustomDebugStringConverti
     ///   - network: The Solana network to query.
     ///   - transport: The transport that performs HTTP requests.
     ///   - redactor: The diagnostic redactor, or `nil` to redact the key and endpoint.
+    ///   - socket: The factory for an independent wallet subscription connection.
     init(
         apiKey: String,
         network: Network,
         transport: any HTTPTransport,
-        redactor: (any TextRedactor)? = nil
+        redactor: (any TextRedactor)? = nil,
+        socket: @escaping @Sendable (URL) -> any WebSocketConnection = { URLSessionSocket(endpoint: $0) }
     ) {
         let host = switch network {
         case .mainnet: "mainnet.helius-rpc.com"
@@ -35,9 +38,13 @@ public struct HeliusRPC: RPC, CustomStringConvertible, CustomDebugStringConverti
         }
         let endpoint = URL(string: "https://\(host)/")!
             .appending(queryItems: [URLQueryItem(name: "api-key", value: apiKey)])
+        let socketEndpoint = URL(string: "wss://\(host)/")!
+            .appending(queryItems: [URLQueryItem(name: "api-key", value: apiKey)])
+        let redactor = redactor ?? SecretRedactor(secrets: [apiKey, endpoint.absoluteString, socketEndpoint.absoluteString])
         self.network = network
         client = HTTPClient(endpoint: endpoint, transport: transport,
-                            redactor: redactor ?? SecretRedactor(secrets: [apiKey, endpoint.absoluteString]))
+                            redactor: redactor)
+        subscriptions = SubscriptionClient(endpoint: socketEndpoint, connect: socket, redactor: redactor)
     }
 
     /// A textual representation that identifies the network and omits credentials.
@@ -53,5 +60,13 @@ public struct HeliusRPC: RPC, CustomStringConvertible, CustomDebugStringConverti
     /// - Throws: An `RPCError` or `CancellationError`.
     public func send<Request: RPCRequest>(_ request: Request) async throws -> Request.Response {
         try await client.send(request)
+    }
+
+    /// Observes confirmed SOL and owned token-account changes through standard Solana subscriptions.
+    /// - Parameter owner: The wallet address to watch.
+    /// - Returns: Increasing confirmed change slots after all subscriptions are acknowledged.
+    /// - Throws: A sanitized subscription, transport, timeout, or cancellation error.
+    public func changedSlots(for owner: String) async throws -> AsyncThrowingStream<UInt64, any Error> {
+        try await subscriptions.changedSlots(for: owner)
     }
 }

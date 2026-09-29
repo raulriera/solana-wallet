@@ -1,5 +1,15 @@
 /// A type that provides wallet portfolios while encapsulating caching and refreshes.
 public protocol PortfolioProviding: Sendable {
+    /// Observes confirmed account changes for the lifetime of the consuming task.
+    ///
+    /// Shares one connection per wallet. Setup completes before the initial reload;
+    /// bursts are coalesced and successful-but-behind DAS reads receive bounded follow-ups.
+    /// Transport and rate-limit errors are surfaced without automatic retries or reconnects.
+    /// The app owns starting and cancelling observation with its foreground/view lifecycle.
+    /// - Parameter owner: The wallet whose holdings to observe.
+    /// - Returns: A stream of cached state and refresh results, ending on cancellation or subscription failure.
+    func observations(for owner: String) async -> AsyncStream<Update>
+
     /// Returns cached portfolio state and refreshes the data required by the policy.
     ///
     /// The consumer is registered before this method returns. Network results arrive through the stream.

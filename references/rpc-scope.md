@@ -9,6 +9,7 @@ Connect directly to interchangeable RPC, DAS, and pricing providers; no app-owne
 | Create/import seed phrases; view/copy address | None. Keep these local. |
 | Discover accounts after phrase import | One `GetMultipleAccounts` request for twenty public addresses; keep positive SOL balances and ignore zero-SOL accounts. [Wallet](wallet.md) defines the bounded scan. |
 | View portfolio | DAS through `GetFungibleAssetsByOwner`, using `searchAssets` with a fungible filter. Include native SOL, rich token metadata, and available prices; exclude NFTs and asset state. `GetAsset` supplies the native mint's image when the wallet's holdings don't already provide it. |
+| Observe incoming portfolio changes | `AccountChangeProviding` supplies increasing confirmed change slots. Helius and public Solana use one `accountSubscribe` for SOL and two owner-filtered `programSubscribe` requests for SPL Token and Token-2022. Avoid fixed account-size filters so extended token accounts remain visible. Portfolio reconciles through DAS; notifications do not patch balances. |
 | Update market prices independently | `PriceProviding` returns our `Quote` values keyed by mint. `Jupiter` implements it through Price V3; consumers can switch providers without adopting a provider's response shape. Price requests do not refetch holdings or metadata. |
 | V1 transactions | Ordered instruction compositions: blockhash and expiry, fee/resource estimates, simulation, submission, and signature status. Token transfers use `GetMultipleAccounts` for mint/account state, `GetEpochInfo` for Token-2022 fee schedules, and `GetMinimumBalanceForRentExemption` for new destination deposits. |
 | AI-enhanced transaction simulation | Reuse simulation results, logs, and errors for human-readable explanations in a separate framework after RPC; see [simulation explanations](transaction-simulation.md). |
@@ -21,8 +22,8 @@ Connect directly to interchangeable RPC, DAS, and pricing providers; no app-owne
 
 ## Rate limits
 
-- Keep requests single-attempt. Expose HTTP `429` through `RPCError.http(statusCode:retryAfter:)`, preserving the sanitized `Retry-After` header. No shared rate limiter, cooldown, or automatic retries.
-- Price providers follow the same error policy. Jupiter deduplicates addresses and sends sequential batches of at most fifty; a failed batch throws without returning partial results. Refresh scheduling belongs to the consumer.
+- Keep ordinary RPC and DAS requests single-attempt, without throttling or cooldowns. Expose HTTP `429` through `RPCError.http(statusCode:retryAfter:)`, preserving the sanitized `Retry-After` header. Subscriptions surface sanitized errors and do not reconnect automatically.
+- Price providers follow the same error policy. Jupiter deduplicates addresses and paces batches of at most fifty at twenty requests/minute without a key or forty with a key. A failed batch throws without retrying or returning partial results. Reuse the provider to share its request budget; refresh scheduling belongs to the consumer.
 - Consumers decide presentation and recovery. Portfolio keeps its cached snapshot and exposes the refresh error; the app may silently ignore the warning.
 - Preserve each provider's submission error. Multi-submit attempts each enabled route once; one provider's rate limit must not cancel the others. Do not automatically resubmit.
 

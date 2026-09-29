@@ -4,11 +4,11 @@ The wallet app owns workflow coordination through internal, protocol-based servi
 
 | Component | Responsibility |
 | --- | --- |
-| RPC | Provider-neutral RPC, DAS, and price-provider communication and responses. |
+| RPC | Provider-neutral RPC, DAS, pricing, and confirmed account subscriptions. |
 | Transactions | Composable instructions, generic V1 compilation, decoding, validation, and signature assembly. |
 | Wallet | Local recovery phrases, account derivation, and cryptographic signing. |
 | Vault | Protected recovery storage and authentication for access. |
-| Portfolio | Portfolio snapshots, caching, and refresh. |
+| Portfolio | Portfolio snapshots, caching, refresh, and reconciliation of confirmed changes. |
 | Encoding | Shared codecs. |
 | Internal app services/coordinators | Compose review, explicit approval, authentication, signing, and optional submission/confirmation. |
 
@@ -32,4 +32,4 @@ Complete framework work before App/UI work.
 | Transactions | Further capabilities are parked; current SOL and supported-token flows remain available. The goal is all Token-2022 extensions, reviewed and agreed individually before implementation. |
 | Wallet | Complete for local derivation and SOL-only discovery across twenty addresses in two path families, with one RPC lookup per scan; verified on devnet. See [Wallet](wallet.md). |
 | Vault | Implemented and tested, including real simulator Keychain checks. Keep the specific device-validation caveat in [Wallet](wallet.md) separate from framework test status. |
-| Portfolio | Includes native SOL and fungible tokens with rich metadata, native SOL image resolution, independently refreshed prices, paced price requests, and separate five-minute freshness checks with explicit reloads. Remaining: incoming-change notifications and indexer reconciliation. Currency conversion and behavior without DAS remain deferred; see [Portfolio](portfolio.md). |
+| Portfolio | Includes native SOL and fungible tokens with rich metadata, native SOL image resolution, independently refreshed prices, paced price requests, separate five-minute freshness checks, explicit reloads, and confirmed-change observation with bounded indexer reconciliation. NFTs, currency conversion, and behavior without DAS remain deferred; see [Portfolio](portfolio.md). |

@@ -8,6 +8,7 @@ actor RefreshCoordinator {
     private let pricer: SnapshotPricer?
     private let now: @Sendable () -> Date
     private var flights: [CacheKey: Flight] = [:]
+    private var requiredSlots: [CacheKey: UInt64] = [:]
 
     /// Creates a coordinator with independent network and storage dependencies.
     ///
@@ -45,7 +46,8 @@ actor RefreshCoordinator {
             continuation.finish()
             return stream
         }
-        let requiredScope = scopeRequiringRefresh(scope, policy: policy, cached: cached)
+        let requiredScope = scope == .holdings && requiredSlots[key] != nil
+            ? .holdings : scopeRequiringRefresh(scope, policy: policy, cached: cached)
         let id = UUID()
         continuation.onTermination = { @Sendable _ in
             Task { @concurrent in await self.unsubscribe(key: key, id: id) }
@@ -73,6 +75,30 @@ actor RefreshCoordinator {
         flights[key] = Flight(generation: generation, scope: requiredScope, consumers: [id: continuation])
         flights[key]?.task = Task { await refresh(key: key, generation: generation) }
         return stream
+    }
+
+    /// Reads current complete holdings for observation state without triggering network work.
+    /// - Parameter owner: The wallet whose cached snapshot to retrieve.
+    /// - Returns: Its complete snapshot, or `nil` if unavailable.
+    func cachedSnapshot(for owner: String) -> Snapshot? {
+        store.snapshot(for: CacheKey(owner: owner, network: source.network))
+    }
+
+    /// Invalidates cache freshness until DAS reaches a confirmed change slot.
+    /// - Parameters:
+    ///   - slot: The latest confirmed change observed for this wallet.
+    ///   - owner: The wallet whose holdings require reconciliation.
+    func requireIndexedSlot(_ slot: UInt64, for owner: String) {
+        guard !Task.isCancelled else { return }
+        let key = CacheKey(owner: owner, network: source.network)
+        requiredSlots[key] = max(requiredSlots[key] ?? 0, slot)
+    }
+
+    /// Reports whether observed changes still require a complete holdings refresh.
+    /// - Parameter owner: The wallet to inspect.
+    /// - Returns: Whether a confirmed change remains unreconciled.
+    func hasPendingChanges(for owner: String) -> Bool {
+        requiredSlots[CacheKey(owner: owner, network: source.network)] != nil
     }
 
     /// Selects only the data whose retrieval time requires another request.
@@ -124,6 +150,7 @@ actor RefreshCoordinator {
     /// - Throws: A file-system error if the saved snapshot can't be removed.
     func removeData(for owner: String) throws {
         let key = CacheKey(owner: owner, network: source.network)
+        requiredSlots.removeValue(forKey: key)
         if let flight = flights.removeValue(forKey: key) {
             flight.task?.cancel()
             for continuation in flight.consumers.values { continuation.finish() }
@@ -152,6 +179,7 @@ actor RefreshCoordinator {
             switch flight.scope {
             case .holdings:
                 let holdings = try await source.snapshot(for: key.owner)
+                try validateIndex(holdings, for: key)
                 snapshot = try await pricer?.snapshot(pricing: holdings) ?? holdings
             case .prices:
                 guard let pricer else { throw PriceError.providerUnavailable }
@@ -160,12 +188,25 @@ actor RefreshCoordinator {
             }
             try Task.checkCancellation()
             guard flights[key]?.generation == generation else { return }
+            if flight.scope == .holdings { try validateIndex(snapshot, for: key) }
             available = snapshot
             try store.save(snapshot, for: key)
+            if flight.scope == .holdings { requiredSlots.removeValue(forKey: key) }
             finish(key: key, generation: generation, update: Update(snapshot: snapshot, phase: .ready))
         } catch {
             let update = Task.isCancelled ? nil : Update(snapshot: available, phase: .failed(error))
             finish(key: key, generation: generation, update: update)
+        }
+    }
+
+    /// Rejects a stale indexer result before pricing or persisting it as fresh.
+    /// - Parameters:
+    ///   - snapshot: The complete DAS response to validate.
+    ///   - key: The wallet and network associated with any pending change.
+    /// - Throws: An indexing error when the watermark is missing or behind the observed change.
+    private func validateIndex(_ snapshot: Snapshot, for key: CacheKey) throws {
+        if let expected = requiredSlots[key], snapshot.lastIndexedSlot.map({ $0 >= expected }) != true {
+            throw ObservationError.indexingBehind(expected: expected, observed: snapshot.lastIndexedSlot)
         }
     }
 
