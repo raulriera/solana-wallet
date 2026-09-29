@@ -8,7 +8,7 @@ Connect directly to interchangeable RPC, DAS, and pricing providers; no app-owne
 | --- | --- |
 | Create/import seed phrases; view/copy address | None. Keep these local. |
 | Discover accounts after phrase import | One `GetMultipleAccounts` request for twenty public addresses; keep positive SOL balances and ignore zero-SOL accounts. [Wallet](wallet.md) defines the bounded scan. |
-| View portfolio | DAS through `GetAssetsByOwner`, including native SOL, asset metadata, and available prices. |
+| View portfolio | DAS through `GetAssetsByOwner`, including native SOL, rich asset/collection metadata, asset state, and available prices. `GetAsset` supplies the native mint's image when the wallet's holdings don't already provide it. |
 | Update market prices independently | `PriceProviding` returns our `Quote` values keyed by mint. `Jupiter` implements it through Price V3; consumers can switch providers without adopting a provider's response shape. Price requests do not refetch holdings or metadata. |
 | V1 transactions | Ordered instruction compositions: blockhash and expiry, fee/resource estimates, simulation, submission, and signature status. Token transfers use `GetMultipleAccounts` for mint/account state, `GetEpochInfo` for Token-2022 fee schedules, and `GetMinimumBalanceForRentExemption` for new destination deposits. |
 | AI-enhanced transaction simulation | Reuse simulation results, logs, and errors for human-readable explanations in a separate framework after RPC; see [simulation explanations](transaction-simulation.md). |

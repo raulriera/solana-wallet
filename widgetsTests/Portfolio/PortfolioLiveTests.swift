@@ -33,6 +33,7 @@ extension SubmissionTests {
         #expect(snapshot.owner == owner)
         #expect(snapshot.network == .devnet)
         #expect(snapshot.holdings.first { $0.id == .nativeSOL }?.amount == Amount(units: lamports, decimals: 9))
+        #expect(snapshot.holdings.first { $0.id == .nativeSOL }?.imageURL != nil)
         #expect(Set(snapshot.holdings.map(\.id)).count == snapshot.holdings.count)
         #expect(store.snapshot(for: key) == snapshot)
         #expect(await updates.next() == nil)

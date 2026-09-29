@@ -559,7 +559,8 @@ struct HeliusRPCTests {
         #expect(parameters["ownerAddress"] as? String == address)
         #expect(parameters["page"] as? Int == 2)
         #expect(parameters["limit"] as? Int == 1000)
-        #expect(parameters["options"] as? [String: Bool] == ["showFungible": true, "showNativeBalance": true])
+        #expect(parameters["options"] as? [String: Bool] == ["showFungible": true, "showNativeBalance": true,
+            "showCollectionMetadata": true, "showUnverifiedCollections": true])
     }
 
     /// Verifies that malformed display fields preserve exact balances and healthy metadata.

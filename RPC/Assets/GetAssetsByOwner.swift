@@ -80,6 +80,8 @@ public struct GetAssetsByOwner: RPCRequest {
 
     private struct Options: Encodable {
         let showFungible = true
+        let showCollectionMetadata = true
+        let showUnverifiedCollections = true
         let showNativeBalance: Bool
     }
 }

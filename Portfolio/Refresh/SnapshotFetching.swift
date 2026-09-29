@@ -32,6 +32,7 @@ struct SnapshotFetcher: SnapshotFetching {
         var assetIDs: Set<String> = []
         var indexedSlots: [UInt64] = []
         var hasUnknownIndex = false
+        var nativeBalance: NativeBalance?
 
         while true {
             try Task.checkCancellation()
@@ -48,7 +49,7 @@ struct SnapshotFetcher: SnapshotFetching {
                 hasUnknownIndex = true
             }
             if page == 1 {
-                holdings.append(nativeHolding(response.nativeBalance))
+                nativeBalance = response.nativeBalance
             }
             if response.items.isEmpty { break }
 
@@ -60,6 +61,18 @@ struct SnapshotFetcher: SnapshotFetching {
             guard addedCount > 0, page < Int.max else { throw FetchError.invalidPage }
             page += 1
         }
+        // Native SOL has no asset content in DAS. Resolve only its image through
+        // the native mint, preserving Wrapped SOL's own metadata and identity.
+        let nativeMint = "So11111111111111111111111111111111111111112"
+        let imageURL: URL?
+        if let heldImage = holdings.first(where: { $0.id == .asset(nativeMint) })?.imageURL {
+            imageURL = heldImage
+        } else {
+            let asset = try await rpc.send(GetAsset(id: nativeMint))
+            guard asset.id == nativeMint else { throw FetchError.mismatchedAsset }
+            imageURL = asset.imageURL
+        }
+        holdings.insert(nativeHolding(nativeBalance, imageURL: imageURL), at: 0)
         try Task.checkCancellation()
         return Snapshot(owner: owner, network: network, holdings: holdings, fetchedAt: Date(),
                         lastIndexedSlot: hasUnknownIndex ? nil : indexedSlots.min())
@@ -80,18 +93,20 @@ struct SnapshotFetcher: SnapshotFetching {
             Valuation(pricePerUnit: $0.perToken, total: $0.total, currency: $0.currency)
         }
         return Holding(id: .asset(asset.id), amount: amount, name: asset.name, symbol: asset.symbol,
-                       imageURL: asset.imageURL, valuation: valuation)
+                       imageURL: asset.imageURL, valuation: valuation, metadata: asset.metadata, state: asset.state)
     }
 
     /// Maps native SOL separately from assets such as wrapped SOL.
     ///
-    /// - Parameter balance: The DAS native balance, or `nil` if not supplied.
+    /// - Parameters:
+    ///   - balance: The DAS native balance, or `nil` if not supplied.
+    ///   - imageURL: The native mint's image, without copying Wrapped SOL metadata.
     /// - Returns: A native SOL holding whose amount remains unknown when absent.
-    private func nativeHolding(_ balance: NativeBalance?) -> Holding {
+    private func nativeHolding(_ balance: NativeBalance?, imageURL: URL?) -> Holding {
         let amount = balance.map { Amount(units: $0.lamports, decimals: 9) }
         let valuation = balance.map { Valuation(pricePerUnit: $0.pricePerSOL, total: $0.totalPrice, currency: "USD") }
         return Holding(id: .nativeSOL, amount: amount, name: "Solana", symbol: "SOL",
-                       imageURL: nil, valuation: valuation)
+                       imageURL: imageURL, valuation: valuation)
     }
 }
 
@@ -99,4 +114,6 @@ struct SnapshotFetcher: SnapshotFetching {
 enum FetchError: Error {
     /// A page doesn't match the request or makes no progress through the assets.
     case invalidPage
+    /// The provider returned metadata for an asset other than the requested mint.
+    case mismatchedAsset
 }
