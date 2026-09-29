@@ -4,7 +4,7 @@ The wallet app owns workflow coordination through internal, protocol-based servi
 
 | Component | Responsibility |
 | --- | --- |
-| RPC | Provider-neutral RPC/DAS communication and responses. |
+| RPC | Provider-neutral RPC, DAS, and price-provider communication and responses. |
 | Transactions | Composable instructions, generic V1 compilation, decoding, validation, and signature assembly. |
 | Wallet | Local recovery phrases, account derivation, and cryptographic signing. |
 | Vault | Protected recovery storage and authentication for access. |
@@ -32,4 +32,4 @@ Complete framework work before App/UI work.
 | Transactions | Further capabilities are parked; current SOL and supported-token flows remain available. The goal is all Token-2022 extensions, reviewed and agreed individually before implementation. |
 | Wallet | Complete for local derivation and SOL-only discovery across twenty addresses in two path families, with one RPC lookup per scan; verified on devnet. See [Wallet](wallet.md). |
 | Vault | Implemented and tested, including real simulator Keychain checks. Keep the specific device-validation caveat in [Wallet](wallet.md) separate from framework test status. |
-| Portfolio | Remaining: rich metadata, live valuation updates, and live token-metadata verification. Pricing source and refresh policy require agreement. Currency conversion and behavior without DAS remain deferred; see [Portfolio](portfolio.md). |
+| Portfolio | Remaining: rich metadata, integrating independent prices into valuations, refresh scheduling, and live token-metadata verification. Prices use an interchangeable provider contract, with Jupiter as one implementation. Currency conversion and behavior without DAS remain deferred; see [Portfolio](portfolio.md). |

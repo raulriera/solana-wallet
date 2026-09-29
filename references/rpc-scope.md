@@ -2,13 +2,14 @@
 
 Build for the agreed Simplified and Advanced wallet experiences. A test or hypothetical future use alone doesn't justify an RPC method.
 
-Connect directly to interchangeable Solana RPC providers; no app-owned backend or proxy. `HeliusRPC` and public-endpoint `Solana` share one internal HTTP client. Keep provider-specific endpoints, authentication, and extensions inside RPC; consumers depend on provider-neutral protocols. DAS serves portfolio viewing only; see [portfolio](portfolio.md). App workflow coordination follows [architecture](architecture.md).
+Connect directly to interchangeable RPC, DAS, and pricing providers; no app-owned backend or proxy. `HeliusRPC` and public-endpoint `Solana` share one internal HTTP client. Keep provider-specific endpoints, authentication, batching, and response transformations inside RPC; consumers depend on provider-neutral protocols and values. DAS serves portfolio viewing only; see [portfolio](portfolio.md). App workflow coordination follows [architecture](architecture.md).
 
 | Feature | RPC need |
 | --- | --- |
 | Create/import seed phrases; view/copy address | None. Keep these local. |
 | Discover accounts after phrase import | One `GetMultipleAccounts` request for twenty public addresses; keep positive SOL balances and ignore zero-SOL accounts. [Wallet](wallet.md) defines the bounded scan. |
 | View portfolio | DAS through `GetAssetsByOwner`, including native SOL, asset metadata, and available prices. |
+| Update market prices independently | `PriceProviding` returns our `Quote` values keyed by mint. `Jupiter` implements it through Price V3; consumers can switch providers without adopting a provider's response shape. Price requests do not refetch holdings or metadata. |
 | V1 transactions | Ordered instruction compositions: blockhash and expiry, fee/resource estimates, simulation, submission, and signature status. Token transfers use `GetMultipleAccounts` for mint/account state, `GetEpochInfo` for Token-2022 fee schedules, and `GetMinimumBalanceForRentExemption` for new destination deposits. |
 | AI-enhanced transaction simulation | Reuse simulation results, logs, and errors for human-readable explanations in a separate framework after RPC; see [simulation explanations](transaction-simulation.md). |
 
@@ -21,6 +22,7 @@ Connect directly to interchangeable Solana RPC providers; no app-owned backend o
 ## Rate limits
 
 - Keep requests single-attempt. Expose HTTP `429` through `RPCError.http(statusCode:retryAfter:)`, preserving the sanitized `Retry-After` header. No shared rate limiter, cooldown, or automatic retries.
+- Price providers follow the same error policy. Jupiter deduplicates addresses and sends sequential batches of at most fifty; a failed batch throws without returning partial results. Refresh scheduling belongs to the consumer.
 - Consumers decide presentation and recovery. Portfolio keeps its cached snapshot and exposes the refresh error; the app may silently ignore the warning.
 - Preserve each provider's submission error. Multi-submit attempts each enabled route once; one provider's rate limit must not cancel the others. Do not automatically resubmit.
 

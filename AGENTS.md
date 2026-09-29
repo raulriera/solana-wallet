@@ -22,8 +22,8 @@
 - Document every function and initializer using Apple DocC conventions.
 - Solana V1 transactions only; compose ordered instructions through one shared transaction pipeline. Transfers are instruction helpers, not a separate transaction model.
 - Support SPL Token and Token-2022 together through shared token-transfer APIs. Review and agree on each Token-2022 extension with the user before implementing it.
-- Separate frameworks by concern; all Solana RPC and DAS communication belongs in the RPC/API framework.
-- Keep RPC and DAS contracts provider-neutral; Helius is the current implementation, and providers must be interchangeable behind protocols.
+- Separate frameworks by concern; all Solana RPC, DAS, and price-provider communication belongs in the RPC/API framework.
+- Keep RPC, DAS, and pricing contracts provider-neutral. Helius and Jupiter are implementations; providers must be interchangeable behind protocols and transform responses into shared types.
 - Surface RPC rate-limit errors to consumers; do not add automatic throttling or retries in RPC.
 - Add RPC methods only for concrete needs of agreed wallet features; follow [references/rpc-scope.md](references/rpc-scope.md), not endpoint coverage.
 - Keep the app decentralized: no app-owned backend or proxy. Connect directly to Solana RPC providers.

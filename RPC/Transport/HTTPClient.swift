@@ -49,25 +49,7 @@ struct HTTPClient: Sendable, CustomStringConvertible, CustomDebugStringConvertib
         }
         try Task.checkCancellation()
 
-        let data: Data
-        let response: URLResponse
-        do {
-            (data, response) = try await transport.data(for: httpRequest)
-        } catch {
-            try checkCancellation(after: error)
-            // Foundation errors may contain the authenticated URL in userInfo.
-            throw RPCError.transport((error as? URLError)?.code ?? .unknown)
-        }
-        try Task.checkCancellation()
-        guard let response = response as? HTTPURLResponse else {
-            throw RPCError.invalidResponse(.nonHTTPResponse)
-        }
-        guard (200..<300).contains(response.statusCode) else {
-            throw RPCError.http(
-                statusCode: response.statusCode,
-                retryAfter: response.value(forHTTPHeaderField: "Retry-After").map { redactor.redact($0) }
-            )
-        }
+        let data = try await transport.responseData(for: httpRequest, redactor: redactor)
 
         let reply: JSONRPCResponse<Request.Response>
         do {
