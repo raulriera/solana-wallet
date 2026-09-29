@@ -145,19 +145,18 @@ extension SubmissionTests {
         return try #require(expected)
     }
 
-    /// Creates a controlled wallet's native-token account for live test setup.
+    /// Creates the controlled sender's native-token account for live test setup.
     /// - Parameters:
     ///   - address: The derived associated token address.
-    ///   - owner: The retained wallet owning the account.
+    ///   - owner: The retained wallet paying for and owning the account.
     ///   - mint: The program's native mint.
     ///   - program: The token program receiving the account.
-    ///   - payer: An optional separate payer, defaulting to the token owner.
     /// - Returns: The official idempotent ATA instruction.
     /// - Throws: An address validation error.
-    func createAssociatedAccount(_ address: Address, owner: Address, mint: Address,
-                                 program: TokenProgram, payer: Address? = nil) throws -> Instruction {
+    private func createAssociatedAccount(_ address: Address, owner: Address, mint: Address,
+                                          program: TokenProgram) throws -> Instruction {
         try Instruction(program: Address("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"), accounts: [
-            .init(address: payer ?? owner, isSigner: true, isWritable: true),
+            .init(address: owner, isSigner: true, isWritable: true),
             .init(address: address, isSigner: false, isWritable: true),
             .init(address: owner, isSigner: false, isWritable: false),
             .init(address: mint, isSigner: false, isWritable: false),
@@ -174,8 +173,8 @@ extension SubmissionTests {
     ///   - program: The owning token program.
     /// - Returns: The official CloseAccount instruction.
     /// - Throws: An address validation error.
-    func close(_ account: Address, owner: Address, to destination: Address,
-               program: TokenProgram) throws -> Instruction {
+    private func close(_ account: Address, owner: Address, to destination: Address,
+                       program: TokenProgram) throws -> Instruction {
         try Instruction(program: Address(program.rawValue), accounts: [
             .init(address: account, isSigner: false, isWritable: true),
             .init(address: destination, isSigner: false, isWritable: true),

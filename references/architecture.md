@@ -30,6 +30,6 @@ Complete framework work before App/UI work. Current decisions (September 29, 202
 | Encoding | Complete for the current scope. |
 | RPC | Devnet transaction and account-discovery workflows verified. A priority-fee provider limitation remains documented in [RPC scope](rpc-scope.md#verification). |
 | Transactions | Further capabilities are parked; current SOL and supported-token flows remain available. The goal is all Token-2022 extensions, reviewed and agreed individually before implementation. |
-| Wallet | Complete for the agreed local derivation and two-family account-discovery scope, including live devnet verification; see [Wallet](wallet.md). |
+| Wallet | Complete for local derivation and SOL-only discovery across twenty addresses in two path families, with one RPC lookup per scan; verified on devnet. See [Wallet](wallet.md). |
 | Vault | Implemented and tested, including real simulator Keychain checks. Keep the specific device-validation caveat in [Wallet](wallet.md) separate from framework test status. |
 | Portfolio | Handle its remaining scope last. |

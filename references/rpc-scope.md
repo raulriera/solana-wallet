@@ -7,13 +7,13 @@ Connect directly to interchangeable Solana RPC providers; no app-owned backend o
 | Feature | RPC need |
 | --- | --- |
 | Create/import seed phrases; view/copy address | None. Keep these local. |
-| Discover accounts after phrase import | `GetMultipleAccounts` for SOL, `GetTokenAccountsByOwner` for each token program, and a one-signature `GetSignaturesForAddress` query for available activity. Public addresses only; [Wallet](wallet.md) defines the bounded scan. |
+| Discover accounts after phrase import | One `GetMultipleAccounts` request for twenty public addresses; keep positive SOL balances and ignore zero-SOL accounts. [Wallet](wallet.md) defines the bounded scan. |
 | View portfolio | DAS through `GetAssetsByOwner`, including native SOL, asset metadata, and available prices. |
 | V1 transactions | Ordered instruction compositions: blockhash and expiry, fee/resource estimates, simulation, submission, and signature status. Token transfers use `GetMultipleAccounts` for mint/account state, `GetEpochInfo` for Token-2022 fee schedules, and `GetMinimumBalanceForRentExemption` for new destination deposits. |
 | AI-enhanced transaction simulation | Reuse simulation results, logs, and errors for human-readable explanations in a separate framework after RPC; see [simulation explanations](transaction-simulation.md). |
 
 - Confidential transfers remain conditional; agree on feasibility and the concrete flow before adding support.
-- Account and rent reads serve token-transfer prerequisites and the agreed account-discovery flow; general account exploration and node-version queries remain outside the current scope. Discovery's token ownership request omits account data with a zero-length slice; it does not provide token balances or extension decoding.
+- Account and rent reads serve token-transfer prerequisites and the agreed SOL-only account-discovery flow; general account exploration and node-version queries remain outside the current scope. Token ownership and address-history methods have no current agreed consumer and are not exposed.
 - RPC completion means the agreed flows have the communication they need. Human-readable simulation explanations remain a separate milestone; AI exploration is parked. UI remains last.
 - Public Solana mainnet (`https://api.mainnet.solana.com`) is built in. Submission chooses ordinary RPC broadcast or one Helius Sender tier, never both; see [submission policy](transaction-workflow.md#submission-and-observation).
 
@@ -25,7 +25,7 @@ Connect directly to interchangeable Solana RPC providers; no app-owned backend o
 
 ## Verification
 
-September 29, 2026: 54 RPC tests passed; app workflows passed 53 tests with one mainnet Sender test skipped. Account discovery was verified with real Helius and public Solana devnet clients for SOL, both token programs with zero SOL, and history-only accounts. The full default scan passed through Helius. A live `429` was surfaced without retrying; final verification passed after consolidating duplicate history checks in the test suite. Temporary token accounts were closed and deposits returned after fees.
+The September 29 discovery revision uses a single SOL-only lookup. All 52 RPC tests, seven discovery policy tests, and one live discovery test passed. Coverage verifies the twenty-address request, exclusion of zero-SOL and missing accounts, exact derivation paths, explicit continuation, errors, and cancellation. Live verification used the retained wallets through Helius and public Solana devnet without transfers or funding.
 
 September 28, 2026:
 

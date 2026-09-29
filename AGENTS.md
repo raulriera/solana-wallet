@@ -30,6 +30,7 @@
 - Use one submission strategy: `none` sends identical signed bytes concurrently through configured same-network ordinary RPCs; `standard` and `premium` use Sender exclusively. Follow [references/transaction-workflow.md](references/transaction-workflow.md).
 - Use the selected provider's DAS interface only for portfolio viewing; keep DAS out of transaction submission contracts, validation, and routing. Follow [references/portfolio.md](references/portfolio.md).
 - Keep wallet recovery material device-only, excluded from iCloud sync and backups; follow [references/wallet.md](references/wallet.md).
+- Discover accounts with one SOL-only lookup for twenty addresses; intentionally ignore zero-SOL accounts. Follow [references/wallet.md](references/wallet.md).
 - Agree on architecture before implementation; work on one concern at a time.
 - Complete the agreed framework milestones before App/UI work; handle Portfolio last. Follow the current sequence in [references/architecture.md](references/architecture.md).
 - Request documentation as Markdown by appending `.md`. Apple API docs: `https://developer.apple.com/documentation/<path>.md`; tutorials/design guidance: `https://developer.apple.com/tutorials/data/<path>.md`.
