@@ -16,4 +16,13 @@ public protocol WalletProviding: Sendable {
     /// - Returns: The Base58-encoded Ed25519 public key.
     /// - Throws: `CancellationError` if cancelled, or a cryptographic error.
     func address(for phrase: RecoveryPhrase, passphrase: String, path: DerivationPath) async throws -> String
+
+    /// Derives an ordered batch of accounts without checking network activity.
+    /// - Parameters:
+    ///   - phrase: The validated recovery phrase.
+    ///   - passphrase: The original BIP-39 passphrase, or an empty string for none.
+    ///   - paths: The explicit hardened paths, in result order.
+    /// - Returns: Public addresses paired with their paths, preserving duplicates.
+    /// - Throws: A cryptographic error or `CancellationError`.
+    func accounts(for phrase: RecoveryPhrase, passphrase: String, paths: [DerivationPath]) async throws -> [DerivedAccount]
 }

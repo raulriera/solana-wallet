@@ -1,4 +1,4 @@
-/// Reads related mint and token accounts at one ledger context.
+/// Reads related accounts at one ledger context.
 public struct GetMultipleAccounts: RPCRequest {
     /// The provider-neutral JSON-RPC method name.
     public static let method = "getMultipleAccounts"
