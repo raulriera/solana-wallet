@@ -1,9 +1,9 @@
 import Foundation
-import RPC
+@testable import RPC
 import Testing
 @testable import Portfolio
 
-/// Tests complete cache-and-refresh cycles with typed RPC fixtures and isolated disk stores.
+/// Tests complete cache-and-refresh cycles with real RPC decoding, HTTP fixtures, and isolated disk stores.
 struct PortfolioTests {
     /// Verifies immediate reuse, complete pagination, and persistence of a refreshed snapshot.
     ///
@@ -16,11 +16,11 @@ struct PortfolioTests {
         try fixture.store.save(cached, for: CacheKey(owner: "wallet", network: .mainnet))
         let (pending, release) = AsyncStream<Void>.makeStream()
         defer { release.finish() }
-        let rpc = StubRPC { request in
+        let http = AssetResponses { request in
             if request.page == 1 { for await _ in pending {} }
-            return page(for: request, assets: request.page == 1 ? [asset(units: 9_007_199_254_740_993)] : [])
+            return try page(for: request, assets: request.page == 1 ? [asset(units: 9_007_199_254_740_993)] : [])
         }
-        let service = Portfolio(rpc: rpc, store: fixture.store, pageSize: 1)
+        let service = Portfolio(rpc: http.client, store: fixture.store, pageSize: 1)
         let updates = await service.updates(for: "wallet")
         var iterator = updates.makeAsyncIterator()
 
@@ -40,7 +40,7 @@ struct PortfolioTests {
         #expect(updated.error == nil)
         #expect(fixture.store.snapshot(for: CacheKey(owner: "wallet", network: .mainnet)) == result)
         #expect(await iterator.next() == nil)
-        let requests = await rpc.requests
+        let requests = await http.requests
         #expect(requests.map(\.page) == [1, 2])
         #expect(requests.map(\.includesNativeBalance) == [true, false])
     }
@@ -55,7 +55,7 @@ struct PortfolioTests {
     func portfolioKeepsHoldingsAndLaterPagesWhenAnAssetImageIsMalformed() async throws {
         let fixture = Fixture()
         defer { fixture.removeFiles() }
-        let rpc = StubRPC { request in
+        let http = AssetResponses { request in
             if request.page == 1 {
                 let data = Data(#"""
                     {"page":1,"limit":2,"items":[
@@ -67,11 +67,11 @@ struct PortfolioTests {
                          "token_info":{"balance":42,"decimals":6}}
                     ],"nativeBalance":{"lamports":100}}
                     """#.utf8)
-                return try JSONDecoder().decode(GetAssetsByOwner.Response.self, from: data)
+                return data
             }
-            return page(for: request, assets: request.page == 2 ? [asset(units: 7)] : [])
+            return try page(for: request, assets: request.page == 2 ? [asset(units: 7)] : [])
         }
-        let service = Portfolio(rpc: rpc, store: fixture.store, pageSize: 2)
+        let service = Portfolio(rpc: http.client, store: fixture.store, pageSize: 2)
         let updates = await service.updates(for: "wallet")
         var iterator = updates.makeAsyncIterator()
         _ = try #require(await iterator.next())
@@ -89,7 +89,7 @@ struct PortfolioTests {
         let collectible = try #require(result.holdings.first { $0.id == .asset("collectible") })
         #expect(collectible.name == "Example Collectible")
         #expect(collectible.imageURL == nil)
-        #expect(await rpc.requests.map(\.page) == [1, 2, 3])
+        #expect(await http.requests.map(\.page) == [1, 2, 3])
         #expect(fixture.store.snapshot(for: CacheKey(owner: "wallet", network: .mainnet)) == result)
         #expect(await iterator.next() == nil)
     }
@@ -101,8 +101,8 @@ struct PortfolioTests {
     func anUncachedOfflineWalletKeepsAnAbsentSnapshot() async throws {
         let fixture = Fixture()
         defer { fixture.removeFiles() }
-        let rpc = StubRPC { _ in throw RPCError.transport(.notConnectedToInternet) }
-        let service = Portfolio(rpc: rpc, store: fixture.store)
+        let http = AssetResponses { _ in throw URLError(.notConnectedToInternet) }
+        let service = Portfolio(rpc: http.client, store: fixture.store)
         let updates = await service.updates(for: "wallet")
         var iterator = updates.makeAsyncIterator()
 
@@ -127,11 +127,11 @@ struct PortfolioTests {
         let cached = snapshot(owner: "wallet", network: .mainnet, units: 3)
         let key = CacheKey(owner: "wallet", network: .mainnet)
         try fixture.store.save(cached, for: key)
-        let rpc = StubRPC { request in
-            if request.page == 2 { throw RPCError.transport(.notConnectedToInternet) }
-            return page(for: request, assets: [asset(units: 100)])
+        let http = AssetResponses { request in
+            if request.page == 2 { throw URLError(.notConnectedToInternet) }
+            return try page(for: request, assets: [asset(units: 100)])
         }
-        let service = Portfolio(rpc: rpc, store: fixture.store, pageSize: 1)
+        let service = Portfolio(rpc: http.client, store: fixture.store, pageSize: 1)
         let updates = await service.updates(for: "wallet")
         var iterator = updates.makeAsyncIterator()
         _ = await iterator.next()
@@ -151,8 +151,8 @@ struct PortfolioTests {
     func cacheWriteFailuresRetainFreshlyRetrievedHoldings(cachedUnits: UInt64?) async throws {
         let cached = cachedUnits.map { snapshot(owner: "wallet", network: .mainnet, units: $0) }
         let store = WriteFailingStore(cached: cached)
-        let rpc = StubRPC { request in page(for: request, assets: []) }
-        let service = Portfolio(rpc: rpc, store: store)
+        let http = AssetResponses { request in try page(for: request, assets: []) }
+        let service = Portfolio(rpc: http.client, store: store)
         let updates = await service.updates(for: "wallet")
         var iterator = updates.makeAsyncIterator()
         let initial = try #require(await iterator.next())
@@ -175,11 +175,10 @@ struct PortfolioTests {
         defer { fixture.removeFiles() }
         let key = CacheKey(owner: "wallet", network: .mainnet)
         try fixture.store.save(snapshot(owner: "wallet", network: .mainnet, units: 3), for: key)
-        let rpc = StubRPC { request in
-            GetAssetsByOwner.Response(lastIndexedSlot: 12345, page: request.page, limit: request.limit,
-                                      items: [], nativeBalance: NativeBalance(lamports: 0, pricePerSOL: nil, totalPrice: nil))
+        let http = AssetResponses { request in
+            try page(for: request, assets: [], lamports: 0)
         }
-        let service = Portfolio(rpc: rpc, store: fixture.store)
+        let service = Portfolio(rpc: http.client, store: fixture.store)
         let updates = await service.updates(for: "wallet")
         var iterator = updates.makeAsyncIterator()
         _ = await iterator.next()
@@ -199,8 +198,8 @@ struct PortfolioTests {
     func repeatedAssetPagesStopTheRefreshWithoutSavingPartialHoldings() async throws {
         let fixture = Fixture()
         defer { fixture.removeFiles() }
-        let rpc = StubRPC { request in page(for: request, assets: [asset(units: 1)]) }
-        let service = Portfolio(rpc: rpc, store: fixture.store, pageSize: 1)
+        let http = AssetResponses { request in try page(for: request, assets: [asset(units: 1)]) }
+        let service = Portfolio(rpc: http.client, store: fixture.store, pageSize: 1)
         let updates = await service.updates(for: "wallet")
         var iterator = updates.makeAsyncIterator()
         _ = await iterator.next()
@@ -209,7 +208,7 @@ struct PortfolioTests {
 
         #expect(failed.error is FetchError)
         #expect(failed.snapshot == nil)
-        #expect(await rpc.requests.count == 2)
+        #expect(await http.requests.count == 2)
         #expect(fixture.store.snapshot(for: CacheKey(owner: "wallet", network: .mainnet)) == nil)
     }
 
@@ -226,13 +225,13 @@ struct PortfolioTests {
         let (started, startedContinuation) = AsyncStream<Void>.makeStream()
         let (cancelled, cancelledContinuation) = AsyncStream<Void>.makeStream()
         defer { release.finish(); startedContinuation.finish(); cancelledContinuation.finish() }
-        let rpc = StubRPC { request in
+        let http = AssetResponses { request in
             startedContinuation.yield(())
             for await _ in pending {}
             if Task.isCancelled { cancelledContinuation.yield(()) }
-            return page(for: request, assets: [asset(units: 100)])
+            return try page(for: request, assets: [asset(units: 100)])
         }
-        let service = Portfolio(rpc: rpc, store: fixture.store)
+        let service = Portfolio(rpc: http.client, store: fixture.store)
         let updates = await service.updates(for: "wallet")
         var iterator = updates.makeAsyncIterator()
         _ = try #require(await iterator.next())
@@ -259,11 +258,11 @@ struct PortfolioTests {
         try fixture.store.save(snapshot(owner: "wallet", network: .mainnet, units: 3), for: key)
         let (pending, release) = AsyncStream<Void>.makeStream()
         defer { release.finish() }
-        let rpc = StubRPC { request in
+        let http = AssetResponses { request in
             for await _ in pending {}
-            return page(for: request, assets: [])
+            return try page(for: request, assets: [])
         }
-        let service: any PortfolioProviding = Portfolio(rpc: rpc, store: fixture.store)
+        let service: any PortfolioProviding = Portfolio(rpc: http.client, store: fixture.store)
         let updates = await service.updates(for: "wallet")
 
         try await service.removeData(for: "wallet")
@@ -292,9 +291,9 @@ struct PortfolioTests {
             try fixture.store.save(snapshot(owner: savedOwner, network: savedNetwork, units: units),
                                    for: CacheKey(owner: savedOwner, network: savedNetwork))
         }
-        let rpc = StubRPC(network: network) { _ in throw RPCError.transport(.notConnectedToInternet) }
+        let http = AssetResponses(network: network) { _ in throw URLError(.notConnectedToInternet) }
         let recreatedStore = FileSnapshotStore(directory: fixture.directory)
-        let service = Portfolio(rpc: rpc, store: recreatedStore)
+        let service = Portfolio(rpc: http.client, store: recreatedStore)
         let updates = await service.updates(for: owner)
         var iterator = updates.makeAsyncIterator()
 
@@ -321,14 +320,14 @@ struct PortfolioTests {
         let (started, startedContinuation) = AsyncStream<Void>.makeStream()
         let (cancelled, cancelledContinuation) = AsyncStream<Void>.makeStream()
         defer { release.finish(); startedContinuation.finish(); cancelledContinuation.finish() }
-        let rpc = StubRPC { request in
+        let http = AssetResponses { request in
             startedContinuation.yield(())
             for await _ in pending {}
             if Task.isCancelled { cancelledContinuation.yield(()) }
             try Task.checkCancellation()
-            return page(for: request, assets: [])
+            return try page(for: request, assets: [])
         }
-        let service: any PortfolioProviding = Portfolio(rpc: rpc, store: fixture.store)
+        let service: any PortfolioProviding = Portfolio(rpc: http.client, store: fixture.store)
         let consumer = Task { @concurrent in
             let updates = await service.updates(for: "wallet")
             for await _ in updates {}
@@ -342,7 +341,7 @@ struct PortfolioTests {
 
         var cancelledIterator = cancelled.makeAsyncIterator()
         _ = try #require(await cancelledIterator.next())
-        #expect(await rpc.requests.count == 1)
+        #expect(await http.requests.count == 1)
         #expect(fixture.store.snapshot(for: key) == cached)
     }
 
@@ -357,15 +356,15 @@ struct PortfolioTests {
         let (started, startedContinuation) = AsyncStream<Void>.makeStream()
         let (observed, observedContinuation) = AsyncStream<Void>.makeStream()
         defer { release.finish(); startedContinuation.finish(); observedContinuation.finish() }
-        let rpc = StubRPC { request in
+        let http = AssetResponses { request in
             if request.page == 1 {
                 startedContinuation.yield(())
                 for await _ in pending {}
                 try Task.checkCancellation()
             }
-            return page(for: request, assets: request.page == 1 ? [asset(units: 7)] : [])
+            return try page(for: request, assets: request.page == 1 ? [asset(units: 7)] : [])
         }
-        let service = Portfolio(rpc: rpc, store: fixture.store)
+        let service = Portfolio(rpc: http.client, store: fixture.store)
         let first = Task {
             let updates = await service.updates(for: "wallet")
             for await _ in updates { observedContinuation.yield(()) }
@@ -378,7 +377,7 @@ struct PortfolioTests {
         let updates = await service.updates(for: "wallet")
         var second = updates.makeAsyncIterator()
         _ = try #require(await second.next())
-        #expect(await rpc.requests.count == 1)
+        #expect(await http.requests.count == 1)
 
         first.cancel()
         await first.value
@@ -388,7 +387,7 @@ struct PortfolioTests {
         #expect(updated.holdings.first { $0.id == .asset("mint") }?.amount?.units == 7)
         #expect(updated.error == nil)
         #expect(await second.next() == nil)
-        #expect(await rpc.requests.count == 2)
+        #expect(await http.requests.count == 2)
     }
 }
 
@@ -426,34 +425,6 @@ private struct WriteFailingStore: SnapshotStoring {
     func remove(for key: CacheKey) throws { throw CocoaError(.fileWriteNoPermission) }
 }
 
-/// An RPC test double that records requests and returns public typed fixtures.
-private actor StubRPC: RPC {
-    nonisolated let network: Network
-    private(set) var requests: [GetAssetsByOwner] = []
-    private let respond: @Sendable (GetAssetsByOwner) async throws -> GetAssetsByOwner.Response
-
-    /// Creates an RPC double with a typed DAS response handler.
-    ///
-    /// - Parameters:
-    ///   - network: The network associated with this double.
-    ///   - respond: The handler that supplies each DAS page.
-    init(network: Network = .mainnet, respond: @escaping @Sendable (GetAssetsByOwner) async throws -> GetAssetsByOwner.Response) {
-        self.network = network
-        self.respond = respond
-    }
-
-    /// Records a DAS request and returns its typed fixture.
-    ///
-    /// - Parameter request: The request sent by the portfolio service.
-    /// - Returns: The fixture response.
-    /// - Throws: A handler error or a failed prerequisite for an unexpected request type.
-    func send<Request: RPCRequest>(_ request: Request) async throws -> Request.Response {
-        let request = try #require(request as? GetAssetsByOwner)
-        requests.append(request)
-        return try #require(await respond(request) as? Request.Response)
-    }
-}
-
 /// Creates an unpriced token fixture with an exact integer balance.
 ///
 /// - Parameter units: The balance in the token's smallest units.
@@ -468,10 +439,15 @@ private func asset(units: UInt64) -> Asset {
 /// - Parameters:
 ///   - request: The request whose pagination settings to echo.
 ///   - assets: The assets supplied on this page.
-/// - Returns: A typed DAS page.
-private func page(for request: GetAssetsByOwner, assets: [Asset]) -> GetAssetsByOwner.Response {
-    GetAssetsByOwner.Response(lastIndexedSlot: 12345, page: request.page, limit: request.limit, items: assets,
-                              nativeBalance: request.includesNativeBalance ? NativeBalance(lamports: 100, pricePerSOL: nil, totalPrice: nil) : nil)
+///   - lamports: The native balance returned when requested.
+/// - Returns: A JSON DAS page.
+/// - Throws: A JSON encoding error.
+private func page(for request: GetAssetsByOwner, assets: [Asset], lamports: UInt64 = 100) throws -> Data {
+    var value: [String: Any] = ["last_indexed_slot": 12345, "page": request.page, "limit": request.limit,
+        "items": assets.map { ["id": $0.id, "interface": $0.interface,
+            "token_info": ["balance": $0.balance as Any? ?? NSNull(), "decimals": $0.decimals as Any? ?? NSNull()]] }]
+    if request.includesNativeBalance { value["nativeBalance"] = ["lamports": lamports] }
+    return try JSONSerialization.data(withJSONObject: value)
 }
 
 /// Creates a previously retrieved portfolio fixture.

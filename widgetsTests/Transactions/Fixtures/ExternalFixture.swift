@@ -41,7 +41,7 @@ enum ExternalFixture {
     /// Creates external review observations without performing network or wallet access.
     ///
     /// - Parameter hasPayerSignature: Whether the independent payer signature is present.
-    /// - Returns: Typed fixture observations for the provider doubles.
+    /// - Returns: Typed observations encoded by the HTTP fixtures.
     /// - Throws: A fixture or structural decoding error.
     static func preparation(hasPayerSignature: Bool = true) throws -> Preparation {
         let observations = try PreparationFixture.preparation(fee: 15_000)

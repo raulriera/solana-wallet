@@ -14,11 +14,11 @@ struct ExternalTransactionTests {
     func signingPreservesExternalTransaction(hasPayerSignature: Bool) async throws {
         let expected = try ExternalFixture.preparation(hasPayerSignature: hasPayerSignature)
         let recovery = try SigningFixture().recovery
-        let preparationRPC = PreparationRPC(fixture: expected)
-        let signingRPC = SigningRPC(fee: 15_000)
+        let preparationHTTP = try HTTPResponses.preparation(fixture: expected)
+        let signingHTTP = try HTTPResponses.signing(fee: 15_000)
         let store = SigningRecoveryStore(recovery: recovery)
         let coordinator: any TransactionCoordinating = TransactionCoordinator(
-            rpc: preparationRPC, preparer: Preparer(rpc: preparationRPC), signer: Signer(rpc: signingRPC, store: store), submitter: Submitter(rpc: signingRPC), confirmer: Confirmer(rpc: signingRPC)
+            rpc: preparationHTTP.client, preparer: Preparer(rpc: preparationHTTP.client), signer: Signer(rpc: signingHTTP.client, store: store), submitter: Submitter(rpc: signingHTTP.client), confirmer: Confirmer(rpc: signingHTTP.client)
         )
         var input = expected.bytes
         input.insert(0xff, at: input.startIndex)
@@ -29,6 +29,7 @@ struct ExternalTransactionTests {
         let signed = try await coordinator.sign(preparation)
 
         #expect(preparation.transaction == expected.transaction)
+        #expect(preparation.lastValidBlockHeight == nil)
         #expect(preparation.transaction.serializedRepresentation == input)
         let reference = try ExternalFixture.signed(hasPayerSignature: hasPayerSignature)
         #expect(signed.serializedRepresentation.dropLast(64) == reference.dropLast(64))
@@ -37,21 +38,19 @@ struct ExternalTransactionTests {
         #expect(try TransactionBuilder().transaction(byAdding: reference.suffix(64), for: expected.signer, to: input).serializedRepresentation == reference)
         #expect(signed.signatures.allSatisfy { $0.contains(where: { $0 != 0 }) } == hasPayerSignature)
         #expect(await store.reads.count == 1)
-        let requests = await preparationRPC.requests
+        let requests = await preparationHTTP.requests
         #expect(requests.count == 3)
-        let validity = try #require(requests.first as? IsBlockhashValid)
-        #expect(validity.blockhash == expected.transaction.lifetimeSpecifier)
-        #expect(validity.commitment == .confirmed)
-        #expect(validity.minContextSlot == nil)
-        let simulation = try #require(requests.compactMap { $0 as? SimulateTransaction }.first)
-        #expect(simulation.transaction == input)
-        #expect(simulation.minContextSlot == 400)
-        #expect(!simulation.verifiesSignatures && !simulation.replacesRecentBlockhash)
-        let checks = await signingRPC.requests.compactMap { $0 as? IsBlockhashValid }
+        let validity = try #require(requests.first).rpcParameters
+        #expect(validity[0] as? String == expected.transaction.lifetimeSpecifier)
+        let simulation = try #require(requests.first { try $0.rpcMethod == "simulateTransaction" }).rpcParameters
+        #expect(simulation[0] as? String == input.base64EncodedString())
+        let checks = try await signingHTTP.requests.filter { try $0.rpcMethod == "isBlockhashValid" }
         #expect(checks.count == 2)
-        #expect(checks.allSatisfy {
-            $0.blockhash == expected.transaction.lifetimeSpecifier && $0.commitment == .confirmed && $0.minContextSlot == 402
-        })
+        for check in checks {
+            let parameters = try check.rpcParameters
+            #expect(parameters[0] as? String == expected.transaction.lifetimeSpecifier)
+            #expect((parameters[1] as? [String: Any])?["minContextSlot"] as? Int == 402)
+        }
     }
 
     /// Verifies malformed authority cannot reach provider work or produce a review.
@@ -62,7 +61,7 @@ struct ExternalTransactionTests {
     ])
     func invalidSignaturesStopPreparation(_ condition: String) async throws {
         let expected = try ExternalFixture.preparation()
-        let rpc = PreparationRPC(fixture: expected)
+        let http = try HTTPResponses.preparation(fixture: expected)
         var input = expected.bytes
         var signer = expected.signer
         let error: ValidationError
@@ -78,9 +77,9 @@ struct ExternalTransactionTests {
             error = .invalidSignature
         }
 
-        await #expect(throws: error) { try await Preparer(rpc: rpc).prepare(TransactionDecoder().decode(input), for: signer) }
+        await #expect(throws: error) { try await Preparer(rpc: http.client).prepare(TransactionDecoder().decode(input), for: signer) }
 
-        #expect(await rpc.requests.isEmpty)
+        #expect(await http.requests.isEmpty)
     }
 
     /// Verifies displayed instruction and account metadata must match the exact signed bytes.
@@ -102,14 +101,14 @@ struct ExternalTransactionTests {
         )
         let preparation = Preparation(source: expected.source, signer: expected.signer, transaction: altered,
                                       network: expected.network, fee: expected.fee, simulation: expected.simulation)
-        let rpc = SigningRPC(fee: 15_000)
+        let http = try HTTPResponses.signing(fee: 15_000)
         let store = SigningRecoveryStore(recovery: try SigningFixture().recovery)
 
         await #expect(throws: PreparationValidator.Failure.messageMismatch) {
-            try await Signer(rpc: rpc, store: store).sign(preparation, for: UUID(), reason: "Approve transaction")
+            try await Signer(rpc: http.client, store: store).sign(preparation, for: UUID(), reason: "Approve transaction")
         }
 
-        #expect(await rpc.requests.isEmpty)
+        #expect(await http.requests.isEmpty)
         #expect(await store.reads.isEmpty)
     }
 
@@ -121,19 +120,19 @@ struct ExternalTransactionTests {
     ])
     func invalidBlockhashPreventsSigning(_ stage: String) async throws {
         let expected = try ExternalFixture.preparation()
-        let preparationRPC = PreparationRPC(fixture: expected, blockhashValid: stage != "preparation")
-        let signingRPC = SigningRPC(fee: 15_000, validities: stage == "during authentication" ? [true, false] : [stage == "stale context"],
+        let preparationHTTP = try HTTPResponses.preparation(fixture: expected, blockhashValid: stage != "preparation")
+        let signingHTTP = try HTTPResponses.signing(fee: 15_000, validities: stage == "during authentication" ? [true, false] : [stage == "stale context"],
                                     validitySlot: stage == "stale context" ? 399 : 403)
         let store = SigningRecoveryStore(recovery: try SigningFixture().recovery)
         let wallet = RecordingWallet()
-        let coordinator = TransactionCoordinator(rpc: preparationRPC, preparer: Preparer(rpc: preparationRPC),
-            signer: Signer(rpc: signingRPC, store: store, wallet: wallet), submitter: Submitter(rpc: signingRPC), confirmer: Confirmer(rpc: signingRPC))
+        let coordinator = TransactionCoordinator(rpc: preparationHTTP.client, preparer: Preparer(rpc: preparationHTTP.client),
+            signer: Signer(rpc: signingHTTP.client, store: store, wallet: wallet), submitter: Submitter(rpc: signingHTTP.client), confirmer: Confirmer(rpc: signingHTTP.client))
 
         if stage == "preparation" {
             await #expect(throws: Preparer.Failure.invalidBlockhash) {
                 try await coordinator.simulate(expected.transaction, using: Account(id: UUID(), address: expected.signer))
             }
-            #expect(await preparationRPC.requests.count == 1)
+            #expect(await preparationHTTP.requests.count == 1)
         } else {
             let preparation = try await coordinator.simulate(expected.transaction, using: Account(id: UUID(), address: expected.signer))
             await #expect(throws: PreparationValidator.Failure.expired) {

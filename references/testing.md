@@ -28,9 +28,3 @@
   observed network behavior; do not claim they exhaust provider races or outages.
 - Test redaction independently, plus one focused client test proving returned
   errors hide fake credentials. Helper tests alone cannot verify client wiring.
-
-Verified on iPhone Duo / iOS 27.1 (2026-09-28): the real Keychain test rejected
-saving without Touch ID enrollment and left no readable item; with enrollment,
-save/read passed. Each mode executed one test and skipped the opposite case.
-Reads completed without a prompt, so hardware biometric enforcement remains
-unverified. These checks use public fixtures and require no devnet funds.

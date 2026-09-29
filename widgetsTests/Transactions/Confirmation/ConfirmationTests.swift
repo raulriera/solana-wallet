@@ -12,58 +12,62 @@ struct ConfirmationTests {
     /// - Parameter commitment: A commitment level sufficient to complete observation.
     @Test("confirmation waits for confirmed or finalized execution", arguments: [Commitment.confirmed, .finalized])
     func confirmationWaitsForExecution(_ commitment: Commitment) async throws {
-        let rpc = ConfirmationRPC(responses: [response(nil), response(status(.processed)),
+        let http = try HTTPResponses.confirmation(responses: [response(nil), response(status(.processed)),
                                               response(status(nil)), response(status(commitment))])
-        let confirmation = try await Confirmer(rpc: rpc, clock: pollingClock()).confirm(submission)
+        let confirmation = try await Confirmer(rpc: http.client, clock: pollingClock()).confirm(submission)
 
         #expect(confirmation == Confirmation(submission: submission, slot: 405,
                                              commitment: commitment, outcome: .succeeded))
-        let requests = await rpc.requests
+        let requests = await http.requests
         #expect(requests.count == 4)
-        #expect(requests.allSatisfy { $0.signatures == [submission.signature] && $0.searchesTransactionHistory })
+        for request in requests {
+            let parameters = try request.rpcParameters
+            #expect(parameters[0] as? [String] == [submission.signature])
+            #expect((parameters[1] as? [String: Bool])?["searchTransactionHistory"] == true)
+        }
     }
 
     /// Verifies an execution failure retains its details only once its fork is confirmed.
     @Test("confirmed execution failures retain instruction details")
     func executionFailuresRetainDetails() async throws {
         let error = TransactionError(name: "InstructionError", details: .array([.integer(1), .object(["Custom": .integer(6001)])]))
-        let rpc = ConfirmationRPC(responses: [response(status(.processed, error: error)),
+        let http = try HTTPResponses.confirmation(responses: [response(status(.processed, error: error)),
                                               response(status(.confirmed, error: error))])
 
-        let confirmation = try await Confirmer(rpc: rpc, clock: pollingClock()).confirm(submission)
+        let confirmation = try await Confirmer(rpc: http.client, clock: pollingClock()).confirm(submission)
 
         #expect(confirmation.outcome == .failed(error))
         #expect(confirmation.slot == 405)
         #expect(confirmation.commitment == .confirmed)
-        #expect(await rpc.requests.count == 2)
+        #expect(await http.requests.count == 2)
     }
 
     /// Verifies malformed positional or ledger observations cannot become confirmations.
     ///
     /// - Parameter kind: The malformed response shape or context.
     @Test("inconsistent status responses cannot confirm a transaction", arguments: ["empty", "extra status", "future slot"])
-    func inconsistentResponsesAreRejected(_ kind: String) async {
+    func inconsistentResponsesAreRejected(_ kind: String) async throws {
         let values: [GetSignatureStatuses.Status?] = kind == "empty" ? [] : kind == "extra status"
             ? [status(.confirmed), nil] : [status(.confirmed)]
-        let rpc = ConfirmationRPC(responses: [.init(context: Context(slot: kind == "future slot" ? 404 : 406), value: values)])
+        let http = try HTTPResponses.confirmation(responses: [.init(context: Context(slot: kind == "future slot" ? 404 : 406), value: values)])
 
         await #expect(throws: Confirmer.Failure.invalidResponse) {
-            try await Confirmer(rpc: rpc, clock: pollingClock()).confirm(submission)
+            try await Confirmer(rpc: http.client, clock: pollingClock()).confirm(submission)
         }
 
-        #expect(await rpc.requests.count == 1)
+        #expect(await http.requests.count == 1)
     }
 
     /// Verifies observing another network never sends the signature to the provider.
     @Test("confirmation rejects another network before requesting status")
-    func anotherNetworkIsRejected() async {
-        let rpc = ConfirmationRPC(responses: [])
+    func anotherNetworkIsRejected() async throws {
+        let http = try HTTPResponses.confirmation(responses: [])
 
         await #expect(throws: Confirmer.Failure.networkMismatch) {
-            try await Confirmer(rpc: rpc).confirm(Submission(signature: submission.signature, network: .mainnet))
+            try await Confirmer(rpc: http.client).confirm(Submission(signature: submission.signature, network: .mainnet))
         }
 
-        #expect(await rpc.requests.isEmpty)
+        #expect(await http.requests.isEmpty)
     }
 
     /// Verifies a failed lookup remains an observation error without an automatic retry.
@@ -72,49 +76,49 @@ struct ConfirmationTests {
     @Test("status lookup failures preserve provider diagnostics without retrying", arguments: [
         RPCError.transport(.timedOut), .http(statusCode: 429, retryAfter: "3")
     ])
-    func lookupFailuresDoNotRetry(_ failure: RPCError) async {
-        let rpc = ConfirmationRPC(responses: [], failure: failure)
+    func lookupFailuresDoNotRetry(_ failure: RPCError) async throws {
+        let http = try HTTPResponses.confirmation(responses: [], failure: failure)
 
         await #expect(throws: failure) {
-            try await Confirmer(rpc: rpc, clock: pollingClock()).confirm(submission)
+            try await Confirmer(rpc: http.client, clock: pollingClock()).confirm(submission)
         }
 
-        #expect(await rpc.requests.count == 1)
+        #expect(await http.requests.count == 1)
     }
 
     /// Verifies the deadline cancels an in-flight request without fabricating an execution failure.
     @Test("confirmation timeout cancels pending status work and leaves the outcome unknown", .timeLimit(.minutes(1)))
-    func timeoutCancelsPendingWork() async {
+    func timeoutCancelsPendingWork() async throws {
         let pending = Suspension()
-        let rpc = ConfirmationRPC(responses: [response(status(.confirmed))], gate: pending)
+        let http = try HTTPResponses.confirmation(responses: [response(status(.confirmed))], gate: pending)
         let clock = ControlledClock { duration in
             #expect(duration == .seconds(60))
             await pending.waitUntilStarted()
         }
 
         await #expect(throws: Confirmer.Failure.timedOut) {
-            try await Confirmer(rpc: rpc, clock: clock).confirm(submission)
+            try await Confirmer(rpc: http.client, clock: clock).confirm(submission)
         }
 
-        #expect(await rpc.wasCancelled)
-        #expect(await rpc.requests.count == 1)
+        #expect(await http.wasCancelled)
+        #expect(await http.requests.count == 1)
     }
 
     /// Verifies cancellation reaches either the pending RPC or the interval between queries.
     ///
     /// - Parameter duringRequest: Whether the task is cancelled during a request or a poll delay.
     @Test("cancelling confirmation stops requests and polling delays", .timeLimit(.minutes(1)), arguments: [true, false])
-    func cancellationStopsObservation(duringRequest: Bool) async {
+    func cancellationStopsObservation(duringRequest: Bool) async throws {
         let pending = Suspension()
         let deadline = Suspension()
-        let rpc = ConfirmationRPC(responses: [response(duringRequest ? status(.confirmed) : nil)],
+        let http = try HTTPResponses.confirmation(responses: [response(duringRequest ? status(.confirmed) : nil)],
                                   gate: duringRequest ? pending : nil)
         let clock = ControlledClock { duration in
             if duration == .seconds(60) { await deadline.suspend() }
             else { await pending.suspend() }
         }
         let operation = Task { @concurrent in
-            try await Confirmer(rpc: rpc, clock: clock).confirm(submission)
+            try await Confirmer(rpc: http.client, clock: clock).confirm(submission)
         }
         defer { operation.cancel() }
         await pending.waitUntilStarted()
@@ -122,8 +126,8 @@ struct ConfirmationTests {
         operation.cancel()
 
         await #expect(throws: CancellationError.self) { try await operation.value }
-        #expect(await rpc.requests.count == 1)
-        #expect(await rpc.wasCancelled == duringRequest)
+        #expect(await http.requests.count == 1)
+        #expect(await http.wasCancelled == duringRequest)
     }
 
     /// Creates a clock that advances polling immediately and holds the deadline until cancelled.

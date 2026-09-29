@@ -6,10 +6,50 @@ import Wallet
 @testable import widgets
 
 /// Exercises submission through real Helius and public Solana devnet clients.
+@Suite(.serialized)
 struct SubmissionTests {
+    /// Verifies a provider's throttling cannot prevent another route accepting the same signed bytes.
+    @Test("one rate-limited route does not prevent another route accepting the transaction")
+    func rateLimitedRouteDoesNotPreventAcceptance() async throws {
+        let signed = try ExternalFixture.signedResult()
+        let checks = try HTTPResponses.signing(fee: 15_000)
+        let limited = HTTPResponses([:], failure: .http(statusCode: 429, retryAfter: "3"))
+        let accepted = HTTPResponses(["sendTransaction": [try HTTPResponses.json(ExternalFixture.signature)]])
+
+        let result = try await Submitter(rpc: checks.client, rpcs: [limited.client, accepted.client]).submit(signed)
+
+        #expect(result.signature == ExternalFixture.signature)
+        for transport in [limited, accepted] {
+            let requests = await transport.requests
+            try #require(requests.count == 1)
+            #expect(try requests[0].rpcParameters[0] as? String == signed.transaction.serializedRepresentation.base64EncodedString())
+        }
+    }
+
+    /// Verifies all failed routes retain the local signature and independent reasons without retrying.
+    @Test("failed routes retain rate-limit details and reject a mismatched acknowledgment")
+    func failedRoutesPreserveReasonsAndSignature() async throws {
+        let signed = try ExternalFixture.signedResult()
+        let checks = try HTTPResponses.signing(fee: 15_000)
+        let limited = HTTPResponses([:], failure: .http(statusCode: 429, retryAfter: "3"))
+        let mismatched = HTTPResponses(["sendTransaction": [#""another-signature""#]])
+
+        await #expect {
+            try await Submitter(rpc: checks.client, rpcs: [limited.client, mismatched.client]).submit(signed)
+        } throws: { error in
+            guard let rejection = error as? Submitter.Rejection else { return false }
+            return rejection.signature == ExternalFixture.signature && rejection.network == .devnet
+                && rejection.errors.count == 2
+                && rejection.errors.contains { $0 as? RPCError == .http(statusCode: 429, retryAfter: "3") }
+                && rejection.errors.contains { $0 as? Submitter.Failure == .responseMismatch(expectedSignature: ExternalFixture.signature) }
+        }
+        #expect(await limited.requests.count == 1)
+        #expect(await mismatched.requests.count == 1)
+    }
+
     /// Verifies 0.001 SOL reaches a controlled recipient and the remainder returns after fees.
     @Test("devnet submission delivers 0.001 SOL and returns it between retained wallets", .timeLimit(.minutes(10)))
-    func devnetSubmissionConfirmsOneSignature() async throws {
+    func devnetCompositionReturnsFunds() async throws {
         let rpcs = try devnetRPCs()
         let sender = try await DevnetWallets.address(for: DevnetWallets.senderID)
         let recipient = try await DevnetWallets.address(for: DevnetWallets.recipientID)
@@ -115,7 +155,7 @@ struct SubmissionTests {
     ///
     /// - Returns: Helius and public Solana clients on the same test network.
     /// - Throws: A configuration error when the local API key isn't supplied.
-    private func devnetRPCs() throws -> [any RPC] {
+    func devnetRPCs() throws -> [any RPC] {
         guard let key = ProcessInfo.processInfo.environment["HELIUS_API_KEY"],
               !key.isEmpty, !key.hasPrefix("$(") else { throw SetupFailure.missingAPIKey }
         return [HeliusRPC(apiKey: key, network: .devnet), Solana(network: .devnet)]
