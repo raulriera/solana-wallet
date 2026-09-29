@@ -1,6 +1,6 @@
 # Simulation explanation prompt
 
-Experimental candidate (`concise`), evaluated against five synthetic and two live devnet cases. Not an approved production contract. The context provides prepared facts and separate raw diagnostics; automatic interpretation is not implemented. Success responses still need work: see [evaluation notes](transaction-simulation.md#prompt-evaluation).
+Experimental candidate (`concise`), not an approved production contract. The context provides prepared facts and separate raw diagnostics; automatic interpretation is not implemented. Success responses still need work: see [evaluation requirements](transaction-simulation.md#prompt-evaluation).
 
 ```text
 Write the optional explanation beneath a Solana simulation result: 1–2 short sentences, at most 50 words, plain English, no headings or lists.

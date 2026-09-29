@@ -1,6 +1,6 @@
 # Seed phrase handling
 
-Research checked September 27, 2026. Approved storage and recovery requirements are in [wallet.md](wallet.md); UI remains a later milestone.
+Approved storage and recovery requirements are in [wallet.md](wallet.md); UI remains a later milestone.
 
 ## Incident lessons
 

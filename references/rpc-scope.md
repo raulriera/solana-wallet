@@ -16,6 +16,7 @@ Connect directly to interchangeable Solana RPC providers; no app-owned backend o
 - Account and rent reads serve token-transfer prerequisites and the agreed SOL-only account-discovery flow; general account exploration and node-version queries remain outside the current scope. Token ownership and address-history methods have no current agreed consumer and are not exposed.
 - RPC completion means the agreed flows have the communication they need. Human-readable simulation explanations remain a separate milestone; AI exploration is parked. UI remains last.
 - Public Solana mainnet (`https://api.mainnet.solana.com`) is built in. Submission chooses ordinary RPC broadcast or one Helius Sender tier, never both; see [submission policy](transaction-workflow.md#submission-and-observation).
+- Preserve sanitized server errors with null response IDs. Successful results and attributed errors require matching IDs; missing or malformed ID fields are rejected.
 
 ## Rate limits
 
@@ -23,13 +24,6 @@ Connect directly to interchangeable Solana RPC providers; no app-owned backend o
 - Consumers decide presentation and recovery. Portfolio keeps its cached snapshot and exposes the refresh error; the app may silently ignore the warning.
 - Preserve each provider's submission error. Multi-submit attempts each enabled route once; one provider's rate limit must not cancel the others. Do not automatically resubmit.
 
-## Verification
+## Provider limitations
 
-The September 29 discovery revision uses a single SOL-only lookup. All 52 RPC tests, seven discovery policy tests, and one live discovery test passed. Coverage verifies the twenty-address request, exclusion of zero-SOL and missing accounts, exact derivation paths, explicit continuation, errors, and cancellation. Live verification used the retained wallets through Helius and public Solana devnet without transfers or funding.
-
-September 28, 2026:
-
-- RPC: 52 tests passed. App transaction workflows: 44 tests passed; the mainnet Sender delivery test was skipped. Real Helius and public Solana clients confirmed SOL and wrapped-SOL transfers through both token programs, checked balances through both providers, and returned funds and temporary account deposits after fees. Missing token accounts and unfunded-payer rejection also passed.
-- Additional actual-client reads verified current blockhash validity, block height, epoch and account responses through both devnet providers, plus Helius DAS with native balance. Mainnet account-based priority-fee estimation succeeded as a read-only request.
-- Provider limitation: Helius devnet returned `-32601` for `getPriorityFeeEstimate`. Mainnet rejected both a fresh unsigned V1 transaction and an independently signed Kit V1 fixture with `-32602`, although account-based estimates worked. Transaction-based V1 estimates remain unverified as a supported capability; do not add an automatic fallback. See [Helius's API contract](https://www.helius.dev/docs/api-reference/priority-fee/getpriorityfeeestimate).
-- The live devnet rejection exposed an error-handling defect: a null response identifier hid the server error behind a decoding error. The client now preserves sanitized null-ID server errors, requires matching IDs for successful results and attributed errors, and still rejects missing or malformed ID fields. No retries or submission behavior changed.
+Helius priority-fee estimation is verified only for account-based mainnet requests. Devnet and transaction-based V1 estimates are not verified as supported capabilities; do not add an automatic fallback. See [Helius's API contract](https://www.helius.dev/docs/api-reference/priority-fee/getpriorityfeeestimate).

@@ -35,4 +35,4 @@
 - Complete the agreed framework milestones before App/UI work; handle Portfolio last. Follow the current sequence in [references/architecture.md](references/architecture.md).
 - Request documentation as Markdown by appending `.md`. Apple API docs: `https://developer.apple.com/documentation/<path>.md`; tutorials/design guidance: `https://developer.apple.com/tutorials/data/<path>.md`.
 
-Keep [references/](references/) concise and free of unapproved designs.
+Keep [references/](references/) concise: current approved decisions, behavior, and limitations only. Do not add project history, dated progress reports, or test-run results; keep unapproved designs out.
