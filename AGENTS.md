@@ -21,7 +21,7 @@
 - Never request funding for a wallet without verified, retained recovery. Reuse controlled devnet test wallets and return test funds after fees; never discard funded wallet recovery.
 - Document every function and initializer using Apple DocC conventions.
 - Solana V1 transactions only; compose ordered instructions through one shared transaction pipeline. Transfers are instruction helpers, not a separate transaction model.
-- Support SPL Token and Token-2022 together through shared token-transfer APIs.
+- Support SPL Token and Token-2022 together through shared token-transfer APIs. Review and agree on each Token-2022 extension with the user before implementing it.
 - Separate frameworks by concern; all Solana RPC and DAS communication belongs in the RPC/API framework.
 - Keep RPC and DAS contracts provider-neutral; Helius is the current implementation, and providers must be interchangeable behind protocols.
 - Surface RPC rate-limit errors to consumers; do not add automatic throttling or retries in RPC.
@@ -31,6 +31,7 @@
 - Use the selected provider's DAS interface only for portfolio viewing; keep DAS out of transaction submission contracts, validation, and routing. Follow [references/portfolio.md](references/portfolio.md).
 - Keep wallet recovery material device-only, excluded from iCloud sync and backups; follow [references/wallet.md](references/wallet.md).
 - Agree on architecture before implementation; work on one concern at a time.
+- Complete the agreed framework milestones before App/UI work; handle Portfolio last. Follow the current sequence in [references/architecture.md](references/architecture.md).
 - Request documentation as Markdown by appending `.md`. Apple API docs: `https://developer.apple.com/documentation/<path>.md`; tutorials/design guidance: `https://developer.apple.com/tutorials/data/<path>.md`.
 
 Keep [references/](references/) concise and free of unapproved designs.

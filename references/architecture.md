@@ -20,3 +20,16 @@ The wallet app owns workflow coordination through internal, protocol-based servi
 Implemented: [TransactionCoordinator](../widgets/Transactions/Coordination/TransactionCoordinator.swift) is the app's internal entry point for simulation and explicit confirmation, with independent signing for external integrations, backed by injected protocols and focused helpers under `widgets/Transactions`. These types explicitly remain nonisolated within the MainActor-default app; transaction work retains `@concurrent` execution. The Transfers framework was removed; reusable encoding and signature assembly remain in Transactions.
 
 Program helpers produce `Instruction` values; adding an operation must not introduce another preparation/signing/submission pipeline. The compiler merges account roles and supports distinct fee payers and multiple authorities. Token prerequisites resolve in an internal feature helper before generic preparation. `TransactionDecoder` and `TransactionBuilder` preserve imported bytes and signature slots; see [usage](transaction-workflow.md). Durable nonces and program-aware explanations remain pending.
+
+## Framework milestones
+
+Complete framework work before App/UI work. Current decisions (September 28, 2026):
+
+| Framework | Status |
+| --- | --- |
+| Encoding | Complete for the current scope. |
+| RPC | Next: verify the complete workflows with actual clients on devnet. |
+| Transactions | Further capabilities are parked; current SOL and supported-token flows remain available. The goal is all Token-2022 extensions, reviewed and agreed individually before implementation. |
+| Wallet | Automatic account/path discovery is a planned feature; its architecture and discovery policy still need agreement. |
+| Vault | Implemented and tested, including real simulator Keychain checks. Keep the specific device-validation caveat in [Wallet](wallet.md) separate from framework test status. |
+| Portfolio | Handle its remaining scope last. |
