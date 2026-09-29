@@ -4,8 +4,8 @@ import Testing
 
 /// Exercises DAS conversion through the real provider and its private HTTP boundary.
 struct MetadataTests {
-    /// Verifies all approved metadata and state groups retain their meaning and precision.
-    @Test("DAS metadata and state use canonical fields and retain typed values")
+    /// Verifies all approved metadata groups retain their meaning and precision.
+    @Test("DAS metadata uses canonical fields and retains typed values")
     func preservesRichMetadata() async throws {
         let transport = StubTransport { try reply(to: $0, payload: #""result":\#(richAsset)"#) }
         let asset = try await HeliusRPC(apiKey: "fixture-key", network: .devnet, transport: transport).send(GetAsset(id: "mint"))
@@ -30,22 +30,8 @@ struct MetadataTests {
             imageURL: URL(string: "https://example.com/collection.png"), description: "Collection description",
             websiteURL: URL(string: "https://example.com/collection"), isVerified: false)])
         #expect(metadata.creators == [.init(address: "creator", share: 100, isVerified: true)])
-        let state = try #require(asset.state)
-        #expect(state.supply == UInt64.max)
-        #expect(state.tokenProgram == "program")
-        #expect(state.mintAuthority == "mint-authority")
-        #expect(state.freezeAuthority == "freeze-authority")
-        #expect(state.authorities == [.init(address: "authority", scopes: ["full"])])
-        #expect(state.ownership == .init(owner: "owner", model: "single", isFrozen: true, isDelegated: true, delegate: "delegate"))
-        #expect(state.royalties == .init(model: "creators", target: "target", fraction: Decimal(string: "0.042"),
-                                       basisPoints: 420, hasPrimarySale: true, isLocked: false))
-        #expect(state.edition == .init(maximumSupply: 100, currentSupply: 10, nonce: 254))
-        #expect(state.compression == .init(isEligible: true, isCompressed: true, dataHash: "data", creatorHash: "creator",
-            assetHash: "asset", tree: "tree", sequence: 9_007_199_254_740_993, leafIndex: 3))
-        #expect(state.isBurned == false)
         let encoded = try JSONEncoder().encode(metadata)
         #expect(try JSONDecoder().decode(Metadata.self, from: encoded) == metadata)
-        #expect(try JSONDecoder().decode(Asset.State.self, from: JSONEncoder().encode(state)) == state)
         let json = String(decoding: encoded, as: UTF8.self)
         #expect(!json.contains("json_uri"))
         #expect(!json.contains("trait_type"))
@@ -82,7 +68,7 @@ struct MetadataTests {
     }
 }
 
-/// A provider-shaped fixture with every supported descriptive and state group.
+/// A provider-shaped fixture with descriptive metadata and extra fields the client ignores.
 private let richAsset = #"""
 {"id":"mint","interface":"FutureAssetKind","mutable":false,"burnt":false,
  "content":{"json_uri":"ar://metadata",

@@ -14,8 +14,6 @@ public struct Asset: Decodable, Sendable {
     public let imageURL: URL?
     /// The complete descriptive metadata supplied by the provider.
     public let metadata: Metadata?
-    /// The reported asset state, for portfolio viewing only.
-    public let state: State?
     /// The owner's balance in raw token units, if supplied.
     public let balance: UInt64?
     /// The token's number of decimal places, if supplied.
@@ -35,9 +33,8 @@ public struct Asset: Decodable, Sendable {
     ///   - decimals: The decimal places, or `nil` if unknown.
     ///   - price: The available valuation, or `nil` if unpriced.
     ///   - metadata: The descriptive metadata, or `nil` if absent.
-    ///   - state: The reported asset state, or `nil` if absent.
     public init(id: String, interface: String, name: String?, symbol: String?, imageURL: URL?,
-                balance: UInt64?, decimals: UInt8?, price: Price?, metadata: Metadata? = nil, state: State? = nil) {
+                balance: UInt64?, decimals: UInt8?, price: Price?, metadata: Metadata? = nil) {
         self.id = id
         self.interface = interface
         self.name = name
@@ -47,6 +44,5 @@ public struct Asset: Decodable, Sendable {
         self.decimals = decimals
         self.price = price
         self.metadata = metadata
-        self.state = state
     }
 }

@@ -1,7 +1,7 @@
 import Foundation
 
 extension Asset {
-    /// Decodes DAS fields into our asset, metadata, and state values.
+    /// Decodes DAS fields into our asset and descriptive metadata values.
     ///
     /// Malformed descriptive fields are omitted independently. Asset identity,
     /// balances, decimals, and prices remain strictly decoded.
@@ -45,8 +45,7 @@ extension Asset {
                     return Metadata.Creator(address: address, share: $0.value("share"), isVerified: $0.value("verified"))
                 },
                 kind: kind, tokenStandard: details?.value("token_standard"), isMutable: root.value("mutable")
-            ),
-            state: root.assetState(token: token)
+            )
         )
     }
 }
@@ -112,36 +111,6 @@ private struct Fields: Decodable {
         guard let text = value(name, as: String.self), !text.isEmpty,
               let url = URL(string: text), url.scheme != nil else { return nil }
         return url
-    }
-
-    /// Maps provider state fields into typed values for portfolio viewing.
-    /// - Parameter token: The asset's optional token details.
-    /// - Returns: The reported state without manufacturing missing values.
-    func assetState(token: Fields?) -> Asset.State {
-        let ownership = object("ownership").map {
-            Asset.State.Ownership(owner: $0.value("owner"), model: $0.value("ownership_model"),
-                isFrozen: $0.value("frozen"), isDelegated: $0.value("delegated"), delegate: $0.value("delegate"))
-        }
-        let royalties = object("royalty").map {
-            Asset.State.Royalties(model: $0.value("royalty_model"), target: $0.value("target"),
-                fraction: $0.value("percent"), basisPoints: $0.value("basis_points"),
-                hasPrimarySale: $0.value("primary_sale_happened"), isLocked: $0.value("locked"))
-        }
-        let edition = object("supply").map {
-            Asset.State.Edition(maximumSupply: $0.value("print_max_supply"),
-                                currentSupply: $0.value("print_current_supply"), nonce: $0.value("edition_nonce"))
-        }
-        let compression = object("compression").map {
-            Asset.State.Compression(isEligible: $0.value("eligible"), isCompressed: $0.value("compressed"),
-                dataHash: $0.value("data_hash"), creatorHash: $0.value("creator_hash"), assetHash: $0.value("asset_hash"),
-                tree: $0.value("tree"), sequence: $0.value("seq"), leafIndex: $0.value("leaf_id"))
-        }
-        return Asset.State(supply: token?.value("supply"), tokenProgram: token?.value("token_program"),
-            mintAuthority: token?.value("mint_authority"), freezeAuthority: token?.value("freeze_authority"),
-            authorities: objects("authorities")?.compactMap {
-                guard let address = $0.value("address", as: String.self) else { return nil }
-                return Asset.State.Authority(address: address, scopes: $0.value("scopes"))
-            }, ownership: ownership, royalties: royalties, edition: edition, compression: compression, isBurned: value("burnt"))
     }
 
     /// An internal key for the provider's JSON field names.

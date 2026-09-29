@@ -23,8 +23,6 @@ public struct Holding: Codable, Sendable, Equatable, Identifiable {
     public let imageURL: URL?
     /// The provider's descriptive metadata, preserved through caching.
     public let metadata: Metadata?
-    /// The provider's asset state, for portfolio viewing only.
-    public let state: Asset.State?
     /// The available market valuation.
     public let valuation: Valuation?
 
@@ -38,9 +36,8 @@ public struct Holding: Codable, Sendable, Equatable, Identifiable {
     ///   - imageURL: The image URL, or `nil` if unavailable.
     ///   - valuation: The available price information, or `nil` if unpriced.
     ///   - metadata: The descriptive metadata, or `nil` if unavailable.
-    ///   - state: The reported asset state, or `nil` if unavailable.
     public init(id: Identity, amount: Amount?, name: String?, symbol: String?, imageURL: URL?, valuation: Valuation?,
-                metadata: Metadata? = nil, state: Asset.State? = nil) {
+                metadata: Metadata? = nil) {
         self.id = id
         self.amount = amount
         self.name = name
@@ -48,6 +45,5 @@ public struct Holding: Codable, Sendable, Equatable, Identifiable {
         self.imageURL = imageURL
         self.valuation = valuation
         self.metadata = metadata
-        self.state = state
     }
 }

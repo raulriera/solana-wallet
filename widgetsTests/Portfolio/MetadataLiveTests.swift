@@ -29,7 +29,6 @@ struct MetadataLiveTests {
         #expect(collectible.metadata?.attributes?.isEmpty == false)
         #expect(collectible.metadata?.collections?.first?.name != nil)
         #expect(collectible.metadata?.creators?.isEmpty == false)
-        #expect(collectible.state?.royalties != nil)
         try printMetadata(collectible, network: .mainnet)
     }
 

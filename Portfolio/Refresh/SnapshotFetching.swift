@@ -95,7 +95,7 @@ struct SnapshotFetcher: SnapshotFetching {
             Valuation(pricePerUnit: $0.perToken, total: $0.total, currency: $0.currency)
         }
         return Holding(id: .asset(asset.id), amount: amount, name: asset.name, symbol: asset.symbol,
-                       imageURL: asset.imageURL, valuation: valuation, metadata: asset.metadata, state: asset.state)
+                       imageURL: asset.imageURL, valuation: valuation, metadata: asset.metadata)
     }
 
     /// Maps native SOL separately from assets such as wrapped SOL.
