@@ -22,8 +22,13 @@
 
 - Support an arbitrary number of built-in and custom theme packs with supported layout variants. Represent packs as versioned data and visual assets consumed through shared components.
 - Author custom themes outside the app. Support theme-pack import and export only; do not include an in-app theme editor.
+- Use a readable JSON manifest and bundled, self-contained assets in one portable package. Import through the system Files picker and store installed copies locally; app-managed cloud synchronization is outside the current scope.
+- Use only fonts available in iOS; theme packs cannot bundle custom font files.
 - Packs may override selected appearance settings; omitted settings inherit complete app-owned baseline values. Explicitly supplied values remain the pack's choices.
 - Export the default template with all supported appearance settings and their default values, ready for external editing. Imported packs may omit settings, including settings introduced after the pack was authored.
+- Give a default-template export a new custom theme identity. Exporting an existing custom theme preserves its identity and includes its complete resolved settings and assets.
+- Keep pack identities stable and require explicit replacement of an existing custom pack. Keep built-in themes available.
+- Follow system light and dark appearance. Missing appearance values inherit the corresponding baseline; do not automatically derive a dark palette.
 - Resolve omitted settings centrally when preparing a theme for use. Views consume complete resolved values without repeating fallback logic during rendering.
 - Separate the pack catalog, appearance preferences, and each window's resolved theme. Packs describe semantic style roles, scalable typography, visual assets, decoration, and app-supported layout choices.
 - Use an app-wide default theme with optional per-wallet overrides. Windows showing the same wallet use its selected theme; wallets without an override follow the app-wide default.
@@ -31,6 +36,7 @@
 - Each supported layout variant adapts to compact and expanded space and accessibility settings. Themes select supported variants; the app owns adaptation and rendering.
 - Keep navigation behavior, action meanings, accessibility semantics, and transaction-review requirements app-owned. Themes cannot hide required transaction information or approval controls.
 - Validate imported packs and provide safe appearance fallbacks. Accessibility settings and readable content take precedence over decorative choices.
+- Reject invalid supplied settings with clear import errors and leave the installed theme unchanged. Omitted settings continue to use defaults.
 
 ## Design requirements
 
@@ -48,5 +54,8 @@
 - [Layout](https://developer.apple.com/tutorials/data/design/human-interface-guidelines/layout.md)
 - [Branding](https://developer.apple.com/tutorials/data/design/human-interface-guidelines/branding.md)
 - [Accessibility](https://developer.apple.com/tutorials/data/design/human-interface-guidelines/accessibility.md)
+- [Color](https://developer.apple.com/tutorials/data/design/human-interface-guidelines/color.md)
+- [Typography](https://developer.apple.com/tutorials/data/design/human-interface-guidelines/typography.md)
+- [Images](https://developer.apple.com/tutorials/data/design/human-interface-guidelines/images.md)
 - [WindowGroup](https://developer.apple.com/documentation/swiftui/windowgroup.md)
 - [Multiple displays and scenes on iPhone Duo](https://developer.apple.com/videos/play/tech-talks/111464/)
