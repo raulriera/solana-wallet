@@ -124,6 +124,8 @@ struct FreshnessTests {
         let secondResult = try #require(await second.next())
         #expect(firstResult.error == nil)
         #expect(firstResult.snapshot == secondResult.snapshot)
+        #expect(firstResult.revision == secondResult.revision)
+        #expect(firstResult.snapshotRevision == secondResult.snapshotRevision)
         #expect(firstResult.snapshot?.pricesFetchedAt == fixture.now)
         #expect(await das.requests.count == (pricesOnly ? 0 : 1))
         #expect(await prices.requests.count == 1)

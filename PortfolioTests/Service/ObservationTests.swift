@@ -5,6 +5,28 @@ import Testing
 
 /// Exercises observation through real Helius decoding with controlled HTTP and WebSocket transports.
 struct ObservationTests {
+    /// Verifies a new presentation reloads even when an existing consumer retains the connection.
+    @Test("joining an established observation reloads fresh cached holdings", .timeLimit(.minutes(1)))
+    func newObserverReloadsHoldings() async throws {
+        let fixture = ObservationFixture()
+        defer { fixture.cleanUp() }
+        let pages = ObservedPages()
+        let service = fixture.service(pages: pages)
+        var first = await service.observations(for: "wallet").makeAsyncIterator()
+        _ = try await nextResult(&first)
+        await pages.set(slot: 101, units: 200)
+
+        var joined = await service.observations(for: "wallet").makeAsyncIterator()
+        let initial = try #require(await joined.next())
+        try #require(initial.isRefreshing)
+        let refreshed = try await nextResult(&joined)
+        #expect(refreshed.holdings.first?.amount?.units == 200)
+        #expect(refreshed.snapshot?.lastIndexedSlot == 101)
+        #expect(await pages.readCount == 2)
+        #expect(fixture.socket.requests.count == 3)
+        try await service.removeData(for: "wallet")
+    }
+
     /// Verifies releasing the final stream stops observation even when its consumer exits normally.
     @Test("leaving portfolio observation scope closes its connection", .timeLimit(.minutes(1)))
     func leavingScopeStopsObservation() async throws {

@@ -15,7 +15,7 @@ final class PortfolioCoordinator: PortfolioCoordinating {
     @ObservationIgnored private var owner: String?
     @ObservationIgnored private var session: UUID?
     @ObservationIgnored private var observation: Task<Void, Never>?
-    @ObservationIgnored private var observationPhase: Update.Phase?
+    @ObservationIgnored private var observationState: (phase: Update.Phase, revision: UInt64)?
     @ObservationIgnored private var refreshID: UUID?
     @ObservationIgnored private var reloading: Task<Void, Never>?
 
@@ -91,9 +91,9 @@ final class PortfolioCoordinator: PortfolioCoordinating {
         guard self.session == session, refreshID == id else { return }
         refreshID = nil
         reloading = nil
-        if operation.isCancelled {
-            if let observationPhase {
-                update = Update(snapshot: update?.snapshot, phase: observationPhase)
+        if operation.isCancelled, update?.isRefreshing == true {
+            if let observationState {
+                setPhase(observationState.phase)
             } else {
                 settleProgress()
             }
@@ -108,17 +108,23 @@ final class PortfolioCoordinator: PortfolioCoordinating {
     private func receive(_ incoming: Update, session: UUID, fromObservation: Bool) {
         guard !Task.isCancelled, self.session == session,
               incoming.snapshot.map({ $0.owner == owner }) ?? true else { return }
-        if fromObservation { observationPhase = incoming.phase }
-        let snapshot: Snapshot?
-        if let current = update?.snapshot, let next = incoming.snapshot {
-            let older = next.fetchedAt < current.fetchedAt
-                || (next.fetchedAt == current.fetchedAt
-                    && (next.pricesFetchedAt ?? .distantPast) < (current.pricesFetchedAt ?? .distantPast))
-            snapshot = older ? current : next
-        } else {
-            snapshot = incoming.snapshot ?? update?.snapshot
+        if fromObservation, observationState.map({ incoming.revision > $0.revision }) ?? true {
+            observationState = (incoming.phase, incoming.revision)
         }
-        update = Update(snapshot: snapshot, phase: incoming.phase)
+        guard let current = update else { update = incoming; return }
+        // Replaying the same provider state restores progress settled locally on cancellation.
+        let acceptsPhase = incoming.revision >= current.revision
+        let newerSnapshot: Bool
+        if let revision = incoming.snapshotRevision {
+            newerSnapshot = current.snapshotRevision.map { revision > $0 } ?? true
+        } else {
+            newerSnapshot = false
+        }
+        guard acceptsPhase || newerSnapshot else { return }
+        update = Update(snapshot: newerSnapshot ? incoming.snapshot : current.snapshot,
+                        phase: acceptsPhase ? incoming.phase : current.phase,
+                        revision: max(incoming.revision, current.revision),
+                        snapshotRevision: newerSnapshot ? incoming.snapshotRevision : current.snapshotRevision)
     }
 
     /// Cancels a departing session without allowing old cleanup to stop its replacement.
@@ -128,7 +134,7 @@ final class PortfolioCoordinator: PortfolioCoordinating {
         self.session = nil
         observation?.cancel()
         observation = nil
-        observationPhase = nil
+        observationState = nil
         reloading?.cancel()
         reloading = nil
         refreshID = nil
@@ -138,6 +144,14 @@ final class PortfolioCoordinator: PortfolioCoordinating {
     /// Removes cancelled progress while preserving completed holdings and reported errors.
     private func settleProgress() {
         guard update?.isRefreshing == true else { return }
-        update = update?.snapshot.map { Update(snapshot: $0, phase: .ready) }
+        if update?.snapshot == nil { update = nil } else { setPhase(.ready) }
+    }
+
+    /// Changes local progress without inventing a newer provider result.
+    /// - Parameter phase: The restored observation status or settled local progress.
+    private func setPhase(_ phase: Update.Phase) {
+        guard let update else { return }
+        self.update = Update(snapshot: update.snapshot, phase: phase, revision: update.revision,
+                             snapshotRevision: update.snapshotRevision)
     }
 }

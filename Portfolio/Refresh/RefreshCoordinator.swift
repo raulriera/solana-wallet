@@ -9,6 +9,8 @@ actor RefreshCoordinator {
     private let now: @Sendable () -> Date
     private var flights: [CacheKey: Flight] = [:]
     private var requiredSlots: [CacheKey: UInt64] = [:]
+    private var revision: UInt64 = 0
+    private var snapshotRevisions: [CacheKey: UInt64] = [:]
 
     /// Creates a coordinator with independent network and storage dependencies.
     ///
@@ -41,8 +43,9 @@ actor RefreshCoordinator {
         let key = CacheKey(owner: owner, network: source.network)
         let cached = store.snapshot(for: key)
         if scope == .prices, pricer == nil {
-            continuation.yield(Update(snapshot: cached, phase: .refreshing))
-            continuation.yield(Update(snapshot: cached, phase: .failed(PriceError.providerUnavailable)))
+            continuation.yield(makeUpdate(snapshot: cached, phase: .refreshing, snapshotRevision: snapshotRevisions[key] ?? 0))
+            continuation.yield(makeUpdate(snapshot: cached, phase: .failed(PriceError.providerUnavailable),
+                                          snapshotRevision: snapshotRevisions[key] ?? 0))
             continuation.finish()
             return stream
         }
@@ -67,7 +70,7 @@ actor RefreshCoordinator {
             return stream
         }
         guard let requiredScope else {
-            continuation.yield(Update(snapshot: cached, phase: .ready))
+            continuation.yield(makeUpdate(snapshot: cached, phase: .ready, snapshotRevision: snapshotRevisions[key] ?? 0))
             continuation.finish()
             return stream
         }
@@ -77,11 +80,26 @@ actor RefreshCoordinator {
         return stream
     }
 
-    /// Reads current complete holdings for observation state without triggering network work.
-    /// - Parameter owner: The wallet whose cached snapshot to retrieve.
-    /// - Returns: Its complete snapshot, or `nil` if unavailable.
-    func cachedSnapshot(for owner: String) -> Snapshot? {
-        store.snapshot(for: CacheKey(owner: owner, network: source.network))
+    /// Orders observation status in the same sequence as manual and price refreshes.
+    /// - Parameters:
+    ///   - owner: The wallet whose cached holdings accompany the status.
+    ///   - phase: The connection's progress or failure.
+    /// - Returns: Cached holdings and an ordered state without requesting network work.
+    func status(for owner: String, phase: Update.Phase) -> Update {
+        let key = CacheKey(owner: owner, network: source.network)
+        return makeUpdate(snapshot: store.snapshot(for: key), phase: phase,
+                          snapshotRevision: snapshotRevisions[key] ?? 0)
+    }
+
+    /// Allocates a service-local order while retaining the snapshot's own original order.
+    /// - Parameters:
+    ///   - snapshot: The available complete holdings.
+    ///   - phase: The current operation status.
+    ///   - snapshotRevision: The snapshot's existing order, or zero for an initial disk cache.
+    /// - Returns: A state that can be merged across independently delivered streams.
+    private func makeUpdate(snapshot: Snapshot?, phase: Update.Phase, snapshotRevision: UInt64) -> Update {
+        revision += 1
+        return Update(snapshot: snapshot, phase: phase, revision: revision, snapshotRevision: snapshotRevision)
     }
 
     /// Invalidates cache freshness until DAS reaches a confirmed change slot.
@@ -156,6 +174,7 @@ actor RefreshCoordinator {
             for continuation in flight.consumers.values { continuation.finish() }
         }
         try store.remove(for: key)
+        snapshotRevisions.removeValue(forKey: key)
     }
 
     /// Emits existing state, fetches all holdings, and commits one complete update.
@@ -167,12 +186,13 @@ actor RefreshCoordinator {
         guard let flight = flights[key], flight.generation == generation else { return }
         let cached = store.snapshot(for: key)
         if flight.initial == nil {
-            let initial = Update(snapshot: cached, phase: .refreshing)
+            let initial = makeUpdate(snapshot: cached, phase: .refreshing, snapshotRevision: snapshotRevisions[key] ?? 0)
             flights[key]?.initial = initial
             for continuation in flights[key]?.consumers.values ?? [:].values { continuation.yield(initial) }
         }
 
         var available = cached
+        var availableRevision = snapshotRevisions[key] ?? 0
         do {
             try pricer?.validate(network: source.network)
             let snapshot: Snapshot
@@ -190,11 +210,16 @@ actor RefreshCoordinator {
             guard flights[key]?.generation == generation else { return }
             if flight.scope == .holdings { try validateIndex(snapshot, for: key) }
             available = snapshot
+            revision += 1
+            availableRevision = revision
             try store.save(snapshot, for: key)
+            snapshotRevisions[key] = availableRevision
             if flight.scope == .holdings { requiredSlots.removeValue(forKey: key) }
-            finish(key: key, generation: generation, update: Update(snapshot: snapshot, phase: .ready))
+            finish(key: key, generation: generation,
+                   update: makeUpdate(snapshot: snapshot, phase: .ready, snapshotRevision: availableRevision))
         } catch {
-            let update = Task.isCancelled ? nil : Update(snapshot: available, phase: .failed(error))
+            let update = Task.isCancelled ? nil
+                : makeUpdate(snapshot: available, phase: .failed(error), snapshotRevision: availableRevision)
             finish(key: key, generation: generation, update: update)
         }
     }

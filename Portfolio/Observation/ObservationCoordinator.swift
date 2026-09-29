@@ -35,8 +35,13 @@ actor ObservationCoordinator {
         }
         if var watch = watches[owner] {
             watch.consumers[id] = continuation
-            if let latest = watch.latest { continuation.yield(latest) }
+            if let latest = watch.latest, latest.isRefreshing {
+                continuation.yield(latest)
+            } else if watch.isConnected {
+                watch.reloadRequested = true
+            }
             watches[owner] = watch
+            if watch.reloadRequested { schedule(owner: owner, generation: watch.generation, delayed: false) }
         } else {
             let generation = UUID()
             watches[owner] = Watch(generation: generation, consumers: [id: continuation])
@@ -59,13 +64,15 @@ actor ObservationCoordinator {
     ///   - owner: The watched wallet.
     ///   - generation: The observation lifetime, used to reject late work after cancellation.
     private func listen(owner: String, generation: UUID) async {
-        let cached = await refresh.cachedSnapshot(for: owner)
-        publish(Update(snapshot: cached, phase: .refreshing), owner: owner, generation: generation)
+        let initial = await refresh.status(for: owner, phase: .refreshing)
+        publish(initial, owner: owner, generation: generation)
         do {
             guard let changes else { throw ObservationError.providerUnavailable }
             guard changes.network == network else { throw ObservationError.networkMismatch }
             let slots = try await changes.changedSlots(for: owner)
             try Task.checkCancellation()
+            guard watches[owner]?.generation == generation else { return }
+            watches[owner]?.isConnected = true
             schedule(owner: owner, generation: generation, delayed: false)
             for try await slot in slots {
                 try Task.checkCancellation()
@@ -79,9 +86,9 @@ actor ObservationCoordinator {
             throw RPCError.transport(.networkConnectionLost)
         } catch {
             guard !Task.isCancelled, watches[owner]?.generation == generation else { return }
-            let snapshot = await refresh.cachedSnapshot(for: owner)
+            let failed = await refresh.status(for: owner, phase: .failed(error))
             guard watches[owner]?.generation == generation else { return }
-            publish(Update(snapshot: snapshot, phase: .failed(error)), owner: owner, generation: generation)
+            publish(failed, owner: owner, generation: generation)
             stop(for: owner)
         }
     }
@@ -102,13 +109,16 @@ actor ObservationCoordinator {
     ///   - generation: The current observation lifetime.
     ///   - delayed: Whether to coalesce incoming changes before the first request.
     private func reconcile(owner: String, generation: UUID, delayed: Bool) async {
+        guard watches[owner]?.generation == generation else { return }
+        watches[owner]?.reloadRequested = false
         var handledRevision: UUID?
         var requestFailed = false
         defer {
             if let watch = watches[owner], watch.generation == generation {
                 watches[owner]?.reconciliation = nil
-                if !Task.isCancelled, !requestFailed, watch.revision != handledRevision {
-                    schedule(owner: owner, generation: generation, delayed: true)
+                if !Task.isCancelled,
+                   watch.reloadRequested || (!requestFailed && watch.revision != handledRevision) {
+                    schedule(owner: owner, generation: generation, delayed: !watch.reloadRequested)
                 }
             }
         }
@@ -137,8 +147,8 @@ actor ObservationCoordinator {
         } catch {
             requestFailed = true
             guard !Task.isCancelled else { return }
-            let cached = await refresh.cachedSnapshot(for: owner)
-            publish(Update(snapshot: cached, phase: .failed(error)), owner: owner, generation: generation)
+            let failed = await refresh.status(for: owner, phase: .failed(error))
+            publish(failed, owner: owner, generation: generation)
         }
     }
 
@@ -149,6 +159,7 @@ actor ObservationCoordinator {
     ///   - generation: The observation lifetime that produced the result.
     private func publish(_ update: Update, owner: String, generation: UUID) {
         guard watches[owner]?.generation == generation else { return }
+        guard watches[owner]?.latest.map({ update.revision > $0.revision }) ?? true else { return }
         watches[owner]?.latest = update
         for consumer in watches[owner]?.consumers.values ?? [:].values { consumer.yield(update) }
     }
@@ -165,6 +176,8 @@ actor ObservationCoordinator {
     /// One shared connection and its independent consumer streams.
     private struct Watch {
         let generation: UUID
+        var isConnected = false
+        var reloadRequested = false
         var revision = UUID()
         var consumers: [UUID: AsyncStream<Update>.Continuation]
         var latest: Update?

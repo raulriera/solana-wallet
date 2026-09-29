@@ -163,7 +163,16 @@ struct PortfolioTests {
         #expect(updated.holdings.first?.amount == Amount(units: 100, decimals: 9))
         #expect((updated.error as? CocoaError)?.code == .fileWriteOutOfSpace)
         #expect(!updated.isRefreshing)
+        #expect(updated.revision > initial.revision)
+        #expect(try #require(updated.snapshotRevision) > (initial.snapshotRevision ?? 0))
         #expect(await iterator.next() == nil)
+
+        var retry = await service.updates(for: "wallet", policy: .reload).makeAsyncIterator()
+        let retrying = try #require(await retry.next())
+        #expect(retrying.revision > updated.revision)
+        #expect(retrying.snapshot == cached)
+        #expect(retrying.snapshotRevision == initial.snapshotRevision)
+        while await retry.next() != nil {}
     }
 
     /// Verifies that a successful empty token list removes previously held tokens.

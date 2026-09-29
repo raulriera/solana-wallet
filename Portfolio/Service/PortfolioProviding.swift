@@ -1,8 +1,13 @@
 /// A type that provides wallet portfolios while encapsulating caching and refreshes.
+///
+/// Assign increasing `Update.revision` values across all streams from one provider instance.
+/// Forwarded or replayed updates keep their revision; cached snapshots retain their original
+/// `Update.snapshotRevision`. Consumers can then order data and status independently of wall time.
 public protocol PortfolioProviding: Sendable {
     /// Observes confirmed account changes for the lifetime of the consuming task.
     ///
-    /// Shares one connection per wallet. Setup completes before the initial reload;
+    /// Shares one connection per wallet. Each new consumer requests a reload or joins one in progress.
+    /// Setup completes before the initial reload;
     /// bursts are coalesced and successful-but-behind DAS reads receive bounded follow-ups.
     /// Transport and rate-limit errors are surfaced without automatic retries or reconnects.
     /// The app owns starting and cancelling observation with its foreground/view lifecycle.

@@ -9,6 +9,78 @@ import Testing
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct PortfolioCoordinatorTests {
+    /// Verifies a clock correction cannot reject newer balances for a large portfolio.
+    @Test("clock rollback still displays the next complete 500-token portfolio")
+    func clockRollbackAcceptsNewHoldings() async throws {
+        let service = PortfolioResponses()
+        let coordinator = PortfolioCoordinator(service: service)
+        var requests = service.requests.makeAsyncIterator()
+        let viewing = Task { await coordinator.observe(for: "wallet-a", isActive: true) }
+        defer { viewing.cancel() }
+        let observation = try #require(await requests.next())
+        let before = largeSnapshot(time: 200, slot: 100, units: 10)
+        observation.continuation.yield(Update(snapshot: before, phase: .ready, revision: 1))
+        await waitForSnapshot(before, in: coordinator)
+        let refreshing = Task { await coordinator.refresh() }
+        defer { refreshing.cancel() }
+        let reload = try #require(await requests.next())
+        let after = largeSnapshot(time: 190, slot: 101, units: 20)
+        reload.continuation.yield(Update(snapshot: after, phase: .ready, revision: 2))
+        reload.continuation.finish()
+        await refreshing.value
+        #expect(coordinator.update?.snapshot?.lastIndexedSlot == 101)
+        #expect(coordinator.update?.holdings.first?.amount?.units == 20)
+        #expect(coordinator.update?.holdings.count == 500)
+        viewing.cancel()
+        await viewing.value
+    }
+
+    /// Verifies a delayed success cannot erase a failure from a subsequent operation.
+    /// - Parameter hasNewHoldings: Whether the delayed success also carries more recent holdings.
+    @Test("delayed ready state cannot clear a newer refresh error", arguments: [false, true])
+    func delayedSuccessPreservesNewerFailure(hasNewHoldings: Bool) async throws {
+        let service = PortfolioResponses()
+        let coordinator = PortfolioCoordinator(service: service)
+        var requests = service.requests.makeAsyncIterator()
+        let viewing = Task { await coordinator.observe(for: "wallet-a", isActive: true) }
+        defer { viewing.cancel() }
+        let observation = try #require(await requests.next())
+        let cached = snapshot(owner: "wallet-a", revision: 1)
+        observation.continuation.yield(Update(snapshot: cached, phase: .ready, revision: 3))
+        await waitForSnapshot(cached, in: coordinator)
+        let refreshing = Task { await coordinator.refresh() }
+        defer { refreshing.cancel() }
+        let reload = try #require(await requests.next())
+        let holdings = hasNewHoldings ? snapshot(owner: "wallet-a", revision: 2) : cached
+        let delayed = Update(snapshot: holdings, phase: .ready, revision: 4,
+                             snapshotRevision: hasNewHoldings ? 4 : 3)
+        let error = RPCError.http(statusCode: 429, retryAfter: "3")
+        observation.continuation.yield(Update(snapshot: cached, phase: .failed(error), revision: 5, snapshotRevision: 3))
+        for await failed in Observations({ coordinator.update?.error != nil }) {
+            if failed { break }
+        }
+        reload.continuation.yield(delayed)
+        reload.continuation.finish()
+        await refreshing.value
+        #expect(coordinator.update?.error as? RPCError == error)
+        #expect(coordinator.update?.snapshot == holdings)
+        viewing.cancel()
+        await viewing.value
+    }
+
+    /// Builds a large deterministic portfolio with independently controlled time and ledger order.
+    /// - Parameters:
+    ///   - time: The device wall-clock value at retrieval.
+    ///   - slot: The newer ledger watermark.
+    ///   - units: The amount held for each token.
+    /// - Returns: Five hundred fungible holdings.
+    private func largeSnapshot(time: TimeInterval, slot: UInt64, units: UInt64) -> Snapshot {
+        Snapshot(owner: "wallet-a", network: .devnet, holdings: (0..<500).map {
+            Holding(id: .asset("asset-\($0)"), amount: Amount(units: units, decimals: 6),
+                    name: "Token \($0)", symbol: "T\($0)", imageURL: nil, valuation: nil)
+        }, fetchedAt: Date(timeIntervalSince1970: time), lastIndexedSlot: slot)
+    }
+
     /// Verifies an inactive scene or missing selection never starts work.
     @Test("inactive and unselected portfolios do not request data", arguments: [false, true])
     func inactiveDoesNotRequestData(isActive: Bool) async {
@@ -31,13 +103,13 @@ struct PortfolioCoordinatorTests {
         let observation = try #require(await requests.next())
         #expect(observation.kind == .observation)
         let cached = snapshot(owner: "wallet-a", revision: 1)
-        observation.continuation.yield(Update(snapshot: cached, phase: .ready))
+        observation.continuation.yield(Update(snapshot: cached, phase: .ready, revision: 6))
         await waitForSnapshot(cached, in: coordinator)
 
         let refreshing = Task { await coordinator.refresh() }
         defer { refreshing.cancel() }
         let reload = try #require(await requests.next())
-        reload.continuation.yield(Update(snapshot: cached, phase: .refreshing))
+        reload.continuation.yield(Update(snapshot: cached, phase: .refreshing, revision: 7))
         await waitForProgress(in: coordinator)
 
         await coordinator.observe(for: "wallet-a", isActive: false)
@@ -56,6 +128,10 @@ struct PortfolioCoordinatorTests {
         #expect(resumed.owner == "wallet-a")
         #expect(resumed.kind == .observation)
         #expect(coordinator.update?.snapshot == cached)
+        // Another consumer can keep the shared refresh alive while this view is away.
+        resumed.continuation.yield(Update(snapshot: cached, phase: .refreshing, revision: 7))
+        await waitForProgress(in: coordinator)
+        #expect(coordinator.update?.isRefreshing == true)
         reopened.cancel()
         await reopened.value
     }
@@ -70,7 +146,7 @@ struct PortfolioCoordinatorTests {
         defer { first.cancel() }
         let old = try #require(await requests.next())
         let cached = snapshot(owner: "wallet-a", revision: 1)
-        old.continuation.yield(Update(snapshot: cached, phase: .ready))
+        old.continuation.yield(Update(snapshot: cached, phase: .ready, revision: 8))
         await waitForSnapshot(cached, in: coordinator)
         let refreshing = Task { await coordinator.refresh() }
         defer { refreshing.cancel() }
@@ -84,10 +160,10 @@ struct PortfolioCoordinatorTests {
         await refreshing.value
         for await _ in old.termination {}
         for await _ in reload.termination {}
-        old.continuation.yield(Update(snapshot: cached, phase: .ready))
-        reload.continuation.yield(Update(snapshot: cached, phase: .ready))
+        old.continuation.yield(Update(snapshot: cached, phase: .ready, revision: 9))
+        reload.continuation.yield(Update(snapshot: cached, phase: .ready, revision: 10))
         let replacement = snapshot(owner: "wallet-b", revision: 2)
-        current.continuation.yield(Update(snapshot: replacement, phase: .ready))
+        current.continuation.yield(Update(snapshot: replacement, phase: .ready, revision: 11))
         await waitForSnapshot(replacement, in: coordinator)
         second.cancel()
         await second.value
@@ -107,13 +183,13 @@ struct PortfolioCoordinatorTests {
         let first = Task { await coordinator.observe(for: "wallet-a", isActive: true) }
         defer { first.cancel() }
         let old = try #require(await requests.next())
-        old.continuation.yield(Update(snapshot: snapshot(owner: "wallet-a", revision: 99), phase: .ready))
+        old.continuation.yield(Update(snapshot: snapshot(owner: "wallet-a", revision: 99), phase: .ready, revision: 12))
 
         let second = Task { await coordinator.observe(for: "wallet-a", isActive: true) }
         defer { second.cancel() }
         let current = try #require(await requests.next())
         let expected = snapshot(owner: "wallet-a", revision: 2)
-        current.continuation.yield(Update(snapshot: expected, phase: .ready))
+        current.continuation.yield(Update(snapshot: expected, phase: .ready, revision: 13))
         await gate.release()
         await first.value
         await waitForSnapshot(expected, in: coordinator)
@@ -156,13 +232,13 @@ struct PortfolioCoordinatorTests {
         #expect(reload.owner == "wallet-a")
         #expect(reload.kind == .refresh(.reload))
         let refreshed = snapshot(owner: "wallet-a", revision: 2)
-        reload.continuation.yield(Update(snapshot: refreshed, phase: .ready))
+        reload.continuation.yield(Update(snapshot: refreshed, phase: .ready, revision: 14))
         reload.continuation.finish()
         await refreshing.value
         #expect(coordinator.update?.snapshot == refreshed)
 
         let changed = snapshot(owner: "wallet-a", revision: 3)
-        observation.continuation.yield(Update(snapshot: changed, phase: .ready))
+        observation.continuation.yield(Update(snapshot: changed, phase: .ready, revision: 15))
         await waitForSnapshot(changed, in: coordinator)
         viewing.cancel()
         await viewing.value
@@ -180,7 +256,7 @@ struct PortfolioCoordinatorTests {
         let observation = try #require(await requests.next())
         let refreshing = Task { await coordinator.refresh() }
         let reload = try #require(await requests.next())
-        reload.continuation.yield(Update(snapshot: nil, phase: .refreshing))
+        reload.continuation.yield(Update(snapshot: nil, phase: .refreshing, revision: 16))
         await waitForProgress(in: coordinator)
         refreshing.cancel()
         await refreshing.value
@@ -188,7 +264,7 @@ struct PortfolioCoordinatorTests {
         #expect(coordinator.update == nil)
 
         let changed = snapshot(owner: "wallet-a", revision: 3)
-        observation.continuation.yield(Update(snapshot: changed, phase: .ready))
+        observation.continuation.yield(Update(snapshot: changed, phase: .ready, revision: 17))
         await waitForSnapshot(changed, in: coordinator)
         viewing.cancel()
         await viewing.value
@@ -204,7 +280,7 @@ struct PortfolioCoordinatorTests {
         defer { viewing.cancel() }
         let observation = try #require(await requests.next())
         let cached = snapshot(owner: "wallet-a", revision: 1)
-        observation.continuation.yield(Update(snapshot: cached, phase: .refreshing))
+        observation.continuation.yield(Update(snapshot: cached, phase: .refreshing, revision: 18))
         await waitForProgress(in: coordinator)
         let first = Task { await coordinator.refresh() }
         defer { first.cancel() }
@@ -225,7 +301,7 @@ struct PortfolioCoordinatorTests {
         for await _ in reload.termination {}
         #expect(coordinator.update?.isRefreshing == true)
 
-        observation.continuation.yield(Update(snapshot: cached, phase: .ready))
+        observation.continuation.yield(Update(snapshot: cached, phase: .ready, revision: 19))
         viewing.cancel()
         await viewing.value
         #expect(coordinator.update?.snapshot == cached)
@@ -243,7 +319,7 @@ struct PortfolioCoordinatorTests {
         let observation = try #require(await requests.next())
         let cached = snapshot(owner: "wallet-a", revision: 1)
         let error = RPCError.http(statusCode: 429, retryAfter: "3")
-        observation.continuation.yield(Update(snapshot: cached, phase: .failed(error)))
+        observation.continuation.yield(Update(snapshot: cached, phase: .failed(error), revision: 20))
         observation.continuation.finish()
         await waitForSnapshot(cached, in: coordinator)
         #expect(coordinator.update?.error as? RPCError == error)
@@ -252,7 +328,7 @@ struct PortfolioCoordinatorTests {
         defer { refreshing.cancel() }
         let reload = try #require(await requests.next())
         #expect(reload.kind == .refresh(.reload))
-        reload.continuation.yield(Update(snapshot: cached, phase: .ready))
+        reload.continuation.yield(Update(snapshot: cached, phase: .ready, revision: 21))
         reload.continuation.finish()
         await refreshing.value
         #expect(coordinator.update?.error == nil)
@@ -274,10 +350,10 @@ struct PortfolioCoordinatorTests {
         defer { refreshing.cancel() }
         let reload = try #require(await requests.next())
         let recent = snapshot(owner: "wallet-a", revision: 3)
-        observation.continuation.yield(Update(snapshot: recent, phase: .ready))
+        observation.continuation.yield(Update(snapshot: recent, phase: .ready, revision: 22))
         await waitForSnapshot(recent, in: coordinator)
         let error = RPCError.http(statusCode: 429, retryAfter: nil)
-        reload.continuation.yield(Update(snapshot: snapshot(owner: "wallet-a", revision: 1), phase: .failed(error)))
+        reload.continuation.yield(Update(snapshot: snapshot(owner: "wallet-a", revision: 1), phase: .failed(error), revision: 23, snapshotRevision: 0))
         reload.continuation.finish()
         await refreshing.value
         #expect(coordinator.update?.snapshot == recent)
