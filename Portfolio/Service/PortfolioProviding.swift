@@ -10,6 +10,14 @@ public protocol PortfolioProviding: Sendable {
     ///   snapshot; persistence failures retain the freshly retrieved snapshot.
     func updates(for owner: String) async -> AsyncStream<Update>
 
+    /// Revalues cached holdings through the injected price provider without querying DAS.
+    ///
+    /// A concurrent full refresh can satisfy this request. No polling or retries are scheduled.
+    /// - Parameter owner: The wallet whose cached holdings to revalue.
+    /// - Returns: Cached state followed by updated valuations, or an error retaining cached state.
+    ///   Missing holdings or a missing price provider produce a `PriceError` in the failed update.
+    func priceUpdates(for owner: String) async -> AsyncStream<Update>
+
     /// Removes locally retained portfolio data and cancels its active refresh.
     ///
     /// - Parameter owner: The wallet whose local data to remove.

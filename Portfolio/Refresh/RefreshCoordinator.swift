@@ -1,9 +1,11 @@
 import Foundation
+import RPC
 
 /// Serializes cache access and shares each wallet's active refresh between consumers.
 actor RefreshCoordinator {
     private let source: any SnapshotFetching
     private let store: any SnapshotStoring
+    private let pricer: SnapshotPricer?
     private var flights: [CacheKey: Flight] = [:]
 
     /// Creates a coordinator with independent network and storage dependencies.
@@ -11,34 +13,53 @@ actor RefreshCoordinator {
     /// - Parameters:
     ///   - source: The complete-snapshot source.
     ///   - store: The persistent snapshot store.
-    init(source: any SnapshotFetching, store: any SnapshotStoring) {
+    ///   - prices: An optional price provider used for full and price-only refreshes.
+    init(source: any SnapshotFetching, store: any SnapshotStoring, prices: (any PriceProviding)? = nil) {
         self.source = source
         self.store = store
+        pricer = prices.map { SnapshotPricer(provider: $0) }
     }
 
     /// Registers an independent update stream and starts or joins the wallet's refresh.
     ///
-    /// - Parameter owner: The wallet whose holdings to retrieve.
+    /// - Parameters:
+    ///   - owner: The wallet whose holdings to retrieve.
+    ///   - scope: Whether to refresh all data or only the cached holdings' prices.
     /// - Returns: A registered stream, or a finished stream if the calling task is cancelled.
-    func updates(for owner: String) -> AsyncStream<Update> {
+    func updates(for owner: String, scope: Scope = .holdings) -> AsyncStream<Update> {
         let (stream, continuation) = AsyncStream<Update>.makeStream(bufferingPolicy: .bufferingNewest(2))
         guard !Task.isCancelled else {
             continuation.finish()
             return stream
         }
-        let id = UUID()
         let key = CacheKey(owner: owner, network: source.network)
+        if scope == .prices, pricer == nil {
+            let cached = store.snapshot(for: key)
+            continuation.yield(Update(snapshot: cached, phase: .refreshing))
+            continuation.yield(Update(snapshot: cached, phase: .failed(PriceError.providerUnavailable)))
+            continuation.finish()
+            return stream
+        }
+        let id = UUID()
         continuation.onTermination = { @Sendable _ in
             Task { @concurrent in await self.unsubscribe(key: key, id: id) }
         }
         if var flight = flights[key] {
             flight.consumers[id] = continuation
-            flights[key] = flight
             if let initial = flight.initial { continuation.yield(initial) }
+            if scope == .holdings, flight.scope == .prices {
+                // A full refresh also satisfies price consumers; obsolete price work cannot overwrite its balances.
+                flight.task?.cancel()
+                flight.generation = UUID()
+                flight.scope = .holdings
+                let generation = flight.generation
+                flight.task = Task { await refresh(key: key, generation: generation) }
+            }
+            flights[key] = flight
             return stream
         }
         let generation = UUID()
-        flights[key] = Flight(generation: generation, consumers: [id: continuation])
+        flights[key] = Flight(generation: generation, scope: scope, consumers: [id: continuation])
         flights[key]?.task = Task { await refresh(key: key, generation: generation) }
         return stream
     }
@@ -78,15 +99,27 @@ actor RefreshCoordinator {
     ///   - key: The wallet and network being refreshed.
     ///   - generation: The identity of this refresh, used to reject obsolete results.
     private func refresh(key: CacheKey, generation: UUID) async {
-        guard flights[key]?.generation == generation else { return }
+        guard let flight = flights[key], flight.generation == generation else { return }
         let cached = store.snapshot(for: key)
-        let initial = Update(snapshot: cached, phase: .refreshing)
-        flights[key]?.initial = initial
-        for continuation in flights[key]?.consumers.values ?? [:].values { continuation.yield(initial) }
+        if flight.initial == nil {
+            let initial = Update(snapshot: cached, phase: .refreshing)
+            flights[key]?.initial = initial
+            for continuation in flights[key]?.consumers.values ?? [:].values { continuation.yield(initial) }
+        }
 
         var available = cached
         do {
-            let snapshot = try await source.snapshot(for: key.owner)
+            try pricer?.validate(network: source.network)
+            let snapshot: Snapshot
+            switch flight.scope {
+            case .holdings:
+                let holdings = try await source.snapshot(for: key.owner)
+                snapshot = try await pricer?.snapshot(pricing: holdings) ?? holdings
+            case .prices:
+                guard let pricer else { throw PriceError.providerUnavailable }
+                guard let cached else { throw PriceError.holdingsUnavailable }
+                snapshot = try await pricer.snapshot(pricing: cached)
+            }
             try Task.checkCancellation()
             guard flights[key]?.generation == generation else { return }
             available = snapshot
@@ -115,9 +148,18 @@ actor RefreshCoordinator {
 
     /// The consumers and task owned by one refresh generation.
     private struct Flight {
-        let generation: UUID
+        var generation: UUID
+        var scope: Scope
         var consumers: [UUID: AsyncStream<Update>.Continuation]
         var initial: Update?
         var task: Task<Void, Never>?
+    }
+
+    /// The data refreshed by one shared operation.
+    enum Scope {
+        /// Retrieve holdings and metadata, then independent quotes when configured.
+        case holdings
+        /// Revalue existing holdings without querying DAS.
+        case prices
     }
 }

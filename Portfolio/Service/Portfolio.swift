@@ -7,9 +7,11 @@ public struct Portfolio: PortfolioProviding {
 
     /// Creates a portfolio service with persistent storage in the app's cache directory.
     ///
-    /// - Parameter rpc: The RPC client supplying all DAS portfolio data.
-    public init(rpc: any RPC) {
-        self.init(rpc: rpc, store: FileSnapshotStore(directory: .cachesDirectory.appendingPathComponent("Portfolio")))
+    /// - Parameters:
+    ///   - rpc: The RPC client supplying holdings and descriptive metadata.
+    ///   - prices: A same-network price provider; `nil` keeps DAS valuations and disables price-only refreshes.
+    public init(rpc: any RPC, prices: (any PriceProviding)? = nil) {
+        self.init(rpc: rpc, store: FileSnapshotStore(directory: .cachesDirectory.appendingPathComponent("Portfolio")), prices: prices)
     }
 
     /// Creates a service with an injected snapshot store and page size.
@@ -18,11 +20,12 @@ public struct Portfolio: PortfolioProviding {
     ///   - rpc: The RPC client supplying DAS data.
     ///   - store: The persistent snapshot store.
     ///   - pageSize: The DAS page size. The default is 1,000.
-    init(rpc: any RPC, store: any SnapshotStoring, pageSize: Int = 1_000) {
-        coordinator = RefreshCoordinator(source: SnapshotFetcher(rpc: rpc, pageSize: pageSize), store: store)
+    ///   - prices: An optional same-network price provider.
+    init(rpc: any RPC, store: any SnapshotStoring, pageSize: Int = 1_000, prices: (any PriceProviding)? = nil) {
+        coordinator = RefreshCoordinator(source: SnapshotFetcher(rpc: rpc, pageSize: pageSize), store: store, prices: prices)
     }
 
-    /// Returns existing state followed by the outcome of one automatic DAS refresh.
+    /// Returns existing state followed by one holdings refresh and the configured independent prices.
     ///
     /// The service owns cache lookup, pagination, persistence, and failure fallback.
     /// Each caller receives its own stream while concurrent callers share the refresh.
@@ -33,6 +36,13 @@ public struct Portfolio: PortfolioProviding {
     ///   detaches that consumer without clearing cached data.
     public func updates(for owner: String) async -> AsyncStream<Update> {
         await coordinator.updates(for: owner)
+    }
+
+    /// Refreshes only valuations for existing holdings, retaining balances, metadata, and their retrieval time.
+    /// - Parameter owner: The wallet whose cached holdings to revalue.
+    /// - Returns: Cached state followed by refreshed prices or an error, without scheduling another cycle.
+    public func priceUpdates(for owner: String) async -> AsyncStream<Update> {
+        await coordinator.updates(for: owner, scope: .prices)
     }
 
     /// Removes locally retained holdings and stops the wallet's active refresh.

@@ -51,7 +51,7 @@ public struct Jupiter: PriceProviding, CustomStringConvertible, CustomDebugStrin
             let fetchedAt = Date()
             for (mint, value) in values {
                 guard batch.contains(mint) else { throw RPCError.decoding }
-                quotes[mint] = try value.makeQuote(fetchedAt: fetchedAt)
+                if let quote = try value?.makeQuote(fetchedAt: fetchedAt) { quotes[mint] = quote }
             }
         }
         try Task.checkCancellation()
@@ -62,7 +62,7 @@ public struct Jupiter: PriceProviding, CustomStringConvertible, CustomDebugStrin
     /// - Parameter mints: The unique addresses in this batch.
     /// - Returns: The provider's price records, before normalization.
     /// - Throws: An HTTP, transport, decoding, or cancellation error.
-    private func fetch(_ mints: [String]) async throws -> [String: Value] {
+    private func fetch(_ mints: [String]) async throws -> [String: Value?] {
         let url = URL(string: "https://api.jup.ag/price/v3")!
             .appending(queryItems: [URLQueryItem(name: "ids", value: mints.joined(separator: ","))])
         var request = URLRequest(url: url, timeoutInterval: 30)
@@ -71,7 +71,7 @@ public struct Jupiter: PriceProviding, CustomStringConvertible, CustomDebugStrin
         if let apiKey { request.setValue(apiKey, forHTTPHeaderField: "x-api-key") }
         let data = try await transport.responseData(for: request, redactor: redactor)
         do {
-            return try JSONDecoder().decode([String: Value].self, from: data)
+            return try JSONDecoder().decode([String: Value?].self, from: data)
         } catch {
             try Task.checkCancellation()
             throw RPCError.decoding
@@ -80,7 +80,7 @@ public struct Jupiter: PriceProviding, CustomStringConvertible, CustomDebugStrin
 
     /// The adapter's private DTO; consumers see only normalized quotes.
     private struct Value: Decodable {
-        let pricePerUnit: Decimal
+        let pricePerUnit: Decimal?
 
         private enum CodingKeys: String, CodingKey {
             case pricePerUnit = "usdPrice"
@@ -88,9 +88,10 @@ public struct Jupiter: PriceProviding, CustomStringConvertible, CustomDebugStrin
 
         /// Validates the decoded price and converts it to the shared domain value.
         /// - Parameter fetchedAt: The time this response was retrieved.
-        /// - Returns: A quote in this endpoint's currency using our field names.
+        /// - Returns: A normalized quote, or `nil` for a record with an absent or null price.
         /// - Throws: A decoding error if the price is negative or not a number.
-        func makeQuote(fetchedAt: Date) throws -> Quote {
+        func makeQuote(fetchedAt: Date) throws -> Quote? {
+            guard let pricePerUnit else { return nil }
             guard !pricePerUnit.isNaN, pricePerUnit >= 0 else { throw RPCError.decoding }
             return Quote(pricePerUnit: pricePerUnit, currency: "USD", fetchedAt: fetchedAt)
         }

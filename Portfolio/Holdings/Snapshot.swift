@@ -9,7 +9,7 @@ public struct Snapshot: Codable, Sendable, Equatable {
     public let network: Network
     /// The wallet's holdings, including a separate native SOL entry.
     public let holdings: [Holding]
-    /// The time at which retrieval of every page completed.
+    /// The time at which retrieval of every holdings page completed; price-only updates preserve it.
     public let fetchedAt: Date
     /// The lowest indexing watermark across all pages, or `nil` if any page omits it.
     ///

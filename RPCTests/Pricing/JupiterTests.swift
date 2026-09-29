@@ -8,12 +8,16 @@ struct JupiterTests {
     @Test("prices preserve decimal precision and keep unavailable quotes absent")
     func normalizesQuotes() async throws {
         let transport = StubTransport { request in
-            try priceReply(to: request, body: #"{"mint-a":{"usdPrice":0.12345678901234567890123456789012,"blockId":9007199254740993,"decimals":9},"mint-b":{"usdPrice":0}}"#)
+            try priceReply(to: request, body: #"""
+                {"mint-a":{"usdPrice":0.12345678901234567890123456789012,"blockId":9007199254740993,"decimals":9},
+                 "mint-b":{"usdPrice":0},"metadata-only":{"createdAt":"2025-01-01T00:00:00Z","liquidity":0.12,"decimals":6},
+                 "null-price":{"usdPrice":null},"null-record":null}
+                """#)
         }
         let source: any PriceProviding = Jupiter(apiKey: "fixture-key", transport: transport)
         let startedAt = Date()
 
-        let quotes = try await source.prices(for: ["mint-a", "mint-b", "unpriced"])
+        let quotes = try await source.prices(for: ["mint-a", "mint-b", "metadata-only", "null-price", "null-record", "unpriced"])
 
         #expect(source.network == .mainnet)
         #expect(quotes.count == 2)
@@ -23,6 +27,9 @@ struct JupiterTests {
         #expect(first.fetchedAt >= startedAt && first.fetchedAt <= Date())
         #expect(quotes["mint-b"]?.pricePerUnit == 0)
         #expect(quotes["unpriced"] == nil)
+        #expect(quotes["metadata-only"] == nil)
+        #expect(quotes["null-price"] == nil)
+        #expect(quotes["null-record"] == nil)
 
         let encoded = try JSONEncoder().encode(first)
         let fields = try #require(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
@@ -87,8 +94,10 @@ struct JupiterTests {
     @Test("invalid price responses fail without inventing a quote", arguments: [
         #"{"mint":{"usdPrice":-1}}"#,
         #"{"mint":{"usdPrice":"invalid"}}"#,
-        #"{"mint":{"blockId":1}}"#,
+        #"{"mint":{"usdPrice":true}}"#,
+        #"{"mint":false}"#,
         #"{"different-mint":{"usdPrice":1}}"#,
+        #"{"different-mint":null}"#,
         #"[]"#,
     ])
     func rejectsInvalidResponse(_ body: String) async {
