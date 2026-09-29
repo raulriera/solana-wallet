@@ -50,9 +50,8 @@ public struct Jupiter: PriceProviding, CustomStringConvertible, CustomDebugStrin
             let values = try await fetch(batch)
             let fetchedAt = Date()
             for (mint, value) in values {
-                guard batch.contains(mint), !value.usdPrice.isNaN, value.usdPrice >= 0 else { throw RPCError.decoding }
-                quotes[mint] = Quote(pricePerUnit: value.usdPrice, currency: "USD",
-                                     fetchedAt: fetchedAt, blockID: value.blockId)
+                guard batch.contains(mint) else { throw RPCError.decoding }
+                quotes[mint] = try value.makeQuote(fetchedAt: fetchedAt)
             }
         }
         try Task.checkCancellation()
@@ -81,7 +80,19 @@ public struct Jupiter: PriceProviding, CustomStringConvertible, CustomDebugStrin
 
     /// The adapter's private DTO; consumers see only normalized quotes.
     private struct Value: Decodable {
-        let usdPrice: Decimal
-        let blockId: UInt64?
+        let pricePerUnit: Decimal
+
+        private enum CodingKeys: String, CodingKey {
+            case pricePerUnit = "usdPrice"
+        }
+
+        /// Validates the decoded price and converts it to the shared domain value.
+        /// - Parameter fetchedAt: The time this response was retrieved.
+        /// - Returns: A quote in this endpoint's currency using our field names.
+        /// - Throws: A decoding error if the price is negative or not a number.
+        func makeQuote(fetchedAt: Date) throws -> Quote {
+            guard !pricePerUnit.isNaN, pricePerUnit >= 0 else { throw RPCError.decoding }
+            return Quote(pricePerUnit: pricePerUnit, currency: "USD", fetchedAt: fetchedAt)
+        }
     }
 }

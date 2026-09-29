@@ -6,6 +6,8 @@ public protocol PriceProviding: Sendable {
     /// Retrieves available unit prices for the requested token mints.
     ///
     /// Providers own authentication, request batching, and response transformation.
+    /// Keep response types and their conversion private to each implementation;
+    /// consumers receive only our ``Quote`` values.
     /// Missing dictionary entries mean no price is available, never a zero price.
     /// An empty input performs no requests. Failed batches throw without returning
     /// partial results; providers don't retry or schedule subsequent refreshes.

@@ -20,11 +20,13 @@ struct JupiterTests {
         let first = try #require(quotes["mint-a"])
         #expect(first.pricePerUnit == Decimal(string: "0.12345678901234567890123456789012"))
         #expect(first.currency == "USD")
-        #expect(first.blockID == 9_007_199_254_740_993)
         #expect(first.fetchedAt >= startedAt && first.fetchedAt <= Date())
         #expect(quotes["mint-b"]?.pricePerUnit == 0)
-        #expect(quotes["mint-b"]?.blockID == nil)
         #expect(quotes["unpriced"] == nil)
+
+        let encoded = try JSONEncoder().encode(first)
+        let fields = try #require(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        #expect(Set(fields.keys) == ["pricePerUnit", "currency", "fetchedAt"])
         let request = try #require(await transport.requests.first)
         #expect(request.httpMethod == "GET")
         #expect(request.httpBody == nil)
@@ -86,7 +88,6 @@ struct JupiterTests {
         #"{"mint":{"usdPrice":-1}}"#,
         #"{"mint":{"usdPrice":"invalid"}}"#,
         #"{"mint":{"blockId":1}}"#,
-        #"{"mint":{"usdPrice":1,"blockId":-1}}"#,
         #"{"different-mint":{"usdPrice":1}}"#,
         #"[]"#,
     ])

@@ -20,7 +20,6 @@ struct PriceLiveTests {
             let quote = try #require(quotes[mint])
             #expect(quote.pricePerUnit > 0)
             #expect(quote.currency == "USD")
-            #expect(quote.blockID != nil)
         }
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]

@@ -3,7 +3,7 @@
 - Required data: exact amounts, name, symbol, valuation, and rich metadata. Valuations must support independent live updates; refresh scheduling remains to be agreed.
 - `Portfolio` implements `PortfolioProviding`; RPC owns the selected provider's DAS requests and response decoding. Portfolio depends on the provider-neutral RPC contract.
 - DAS is exclusively for portfolio viewing. Use the selected provider's DAS capability for holdings and metadata; behavior without DAS remains deferred.
-- Fetch market prices through RPC's interchangeable `PriceProviding` contract. Jupiter is one implementation; its private response is transformed into `Quote`, keyed by mint, with a decimal unit price, currency, retrieval time, and optional source block reference. Missing quotes mean unknown value, never zero.
+- Fetch market prices through RPC's interchangeable `PriceProviding` contract. Jupiter is one implementation; its private response is transformed into `Quote`, keyed by mint, with a decimal unit price, currency, and retrieval time. Response decoding and conversion stay private to each provider; shared types use our domain names. Missing quotes mean unknown value, never zero.
 - Price providers identify their network. Jupiter supplies mainnet USD quotes; do not apply them to devnet balances. Retrieval time is not the underlying market-update time. Currency conversion remains deferred.
 - Independent pricing is available in RPC; Portfolio snapshot refresh still consumes DAS prices. Connecting independent quotes to valuations and adding rich metadata remain pending.
 - Await `updates(for:)` to register a consumer, then read its stream for one cache-and-refresh cycle. Registration completes before the stream returns; network results arrive through the stream.

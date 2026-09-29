@@ -1,6 +1,9 @@
 public import Foundation
 
 /// A provider-neutral market price for one whole, decimal-adjusted token.
+///
+/// Providers map their responses into this value before returning it to consumers.
+/// Its Codable representation uses our field names independently of any provider.
 public struct Quote: Codable, Sendable, Equatable {
     /// The quoted price of one whole token, without binary floating-point conversion.
     public let pricePerUnit: Decimal
@@ -10,19 +13,15 @@ public struct Quote: Codable, Sendable, Equatable {
     ///
     /// This is not the time of the underlying trade or a guarantee of market freshness.
     public let fetchedAt: Date
-    /// The source's on-chain block reference, or `nil` when unavailable.
-    public let blockID: UInt64?
 
     /// Creates a normalized quote without tying consumers to a provider's response format.
     /// - Parameters:
     ///   - pricePerUnit: The nonnegative price of one whole token.
     ///   - currency: The quote currency.
     ///   - fetchedAt: The time the quote was retrieved.
-    ///   - blockID: The on-chain block reference, or `nil` when unavailable.
-    public init(pricePerUnit: Decimal, currency: String, fetchedAt: Date, blockID: UInt64? = nil) {
+    public init(pricePerUnit: Decimal, currency: String, fetchedAt: Date) {
         self.pricePerUnit = pricePerUnit
         self.currency = currency
         self.fetchedAt = fetchedAt
-        self.blockID = blockID
     }
 }
