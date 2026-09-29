@@ -10,7 +10,7 @@ The wallet app owns workflow coordination through internal, protocol-based servi
 | Vault | Protected recovery storage and authentication for access. |
 | Portfolio | Portfolio snapshots, caching, refresh, and reconciliation of confirmed changes. |
 | Encoding | Shared codecs. |
-| Internal app services/coordinators | Compose review, explicit approval, authentication, signing, and optional submission/confirmation. |
+| Internal app services/coordinators | Own portfolio presentation lifetimes and compose review, explicit approval, authentication, signing, and optional submission/confirmation. |
 
 - Prioritize DX at the call site: callers compose instructions, review `Simulation`, then explicitly confirm. Import adapters decode external representations; services own serialization and RPC details.
 - Export only cross-module contracts and values; helpers and protocols used only within a module remain internal or private. Protocol-oriented design doesn't require public visibility.
@@ -18,6 +18,8 @@ The wallet app owns workflow coordination through internal, protocol-based servi
 - Bind review and signing to the exact message, selected account, and network. Authentication grants wallet access; the app separately obtains transaction approval. Preserve existing signatures and identify instructions whose meaning is unknown; simulation success isn't proof of safety.
 
 [TransactionCoordinator](../widgets/Transactions/Coordination/TransactionCoordinator.swift) is the app's internal entry point for simulation and explicit confirmation, with independent signing for external integrations, backed by injected protocols and focused helpers under `widgets/Transactions`. These types explicitly remain nonisolated within the MainActor-default app; transaction work retains `@concurrent` execution. Reusable encoding and signature assembly belong in Transactions.
+
+[PortfolioCoordinator](../widgets/Portfolio/PortfolioCoordinator.swift) owns one portfolio presentation through `PortfolioCoordinating`. Its observable state is main-actor isolated; it injects `PortfolioProviding` for one configured network. The view task supplies the selected wallet and scene activity, and cancellation stops observation and manual refreshes. Wallet changes clear the preceding wallet's display state; backgrounding retains its latest snapshot. Create a new coordinator when changing networks. Screen composition remains separate.
 
 Program helpers produce `Instruction` values; adding an operation must not introduce another preparation/signing/submission pipeline. The compiler merges account roles and supports distinct fee payers and multiple authorities. Token prerequisites resolve in an internal feature helper before generic preparation. `TransactionDecoder` and `TransactionBuilder` preserve imported bytes and signature slots; see [usage](transaction-workflow.md). Durable nonces and program-aware explanations remain pending.
 
