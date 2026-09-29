@@ -20,6 +20,7 @@
 ## Theme packs
 
 - Support an arbitrary number of built-in and custom theme packs with supported layout variants. Represent packs as versioned data and visual assets consumed through shared components.
+- Use an app-wide default theme with optional per-wallet overrides. Windows showing the same wallet use its selected theme; wallets without an override follow the app-wide default.
 - Themes may change semantic colors, backgrounds, textures, borders, and shapes; typography within readable, Dynamic Type-aware limits; content treatments such as asset rows versus cards or balance-summary compositions; and spacing and decorative motion within supported ranges.
 - Each supported layout variant adapts to compact and expanded space and accessibility settings. Themes select supported variants; the app owns adaptation and rendering.
 - Keep navigation behavior, action meanings, accessibility semantics, and transaction-review requirements app-owned. Themes cannot hide required transaction information or approval controls.
