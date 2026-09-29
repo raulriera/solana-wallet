@@ -4,6 +4,16 @@ import Testing
 
 /// Verifies provider-owned subscriptions with controlled WebSocket frames.
 struct SubscriptionTests {
+    /// Verifies an abandoned stream releases its reader and keep-alive task without explicit cancellation.
+    @Test("discarding an unconsumed subscription closes its connection", .timeLimit(.minutes(1)))
+    func discardingStreamClosesConnection() async throws {
+        let socket = SocketFixture()
+        defer { socket.cancel() }
+        _ = try await client(socket: socket).changedSlots(for: "wallet")
+        await socket.waitUntilCancelled()
+        #expect(socket.isCancelled)
+    }
+
     /// Verifies both concrete providers use the standard confirmed filters and decode the same events.
     /// - Parameter helius: Whether to exercise Helius or the public Solana client.
     @Test("wallet subscriptions cover SOL and both token programs at confirmed", .timeLimit(.minutes(1)), arguments: [false, true])

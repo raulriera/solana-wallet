@@ -5,6 +5,18 @@ import Testing
 
 /// Exercises observation through real Helius decoding with controlled HTTP and WebSocket transports.
 struct ObservationTests {
+    /// Verifies releasing the final stream stops observation even when its consumer exits normally.
+    @Test("leaving portfolio observation scope closes its connection", .timeLimit(.minutes(1)))
+    func leavingScopeStopsObservation() async throws {
+        let fixture = ObservationFixture()
+        defer { fixture.cleanUp() }
+        let service = fixture.service(pages: ObservedPages())
+        let initial = try await firstObservation(from: service)
+        #expect(initial.error == nil)
+        await fixture.socket.waitUntilCancelled()
+        #expect(fixture.store.snapshot(for: fixture.key) == initial.snapshot)
+    }
+
     /// Verifies a confirmed change bypasses fresh cache and waits for indexed holdings before saving.
     @Test("confirmed changes refresh fresh portfolios after DAS catches up", .timeLimit(.minutes(1)))
     func reconcilesConfirmedChanges() async throws {
@@ -293,4 +305,13 @@ private func nextResult(_ iterator: inout AsyncStream<Update>.AsyncIterator) asy
         if !update.isRefreshing { return update }
     }
     return try #require(nil as Update?)
+}
+
+/// Limits an observation stream's lifetime to one completed result.
+/// - Parameter service: The portfolio whose observation to release on return.
+/// - Returns: Its first completed update.
+/// - Throws: A prerequisite error if the stream ends without a result.
+private func firstObservation(from service: Portfolio) async throws -> Update {
+    var iterator = await service.observations(for: "wallet").makeAsyncIterator()
+    return try await nextResult(&iterator)
 }

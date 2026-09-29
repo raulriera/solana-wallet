@@ -15,7 +15,7 @@
 - Swift 6 with the latest compiler, SDK APIs, Apple guidance, and supported upcoming language features. No deprecated approaches.
 - Pure Swift and Apple frameworks; avoid third-party dependencies where reasonable.
 - Use `'/Applications/SF Symbols.app/Contents/Executables/sfsymbols'` when interacting with SF Symbols.
-- Follow the Swift Concurrency plugin's `swift-concurrency` skill.
+- Validate concurrency changes against current Apple documentation and the Swift Concurrency plugin's `swift-concurrency` skill.
 - Follow [references/testing.md](references/testing.md) when writing or reviewing tests.
 - Verify RPC integrations with real clients on devnet; do not add fake RPC implementations for tests.
 - Never request funding for a wallet without verified, retained recovery. Reuse controlled devnet test wallets and return test funds after fees; never discard funded wallet recovery.
