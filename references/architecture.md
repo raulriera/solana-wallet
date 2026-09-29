@@ -1,6 +1,6 @@
 # Architecture
 
-The wallet app owns workflow coordination through internal, protocol-based services. Create and inject them once; callers use the workflow they need without assembling every helper. Views present state and capture approval.
+The wallet app owns workflow coordination through internal, protocol-based services. Construct shared services in app composition and presentation coordinators within each window's feature lifetime; callers use the workflow they need without assembling every helper. Views present state and capture approval. Follow the [UI architecture](ui.md) for navigation, window ownership, and themes.
 
 | Component | Responsibility |
 | --- | --- |
@@ -19,7 +19,7 @@ The wallet app owns workflow coordination through internal, protocol-based servi
 
 [TransactionCoordinator](../widgets/Transactions/Coordination/TransactionCoordinator.swift) is the app's internal entry point for simulation and explicit confirmation, with independent signing for external integrations, backed by injected protocols and focused helpers under `widgets/Transactions`. These types explicitly remain nonisolated within the MainActor-default app; transaction work retains `@concurrent` execution. Reusable encoding and signature assembly belong in Transactions.
 
-[PortfolioCoordinator](../widgets/Portfolio/PortfolioCoordinator.swift) owns one portfolio presentation through `PortfolioCoordinating`. Its observable state is main-actor isolated; it injects `PortfolioProviding` for one configured network. The view task supplies the selected wallet and scene activity, and cancellation stops observation and manual refreshes. Wallet changes clear the preceding wallet's display state; backgrounding retains its latest snapshot. Create a new coordinator when changing networks. Screen composition remains separate.
+[PortfolioCoordinator](../widgets/Portfolio/PortfolioCoordinator.swift) owns one portfolio presentation through `PortfolioCoordinating`. Its observable state is main-actor isolated; it injects `PortfolioProviding` for one configured network. Each window owns its coordinator and supplies its selected wallet and scene activity to the view task; cancellation stops that presentation's observation and manual refreshes. Windows using the same service configuration share the underlying provider. Wallet changes clear the preceding wallet's display state; backgrounding retains its latest snapshot. Create a new coordinator when changing networks. Screen composition remains separate.
 
 Program helpers produce `Instruction` values; adding an operation must not introduce another preparation/signing/submission pipeline. The compiler merges account roles and supports distinct fee payers and multiple authorities. Token prerequisites resolve in an internal feature helper before generic preparation. `TransactionDecoder` and `TransactionBuilder` preserve imported bytes and signature slots; see [usage](transaction-workflow.md). Durable nonces and program-aware explanations remain pending.
 

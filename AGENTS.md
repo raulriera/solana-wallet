@@ -12,6 +12,8 @@
 - Compose wallet workflows in internal app services/coordinators, outside views; keep frameworks focused on reusable concerns. Follow [references/architecture.md](references/architecture.md).
 - Expose only contracts and values needed across module boundaries; keep implementation helpers internal or private.
 - iOS 27.1+ with full iPhone Duo support; no older-iOS compatibility paths.
+- Use [SwiftUI Expert](plugin://swiftui-expert@swiftui-expert-skill) for UI work. Follow [UI architecture](references/ui.md) for adaptive `NavigationSplitView` navigation, theme packs, and all applicable Apple Human Interface Guidelines.
+- Support simultaneous wallet windows where the system allows them; keep each window's wallet selection, navigation, and presented tasks independent.
 - Swift 6 with the latest compiler, SDK APIs, Apple guidance, and supported upcoming language features. No deprecated approaches.
 - Pure Swift and Apple frameworks; avoid third-party dependencies where reasonable.
 - Use `'/Applications/SF Symbols.app/Contents/Executables/sfsymbols'` when interacting with SF Symbols.
