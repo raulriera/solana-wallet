@@ -20,6 +20,7 @@
 ## Theme packs
 
 - Support an arbitrary number of built-in and custom theme packs with supported layout variants. Represent packs as versioned data and visual assets consumed through shared components.
+- Separate the pack catalog, appearance preferences, and each window's resolved theme. Packs describe semantic style roles, scalable typography, visual assets, decoration, and app-supported layout choices.
 - Use an app-wide default theme with optional per-wallet overrides. Windows showing the same wallet use its selected theme; wallets without an override follow the app-wide default.
 - Themes may change semantic colors, backgrounds, textures, borders, and shapes; typography within readable, Dynamic Type-aware limits; content treatments such as asset rows versus cards or balance-summary compositions; and spacing and decorative motion within supported ranges.
 - Each supported layout variant adapts to compact and expanded space and accessibility settings. Themes select supported variants; the app owns adaptation and rendering.
@@ -28,6 +29,7 @@
 
 ## Design requirements
 
+- Before finalizing the theme architecture, review disposable SwiftUI mockups on iPhone Duo, a regular iPhone, and iPad. Compare a native baseline, a bold graphic theme, and a restrained textured theme, including meaningful layout differences. Use sample presentation data and keep the mockups separate from production views and service integration.
 - Review every applicable Apple Human Interface Guideline and resolve known violations before accepting UI work. Track applicability and verification without treating an architectural decision or successful theme import as proof of rendered compliance.
 - Verify supported layouts and themes across Duo transitions, compact iPhones, iPad resizing, large text, VoiceOver, keyboard interaction, contrast settings, and reduced motion.
 - Keep guidance linked to Apple's Markdown sources; consult the relevant component and interaction guidance as each feature is designed.
