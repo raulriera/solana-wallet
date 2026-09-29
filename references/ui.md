@@ -21,6 +21,7 @@
 ## Theme packs
 
 - Support an arbitrary number of built-in and custom theme packs with supported layout variants. Represent packs as versioned data and visual assets consumed through shared components.
+- Author custom themes outside the app. Support theme-pack import and export only; do not include an in-app theme editor.
 - Separate the pack catalog, appearance preferences, and each window's resolved theme. Packs describe semantic style roles, scalable typography, visual assets, decoration, and app-supported layout choices.
 - Use an app-wide default theme with optional per-wallet overrides. Windows showing the same wallet use its selected theme; wallets without an override follow the app-wide default.
 - Themes may change semantic colors, backgrounds, textures, borders, and shapes; readable, Dynamic Type-aware typography; content treatments such as asset rows versus cards or balance-summary compositions; and spacing and decorative motion within supported ranges.
