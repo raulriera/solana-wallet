@@ -34,6 +34,7 @@
 - Keep wallet recovery material device-only, excluded from iCloud sync and backups; follow [references/wallet.md](references/wallet.md).
 - Discover accounts with one SOL-only lookup for twenty addresses; intentionally ignore zero-SOL accounts. Follow [references/wallet.md](references/wallet.md).
 - Agree on architecture before implementation; work on one concern at a time.
+- Resolve unapproved UI design and behavior with the user before implementing it; do not infer production approval from disposable mockups. Follow [references/ui.md](references/ui.md).
 - Complete the agreed framework milestones before App/UI work; handle Portfolio last. Follow the current sequence in [references/architecture.md](references/architecture.md).
 - Request documentation as Markdown by appending `.md`. Apple API docs: `https://developer.apple.com/documentation/<path>.md`; tutorials/design guidance: `https://developer.apple.com/tutorials/data/<path>.md`.
 
