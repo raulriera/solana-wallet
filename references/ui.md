@@ -20,22 +20,11 @@
 
 ## Theme packs
 
+The [Themes framework contract](../Themes/README.md) defines package structure, authoring, manifest fields, import errors, export, and versioning. The framework will be included in the app; implementation of its target and services remains pending.
+
 - Support an arbitrary number of built-in and custom theme packs with supported layout variants. Represent packs as versioned data and visual assets consumed through shared components.
 - Define semantic tokens by purpose, independent of particular screens. Add screen-specific layout choices only as their component designs are approved.
-- Include `formatVersion` from the beginning. The pre-release format is provisional and may change as production UI exercises the tokens; do not build migrations for development packs. Stabilize version 1 alongside the first production UI before shipping.
-- After shipping, preserve compatibility for existing packs. New optional settings inherit defaults; removing settings or changing their types or meaning requires deliberate format versioning.
-- Author custom themes outside the app. Support theme-pack import and export only; do not include an in-app theme editor.
-- Use a native directory package containing a readable JSON manifest and self-contained assets, presented as one document in Files. Import through the system Files picker and store installed copies locally; app-managed cloud synchronization is outside the current scope.
-- Keep the package extension and manifest independent of the app's name, which may change. Do not prefix the extension with the app name; the final extension remains undecided.
-- Use iOS system text styles with default, rounded, serif, or monospaced designs; theme packs cannot bundle custom font files. Keep control icons app-owned SF Symbols.
-- Support PNG artwork and textures, including transparency, and JPEG photographic backgrounds.
-- Use the color roles `background`, `surface`, `primaryText`, `secondaryText`, `separator`, `accent`, and `onAccent`. Values are symbolic system colors or opaque sRGB `#RRGGBB` colors. Preserve system references when exporting instead of freezing them into RGB values.
-- Packs may override selected appearance settings; omitted settings inherit complete app-owned baseline values. Explicitly supplied values remain the pack's choices.
-- Export the default template with all supported appearance settings and their default values, ready for external editing. Imported packs may omit settings, including settings introduced after the pack was authored.
-- Give a default-template export a new custom theme identity. Exporting an existing custom theme preserves its identity and includes its complete resolved settings and assets.
-- Keep pack identities stable and require explicit replacement of an existing custom pack. Keep built-in themes available.
-- Follow system light, dark, and increased-contrast appearance, supporting an increased-contrast variant for both light and dark. Missing appearance values inherit the corresponding baseline; do not automatically derive a dark palette.
-- Resolve omitted settings centrally when preparing a theme for use. Views consume complete resolved values without repeating fallback logic during rendering.
+- Supply the framework with the complete app-owned baseline and resolve omitted settings before rendering. Views consume complete values without repeating fallback logic.
 - Separate the pack catalog, appearance preferences, and each window's resolved theme. Packs describe semantic style roles, scalable typography, visual assets, decoration, and app-supported layout choices.
 - Use an app-wide default theme with optional per-wallet overrides. Windows showing the same wallet use its selected theme; wallets without an override follow the app-wide default.
 - Themes may change semantic colors, backgrounds, textures, borders, and shapes; Dynamic Type-aware typography; content treatments such as asset rows versus cards or balance-summary compositions; and spacing and decorative motion within supported ranges.

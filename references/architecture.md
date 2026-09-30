@@ -10,6 +10,7 @@ The wallet app owns workflow coordination through internal, protocol-based servi
 | Vault | Protected recovery storage and authentication for access. |
 | Portfolio | Portfolio snapshots, caching, refresh, and reconciliation of confirmed changes. |
 | Encoding | Shared codecs. |
+| Themes (planned) | Theme-pack models, package reading/writing, validation, and resolution against app-provided defaults. See the [framework contract](../Themes/README.md). |
 | Internal app services/coordinators | Own portfolio presentation lifetimes and compose review, explicit approval, authentication, signing, and optional submission/confirmation. |
 
 - Prioritize DX at the call site: callers compose instructions, review `Simulation`, then explicitly confirm. Import adapters decode external representations; services own serialization and RPC details.
@@ -25,7 +26,7 @@ Program helpers produce `Instruction` values; adding an operation must not intro
 
 ## Framework milestones
 
-Complete framework work before App/UI work. The agreed framework scope is complete; the deferred capabilities below remain separate milestones.
+The agreed wallet, transaction, and portfolio framework milestones are complete. The Themes framework is the next UI foundation; its contract is documented, while its target and implementation remain pending. The deferred capabilities below remain separate milestones.
 
 | Framework | Status |
 | --- | --- |
