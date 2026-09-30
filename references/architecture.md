@@ -4,13 +4,13 @@ The wallet app owns workflow coordination through internal, protocol-based servi
 
 | Component | Responsibility |
 | --- | --- |
-| RPC | Provider-neutral RPC, DAS, pricing, and confirmed account subscriptions. |
-| Transactions | Composable instructions, generic V1 compilation, decoding, validation, and signature assembly. |
-| Wallet | Local recovery phrases, account derivation, and cryptographic signing. |
-| Vault | Protected recovery storage and authentication for access. |
-| Portfolio | Portfolio snapshots, caching, refresh, and reconciliation of confirmed changes. |
-| Encoding | Shared codecs. |
-| Themes | Color tokens, package reading/writing, validation, and resolution against app-provided defaults. See the [framework contract](../Themes/README.md). |
+| [RPC](../RPC/README.md) | Provider-neutral RPC, DAS, pricing, and confirmed account subscriptions. |
+| [Transactions](../Transactions/README.md) | Composable instructions, generic V1 compilation, decoding, validation, and signature assembly. |
+| [Wallet](../Wallet/README.md) | Local recovery phrases, account derivation, and cryptographic signing. |
+| [Vault](../Vault/README.md) | Protected recovery storage and authentication for access. |
+| [Portfolio](../Portfolio/README.md) | Portfolio snapshots, caching, refresh, and reconciliation of confirmed changes. |
+| [Encoding](../Encoding/README.md) | Shared codecs. |
+| [Themes](../Themes/README.md) | Color tokens, package reading/writing, validation, and resolution against app-provided defaults. |
 | Internal app services/coordinators | Own portfolio presentation lifetimes and compose review, explicit approval, authentication, signing, and optional submission/confirmation. |
 
 - Prioritize DX at the call site: callers compose instructions, review `Simulation`, then explicitly confirm. Import adapters decode external representations; services own serialization and RPC details.

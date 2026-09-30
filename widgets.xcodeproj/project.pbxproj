@@ -145,6 +145,36 @@
 			membershipExceptions = (README.md, );
 			target = A90000000000000000000014 /* Themes */;
 		};
+		AD0000000000000000000001 /* RPC documentation */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (README.md, );
+			target = A10000000000000000000014 /* RPC */;
+		};
+		AD0000000000000000000002 /* Portfolio documentation */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (README.md, );
+			target = A20000000000000000000014 /* Portfolio */;
+		};
+		AD0000000000000000000003 /* Wallet documentation */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (README.md, );
+			target = A30000000000000000000014 /* Wallet */;
+		};
+		AD0000000000000000000004 /* Vault documentation */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (README.md, );
+			target = A40000000000000000000014 /* Vault */;
+		};
+		AD0000000000000000000005 /* Transactions documentation */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (README.md, );
+			target = A50000000000000000000014 /* Transactions */;
+		};
+		AD0000000000000000000006 /* Encoding documentation */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (README.md, );
+			target = A60000000000000000000014 /* Encoding */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -155,6 +185,7 @@
 		};
 		A10000000000000000000005 /* RPC */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (AD0000000000000000000001 /* RPC documentation */, );
 			path = RPC;
 			sourceTree = "<group>";
 		};
@@ -165,6 +196,7 @@
 		};
 		A20000000000000000000005 /* Portfolio */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (AD0000000000000000000002 /* Portfolio documentation */, );
 			path = Portfolio;
 			sourceTree = "<group>";
 		};
@@ -175,6 +207,7 @@
 		};
 		A30000000000000000000005 /* Wallet */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (AD0000000000000000000003 /* Wallet documentation */, );
 			path = Wallet;
 			sourceTree = "<group>";
 		};
@@ -185,6 +218,7 @@
 		};
 		A40000000000000000000005 /* Vault */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (AD0000000000000000000004 /* Vault documentation */, );
 			path = Vault;
 			sourceTree = "<group>";
 		};
@@ -195,6 +229,7 @@
 		};
 		A50000000000000000000005 /* Transactions */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (AD0000000000000000000005 /* Transactions documentation */, );
 			path = Transactions;
 			sourceTree = "<group>";
 		};
@@ -205,6 +240,7 @@
 		};
 		A60000000000000000000005 /* Encoding */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (AD0000000000000000000006 /* Encoding documentation */, );
 			path = Encoding;
 			sourceTree = "<group>";
 		};
