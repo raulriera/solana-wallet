@@ -42,6 +42,16 @@ The [Themes framework contract](../Themes/README.md) defines package structure, 
 
 ## Design requirements
 
+### Appearance settings
+
+- **App Theme** selects the shared default. **Wallet Theme** appears when the owning window has a selected wallet and offers **Use App Default** or an explicit theme, including Original.
+- Both selectors use native name-and-checkmark rows without previews. Checkmarks and appearance update after persistence succeeds.
+- **Theme Packs** provides Files import, default-template export, and export/removal actions for custom packs. Import installs without selecting; replacement and removal require confirmation of the exact installed revision.
+- Original uses adaptive system colors. Exported templates contain complete defaults and a new custom identity. Color conversion happens when the selected package revision changes; rendering and trait changes use cached palettes.
+- Work and confirmations belong to the initiating window; committed changes publish to the shared appearance snapshot. Errors preserve installed data and the last committed preferences. An unreadable selected package renders Original and reports the failure.
+
+### Visual direction
+
 - Use native appearance as the baseline, with a distinctive visual identity led by color and typography using iOS-provided fonts. Use [Family](https://family.co/) as a reference for this direction; native navigation does not prescribe the Settings app's visual treatment. Specific palettes, text styles, and component designs require separate agreement. Theme-pack typography remains deferred.
 - Before implementing each UI concern, agree on its screen structure, visible content, actions, and user-facing states and behavior. Resolve missing or conflicting decisions with the user; architectural constraints and HIG guidance do not supply product-design approval.
 - Before finalizing the theme architecture, review disposable SwiftUI mockups on iPhone Duo, a regular iPhone, and iPad. Compare a native baseline, a bold graphic theme, and a restrained textured theme, including meaningful layout differences. Use sample presentation data and keep the mockups separate from production views and service integration.

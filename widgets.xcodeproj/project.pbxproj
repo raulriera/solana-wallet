@@ -140,6 +140,11 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		AD0000000000000000000007 /* App configuration */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (Info.plist, );
+			target = 000000000000000100000000 /* widgets */;
+		};
 		A90000000000000000000022 /* Themes documentation */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (README.md, );
@@ -180,6 +185,8 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		000000000000000000000010 /* widgets */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (AD0000000000000000000007 /* App configuration */, );
+			explicitFolders = (Themes/Resources/Original.xtheme, );
 			path = widgets;
 			sourceTree = "<group>";
 		};
@@ -1184,6 +1191,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = widgets/Info.plist;
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Use Face ID to access your wallet recovery material.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -1225,6 +1233,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = widgets/Info.plist;
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Use Face ID to access your wallet recovery material.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
