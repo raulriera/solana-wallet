@@ -1,14 +1,13 @@
 import SwiftUI
 
-/// Owns navigation, presentations, and rendered appearance independently for one window.
-struct AppearanceScene: View {
-    private enum Destination: Hashable { case appearance }
+/// Owns settings navigation, presentations, and rendered appearance for one window.
+struct SettingsScene: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.colorSchemeContrast) private var contrast
-    @State private var settings: AppearanceSettings
+    @State private var appearance: AppearanceSettings
     @State private var rendered = RenderedAppearance()
-    @State private var selection: Destination? = .appearance
+    @State private var selection: SettingsDestination? = .appearance
     @State private var preferredColumn: NavigationSplitViewColumn = .detail
     private let services: AppearanceServices
     let wallet: AppearanceWallet?
@@ -22,7 +21,7 @@ struct AppearanceScene: View {
     init(services: AppearanceServices, wallet: AppearanceWallet? = nil) {
         self.services = services
         self.wallet = wallet
-        _settings = State(initialValue: AppearanceSettings(
+        _appearance = State(initialValue: AppearanceSettings(
             appearance: services.appearance, catalog: services.catalog, packages: services.packages
         ))
     }
@@ -31,33 +30,33 @@ struct AppearanceScene: View {
     private var selectedTheme: ThemeEntry? { services.appearance.snapshot?.theme(for: wallet?.id) }
 
     var body: some View {
-        @Bindable var settings = settings
+        @Bindable var appearance = appearance
 
         NavigationSplitView(preferredCompactColumn: $preferredColumn) {
-            List(selection: $selection) {
-                NavigationLink("Appearance", value: Destination.appearance)
-            }
-            .navigationTitle("Settings")
-            .navigationSplitViewColumnWidth(min: 220, ideal: 280)
+            SettingsSidebar(selection: $selection)
+                .navigationSplitViewColumnWidth(min: 220, ideal: 280)
         } detail: {
             NavigationStack {
-                AppearanceView(settings: settings, wallet: wallet, palette: palette)
+                switch selection ?? .appearance {
+                case .appearance:
+                    AppearanceView(settings: appearance, wallet: wallet, palette: palette)
+                }
             }
         }
         .tint(palette.accent)
         .task(id: scenePhase) {
-            if scenePhase == .active { await settings.activate() }
+            if scenePhase == .active { await appearance.activate() }
         }
         .task(id: selectedTheme?.revision) { await loadSelectedTheme() }
-        .alert("Appearance Unavailable", item: $settings.failure) { _ in
+        .alert("Appearance Unavailable", item: $appearance.failure) { _ in
             Button("OK", role: .cancel) {}
         } message: { failure in Text(failure) }
-        .onDisappear { settings.cancel() }
+        .onDisappear { appearance.cancel() }
     }
 
     /// Refreshes cached window colors and reports failures through the native alert.
     private func loadSelectedTheme() async {
         do { try await rendered.load(selectedTheme, catalog: services.catalog, packages: services.packages) }
-        catch { settings.report(error) }
+        catch { appearance.report(error) }
     }
 }

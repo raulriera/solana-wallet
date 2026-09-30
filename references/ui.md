@@ -7,6 +7,8 @@
 - Preserve selection, navigation, scroll position, and unfinished input across resizing, folding, and theme changes. Keep native navigation, toolbar placement, menus, and presentation behavior.
 - Use standard Dynamic Type without custom size caps. Adapt layouts through stacking, scrolling, and column collapse.
 - Keep app composition, scene state, feature coordination, feature views, and appearance as separate internal app concerns. Inject services through protocols; views present state and capture intent.
+- `SettingsScene` owns the settings split view and each window's navigation selection. Appearance is a destination within that container.
+- Every settings sidebar destination uses a native `Label` with an SF Symbol and text, including when the navigation collapses on compact displays.
 - Reuse the existing portfolio coordinator and its lifecycle contract. Layout and theme changes must not recreate it or restart observation. Preserve the display distinctions in [Portfolio](portfolio.md).
 
 ## Multiple windows
@@ -65,6 +67,7 @@ The [Themes framework contract](../Themes/README.md) defines package structure, 
 - [Human Interface Guidelines](https://developer.apple.com/tutorials/data/design/human-interface-guidelines.md)
 - [Designing for iPhone Duo](https://developer.apple.com/tutorials/data/design/human-interface-guidelines/designing-for-iphone-duo.md)
 - [Layout](https://developer.apple.com/tutorials/data/design/human-interface-guidelines/layout.md)
+- [Sidebars](https://developer.apple.com/tutorials/data/design/human-interface-guidelines/sidebars.md)
 - [Branding](https://developer.apple.com/tutorials/data/design/human-interface-guidelines/branding.md)
 - [Accessibility](https://developer.apple.com/tutorials/data/design/human-interface-guidelines/accessibility.md)
 - [Color](https://developer.apple.com/tutorials/data/design/human-interface-guidelines/color.md)
