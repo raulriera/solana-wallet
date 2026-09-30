@@ -5,7 +5,7 @@
 - Use Conventional Commits format for every commit.
 - Commit or explicitly discard each milestone before starting the next; keep completed milestones in separate commits.
 - Do not add module-name prefixes to types; rely on the module namespace.
-- Keep project files grouped by concern in real folders that Xcode mirrors; group related tests accordingly.
+- Keep project files grouped by concern in real folders that Xcode mirrors; organize UI features into focused subfolders for scenes, screens, sections, components, and models as needed. Group related tests accordingly.
 - Give every framework a concise, factual README for third-party readers; omit project history, progress reports, and agent-only guidance.
 - Prioritize simplicity, readability, and ease of extension throughout the app and tests; follow Don't Repeat Yourself and Single Concern.
 - Prioritize developer experience: express intent with typed APIs and encapsulate serialization and transport details inside services.
@@ -14,6 +14,7 @@
 - Expose only contracts and values needed across module boundaries; keep implementation helpers internal or private.
 - iOS 27.1+ with full iPhone Duo support; no older-iOS compatibility paths.
 - Use [SwiftUI Expert](plugin://swiftui-expert@swiftui-expert-skill) for UI work. Follow [UI architecture](references/ui.md) for adaptive `NavigationSplitView` navigation, theme packs, and HIG requirements for app-owned UI and built-in themes; do not gate user-created packs on HIG aesthetics.
+- **Hard rule:** Never extract UI into view-returning computed properties or helper functions, including `@ViewBuilder` helpers. Every extracted view/component must be an independent `View` type in its own Swift file. Only protocol-required rendering entry points, such as `View.body` and `ViewModifier.body(content:)`, are exempt; helpers may return data or perform actions, not compose views.
 - Support simultaneous wallet windows where the system allows them; keep each window's wallet selection, navigation, and presented tasks independent.
 - Swift 6 with the latest compiler, SDK APIs, Apple guidance, and supported upcoming language features. No deprecated approaches.
 - Pure Swift and Apple frameworks; avoid third-party dependencies where reasonable.

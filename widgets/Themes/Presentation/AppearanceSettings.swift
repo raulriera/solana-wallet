@@ -32,13 +32,8 @@ import Themes
         self.packages = packages
     }
 
-    var entries: [ThemeEntry] {
-        (appearance.snapshot?.entries.values.map { $0 } ?? []).sorted {
-            if $0.origin != $1.origin { return $0.origin == .builtIn }
-            let order = $0.name.localizedStandardCompare($1.name)
-            return order == .orderedSame ? $0.id.uuidString < $1.id.uuidString : order == .orderedAscending
-        }
-    }
+    var entries: [ThemeEntry] { appearance.snapshot?.orderedEntries ?? [] }
+    var customEntries: [ThemeEntry] { appearance.snapshot?.customEntries ?? [] }
 
     /// Loads current metadata and applies external Settings recovery.
     func activate() async {

@@ -14,6 +14,8 @@ struct AppearanceScene: View {
     let wallet: AppearanceWallet?
 
     /// Creates scene-owned UI state using application-owned services.
+    ///
+    /// Services seed this scene's state once and must remain stable for its lifetime.
     /// - Parameters:
     ///   - services: Shared catalog, package operations, and preference snapshots.
     ///   - wallet: The owning window's selected wallet, if one exists.
@@ -29,6 +31,8 @@ struct AppearanceScene: View {
     private var selectedTheme: ThemeEntry? { services.appearance.snapshot?.theme(for: wallet?.id) }
 
     var body: some View {
+        @Bindable var settings = settings
+
         NavigationSplitView(preferredCompactColumn: $preferredColumn) {
             List(selection: $selection) {
                 NavigationLink("Appearance", value: Destination.appearance)
@@ -44,15 +48,16 @@ struct AppearanceScene: View {
         .task(id: scenePhase) {
             if scenePhase == .active { await settings.activate() }
         }
-        .task(id: selectedTheme?.revision) {
-            do { try await rendered.load(selectedTheme, catalog: services.catalog, packages: services.packages) }
-            catch { settings.report(error) }
-        }
-        .alert("Appearance Unavailable", isPresented: Binding(
-            get: { settings.failure != nil }, set: { if !$0 { settings.failure = nil } }
-        )) {
-            Button("OK") { settings.failure = nil }
-        } message: { Text(settings.failure ?? "") }
+        .task(id: selectedTheme?.revision) { await loadSelectedTheme() }
+        .alert("Appearance Unavailable", item: $settings.failure) { _ in
+            Button("OK", role: .cancel) {}
+        } message: { failure in Text(failure) }
         .onDisappear { settings.cancel() }
+    }
+
+    /// Refreshes cached window colors and reports failures through the native alert.
+    private func loadSelectedTheme() async {
+        do { try await rendered.load(selectedTheme, catalog: services.catalog, packages: services.packages) }
+        catch { settings.report(error) }
     }
 }

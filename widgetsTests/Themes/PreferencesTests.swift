@@ -15,6 +15,33 @@ nonisolated struct PreferencesTests {
         #expect(!FileManager.default.fileExists(atPath: fixture.directory.path))
     }
 
+    /// Prepared chooser and management lists reflect imports, renames, and removals.
+    @Test func catalogChangesRefreshPreparedLists() async throws {
+        let fixture = try CatalogFixture()
+        defer { fixture.remove() }
+        let builtIn = BundledTheme(id: UUID(), name: "Original", url: fixture.root)
+        let catalog = try ThemeCatalog(directory: fixture.directory, builtIns: [builtIn])
+        let store = try AppearanceStore(directory: fixture.directory, builtIns: [builtIn])
+        let z = try await catalog.install(PackService().read(from: fixture.source(name: "Zinc")))
+        let a = try await catalog.install(PackService().read(from: fixture.source(name: "Amber")))
+
+        let imported = try await store.load()
+        #expect(imported.orderedEntries == [builtIn.entry, a, z])
+        #expect(imported.customEntries == [a, z])
+
+        let renamed = try await catalog.install(
+            PackService().read(from: fixture.source(id: z.id, name: "Aardvark")), replacing: z
+        )
+        let replaced = try await store.load()
+        #expect(replaced.orderedEntries == [builtIn.entry, renamed, a])
+        #expect(replaced.customEntries == [renamed, a])
+
+        try await catalog.remove(a)
+        let removed = try await store.load()
+        #expect(removed.orderedEntries == [builtIn.entry, renamed])
+        #expect(removed.customEntries == [renamed])
+    }
+
     /// Wallet overrides persist, follow stable wallet identity, and survive app-default changes.
     @Test func walletOverridesPersistAndClearBackToApplicationDefault() async throws {
         let fixture = try CatalogFixture()

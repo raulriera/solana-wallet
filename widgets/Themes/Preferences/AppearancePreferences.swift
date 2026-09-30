@@ -3,7 +3,7 @@ import Foundation
 /// Theme identities shared across windows, independent of packages and rendered colors.
 nonisolated struct AppearancePreferences: Codable, Sendable, Equatable {
     /// The application default or an override for one stable wallet identity.
-    enum Scope: Sendable {
+    enum Scope: Sendable, Hashable {
         case application
         case wallet(UUID)
     }

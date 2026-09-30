@@ -5,6 +5,8 @@ nonisolated struct AppearanceSnapshot: Sendable, Equatable {
     let revision: UInt64
     let preferences: AppearancePreferences
     let entries: [UUID: ThemeEntry]
+    let orderedEntries: [ThemeEntry]
+    let customEntries: [ThemeEntry]
 
     /// Captures committed selections and their available catalog revisions.
     /// - Parameters:
@@ -15,6 +17,13 @@ nonisolated struct AppearanceSnapshot: Sendable, Equatable {
         self.revision = revision
         self.preferences = preferences
         self.entries = entries
+        // The store constructs snapshots on CatalogIO, so list preparation stays out of rendering.
+        orderedEntries = entries.values.sorted {
+            if $0.origin != $1.origin { return $0.origin == .builtIn }
+            let order = $0.name.localizedStandardCompare($1.name)
+            return order == .orderedSame ? $0.id.uuidString < $1.id.uuidString : order == .orderedAscending
+        }
+        customEntries = orderedEntries.filter { $0.origin == .custom }
     }
 
     /// Looks up the selected revision using only in-memory values.
