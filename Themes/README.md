@@ -65,7 +65,7 @@ Use a new UUID for each new theme.
 - Validation checks structure and safe asset loading, not aesthetics or HIG conformance.
 - Default-template exports contain all defaults and a new UUID. Custom-theme exports preserve the UUID and include resolved settings and assets. System color references remain symbolic.
 
-## Swift API
+## Example Usage
 
 Inject `PackServicing`, implemented by the stateless `PackService`. Supply `Colors` with a complete `Palette` for each appearance; the framework defines no default palette.
 

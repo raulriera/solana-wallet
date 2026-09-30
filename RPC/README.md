@@ -2,7 +2,7 @@
 
 Typed Solana RPC, DAS asset queries, market prices, and confirmed account subscriptions. Clients connect directly to providers and encapsulate request encoding, transport, and response decoding.
 
-## Swift API
+## Example Usage
 
 Inject [`RPC`](Client/RPC.swift) and send an `RPCRequest`; its associated `Response` defines the result type.
 

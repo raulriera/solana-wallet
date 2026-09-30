@@ -2,7 +2,7 @@
 
 Local recovery phrase generation, Solana account derivation, and Ed25519 signing. Uses Apple cryptography and secure randomness, with a bundled English BIP-39 word list.
 
-## Swift API
+## Example Usage
 
 Inject [`WalletProviding`](Service/WalletProviding.swift) for phrase generation and account derivation, or [`MessageSigning`](Signing/MessageSigning.swift) for signing. `Wallet` implements both protocols.
 

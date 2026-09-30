@@ -2,7 +2,7 @@
 
 Device-only Keychain storage for wallet recovery material, protected by the device's current biometric enrollment.
 
-## Swift API
+## Example Usage
 
 Inject [`RecoveryStoring`](Storage/RecoveryStoring.swift), implemented by `KeychainStore`. Choose a stable service identifier, retain the UUID used to identify each wallet, and provide `NSFaceIDUsageDescription` in the calling app's Info.plist.
 

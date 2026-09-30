@@ -2,7 +2,7 @@
 
 Composable Solana instructions, V1 message compilation, transaction decoding, and signature verification and assembly. Construction is synchronous, bounded, and independent of networking and private keys.
 
-## Swift API
+## Example Usage
 
 | Contract | Implementation | Purpose |
 | --- | --- | --- |
