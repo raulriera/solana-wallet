@@ -71,7 +71,7 @@ enum PackageFiles {
 
     /// Builds a fresh package, retaining only declared assets.
     /// - Parameters:
-    ///   - manifest: Complete export metadata and colors.
+    ///   - manifest: Validated metadata and color settings, preserving omissions when installing.
     ///   - assets: Previously validated image snapshots.
     ///   - checkCancellation: Checks cancellation on the background file queue.
     /// - Returns: A wrapper confined to the current export operation.

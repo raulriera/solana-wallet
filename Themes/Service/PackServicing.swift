@@ -1,12 +1,19 @@
 public import Foundation
 
-/// Reads, resolves, and exports theme packages without owning app preferences or a catalog.
+/// Reads, saves, resolves, and exports packages without owning app preferences or a catalog.
 public protocol PackServicing: Sendable {
     /// Loads and validates a directory package, including every declared image.
     /// - Parameter url: A local or security-scoped package directory URL.
     /// - Returns: A snapshot independent of the original files and their access lifetime.
     /// - Throws: A validation, file-access, or cancellation error.
     func read(from url: URL) async throws -> Pack
+
+    /// Saves an owned snapshot for installation, preserving omitted color overrides.
+    /// - Parameters:
+    ///   - pack: A validated snapshot independent of its source files.
+    ///   - url: The app-owned destination package directory.
+    /// - Throws: A file-access or pre-commit cancellation error.
+    func save(_ pack: Pack, to url: URL) async throws
 
     /// Fills omitted color settings from the matching app-provided appearance.
     /// - Parameters:

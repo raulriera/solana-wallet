@@ -80,6 +80,8 @@ try await service.exportTemplate(named: "My Theme", defaults: defaults, to: temp
 
 Reads retain independent asset bytes. File access waits asynchronously; loading, validation, serialization, and writing run serially on a shared background queue outside the main actor and Swift's shared executor. Cancellation interrupts pending coordination and is checked during loading and before committing an atomic export; a write already underway finishes normally.
 
+Use `save(_:to:)` for an installed copy that preserves omitted settings. Exports include complete resolved settings; saving an installation does not freeze its inherited defaults.
+
 Resolve colors when the selected pack or defaults change. Resolved palettes contain stored values; accessing a color performs no I/O or decoding.
 
 The app owns Files presentation, destination/replacement approval, installation, preferences, and rendering. `ValidationError` provides a `path` and `reason`; file-access and cancellation errors propagate to the caller.

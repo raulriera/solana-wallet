@@ -16,6 +16,16 @@ public struct PackService: PackServicing {
         }
     }
 
+    /// Saves an installed copy without resolving omitted settings against defaults.
+    /// - Parameters:
+    ///   - pack: The validated snapshot whose identity, overrides, and assets to preserve.
+    ///   - url: The app-owned destination directory.
+    /// - Throws: A file-access, serialization, or pre-commit cancellation error.
+    @concurrent
+    public func save(_ pack: Pack, to url: URL) async throws {
+        try await Self.write(assets: pack.assets, to: url) { pack.manifest }
+    }
+
     /// Resolves color overrides using the corresponding complete default palettes.
     /// - Parameters:
     ///   - pack: A validated imported snapshot.

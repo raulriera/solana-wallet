@@ -3,6 +3,31 @@ import Testing
 import Themes
 
 struct ExportTests {
+    /// Installation keeps omission-based inheritance and owned image bytes after the source disappears.
+    @Test func installedCopyPreservesOverridesInsteadOfFreezingDefaults() async throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        try fixture.asset(Fixture.image())
+        try fixture.manifest("\"tokens\":{\"colors\":{\"light\":{\"accent\":{\"srgb\":\"#12AB34\"}}}},\"assets\":{\"image\":\"Assets/image.png\"}")
+        let service: any PackServicing = PackService()
+        let original = try await service.read(from: fixture.source)
+        try FileManager.default.removeItem(at: fixture.source)
+        let destination = fixture.directory.appendingPathComponent("Installed.xtheme")
+        try await service.save(original, to: destination)
+        let installed = try await service.read(from: destination)
+        #expect(installed.id == original.id)
+        #expect(installed.assets == original.assets)
+        let palette = Fixture.palette(.system(.systemRed))
+        let different = Colors(light: palette, dark: palette, lightIncreasedContrast: palette, darkIncreasedContrast: palette)
+        #expect(service.resolve(installed, defaults: different) == service.resolve(original, defaults: different))
+        #expect(service.resolve(installed, defaults: different).light.background == .system(.systemRed))
+        let json = try Fixture.exportedJSON(at: destination)
+        let tokens = try #require(json["tokens"] as? [String: Any])
+        let colors = try #require(tokens["colors"] as? [String: [String: [String: String]]])
+        #expect(Set(colors.keys) == ["light"])
+        #expect(Set(try #require(colors["light"]).keys) == ["accent"])
+    }
+
     /// Default exports have fresh identities and all twenty-eight colors, including symbolic values.
     @Test func templateExportsCompleteDefaultsWithNewIdentities() async throws {
         let fixture = try Fixture()
