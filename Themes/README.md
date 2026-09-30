@@ -1,6 +1,6 @@
 # Themes
 
-Themes reads, validates, resolves, and exports theme packs. The provisional format supports semantic colors and bundled images.
+Themes reads, validates, saves, and resolves theme packs, and exports default templates. The provisional format supports semantic colors and bundled images.
 
 ## Package structure
 
@@ -64,7 +64,7 @@ Use a new UUID for each new theme.
 - Failed imports leave installed themes and preferences unchanged. Replacing a custom theme with the same ID requires confirmation.
 - Built-in themes cannot be edited, replaced, or removed by users. Custom/imported themes can be removed.
 - Validation checks structure and safe asset loading, not aesthetics or HIG conformance.
-- Default-template exports contain all defaults and a new UUID. Custom-theme exports preserve the UUID and include resolved settings and assets. System color references remain symbolic.
+- Default-template exports contain all defaults and a new UUID. System color references remain symbolic. Imported themes are not re-exported.
 
 ## Example Usage
 
@@ -74,13 +74,13 @@ Inject `PackServicing`, implemented by the stateless `PackService`. Supply `Colo
 let service: any PackServicing = PackService()
 let pack = try await service.read(from: sourceURL)
 let colors = service.resolve(pack, defaults: defaults)
-try await service.export(pack, defaults: defaults, to: destinationURL)
+try await service.save(pack, to: installedURL)
 try await service.exportTemplate(named: "My Theme", defaults: defaults, to: templateURL)
 ```
 
 Reads retain independent asset bytes. File access waits asynchronously; loading, validation, serialization, and writing run serially on a shared background queue outside the main actor and Swift's shared executor. Cancellation interrupts pending coordination and is checked during loading and before committing an atomic export; a write already underway finishes normally.
 
-Use `save(_:to:)` for an installed copy that preserves omitted settings. Exports include complete resolved settings; saving an installation does not freeze its inherited defaults.
+Use `save(_:to:)` for an installed copy that preserves identity, assets, and omitted settings. Saving an installation does not freeze its inherited defaults.
 
 Resolve colors when the selected pack or defaults change. Resolved palettes contain stored values; accessing a color performs no I/O or decoding.
 

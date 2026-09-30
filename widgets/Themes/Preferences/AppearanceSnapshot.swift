@@ -6,7 +6,6 @@ nonisolated struct AppearanceSnapshot: Sendable, Equatable {
     let preferences: AppearancePreferences
     let entries: [UUID: ThemeEntry]
     let orderedEntries: [ThemeEntry]
-    let customEntries: [ThemeEntry]
 
     /// Captures committed selections and their available catalog revisions.
     /// - Parameters:
@@ -23,7 +22,6 @@ nonisolated struct AppearanceSnapshot: Sendable, Equatable {
             let order = $0.name.localizedStandardCompare($1.name)
             return order == .orderedSame ? $0.id.uuidString < $1.id.uuidString : order == .orderedAscending
         }
-        customEntries = orderedEntries.filter { $0.origin == .custom }
     }
 
     /// Looks up the selected revision using only in-memory values.

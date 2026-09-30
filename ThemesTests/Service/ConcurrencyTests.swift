@@ -85,7 +85,7 @@ struct ConcurrencyTests {
     }
 
     /// Cancellation interrupts a real pending coordinator without waiting for its presenter.
-    @Test(.timeLimit(.minutes(1)), arguments: ["read", "export", "template"])
+    @Test(.timeLimit(.minutes(1)), arguments: ["read", "save", "template"])
     func cancellationReleasesPendingCoordination(operation: String) async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
@@ -102,7 +102,7 @@ struct ConcurrencyTests {
         let task = Task { @concurrent in
             switch operation {
             case "read": _ = try await service.read(from: fixture.source)
-            case "export": try await service.export(pack, defaults: Fixture.defaults, to: fixture.source)
+            case "save": try await service.save(pack, to: fixture.source)
             default: try await service.exportTemplate(named: "Cancelled", defaults: Fixture.defaults, to: fixture.source)
             }
         }
@@ -123,7 +123,7 @@ struct ConcurrencyTests {
     }
 
     /// An already cancelled task cannot read a package or replace an existing destination.
-    @Test(arguments: ["read", "export", "template"])
+    @Test(arguments: ["read", "save", "template"])
     func cancellationPreventsFileWork(operation: String) async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
@@ -136,7 +136,7 @@ struct ConcurrencyTests {
             withUnsafeCurrentTask { $0?.cancel() }
             switch operation {
             case "read": _ = try await service.read(from: url)
-            case "export": try await service.export(pack, defaults: Fixture.defaults, to: url)
+            case "save": try await service.save(pack, to: url)
             default: try await service.exportTemplate(named: "Cancelled", defaults: Fixture.defaults, to: url)
             }
         }

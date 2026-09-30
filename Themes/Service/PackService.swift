@@ -35,20 +35,6 @@ public struct PackService: PackServicing {
         defaults.applying(pack.manifest.colors)
     }
 
-    /// Writes complete colors and owned assets while preserving the theme UUID.
-    /// - Parameters:
-    ///   - pack: The imported snapshot to export.
-    ///   - defaults: Complete app-owned defaults for omitted settings.
-    ///   - url: The caller-approved destination.
-    /// - Throws: A file-access or pre-commit cancellation error.
-    @concurrent
-    public func export(_ pack: Pack, defaults: Colors, to url: URL) async throws {
-        try await Self.write(assets: pack.assets, to: url) {
-            Manifest(id: pack.id, name: pack.name, colors: resolve(pack, defaults: defaults).values,
-                     assets: pack.manifest.assets)
-        }
-    }
-
     /// Writes a new theme containing every supplied default color.
     /// - Parameters:
     ///   - name: The new theme's display name.

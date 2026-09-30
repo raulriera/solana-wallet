@@ -15,7 +15,7 @@ nonisolated struct PreferencesTests {
         #expect(!FileManager.default.fileExists(atPath: fixture.directory.path))
     }
 
-    /// Prepared chooser and management lists reflect imports, renames, and removals.
+    /// Prepared theme choices reflect imports, renames, and removals.
     @Test func catalogChangesRefreshPreparedLists() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
@@ -27,19 +27,16 @@ nonisolated struct PreferencesTests {
 
         let imported = try await store.load()
         #expect(imported.orderedEntries == [builtIn.entry, a, z])
-        #expect(imported.customEntries == [a, z])
 
         let renamed = try await catalog.install(
             PackService().read(from: fixture.source(id: z.id, name: "Aardvark")), replacing: z
         )
         let replaced = try await store.load()
         #expect(replaced.orderedEntries == [builtIn.entry, renamed, a])
-        #expect(replaced.customEntries == [renamed, a])
 
         try await catalog.remove(a)
         let removed = try await store.load()
         #expect(removed.orderedEntries == [builtIn.entry, renamed])
-        #expect(removed.customEntries == [renamed])
     }
 
     /// Wallet overrides persist, follow stable wallet identity, and survive app-default changes.

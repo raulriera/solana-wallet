@@ -76,11 +76,12 @@ struct AppearanceSettingsTests {
         #expect(settings.appearance.snapshot?.preferences == AppearancePreferences())
     }
 
-    /// Templates get fresh identities and full defaults; custom exports preserve identity.
-    @Test func exportsCompletePackages() async throws {
+    /// Template export prepares a fresh identity and all app-owned default colors.
+    @Test func exportsCompleteDefaultTemplate() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let settings = try makeSettings(fixture)
+        defer { settings.finishExport() }
         settings.prepareExport()
         await settings.waitForOperation()
         let templateURL = try #require(settings.export?.url)
@@ -92,16 +93,6 @@ struct AppearanceSettingsTests {
         let colors = try #require(tokens["colors"] as? [String: [String: Any]])
         #expect(colors.count == 4)
         #expect(colors.values.allSatisfy { $0.count == 7 })
-        // Import from the retained exporter snapshot before allowing its cleanup.
-        settings.finishExport()
-        let catalog = try ThemeCatalog(directory: fixture.directory)
-        let entry = try await catalog.install(template)
-        settings.prepareExport(entry)
-        await settings.waitForOperation()
-        let exported = try await PackService().read(from: #require(settings.export?.url))
-        #expect(exported.id == template.id)
-        #expect(exported.name == template.name)
-        settings.finishExport()
     }
 
     /// Cancellation while staging never installs a partial theme or reports a user error.

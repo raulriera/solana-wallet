@@ -33,7 +33,6 @@ import Themes
     }
 
     var entries: [ThemeEntry] { appearance.snapshot?.orderedEntries ?? [] }
-    var customEntries: [ThemeEntry] { appearance.snapshot?.customEntries ?? [] }
 
     /// Loads current metadata and applies external Settings recovery.
     func activate() async {
@@ -82,9 +81,8 @@ import Themes
         }
     }
 
-    /// Prepares a complete package before presenting the system destination picker.
-    /// - Parameter entry: A custom theme to export, or `nil` for a new default template.
-    func prepareExport(_ entry: ThemeEntry? = nil) {
+    /// Prepares a complete default template before presenting the system destination picker.
+    func prepareExport() {
         run("Preparing Export…") {
             let root = URL.temporaryDirectory.appendingPathComponent(UUID().uuidString)
             let url = root.appendingPathComponent("Theme.xtheme")
@@ -92,12 +90,7 @@ import Themes
                 try await CatalogIO.perform { _ in
                     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
                 }
-                if let entry {
-                    let pack = try await self.catalog.pack(for: entry)
-                    try await self.packages.export(pack, defaults: OriginalAppearance.colors, to: url)
-                } else {
-                    try await self.packages.exportTemplate(named: "My Theme", defaults: OriginalAppearance.colors, to: url)
-                }
+                try await self.packages.exportTemplate(named: "My Theme", defaults: OriginalAppearance.colors, to: url)
                 try Task.checkCancellation()
                 self.export = ThemeExport(url: url)
             } catch {

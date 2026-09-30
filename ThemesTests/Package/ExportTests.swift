@@ -57,8 +57,8 @@ struct ExportTests {
         #expect(colors["light"]?["background"] == ["system": "systemBackground"])
     }
 
-    /// Custom export uses owned assets and preserves identity after original files disappear.
-    @Test func customExportPreservesIdentityAssetsAndResolvedColors() async throws {
+    /// Installed copies preserve shared PNG/JPEG assets and identity after source files disappear.
+    @Test func savedCopyPreservesSharedAssetsAndIdentity() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
         let png = try Fixture.image()
@@ -71,12 +71,12 @@ struct ExportTests {
         let expected = service.resolve(original, defaults: Fixture.defaults)
         try FileManager.default.removeItem(at: fixture.source)
         let destination = fixture.directory.appendingPathComponent("Renamed")
-        try await service.export(original, defaults: Fixture.defaults, to: destination)
-        let exported = try await service.read(from: destination)
-        #expect(exported.id == Fixture.id)
-        #expect(exported.name == original.name)
-        #expect(exported.assets == original.assets)
-        #expect(service.resolve(exported, defaults: Fixture.defaults) == expected)
+        try await service.save(original, to: destination)
+        let saved = try await service.read(from: destination)
+        #expect(saved.id == Fixture.id)
+        #expect(saved.name == original.name)
+        #expect(saved.assets == original.assets)
+        #expect(service.resolve(saved, defaults: Fixture.defaults) == expected)
         let manifest = try Fixture.exportedJSON(at: destination)
         let tokens = try #require(manifest["tokens"] as? [String: Any])
         let colors = try #require(tokens["colors"] as? [String: [String: [String: String]]])

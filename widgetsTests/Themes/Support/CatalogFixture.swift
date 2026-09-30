@@ -64,16 +64,6 @@ nonisolated struct InterceptedPackages: PackServicing {
     /// - Returns: Resolved colors.
     func resolve(_ pack: Pack, defaults: Colors) -> Colors { PackService().resolve(pack, defaults: defaults) }
 
-    /// Exports through the real service.
-    /// - Parameters:
-    ///   - pack: The validated snapshot.
-    ///   - defaults: The complete fallback colors.
-    ///   - url: The export destination.
-    /// - Throws: An export error.
-    func export(_ pack: Pack, defaults: Colors, to url: URL) async throws {
-        try await PackService().export(pack, defaults: defaults, to: url)
-    }
-
     /// Exports a template through the real service.
     /// - Parameters:
     ///   - name: The template name.

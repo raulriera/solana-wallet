@@ -1,7 +1,7 @@
 import SwiftUI
 import Themes
 
-/// Owns Files presentation and pack actions independently of preference selection.
+/// Owns Files import and default-template export presentation.
 struct ThemePacksSection: View {
     @Bindable var settings: AppearanceSettings
     let palette: RenderedPalette
@@ -19,13 +19,6 @@ struct ThemePacksSection: View {
                 }
             Button("Export Default Template…", systemImage: "square.and.arrow.up") { settings.prepareExport() }
                 .foregroundStyle(palette.accent)
-            ForEach(settings.customEntries) { entry in
-                ThemePackRow(entry: entry, palette: palette) {
-                    settings.prepareExport(entry)
-                } remove: { approved in
-                    settings.remove(approved)
-                }
-            }
         }
         .listRowBackground(palette.surface)
         .listRowSeparatorTint(palette.separator)

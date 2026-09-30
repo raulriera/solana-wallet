@@ -1,26 +1,22 @@
 import SwiftUI
 
-/// Navigation rows for the shared default and the current wallet's override.
+/// Inline choices for the shared application theme, including custom-theme deletion.
 struct ThemeSelectionSection: View {
-    let appThemeName: String
-    let wallet: AppearanceWallet?
-    let walletThemeName: String
+    let entries: [ThemeEntry]
+    let selection: UUID
     let palette: RenderedPalette
+    let select: (UUID) -> Void
+    let remove: (ThemeEntry) -> Void
 
     var body: some View {
-        Section {
-            NavigationLink(value: AppearancePreferences.Scope.application) {
-                LabeledContent("App Theme", value: appThemeName)
-            }
-            if let wallet {
-                NavigationLink(value: AppearancePreferences.Scope.wallet(wallet.id)) {
-                    LabeledContent("Wallet Theme", value: walletThemeName)
+        Section("App Theme") {
+            ForEach(entries) { entry in
+                ThemeRow(entry: entry, isSelected: selection == entry.id, palette: palette) {
+                    select(entry.id)
+                } remove: { approved in
+                    remove(approved)
                 }
             }
-        } footer: {
-            if let wallet { Text("Wallet Theme applies to \(wallet.name) in every window.") }
         }
-        .listRowBackground(palette.surface)
-        .listRowSeparatorTint(palette.separator)
     }
 }
