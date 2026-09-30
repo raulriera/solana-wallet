@@ -10,7 +10,7 @@ The wallet app owns workflow coordination through internal, protocol-based servi
 | Vault | Protected recovery storage and authentication for access. |
 | Portfolio | Portfolio snapshots, caching, refresh, and reconciliation of confirmed changes. |
 | Encoding | Shared codecs. |
-| Themes (planned) | Theme-pack models, package reading/writing, validation, and resolution against app-provided defaults. See the [framework contract](../Themes/README.md). |
+| Themes | Color tokens, package reading/writing, validation, and resolution against app-provided defaults. See the [framework contract](../Themes/README.md). |
 | Internal app services/coordinators | Own portfolio presentation lifetimes and compose review, explicit approval, authentication, signing, and optional submission/confirmation. |
 
 - Prioritize DX at the call site: callers compose instructions, review `Simulation`, then explicitly confirm. Import adapters decode external representations; services own serialization and RPC details.
@@ -26,11 +26,12 @@ Program helpers produce `Instruction` values; adding an operation must not intro
 
 ## Framework milestones
 
-The agreed wallet, transaction, and portfolio framework milestones are complete. The Themes framework is the next UI foundation; its contract is documented, while its target and implementation remain pending. The deferred capabilities below remain separate milestones.
+The agreed wallet, transaction, portfolio, and initial color-only Themes framework milestones are complete. The deferred capabilities below remain separate milestones.
 
 | Framework | Status |
 | --- | --- |
 | Encoding | Complete for the current scope. |
+| Themes | Color-only package service with app-supplied defaults and PNG/JPEG assets. App import/export presentation, catalog, preferences, recovery, and rendering remain separate; see [UI architecture](ui.md). |
 | RPC | Complete for the agreed transaction, discovery, DAS, pricing, and confirmed account-subscription workflows. The priority-fee provider limitation remains documented in [RPC scope](rpc-scope.md#provider-limitations). |
 | Transactions | Further capabilities are parked; current SOL and supported-token flows remain available. The goal is all Token-2022 extensions, reviewed and agreed individually before implementation. |
 | Wallet | Complete for local derivation and SOL-only discovery across twenty addresses in two path families, with one RPC lookup per scan; verified on devnet. See [Wallet](wallet.md). |

@@ -27,10 +27,13 @@
 		A50000000000000000000009 /* Transactions.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A50000000000000000000001 /* Transactions.framework */; };
 		A5000000000000000000000A /* Transactions.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = A50000000000000000000001 /* Transactions.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		A60000000000000000000009 /* Encoding.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A60000000000000000000001 /* Encoding.framework */; };
+		A90000000000000000000009 /* Themes.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A90000000000000000000001 /* Themes.framework */; };
 		A60000000000000000000020 /* Encoding.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A60000000000000000000001 /* Encoding.framework */; };
 		A60000000000000000000021 /* Encoding.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A60000000000000000000001 /* Encoding.framework */; };
 		A60000000000000000000008 /* Encoding.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A60000000000000000000001 /* Encoding.framework */; };
+		A90000000000000000000008 /* Themes.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A90000000000000000000001 /* Themes.framework */; };
 		A6000000000000000000000A /* Encoding.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = A60000000000000000000001 /* Encoding.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		A9000000000000000000000A /* Themes.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = A90000000000000000000001 /* Themes.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		A70000000000000000000021 /* RPC.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A10000000000000000000001 /* RPC.framework */; };
 		A70000000000000000000023 /* Transactions.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A50000000000000000000001 /* Transactions.framework */; };
 		A70000000000000000000025 /* Wallet.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A30000000000000000000001 /* Wallet.framework */; };
@@ -80,6 +83,13 @@
 			remoteGlobalIDString = A60000000000000000000014;
 			remoteInfo = Encoding;
 		};
+		A90000000000000000000012 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 000000000000000000000000 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A90000000000000000000014;
+			remoteInfo = Themes;
+		};
 		A70000000000000000000012 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 000000000000000000000000 /* Project object */;
@@ -96,6 +106,7 @@
 			dstSubfolder = Frameworks;
 			files = (
 				A6000000000000000000000A /* Encoding.framework in Embed Frameworks */,
+				A9000000000000000000000A /* Themes.framework in Embed Frameworks */,
 				A1000000000000000000000A /* RPC.framework in Embed Frameworks */,
 				A2000000000000000000000A /* Portfolio.framework in Embed Frameworks */,
 				A3000000000000000000000A /* Wallet.framework in Embed Frameworks */,
@@ -121,10 +132,20 @@
 		A50000000000000000000001 /* Transactions.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Transactions.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		A50000000000000000000002 /* TransactionsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = TransactionsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A60000000000000000000001 /* Encoding.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Encoding.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		A90000000000000000000001 /* Themes.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = Themes.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		A60000000000000000000002 /* EncodingTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = EncodingTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A90000000000000000000002 /* ThemesTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = ThemesTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A10000000000000000000022 /* App.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = App.xcconfig; sourceTree = "<group>"; };
 		A70000000000000000000002 /* widgetsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = widgetsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		A90000000000000000000022 /* Themes documentation */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (README.md, );
+			target = A90000000000000000000014 /* Themes */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		000000000000000000000010 /* widgets */ = {
@@ -187,9 +208,20 @@
 			path = Encoding;
 			sourceTree = "<group>";
 		};
+		A90000000000000000000005 /* Themes */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (A90000000000000000000022 /* Themes documentation */, );
+			path = Themes;
+			sourceTree = "<group>";
+		};
 		A60000000000000000000006 /* EncodingTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = EncodingTests;
+			sourceTree = "<group>";
+		};
+		A90000000000000000000006 /* ThemesTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = ThemesTests;
 			sourceTree = "<group>";
 		};
 		A70000000000000000000006 /* widgetsTests */ = {
@@ -209,6 +241,7 @@
 			isa = PBXFrameworksBuildPhase;
 			files = (
 				A60000000000000000000008 /* Encoding.framework in Frameworks */,
+				A90000000000000000000008 /* Themes.framework in Frameworks */,
 				A10000000000000000000008 /* RPC.framework in Frameworks */,
 				A20000000000000000000008 /* Portfolio.framework in Frameworks */,
 				A30000000000000000000008 /* Wallet.framework in Frameworks */,
@@ -282,10 +315,21 @@
 			files = (
 			);
 		};
+		A90000000000000000000010 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
 		A60000000000000000000011 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
 				A60000000000000000000009 /* Encoding.framework in Frameworks */,
+			);
+		};
+		A90000000000000000000011 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+				A90000000000000000000009 /* Themes.framework in Frameworks */,
 			);
 		};
 		A70000000000000000000011 /* Frameworks */ = {
@@ -309,6 +353,7 @@
 				A30000000000000000000005 /* Wallet */,
 				A50000000000000000000005 /* Transactions */,
 				A60000000000000000000005 /* Encoding */,
+				A90000000000000000000005 /* Themes */,
 				A40000000000000000000005 /* Vault */,
 				A10000000000000000000006 /* RPCTests */,
 				A20000000000000000000006 /* PortfolioTests */,
@@ -316,6 +361,7 @@
 				A30000000000000000000006 /* WalletTests */,
 				A50000000000000000000006 /* TransactionsTests */,
 				A60000000000000000000006 /* EncodingTests */,
+				A90000000000000000000006 /* ThemesTests */,
 				A40000000000000000000006 /* VaultTests */,
 				A80000000000000000000001 /* TestSupport */,
 				A10000000000000000000007 /* Configuration */,
@@ -332,6 +378,7 @@
 				A30000000000000000000001 /* Wallet.framework */,
 				A50000000000000000000001 /* Transactions.framework */,
 				A60000000000000000000001 /* Encoding.framework */,
+				A90000000000000000000001 /* Themes.framework */,
 				A40000000000000000000001 /* Vault.framework */,
 				A10000000000000000000002 /* RPCTests.xctest */,
 				A20000000000000000000002 /* PortfolioTests.xctest */,
@@ -339,6 +386,7 @@
 				A30000000000000000000002 /* WalletTests.xctest */,
 				A50000000000000000000002 /* TransactionsTests.xctest */,
 				A60000000000000000000002 /* EncodingTests.xctest */,
+				A90000000000000000000002 /* ThemesTests.xctest */,
 				A40000000000000000000002 /* VaultTests.xctest */,
 			);
 			name = Products;
@@ -370,6 +418,7 @@
 			);
 			dependencies = (
 				A60000000000000000000013 /* PBXTargetDependency */,
+				A90000000000000000000013 /* PBXTargetDependency */,
 				A10000000000000000000013 /* PBXTargetDependency */,
 				A20000000000000000000013 /* PBXTargetDependency */,
 				A30000000000000000000013 /* PBXTargetDependency */,
@@ -612,6 +661,24 @@
 			productReference = A60000000000000000000001 /* Encoding.framework */;
 			productType = "com.apple.product-type.framework";
 		};
+		A90000000000000000000014 /* Themes */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A90000000000000000000016 /* Build configuration list for PBXNativeTarget "Themes" */;
+			buildPhases = (
+				A9000000000000000000000C /* Sources */,
+				A90000000000000000000010 /* Frameworks */,
+				A9000000000000000000000E /* Resources */,
+			);
+			buildRules = (
+			);
+			fileSystemSynchronizedGroups = (
+				A90000000000000000000005 /* Themes */,
+			);
+			name = Themes;
+			productName = Themes;
+			productReference = A90000000000000000000001 /* Themes.framework */;
+			productType = "com.apple.product-type.framework";
+		};
 		A60000000000000000000015 /* EncodingTests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = A60000000000000000000017 /* Build configuration list for PBXNativeTarget "EncodingTests" */;
@@ -631,6 +698,27 @@
 			name = EncodingTests;
 			productName = EncodingTests;
 			productReference = A60000000000000000000002 /* EncodingTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		A90000000000000000000015 /* ThemesTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A90000000000000000000017 /* Build configuration list for PBXNativeTarget "ThemesTests" */;
+			buildPhases = (
+				A9000000000000000000000D /* Sources */,
+				A90000000000000000000011 /* Frameworks */,
+				A9000000000000000000000F /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A90000000000000000000013 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				A90000000000000000000006 /* ThemesTests */,
+			);
+			name = ThemesTests;
+			productName = ThemesTests;
+			productReference = A90000000000000000000002 /* ThemesTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 		A70000000000000000000015 /* widgetsTests */ = {
@@ -692,6 +780,7 @@
 				A30000000000000000000014 /* Wallet */,
 				A50000000000000000000014 /* Transactions */,
 				A60000000000000000000014 /* Encoding */,
+				A90000000000000000000014 /* Themes */,
 				A40000000000000000000014 /* Vault */,
 				A10000000000000000000015 /* RPCTests */,
 				A20000000000000000000015 /* PortfolioTests */,
@@ -699,6 +788,7 @@
 				A30000000000000000000015 /* WalletTests */,
 				A50000000000000000000015 /* TransactionsTests */,
 				A60000000000000000000015 /* EncodingTests */,
+				A90000000000000000000015 /* ThemesTests */,
 				A40000000000000000000015 /* VaultTests */,
 			);
 		};
@@ -765,7 +855,17 @@
 			files = (
 			);
 		};
+		A9000000000000000000000E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
 		A6000000000000000000000F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+		A9000000000000000000000F /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
 			);
@@ -838,7 +938,17 @@
 			files = (
 			);
 		};
+		A9000000000000000000000C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
 		A6000000000000000000000D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
+		A9000000000000000000000D /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			files = (
 			);
@@ -880,6 +990,11 @@
 			isa = PBXTargetDependency;
 			target = A60000000000000000000014 /* Encoding */;
 			targetProxy = A60000000000000000000012 /* PBXContainerItemProxy */;
+		};
+		A90000000000000000000013 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A90000000000000000000014 /* Themes */;
+			targetProxy = A90000000000000000000012 /* PBXContainerItemProxy */;
 		};
 		A70000000000000000000013 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -1530,6 +1645,23 @@
 			};
 			name = Debug;
 		};
+		A90000000000000000000018 /* Debug configuration for PBXNativeTarget "Themes" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEFINES_MODULE = YES;
+				DEVELOPMENT_TEAM = R64MTWS872;
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).Themes";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
 		A60000000000000000000019 /* Release configuration for PBXNativeTarget "Encoding" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1539,6 +1671,23 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).Encoding";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		A90000000000000000000019 /* Release configuration for PBXNativeTarget "Themes" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEFINES_MODULE = YES;
+				DEVELOPMENT_TEAM = R64MTWS872;
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).Themes";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -1569,6 +1718,28 @@
 			};
 			name = Debug;
 		};
+		A9000000000000000000001A /* Debug configuration for PBXNativeTarget "ThemesTests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = R64MTWS872;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).ThemesTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "";
+			};
+			name = Debug;
+		};
 		A6000000000000000000001B /* Release configuration for PBXNativeTarget "EncodingTests" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1582,6 +1753,28 @@
 					"@loader_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).EncodingTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "";
+			};
+			name = Release;
+		};
+		A9000000000000000000001B /* Release configuration for PBXNativeTarget "ThemesTests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = R64MTWS872;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).ThemesTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -1742,11 +1935,27 @@
 			);
 			defaultConfigurationName = Release;
 		};
+		A90000000000000000000016 /* Build configuration list for PBXNativeTarget "Themes" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A90000000000000000000018 /* Debug configuration for PBXNativeTarget "Themes" */,
+				A90000000000000000000019 /* Release configuration for PBXNativeTarget "Themes" */,
+			);
+			defaultConfigurationName = Release;
+		};
 		A60000000000000000000017 /* Build configuration list for PBXNativeTarget "EncodingTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				A6000000000000000000001A /* Debug configuration for PBXNativeTarget "EncodingTests" */,
 				A6000000000000000000001B /* Release configuration for PBXNativeTarget "EncodingTests" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		A90000000000000000000017 /* Build configuration list for PBXNativeTarget "ThemesTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A9000000000000000000001A /* Debug configuration for PBXNativeTarget "ThemesTests" */,
+				A9000000000000000000001B /* Release configuration for PBXNativeTarget "ThemesTests" */,
 			);
 			defaultConfigurationName = Release;
 		};

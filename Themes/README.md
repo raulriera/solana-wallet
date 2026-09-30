@@ -1,6 +1,6 @@
 # Themes
 
-Theme packs customize app appearance through semantic tokens and bundled images. The format is provisional.
+Themes reads, validates, resolves, and exports theme packs. The provisional format supports semantic colors and bundled images.
 
 ## Package structure
 
@@ -46,9 +46,9 @@ Use a new UUID for each new theme.
 ## Appearance values
 
 - Color roles: `background`, `surface`, `primaryText`, `secondaryText`, `separator`, `accent`, and `onAccent`.
-- Colors use exactly one representation: a supported system color such as `{ "system": "systemBackground" }`, or an opaque sRGB color such as `{ "srgb": "#26643E" }`.
-- Themes follow system light, dark, and increased-contrast appearance. Missing values use the corresponding defaults; dark palettes are not generated from light palettes.
-- Typography uses iOS system text styles with default, rounded, serif, or monospaced designs and standard Dynamic Type. Custom fonts are unsupported; control icons remain app-owned SF Symbols.
+- Colors use exactly one representation: a [supported system color](Colors/Color.swift) such as `{ "system": "systemBackground" }`, or an opaque sRGB color such as `{ "srgb": "#26643E" }`.
+- Appearance keys under `tokens.colors`: `light`, `dark`, `lightIncreasedContrast`, and `darkIncreasedContrast`. Missing values use that appearance's defaults; dark palettes are not generated from light palettes.
+- Only color tokens are supported. Typography, spacing, shapes, motion, and layout tokens are not accepted.
 
 ## Assets
 
@@ -63,3 +63,19 @@ Use a new UUID for each new theme.
 - Failed imports leave installed themes and preferences unchanged. Replacing a custom theme with the same ID requires confirmation; built-in themes remain available.
 - Validation checks structure and safe asset loading, not aesthetics or HIG conformance.
 - Default-template exports contain all defaults and a new UUID. Custom-theme exports preserve the UUID and include resolved settings and assets. System color references remain symbolic.
+
+## Swift API
+
+Inject `PackServicing`, implemented by the stateless `PackService`. Supply `Colors` with a complete `Palette` for each appearance; the framework defines no default palette.
+
+```swift
+let service: any PackServicing = PackService()
+let pack = try await service.read(from: sourceURL)
+let colors = service.resolve(pack, defaults: defaults)
+try await service.export(pack, defaults: defaults, to: destinationURL)
+try await service.exportTemplate(named: "My Theme", defaults: defaults, to: templateURL)
+```
+
+Reads retain independent asset bytes. File operations use coordinated, security-scoped access off the main actor. Exports replace the complete destination atomically; cancellation is checked before committing the write.
+
+The app owns Files presentation, destination/replacement approval, installation, preferences, and rendering. `ValidationError` provides a `path` and `reason`; file-access and cancellation errors propagate to the caller.

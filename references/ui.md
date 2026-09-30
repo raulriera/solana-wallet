@@ -20,7 +20,7 @@
 
 ## Theme packs
 
-The [Themes framework contract](../Themes/README.md) defines package structure, authoring, manifest fields, import errors, export, and versioning. The framework will be included in the app; implementation of its target and services remains pending.
+The [Themes framework contract](../Themes/README.md) defines package structure, authoring, manifest fields, import errors, and export. The framework is included in the app and currently supports color tokens and bundled images. Typography and other component tokens remain deferred.
 
 - Support an arbitrary number of built-in and custom theme packs with supported layout variants. Represent packs as versioned data and visual assets consumed through shared components.
 - Define semantic tokens by purpose, independent of particular screens. Add screen-specific layout choices only as their component designs are approved.
