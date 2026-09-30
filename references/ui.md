@@ -21,6 +21,9 @@
 ## Theme packs
 
 - Support an arbitrary number of built-in and custom theme packs with supported layout variants. Represent packs as versioned data and visual assets consumed through shared components.
+- Define semantic tokens by purpose, independent of particular screens. Add screen-specific layout choices only as their component designs are approved.
+- Include `formatVersion` from the beginning. The pre-release format is provisional and may change as production UI exercises the tokens; do not build migrations for development packs. Stabilize version 1 alongside the first production UI before shipping.
+- After shipping, preserve compatibility for existing packs. New optional settings inherit defaults; removing settings or changing their types or meaning requires deliberate format versioning.
 - Author custom themes outside the app. Support theme-pack import and export only; do not include an in-app theme editor.
 - Use a readable JSON manifest and bundled, self-contained assets in one portable package. Import through the system Files picker and store installed copies locally; app-managed cloud synchronization is outside the current scope.
 - Use iOS system text styles with default, rounded, serif, or monospaced designs; theme packs cannot bundle custom font files. Keep control icons app-owned SF Symbols.
