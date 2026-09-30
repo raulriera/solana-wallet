@@ -61,7 +61,8 @@ Use a new UUID for each new theme.
 
 - Author packs externally and import through Files. Installed packs stay local.
 - Omit settings to use defaults. Explicit `null`, unknown settings, incorrect types, unsupported values or versions, and invalid assets cause import errors. Field errors identify the affected path.
-- Failed imports leave installed themes and preferences unchanged. Replacing a custom theme with the same ID requires confirmation; built-in themes remain available.
+- Failed imports leave installed themes and preferences unchanged. Replacing a custom theme with the same ID requires confirmation.
+- Built-in themes cannot be edited, replaced, or removed by users. Custom/imported themes can be removed.
 - Validation checks structure and safe asset loading, not aesthetics or HIG conformance.
 - Default-template exports contain all defaults and a new UUID. Custom-theme exports preserve the UUID and include resolved settings and assets. System color references remain symbolic.
 

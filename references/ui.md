@@ -23,6 +23,7 @@
 The [Themes framework contract](../Themes/README.md) defines package structure, authoring, manifest fields, import errors, and export. The framework is included in the app and currently supports color tokens and bundled images. Typography and other component tokens remain deferred.
 
 - Support an arbitrary number of built-in and custom theme packs with supported layout variants. Represent packs as versioned data and visual assets consumed through shared components.
+- Built-in themes cannot be edited, replaced, or removed by users. Custom/imported themes can be removed.
 - Define semantic tokens by purpose, independent of particular screens. Add screen-specific layout choices only as their component designs are approved.
 - Supply the framework with the complete app-owned baseline and resolve omitted settings before rendering. Views consume complete values without repeating fallback logic.
 - Theme imports must keep rendering responsive. Run package I/O and validation in the background, outside the main actor and Swift's shared executor; verify frame pacing on devices when import presentation is integrated.
