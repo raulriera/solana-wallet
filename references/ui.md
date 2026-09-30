@@ -25,7 +25,8 @@
 - Include `formatVersion` from the beginning. The pre-release format is provisional and may change as production UI exercises the tokens; do not build migrations for development packs. Stabilize version 1 alongside the first production UI before shipping.
 - After shipping, preserve compatibility for existing packs. New optional settings inherit defaults; removing settings or changing their types or meaning requires deliberate format versioning.
 - Author custom themes outside the app. Support theme-pack import and export only; do not include an in-app theme editor.
-- Use a readable JSON manifest and bundled, self-contained assets in one portable package. Import through the system Files picker and store installed copies locally; app-managed cloud synchronization is outside the current scope.
+- Use a native directory package containing a readable JSON manifest and self-contained assets, presented as one document in Files. Import through the system Files picker and store installed copies locally; app-managed cloud synchronization is outside the current scope.
+- Keep the package extension and manifest independent of the app's name, which may change. Do not prefix the extension with the app name; the final extension remains undecided.
 - Use iOS system text styles with default, rounded, serif, or monospaced designs; theme packs cannot bundle custom font files. Keep control icons app-owned SF Symbols.
 - Support PNG artwork and textures, including transparency, and JPEG photographic backgrounds.
 - Use the color roles `background`, `surface`, `primaryText`, `secondaryText`, `separator`, `accent`, and `onAccent`. Values are symbolic system colors or opaque sRGB `#RRGGBB` colors. Preserve system references when exporting instead of freezing them into RGB values.
