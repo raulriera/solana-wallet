@@ -6,6 +6,7 @@
 - Commit or explicitly discard each milestone before starting the next; keep completed milestones in separate commits.
 - Do not add module-name prefixes to types; rely on the module namespace.
 - Keep project files grouped by concern in real folders that Xcode mirrors; group related tests accordingly.
+- Give every framework a concise, factual README for third-party readers; omit project history, progress reports, and agent-only guidance.
 - Prioritize simplicity, readability, and ease of extension throughout the app and tests; follow Don't Repeat Yourself and Single Concern.
 - Prioritize developer experience: express intent with typed APIs and encapsulate serialization and transport details inside services.
 - Use protocol-oriented programming throughout: depend on protocols and inject concrete implementations.
