@@ -22,7 +22,7 @@ nonisolated protocol ThemeCatalogProviding: Sendable {
     /// - Throws: A stale-entry, missing-package, validation, storage, or cancellation error.
     func pack(for entry: ThemeEntry) async throws -> Pack
 
-    /// Removes the exact custom revision the user selected.
+    /// Removes the exact custom revision and clears its application and wallet selections atomically.
     /// - Parameter entry: The entry to remove; built-ins are immutable.
     /// - Throws: A stale-entry, immutable-theme, storage, or pre-commit cancellation error.
     func remove(_ entry: ThemeEntry) async throws

@@ -1,0 +1,22 @@
+import Foundation
+import Observation
+
+/// Shared presentation state for application and wallet appearance selections.
+@MainActor protocol AppearanceCoordinating: AnyObject, Observable {
+    var snapshot: AppearanceSnapshot? { get }
+
+    /// Refreshes cached metadata at startup and after successful catalog mutations.
+    /// - Throws: A storage or cancellation error, preserving the previous snapshot.
+    func reload() async throws
+
+    /// Persists a selection and publishes the committed state to all consuming windows.
+    /// - Parameters:
+    ///   - themeID: The selected identity, or `nil` to restore inheritance/original appearance.
+    ///   - scope: The application default or a stable wallet identity.
+    /// - Throws: A selection, storage, or cancellation error without an optimistic UI change.
+    func select(_ themeID: UUID?, for scope: AppearancePreferences.Scope) async throws
+
+    /// Clears all selections while retaining installed themes.
+    /// - Throws: A storage or cancellation error, preserving the previous snapshot.
+    func reset() async throws
+}

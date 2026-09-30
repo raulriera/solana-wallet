@@ -36,21 +36,9 @@ nonisolated struct ThemeCatalog: ThemeCatalogProviding {
     /// - Throws: A storage or cancellation error; corrupt entries are not silently omitted.
     @concurrent
     func entries() async throws -> [ThemeEntry] {
-        try await CatalogIO.perform { checkCancellation in
-            var result = builtIns.values.map(\.entry)
-            let folders: [URL]
-            do {
-                folders = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
-            } catch CocoaError.fileReadNoSuchFile { return result }
-            for folder in folders {
-                try checkCancellation()
-                guard let id = UUID(uuidString: folder.lastPathComponent) else { continue }
-                guard builtIns[id] == nil, let entry = try CatalogFiles.entry(id, in: directory) else {
-                    throw Failure.invalidStorage
-                }
-                result.append(entry)
-            }
-            return result
+        try await CatalogIO.perform { _ in
+            let state = try CatalogFiles.state(in: directory)
+            return Array(try state.entries(including: builtIns.mapValues(\.entry)).values)
         }
     }
 
@@ -65,7 +53,7 @@ nonisolated struct ThemeCatalog: ThemeCatalogProviding {
         guard builtIns[pack.id] == nil, existing?.origin != .builtIn else { throw Failure.builtInTheme }
         guard existing == nil || existing?.id == pack.id else { throw Failure.changed }
         let stage = try await CatalogIO.perform { checkCancellation in
-            try CatalogFiles.check(pack.id, expected: existing, in: directory)
+            _ = try CatalogFiles.check(pack.id, expected: existing, in: directory)
             try checkCancellation()
             return try CatalogFiles.staging(in: directory)
         }
@@ -73,13 +61,22 @@ nonisolated struct ThemeCatalog: ThemeCatalogProviding {
             try await packages.save(pack, to: stage.appendingPathComponent(CatalogFiles.packageName))
             let entry = ThemeEntry(id: pack.id, name: pack.name, origin: .custom)
             try await CatalogIO.perform { checkCancellation in
-                try CatalogFiles.write(entry, in: stage)
-                try CatalogFiles.check(pack.id, expected: existing, in: directory)
+                var state = try CatalogFiles.check(pack.id, expected: existing, in: directory)
+                let destination = CatalogFiles.package(for: entry, in: directory)
+                try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(),
+                                                        withIntermediateDirectories: true)
                 try checkCancellation()
-                try CatalogFiles.move(stage, to: directory.appendingPathComponent(pack.id.uuidString),
-                                      replacing: existing != nil)
+                try CatalogFiles.move(stage.appendingPathComponent(CatalogFiles.packageName), to: destination)
+                do {
+                    state.customEntries[entry.id] = entry
+                    _ = try CatalogFiles.commit(state, in: directory, checkCancellation: checkCancellation)
+                } catch {
+                    try? FileManager.default.removeItem(at: destination)
+                    throw error
+                }
             }
             await CatalogIO.discard(stage)
+            if let existing { await CatalogIO.discard(CatalogFiles.package(for: existing, in: directory)) }
             return entry
         } catch {
             await CatalogIO.discard(stage)
@@ -99,39 +96,32 @@ nonisolated struct ThemeCatalog: ThemeCatalogProviding {
             url = bundled.url
         } else {
             try await CatalogIO.perform { _ in
-                try CatalogFiles.check(entry.id, expected: entry, in: directory)
+                _ = try CatalogFiles.check(entry.id, expected: entry, in: directory)
             }
-            url = directory.appendingPathComponent(entry.id.uuidString).appendingPathComponent(CatalogFiles.packageName)
+            url = CatalogFiles.package(for: entry, in: directory)
         }
         let pack = try await packages.read(from: url)
         if entry.origin == .custom {
             try await CatalogIO.perform { _ in
-                try CatalogFiles.check(entry.id, expected: entry, in: directory)
+                _ = try CatalogFiles.check(entry.id, expected: entry, in: directory)
             }
         }
         guard pack.id == entry.id, pack.name == entry.name else { throw Failure.invalidStorage }
         return pack
     }
 
-    /// Removes a custom revision atomically before reclaiming its temporary files.
+    /// Removes a custom revision and its selections together before reclaiming package files.
     /// - Parameter entry: The exact custom entry selected for removal.
     /// - Throws: An immutable-theme, changed-entry, storage, or pre-commit cancellation error.
     @concurrent
     func remove(_ entry: ThemeEntry) async throws {
         guard builtIns[entry.id] == nil, entry.origin == .custom else { throw Failure.builtInTheme }
-        let stage = try await CatalogIO.perform { checkCancellation in
-            try CatalogFiles.check(entry.id, expected: entry, in: directory)
-            let stage = try CatalogFiles.staging(in: directory)
-            do {
-                try checkCancellation()
-                try CatalogFiles.move(directory.appendingPathComponent(entry.id.uuidString),
-                                      to: stage.appendingPathComponent("Removed"))
-                return stage
-            } catch {
-                try? FileManager.default.removeItem(at: stage)
-                throw error
-            }
+        try await CatalogIO.perform { checkCancellation in
+            var state = try CatalogFiles.check(entry.id, expected: entry, in: directory)
+            state.customEntries[entry.id] = nil
+            state.preferences.forget(entry.id)
+            _ = try CatalogFiles.commit(state, in: directory, checkCancellation: checkCancellation)
         }
-        await CatalogIO.discard(stage)
+        await CatalogIO.discard(CatalogFiles.package(for: entry, in: directory))
     }
 }

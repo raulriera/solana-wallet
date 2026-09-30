@@ -31,12 +31,12 @@ nonisolated enum CatalogIO {
         } onCancel: { cancelled.withLock { $0 = true } }
     }
 
-    /// Cleans temporary staging independently of cancellation after commit or failure.
-    /// - Parameter url: A temporary replacement directory owned by this operation.
+    /// Reclaims unreferenced files independently of cancellation after commit or failure.
+    /// - Parameter url: An operation's staging directory or obsolete package generation.
     static func discard(_ url: URL) async {
         await withCheckedContinuation { continuation in
             queue.async {
-                // The OS also owns reclamation of item-replacement temporary directories.
+                // Cleanup failure must not turn an already committed mutation into a failure.
                 try? FileManager.default.removeItem(at: url)
                 continuation.resume()
             }

@@ -31,7 +31,7 @@ The agreed wallet, transaction, portfolio, and initial color-only Themes framewo
 | Framework | Status |
 | --- | --- |
 | Encoding | Complete for the current scope. |
-| Themes | Color-only package service with app-supplied defaults and PNG/JPEG assets. The app's internal catalog stores installed copies and protects built-ins. Import/export presentation, preferences, recovery, and rendering remain separate; see [UI architecture](ui.md). |
+| Themes | Color-only package service with app-supplied defaults and PNG/JPEG assets. App services manage immutable built-ins, custom installations, app/wallet preferences, and deletion fallbacks. Import/export presentation, Settings recovery integration, and rendering remain separate; see [UI architecture](ui.md). |
 | RPC | Complete for the agreed transaction, discovery, DAS, pricing, and confirmed account-subscription workflows. The priority-fee provider limitation remains documented in [RPC scope](rpc-scope.md#provider-limitations). |
 | Transactions | Further capabilities are parked; current SOL and supported-token flows remain available. The goal is all Token-2022 extensions, reviewed and agreed individually before implementation. |
 | Wallet | Complete for local derivation and SOL-only discovery across twenty addresses in two path families, with one RPC lookup per scan; verified on devnet. See [Wallet](wallet.md). |

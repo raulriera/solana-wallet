@@ -4,24 +4,24 @@ import Foundation
 /// Private metadata and atomic directory operations, used only inside CatalogIO.
 nonisolated enum CatalogFiles {
     static let packageName = "Theme.xtheme"
-    private static let metadataName = "entry.json"
+    static let metadataName = "state.json"
 
-    /// Reads one catalog entry without touching the package's manifest or assets.
-    /// - Parameters:
-    ///   - id: The expected package identity.
-    ///   - directory: The private catalog root.
-    /// - Returns: The current custom revision, or `nil` when absent.
+    /// Reads catalog metadata and preferences without touching manifests or assets.
+    /// - Parameter directory: The private catalog root.
+    /// - Returns: Current committed state, or an empty state before the first mutation.
     /// - Throws: A storage error, including corrupt or mismatched metadata.
-    static func entry(_ id: UUID, in directory: URL) throws -> ThemeEntry? {
-        let folder = directory.appendingPathComponent(id.uuidString)
+    static func state(in directory: URL) throws -> CatalogState {
+        let url = directory.appendingPathComponent(metadataName)
         do {
-            let values = try folder.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
-            guard values.isDirectory == true, values.isSymbolicLink != true else { throw ThemeCatalog.Failure.invalidStorage }
-        } catch CocoaError.fileReadNoSuchFile { return nil }
-        let data = try Data(contentsOf: folder.appendingPathComponent(metadataName))
-        let entry = try JSONDecoder().decode(ThemeEntry.self, from: data)
-        guard entry.id == id, entry.origin == .custom else { throw ThemeCatalog.Failure.invalidStorage }
-        return entry
+            let values = try url.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey])
+            guard values.isRegularFile == true, values.isSymbolicLink != true else { throw ThemeCatalog.Failure.invalidStorage }
+        } catch CocoaError.fileReadNoSuchFile { return CatalogState() }
+        let state = try JSONDecoder().decode(CatalogState.self, from: Data(contentsOf: url))
+        guard state.customEntries.allSatisfy({ $0.key == $0.value.id && $0.value.origin == .custom }),
+              Set(state.customEntries.values.map(\.revision)).count == state.customEntries.count else {
+            throw ThemeCatalog.Failure.invalidStorage
+        }
+        return state
     }
 
     /// Checks that a mutation still refers to the entry the caller reviewed.
@@ -29,11 +29,14 @@ nonisolated enum CatalogFiles {
     ///   - id: The identity being installed, read, or removed.
     ///   - expected: The approved revision, or `nil` when creating a new identity.
     ///   - directory: The private catalog root.
+    /// - Returns: The checked state for a subsequent mutation on the same I/O queue.
     /// - Throws: A replacement-required or changed-entry error before any mutation.
-    static func check(_ id: UUID, expected: ThemeEntry?, in directory: URL) throws {
-        let current = try entry(id, in: directory)
+    static func check(_ id: UUID, expected: ThemeEntry?, in directory: URL) throws -> CatalogState {
+        let state = try state(in: directory)
+        let current = state.customEntries[id]
         if let current, expected == nil { throw ThemeCatalog.Failure.replacementRequired(current) }
         guard current == expected else { throw ThemeCatalog.Failure.changed }
+        return state
     }
 
     /// Creates operation-local staging on the catalog's volume.
@@ -47,32 +50,48 @@ nonisolated enum CatalogFiles {
                                appropriateFor: directory, create: true)
     }
 
-    /// Writes metadata beside a staged package before it becomes visible to readers.
+    /// Commits catalog entries and selections together using an atomic metadata replacement.
     /// - Parameters:
-    ///   - entry: The new custom revision.
-    ///   - directory: The operation's uncommitted staging directory.
-    /// - Throws: An encoding or filesystem error.
-    static func write(_ entry: ThemeEntry, in directory: URL) throws {
-        try JSONEncoder().encode(entry).write(to: directory.appendingPathComponent(metadataName), options: .atomic)
+    ///   - state: Updated state read on the same serial I/O queue.
+    ///   - directory: The private catalog root.
+    ///   - checkCancellation: The final cancellation checkpoint before the atomic write.
+    /// - Returns: Committed state with its monotonically increasing revision.
+    /// - Throws: An encoding, filesystem, or pre-commit cancellation error.
+    static func commit(_ state: CatalogState, in directory: URL,
+                       checkCancellation: () throws -> Void) throws -> CatalogState {
+        var committed = state
+        guard committed.revision < UInt64.max else { throw ThemeCatalog.Failure.invalidStorage }
+        committed.revision += 1
+        let data = try JSONEncoder().encode(committed)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try checkCancellation()
+        try data.write(to: directory.appendingPathComponent(metadataName), options: .atomic)
+        return committed
+    }
+
+    /// Locates immutable package bytes for one installed revision.
+    /// - Parameters:
+    ///   - entry: A custom catalog entry.
+    ///   - directory: The private catalog root.
+    /// - Returns: The generation-specific package directory.
+    static func package(for entry: ThemeEntry, in directory: URL) -> URL {
+        directory.appendingPathComponent("Packages").appendingPathComponent(entry.revision.uuidString + ".xtheme")
     }
 
     /// Commits a complete directory in one same-volume rename operation.
     ///
-    /// Exclusive insertion cannot overwrite a competing import. Replacement swaps
-    /// directories atomically, leaving the old contents in staging for later cleanup.
-    /// A failed rename leaves the installed directory unchanged.
+    /// Exclusive insertion cannot overwrite another installed generation.
     /// - Parameters:
-    ///   - source: The staged directory or entry being removed.
+    ///   - source: The staged package directory.
     ///   - destination: The final location on the same volume.
-    ///   - replacing: Whether to exchange two existing directories instead of inserting exclusively.
     /// - Throws: The filesystem error from the atomic operation.
-    static func move(_ source: URL, to destination: URL, replacing: Bool = false) throws {
+    static func move(_ source: URL, to destination: URL) throws {
         let failure = try source.withUnsafeFileSystemRepresentation { sourcePath in
             guard let sourcePath else { throw ThemeCatalog.Failure.invalidStorage }
             return try destination.withUnsafeFileSystemRepresentation { destinationPath in
                 guard let destinationPath else { throw ThemeCatalog.Failure.invalidStorage }
                 let status = renameatx_np(AT_FDCWD, sourcePath, AT_FDCWD, destinationPath,
-                                         UInt32(replacing ? RENAME_SWAP : RENAME_EXCL))
+                                         UInt32(RENAME_EXCL))
                 return status == 0 ? 0 : errno
             }
         }

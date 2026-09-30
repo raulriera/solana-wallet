@@ -74,7 +74,7 @@ nonisolated struct CatalogTests {
         let b = try await catalog.install(PackService().read(from: fixture.source()))
         try await catalog.remove(a)
         #expect(try await catalog.entries() == [b])
-        #expect(!FileManager.default.fileExists(atPath: fixture.directory.appendingPathComponent(a.id.uuidString).path))
+        #expect(!FileManager.default.fileExists(atPath: CatalogFiles.package(for: a, in: fixture.directory).path))
         await #expect(throws: ThemeCatalog.Failure.changed) { try await catalog.pack(for: a) }
     }
 
@@ -84,7 +84,7 @@ nonisolated struct CatalogTests {
         defer { fixture.remove() }
         let catalog = try ThemeCatalog(directory: fixture.directory)
         let entry = try await catalog.install(PackService().read(from: fixture.source()))
-        let package = fixture.directory.appendingPathComponent(entry.id.uuidString).appendingPathComponent(CatalogFiles.packageName)
+        let package = CatalogFiles.package(for: entry, in: fixture.directory)
         try FileManager.default.removeItem(at: package)
         #expect(try await catalog.entries() == [entry])
         await #expect(throws: (any Error).self) { try await catalog.pack(for: entry) }
@@ -95,9 +95,9 @@ nonisolated struct CatalogTests {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let catalog = try ThemeCatalog(directory: fixture.directory)
-        let first = try await catalog.install(PackService().read(from: fixture.source()))
         _ = try await catalog.install(PackService().read(from: fixture.source()))
-        let metadata = fixture.directory.appendingPathComponent(first.id.uuidString).appendingPathComponent("entry.json")
+        _ = try await catalog.install(PackService().read(from: fixture.source()))
+        let metadata = fixture.directory.appendingPathComponent(CatalogFiles.metadataName)
         try Data("invalid".utf8).write(to: metadata)
         await #expect(throws: DecodingError.self) { try await catalog.entries() }
     }
