@@ -41,6 +41,7 @@ The [Themes framework contract](../Themes/README.md) defines package structure, 
 
 ## Design requirements
 
+- Use native appearance as the baseline, with a distinctive visual identity led by color and typography using iOS-provided fonts. Use [Family](https://family.co/) as a reference for this direction; native navigation does not prescribe the Settings app's visual treatment. Specific palettes, text styles, and component designs require separate agreement. Theme-pack typography remains deferred.
 - Before implementing each UI concern, agree on its screen structure, visible content, actions, and user-facing states and behavior. Resolve missing or conflicting decisions with the user; architectural constraints and HIG guidance do not supply product-design approval.
 - Before finalizing the theme architecture, review disposable SwiftUI mockups on iPhone Duo, a regular iPhone, and iPad. Compare a native baseline, a bold graphic theme, and a restrained textured theme, including meaningful layout differences. Use sample presentation data and keep the mockups separate from production views and service integration.
 - Disposable mockups do not approve production screens or themes. Keep their implementation outside `main` and production sources.
