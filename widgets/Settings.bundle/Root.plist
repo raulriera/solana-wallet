@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>StringsTable</key>
+    <string>Root</string>
+    <key>PreferenceSpecifiers</key>
+    <array>
+        <dict>
+            <key>Type</key>
+            <string>PSGroupSpecifier</string>
+            <key>Title</key>
+            <string>Appearance</string>
+            <key>FooterText</key>
+            <string>Restores the original appearance for the app and all wallets the next time you open the app. Installed themes are kept. This switch turns off after the reset succeeds.</string>
+        </dict>
+        <dict>
+            <key>Type</key>
+            <string>PSToggleSwitchSpecifier</string>
+            <key>Title</key>
+            <string>Reset Appearance</string>
+            <key>Key</key>
+            <string>resetAppearance</string>
+            <key>DefaultValue</key>
+            <false/>
+        </dict>
+    </array>
+</dict>
+</plist>

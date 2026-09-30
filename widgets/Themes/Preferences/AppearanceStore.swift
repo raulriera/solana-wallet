@@ -5,12 +5,18 @@ nonisolated struct AppearanceStore: AppearanceStoring {
     private let directory: URL
     private let builtIns: [UUID: ThemeEntry]
 
+    /// Uses the application catalog directory with no additional built-in packs.
+    init() {
+        directory = URL.applicationSupportDirectory.appendingPathComponent("Themes")
+        builtIns = [:]
+    }
+
     /// Configures local preferences without reading storage or any theme packages.
     /// - Parameters:
     ///   - directory: The same app-private directory used by the catalog.
     ///   - builtIns: The same immutable bundled themes supplied to the catalog.
     /// - Throws: An invalid location or duplicate built-in identity error.
-    init(directory: URL = URL.applicationSupportDirectory.appendingPathComponent("Themes"),
+    init(directory: URL,
          builtIns: [BundledTheme] = []) throws {
         guard directory.isFileURL else { throw ThemeCatalog.Failure.invalidStorage }
         guard Set(builtIns.map(\.entry.id)).count == builtIns.count else { throw ThemeCatalog.Failure.duplicateBuiltIn }

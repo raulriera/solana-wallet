@@ -5,6 +5,11 @@ import Observation
 @MainActor protocol AppearanceCoordinating: AnyObject, Observable {
     var snapshot: AppearanceSnapshot? { get }
 
+    /// Applies pending Settings recovery before loading appearance when a window becomes active.
+    /// Concurrent activations share the same operation, which survives individual window cancellation.
+    /// - Throws: A storage or preferences error, leaving failed recovery requests enabled.
+    func activate() async throws
+
     /// Refreshes cached metadata at startup and after successful catalog mutations.
     /// - Throws: A storage or cancellation error, preserving the previous snapshot.
     func reload() async throws

@@ -1,0 +1,3 @@
+"Appearance" = "Appearance";
+"Reset Appearance" = "Reset Appearance";
+"Restores the original appearance for the app and all wallets the next time you open the app. Installed themes are kept. This switch turns off after the reset succeeds." = "Restores the original appearance for the app and all wallets the next time you open the app. Installed themes are kept. This switch turns off after the reset succeeds.";
