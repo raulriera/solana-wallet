@@ -4,10 +4,10 @@ Themes reads, validates, resolves, and exports theme packs. The provisional form
 
 ## Package structure
 
-A pack is a directory containing `manifest.json` and optional images under `Assets/`. Files presents it as one document. The package extension is not yet defined.
+A `.xtheme` pack is a directory containing `manifest.json` and optional images under `Assets/`. Files presents the package as one document.
 
 ```text
-Example/
+Example.xtheme/
 ├── manifest.json
 └── Assets/
     └── background.png
