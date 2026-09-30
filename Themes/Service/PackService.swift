@@ -11,22 +11,9 @@ public struct PackService: PackServicing {
     /// - Throws: A validation, file-access, or cancellation error.
     @concurrent
     public func read(from url: URL) async throws -> Pack {
-        try Self.requireLocalURL(url)
-        try Task.checkCancellation()
-        let scoped = url.startAccessingSecurityScopedResource()
-        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-        let coordinator = NSFileCoordinator()
-        var coordinationError: NSError?
-        var result: Result<Pack, any Error>?
-        coordinator.coordinate(readingItemAt: url, options: [], error: &coordinationError) { coordinatedURL in
-            result = Result {
-                try Task.checkCancellation()
-                return try PackageFiles.read(at: coordinatedURL)
-            }
+        try await FileAccess.perform(at: url) { coordinatedURL, access in
+            try PackageFiles.read(at: coordinatedURL, checkCancellation: access.checkCancellation)
         }
-        if let coordinationError { throw coordinationError }
-        guard let result else { throw CocoaError(.fileReadUnknown) }
-        return try result.get()
     }
 
     /// Resolves color overrides using the corresponding complete default palettes.
@@ -46,9 +33,10 @@ public struct PackService: PackServicing {
     /// - Throws: A file-access or pre-commit cancellation error.
     @concurrent
     public func export(_ pack: Pack, defaults: Colors, to url: URL) async throws {
-        let manifest = Manifest(id: pack.id, name: pack.name, colors: resolve(pack, defaults: defaults).values,
-                                assets: pack.manifest.assets)
-        try Self.write(manifest: manifest, assets: pack.assets, to: url)
+        try await Self.write(assets: pack.assets, to: url) {
+            Manifest(id: pack.id, name: pack.name, colors: resolve(pack, defaults: defaults).values,
+                     assets: pack.manifest.assets)
+        }
     }
 
     /// Writes a new theme containing every supplied default color.
@@ -59,43 +47,25 @@ public struct PackService: PackServicing {
     /// - Throws: A validation, file-access, or pre-commit cancellation error.
     @concurrent
     public func exportTemplate(named name: String, defaults: Colors, to url: URL) async throws {
-        try Manifest.validateName(name)
-        let manifest = Manifest(id: UUID(), name: name, colors: defaults.values, assets: [:])
-        try Self.write(manifest: manifest, assets: [:], to: url)
+        try await Self.write(assets: [:], to: url) {
+            try Manifest.validateName(name)
+            return Manifest(id: UUID(), name: name, colors: defaults.values, assets: [:])
+        }
     }
 
-    /// Prepares a full package before performing its coordinated atomic write.
+    /// Prepares and atomically writes a package on the background file queue.
     /// - Parameters:
-    ///   - manifest: The complete exported manifest.
     ///   - assets: Validated asset snapshots.
     ///   - url: The local destination, with replacement approved by the caller.
+    ///   - manifest: Creates the complete manifest within the background operation.
     /// - Throws: A file-access, serialization, or pre-commit cancellation error.
-    private static func write(manifest: Manifest, assets: [String: Asset], to url: URL) throws {
-        try requireLocalURL(url)
-        try Task.checkCancellation()
-        let wrapper = try PackageFiles.wrapper(manifest: manifest, assets: assets)
-        let scoped = url.startAccessingSecurityScopedResource()
-        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-        let coordinator = NSFileCoordinator()
-        var coordinationError: NSError?
-        var result: Result<Void, any Error>?
-        coordinator.coordinate(writingItemAt: url, options: .forReplacing, error: &coordinationError) { destination in
-            result = Result {
-                try Task.checkCancellation()
-                try wrapper.write(to: destination, options: .atomic, originalContentsURL: nil)
-            }
-        }
-        if let coordinationError { throw coordinationError }
-        guard let result else { throw CocoaError(.fileWriteUnknown) }
-        try result.get()
-    }
-
-    /// Rejects remote URLs before any file-system or provider access.
-    /// - Parameter url: The proposed package location.
-    /// - Throws: A validation error for non-file URLs.
-    private static func requireLocalURL(_ url: URL) throws {
-        guard url.isFileURL else {
-            throw ValidationError(path: "package", reason: "Expected a local file URL.")
+    private static func write(assets: [String: Asset], to url: URL,
+                              manifest: @escaping @Sendable () throws -> Manifest) async throws {
+        try await FileAccess.perform(at: url, writing: true) { destination, access in
+            let wrapper = try PackageFiles.wrapper(manifest: manifest(), assets: assets,
+                                                   checkCancellation: access.checkCancellation)
+            try access.checkCancellation()
+            try wrapper.write(to: destination, options: .atomic, originalContentsURL: nil)
         }
     }
 }

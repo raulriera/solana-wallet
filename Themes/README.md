@@ -55,6 +55,7 @@ Use a new UUID for each new theme.
 - Use PNG or JPEG. PNG supports transparency.
 - Paths must remain inside `Assets/`. External URLs, absolute paths, and symbolic links are unsupported.
 - Every declared image must exist and be readable. Declaring an asset does not assign it to a component.
+- Limits: 1 MiB per manifest (including room for complete export values), 16 MiB per image file, 64 MiB of unique image files per pack, and 16,777,216 pixels per image. Asset names referencing the same path share one retained buffer and count once toward the byte budget.
 
 ## Import and export
 
@@ -76,6 +77,8 @@ try await service.export(pack, defaults: defaults, to: destinationURL)
 try await service.exportTemplate(named: "My Theme", defaults: defaults, to: templateURL)
 ```
 
-Reads retain independent asset bytes. File operations use coordinated, security-scoped access off the main actor. Exports replace the complete destination atomically; cancellation is checked before committing the write.
+Reads retain independent asset bytes. File access waits asynchronously; loading, validation, serialization, and writing run serially on a shared background queue outside the main actor and Swift's shared executor. Cancellation interrupts pending coordination and is checked during loading and before committing an atomic export; a write already underway finishes normally.
+
+Resolve colors when the selected pack or defaults change. Resolved palettes contain stored values; accessing a color performs no I/O or decoding.
 
 The app owns Files presentation, destination/replacement approval, installation, preferences, and rendering. `ValidationError` provides a `path` and `reason`; file-access and cancellation errors propagate to the caller.

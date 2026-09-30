@@ -25,6 +25,7 @@ The [Themes framework contract](../Themes/README.md) defines package structure, 
 - Support an arbitrary number of built-in and custom theme packs with supported layout variants. Represent packs as versioned data and visual assets consumed through shared components.
 - Define semantic tokens by purpose, independent of particular screens. Add screen-specific layout choices only as their component designs are approved.
 - Supply the framework with the complete app-owned baseline and resolve omitted settings before rendering. Views consume complete values without repeating fallback logic.
+- Theme imports must keep rendering responsive. Run package I/O and validation in the background, outside the main actor and Swift's shared executor; verify frame pacing on devices when import presentation is integrated.
 - Separate the pack catalog, appearance preferences, and each window's resolved theme. Packs describe semantic style roles, scalable typography, visual assets, decoration, and app-supported layout choices.
 - Use an app-wide default theme with optional per-wallet overrides. Windows showing the same wallet use its selected theme; wallets without an override follow the app-wide default.
 - Themes may change semantic colors, backgrounds, textures, borders, and shapes; Dynamic Type-aware typography; content treatments such as asset rows versus cards or balance-summary compositions; and spacing and decorative motion within supported ranges.

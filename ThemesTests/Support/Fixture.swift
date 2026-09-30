@@ -62,15 +62,18 @@ struct Fixture {
     }
 
     /// Creates a real small image fixture using the platform encoder.
-    /// - Parameter type: A supported ImageIO destination type identifier.
+    /// - Parameters:
+    ///   - type: A supported ImageIO destination type identifier.
+    ///   - width: The image width used to exercise decoding resource limits.
+    ///   - height: The image height used to exercise decoding resource limits.
     /// - Returns: Encoded image bytes.
     /// - Throws: A failed fixture precondition.
-    static func image(type: String = "public.png") throws -> Data {
-        let context = try #require(CGContext(data: nil, width: 2, height: 2, bitsPerComponent: 8,
-                                            bytesPerRow: 8, space: CGColorSpaceCreateDeviceRGB(),
+    static func image(type: String = "public.png", width: Int = 2, height: Int = 2) throws -> Data {
+        let context = try #require(CGContext(data: nil, width: width, height: height, bitsPerComponent: 8,
+                                            bytesPerRow: width * 4, space: CGColorSpaceCreateDeviceRGB(),
                                             bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue))
         context.setFillColor(CGColor(red: 0.2, green: 0.5, blue: 0.8, alpha: 1))
-        context.fill(CGRect(x: 0, y: 0, width: 2, height: 2))
+        context.fill(CGRect(x: 0, y: 0, width: width, height: height))
         let image = try #require(context.makeImage())
         let data = NSMutableData()
         let destination = try #require(CGImageDestinationCreateWithData(data, type as CFString, 1, nil))

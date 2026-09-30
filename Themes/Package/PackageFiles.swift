@@ -6,10 +6,16 @@ import Darwin
 /// Synchronous file work confined to one coordinated operation.
 enum PackageFiles {
     /// Reads a package and owns all declared image bytes before returning.
-    /// - Parameter url: The coordinated directory URL.
+    /// - Parameters:
+    ///   - url: The coordinated directory URL.
+    ///   - checkCancellation: Checks cancellation on the background file queue.
+    ///   - manifestByteBudget: The allowance for both input and complete exported JSON.
+    ///   - assetByteBudget: The aggregate allowance for unique image files.
     /// - Returns: A fully validated independent snapshot.
     /// - Throws: A validation, file-system, or cancellation error.
-    static func read(at url: URL) throws -> Pack {
+    static func read(at url: URL, checkCancellation: () throws -> Void,
+                     manifestByteBudget: Int = ResourceLimits.manifestBytes,
+                     assetByteBudget: Int = ResourceLimits.totalAssetBytes) throws -> Pack {
         let directory = url.withUnsafeFileSystemRepresentation { path in
             path.map { open($0, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC) } ?? -1
         }
@@ -17,30 +23,65 @@ enum PackageFiles {
             throw ValidationError(path: "package", reason: "Expected a readable directory; symbolic links are unsupported.")
         }
         defer { close(directory) }
-        let manifest = try Manifest.decode(readFile(["manifest.json"], in: directory, path: "manifest.json"))
+        let manifest = try Manifest.decode(readFile(["manifest.json"], in: directory, path: "manifest.json",
+                                                   byteLimit: manifestByteBudget, checkCancellation: checkCancellation))
+        try validateExportSize(manifest, byteLimit: manifestByteBudget)
         var assets: [String: Asset] = [:]
+        var files: [String: Asset] = [:]
+        var remainingBytes = assetByteBudget
         for name in manifest.assets.keys.sorted() {
-            try Task.checkCancellation()
+            try checkCancellation()
             guard let path = manifest.assets[name] else { continue }
+            if let existing = files[path] {
+                assets[name] = existing
+                continue
+            }
             let components = try assetComponents(path, field: "assets.\(name)")
-            let data = try readFile(components, in: directory, path: path)
-            try validateImage(data, path: path)
-            assets[name] = Asset(data: data, path: path)
+            let asset = try autoreleasepool {
+                let data = try readFile(components, in: directory, path: path,
+                                        byteLimit: min(ResourceLimits.assetBytes, remainingBytes),
+                                        checkCancellation: checkCancellation)
+                try checkCancellation()
+                try validateImage(data, path: path)
+                return Asset(data: data, path: path)
+            }
+            remainingBytes -= asset.data.count
+            files[path] = asset
+            assets[name] = asset
         }
-        try Task.checkCancellation()
+        try checkCancellation()
         return Pack(manifest: manifest, assets: assets)
+    }
+
+    /// Reserves room for complete export values so every accepted pack can be read back after export.
+    /// - Parameters:
+    ///   - manifest: The decoded overrides and metadata.
+    ///   - byteLimit: The allowance for complete exported JSON.
+    /// - Throws: A validation error if a complete manifest would exceed the read budget.
+    private static func validateExportSize(_ manifest: Manifest, byteLimit: Int) throws {
+        let longest = Color.System.allCases.max { $0.rawValue.utf8.count < $1.rawValue.utf8.count }!
+        let complete = Dictionary(uniqueKeysWithValues: Appearance.allCases.map { appearance in
+            (appearance, Dictionary(uniqueKeysWithValues: Role.allCases.map { role in
+                (role, manifest.colors[appearance]?[role] ?? .system(longest))
+            }))
+        })
+        let exported = Manifest(id: manifest.id, name: manifest.name, colors: complete, assets: manifest.assets)
+        try ResourceLimits.checkBytes(Int64(try exported.encode().count), limit: byteLimit, path: "manifest.json")
     }
 
     /// Builds a fresh package, retaining only declared assets.
     /// - Parameters:
     ///   - manifest: Complete export metadata and colors.
     ///   - assets: Previously validated image snapshots.
+    ///   - checkCancellation: Checks cancellation on the background file queue.
     /// - Returns: A wrapper confined to the current export operation.
     /// - Throws: A serialization, path, or cancellation error.
-    static func wrapper(manifest: Manifest, assets: [String: Asset]) throws -> FileWrapper {
-        let root = FileWrapper(directoryWithFileWrappers: ["manifest.json": FileWrapper(regularFileWithContents: try manifest.encode())])
+    static func wrapper(manifest: Manifest, assets: [String: Asset], checkCancellation: () throws -> Void) throws -> FileWrapper {
+        let encoded = try manifest.encode()
+        try ResourceLimits.checkBytes(Int64(encoded.count), limit: ResourceLimits.manifestBytes, path: "manifest.json")
+        let root = FileWrapper(directoryWithFileWrappers: ["manifest.json": FileWrapper(regularFileWithContents: encoded)])
         for name in assets.keys.sorted() {
-            try Task.checkCancellation()
+            try checkCancellation()
             guard let asset = assets[name] else { continue }
             let components = try assetComponents(asset.path, field: "assets.\(name)")
             var directory = root
@@ -87,14 +128,17 @@ enum PackageFiles {
     ///   - components: Validated relative path components.
     ///   - root: An open package directory descriptor owned by the caller.
     ///   - path: The author-facing package location.
+    ///   - byteLimit: The smaller of the file limit and remaining package allowance.
+    ///   - checkCancellation: Checks cancellation on the background file queue.
     /// - Returns: Owned file bytes.
     /// - Throws: A validation or cooperative cancellation error.
-    private static func readFile(_ components: [String], in root: Int32, path: String) throws -> Data {
+    private static func readFile(_ components: [String], in root: Int32, path: String, byteLimit: Int,
+                                 checkCancellation: () throws -> Void) throws -> Data {
         let failure = ValidationError(path: path, reason: "Expected a readable regular file inside the package; symbolic links are unsupported.")
         var directory = root
         defer { if directory != root { close(directory) } }
         for component in components.dropLast() {
-            try Task.checkCancellation()
+            try checkCancellation()
             let next = openat(directory, component, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
             guard next >= 0 else { throw failure }
             if directory != root { close(directory) }
@@ -107,17 +151,21 @@ enum PackageFiles {
         defer { try? handle.close() }
         var attributes = stat()
         guard fstat(descriptor, &attributes) == 0, attributes.st_mode & S_IFMT == S_IFREG else { throw failure }
+        try ResourceLimits.checkBytes(attributes.st_size, limit: byteLimit, path: path)
         var data = Data()
-        do {
-            while true {
-                try Task.checkCancellation()
-                guard let chunk = try handle.read(upToCount: 65_536), !chunk.isEmpty else { break }
-                data.append(chunk)
+        data.reserveCapacity(Int(attributes.st_size))
+        while true {
+            try checkCancellation()
+            let chunk: Data
+            do {
+                chunk = try autoreleasepool { try handle.read(upToCount: min(65_536, byteLimit - data.count + 1)) ?? Data() }
+            } catch {
+                throw failure
             }
-        } catch is CancellationError {
-            throw CancellationError()
-        } catch {
-            throw failure
+            if chunk.isEmpty { break }
+            // Recheck actual bytes: another process need not honor coordination or the earlier size.
+            try ResourceLimits.checkBytes(Int64(data.count + chunk.count), limit: byteLimit, path: path)
+            data.append(chunk)
         }
         return data
     }
@@ -134,8 +182,16 @@ enum PackageFiles {
               [UTType.png.identifier, UTType.jpeg.identifier].contains(type),
               CGImageSourceGetStatus(source) == .statusComplete,
               CGImageSourceGetCount(source) > 0,
-              CGImageSourceGetStatusAtIndex(source, 0) == .statusComplete,
-              CGImageSourceCreateThumbnailAtIndex(source, 0, [
+              CGImageSourceGetStatusAtIndex(source, 0) == .statusComplete else {
+            throw ValidationError(path: path, reason: "Expected a readable PNG or JPEG image.")
+        }
+        let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, options) as? [CFString: Any]
+        guard let width = properties?[kCGImagePropertyPixelWidth] as? Int,
+              let height = properties?[kCGImagePropertyPixelHeight] as? Int,
+              width > 0, height > 0, width <= ResourceLimits.imagePixels / height else {
+            throw ValidationError(path: path, reason: "Image exceeds the \(ResourceLimits.imagePixels)-pixel limit or has invalid dimensions.")
+        }
+        guard CGImageSourceCreateThumbnailAtIndex(source, 0, [
                 kCGImageSourceCreateThumbnailFromImageAlways: true,
                 kCGImageSourceThumbnailMaxPixelSize: 1,
                 kCGImageSourceShouldCache: false
