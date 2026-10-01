@@ -26,10 +26,10 @@ struct AppearanceView: View {
             }
             ThemePacksSection(settings: settings, palette: palette)
         }
-        .animation(.default, value: settings.entries.map(\.id))
+        .animation(.default, value: settings.entryIDs)
         .navigationTitle("Appearance")
         .navigationDestination(for: AppearancePreferences.Scope.self) { scope in
-            ThemeChooser(entries: settings.entries, scope: scope, selection: selection(for: scope),
+            ThemeChooser(entries: settings.entries, entryIDs: settings.entryIDs, scope: scope, selection: selection(for: scope),
                          palette: palette, actions: settings)
         }
         .foregroundStyle(palette.primaryText, palette.secondaryText)

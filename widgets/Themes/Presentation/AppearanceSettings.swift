@@ -35,6 +35,7 @@ import Themes
     }
 
     var entries: [ThemeEntry] { appearance.snapshot?.orderedEntries ?? [] }
+    var entryIDs: [UUID] { appearance.snapshot?.orderedEntryIDs ?? [] }
 
     /// Whether an action may start, checked at interaction time without changing control appearance.
     var canStartOperation: Bool { operation == nil && export == nil && replacement == nil }

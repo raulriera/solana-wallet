@@ -6,6 +6,8 @@ nonisolated struct AppearanceSnapshot: Sendable, Equatable {
     let preferences: AppearancePreferences
     let entries: [UUID: ThemeEntry]
     let orderedEntries: [ThemeEntry]
+    /// Prepared identities that change only when list membership or order changes.
+    let orderedEntryIDs: [UUID]
 
     /// Captures committed selections and their available catalog revisions.
     /// - Parameters:
@@ -22,6 +24,7 @@ nonisolated struct AppearanceSnapshot: Sendable, Equatable {
             let order = $0.name.localizedStandardCompare($1.name)
             return order == .orderedSame ? $0.id.uuidString < $1.id.uuidString : order == .orderedAscending
         }
+        orderedEntryIDs = orderedEntries.map(\.id)
     }
 
     /// Looks up the selected revision using only in-memory values.

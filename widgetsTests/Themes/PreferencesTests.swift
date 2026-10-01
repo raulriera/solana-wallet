@@ -27,16 +27,19 @@ nonisolated struct PreferencesTests {
 
         let imported = try await store.load()
         #expect(imported.orderedEntries == [builtIn.entry, a, z])
+        #expect(imported.orderedEntryIDs == [builtIn.entry.id, a.id, z.id])
 
         let renamed = try await catalog.install(
             PackService().read(from: fixture.source(id: z.id, name: "Aardvark")), replacing: z
         )
         let replaced = try await store.load()
         #expect(replaced.orderedEntries == [builtIn.entry, renamed, a])
+        #expect(replaced.orderedEntryIDs == [builtIn.entry.id, z.id, a.id])
 
         try await catalog.remove(a)
         let removed = try await store.load()
         #expect(removed.orderedEntries == [builtIn.entry, renamed])
+        #expect(removed.orderedEntryIDs == [builtIn.entry.id, z.id])
     }
 
     /// Wallet overrides persist, follow stable wallet identity, and survive app-default changes.
@@ -148,6 +151,7 @@ nonisolated struct PreferencesTests {
         #expect(loaded.preferences == selected.preferences)
         #expect(loaded.theme(for: nil) == updated)
         #expect(loaded.revision > selected.revision)
+        #expect(loaded.orderedEntryIDs == selected.orderedEntryIDs)
     }
 
     /// Preferences can select built-ins without reading their files; reset retains every pack.
@@ -158,11 +162,12 @@ nonisolated struct PreferencesTests {
         let catalog = try ThemeCatalog(directory: fixture.directory, builtIns: [builtIn])
         let custom = try await catalog.install(PackService().read(from: fixture.source()))
         let store = try AppearanceStore(directory: fixture.directory, builtIns: [builtIn])
-        _ = try await store.select(builtIn.entry.id, for: .application)
+        let selected = try await store.select(builtIn.entry.id, for: .application)
         _ = try await store.select(custom.id, for: .wallet(UUID()))
         let reset = try await store.reset()
         #expect(reset.preferences == AppearancePreferences())
         #expect(Set(reset.entries.keys) == [builtIn.entry.id, custom.id])
+        #expect(reset.orderedEntryIDs == selected.orderedEntryIDs)
         #expect(try await catalog.pack(for: custom).id == custom.id)
         #expect(try await store.load() == reset)
     }
