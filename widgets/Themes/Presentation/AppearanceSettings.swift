@@ -3,7 +3,7 @@ import Observation
 import Themes
 
 /// One window's package workflow; committed selections are shared through the coordinator.
-@MainActor @Observable final class AppearanceSettings {
+@MainActor @Observable final class AppearanceSettings: ThemeActions {
     /// Exact snapshot and installed revision awaiting replacement approval.
     struct Replacement: Identifiable {
         let pack: Pack

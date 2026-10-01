@@ -6,7 +6,7 @@ struct ThemeChooser: View {
     let scope: AppearancePreferences.Scope
     let selection: UUID?
     let palette: RenderedPalette
-    let onSelect: (UUID?) -> Void
+    let actions: any ThemeActions
 
     private var selectedID: UUID? { scope == .application ? selection ?? OriginalAppearance.id : selection }
 
@@ -15,18 +15,14 @@ struct ThemeChooser: View {
     var body: some View {
         List {
             if case .wallet = scope {
-                ThemeChoiceRow(name: "Use App Default", isSelected: selectedID == nil,
+                ThemeChoiceRow(themeID: nil, name: "Use App Default", isSelected: selectedID == nil, scope: scope,
                                primaryText: palette.primaryText, accent: palette.accent,
-                               surface: palette.surface, separator: palette.separator) {
-                    onSelect(nil)
-                }
+                               surface: palette.surface, separator: palette.separator, actions: actions)
             }
             ForEach(entries) { entry in
-                ThemeChoiceRow(name: entry.name, isSelected: selectedID == entry.id,
+                ThemeChoiceRow(themeID: entry.id, name: entry.name, isSelected: selectedID == entry.id, scope: scope,
                                primaryText: palette.primaryText, accent: palette.accent,
-                               surface: palette.surface, separator: palette.separator) {
-                    select(entry.id)
-                }
+                               surface: palette.surface, separator: palette.separator, actions: actions)
             }
         }
         .animation(.default, value: entries.map(\.id))
@@ -34,11 +30,5 @@ struct ThemeChooser: View {
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
         .background(palette.background)
-    }
-
-    /// Sends an explicit wallet choice or the app's canonical Original selection.
-    /// - Parameter id: The chosen built-in or custom identity.
-    private func select(_ id: UUID) {
-        onSelect(scope == .application && id == OriginalAppearance.id ? nil : id)
     }
 }

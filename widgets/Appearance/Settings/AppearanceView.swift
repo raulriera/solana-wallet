@@ -16,7 +16,7 @@ struct AppearanceView: View {
         Form {
             ThemeSelectionSection(entries: settings.entries,
                                   selection: settings.appearance.snapshot?.preferences.appThemeID ?? OriginalAppearance.id,
-                                  palette: palette, select: selectAppTheme, remove: settings.remove)
+                                  palette: palette, actions: settings)
             if let wallet {
                 WalletThemeSection(wallet: wallet, themeName: walletThemeName, palette: palette)
             }
@@ -26,21 +26,13 @@ struct AppearanceView: View {
         .navigationTitle("Appearance")
         .navigationDestination(for: AppearancePreferences.Scope.self) { scope in
             ThemeChooser(entries: settings.entries, scope: scope, selection: selection(for: scope),
-                         palette: palette) { id in
-                settings.select(id, for: scope)
-            }
+                         palette: palette, actions: settings)
         }
         .foregroundStyle(palette.primaryText, palette.secondaryText)
         .tint(palette.accent)
         .scrollContentBackground(.hidden)
         .background(palette.background)
         .disabled(settings.appearance.snapshot == nil)
-    }
-
-    /// Saves an inline choice using the canonical Original application preference.
-    /// - Parameter id: The chosen built-in or imported theme identity.
-    private func selectAppTheme(_ id: UUID) {
-        settings.select(id == OriginalAppearance.id ? nil : id, for: .application)
     }
 
     /// Reads the explicit selection for a chooser without resolving wallet inheritance.
