@@ -8,7 +8,7 @@ import Themes
 
 @MainActor @Suite(.timeLimit(.minutes(1)))
 struct PaletteObservationTests {
-    /// Reloading identical colors does not invalidate consumers of any appearance variant.
+    /// Reloading identical colors does not invalidate protocol consumers of any appearance variant.
     /// - Parameters:
     ///   - scheme: The consumer's light or dark appearance.
     ///   - contrast: The consumer's standard or increased contrast.
@@ -19,9 +19,10 @@ struct PaletteObservationTests {
         defer { fixture.remove() }
         let catalog = try ThemeCatalog(directory: fixture.directory)
         let rendered = RenderedAppearance()
+        let palettes: any PaletteProviding = rendered
         let changed = Mutex(false)
         withObservationTracking {
-            _ = rendered.palette(scheme: scheme, contrast: contrast)
+            _ = palettes.palette(scheme: scheme, contrast: contrast)
         } onChange: {
             changed.withLock { $0 = true }
         }
@@ -32,7 +33,7 @@ struct PaletteObservationTests {
         #expect(!notified)
     }
 
-    /// Every semantic color remains observable when a loaded package changes its value.
+    /// Every semantic color remains observable through the protocol when a package changes its value.
     /// - Parameters:
     ///   - role: The manifest color role changed from the original appearance.
     ///   - observesChangedVariant: Whether the consumer reads the changed contrast variant.
@@ -50,9 +51,10 @@ struct PaletteObservationTests {
         let catalog = try ThemeCatalog(directory: fixture.directory)
         let entry = try await catalog.install(PackService().read(from: source))
         let rendered = RenderedAppearance()
+        let palettes: any PaletteProviding = rendered
         let changed = Mutex(false)
         withObservationTracking {
-            _ = rendered.palette(scheme: .dark, contrast: observesChangedVariant ? .increased : .standard)
+            _ = palettes.palette(scheme: .dark, contrast: observesChangedVariant ? .increased : .standard)
         } onChange: {
             changed.withLock { $0 = true }
         }

@@ -85,7 +85,7 @@ struct RenderedPalette: Equatable {
 }
 
 /// A window's small rendered snapshot; importing unrelated packs doesn't invalidate it.
-@MainActor @Observable final class RenderedAppearance {
+@MainActor @Observable final class RenderedAppearance: PaletteProviding {
     private(set) var light = RenderedPalette(OriginalAppearance.palette)
     private(set) var dark = RenderedPalette(OriginalAppearance.palette)
     private(set) var lightIncreasedContrast = RenderedPalette(OriginalAppearance.palette)

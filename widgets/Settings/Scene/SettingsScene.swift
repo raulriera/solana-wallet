@@ -39,7 +39,7 @@ struct SettingsScene: View {
             NavigationStack {
                 switch selection ?? .appearance {
                 case .appearance:
-                    AppearanceView(settings: appearance, wallet: wallet, palette: palette)
+                    AppearanceView(settings: appearance, wallet: wallet, palettes: rendered)
                 }
             }
         }

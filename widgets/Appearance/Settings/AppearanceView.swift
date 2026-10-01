@@ -2,9 +2,13 @@ import SwiftUI
 
 /// Composes appearance settings from independently updating sections.
 struct AppearanceView: View {
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var contrast
     let settings: AppearanceSettings
     let wallet: AppearanceWallet?
-    let palette: RenderedPalette
+    let palettes: any PaletteProviding
+
+    private var palette: RenderedPalette { palettes.palette(scheme: colorScheme, contrast: contrast) }
 
     private var walletThemeName: String {
         let snapshot = settings.appearance.snapshot
@@ -16,7 +20,7 @@ struct AppearanceView: View {
         Form {
             ThemeSelectionSection(entries: settings.entries,
                                   selection: settings.appearance.snapshot?.preferences.appThemeID ?? OriginalAppearance.id,
-                                  palette: palette, actions: settings)
+                                  palettes: palettes, actions: settings)
             if let wallet {
                 WalletThemeSection(wallet: wallet, themeName: walletThemeName, palette: palette)
             }
