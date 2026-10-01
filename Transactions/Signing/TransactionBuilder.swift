@@ -52,7 +52,7 @@ public struct TransactionBuilder: TransactionBuilding {
     ///   account, or an occupied selected slot.
     public func validateSignatures(in transaction: Data, for signer: Address) throws -> Transaction {
         let decoded = try validateSignatures(in: transaction)
-        _ = try unsignedIndex(for: signer, in: decoded)
+        try unsignedIndex(for: signer, in: decoded)
         return decoded
     }
 
@@ -80,8 +80,9 @@ public struct TransactionBuilder: TransactionBuilding {
     /// - Parameters:
     ///   - signer: The selected account whose signature is requested.
     ///   - transaction: The decoded envelope.
-    /// - Returns: The selected account's signature index.
+    /// - Returns: The selected account's signature index, which validation-only callers may ignore.
     /// - Throws: A validation error for an unrelated account or occupied slot.
+    @discardableResult
     private func unsignedIndex(for signer: Address, in transaction: Transaction) throws -> Int {
         guard let index = transaction.accounts.firstIndex(where: { $0.address == signer && $0.isSigner }) else {
             throw ValidationError.signerNotRequired

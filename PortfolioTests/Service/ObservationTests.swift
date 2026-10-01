@@ -13,7 +13,7 @@ struct ObservationTests {
         let pages = ObservedPages()
         let service = fixture.service(pages: pages)
         var first = await service.observations(for: "wallet").makeAsyncIterator()
-        _ = try await nextResult(&first)
+        try await nextResult(&first)
         await pages.set(slot: 101, units: 200)
 
         var joined = await service.observations(for: "wallet").makeAsyncIterator()
@@ -175,7 +175,7 @@ struct ObservationTests {
         consumer.cancel()
         await consumer.value
         var remaining = second.makeAsyncIterator()
-        _ = try await nextResult(&remaining)
+        try await nextResult(&remaining)
         #expect(!fixture.socket.isCancelled)
         #expect(fixture.socket.requests.count == 3)
         #expect(await pages.readCount == 1)
@@ -195,7 +195,7 @@ struct ObservationTests {
         let pages = ObservedPages()
         let service = fixture.service(pages: pages)
         var updates = await service.observations(for: "wallet").makeAsyncIterator()
-        _ = try await nextResult(&updates)
+        try await nextResult(&updates)
         fixture.socket.notify(slot: 101)
         var delays = fixture.gate.delays.makeAsyncIterator()
         _ = try #require(await delays.next())
@@ -320,8 +320,9 @@ private struct ObservationFixture: Sendable {
 
 /// Reads through progress updates to one complete success or failure.
 /// - Parameter iterator: The observation stream's active iterator.
-/// - Returns: The next completed update.
+/// - Returns: The next completed update, which callers waiting only for completion may ignore.
 /// - Throws: A prerequisite error if observation ends before yielding a result.
+@discardableResult
 private func nextResult(_ iterator: inout AsyncStream<Update>.AsyncIterator) async throws -> Update {
     while let update = await iterator.next(isolation: #isolation) {
         if !update.isRefreshing { return update }
