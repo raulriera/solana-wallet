@@ -3,7 +3,7 @@ import SwiftUI
 import Themes
 
 /// SwiftUI-ready values, converted once when a theme revision is loaded.
-struct RenderedPalette {
+struct RenderedPalette: Equatable {
     let background: SwiftUI.Color
     let surface: SwiftUI.Color
     let primaryText: SwiftUI.Color
