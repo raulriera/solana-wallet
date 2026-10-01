@@ -53,7 +53,7 @@ nonisolated struct ThemeCatalog: ThemeCatalogProviding {
         guard builtIns[pack.id] == nil, existing?.origin != .builtIn else { throw Failure.builtInTheme }
         guard existing == nil || existing?.id == pack.id else { throw Failure.changed }
         let stage = try await CatalogIO.perform { checkCancellation in
-            _ = try CatalogFiles.check(pack.id, expected: existing, in: directory)
+            try CatalogFiles.check(pack.id, expected: existing, in: directory)
             try checkCancellation()
             return try CatalogFiles.staging(in: directory)
         }
@@ -69,7 +69,7 @@ nonisolated struct ThemeCatalog: ThemeCatalogProviding {
                 try CatalogFiles.move(stage.appendingPathComponent(CatalogFiles.packageName), to: destination)
                 do {
                     state.customEntries[entry.id] = entry
-                    _ = try CatalogFiles.commit(state, in: directory, checkCancellation: checkCancellation)
+                    try CatalogFiles.commit(state, in: directory, checkCancellation: checkCancellation)
                 } catch {
                     try? FileManager.default.removeItem(at: destination)
                     throw error
@@ -95,15 +95,15 @@ nonisolated struct ThemeCatalog: ThemeCatalogProviding {
             guard bundled.entry == entry else { throw Failure.changed }
             url = bundled.url
         } else {
-            try await CatalogIO.perform { _ in
-                _ = try CatalogFiles.check(entry.id, expected: entry, in: directory)
+            try await CatalogIO.perform { _ -> Void in
+                try CatalogFiles.check(entry.id, expected: entry, in: directory)
             }
             url = CatalogFiles.package(for: entry, in: directory)
         }
         let pack = try await packages.read(from: url)
         if entry.origin == .custom {
-            try await CatalogIO.perform { _ in
-                _ = try CatalogFiles.check(entry.id, expected: entry, in: directory)
+            try await CatalogIO.perform { _ -> Void in
+                try CatalogFiles.check(entry.id, expected: entry, in: directory)
             }
         }
         guard pack.id == entry.id, pack.name == entry.name else { throw Failure.invalidStorage }
@@ -120,7 +120,7 @@ nonisolated struct ThemeCatalog: ThemeCatalogProviding {
             var state = try CatalogFiles.check(entry.id, expected: entry, in: directory)
             state.customEntries[entry.id] = nil
             state.preferences.forget(entry.id)
-            _ = try CatalogFiles.commit(state, in: directory, checkCancellation: checkCancellation)
+            try CatalogFiles.commit(state, in: directory, checkCancellation: checkCancellation)
         }
         await CatalogIO.discard(CatalogFiles.package(for: entry, in: directory))
     }

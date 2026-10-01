@@ -31,6 +31,7 @@ nonisolated enum CatalogFiles {
     ///   - directory: The private catalog root.
     /// - Returns: The checked state for a subsequent mutation on the same I/O queue.
     /// - Throws: A replacement-required or changed-entry error before any mutation.
+    @discardableResult
     static func check(_ id: UUID, expected: ThemeEntry?, in directory: URL) throws -> CatalogState {
         let state = try state(in: directory)
         let current = state.customEntries[id]
@@ -57,6 +58,7 @@ nonisolated enum CatalogFiles {
     ///   - checkCancellation: The final cancellation checkpoint before the atomic write.
     /// - Returns: Committed state with its monotonically increasing revision.
     /// - Throws: An encoding, filesystem, or pre-commit cancellation error.
+    @discardableResult
     static func commit(_ state: CatalogState, in directory: URL,
                        checkCancellation: () throws -> Void) throws -> CatalogState {
         var committed = state
