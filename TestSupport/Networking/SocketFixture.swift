@@ -5,6 +5,9 @@ import Testing
 
 /// Supplies WebSocket frames at the transport boundary without replacing a provider client.
 final class SocketFixture: WebSocketConnection {
+    /// Produces response frames for an outgoing message and its one-based ordinal.
+    typealias Responder = @Sendable (Data, Int) throws -> [Data]
+
     private let messages: AsyncThrowingStream<Data, any Error>
     private let incoming: AsyncThrowingStream<Data, any Error>.Continuation
     let sent: AsyncStream<Data>
@@ -12,11 +15,11 @@ final class SocketFixture: WebSocketConnection {
     private let closure: AsyncStream<Void>
     private let didClose: AsyncStream<Void>.Continuation
     private let state = Mutex(State())
-    private let respond: @Sendable (Data, Int) throws -> [Data]
+    private let respond: Responder
 
     /// Creates a connection with automatic or scripted subscription responses.
     /// - Parameter respond: The response frames for an outgoing message and its ordinal.
-    init(respond: @escaping @Sendable (Data, Int) throws -> [Data] = { data, ordinal in
+    init(respond: @escaping Responder = { data, ordinal in
         let request = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
         let id = try #require(request["id"] as? String)
         return [Data(#"{"jsonrpc":"2.0","id":"\#(id)","result":\#(ordinal)}"#.utf8)]
