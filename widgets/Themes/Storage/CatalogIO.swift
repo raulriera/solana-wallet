@@ -3,6 +3,9 @@ import Synchronization
 
 /// Serializes private catalog filesystem transactions outside the main actor and cooperative pool.
 nonisolated enum CatalogIO {
+    /// Synchronous catalog work that receives cancellation checks for its pre-commit phase.
+    typealias Operation<Value: Sendable> = @Sendable (_ checkCancellation: () throws -> Void) throws -> Value
+
     // Shared by catalog instances so revision checks and commits have no suspension between them.
     private static let queue = DispatchQueue(label: "ThemeCatalog.IO", qos: .background)
 
@@ -11,7 +14,7 @@ nonisolated enum CatalogIO {
     /// - Returns: The operation's result, including success when cancellation follows a commit.
     /// - Throws: A storage or cooperative cancellation error.
     static func perform<Value: Sendable>(
-        _ operation: @escaping @Sendable (_ checkCancellation: () throws -> Void) throws -> Value
+        _ operation: @escaping Operation<Value>
     ) async throws -> Value {
         let cancelled = Mutex(false)
         return try await withTaskCancellationHandler {
