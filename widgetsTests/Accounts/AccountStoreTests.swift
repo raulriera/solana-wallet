@@ -1,0 +1,237 @@
+import Encoding
+import Foundation
+import Testing
+import Transactions
+import Wallet
+@testable import widgets
+
+/// Exercises account persistence with isolated directories and public metadata only.
+@Suite(.timeLimit(.minutes(1)))
+struct AccountStoreTests {
+    /// Missing storage is an empty first launch and doesn't create files during a read.
+    @Test("missing account storage loads an empty list without creating files")
+    func missingStorageLoadsEmpty() async throws {
+        let directory = URL.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let store: any AccountStoring = try AccountStore(directory: directory)
+        #expect(try await store.load().isEmpty)
+        #expect(!FileManager.default.fileExists(atPath: directory.path))
+    }
+
+    /// Reloads the same ordered metadata through a new store and verifies the on-disk field boundary.
+    @Test("saved account metadata survives reopening")
+    func savedAccountsSurviveReopening() async throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store: any AccountStoring = try AccountStore(directory: directory)
+        let first = try account(index: 0)
+        let second = try account(index: 1, recoveryID: first.recoveryID)
+        _ = try await store.add(first)
+        let committed = try await store.add(second)
+        let restored = try await AccountStore(directory: directory).load()
+        #expect(committed.map(\.id) == [first.id, second.id])
+        #expect(restored.map(\.id) == committed.map(\.id))
+        #expect(restored.map(\.recoveryID) == [first.recoveryID, first.recoveryID])
+        #expect(restored.map(\.address) == [first.address, second.address])
+        #expect(restored.map(\.index) == [0, 1])
+        let records = try #require(JSONSerialization.jsonObject(with: Data(contentsOf:
+            directory.appendingPathComponent("accounts.json"))) as? [[String: Any]])
+        #expect(records.allSatisfy { Set($0.keys) == ["id", "recoveryID", "address", "index"] })
+    }
+
+    /// Simultaneous additions through separate instances cannot overwrite another window's accounts.
+    @Test("concurrent additions retain every account")
+    func concurrentAdditionsAreRetained() async throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let recoveryID = UUID()
+        let accounts = try (0..<16).map { try account(index: UInt32($0), recoveryID: recoveryID) }
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            for account in accounts {
+                group.addTask { _ = try await AccountStore(directory: directory).add(account) }
+            }
+            try await group.waitForAll()
+        }
+        let restored = try await AccountStore(directory: directory).load()
+        #expect(Set(restored.map(\.id)) == Set(accounts.map(\.id)))
+        #expect(restored.count == accounts.count)
+    }
+
+    /// Duplicate identities, addresses, and derivation slots must never replace saved metadata.
+    /// - Parameter field: The existing identity reused by the proposed addition.
+    @Test("duplicate account identities are rejected without changing storage", arguments: ["id", "address", "index"])
+    func duplicateAdditionsPreserveStorage(_ field: String) async throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = try AccountStore(directory: directory)
+        let first = try account(index: 0)
+        let other = try account(index: 1, recoveryID: first.recoveryID)
+        _ = try await store.add(first)
+        let file = directory.appendingPathComponent("accounts.json")
+        let original = try Data(contentsOf: file)
+        let duplicate = Account(id: field == "id" ? first.id : other.id, recoveryID: first.recoveryID,
+            address: field == "address" ? first.address : other.address,
+            index: field == "index" ? first.index : other.index)
+        await #expect(throws: AccountStore.Failure.duplicateAccount) { try await store.add(duplicate) }
+        #expect(try Data(contentsOf: file) == original)
+    }
+
+    /// Corrupt or inconsistent records prevent both loading and additions without resetting the file.
+    /// - Parameter corruption: The malformed storage condition.
+    @Test("unreadable account storage is preserved", arguments: ["json", "address", "index", "duplicate", "missing field"])
+    func unreadableStorageIsPreserved(_ corruption: String) async throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let stored = try account(index: 0)
+        var record: [String: Any] = ["id": stored.id.uuidString, "recoveryID": stored.recoveryID.uuidString,
+            "address": stored.address.value, "index": stored.index]
+        switch corruption {
+        case "address": record["address"] = "invalid"
+        case "index": record["index"] = UInt32(0x8000_0000)
+        case "missing field": record.removeValue(forKey: "recoveryID")
+        default: break
+        }
+        let bytes = try corruption == "json" ? Data("not-json".utf8)
+            : JSONSerialization.data(withJSONObject: corruption == "duplicate" ? [record, record] : [record])
+        let file = directory.appendingPathComponent("accounts.json")
+        try bytes.write(to: file)
+        let store = try AccountStore(directory: directory)
+        let next = try account(index: 1)
+        let matchesError: @Sendable (any Error) -> Bool = { error in
+            switch corruption {
+            case "json":
+                if case DecodingError.dataCorrupted = error { return true }
+                return false
+            case "address": return error as? Transactions.ValidationError == .invalidAddress
+            case "index": return error as? DerivationPath.ValidationError == .invalidPath
+            case "duplicate": return error as? AccountStore.Failure == .duplicateAccount
+            case "missing field":
+                guard case let DecodingError.keyNotFound(key, _) = error else { return false }
+                return key.stringValue == "recoveryID"
+            default: return false
+            }
+        }
+        await #expect { try await store.load() } throws: { matchesError($0) }
+        await #expect { try await store.add(next) } throws: { matchesError($0) }
+        #expect(try Data(contentsOf: file) == bytes)
+    }
+
+    /// A directory or symbolic link in place of metadata must not be read or replaced.
+    /// - Parameter symbolicLink: Whether the invalid file points at another local file.
+    @Test("account storage rejects directories and symbolic links", arguments: [false, true])
+    func nonregularStorageIsRejected(symbolicLink: Bool) async throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = directory.appendingPathComponent("accounts.json")
+        let target = directory.appendingPathComponent("unrelated.json")
+        let bytes = Data("[]".utf8)
+        try bytes.write(to: target)
+        if symbolicLink {
+            try FileManager.default.createSymbolicLink(at: file, withDestinationURL: target)
+        } else {
+            try FileManager.default.createDirectory(at: file, withIntermediateDirectories: false)
+        }
+        let store = try AccountStore(directory: directory)
+        await #expect(throws: AccountStore.Failure.invalidStorage) { try await store.load() }
+        await #expect(throws: AccountStore.Failure.invalidStorage) { try await store.add(account(index: 0)) }
+        #expect(try Data(contentsOf: target) == bytes)
+        let values = try file.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+        #expect(symbolicLink ? values.isSymbolicLink == true : values.isDirectory == true)
+    }
+
+    /// A failed filesystem operation is surfaced while the obstructing file remains intact.
+    @Test("an obstructed storage directory is rejected without changing existing files")
+    func obstructedDirectoryPreservesExistingFiles() async throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let obstruction = directory.appendingPathComponent("obstruction")
+        let bytes = Data("existing file".utf8)
+        try bytes.write(to: obstruction)
+        let store = try AccountStore(directory: obstruction)
+        let next = try account(index: 0)
+        await #expect(throws: CocoaError.self) { try await store.add(next) }
+        #expect(try Data(contentsOf: obstruction) == bytes)
+    }
+
+    /// Denying the atomic write preserves the previously readable account metadata.
+    @Test("a failed atomic write preserves saved account metadata")
+    func failedAtomicWritePreservesSavedAccounts() async throws {
+        let directory = try temporaryDirectory()
+        defer {
+            try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
+            try? FileManager.default.removeItem(at: directory)
+        }
+        let store = try AccountStore(directory: directory)
+        let first = try account(index: 0)
+        let next = try account(index: 1, recoveryID: first.recoveryID)
+        _ = try await store.add(first)
+        let file = directory.appendingPathComponent("accounts.json")
+        let original = try Data(contentsOf: file)
+        try FileManager.default.setAttributes([.posixPermissions: 0o400], ofItemAtPath: file.path)
+        try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: directory.path)
+
+        // Reading and the existing-directory setup must still succeed before the denied write.
+        try #require(try await store.load().map(\.id) == [first.id])
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try #require(!FileManager.default.isWritableFile(atPath: directory.path))
+        try #require(!FileManager.default.isWritableFile(atPath: file.path))
+
+        await #expect { try await store.add(next) } throws: { error in
+            (error as? CocoaError)?.code == .fileWriteNoPermission
+        }
+        #expect(try Data(contentsOf: file) == original)
+        #expect(try await AccountStore(directory: directory).load().map(\.id) == [first.id])
+    }
+
+    /// Already canceled callers cannot create an account or modify existing metadata.
+    @Test("already cancelled additions preserve existing account storage")
+    func cancelledAdditionPreservesStorage() async throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = try AccountStore(directory: directory)
+        _ = try await store.add(account(index: 0))
+        let file = directory.appendingPathComponent("accounts.json")
+        let original = try Data(contentsOf: file)
+        let next = try account(index: 1)
+        let (gate, continuation) = AsyncStream<Void>.makeStream()
+        let operation = Task { @concurrent in
+            for await _ in gate {}
+            return try await store.add(next)
+        }
+        operation.cancel()
+        continuation.finish()
+        await #expect(throws: CancellationError.self) { try await operation.value }
+        #expect(try Data(contentsOf: file) == original)
+    }
+
+    /// Invalid account numbers cannot enter an otherwise valid catalog.
+    @Test("invalid account indices cannot be saved")
+    func invalidIndexCannotBeSaved() async throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let valid = try account(index: 0)
+        let invalid = Account(id: valid.id, recoveryID: valid.recoveryID, address: valid.address, index: UInt32.max)
+        let store = try AccountStore(directory: directory)
+        await #expect(throws: DerivationPath.ValidationError.invalidPath) { try await store.add(invalid) }
+        #expect(try await store.load().isEmpty)
+    }
+
+    /// Creates an isolated filesystem location for one test.
+    /// - Returns: A unique, empty temporary directory.
+    /// - Throws: A filesystem error.
+    private func temporaryDirectory() throws -> URL {
+        let directory = URL.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
+        return directory
+    }
+
+    /// Creates public-only metadata for a small test index without generating recovery material.
+    /// - Parameters:
+    ///   - index: A test index below 256, also used to construct a distinct valid address.
+    ///   - recoveryID: The shared recovery identity to record.
+    /// - Returns: A unique account identity with a syntactically valid address.
+    /// - Throws: An address validation error.
+    private func account(index: UInt32, recoveryID: UUID = UUID()) throws -> widgets.Account {
+        Account(id: UUID(), recoveryID: recoveryID,
+            address: try Address(Base58.encode(Array(repeating: UInt8(index), count: 32))), index: index)
+    }
+}

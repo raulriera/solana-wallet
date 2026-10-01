@@ -1,0 +1,39 @@
+import Observation
+import Vault
+
+/// One window's preparation and explicit completion of its first account.
+@MainActor
+protocol OnboardingCoordinating: AnyObject, Observable {
+    /// Recovery available for explicit backup while a draft awaits completion.
+    var recovery: Recovery? { get }
+    /// The account published only after both persistence steps succeed.
+    var account: Account? { get }
+    /// Whether preparation or completion is in progress.
+    var isWorking: Bool { get }
+
+    /// Prepares a new twelve-word recovery and its first address without saving either.
+    /// - Throws: A preparation, cancellation, or invalid-state error.
+    func create() async throws
+
+    /// Validates an imported phrase and prepares its first address without saving it.
+    /// - Parameters:
+    ///   - phrase: The recovery words supplied by the user.
+    ///   - passphrase: The original BIP-39 passphrase, preserving case and whitespace.
+    /// - Throws: A phrase-validation, preparation, cancellation, or invalid-state error.
+    func importRecovery(_ phrase: String, passphrase: String) async throws
+
+    /// Saves the prepared recovery and then its public account after explicit approval.
+    ///
+    /// Failed saves retain the draft and identifiers for an explicit retry. Cancellation
+    /// doesn't undo a committed write. Repeated completion returns the same account.
+    /// - Returns: The persisted first account.
+    /// - Throws: A storage, cancellation, or invalid-state error without recovery text.
+    func complete() async throws -> Account
+
+    /// Releases this window's draft after any caller-owned task has finished.
+    ///
+    /// Already persisted recovery and account records are never deleted. Releasing
+    /// references doesn't guarantee that Swift erases their memory.
+    /// - Throws: An invalid-state error if work is still in progress.
+    func discard() throws
+}

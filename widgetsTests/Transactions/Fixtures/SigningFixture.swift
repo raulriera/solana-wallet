@@ -8,6 +8,7 @@ import Wallet
 /// Mutable test inputs that expose attempts to change immutable review data.
 struct SigningFixture {
     let recovery: Recovery
+    let account: widgets.Account
     var transfer: Instruction
     var configuration: Configuration
     var network: Network
@@ -34,9 +35,10 @@ struct SigningFixture {
         let source = try PreparationFixture.source(base)
         recovery = Recovery(
             phrase: try RecoveryPhrase("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"),
-            passphrase: "TREZOR", path: try DerivationPath("m/44'/501'/1'/0'")
+            passphrase: "TREZOR"
         )
         transfer = try SystemProgram.transfer(from: Address("8CW93AFYFKj2rKZRq3YjLesb4XbgtAiq8k2FgfruVZL5"), to: source.instruction.accounts[1].address, lamports: 1)
+        account = Account(id: UUID(), recoveryID: UUID(), address: transfer.accounts[0].address, index: 1)
         configuration = source.configuration
         network = base.network
         blockhash = source.blockhash

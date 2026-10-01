@@ -15,7 +15,7 @@ struct ApprovalTests {
         let first = try TransactionCoordinator(rpc: http.client, store: store, configuration: fixture.configuration)
         let second = try TransactionCoordinator(rpc: http.client, store: store, configuration: fixture.configuration)
         let review = try await first.simulate([fixture.transfer],
-            using: Account(id: UUID(), address: fixture.transfer.accounts[0].address))
+            using: fixture.account)
 
         await #expect(throws: ValidationError.invalidTransaction) { try await second.sign(review) }
         #expect(await store.reads.isEmpty)
@@ -29,9 +29,9 @@ struct ApprovalTests {
         let http = try HTTPResponses.preparation(fixture: fixture.preparation)
         let store = SigningRecoveryStore(recovery: fixture.recovery)
         let coordinator = try TransactionCoordinator(rpc: http.client, store: store, configuration: fixture.configuration)
-        let payer = Account(id: UUID(), address: fixture.transfer.accounts[0].address)
+        let payer = fixture.account
         let wallets = selection == "empty" ? [] : [payer, selection == "duplicate" ? payer
-            : Account(id: UUID(), address: fixture.transfer.accounts[1].address)]
+            : Account(id: UUID(), recoveryID: UUID(), address: fixture.transfer.accounts[1].address, index: 0)]
         let error: ValidationError = selection == "unrelated" ? .signerNotRequired : .invalidMessage
 
         await #expect(throws: error) { try await coordinator.simulate([fixture.transfer], using: wallets) }
@@ -45,7 +45,7 @@ struct ApprovalTests {
         let http = try HTTPResponses.preparation(fixture: fixture)
         let store = SigningRecoveryStore(recovery: try SigningFixture().recovery)
         let coordinator = try TransactionCoordinator(rpc: http.client, store: store)
-        let review = try await coordinator.simulate(fixture.transaction, using: Account(id: UUID(), address: fixture.signer))
+        let review = try await coordinator.simulate(fixture.transaction, using: SigningFixture().account)
 
         await #expect(throws: Submitter.Failure.missingSignatures) { try await coordinator.confirm(review) }
         #expect(await store.reads.isEmpty)
@@ -63,7 +63,7 @@ struct ApprovalTests {
             signer: Signer(rpc: http.client, store: store), submitter: Submitter(rpc: http.client), confirmer: Confirmer(rpc: http.client)
         )
         let review = try await coordinator.simulate([fixture.transfer],
-            using: Account(id: UUID(), address: fixture.transfer.accounts[0].address))
+            using: fixture.account)
         let results = try await withThrowingTaskGroup(of: Bool.self) { group in
             for _ in 0..<2 {
                 group.addTask {
@@ -97,7 +97,7 @@ struct ApprovalTests {
             confirmer: Confirmer(rpc: http.client)
         )
         let review = try await coordinator.simulate([fixture.transfer],
-            using: Account(id: UUID(), address: fixture.transfer.accounts[0].address))
+            using: fixture.account)
         await #expect {
             try await coordinator.confirm(review)
         } throws: { error in

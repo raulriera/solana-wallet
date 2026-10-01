@@ -200,7 +200,7 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
             let original = simulation.preparation
             let preparation = Preparation(source: original.source, signer: wallet.address, transaction: transaction,
                 network: original.network, fee: original.fee, simulation: original.simulation, tips: original.tips)
-            transaction = try await signer.sign(preparation, for: wallet.id,
+            transaction = try await signer.sign(preparation, for: wallet,
                 reason: String(localized: "Approve transaction")).transaction
         }
         return SignedTransaction(preparation: simulation.preparation, transaction: transaction)

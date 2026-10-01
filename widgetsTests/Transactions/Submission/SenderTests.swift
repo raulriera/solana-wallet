@@ -18,8 +18,8 @@ struct SenderTests {
     func senderConfirmsReviewedTransaction(_ strategy: TransactionCoordinator.Strategy) async throws {
         let key = try #require(ProcessInfo.processInfo.environment["HELIUS_API_KEY"])
         let rpc = HeliusRPC(apiKey: key, network: .mainnet)
-        let account = Account(id: DevnetWallets.senderID,
-            address: try await DevnetWallets.address(for: DevnetWallets.senderID))
+        let account = Account(id: DevnetWallets.senderID, recoveryID: DevnetWallets.senderID,
+            address: try await DevnetWallets.address(for: DevnetWallets.senderID), index: 0)
         let balance = try await rpc.send(GetMultipleAccounts(addresses: [account.address.value]))
         let initial = try #require(balance.value[0]).lamports
         let coordinator = try TransactionCoordinator(rpc: rpc, store: DevnetWallets.store, strategy: strategy)

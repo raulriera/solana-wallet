@@ -9,9 +9,9 @@ nonisolated protocol TransactionSigning: Sendable {
     ///
     /// - Parameters:
     ///   - preparation: The immutable preparation that the user reviewed.
-    ///   - walletID: The local identifier of the wallet whose recovery is protected.
+    ///   - account: The selected account and its shared recovery identity.
     ///   - reason: A localized, secret-free explanation for biometric authentication.
     /// - Returns: The original preparation and its signed transaction.
     /// - Throws: A validation, RPC, storage, or signing error, or `CancellationError` if cancelled.
-    func sign(_ preparation: Preparation, for walletID: UUID, reason: String) async throws -> SignedTransaction
+    func sign(_ preparation: Preparation, for account: Account, reason: String) async throws -> SignedTransaction
 }

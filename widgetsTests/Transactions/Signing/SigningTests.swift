@@ -9,7 +9,7 @@ import Wallet
 
 /// Verifies review-to-signature boundaries through the internal signing service.
 struct SigningTests {
-    /// Verifies the real wallet signs reviewed bytes using the stored passphrase and path.
+    /// Verifies the real wallet signs reviewed bytes using the stored passphrase and selected account index.
     @Test("an authenticated wallet signs the reviewed message at its last valid block height")
     func signingPreservesReviewedMessage() async throws {
         let fixture = try SigningFixture()
@@ -20,9 +20,8 @@ struct SigningTests {
             rpc: http.client, configuration: fixture.configuration, preparer: Preparer(rpc: (try HTTPResponses.preparation(fixture: fixture.preparation)).client),
             signer: Signer(rpc: http.client, store: store, wallet: wallet), submitter: Submitter(rpc: http.client), confirmer: Confirmer(rpc: http.client)
         )
-        let walletID = UUID()
 
-        let preparation = try await coordinator.simulate([fixture.transfer], using: Account(id: walletID, address: fixture.transfer.accounts[0].address))
+        let preparation = try await coordinator.simulate([fixture.transfer], using: fixture.account)
         #expect(preparation.lastValidBlockHeight == 550)
         #expect(await store.reads.isEmpty)
         let signed = try await coordinator.sign(preparation)
@@ -38,7 +37,7 @@ struct SigningTests {
         let reads = await store.reads
         #expect(reads.count == 1)
         let read = try #require(reads.first)
-        #expect(read.walletID == walletID)
+        #expect(read.walletID == fixture.account.recoveryID)
         #expect(read.reason == "Approve transaction")
         let requests = await http.requests
         #expect(requests.count == 3)
@@ -77,7 +76,7 @@ struct SigningTests {
         let signer = Signer(rpc: http.client, store: store)
 
         await #expect(throws: PreparationValidator.Failure.messageMismatch) {
-            try await signer.sign(fixture.preparation, for: UUID(), reason: "Approve transfer")
+            try await signer.sign(fixture.preparation, for: fixture.account, reason: "Approve transfer")
         }
 
         #expect(await store.reads.isEmpty)
@@ -118,7 +117,7 @@ struct SigningTests {
         let signer = Signer(rpc: http.client, store: store)
 
         await #expect(throws: expected) {
-            try await signer.sign(fixture.preparation, for: UUID(), reason: "Approve transfer")
+            try await signer.sign(fixture.preparation, for: fixture.account, reason: "Approve transfer")
         }
 
         #expect(await store.reads.isEmpty)
@@ -135,7 +134,7 @@ struct SigningTests {
         let signer = Signer(rpc: http.client, store: store)
 
         await #expect(throws: PreparationValidator.Failure.networkMismatch) {
-            try await signer.sign(fixture.preparation, for: UUID(), reason: "Approve transfer")
+            try await signer.sign(fixture.preparation, for: fixture.account, reason: "Approve transfer")
         }
 
         #expect(await store.reads.isEmpty)
@@ -154,7 +153,7 @@ struct SigningTests {
         let signer = Signer(rpc: http.client, store: store, wallet: wallet)
 
         await #expect(throws: PreparationValidator.Failure.expired) {
-            try await signer.sign(fixture.preparation, for: UUID(), reason: "Approve transfer")
+            try await signer.sign(fixture.preparation, for: fixture.account, reason: "Approve transfer")
         }
 
         #expect(await store.reads.count == (expiresDuringAuthentication ? 1 : 0))
@@ -172,7 +171,7 @@ struct SigningTests {
         let signer = Signer(rpc: http.client, store: store)
 
         await #expect(throws: PreparationValidator.Failure.feeChanged) {
-            try await signer.sign(fixture.preparation, for: UUID(), reason: "Approve transfer")
+            try await signer.sign(fixture.preparation, for: fixture.account, reason: "Approve transfer")
         }
 
         #expect(await store.reads.isEmpty)
@@ -188,7 +187,7 @@ struct SigningTests {
         let signer = Signer(rpc: (try HTTPResponses.signing()).client, store: store, wallet: wallet)
 
         await #expect(throws: KeychainStore.Failure.authenticationFailed) {
-            try await signer.sign(fixture.preparation, for: UUID(), reason: "Approve transfer")
+            try await signer.sign(fixture.preparation, for: fixture.account, reason: "Approve transfer")
         }
 
         #expect(await store.reads.count == 1)
@@ -199,12 +198,12 @@ struct SigningTests {
     @Test("recovery for another account cannot sign the reviewed sender's transfer")
     func anotherAccountCannotSignTransfer() async throws {
         let fixture = try SigningFixture()
-        let otherAccount = Recovery(phrase: fixture.recovery.phrase, passphrase: "", path: .solana)
+        let otherAccount = Recovery(phrase: fixture.recovery.phrase, passphrase: "")
         let store = SigningRecoveryStore(recovery: otherAccount)
         let signer = Signer(rpc: (try HTTPResponses.signing()).client, store: store)
 
         await #expect(throws: SigningError.signerMismatch) {
-            try await signer.sign(fixture.preparation, for: UUID(), reason: "Approve transfer")
+            try await signer.sign(fixture.preparation, for: fixture.account, reason: "Approve transfer")
         }
     }
 
@@ -217,7 +216,7 @@ struct SigningTests {
         let wallet = RecordingWallet()
         let signer = Signer(rpc: (try HTTPResponses.signing()).client, store: store, wallet: wallet)
         let operation = Task { @concurrent in
-            try await signer.sign(fixture.preparation, for: UUID(), reason: "Approve transfer")
+            try await signer.sign(fixture.preparation, for: fixture.account, reason: "Approve transfer")
         }
         defer { operation.cancel() }
         await gate.waitUntilStarted()

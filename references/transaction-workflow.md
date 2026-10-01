@@ -7,7 +7,7 @@ let transactions = try TransactionCoordinator(
     rpc: rpc, store: recoveryStore,
     rpcs: [rpc, Solana(network: rpc.network)], strategy: .none
 )
-let wallet = Account(id: walletID, address: address)
+let wallet = Account(id: accountID, recoveryID: recoveryID, address: address, index: accountIndex)
 let simulation = try await transactions.simulate([
     SystemProgram.transfer(from: wallet.address, to: recipient, lamports: 1_000_000),
     MemoProgram.memo("Payment reference"),

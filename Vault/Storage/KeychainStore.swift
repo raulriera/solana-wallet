@@ -58,7 +58,7 @@ public struct KeychainStore: RecoveryStoring {
     /// roll back an add that has already reached the Keychain.
     ///
     /// - Parameters:
-    ///   - recovery: The phrase, original passphrase, and account path.
+    ///   - recovery: The shared phrase and original BIP-39 passphrase.
     ///   - walletID: The caller's local wallet identifier.
     /// - Throws: ``Failure`` if the item can't be protected or already exists,
     ///   or `CancellationError` if canceled.

@@ -27,12 +27,12 @@ enum DevnetWallets {
             recovery = try await store.recovery(for: id, reason: "Unlock reusable devnet test wallet")
         } catch KeychainStore.Failure.recoveryUnavailable {
             guard recorded == nil else { throw KeychainStore.Failure.recoveryUnavailable }
-            let created = Recovery(phrase: try Wallet().recoveryPhrase(), passphrase: "", path: .solana)
-            expected = try await Wallet().address(for: created.phrase, passphrase: created.passphrase, path: created.path)
+            let created = Recovery(phrase: try Wallet().recoveryPhrase(), passphrase: "")
+            expected = try await Wallet().address(for: created.phrase, passphrase: created.passphrase, path: .solana)
             try await store.save(created, for: id)
             recovery = try await store.recovery(for: id, reason: "Verify saved devnet test wallet")
         }
-        let address = try await Wallet().address(for: recovery.phrase, passphrase: recovery.passphrase, path: recovery.path)
+        let address = try await Wallet().address(for: recovery.phrase, passphrase: recovery.passphrase, path: .solana)
         guard expected == nil || expected == address else { throw Failure.identityChanged }
         UserDefaults.standard.set(address, forKey: key)
         return try Address(address)

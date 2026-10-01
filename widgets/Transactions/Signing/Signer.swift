@@ -40,15 +40,17 @@ nonisolated struct Signer: TransactionSigning {
     ///
     /// - Parameters:
     ///   - preparation: The preparation whose details the user has approved.
-    ///   - walletID: The identifier under which recovery material was stored.
+    ///   - account: The selected account and its shared recovery identity.
     ///   - reason: The localized explanation shown by the recovery store during authentication.
     /// - Returns: The typed signed transaction and the unchanged review data.
     /// - Throws: A prerequisite, dependency, or cancellation error.
     @concurrent
-    func sign(_ preparation: Preparation, for walletID: UUID, reason: String) async throws -> SignedTransaction {
+    func sign(_ preparation: Preparation, for account: Account, reason: String) async throws -> SignedTransaction {
         try Task.checkCancellation()
+        guard account.address == preparation.signer else { throw SigningError.signerMismatch }
+        let path = try account.path
         try await validator.validate(preparation)
-        let signature = try await signature(for: preparation, walletID: walletID, reason: reason)
+        let signature = try await signature(for: preparation, recoveryID: account.recoveryID, path: path, reason: reason)
         try Task.checkCancellation()
         let transaction = try transactionBuilder.transaction(
             byAdding: signature, for: preparation.signer, to: preparation.bytes
@@ -61,18 +63,19 @@ nonisolated struct Signer: TransactionSigning {
     ///
     /// - Parameters:
     ///   - preparation: The already validated review data.
-    ///   - walletID: The local recovery identifier.
+    ///   - recoveryID: The shared recovery identifier.
+    ///   - path: The path constructed from the selected account's index.
     ///   - reason: The localized authentication explanation.
     /// - Returns: The signature from the recovered account matching the selected required signer.
     /// - Throws: A storage, expiry, signing, or cancellation error.
-    private func signature(for preparation: Preparation, walletID: UUID, reason: String) async throws -> Data {
-        let recovery = try await store.recovery(for: walletID, reason: reason)
+    private func signature(for preparation: Preparation, recoveryID: UUID, path: DerivationPath, reason: String) async throws -> Data {
+        let recovery = try await store.recovery(for: recoveryID, reason: reason)
         try Task.checkCancellation()
         try await validator.validateLifetime(preparation)
         try Task.checkCancellation()
         return try await wallet.signature(
             for: preparation.message, using: recovery.phrase, expectedAddress: preparation.signer.value,
-            passphrase: recovery.passphrase, path: recovery.path
+            passphrase: recovery.passphrase, path: path
         )
     }
 }

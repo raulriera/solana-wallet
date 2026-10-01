@@ -5,7 +5,7 @@ public protocol RecoveryStoring: Sendable {
     /// Saves recovery material without replacing an existing wallet.
     ///
     /// - Parameters:
-    ///   - recovery: The phrase, passphrase, and path to protect.
+    ///   - recovery: The shared phrase and original BIP-39 passphrase to protect.
     ///   - walletID: The local identifier assigned by the caller.
     /// - Throws: An error if protection is unavailable or the wallet already exists.
     func save(_ recovery: Recovery, for walletID: UUID) async throws

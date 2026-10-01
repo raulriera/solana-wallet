@@ -6,7 +6,6 @@ struct StoredRecovery: Codable {
     let version: Int
     let phrase: String
     let passphrase: String
-    let path: String
 
     /// Encodes recovery material for protected storage.
     ///
@@ -16,7 +15,7 @@ struct StoredRecovery: Codable {
     static func encode(_ recovery: Recovery) throws -> Data {
         let stored = StoredRecovery(
             version: 1, phrase: recovery.phrase.words.joined(separator: " "),
-            passphrase: recovery.passphrase, path: recovery.path.description
+            passphrase: recovery.passphrase
         )
         do { return try JSONEncoder().encode(stored) }
         catch { throw KeychainStore.Failure.invalidRecovery }
@@ -25,15 +24,14 @@ struct StoredRecovery: Codable {
     /// Decodes and validates stored recovery material.
     ///
     /// - Parameter data: The authenticated Keychain value.
-    /// - Returns: Validated recovery material using the original passphrase and path.
+    /// - Returns: Validated recovery material using the original passphrase.
     /// - Throws: ``KeychainStore/Failure/invalidRecovery`` for unsupported or malformed data.
     static func decode(_ data: Data) throws -> Recovery {
         do {
             let stored = try JSONDecoder().decode(Self.self, from: data)
             guard stored.version == 1 else { throw KeychainStore.Failure.invalidRecovery }
             return try Recovery(
-                phrase: RecoveryPhrase(stored.phrase), passphrase: stored.passphrase,
-                path: DerivationPath(stored.path)
+                phrase: RecoveryPhrase(stored.phrase), passphrase: stored.passphrase
             )
         } catch { throw KeychainStore.Failure.invalidRecovery }
     }
@@ -44,11 +42,9 @@ struct StoredRecovery: Codable {
     ///   - version: The payload format version.
     ///   - phrase: The space-separated recovery words.
     ///   - passphrase: The unmodified BIP-39 passphrase.
-    ///   - path: The canonical hardened path.
-    private init(version: Int, phrase: String, passphrase: String, path: String) {
+    private init(version: Int, phrase: String, passphrase: String) {
         self.version = version
         self.phrase = phrase
         self.passphrase = passphrase
-        self.path = path
     }
 }

@@ -43,7 +43,6 @@ struct BiometricStorageTests {
             let restored = try await store.recovery(for: id, reason: "Read public biometric test fixture")
             #expect(restored.phrase.words == original.phrase.words)
             #expect(restored.passphrase == original.passphrase)
-            #expect(restored.path == original.path)
         } catch {
             try? await store.deleteRecovery(for: id)
             throw error
@@ -58,7 +57,7 @@ struct BiometricStorageTests {
     private func recovery() throws -> Recovery {
         try Recovery(
             phrase: RecoveryPhrase(Array(repeating: "abandon", count: 11).joined(separator: " ") + " about"),
-            passphrase: "biometric-test", path: .solana
+            passphrase: "biometric-test"
         )
     }
 }

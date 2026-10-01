@@ -1,17 +1,12 @@
 import SwiftUI
-import Playgrounds
 
+/// Placeholder for the app's root content.
 struct ContentView: View {
     var body: some View {
-        Text("Hello, world!")
-            .padding()
+        EmptyView()
     }
 }
 
 #Preview {
     ContentView()
-}
-
-#Playground {
-    _ = 1 + 2
 }

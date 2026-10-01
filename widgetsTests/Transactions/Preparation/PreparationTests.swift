@@ -22,7 +22,7 @@ struct PreparationTests {
         let coordinator = try TransactionCoordinator(rpc: http.client, store: store)
 
         await #expect(throws: Preparer.Failure.resourceUsageUnavailable) {
-            try await coordinator.simulate([fixture.transfer], using: Account(id: UUID(), address: fixture.transfer.accounts[0].address))
+            try await coordinator.simulate([fixture.transfer], using: fixture.account)
         }
         #expect(await store.reads.isEmpty)
         #expect(try await http.requests.map { try $0.rpcMethod } == ["getLatestBlockhash", "simulateTransaction"])

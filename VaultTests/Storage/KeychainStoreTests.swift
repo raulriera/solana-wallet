@@ -11,8 +11,8 @@ import Wallet
 @Suite(.timeLimit(.minutes(1)))
 struct KeychainStoreTests {
     /// Verifies complete recovery and the device-only biometric policy in the outgoing query.
-    @Test("saved recovery preserves the phrase passphrase and account path")
-    func savedRecoveryPreservesThePhrasePassphraseAndAccountPath() async throws {
+    @Test("saved recovery preserves the phrase and passphrase")
+    func savedRecoveryPreservesThePhraseAndPassphrase() async throws {
         let keychain = KeychainStub()
         let store: any RecoveryStoring = KeychainStore(service: "test.recovery", keychain: keychain)
         let id = UUID()
@@ -23,12 +23,18 @@ struct KeychainStoreTests {
 
         #expect(recovered.phrase.words == original.phrase.words)
         #expect(recovered.passphrase == " TREZOR ")
-        #expect(recovered.path.description == "m/44'/501'/1'/0'")
-        #expect(keychain.state.withLock { $0.hasRequiredProtection })
-        #expect(keychain.state.withLock { $0.queriedOnlyLocalItems })
-        #expect(keychain.state.withLock { $0.ranOffMainThread })
+        let payload = try #require(keychain.state.withLock(\.items).values.first)
+        let stored = try #require(JSONSerialization.jsonObject(with: payload) as? [String: Any])
+        #expect(stored["path"] == nil)
+        let hasRequiredProtection = keychain.state.withLock(\.hasRequiredProtection)
+        let queriedOnlyLocalItems = keychain.state.withLock(\.queriedOnlyLocalItems)
+        let ranOffMainThread = keychain.state.withLock(\.ranOffMainThread)
+        let permitsFallback = keychain.state.withLock(\.permitsFallback)
+        #expect(hasRequiredProtection)
+        #expect(queriedOnlyLocalItems)
+        #expect(ranOffMainThread)
         #expect(keychain.state.withLock(\.promptReasons) == ["Reveal recovery phrase"])
-        #expect(!keychain.state.withLock { $0.permitsFallback })
+        #expect(!permitsFallback)
     }
 
     /// Verifies that a duplicate save never replaces an existing wallet's secrets.
@@ -39,7 +45,7 @@ struct KeychainStoreTests {
         let id = UUID()
         let original = try Fixtures.recovery()
         try await store.save(original, for: id)
-        let replacement = Recovery(phrase: original.phrase, passphrase: "different", path: original.path)
+        let replacement = Recovery(phrase: original.phrase, passphrase: "different")
 
         await #expect(throws: KeychainStore.Failure.duplicateWallet) { try await store.save(replacement, for: id) }
 
@@ -119,7 +125,8 @@ struct KeychainStoreTests {
         await #expect(throws: KeychainStore.Failure.protectionUnavailable) {
             try await store.save(recovery, for: UUID())
         }
-        #expect(keychain.state.withLock { $0.items.isEmpty })
+        let isEmpty = keychain.state.withLock(\.items.isEmpty)
+        #expect(isEmpty)
     }
 
     /// Verifies that canceled callers don't reach Security or open authentication prompts.
@@ -163,15 +170,16 @@ struct KeychainStoreTests {
         #expect(first.phrase.words == recovery.phrase.words)
         #expect(second.phrase.words == recovery.phrase.words)
         #expect(keychain.state.withLock(\.items.count) == 2)
-        #expect(keychain.state.withLock { $0.queriedOnlyLocalItems })
+        let queriedOnlyLocalItems = keychain.state.withLock(\.queriedOnlyLocalItems)
+        #expect(queriedOnlyLocalItems)
     }
 
     /// Verifies that malformed or unsupported stored values fail without exposing or deleting them.
     /// - Parameter invalid: A public malformed fixture returned by the test Keychain.
     @Test("invalid stored recovery is rejected without being erased", arguments: [
         "not-json",
-        "{\"version\":2,\"phrase\":\"secret-marker\",\"passphrase\":\"secret-marker\",\"path\":\"m\"}",
-        "{\"version\":1,\"phrase\":\"secret-marker\",\"passphrase\":\"secret-marker\",\"path\":\"m\"}",
+        "{\"version\":2,\"phrase\":\"secret-marker\",\"passphrase\":\"secret-marker\"}",
+        "{\"version\":1,\"phrase\":\"secret-marker\",\"passphrase\":\"secret-marker\"}",
     ])
     func invalidStoredRecoveryIsRejectedWithoutBeingErased(invalid: String) async throws {
         let keychain = KeychainStub()

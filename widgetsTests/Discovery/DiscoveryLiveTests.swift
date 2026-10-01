@@ -31,7 +31,7 @@ extension SubmissionTests {
             #expect(funded.indices == 0..<10)
             #expect(funded.nextIndices == 10..<20)
             let match = try #require(funded.accounts.first { $0.address == sender.value })
-            #expect(match.path == senderRecovery.path)
+            #expect(match.path == .solana)
 
             let unfunded = try await AccountDiscovery(rpc: rpc).discover(
                 for: recipientRecovery.phrase, passphrase: recipientRecovery.passphrase)

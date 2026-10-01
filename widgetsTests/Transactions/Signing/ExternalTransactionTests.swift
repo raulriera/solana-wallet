@@ -24,7 +24,7 @@ struct ExternalTransactionTests {
         input.insert(0xff, at: input.startIndex)
         input = input.dropFirst() // Exercise Foundation data with a nonzero start index.
 
-        let preparation = try await coordinator.simulate(TransactionDecoder().decode(input), using: Account(id: UUID(), address: expected.signer))
+        let preparation = try await coordinator.simulate(TransactionDecoder().decode(input), using: SigningFixture().account)
         #expect(await store.reads.isEmpty)
         let signed = try await coordinator.sign(preparation)
 
@@ -105,7 +105,7 @@ struct ExternalTransactionTests {
         let store = SigningRecoveryStore(recovery: try SigningFixture().recovery)
 
         await #expect(throws: PreparationValidator.Failure.messageMismatch) {
-            try await Signer(rpc: http.client, store: store).sign(preparation, for: UUID(), reason: "Approve transaction")
+            try await Signer(rpc: http.client, store: store).sign(preparation, for: SigningFixture().account, reason: "Approve transaction")
         }
 
         #expect(await http.requests.isEmpty)
@@ -130,11 +130,11 @@ struct ExternalTransactionTests {
 
         if stage == "preparation" {
             await #expect(throws: Preparer.Failure.invalidBlockhash) {
-                try await coordinator.simulate(expected.transaction, using: Account(id: UUID(), address: expected.signer))
+                try await coordinator.simulate(expected.transaction, using: SigningFixture().account)
             }
             #expect(await preparationHTTP.requests.count == 1)
         } else {
-            let preparation = try await coordinator.simulate(expected.transaction, using: Account(id: UUID(), address: expected.signer))
+            let preparation = try await coordinator.simulate(expected.transaction, using: SigningFixture().account)
             await #expect(throws: PreparationValidator.Failure.expired) {
                 try await coordinator.sign(preparation)
             }

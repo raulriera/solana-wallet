@@ -61,8 +61,8 @@ struct SubmissionTests {
         let simulation = try await coordinator.simulate([
             SystemProgram.transfer(from: sender, to: recipient, lamports: 1_000_000),
             MemoProgram.memo("widgets devnet composition verification", signers: [recipient]),
-        ], using: [Account(id: DevnetWallets.senderID, address: sender),
-                   Account(id: DevnetWallets.recipientID, address: recipient)])
+        ], using: [Account(id: DevnetWallets.senderID, recoveryID: DevnetWallets.senderID, address: sender, index: 0),
+                   Account(id: DevnetWallets.recipientID, recoveryID: DevnetWallets.recipientID, address: recipient, index: 0)])
         try #require(simulation.diagnostics.value.error == nil)
         let fee = try #require(simulation.fee)
         try #require(fee < 1_000_000)
@@ -82,11 +82,11 @@ struct SubmissionTests {
         print("Devnet delivered 0.001 SOL to \(recipient.value): \(result.submission.signature)")
 
         let refundQuote = try await coordinator.transfer(1,
-            using: Account(id: DevnetWallets.recipientID, address: recipient), to: sender)
+            using: Account(id: DevnetWallets.recipientID, recoveryID: DevnetWallets.recipientID, address: recipient, index: 0), to: sender)
         let returnFee = try #require(refundQuote.fee)
         try #require(returnFee < 1_000_000)
         let refund = try await coordinator.transfer(1_000_000 - returnFee,
-            using: Account(id: DevnetWallets.recipientID, address: recipient), to: sender)
+            using: Account(id: DevnetWallets.recipientID, recoveryID: DevnetWallets.recipientID, address: recipient, index: 0), to: sender)
         try #require(refund.fee == returnFee)
         let returned = try await coordinator.confirm(refund)
         try #require(returned.outcome == .succeeded)
