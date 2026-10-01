@@ -1,1 +1,4 @@
 /Configuration/Local.xcconfig
+
+# Xcode user settings.
+xcuserdata/
