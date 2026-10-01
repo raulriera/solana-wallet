@@ -137,6 +137,13 @@
 		A90000000000000000000002 /* ThemesTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = ThemesTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A10000000000000000000022 /* App.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = App.xcconfig; sourceTree = "<group>"; };
 		A70000000000000000000002 /* widgetsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = widgetsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A60000000000000000000031 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		A20000000000000000000031 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		A10000000000000000000031 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		A90000000000000000000031 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		A50000000000000000000031 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		A40000000000000000000031 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		A30000000000000000000031 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -145,131 +152,89 @@
 			membershipExceptions = (Info.plist, );
 			target = 000000000000000100000000 /* widgets */;
 		};
-		A90000000000000000000022 /* Themes documentation */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (README.md, );
-			target = A90000000000000000000014 /* Themes */;
-		};
-		AD0000000000000000000001 /* RPC documentation */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (README.md, );
-			target = A10000000000000000000014 /* RPC */;
-		};
-		AD0000000000000000000002 /* Portfolio documentation */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (README.md, );
-			target = A20000000000000000000014 /* Portfolio */;
-		};
-		AD0000000000000000000003 /* Wallet documentation */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (README.md, );
-			target = A30000000000000000000014 /* Wallet */;
-		};
-		AD0000000000000000000004 /* Vault documentation */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (README.md, );
-			target = A40000000000000000000014 /* Vault */;
-		};
-		AD0000000000000000000005 /* Transactions documentation */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (README.md, );
-			target = A50000000000000000000014 /* Transactions */;
-		};
-		AD0000000000000000000006 /* Encoding documentation */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (README.md, );
-			target = A60000000000000000000014 /* Encoding */;
-		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		000000000000000000000010 /* widgets */ = {
+		000000000000000000000010 /* Sources */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (AD0000000000000000000007 /* App configuration */, );
 			explicitFolders = (Themes/Resources/Original.xtheme, );
-			path = widgets;
+			path = Sources;
 			sourceTree = "<group>";
 		};
-		A10000000000000000000005 /* RPC */ = {
+		A10000000000000000000005 /* Sources */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (AD0000000000000000000001 /* RPC documentation */, );
-			path = RPC;
+			path = Sources;
 			sourceTree = "<group>";
 		};
-		A10000000000000000000006 /* RPCTests */ = {
+		A10000000000000000000006 /* Tests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = RPCTests;
+			path = Tests;
 			sourceTree = "<group>";
 		};
-		A20000000000000000000005 /* Portfolio */ = {
+		A20000000000000000000005 /* Sources */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (AD0000000000000000000002 /* Portfolio documentation */, );
-			path = Portfolio;
+			path = Sources;
 			sourceTree = "<group>";
 		};
-		A20000000000000000000006 /* PortfolioTests */ = {
+		A20000000000000000000006 /* Tests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = PortfolioTests;
+			path = Tests;
 			sourceTree = "<group>";
 		};
-		A30000000000000000000005 /* Wallet */ = {
+		A30000000000000000000005 /* Sources */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (AD0000000000000000000003 /* Wallet documentation */, );
-			path = Wallet;
+			path = Sources;
 			sourceTree = "<group>";
 		};
-		A30000000000000000000006 /* WalletTests */ = {
+		A30000000000000000000006 /* Tests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = WalletTests;
+			path = Tests;
 			sourceTree = "<group>";
 		};
-		A40000000000000000000005 /* Vault */ = {
+		A40000000000000000000005 /* Sources */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (AD0000000000000000000004 /* Vault documentation */, );
-			path = Vault;
+			path = Sources;
 			sourceTree = "<group>";
 		};
-		A40000000000000000000006 /* VaultTests */ = {
+		A40000000000000000000006 /* Tests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = VaultTests;
+			path = Tests;
 			sourceTree = "<group>";
 		};
-		A50000000000000000000005 /* Transactions */ = {
+		A50000000000000000000005 /* Sources */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (AD0000000000000000000005 /* Transactions documentation */, );
-			path = Transactions;
+			path = Sources;
 			sourceTree = "<group>";
 		};
-		A50000000000000000000006 /* TransactionsTests */ = {
+		A50000000000000000000006 /* Tests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = TransactionsTests;
+			path = Tests;
 			sourceTree = "<group>";
 		};
-		A60000000000000000000005 /* Encoding */ = {
+		A60000000000000000000005 /* Sources */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (AD0000000000000000000006 /* Encoding documentation */, );
-			path = Encoding;
+			path = Sources;
 			sourceTree = "<group>";
 		};
-		A90000000000000000000005 /* Themes */ = {
+		A90000000000000000000005 /* Sources */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (A90000000000000000000022 /* Themes documentation */, );
-			path = Themes;
+			path = Sources;
 			sourceTree = "<group>";
 		};
-		A60000000000000000000006 /* EncodingTests */ = {
+		A60000000000000000000006 /* Tests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = EncodingTests;
+			path = Tests;
 			sourceTree = "<group>";
 		};
-		A90000000000000000000006 /* ThemesTests */ = {
+		A90000000000000000000006 /* Tests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = ThemesTests;
+			path = Tests;
 			sourceTree = "<group>";
 		};
-		A70000000000000000000006 /* widgetsTests */ = {
+		A70000000000000000000006 /* Tests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = widgetsTests;
+			path = Tests;
 			sourceTree = "<group>";
 		};
 		A80000000000000000000001 /* TestSupport */ = {
@@ -390,22 +355,8 @@
 		000000000000000000000001 = {
 			isa = PBXGroup;
 			children = (
-				000000000000000000000010 /* widgets */,
-				A10000000000000000000005 /* RPC */,
-				A20000000000000000000005 /* Portfolio */,
-				A30000000000000000000005 /* Wallet */,
-				A50000000000000000000005 /* Transactions */,
-				A60000000000000000000005 /* Encoding */,
-				A90000000000000000000005 /* Themes */,
-				A40000000000000000000005 /* Vault */,
-				A10000000000000000000006 /* RPCTests */,
-				A20000000000000000000006 /* PortfolioTests */,
-				A70000000000000000000006 /* widgetsTests */,
-				A30000000000000000000006 /* WalletTests */,
-				A50000000000000000000006 /* TransactionsTests */,
-				A60000000000000000000006 /* EncodingTests */,
-				A90000000000000000000006 /* ThemesTests */,
-				A40000000000000000000006 /* VaultTests */,
+				AB0000000000000000000001 /* App */,
+				AB0000000000000000000002 /* Frameworks */,
 				A80000000000000000000001 /* TestSupport */,
 				A10000000000000000000007 /* Configuration */,
 				000000000000000000000020 /* Products */,
@@ -445,6 +396,99 @@
 			path = Configuration;
 			sourceTree = "<group>";
 		};
+		AB0000000000000000000001 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				000000000000000000000010 /* Sources */,
+				A70000000000000000000006 /* Tests */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		AB0000000000000000000002 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				A60000000000000000000030 /* Encoding */,
+				A20000000000000000000030 /* Portfolio */,
+				A10000000000000000000030 /* RPC */,
+				A90000000000000000000030 /* Themes */,
+				A50000000000000000000030 /* Transactions */,
+				A40000000000000000000030 /* Vault */,
+				A30000000000000000000030 /* Wallet */,
+			);
+			path = Frameworks;
+			sourceTree = "<group>";
+		};
+		A60000000000000000000030 /* Encoding */ = {
+			isa = PBXGroup;
+			children = (
+				A60000000000000000000005 /* Sources */,
+				A60000000000000000000006 /* Tests */,
+				A60000000000000000000031 /* README.md */,
+			);
+			path = Encoding;
+			sourceTree = "<group>";
+		};
+		A20000000000000000000030 /* Portfolio */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000005 /* Sources */,
+				A20000000000000000000006 /* Tests */,
+				A20000000000000000000031 /* README.md */,
+			);
+			path = Portfolio;
+			sourceTree = "<group>";
+		};
+		A10000000000000000000030 /* RPC */ = {
+			isa = PBXGroup;
+			children = (
+				A10000000000000000000005 /* Sources */,
+				A10000000000000000000006 /* Tests */,
+				A10000000000000000000031 /* README.md */,
+			);
+			path = RPC;
+			sourceTree = "<group>";
+		};
+		A90000000000000000000030 /* Themes */ = {
+			isa = PBXGroup;
+			children = (
+				A90000000000000000000005 /* Sources */,
+				A90000000000000000000006 /* Tests */,
+				A90000000000000000000031 /* README.md */,
+			);
+			path = Themes;
+			sourceTree = "<group>";
+		};
+		A50000000000000000000030 /* Transactions */ = {
+			isa = PBXGroup;
+			children = (
+				A50000000000000000000005 /* Sources */,
+				A50000000000000000000006 /* Tests */,
+				A50000000000000000000031 /* README.md */,
+			);
+			path = Transactions;
+			sourceTree = "<group>";
+		};
+		A40000000000000000000030 /* Vault */ = {
+			isa = PBXGroup;
+			children = (
+				A40000000000000000000005 /* Sources */,
+				A40000000000000000000006 /* Tests */,
+				A40000000000000000000031 /* README.md */,
+			);
+			path = Vault;
+			sourceTree = "<group>";
+		};
+		A30000000000000000000030 /* Wallet */ = {
+			isa = PBXGroup;
+			children = (
+				A30000000000000000000005 /* Sources */,
+				A30000000000000000000006 /* Tests */,
+				A30000000000000000000031 /* README.md */,
+			);
+			path = Wallet;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -469,7 +513,7 @@
 				A40000000000000000000013 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				000000000000000000000010 /* widgets */,
+				000000000000000000000010 /* Sources */,
 			);
 			name = widgets;
 			productName = MyApp;
@@ -487,7 +531,7 @@
 			buildRules = (
 			);
 			fileSystemSynchronizedGroups = (
-				A10000000000000000000005 /* RPC */,
+				A10000000000000000000005 /* Sources */,
 			);
 			name = RPC;
 			productName = RPC;
@@ -508,7 +552,7 @@
 				A10000000000000000000013 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				A10000000000000000000006 /* RPCTests */,
+				A10000000000000000000006 /* Tests */,
 				A80000000000000000000001 /* TestSupport */,
 			);
 			name = RPCTests;
@@ -530,7 +574,7 @@
 				A10000000000000000000013 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				A20000000000000000000005 /* Portfolio */,
+				A20000000000000000000005 /* Sources */,
 			);
 			name = Portfolio;
 			productName = Portfolio;
@@ -551,7 +595,7 @@
 				A20000000000000000000013 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				A20000000000000000000006 /* PortfolioTests */,
+				A20000000000000000000006 /* Tests */,
 				A80000000000000000000001 /* TestSupport */,
 			);
 			name = PortfolioTests;
@@ -573,7 +617,7 @@
 				A60000000000000000000013 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				A30000000000000000000005 /* Wallet */,
+				A30000000000000000000005 /* Sources */,
 			);
 			name = Wallet;
 			productName = Wallet;
@@ -594,7 +638,7 @@
 				A30000000000000000000013 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				A30000000000000000000006 /* WalletTests */,
+				A30000000000000000000006 /* Tests */,
 			);
 			name = WalletTests;
 			productName = WalletTests;
@@ -615,7 +659,7 @@
 				A30000000000000000000013 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				A40000000000000000000005 /* Vault */,
+				A40000000000000000000005 /* Sources */,
 			);
 			name = Vault;
 			productName = Vault;
@@ -637,7 +681,7 @@
 				A40000000000000000000013 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				A40000000000000000000006 /* VaultTests */,
+				A40000000000000000000006 /* Tests */,
 			);
 			name = VaultTests;
 			productName = VaultTests;
@@ -658,7 +702,7 @@
 				A60000000000000000000013 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				A50000000000000000000005 /* Transactions */,
+				A50000000000000000000005 /* Sources */,
 			);
 			name = Transactions;
 			productName = Transactions;
@@ -679,7 +723,7 @@
 				A50000000000000000000013 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				A50000000000000000000006 /* TransactionsTests */,
+				A50000000000000000000006 /* Tests */,
 			);
 			name = TransactionsTests;
 			productName = TransactionsTests;
@@ -697,7 +741,7 @@
 			buildRules = (
 			);
 			fileSystemSynchronizedGroups = (
-				A60000000000000000000005 /* Encoding */,
+				A60000000000000000000005 /* Sources */,
 			);
 			name = Encoding;
 			productName = Encoding;
@@ -715,7 +759,7 @@
 			buildRules = (
 			);
 			fileSystemSynchronizedGroups = (
-				A90000000000000000000005 /* Themes */,
+				A90000000000000000000005 /* Sources */,
 			);
 			name = Themes;
 			productName = Themes;
@@ -736,7 +780,7 @@
 				A60000000000000000000013 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				A60000000000000000000006 /* EncodingTests */,
+				A60000000000000000000006 /* Tests */,
 			);
 			name = EncodingTests;
 			productName = EncodingTests;
@@ -757,7 +801,7 @@
 				A90000000000000000000013 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				A90000000000000000000006 /* ThemesTests */,
+				A90000000000000000000006 /* Tests */,
 			);
 			name = ThemesTests;
 			productName = ThemesTests;
@@ -778,7 +822,7 @@
 				A70000000000000000000013 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				A70000000000000000000006 /* widgetsTests */,
+				A70000000000000000000006 /* Tests */,
 			);
 			name = widgetsTests;
 			productName = widgetsTests;
@@ -1183,7 +1227,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = A10000000000000000000022 /* App.xcconfig */;
 			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = widgets/Configuration/widgets.entitlements;
+				CODE_SIGN_ENTITLEMENTS = App/Sources/Configuration/widgets.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = R64MTWS872;
@@ -1191,7 +1235,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = widgets/Info.plist;
+				INFOPLIST_FILE = App/Sources/Info.plist;
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Use Face ID to access your wallet recovery material.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -1225,7 +1269,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = A10000000000000000000022 /* App.xcconfig */;
 			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = widgets/Configuration/widgets.entitlements;
+				CODE_SIGN_ENTITLEMENTS = App/Sources/Configuration/widgets.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = R64MTWS872;
@@ -1233,7 +1277,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = widgets/Info.plist;
+				INFOPLIST_FILE = App/Sources/Info.plist;
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Use Face ID to access your wallet recovery material.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;

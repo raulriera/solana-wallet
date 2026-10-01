@@ -4,7 +4,7 @@ Typed Solana RPC, DAS asset queries, market prices, and confirmed account subscr
 
 ## Example Usage
 
-Inject [`RPC`](Client/RPC.swift) and send an `RPCRequest`; its associated `Response` defines the result type.
+Inject [`RPC`](Sources/Client/RPC.swift) and send an `RPCRequest`; its associated `Response` defines the result type.
 
 ```swift
 import RPC
@@ -21,13 +21,13 @@ let blockhash = response.value.blockhash
 | `Sender(tier:)` | Optional mainnet transaction submission with `standard` or `premium` routing. Preparation and confirmation use ordinary RPC. |
 | `Jupiter(apiKey:)` | Mainnet prices through `PriceProviding`; independent of RPC and DAS. |
 
-Typed requests cover account and rent reads, blockhash lifetime, epochs, fees, simulation, submission, signature status, and fungible-asset queries. See [supported request scope](../references/rpc-scope.md).
+Typed requests cover account and rent reads, blockhash lifetime, epochs, fees, simulation, submission, signature status, and fungible-asset queries. See [supported request scope](../../references/rpc-scope.md).
 
 ## Prices and subscriptions
 
-[`PriceProviding`](Pricing/PriceProviding.swift) returns quotes keyed by mint. Missing entries mean unavailable prices, not zero. Providers own deduplication, batching, and pacing. Reuse a provider instance to share its request budget; refresh scheduling belongs to the caller.
+[`PriceProviding`](Sources/Pricing/PriceProviding.swift) returns quotes keyed by mint. Missing entries mean unavailable prices, not zero. Providers own deduplication, batching, and pacing. Reuse a provider instance to share its request budget; refresh scheduling belongs to the caller.
 
-[`AccountChangeProviding`](Subscriptions/AccountChangeProviding.swift) observes confirmed SOL, SPL Token, and Token-2022 account changes. `changedSlots(for:)` returns after subscriptions are acknowledged and emits increasing change slots. These signal a need to reconcile balances; they are not balance updates. Cancel the consuming task to close its connection.
+[`AccountChangeProviding`](Sources/Subscriptions/AccountChangeProviding.swift) observes confirmed SOL, SPL Token, and Token-2022 account changes. `changedSlots(for:)` returns after subscriptions are acknowledged and emits increasing change slots. These signal a need to reconcile balances; they are not balance updates. Cancel the consuming task to close its connection.
 
 ## Errors and submission
 

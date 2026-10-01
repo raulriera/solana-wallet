@@ -4,7 +4,7 @@ Device-only Keychain storage for wallet recovery material, protected by the devi
 
 ## Example Usage
 
-Inject [`RecoveryStoring`](Storage/RecoveryStoring.swift), implemented by `KeychainStore`. Choose a stable service identifier, retain the UUID used to identify the shared recovery, and provide `NSFaceIDUsageDescription` in the calling app's Info.plist.
+Inject [`RecoveryStoring`](Sources/Storage/RecoveryStoring.swift), implemented by `KeychainStore`. Choose a stable service identifier, retain the UUID used to identify the shared recovery, and provide `NSFaceIDUsageDescription` in the calling app's Info.plist.
 
 Given a validated `RecoveryPhrase`, its original passphrase, and a recovery UUID:
 
@@ -25,7 +25,7 @@ let restored = try await store.recovery(
 - `save(_:for:)` inserts a new record and rejects an existing wallet ID.
 - `recovery(for:reason:)` uses a fresh authentication context. Supply a localized, nonsecret reason for the system prompt. Failed reads preserve the stored record.
 - `deleteRecovery(for:)` removes that shared recovery record; a missing record is a no-op.
-- [`KeychainStore.Failure`](Storage/KeychainStore.swift) distinguishes duplicate records, unavailable recovery or protection, authentication failures, invalid recovery, and Keychain errors.
+- [`KeychainStore.Failure`](Sources/Storage/KeychainStore.swift) distinguishes duplicate records, unavailable recovery or protection, authentication failures, invalid recovery, and Keychain errors.
 
 ## Protection
 

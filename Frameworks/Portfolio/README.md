@@ -4,7 +4,7 @@ Native SOL and fungible-token portfolios with persistent caching, independent pr
 
 ## Example Usage
 
-Inject [`PortfolioProviding`](Service/PortfolioProviding.swift), implemented by `Portfolio`, with a DAS-capable RPC client. This example uses a built-in provider with a caller-supplied API key, wallet address, and `receive` handler:
+Inject [`PortfolioProviding`](Sources/Service/PortfolioProviding.swift), implemented by `Portfolio`, with a DAS-capable RPC client. This example uses a built-in provider with a caller-supplied API key, wallet address, and `receive` handler:
 
 ```swift
 import Portfolio

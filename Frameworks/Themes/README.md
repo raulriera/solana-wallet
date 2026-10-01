@@ -46,7 +46,7 @@ Use a new UUID for each new theme.
 ## Appearance values
 
 - Color roles: `background`, `surface`, `primaryText`, `secondaryText`, `separator`, `accent`, and `onAccent`.
-- Colors use exactly one representation: a [supported system color](Colors/Color.swift) such as `{ "system": "systemBackground" }`, or an opaque sRGB color such as `{ "srgb": "#26643E" }`.
+- Colors use exactly one representation: a [supported system color](Sources/Colors/Color.swift) such as `{ "system": "systemBackground" }`, or an opaque sRGB color such as `{ "srgb": "#26643E" }`.
 - Appearance keys under `tokens.colors`: `light`, `dark`, `lightIncreasedContrast`, and `darkIncreasedContrast`. Missing values use that appearance's defaults; dark palettes are not generated from light palettes.
 - Only color tokens are supported. Typography, spacing, shapes, motion, and layout tokens are not accepted.
 

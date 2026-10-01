@@ -4,7 +4,7 @@ Local recovery phrase generation, Solana account derivation, and Ed25519 signing
 
 ## Example Usage
 
-Inject [`WalletProviding`](Service/WalletProviding.swift) for phrase generation and account derivation, or [`MessageSigning`](Signing/MessageSigning.swift) for signing. `Wallet` implements both protocols.
+Inject [`WalletProviding`](Sources/Service/WalletProviding.swift) for phrase generation and account derivation, or [`MessageSigning`](Sources/Signing/MessageSigning.swift) for signing. `Wallet` implements both protocols.
 
 Given recovery text and its original BIP-39 passphrase:
 

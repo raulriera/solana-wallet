@@ -1,16 +1,18 @@
 # Architecture
 
+App source and tests live in `App/Sources` and `App/Tests`. Each framework lives in `Frameworks/<Module>` with `Sources`, `Tests`, and a `README.md`. Xcode mirrors these folders; target and module names are independent of the folder names. Shared test helpers remain in `TestSupport`.
+
 The wallet app owns workflow coordination through internal, protocol-based services. Construct shared services in app composition and presentation coordinators within each window's feature lifetime; callers use the workflow they need without assembling every helper. Views present state and capture approval. Follow the [UI architecture](ui.md) for navigation, window ownership, and themes.
 
 | Component | Responsibility |
 | --- | --- |
-| [RPC](../RPC/README.md) | Provider-neutral RPC, DAS, pricing, and confirmed account subscriptions. |
-| [Transactions](../Transactions/README.md) | Composable instructions, generic V1 compilation, decoding, validation, and signature assembly. |
-| [Wallet](../Wallet/README.md) | Local recovery phrases, account derivation, and cryptographic signing. |
-| [Vault](../Vault/README.md) | Protected recovery storage and authentication for access. |
-| [Portfolio](../Portfolio/README.md) | Portfolio snapshots, caching, refresh, and reconciliation of confirmed changes. |
-| [Encoding](../Encoding/README.md) | Shared codecs. |
-| [Themes](../Themes/README.md) | Color tokens, package reading/writing, validation, and resolution against app-provided defaults. |
+| [RPC](../Frameworks/RPC/README.md) | Provider-neutral RPC, DAS, pricing, and confirmed account subscriptions. |
+| [Transactions](../Frameworks/Transactions/README.md) | Composable instructions, generic V1 compilation, decoding, validation, and signature assembly. |
+| [Wallet](../Frameworks/Wallet/README.md) | Local recovery phrases, account derivation, and cryptographic signing. |
+| [Vault](../Frameworks/Vault/README.md) | Protected recovery storage and authentication for access. |
+| [Portfolio](../Frameworks/Portfolio/README.md) | Portfolio snapshots, caching, refresh, and reconciliation of confirmed changes. |
+| [Encoding](../Frameworks/Encoding/README.md) | Shared codecs. |
+| [Themes](../Frameworks/Themes/README.md) | Color tokens, package reading/writing, validation, and resolution against app-provided defaults. |
 | Internal app services/coordinators | Own portfolio presentation lifetimes and compose review, explicit approval, authentication, signing, and optional submission/confirmation. |
 
 - Prioritize DX at the call site: callers compose instructions, review `Simulation`, then explicitly confirm. Import adapters decode external representations; services own serialization and RPC details.
@@ -18,9 +20,9 @@ The wallet app owns workflow coordination through internal, protocol-based servi
 - Keep signing independent of submission: an external requester may need signed transaction bytes without broadcasting. Locally composed instructions and imported V1 transactions share the review/signing workflow.
 - Bind review and signing to the exact message, selected account, and network. Authentication grants wallet access; the app separately obtains transaction approval. Preserve existing signatures and identify instructions whose meaning is unknown; simulation success isn't proof of safety.
 
-[TransactionCoordinator](../widgets/Transactions/Coordination/TransactionCoordinator.swift) is the app's internal entry point for simulation and explicit confirmation, with independent signing for external integrations, backed by injected protocols and focused helpers under `widgets/Transactions`. These types explicitly remain nonisolated within the MainActor-default app; transaction work retains `@concurrent` execution. Reusable encoding and signature assembly belong in Transactions.
+[TransactionCoordinator](../App/Sources/Transactions/Coordination/TransactionCoordinator.swift) is the app's internal entry point for simulation and explicit confirmation, with independent signing for external integrations, backed by injected protocols and focused helpers under `App/Sources/Transactions`. These types explicitly remain nonisolated within the MainActor-default app; transaction work retains `@concurrent` execution. Reusable encoding and signature assembly belong in Transactions.
 
-[PortfolioCoordinator](../widgets/Portfolio/PortfolioCoordinator.swift) owns one portfolio presentation through `PortfolioCoordinating`. Its observable state is main-actor isolated; it injects `PortfolioProviding` for one configured network. Each window owns its coordinator and supplies its selected wallet and scene activity to the view task; cancellation stops that presentation's observation and manual refreshes. Windows using the same service configuration share the underlying provider. Wallet changes clear the preceding wallet's display state; backgrounding retains its latest snapshot. Create a new coordinator when changing networks. Screen composition remains separate.
+[PortfolioCoordinator](../App/Sources/Portfolio/PortfolioCoordinator.swift) owns one portfolio presentation through `PortfolioCoordinating`. Its observable state is main-actor isolated; it injects `PortfolioProviding` for one configured network. Each window owns its coordinator and supplies its selected wallet and scene activity to the view task; cancellation stops that presentation's observation and manual refreshes. Windows using the same service configuration share the underlying provider. Wallet changes clear the preceding wallet's display state; backgrounding retains its latest snapshot. Create a new coordinator when changing networks. Screen composition remains separate.
 
 Program helpers produce `Instruction` values; adding an operation must not introduce another preparation/signing/submission pipeline. The compiler merges account roles and supports distinct fee payers and multiple authorities. Token prerequisites resolve in an internal feature helper before generic preparation. `TransactionDecoder` and `TransactionBuilder` preserve imported bytes and signature slots; see [usage](transaction-workflow.md). Durable nonces and program-aware explanations remain pending.
 
