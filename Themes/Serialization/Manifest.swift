@@ -30,7 +30,9 @@ struct Manifest: Sendable {
         do {
             json = try JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])
         } catch {
-            throw ValidationError(path: "manifest.json", reason: "Expected valid JSON.")
+            let parserError = error as NSError
+            let detail = parserError.userInfo[NSDebugDescriptionErrorKey] as? String ?? parserError.localizedDescription
+            throw ValidationError(path: "manifest.json", reason: "Expected valid JSON. \(detail)")
         }
         let root = try object(json, at: "manifest.json", keys: ["version", "id", "name", "tokens", "assets"])
         guard let version = root["version"] as? NSNumber,

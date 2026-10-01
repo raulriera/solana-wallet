@@ -3,6 +3,30 @@ import Testing
 import Themes
 
 struct ValidationTests {
+    /// Malformed JSON preserves the parser's explanation through the public package service.
+    @Test(arguments: [
+        "{\n  \"version\": 1,\n  \"name\" \"Example\"\n}",
+        "{\"name\":\"unterminated}",
+        "{\"name\": invalid}",
+        ""
+    ])
+    func malformedJSONRetainsParserDetails(json: String) async throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        try fixture.rawManifest(json)
+
+        let parserError = try #require(throws: (any Error).self) {
+            try JSONSerialization.jsonObject(with: Data(json.utf8), options: [.fragmentsAllowed])
+        }
+        let detail = try #require((parserError as NSError).userInfo[NSDebugDescriptionErrorKey] as? String)
+        await #expect { try await PackService().read(from: fixture.source) } throws: { error in
+            guard let validation = error as? ValidationError else { return false }
+            return validation.path == "manifest.json"
+                && validation.reason.contains(detail)
+                && validation.localizedDescription.contains(detail)
+        }
+    }
+
     /// Malformed supplied fields report their location rather than inheriting defaults.
     @Test(arguments: [
         ("\"tokens\":null", "tokens"),
