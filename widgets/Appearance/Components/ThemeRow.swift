@@ -22,8 +22,8 @@ struct ThemeRow: View {
             }
             .confirmationDialog("Delete Theme?", item: $removal) { approved in
                 Button("Delete", role: .destructive) { remove(approved) }
-            } message: { approved in
-                Text("Delete \(approved.name)? The app default returns to Original if needed. Wallets using this theme return to the app default.")
+            } message: { _ in
+                Text("Are you sure you want to delete this theme?")
             }
     }
 }
