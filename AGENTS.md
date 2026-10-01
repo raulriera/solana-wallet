@@ -15,6 +15,7 @@
 - iOS 27.1+ with full iPhone Duo support; no older-iOS compatibility paths.
 - Use [SwiftUI Expert](plugin://swiftui-expert@swiftui-expert-skill) for UI work. Follow [UI architecture](references/ui.md) for adaptive `NavigationSplitView` navigation, theme packs, and HIG requirements for app-owned UI and built-in themes; do not gate user-created packs on HIG aesthetics.
 - **Hard rule:** Never extract UI into view-returning computed properties or helper functions, including `@ViewBuilder` helpers. Every extracted view/component must be an independent `View` type in its own Swift file. Only protocol-required rendering entry points, such as `View.body` and `ViewModifier.body(content:)`, are exempt; helpers may return data or perform actions, not compose views.
+- Keep interaction feedback visually stable; do not flash progress rows, spinners, or disabled states for quick preference changes.
 - Support simultaneous wallet windows where the system allows them; keep each window's wallet selection, navigation, and presented tasks independent.
 - Swift 6 with the latest compiler, SDK APIs, Apple guidance, and supported upcoming language features. No deprecated approaches.
 - Pure Swift and Apple frameworks; avoid third-party dependencies where reasonable.

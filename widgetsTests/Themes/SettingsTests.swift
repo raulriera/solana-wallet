@@ -5,6 +5,27 @@ import Themes
 
 @MainActor @Suite(.timeLimit(.minutes(1)))
 struct AppearanceSettingsTests {
+    /// Selection stays visually quiet while persistence completes and still rejects overlapping writes.
+    @Test func selectionSavesWithoutTransientActivity() async throws {
+        let fixture = try CatalogFixture()
+        defer { fixture.remove() }
+        let settings = try makeSettings(fixture)
+        settings.importPack(from: try fixture.source())
+        await settings.waitForOperation()
+        let entry = try #require(settings.entries.first)
+        let before = settings.appearance.snapshot
+
+        settings.select(entry.id, for: .application)
+        #expect(settings.activity == nil)
+        #expect(settings.appearance.snapshot == before)
+        settings.select(nil, for: .application)
+        await settings.waitForOperation()
+
+        #expect(settings.appearance.snapshot?.preferences.appThemeID == entry.id)
+        #expect(settings.failure == nil)
+        #expect(settings.activity == nil)
+    }
+
     /// Import updates shared metadata without changing the app or wallet selection.
     @Test func importInstallsWithoutSelecting() async throws {
         let fixture = try CatalogFixture()

@@ -47,7 +47,7 @@ The [Themes framework contract](../Themes/README.md) defines package structure, 
 ### Appearance settings
 
 - **App Theme** lists built-in and imported themes inline and selects the shared default. Imported themes appear once, with swipe-to-delete and confirmation of the exact installed revision; built-ins have no delete action. **Wallet Theme** opens a separate chooser when the owning window has a selected wallet and offers **Use App Default** or an explicit theme, including Original.
-- Both selectors use native name-and-checkmark rows without previews. Checkmarks and appearance update after persistence succeeds.
+- Both selectors use native name-and-checkmark rows without previews. Checkmarks and appearance update after persistence succeeds. Saving a selection shows no transient progress row or disabled-state flash.
 - **Theme Packs** provides Files import and default-template export. Custom-theme export is unsupported. Import installs without selecting; replacement requires confirmation of the exact installed revision.
 - Original uses adaptive system colors. Exported templates contain complete defaults and a new custom identity. Color conversion happens when the selected package revision changes; rendering and trait changes use cached palettes.
 - Work and confirmations belong to the initiating window; committed changes publish to the shared appearance snapshot. Errors preserve installed data and the last committed preferences. An unreadable selected package renders Original and reports the failure.

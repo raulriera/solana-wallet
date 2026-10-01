@@ -45,7 +45,7 @@ import Themes
     ///   - id: A selected theme, or `nil` for inheritance.
     ///   - scope: The application or selected wallet.
     func select(_ id: UUID?, for scope: AppearancePreferences.Scope) {
-        run("Saving Appearance…") { try await self.appearance.select(id, for: scope) }
+        run { try await self.appearance.select(id, for: scope) }
     }
 
     /// Reads an independent package snapshot and installs without selecting it.
@@ -139,9 +139,9 @@ import Themes
 
     /// Serializes this window's user actions while service work suspends the main actor.
     /// - Parameters:
-    ///   - activity: A short progress description.
+    ///   - activity: Visible feedback for package work; omitted for quiet preference saves.
     ///   - action: Service calls and small presentation-state updates.
-    private func run(_ activity: String, action: @escaping @MainActor () async throws -> Void) {
+    private func run(_ activity: String? = nil, action: @escaping @MainActor () async throws -> Void) {
         guard operation == nil, export == nil, replacement == nil else { return }
         self.activity = activity
         operation = Task {
