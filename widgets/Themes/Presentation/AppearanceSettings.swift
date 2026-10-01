@@ -14,7 +14,6 @@ import Themes
     let appearance: any AppearanceCoordinating
     private let catalog: any ThemeCatalogProviding
     private let packages: any PackServicing
-    private(set) var activity: String?
     private(set) var export: ThemeExport?
     var replacement: Replacement?
     var failure: String?
@@ -34,6 +33,9 @@ import Themes
 
     var entries: [ThemeEntry] { appearance.snapshot?.orderedEntries ?? [] }
 
+    /// Whether an action may start, checked at interaction time without changing control appearance.
+    var canStartOperation: Bool { operation == nil && export == nil && replacement == nil }
+
     /// Loads current metadata and applies external Settings recovery.
     func activate() async {
         do { try await appearance.activate() }
@@ -51,7 +53,7 @@ import Themes
     /// Reads an independent package snapshot and installs without selecting it.
     /// - Parameter url: The security-scoped URL returned by the Files picker.
     func importPack(from url: URL) {
-        run("Importing Theme…") {
+        run {
             let pack = try await self.packages.read(from: url)
             do {
                 _ = try await self.catalog.install(pack)
@@ -66,7 +68,7 @@ import Themes
     /// - Parameter approved: The retained import snapshot and exact installed revision.
     func replace(_ approved: Replacement) {
         replacement = nil
-        run("Replacing Theme…") {
+        run {
             _ = try await self.catalog.install(approved.pack, replacing: approved.existing)
             try await self.reloadAfterCommit()
         }
@@ -75,7 +77,7 @@ import Themes
     /// Removes an approved custom revision and reloads its atomic preference fallbacks.
     /// - Parameter entry: The exact entry presented in the removal confirmation.
     func remove(_ entry: ThemeEntry) {
-        run("Removing Theme…") {
+        run {
             try await self.catalog.remove(entry)
             try await self.reloadAfterCommit()
         }
@@ -83,7 +85,7 @@ import Themes
 
     /// Prepares a complete default template before presenting the system destination picker.
     func prepareExport() {
-        run("Preparing Export…") {
+        run {
             let root = URL.temporaryDirectory.appendingPathComponent(UUID().uuidString)
             let url = root.appendingPathComponent("Theme.xtheme")
             do {
@@ -138,14 +140,11 @@ import Themes
     }
 
     /// Serializes this window's user actions while service work suspends the main actor.
-    /// - Parameters:
-    ///   - activity: Visible feedback for package work; omitted for quiet preference saves.
-    ///   - action: Service calls and small presentation-state updates.
-    private func run(_ activity: String? = nil, action: @escaping @MainActor () async throws -> Void) {
-        guard operation == nil, export == nil, replacement == nil else { return }
-        self.activity = activity
+    /// - Parameter action: Service calls and small presentation-state updates.
+    private func run(action: @escaping @MainActor () async throws -> Void) {
+        guard canStartOperation else { return }
         operation = Task {
-            defer { self.activity = nil; self.operation = nil }
+            defer { self.operation = nil }
             do { try await action() }
             catch { self.report(error) }
         }

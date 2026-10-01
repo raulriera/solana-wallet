@@ -5,7 +5,6 @@ struct ThemeChooser: View {
     let entries: [ThemeEntry]
     let scope: AppearancePreferences.Scope
     let selection: UUID?
-    let isBusy: Bool
     let palette: RenderedPalette
     let onSelect: (UUID?) -> Void
 
@@ -31,7 +30,6 @@ struct ThemeChooser: View {
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
         .background(palette.background)
-        .disabled(isBusy)
     }
 
     /// Sends an explicit wallet choice or the app's canonical Original selection.

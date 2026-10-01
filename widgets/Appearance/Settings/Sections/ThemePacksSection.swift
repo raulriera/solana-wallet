@@ -10,7 +10,10 @@ struct ThemePacksSection: View {
 
     var body: some View {
         Section("Theme Packs") {
-            Button("Import Theme…", systemImage: "square.and.arrow.down") { isImporting = true }
+            Button("Import Theme…", systemImage: "square.and.arrow.down") {
+                guard settings.canStartOperation else { return }
+                isImporting = true
+            }
                 .foregroundStyle(palette.accent)
                 .confirmationDialog("Replace Theme?", item: $settings.replacement) { replacement in
                     Button("Replace", role: .destructive) { settings.replace(replacement) }

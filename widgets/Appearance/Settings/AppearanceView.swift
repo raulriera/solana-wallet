@@ -21,15 +21,12 @@ struct AppearanceView: View {
                 WalletThemeSection(wallet: wallet, themeName: walletThemeName, palette: palette)
             }
             ThemePacksSection(settings: settings, palette: palette)
-            if let activity = settings.activity {
-                AppearanceActivitySection(activity: activity, palette: palette)
-            }
         }
         .animation(.default, value: settings.entries.map(\.id))
         .navigationTitle("Appearance")
         .navigationDestination(for: AppearancePreferences.Scope.self) { scope in
             ThemeChooser(entries: settings.entries, scope: scope, selection: selection(for: scope),
-                         isBusy: settings.activity != nil, palette: palette) { id in
+                         palette: palette) { id in
                 settings.select(id, for: scope)
             }
         }
@@ -37,7 +34,7 @@ struct AppearanceView: View {
         .tint(palette.accent)
         .scrollContentBackground(.hidden)
         .background(palette.background)
-        .disabled(settings.activity != nil || settings.appearance.snapshot == nil)
+        .disabled(settings.appearance.snapshot == nil)
     }
 
     /// Saves an inline choice using the canonical Original application preference.

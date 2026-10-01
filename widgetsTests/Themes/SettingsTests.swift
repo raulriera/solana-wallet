@@ -5,8 +5,8 @@ import Themes
 
 @MainActor @Suite(.timeLimit(.minutes(1)))
 struct AppearanceSettingsTests {
-    /// Selection stays visually quiet while persistence completes and still rejects overlapping writes.
-    @Test func selectionSavesWithoutTransientActivity() async throws {
+    /// Selection keeps committed state visible and rejects overlapping writes until persistence completes.
+    @Test func selectionRejectsOverlappingOperations() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let settings = try makeSettings(fixture)
@@ -16,14 +16,14 @@ struct AppearanceSettingsTests {
         let before = settings.appearance.snapshot
 
         settings.select(entry.id, for: .application)
-        #expect(settings.activity == nil)
+        #expect(!settings.canStartOperation)
         #expect(settings.appearance.snapshot == before)
         settings.select(nil, for: .application)
         await settings.waitForOperation()
 
         #expect(settings.appearance.snapshot?.preferences.appThemeID == entry.id)
         #expect(settings.failure == nil)
-        #expect(settings.activity == nil)
+        #expect(settings.canStartOperation)
     }
 
     /// Import updates shared metadata without changing the app or wallet selection.
@@ -132,13 +132,13 @@ struct AppearanceSettingsTests {
                                           catalog: catalog, packages: PackService())
         settings.importPack(from: try fixture.source())
         for await _ in staged.stream {}
-        #expect(settings.activity != nil)
+        #expect(!settings.canStartOperation)
         settings.cancel()
         release.continuation.finish()
         await settings.waitForOperation()
         #expect(try await catalog.entries().isEmpty)
         #expect(settings.failure == nil)
-        #expect(settings.activity == nil)
+        #expect(settings.canStartOperation)
     }
 
     /// Closing the initiating window after commit still updates the shared snapshot.
