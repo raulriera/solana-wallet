@@ -4,11 +4,17 @@ import Testing
 
 /// DAS HTTP fixtures decoded by the real RPC client during portfolio refreshes.
 actor AssetResponses: HTTPTransport {
+    /// Supplies a JSON result for a fungible-asset page query.
+    typealias PageResponder = @Sendable (GetFungibleAssetsByOwner) async throws -> Data
+
+    /// Supplies a JSON result for an individual asset identifier.
+    typealias AssetResponder = @Sendable (String) async throws -> Data
+
     private nonisolated let network: Network
     private(set) var requests: [GetFungibleAssetsByOwner] = []
     private(set) var assetRequests: [String] = []
-    private let respond: @Sendable (GetFungibleAssetsByOwner) async throws -> Data
-    private let assetResponse: @Sendable (String) async throws -> Data
+    private let respond: PageResponder
+    private let assetResponse: AssetResponder
 
     /// The real provider client receiving the fixture's HTTP responses.
     nonisolated var client: HeliusRPC {
@@ -21,9 +27,9 @@ actor AssetResponses: HTTPTransport {
     ///   - assetResponse: The single-asset response supplier for the native mint image.
     ///   - respond: The JSON page supplier, optionally suspending or failing a request.
     init(network: Network = .mainnet,
-         assetResponse: @escaping @Sendable (String) async throws -> Data = { id in
+         assetResponse: @escaping AssetResponder = { id in
              Data(#"{"id":"\#(id)","interface":"FungibleToken","content":{"metadata":{"name":"Wrapped SOL","symbol":"SOL"},"links":{"image":"https://example.com/sol.png"}}}"#.utf8)
-         }, respond: @escaping @Sendable (GetFungibleAssetsByOwner) async throws -> Data) {
+         }, respond: @escaping PageResponder) {
         self.network = network
         self.respond = respond
         self.assetResponse = assetResponse

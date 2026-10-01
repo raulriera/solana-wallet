@@ -3,10 +3,13 @@ import RPC
 
 /// Shares a wallet's confirmed subscription and bounds event-driven DAS reconciliation.
 actor ObservationCoordinator {
+    /// Suspends coalescing or indexer catch-up for a cancellable duration.
+    typealias Pause = @Sendable (Duration) async throws -> Void
+
     private let refresh: RefreshCoordinator
     private let changes: (any AccountChangeProviding)?
     private let network: Network
-    private let pause: @Sendable (Duration) async throws -> Void
+    private let pause: Pause
     private var watches: [String: Watch] = [:]
 
     /// Creates observation policy around the same refresh coordinator used by explicit requests.
@@ -16,7 +19,7 @@ actor ObservationCoordinator {
     ///   - network: The network whose portfolio is observed.
     ///   - pause: Cancellable scheduling for coalescing and indexer catch-up.
     init(refresh: RefreshCoordinator, changes: (any AccountChangeProviding)?, network: Network,
-         pause: @escaping @Sendable (Duration) async throws -> Void) {
+         pause: @escaping Pause) {
         self.refresh = refresh
         self.changes = changes
         self.network = network

@@ -9,6 +9,9 @@ import Security
 /// migrates to another device, or permits passcode fallback. Authentication
 /// failures never delete or replace stored recovery material.
 public struct KeychainStore: RecoveryStoring {
+    /// Blocking work that uses an authentication context only on the Keychain queue.
+    private typealias Operation<Value: Sendable> = @Sendable (LAContext) throws -> Value
+
     /// A storage failure that contains no recovery material or underlying error text.
     public enum Failure: Error, Sendable, Equatable {
         /// The wallet identifier already has stored recovery material.
@@ -135,7 +138,7 @@ public struct KeychainStore: RecoveryStoring {
     /// - Throws: The operation's error, or `CancellationError` if canceled.
     private func perform<Value: Sendable>(
         reason: String = "",
-        _ operation: @escaping @Sendable (LAContext) throws -> Value
+        _ operation: @escaping Operation<Value>
     ) async throws -> Value {
         try Task.checkCancellation()
         let authentication = AuthenticationContext(context: keychain.makeContext(), reason: reason)

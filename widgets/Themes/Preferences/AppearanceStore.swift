@@ -2,6 +2,9 @@ import Foundation
 
 /// Serializes preference mutations with catalog changes on the shared background I/O queue.
 nonisolated struct AppearanceStore: AppearanceStoring {
+    /// Mutates preferences using the available catalog entries without suspending.
+    private typealias Mutation = @Sendable (inout AppearancePreferences, [UUID: ThemeEntry]) throws -> Void
+
     private let directory: URL
     private let builtIns: [UUID: ThemeEntry]
 
@@ -59,7 +62,7 @@ nonisolated struct AppearanceStore: AppearanceStoring {
     /// - Returns: The resulting snapshot; no-op changes retain their revision.
     /// - Throws: A mutation, storage, or pre-commit cancellation error.
     private func update(
-        _ mutation: @escaping @Sendable (inout AppearancePreferences, [UUID: ThemeEntry]) throws -> Void
+        _ mutation: @escaping Mutation
     ) async throws -> AppearanceSnapshot {
         try await CatalogIO.perform { checkCancellation in
             var state = try CatalogFiles.state(in: directory)

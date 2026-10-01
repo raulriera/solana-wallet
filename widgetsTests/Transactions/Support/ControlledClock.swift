@@ -1,15 +1,18 @@
 /// A clock whose suspensions are controlled by the test rather than elapsed time.
 struct ControlledClock: Clock {
+    /// Suspends for a requested duration under the test's control.
+    typealias Sleep = @Sendable (Duration) async throws -> Void
+
     /// A fixed origin used to express requested delays without measuring wall time.
     let now = ContinuousClock.now
     /// The test clock's exact duration resolution.
     let minimumResolution: Duration = .zero
-    private let onSleep: @Sendable (Duration) async throws -> Void
+    private let onSleep: Sleep
 
     /// Creates a clock with a test-controlled suspension operation.
     ///
     /// - Parameter onSleep: The operation receiving each requested delay.
-    init(onSleep: @escaping @Sendable (Duration) async throws -> Void) {
+    init(onSleep: @escaping Sleep) {
         self.onSleep = onSleep
     }
 

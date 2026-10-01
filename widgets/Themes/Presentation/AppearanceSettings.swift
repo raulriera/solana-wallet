@@ -4,6 +4,9 @@ import Themes
 
 /// One window's package workflow; committed selections are shared through the coordinator.
 @MainActor @Observable final class AppearanceSettings: ThemeActions {
+    /// Runs one window's service calls and presentation updates on the main actor.
+    private typealias Action = @MainActor () async throws -> Void
+
     /// Exact snapshot and installed revision awaiting replacement approval.
     struct Replacement: Identifiable, Equatable {
         let pack: Pack
@@ -141,7 +144,7 @@ import Themes
 
     /// Serializes this window's user actions while service work suspends the main actor.
     /// - Parameter action: Service calls and small presentation-state updates.
-    private func run(action: @escaping @MainActor () async throws -> Void) {
+    private func run(action: @escaping Action) {
         guard canStartOperation else { return }
         operation = Task {
             defer { self.operation = nil }

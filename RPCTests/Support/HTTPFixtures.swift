@@ -4,14 +4,17 @@ import Testing
 
 /// A transport that records requests and delegates responses to a fixture closure.
 actor StubTransport: HTTPTransport {
+    /// Produces a response body and HTTP metadata for a recorded request.
+    typealias Responder = @Sendable (URLRequest) async throws -> (Data, URLResponse)
+
     private(set) var requests: [URLRequest] = []
     private(set) var observedCancellation = false
-    private let respond: @Sendable (URLRequest) async throws -> (Data, URLResponse)
+    private let respond: Responder
 
     /// Creates a transport with a fixture response handler.
     ///
     /// - Parameter respond: The closure that produces a response or throws an error.
-    init(respond: @escaping @Sendable (URLRequest) async throws -> (Data, URLResponse)) {
+    init(respond: @escaping Responder) {
         self.respond = respond
     }
 

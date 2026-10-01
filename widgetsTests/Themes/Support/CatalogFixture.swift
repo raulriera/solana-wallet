@@ -35,11 +35,14 @@ nonisolated struct CatalogFixture {
 
 /// Intercepts saving for deterministic failures and cancellation while retaining real package behavior.
 nonisolated struct InterceptedPackages: PackServicing {
-    let afterSave: @Sendable () async throws -> Void
+    /// Injects a failure or suspension after staging and before catalog commit.
+    typealias SaveHook = @Sendable () async throws -> Void
+
+    let afterSave: SaveHook
 
     /// Creates an interception point after package staging, before catalog commit.
     /// - Parameter afterSave: A test-controlled failure or suspension.
-    init(afterSave: @escaping @Sendable () async throws -> Void) { self.afterSave = afterSave }
+    init(afterSave: @escaping SaveHook) { self.afterSave = afterSave }
 
     /// Loads a real validated snapshot.
     /// - Parameter url: The source package.

@@ -29,7 +29,7 @@ public struct Portfolio: PortfolioProviding {
     ///   - pause: Cancellable scheduling for coalescing and bounded indexer catch-up.
     init(rpc: any RPC, store: any SnapshotStoring, pageSize: Int = 1_000, prices: (any PriceProviding)? = nil,
          now: @escaping @Sendable () -> Date = { Date() }, changes: (any AccountChangeProviding)? = nil,
-         pause: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }) {
+         pause: @escaping ObservationCoordinator.Pause = { try await Task.sleep(for: $0) }) {
         coordinator = RefreshCoordinator(source: SnapshotFetcher(rpc: rpc, pageSize: pageSize), store: store,
                                          prices: prices, now: now)
         observer = ObservationCoordinator(refresh: coordinator, changes: changes ?? (rpc as? any AccountChangeProviding),

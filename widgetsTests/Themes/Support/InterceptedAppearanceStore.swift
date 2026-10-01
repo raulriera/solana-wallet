@@ -3,14 +3,17 @@ import Foundation
 
 /// Retains real storage behavior while delaying delivery of one read for ordering tests.
 nonisolated struct InterceptedAppearanceStore: AppearanceStoring {
+    /// Delays or fails delivery after the underlying store has loaded its snapshot.
+    typealias LoadHook = @Sendable () async throws -> Void
+
     let base: any AppearanceStoring
-    let afterLoad: @Sendable () async throws -> Void
+    let afterLoad: LoadHook
 
     /// Wraps a real store with a deterministic completion barrier.
     /// - Parameters:
     ///   - base: The real store that persists and retrieves preferences.
     ///   - afterLoad: A test handshake after reading, before returning the snapshot.
-    init(base: any AppearanceStoring, afterLoad: @escaping @Sendable () async throws -> Void) {
+    init(base: any AppearanceStoring, afterLoad: @escaping LoadHook) {
         self.base = base
         self.afterLoad = afterLoad
     }
