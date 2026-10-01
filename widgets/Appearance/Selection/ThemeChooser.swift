@@ -15,12 +15,16 @@ struct ThemeChooser: View {
     var body: some View {
         List {
             if case .wallet = scope {
-                ThemeChoiceRow(name: "Use App Default", isSelected: selectedID == nil, palette: palette) {
+                ThemeChoiceRow(name: "Use App Default", isSelected: selectedID == nil,
+                               primaryText: palette.primaryText, accent: palette.accent,
+                               surface: palette.surface, separator: palette.separator) {
                     onSelect(nil)
                 }
             }
             ForEach(entries) { entry in
-                ThemeChoiceRow(name: entry.name, isSelected: selectedID == entry.id, palette: palette) {
+                ThemeChoiceRow(name: entry.name, isSelected: selectedID == entry.id,
+                               primaryText: palette.primaryText, accent: palette.accent,
+                               surface: palette.surface, separator: palette.separator) {
                     select(entry.id)
                 }
             }

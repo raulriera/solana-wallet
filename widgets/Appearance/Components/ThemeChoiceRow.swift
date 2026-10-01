@@ -4,23 +4,26 @@ import SwiftUI
 struct ThemeChoiceRow: View {
     let name: String
     let isSelected: Bool
-    let palette: RenderedPalette
+    let primaryText: Color
+    let accent: Color
+    let surface: Color
+    let separator: Color
     let select: () -> Void
 
     var body: some View {
         Button(action: select) {
             HStack {
-                Text(name).foregroundStyle(palette.primaryText)
+                Text(name).foregroundStyle(primaryText)
                 Spacer()
                 if isSelected {
-                    Image(systemName: "checkmark").foregroundStyle(palette.accent).accessibilityHidden(true)
+                    Image(systemName: "checkmark").foregroundStyle(accent).accessibilityHidden(true)
                 }
             }
             .frame(minHeight: 44)
             .contentShape(.rect)
         }
-        .listRowBackground(palette.surface)
-        .listRowSeparatorTint(palette.separator)
+        .listRowBackground(surface)
+        .listRowSeparatorTint(separator)
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 }

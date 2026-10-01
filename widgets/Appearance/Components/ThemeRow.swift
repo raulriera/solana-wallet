@@ -4,13 +4,17 @@ import SwiftUI
 struct ThemeRow: View {
     let entry: ThemeEntry
     let isSelected: Bool
-    let palette: RenderedPalette
+    let primaryText: Color
+    let accent: Color
+    let surface: Color
+    let separator: Color
     let select: () -> Void
     let remove: (ThemeEntry) -> Void
     @State private var removal: ThemeEntry?
 
     var body: some View {
-        ThemeChoiceRow(name: entry.name, isSelected: isSelected, palette: palette, select: select)
+        ThemeChoiceRow(name: entry.name, isSelected: isSelected, primaryText: primaryText,
+                       accent: accent, surface: surface, separator: separator, select: select)
             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                 if entry.origin == .custom {
                     // Only the confirmation commits deletion, so keep the row visible while asking.
