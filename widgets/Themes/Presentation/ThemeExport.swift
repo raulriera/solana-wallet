@@ -14,6 +14,6 @@ nonisolated struct ThemeExport: Transferable, Sendable, Equatable {
         FileRepresentation(exportedContentType: .themePack) { value in
             SentTransferredFile(value.url)
         }
-        .suggestedFileName { $0.url.lastPathComponent }
+        .suggestedFileName(\.url.lastPathComponent)
     }
 }

@@ -27,7 +27,7 @@ struct KeychainStoreTests {
         #expect(keychain.state.withLock { $0.hasRequiredProtection })
         #expect(keychain.state.withLock { $0.queriedOnlyLocalItems })
         #expect(keychain.state.withLock { $0.ranOffMainThread })
-        #expect(keychain.state.withLock { $0.promptReasons } == ["Reveal recovery phrase"])
+        #expect(keychain.state.withLock(\.promptReasons) == ["Reveal recovery phrase"])
         #expect(!keychain.state.withLock { $0.permitsFallback })
     }
 
@@ -57,7 +57,7 @@ struct KeychainStoreTests {
         let store = KeychainStore(service: "test.recovery", keychain: keychain)
         let id = UUID()
         try await store.save(Fixtures.recovery(), for: id)
-        let original = keychain.state.withLock { $0.items }
+        let original = keychain.state.withLock(\.items)
         keychain.state.withLock { $0.readStatus = status }
 
         await #expect {
@@ -70,7 +70,7 @@ struct KeychainStoreTests {
             default: return error as? KeychainStore.Failure == .interactionNotAllowed
             }
         }
-        #expect(keychain.state.withLock { $0.items } == original)
+        #expect(keychain.state.withLock(\.items) == original)
         keychain.state.withLock { $0.readStatus = errSecSuccess }
         let recovered = try await store.recovery(for: id, reason: "Try recovery again")
         #expect(recovered.passphrase == " TREZOR ")
@@ -85,7 +85,7 @@ struct KeychainStoreTests {
         let release = DispatchSemaphore(value: 0)
         let keychain = KeychainStub(
             contextFactory: {
-                TestContext { if blocked.withLock({ $0 }) { release.signal() } }
+                TestContext { if blocked.withLock(\.self) { release.signal() } }
             },
             beforeRead: {
                 blocked.withLock { $0 = true }
@@ -97,7 +97,7 @@ struct KeychainStoreTests {
         let store = KeychainStore(service: "test.recovery", keychain: keychain)
         let id = UUID()
         try await store.save(Fixtures.recovery(), for: id)
-        let original = keychain.state.withLock { $0.items }
+        let original = keychain.state.withLock(\.items)
         let read = Task { @concurrent in try await store.recovery(for: id, reason: "Recover wallet") }
         defer { read.cancel(); release.signal(); signal.finish() }
         for await _ in started { break }
@@ -106,7 +106,7 @@ struct KeychainStoreTests {
 
         await #expect(throws: CancellationError.self) { try await read.value }
         #expect(!timedOut.withLock { $0 })
-        #expect(keychain.state.withLock { $0.items } == original)
+        #expect(keychain.state.withLock(\.items) == original)
     }
 
     /// Verifies that unavailable biometrics never cause weaker or unusable storage.
@@ -136,7 +136,7 @@ struct KeychainStoreTests {
         continuation.finish()
 
         await #expect(throws: CancellationError.self) { try await task.value }
-        #expect(keychain.state.withLock { $0.readCount } == 0)
+        #expect(keychain.state.withLock(\.readCount) == 0)
     }
 
     /// Verifies exact deletion scope across wallet identifiers and service namespaces.
@@ -162,7 +162,7 @@ struct KeychainStoreTests {
         let second = try await otherStore.recovery(for: id, reason: "Recover other namespace")
         #expect(first.phrase.words == recovery.phrase.words)
         #expect(second.phrase.words == recovery.phrase.words)
-        #expect(keychain.state.withLock { $0.items.count } == 2)
+        #expect(keychain.state.withLock(\.items.count) == 2)
         #expect(keychain.state.withLock { $0.queriedOnlyLocalItems })
     }
 
@@ -178,12 +178,12 @@ struct KeychainStoreTests {
         let store = KeychainStore(service: "test.recovery", keychain: keychain)
         let id = UUID()
         try await store.save(Fixtures.recovery(), for: id)
-        let original = keychain.state.withLock { $0.items }
+        let original = keychain.state.withLock(\.items)
         keychain.state.withLock { $0.dataOverride = Data(invalid.utf8) }
 
         await #expect(throws: KeychainStore.Failure.invalidRecovery) {
             try await store.recovery(for: id, reason: "Recover wallet")
         }
-        #expect(keychain.state.withLock { $0.items } == original)
+        #expect(keychain.state.withLock(\.items) == original)
     }
 }

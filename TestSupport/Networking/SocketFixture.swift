@@ -30,8 +30,8 @@ final class SocketFixture: WebSocketConnection {
         self.respond = respond
     }
 
-    var requests: [Data] { state.withLock { $0.requests } }
-    var isCancelled: Bool { state.withLock { $0.cancelled } }
+    var requests: [Data] { state.withLock(\.requests) }
+    var isCancelled: Bool { state.withLock(\.cancelled) }
 
     /// Records an outgoing request and enqueues its scripted replies.
     /// - Parameter data: The request encoded by the real provider.

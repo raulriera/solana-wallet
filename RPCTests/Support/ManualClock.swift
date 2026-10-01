@@ -17,7 +17,7 @@ final class ManualClock: Clock, Sendable {
     }
 
     /// The current simulated monotonic instant.
-    var now: Instant { state.withLock { $0.now } }
+    var now: Instant { state.withLock(\.now) }
 
     /// Suspends until the test advances time to the deadline or cancels this task.
     /// - Parameters:

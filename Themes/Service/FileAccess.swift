@@ -66,7 +66,7 @@ final class FileAccess: Sendable {
     /// Checks the originating task's cancellation from a callback without Swift task context.
     /// - Throws: `CancellationError` if the caller cancelled the operation.
     func checkCancellation() throws {
-        if state.withLock({ $0.cancelled }) { throw CancellationError() }
+        if state.withLock(\.cancelled) { throw CancellationError() }
     }
 
     /// Registers asynchronous coordination without occupying a worker while waiting for access.

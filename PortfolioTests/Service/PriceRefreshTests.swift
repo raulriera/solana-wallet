@@ -31,7 +31,7 @@ struct PriceRefreshTests {
         #expect(refreshed.holdings.map(\.metadata) == cached.holdings.map(\.metadata))
         #expect(refreshed.holdings.map(\.name) == cached.holdings.map(\.name))
         #expect(refreshed.holdings.map(\.imageURL) == cached.holdings.map(\.imageURL))
-        #expect(refreshed.holdings.map { $0.valuation?.total } == [100, 200, Decimal(string: "0.125"), nil])
+        #expect(refreshed.holdings.map(\.valuation?.total) == [100, 200, Decimal(string: "0.125"), nil])
         #expect(refreshed.holdings.prefix(3).allSatisfy { $0.valuation?.fetchedAt != nil && $0.valuation?.currency == "USD" })
         #expect(refreshed.holdings.last?.valuation == nil)
         #expect(await prices.requests == [[nativeMint, "mint", "missing"]])
@@ -55,7 +55,7 @@ struct PriceRefreshTests {
         let update = try #require(await updates.next())
         if let error = update.error { throw error }
         let snapshot = try #require(update.snapshot)
-        #expect(snapshot.holdings.map { $0.valuation?.total } == [100, 12])
+        #expect(snapshot.holdings.map(\.valuation?.total) == [100, 12])
         #expect(snapshot.holdings.last?.metadata?.description == "Preserved")
         #expect(snapshot.holdings.allSatisfy { $0.valuation?.fetchedAt != nil })
         #expect(await prices.requests == [[nativeMint, "new-mint"]])
