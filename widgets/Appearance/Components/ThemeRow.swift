@@ -15,6 +15,8 @@ struct ThemeRow: View {
                 if entry.origin == .custom {
                     // Only the confirmation commits deletion, so keep the row visible while asking.
                     Button("Delete", systemImage: "trash") { removal = entry }
+                        .labelStyle(.iconOnly)
+                        .foregroundStyle(.white)
                         .tint(.red)
                 }
             }
