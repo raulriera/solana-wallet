@@ -2,6 +2,7 @@
 
 - Keep this file lean: user-approved restrictions and clarifications only.
 - Keep skills machine-independent: discover local devices and paths instead of hardcoding them.
+- Use only three simulators for development and verification: one regular iPhone, one iPad, and one iPhone Duo. Reuse existing devices; do not create additional simulators or expand this matrix without explicit user approval.
 - Use Conventional Commits format for every commit.
 - Commit or explicitly discard each milestone before starting the next; keep completed milestones in separate commits.
 - Do not add module-name prefixes to types; rely on the module namespace.
@@ -15,11 +16,12 @@
 - Compose wallet workflows in internal app services/coordinators, outside views; keep frameworks focused on reusable concerns. Follow [references/architecture.md](references/architecture.md).
 - Expose only contracts and values needed across module boundaries; keep implementation helpers internal or private.
 - iOS 27.1+ with full iPhone Duo support; no older-iOS compatibility paths.
-- Use [SwiftUI Expert](plugin://swiftui-expert@swiftui-expert-skill) for UI work. Follow [UI architecture](references/ui.md) for adaptive `NavigationSplitView` navigation, theme packs, and HIG requirements for app-owned UI and built-in themes; do not gate user-created packs on HIG aesthetics.
+- Use [SwiftUI Expert](plugin://swiftui-expert@swiftui-expert-skill) for UI work. Follow [UI architecture](references/ui.md) for adaptive `NavigationSplitView` navigation, with the approved onboarding `NavigationStack`/`ArrangementView` exception, theme packs, and HIG requirements for app-owned UI and built-in themes; do not gate user-created packs on HIG aesthetics.
 - **Hard rule:** Never extract UI into view-returning computed properties or helper functions, including `@ViewBuilder` helpers. Every extracted view/component must be an independent `View` type in its own Swift file. Only protocol-required rendering entry points, such as `View.body` and `ViewModifier.body(content:)`, are exempt; helpers may return data or perform actions, not compose views.
 - Keep interaction feedback visually stable; do not flash progress rows, spinners, or disabled states for quick actions, including preference changes and theme package operations.
 - Treat motion as part of the UI: use native animations for meaningful state changes, including row insertion and removal. Add explicit `accessibilityReduceMotion` checks only for pronounced animations identified by the user, not every animation.
 - Support simultaneous wallet windows where the system allows them; keep each window's wallet selection, navigation, and presented tasks independent.
+- Own appearance loading and resolved palettes at each window's root. Inject the palette and tint there; feature scenes and screens inherit appearance through the environment instead of receiving or loading it separately. Share appearance services across windows, not their rendered state.
 - Swift 6 with the latest compiler, SDK APIs, Apple guidance, and supported upcoming language features. No deprecated approaches.
 - Pure Swift and Apple frameworks; avoid third-party dependencies where reasonable.
 - Use `'/Applications/SF Symbols.app/Contents/Executables/sfsymbols'` when interacting with SF Symbols.
