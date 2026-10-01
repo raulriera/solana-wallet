@@ -3,7 +3,7 @@ import Themes
 
 struct ResolutionTests {
     /// Omitted settings retain complete app-provided values in every appearance.
-    @Test(arguments: ["", "\"tokens\":{}", "\"tokens\":{\"colors\":{}}"])
+    @Test(arguments: ["", #""tokens":{}"#, #""tokens":{"colors":{}}"#])
     func omittedSettingsUseDefaults(fields: String) async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
@@ -18,7 +18,7 @@ struct ResolutionTests {
     func overridesStayWithinTheirAppearance(appearance: String) async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
-        try fixture.manifest("\"tokens\":{\"colors\":{\"\(appearance)\":{\"accent\":{\"srgb\":\"#12aB34\"}}}}")
+        try fixture.manifest(##""tokens":{"colors":{"\##(appearance)":{"accent":{"srgb":"#12aB34"}}}}"##)
         let service = PackService()
         let result = service.resolve(try await service.read(from: fixture.source), defaults: Fixture.defaults)
         let actual = ["light": result.light, "dark": result.dark,
@@ -43,7 +43,7 @@ struct ResolutionTests {
     func systemReferencesRemainSymbolic(color: Themes.Color.System) async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
-        try fixture.manifest("\"tokens\":{\"colors\":{\"light\":{\"accent\":{\"system\":\"\(color.rawValue)\"}}}}")
+        try fixture.manifest(#""tokens":{"colors":{"light":{"accent":{"system":"\#(color.rawValue)"}}}}"#)
         let service = PackService()
         let result = service.resolve(try await service.read(from: fixture.source), defaults: Fixture.defaults)
         #expect(result.light.accent == .system(color))
@@ -53,7 +53,7 @@ struct ResolutionTests {
     @Test func matchingForegroundAndBackgroundAreAccepted() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
-        try fixture.manifest("\"tokens\":{\"colors\":{\"light\":{\"background\":{\"srgb\":\"#000000\"},\"primaryText\":{\"srgb\":\"#000000\"}}}}")
+        try fixture.manifest(##""tokens":{"colors":{"light":{"background":{"srgb":"#000000"},"primaryText":{"srgb":"#000000"}}}}"##)
         let service = PackService()
         let result = service.resolve(try await service.read(from: fixture.source), defaults: Fixture.defaults)
         #expect(result.light.background == result.light.primaryText)

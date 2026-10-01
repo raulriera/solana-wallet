@@ -8,7 +8,7 @@ struct AssetTests {
     @Test func namedPipeIsRejectedAsAnAsset() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
-        try fixture.manifest("\"assets\":{\"background\":\"Assets/image.png\"}")
+        try fixture.manifest(#""assets":{"background":"Assets/image.png"}"#)
         let assets = fixture.source.appendingPathComponent("Assets")
         try FileManager.default.createDirectory(at: assets, withIntermediateDirectories: false)
         try #require(mkfifo(assets.appendingPathComponent("image.png").path, 0o600) == 0)
@@ -22,7 +22,7 @@ struct AssetTests {
         defer { fixture.remove() }
         let bytes = try Fixture.image(type: type)
         try fixture.asset(bytes, path: "Assets/nested/image")
-        try fixture.manifest("\"assets\":{\"background\":\"Assets/nested/image\"}")
+        try fixture.manifest(#""assets":{"background":"Assets/nested/image"}"#)
         let pack = try await PackService().read(from: fixture.source)
         try FileManager.default.removeItem(at: fixture.source)
         #expect(pack.assets["background"]?.data == bytes)
@@ -49,7 +49,7 @@ struct AssetTests {
     func invalidImageRejectsImport(kind: String) async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
-        try fixture.manifest("\"assets\":{\"background\":\"Assets/image.png\"}")
+        try fixture.manifest(#""assets":{"background":"Assets/image.png"}"#)
         switch kind {
         case "corrupt": try fixture.asset(Data("not an image".utf8))
         case "truncated": try fixture.asset(Data(try Fixture.image().prefix(30)))
@@ -67,7 +67,7 @@ struct AssetTests {
         let fixture = try Fixture()
         defer { fixture.remove() }
         try fixture.asset(Fixture.image(), path: "Assets/nested/image.png")
-        try fixture.manifest("\"assets\":{\"background\":\"Assets/nested/image.png\"}")
+        try fixture.manifest(#""assets":{"background":"Assets/nested/image.png"}"#)
         let original = location == "package" ? fixture.source : fixture.source.appendingPathComponent(location)
         let moved = fixture.directory.appendingPathComponent("LinkedContent")
         try FileManager.default.moveItem(at: original, to: moved)

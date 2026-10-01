@@ -9,7 +9,7 @@ struct Fixture {
     let directory: URL
     let source: URL
     static let id = UUID(uuidString: "A416C5BC-E1F3-4614-929A-CEF0B40AF7D0")!
-    static let header = "\"version\":1,\"id\":\"\(id.uuidString)\",\"name\":\"Example\""
+    static let header = #""version":1,"id":"\#(id.uuidString)","name":"Example""#
     static let defaults = Colors(light: palette(.system(.systemBackground)),
                                  dark: palette(.system(.label)),
                                  lightIncreasedContrast: palette(.system(.white)),

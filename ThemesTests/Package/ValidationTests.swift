@@ -5,9 +5,14 @@ import Themes
 struct ValidationTests {
     /// Malformed JSON preserves the parser's explanation through the public package service.
     @Test(arguments: [
-        "{\n  \"version\": 1,\n  \"name\" \"Example\"\n}",
-        "{\"name\":\"unterminated}",
-        "{\"name\": invalid}",
+        #"""
+        {
+          "version": 1,
+          "name" "Example"
+        }
+        """#,
+        #"{"name":"unterminated}"#,
+        #"{"name": invalid}"#,
         ""
     ])
     func malformedJSONRetainsParserDetails(json: String) async throws {
@@ -29,23 +34,23 @@ struct ValidationTests {
 
     /// Malformed supplied fields report their location rather than inheriting defaults.
     @Test(arguments: [
-        ("\"tokens\":null", "tokens"),
-        ("\"tokens\":[]", "tokens"),
-        ("\"tokens\":{\"colors\":null}", "tokens.colors"),
-        ("\"tokens\":{\"colors\":{\"light\":null}}", "tokens.colors.light"),
-        ("\"tokens\":{\"colors\":{\"light\":{\"accent\":null}}}", "tokens.colors.light.accent"),
-        ("\"tokens\":{\"colors\":{\"light\":{\"accent\":{}}}}", "tokens.colors.light.accent"),
-        ("\"tokens\":{\"colors\":{\"light\":{\"accent\":{\"system\":\"label\",\"srgb\":\"#123456\"}}}}", "tokens.colors.light.accent"),
-        ("\"tokens\":{\"colors\":{\"light\":{\"accent\":{\"system\":null}}}}", "tokens.colors.light.accent.system"),
-        ("\"tokens\":{\"colors\":{\"light\":{\"accent\":{\"system\":\"invented\"}}}}", "tokens.colors.light.accent.system"),
-        ("\"tokens\":{\"colors\":{\"light\":{\"accent\":{\"srgb\":42}}}}", "tokens.colors.light.accent.srgb"),
-        ("\"tokens\":{\"colors\":{\"light\":{\"accent\":{\"rgb\":\"#123456\"}}}}", "tokens.colors.light.accent.rgb"),
-        ("\"tokens\":{\"colors\":{\"light\":{\"invented\":{\"system\":\"label\"}}}}", "tokens.colors.light.invented"),
-        ("\"tokens\":{\"colors\":{\"invented\":{}}}", "tokens.colors.invented"),
-        ("\"tokens\":{\"typography\":{}}", "tokens.typography"),
-        ("\"formatVersion\":1", "formatVersion"),
-        ("\"assets\":null", "assets"),
-        ("\"assets\":{\"background\":null}", "assets.background")
+        (#""tokens":null"#, "tokens"),
+        (#""tokens":[]"#, "tokens"),
+        (#""tokens":{"colors":null}"#, "tokens.colors"),
+        (#""tokens":{"colors":{"light":null}}"#, "tokens.colors.light"),
+        (#""tokens":{"colors":{"light":{"accent":null}}}"#, "tokens.colors.light.accent"),
+        (#""tokens":{"colors":{"light":{"accent":{}}}}"#, "tokens.colors.light.accent"),
+        (##""tokens":{"colors":{"light":{"accent":{"system":"label","srgb":"#123456"}}}}"##, "tokens.colors.light.accent"),
+        (#""tokens":{"colors":{"light":{"accent":{"system":null}}}}"#, "tokens.colors.light.accent.system"),
+        (#""tokens":{"colors":{"light":{"accent":{"system":"invented"}}}}"#, "tokens.colors.light.accent.system"),
+        (#""tokens":{"colors":{"light":{"accent":{"srgb":42}}}}"#, "tokens.colors.light.accent.srgb"),
+        (##""tokens":{"colors":{"light":{"accent":{"rgb":"#123456"}}}}"##, "tokens.colors.light.accent.rgb"),
+        (#""tokens":{"colors":{"light":{"invented":{"system":"label"}}}}"#, "tokens.colors.light.invented"),
+        (#""tokens":{"colors":{"invented":{}}}"#, "tokens.colors.invented"),
+        (#""tokens":{"typography":{}}"#, "tokens.typography"),
+        (#""formatVersion":1"#, "formatVersion"),
+        (#""assets":null"#, "assets"),
+        (#""assets":{"background":null}"#, "assets.background")
     ])
     func invalidFieldsIdentifyTheirPath(fields: String, path: String) async throws {
         let fixture = try Fixture()
@@ -60,11 +65,11 @@ struct ValidationTests {
     /// Invalid headers fail independently of optional appearance settings.
     @Test(arguments: [
         ("{}", "version"), ("[]", "manifest.json"), ("not JSON", "manifest.json"),
-        ("{\"version\":true}", "version"), ("{\"version\":1.5}", "version"),
-        ("{\"version\":\"1\"}", "version"), ("{\"version\":2}", "version"),
-        ("{\"version\":1}", "id"), ("{\"version\":1,\"id\":\"invalid\"}", "id"),
-        ("{\"version\":1,\"id\":\"\(Fixture.id)\"}", "name"),
-        ("{\"version\":1,\"id\":\"\(Fixture.id)\",\"name\":\"  \"}", "name")
+        (#"{"version":true}"#, "version"), (#"{"version":1.5}"#, "version"),
+        (#"{"version":"1"}"#, "version"), (#"{"version":2}"#, "version"),
+        (#"{"version":1}"#, "id"), (#"{"version":1,"id":"invalid"}"#, "id"),
+        (#"{"version":1,"id":"\#(Fixture.id)"}"#, "name"),
+        (#"{"version":1,"id":"\#(Fixture.id)","name":"  "}"#, "name")
     ])
     func invalidHeaderIdentifiesItsField(json: String, path: String) async throws {
         let fixture = try Fixture()
@@ -80,7 +85,7 @@ struct ValidationTests {
     func invalidHexIsRejected(hex: String) async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
-        try fixture.manifest("\"tokens\":{\"colors\":{\"light\":{\"accent\":{\"srgb\":\"\(hex)\"}}}}")
+        try fixture.manifest(#""tokens":{"colors":{"light":{"accent":{"srgb":"\#(hex)"}}}}"#)
         await #expect { try await PackService().read(from: fixture.source) } throws: { error in
             (error as? ValidationError)?.path == "tokens.colors.light.accent.srgb"
         }

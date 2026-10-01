@@ -8,7 +8,7 @@ struct ExportTests {
         let fixture = try Fixture()
         defer { fixture.remove() }
         try fixture.asset(Fixture.image())
-        try fixture.manifest("\"tokens\":{\"colors\":{\"light\":{\"accent\":{\"srgb\":\"#12AB34\"}}}},\"assets\":{\"image\":\"Assets/image.png\"}")
+        try fixture.manifest(##""tokens":{"colors":{"light":{"accent":{"srgb":"#12AB34"}}}},"assets":{"image":"Assets/image.png"}"##)
         let service: any PackServicing = PackService()
         let original = try await service.read(from: fixture.source)
         try FileManager.default.removeItem(at: fixture.source)
@@ -65,7 +65,7 @@ struct ExportTests {
         let jpeg = try Fixture.image(type: "public.jpeg")
         try fixture.asset(png, path: "Assets/nested/texture.png")
         try fixture.asset(jpeg, path: "Assets/background.jpg")
-        try fixture.manifest("\"tokens\":{\"colors\":{\"light\":{\"accent\":{\"srgb\":\"#12aB34\"}}}},\"assets\":{\"texture\":\"Assets/nested/texture.png\",\"background\":\"Assets/background.jpg\",\"shared\":\"Assets/nested/texture.png\"}")
+        try fixture.manifest(##""tokens":{"colors":{"light":{"accent":{"srgb":"#12aB34"}}}},"assets":{"texture":"Assets/nested/texture.png","background":"Assets/background.jpg","shared":"Assets/nested/texture.png"}"##)
         let service = PackService()
         let original = try await service.read(from: fixture.source)
         let expected = service.resolve(original, defaults: Fixture.defaults)
