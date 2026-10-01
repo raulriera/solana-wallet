@@ -109,10 +109,8 @@ public struct TokenMint: Sendable {
     /// - Parameter account: An existing source or destination account for this mint.
     /// - Throws: ``TokenError/accountMismatch`` when a required account extension is absent.
     func validateExtensions(of account: TokenAccount) throws {
-        for entry in requiredAccountExtensions {
-            if account.data.extensions[entry.type] == nil {
-                throw TokenError.accountMismatch
-            }
+        for entry in requiredAccountExtensions where account.data.extensions[entry.type] == nil {
+            throw TokenError.accountMismatch
         }
     }
 }
