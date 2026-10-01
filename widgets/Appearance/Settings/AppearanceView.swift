@@ -2,7 +2,6 @@ import SwiftUI
 
 /// Composes appearance settings from independently updating sections.
 struct AppearanceView: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let settings: AppearanceSettings
     let wallet: AppearanceWallet?
     let palette: RenderedPalette
@@ -26,7 +25,7 @@ struct AppearanceView: View {
                 AppearanceActivitySection(activity: activity, palette: palette)
             }
         }
-        .animation(reduceMotion ? nil : .default, value: settings.entries.map(\.id))
+        .animation(.default, value: settings.entries.map(\.id))
         .navigationTitle("Appearance")
         .navigationDestination(for: AppearancePreferences.Scope.self) { scope in
             ThemeChooser(entries: settings.entries, scope: scope, selection: selection(for: scope),

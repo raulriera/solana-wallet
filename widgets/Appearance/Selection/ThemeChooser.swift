@@ -2,7 +2,6 @@ import SwiftUI
 
 /// Presents committed selection data without observing the full package workflow.
 struct ThemeChooser: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let entries: [ThemeEntry]
     let scope: AppearancePreferences.Scope
     let selection: UUID?
@@ -27,7 +26,7 @@ struct ThemeChooser: View {
                 }
             }
         }
-        .animation(reduceMotion ? nil : .default, value: entries.map(\.id))
+        .animation(.default, value: entries.map(\.id))
         .navigationTitle(title)
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)

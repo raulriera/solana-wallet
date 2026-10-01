@@ -5,7 +5,7 @@
 - Build one adaptive SwiftUI interface for iPhone Duo, other iPhones, and iPad. Use the [SwiftUI Expert](plugin://swiftui-expert@swiftui-expert-skill) skill.
 - Use `NavigationSplitView` for navigation. Design useful expanded content first, then preserve its hierarchy and functionality when columns collapse. Size content from the available space, safe areas, and system layout information.
 - Preserve selection, navigation, scroll position, and unfinished input across resizing, folding, and theme changes. Keep native navigation, toolbar placement, menus, and presentation behavior.
-- Use native motion to communicate meaningful state changes. Animate theme-list insertion, removal, and reordering after catalog changes commit; disable that movement with Reduce Motion. Keep animation scoped to the changing content.
+- Use native motion to communicate meaningful state changes. Animate theme-list insertion, removal, and reordering after catalog changes commit using the system default animation. Keep animation scoped to the changing content. Add explicit Reduce Motion adaptations only for pronounced animations identified by the user.
 - Use standard Dynamic Type without custom size caps. Adapt layouts through stacking, scrolling, and column collapse.
 - Keep app composition, scene state, feature coordination, feature views, and appearance as separate internal app concerns. Inject services through protocols; views present state and capture intent.
 - `SettingsScene` owns the settings split view and each window's navigation selection. Appearance is a destination within that container.
