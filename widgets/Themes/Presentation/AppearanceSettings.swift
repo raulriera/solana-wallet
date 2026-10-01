@@ -5,7 +5,7 @@ import Themes
 /// One window's package workflow; committed selections are shared through the coordinator.
 @MainActor @Observable final class AppearanceSettings: ThemeActions {
     /// Exact snapshot and installed revision awaiting replacement approval.
-    struct Replacement: Identifiable {
+    struct Replacement: Identifiable, Equatable {
         let pack: Pack
         let existing: ThemeEntry
         var id: UUID { existing.revision }

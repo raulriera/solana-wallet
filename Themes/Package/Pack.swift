@@ -1,7 +1,8 @@
 public import Foundation
 
 /// An independently owned, validated snapshot of an imported theme package.
-public struct Pack: Sendable {
+/// Equality includes the manifest and all retained asset contents.
+public struct Pack: Sendable, Equatable {
     public var id: UUID { manifest.id }
     public var name: String { manifest.name }
     public let assets: [String: Asset]

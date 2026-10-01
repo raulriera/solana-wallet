@@ -7,7 +7,7 @@ extension UTType {
 }
 
 /// A fully prepared package; the system exporter copies it without serializing in a view.
-nonisolated struct ThemeExport: Transferable, Sendable {
+nonisolated struct ThemeExport: Transferable, Sendable, Equatable {
     let url: URL
 
     static var transferRepresentation: some TransferRepresentation {

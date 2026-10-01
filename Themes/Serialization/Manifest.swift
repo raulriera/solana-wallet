@@ -2,7 +2,7 @@ import Foundation
 import CoreFoundation
 
 /// The internal version-one manifest representation.
-struct Manifest: Sendable {
+struct Manifest: Sendable, Equatable {
     let id: UUID
     let name: String
     let colors: [Appearance: [Role: Color]]

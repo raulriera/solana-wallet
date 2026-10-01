@@ -1,4 +1,6 @@
 import Foundation
+import Observation
+import Synchronization
 import Testing
 import Themes
 @testable import widgets
@@ -183,6 +185,66 @@ struct AppearanceSettingsTests {
         settings.select(nil, for: .wallet(wallet))
         await settings.waitForOperation()
         #expect(appearance.snapshot?.theme(for: wallet)?.id == entry.id)
+    }
+
+    /// Cancelling notifies replacement observers only when there is an approval to dismiss.
+    /// - Parameter hasPendingReplacement: Whether cancellation clears an existing approval.
+    /// - Throws: A fixture or package-reading error.
+    @Test(arguments: [false, true])
+    func cancellationOnlyNotifiesWhenReplacementChanges(hasPendingReplacement: Bool) async throws {
+        let fixture = try CatalogFixture()
+        defer { fixture.remove() }
+        let settings = try makeSettings(fixture)
+        if hasPendingReplacement {
+            let pack = try await PackService().read(from: fixture.source())
+            settings.replacement = AppearanceSettings.Replacement(
+                pack: pack, existing: ThemeEntry(id: pack.id, name: pack.name, origin: .custom)
+            )
+        }
+        let changed = Mutex(false)
+        withObservationTracking {
+            _ = settings.replacement
+        } onChange: {
+            changed.withLock { $0 = true }
+        }
+
+        settings.cancel()
+
+        let notified = changed.withLock(\.self)
+        #expect(notified == hasPendingReplacement)
+        #expect(settings.replacement == nil)
+    }
+
+    /// Equal imported contents do not notify, but changed colors under the same identity do.
+    /// - Parameter changesColors: Whether the second import changes a color override.
+    /// - Throws: A fixture, parsing, or package-reading error.
+    @Test(arguments: [false, true])
+    func replacementNotificationFollowsImportedContents(changesColors: Bool) async throws {
+        let fixture = try CatalogFixture()
+        defer { fixture.remove() }
+        let settings = try makeSettings(fixture)
+        let source = try fixture.source()
+        let first = try await PackService().read(from: source)
+        let existing = ThemeEntry(id: first.id, name: first.name, origin: .custom)
+        settings.replacement = AppearanceSettings.Replacement(pack: first, existing: existing)
+        if changesColors {
+            let url = source.appendingPathComponent("manifest.json")
+            var manifest = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+            manifest["tokens"] = ["colors": ["light": ["accent": ["srgb": "#123456"]]]]
+            try JSONSerialization.data(withJSONObject: manifest).write(to: url)
+        }
+        let second = try await PackService().read(from: source)
+        let changed = Mutex(false)
+        withObservationTracking {
+            _ = settings.replacement
+        } onChange: {
+            changed.withLock { $0 = true }
+        }
+
+        settings.replacement = AppearanceSettings.Replacement(pack: second, existing: existing)
+
+        let notified = changed.withLock(\.self)
+        #expect(notified == changesColors)
     }
 
     /// Creates real services against one test's isolated storage.
