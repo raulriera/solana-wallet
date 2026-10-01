@@ -3,6 +3,9 @@ import Synchronization
 
 /// Bridges coordinated file work onto one background queue, outside Swift's shared executor.
 final class FileAccess: Sendable {
+    /// Synchronous work that receives a coordinated URL and access to cancellation checks.
+    typealias Operation<Value: Sendable> = @Sendable (URL, FileAccess) throws -> Value
+
     private static let queue: OperationQueue = {
         let queue = OperationQueue()
         queue.name = "Themes.FileAccess"
@@ -34,7 +37,7 @@ final class FileAccess: Sendable {
     /// - Returns: The owned result after security-scoped access ends.
     /// - Throws: An access, operation, or cancellation error.
     static func perform<Value: Sendable>(at url: URL, writing: Bool = false,
-                                        operation: @escaping @Sendable (URL, FileAccess) throws -> Value) async throws -> Value {
+                                        operation: @escaping Operation<Value>) async throws -> Value {
         let access = FileAccess()
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
@@ -74,7 +77,7 @@ final class FileAccess: Sendable {
     ///   - continuation: The suspended caller, resumed once after cleanup.
     /// - Throws: A validation or cancellation error before coordination is registered.
     private func begin<Value: Sendable>(at url: URL, writing: Bool,
-                                       operation: @escaping @Sendable (URL, FileAccess) throws -> Value,
+                                       operation: @escaping Operation<Value>,
                                        continuation: CheckedContinuation<Value, any Error>) throws {
         try checkCancellation()
         guard url.isFileURL else {
