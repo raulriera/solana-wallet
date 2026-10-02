@@ -57,22 +57,28 @@ struct TokenTransferTests {
     }
 
     /// Verifies the fee boundary, ceiling division, maximum cap, and UInt64 overflow safety.
-    @Test
-    func `Token-2022 transfers assert the epoch fee with exact rounding and caps`() throws {
+    /// - Parameters:
+    ///   - amount: The transfer amount in base units.
+    ///   - epoch: The ledger epoch selecting the fee schedule.
+    ///   - fee: The expected fee after rounding and capping.
+    ///   - fixtureIndex: The corresponding independent SDK instruction.
+    @Test(arguments: [
+        (UInt64(1), UInt64(99), UInt64(1), 0),
+        (10_001, 99, 26, 1), (10_001, 100, 50, 2), (.max, 100, 50, 3),
+    ])
+    func `Token-2022 transfers assert the epoch fee with exact rounding and caps`(
+        amount: UInt64, epoch: UInt64, fee: UInt64, fixtureIndex: Int
+    ) throws {
         let fixture = TokenFixtures.transfers[2]
-        let examples: [(amount: UInt64, epoch: UInt64, fee: UInt64)] = [
-            (1, 99, 1), (10_001, 99, 26), (10_001, 100, 50), (.max, 100, 50)
-        ]
-        for (index, example) in examples.enumerated() {
-            let transfer = try TokenTransfer(sender: Address(TokenFixtures.sender), recipient: Address(TokenFixtures.recipient),
-                                             mint: fixture.mint(TokenFixtures.feeMint), source: fixture.source(Data(base64Encoded: TokenFixtures.feeSource)),
-                                             destination: fixture.target(TokenFixtures.feeDestination), amount: example.amount, epoch: example.epoch)
-            let message = try MessageBuilder().message(instructions: transfer.instructions(), payer: transfer.sender, recentBlockhash: MessageFixture.zeroBlockhash,
-                                                       configuration: configuration())
-            let result = try TransactionDecoder().decode(TransactionBuilder().simulationTransaction(for: message))
-            #expect(transfer.expectedFee == example.fee)
-            #expect(result.instructions.last?.data == Data(base64Encoded: TokenFixtures.feeInstructions[index]))
-        }
+        let transfer = try TokenTransfer(sender: Address(TokenFixtures.sender), recipient: Address(TokenFixtures.recipient),
+                                         mint: fixture.mint(TokenFixtures.feeMint), source: fixture.source(Data(base64Encoded: TokenFixtures.feeSource)),
+                                         destination: fixture.target(TokenFixtures.feeDestination), amount: amount, epoch: epoch)
+        let message = try MessageBuilder().message(instructions: transfer.instructions(), payer: transfer.sender, recentBlockhash: MessageFixture.zeroBlockhash,
+                                                   configuration: configuration())
+        let result = try TransactionDecoder().decode(TransactionBuilder().simulationTransaction(for: message))
+        #expect(transfer.expectedFee == fee)
+        try #require(TokenFixtures.feeInstructions.indices.contains(fixtureIndex))
+        #expect(result.instructions.last?.data == Data(base64Encoded: TokenFixtures.feeInstructions[fixtureIndex]))
     }
 
     /// Verifies a missing epoch cannot silently select a fee schedule.
@@ -192,15 +198,14 @@ struct TokenTransferTests {
     }
 
     /// Verifies truncated and duplicate TLV entries cannot influence transfer fee interpretation.
-    @Test
-    func `Mint decoding rejects truncated and duplicate extensions`() throws {
+    /// - Parameter duplicatesExtension: Whether to duplicate an extension instead of truncating its bytes.
+    @Test(arguments: [false, true])
+    func `Mint decoding rejects truncated and duplicate extensions`(duplicatesExtension: Bool) throws {
         let fixture = TokenFixtures.transfers[2]
         let bytes = try #require(Data(base64Encoded: TokenFixtures.feeMint))
-        let malformed = [Data(bytes.dropLast()), bytes + bytes.dropFirst(166)]
-        for data in malformed {
-            #expect(throws: TokenError.invalidAccount) {
-                try TokenMint(address: Address(TokenFixtures.mint), owner: Address(fixture.program), data: data)
-            }
+        let data = duplicatesExtension ? bytes + bytes.dropFirst(166) : Data(bytes.dropLast())
+        #expect(throws: TokenError.invalidAccount) {
+            try TokenMint(address: Address(TokenFixtures.mint), owner: Address(fixture.program), data: data)
         }
     }
 

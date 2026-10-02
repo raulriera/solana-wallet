@@ -94,18 +94,21 @@ struct TransactionDecoderTests {
         #expect(transaction.signatures.last == Data(repeating: 0x55, count: 64))
     }
 
-    /// Verifies every truncation point and unexpected trailing bytes fail without trapping.
-    @Test
-    func `Incomplete, extended, and oversized envelopes are rejected`() throws {
+    /// Verifies every truncation point fails without trapping.
+    /// - Parameter length: The truncated envelope's byte count.
+    @Test(arguments: 0..<(try DecodingFixture.transaction()).count)
+    func `Incomplete envelopes are rejected`(length: Int) throws {
         let input = try DecodingFixture.transaction()
-        for length in 0..<input.count {
-            #expect(throws: ValidationError.invalidTransaction, "Truncated at byte \(length)") {
-                try TransactionDecoder().decode(Data(input.prefix(length)))
-            }
+        #expect(throws: ValidationError.invalidTransaction) {
+            try TransactionDecoder().decode(Data(input.prefix(length)))
         }
-        for invalid in [input + Data([0]), Data(repeating: 0, count: 4_097)] {
-            #expect(throws: ValidationError.invalidTransaction) { try TransactionDecoder().decode(invalid) }
-        }
+    }
+
+    /// Verifies unexpected trailing bytes and envelopes exceeding the byte limit fail.
+    /// - Parameter invalid: An extended or oversized envelope.
+    @Test(arguments: [try DecodingFixture.transaction() + Data([0]), Data(repeating: 0, count: 4_097)])
+    func `Extended and oversized envelopes are rejected`(invalid: Data) {
+        #expect(throws: ValidationError.invalidTransaction) { try TransactionDecoder().decode(invalid) }
     }
 
     /// Verifies malformed account permissions and references cannot become review data.
