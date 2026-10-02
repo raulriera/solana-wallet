@@ -16,16 +16,10 @@ struct WalletUnavailableScreen: View {
         .scrollEdgeEffectStyle(.soft, for: .bottom)
         .readableContentMargins(inset: $contentInset)
         .safeAreaBar(edge: .bottom) {
-            Button(action: retry) {
-                Text("Try Again")
-                    .frame(maxWidth: .infinity, minHeight: LayoutMetrics.actionLabelMinimumHeight)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .tint(palette.primaryText)
-            .foregroundStyle(palette.background)
-            .padding(.horizontal, contentInset)
-            .padding(.vertical, LayoutMetrics.actionBarVerticalPadding)
+            Button("Try Again", action: retry)
+                .buttonStyle(.primary)
+                .padding(.horizontal, contentInset)
+                .padding(.vertical, LayoutMetrics.actionBarVerticalPadding)
         }
         .background(palette.background)
     }

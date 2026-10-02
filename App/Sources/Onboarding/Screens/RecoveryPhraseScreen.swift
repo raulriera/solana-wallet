@@ -36,16 +36,10 @@ struct RecoveryPhraseScreen: View {
         .scrollEdgeEffectStyle(.soft, for: .bottom)
         .readableContentMargins(inset: $contentInset)
         .safeAreaBar(edge: .bottom) {
-            Button {
+            Button("Continue") {
                 isConfirmingBackup = true
-            } label: {
-                Text("Continue")
-                    .frame(maxWidth: .infinity, minHeight: LayoutMetrics.actionLabelMinimumHeight)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .tint(palette.primaryText)
-            .foregroundStyle(palette.background)
+            .buttonStyle(.primary)
             .padding(.horizontal, contentInset)
             .padding(.vertical, LayoutMetrics.actionBarVerticalPadding)
         }
