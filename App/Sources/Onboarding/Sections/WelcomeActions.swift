@@ -10,14 +10,14 @@ struct WelcomeActions: View {
         VStack(spacing: 12) {
             Button(action: createWallet) {
                 Text("Create Wallet")
-                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .frame(maxWidth: .infinity, minHeight: LayoutMetrics.actionLabelMinimumHeight)
             }
             .buttonStyle(.borderedProminent)
             .foregroundStyle(palette.background)
 
             Button(action: importWallet) {
                 Text("Import Wallet")
-                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .frame(maxWidth: .infinity, minHeight: LayoutMetrics.actionLabelMinimumHeight)
             }
             .buttonStyle(.bordered)
         }

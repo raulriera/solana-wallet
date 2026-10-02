@@ -4,7 +4,7 @@ import Wallet
 /// Presents a prepared recovery phrase for backup without generating or storing it.
 struct RecoveryPhraseScreen: View {
     @Environment(\.palette) private var palette
-    @State private var contentInset: CGFloat = 16
+    @State private var contentInset = LayoutMetrics.contentMargin
     @State private var isConfirmingBackup = false
     let phrase: RecoveryPhrase
     let continueSetup: () -> Void
@@ -40,14 +40,14 @@ struct RecoveryPhraseScreen: View {
                 isConfirmingBackup = true
             } label: {
                 Text("Continue")
-                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .frame(maxWidth: .infinity, minHeight: LayoutMetrics.actionLabelMinimumHeight)
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
             .tint(palette.primaryText)
             .foregroundStyle(palette.background)
             .padding(.horizontal, contentInset)
-            .padding(.vertical, 8)
+            .padding(.vertical, LayoutMetrics.actionBarVerticalPadding)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(palette.background)

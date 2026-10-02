@@ -46,6 +46,7 @@
 - Use one submission strategy: `none` sends identical signed bytes concurrently through configured same-network ordinary RPCs; `standard` and `premium` use Sender exclusively. Follow [references/transaction-workflow.md](references/transaction-workflow.md).
 - Use the selected provider's DAS interface only for portfolio viewing; keep DAS out of transaction submission contracts, validation, and routing. Follow [references/portfolio.md](references/portfolio.md).
 - Keep wallet recovery material device-only, excluded from iCloud sync and backups; follow [references/wallet.md](references/wallet.md).
+- Never drop saved wallets during launch, app updates, or validation. Preserve stored metadata and recovery; treat loading errors as failures, not an empty wallet.
 - Discover accounts with one SOL-only lookup for twenty addresses; intentionally ignore zero-SOL accounts. Follow [references/wallet.md](references/wallet.md).
 - Agree on architecture before implementation; work on one concern at a time.
 - Resolve unapproved UI design and behavior with the user before implementing it; do not infer production approval from disposable mockups. Follow [references/ui.md](references/ui.md).

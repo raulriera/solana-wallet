@@ -21,7 +21,7 @@ struct ReadableContentMargins: ViewModifier {
             }
             .onGeometryChange(for: CGFloat.self) { geometry in
                 // A sixth on each side leaves two thirds for content.
-                usesReadableWidth ? geometry.size.width / 6 : 16
+                usesReadableWidth ? geometry.size.width / 6 : LayoutMetrics.contentMargin
             } action: { newInset in
                 inset = newInset
             }

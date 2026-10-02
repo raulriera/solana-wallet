@@ -24,6 +24,13 @@ struct AppServices {
         WindowRouter(initialDestination: initialDestination)
     }
 
+    /// Assembles read-only startup restoration for one window.
+    /// - Parameter router: The owning window's navigation.
+    /// - Returns: A workflow that opens saved accounts without accessing recovery material.
+    func makeWindowStartup(router: any WindowRouting) -> any WindowStarting {
+        WindowStartup(accounts: accounts, router: router)
+    }
+
     /// Assembles a fresh onboarding workflow around the app's shared services.
     /// - Parameter router: The owning window's root navigation.
     /// - Returns: Independent draft state for the window that retains this coordinator.
