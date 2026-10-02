@@ -8,10 +8,10 @@ struct FungibleTests {
     /// Verifies an excluded page cannot add holdings, affect valuation, or hide later fungibles.
     /// - Parameter kind: An NFT or unrecognized DAS interface returned despite the request filter.
     /// - Throws: A refresh, storage, or test prerequisite error.
-    @Test("portfolio excludes nonfungibles and continues to later fungible pages", arguments: [
+    @Test(arguments: [
         "V1_NFT", "ProgrammableNFT", "MplCoreAsset", "MplCoreCollection", "MplBubblegumV2", "Custom", "FutureKind",
     ])
-    func excludesNonfungibles(kind: String) async throws {
+    func `Portfolio excludes nonfungibles and continues to later fungible pages`(kind: String) async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
         let store = FileSnapshotStore(directory: directory)
@@ -54,8 +54,8 @@ struct FungibleTests {
 
     /// Verifies an older mixed-asset cache is absent during refresh and after a network failure.
     /// - Throws: A cache fixture or test prerequisite error.
-    @Test("legacy mixed portfolios cannot restore NFTs while offline")
-    func ignoresMixedAssetCache() async throws {
+    @Test
+    func `Legacy mixed portfolios cannot restore NFTs while offline`() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
         let store = FileSnapshotStore(directory: directory)

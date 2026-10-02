@@ -4,8 +4,8 @@ import Testing
 /// Exercises admission timing without arbitrary sleeps or external traffic.
 struct RequestPacerTests {
     /// Verifies simultaneous waiters recheck admission after actor reentrancy.
-    @Test("concurrent price requests share slots instead of waking into a burst", .timeLimit(.minutes(1)))
-    func concurrentWaitersShareBudget() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `Concurrent price requests share slots instead of waking into a burst`() async throws {
         let clock = ManualClock()
         let startedAt = clock.now
         let pacer = RequestPacer(interval: .seconds(3), clock: clock)
@@ -28,8 +28,8 @@ struct RequestPacerTests {
     }
 
     /// Verifies an idle provider admits one immediate request without saving unused slots.
-    @Test("idle time does not accumulate price request bursts", .timeLimit(.minutes(1)))
-    func idleTimeDoesNotAccumulateSlots() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `Idle time does not accumulate price request bursts`() async throws {
         let clock = ManualClock()
         let pacer = RequestPacer(interval: .seconds(3), clock: clock)
         try await pacer.wait()
@@ -46,8 +46,8 @@ struct RequestPacerTests {
     }
 
     /// Verifies cancelled waiters exit promptly and leave the next slot available.
-    @Test("cancelling queued prices does not consume a request slot", .timeLimit(.minutes(1)))
-    func cancellationLeavesSlotAvailable() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `Cancelling queued prices does not consume a request slot`() async throws {
         let clock = ManualClock()
         let pacer = RequestPacer(interval: .seconds(3), clock: clock)
         try await pacer.wait()

@@ -8,9 +8,8 @@ struct PriorityFeeTests {
     ///
     /// - Parameter amount: The JSON number returned as the estimated compute-unit price.
     /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
-    @Test("get priority fee returns the recommended price in micro-lamports per compute unit",
-          arguments: ["0", "10082.25"])
-    func getPriorityFeeReturnsTheRecommendedPriceInMicroLamportsPerComputeUnit(amount: String) async throws {
+    @Test(arguments: ["0", "10082.25"])
+    func `Get priority fee returns the recommended price in micro-lamports per compute unit`(amount: String) async throws {
         let transport = StubTransport { request in
             try reply(to: request, payload: #""result":{"priorityFeeEstimate":\#(amount)}"#)
         }
@@ -37,8 +36,8 @@ struct PriorityFeeTests {
     /// Verifies that account-based estimates use an explicit level instead of the recommendation.
     ///
     /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
-    @Test("get priority fee estimates account activity at the requested priority level")
-    func getPriorityFeeEstimatesAccountActivityAtTheRequestedPriorityLevel() async throws {
+    @Test
+    func `Get priority fee estimates account activity at the requested priority level`() async throws {
         let addresses = ["11111111111111111111111111111111", "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"]
         let transport = StubTransport { request in
             try reply(to: request, payload: #""result":{"priorityFeeEstimate":12500}"#)
@@ -63,13 +62,13 @@ struct PriorityFeeTests {
     /// Verifies that unusable estimates can't silently become a zero-fee recommendation.
     ///
     /// - Parameter result: A result with an absent, null, negative, or malformed estimate.
-    @Test("get priority fee rejects missing negative or malformed estimates", arguments: [
+    @Test(arguments: [
         "{}",
         #"{"priorityFeeEstimate":null}"#,
         #"{"priorityFeeEstimate":-0.01}"#,
         #"{"priorityFeeEstimate":"unavailable"}"#,
     ])
-    func getPriorityFeeRejectsMissingNegativeOrMalformedEstimates(result: String) async {
+    func `Get priority fee rejects missing negative or malformed estimates`(result: String) async {
         let transport = StubTransport { request in
             try reply(to: request, payload: #""result":\#(result)"#)
         }

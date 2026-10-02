@@ -14,7 +14,7 @@ struct PaletteObservationTests {
     ///   - contrast: The consumer's standard or increased contrast.
     /// - Throws: A fixture or theme-loading error.
     @Test(arguments: [ColorScheme.light, .dark], [ColorSchemeContrast.standard, .increased])
-    func reloadingIdenticalColorsDoesNotNotify(scheme: ColorScheme, contrast: ColorSchemeContrast) async throws {
+    func `Reloading identical colors does not notify`(scheme: ColorScheme, contrast: ColorSchemeContrast) async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let catalog = try ThemeCatalog(directory: fixture.directory)
@@ -40,7 +40,7 @@ struct PaletteObservationTests {
     /// - Throws: A fixture, package-installation, or theme-loading error.
     @Test(arguments: ["background", "surface", "primaryText", "secondaryText", "separator", "accent", "onAccent"],
           [true, false])
-    func changingColorOnlyNotifiesAffectedVariant(role: String, observesChangedVariant: Bool) async throws {
+    func `Changing color only notifies affected variant`(role: String, observesChangedVariant: Bool) async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let source = try fixture.source()

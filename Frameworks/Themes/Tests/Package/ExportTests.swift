@@ -4,7 +4,7 @@ import Themes
 
 struct ExportTests {
     /// Installation keeps omission-based inheritance and owned image bytes after the source disappears.
-    @Test func installedCopyPreservesOverridesInsteadOfFreezingDefaults() async throws {
+    @Test func `Installed copy preserves overrides instead of freezing defaults`() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
         try fixture.asset(Fixture.image())
@@ -29,7 +29,7 @@ struct ExportTests {
     }
 
     /// Default exports have fresh identities and all twenty-eight colors, including symbolic values.
-    @Test func templateExportsCompleteDefaultsWithNewIdentities() async throws {
+    @Test func `Template exports complete defaults with new identities`() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
         let service: any PackServicing = PackService()
@@ -58,7 +58,7 @@ struct ExportTests {
     }
 
     /// Installed copies preserve shared PNG/JPEG assets and identity after source files disappear.
-    @Test func savedCopyPreservesSharedAssetsAndIdentity() async throws {
+    @Test func `Saved copy preserves shared assets and identity`() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
         let png = try Fixture.image()
@@ -84,7 +84,7 @@ struct ExportTests {
     }
 
     /// Replacing a destination removes obsolete files instead of merging packages.
-    @Test func replacementWritesOneCompletePackage() async throws {
+    @Test func `Replacement writes one complete package`() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
         try fixture.manifest()
@@ -96,7 +96,7 @@ struct ExportTests {
     }
 
     /// A rejected export preserves the previous destination and creates no staging artifacts.
-    @Test func validationFailureLeavesDestinationUnchanged() async throws {
+    @Test func `Validation failure leaves destination unchanged`() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
         try fixture.manifest()
@@ -109,7 +109,7 @@ struct ExportTests {
     }
 
     /// A real destination error does not create a partial package or alter its parent file.
-    @Test func writeFailurePreservesExistingFile() async throws {
+    @Test func `Write failure preserves existing file`() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
         let parent = fixture.directory.appendingPathComponent("File")

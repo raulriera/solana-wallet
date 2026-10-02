@@ -4,8 +4,8 @@ import Testing
 /// Tests diagnostic redaction independently of HTTP requests and error decoding.
 struct SimulationRedactionTests {
     /// Verifies that nested text is sanitized while diagnostic structure and numbers survive.
-    @Test("simulation redaction removes secrets while preserving error structure and numeric diagnostics")
-    func simulationRedactionRemovesSecretsWhilePreservingErrorStructureAndNumericDiagnostics() {
+    @Test
+    func `Simulation redaction removes secrets while preserving error structure and numeric diagnostics`() {
         let redactor: any TextRedactor = SecretRedactor(secrets: ["test-key"])
         let simulation = SimulateTransaction.Value(
             error: TransactionError(name: "test-key", details: .array([

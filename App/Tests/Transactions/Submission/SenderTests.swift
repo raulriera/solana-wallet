@@ -12,10 +12,9 @@ struct SenderTests {
     /// Enable only after approval of the mainnet tips and fees. The retained wallet
     /// must already be funded; this test never requests funding or raises its bid.
     /// - Parameter strategy: The exclusive Sender tier selected for submission.
-    @Test("Sender confirms a reviewed mainnet transaction at its quoted fee and tip",
-          .enabled(if: ProcessInfo.processInfo.environment["VERIFY_MAINNET_SENDER"] == "APPROVED"),
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["VERIFY_MAINNET_SENDER"] == "APPROVED"),
           .timeLimit(.minutes(2)), arguments: [TransactionCoordinator.Strategy.standard, .premium])
-    func senderConfirmsReviewedTransaction(_ strategy: TransactionCoordinator.Strategy) async throws {
+    func `Sender confirms a reviewed mainnet transaction at its quoted fee and tip`(_ strategy: TransactionCoordinator.Strategy) async throws {
         let key = try #require(ProcessInfo.processInfo.environment["HELIUS_API_KEY"])
         let rpc = HeliusRPC(apiKey: key, network: .mainnet)
         let account = Account(id: DevnetWallets.senderID, recoveryID: DevnetWallets.senderID,

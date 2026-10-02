@@ -8,8 +8,8 @@ struct PriceLiveTests {
     ///
     /// Jupiter supplies mainnet market data; this test makes no devnet valuation claim.
     /// - Throws: A price-provider or test prerequisite error.
-    @Test("live price provider returns normalized SOL and USDC quotes", .timeLimit(.minutes(1)))
-    func retrievesLiveQuotes() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `Live price provider returns normalized SOL and USDC quotes`() async throws {
         let source: any PriceProviding = Jupiter(apiKey: ProcessInfo.processInfo.environment["JUPITER_API_KEY"])
         let mints = ["So11111111111111111111111111111111111111112",
                      "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"]

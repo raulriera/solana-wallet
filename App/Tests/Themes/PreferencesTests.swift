@@ -6,7 +6,7 @@ import Themes
 @Suite(.timeLimit(.minutes(1)))
 nonisolated struct PreferencesTests {
     /// Empty storage uses original appearance without creating files or reading packages.
-    @Test func newPreferencesUseOriginalAppearance() async throws {
+    @Test func `New preferences use original appearance`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let snapshot = try await AppearanceStore(directory: fixture.directory).load()
@@ -16,7 +16,7 @@ nonisolated struct PreferencesTests {
     }
 
     /// Prepared theme choices reflect imports, renames, and removals.
-    @Test func catalogChangesRefreshPreparedLists() async throws {
+    @Test func `Catalog changes refresh prepared lists`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let builtIn = BundledTheme(id: UUID(), name: "Original", url: fixture.root)
@@ -43,7 +43,7 @@ nonisolated struct PreferencesTests {
     }
 
     /// Wallet overrides persist, follow stable wallet identity, and survive app-default changes.
-    @Test func walletOverridesPersistAndClearBackToApplicationDefault() async throws {
+    @Test func `Wallet overrides persist and clear back to application default`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let catalog = try ThemeCatalog(directory: fixture.directory)
@@ -65,7 +65,7 @@ nonisolated struct PreferencesTests {
     }
 
     /// Independent window/store edits merge against current disk state instead of stale snapshots.
-    @Test func concurrentWalletEditsDoNotOverwriteEachOther() async throws {
+    @Test func `Concurrent wallet edits do not overwrite each other`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let catalog = try ThemeCatalog(directory: fixture.directory)
@@ -85,7 +85,7 @@ nonisolated struct PreferencesTests {
     }
 
     /// Package staging cannot overwrite selections committed while its I/O was suspended.
-    @Test func preferenceEditsDuringImportSurviveCatalogCommit() async throws {
+    @Test func `Preference edits during import survive catalog commit`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let catalog = try ThemeCatalog(directory: fixture.directory)
@@ -113,7 +113,7 @@ nonisolated struct PreferencesTests {
 
     /// Removal clears all matching references while preserving other overrides and installations.
     /// - Parameter selectedAsDefault: Whether the removed theme is also the application default.
-    @Test(arguments: [false, true]) func deletingThemeCommitsSelectionFallbacks(selectedAsDefault: Bool) async throws {
+    @Test(arguments: [false, true]) func `Deleting theme commits selection fallbacks`(selectedAsDefault: Bool) async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let catalog = try ThemeCatalog(directory: fixture.directory)
@@ -138,7 +138,7 @@ nonisolated struct PreferencesTests {
     }
 
     /// Replacing a selected theme keeps its selection and exposes its new package revision.
-    @Test func replacementPreservesSelections() async throws {
+    @Test func `Replacement preserves selections`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let catalog = try ThemeCatalog(directory: fixture.directory)
@@ -155,7 +155,7 @@ nonisolated struct PreferencesTests {
     }
 
     /// Preferences can select built-ins without reading their files; reset retains every pack.
-    @Test func resetClearsEverySelectionAndPreservesInstalledThemes() async throws {
+    @Test func `Reset clears every selection and preserves installed themes`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let builtIn = BundledTheme(id: UUID(), name: "Bundled", url: fixture.root.appendingPathComponent("Unread"))
@@ -173,7 +173,7 @@ nonisolated struct PreferencesTests {
     }
 
     /// Unknown theme selections fail without changing either persistent selections or revisions.
-    @Test func unavailableSelectionLeavesPreferencesUnchanged() async throws {
+    @Test func `Unavailable selection leaves preferences unchanged`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let catalog = try ThemeCatalog(directory: fixture.directory)
@@ -185,7 +185,7 @@ nonisolated struct PreferencesTests {
     }
 
     /// A failed atomic metadata write leaves the selected theme and its package installed.
-    @Test func failedDeletionPreservesCatalogAndSelections() async throws {
+    @Test func `Failed deletion preserves catalog and selections`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let catalog = try ThemeCatalog(directory: fixture.directory)
@@ -200,7 +200,7 @@ nonisolated struct PreferencesTests {
     }
 
     /// A failed metadata commit rolls back a newly staged generation without touching the original.
-    @Test func failedReplacementCommitPreservesSelectedPackage() async throws {
+    @Test func `Failed replacement commit preserves selected package`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let catalog = try ThemeCatalog(directory: fixture.directory)
@@ -222,7 +222,7 @@ nonisolated struct PreferencesTests {
     }
 
     /// Identical selections do not rewrite the metadata file.
-    @Test func unchangedPreferencesKeepTheirRevision() async throws {
+    @Test func `Unchanged preferences keep their revision`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let catalog = try ThemeCatalog(directory: fixture.directory)
@@ -238,7 +238,7 @@ nonisolated struct PreferencesTests {
     }
 
     /// Removing a configured built-in drops its stale selections once, including wallet overrides.
-    @Test func missingBuiltInSelectionsReconcileToOriginalAppearance() async throws {
+    @Test func `Missing built-in selections reconcile to original appearance`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let builtIn = BundledTheme(id: UUID(), name: "Bundled", url: fixture.root)

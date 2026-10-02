@@ -12,8 +12,8 @@ extension SubmissionTests {
     /// Uses real Helius subscriptions and DAS without funding or transfers.
     /// - Throws: A wallet, provider, or test prerequisite error.
     @MainActor
-    @Test("portfolio presentation observes and reloads the retained devnet wallet", .timeLimit(.minutes(1)))
-    func portfolioCoordinatorObservesLiveHoldings() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `Portfolio presentation observes and reloads the retained devnet wallet`() async throws {
         let rpc = try #require(devnetRPCs().first)
         let owner = try await DevnetWallets.address(for: DevnetWallets.senderID).value
         let coordinator = PortfolioCoordinator(service: Portfolio(rpc: rpc))

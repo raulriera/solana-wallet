@@ -11,8 +11,8 @@ import Wallet
 /// Verifies numbered accounts sign with their own keys from one shared recovery.
 struct SharedRecoveryTests {
     /// Checks two independently known public keys while both accounts read the same recovery ID.
-    @Test("two numbered accounts sign using one recovery record")
-    func numberedAccountsShareRecovery() async throws {
+    @Test
+    func `Two numbered accounts sign using one recovery record`() async throws {
         let fixture = try SigningFixture()
         let recoveryID = UUID()
         let accounts = try [
@@ -36,8 +36,8 @@ struct SharedRecoveryTests {
 
     /// Rejects an unrelated address before access and a wrong index when recovering the signing key.
     /// - Parameter field: The account field that disagrees with the reviewed signer.
-    @Test("a mismatched account address or index cannot sign", arguments: ["address", "index"])
-    func mismatchedAccountCannotSign(_ field: String) async throws {
+    @Test(arguments: ["address", "index"])
+    func `A mismatched account address or index cannot sign`(_ field: String) async throws {
         let fixture = try SigningFixture()
         let account = Account(id: fixture.account.id, recoveryID: fixture.account.recoveryID,
             address: field == "address" ? fixture.transfer.accounts[1].address : fixture.account.address,
@@ -56,8 +56,8 @@ struct SharedRecoveryTests {
 
     /// Rejects account numbers outside the hardened range before RPC or recovery access.
     /// - Parameter index: An account number that cannot form a hardened child index.
-    @Test("an invalid account index cannot unlock recovery", arguments: [UInt32(0x8000_0000), UInt32.max])
-    func invalidIndexCannotUnlockRecovery(_ index: UInt32) async throws {
+    @Test(arguments: [UInt32(0x8000_0000), UInt32.max])
+    func `An invalid account index cannot unlock recovery`(_ index: UInt32) async throws {
         let fixture = try SigningFixture()
         let account = Account(id: fixture.account.id, recoveryID: fixture.account.recoveryID,
             address: fixture.account.address, index: index)

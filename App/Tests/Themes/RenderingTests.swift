@@ -7,7 +7,7 @@ import Themes
 @MainActor @Suite(.timeLimit(.minutes(1)))
 struct AppearanceRenderingTests {
     /// Each window uses its own appearance and contrast variant from one loaded snapshot.
-    @Test func resolvesFourIndependentVariants() async throws {
+    @Test func `Resolves four independent variants`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let source = try fixture.source()
@@ -35,7 +35,7 @@ struct AppearanceRenderingTests {
     }
 
     /// An unreadable selected revision restores native colors and reports the failure.
-    @Test func unreadableThemeFallsBackToOriginal() async throws {
+    @Test func `Unreadable theme falls back to original`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let catalog = try ThemeCatalog(directory: fixture.directory)

@@ -9,10 +9,10 @@ struct SolanaTests {
     /// - Parameters:
     ///   - network: The selected Solana network.
     ///   - host: The public endpoint expected for that network.
-    @Test("public Solana endpoints submit signed bytes without a DAS interface", arguments: [
+    @Test(arguments: [
         (Network.mainnet, "api.mainnet.solana.com"), (.devnet, "api.devnet.solana.com")
     ])
-    func publicEndpointsSubmitSignedBytes(network: Network, host: String) async throws {
+    func `Public Solana endpoints submit signed bytes without a DAS interface`(network: Network, host: String) async throws {
         let transport = StubTransport { try reply(to: $0, payload: #""result":"accepted-signature""#) }
         let rpc: any RPC = Solana(network: network, transport: transport)
         let bytes = Data([1, 2, 3])

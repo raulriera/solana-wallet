@@ -5,7 +5,7 @@ import Synchronization
 
 struct ConcurrencyTests {
     /// Pending cancellation completes even while another accessor occupies the background worker.
-    @Test(.timeLimit(.minutes(1))) func pendingCancellationDoesNotWaitForAnotherImport() async throws {
+    @Test(.timeLimit(.minutes(1))) func `Pending cancellation does not wait for another import`() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
         try fixture.manifest()
@@ -46,7 +46,7 @@ struct ConcurrencyTests {
     }
 
     /// A UI caller suspends while file work executes without occupying the main or task executor.
-    @MainActor @Test func fileWorkRunsOutsideTheMainActorAndSwiftTasks() async throws {
+    @MainActor @Test func `File work runs outside the main actor and swift tasks`() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
         let result = try await FileAccess.perform(at: fixture.source) { _, _ in
@@ -57,7 +57,7 @@ struct ConcurrencyTests {
     }
 
     /// Active work observes cancellation before commit and preserves success after a completed write.
-    @Test(arguments: [false, true]) func cancellationRespectsActiveWorkCommitState(committed: Bool) async throws {
+    @Test(arguments: [false, true]) func `Cancellation respects active work commit state`(committed: Bool) async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
         let entered = AsyncStream<Void>.makeStream()
@@ -86,7 +86,7 @@ struct ConcurrencyTests {
 
     /// Cancellation interrupts a real pending coordinator without waiting for its presenter.
     @Test(.timeLimit(.minutes(1)), arguments: ["read", "save", "template"])
-    func cancellationReleasesPendingCoordination(operation: String) async throws {
+    func `Cancellation releases pending coordination`(operation: String) async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
         try fixture.manifest()
@@ -124,7 +124,7 @@ struct ConcurrencyTests {
 
     /// An already cancelled task cannot read a package or replace an existing destination.
     @Test(arguments: ["read", "save", "template"])
-    func cancellationPreventsFileWork(operation: String) async throws {
+    func `Cancellation prevents file work`(operation: String) async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
         try fixture.manifest()
@@ -146,7 +146,7 @@ struct ConcurrencyTests {
     }
 
     /// One injected service can serve independent callers without sharing mutable operation state.
-    @Test func simultaneousExportsKeepTheirOwnNamesAndIdentities() async throws {
+    @Test func `Simultaneous exports keep their own names and identities`() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
         let service: any PackServicing = PackService()

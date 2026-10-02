@@ -8,11 +8,11 @@ import Transactions
 struct PreparationTests {
     /// Verifies successful estimates cannot silently substitute missing or excessive resource usage.
     /// - Parameter usage: A malformed resource observation from the provider.
-    @Test("resource estimates without valid compute and account usage cannot produce a review", arguments: [
+    @Test(arguments: [
         #""loadedAccountsDataSize":256"#, #""unitsConsumed":150"#,
         #""unitsConsumed":1400001,"loadedAccountsDataSize":256"#,
     ])
-    func invalidResourceEstimatesPreventReview(_ usage: String) async throws {
+    func `Resource estimates without valid compute and account usage cannot produce a review`(_ usage: String) async throws {
         let fixture = try SigningFixture()
         let http = HTTPResponses([
             "getLatestBlockhash": [#"{"context":{"slot":400},"value":{"blockhash":"11111111111111111111111111111111","lastValidBlockHeight":550}}"#],
@@ -30,11 +30,11 @@ struct PreparationTests {
 
     /// Verifies estimates cannot change the lifetime or move behind the blockhash observation.
     /// - Parameter response: An inconsistent estimate returned as successful JSON-RPC.
-    @Test("stale or blockhash-replacing estimates cannot produce a review", arguments: [
+    @Test(arguments: [
         #"{"context":{"slot":399},"value":{"err":null}}"#,
         #"{"context":{"slot":401},"value":{"err":null,"replacementBlockhash":{"blockhash":"11111111111111111111111111111111","lastValidBlockHeight":600}}}"#,
     ])
-    func inconsistentEstimatesPreventReview(_ response: String) async throws {
+    func `Stale or blockhash-replacing estimates cannot produce a review`(_ response: String) async throws {
         let fixture = try SigningFixture()
         let http = HTTPResponses([
             "getLatestBlockhash": [#"{"context":{"slot":400},"value":{"blockhash":"11111111111111111111111111111111","lastValidBlockHeight":550}}"#],
@@ -47,8 +47,8 @@ struct PreparationTests {
     }
 
     /// Verifies one message binds the displayed transfer, fee, expiry, and simulation.
-    @Test("preparing a SOL transfer returns its exact message, total fee, and block-height expiry")
-    func preparationReturnsMessageFeeAndExpiry() async throws {
+    @Test
+    func `Preparing a SOL transfer returns its exact message, total fee, and block-height expiry`() async throws {
         let expected = try PreparationFixture.preparation()
         let expectedSource = try PreparationFixture.source(expected)
         let http = try HTTPResponses.preparation(fixture: expected)
@@ -86,8 +86,8 @@ struct PreparationTests {
     }
 
     /// Verifies execution failures remain usable alongside the transfer's review data.
-    @Test("insufficient funds preserve simulation diagnostics and transfer details")
-    func insufficientFundsPreserveReviewData() async throws {
+    @Test
+    func `Insufficient funds preserve simulation diagnostics and transfer details`() async throws {
         let error = TransactionError(name: "InstructionError", details: .array([
             .integer(0), .object(["Custom": .integer(1)])
         ]))
@@ -107,8 +107,8 @@ struct PreparationTests {
     }
 
     /// Verifies missing fee information isn't converted into a free-transfer estimate.
-    @Test("an unavailable network fee remains unknown")
-    func unavailableFeeRemainsUnknown() async throws {
+    @Test
+    func `An unavailable network fee remains unknown`() async throws {
         let expected = try PreparationFixture.preparation(fee: nil)
         let expectedSource = try PreparationFixture.source(expected)
         let service = Preparer(rpc: (try HTTPResponses.preparation(fixture: expected)).client)
@@ -120,8 +120,8 @@ struct PreparationTests {
     }
 
     /// Verifies provider failures propagate without starting later work or retrying.
-    @Test("a failed blockhash request stops preparation without retrying")
-    func blockhashFailureStopsPreparation() async throws {
+    @Test
+    func `A failed blockhash request stops preparation without retrying`() async throws {
         let expected = try PreparationFixture.preparation()
         let expectedSource = try PreparationFixture.source(expected)
         let failure = RPCError.http(statusCode: 429, retryAfter: "3")
@@ -136,8 +136,8 @@ struct PreparationTests {
     }
 
     /// Verifies parent cancellation reaches the active child request and prevents a result.
-    @Test("cancelling preparation cancels the pending simulation", .timeLimit(.minutes(1)))
-    func cancellationReachesPendingSimulation() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `Cancelling preparation cancels the pending simulation`() async throws {
         let expected = try PreparationFixture.preparation()
         let expectedSource = try PreparationFixture.source(expected)
         let configuration = try PreparationFixture.configuration()

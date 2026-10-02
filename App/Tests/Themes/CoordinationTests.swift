@@ -6,7 +6,7 @@ import Themes
 @MainActor @Suite(.timeLimit(.minutes(1)))
 struct AppearanceCoordinationTests {
     /// A delayed read cannot replace a newer committed selection from another window.
-    @Test func olderLoadCannotRollBackNewSelection() async throws {
+    @Test func `Older load cannot roll back new selection`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let catalog = try ThemeCatalog(directory: fixture.directory)
@@ -31,7 +31,7 @@ struct AppearanceCoordinationTests {
     }
 
     /// Failed persistence leaves all windows displaying the last committed selection.
-    @Test func failedSelectionPreservesCachedState() async throws {
+    @Test func `Failed selection preserves cached state`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let store = try AppearanceStore(directory: fixture.directory)
@@ -43,7 +43,7 @@ struct AppearanceCoordinationTests {
     }
 
     /// Cached window lookups never read storage; explicit reload publishes deletion fallbacks.
-    @Test func cachedSelectionNeedsNoFilesystemAccess() async throws {
+    @Test func `Cached selection needs no filesystem access`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let catalog = try ThemeCatalog(directory: fixture.directory)

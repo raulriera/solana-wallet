@@ -9,8 +9,8 @@ import Wallet
 @Suite(.serialized)
 struct SubmissionTests {
     /// Verifies a provider's throttling cannot prevent another route accepting the same signed bytes.
-    @Test("one rate-limited route does not prevent another route accepting the transaction")
-    func rateLimitedRouteDoesNotPreventAcceptance() async throws {
+    @Test
+    func `One rate-limited route does not prevent another route accepting the transaction`() async throws {
         let signed = try ExternalFixture.signedResult()
         let checks = try HTTPResponses.signing(fee: 15_000)
         let limited = HTTPResponses([:], failure: .http(statusCode: 429, retryAfter: "3"))
@@ -27,8 +27,8 @@ struct SubmissionTests {
     }
 
     /// Verifies all failed routes retain the local signature and independent reasons without retrying.
-    @Test("failed routes retain rate-limit details and reject a mismatched acknowledgment")
-    func failedRoutesPreserveReasonsAndSignature() async throws {
+    @Test
+    func `Failed routes retain rate-limit details and reject a mismatched acknowledgment`() async throws {
         let signed = try ExternalFixture.signedResult()
         let checks = try HTTPResponses.signing(fee: 15_000)
         let limited = HTTPResponses([:], failure: .http(statusCode: 429, retryAfter: "3"))
@@ -48,8 +48,8 @@ struct SubmissionTests {
     }
 
     /// Verifies 0.001 SOL reaches a controlled recipient and the remainder returns after fees.
-    @Test("devnet submission delivers 0.001 SOL and returns it between retained wallets", .timeLimit(.minutes(10)))
-    func devnetCompositionReturnsFunds() async throws {
+    @Test(.timeLimit(.minutes(10)))
+    func `Devnet submission delivers 0.001 SOL and returns it between retained wallets`() async throws {
         let rpcs = try devnetRPCs()
         let sender = try await DevnetWallets.address(for: DevnetWallets.senderID)
         let recipient = try await DevnetWallets.address(for: DevnetWallets.recipientID)
@@ -99,8 +99,8 @@ struct SubmissionTests {
     }
 
     /// Verifies real validators reject an unfunded payer, independently for each RPC.
-    @Test("devnet RPCs reject a signed transaction from an unfunded wallet", .timeLimit(.minutes(2)))
-    func devnetRPCsRejectUnfundedPayer() async throws {
+    @Test(.timeLimit(.minutes(2)))
+    func `Devnet RPCs reject a signed transaction from an unfunded wallet`() async throws {
         let rpcs = try devnetRPCs()
         let wallet = Wallet()
         let phrase = try wallet.recoveryPhrase()
@@ -125,8 +125,8 @@ struct SubmissionTests {
     }
 
     /// Verifies incomplete local signature slots are rejected with real clients configured.
-    @Test("partially signed transactions are rejected before submission")
-    func partialSignaturesPreventSubmission() async throws {
+    @Test
+    func `Partially signed transactions are rejected before submission`() async throws {
         let signed = try ExternalFixture.signedResult(hasPayerSignature: false)
         let rpc = Solana(network: .devnet)
 
@@ -136,8 +136,8 @@ struct SubmissionTests {
     }
 
     /// Verifies an existing cosigner's approved signature cannot be replaced, even by a valid one.
-    @Test("replacing an existing cosigner signature prevents submission")
-    func replacingCosignerSignaturePreventsSubmission() async throws {
+    @Test
+    func `Replacing an existing cosigner signature prevents submission`() async throws {
         let signed = try ExternalFixture.signedResult()
         let original = signed.transaction
         let replacement = try #require(Data(base64Encoded: ExternalFixture.alternatePayerSignature))

@@ -5,8 +5,8 @@ import Testing
 /// Exercises DAS conversion through the real provider and its private HTTP boundary.
 struct MetadataTests {
     /// Verifies all approved metadata groups retain their meaning and precision.
-    @Test("DAS metadata uses canonical fields and retains typed values")
-    func preservesRichMetadata() async throws {
+    @Test
+    func `DAS metadata uses canonical fields and retains typed values`() async throws {
         let transport = StubTransport { try reply(to: $0, payload: #""result":\#(richAsset)"#) }
         let asset = try await HeliusRPC(apiKey: "fixture-key", network: .devnet, transport: transport).send(GetAsset(id: "mint"))
         #expect(asset.name == "Example")
@@ -46,8 +46,8 @@ struct MetadataTests {
 
     /// Verifies bad optional values don't erase neighboring metadata or precise balances.
     /// - Parameter fileKey: The original or CDN image location supplied by the provider.
-    @Test("malformed optional metadata preserves valid fields and array entries", arguments: ["uri", "cdn_uri"])
-    func malformedMetadataKeepsNeighbors(fileKey: String) throws {
+    @Test(arguments: ["uri", "cdn_uri"])
+    func `Malformed optional metadata preserves valid fields and array entries`(fileKey: String) throws {
         let asset = try JSONDecoder().decode(Asset.self, from: Data(#"""
         {"id":"mint","interface":"FungibleToken","mutable":false,
          "content":{"json_uri":"","metadata":{"name":"Wrapped SOL","description":false,

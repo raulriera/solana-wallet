@@ -6,8 +6,8 @@ import Testing
 struct MetadataLiveTests {
     /// Checks Wrapped SOL on both networks and rich NFT metadata without funding or transactions.
     /// - Throws: An RPC or test prerequisite error.
-    @Test("live DAS preserves SOL identity and rich asset metadata", .timeLimit(.minutes(1)))
-    func retrievesLiveMetadata() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `Live DAS preserves SOL identity and rich asset metadata`() async throws {
         let key = try #require(ProcessInfo.processInfo.environment["HELIUS_API_KEY"])
         let nativeMint = "So11111111111111111111111111111111111111112"
         for network in [Network.devnet, .mainnet] {

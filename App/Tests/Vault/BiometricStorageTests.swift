@@ -8,9 +8,8 @@ import Wallet
 @Suite(.timeLimit(.minutes(1)))
 struct BiometricStorageTests {
     /// Verifies unenrolled biometrics prevent saving and leave no readable recovery.
-    @Test("unenrolled Touch ID prevents saving wallet recovery",
-          .enabled(if: ProcessInfo.processInfo.environment["BIOMETRIC_TEST_STATE"] == "unenrolled"))
-    func unenrolledTouchIDPreventsSavingRecovery() async throws {
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["BIOMETRIC_TEST_STATE"] == "unenrolled"))
+    func `Unenrolled Touch ID prevents saving wallet recovery`() async throws {
         let context = LAContext()
         var error: NSError?
         try #require(!context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error))
@@ -29,9 +28,8 @@ struct BiometricStorageTests {
     }
 
     /// Verifies enrolled Touch ID permits a real protected Keychain round trip.
-    @Test("enrolled Touch ID permits saving and reading wallet recovery",
-          .enabled(if: ProcessInfo.processInfo.environment["BIOMETRIC_TEST_STATE"] == "enrolled"))
-    func enrolledTouchIDPermitsSavingAndReadingRecovery() async throws {
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["BIOMETRIC_TEST_STATE"] == "enrolled"))
+    func `Enrolled Touch ID permits saving and reading wallet recovery`() async throws {
         let context = LAContext()
         try #require(context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: nil))
         try #require(context.biometryType == .touchID)

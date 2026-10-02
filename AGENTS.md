@@ -32,6 +32,7 @@
 - Use `'/Applications/SF Symbols.app/Contents/Executables/sfsymbols'` when interacting with SF Symbols.
 - Validate concurrency changes against current Apple documentation and the Swift Concurrency plugin's `swift-concurrency` skill.
 - Follow [references/testing.md](references/testing.md) when writing or reviewing tests.
+- Name test functions with sentence-style raw identifiers instead of camelCase; do not duplicate those names in `@Test` display strings.
 - Verify RPC integrations with real clients on devnet; do not add fake RPC implementations for tests.
 - Never request funding for a wallet without verified, retained recovery. Reuse controlled devnet test wallets and return test funds after fees; never discard funded wallet recovery.
 - Document every function and initializer using Apple DocC conventions.

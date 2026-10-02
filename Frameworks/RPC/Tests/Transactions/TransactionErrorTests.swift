@@ -10,7 +10,7 @@ struct TransactionErrorTests {
     ///   - json: The error's JSON representation.
     ///   - expected: The expected variant and its exact associated data.
     /// - Throws: A decoding error if the fixture isn't a supported transaction error.
-    @Test("transaction errors preserve variant names and associated details", arguments: [
+    @Test(arguments: [
         (#""BlockhashNotFound""#, TransactionError(name: "BlockhashNotFound", details: nil)),
         (#"{"InstructionError":[2,"InvalidArgument"]}"#,
          TransactionError(name: "InstructionError", details: .array([.integer(2), .string("InvalidArgument")]))),
@@ -19,7 +19,7 @@ struct TransactionErrorTests {
         (#"{"InsufficientFundsForRent":{"account_index":1}}"#,
          TransactionError(name: "InsufficientFundsForRent", details: .object(["account_index": .integer(1)]))),
     ])
-    func transactionErrorsPreserveVariantNamesAndAssociatedDetails(json: String, expected: TransactionError) throws {
+    func `Transaction errors preserve variant names and associated details`(json: String, expected: TransactionError) throws {
         let error = try JSONDecoder().decode(TransactionError.self, from: Data(json.utf8))
 
         #expect(error == expected)
@@ -28,8 +28,8 @@ struct TransactionErrorTests {
     /// Verifies that invalid error values can't be interpreted as one transaction failure.
     ///
     /// - Parameter json: An invalid root value or variant object.
-    @Test("transaction errors reject malformed variants", arguments: ["null", "42", "[]", "{}", #"{"First":1,"Second":2}"#])
-    func transactionErrorsRejectMalformedVariants(json: String) {
+    @Test(arguments: ["null", "42", "[]", "{}", #"{"First":1,"Second":2}"#])
+    func `Transaction errors reject malformed variants`(json: String) {
         #expect(throws: DecodingError.self) {
             try JSONDecoder().decode(TransactionError.self, from: Data(json.utf8))
         }

@@ -8,7 +8,7 @@ import Themes
 @MainActor @Suite(.timeLimit(.minutes(1)))
 struct AppearanceSettingsTests {
     /// Selection keeps committed state visible and rejects overlapping writes until persistence completes.
-    @Test func selectionRejectsOverlappingOperations() async throws {
+    @Test func `Selection rejects overlapping operations`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let settings = try makeSettings(fixture)
@@ -29,7 +29,7 @@ struct AppearanceSettingsTests {
     }
 
     /// Import updates shared metadata without changing the app or wallet selection.
-    @Test func importInstallsWithoutSelecting() async throws {
+    @Test func `Import installs without selecting`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let settings = try makeSettings(fixture)
@@ -42,7 +42,7 @@ struct AppearanceSettingsTests {
     }
 
     /// A failed import preserves every installed entry and its selected appearance.
-    @Test func invalidImportPreservesSelection() async throws {
+    @Test func `Invalid import preserves selection`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let settings = try makeSettings(fixture)
@@ -61,7 +61,7 @@ struct AppearanceSettingsTests {
     }
 
     /// Replacement requires approval and rejects approval made stale by another window.
-    @Test func replacementUsesExactApprovedRevision() async throws {
+    @Test func `Replacement uses exact approved revision`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let settings = try makeSettings(fixture)
@@ -82,7 +82,7 @@ struct AppearanceSettingsTests {
     }
 
     /// Removal publishes the committed fallback to both selection scopes.
-    @Test func removalUpdatesSelections() async throws {
+    @Test func `Removal updates selections`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let settings = try makeSettings(fixture)
@@ -100,7 +100,7 @@ struct AppearanceSettingsTests {
     }
 
     /// Template export prepares a fresh identity and all app-owned default colors.
-    @Test func exportsCompleteDefaultTemplate() async throws {
+    @Test func `Exports complete default template`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let settings = try makeSettings(fixture)
@@ -119,7 +119,7 @@ struct AppearanceSettingsTests {
     }
 
     /// Cancellation while staging never installs a partial theme or reports a user error.
-    @Test func cancellationBeforeCommitDoesNotInstall() async throws {
+    @Test func `Cancellation before commit does not install`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let staged = AsyncStream<Void>.makeStream()
@@ -144,7 +144,7 @@ struct AppearanceSettingsTests {
     }
 
     /// Closing the initiating window after commit still updates the shared snapshot.
-    @Test func cancellationAfterCommitPublishesToOtherWindows() async throws {
+    @Test func `Cancellation after commit publishes to other windows`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let committed = AsyncStream<Void>.makeStream()
@@ -166,7 +166,7 @@ struct AppearanceSettingsTests {
     }
 
     /// A wallet can explicitly keep Original while other wallets follow a custom app default.
-    @Test func originalWalletOverrideRemainsIndependent() async throws {
+    @Test func `Original wallet override remains independent`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let nativeURL = try fixture.source(id: OriginalAppearance.id, name: "Original")
@@ -191,7 +191,7 @@ struct AppearanceSettingsTests {
     /// - Parameter hasPendingReplacement: Whether cancellation clears an existing approval.
     /// - Throws: A fixture or package-reading error.
     @Test(arguments: [false, true])
-    func cancellationOnlyNotifiesWhenReplacementChanges(hasPendingReplacement: Bool) async throws {
+    func `Cancellation only notifies when replacement changes`(hasPendingReplacement: Bool) async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let settings = try makeSettings(fixture)
@@ -219,7 +219,7 @@ struct AppearanceSettingsTests {
     /// - Parameter changesColors: Whether the second import changes a color override.
     /// - Throws: A fixture, parsing, or package-reading error.
     @Test(arguments: [false, true])
-    func replacementNotificationFollowsImportedContents(changesColors: Bool) async throws {
+    func `Replacement notification follows imported contents`(changesColors: Bool) async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let settings = try makeSettings(fixture)

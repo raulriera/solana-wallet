@@ -4,8 +4,8 @@ import Wallet
 /// Verifies batch derivation through the public contract using independently derived addresses.
 struct AccountDerivationTests {
     /// Verifies both approved families, ordering, duplicate paths, and a nonzero account index.
-    @Test("batch derivation preserves exact paths and independently derived addresses")
-    func batchPreservesPathsAndAddresses() async throws {
+    @Test
+    func `Batch derivation preserves exact paths and independently derived addresses`() async throws {
         let phrase = try RecoveryPhrase(Array(repeating: "abandon", count: 11).joined(separator: " ") + " about")
         let paths = try ["m/44'/501'/1'/0'", "m/44'/501'/0'", "m/44'/501'/0'/0'", "m/44'/501'/0'"]
             .map(DerivationPath.init)
@@ -22,8 +22,8 @@ struct AccountDerivationTests {
     }
 
     /// Verifies batching retains the original BIP-39 passphrase instead of silently using none.
-    @Test("batch derivation applies the original BIP-39 passphrase")
-    func batchUsesPassphrase() async throws {
+    @Test
+    func `Batch derivation applies the original BIP-39 passphrase`() async throws {
         let phrase = try RecoveryPhrase(Array(repeating: "abandon", count: 11).joined(separator: " ") + " about")
         let accounts = try await Wallet().accounts(for: phrase, passphrase: "TREZOR", paths: [.solana])
         #expect(accounts.first?.address == "7zSmbu6gKkb6HB7UDPtHYjwCWuBHU1D4TpNZFm4sndQe")
@@ -31,8 +31,8 @@ struct AccountDerivationTests {
     }
 
     /// Verifies a cancelled operation cannot return a successful batch.
-    @Test("cancelled batch derivation throws CancellationError")
-    func cancelledBatchThrows() async throws {
+    @Test
+    func `Cancelled batch derivation throws CancellationError`() async throws {
         let phrase = try RecoveryPhrase(Array(repeating: "abandon", count: 11).joined(separator: " ") + " about")
         let (gate, continuation) = AsyncStream<Void>.makeStream()
         let task = Task { @concurrent in

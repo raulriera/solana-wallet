@@ -8,8 +8,8 @@ import Vault
 /// Verifies exclusive strategy selection and preparation using actual RPC clients.
 struct StrategyTests {
     /// Verifies disabling Sender retains ordinary clients only on the selected network.
-    @Test("none selects all ordinary RPCs on the transaction network")
-    func noneSelectsOrdinaryRPCs() throws {
+    @Test
+    func `None selects all ordinary RPCs on the transaction network`() throws {
         let clients = try TransactionCoordinator.Strategy.none.clients(for: .mainnet, from: [
             Solana(), HeliusRPC(apiKey: "test-key"), Solana(network: .devnet), Sender(tier: .premium),
         ])
@@ -25,11 +25,11 @@ struct StrategyTests {
     /// - Parameters:
     ///   - strategy: The app's selected delivery strategy.
     ///   - tier: The expected concrete Sender tier.
-    @Test("Sender strategies replace ordinary RPCs with one selected tier", arguments: [
+    @Test(arguments: [
         (TransactionCoordinator.Strategy.standard, Sender.Tier.standard),
         (.premium, .premium),
     ])
-    func senderReplacesOrdinaryRPCs(strategy: TransactionCoordinator.Strategy, tier: Sender.Tier) throws {
+    func `Sender strategies replace ordinary RPCs with one selected tier`(strategy: TransactionCoordinator.Strategy, tier: Sender.Tier) throws {
         let clients = try strategy.clients(for: .mainnet, from: [
             Solana(), HeliusRPC(apiKey: "test-key"), Sender(tier: .premium),
         ])
@@ -45,11 +45,11 @@ struct StrategyTests {
     ///   - strategy: The service strategy selected for mainnet submission.
     ///   - requestedFee: A priority fee below the selected tier's requirement.
     ///   - minimumFee: The expected minimum total priority fee.
-    @Test("Sender preparation rejects a priority fee below its requirement", arguments: [
+    @Test(arguments: [
         (TransactionCoordinator.Strategy.standard, UInt64(0), UInt64(1)),
         (.premium, UInt64(4_999), UInt64(5_000)),
     ])
-    func senderRequiresReviewedPriorityFee(strategy: TransactionCoordinator.Strategy,
+    func `Sender preparation rejects a priority fee below its requirement`(strategy: TransactionCoordinator.Strategy,
                                           requestedFee: UInt64, minimumFee: UInt64) async throws {
         let rpc = Solana()
         let transfer = try SystemProgram.transfer(from: Address("4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T"), to: Address("9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM"), lamports: 1)
@@ -67,10 +67,10 @@ struct StrategyTests {
     /// Verifies unsupported Sender selection cannot silently submit through ordinary devnet RPCs.
     ///
     /// - Parameter strategy: The mainnet-only delivery strategy.
-    @Test("Sender strategies reject devnet without falling back to ordinary RPCs", arguments: [
+    @Test(arguments: [
         TransactionCoordinator.Strategy.standard, .premium,
     ])
-    func senderRejectsDevnet(strategy: TransactionCoordinator.Strategy) throws {
+    func `Sender strategies reject devnet without falling back to ordinary RPCs`(strategy: TransactionCoordinator.Strategy) throws {
         let rpc = Solana(network: .devnet)
         #expect(throws: Submitter.Failure.noProviders) {
             try TransactionCoordinator(rpc: rpc, store: KeychainStore(service: "widgetsTests.Strategy"),

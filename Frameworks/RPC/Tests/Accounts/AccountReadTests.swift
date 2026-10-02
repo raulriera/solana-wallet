@@ -5,8 +5,8 @@ import Testing
 /// Verifies the wire contracts needed to inspect token-transfer prerequisites.
 struct AccountReadTests {
     /// Verifies ordered raw bytes, missing accounts, exact lamports, and ledger constraints.
-    @Test("account reads preserve bytes and missing accounts at a shared slot")
-    func accountReadsPreserveBytesAndMissingAccounts() async throws {
+    @Test
+    func `Account reads preserve bytes and missing accounts at a shared slot`() async throws {
         let transport = StubTransport { request in
             try reply(to: request, payload: #""result":{"context":{"slot":402},"value":[{"owner":"token-program","lamports":18446744073709551615,"executable":false,"data":["AQID","base64"]},null]}"#)
         }
@@ -31,8 +31,8 @@ struct AccountReadTests {
     }
 
     /// Verifies one request accepts the provider's limit without silently splitting contexts.
-    @Test("account reads encode all 100 addresses in one request")
-    func accountReadsEncodeOneHundredAddresses() throws {
+    @Test
+    func `Account reads encode all 100 addresses in one request`() throws {
         let request = try GetMultipleAccounts(addresses: Array(repeating: "address", count: 100))
         let params = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(request)) as? [Any])
         #expect((params.first as? [String])?.count == 100)
@@ -41,8 +41,8 @@ struct AccountReadTests {
     /// Verifies empty and oversized lists fail before transport can run.
     ///
     /// - Parameter count: An address count outside the supported range.
-    @Test("account reads reject empty and oversized address lists", arguments: [0, 101])
-    func accountReadsRejectInvalidCounts(_ count: Int) {
+    @Test(arguments: [0, 101])
+    func `Account reads reject empty and oversized address lists`(_ count: Int) {
         #expect(throws: GetMultipleAccounts.Failure.invalidAddressCount) {
             try GetMultipleAccounts(addresses: Array(repeating: "address", count: count))
         }
@@ -51,10 +51,10 @@ struct AccountReadTests {
     /// Verifies unexpected account representations aren't mistaken for valid raw bytes.
     ///
     /// - Parameter data: An invalid encoding tag, payload, or array shape.
-    @Test("account reads reject malformed base64 representations", arguments: [
+    @Test(arguments: [
         #"["AQID","base58"]"#, #"["!","base64"]"#, #"["AQID"]"#, #"null"#
     ])
-    func accountReadsRejectMalformedEncoding(_ data: String) async {
+    func `Account reads reject malformed base64 representations`(_ data: String) async {
         let transport = StubTransport { request in
             try reply(to: request, payload: #""result":{"context":{"slot":402},"value":[{"owner":"token-program","lamports":1,"executable":false,"data":\#(data)}]}"#)
         }
@@ -65,8 +65,8 @@ struct AccountReadTests {
     }
 
     /// Verifies fee selection receives the exact epoch and its observation slot.
-    @Test("epoch reads return the fee schedule epoch and observation slot")
-    func epochReadsRetainEpochAndSlot() async throws {
+    @Test
+    func `Epoch reads return the fee schedule epoch and observation slot`() async throws {
         let transport = StubTransport { request in
             try reply(to: request, payload: #""result":{"epoch":100,"absoluteSlot":43200001}"#)
         }

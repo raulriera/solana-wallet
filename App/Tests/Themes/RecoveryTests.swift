@@ -7,7 +7,7 @@ import Themes
 @MainActor @Suite(.timeLimit(.minutes(1)))
 struct AppearanceRecoveryTests {
     /// The shipped Settings resource and recovery service agree on the disabled-by-default switch.
-    @Test func settingsBundleContainsRecoverySwitch() throws {
+    @Test func `Settings bundle contains recovery switch`() throws {
         let url = try #require(Bundle.main.url(forResource: "Root", withExtension: "plist", subdirectory: "Settings.bundle"))
         let root = try #require(PropertyListSerialization.propertyList(from: Data(contentsOf: url), format: nil) as? [String: Any])
         let items = try #require(root["PreferenceSpecifiers"] as? [[String: Any]])
@@ -17,7 +17,7 @@ struct AppearanceRecoveryTests {
     }
 
     /// Normal activation preserves selections when Settings has no pending request.
-    @Test func activationWithoutRequestLoadsExistingAppearance() async throws {
+    @Test func `Activation without request loads existing appearance`() async throws {
         let files = try CatalogFixture()
         let preferences = RecoveryFixture()
         defer { files.remove(); preferences.remove() }
@@ -33,7 +33,7 @@ struct AppearanceRecoveryTests {
     }
 
     /// Recovery clears app and wallet selections, retains packs, and does not need readable artwork.
-    @Test func requestedResetRestoresOriginalAppearanceOnce() async throws {
+    @Test func `Requested reset restores original appearance once`() async throws {
         let files = try CatalogFixture()
         let preferences = RecoveryFixture()
         defer { files.remove(); preferences.remove() }
@@ -66,7 +66,7 @@ struct AppearanceRecoveryTests {
     }
 
     /// A failed reset preserves the switch and displayed state until a later activation succeeds.
-    @Test func failedResetRetainsRequestForNextActivation() async throws {
+    @Test func `Failed reset retains request for next activation`() async throws {
         let files = try CatalogFixture()
         let preferences = RecoveryFixture()
         defer { files.remove(); preferences.remove() }
@@ -91,7 +91,7 @@ struct AppearanceRecoveryTests {
     }
 
     /// Two activating windows share one recovery operation even if one window's task is cancelled.
-    @Test func concurrentActivationsShareRecoveryAndSurviveWindowCancellation() async throws {
+    @Test func `Concurrent activations share recovery and survive window cancellation`() async throws {
         let files = try CatalogFixture()
         let preferences = RecoveryFixture()
         defer { files.remove(); preferences.remove() }
@@ -127,7 +127,7 @@ struct AppearanceRecoveryTests {
     }
 
     /// A new user selection waits for pending recovery so the reset cannot erase that choice later.
-    @Test func selectionWaitsForPendingRecovery() async throws {
+    @Test func `Selection waits for pending recovery`() async throws {
         let files = try CatalogFixture()
         let preferences = RecoveryFixture()
         defer { files.remove(); preferences.remove() }

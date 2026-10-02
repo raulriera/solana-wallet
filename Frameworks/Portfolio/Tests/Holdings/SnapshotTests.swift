@@ -6,8 +6,8 @@ import Testing
 /// Tests usable portfolio values through the framework's public API.
 struct SnapshotTests {
     /// Verifies currency isolation and explicit incomplete valuation using public fixtures.
-    @Test("portfolio values keep quote currencies separate and count unpriced holdings")
-    func portfolioValuesKeepQuoteCurrenciesSeparateAndCountUnpricedHoldings() {
+    @Test
+    func `Portfolio values keep quote currencies separate and count unpriced holdings`() {
         let holdings = [
             Holding(id: .nativeSOL, amount: Amount(units: 1, decimals: 9), name: "Solana", symbol: "SOL", imageURL: nil,
                     valuation: Valuation(pricePerUnit: nil, total: Decimal(string: "2.5"), currency: "USD")),

@@ -9,11 +9,11 @@ struct TokenRentTests {
     /// - Parameters:
     ///   - mask: The fee, disabled-hook, and unpaused-mint extension combination.
     ///   - expectedSize: The SDK's `getTokenSize` result, including `ImmutableOwner`.
-    @Test("new Token-2022 destinations include the exact required extension space", arguments: [
+    @Test(arguments: [
         (0, UInt64(170)), (1, 182), (2, 175), (3, 187),
         (4, 174), (5, 186), (6, 179), (7, 191),
     ])
-    func destinationSizeIncludesExtensions(mask: Int, expectedSize: UInt64) throws {
+    func `New Token-2022 destinations include the exact required extension space`(mask: Int, expectedSize: UInt64) throws {
         let fixture = TokenFixtures.transfers[2]
         var mint = try #require(Data(base64Encoded: fixture.mintData))
         mint.append(Data(repeating: 0, count: 165 - mint.count))
@@ -34,8 +34,8 @@ struct TokenRentTests {
     /// Verifies existing accounts request no allocation and legacy ATA creation uses 165 bytes.
     ///
     /// - Parameter fixture: Either token program with an existing or absent destination.
-    @Test("only absent token destinations require an allocation", arguments: TokenFixtures.transfers)
-    func onlyAbsentDestinationsRequireAllocation(_ fixture: TokenFixture) throws {
+    @Test(arguments: TokenFixtures.transfers)
+    func `Only absent token destinations require an allocation`(_ fixture: TokenFixture) throws {
         let transfer = try TokenTransfer(sender: Address(TokenFixtures.sender), recipient: Address(TokenFixtures.recipient),
             mint: fixture.mint(), source: fixture.source(),
             destination: fixture.createsDestination ? nil : fixture.target(), amount: 1)

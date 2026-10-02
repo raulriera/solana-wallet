@@ -4,7 +4,7 @@ import Themes
 struct ResolutionTests {
     /// Omitted settings retain complete app-provided values in every appearance.
     @Test(arguments: ["", #""tokens":{}"#, #""tokens":{"colors":{}}"#])
-    func omittedSettingsUseDefaults(fields: String) async throws {
+    func `Omitted settings use defaults`(fields: String) async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
         try fixture.manifest(fields)
@@ -15,7 +15,7 @@ struct ResolutionTests {
 
     /// An override changes only its appearance and role without applying a contrast gate.
     @Test(arguments: ["light", "dark", "lightIncreasedContrast", "darkIncreasedContrast"])
-    func overridesStayWithinTheirAppearance(appearance: String) async throws {
+    func `Overrides stay within their appearance`(appearance: String) async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
         try fixture.manifest(##""tokens":{"colors":{"\##(appearance)":{"accent":{"srgb":"#12aB34"}}}}"##)
@@ -40,7 +40,7 @@ struct ResolutionTests {
 
     /// Symbolic color names are accepted without flattening them into one appearance.
     @Test(arguments: Themes.Color.System.allCases)
-    func systemReferencesRemainSymbolic(color: Themes.Color.System) async throws {
+    func `System references remain symbolic`(color: Themes.Color.System) async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
         try fixture.manifest(#""tokens":{"colors":{"light":{"accent":{"system":"\#(color.rawValue)"}}}}"#)
@@ -50,7 +50,7 @@ struct ResolutionTests {
     }
 
     /// Readable structure, rather than custom-theme contrast, determines acceptance.
-    @Test func matchingForegroundAndBackgroundAreAccepted() async throws {
+    @Test func `Matching foreground and background are accepted`() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
         try fixture.manifest(##""tokens":{"colors":{"light":{"background":{"srgb":"#000000"},"primaryText":{"srgb":"#000000"}}}}"##)

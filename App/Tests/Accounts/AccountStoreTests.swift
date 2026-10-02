@@ -9,8 +9,8 @@ import Wallet
 @Suite(.timeLimit(.minutes(1)))
 struct AccountStoreTests {
     /// Missing storage is an empty first launch and doesn't create files during a read.
-    @Test("missing account storage loads an empty list without creating files")
-    func missingStorageLoadsEmpty() async throws {
+    @Test
+    func `Missing account storage loads an empty list without creating files`() async throws {
         let directory = URL.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let store: any AccountStoring = try AccountStore(directory: directory)
         #expect(try await store.load().isEmpty)
@@ -18,8 +18,8 @@ struct AccountStoreTests {
     }
 
     /// Reloads the same ordered metadata through a new store and verifies the on-disk field boundary.
-    @Test("saved account metadata survives reopening")
-    func savedAccountsSurviveReopening() async throws {
+    @Test
+    func `Saved account metadata survives reopening`() async throws {
         let directory = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
         let store: any AccountStoring = try AccountStore(directory: directory)
@@ -39,8 +39,8 @@ struct AccountStoreTests {
     }
 
     /// Simultaneous additions through separate instances cannot overwrite another window's accounts.
-    @Test("concurrent additions retain every account")
-    func concurrentAdditionsAreRetained() async throws {
+    @Test
+    func `Concurrent additions retain every account`() async throws {
         let directory = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
         let recoveryID = UUID()
@@ -58,8 +58,8 @@ struct AccountStoreTests {
 
     /// Duplicate identities, addresses, and derivation slots must never replace saved metadata.
     /// - Parameter field: The existing identity reused by the proposed addition.
-    @Test("duplicate account identities are rejected without changing storage", arguments: ["id", "address", "index"])
-    func duplicateAdditionsPreserveStorage(_ field: String) async throws {
+    @Test(arguments: ["id", "address", "index"])
+    func `Duplicate account identities are rejected without changing storage`(_ field: String) async throws {
         let directory = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
         let store = try AccountStore(directory: directory)
@@ -77,8 +77,8 @@ struct AccountStoreTests {
 
     /// Corrupt or inconsistent records prevent both loading and additions without resetting the file.
     /// - Parameter corruption: The malformed storage condition.
-    @Test("unreadable account storage is preserved", arguments: ["json", "address", "index", "duplicate", "missing field"])
-    func unreadableStorageIsPreserved(_ corruption: String) async throws {
+    @Test(arguments: ["json", "address", "index", "duplicate", "missing field"])
+    func `Unreadable account storage is preserved`(_ corruption: String) async throws {
         let directory = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
         let stored = try account(index: 0)
@@ -117,8 +117,8 @@ struct AccountStoreTests {
 
     /// A directory or symbolic link in place of metadata must not be read or replaced.
     /// - Parameter symbolicLink: Whether the invalid file points at another local file.
-    @Test("account storage rejects directories and symbolic links", arguments: [false, true])
-    func nonregularStorageIsRejected(symbolicLink: Bool) async throws {
+    @Test(arguments: [false, true])
+    func `Account storage rejects directories and symbolic links`(symbolicLink: Bool) async throws {
         let directory = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
         let file = directory.appendingPathComponent("accounts.json")
@@ -139,8 +139,8 @@ struct AccountStoreTests {
     }
 
     /// A failed filesystem operation is surfaced while the obstructing file remains intact.
-    @Test("an obstructed storage directory is rejected without changing existing files")
-    func obstructedDirectoryPreservesExistingFiles() async throws {
+    @Test
+    func `An obstructed storage directory is rejected without changing existing files`() async throws {
         let directory = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
         let obstruction = directory.appendingPathComponent("obstruction")
@@ -153,8 +153,8 @@ struct AccountStoreTests {
     }
 
     /// Denying the atomic write preserves the previously readable account metadata.
-    @Test("a failed atomic write preserves saved account metadata")
-    func failedAtomicWritePreservesSavedAccounts() async throws {
+    @Test
+    func `A failed atomic write preserves saved account metadata`() async throws {
         let directory = try temporaryDirectory()
         defer {
             try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
@@ -183,8 +183,8 @@ struct AccountStoreTests {
     }
 
     /// Already canceled callers cannot create an account or modify existing metadata.
-    @Test("already cancelled additions preserve existing account storage")
-    func cancelledAdditionPreservesStorage() async throws {
+    @Test
+    func `Already cancelled additions preserve existing account storage`() async throws {
         let directory = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
         let store = try AccountStore(directory: directory)
@@ -204,8 +204,8 @@ struct AccountStoreTests {
     }
 
     /// Invalid account numbers cannot enter an otherwise valid catalog.
-    @Test("invalid account indices cannot be saved")
-    func invalidIndexCannotBeSaved() async throws {
+    @Test
+    func `Invalid account indices cannot be saved`() async throws {
         let directory = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
         let valid = try account(index: 0)

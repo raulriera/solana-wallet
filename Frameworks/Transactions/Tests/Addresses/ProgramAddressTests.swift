@@ -5,8 +5,8 @@ import Testing
 /// Checks the public-data arithmetic used to derive associated token accounts.
 struct ProgramAddressTests {
     /// Verifies curve membership against independent SDK decompression over fixed public hashes.
-    @Test("curve membership matches independent public point encodings")
-    func curveMembershipMatchesIndependentEncodings() throws {
+    @Test
+    func `Curve membership matches independent public point encodings`() throws {
         for sample in TokenFixtures.curveSamples {
             let bytes = Array(try #require(Data(base64Encoded: sample.encoded)))
             #expect(EdwardsPoint.isOnCurve(bytes) == sample.onCurve)
@@ -19,8 +19,8 @@ struct ProgramAddressTests {
     }
 
     /// Verifies both programs, off-curve owners, and bump searches extending down to 250.
-    @Test("associated accounts match SDK derivation for both token programs")
-    func associatedAccountsMatchSDK() throws {
+    @Test
+    func `Associated accounts match SDK derivation for both token programs`() throws {
         for sample in TokenFixtures.associatedAccounts {
             let fixture = TokenFixtures.transfers[sample.program == TokenProgram.token.rawValue ? 0 : 2]
             let mint = try fixture.mint()

@@ -8,8 +8,8 @@ struct AccountChangeLiveTests {
     /// Watches a changing public sysvar while also registering both wallet-owner token filters.
     /// - Parameter helius: Whether to verify Helius or public Solana's devnet endpoint.
     /// - Throws: A credential, provider, timeout, or test prerequisite error.
-    @Test("devnet clients deliver confirmed account notifications", .timeLimit(.minutes(1)), arguments: [true, false])
-    func receivesConfirmedChanges(helius: Bool) async throws {
+    @Test(.timeLimit(.minutes(1)), arguments: [true, false])
+    func `Devnet clients deliver confirmed account notifications`(helius: Bool) async throws {
         let source: any AccountChangeProviding
         if helius {
             let key = try #require(ProcessInfo.processInfo.environment["HELIUS_API_KEY"])

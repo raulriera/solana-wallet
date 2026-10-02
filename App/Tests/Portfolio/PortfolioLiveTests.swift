@@ -9,8 +9,8 @@ extension SubmissionTests {
     ///
     /// Uses the retained devnet wallet and an isolated cache without funding or transfers.
     /// - Throws: A wallet, RPC, storage, or test prerequisite error.
-    @Test("devnet portfolio persists DAS holdings and reuses its complete snapshot", .timeLimit(.minutes(1)))
-    func portfolioPersistsLiveHoldings() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `Devnet portfolio persists DAS holdings and reuses its complete snapshot`() async throws {
         let rpc = try #require(devnetRPCs().first)
         let owner = try await DevnetWallets.address(for: DevnetWallets.senderID).value
         let observed = try await Solana(network: .devnet).send(GetMultipleAccounts(addresses: [owner]))

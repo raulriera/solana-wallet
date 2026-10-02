@@ -7,8 +7,8 @@ import Testing
 struct PriceRefreshTests {
     /// Verifies price-only refreshes preserve balances and metadata, share SOL's quote, and clear omitted prices.
     /// - Throws: A fixture, refresh, or test prerequisite error.
-    @Test("price-only refresh preserves holdings and never queries DAS")
-    func refreshesOnlyPrices() async throws {
+    @Test
+    func `Price-only refresh preserves holdings and never queries DAS`() async throws {
         let fixture = PricingFixture()
         defer { fixture.removeFiles() }
         let cached = pricingSnapshot()
@@ -43,8 +43,8 @@ struct PriceRefreshTests {
 
     /// Verifies a full refresh values newly fetched amounts with the selected independent provider.
     /// - Throws: A fixture, refresh, or test prerequisite error.
-    @Test("full portfolio refresh applies independent quotes to the new holdings")
-    func pricesFreshHoldings() async throws {
+    @Test
+    func `Full portfolio refresh applies independent quotes to the new holdings`() async throws {
         let fixture = PricingFixture()
         defer { fixture.removeFiles() }
         let das = AssetResponses { request in freshPage(request.page) }
@@ -66,8 +66,8 @@ struct PriceRefreshTests {
     /// Verifies a failed quote request preserves the preceding complete snapshot without retrying.
     /// - Parameter fullRefresh: Whether the failure follows a fresh holdings fetch.
     /// - Throws: A fixture or test prerequisite error.
-    @Test("price failures preserve the cached snapshot without retrying", arguments: [false, true])
-    func priceFailurePreservesCache(fullRefresh: Bool) async throws {
+    @Test(arguments: [false, true])
+    func `Price failures preserve the cached snapshot without retrying`(fullRefresh: Bool) async throws {
         let fixture = PricingFixture()
         defer { fixture.removeFiles() }
         let cached = pricingSnapshot()
@@ -91,10 +91,10 @@ struct PriceRefreshTests {
     ///   - failure: The missing or incompatible price-refresh prerequisite.
     ///   - fullRefresh: Whether to verify a full refresh's network validation.
     /// - Throws: A fixture or test prerequisite error.
-    @Test("price refresh rejects unavailable prerequisites before networking", arguments: [
+    @Test(arguments: [
         (PriceError.providerUnavailable, false), (.holdingsUnavailable, false), (.networkMismatch, false), (.networkMismatch, true),
     ])
-    func rejectsUnavailablePrerequisites(failure: PriceError, fullRefresh: Bool) async throws {
+    func `Price refresh rejects unavailable prerequisites before networking`(failure: PriceError, fullRefresh: Bool) async throws {
         let fixture = PricingFixture()
         defer { fixture.removeFiles() }
         if failure != .holdingsUnavailable { try fixture.store.save(pricingSnapshot(), for: fixture.key) }
@@ -115,8 +115,8 @@ struct PriceRefreshTests {
     /// Verifies a full refresh supersedes pending prices without allowing stale balances to overwrite new holdings.
     /// - Parameter pricesFirst: Whether a price refresh or full refresh starts first.
     /// - Throws: A fixture, refresh, or test prerequisite error.
-    @Test("overlapping full and price refreshes finish with the new holdings", .timeLimit(.minutes(1)), arguments: [false, true])
-    func coordinatesRefreshScopes(pricesFirst: Bool) async throws {
+    @Test(.timeLimit(.minutes(1)), arguments: [false, true])
+    func `Overlapping full and price refreshes finish with the new holdings`(pricesFirst: Bool) async throws {
         let fixture = PricingFixture()
         defer { fixture.removeFiles() }
         try fixture.store.save(pricingSnapshot(), for: fixture.key)
@@ -163,8 +163,8 @@ struct PriceRefreshTests {
 
     /// Verifies removal cancels price work and cannot restore a deleted snapshot.
     /// - Throws: A fixture or test prerequisite error.
-    @Test("removing a portfolio during price refresh prevents cache restoration", .timeLimit(.minutes(1)))
-    func removalCancelsPriceRefresh() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `Removing a portfolio during price refresh prevents cache restoration`() async throws {
         let fixture = PricingFixture()
         defer { fixture.removeFiles() }
         try fixture.store.save(pricingSnapshot(), for: fixture.key)

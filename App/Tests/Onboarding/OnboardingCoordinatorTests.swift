@@ -12,8 +12,8 @@ struct OnboardingCoordinatorTests {
     static let phrase = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
 
     /// New recovery stays only in memory until the caller explicitly completes onboarding.
-    @Test("creating a wallet prepares twelve words without persisting recovery or accounts")
-    func creationWaitsForApproval() async throws {
+    @Test
+    func `Creating a wallet prepares twelve words without persisting recovery or accounts`() async throws {
         let recovery = OnboardingRecoveryStore()
         let accounts = OnboardingAccountStore(recovery: recovery)
         let coordinator: any OnboardingCoordinating = OnboardingCoordinator(wallet: Wallet(), recovery: recovery, accounts: accounts)
@@ -29,8 +29,8 @@ struct OnboardingCoordinatorTests {
     }
 
     /// Imports a published fixture and commits the independently known index-zero address.
-    @Test("explicit completion saves imported recovery before its first account and clears the draft")
-    func importedAccountCompletesOnce() async throws {
+    @Test
+    func `Explicit completion saves imported recovery before its first account and clears the draft`() async throws {
         let recovery = OnboardingRecoveryStore()
         let accounts = OnboardingAccountStore(recovery: recovery)
         let coordinator = OnboardingCoordinator(wallet: Wallet(), recovery: recovery, accounts: accounts)
@@ -48,8 +48,8 @@ struct OnboardingCoordinatorTests {
     }
 
     /// Separate windows keep their drafts and original passphrases independent.
-    @Test("window drafts preserve passphrase whitespace and cannot clear another window")
-    func windowDraftsAreIndependent() async throws {
+    @Test
+    func `Window drafts preserve passphrase whitespace and cannot clear another window`() async throws {
         let recovery = OnboardingRecoveryStore()
         let accounts = OnboardingAccountStore(recovery: recovery)
         let first = OnboardingCoordinator(wallet: Wallet(), recovery: recovery, accounts: accounts)
@@ -64,8 +64,8 @@ struct OnboardingCoordinatorTests {
     }
 
     /// Invalid recovery never reaches either persistence boundary.
-    @Test("invalid recovery reports validation without storing supplied text")
-    func invalidImportIsRejected() async throws {
+    @Test
+    func `Invalid recovery reports validation without storing supplied text`() async throws {
         let recovery = OnboardingRecoveryStore()
         let accounts = OnboardingAccountStore(recovery: recovery)
         let coordinator = OnboardingCoordinator(wallet: Wallet(), recovery: recovery, accounts: accounts)
@@ -79,8 +79,8 @@ struct OnboardingCoordinatorTests {
     }
 
     /// An unapproved draft cannot be replaced by a second preparation action.
-    @Test("completion requires a draft and preparing again cannot replace one")
-    func draftTransitionsAreExplicit() async throws {
+    @Test
+    func `Completion requires a draft and preparing again cannot replace one`() async throws {
         let recovery = OnboardingRecoveryStore()
         let accounts = OnboardingAccountStore(recovery: recovery)
         let coordinator = OnboardingCoordinator(wallet: Wallet(), recovery: recovery, accounts: accounts)
@@ -92,8 +92,8 @@ struct OnboardingCoordinatorTests {
     }
 
     /// Derivation errors from injected services cannot escape with recovery text.
-    @Test("preparation errors do not expose underlying secret text")
-    func preparationErrorsAreRedacted() async throws {
+    @Test
+    func `Preparation errors do not expose underlying secret text`() async throws {
         let recovery = OnboardingRecoveryStore()
         let accounts = OnboardingAccountStore(recovery: recovery)
         let error = NSError(domain: "private-recovery-marker", code: 1)
@@ -106,8 +106,8 @@ struct OnboardingCoordinatorTests {
     }
 
     /// Cancelled derivation cannot publish a late recovery draft or make storage calls.
-    @Test("cancelling preparation rejects a late derived address without publishing recovery")
-    func cancelledPreparationLeavesNoDraft() async throws {
+    @Test
+    func `Cancelling preparation rejects a late derived address without publishing recovery`() async throws {
         let gate = Suspension()
         let recovery = OnboardingRecoveryStore()
         let accounts = OnboardingAccountStore(recovery: recovery)

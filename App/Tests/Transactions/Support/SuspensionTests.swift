@@ -7,8 +7,8 @@ actor SuspensionTests {
     private var didResume = false
 
     /// An observer registered first cannot finish before the dependency starts.
-    @Test("waiting for suspension does not return before the operation starts")
-    func observerWaitsForStart() async throws {
+    @Test
+    func `Waiting for suspension does not return before the operation starts`() async throws {
         let suspension = Suspension()
         let observing = AsyncStream<Void>.makeStream()
         let observer = Task {
@@ -37,8 +37,8 @@ actor SuspensionTests {
     }
 
     /// A completed start notification remains observable after the operation ends.
-    @Test("a late observer receives the start signal after an already cancelled operation")
-    func lateObserverReceivesStart() async {
+    @Test
+    func `A late observer receives the start signal after an already cancelled operation`() async {
         let suspension = Suspension()
         let operation = Task {
             didStart = true
@@ -54,8 +54,8 @@ actor SuspensionTests {
     }
 
     /// Publishing the start signal must leave the dependency suspended until cancellation.
-    @Test("suspension returns only after the operation is cancelled")
-    func cancellationReleasesSuspension() async throws {
+    @Test
+    func `Suspension returns only after the operation is cancelled`() async throws {
         let suspension = Suspension()
         let operation = Task {
             didStart = true
@@ -75,8 +75,8 @@ actor SuspensionTests {
     }
 
     /// Cancelling the observer must not require an operation to publish a start signal.
-    @Test("a cancelled start observer returns even when no operation starts")
-    func cancelledObserverDoesNotRequireStart() async {
+    @Test
+    func `A cancelled start observer returns even when no operation starts`() async {
         let suspension = Suspension()
         let observer = Task { @concurrent in
             await suspension.waitUntilStarted()

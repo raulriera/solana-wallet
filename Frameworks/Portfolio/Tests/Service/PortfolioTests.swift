@@ -8,8 +8,8 @@ struct PortfolioTests {
     /// Verifies immediate reuse, complete pagination, and persistence of a refreshed snapshot.
     ///
     /// - Throws: A fixture setup error or failed prerequisite.
-    @Test("cached holdings arrive before a complete refreshed portfolio", .timeLimit(.minutes(1)))
-    func cachedHoldingsArriveBeforeACompleteRefreshedPortfolio() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `Cached holdings arrive before a complete refreshed portfolio`() async throws {
         let fixture = Fixture()
         defer { fixture.removeFiles() }
         let cached = snapshot(owner: "wallet", network: .mainnet, units: 3)
@@ -51,8 +51,8 @@ struct PortfolioTests {
     /// consumes the response, reproducing the original failure across both modules.
     ///
     /// - Throws: A decoding error or failed test prerequisite.
-    @Test("portfolio keeps holdings and later pages when an asset image is malformed")
-    func portfolioKeepsHoldingsAndLaterPagesWhenAnAssetImageIsMalformed() async throws {
+    @Test
+    func `Portfolio keeps holdings and later pages when an asset image is malformed`() async throws {
         let fixture = Fixture()
         defer { fixture.removeFiles() }
         let http = AssetResponses { request in
@@ -97,8 +97,8 @@ struct PortfolioTests {
     /// Verifies that an initial failure reports an error without inventing a zero portfolio.
     ///
     /// - Throws: A failed test prerequisite.
-    @Test("an uncached offline wallet keeps an absent snapshot")
-    func anUncachedOfflineWalletKeepsAnAbsentSnapshot() async throws {
+    @Test
+    func `An uncached offline wallet keeps an absent snapshot`() async throws {
         let fixture = Fixture()
         defer { fixture.removeFiles() }
         let http = AssetResponses { _ in throw URLError(.notConnectedToInternet) }
@@ -120,8 +120,8 @@ struct PortfolioTests {
     /// Verifies that a later page failure never replaces a complete persisted portfolio.
     ///
     /// - Throws: A fixture setup error or failed prerequisite.
-    @Test("a failed later page preserves the previous complete snapshot")
-    func aFailedLaterPagePreservesThePreviousCompleteSnapshot() async throws {
+    @Test
+    func `A failed later page preserves the previous complete snapshot`() async throws {
         let fixture = Fixture()
         defer { fixture.removeFiles() }
         let cached = snapshot(owner: "wallet", network: .mainnet, units: 3)
@@ -147,8 +147,8 @@ struct PortfolioTests {
     ///
     /// - Parameter cachedUnits: The preceding balance, or `nil` for an uncached wallet.
     /// - Throws: A failed test prerequisite.
-    @Test("cache write failures retain freshly retrieved holdings", arguments: [nil, UInt64(3)])
-    func cacheWriteFailuresRetainFreshlyRetrievedHoldings(cachedUnits: UInt64?) async throws {
+    @Test(arguments: [nil, UInt64(3)])
+    func `Cache write failures retain freshly retrieved holdings`(cachedUnits: UInt64?) async throws {
         let cached = cachedUnits.map { snapshot(owner: "wallet", network: .mainnet, units: $0) }
         let store = WriteFailingStore(cached: cached)
         let http = AssetResponses { request in try page(for: request, assets: []) }
@@ -178,8 +178,8 @@ struct PortfolioTests {
     /// Verifies that a successful empty token list removes previously held tokens.
     ///
     /// - Throws: A fixture setup error or failed prerequisite.
-    @Test("a successful empty wallet replaces old token holdings")
-    func aSuccessfulEmptyWalletReplacesOldTokenHoldings() async throws {
+    @Test
+    func `A successful empty wallet replaces old token holdings`() async throws {
         let fixture = Fixture()
         defer { fixture.removeFiles() }
         let key = CacheKey(owner: "wallet", network: .mainnet)
@@ -203,8 +203,8 @@ struct PortfolioTests {
     /// Verifies that repeating a populated page fails instead of fetching indefinitely.
     ///
     /// - Throws: A failed test prerequisite.
-    @Test("repeated asset pages stop the refresh without saving partial holdings")
-    func repeatedAssetPagesStopTheRefreshWithoutSavingPartialHoldings() async throws {
+    @Test
+    func `Repeated asset pages stop the refresh without saving partial holdings`() async throws {
         let fixture = Fixture()
         defer { fixture.removeFiles() }
         let http = AssetResponses { request in try page(for: request, assets: [asset(units: 1)]) }
@@ -224,8 +224,8 @@ struct PortfolioTests {
     /// Verifies that forgetting a wallet clears persisted data and cancels its active request.
     ///
     /// - Throws: A fixture setup error or failed prerequisite.
-    @Test("removing wallet data clears its snapshot and stops its refresh", .timeLimit(.minutes(1)))
-    func removingWalletDataClearsItsSnapshotAndStopsItsRefresh() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `Removing wallet data clears its snapshot and stops its refresh`() async throws {
         let fixture = Fixture()
         defer { fixture.removeFiles() }
         let key = CacheKey(owner: "wallet", network: .mainnet)
@@ -259,8 +259,8 @@ struct PortfolioTests {
     /// Verifies that immediate removal closes the returned stream without restoring saved holdings.
     ///
     /// - Throws: A fixture setup error or failed prerequisite.
-    @Test("removing wallet data immediately after subscribing leaves no saved snapshot", .timeLimit(.minutes(1)))
-    func removingWalletDataImmediatelyAfterSubscribingLeavesNoSavedSnapshot() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `Removing wallet data immediately after subscribing leaves no saved snapshot`() async throws {
         let fixture = Fixture()
         defer { fixture.removeFiles() }
         let key = CacheKey(owner: "wallet", network: .mainnet)
@@ -288,12 +288,12 @@ struct PortfolioTests {
     ///   - owner: The requested wallet.
     ///   - expectedUnits: The amount belonging only to this wallet and network.
     /// - Throws: A fixture setup error or failed prerequisite.
-    @Test("persisted snapshots stay isolated by wallet and network", arguments: [
+    @Test(arguments: [
         (Network.mainnet, "wallet-a", UInt64(11)),
         (.devnet, "wallet-a", UInt64(22)),
         (.mainnet, "wallet-b", UInt64(33)),
     ])
-    func persistedSnapshotsStayIsolatedByWalletAndNetwork(network: Network, owner: String, expectedUnits: UInt64) async throws {
+    func `Persisted snapshots stay isolated by wallet and network`(network: Network, owner: String, expectedUnits: UInt64) async throws {
         let fixture = Fixture()
         defer { fixture.removeFiles() }
         for (savedNetwork, savedOwner, units) in [(Network.mainnet, "wallet-a", UInt64(11)), (.devnet, "wallet-a", 22), (.mainnet, "wallet-b", 33)] {
@@ -318,8 +318,8 @@ struct PortfolioTests {
     /// Verifies that ending the final subscription stops networking while retaining cached holdings.
     ///
     /// - Throws: A fixture setup error or failed prerequisite.
-    @Test("cancelling the last consumer stops its request and preserves cached holdings", .timeLimit(.minutes(1)))
-    func cancellingTheLastConsumerStopsItsRequestAndPreservesCachedHoldings() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `Cancelling the last consumer stops its request and preserves cached holdings`() async throws {
         let fixture = Fixture()
         defer { fixture.removeFiles() }
         let key = CacheKey(owner: "wallet", network: .mainnet)
@@ -357,8 +357,8 @@ struct PortfolioTests {
     /// Verifies that cancelling one consumer leaves another consumer's shared refresh running.
     ///
     /// - Throws: A failed test prerequisite.
-    @Test("concurrent consumers share a refresh when one cancels", .timeLimit(.minutes(1)))
-    func concurrentConsumersShareARefreshWhenOneCancels() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `Concurrent consumers share a refresh when one cancels`() async throws {
         let fixture = Fixture()
         defer { fixture.removeFiles() }
         let (pending, release) = AsyncStream<Void>.makeStream()

@@ -7,8 +7,8 @@ import Transactions
 /// Verifies the coordinator's approval boundary independently of live RPC behavior.
 struct ApprovalTests {
     /// Verifies approval cannot cross coordinator instances, even with the same provider and wallet.
-    @Test("a review from another coordinator cannot unlock recovery")
-    func anotherCoordinatorCannotApproveReview() async throws {
+    @Test
+    func `A review from another coordinator cannot unlock recovery`() async throws {
         let fixture = try SigningFixture()
         let http = try HTTPResponses.preparation(fixture: fixture.preparation)
         let store = SigningRecoveryStore(recovery: fixture.recovery)
@@ -23,8 +23,8 @@ struct ApprovalTests {
 
     /// Verifies invalid local authority selection fails before authentication.
     /// - Parameter selection: An empty, duplicated, or unrelated authority selection.
-    @Test("invalid wallet selections cannot create an approvable review", arguments: ["empty", "duplicate", "unrelated"])
-    func invalidWalletSelectionsAreRejected(_ selection: String) async throws {
+    @Test(arguments: ["empty", "duplicate", "unrelated"])
+    func `Invalid wallet selections cannot create an approvable review`(_ selection: String) async throws {
         let fixture = try SigningFixture()
         let http = try HTTPResponses.preparation(fixture: fixture.preparation)
         let store = SigningRecoveryStore(recovery: fixture.recovery)
@@ -39,8 +39,8 @@ struct ApprovalTests {
     }
 
     /// Verifies broadcasting requires every unsigned authority before asking for biometrics.
-    @Test("confirmation with a missing cosigner cannot unlock recovery")
-    func missingCosignerPreventsAuthentication() async throws {
+    @Test
+    func `Confirmation with a missing cosigner cannot unlock recovery`() async throws {
         let fixture = try ExternalFixture.preparation(hasPayerSignature: false)
         let http = try HTTPResponses.preparation(fixture: fixture)
         let store = SigningRecoveryStore(recovery: try SigningFixture().recovery)
@@ -52,8 +52,8 @@ struct ApprovalTests {
     }
 
     /// Verifies copies of one review cannot produce independently signed transactions.
-    @Test("concurrent approval attempts unlock and sign a review only once")
-    func concurrentApprovalSignsOnce() async throws {
+    @Test
+    func `Concurrent approval attempts unlock and sign a review only once`() async throws {
         let fixture = try SigningFixture()
         let http = try HTTPResponses.signing()
         let store = SigningRecoveryStore(recovery: fixture.recovery)
@@ -85,8 +85,8 @@ struct ApprovalTests {
     }
 
     /// Verifies failure after signing doesn't hide the identifier needed to reconcile delivery.
-    @Test("a delivery failure retains the signed transaction identifier and original cause")
-    func deliveryFailureRetainsReceipt() async throws {
+    @Test
+    func `A delivery failure retains the signed transaction identifier and original cause`() async throws {
         let fixture = try SigningFixture()
         let http = try HTTPResponses.signing()
         let store = SigningRecoveryStore(recovery: fixture.recovery)

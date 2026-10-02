@@ -7,8 +7,8 @@ struct BlockhashValidityTests {
     /// Verifies valid and expired hashes retain their boolean result and ledger context.
     ///
     /// - Parameter valid: The server's recent-blockhash observation.
-    @Test("blockhash checks return validity and the evaluated slot", arguments: [true, false])
-    func validityRetainsContext(_ valid: Bool) async throws {
+    @Test(arguments: [true, false])
+    func `Blockhash checks return validity and the evaluated slot`(_ valid: Bool) async throws {
         let transport = StubTransport { request in
             try reply(to: request, payload: #""result":{"context":{"slot":402},"value":\#(valid)}"#)
         }
@@ -32,8 +32,8 @@ struct BlockhashValidityTests {
     /// Verifies absent or incorrectly typed validity can never be interpreted as approval.
     ///
     /// - Parameter value: An absent, null, or nonboolean JSON field.
-    @Test("malformed blockhash validity cannot be treated as valid", arguments: ["", ",\"value\":null", ",\"value\":1"])
-    func malformedValidityIsRejected(_ value: String) async {
+    @Test(arguments: ["", ",\"value\":null", ",\"value\":1"])
+    func `Malformed blockhash validity cannot be treated as valid`(_ value: String) async {
         let transport = StubTransport { request in
             try reply(to: request, payload: #""result":{"context":{"slot":402}\#(value)}"#)
         }

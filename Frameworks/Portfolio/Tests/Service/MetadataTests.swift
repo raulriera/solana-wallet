@@ -7,8 +7,8 @@ import Testing
 struct MetadataTests {
     /// Verifies existing fungible caches retain display data while dropping the removed state field.
     /// - Throws: A cache, encoding, or test prerequisite error.
-    @Test("cached asset state is ignored and omitted when the snapshot is saved again")
-    func dropsCachedAssetState() throws {
+    @Test
+    func `Cached asset state is ignored and omitted when the snapshot is saved again`() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
         let store = FileSnapshotStore(directory: directory)
@@ -40,8 +40,8 @@ struct MetadataTests {
     }
 
     /// Verifies every metadata group is cached, and owned Wrapped SOL supplies the native image without another request.
-    @Test("portfolio preserves rich Wrapped SOL metadata and keeps native SOL separate")
-    func preservesWrappedMetadataAndCache() async throws {
+    @Test
+    func `Portfolio preserves rich Wrapped SOL metadata and keeps native SOL separate`() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
         let store = FileSnapshotStore(directory: directory)
@@ -68,8 +68,8 @@ struct MetadataTests {
     }
 
     /// Verifies a SOL-only wallet uses one same-network native-mint lookup and leaves unknown metadata absent.
-    @Test("native SOL resolves its provider image once without adding a Wrapped SOL holding")
-    func resolvesNativeImage() async throws {
+    @Test
+    func `Native SOL resolves its provider image once without adding a Wrapped SOL holding`() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
         let http = AssetResponses(network: .devnet) { _ in emptyPage }
@@ -84,8 +84,8 @@ struct MetadataTests {
 
     /// Verifies failed or misattributed metadata never becomes a fallback image or replaces the cache.
     /// - Parameter mismatched: Whether the provider returns the wrong asset instead of a transport failure.
-    @Test("native image failures preserve the cached snapshot", arguments: [false, true])
-    func imageFailurePreservesCache(mismatched: Bool) async throws {
+    @Test(arguments: [false, true])
+    func `Native image failures preserve the cached snapshot`(mismatched: Bool) async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
         let store = FileSnapshotStore(directory: directory)

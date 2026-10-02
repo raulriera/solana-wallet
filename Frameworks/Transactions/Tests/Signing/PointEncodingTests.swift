@@ -7,7 +7,7 @@ struct PointEncodingTests {
     /// Verifies all fourteen published encodings, including sign and unreduced aliases.
     ///
     /// - Parameter hexadecimal: A small-order encoding from SIMD-0376.
-    @Test("small-order points and their alternate encodings are recognized", arguments: [
+    @Test(arguments: [
         "0000000000000000000000000000000000000000000000000000000000000000",
         "0000000000000000000000000000000000000000000000000000000000000080",
         "0100000000000000000000000000000000000000000000000000000000000000",
@@ -23,7 +23,7 @@ struct PointEncodingTests {
         "0100000000000000000000000000000000000000000000000000000000000080",
         "ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
     ])
-    func smallOrderEncodingsAreRecognized(_ hexadecimal: String) throws {
+    func `Small-order points and their alternate encodings are recognized`(_ hexadecimal: String) throws {
         let characters = Array(hexadecimal)
         let bytes = try stride(from: 0, to: characters.count, by: 2).map { index in
             try #require(UInt8(String(characters[index...index + 1]), radix: 16))

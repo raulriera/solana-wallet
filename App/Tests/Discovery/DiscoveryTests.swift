@@ -7,8 +7,8 @@ import Wallet
 /// Exercises SOL-only discovery through local derivation and actual client response decoding.
 struct DiscoveryTests {
     /// Verifies one request covers both families and retains only positive SOL balances, including across gaps.
-    @Test("discovery checks twenty addresses once and keeps only SOL-funded accounts")
-    func findsSOLWithOneRequest() async throws {
+    @Test
+    func `Discovery checks twenty addresses once and keeps only SOL-funded accounts`() async throws {
         var native = Array(repeating: "null", count: 20)
         native[0] = nativeAccount(lamports: 0)
         native[14] = nativeAccount(lamports: 1)
@@ -34,8 +34,8 @@ struct DiscoveryTests {
     }
 
     /// Verifies empty explicit scans stop after one request, without token, history, or range fallbacks.
-    @Test("empty continuation scans stop after one SOL lookup")
-    func emptyContinuationStops() async throws {
+    @Test
+    func `Empty continuation scans stop after one SOL lookup`() async throws {
         let http = HTTPResponses(["getMultipleAccounts": [accountResponse(Array(repeating: "null", count: 4))]])
         let result = try await AccountDiscovery(rpc: http.client).discover(
             for: publicPhrase(), passphrase: "", indices: 10..<12)
@@ -47,10 +47,10 @@ struct DiscoveryTests {
 
     /// Verifies invalid bounds fail locally before requesting network observations.
     /// - Parameter indices: An empty, oversized, or non-hardened range.
-    @Test("discovery rejects invalid ranges before networking", arguments: [
+    @Test(arguments: [
         UInt32(0)..<0, UInt32(0)..<11, UInt32(0x7fff_ffff)..<0x8000_0001,
     ])
-    func rejectsInvalidRange(_ indices: Range<UInt32>) async throws {
+    func `Discovery rejects invalid ranges before networking`(_ indices: Range<UInt32>) async throws {
         let http = HTTPResponses([:])
         let phrase = try publicPhrase()
         await #expect(throws: AccountDiscovery.Failure.invalidRange) {
@@ -60,8 +60,8 @@ struct DiscoveryTests {
     }
 
     /// Verifies the last valid hardened index has no overflowing continuation.
-    @Test("the last hardened index ends continuation")
-    func lastIndexEndsContinuation() async throws {
+    @Test
+    func `The last hardened index ends continuation`() async throws {
         let http = HTTPResponses(["getMultipleAccounts": [accountResponse(Array(repeating: nativeAccount(lamports: 1), count: 2))]])
         let result = try await AccountDiscovery(rpc: http.client).discover(
             for: publicPhrase(), passphrase: "", indices: 0x7fff_ffff..<0x8000_0000)
@@ -70,8 +70,8 @@ struct DiscoveryTests {
     }
 
     /// Verifies a truncated positional response cannot masquerade as a completed scan.
-    @Test("discovery rejects a truncated native account response")
-    func rejectsTruncatedResponse() async throws {
+    @Test
+    func `Discovery rejects a truncated native account response`() async throws {
         let http = HTTPResponses(["getMultipleAccounts": [accountResponse([nativeAccount(lamports: 1)])]])
         let phrase = try publicPhrase()
         await #expect(throws: AccountDiscovery.Failure.mismatchedAccounts) {
@@ -81,8 +81,8 @@ struct DiscoveryTests {
     }
 
     /// Verifies provider rate limits propagate without retries or a misleading empty result.
-    @Test("discovery surfaces rate limits without retrying")
-    func surfacesRateLimit() async throws {
+    @Test
+    func `Discovery surfaces rate limits without retrying`() async throws {
         let failure = RPCError.http(statusCode: 429, retryAfter: "3")
         let http = HTTPResponses([:], failure: failure)
         let phrase = try publicPhrase()
@@ -91,8 +91,8 @@ struct DiscoveryTests {
     }
 
     /// Verifies cancellation reaches the only in-flight RPC request and prevents a completed result.
-    @Test("cancelling discovery cancels its single account lookup", .timeLimit(.minutes(1)))
-    func cancellationReachesLookup() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `Cancelling discovery cancels its single account lookup`() async throws {
         let gate = Suspension()
         let http = HTTPResponses([:], gate: gate, heldMethod: "getMultipleAccounts")
         let phrase = try publicPhrase()

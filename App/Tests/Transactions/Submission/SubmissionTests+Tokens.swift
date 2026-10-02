@@ -11,9 +11,8 @@ extension SubmissionTests {
     /// Wrapping and cleanup use the programs' published SyncNative and CloseAccount layouts.
     /// Both authorities are retained and reread from Vault before any account receives funds.
     /// - Parameter program: The first-party token program exercised through the same consumer API.
-    @Test("devnet token transfers deliver balances and return funds and account deposits",
-          .timeLimit(.minutes(3)), arguments: TokenProgram.allCases)
-    func tokenTransfersReturnFunds(_ program: TokenProgram) async throws {
+    @Test(.timeLimit(.minutes(3)), arguments: TokenProgram.allCases)
+    func `Devnet token transfers deliver balances and return funds and account deposits`(_ program: TokenProgram) async throws {
         let rpcs = try devnetRPCs()
         let rpc = rpcs[0]
         let sender = Account(id: DevnetWallets.senderID, recoveryID: DevnetWallets.senderID, address: try await DevnetWallets.address(for: DevnetWallets.senderID), index: 0)
@@ -101,8 +100,8 @@ extension SubmissionTests {
 
     /// Verifies absent associated source accounts fail without fabricating a token balance.
     /// - Parameter program: The token program whose native mint supplies the real account context.
-    @Test("devnet token transfers report a missing source account", arguments: TokenProgram.allCases)
-    func missingTokenSourceIsReported(_ program: TokenProgram) async throws {
+    @Test(arguments: TokenProgram.allCases)
+    func `Devnet token transfers report a missing source account`(_ program: TokenProgram) async throws {
         let rpc = try devnetRPCs()[0]
         let sender = Account(id: DevnetWallets.senderID, recoveryID: DevnetWallets.senderID, address: try await DevnetWallets.address(for: DevnetWallets.senderID), index: 0)
         let mint = try Address(program == .token ? "So11111111111111111111111111111111111111112"

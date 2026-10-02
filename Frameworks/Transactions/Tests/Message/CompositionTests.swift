@@ -5,8 +5,8 @@ import Transactions
 /// Verifies generic composition against independently compiled Kit 8.4.0 instructions.
 struct CompositionTests {
     /// Verifies distinct payer and authorities, merged privileges, and duplicate arguments.
-    @Test("composed programs preserve ordered instructions and every required signer")
-    func compositionPreservesInstructionsAndSigners() throws {
+    @Test
+    func `Composed programs preserve ordered instructions and every required signer`() throws {
         let payer = try Address(MessageFixture.sender)
         let authority = try Address(MessageFixture.recipient)
         let readonlySigner = try Address("So11111111111111111111111111111111111111112")
@@ -41,8 +41,8 @@ struct CompositionTests {
     }
 
     /// Verifies signature space counts against the same atomic transaction limit as instructions.
-    @Test("additional signatures can make an otherwise fitting transaction too large")
-    func signatureSpaceCountsAgainstTransactionLimit() throws {
+    @Test
+    func `Additional signatures can make an otherwise fitting transaction too large`() throws {
         let payer = try Address(MessageFixture.sender)
         let authority = try Address(MessageFixture.recipient)
         let instruction = Instruction(program: try Address(DecodingFixture.program),
@@ -56,8 +56,8 @@ struct CompositionTests {
     }
 
     /// Verifies an instruction cannot make an invoked program writable through another invocation.
-    @Test("conflicting program permissions are rejected across the whole composition")
-    func conflictingProgramPermissionsAreRejected() throws {
+    @Test
+    func `Conflicting program permissions are rejected across the whole composition`() throws {
         let payer = try Address(MessageFixture.sender)
         let program = try Address(DecodingFixture.program)
         let instructions = try [

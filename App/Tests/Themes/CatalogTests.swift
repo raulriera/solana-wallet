@@ -6,7 +6,7 @@ import Themes
 @Suite(.timeLimit(.minutes(1)))
 nonisolated struct CatalogTests {
     /// An installation survives source deletion and a newly created catalog instance.
-    @Test func installedCopySurvivesSourceDeletionAndRelaunch() async throws {
+    @Test func `Installed copy survives source deletion and relaunch`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let source = try fixture.source()
@@ -20,7 +20,7 @@ nonisolated struct CatalogTests {
     }
 
     /// Display names never replace identity as the installation key.
-    @Test func matchingNamesWithDifferentIdentitiesCoexist() async throws {
+    @Test func `Matching names with different identities coexist`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let catalog = try ThemeCatalog(directory: fixture.directory)
@@ -32,7 +32,7 @@ nonisolated struct CatalogTests {
     }
 
     /// Replacement preserves identity, requires consent, and issues a new revision.
-    @Test func replacementRequiresTheCurrentEntry() async throws {
+    @Test func `Replacement requires the current entry`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let catalog = try ThemeCatalog(directory: fixture.directory)
@@ -51,7 +51,7 @@ nonisolated struct CatalogTests {
     }
 
     /// Neither colliding imports nor removal can mutate a bundled theme.
-    @Test func builtInsCannotBeReplacedOrRemoved() async throws {
+    @Test func `Built-ins cannot be replaced or removed`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let source = try fixture.source()
@@ -66,7 +66,7 @@ nonisolated struct CatalogTests {
     }
 
     /// Removal deletes only the selected custom entry, including its stored package.
-    @Test func removingCustomThemePreservesOtherEntries() async throws {
+    @Test func `Removing custom theme preserves other entries`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let catalog = try ThemeCatalog(directory: fixture.directory)
@@ -79,7 +79,7 @@ nonisolated struct CatalogTests {
     }
 
     /// Listing remains independent of package reads, even when a stored manifest becomes unreadable.
-    @Test func listingDoesNotReadPackages() async throws {
+    @Test func `Listing does not read packages`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let catalog = try ThemeCatalog(directory: fixture.directory)
@@ -91,7 +91,7 @@ nonisolated struct CatalogTests {
     }
 
     /// Broken metadata fails explicitly rather than presenting an incomplete installed collection.
-    @Test func corruptMetadataDoesNotProduceAPartialCatalog() async throws {
+    @Test func `Corrupt metadata does not produce a partial catalog`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let catalog = try ThemeCatalog(directory: fixture.directory)
@@ -103,7 +103,7 @@ nonisolated struct CatalogTests {
     }
 
     /// Concurrent inserts of one identity cannot silently overwrite each other.
-    @Test func concurrentImportsHaveOneWinner() async throws {
+    @Test func `Concurrent imports have one winner`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let pack = try await PackService().read(from: fixture.source())
@@ -126,7 +126,7 @@ nonisolated struct CatalogTests {
 
     /// A second catalog instance can invalidate consent while a package is being staged.
     /// - Parameter replacing: Whether the competing operations replace an existing identity.
-    @Test(arguments: [false, true]) func commitRechecksRevisionAfterStaging(replacing: Bool) async throws {
+    @Test(arguments: [false, true]) func `Commit rechecks revision after staging`(replacing: Bool) async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let pack = try await PackService().read(from: fixture.source())
@@ -151,7 +151,7 @@ nonisolated struct CatalogTests {
     }
 
     /// A failed write never publishes its staged replacement or removes the prior package.
-    @Test func failedStagingPreservesInstalledRevision() async throws {
+    @Test func `Failed staging preserves installed revision`() async throws {
         enum Failure: Error { case injected }
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
@@ -165,7 +165,7 @@ nonisolated struct CatalogTests {
     }
 
     /// Cancellation after package staging but before catalog commit preserves existing data.
-    @Test func cancelledReplacementPreservesInstalledRevision() async throws {
+    @Test func `Cancelled replacement preserves installed revision`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let pack = try await PackService().read(from: fixture.source())
@@ -183,14 +183,14 @@ nonisolated struct CatalogTests {
     }
 
     /// Catalog file work has neither main-thread execution nor a Swift task context.
-    @MainActor @Test func storageRunsOutsideMainActorAndCooperativePool() async throws {
+    @MainActor @Test func `Storage runs outside main actor and cooperative pool`() async throws {
         let result = try await CatalogIO.perform { _ in (Thread.isMainThread, withUnsafeCurrentTask { $0 != nil }) }
         #expect(!result.0)
         #expect(!result.1)
     }
 
     /// Cancellation cannot report a failed operation after its filesystem commit has succeeded.
-    @Test func cancellationAfterCommitPreservesSuccess() async throws {
+    @Test func `Cancellation after commit preserves success`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let marker = fixture.root.appendingPathComponent("Committed")

@@ -8,8 +8,8 @@ import Testing
 @MainActor
 struct WindowRouterTests {
     /// Replacing onboarding notifies consumers reading the protocol's destination.
-    @Test("opening a saved wallet replaces onboarding and notifies its window")
-    func openingWalletReplacesOnboarding() {
+    @Test
+    func `Opening a saved wallet replaces onboarding and notifies its window`() {
         let router: any WindowRouting = WindowRouter(initialDestination: .onboarding)
         let accountID = UUID()
         let changed = Mutex(false)
@@ -28,8 +28,8 @@ struct WindowRouterTests {
     }
 
     /// Completing one window's setup leaves another window's draft flow in place.
-    @Test("opening a saved wallet leaves another window in onboarding")
-    func openingWalletPreservesOtherWindowOnboarding() {
+    @Test
+    func `Opening a saved wallet leaves another window in onboarding`() {
         let first: any WindowRouting = WindowRouter(initialDestination: .onboarding)
         let second: any WindowRouting = WindowRouter(initialDestination: .onboarding)
 
@@ -39,8 +39,8 @@ struct WindowRouterTests {
     }
 
     /// Windows showing the same account can select different accounts independently.
-    @Test("changing wallets does not redirect or notify another window showing the same account")
-    func changingWalletPreservesOtherWindowSelection() {
+    @Test
+    func `Changing wallets does not redirect or notify another window showing the same account`() {
         let originalID = UUID()
         let replacementID = UUID()
         let first: any WindowRouting = WindowRouter(initialDestination: .wallet(accountID: originalID))

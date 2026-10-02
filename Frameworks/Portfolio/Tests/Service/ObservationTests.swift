@@ -6,8 +6,8 @@ import Testing
 /// Exercises observation through real Helius decoding with controlled HTTP and WebSocket transports.
 struct ObservationTests {
     /// Verifies a new presentation reloads even when an existing consumer retains the connection.
-    @Test("joining an established observation reloads fresh cached holdings", .timeLimit(.minutes(1)))
-    func newObserverReloadsHoldings() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `Joining an established observation reloads fresh cached holdings`() async throws {
         let fixture = ObservationFixture()
         defer { fixture.cleanUp() }
         let pages = ObservedPages()
@@ -28,8 +28,8 @@ struct ObservationTests {
     }
 
     /// Verifies releasing the final stream stops observation even when its consumer exits normally.
-    @Test("leaving portfolio observation scope closes its connection", .timeLimit(.minutes(1)))
-    func leavingScopeStopsObservation() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `Leaving portfolio observation scope closes its connection`() async throws {
         let fixture = ObservationFixture()
         defer { fixture.cleanUp() }
         let service = fixture.service(pages: ObservedPages())
@@ -40,8 +40,8 @@ struct ObservationTests {
     }
 
     /// Verifies a confirmed change bypasses fresh cache and waits for indexed holdings before saving.
-    @Test("confirmed changes refresh fresh portfolios after DAS catches up", .timeLimit(.minutes(1)))
-    func reconcilesConfirmedChanges() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `Confirmed changes refresh fresh portfolios after DAS catches up`() async throws {
         let fixture = ObservationFixture()
         defer { fixture.cleanUp() }
         let pages = ObservedPages()
@@ -73,8 +73,8 @@ struct ObservationTests {
 
     /// Verifies missing and lagging watermarks receive only bounded follow-ups and never renew stale cache.
     /// - Parameter watermark: The indexer's outdated or unavailable slot.
-    @Test("indexer lag is bounded and leaves ordinary reads invalidated", .timeLimit(.minutes(1)), arguments: [UInt64(99), nil])
-    func boundsIndexerLag(watermark: UInt64?) async throws {
+    @Test(.timeLimit(.minutes(1)), arguments: [UInt64(99), nil])
+    func `Indexer lag is bounded and leaves ordinary reads invalidated`(watermark: UInt64?) async throws {
         let fixture = ObservationFixture()
         defer { fixture.cleanUp() }
         let pages = ObservedPages()
@@ -104,8 +104,8 @@ struct ObservationTests {
     }
 
     /// Verifies HTTP failure ends reconciliation immediately instead of using its lag retry budget.
-    @Test("observation does not retry failed RPC requests", .timeLimit(.minutes(1)))
-    func doesNotRetryRequestErrors() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `Observation does not retry failed RPC requests`() async throws {
         let fixture = ObservationFixture()
         defer { fixture.cleanUp() }
         let pages = ObservedPages()
@@ -126,8 +126,8 @@ struct ObservationTests {
     }
 
     /// Verifies a change arriving during a paced price lookup cannot make older holdings appear fresh.
-    @Test("changes received during pricing prevent stale holdings from being saved", .timeLimit(.minutes(1)))
-    func invalidatesHoldingsDuringPricing() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `Changes received during pricing prevent stale holdings from being saved`() async throws {
         let fixture = ObservationFixture()
         defer { fixture.cleanUp() }
         let pages = ObservedPages()
@@ -156,8 +156,8 @@ struct ObservationTests {
     }
 
     /// Verifies separate consumers share one connection and the last cancellation closes it.
-    @Test("portfolio observers share a connection until the final consumer leaves", .timeLimit(.minutes(1)))
-    func sharesObservationLifetime() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `Portfolio observers share a connection until the final consumer leaves`() async throws {
         let fixture = ObservationFixture()
         defer { fixture.cleanUp() }
         let pages = ObservedPages()
@@ -188,8 +188,8 @@ struct ObservationTests {
     }
 
     /// Verifies removing a wallet cancels queued catch-up and prevents deleted data from returning.
-    @Test("removing a watched wallet cancels queued reconciliation", .timeLimit(.minutes(1)))
-    func removalCancelsReconciliation() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `Removing a watched wallet cancels queued reconciliation`() async throws {
         let fixture = ObservationFixture()
         defer { fixture.cleanUp() }
         let pages = ObservedPages()
@@ -207,8 +207,8 @@ struct ObservationTests {
     }
 
     /// Verifies socket errors are visible, retain holdings, and end the watch without reconnecting.
-    @Test("subscription failure ends portfolio observation with cached holdings", .timeLimit(.minutes(1)))
-    func disconnectPreservesHoldings() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `Subscription failure ends portfolio observation with cached holdings`() async throws {
         let fixture = ObservationFixture()
         defer { fixture.cleanUp() }
         let service = fixture.service(pages: ObservedPages())
@@ -223,8 +223,8 @@ struct ObservationTests {
     }
 
     /// Verifies subscriptions cannot invalidate holdings on another network.
-    @Test("observation rejects mismatched networks before connecting")
-    func rejectsAnotherNetwork() async throws {
+    @Test
+    func `Observation rejects mismatched networks before connecting`() async throws {
         let fixture = ObservationFixture()
         defer { fixture.cleanUp() }
         let das = AssetResponses { _ in throw URLError(.notConnectedToInternet) }

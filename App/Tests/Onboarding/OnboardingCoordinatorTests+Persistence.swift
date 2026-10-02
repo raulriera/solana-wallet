@@ -7,8 +7,8 @@ import Wallet
 extension OnboardingCoordinatorTests {
     /// Recovery save failures stop metadata writes while preserving the exact retry identity.
     /// - Parameter committed: Whether recovery was written before its save reported failure.
-    @Test("failed recovery saves retain the draft and safely retry the same identity", arguments: [false, true])
-    func recoverySaveCanRetry(committed: Bool) async throws {
+    @Test(arguments: [false, true])
+    func `Failed recovery saves retain the draft and safely retry the same identity`(committed: Bool) async throws {
         let recovery = OnboardingRecoveryStore(firstFailure: NSError(domain: "private-recovery-marker", code: 1),
                                                commitBeforeFailure: committed)
         let accounts = OnboardingAccountStore(recovery: recovery)
@@ -25,8 +25,8 @@ extension OnboardingCoordinatorTests {
     }
 
     /// Retry must verify an existing recovery instead of trusting a duplicate error alone.
-    @Test("a duplicate recovery containing different material cannot complete onboarding")
-    func duplicateRecoveryMustMatch() async throws {
+    @Test
+    func `A duplicate recovery containing different material cannot complete onboarding`() async throws {
         let replacement = Recovery(phrase: try RecoveryPhrase(Self.phrase), passphrase: "different")
         let recovery = OnboardingRecoveryStore(firstFailure: CancellationError(), commitBeforeFailure: true,
                                                replacement: replacement)
@@ -42,8 +42,8 @@ extension OnboardingCoordinatorTests {
 
     /// Metadata failures retain one recovery and one account identity across explicit retries.
     /// - Parameter committed: Whether metadata was written before failure was reported.
-    @Test("failed account saves retry without generating or saving another recovery", arguments: [false, true])
-    func accountSaveCanRetry(committed: Bool) async throws {
+    @Test(arguments: [false, true])
+    func `Failed account saves retry without generating or saving another recovery`(committed: Bool) async throws {
         let recovery = OnboardingRecoveryStore()
         let accounts = OnboardingAccountStore(recovery: recovery, firstFailure: NSError(domain: "private-marker", code: 1),
                                               commitBeforeFailure: committed)
@@ -60,8 +60,8 @@ extension OnboardingCoordinatorTests {
     }
 
     /// Duplicate metadata with a different recovery identity cannot impersonate completion.
-    @Test("a conflicting account record cannot complete a pending draft")
-    func duplicateAccountMustMatch() async throws {
+    @Test
+    func `A conflicting account record cannot complete a pending draft`() async throws {
         let recovery = OnboardingRecoveryStore()
         let accounts = OnboardingAccountStore(recovery: recovery, firstFailure: AccountStore.Failure.duplicateAccount,
                                               commitBeforeFailure: true, conflict: true)
@@ -73,8 +73,8 @@ extension OnboardingCoordinatorTests {
     }
 
     /// Reentrant completion cannot save twice, and cancelled recovery work cannot publish an account.
-    @Test("cancelling recovery persistence preserves the draft and concurrent completion is rejected")
-    func cancelledRecoveryCanRetry() async throws {
+    @Test
+    func `Cancelling recovery persistence preserves the draft and concurrent completion is rejected`() async throws {
         let gate = Suspension()
         let recovery = OnboardingRecoveryStore(gate: gate)
         let accounts = OnboardingAccountStore(recovery: recovery)
@@ -95,8 +95,8 @@ extension OnboardingCoordinatorTests {
     }
 
     /// A successful metadata commit remains successful when cancellation arrives afterwards.
-    @Test("cancellation after the metadata commit still returns the saved account")
-    func lateCancellationKeepsCommittedAccount() async throws {
+    @Test
+    func `Cancellation after the metadata commit still returns the saved account`() async throws {
         let gate = Suspension()
         let recovery = OnboardingRecoveryStore()
         let accounts = OnboardingAccountStore(recovery: recovery, gate: gate)

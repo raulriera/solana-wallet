@@ -11,7 +11,7 @@ struct WalletTests {
     ///   - path: The explicit Solana account path.
     ///   - passphrase: The BIP-39 passphrase, including significant whitespace.
     ///   - expected: The independently derived Solana address.
-    @Test("imported recovery phrases derive expected Solana addresses", arguments: [
+    @Test(arguments: [
         ("m/44'/501'/0'/0'", "", "HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk"),
         ("m/44'/501'/1'/0'", "", "Hh8QwFUA6MtVu1qAoq12ucvFHNwCcVTV7hpWjeY1Hztb"),
         ("m/44'/501'/0'", "", "GjJyeC1r2RgkuoCWMyPYkCWSGSGLcz266EaAkLA27AhL"),
@@ -20,7 +20,7 @@ struct WalletTests {
         ("m/44'/501'/0'/0'", "cafe\u{301}", "56u4aAiTCjGEcS4ksrFcqS3nxsRSmzkE3MiFHzY85ngF"),
         ("m/44'/501'/0'/0'", " TREZOR ", "SbBZ94nCjPnE1w7BYq86Dn7cjHar2z6RC7Ni39t2aK4"),
     ])
-    func importedRecoveryPhrasesDeriveExpectedSolanaAddresses(path: String, passphrase: String, expected: String) async throws {
+    func `Imported recovery phrases derive expected Solana addresses`(path: String, passphrase: String, expected: String) async throws {
         let wallet: any WalletProviding = Wallet()
         let phrase = try RecoveryPhrase("  " + Array(repeating: "ABANDON", count: 11).joined(separator: " \n\t") + " ABOUT  ")
 
@@ -30,8 +30,8 @@ struct WalletTests {
     }
 
     /// Verifies that a newly generated twelve-word wallet restores the same default account.
-    @Test("new twelve-word wallets restore their address")
-    func newTwelveWordWalletsRestoreTheirAddress() async throws {
+    @Test
+    func `New twelve-word wallets restore their address`() async throws {
         let wallet = Wallet()
         let phrase = try wallet.recoveryPhrase()
         #expect(phrase.words.count == 12)
@@ -44,8 +44,8 @@ struct WalletTests {
     }
 
     /// Verifies cancellation before derivation without scheduling assumptions or sleeps.
-    @Test("cancelled address derivation throws CancellationError")
-    func cancelledAddressDerivationThrowsCancellationError() async throws {
+    @Test
+    func `Cancelled address derivation throws CancellationError`() async throws {
         let wallet = Wallet()
         let phrase = try RecoveryPhrase(Array(repeating: "abandon", count: 11).joined(separator: " ") + " about")
         let (gate, continuation) = AsyncStream<Void>.makeStream()

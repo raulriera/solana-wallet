@@ -5,8 +5,8 @@ import Testing
 /// Exercises the real Jupiter adapter with recorded HTTP inputs and controlled response bodies.
 struct JupiterTests {
     /// Verifies exact decimal decoding, normalized fields, and omission of unavailable prices.
-    @Test("prices preserve decimal precision and keep unavailable quotes absent")
-    func normalizesQuotes() async throws {
+    @Test
+    func `Prices preserve decimal precision and keep unavailable quotes absent`() async throws {
         let transport = StubTransport { request in
             try priceReply(to: request, body: #"""
                 {"mint-a":{"usdPrice":0.12345678901234567890123456789012,"blockId":9007199254740993,"decimals":9},
@@ -45,8 +45,8 @@ struct JupiterTests {
 
     /// Verifies callers can supply multiple batches without knowing Jupiter's request limit.
     /// - Parameter authenticated: Whether the provider uses the free-key request budget.
-    @Test("price batches respect the keyless and free-key budgets", arguments: [false, true])
-    func batchesUniqueMints(authenticated: Bool) async throws {
+    @Test(arguments: [false, true])
+    func `Price batches respect the keyless and free-key budgets`(authenticated: Bool) async throws {
         let transport = StubTransport { request in
             let values = try requestedMints(request).map { #""\#($0)":{"usdPrice":1}"# }
             return try priceReply(to: request, body: "{" + values.joined(separator: ",") + "}")
@@ -68,8 +68,8 @@ struct JupiterTests {
     }
 
     /// Verifies copied providers share pacing across separate lookups and every batch.
-    @Test("provider copies share the price budget across calls and batches", .timeLimit(.minutes(1)))
-    func copiesSharePacing() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `Provider copies share the price budget across calls and batches`() async throws {
         let clock = ManualClock()
         let startedAt = clock.now
         let transport = StubTransport { try priceReply(to: $0, body: "{}") }
@@ -94,8 +94,8 @@ struct JupiterTests {
     }
 
     /// Verifies cancelling a queued batch prevents its HTTP attempt and preserves the next slot.
-    @Test("cancelling a waiting batch stops without consuming a price request", .timeLimit(.minutes(1)))
-    func cancellationStopsWaitingBatch() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `Cancelling a waiting batch stops without consuming a price request`() async throws {
         let clock = ManualClock()
         let transport = StubTransport { try priceReply(to: $0, body: "{}") }
         let source = Jupiter(transport: transport, pacer: RequestPacer(interval: .seconds(3), clock: clock))
@@ -119,16 +119,16 @@ struct JupiterTests {
     }
 
     /// Verifies an empty set doesn't consume provider requests.
-    @Test("empty price requests do not access the network")
-    func emptyRequestStaysLocal() async throws {
+    @Test
+    func `Empty price requests do not access the network`() async throws {
         let transport = StubTransport { try priceReply(to: $0, body: "{}") }
         #expect(try await Jupiter(transport: transport).prices(for: []).isEmpty)
         #expect(await transport.requests.isEmpty)
     }
 
     /// Verifies a later batch failure prevents partial results, retries, and subsequent requests.
-    @Test("rate limits fail the price lookup without retries or partial success")
-    func rateLimitStopsBatches() async throws {
+    @Test
+    func `Rate limits fail the price lookup without retries or partial success`() async throws {
         let transport = StubTransport { request in
             if try requestedMints(request).first == "mint-50" {
                 return try priceReply(to: request, body: "{}", status: 429,
@@ -149,7 +149,7 @@ struct JupiterTests {
 
     /// Verifies malformed or unrelated values can't become a valid quote.
     /// - Parameter body: An invalid provider response.
-    @Test("invalid price responses fail without inventing a quote", arguments: [
+    @Test(arguments: [
         #"{"mint":{"usdPrice":-1}}"#,
         #"{"mint":{"usdPrice":"invalid"}}"#,
         #"{"mint":{"usdPrice":true}}"#,
@@ -158,7 +158,7 @@ struct JupiterTests {
         #"{"different-mint":null}"#,
         #"[]"#,
     ])
-    func rejectsInvalidResponse(_ body: String) async {
+    func `Invalid price responses fail without inventing a quote`(_ body: String) async {
         let transport = StubTransport { try priceReply(to: $0, body: body) }
         await #expect(throws: RPCError.decoding) {
             try await Jupiter(transport: transport).prices(for: ["mint"])
@@ -166,8 +166,8 @@ struct JupiterTests {
     }
 
     /// Verifies cancellation reaches the active transport and prevents the next batch.
-    @Test("cancelling prices stops the active request and remaining batches", .timeLimit(.minutes(1)))
-    func cancellationStopsRequests() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `Cancelling prices stops the active request and remaining batches`() async throws {
         let (started, startedContinuation) = AsyncStream<Void>.makeStream()
         let (pending, release) = AsyncStream<Void>.makeStream()
         defer { startedContinuation.finish(); release.finish() }
@@ -193,8 +193,8 @@ struct JupiterTests {
     }
 
     /// Verifies provider-specific credentials in transport diagnostics don't escape to consumers.
-    @Test("price transport failures omit credential-bearing diagnostics")
-    func transportErrorsAreSanitized() async {
+    @Test
+    func `Price transport failures omit credential-bearing diagnostics`() async {
         let transport = StubTransport { _ in
             throw URLError(.notConnectedToInternet, userInfo: [NSLocalizedDescriptionKey: "fixture-key"])
         }

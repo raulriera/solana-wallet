@@ -7,8 +7,8 @@ import Testing
 struct FreshnessTests {
     /// Verifies fresh data produces one ready state without any DAS or price traffic.
     /// - Parameter pricesOnly: Whether old holdings should be ignored by a price-only read.
-    @Test("fresh cache completes without network requests", arguments: [false, true])
-    func freshCacheStaysLocal(pricesOnly: Bool) async throws {
+    @Test(arguments: [false, true])
+    func `Fresh cache completes without network requests`(pricesOnly: Bool) async throws {
         let fixture = FreshnessFixture()
         defer { fixture.removeFiles() }
         let cached = fixture.snapshot(holdingsAge: pricesOnly ? 600 : 299, pricesAge: 299)
@@ -30,8 +30,8 @@ struct FreshnessTests {
     }
 
     /// Verifies a portfolio without an independent price source only uses holdings freshness.
-    @Test("fresh DAS-only portfolios do not require an independent price timestamp")
-    func dasOnlyCacheStaysLocal() async throws {
+    @Test
+    func `Fresh DAS-only portfolios do not require an independent price timestamp`() async throws {
         let fixture = FreshnessFixture()
         defer { fixture.removeFiles() }
         let cached = fixture.snapshot(holdingsAge: 1, pricesAge: nil)
@@ -46,8 +46,8 @@ struct FreshnessTests {
 
     /// Verifies expiration is inclusive and a clock moving backward cannot make cache fresh indefinitely.
     /// - Parameter age: The holdings age in seconds, including a future timestamp.
-    @Test("expired or future holdings are refreshed even when prices were just checked", arguments: [300.0, 301.0, -1.0])
-    func expiredHoldingsRefresh(age: TimeInterval) async throws {
+    @Test(arguments: [300.0, 301.0, -1.0])
+    func `Expired or future holdings are refreshed even when prices were just checked`(age: TimeInterval) async throws {
         let fixture = FreshnessFixture()
         defer { fixture.removeFiles() }
         try fixture.store.save(fixture.snapshot(holdingsAge: age, pricesAge: 0), for: fixture.key)
@@ -65,8 +65,8 @@ struct FreshnessTests {
 
     /// Verifies a successful lookup with no quotes is cached across service recreation.
     /// - Parameter priceAge: An expired, future, or absent independent price timestamp.
-    @Test("stale prices refresh without DAS and unavailable quotes are still cached", arguments: [nil, 300.0, -1.0])
-    func stalePricesRefreshIndependently(priceAge: TimeInterval?) async throws {
+    @Test(arguments: [nil, 300.0, -1.0])
+    func `Stale prices refresh without DAS and unavailable quotes are still cached`(priceAge: TimeInterval?) async throws {
         let fixture = FreshnessFixture()
         defer { fixture.removeFiles() }
         let cached = fixture.snapshot(holdingsAge: 10, pricesAge: priceAge)
@@ -96,8 +96,8 @@ struct FreshnessTests {
 
     /// Verifies explicit user actions reload fresh data and concurrent reloads share one operation.
     /// - Parameter pricesOnly: Whether to reload only prices or the whole portfolio.
-    @Test("explicit reload bypasses fresh cache and shares concurrent requests", .timeLimit(.minutes(1)), arguments: [false, true])
-    func reloadBypassesCache(pricesOnly: Bool) async throws {
+    @Test(.timeLimit(.minutes(1)), arguments: [false, true])
+    func `Explicit reload bypasses fresh cache and shares concurrent requests`(pricesOnly: Bool) async throws {
         let fixture = FreshnessFixture()
         defer { fixture.removeFiles() }
         let cached = fixture.snapshot(holdingsAge: 0, pricesAge: 0)
@@ -134,8 +134,8 @@ struct FreshnessTests {
     }
 
     /// Verifies older persisted snapshots remain readable and require an initial price lookup.
-    @Test("snapshots without price freshness remain compatible")
-    func olderCacheRemainsReadable() throws {
+    @Test
+    func `Snapshots without price freshness remain compatible`() throws {
         let fixture = FreshnessFixture()
         let original = fixture.snapshot(holdingsAge: 5, pricesAge: nil)
         let encoded = try JSONEncoder().encode(original)

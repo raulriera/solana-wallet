@@ -15,7 +15,7 @@ struct ValidationTests {
         #"{"name": invalid}"#,
         ""
     ])
-    func malformedJSONRetainsParserDetails(json: String) async throws {
+    func `Malformed JSON retains parser details`(json: String) async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
         try fixture.rawManifest(json)
@@ -52,7 +52,7 @@ struct ValidationTests {
         (#""assets":null"#, "assets"),
         (#""assets":{"background":null}"#, "assets.background")
     ])
-    func invalidFieldsIdentifyTheirPath(fields: String, path: String) async throws {
+    func `Invalid fields identify their path`(fields: String, path: String) async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
         try fixture.manifest(fields)
@@ -71,7 +71,7 @@ struct ValidationTests {
         (#"{"version":1,"id":"\#(Fixture.id)"}"#, "name"),
         (#"{"version":1,"id":"\#(Fixture.id)","name":"  "}"#, "name")
     ])
-    func invalidHeaderIdentifiesItsField(json: String, path: String) async throws {
+    func `Invalid header identifies its field`(json: String, path: String) async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
         try fixture.rawManifest(json)
@@ -82,7 +82,7 @@ struct ValidationTests {
 
     /// Only opaque, six-digit hexadecimal colors are accepted.
     @Test(arguments: ["#123", "#123456FF", "123456", "#GG1234", "#12 345", "#１２３４５６", "#+12345"])
-    func invalidHexIsRejected(hex: String) async throws {
+    func `Invalid hex is rejected`(hex: String) async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
         try fixture.manifest(#""tokens":{"colors":{"light":{"accent":{"srgb":"\#(hex)"}}}}"#)
@@ -92,7 +92,7 @@ struct ValidationTests {
     }
 
     /// Package reads never treat remote locations as local files.
-    @Test func remoteURLIsRejected() async throws {
+    @Test func `Remote URL is rejected`() async throws {
         let url = try #require(URL(string: "https://example.invalid/theme"))
         await #expect { try await PackService().read(from: url) } throws: { error in
             (error as? ValidationError)?.path == "package"

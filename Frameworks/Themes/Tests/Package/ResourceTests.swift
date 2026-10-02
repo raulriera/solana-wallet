@@ -5,7 +5,7 @@ import Testing
 struct ResourceTests {
     /// Oversized input is rejected for its resource cost before parsing or image validation.
     @Test(arguments: ["manifest.json", "Assets/image.png"])
-    func oversizedFilesAreRejectedBeforeDecoding(path: String) async throws {
+    func `Oversized files are rejected before decoding`(path: String) async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
         try fixture.manifest(path == "manifest.json" ? "" : #""assets":{"background":"Assets/image.png"}"#)
@@ -28,7 +28,7 @@ struct ResourceTests {
     }
 
     /// An import cannot consume the space required to export its complete resolved colors.
-    @Test func manifestMustFitAfterResolvingExportDefaults() async throws {
+    @Test func `Manifest must fit after resolving export defaults`() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
         let name = String(repeating: "x", count: 1_000)
@@ -44,7 +44,7 @@ struct ResourceTests {
     }
 
     /// The package budget counts unique files, accepting its boundary and rejecting another image.
-    @Test func totalAssetBytesAreBoundedWithoutChargingAliasesTwice() async throws {
+    @Test func `Total asset bytes are bounded without charging aliases twice`() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
         let bytes = try Fixture.image()
@@ -69,7 +69,7 @@ struct ResourceTests {
     }
 
     /// Highly compressed large images are rejected by their dimensions before thumbnail decoding.
-    @Test func oversizedPixelDimensionsAreRejected() async throws {
+    @Test func `Oversized pixel dimensions are rejected`() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
         try fixture.asset(Fixture.image(width: 4096, height: 4097))
@@ -81,7 +81,7 @@ struct ResourceTests {
     }
 
     /// Multiple semantic names retain one shared buffer for the same image file.
-    @Test func assetAliasesShareOwnedBytes() async throws {
+    @Test func `Asset aliases share owned bytes`() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
         try fixture.asset(Fixture.image())

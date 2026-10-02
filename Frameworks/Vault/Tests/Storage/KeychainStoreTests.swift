@@ -11,8 +11,8 @@ import Wallet
 @Suite(.timeLimit(.minutes(1)))
 struct KeychainStoreTests {
     /// Verifies complete recovery and the device-only biometric policy in the outgoing query.
-    @Test("saved recovery preserves the phrase and passphrase")
-    func savedRecoveryPreservesThePhraseAndPassphrase() async throws {
+    @Test
+    func `Saved recovery preserves the phrase and passphrase`() async throws {
         let keychain = KeychainStub()
         let store: any RecoveryStoring = KeychainStore(service: "test.recovery", keychain: keychain)
         let id = UUID()
@@ -38,8 +38,8 @@ struct KeychainStoreTests {
     }
 
     /// Verifies that a duplicate save never replaces an existing wallet's secrets.
-    @Test("saving an existing wallet preserves its original recovery material")
-    func savingAnExistingWalletPreservesItsOriginalRecoveryMaterial() async throws {
+    @Test
+    func `Saving an existing wallet preserves its original recovery material`() async throws {
         let keychain = KeychainStub()
         let store = KeychainStore(service: "test.recovery", keychain: keychain)
         let id = UUID()
@@ -55,10 +55,10 @@ struct KeychainStoreTests {
 
     /// Verifies distinct error mapping and retention after unsuccessful authentication or missing access.
     /// - Parameter status: The Security failure returned by the read operation.
-    @Test("failed recovery reads preserve stored material", arguments: [
+    @Test(arguments: [
         errSecAuthFailed, errSecUserCanceled, errSecItemNotFound, errSecInteractionNotAllowed,
     ])
-    func failedRecoveryReadsPreserveStoredMaterial(status: OSStatus) async throws {
+    func `Failed recovery reads preserve stored material`(status: OSStatus) async throws {
         let keychain = KeychainStub()
         let store = KeychainStore(service: "test.recovery", keychain: keychain)
         let id = UUID()
@@ -83,8 +83,8 @@ struct KeychainStoreTests {
     }
 
     /// Verifies that canceling an in-flight read invalidates its context and preserves storage.
-    @Test("cancelling recovery invalidates authentication without deleting the wallet")
-    func cancellingRecoveryInvalidatesAuthenticationWithoutDeletingTheWallet() async throws {
+    @Test
+    func `Cancelling recovery invalidates authentication without deleting the wallet`() async throws {
         let (started, signal) = AsyncStream<Void>.makeStream()
         let blocked = Mutex(false)
         let timedOut = Mutex(false)
@@ -116,8 +116,8 @@ struct KeychainStoreTests {
     }
 
     /// Verifies that unavailable biometrics never cause weaker or unusable storage.
-    @Test("saving without available biometrics stores no recovery material")
-    func savingWithoutAvailableBiometricsStoresNoRecoveryMaterial() async throws {
+    @Test
+    func `Saving without available biometrics stores no recovery material`() async throws {
         let keychain = KeychainStub(contextFactory: { TestContext(available: false) })
         let store = KeychainStore(service: "test.recovery", keychain: keychain)
         let recovery = try Fixtures.recovery()
@@ -130,8 +130,8 @@ struct KeychainStoreTests {
     }
 
     /// Verifies that canceled callers don't reach Security or open authentication prompts.
-    @Test("already cancelled recovery never queries the Keychain")
-    func alreadyCancelledRecoveryNeverQueriesTheKeychain() async {
+    @Test
+    func `Already cancelled recovery never queries the Keychain`() async {
         let keychain = KeychainStub()
         let store = KeychainStore(service: "test.recovery", keychain: keychain)
         let (gate, continuation) = AsyncStream<Void>.makeStream()
@@ -147,8 +147,8 @@ struct KeychainStoreTests {
     }
 
     /// Verifies exact deletion scope across wallet identifiers and service namespaces.
-    @Test("deleting recovery preserves other wallets and namespaces")
-    func deletingRecoveryPreservesOtherWalletsAndNamespaces() async throws {
+    @Test
+    func `Deleting recovery preserves other wallets and namespaces`() async throws {
         let keychain = KeychainStub()
         let store = KeychainStore(service: "test.recovery", keychain: keychain)
         let otherStore = KeychainStore(service: "test.other", keychain: keychain)
@@ -176,12 +176,12 @@ struct KeychainStoreTests {
 
     /// Verifies that malformed or unsupported stored values fail without exposing or deleting them.
     /// - Parameter invalid: A public malformed fixture returned by the test Keychain.
-    @Test("invalid stored recovery is rejected without being erased", arguments: [
+    @Test(arguments: [
         "not-json",
         "{\"version\":2,\"phrase\":\"secret-marker\",\"passphrase\":\"secret-marker\"}",
         "{\"version\":1,\"phrase\":\"secret-marker\",\"passphrase\":\"secret-marker\"}",
     ])
-    func invalidStoredRecoveryIsRejectedWithoutBeingErased(invalid: String) async throws {
+    func `Invalid stored recovery is rejected without being erased`(invalid: String) async throws {
         let keychain = KeychainStub()
         let store = KeychainStore(service: "test.recovery", keychain: keychain)
         let id = UUID()

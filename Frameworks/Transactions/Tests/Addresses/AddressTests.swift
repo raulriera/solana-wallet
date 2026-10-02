@@ -12,8 +12,8 @@ struct AddressTests {
     /// Verifies malformed input cannot silently become another valid address.
     ///
     /// - Parameter value: A lookalike address or valid Base58 with the wrong Solana width.
-    @Test("addresses require strict Base58 and exactly 32 bytes", arguments: malformedAddresses)
-    func addressesRequireStrictBase58AndExactly32Bytes(_ value: String) {
+    @Test(arguments: malformedAddresses)
+    func `Addresses require strict Base58 and exactly 32 bytes`(_ value: String) {
         #expect(throws: ValidationError.invalidAddress) { try Address(value) }
     }
 }

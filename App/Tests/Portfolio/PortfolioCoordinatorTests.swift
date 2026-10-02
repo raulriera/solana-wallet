@@ -10,8 +10,8 @@ import Testing
 @Suite(.timeLimit(.minutes(1)))
 struct PortfolioCoordinatorTests {
     /// Verifies a clock correction cannot reject newer balances for a large portfolio.
-    @Test("clock rollback still displays the next complete 500-token portfolio")
-    func clockRollbackAcceptsNewHoldings() async throws {
+    @Test
+    func `Clock rollback still displays the next complete 500-token portfolio`() async throws {
         let service = PortfolioResponses()
         let coordinator = PortfolioCoordinator(service: service)
         var requests = service.requests.makeAsyncIterator()
@@ -37,8 +37,8 @@ struct PortfolioCoordinatorTests {
 
     /// Verifies a delayed success cannot erase a failure from a subsequent operation.
     /// - Parameter hasNewHoldings: Whether the delayed success also carries more recent holdings.
-    @Test("delayed ready state cannot clear a newer refresh error", arguments: [false, true])
-    func delayedSuccessPreservesNewerFailure(hasNewHoldings: Bool) async throws {
+    @Test(arguments: [false, true])
+    func `Delayed ready state cannot clear a newer refresh error`(hasNewHoldings: Bool) async throws {
         let service = PortfolioResponses()
         let coordinator = PortfolioCoordinator(service: service)
         var requests = service.requests.makeAsyncIterator()
@@ -82,8 +82,8 @@ struct PortfolioCoordinatorTests {
     }
 
     /// Verifies an inactive scene or missing selection never starts work.
-    @Test("inactive and unselected portfolios do not request data", arguments: [false, true])
-    func inactiveDoesNotRequestData(isActive: Bool) async {
+    @Test(arguments: [false, true])
+    func `Inactive and unselected portfolios do not request data`(isActive: Bool) async {
         let service = PortfolioResponses()
         let coordinator: any PortfolioCoordinating = PortfolioCoordinator(service: service)
         await coordinator.observe(for: isActive ? nil : "wallet-a", isActive: isActive)
@@ -93,8 +93,8 @@ struct PortfolioCoordinatorTests {
     }
 
     /// Verifies backgrounding retains holdings, cancels both operations, and reopening observes again.
-    @Test("background stops work and foreground reopens the selected wallet")
-    func backgroundStopsAndForegroundRestarts() async throws {
+    @Test
+    func `Background stops work and foreground reopens the selected wallet`() async throws {
         let service = PortfolioResponses()
         let coordinator = PortfolioCoordinator(service: service)
         var requests = service.requests.makeAsyncIterator()
@@ -137,8 +137,8 @@ struct PortfolioCoordinatorTests {
     }
 
     /// Verifies selection changes clear old holdings and obsolete cleanup cannot stop the replacement.
-    @Test("switching wallets clears displayed data and cancels old work")
-    func switchingWalletsClearsOldState() async throws {
+    @Test
+    func `Switching wallets clears displayed data and cancels old work`() async throws {
         let service = PortfolioResponses()
         let coordinator = PortfolioCoordinator(service: service)
         var requests = service.requests.makeAsyncIterator()
@@ -174,8 +174,8 @@ struct PortfolioCoordinatorTests {
     }
 
     /// Verifies a cancelled provider setup cannot deliver buffered data or stop a newer session.
-    @Test("late registration from a cancelled session cannot publish")
-    func lateRegistrationCannotPublish() async throws {
+    @Test
+    func `Late registration from a cancelled session cannot publish`() async throws {
         let gate = PortfolioResponses.Registration()
         let service = PortfolioResponses(registration: gate)
         let coordinator = PortfolioCoordinator(service: service)
@@ -199,8 +199,8 @@ struct PortfolioCoordinatorTests {
     }
 
     /// Verifies view task cancellation ends observation and permits coordinator deallocation.
-    @Test("view cancellation releases observation and presentation state")
-    func viewCancellationReleasesCoordinator() async throws {
+    @Test
+    func `View cancellation releases observation and presentation state`() async throws {
         let service = PortfolioResponses()
         var coordinator: PortfolioCoordinator? = PortfolioCoordinator(service: service)
         weak let released = coordinator
@@ -218,8 +218,8 @@ struct PortfolioCoordinatorTests {
     }
 
     /// Verifies pull-to-refresh awaits a forced reload and observation remains usable afterward.
-    @Test("pull to refresh forces a reload and preserves observation")
-    func manualRefreshUsesReload() async throws {
+    @Test
+    func `Pull to refresh forces a reload and preserves observation`() async throws {
         let service = PortfolioResponses()
         let coordinator = PortfolioCoordinator(service: service)
         var requests = service.requests.makeAsyncIterator()
@@ -246,8 +246,8 @@ struct PortfolioCoordinatorTests {
     }
 
     /// Verifies cancelling a manual refresh does not cancel confirmed-change observation.
-    @Test("cancelling pull to refresh leaves observation active")
-    func cancellingRefreshKeepsObservation() async throws {
+    @Test
+    func `Cancelling pull to refresh leaves observation active`() async throws {
         let service = PortfolioResponses()
         let coordinator = PortfolioCoordinator(service: service)
         var requests = service.requests.makeAsyncIterator()
@@ -271,8 +271,8 @@ struct PortfolioCoordinatorTests {
     }
 
     /// Verifies repeated gestures share work and cancellation preserves observation's own progress.
-    @Test("overlapping manual refreshes share one request")
-    func overlappingRefreshesShareRequest() async throws {
+    @Test
+    func `Overlapping manual refreshes share one request`() async throws {
         let service = PortfolioResponses()
         let coordinator = PortfolioCoordinator(service: service)
         var requests = service.requests.makeAsyncIterator()
@@ -309,8 +309,8 @@ struct PortfolioCoordinatorTests {
     }
 
     /// Verifies a disconnection preserves holdings and allows explicit reload without reconnecting.
-    @Test("subscription failure preserves data and allows manual refresh")
-    func disconnectedObservationAllowsRefresh() async throws {
+    @Test
+    func `Subscription failure preserves data and allows manual refresh`() async throws {
         let service = PortfolioResponses()
         let coordinator = PortfolioCoordinator(service: service)
         var requests = service.requests.makeAsyncIterator()
@@ -338,8 +338,8 @@ struct PortfolioCoordinatorTests {
     }
 
     /// Verifies independently queued streams cannot replace newer holdings with an older snapshot.
-    @Test("late refresh errors retain the newest observed holdings")
-    func olderResultsPreserveNewerHoldings() async throws {
+    @Test
+    func `Late refresh errors retain the newest observed holdings`() async throws {
         let service = PortfolioResponses()
         let coordinator = PortfolioCoordinator(service: service)
         var requests = service.requests.makeAsyncIterator()

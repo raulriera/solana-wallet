@@ -10,8 +10,8 @@ struct ExternalTransactionTests {
     /// Verifies signing a non-payer slot preserves the original message and other slots.
     ///
     /// - Parameter hasPayerSignature: Whether the result completes all required signatures.
-    @Test("a wallet cosigner preserves supplied bytes and existing signatures", arguments: [true, false])
-    func signingPreservesExternalTransaction(hasPayerSignature: Bool) async throws {
+    @Test(arguments: [true, false])
+    func `A wallet cosigner preserves supplied bytes and existing signatures`(hasPayerSignature: Bool) async throws {
         let expected = try ExternalFixture.preparation(hasPayerSignature: hasPayerSignature)
         let recovery = try SigningFixture().recovery
         let preparationHTTP = try HTTPResponses.preparation(fixture: expected)
@@ -56,10 +56,10 @@ struct ExternalTransactionTests {
     /// Verifies malformed authority cannot reach provider work or produce a review.
     ///
     /// - Parameter condition: The invalid signer role or existing signature.
-    @Test("unrelated signers and invalid or occupied signature slots cannot enter review", arguments: [
+    @Test(arguments: [
         "unrelated account", "occupied slot", "invalid cosigner"
     ])
-    func invalidSignaturesStopPreparation(_ condition: String) async throws {
+    func `Unrelated signers and invalid or occupied signature slots cannot enter review`(_ condition: String) async throws {
         let expected = try ExternalFixture.preparation()
         let http = try HTTPResponses.preparation(fixture: expected)
         var input = expected.bytes
@@ -85,8 +85,8 @@ struct ExternalTransactionTests {
     /// Verifies displayed instruction and account metadata must match the exact signed bytes.
     ///
     /// - Parameter field: The decoded field altered independently of its message.
-    @Test("altered external inspection details cannot unlock recovery", arguments: ["instructions", "privileges", "lifetime"])
-    func alteredInspectionCannotUnlockRecovery(_ field: String) async throws {
+    @Test(arguments: ["instructions", "privileges", "lifetime"])
+    func `Altered external inspection details cannot unlock recovery`(_ field: String) async throws {
         let expected = try ExternalFixture.preparation()
         let original = expected.transaction
         var accounts = original.accounts
@@ -115,10 +115,10 @@ struct ExternalTransactionTests {
     /// Verifies unknown, expired, or stale blockhash observations cannot reach the wallet signer.
     ///
     /// - Parameter stage: The point at which the supplied blockhash becomes unusable.
-    @Test("an unavailable external blockhash stops signing without substitution", arguments: [
+    @Test(arguments: [
         "preparation", "before authentication", "during authentication", "stale context"
     ])
-    func invalidBlockhashPreventsSigning(_ stage: String) async throws {
+    func `An unavailable external blockhash stops signing without substitution`(_ stage: String) async throws {
         let expected = try ExternalFixture.preparation()
         let preparationHTTP = try HTTPResponses.preparation(fixture: expected, blockhashValid: stage != "preparation")
         let signingHTTP = try HTTPResponses.signing(fee: 15_000, validities: stage == "during authentication" ? [true, false] : [stage == "stale context"],

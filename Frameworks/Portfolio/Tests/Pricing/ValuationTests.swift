@@ -11,7 +11,7 @@ struct ValuationTests {
     ///   - price: The price of one whole token in the provider's currency.
     ///   - total: The expected total, or `nil` when it cannot be represented exactly.
     /// - Throws: A pricing or test prerequisite error.
-    @Test("valuation preserves decimal precision and never invents unrepresentable totals", arguments: [
+    @Test(arguments: [
         (Amount(units: .max, decimals: 6), Decimal(string: "0.1")!, Decimal(string: "1844674407370.9551615")),
         (Amount(units: 1, decimals: 9), Decimal(string: "123.456789")!, Decimal(string: "0.000000123456789")),
         (Amount(units: 0, decimals: .max), Decimal(10), Decimal(0)),
@@ -20,7 +20,7 @@ struct ValuationTests {
         (Amount(units: .max, decimals: 0), Decimal.greatestFiniteMagnitude, nil),
         (nil, Decimal(10), nil),
     ])
-    func preservesDecimalTotals(amount: Amount?, price: Decimal, total: Decimal?) async throws {
+    func `Valuation preserves decimal precision and never invents unrepresentable totals`(amount: Amount?, price: Decimal, total: Decimal?) async throws {
         let retrieved = Date(timeIntervalSince1970: 20)
         let quote = Quote(pricePerUnit: price, currency: "CAD", fetchedAt: retrieved)
         let snapshot = Snapshot(owner: "wallet", network: .devnet, holdings: [
@@ -37,13 +37,13 @@ struct ValuationTests {
 
     /// Verifies malformed normalized quotes cannot enter cached portfolio values.
     /// - Parameter quote: A quote violating the provider-neutral value contract.
-    @Test("invalid independent quotes fail valuation", arguments: [
+    @Test(arguments: [
         Quote(pricePerUnit: -1, currency: "USD", fetchedAt: .now),
         Quote(pricePerUnit: .nan, currency: "USD", fetchedAt: .now),
         Quote(pricePerUnit: 1, currency: " ", fetchedAt: .now),
         Quote(pricePerUnit: 1, currency: "USD", fetchedAt: Date(timeIntervalSince1970: .infinity)),
     ])
-    func rejectsInvalidQuotes(quote: Quote) async {
+    func `Invalid independent quotes fail valuation`(quote: Quote) async {
         let snapshot = Snapshot(owner: "wallet", network: .devnet, holdings: [
             Holding(id: .asset("mint"), amount: nil, name: nil, symbol: nil, imageURL: nil, valuation: nil),
         ], fetchedAt: .distantPast, lastIndexedSlot: nil)

@@ -10,8 +10,8 @@ import Wallet
 /// Verifies review-to-signature boundaries through the internal signing service.
 struct SigningTests {
     /// Verifies the real wallet signs reviewed bytes using the stored passphrase and selected account index.
-    @Test("an authenticated wallet signs the reviewed message at its last valid block height")
-    func signingPreservesReviewedMessage() async throws {
+    @Test
+    func `An authenticated wallet signs the reviewed message at its last valid block height`() async throws {
         let fixture = try SigningFixture()
         let http = try HTTPResponses.signing(heights: [550, 550])
         let store = SigningRecoveryStore(recovery: fixture.recovery)
@@ -55,10 +55,10 @@ struct SigningTests {
     /// Verifies changing either review metadata or encoded bytes cannot reach recovery access.
     ///
     /// - Parameter changed: The part of the preparation altered after simulation.
-    @Test("altered transfer details cannot unlock a wallet for a different message", arguments: [
+    @Test(arguments: [
         "amount", "recipient", "priority fee", "message"
     ])
-    func changedReviewCannotUnlockWallet(_ changed: String) async throws {
+    func `Altered transfer details cannot unlock a wallet for a different message`(_ changed: String) async throws {
         var fixture = try SigningFixture()
         switch changed {
         case "amount":
@@ -86,10 +86,10 @@ struct SigningTests {
     /// Verifies incomplete or conflicting observations cannot authorize recovery access.
     ///
     /// - Parameter condition: The invalid observation presented for signing.
-    @Test("failed or inconsistent review results cannot unlock recovery", arguments: [
+    @Test(arguments: [
         "failed simulation", "unknown fee", "conflicting fee", "replacement blockhash", "stale context", "understated fee"
     ])
-    func invalidReviewCannotUnlockRecovery(_ condition: String) async throws {
+    func `Failed or inconsistent review results cannot unlock recovery`(_ condition: String) async throws {
         var fixture = try SigningFixture()
         var expected = PreparationValidator.Failure.inconsistentPreparation
         var error: TransactionError?
@@ -125,8 +125,8 @@ struct SigningTests {
     }
 
     /// Verifies a provider switch cannot sign a preparation made on another network.
-    @Test("a network mismatch rejects signing before wallet access")
-    func networkMismatchRejectsSigning() async throws {
+    @Test
+    func `A network mismatch rejects signing before wallet access`() async throws {
         var fixture = try SigningFixture()
         fixture.network = .mainnet
         let http = try HTTPResponses.signing()
@@ -144,8 +144,8 @@ struct SigningTests {
     /// Verifies expiry before or during authentication never reaches the message signer.
     ///
     /// - Parameter expiresDuringAuthentication: Whether the first expiry check still passes.
-    @Test("expired preparations never reach the message signer", arguments: [false, true])
-    func expiredPreparationsNeverReachSigner(expiresDuringAuthentication: Bool) async throws {
+    @Test(arguments: [false, true])
+    func `Expired preparations never reach the message signer`(expiresDuringAuthentication: Bool) async throws {
         let fixture = try SigningFixture()
         let http = try HTTPResponses.signing(heights: expiresDuringAuthentication ? [500, 551] : [551])
         let store = SigningRecoveryStore(recovery: fixture.recovery)
@@ -163,8 +163,8 @@ struct SigningTests {
     /// Verifies changed or unavailable fees require another review before authentication.
     ///
     /// - Parameter fee: The fee now reported by the provider.
-    @Test("a changed network fee requires another review before unlocking", arguments: [UInt64(11_000), nil])
-    func changedFeeRequiresReview(_ fee: UInt64?) async throws {
+    @Test(arguments: [UInt64(11_000), nil])
+    func `A changed network fee requires another review before unlocking`(_ fee: UInt64?) async throws {
         let fixture = try SigningFixture()
         let http = try HTTPResponses.signing(fee: fee)
         let store = SigningRecoveryStore(recovery: fixture.recovery)
@@ -179,8 +179,8 @@ struct SigningTests {
     }
 
     /// Verifies a failed biometric read cannot fall through to signing.
-    @Test("denied wallet authentication prevents message signing")
-    func deniedAuthenticationPreventsSigning() async throws {
+    @Test
+    func `Denied wallet authentication prevents message signing`() async throws {
         let fixture = try SigningFixture()
         let store = SigningRecoveryStore(recovery: fixture.recovery, failure: .authenticationFailed)
         let wallet = RecordingWallet()
@@ -195,8 +195,8 @@ struct SigningTests {
     }
 
     /// Verifies the reviewed sender, rather than a recovered substitute, reaches the actual wallet.
-    @Test("recovery for another account cannot sign the reviewed sender's transfer")
-    func anotherAccountCannotSignTransfer() async throws {
+    @Test
+    func `Recovery for another account cannot sign the reviewed sender's transfer`() async throws {
         let fixture = try SigningFixture()
         let otherAccount = Recovery(phrase: fixture.recovery.phrase, passphrase: "")
         let store = SigningRecoveryStore(recovery: otherAccount)
@@ -208,8 +208,8 @@ struct SigningTests {
     }
 
     /// Verifies late recovery cannot produce a signature after the calling task is cancelled.
-    @Test("cancelling authentication discards late recovery without signing", .timeLimit(.minutes(1)))
-    func cancellationDiscardsLateRecovery() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `Cancelling authentication discards late recovery without signing`() async throws {
         let fixture = try SigningFixture()
         let gate = Suspension()
         let store = SigningRecoveryStore(recovery: fixture.recovery, gate: gate)

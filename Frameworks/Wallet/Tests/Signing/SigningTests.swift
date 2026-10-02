@@ -12,13 +12,13 @@ struct SigningTests {
     ///   - path: The public fixture's account path.
     ///   - address: The independently derived Base58 public key.
     ///   - publicKey: The same public key encoded with Base64 by Node Web Crypto.
-    @Test("recovered accounts sign the exact supplied bytes", arguments: [
+    @Test(arguments: [
         ("", "m/44'/501'/0'/0'", "HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk",
          "8DYnYkanW53jNJ7UKxXiMvZRj8IPX81PHWToH5vSWPc="),
         ("TREZOR", "m/44'/501'/1'/0'", "8CW93AFYFKj2rKZRq3YjLesb4XbgtAiq8k2FgfruVZL5",
          "avQk/DwMx04ex+GYBKContNRuDzLEt0PObiUpqRJYxI=")
     ])
-    func recoveredAccountsSignExactBytes(passphrase: String, path: String, address: String, publicKey: String) async throws {
+    func `Recovered accounts sign the exact supplied bytes`(passphrase: String, path: String, address: String, publicKey: String) async throws {
         let signer: any MessageSigning = Wallet()
         let message = Data("public signing fixture".utf8)
         let signature = try await signer.signature(
@@ -32,8 +32,8 @@ struct SigningTests {
     }
 
     /// Verifies selecting the wrong recovered account cannot return a signature.
-    @Test("signing rejects recovery material for another sender")
-    func signingRejectsAnotherSender() async throws {
+    @Test
+    func `Signing rejects recovery material for another sender`() async throws {
         let recovery = try phrase()
 
         await #expect(throws: SigningError.signerMismatch) {
@@ -46,8 +46,8 @@ struct SigningTests {
     }
 
     /// Verifies Swift's canonical String equality cannot admit a non-ASCII sender.
-    @Test("signing rejects a Unicode lookalike in the sender address")
-    func signingRejectsUnicodeLookalikeSender() async throws {
+    @Test
+    func `Signing rejects a Unicode lookalike in the sender address`() async throws {
         let recovery = try phrase()
         let address = "HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3D\u{212A}pqk"
 
@@ -58,8 +58,8 @@ struct SigningTests {
     }
 
     /// Verifies cancellation prevents signature delivery without relying on task scheduling.
-    @Test("cancelled signing throws CancellationError")
-    func cancelledSigningThrowsCancellationError() async throws {
+    @Test
+    func `Cancelled signing throws CancellationError`() async throws {
         let recovery = try phrase()
         let (gate, continuation) = AsyncStream<Void>.makeStream()
         let task = Task { @concurrent in

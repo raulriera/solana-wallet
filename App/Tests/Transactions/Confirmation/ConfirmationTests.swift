@@ -10,8 +10,8 @@ struct ConfirmationTests {
     /// Verifies missing and provisional statuses don't produce a successful confirmation.
     ///
     /// - Parameter commitment: A commitment level sufficient to complete observation.
-    @Test("confirmation waits for confirmed or finalized execution", arguments: [Commitment.confirmed, .finalized])
-    func confirmationWaitsForExecution(_ commitment: Commitment) async throws {
+    @Test(arguments: [Commitment.confirmed, .finalized])
+    func `Confirmation waits for confirmed or finalized execution`(_ commitment: Commitment) async throws {
         let http = try HTTPResponses.confirmation(responses: [response(nil), response(status(.processed)),
                                               response(status(nil)), response(status(commitment))])
         let confirmation = try await Confirmer(rpc: http.client, clock: pollingClock()).confirm(submission)
@@ -28,8 +28,8 @@ struct ConfirmationTests {
     }
 
     /// Verifies an execution failure retains its details only once its fork is confirmed.
-    @Test("confirmed execution failures retain instruction details")
-    func executionFailuresRetainDetails() async throws {
+    @Test
+    func `Confirmed execution failures retain instruction details`() async throws {
         let error = TransactionError(name: "InstructionError", details: .array([.integer(1), .object(["Custom": .integer(6001)])]))
         let http = try HTTPResponses.confirmation(responses: [response(status(.processed, error: error)),
                                               response(status(.confirmed, error: error))])
@@ -45,8 +45,8 @@ struct ConfirmationTests {
     /// Verifies malformed positional or ledger observations cannot become confirmations.
     ///
     /// - Parameter kind: The malformed response shape or context.
-    @Test("inconsistent status responses cannot confirm a transaction", arguments: ["empty", "extra status", "future slot"])
-    func inconsistentResponsesAreRejected(_ kind: String) async throws {
+    @Test(arguments: ["empty", "extra status", "future slot"])
+    func `Inconsistent status responses cannot confirm a transaction`(_ kind: String) async throws {
         let values: [GetSignatureStatuses.Status?] = kind == "empty" ? [] : kind == "extra status"
             ? [status(.confirmed), nil] : [status(.confirmed)]
         let http = try HTTPResponses.confirmation(responses: [.init(context: Context(slot: kind == "future slot" ? 404 : 406), value: values)])
@@ -59,8 +59,8 @@ struct ConfirmationTests {
     }
 
     /// Verifies observing another network never sends the signature to the provider.
-    @Test("confirmation rejects another network before requesting status")
-    func anotherNetworkIsRejected() async throws {
+    @Test
+    func `Confirmation rejects another network before requesting status`() async throws {
         let http = try HTTPResponses.confirmation(responses: [])
 
         await #expect(throws: Confirmer.Failure.networkMismatch) {
@@ -73,10 +73,10 @@ struct ConfirmationTests {
     /// Verifies a failed lookup remains an observation error without an automatic retry.
     ///
     /// - Parameter failure: The transport or rate-limit error from the provider.
-    @Test("status lookup failures preserve provider diagnostics without retrying", arguments: [
+    @Test(arguments: [
         RPCError.transport(.timedOut), .http(statusCode: 429, retryAfter: "3")
     ])
-    func lookupFailuresDoNotRetry(_ failure: RPCError) async throws {
+    func `Status lookup failures preserve provider diagnostics without retrying`(_ failure: RPCError) async throws {
         let http = try HTTPResponses.confirmation(responses: [], failure: failure)
 
         await #expect(throws: failure) {
@@ -87,8 +87,8 @@ struct ConfirmationTests {
     }
 
     /// Verifies the deadline cancels an in-flight request without fabricating an execution failure.
-    @Test("confirmation timeout cancels pending status work and leaves the outcome unknown", .timeLimit(.minutes(1)))
-    func timeoutCancelsPendingWork() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `Confirmation timeout cancels pending status work and leaves the outcome unknown`() async throws {
         let pending = Suspension()
         let http = try HTTPResponses.confirmation(responses: [response(status(.confirmed))], gate: pending)
         let clock = ControlledClock { duration in
@@ -107,8 +107,8 @@ struct ConfirmationTests {
     /// Verifies cancellation reaches either the pending RPC or the interval between queries.
     ///
     /// - Parameter duringRequest: Whether the task is cancelled during a request or a poll delay.
-    @Test("cancelling confirmation stops requests and polling delays", .timeLimit(.minutes(1)), arguments: [true, false])
-    func cancellationStopsObservation(duringRequest: Bool) async throws {
+    @Test(.timeLimit(.minutes(1)), arguments: [true, false])
+    func `Cancelling confirmation stops requests and polling delays`(duringRequest: Bool) async throws {
         let pending = Suspension()
         let deadline = Suspension()
         let http = try HTTPResponses.confirmation(responses: [response(duringRequest ? status(.confirmed) : nil)],

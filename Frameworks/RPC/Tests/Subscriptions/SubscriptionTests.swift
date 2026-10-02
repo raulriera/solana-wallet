@@ -5,8 +5,8 @@ import Testing
 /// Verifies provider-owned subscriptions with controlled WebSocket frames.
 struct SubscriptionTests {
     /// Verifies an abandoned stream releases its reader and keep-alive task without explicit cancellation.
-    @Test("discarding an unconsumed subscription closes its connection", .timeLimit(.minutes(1)))
-    func discardingStreamClosesConnection() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `Discarding an unconsumed subscription closes its connection`() async throws {
         let socket = SocketFixture()
         defer { socket.cancel() }
         _ = try await client(socket: socket).changedSlots(for: "wallet")
@@ -16,8 +16,8 @@ struct SubscriptionTests {
 
     /// Verifies both concrete providers use the standard confirmed filters and decode the same events.
     /// - Parameter helius: Whether to exercise Helius or the public Solana client.
-    @Test("wallet subscriptions cover SOL and both token programs at confirmed", .timeLimit(.minutes(1)), arguments: [false, true])
-    func watchesConfirmedAccounts(helius: Bool) async throws {
+    @Test(.timeLimit(.minutes(1)), arguments: [false, true])
+    func `Wallet subscriptions cover SOL and both token programs at confirmed`(helius: Bool) async throws {
         let socket = SocketFixture()
         let source = client(socket: socket, helius: helius)
         let slots = try await source.changedSlots(for: "wallet")
@@ -55,8 +55,8 @@ struct SubscriptionTests {
     }
 
     /// Verifies account notifications received before all acknowledgments aren't lost.
-    @Test("subscription setup retains early notifications", .timeLimit(.minutes(1)))
-    func keepsSetupNotifications() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `Subscription setup retains early notifications`() async throws {
         let socket = SocketFixture { data, ordinal in
             let body = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
             let id = try #require(body["id"] as? String)
@@ -76,8 +76,8 @@ struct SubscriptionTests {
     }
 
     /// Verifies decoder errors for another subscription stop the stream without retrying.
-    @Test("unrelated subscription IDs terminate the stream", .timeLimit(.minutes(1)))
-    func rejectsOtherSubscriptions() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `Unrelated subscription IDs terminate the stream`() async throws {
         let socket = SocketFixture()
         let stream = try await client(socket: socket).changedSlots(for: "wallet")
         socket.notify(slot: 7, subscription: 999)
@@ -88,8 +88,8 @@ struct SubscriptionTests {
     }
 
     /// Verifies provider credentials in a null-ID server error never reach consumers.
-    @Test("subscription server errors preserve codes and redact credentials")
-    func sanitizesSetupErrors() async {
+    @Test
+    func `Subscription server errors preserve codes and redact credentials`() async {
         let socket = SocketFixture { _, _ in
             [Data(#"{"jsonrpc":"2.0","id":null,"error":{"code":429,"message":"fixture-key limited"}}"#.utf8)]
         }
@@ -101,8 +101,8 @@ struct SubscriptionTests {
     }
 
     /// Verifies a lost socket surfaces its transport code without leaking endpoint diagnostics or reconnecting.
-    @Test("subscription disconnects end the stream without reconnecting", .timeLimit(.minutes(1)))
-    func surfacesDisconnects() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `Subscription disconnects end the stream without reconnecting`() async throws {
         let socket = SocketFixture()
         let stream = try await client(socket: socket).changedSlots(for: "wallet")
         socket.fail(URLError(.networkConnectionLost, userInfo: [NSLocalizedDescriptionKey: "fixture-key"]))
@@ -113,8 +113,8 @@ struct SubscriptionTests {
     }
 
     /// Verifies cancellation while waiting for an acknowledgment promptly closes the socket.
-    @Test("cancelling subscription setup closes its connection", .timeLimit(.minutes(1)))
-    func cancelsSetup() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `Cancelling subscription setup closes its connection`() async throws {
         let socket = SocketFixture { _, _ in [] }
         let task = Task { try await client(socket: socket).changedSlots(for: "wallet") }
         defer { task.cancel() }

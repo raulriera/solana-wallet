@@ -5,8 +5,8 @@ import Testing
 /// Verifies the rent request's wire contract and real devnet rejection behavior.
 struct RentTests {
     /// Verifies rent is queried for the specified size and explicit commitment only.
-    @Test("rent queries encode the allocation size and confirmed commitment")
-    func rentQueriesEncodeAllocationSize() throws {
+    @Test
+    func `Rent queries encode the allocation size and confirmed commitment`() throws {
         let request = GetMinimumBalanceForRentExemption(dataLength: 182)
         let parameters = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(request)) as? [Any])
 
@@ -17,8 +17,8 @@ struct RentTests {
     }
 
     /// Verifies an impossible allocation is surfaced as the node's error, never a zero deposit.
-    @Test("devnet rejects rent queries for an impossible allocation", .timeLimit(.minutes(1)))
-    func impossibleAllocationIsRejected() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `Devnet rejects rent queries for an impossible allocation`() async throws {
         let rpc = Solana(network: .devnet)
 
         await #expect {

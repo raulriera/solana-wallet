@@ -9,11 +9,11 @@ struct MessageBuilderTests {
     /// - Parameters:
     ///   - tipLamports: The service tip encoded after the ordinary payment.
     ///   - expectedMessage: The independently encoded unsigned V1 message.
-    @Test("SOL transfers preserve the payment and separate service tip", arguments: [
+    @Test(arguments: [
         (UInt64(5_000), "gQEAAQ8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIEMhz6Wt0YXoiTpf2IAT7E1+Ei3tRjVMrf9Q2VY5XnW2Au7nuJKk74pEqr+XDMDjfq9yZ2dRcMHWmc0xJ0SWxUP36MCIdgv94d3c8ywX8gm4JC7lKq8TH6zYjQ6ixtCwbyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACIEwAAAAAAACBOAAAAAAEAAwIMAAMCDAAAAgIAAABAQg8AAAAAAAABAgAAAIgTAAAAAAAA"),
         (UInt64(1_000_000), "gQEAAQ8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIEMhz6Wt0YXoiTpf2IAT7E1+Ei3tRjVMrf9Q2VY5XnW2Au7nuJKk74pEqr+XDMDjfq9yZ2dRcMHWmc0xJ0SWxUP36MCIdgv94d3c8ywX8gm4JC7lKq8TH6zYjQ6ixtCwbyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACIEwAAAAAAACBOAAAAAAEAAwIMAAMCDAAAAgIAAABAQg8AAAAAAAABAgAAAEBCDwAAAAAA"),
     ])
-    func transfersPreservePaymentAndTip(tipLamports: UInt64, expectedMessage: String) throws {
+    func `SOL transfers preserve the payment and separate service tip`(tipLamports: UInt64, expectedMessage: String) throws {
         let sender = try Address(MessageFixture.sender)
         let transfer = try SystemProgram.transfer(from: sender, to: Address(MessageFixture.recipient), lamports: 1_000_000)
         let tip = try SystemProgram.transfer(from: sender, to: Address("4ACfpUFoaSD9bfPdeu6DBt89gB6ENTeHBXCAi87NhDEE"),
@@ -40,8 +40,8 @@ struct MessageBuilderTests {
     }
 
     /// Verifies an empty composition cannot produce a wallet transaction.
-    @Test("empty instruction compositions are rejected")
-    func emptyCompositionsAreRejected() throws {
+    @Test
+    func `Empty instruction compositions are rejected`() throws {
         #expect(throws: ValidationError.invalidMessage) {
             try MessageBuilder().message(instructions: [], payer: Address(MessageFixture.sender),
                 recentBlockhash: MessageFixture.zeroBlockhash, configuration: MessageFixture.transfers[0].configuration())
@@ -51,8 +51,8 @@ struct MessageBuilderTests {
     /// Verifies V1 headers, accounts, configuration, and transfer data as a complete message.
     ///
     /// - Parameter fixture: A public example generated with Solana Kit 8.0.0.
-    @Test("SOL transfers match Solana SDK V1 message bytes", arguments: MessageFixture.transfers)
-    func transfersMatchSolanaMessages(_ fixture: MessageFixture) throws {
+    @Test(arguments: MessageFixture.transfers)
+    func `SOL transfers match Solana SDK V1 message bytes`(_ fixture: MessageFixture) throws {
         let builder: any MessageBuilding = MessageBuilder()
         let transfer = try SystemProgram.transfer(from: Address(MessageFixture.sender), to: Address(MessageFixture.recipient), lamports: fixture.lamports)
         let message = try builder.message(instructions: [transfer], payer: transfer.accounts[0].address, recentBlockhash: fixture.blockhash,
@@ -62,8 +62,8 @@ struct MessageBuilderTests {
     }
 
     /// Verifies account deduplication and lossless encoding of UInt64 amounts and fees.
-    @Test("self transfers reuse the signer and preserve maximum lamport values")
-    func selfTransfersReuseSignerAndPreserveMaximumLamports() throws {
+    @Test
+    func `Self transfers reuse the signer and preserve maximum lamport values`() throws {
         let fixture = MessageFixture.selfTransfer
         let sender = try Address(MessageFixture.sender)
         let transfer = try SystemProgram.transfer(from: sender, to: sender, lamports: fixture.lamports)
@@ -74,8 +74,8 @@ struct MessageBuilderTests {
     }
 
     /// Verifies malformed blockhashes fail before message bytes are returned.
-    @Test("message construction rejects an invalid recent blockhash")
-    func messageConstructionRejectsInvalidBlockhash() throws {
+    @Test
+    func `Message construction rejects an invalid recent blockhash`() throws {
         let transfer = try SystemProgram.transfer(from: Address(MessageFixture.sender), to: Address(MessageFixture.recipient), lamports: 1)
         let configuration = try MessageFixture.transfers[0].configuration()
 

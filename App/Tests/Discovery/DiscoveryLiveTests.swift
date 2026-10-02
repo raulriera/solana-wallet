@@ -9,8 +9,8 @@ extension SubmissionTests {
     /// Verifies SOL-funded recovery is found and the retained zero-SOL recipient is ignored.
     ///
     /// Each discovery performs one read-only lookup. No transfers, token setup, or funding are needed.
-    @Test("devnet SOL discovery finds funded accounts and ignores zero-SOL accounts", .timeLimit(.minutes(1)))
-    func discoversSOLAccounts() async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `Devnet SOL discovery finds funded accounts and ignores zero-SOL accounts`() async throws {
         let rpcs = try devnetRPCs()
         let sender = try await DevnetWallets.address(for: DevnetWallets.senderID)
         let recipient = try await DevnetWallets.address(for: DevnetWallets.recipientID)
