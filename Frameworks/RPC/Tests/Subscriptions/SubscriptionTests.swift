@@ -21,11 +21,12 @@ struct SubscriptionTests {
         let socket = SocketFixture()
         let source = client(socket: socket, helius: helius)
         let slots = try await source.changedSlots(for: "wallet")
-        #expect(socket.requests.count == 3)
+        try #require(socket.requests.count == 3)
         let bodies = try socket.requests.map { try #require(JSONSerialization.jsonObject(with: $0) as? [String: Any]) }
         #expect(bodies.map { $0["method"] as? String } == ["accountSubscribe", "programSubscribe", "programSubscribe"])
         for (index, body) in bodies.enumerated() {
             let params = try #require(body["params"] as? [Any])
+            try #require(params.count == 2)
             let options = try #require(params[1] as? [String: Any])
             #expect(options["commitment"] as? String == "confirmed")
             if index == 0 { #expect(params[0] as? String == "wallet") }

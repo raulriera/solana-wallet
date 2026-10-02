@@ -108,10 +108,11 @@ struct TokenTransferTests {
         let message = try MessageBuilder().message(instructions: transfer.instructions(), payer: transfer.sender, recentBlockhash: MessageFixture.zeroBlockhash,
                                                    configuration: configuration())
         let result = try TransactionDecoder().decode(TransactionBuilder().simulationTransaction(for: message))
-        #expect(result.instructions.count == 2)
+        try #require(result.instructions.count == 2)
         #expect(result.instructions[0].data == Data("Invoice 42".utf8))
         #expect(result.accounts[result.instructions[0].programIndex].address.value == "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr")
-        #expect(result.accounts[result.instructions[0].accountIndices[0]].isSigner)
+        let memoSigner = try #require(result.instructions[0].accountIndices.first)
+        #expect(result.accounts[memoSigner].isSigner)
         #expect(result.instructions[1].data.first == 12)
     }
 

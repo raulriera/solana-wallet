@@ -17,7 +17,7 @@ struct AccountReadTests {
         #expect(account.lamports == UInt64.max)
         #expect(account.owner == "token-program")
         #expect(!account.executable)
-        #expect(result.value.count == 2)
+        try #require(result.value.count == 2)
         #expect(result.value[1] == nil)
         #expect(result.context.slot == 402)
         let body = try requestBody(#require(await transport.requests.first))
