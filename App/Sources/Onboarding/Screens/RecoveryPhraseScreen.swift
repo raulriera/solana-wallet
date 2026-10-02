@@ -44,7 +44,8 @@ struct RecoveryPhraseScreen: View {
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
-            .foregroundStyle(palette.onAccent)
+            .tint(palette.primaryText)
+            .foregroundStyle(palette.background)
             .padding(.horizontal)
             .padding(.vertical, 8)
             .padding(.horizontal, contentInset)

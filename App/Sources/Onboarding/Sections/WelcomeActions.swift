@@ -13,7 +13,7 @@ struct WelcomeActions: View {
                     .frame(maxWidth: .infinity, minHeight: 44)
             }
             .buttonStyle(.borderedProminent)
-            .foregroundStyle(palette.onAccent)
+            .foregroundStyle(palette.background)
 
             Button(action: importWallet) {
                 Text("Import Wallet")
@@ -22,5 +22,6 @@ struct WelcomeActions: View {
             .buttonStyle(.bordered)
         }
         .controlSize(.large)
+        .tint(palette.primaryText)
     }
 }
