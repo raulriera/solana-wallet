@@ -40,12 +40,6 @@ import Themes
     /// Whether an action may start, checked at interaction time without changing control appearance.
     var canStartOperation: Bool { operation == nil && export == nil && replacement == nil }
 
-    /// Loads current metadata and applies external Settings recovery.
-    func activate() async {
-        do { try await appearance.activate() }
-        catch { report(error) }
-    }
-
     /// Saves before publishing a checkmark or changing any window's appearance.
     /// - Parameters:
     ///   - id: A selected theme, or `nil` for inheritance.
@@ -137,8 +131,8 @@ import Themes
         guard !Task.isCancelled, !(error is CancellationError),
               !(cocoaError.domain == NSCocoaErrorDomain && cocoaError.code == NSUserCancelledError) else { return }
         switch error {
-        case ThemeCatalog.Failure.builtInTheme: failure = "Built-in themes cannot be replaced or removed."
-        case ThemeCatalog.Failure.changed: failure = "This theme changed in another window. Try again."
+        case ThemeCatalog.Failure.builtInTheme: failure = String(localized: "Built-in themes cannot be replaced or removed.")
+        case ThemeCatalog.Failure.changed: failure = String(localized: "This theme changed in another window. Try again.")
         default: failure = error.localizedDescription
         }
     }

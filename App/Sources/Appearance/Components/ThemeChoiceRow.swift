@@ -2,30 +2,33 @@ import SwiftUI
 
 /// One accessible theme choice with an independent SwiftUI update boundary.
 struct ThemeChoiceRow: View {
+    @Environment(\.palette) private var palette
     let themeID: UUID?
-    let name: String
+    /// The package's unchanged name, or `nil` for the localized inheritance choice.
+    let name: String?
     let isSelected: Bool
     let scope: AppearancePreferences.Scope
-    let primaryText: Color
-    let accent: Color
-    let surface: Color
-    let separator: Color
     let actions: any ThemeActions
 
     var body: some View {
         Button(action: select) {
             HStack {
-                Text(name).foregroundStyle(primaryText)
+                if let name {
+                    Text(name)
+                } else {
+                    Text("Use App Default")
+                }
                 Spacer()
                 if isSelected {
-                    Image(systemName: "checkmark").foregroundStyle(accent).accessibilityHidden(true)
+                    Image(systemName: "checkmark").foregroundStyle(palette.accent).accessibilityHidden(true)
                 }
             }
+            .foregroundStyle(palette.primaryText)
             .frame(minHeight: 44)
             .contentShape(.rect)
         }
-        .listRowBackground(surface)
-        .listRowSeparatorTint(separator)
+        .listRowBackground(palette.surface)
+        .listRowSeparatorTint(palette.separator)
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 

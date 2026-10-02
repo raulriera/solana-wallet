@@ -4,14 +4,12 @@ import SwiftUI
 struct ThemeSelectionSection: View {
     let entries: [ThemeEntry]
     let selection: UUID
-    let palettes: any PaletteProviding
     let actions: any ThemeActions
 
     var body: some View {
         Section("App Theme") {
             ForEach(entries) { entry in
-                ThemeRow(entry: entry, isSelected: selection == entry.id,
-                         palettes: palettes, actions: actions)
+                ThemeRow(entry: entry, isSelected: selection == entry.id, actions: actions)
             }
         }
     }

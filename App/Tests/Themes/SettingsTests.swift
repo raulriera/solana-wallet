@@ -33,7 +33,7 @@ struct AppearanceSettingsTests {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let settings = try makeSettings(fixture)
-        await settings.activate()
+        try await settings.appearance.activate()
         settings.importPack(from: try fixture.source(name: "Imported"))
         await settings.waitForOperation()
         #expect(settings.failure == nil)

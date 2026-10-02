@@ -2,38 +2,33 @@ import SwiftUI
 
 /// Composes appearance settings from independently updating sections.
 struct AppearanceView: View {
-    @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.palette) private var palette
     let settings: AppearanceSettings
     let wallet: AppearanceWallet?
-    let palettes: any PaletteProviding
 
-    private var palette: RenderedPalette { palettes.palette(scheme: colorScheme, contrast: contrast) }
-
-    private var walletThemeName: String {
+    private var walletThemeName: String? {
         let snapshot = settings.appearance.snapshot
         return wallet.flatMap { snapshot?.preferences.walletThemeIDs[$0.id] }
-            .flatMap { snapshot?.entries[$0]?.name } ?? "Use App Default"
+            .flatMap { snapshot?.entries[$0]?.name }
     }
 
     var body: some View {
         Form {
             ThemeSelectionSection(entries: settings.entries,
                                   selection: settings.appearance.snapshot?.preferences.appThemeID ?? OriginalAppearance.id,
-                                  palettes: palettes, actions: settings)
+                                  actions: settings)
             if let wallet {
-                WalletThemeSection(wallet: wallet, themeName: walletThemeName, palette: palette)
+                WalletThemeSection(wallet: wallet, themeName: walletThemeName)
             }
-            ThemePacksSection(settings: settings, palette: palette)
+            ThemePacksSection(settings: settings)
         }
         .animation(.default, value: settings.entryIDs)
         .navigationTitle("Appearance")
         .navigationDestination(for: AppearancePreferences.Scope.self) { scope in
             ThemeChooser(entries: settings.entries, entryIDs: settings.entryIDs, scope: scope, selection: selection(for: scope),
-                         palette: palette, actions: settings)
+                         actions: settings)
         }
         .foregroundStyle(palette.primaryText, palette.secondaryText)
-        .tint(palette.accent)
         .scrollContentBackground(.hidden)
         .background(palette.background)
         .disabled(settings.appearance.snapshot == nil)

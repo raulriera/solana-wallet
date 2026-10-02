@@ -22,4 +22,10 @@ struct AppServices {
     func makeOnboardingCoordinator() -> any OnboardingCoordinating {
         OnboardingCoordinator(wallet: wallet, recovery: recovery, accounts: accounts)
     }
+
+    /// Assembles a preference-editing workflow around the app's shared appearance services.
+    /// - Returns: Independent operation and presentation state for the owning settings scene.
+    func makeAppearanceSettings() -> AppearanceSettings {
+        AppearanceSettings(appearance: appearance.appearance, catalog: appearance.catalog, packages: appearance.packages)
+    }
 }

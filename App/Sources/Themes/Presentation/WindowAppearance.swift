@@ -8,9 +8,10 @@ private struct WindowAppearance: ViewModifier {
     @State private var rendered = RenderedAppearance()
     @State private var failure: String?
     let services: AppearanceServices
+    let walletID: UUID?
 
     private var palette: RenderedPalette { rendered.palette(scheme: colorScheme, contrast: contrast) }
-    private var selectedTheme: ThemeEntry? { services.appearance.snapshot?.theme(for: nil) }
+    private var selectedTheme: ThemeEntry? { services.appearance.snapshot?.theme(for: walletID) }
 
     /// Installs this window's palette, tint, loading tasks, and error presentation.
     /// - Parameter content: The window's feature hierarchy.
@@ -47,9 +48,11 @@ private struct WindowAppearance: ViewModifier {
 
 extension View {
     /// Owns appearance once at a window's root and shares its colors with descendants.
-    /// - Parameter services: Shared appearance services, without window-specific rendered state.
+    /// - Parameters:
+    ///   - services: Shared appearance services, without window-specific rendered state.
+    ///   - walletID: The owning window's selected wallet, or `nil` to follow the app default.
     /// - Returns: A view with an independent appearance lifecycle.
-    func windowAppearance(services: AppearanceServices) -> some View {
-        modifier(WindowAppearance(services: services))
+    func windowAppearance(services: AppearanceServices, walletID: UUID? = nil) -> some View {
+        modifier(WindowAppearance(services: services, walletID: walletID))
     }
 }

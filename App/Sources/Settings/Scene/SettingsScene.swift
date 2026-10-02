@@ -1,36 +1,25 @@
 import SwiftUI
 
-/// Owns settings navigation, presentations, and rendered appearance for one window.
+/// Owns settings navigation and presentations within the window's appearance environment.
 struct SettingsScene: View {
-    @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.colorSchemeContrast) private var contrast
-    @State private var appearance: AppearanceSettings
-    @State private var rendered = RenderedAppearance()
+    @State private var settings: AppearanceSettings
     @State private var selection: SettingsDestination? = .appearance
     @State private var preferredColumn: NavigationSplitViewColumn = .detail
-    private let services: AppearanceServices
     let wallet: AppearanceWallet?
 
-    /// Creates scene-owned UI state using application-owned services.
+    /// Seeds this scene's independent preference-editing workflow once for its lifetime.
     ///
-    /// Services seed this scene's state once and must remain stable for its lifetime.
+    /// Appearance loading and rendering belong to the owning window's root.
     /// - Parameters:
-    ///   - services: Shared catalog, package operations, and preference snapshots.
+    ///   - settings: The workflow assembled for this scene, retained across view updates.
     ///   - wallet: The owning window's selected wallet, if one exists.
-    init(services: AppearanceServices, wallet: AppearanceWallet? = nil) {
-        self.services = services
+    init(settings: AppearanceSettings, wallet: AppearanceWallet? = nil) {
+        self.settings = settings
         self.wallet = wallet
-        _appearance = State(initialValue: AppearanceSettings(
-            appearance: services.appearance, catalog: services.catalog, packages: services.packages
-        ))
     }
 
-    private var palette: RenderedPalette { rendered.palette(scheme: colorScheme, contrast: contrast) }
-    private var selectedTheme: ThemeEntry? { services.appearance.snapshot?.theme(for: wallet?.id) }
-
     var body: some View {
-        @Bindable var appearance = appearance
+        @Bindable var settings = settings
 
         NavigationSplitView(preferredCompactColumn: $preferredColumn) {
             SettingsSidebar(selection: $selection)
@@ -39,24 +28,13 @@ struct SettingsScene: View {
             NavigationStack {
                 switch selection ?? .appearance {
                 case .appearance:
-                    AppearanceView(settings: appearance, wallet: wallet, palettes: rendered)
+                    AppearanceView(settings: settings, wallet: wallet)
                 }
             }
         }
-        .tint(palette.accent)
-        .task(id: scenePhase) {
-            if scenePhase == .active { await appearance.activate() }
-        }
-        .task(id: selectedTheme?.revision) { await loadSelectedTheme() }
-        .alert("Appearance Unavailable", item: $appearance.failure) { _ in
+        .alert("Appearance Unavailable", item: $settings.failure) { _ in
             Button("OK", role: .cancel) {}
         } message: { failure in Text(failure) }
-        .onDisappear { appearance.cancel() }
-    }
-
-    /// Refreshes cached window colors and reports failures through the native alert.
-    private func loadSelectedTheme() async {
-        do { try await rendered.load(selectedTheme, catalog: services.catalog, packages: services.packages) }
-        catch { appearance.report(error) }
+        .onDisappear { settings.cancel() }
     }
 }

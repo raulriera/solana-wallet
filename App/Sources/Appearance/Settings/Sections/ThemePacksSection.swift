@@ -3,8 +3,8 @@ import Themes
 
 /// Owns Files import and default-template export presentation.
 struct ThemePacksSection: View {
+    @Environment(\.palette) private var palette
     @Bindable var settings: AppearanceSettings
-    let palette: RenderedPalette
     @State private var isImporting = false
     @State private var isExporting = false
 

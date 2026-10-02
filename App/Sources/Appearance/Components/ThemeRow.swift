@@ -2,20 +2,14 @@ import SwiftUI
 
 /// An inline theme choice with confirmed swipe deletion for custom packs.
 struct ThemeRow: View {
-    @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.colorSchemeContrast) private var contrast
     let entry: ThemeEntry
     let isSelected: Bool
-    let palettes: any PaletteProviding
     let actions: any ThemeActions
     @State private var removal: ThemeEntry?
 
     var body: some View {
-        let palette = palettes.palette(scheme: colorScheme, contrast: contrast)
-
         ThemeChoiceRow(themeID: entry.id, name: entry.name, isSelected: isSelected, scope: .application,
-                       primaryText: palette.primaryText, accent: palette.accent, surface: palette.surface,
-                       separator: palette.separator, actions: actions)
+                       actions: actions)
             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                 if entry.origin == .custom {
                     // Only the confirmation commits deletion, so keep the row visible while asking.
