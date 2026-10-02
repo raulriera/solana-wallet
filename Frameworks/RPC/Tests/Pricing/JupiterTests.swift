@@ -76,8 +76,7 @@ struct JupiterTests {
         let source = Jupiter(transport: transport, pacer: RequestPacer(interval: .seconds(3), clock: clock))
         _ = try await source.prices(for: ["initial"])
         let copy = source
-        let operation = Task { try await copy.prices(for: (0..<51).map { "mint-\($0)" }) }
-        defer { operation.cancel() }
+        async let operation = copy.prices(for: (0..<51).map { "mint-\($0)" })
         var waits = clock.waits.makeAsyncIterator()
 
         let first = try #require(await waits.next())
@@ -88,7 +87,7 @@ struct JupiterTests {
         #expect(second == first.advanced(by: .seconds(3)))
         #expect(await transport.requests.count == 2)
         clock.advance(to: second)
-        _ = try await operation.value
+        _ = try await operation
 
         #expect(try await transport.requests.map { try requestedMints($0).count } == [1, 50, 1])
     }
@@ -110,11 +109,10 @@ struct JupiterTests {
         #expect(await transport.requests.count == 1)
 
         #expect(try await source.prices(for: []).isEmpty)
-        let next = Task { try await source.prices(for: ["next"]) }
-        defer { next.cancel() }
+        async let next = source.prices(for: ["next"])
         #expect(await waits.next() == deadline)
         clock.advance(to: deadline)
-        _ = try await next.value
+        _ = try await next
         #expect(await transport.requests.count == 2)
     }
 

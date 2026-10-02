@@ -10,9 +10,8 @@ struct RequestPacerTests {
         let startedAt = clock.now
         let pacer = RequestPacer(interval: .seconds(3), clock: clock)
         try await pacer.wait()
-        let first = Task { try await pacer.wait() }
-        let second = Task { try await pacer.wait() }
-        defer { first.cancel(); second.cancel() }
+        async let first: Void = pacer.wait()
+        async let second: Void = pacer.wait()
         var waits = clock.waits.makeAsyncIterator()
         let deadline = try #require(await waits.next())
         #expect(deadline == startedAt.advanced(by: .seconds(3)))
@@ -23,8 +22,8 @@ struct RequestPacerTests {
         #expect(next == deadline.advanced(by: .seconds(3)))
         clock.advance(to: next)
 
-        try await first.value
-        try await second.value
+        try await first
+        try await second
     }
 
     /// Verifies an idle provider admits one immediate request without saving unused slots.
@@ -36,13 +35,12 @@ struct RequestPacerTests {
         clock.advance(to: clock.now.advanced(by: .seconds(600)))
         try await pacer.wait()
         let resumedAt = clock.now
-        let next = Task { try await pacer.wait() }
-        defer { next.cancel() }
+        async let next: Void = pacer.wait()
         var waits = clock.waits.makeAsyncIterator()
         let deadline = try #require(await waits.next())
         #expect(deadline == resumedAt.advanced(by: .seconds(3)))
         clock.advance(to: deadline)
-        try await next.value
+        try await next
     }
 
     /// Verifies cancelled waiters exit promptly and leave the next slot available.
@@ -58,10 +56,9 @@ struct RequestPacerTests {
         cancelled.cancel()
         await #expect(throws: CancellationError.self) { try await cancelled.value }
 
-        let replacement = Task { try await pacer.wait() }
-        defer { replacement.cancel() }
+        async let replacement: Void = pacer.wait()
         #expect(await waits.next() == deadline)
         clock.advance(to: deadline)
-        try await replacement.value
+        try await replacement
     }
 }

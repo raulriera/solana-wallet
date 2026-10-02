@@ -67,13 +67,10 @@ struct SubscriptionTests {
             }
             return frames
         }
+        defer { socket.cancel() }
         let slots = try await client(socket: socket).changedSlots(for: "wallet")
-        let task = Task {
-            var iterator = slots.makeAsyncIterator()
-            return try await iterator.next()
-        }
-        #expect(try await task.value == 99)
-        socket.cancel()
+        var iterator = slots.makeAsyncIterator()
+        #expect(try await iterator.next() == 99)
     }
 
     /// Verifies decoder errors for another subscription stop the stream without retrying.
