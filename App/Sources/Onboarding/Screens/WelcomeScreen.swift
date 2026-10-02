@@ -20,7 +20,7 @@ struct WelcomeScreen: View {
             }
             .defaultScrollAnchor(.center, for: .alignment)
         }
-        .arrangementViewStyle(WelcomeArrangementStyle())
+        .arrangementViewStyle(.welcome)
         .background(palette.background)
     }
 }

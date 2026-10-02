@@ -18,3 +18,8 @@ struct WelcomeArrangementStyle: ArrangementViewStyle {
         }
     }
 }
+
+extension ArrangementViewStyle where Self == WelcomeArrangementStyle {
+    /// The adaptive arrangement used by the welcome screen.
+    static var welcome: WelcomeArrangementStyle { WelcomeArrangementStyle() }
+}
