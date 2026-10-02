@@ -4,6 +4,7 @@ import Vault
 /// Owns onboarding's navigation container within the window's appearance environment.
 struct OnboardingScene: View {
     @State private var isCreating = false
+    @State private var isCompleting = false
     @State private var isPresentingRecovery = false
     @State private var failure: String?
     let coordinator: any OnboardingCoordinating
@@ -11,26 +12,48 @@ struct OnboardingScene: View {
     var body: some View {
         NavigationStack {
             // Import remains deferred until its screen's individual UX review.
-            WelcomeScreen(createWallet: { isCreating = true }, importWallet: {})
+            WelcomeScreen(createWallet: {
+                guard !coordinator.isWorking else { return }
+                isCreating = true
+            }, importWallet: {})
                 .navigationDestination(isPresented: $isPresentingRecovery) {
                     if let recovery = coordinator.recovery {
-                        // Persistence and the app-content handoff are the next completion step.
-                        RecoveryPhraseScreen(phrase: recovery.phrase, continueSetup: {})
+                        RecoveryPhraseScreen(phrase: recovery.phrase, continueSetup: { isCompleting = true })
                     }
                 }
         }
         .task(id: isCreating) { await createWallet() }
+        .task(id: isCompleting) { await completeWallet() }
         .onChange(of: isPresentingRecovery) {
-            if !isPresentingRecovery { discardDraft() }
+            if !isPresentingRecovery {
+                isCompleting = false
+                if !coordinator.isWorking { discardDraft() }
+            }
         }
         .onDisappear {
-            // An active preparation discards its draft after cancellation unwinds.
+            // Active work releases its draft after cancellation unwinds.
             if !coordinator.isWorking { discardDraft() }
         }
-        .alert("Wallet Creation Unavailable", item: $failure) { _ in
+        .alert("Wallet Setup Unavailable", item: $failure) { _ in
             Button("OK", role: .cancel) {}
         } message: { failure in
             Text(failure)
+        }
+    }
+
+    /// Saves only after backup confirmation; failures preserve the draft for another attempt.
+    private func completeWallet() async {
+        guard isCompleting else { return }
+        defer {
+            isCompleting = false
+            if Task.isCancelled { discardDraft() }
+        }
+
+        do { _ = try await coordinator.complete() }
+        catch {
+            if !Task.isCancelled, !(error is CancellationError) {
+                failure = String(localized: "Your wallet could not be saved. Your recovery words are still available. Please try again.")
+            }
         }
     }
 

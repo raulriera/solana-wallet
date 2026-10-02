@@ -15,6 +15,7 @@ final class OnboardingCoordinator: OnboardingCoordinating {
     private let wallet: any WalletProviding
     private let recoveryStore: any RecoveryStoring
     private let accountStore: any AccountStoring
+    private let router: any WindowRouting
     @ObservationIgnored private var preparedAccount: Account?
     @ObservationIgnored private var recoverySaved = false
 
@@ -23,10 +24,13 @@ final class OnboardingCoordinator: OnboardingCoordinating {
     ///   - wallet: Local phrase generation and address derivation.
     ///   - recovery: Protected recovery persistence.
     ///   - accounts: Public account metadata persistence.
-    init(wallet: any WalletProviding, recovery: any RecoveryStoring, accounts: any AccountStoring) {
+    ///   - router: The owning window's root navigation.
+    init(wallet: any WalletProviding, recovery: any RecoveryStoring, accounts: any AccountStoring,
+         router: any WindowRouting) {
         self.wallet = wallet
         recoveryStore = recovery
         accountStore = accounts
+        self.router = router
     }
 
     /// Prepares a new twelve-word recovery with no BIP-39 passphrase.
@@ -44,7 +48,7 @@ final class OnboardingCoordinator: OnboardingCoordinating {
         try await prepare { Recovery(phrase: try RecoveryPhrase(phrase), passphrase: passphrase) }
     }
 
-    /// Commits protected recovery before making its public account available.
+    /// Commits protected recovery and public metadata before routing this window to its account.
     /// - Returns: The saved account, including when cancellation follows its commit.
     /// - Throws: A secret-free storage error, cancellation, or an invalid-state error.
     func complete() async throws -> Account {
@@ -66,6 +70,7 @@ final class OnboardingCoordinator: OnboardingCoordinating {
         account = preparedAccount
         self.preparedAccount = nil
         self.recovery = nil
+        router.route(to: .wallet(accountID: preparedAccount.id))
         return preparedAccount
     }
 

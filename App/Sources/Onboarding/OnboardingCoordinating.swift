@@ -22,7 +22,7 @@ protocol OnboardingCoordinating: AnyObject, Observable {
     /// - Throws: A phrase-validation, preparation, cancellation, or invalid-state error.
     func importRecovery(_ phrase: String, passphrase: String) async throws
 
-    /// Saves the prepared recovery and then its public account after explicit approval.
+    /// Saves the prepared recovery and public account, then routes the owning window after explicit approval.
     ///
     /// Failed saves retain the draft and identifiers for an explicit retry. Cancellation
     /// doesn't undo a committed write. Repeated completion returns the same account.

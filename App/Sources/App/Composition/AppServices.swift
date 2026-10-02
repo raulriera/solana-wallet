@@ -17,10 +17,18 @@ struct AppServices {
         accounts = try AccountStore()
     }
 
+    /// Creates independent root navigation for a window.
+    /// - Parameter initialDestination: The destination chosen by the caller for this window.
+    /// - Returns: A new router whose selection is independent of other windows.
+    func makeWindowRouter(initialDestination: WindowDestination) -> any WindowRouting {
+        WindowRouter(initialDestination: initialDestination)
+    }
+
     /// Assembles a fresh onboarding workflow around the app's shared services.
+    /// - Parameter router: The owning window's root navigation.
     /// - Returns: Independent draft state for the window that retains this coordinator.
-    func makeOnboardingCoordinator() -> any OnboardingCoordinating {
-        OnboardingCoordinator(wallet: wallet, recovery: recovery, accounts: accounts)
+    func makeOnboardingCoordinator(router: any WindowRouting) -> any OnboardingCoordinating {
+        OnboardingCoordinator(wallet: wallet, recovery: recovery, accounts: accounts, router: router)
     }
 
     /// Assembles a preference-editing workflow around the app's shared appearance services.
