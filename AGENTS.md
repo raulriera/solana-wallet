@@ -7,6 +7,7 @@
 - Commit or explicitly discard each milestone before starting the next; keep completed milestones in separate commits.
 - Do not add module-name prefixes to types; rely on the module namespace.
 - Keep project files grouped by concern in real folders that Xcode mirrors; organize UI features into focused subfolders for scenes, screens, sections, components, and models as needed. Group related tests accordingly.
+- Group app infrastructure by responsibility: service and coordinator assembly in composition, destination contracts and navigation state in routing, and feature workflows within their feature. Keep root views focused on window/scene ownership and feature composition; extract presentation lifecycles into focused modifiers with fluent helpers.
 - Keep app source and tests in `App/Sources` and `App/Tests`. Keep every framework in `Frameworks/<Module>` with `Sources`, `Tests`, and `README.md`.
 - Keep test helpers shared by frameworks in `Frameworks/TestSupport`.
 - Give every framework a concise, factual `README.md` for third-party readers; omit project history, progress reports, and agent-only guidance.

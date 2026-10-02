@@ -7,7 +7,7 @@ import SwiftUI
     var body: some Scene {
         WindowGroup {
             switch services {
-            case .success(let services): WindowRoot(services: services.appearance)
+            case .success(let services): WindowRoot(services: services)
             case .failure:
                 ContentUnavailableView("Appearance Unavailable", systemImage: "exclamationmark.triangle",
                                        description: Text("The original theme could not be loaded."))

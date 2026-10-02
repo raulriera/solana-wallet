@@ -16,4 +16,10 @@ struct AppServices {
         recovery = KeychainStore(service: "com.raulriera.widgets.recovery")
         accounts = try AccountStore()
     }
+
+    /// Assembles a fresh onboarding workflow around the app's shared services.
+    /// - Returns: Independent draft state for the window that retains this coordinator.
+    func makeOnboardingCoordinator() -> any OnboardingCoordinating {
+        OnboardingCoordinator(wallet: wallet, recovery: recovery, accounts: accounts)
+    }
 }
