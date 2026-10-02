@@ -3,19 +3,25 @@ import SwiftUI
 /// Calculates one readable inset for scroll content and a separately pinned action.
 struct ReadableContentMargins: ViewModifier {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @State private var safeAreaInsets = EdgeInsets()
     @Binding var inset: CGFloat
 
-    /// Applies horizontal content margins while preserving native margins at full width.
+    /// Applies matching content and action margins inside the horizontal safe area.
     /// - Parameter content: The full-width scroll container to measure and inset.
     /// - Returns: The container with independently inset scroll content.
     func body(content: Content) -> some View {
         let usesReadableWidth = horizontalSizeClass == .regular
 
         content
-            .contentMargins(.horizontal, inset > 0 ? inset : nil, for: .scrollContent)
+            // Form extends beyond the proposed safe area; explicit content margins replace its native insets.
+            .contentMargins(.leading, inset + safeAreaInsets.leading, for: .scrollContent)
+            .contentMargins(.trailing, inset + safeAreaInsets.trailing, for: .scrollContent)
+            .onGeometryChange(for: EdgeInsets.self) { $0.safeAreaInsets } action: {
+                safeAreaInsets = $0
+            }
             .onGeometryChange(for: CGFloat.self) { geometry in
                 // A sixth on each side leaves two thirds for content.
-                usesReadableWidth ? geometry.size.width / 6 : 0
+                usesReadableWidth ? geometry.size.width / 6 : 16
             } action: { newInset in
                 inset = newInset
             }
