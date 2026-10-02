@@ -107,11 +107,19 @@ struct TransactionBuilderTests {
 
     /// Verifies inputs outside the V1 structural contract are rejected.
     ///
-    /// - Parameter input: An empty, unsupported, truncated, or oversized message.
+    /// - Parameters:
+    ///   - input: An empty, unsupported, truncated, or oversized message.
+    ///   - expectedError: The exact validation failure for this malformed input.
     @Test(arguments: [
-        "empty", "legacy", "v0", "too many signers", "readonly signer", "truncated accounts", "oversized"
+        ("empty", ValidationError.invalidMessage),
+        ("legacy", .invalidMessage),
+        ("v0", .invalidMessage),
+        ("too many signers", .invalidMessage),
+        ("readonly signer", .invalidTransaction),
+        ("truncated accounts", .invalidTransaction),
+        ("oversized", .invalidMessage),
     ])
-    func `Transaction assembly rejects unsupported message headers and sizes`(_ input: String) throws {
+    func `Transaction assembly rejects unsupported message headers and sizes`(_ input: String, expectedError: ValidationError) throws {
         var message = try SignedTransferFixture.bytes(SignedTransferFixture.message)
         switch input {
         case "empty": message = Data()
@@ -123,7 +131,7 @@ struct TransactionBuilderTests {
         default: message = Data(message + Data(repeating: 0, count: 4_096))
         }
 
-        #expect(throws: (any Error).self) {
+        #expect(throws: expectedError) {
             try TransactionBuilder().simulationTransaction(for: message)
         }
     }
