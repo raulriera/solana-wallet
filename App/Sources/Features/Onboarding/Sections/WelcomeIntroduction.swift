@@ -5,16 +5,13 @@ struct WelcomeIntroduction: View {
     @Environment(\.palette) private var palette
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Welcome")
-                .font(.largeTitle.bold())
-                .foregroundStyle(palette.primaryText)
-                .accessibilityAddTraits(.isHeader)
-
-            Text("Create a new wallet or import one using your recovery phrase.")
-                .font(.body)
-                .foregroundStyle(palette.secondaryText)
-        }
+        TitleCardContent(
+            title: "Welcome",
+            message: "Create a new wallet or import one using your recovery phrase.",
+            systemImage: "wallet.bifold.fill"
+        )
         .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(palette.surface, in: .rect(cornerRadius: 24))
     }
 }

@@ -36,22 +36,11 @@ struct ImportWalletScreen: View {
     var body: some View {
         Form {
             Section {
-                VStack(alignment: .leading, spacing: 8) {
-                    Image(systemName: "wallet.bifold.fill")
-                        .font(.largeTitle)
-                        .foregroundStyle(palette.accent)
-                        .padding(.bottom, 8)
-                        .accessibilityHidden(true)
-
-                    Text("Import Wallet")
-                        .font(.title2.bold())
-                        .foregroundStyle(palette.primaryText)
-                        .accessibilityAddTraits(.isHeader)
-
-                    Text("Enter or paste your recovery words to restore your wallet.")
-                        .foregroundStyle(palette.secondaryText)
-                }
-                .padding(.vertical, 8)
+                TitleCardContent(
+                    title: "Import Wallet",
+                    message: "Enter or paste your recovery words to restore your wallet.",
+                    systemImage: "wallet.bifold.fill"
+                )
             }
             .listRowBackground(palette.surface)
 

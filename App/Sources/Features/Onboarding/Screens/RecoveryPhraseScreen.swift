@@ -12,10 +12,11 @@ struct RecoveryPhraseScreen: View {
     var body: some View {
         Form {
             Section {
-                Text(
-                    "Write down these words in order and keep them somewhere safe. Anyone with them can control your wallet."
+                TitleCardContent(
+                    title: "Recovery Phrase",
+                    message: "Write down these words in order and keep them somewhere safe. Anyone with them can control your wallet.",
+                    systemImage: "key.fill"
                 )
-                .foregroundStyle(palette.primaryText)
             }
             .listRowBackground(palette.surface)
 
