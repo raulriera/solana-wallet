@@ -2,7 +2,7 @@ import Foundation
 import RPC
 import Testing
 
-/// Verifies the rent request's wire contract and real devnet rejection behavior.
+/// Verifies the rent request's wire contract and real mainnet rejection behavior.
 struct RentTests {
     /// Verifies rent is queried for the specified size and explicit commitment only.
     @Test
@@ -18,8 +18,8 @@ struct RentTests {
 
     /// Verifies an impossible allocation is surfaced as the node's error, never a zero deposit.
     @Test(.timeLimit(.minutes(1)))
-    func `Devnet rejects rent queries for an impossible allocation`() async throws {
-        let rpc = Solana(network: .devnet)
+    func `Mainnet rejects rent queries for an impossible allocation`() async throws {
+        let rpc = Solana(network: .mainnet)
 
         await #expect {
             try await rpc.send(GetMinimumBalanceForRentExemption(dataLength: .max))

@@ -19,6 +19,9 @@
 - Use real RPC clients; no fake RPCs. Read-only live checks and UI flows use mainnet.
   Tests that fund wallets, submit transactions, or incur fees use devnet, including their
   setup and confirmation. Local fixture tests make no network requests.
+- Read-only checks use public addresses or published recovery fixtures without accessing
+  retained transaction wallets. Providers without devnet submission support retain local
+  coverage only; those checks do not establish live delivery.
 - Live results do not exhaust provider races or outages. Keep credentials in ignored local
   configuration and recovery out of source, logs, and ordinary files.
 - Before funding, save recovery in device-only Vault, read it back, and derive the same address.

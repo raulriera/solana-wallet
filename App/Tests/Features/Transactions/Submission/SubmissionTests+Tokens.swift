@@ -98,26 +98,6 @@ extension SubmissionTests {
         print("Devnet \(program) deposits recovered: \(closed.submission.signature)")
     }
 
-    /// Verifies absent associated source accounts fail without fabricating a token balance.
-    /// - Parameter program: The token program whose native mint supplies the real account context.
-    @Test(arguments: TokenProgram.allCases)
-    func `Devnet token transfers report a missing source account`(_ program: TokenProgram) async throws {
-        let rpc = try devnetRPCs()[0]
-        let sender = Account(id: DevnetWallets.senderID, recoveryID: DevnetWallets.senderID, address: try await DevnetWallets.address(for: DevnetWallets.senderID), path: .solana)
-        let mint = try Address(program == .token ? "So11111111111111111111111111111111111111112"
-                                               : "9pan9bMn5HatX4EJdBwg9VgCa7Uz5HL8N1m5D3NdXejP")
-        let coordinator = try TransactionCoordinator(rpc: rpc, store: DevnetWallets.store)
-        // This random account is only queried; it never receives funds or signs a transaction.
-        let absent = try Address(await Wallet().address(for: Wallet().recoveryPhrase()))
-        await #expect {
-            try await coordinator.transfer(1, token: mint, using: sender, to: sender.address,
-                                           source: absent)
-        } throws: { error in
-            if case TokenTransfers.Failure.missingAccount = error { return true }
-            return false
-        }
-    }
-
     /// Reads the exact delivered token balances through each configured real provider.
     /// - Parameters:
     ///   - addresses: The token accounts to observe.

@@ -4,22 +4,23 @@ import RPC
 import Testing
 import Transactions
 
-extension SubmissionTests {
+/// Verifies read-only mainnet portfolio retrieval and caching with a public wallet fixture.
+struct PortfolioLiveTests {
     /// Verifies live DAS retrieval, exact native SOL, persistence, and reuse by a new service.
     ///
-    /// Uses the retained devnet wallet and an isolated cache without funding or transfers.
-    /// - Throws: A wallet, RPC, storage, or test prerequisite error.
+    /// Uses a public address and an isolated cache without wallet recovery or funding.
+    /// - Throws: An RPC, storage, or test prerequisite error.
     @Test(.timeLimit(.minutes(1)))
-    func `Devnet portfolio persists DAS holdings and reuses its complete snapshot`() async throws {
-        let rpc = try #require(devnetRPCs().first)
-        let owner = try await DevnetWallets.address(for: DevnetWallets.senderID).value
-        let observed = try await Solana(network: .devnet).send(GetMultipleAccounts(addresses: [owner]))
-        let lamports = try #require(observed.value.first.flatMap { $0 }?.lamports)
-        try #require(lamports > 0)
+    func `Mainnet portfolio persists DAS holdings and reuses its complete snapshot`() async throws {
+        let rpc = try MainnetClients.client()
+        let owner = PublicWallet.address
+        let observed = try await Solana(network: .mainnet).send(GetMultipleAccounts(addresses: [owner]))
+        try #require(observed.value.count == 1)
+        let lamports = observed.value[0]?.lamports ?? 0
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
         let store = FileSnapshotStore(directory: directory)
-        let key = CacheKey(owner: owner, network: .devnet)
+        let key = CacheKey(owner: owner, network: .mainnet)
         let service: any PortfolioProviding = Portfolio(rpc: rpc, store: store)
         var updates = await service.updates(for: owner).makeAsyncIterator()
 
@@ -31,7 +32,7 @@ extension SubmissionTests {
         let snapshot = try #require(completed.snapshot)
         #expect(!completed.isRefreshing)
         #expect(snapshot.owner == owner)
-        #expect(snapshot.network == .devnet)
+        #expect(snapshot.network == .mainnet)
         #expect(snapshot.holdings.first { $0.id == .nativeSOL }?.amount == Amount(units: lamports, decimals: 9))
         #expect(snapshot.holdings.first { $0.id == .nativeSOL }?.imageURL != nil)
         #expect(snapshot.holdings.allSatisfy {
@@ -53,7 +54,7 @@ extension SubmissionTests {
         let refreshed = try #require(await reloaded.next())
         if let error = refreshed.error { throw error }
         #expect(refreshed.snapshot?.owner == owner)
-        #expect(refreshed.snapshot?.network == .devnet)
+        #expect(refreshed.snapshot?.network == .mainnet)
         #expect(await reloaded.next() == nil)
 
         try await recreated.removeData(for: owner)

@@ -1,21 +1,15 @@
-import Foundation
 import RPC
 import Testing
 
-/// Verifies standard confirmed subscriptions on devnet without funding or transfers.
+/// Verifies standard confirmed subscriptions on mainnet without funding or transfers.
 @Suite(.serialized)
 struct AccountChangeLiveTests {
     /// Watches a changing public sysvar while also registering both wallet-owner token filters.
-    /// - Parameter helius: Whether to verify Helius or public Solana's devnet endpoint.
+    /// - Parameter helius: Whether to verify Helius or public Solana's mainnet endpoint.
     /// - Throws: A credential, provider, timeout, or test prerequisite error.
     @Test(.timeLimit(.minutes(1)), arguments: [true, false])
-    func `Devnet clients deliver confirmed account notifications`(helius: Bool) async throws {
-        let source: any AccountChangeProviding
-        if helius {
-            let key = try #require(ProcessInfo.processInfo.environment["HELIUS_API_KEY"])
-            try #require(!key.isEmpty && !key.contains("$("))
-            source = HeliusRPC(apiKey: key, network: .devnet)
-        } else { source = Solana(network: .devnet) }
+    func `Mainnet clients deliver confirmed account notifications`(helius: Bool) async throws {
+        let source = try MainnetClients.client(helius: helius)
         let slots = try await source.changedSlots(for: "SysvarC1ock11111111111111111111111111111111")
         let (received, relay) = AsyncThrowingStream<UInt64, any Error>.makeStream()
         let observation = Task {

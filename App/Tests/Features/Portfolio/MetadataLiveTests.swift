@@ -5,13 +5,11 @@ import Testing
 /// Verifies metadata through public RPC contracts with real provider responses.
 struct MetadataLiveTests {
     /// Checks Wrapped SOL identity without funding or transactions.
-    /// - Parameter network: The network providing the public metadata.
     /// - Throws: An RPC or test prerequisite error.
-    @Test(.timeLimit(.minutes(1)), arguments: [Network.devnet, .mainnet])
-    func `Live DAS preserves SOL identity`(network: Network) async throws {
-        let key = try #require(ProcessInfo.processInfo.environment["HELIUS_API_KEY"])
+    @Test(.timeLimit(.minutes(1)))
+    func `Live DAS preserves SOL identity`() async throws {
         let nativeMint = "So11111111111111111111111111111111111111112"
-        let rpc: any RPC = HeliusRPC(apiKey: key, network: network)
+        let rpc = try MainnetClients.client()
         let asset = try await rpc.send(GetAsset(id: nativeMint))
         #expect(asset.id == nativeMint)
         #expect(asset.name == "Wrapped SOL")
@@ -19,15 +17,14 @@ struct MetadataLiveTests {
         #expect(asset.imageURL != nil)
         #expect(asset.metadata?.media?.isEmpty == false)
         #expect(asset.metadata?.kind == "FungibleToken")
-        try printMetadata(asset, network: network)
+        try printMetadata(asset, network: .mainnet)
     }
 
     /// Checks rich NFT metadata without funding or transactions.
     /// - Throws: An RPC or test prerequisite error.
     @Test(.timeLimit(.minutes(1)))
     func `Live DAS preserves rich asset metadata`() async throws {
-        let key = try #require(ProcessInfo.processInfo.environment["HELIUS_API_KEY"])
-        let rpc: any RPC = HeliusRPC(apiKey: key, network: .mainnet)
+        let rpc = try MainnetClients.client()
         let collectible = try await rpc.send(GetAsset(id: "F9Lw3ki3hJ7PF9HQXsBzoY8GyE6sPoEZZdXJBsTTD2rk"))
         #expect(collectible.metadata?.description != nil)
         #expect(collectible.metadata?.websiteURL != nil)
