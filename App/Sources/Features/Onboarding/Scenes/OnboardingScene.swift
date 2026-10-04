@@ -7,18 +7,37 @@ struct OnboardingScene: View {
     @State private var isCompleting = false
     @State private var isPresentingRecovery = false
     @State private var failure: String?
+    @State private var importSubmission: ImportSubmission
     let coordinator: any OnboardingCoordinating
 
+    /// Seeds import presentation once; the parent retains this coordinator for the window's lifetime.
+    /// - Parameter coordinator: The owning window's preparation, persistence, and routing workflow.
+    init(coordinator: any OnboardingCoordinating) {
+        self.coordinator = coordinator
+        importSubmission = ImportSubmission(coordinator: coordinator)
+    }
+
     var body: some View {
+        @Bindable var importSubmission = importSubmission
         NavigationStack {
-            // Import remains deferred until its screen's individual UX review.
             WelcomeScreen(createWallet: {
-                guard !coordinator.isWorking else { return }
+                guard !coordinator.isWorking, !isCreating, !isCompleting, !importSubmission.isPending,
+                      !importSubmission.isPresented else { return }
                 isCreating = true
-            }, importWallet: {})
+            }, importWallet: {
+                guard !isCreating, !isCompleting, !isPresentingRecovery else { return }
+                importSubmission.present()
+            })
                 .navigationDestination(isPresented: $isPresentingRecovery) {
                     if let recovery = coordinator.recovery {
                         RecoveryPhraseScreen(phrase: recovery.phrase, continueSetup: { isCompleting = true })
+                    }
+                }
+                .navigationDestination(isPresented: $importSubmission.isPresented) {
+                    if let presentationID = importSubmission.presentationID {
+                        ImportWalletScreen(submission: importSubmission)
+                            .importLifecycle(importSubmission, presentationID: presentationID)
+                            .id(presentationID)
                     }
                 }
         }
@@ -32,7 +51,7 @@ struct OnboardingScene: View {
         }
         .onDisappear {
             // Active work releases its draft after cancellation unwinds.
-            if !coordinator.isWorking { discardDraft() }
+            if !coordinator.isWorking, !importSubmission.isPending { discardDraft() }
         }
         .alert("Wallet Setup Unavailable", item: $failure) { _ in
             Button("OK", role: .cancel) {}

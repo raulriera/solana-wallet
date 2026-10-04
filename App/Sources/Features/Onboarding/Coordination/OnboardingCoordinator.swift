@@ -101,9 +101,10 @@ final class OnboardingCoordinator: OnboardingCoordinating {
             self.recovery = recovery
         } catch let error as RecoveryPhrase.ValidationError {
             throw error
-        } catch is CancellationError {
-            throw CancellationError()
+        } catch let error as CancellationError {
+            throw error
         } catch {
+            // Arbitrary dependency errors may contain recovery text; only known safe errors escape.
             throw OnboardingCoordinatorError.preparationFailed
         }
     }
@@ -124,11 +125,15 @@ final class OnboardingCoordinator: OnboardingCoordinating {
                     throw OnboardingCoordinatorError.recoveryMismatch
                 }
             }
-        } catch is CancellationError {
-            throw CancellationError()
+        } catch let error as CancellationError {
+            throw error
         } catch OnboardingCoordinatorError.recoveryMismatch {
             throw OnboardingCoordinatorError.recoveryMismatch
+        } catch let error as KeychainStore.Failure {
+            // Vault's typed failures retain useful context without recovery or underlying error text.
+            throw error
         } catch {
+            // Unknown storage errors cross a secret-handling boundary and must lose their payload.
             throw OnboardingCoordinatorError.recoveryStorageFailed
         }
     }
@@ -147,9 +152,13 @@ final class OnboardingCoordinator: OnboardingCoordinating {
                         && $0.address == account.address && $0.index == account.index
                 }) else { throw OnboardingCoordinatorError.accountStorageFailed }
             }
-        } catch is CancellationError {
-            throw CancellationError()
+        } catch let error as CancellationError {
+            throw error
+        } catch let error as AccountStore.Failure {
+            // These closed, payload-free cases are safe to preserve for the caller.
+            throw error
         } catch {
+            // Injected stores may attach secret-bearing context to otherwise ordinary errors.
             throw OnboardingCoordinatorError.accountStorageFailed
         }
     }

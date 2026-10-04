@@ -5,6 +5,39 @@ import Wallet
 @testable import widgets
 
 extension OnboardingCoordinatorTests {
+    /// Known Vault failures preserve context while unknown dependency payloads remain redacted.
+    @Test
+    func `Recovery storage preserves its typed protection failure without wrapping secret text`() async throws {
+        let recovery = OnboardingRecoveryStore(firstFailure: KeychainStore.Failure.protectionUnavailable)
+        let accounts = OnboardingAccountStore(recovery: recovery)
+        let router = WindowRouter(initialDestination: .onboarding)
+        let coordinator = OnboardingCoordinator(wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
+        try await coordinator.importRecovery(Self.phrase, passphrase: "TREZOR")
+
+        await #expect(throws: KeychainStore.Failure.protectionUnavailable) { try await coordinator.complete() }
+
+        #expect(coordinator.recovery != nil)
+        #expect(await accounts.additions.isEmpty)
+    }
+
+    /// Account storage's closed failure cases retain useful context without arbitrary payloads.
+    @Test
+    func `Account storage preserves its typed invalid storage failure`() async throws {
+        let recovery = OnboardingRecoveryStore()
+        let accounts = OnboardingAccountStore(recovery: recovery, firstFailure: AccountStore.Failure.invalidStorage)
+        let router = WindowRouter(initialDestination: .onboarding)
+        let coordinator = OnboardingCoordinator(wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
+        try await coordinator.importRecovery(Self.phrase, passphrase: "TREZOR")
+
+        await #expect { try await coordinator.complete() } throws: { error in
+            if case AccountStore.Failure.invalidStorage = error { return true }
+            return false
+        }
+
+        #expect(coordinator.recovery != nil)
+        #expect(router.destination == .onboarding)
+    }
+
     /// Committing in one window leaves another window's recovery draft and navigation intact.
     @Test
     func `Completing onboarding routes only its owning window`() async throws {
