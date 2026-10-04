@@ -15,11 +15,13 @@ protocol OnboardingCoordinating: AnyObject, Observable {
     /// - Throws: A preparation, cancellation, or invalid-state error.
     func create() async throws
 
-    /// Validates an imported phrase and prepares its first address without saving it.
+    /// Validates recovery and selects the first SOL-funded account, or the default after an empty scan.
+    ///
+    /// Discovery must succeed before a draft is prepared. Nothing is saved during preparation.
     /// - Parameters:
     ///   - phrase: The recovery words supplied by the user.
     ///   - passphrase: The original BIP-39 passphrase, preserving case and whitespace.
-    /// - Throws: A phrase-validation, preparation, cancellation, or invalid-state error.
+    /// - Throws: A phrase-validation, rate-limit, preparation, cancellation, or invalid-state error.
     func importRecovery(_ phrase: String, passphrase: String) async throws
 
     /// Saves the prepared recovery and public account, then routes the owning window after explicit approval.

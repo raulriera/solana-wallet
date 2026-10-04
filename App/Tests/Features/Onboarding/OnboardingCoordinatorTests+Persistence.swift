@@ -11,7 +11,7 @@ extension OnboardingCoordinatorTests {
         let recovery = OnboardingRecoveryStore(firstFailure: KeychainStore.Failure.protectionUnavailable)
         let accounts = OnboardingAccountStore(recovery: recovery)
         let router = WindowRouter(initialDestination: .onboarding)
-        let coordinator = OnboardingCoordinator(wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
         try await coordinator.importRecovery(Self.phrase, passphrase: "TREZOR")
 
         await #expect(throws: KeychainStore.Failure.protectionUnavailable) { try await coordinator.complete() }
@@ -26,7 +26,7 @@ extension OnboardingCoordinatorTests {
         let recovery = OnboardingRecoveryStore()
         let accounts = OnboardingAccountStore(recovery: recovery, firstFailure: AccountStore.Failure.invalidStorage)
         let router = WindowRouter(initialDestination: .onboarding)
-        let coordinator = OnboardingCoordinator(wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
         try await coordinator.importRecovery(Self.phrase, passphrase: "TREZOR")
 
         await #expect { try await coordinator.complete() } throws: { error in
@@ -45,8 +45,8 @@ extension OnboardingCoordinatorTests {
         let accounts = OnboardingAccountStore(recovery: recovery)
         let firstRouter = WindowRouter(initialDestination: .onboarding)
         let secondRouter = WindowRouter(initialDestination: .onboarding)
-        let first = OnboardingCoordinator(wallet: Wallet(), recovery: recovery, accounts: accounts, router: firstRouter)
-        let second = OnboardingCoordinator(wallet: Wallet(), recovery: recovery, accounts: accounts, router: secondRouter)
+        let first = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: firstRouter)
+        let second = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: secondRouter)
         try await first.importRecovery(Self.phrase, passphrase: "TREZOR")
         try await second.importRecovery(Self.phrase, passphrase: "other-window")
 
@@ -68,7 +68,7 @@ extension OnboardingCoordinatorTests {
                                                commitBeforeFailure: committed)
         let accounts = OnboardingAccountStore(recovery: recovery)
         let router = WindowRouter(initialDestination: .onboarding)
-        let coordinator = OnboardingCoordinator(wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
         try await coordinator.importRecovery(Self.phrase, passphrase: "TREZOR")
         await #expect(throws: OnboardingCoordinatorError.recoveryStorageFailed) { try await coordinator.complete() }
         #expect(coordinator.recovery != nil)
@@ -90,7 +90,7 @@ extension OnboardingCoordinatorTests {
                                                replacement: replacement)
         let accounts = OnboardingAccountStore(recovery: recovery)
         let router = WindowRouter(initialDestination: .onboarding)
-        let coordinator = OnboardingCoordinator(wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
         try await coordinator.importRecovery(Self.phrase, passphrase: "TREZOR")
         await #expect(throws: CancellationError.self) { try await coordinator.complete() }
         await #expect(throws: OnboardingCoordinatorError.recoveryMismatch) { try await coordinator.complete() }
@@ -108,7 +108,7 @@ extension OnboardingCoordinatorTests {
         let accounts = OnboardingAccountStore(recovery: recovery, firstFailure: NSError(domain: "private-marker", code: 1),
                                               commitBeforeFailure: committed)
         let router = WindowRouter(initialDestination: .onboarding)
-        let coordinator = OnboardingCoordinator(wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
         try await coordinator.importRecovery(Self.phrase, passphrase: "TREZOR")
         await #expect(throws: OnboardingCoordinatorError.accountStorageFailed) { try await coordinator.complete() }
         #expect(coordinator.recovery != nil)
@@ -129,7 +129,7 @@ extension OnboardingCoordinatorTests {
         let accounts = OnboardingAccountStore(recovery: recovery, firstFailure: AccountStore.Failure.duplicateAccount,
                                               commitBeforeFailure: true, conflict: true)
         let router = WindowRouter(initialDestination: .onboarding)
-        let coordinator = OnboardingCoordinator(wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
         try await coordinator.importRecovery(Self.phrase, passphrase: "TREZOR")
         await #expect(throws: OnboardingCoordinatorError.accountStorageFailed) { try await coordinator.complete() }
         #expect(coordinator.account == nil)
@@ -144,7 +144,7 @@ extension OnboardingCoordinatorTests {
         let recovery = OnboardingRecoveryStore(gate: gate)
         let accounts = OnboardingAccountStore(recovery: recovery)
         let router = WindowRouter(initialDestination: .onboarding)
-        let coordinator = OnboardingCoordinator(wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
         try await coordinator.importRecovery(Self.phrase, passphrase: "TREZOR")
         let operation = Task { try await coordinator.complete() }
         defer { operation.cancel() }
@@ -169,7 +169,7 @@ extension OnboardingCoordinatorTests {
         let recovery = OnboardingRecoveryStore()
         let accounts = OnboardingAccountStore(recovery: recovery, gate: gate)
         let router = WindowRouter(initialDestination: .onboarding)
-        let coordinator = OnboardingCoordinator(wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
         try await coordinator.importRecovery(Self.phrase, passphrase: "TREZOR")
         let operation = Task { try await coordinator.complete() }
         defer { operation.cancel() }

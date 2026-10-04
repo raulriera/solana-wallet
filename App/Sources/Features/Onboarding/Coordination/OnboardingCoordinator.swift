@@ -1,10 +1,11 @@
 import Foundation
 import Observation
+import RPC
 import Transactions
 import Vault
 import Wallet
 
-/// Coordinates one window's recovery draft without making network requests.
+/// Coordinates one window's recovery draft, import discovery, and ordered persistence.
 @MainActor
 @Observable
 final class OnboardingCoordinator: OnboardingCoordinating {
@@ -13,6 +14,7 @@ final class OnboardingCoordinator: OnboardingCoordinating {
     private(set) var isWorking = false
 
     private let wallet: any WalletProviding
+    private let discovery: any AccountDiscovering
     private let recoveryStore: any RecoveryStoring
     private let accountStore: any AccountStoring
     private let router: any WindowRouting
@@ -21,13 +23,16 @@ final class OnboardingCoordinator: OnboardingCoordinating {
 
     /// Creates independent presentation state around shared, interchangeable services.
     /// - Parameters:
+    ///   - discovery: One bounded SOL-only scan on the configured network for imports.
     ///   - wallet: Local phrase generation and address derivation.
     ///   - recovery: Protected recovery persistence.
     ///   - accounts: Public account metadata persistence.
     ///   - router: The owning window's root navigation.
-    init(wallet: any WalletProviding, recovery: any RecoveryStoring, accounts: any AccountStoring,
+    init(discovery: any AccountDiscovering, wallet: any WalletProviding,
+         recovery: any RecoveryStoring, accounts: any AccountStoring,
          router: any WindowRouting) {
         self.wallet = wallet
+        self.discovery = discovery
         recoveryStore = recovery
         accountStore = accounts
         self.router = router
@@ -36,16 +41,18 @@ final class OnboardingCoordinator: OnboardingCoordinating {
     /// Prepares a new twelve-word recovery with no BIP-39 passphrase.
     /// - Throws: A preparation, cancellation, or invalid-state error.
     func create() async throws {
-        try await prepare { Recovery(phrase: try wallet.recoveryPhrase(wordCount: .twelve), passphrase: "") }
+        try await prepare({ Recovery(phrase: try wallet.recoveryPhrase(wordCount: .twelve), passphrase: "") },
+                          selecting: firstAccount)
     }
 
-    /// Prepares validated imported recovery, preserving the original passphrase exactly.
+    /// Selects the first SOL-funded account, or the default account after a successful empty scan.
     /// - Parameters:
     ///   - phrase: The supplied recovery words.
-    ///   - passphrase: The original BIP-39 passphrase.
-    /// - Throws: A phrase-validation, preparation, cancellation, or invalid-state error.
+    ///   - passphrase: The original BIP-39 passphrase, preserving case and whitespace.
+    /// - Throws: A phrase-validation, rate-limit, preparation, cancellation, or invalid-state error.
     func importRecovery(_ phrase: String, passphrase: String) async throws {
-        try await prepare { Recovery(phrase: try RecoveryPhrase(phrase), passphrase: passphrase) }
+        try await prepare({ Recovery(phrase: try RecoveryPhrase(phrase), passphrase: passphrase) },
+                          selecting: discoveredAccount)
     }
 
     /// Commits protected recovery and public metadata before routing this window to its account.
@@ -84,10 +91,13 @@ final class OnboardingCoordinator: OnboardingCoordinating {
         account = nil
     }
 
-    /// Prepares one draft and publishes it only after cancellable derivation succeeds.
-    /// - Parameter makeRecovery: Local generation or validation of recovery material.
+    /// Prepares one draft and publishes it only after cancellable account selection succeeds.
+    /// - Parameters:
+    ///   - makeRecovery: Local generation or validation of recovery material.
+    ///   - selectAccount: Local default derivation or imported-account discovery.
     /// - Throws: A phrase-validation error, cancellation, or a secret-free workflow error.
-    private func prepare(_ makeRecovery: () throws -> Recovery) async throws {
+    private func prepare(_ makeRecovery: () throws -> Recovery,
+                         selecting selectAccount: (Recovery) async throws -> DerivedAccount) async throws {
         guard !isWorking else { throw OnboardingCoordinatorError.operationInProgress }
         guard recovery == nil, account == nil else { throw OnboardingCoordinatorError.draftAlreadyPrepared }
         try Task.checkCancellation()
@@ -95,18 +105,40 @@ final class OnboardingCoordinator: OnboardingCoordinating {
         defer { isWorking = false }
         do {
             let recovery = try makeRecovery()
-            let address = try await wallet.address(for: recovery.phrase, passphrase: recovery.passphrase, path: .solana)
+            let selected = try await selectAccount(recovery)
             try Task.checkCancellation()
-            preparedAccount = Account(id: UUID(), recoveryID: UUID(), address: try Address(address), path: .solana)
+            preparedAccount = Account(id: UUID(), recoveryID: UUID(), address: try Address(selected.address), path: selected.path)
             self.recovery = recovery
         } catch let error as RecoveryPhrase.ValidationError {
             throw error
         } catch let error as CancellationError {
             throw error
+        } catch RPCError.http(statusCode: 429, retryAfter: _) {
+            throw OnboardingCoordinatorError.discoveryRateLimited
         } catch {
             // Arbitrary dependency errors may contain recovery text; only known safe errors escape.
             throw OnboardingCoordinatorError.preparationFailed
         }
+    }
+
+    /// Derives the default first account locally without observing balances.
+    /// - Parameter recovery: The transient validated recovery and verbatim original passphrase.
+    /// - Returns: The default address paired with its exact path.
+    /// - Throws: A derivation or cancellation error.
+    private func firstAccount(_ recovery: Recovery) async throws -> DerivedAccount {
+        let address = try await wallet.address(for: recovery.phrase, passphrase: recovery.passphrase, path: .solana)
+        return DerivedAccount(address: address, path: .solana)
+    }
+
+    /// Checks the existing twenty-address scan once; failures never become empty success.
+    /// - Parameter recovery: The transient validated recovery, never sent to RPC.
+    /// - Returns: The first positive-SOL result in scan order or the default account after an empty scan.
+    /// - Throws: A discovery, derivation, or cancellation error, without an automatic retry.
+    private func discoveredAccount(_ recovery: Recovery) async throws -> DerivedAccount {
+        let result = try await discovery.discover(for: recovery.phrase, passphrase: recovery.passphrase)
+        try Task.checkCancellation()
+        if let account = result.accounts.first { return account }
+        return try await firstAccount(recovery)
     }
 
     /// Verifies a duplicate save before accepting an earlier, ambiguously completed write.

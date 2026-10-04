@@ -4,6 +4,7 @@ nonisolated enum OnboardingCoordinatorError: Error, Equatable {
     case draftAlreadyPrepared
     case draftRequired
     case preparationFailed
+    case discoveryRateLimited
     case recoveryStorageFailed
     case recoveryMismatch
     case accountStorageFailed

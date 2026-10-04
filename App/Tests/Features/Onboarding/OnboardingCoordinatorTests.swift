@@ -14,10 +14,11 @@ struct OnboardingCoordinatorTests {
     /// New recovery stays only in memory until the caller explicitly completes onboarding.
     @Test
     func `Creating a wallet prepares twelve words without persisting recovery or accounts`() async throws {
+        let http = HTTPResponses.discovery()
         let recovery = OnboardingRecoveryStore()
         let accounts = OnboardingAccountStore(recovery: recovery)
         let router = WindowRouter(initialDestination: .onboarding)
-        let coordinator: any OnboardingCoordinating = OnboardingCoordinator(wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
+        let coordinator: any OnboardingCoordinating = OnboardingCoordinator(discovery: AccountDiscovery(rpc: http.client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
         try await coordinator.create()
         #expect(coordinator.recovery?.phrase.words.count == 12)
         #expect(coordinator.recovery?.passphrase.isEmpty == true)
@@ -26,6 +27,7 @@ struct OnboardingCoordinatorTests {
         #expect(!coordinator.isWorking)
         #expect(await recovery.saves.isEmpty)
         #expect(await accounts.additions.isEmpty)
+        #expect(await http.requests.isEmpty)
         try coordinator.discard()
         #expect(coordinator.recovery == nil)
     }
@@ -36,7 +38,7 @@ struct OnboardingCoordinatorTests {
         let recovery = OnboardingRecoveryStore()
         let accounts = OnboardingAccountStore(recovery: recovery)
         let router = WindowRouter(initialDestination: .onboarding)
-        let coordinator = OnboardingCoordinator(wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
         try await coordinator.importRecovery(Self.phrase, passphrase: "TREZOR")
         #expect(await recovery.saves.isEmpty)
         let account = try await coordinator.complete()
@@ -57,8 +59,8 @@ struct OnboardingCoordinatorTests {
         let accounts = OnboardingAccountStore(recovery: recovery)
         let firstRouter = WindowRouter(initialDestination: .onboarding)
         let secondRouter = WindowRouter(initialDestination: .onboarding)
-        let first = OnboardingCoordinator(wallet: Wallet(), recovery: recovery, accounts: accounts, router: firstRouter)
-        let second = OnboardingCoordinator(wallet: Wallet(), recovery: recovery, accounts: accounts, router: secondRouter)
+        let first = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: firstRouter)
+        let second = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: secondRouter)
         try await first.importRecovery(Self.phrase, passphrase: " TREZOR ")
         try await second.importRecovery(Self.phrase, passphrase: "TREZOR")
         #expect(first.recovery?.passphrase == " TREZOR ")
@@ -71,10 +73,11 @@ struct OnboardingCoordinatorTests {
     /// Invalid recovery never reaches either persistence boundary.
     @Test
     func `Invalid recovery reports validation without storing supplied text`() async throws {
+        let http = HTTPResponses.discovery()
         let recovery = OnboardingRecoveryStore()
         let accounts = OnboardingAccountStore(recovery: recovery)
         let router = WindowRouter(initialDestination: .onboarding)
-        let coordinator = OnboardingCoordinator(wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: http.client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
         await #expect(throws: RecoveryPhrase.ValidationError.invalidWordCount) {
             try await coordinator.importRecovery("private-input-marker", passphrase: "private-passphrase-marker")
         }
@@ -83,6 +86,7 @@ struct OnboardingCoordinatorTests {
         #expect(router.destination == .onboarding)
         #expect(await recovery.saves.isEmpty)
         #expect(await accounts.additions.isEmpty)
+        #expect(await http.requests.isEmpty)
     }
 
     /// An unapproved draft cannot be replaced by a second preparation action.
@@ -91,7 +95,7 @@ struct OnboardingCoordinatorTests {
         let recovery = OnboardingRecoveryStore()
         let accounts = OnboardingAccountStore(recovery: recovery)
         let router = WindowRouter(initialDestination: .onboarding)
-        let coordinator = OnboardingCoordinator(wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
         await #expect(throws: OnboardingCoordinatorError.draftRequired) { try await coordinator.complete() }
         try await coordinator.importRecovery(Self.phrase, passphrase: "TREZOR")
         await #expect(throws: OnboardingCoordinatorError.draftAlreadyPrepared) { try await coordinator.create() }
@@ -106,7 +110,7 @@ struct OnboardingCoordinatorTests {
         let accounts = OnboardingAccountStore(recovery: recovery)
         let error = NSError(domain: "private-recovery-marker", code: 1)
         let router = WindowRouter(initialDestination: .onboarding)
-        let coordinator = OnboardingCoordinator(wallet: OnboardingWallet(failure: error), recovery: recovery, accounts: accounts, router: router)
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: OnboardingWallet(failure: error), recovery: recovery, accounts: accounts, router: router)
         await #expect(throws: OnboardingCoordinatorError.preparationFailed) {
             try await coordinator.importRecovery(Self.phrase, passphrase: "private-passphrase-marker")
         }
@@ -121,7 +125,7 @@ struct OnboardingCoordinatorTests {
         let recovery = OnboardingRecoveryStore()
         let accounts = OnboardingAccountStore(recovery: recovery)
         let router = WindowRouter(initialDestination: .onboarding)
-        let coordinator = OnboardingCoordinator(wallet: OnboardingWallet(gate: gate), recovery: recovery, accounts: accounts, router: router)
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: OnboardingWallet(gate: gate), recovery: recovery, accounts: accounts, router: router)
         let operation = Task { try await coordinator.importRecovery(Self.phrase, passphrase: "") }
         defer { operation.cancel() }
         await gate.waitUntilStarted()

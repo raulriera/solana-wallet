@@ -16,7 +16,7 @@ struct ImportSubmissionTests {
         let recovery = OnboardingRecoveryStore()
         let accounts = OnboardingAccountStore(recovery: recovery)
         let router = WindowRouter(initialDestination: .onboarding)
-        let coordinator = OnboardingCoordinator(wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
         let submission = ImportSubmission(coordinator: coordinator)
         submission.present()
         submission.submit(Self.phrase, passphrase: " TrEzOr ")
@@ -44,10 +44,11 @@ struct ImportSubmissionTests {
     /// An explicit retry reuses the prepared account even when phrase spacing changes.
     @Test
     func `Persistence retry keeps the draft identity and skips committed recovery`() async throws {
+        let http = HTTPResponses.discovery(fundedOffsets: [1])
         let recovery = OnboardingRecoveryStore()
         let accounts = OnboardingAccountStore(recovery: recovery, firstFailure: OnboardingCoordinatorError.accountStorageFailed)
         let router = WindowRouter(initialDestination: .onboarding)
-        let coordinator = OnboardingCoordinator(wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: http.client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
         let submission = ImportSubmission(coordinator: coordinator)
         submission.present()
         submission.submit(Self.phrase, passphrase: "TREZOR")
@@ -63,6 +64,9 @@ struct ImportSubmissionTests {
         #expect(coordinator.account?.id == firstAccount.id)
         #expect(await recovery.saves == [firstAccount.recoveryID])
         #expect(await accounts.records.count == 1)
+        #expect(coordinator.account?.path == firstAccount.path)
+        #expect(firstAccount.path.description == "m/44'/501'/0'")
+        #expect(await http.requests.count == 1)
     }
 
     /// Changed passphrase input explicitly starts another draft without deleting committed recovery.
@@ -72,7 +76,7 @@ struct ImportSubmissionTests {
         let recovery = OnboardingRecoveryStore()
         let accounts = OnboardingAccountStore(recovery: recovery, firstFailure: OnboardingCoordinatorError.accountStorageFailed)
         let router = WindowRouter(initialDestination: .onboarding)
-        let coordinator = OnboardingCoordinator(wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
         let submission = ImportSubmission(coordinator: coordinator)
         submission.present()
         submission.submit(Self.phrase, passphrase: "TREZOR")
@@ -98,7 +102,7 @@ struct ImportSubmissionTests {
         let accounts = OnboardingAccountStore(recovery: recovery)
         let router = WindowRouter(initialDestination: .onboarding)
         let wallet = OnboardingWallet(failure: NSError(domain: "private-marker", code: 1))
-        let coordinator = OnboardingCoordinator(wallet: wallet, recovery: recovery, accounts: accounts, router: router)
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: wallet, recovery: recovery, accounts: accounts, router: router)
         let submission = ImportSubmission(coordinator: coordinator)
         submission.present()
         submission.submit(Self.phrase, passphrase: "TREZOR")
@@ -124,7 +128,7 @@ struct ImportSubmissionTests {
         let recovery = OnboardingRecoveryStore()
         let accounts = OnboardingAccountStore(recovery: recovery)
         let router = WindowRouter(initialDestination: .onboarding)
-        let coordinator = OnboardingCoordinator(wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
         let submission = ImportSubmission(coordinator: coordinator)
         submission.present()
         submission.submit(Self.phrase, passphrase: "TREZOR")

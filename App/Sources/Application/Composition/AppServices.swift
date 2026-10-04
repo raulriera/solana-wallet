@@ -1,3 +1,5 @@
+import Foundation
+import RPC
 import Vault
 import Wallet
 
@@ -5,6 +7,7 @@ import Wallet
 struct AppServices {
     let appearance: AppearanceServices
     let wallet: any WalletProviding
+    let discovery: any AccountDiscovering
     let recovery: any RecoveryStoring
     let accounts: any AccountStoring
 
@@ -12,11 +15,16 @@ struct AppServices {
     /// - Throws: An error if the bundled appearance or a storage configuration is invalid.
     init() throws {
         let recoveryService = "com.raulriera.widgets.recovery"
+        let network: Network
         #if DEBUG && targetEnvironment(simulator)
         try UITestReset.runIfRequested(recoveryService: recoveryService)
+        network = ProcessInfo.processInfo.environment["UI_TEST_NETWORK"] == "devnet" ? .devnet : .mainnet
+        #else
+        network = .mainnet
         #endif
         appearance = try AppearanceServices()
         wallet = Wallet()
+        discovery = AccountDiscovery(rpc: Solana(network: network), wallet: wallet)
         recovery = KeychainStore(service: recoveryService)
         accounts = try AccountStore()
     }
@@ -39,7 +47,7 @@ struct AppServices {
     /// - Parameter router: The owning window's root navigation.
     /// - Returns: Independent draft state for the window that retains this coordinator.
     func makeOnboardingCoordinator(router: any WindowRouting) -> any OnboardingCoordinating {
-        OnboardingCoordinator(wallet: wallet, recovery: recovery, accounts: accounts, router: router)
+        OnboardingCoordinator(discovery: discovery, wallet: wallet, recovery: recovery, accounts: accounts, router: router)
     }
 
     /// Assembles a preference-editing workflow around the app's shared appearance services.

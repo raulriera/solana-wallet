@@ -17,6 +17,7 @@ struct OnboardingApp {
     /// Selects the language used by the test's user-facing control queries.
     init() {
         app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launchEnvironment["UI_TEST_NETWORK"] = "devnet"
     }
 
     /// Clears the simulator app's actual stores, then runs production startup and waits for welcome.
