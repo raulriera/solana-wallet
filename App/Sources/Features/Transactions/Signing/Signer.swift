@@ -48,7 +48,7 @@ nonisolated struct Signer: TransactionSigning {
     func sign(_ preparation: Preparation, for account: Account, reason: String) async throws -> SignedTransaction {
         try Task.checkCancellation()
         guard account.address == preparation.signer else { throw SigningError.signerMismatch }
-        let path = try account.path
+        let path = account.path
         try await validator.validate(preparation)
         let signature = try await signature(for: preparation, recoveryID: account.recoveryID, path: path, reason: reason)
         try Task.checkCancellation()

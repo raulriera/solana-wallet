@@ -44,7 +44,7 @@ actor OnboardingAccountStore: AccountStoring {
         let failure = additions.count == 1 ? firstFailure : nil
         if failure == nil || commitBeforeFailure {
             records.append(Account(id: account.id, recoveryID: conflict ? UUID() : account.recoveryID,
-                                   address: account.address, index: account.index))
+                                   address: account.address, path: account.path))
         }
         if let gate { await gate.suspend() }
         if let failure { throw failure }

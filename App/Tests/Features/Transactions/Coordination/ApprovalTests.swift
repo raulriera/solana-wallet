@@ -2,6 +2,7 @@ import Foundation
 import RPC
 import Testing
 import Transactions
+import Wallet
 @testable import widgets
 
 /// Verifies the coordinator's approval boundary independently of live RPC behavior.
@@ -31,7 +32,7 @@ struct ApprovalTests {
         let coordinator = try TransactionCoordinator(rpc: http.client, store: store, configuration: fixture.configuration)
         let payer = fixture.account
         let wallets = selection == "empty" ? [] : [payer, selection == "duplicate" ? payer
-            : Account(id: UUID(), recoveryID: UUID(), address: fixture.transfer.accounts[1].address, index: 0)]
+            : Account(id: UUID(), recoveryID: UUID(), address: fixture.transfer.accounts[1].address, path: .solana)]
         let error: ValidationError = selection == "unrelated" ? .signerNotRequired : .invalidMessage
 
         await #expect(throws: error) { try await coordinator.simulate([fixture.transfer], using: wallets) }

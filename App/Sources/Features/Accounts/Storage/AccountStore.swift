@@ -1,6 +1,7 @@
 import Foundation
 import Synchronization
 import Transactions
+import Wallet
 
 /// Serializes local account metadata reads and atomic writes across app windows.
 nonisolated struct AccountStore: AccountStoring {
@@ -11,7 +12,7 @@ nonisolated struct AccountStore: AccountStoring {
     enum Failure: Error {
         /// Storage isn't a local regular file or its configured directory isn't local.
         case invalidStorage
-        /// An account ID, public address, or recovery-and-index pair occurs more than once.
+        /// An account ID, public address, or recovery-and-path pair occurs more than once.
         case duplicateAccount
     }
 
@@ -67,18 +68,17 @@ nonisolated struct AccountStore: AccountStoring {
         return accounts
     }
 
-    /// Checks derivation bounds and unique identities before accepting a complete list.
+    /// Checks unique identities before accepting a complete list.
     /// - Parameter accounts: The full loaded or proposed list.
-    /// - Throws: A derivation error or ``Failure/duplicateAccount``.
+    /// - Throws: ``Failure/duplicateAccount``.
     private static func validate(_ accounts: [Account]) throws {
         var ids: Set<UUID> = []
         var addresses: Set<Address> = []
-        var indices: [UUID: Set<UInt32>] = [:]
+        var paths: [UUID: Set<String>] = [:]
         for account in accounts {
-            _ = try account.path
             guard ids.insert(account.id).inserted,
                   addresses.insert(account.address).inserted,
-                  indices[account.recoveryID, default: []].insert(account.index).inserted else {
+                  paths[account.recoveryID, default: []].insert(account.path.description).inserted else {
                 throw Failure.duplicateAccount
             }
         }
@@ -114,7 +114,7 @@ nonisolated struct AccountStore: AccountStoring {
         let id: UUID
         let recoveryID: UUID
         let address: String
-        let index: UInt32
+        let path: String
 
         /// Copies public account metadata into its storage representation.
         /// - Parameter account: The validated account to encode.
@@ -122,14 +122,14 @@ nonisolated struct AccountStore: AccountStoring {
             id = account.id
             recoveryID = account.recoveryID
             address = account.address.value
-            index = account.index
+            path = account.path.description
         }
 
         /// Reconstructs an account through the address validation boundary.
         /// - Returns: Typed account metadata for subsequent list validation.
-        /// - Throws: An address validation error.
+        /// - Throws: An address or derivation-path validation error.
         func account() throws -> Account {
-            Account(id: id, recoveryID: recoveryID, address: try Address(address), index: index)
+            Account(id: id, recoveryID: recoveryID, address: try Address(address), path: try DerivationPath(path))
         }
     }
 }

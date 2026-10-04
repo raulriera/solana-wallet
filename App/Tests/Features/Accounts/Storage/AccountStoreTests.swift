@@ -32,10 +32,10 @@ struct AccountStoreTests {
         #expect(restored.map(\.id) == committed.map(\.id))
         #expect(restored.map(\.recoveryID) == [first.recoveryID, first.recoveryID])
         #expect(restored.map(\.address) == [first.address, second.address])
-        #expect(restored.map(\.index) == [0, 1])
+        #expect(restored.map(\.path) == [first.path, second.path])
         let records = try #require(JSONSerialization.jsonObject(with: Data(contentsOf:
             directory.appendingPathComponent("accounts.json"))) as? [[String: Any]])
-        #expect(records.allSatisfy { Set($0.keys) == ["id", "recoveryID", "address", "index"] })
+        #expect(records.allSatisfy { Set($0.keys) == ["id", "recoveryID", "address", "path"] })
     }
 
     /// Simultaneous additions through separate instances cannot overwrite another window's accounts.
@@ -58,7 +58,7 @@ struct AccountStoreTests {
 
     /// Duplicate identities, addresses, and derivation slots must never replace saved metadata.
     /// - Parameter field: The existing identity reused by the proposed addition.
-    @Test(arguments: ["id", "address", "index"])
+    @Test(arguments: ["id", "address", "path"])
     func `Duplicate account identities are rejected without changing storage`(_ field: String) async throws {
         let directory = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -70,23 +70,23 @@ struct AccountStoreTests {
         let original = try Data(contentsOf: file)
         let duplicate = Account(id: field == "id" ? first.id : other.id, recoveryID: first.recoveryID,
             address: field == "address" ? first.address : other.address,
-            index: field == "index" ? first.index : other.index)
+            path: field == "path" ? first.path : other.path)
         await #expect(throws: AccountStore.Failure.duplicateAccount) { try await store.add(duplicate) }
         #expect(try Data(contentsOf: file) == original)
     }
 
     /// Corrupt or inconsistent records prevent both loading and additions without resetting the file.
     /// - Parameter corruption: The malformed storage condition.
-    @Test(arguments: ["json", "address", "index", "duplicate", "missing field"])
+    @Test(arguments: ["json", "address", "path", "duplicate", "missing field"])
     func `Unreadable account storage is preserved`(_ corruption: String) async throws {
         let directory = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
         let stored = try account(index: 0)
         var record: [String: Any] = ["id": stored.id.uuidString, "recoveryID": stored.recoveryID.uuidString,
-            "address": stored.address.value, "index": stored.index]
+            "address": stored.address.value, "path": stored.path.description]
         switch corruption {
         case "address": record["address"] = "invalid"
-        case "index": record["index"] = UInt32(0x8000_0000)
+        case "path": record["path"] = "m/44'/501'/2147483648'"
         case "missing field": record.removeValue(forKey: "recoveryID")
         default: break
         }
@@ -102,7 +102,7 @@ struct AccountStoreTests {
                 if case DecodingError.dataCorrupted = error { return true }
                 return false
             case "address": return error as? Transactions.ValidationError == .invalidAddress
-            case "index": return error as? DerivationPath.ValidationError == .invalidPath
+            case "path": return error as? DerivationPath.ValidationError == .invalidPath
             case "duplicate": return error as? AccountStore.Failure == .duplicateAccount
             case "missing field":
                 guard case let DecodingError.keyNotFound(key, _) = error else { return false }
@@ -203,16 +203,24 @@ struct AccountStoreTests {
         #expect(try Data(contentsOf: file) == original)
     }
 
-    /// Invalid account numbers cannot enter an otherwise valid catalog.
+    /// The same recovery can retain two discovery families at the same account index.
     @Test
-    func `Invalid account indices cannot be saved`() async throws {
+    func `Both discovery path families survive reopening and subsequent additions`() async throws {
         let directory = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
-        let valid = try account(index: 0)
-        let invalid = Account(id: valid.id, recoveryID: valid.recoveryID, address: valid.address, index: UInt32.max)
         let store = try AccountStore(directory: directory)
-        await #expect(throws: DerivationPath.ValidationError.invalidPath) { try await store.add(invalid) }
-        #expect(try await store.load().isEmpty)
+        let first = try account(index: 0)
+        let otherAddress = try account(index: 1)
+        let second = try Account(id: UUID(), recoveryID: first.recoveryID,
+            address: otherAddress.address, path: DerivationPath("m/44'/501'/0'"))
+        _ = try await store.add(first)
+        _ = try await store.add(second)
+        let third = try account(index: 2, recoveryID: first.recoveryID)
+        _ = try await AccountStore(directory: directory).add(third)
+        let restored = try await store.load()
+        #expect(restored.map(\.id) == [first.id, second.id, third.id])
+        #expect(restored.map(\.path) == [first.path, second.path, third.path])
+        #expect(restored.map(\.recoveryID).allSatisfy { $0 == first.recoveryID })
     }
 
     /// Creates an isolated filesystem location for one test.
@@ -232,6 +240,6 @@ struct AccountStoreTests {
     /// - Throws: An address validation error.
     private func account(index: UInt32, recoveryID: UUID = UUID()) throws -> widgets.Account {
         Account(id: UUID(), recoveryID: recoveryID,
-            address: try Address(Base58.encode(Array(repeating: UInt8(index), count: 32))), index: index)
+            address: try Address(Base58.encode(Array(repeating: UInt8(index), count: 32))), path: try DerivationPath("m/44'/501'/\(index)'/0'"))
     }
 }

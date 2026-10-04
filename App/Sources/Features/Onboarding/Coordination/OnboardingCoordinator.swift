@@ -97,7 +97,7 @@ final class OnboardingCoordinator: OnboardingCoordinating {
             let recovery = try makeRecovery()
             let address = try await wallet.address(for: recovery.phrase, passphrase: recovery.passphrase, path: .solana)
             try Task.checkCancellation()
-            preparedAccount = Account(id: UUID(), recoveryID: UUID(), address: try Address(address), index: 0)
+            preparedAccount = Account(id: UUID(), recoveryID: UUID(), address: try Address(address), path: .solana)
             self.recovery = recovery
         } catch let error as RecoveryPhrase.ValidationError {
             throw error
@@ -149,7 +149,7 @@ final class OnboardingCoordinator: OnboardingCoordinating {
                 let stored = try await accountStore.load()
                 guard stored.contains(where: {
                     $0.id == account.id && $0.recoveryID == account.recoveryID
-                        && $0.address == account.address && $0.index == account.index
+                        && $0.address == account.address && $0.path == account.path
                 }) else { throw OnboardingCoordinatorError.accountStorageFailed }
             }
         } catch let error as CancellationError {

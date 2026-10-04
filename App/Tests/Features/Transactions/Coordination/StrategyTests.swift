@@ -2,6 +2,7 @@ import Foundation
 import RPC
 import Testing
 import Transactions
+import Wallet
 import Vault
 @testable import widgets
 
@@ -60,7 +61,7 @@ struct StrategyTests {
             store: KeychainStore(service: "widgetsTests.Strategy"), rpcs: [rpc], strategy: strategy, configuration: configuration)
 
         await #expect(throws: Preparer.Failure.priorityFeeTooLow(minimumLamports: minimumFee)) {
-            try await coordinator.simulate([transfer], using: Account(id: UUID(), recoveryID: UUID(), address: transfer.accounts[0].address, index: 0))
+            try await coordinator.simulate([transfer], using: Account(id: UUID(), recoveryID: UUID(), address: transfer.accounts[0].address, path: .solana))
         }
     }
 

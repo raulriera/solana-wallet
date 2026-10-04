@@ -15,8 +15,8 @@ extension SubmissionTests {
     func `Devnet token transfers deliver balances and return funds and account deposits`(_ program: TokenProgram) async throws {
         let rpcs = try devnetRPCs()
         let rpc = rpcs[0]
-        let sender = Account(id: DevnetWallets.senderID, recoveryID: DevnetWallets.senderID, address: try await DevnetWallets.address(for: DevnetWallets.senderID), index: 0)
-        let recipient = Account(id: DevnetWallets.recipientID, recoveryID: DevnetWallets.recipientID, address: try await DevnetWallets.address(for: DevnetWallets.recipientID), index: 0)
+        let sender = Account(id: DevnetWallets.senderID, recoveryID: DevnetWallets.senderID, address: try await DevnetWallets.address(for: DevnetWallets.senderID), path: .solana)
+        let recipient = Account(id: DevnetWallets.recipientID, recoveryID: DevnetWallets.recipientID, address: try await DevnetWallets.address(for: DevnetWallets.recipientID), path: .solana)
         let coordinator = try TransactionCoordinator(rpc: rpc, store: DevnetWallets.store, rpcs: rpcs)
         let mintAddress = try Address(program == .token ? "So11111111111111111111111111111111111111112"
                                                       : "9pan9bMn5HatX4EJdBwg9VgCa7Uz5HL8N1m5D3NdXejP")
@@ -103,7 +103,7 @@ extension SubmissionTests {
     @Test(arguments: TokenProgram.allCases)
     func `Devnet token transfers report a missing source account`(_ program: TokenProgram) async throws {
         let rpc = try devnetRPCs()[0]
-        let sender = Account(id: DevnetWallets.senderID, recoveryID: DevnetWallets.senderID, address: try await DevnetWallets.address(for: DevnetWallets.senderID), index: 0)
+        let sender = Account(id: DevnetWallets.senderID, recoveryID: DevnetWallets.senderID, address: try await DevnetWallets.address(for: DevnetWallets.senderID), path: .solana)
         let mint = try Address(program == .token ? "So11111111111111111111111111111111111111112"
                                                : "9pan9bMn5HatX4EJdBwg9VgCa7Uz5HL8N1m5D3NdXejP")
         let coordinator = try TransactionCoordinator(rpc: rpc, store: DevnetWallets.store)

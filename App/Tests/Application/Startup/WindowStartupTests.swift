@@ -2,6 +2,7 @@ import Encoding
 import Foundation
 import Testing
 import Transactions
+import Wallet
 @testable import widgets
 
 /// Verifies startup reads preserve wallet identities, storage, and independent window state.
@@ -159,6 +160,6 @@ struct WindowStartupTests {
     /// - Throws: An address validation error.
     private func account(index: UInt8) throws -> widgets.Account {
         Account(id: UUID(), recoveryID: UUID(),
-            address: try Address(Base58.encode(Array(repeating: index, count: 32))), index: UInt32(index))
+            address: try Address(Base58.encode(Array(repeating: index, count: 32))), path: try DerivationPath("m/44'/501'/\(index)'/0'"))
     }
 }

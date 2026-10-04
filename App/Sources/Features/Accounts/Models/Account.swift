@@ -8,27 +8,21 @@ nonisolated struct Account: Sendable {
     let id: UUID
     /// The protected recovery record shared by accounts from the same seed.
     let recoveryID: UUID
-    /// The address derived from the shared recovery and this account's index.
+    /// The address derived from the shared recovery and this account's exact path.
     let address: Address
-    /// The account number within the app's fixed Solana derivation pattern.
-    let index: UInt32
-
-    /// The hardened path constructed from the account number.
-    /// - Throws: `DerivationPath.ValidationError.invalidPath` if the index is at least 2³¹.
-    var path: DerivationPath {
-        get throws { try DerivationPath("m/44'/501'/\(index)'/0'") }
-    }
+    /// The validated hardened path needed to recover this account's signing key.
+    let path: DerivationPath
 
     /// Selects an existing wallet without reading protected recovery.
     /// - Parameters:
     ///   - id: The account's retained identity.
     ///   - recoveryID: The shared recovery identifier.
     ///   - address: The previously derived address; signing verifies this binding again.
-    ///   - index: The account number, starting at zero for the first address.
-    init(id: UUID, recoveryID: UUID, address: Address, index: UInt32) {
+    ///   - path: The exact derivation path paired with the address.
+    init(id: UUID, recoveryID: UUID, address: Address, path: DerivationPath) {
         self.id = id
         self.recoveryID = recoveryID
         self.address = address
-        self.index = index
+        self.path = path
     }
 }
