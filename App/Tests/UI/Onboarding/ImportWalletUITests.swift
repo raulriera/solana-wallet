@@ -49,6 +49,44 @@ final class ImportWalletUITests: XCTestCase {
         XCTAssertEqual(passphrase.value as? String, "Optional")
     }
 
+    /// Returning from the background conceals revealed recovery while retaining the unfinished entry.
+    @objc(testBackgroundConcealsRecoveryWithoutLosingInputAndReturnError:)
+    func `test Returning from the background hides recovery without losing input`() throws {
+        let flow = OnboardingApp()
+        defer { flow.app.terminate() }
+        try flow.launch()
+        try flow.openImport()
+        try flow.enterPhrase()
+        try flow.enterPassphrase(" TrEzOr ")
+        let reveal = flow.app.buttons["Show words"]
+        if !reveal.isHittable { flow.app.swipeDown() }
+        try flow.tap(reveal)
+        try flow.waitFor(flow.app.buttons["Hide words"])
+
+        XCUIDevice.shared.press(.home)
+        guard flow.app.wait(for: .runningBackground, timeout: 10) else {
+            XCTFail("The app did not enter the background")
+            return
+        }
+        flow.app.activate()
+        guard flow.app.wait(for: .runningForeground, timeout: 10) else {
+            XCTFail("The app did not return to the foreground")
+            return
+        }
+
+        try flow.waitFor(flow.app.secureTextFields["Recovery words"])
+        try flow.waitFor(reveal)
+        XCTAssertFalse(flow.app.buttons["Hide words"].exists)
+        XCTAssertTrue(flow.submitImport.isEnabled)
+        try flow.tap(reveal)
+        try flow.waitFor(flow.app.buttons["Hide words"])
+        XCTAssertEqual(flow.app.descendants(matching: .any)["Recovery words"].value as? String, OnboardingApp.phrase)
+        let passphrase = flow.app.secureTextFields["BIP-39 passphrase, optional"]
+        if !passphrase.isHittable { flow.app.swipeUp() }
+        try flow.waitFor(passphrase)
+        XCTAssertNotEqual(try XCTUnwrap(passphrase.value as? String), "Optional")
+    }
+
     /// Import bypasses backup confirmation and survives a fresh process through real startup restoration.
     @objc(testImportWithPassphraseRestoresAfterRelaunchAndReturnError:)
     func `test Import with an original passphrase completes and restores after relaunch`() throws {
