@@ -12,11 +12,9 @@ struct PortfolioLiveTests {
     /// - Throws: An RPC, storage, or test prerequisite error.
     @Test(.timeLimit(.minutes(1)))
     func `Mainnet portfolio persists DAS holdings and reuses its complete snapshot`() async throws {
-        let rpc = try MainnetClients.client()
+        let transport = LiveResponses<GetFungibleAssetsByOwner>()
+        let rpc = try MainnetClients.client(transport: transport)
         let owner = PublicWallet.address
-        let observed = try await Solana(network: .mainnet).send(GetMultipleAccounts(addresses: [owner]))
-        try #require(observed.value.count == 1)
-        let lamports = observed.value[0]?.lamports ?? 0
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
         let store = FileSnapshotStore(directory: directory)
@@ -30,10 +28,13 @@ struct PortfolioLiveTests {
         let completed = try #require(await updates.next())
         if let error = completed.error { throw error }
         let snapshot = try #require(completed.snapshot)
+        let firstPage = try #require(await transport.responses.first)
+        #expect(firstPage.page == 1)
+        let balance = try #require(firstPage.nativeBalance)
         #expect(!completed.isRefreshing)
         #expect(snapshot.owner == owner)
         #expect(snapshot.network == .mainnet)
-        #expect(snapshot.holdings.first { $0.id == .nativeSOL }?.amount == Amount(units: lamports, decimals: 9))
+        #expect(snapshot.holdings.first { $0.id == .nativeSOL }?.amount == Amount(units: balance.lamports, decimals: 9))
         #expect(snapshot.holdings.first { $0.id == .nativeSOL }?.imageURL != nil)
         #expect(snapshot.holdings.allSatisfy {
             $0.id == .nativeSOL || $0.metadata?.kind == "FungibleToken" || $0.metadata?.kind == "FungibleAsset"

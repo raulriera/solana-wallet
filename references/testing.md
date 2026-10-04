@@ -8,7 +8,8 @@
   and skip initializer-assignment tests. Use sentence-style names; XCUITests need explicit
   Objective-C selectors for discovery.
 - Test internal workflows in app-hosted tests with `@testable` imports.
-  Verify framework APIs through ordinary imports; keep implementation helpers internal.
+  Prefer ordinary imports for framework APIs; use existing internal transport or storage
+  seams when setup requires them, without widening the production API.
 - Use local fixtures for decoding, cryptography, and validation. Check instruction compilation
   against independent SDK fixtures with mixed programs and multiple signers; exercise the app
   consumer through simulation and explicit confirmation.
@@ -18,10 +19,11 @@
 
 - Use real RPC clients; no fake RPCs. Read-only live checks and UI flows use mainnet.
   Tests that fund wallets, submit transactions, or incur fees use devnet, including their
-  setup and confirmation. Local fixture tests make no network requests.
+  setup and confirmation. Mainnet-only delivery checks are explicitly opt-in, require
+  approval of exact spending limits, and stop if the quote changes.
 - Read-only checks use public addresses or published recovery fixtures without accessing
-  retained transaction wallets. Providers without devnet submission support retain local
-  coverage only; those checks do not establish live delivery.
+  retained transaction wallets. Compare live values from the same response, isolate mutable
+  storage per test, and await cancellation before cleanup. Local fixtures make no network requests.
 - Live results do not exhaust provider races or outages. Keep credentials in ignored local
   configuration and recovery out of source, logs, and ordinary files.
 - Before funding, save recovery in device-only Vault, read it back, and derive the same address.

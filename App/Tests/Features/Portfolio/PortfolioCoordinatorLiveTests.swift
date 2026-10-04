@@ -1,6 +1,6 @@
 import Foundation
 import Observation
-import Portfolio
+@testable import Portfolio
 import RPC
 import Testing
 @testable import widgets
@@ -16,28 +16,31 @@ struct PortfolioCoordinatorLiveTests {
     func `Portfolio presentation observes and reloads a public mainnet wallet`() async throws {
         let rpc = try MainnetClients.client()
         let owner = PublicWallet.address
-        let coordinator = PortfolioCoordinator(service: Portfolio(rpc: rpc))
-        let openedAt = Date()
-        let viewing = Task { await coordinator.observe(for: owner, isActive: true) }
-        defer { viewing.cancel() }
-        for await update in Observations({ coordinator.update }) {
-            if let error = update?.error { throw error }
-            if update?.isRefreshing == false, let snapshot = update?.snapshot,
-               snapshot.fetchedAt >= openedAt { break }
-        }
-        let initial = try #require(coordinator.update?.snapshot)
-        #expect(initial.owner == owner)
-        #expect(initial.network == .mainnet)
-        #expect(initial.holdings.first { $0.id == .nativeSOL }?.imageURL != nil)
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let service = Portfolio(rpc: rpc, store: FileSnapshotStore(directory: directory))
+        let coordinator = PortfolioCoordinator(service: service)
+        let reloaded = try await withThrowingTaskGroup(of: Void.self) { group in
+            group.addTask { await coordinator.observe(for: owner, isActive: true) }
+            defer { group.cancelAll() }
+            for await update in Observations({ coordinator.update }) {
+                if let error = update?.error { throw error }
+                if update?.isRefreshing == false, update?.snapshot != nil { break }
+            }
+            let initial = try #require(coordinator.update?.snapshot)
+            let initialRevision = try #require(coordinator.update?.snapshotRevision)
+            #expect(initial.owner == owner)
+            #expect(initial.network == .mainnet)
+            #expect(initial.holdings.first { $0.id == .nativeSOL }?.imageURL != nil)
 
-        await coordinator.refresh()
-        if let error = coordinator.update?.error { throw error }
-        let reloaded = try #require(coordinator.update?.snapshot)
-        #expect(reloaded.fetchedAt > initial.fetchedAt)
-        #expect(reloaded.owner == owner)
-        #expect(reloaded.network == .mainnet)
-        viewing.cancel()
-        await viewing.value
+            await coordinator.refresh()
+            if let error = coordinator.update?.error { throw error }
+            let reloaded = try #require(coordinator.update?.snapshot)
+            #expect(try #require(coordinator.update?.snapshotRevision) > initialRevision)
+            #expect(reloaded.owner == owner)
+            #expect(reloaded.network == .mainnet)
+            return reloaded
+        }
         #expect(coordinator.update?.snapshot == reloaded)
         #expect(coordinator.update?.isRefreshing == false)
     }
