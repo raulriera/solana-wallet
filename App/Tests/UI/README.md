@@ -15,8 +15,7 @@ Import tests use a public BIP-39 fixture. Create tests generate real disposable,
 unfunded wallets whose words may appear in test artifacts. Both exercise production
 services and normal storage locations.
 
-The test driver keeps `UI_TEST_NETWORK=devnet` across launches. Debug simulator builds
-use the same discovery and RPC services on devnet; ordinary app launches use mainnet.
+Onboarding tests use the app's normal mainnet discovery client and submit no transactions.
 Import completion requires a successful network scan, including when no funded account is found.
 
 Follow the shared [testing rules](../../../references/testing.md).

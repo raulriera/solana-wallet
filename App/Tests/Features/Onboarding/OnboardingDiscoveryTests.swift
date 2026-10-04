@@ -84,13 +84,13 @@ struct OnboardingDiscoveryTests {
         #expect(await http.requests.count == 2)
     }
 
-    /// Performs a read-only real devnet scan using a public phrase without funding or touching saved wallets.
+    /// Performs a read-only mainnet scan using a public phrase without funding or touching saved wallets.
     @Test
-    func `A real devnet lookup prepares an import without persisting it`() async throws {
+    func `A real mainnet lookup prepares an import without persisting it`() async throws {
         let recovery = OnboardingRecoveryStore()
         let accounts = OnboardingAccountStore(recovery: recovery)
         let router = WindowRouter(initialDestination: .onboarding)
-        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: Solana(network: .devnet)),
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: Solana(network: .mainnet)),
             wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
 
         try await coordinator.importRecovery(OnboardingCoordinatorTests.phrase, passphrase: "")

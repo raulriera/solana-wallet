@@ -1,4 +1,3 @@
-import Foundation
 import RPC
 import Vault
 import Wallet
@@ -15,16 +14,12 @@ struct AppServices {
     /// - Throws: An error if the bundled appearance or a storage configuration is invalid.
     init() throws {
         let recoveryService = "com.raulriera.widgets.recovery"
-        let network: Network
         #if DEBUG && targetEnvironment(simulator)
         try UITestReset.runIfRequested(recoveryService: recoveryService)
-        network = ProcessInfo.processInfo.environment["UI_TEST_NETWORK"] == "devnet" ? .devnet : .mainnet
-        #else
-        network = .mainnet
         #endif
         appearance = try AppearanceServices()
         wallet = Wallet()
-        discovery = AccountDiscovery(rpc: Solana(network: network), wallet: wallet)
+        discovery = AccountDiscovery(rpc: Solana(network: .mainnet), wallet: wallet)
         recovery = KeychainStore(service: recoveryService)
         accounts = try AccountStore()
     }

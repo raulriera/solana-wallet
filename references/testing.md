@@ -16,8 +16,10 @@
 
 ## Live integrations
 
-- Use real RPC clients on devnet, including submission and confirmation; no fake RPCs.
-  Live results do not exhaust provider races or outages. Keep credentials in ignored local
+- Use real RPC clients; no fake RPCs. Read-only live checks and UI flows use mainnet.
+  Tests that fund wallets, submit transactions, or incur fees use devnet, including their
+  setup and confirmation. Local fixture tests make no network requests.
+- Live results do not exhaust provider races or outages. Keep credentials in ignored local
   configuration and recovery out of source, logs, and ordinary files.
 - Before funding, save recovery in device-only Vault, read it back, and derive the same address.
   Retain both transfer wallets across runs, reuse balances, and return funds after fees.

@@ -37,7 +37,7 @@
 - Validate concurrency changes against current Apple documentation and the Swift Concurrency plugin's `swift-concurrency` skill.
 - Follow [references/testing.md](references/testing.md) when writing or reviewing tests.
 - Name test functions with sentence-style raw identifiers instead of camelCase; do not duplicate those names in `@Test` display strings.
-- Verify RPC integrations with real clients on devnet; do not add fake RPC implementations for tests.
+- Verify live integrations with real RPC clients: mainnet for read-only behavior, devnet for tests that fund wallets, submit transactions, or incur fees. Do not add fake RPC implementations for tests.
 - Never request funding for a wallet without verified, retained recovery. Reuse controlled devnet test wallets and return test funds after fees; never discard funded wallet recovery.
 - Document every function and initializer using Apple DocC conventions.
 - Solana V1 transactions only; compose ordered instructions through one shared transaction pipeline. Transfers are instruction helpers, not a separate transaction model.
