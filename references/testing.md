@@ -1,30 +1,42 @@
 # Testing
 
-- Follow the [Swift Testing expert](plugin://swift-testing-expert@swift-testing-agent-skill)
-  skill when writing or reviewing tests.
-- Write focused tests for meaningful behavior. Keep happy and failure paths
-  separate, test shared behavior once, and name tests after concrete outcomes:
-  `get balance returns wallet lamports`, not `get balance is successful`.
-- Verify RPC integrations with the actual clients on devnet, including submission
-  and confirmation. Do not add fake RPC implementations. Keep test credentials in
-  ignored local configuration and recovery material out of source, logs, and ordinary files.
-- Before requesting any funding, save test recovery in the device-only Vault and
-  verify it by reading back and deriving the same address. Retain both ends of
-  funded transfers across runs, reuse their balances, and return funds after fees.
-  Storage or identity failures stop setup; never silently replace a funded wallet.
-  Run funded tests on the retained simulator with `-parallel-testing-enabled NO`;
-  disposable simulator clones and resets cannot retain control of funded accounts.
-- For tests needing real biometrics, follow the local
-  [biometric-tests skill](../.agents/skills/biometric-tests/SKILL.md). It explains
-  local simulator selection, enrollment commands, opt-in tests, and
-  authentication events. Never toggle enrollment on the retained wallet simulator.
-- Verify public construction from a consumer using ordinary `import`; `@testable`
-  can hide access restrictions. Keep implementation helpers internal; don't make
-  them public for tests. Skip tests that only repeat initializer assignments.
-- Verify generic instruction compilation against independent SDK fixtures, including mixed programs and multiple signers. Exercise the app consumer through simulation and explicit confirmation; test shared validation once.
-- Test internal app workflows in app-hosted `widgetsTests` using `@testable import widgets`;
-  continue using ordinary imports for their framework contracts and response values.
-- Use local fixtures for decoding, cryptography, and validation. Live tests prove
-  observed network behavior; do not claim they exhaust provider races or outages.
-- Test redaction independently, plus one focused client test proving returned
-  errors hide fake credentials. Helper tests alone cannot verify client wiring.
+## Coverage
+
+- Follow [Swift Testing Expert](plugin://swift-testing-expert@swift-testing-agent-skill).
+  Use Swift Testing for unit tests and XCTest for UI automation.
+- Test meaningful outcomes; separate success and failure paths, cover shared behavior once,
+  and skip initializer-assignment tests. Use sentence-style names; XCUITests need explicit
+  Objective-C selectors for discovery.
+- Test internal workflows in app-hosted tests with `@testable` imports.
+  Verify framework APIs through ordinary imports; keep implementation helpers internal.
+- Use local fixtures for decoding, cryptography, and validation. Check instruction compilation
+  against independent SDK fixtures with mixed programs and multiple signers; exercise the app
+  consumer through simulation and explicit confirmation.
+- Test redaction independently and through one client test using fake credentials.
+
+## Live integrations
+
+- Use real RPC clients on devnet, including submission and confirmation; no fake RPCs.
+  Live results do not exhaust provider races or outages. Keep credentials in ignored local
+  configuration and recovery out of source, logs, and ordinary files.
+- Before funding, save recovery in device-only Vault, read it back, and derive the same address.
+  Retain both transfer wallets across runs, reuse balances, and return funds after fees.
+  Storage or identity failures stop setup; never replace funded recovery.
+- Run funded tests on the retained simulator with `-parallel-testing-enabled NO`; never clone,
+  reset, or toggle its biometric enrollment. Follow [biometric-tests](../.agents/skills/biometric-tests/SKILL.md)
+  for real biometric checks.
+
+## UI automation
+
+- Follow XCUITest Resilience. Only the user runs UI tests; agents may build without executing
+  test setup. Reuse approved simulators and disable parallel execution.
+- Make each test self-contained: automatically prepare prerequisites and reset disposable state
+  before constructing services. Restrict destructive reset hooks to explicit Debug simulator
+  test launches; preserve state during relaunches that verify persistence.
+- Exercise production services at normal storage locations. Use public fixtures or disposable,
+  unfunded generated wallets whose words may appear in user-run screenshots. Never use existing
+  or funded recovery in UI automation.
+- Query visible text and accessibility labels, scoping by native container only when needed.
+  Do not add test-only accessibility identifiers; incorrect user-facing labels must fail.
+- Check readiness before acting. Unexpected setup alerts fail immediately; never mask them
+  with generic timeouts, automatic dismissal, or blind retries of committed actions.

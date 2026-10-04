@@ -8,12 +8,16 @@ struct AppServices {
     let recovery: any RecoveryStoring
     let accounts: any AccountStoring
 
-    /// Creates shared services without generating or accessing wallet recovery material.
+    /// Creates production services after any explicit simulator UI-test reset.
     /// - Throws: An error if the bundled appearance or a storage configuration is invalid.
     init() throws {
+        let recoveryService = "com.raulriera.widgets.recovery"
+        #if DEBUG && targetEnvironment(simulator)
+        try UITestReset.runIfRequested(recoveryService: recoveryService)
+        #endif
         appearance = try AppearanceServices()
         wallet = Wallet()
-        recovery = KeychainStore(service: "com.raulriera.widgets.recovery")
+        recovery = KeychainStore(service: recoveryService)
         accounts = try AccountStore()
     }
 
