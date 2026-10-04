@@ -47,8 +47,10 @@
 - Surface rate-limit errors to consumers; do not automatically retry. Pace price-provider batches within their request budgets; do not throttle Solana RPC or DAS requests.
 - Add RPC methods only for concrete needs of agreed wallet features; follow [references/rpc-scope.md](references/rpc-scope.md), not endpoint coverage.
 - Keep the app decentralized: no app-owned backend or proxy. Connect directly to Solana RPC providers.
+- Never ship provider API keys in the app bundle or source; users enter them in the app. Ignored local configuration supplies keys to tests only.
 - Use one submission strategy: `none` sends identical signed bytes concurrently through configured same-network ordinary RPCs; `standard` and `premium` use Sender exclusively. Follow [references/transaction-workflow.md](references/transaction-workflow.md).
 - Use the selected provider's DAS interface only for portfolio viewing; keep DAS out of transaction submission contracts, validation, and routing. Follow [references/portfolio.md](references/portfolio.md).
+- Load token artwork only over HTTPS from the selected provider's CDN; never request creator-hosted or off-chain URLs, which expose the user's IP address.
 - Keep wallet recovery material device-only, excluded from iCloud sync and backups; follow [references/wallet.md](references/wallet.md).
 - Never drop saved wallets during launch, app updates, or validation. Preserve stored metadata and recovery; treat loading errors as failures, not an empty wallet.
 - Discover accounts with one SOL-only lookup for twenty addresses; intentionally ignore zero-SOL accounts. Follow [references/wallet.md](references/wallet.md).
