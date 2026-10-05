@@ -10,7 +10,7 @@ struct AppearanceServices {
     /// Configures production services without opening installed packages.
     /// - Throws: An invalid bundled resource or catalog configuration error.
     init() throws {
-        guard let url = Bundle.main.url(forResource: "Original", withExtension: "xtheme") else {
+        guard let url = Bundle.main.url(forResource: "Original", withExtension: "xtheme", subdirectory: "Themes.bundle") else {
             throw CocoaError(.fileNoSuchFile)
         }
         let builtIns = [BundledTheme(id: OriginalAppearance.id, name: "Original", url: url)]

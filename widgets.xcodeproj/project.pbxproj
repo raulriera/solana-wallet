@@ -163,9 +163,6 @@
 			exceptions = (
 				AD0000000000000000000007 /* Exceptions for "Sources" folder in "widgets" target */,
 			);
-			explicitFolders = (
-				Resources/Themes/Original.xtheme,
-			);
 			path = Sources;
 			sourceTree = "<group>";
 		};
