@@ -6,11 +6,16 @@ import SwiftUI
 
     var body: some Scene {
         WindowGroup {
-            switch services {
-            case .success(let services): WindowRoot(services: services)
-            case .failure:
-                ContentUnavailableView("Appearance Unavailable", systemImage: "exclamationmark.triangle",
-                                       description: Text("The original theme could not be loaded."))
+            if ProcessInfo.processInfo.environment["IS_UNIT_TESTING"] == "1" {
+                // The widgets scheme's Test action sets this; unit tests build their own services.
+                EmptyView()
+            } else {
+                switch services {
+                case .success(let services): WindowRoot(services: services)
+                case .failure:
+                    ContentUnavailableView("Appearance Unavailable", systemImage: "exclamationmark.triangle",
+                                           description: Text("The original theme could not be loaded."))
+                }
             }
         }
     }
