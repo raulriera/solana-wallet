@@ -50,13 +50,14 @@ struct OnboardingApp {
         try expectSetupOutcome(app.staticTexts["Wallet ready"], label: "Wallet ready", file: file, line: line)
     }
 
-    /// Confirms that saving the wallet pushed provider setup, with no way back to the wallet's earlier steps.
+    /// Confirms that saving the wallet pushed provider setup as the last step, with no way back to the wallet's earlier steps.
     /// - Parameters:
     ///   - file: The calling test's source file for failure reporting.
     ///   - line: The calling test's line for failure reporting.
-    /// - Throws: A missing provider setup destination, a remaining back button, or an explicit wallet setup failure.
+    /// - Throws: A missing provider setup destination or step count, a remaining back button, or an explicit wallet setup failure.
     func expectProviderSetup(file: StaticString = #filePath, line: UInt = #line) throws {
         try expectSetupOutcome(app.navigationBars["Connect to Helius"], label: "Connect to Helius", file: file, line: line)
+        try waitFor(app.staticTexts["Step 2 of 2"], file: file, line: line)
         // The outgoing step's back button leaves when the push finishes; provider setup has none.
         try waitForAbsence(app.buttons["BackButton"], file: file, line: line)
     }
@@ -108,10 +109,11 @@ struct OnboardingApp {
         try expectWallet(file: file, line: line)
     }
 
-    /// Checks the production creation screen and its twelve numbered words without expecting a fixed phrase.
-    /// - Throws: A missing recovery destination or word row.
+    /// Checks the production creation screen as the first step and its twelve numbered words without expecting a fixed phrase.
+    /// - Throws: A missing recovery destination, step count, or word row.
     func expectRecovery() throws {
         try waitFor(app.navigationBars["Recovery Phrase"])
+        try waitFor(app.staticTexts["Step 1 of 2"])
         try waitFor(app.staticTexts[Self.recoveryGuidance])
         let lastWord = app.staticTexts.matching(NSPredicate(format: "label MATCHES %@", #"12\. [a-z]+"#))
         try waitFor(lastWord.firstMatch)
@@ -122,11 +124,12 @@ struct OnboardingApp {
         }
     }
 
-    /// Opens the existing import screen through its welcome action.
-    /// - Throws: A missing or unavailable control.
+    /// Opens the existing import screen through its welcome action as the first step.
+    /// - Throws: A missing or unavailable control, or a missing step count.
     func openImport() throws {
         try tap(app.buttons["Import Wallet"])
         try waitFor(app.secureTextFields["Recovery words"])
+        try waitFor(app.staticTexts["Step 1 of 2"])
     }
 
     /// Enters public fixture words and dismisses the keyboard through the screen's native toolbar.

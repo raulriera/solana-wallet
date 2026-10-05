@@ -34,24 +34,27 @@ struct OnboardingScene: View {
                 navigation.showImport()
             })
                 .navigationDestination(for: OnboardingStep.self) { step in
-                    switch step {
-                    case .recovery:
-                        RecoveryPhraseScreen(initialPhrase: coordinator.recovery?.phrase,
-                                             isSaved: coordinator.account != nil,
-                                             continueSetup: { isCompleting = true })
-                    case .importWallet:
-                        if let presentationID = importSubmission.presentationID {
-                            ImportWalletScreen(submission: importSubmission)
-                                .importLifecycle(importSubmission, presentationID: presentationID)
-                                .id(presentationID)
+                    Group {
+                        switch step {
+                        case .recovery:
+                            RecoveryPhraseScreen(initialPhrase: coordinator.recovery?.phrase,
+                                                 isSaved: coordinator.account != nil,
+                                                 continueSetup: { isCompleting = true })
+                        case .importWallet:
+                            if let presentationID = importSubmission.presentationID {
+                                ImportWalletScreen(submission: importSubmission)
+                                    .importLifecycle(importSubmission, presentationID: presentationID)
+                                    .id(presentationID)
+                            }
+                        case .providerSetup:
+                            // The wallet is already saved, so its earlier steps no longer apply.
+                            ProviderSetupScreen(isKeyRejected: providerSubmission.isKeyRejected,
+                                                submit: providerSubmission.submit)
+                                .providerSetupLifecycle(providerSubmission)
+                                .navigationBarBackButtonHidden()
                         }
-                    case .providerSetup:
-                        // The wallet is already saved, so its earlier steps no longer apply.
-                        ProviderSetupScreen(isKeyRejected: providerSubmission.isKeyRejected,
-                                            submit: providerSubmission.submit)
-                            .providerSetupLifecycle(providerSubmission)
-                            .navigationBarBackButtonHidden()
                     }
+                    .navigationSubtitle("Step \(step.number) of \(OnboardingStep.total)")
                 }
         }
         .task(id: isCreating) { await createWallet() }
