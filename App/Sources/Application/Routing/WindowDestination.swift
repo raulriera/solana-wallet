@@ -1,9 +1,7 @@
-import Foundation
-
-/// A window's root destination, carrying only a public account identifier.
+/// A window's root destination, carrying only public account metadata.
 nonisolated enum WindowDestination: Equatable, Sendable {
     case restoringWallets
     case walletRestorationFailed
     case onboarding
-    case wallet(accountID: UUID)
+    case wallet(Account)
 }

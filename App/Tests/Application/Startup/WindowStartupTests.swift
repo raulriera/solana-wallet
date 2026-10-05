@@ -1,8 +1,5 @@
-import Encoding
 import Foundation
 import Testing
-import Transactions
-import Wallet
 @testable import widgets
 
 /// Verifies startup reads preserve wallet identities, storage, and independent window state.
@@ -14,8 +11,8 @@ struct WindowStartupTests {
     func `Saved wallets survive reopening in independent windows`() async throws {
         let directory = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
-        let first = try account(index: 0)
-        let second = try account(index: 1)
+        let first = try Account.fixture(index: 0)
+        let second = try Account.fixture(index: 1)
         let store = try AccountStore(directory: directory)
         _ = try await store.add(first)
         _ = try await store.add(second)
@@ -27,10 +24,10 @@ struct WindowStartupTests {
         for router in [firstWindow, secondWindow] {
             let reopened = try AccountStore(directory: directory)
             await WindowStartup(accounts: reopened, router: router).restore()
-            #expect(router.destination == .wallet(accountID: first.id))
+            #expect(router.destination == .wallet(first))
         }
-        firstWindow.route(to: .wallet(accountID: second.id))
-        #expect(secondWindow.destination == .wallet(accountID: first.id))
+        firstWindow.route(to: .wallet(second))
+        #expect(secondWindow.destination == .wallet(first))
         #expect(try Data(contentsOf: file) == original)
     }
 
@@ -66,7 +63,7 @@ struct WindowStartupTests {
     func `Retrying a failed read opens the existing saved wallet`() async throws {
         let directory = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
-        let saved = try account(index: 0)
+        let saved = try Account.fixture(index: 0)
         let store = try AccountStore(directory: directory)
         _ = try await store.add(saved)
         let file = directory.appendingPathComponent("accounts.json")
@@ -81,7 +78,7 @@ struct WindowStartupTests {
         try original.write(to: file)
         await startup.restore()
 
-        #expect(router.destination == .wallet(accountID: saved.id))
+        #expect(router.destination == .wallet(saved))
         #expect(try Data(contentsOf: file) == original)
     }
 
@@ -109,8 +106,8 @@ struct WindowStartupTests {
     /// Reappearing windows preserve both unfinished onboarding and an already selected wallet.
     /// - Parameter hasWallet: Whether the window is in onboarding or already shows a wallet.
     @Test(arguments: [false, true])
-    func `Repeated startup preserves resolved window navigation`(hasWallet: Bool) async {
-        let destination: WindowDestination = hasWallet ? .wallet(accountID: UUID()) : .onboarding
+    func `Repeated startup preserves resolved window navigation`(hasWallet: Bool) async throws {
+        let destination: WindowDestination = try hasWallet ? .wallet(.fixture(index: 0)) : .onboarding
         let router = WindowRouter(initialDestination: destination)
         let store = StartupAccountStore {
             Issue.record("A resolved window must not reload its initial selection")
@@ -124,7 +121,7 @@ struct WindowStartupTests {
 
     /// A selection made while a store is suspended wins over its late initial result.
     @Test
-    func `A late startup read cannot replace a newer wallet selection`() async {
+    func `A late startup read cannot replace a newer wallet selection`() async throws {
         let started = AsyncStream<Void>.makeStream()
         let pending = AsyncStream<Void>.makeStream()
         let store = StartupAccountStore {
@@ -137,12 +134,12 @@ struct WindowStartupTests {
         let operation = Task { await startup.restore() }
         defer { operation.cancel(); pending.continuation.finish() }
         for await _ in started.stream {}
-        let selected = UUID()
-        router.route(to: .wallet(accountID: selected))
+        let selected = try Account.fixture(index: 0)
+        router.route(to: .wallet(selected))
         pending.continuation.finish()
         await operation.value
 
-        #expect(router.destination == .wallet(accountID: selected))
+        #expect(router.destination == .wallet(selected))
     }
 
     /// Creates an isolated directory that cannot contain app wallet data.
@@ -152,14 +149,5 @@ struct WindowStartupTests {
         let directory = URL.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
         return directory
-    }
-
-    /// Creates public fixture metadata without generating or accessing recovery material.
-    /// - Parameter index: A small index used to generate a distinct public address.
-    /// - Returns: A public test account.
-    /// - Throws: An address validation error.
-    private func account(index: UInt8) throws -> widgets.Account {
-        Account(id: UUID(), recoveryID: UUID(),
-            address: try Address(Base58.encode(Array(repeating: index, count: 32))), path: try DerivationPath("m/44'/501'/\(index)'/0'"))
     }
 }

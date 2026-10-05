@@ -53,7 +53,7 @@ extension OnboardingCoordinatorTests {
         let account = try await first.complete()
         try first.finish()
 
-        #expect(firstRouter.destination == .wallet(accountID: account.id))
+        #expect(firstRouter.destination == .wallet(account))
         #expect(first.recovery == nil)
         #expect(secondRouter.destination == .onboarding)
         #expect(second.recovery?.passphrase == "other-window")

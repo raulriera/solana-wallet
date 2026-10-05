@@ -3,7 +3,7 @@ import Transactions
 import Wallet
 
 /// A local wallet identity without recovery material or signing keys.
-nonisolated struct Account: Sendable {
+nonisolated struct Account: Sendable, Equatable {
     /// The stable identity of this account.
     let id: UUID
     /// The protected recovery record shared by accounts from the same seed.

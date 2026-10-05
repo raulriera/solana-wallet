@@ -1,3 +1,4 @@
+import Portfolio
 import RPC
 import Vault
 import Wallet
@@ -10,21 +11,27 @@ struct AppServices {
     let recovery: any RecoveryStoring
     let accounts: any AccountStoring
     let providerConnection: any ProviderConnecting
+    let providerKeyRevision = ProviderKeyRevision()
+    let portfolio: any PortfolioProviding
     let recoveryPasteboard: any RecoveryCopying
 
     /// Creates production services after any explicit simulator UI-test reset.
     /// - Throws: An error if the bundled appearance or a storage configuration is invalid.
     init() throws {
         let recoveryService = "com.raulriera.widgets.recovery"
+        let providerService = "com.raulriera.widgets.provider"
         #if DEBUG && targetEnvironment(simulator)
-        try UITestReset.runIfRequested(recoveryService: recoveryService)
+        try UITestReset.runIfRequested(keychainServices: [recoveryService, providerService])
         #endif
         appearance = try AppearanceServices()
         wallet = Wallet()
         discovery = AccountDiscovery(rpc: Solana(network: .mainnet), wallet: wallet)
         recovery = KeychainStore(service: recoveryService)
         accounts = try AccountStore()
-        providerConnection = HeliusConnection(keys: ProviderKeyStore(service: "com.raulriera.widgets.provider"))
+        let providerKeys = ProviderKeyStore(service: providerService)
+        providerConnection = HeliusConnection(keys: providerKeys)
+        // One service for every window shares its cache, subscriptions, and price pacing.
+        portfolio = Portfolio(rpc: HeliusClient(keys: providerKeys), prices: Jupiter())
         recoveryPasteboard = RecoveryPasteboard()
     }
 
@@ -40,6 +47,12 @@ struct AppServices {
     /// - Returns: A workflow that opens saved accounts without accessing recovery material.
     func makeWindowStartup(router: any WindowRouting) -> any WindowStarting {
         WindowStartup(accounts: accounts, router: router)
+    }
+
+    /// Creates independent portfolio presentation around the shared portfolio service.
+    /// - Returns: A coordinator whose observation and refreshes belong to one window.
+    func makePortfolioCoordinator() -> any PortfolioCoordinating {
+        PortfolioCoordinator(service: portfolio)
     }
 
     /// Assembles a fresh onboarding workflow around the app's shared services.

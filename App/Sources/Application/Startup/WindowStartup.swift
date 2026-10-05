@@ -22,7 +22,7 @@ struct WindowStartup: WindowStarting {
             let saved = try await accounts.load()
             try Task.checkCancellation()
             guard canRestore else { return }
-            router.route(to: saved.first.map { .wallet(accountID: $0.id) } ?? .onboarding)
+            router.route(to: saved.first.map { .wallet($0) } ?? .onboarding)
         } catch is CancellationError {
             return
         } catch {

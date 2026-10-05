@@ -11,6 +11,9 @@ import Portfolio
 final class PortfolioCoordinator: PortfolioCoordinating {
     private(set) var update: Update?
 
+    /// The latest update's failure, classified without retaining the provider's error.
+    var failure: PortfolioFailure? { update?.error.map(PortfolioFailure.init) }
+
     private let service: any PortfolioProviding
     @ObservationIgnored private var owner: String?
     @ObservationIgnored private var session: UUID?

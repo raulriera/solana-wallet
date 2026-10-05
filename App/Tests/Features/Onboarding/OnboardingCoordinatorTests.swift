@@ -66,7 +66,7 @@ struct OnboardingCoordinatorTests {
         try coordinator.finish()
 
         #expect(coordinator.account?.id == account.id)
-        #expect(router.destination == .wallet(accountID: account.id))
+        #expect(router.destination == .wallet(account))
     }
 
     /// An unsaved draft can't end onboarding, so the window stays put.

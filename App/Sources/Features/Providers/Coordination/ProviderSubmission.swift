@@ -3,10 +3,10 @@ import Foundation
 import Observation
 import SwiftUI
 
-/// Owns one window's provider key checks after onboarding saves its wallet.
+/// Owns one window's provider key checks, then continues the flow that asked for a key.
 @MainActor
 @Observable
-final class ProviderSubmission {
+final class ProviderSubmission: Identifiable {
     private(set) var isKeyRejected = false
     /// Counts rejected keys, so each rejection signals again while its message stays on screen.
     private(set) var rejectionCount = 0
@@ -14,15 +14,18 @@ final class ProviderSubmission {
     private(set) var attempt: UUID?
     @ObservationIgnored private var pendingKey: String?
     private let connection: any ProviderConnecting
-    private let coordinator: any OnboardingCoordinating
+    private let revision: ProviderKeyRevision
+    private let finish: @MainActor () throws -> Void
 
-    /// Pairs the shared provider connection with the window that saved the wallet.
+    /// Pairs the shared provider connection with the step that follows a saved key.
     /// - Parameters:
     ///   - connection: Verifies and saves the provider's API key.
-    ///   - coordinator: Opens the saved account once the key is saved.
-    init(connection: any ProviderConnecting, coordinator: any OnboardingCoordinating) {
+    ///   - revision: Tells every window when a key is saved.
+    ///   - finish: Continues the owning flow once the key is saved, such as opening the wallet.
+    init(connection: any ProviderConnecting, revision: ProviderKeyRevision, finish: @escaping @MainActor () throws -> Void) {
         self.connection = connection
-        self.coordinator = coordinator
+        self.revision = revision
+        self.finish = finish
     }
 
     /// Accepts one key; taps during a check are ignored.
@@ -33,17 +36,18 @@ final class ProviderSubmission {
         attempt = UUID()
     }
 
-    /// Checks one accepted key in the screen's SwiftUI-managed task, then opens the wallet.
+    /// Checks one accepted key in the screen's SwiftUI-managed task, then finishes the owning flow.
     ///
     /// The inline rejection changes only when a result arrives, so it never flashes during a check.
-    /// A saved key opens the wallet even if cancellation arrives afterwards.
+    /// A saved key finishes the flow even if cancellation arrives afterwards.
     /// - Parameter attempt: The attempt captured by the owning view task.
     func run(_ attempt: UUID?) async {
         guard let attempt, self.attempt == attempt, let key = pendingKey.take() else { return }
         defer { self.attempt = nil }
         do {
             try await connection.connect(apiKey: key)
-            try coordinator.finish()
+            revision.advance()
+            try finish()
         } catch ProviderConnectionError.invalidKey {
             guard !Task.isCancelled else { return }
             withAnimation { isKeyRejected = true }

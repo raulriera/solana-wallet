@@ -84,7 +84,7 @@ final class OnboardingCoordinator: OnboardingCoordinating {
     /// - Throws: ``OnboardingCoordinatorError/accountRequired`` before completion.
     func finish() throws {
         guard let account else { throw OnboardingCoordinatorError.accountRequired }
-        router.route(to: .wallet(accountID: account.id))
+        router.route(to: .wallet(account))
     }
 
     /// Drops this window's unsaved draft without deleting either store's records.

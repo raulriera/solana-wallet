@@ -10,6 +10,7 @@
 - Keep app composition, scene state, feature coordination, feature views, and appearance as separate internal app concerns. Inject services through protocols; views present state and capture intent.
 - Startup reads public account metadata before choosing a destination. Open the first saved account, or onboarding only after a successful empty read. Loading failures offer an explicit retry without resetting storage; startup never accesses recovery material or replaces a window's resolved selection.
 - After saving a wallet, onboarding asks for a Helius API key and verifies it before opening the wallet.
+- A missing or rejected provider key replaces only the portfolio with an error screen that reopens provider setup.
 - `SettingsScene` owns the settings split view and each window's navigation selection. Appearance is a destination within that container.
 - Every settings sidebar destination uses a native `Label` with an SF Symbol and text, including when the navigation collapses on compact displays.
 - Reuse the existing portfolio coordinator and its lifecycle contract. Layout and theme changes must not recreate it or restart observation. Preserve the display distinctions in [Portfolio](portfolio.md).
