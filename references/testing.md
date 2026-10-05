@@ -24,13 +24,12 @@
 - Read-only checks use public addresses or published recovery fixtures without accessing
   retained transaction wallets. Compare live values from the same response, isolate mutable
   storage per test, and await cancellation before cleanup. Local fixtures make no network requests.
-- Live results do not exhaust provider races or outages. Keep credentials in ignored local
-  configuration and recovery out of source, logs, and ordinary files.
-- Before funding, save recovery in device-only Vault, read it back, and derive the same address.
-  Retain both transfer wallets across runs, reuse balances, and return funds after fees.
-  Storage or identity failures stop setup; never replace funded recovery.
-- Run funded tests on the retained simulator with `-parallel-testing-enabled NO`; never clone,
-  reset, or toggle its biometric enrollment. Follow [biometric-tests](../.agents/skills/biometric-tests/SKILL.md)
+- Live results do not exhaust provider races or outages. Keep credentials, including your
+  devnet test wallet's seed, in ignored local configuration; keep recovery out of source and logs.
+- Funded devnet tests send from account 0 to account 1 of that seed, never create wallets, and
+  leave the funds with account 1; refill account 0 manually when it runs low. A missing seed or
+  an unfunded sender stops setup.
+- Run funded tests with `-parallel-testing-enabled NO`. Follow [biometric-tests](../.agents/skills/biometric-tests/SKILL.md)
   for real biometric checks.
 
 ## UI automation

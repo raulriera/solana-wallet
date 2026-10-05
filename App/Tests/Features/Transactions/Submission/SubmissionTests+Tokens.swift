@@ -6,18 +6,20 @@ import Wallet
 @testable import widgets
 
 extension SubmissionTests {
-    /// Verifies both first-party programs move wrapped devnet SOL and return deposits and funds.
+    /// Verifies both first-party programs deliver wrapped devnet SOL to the configured recipient.
     ///
-    /// Wrapping and cleanup use the programs' published SyncNative and CloseAccount layouts.
-    /// Both authorities are retained and reread from Vault before any account receives funds.
+    /// Wrapping and cleanup use the programs' published SyncNative and CloseAccount layouts. Each run
+    /// first closes the token accounts the previous run left, so the delivered funds stay with the
+    /// recipient. Both authorities are accounts of the devnet wallet your local configuration supplies.
     /// - Parameter program: The first-party token program exercised through the same consumer API.
     @Test(.timeLimit(.minutes(3)), arguments: TokenProgram.allCases)
-    func `Devnet token transfers deliver balances and return funds and account deposits`(_ program: TokenProgram) async throws {
+    func `Devnet token transfers deliver balances to the configured recipient`(_ program: TokenProgram) async throws {
         let rpcs = try devnetRPCs()
         let rpc = rpcs[0]
-        let sender = Account(id: DevnetWallets.senderID, recoveryID: DevnetWallets.senderID, address: try await DevnetWallets.address(for: DevnetWallets.senderID), path: .solana)
-        let recipient = Account(id: DevnetWallets.recipientID, recoveryID: DevnetWallets.recipientID, address: try await DevnetWallets.address(for: DevnetWallets.recipientID), path: .solana)
-        let coordinator = try TransactionCoordinator(rpc: rpc, store: DevnetWallets.store, rpcs: rpcs)
+        let wallets = try await DevnetWallets.configured()
+        let sender = wallets.sender
+        let recipient = wallets.recipient
+        let coordinator = try TransactionCoordinator(rpc: rpc, store: SigningRecoveryStore(recovery: wallets.recovery), rpcs: rpcs)
         let mintAddress = try Address(program == .token ? "So11111111111111111111111111111111111111112"
                                                       : "9pan9bMn5HatX4EJdBwg9VgCa7Uz5HL8N1m5D3NdXejP")
         let mintRead = try await rpc.send(GetMultipleAccounts(addresses: [mintAddress.value]))
@@ -26,7 +28,7 @@ extension SubmissionTests {
         let source = try mint.associatedAccount(for: sender.address)
         let destination = try mint.associatedAccount(for: recipient.address)
         let oldAccounts = try await rpc.send(GetMultipleAccounts(addresses: [source.value, destination.value]))
-        // Recover deposits left by an interrupted earlier run, always to their controlled owners.
+        // Close the token accounts the previous run left, returning each one's balance to its owner.
         var recoveryInstructions: [Instruction] = []
         if oldAccounts.value[0] != nil {
             recoveryInstructions.append(try close(source, owner: sender.address, to: sender.address, program: program))
@@ -40,21 +42,17 @@ extension SubmissionTests {
             let recovered = try await coordinator.confirm(review)
             try #require(recovered.outcome == .succeeded)
         }
-        let initial = try await rpc.send(GetMultipleAccounts(addresses: [sender.address.value, recipient.address.value]))
-        let initialSender = try #require(initial.value[0]).lamports
-        let initialRecipient = initial.value[1]?.lamports ?? 0
-        try #require(initialSender >= 10_000_000, "Retained sender needs 0.01 devnet SOL; never replace this wallet")
+        let initial = try await rpc.send(GetMultipleAccounts(addresses: [sender.address.value]))
+        let initialSender = initial.value[0]?.lamports ?? 0
+        try #require(initialSender >= 10_000_000, "Fund the configured devnet sender \(sender.address.value) with at least 0.01 SOL")
         let amount: UInt64 = 1_000_000
-        let reserve: UInt64 = 1_000_000
         let setup = try await coordinator.simulate([
             createAssociatedAccount(source, owner: sender.address, mint: mintAddress, program: program),
             SystemProgram.transfer(from: sender.address, to: source, lamports: amount),
             Instruction(program: Address(program.rawValue), accounts: [
                 .init(address: source, isSigner: false, isWritable: true)
             ], data: Data([17])),
-            SystemProgram.transfer(from: sender.address, to: recipient.address, lamports: reserve),
         ], using: sender)
-        let setupFee = try #require(setup.fee)
         let setupResult = try await coordinator.confirm(setup)
         try #require(setupResult.outcome == .succeeded)
 
@@ -65,37 +63,11 @@ extension SubmissionTests {
         #expect(transfer.createsDestination)
         let rent = try await rpc.send(GetMinimumBalanceForRentExemption(dataLength: #require(transfer.destinationAccountSize)))
         #expect(review.destinationAccountRent == rent)
-        let forwardFee = try #require(review.fee)
         let delivered = try await coordinator.confirm(review)
         try #require(delivered.outcome == .succeeded)
         let balances = try await tokenBalances([source, destination], through: rpcs, after: delivered, program: program)
         #expect(balances == [0, amount])
         print("Devnet \(program) delivery: \(delivered.submission.signature)")
-
-        let refund = try await coordinator.transfer(amount, token: mintAddress, using: recipient, to: sender.address)
-        #expect(refund.destinationAccountRent == 0)
-        #expect(refund.tokenTransfer?.createsDestination == false)
-        let refundFee = try #require(refund.fee)
-        try #require(refundFee < reserve)
-        let returned = try await coordinator.confirm(refund)
-        try #require(returned.outcome == .succeeded)
-        #expect(try await tokenBalances([source, destination], through: rpcs, after: returned, program: program) == [amount, 0])
-        print("Devnet \(program) return: \(returned.submission.signature)")
-
-        let cleanup = try await coordinator.simulate([
-            close(source, owner: sender.address, to: sender.address, program: program),
-            close(destination, owner: recipient.address, to: sender.address, program: program),
-            SystemProgram.transfer(from: recipient.address, to: sender.address, lamports: reserve - refundFee),
-        ], using: [sender, recipient])
-        let cleanupFee = try #require(cleanup.fee)
-        let closed = try await coordinator.confirm(cleanup)
-        try #require(closed.outcome == .succeeded)
-        let final = try await rpc.send(GetMultipleAccounts(
-            addresses: [sender.address.value, recipient.address.value, source.value, destination.value], minContextSlot: closed.slot))
-        #expect(final.value[0]?.lamports == initialSender - setupFee - forwardFee - refundFee - cleanupFee)
-        #expect((final.value[1]?.lamports ?? 0) == initialRecipient)
-        #expect(final.value[2] == nil && final.value[3] == nil)
-        print("Devnet \(program) deposits recovered: \(closed.submission.signature)")
     }
 
     /// Reads the exact delivered token balances through each configured real provider.
@@ -127,7 +99,7 @@ extension SubmissionTests {
     /// Creates the controlled sender's native-token account for live test setup.
     /// - Parameters:
     ///   - address: The derived associated token address.
-    ///   - owner: The retained wallet paying for and owning the account.
+    ///   - owner: The configured sender paying for and owning the account.
     ///   - mint: The program's native mint.
     ///   - program: The token program receiving the account.
     /// - Returns: The official idempotent ATA instruction.
@@ -144,11 +116,11 @@ extension SubmissionTests {
         ], data: Data([1]))
     }
 
-    /// Returns a native token account's lamports and rent deposit to a retained wallet.
+    /// Returns a native token account's lamports and rent deposit to the configured wallet.
     /// - Parameters:
     ///   - account: The account controlled by the selected authority.
-    ///   - owner: The retained authority authorizing closure.
-    ///   - destination: The retained wallet receiving the deposit and native balance.
+    ///   - owner: The configured wallet's account authorizing closure.
+    ///   - destination: The configured wallet's account receiving the deposit and native balance.
     ///   - program: The owning token program.
     /// - Returns: The official CloseAccount instruction.
     /// - Throws: An address validation error.

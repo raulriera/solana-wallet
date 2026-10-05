@@ -1,2 +1,4 @@
 // Copy to Local.xcconfig and supply your development credentials.
 HELIUS_API_KEY =
+// Recovery words for your devnet test wallet: account 0 sends, account 1 receives.
+DEVNET_TEST_SEED =

@@ -47,22 +47,23 @@ struct SubmissionTests {
         #expect(await mismatched.requests.count == 1)
     }
 
-    /// Verifies 0.001 SOL reaches a controlled recipient and the remainder returns after fees.
-    @Test(.timeLimit(.minutes(10)))
-    func `Devnet submission delivers 0.001 SOL and returns it between retained wallets`() async throws {
+    /// Verifies 0.001 SOL reaches the configured recipient, where it stays.
+    @Test(.timeLimit(.minutes(3)))
+    func `Devnet submission delivers 0.001 SOL to the configured recipient`() async throws {
         let rpcs = try devnetRPCs()
-        let sender = try await DevnetWallets.address(for: DevnetWallets.senderID)
-        let recipient = try await DevnetWallets.address(for: DevnetWallets.recipientID)
+        let wallets = try await DevnetWallets.configured()
+        let sender = wallets.sender.address
+        let recipient = wallets.recipient.address
         try await fund(sender.value, using: rpcs)
-        let coordinator: any TransactionCoordinating = try TransactionCoordinator(rpc: rpcs[0], store: DevnetWallets.store, rpcs: rpcs)
+        let coordinator: any TransactionCoordinating = try TransactionCoordinator(
+            rpc: rpcs[0], store: SigningRecoveryStore(recovery: wallets.recovery), rpcs: rpcs)
         let initialAccounts = try await rpcs[0].send(GetMultipleAccounts(addresses: [sender.value, recipient.value]))
         let senderBalance = try #require(initialAccounts.value[0]).lamports
         let recipientBalance = initialAccounts.value[1]?.lamports ?? 0
         let simulation = try await coordinator.simulate([
             SystemProgram.transfer(from: sender, to: recipient, lamports: 1_000_000),
             MemoProgram.memo("widgets devnet composition verification", signers: [recipient]),
-        ], using: [Account(id: DevnetWallets.senderID, recoveryID: DevnetWallets.senderID, address: sender, path: .solana),
-                   Account(id: DevnetWallets.recipientID, recoveryID: DevnetWallets.recipientID, address: recipient, path: .solana)])
+        ], using: [wallets.sender, wallets.recipient])
         try #require(simulation.diagnostics.value.error == nil)
         let fee = try #require(simulation.fee)
         try #require(fee < 1_000_000)
@@ -74,28 +75,12 @@ struct SubmissionTests {
         for rpc in rpcs {
             let confirmation = try await Confirmer(rpc: rpc).confirm(result.submission)
             try #require(confirmation.outcome == .succeeded)
-            let accounts = try await rpc.send(GetMultipleAccounts(addresses: [recipient.value],
+            let accounts = try await rpc.send(GetMultipleAccounts(addresses: [sender.value, recipient.value],
                                                                   minContextSlot: confirmation.slot))
-            let destination = try #require(accounts.value.first ?? nil)
-            #expect(destination.lamports == recipientBalance + 1_000_000)
+            #expect(accounts.value[0]?.lamports == senderBalance - 1_000_000 - fee)
+            #expect(accounts.value[1]?.lamports == recipientBalance + 1_000_000)
         }
         print("Devnet delivered 0.001 SOL to \(recipient.value): \(result.submission.signature)")
-
-        let refundQuote = try await coordinator.transfer(1,
-            using: Account(id: DevnetWallets.recipientID, recoveryID: DevnetWallets.recipientID, address: recipient, path: .solana), to: sender)
-        let returnFee = try #require(refundQuote.fee)
-        try #require(returnFee < 1_000_000)
-        let refund = try await coordinator.transfer(1_000_000 - returnFee,
-            using: Account(id: DevnetWallets.recipientID, recoveryID: DevnetWallets.recipientID, address: recipient, path: .solana), to: sender)
-        try #require(refund.fee == returnFee)
-        let returned = try await coordinator.confirm(refund)
-        try #require(returned.outcome == .succeeded)
-        let finalAccounts = try await rpcs[0].send(GetMultipleAccounts(
-            addresses: [sender.value, recipient.value], minContextSlot: returned.slot
-        ))
-        #expect(finalAccounts.value[0]?.lamports == senderBalance - fee - returnFee)
-        #expect((finalAccounts.value[1]?.lamports ?? 0) == recipientBalance)
-        print("Devnet funds returned to retained wallet \(sender.value): \(returned.submission.signature)")
     }
 
     /// Verifies real validators reject an unfunded payer, independently for each RPC.
@@ -169,13 +154,12 @@ struct SubmissionTests {
         try Configuration(priorityFeeLamports: 0, computeUnitLimit: 20_000, loadedAccountsDataSizeLimit: 65_536)
     }
 
-    /// Reuses the retained wallet's balance before requesting small devnet faucet funding.
+    /// Reuses the configured sender's balance before requesting small devnet faucet funding.
     ///
-    /// If both faucets are unavailable, the public address is printed for manual
-    /// devnet funding; its recovery is already verified in the protected Vault.
+    /// If both faucets refuse, setup stops right away and names the address to fund manually.
     ///
     /// - Parameters:
-    ///   - address: The retained devnet wallet's public address.
+    ///   - address: The configured devnet sender's public address.
     ///   - rpcs: The real devnet clients that can request funding and read its status.
     /// - Throws: A funding or cancellation error; no mainnet RPC is used.
     private func fund(_ address: String, using rpcs: [any RPC]) async throws {
@@ -193,19 +177,11 @@ struct SubmissionTests {
                 print("Devnet faucet unavailable: \(error)")
             }
         }
-        let notice = "Devnet funding required for Vault-retained test wallet: \(address)\n"
-        FileHandle.standardError.write(Data(notice.utf8))
-        let deadline = ContinuousClock.now.advanced(by: .seconds(480))
-        while ContinuousClock.now < deadline {
-            try await Task.sleep(for: .seconds(5))
-            let accounts = try await rpcs[0].send(GetMultipleAccounts(addresses: [address]))
-            if let account = accounts.value.first ?? nil, account.lamports >= 1_010_000 { return }
-        }
-        throw SetupFailure.fundingUnavailable
+        throw SetupFailure.fundingUnavailable(address: address)
     }
 
-    /// Missing local setup or devnet funding, without including credentials.
-    private enum SetupFailure: Error { case missingAPIKey, fundingUnavailable }
+    /// Missing local setup or devnet funding, without including credentials or the seed.
+    private enum SetupFailure: Error { case missingAPIKey, fundingUnavailable(address: String) }
 
     /// A test-only request to the actual devnet faucet; it isn't an app RPC feature.
     private struct Airdrop: RPCRequest {

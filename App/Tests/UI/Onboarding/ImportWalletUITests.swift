@@ -36,7 +36,7 @@ final class ImportWalletUITests: XCTestCase {
         if !reveal.isHittable { flow.app.swipeDown() }
         try flow.tap(reveal)
         try flow.waitFor(flow.app.buttons["Hide words"])
-        try flow.tap(flow.app.buttons["Back"])
+        try flow.tap(flow.app.buttons["BackButton"])
 
         try flow.expectWelcome()
         try flow.openImport()
