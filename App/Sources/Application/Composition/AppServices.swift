@@ -10,6 +10,7 @@ struct AppServices {
     let recovery: any RecoveryStoring
     let accounts: any AccountStoring
     let providerConnection: any ProviderConnecting
+    let recoveryPasteboard: any RecoveryCopying
 
     /// Creates production services after any explicit simulator UI-test reset.
     /// - Throws: An error if the bundled appearance or a storage configuration is invalid.
@@ -24,6 +25,7 @@ struct AppServices {
         recovery = KeychainStore(service: recoveryService)
         accounts = try AccountStore()
         providerConnection = HeliusConnection(keys: ProviderKeyStore(service: "com.raulriera.widgets.provider"))
+        recoveryPasteboard = RecoveryPasteboard()
     }
 
     /// Creates independent root navigation for a window.

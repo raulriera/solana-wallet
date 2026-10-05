@@ -3,14 +3,11 @@ import SwiftUI
 /// Collects and validates existing recovery without deriving accounts or saving secrets.
 struct ImportWalletScreen: View {
     @Environment(\.palette) private var palette
-    @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.isSceneCaptured) private var isSceneCaptured
+    @Environment(\.canDisplayRecovery) private var canDisplayRecovery
     @State private var input: RecoveryInput
     @State private var contentInset = LayoutMetrics.contentMargin
     @FocusState private var focusedField: RecoveryInput.Field?
     private let submission: any ImportSubmitting
-
-    private var canDisplayRecovery: Bool { scenePhase == .active && !isSceneCaptured }
 
     /// Creates an entry screen with an optional one-time seed for public-fixture previews.
     /// - Parameters:

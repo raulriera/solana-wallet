@@ -10,13 +10,16 @@ struct OnboardingScene: View {
     @State private var importSubmission: ImportSubmission
     @State private var providerSubmission: ProviderSubmission
     let coordinator: any OnboardingCoordinating
+    let pasteboard: any RecoveryCopying
 
     /// Seeds presentation once; the parent retains these services for the window's lifetime.
     /// - Parameters:
     ///   - coordinator: The owning window's preparation, persistence, and routing workflow.
     ///   - connection: Verifies and saves the provider's API key after the wallet is saved.
-    init(coordinator: any OnboardingCoordinating, connection: any ProviderConnecting) {
+    ///   - pasteboard: Copies a new wallet's recovery words to this device only, for a limited time.
+    init(coordinator: any OnboardingCoordinating, connection: any ProviderConnecting, pasteboard: any RecoveryCopying) {
         self.coordinator = coordinator
+        self.pasteboard = pasteboard
         let importSubmission = ImportSubmission(coordinator: coordinator)
         self.importSubmission = importSubmission
         navigation = OnboardingNavigation(importSubmission: importSubmission)
@@ -39,6 +42,7 @@ struct OnboardingScene: View {
                         case .recovery:
                             RecoveryPhraseScreen(initialPhrase: coordinator.recovery?.phrase,
                                                  isSaved: coordinator.account != nil,
+                                                 pasteboard: pasteboard,
                                                  continueSetup: { isCompleting = true })
                         case .importWallet:
                             if let presentationID = importSubmission.presentationID {
