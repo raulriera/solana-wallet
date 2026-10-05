@@ -39,4 +39,15 @@ final class OnboardingAccessibilityUITests: XCTestCase {
 
         try flow.app.performAccessibilityAudit()
     }
+
+    /// The key field, its guidance, and the Helius link remain accessible after a wallet is saved.
+    @objc(testProviderSetupAccessibilityAndReturnError:)
+    func `test Provider setup passes the accessibility audit`() throws {
+        let flow = OnboardingApp()
+        defer { flow.app.terminate() }
+        try flow.launch()
+        try flow.createWallet()
+
+        try flow.app.performAccessibilityAudit()
+    }
 }

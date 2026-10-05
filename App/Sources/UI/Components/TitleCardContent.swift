@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Presents an onboarding introduction inside the card surface owned by its screen.
+/// Presents a screen's introduction inside the card surface owned by that screen.
 struct TitleCardContent: View {
     @Environment(\.palette) private var palette
     let title: LocalizedStringResource

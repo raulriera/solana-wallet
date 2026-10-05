@@ -38,9 +38,9 @@ extension OnboardingCoordinatorTests {
         #expect(router.destination == .onboarding)
     }
 
-    /// Committing in one window leaves another window's recovery draft and navigation intact.
+    /// Finishing in one window leaves another window's recovery draft and navigation intact.
     @Test
-    func `Completing onboarding routes only its owning window`() async throws {
+    func `Finishing onboarding routes only its owning window`() async throws {
         let recovery = OnboardingRecoveryStore()
         let accounts = OnboardingAccountStore(recovery: recovery)
         let firstRouter = WindowRouter(initialDestination: .onboarding)
@@ -51,6 +51,7 @@ extension OnboardingCoordinatorTests {
         try await second.importRecovery(Self.phrase, passphrase: "other-window")
 
         let account = try await first.complete()
+        try first.finish()
 
         #expect(firstRouter.destination == .wallet(accountID: account.id))
         #expect(first.recovery == nil)
@@ -76,7 +77,7 @@ extension OnboardingCoordinatorTests {
         #expect(router.destination == .onboarding)
         #expect(await accounts.additions.isEmpty)
         let account = try await coordinator.complete()
-        #expect(router.destination == .wallet(accountID: account.id))
+        #expect(coordinator.account?.id == account.id)
         #expect(await recovery.saves == [account.recoveryID, account.recoveryID])
         #expect(await recovery.reads.count == (committed ? 1 : 0))
         #expect(await accounts.records.count == 1)
@@ -115,7 +116,7 @@ extension OnboardingCoordinatorTests {
         #expect(coordinator.account == nil)
         #expect(router.destination == .onboarding)
         let account = try await coordinator.complete()
-        #expect(router.destination == .wallet(accountID: account.id))
+        #expect(coordinator.account?.id == account.id)
         #expect(await recovery.saves == [account.recoveryID])
         #expect(await accounts.additions.map(\.id) == [account.id, account.id])
         #expect(await accounts.records.count == 1)
@@ -158,13 +159,13 @@ extension OnboardingCoordinatorTests {
         #expect(coordinator.recovery != nil)
         #expect(await accounts.additions.isEmpty)
         let account = try await coordinator.complete()
-        #expect(router.destination == .wallet(accountID: account.id))
+        #expect(coordinator.account?.id == account.id)
         #expect(await recovery.saves == [account.recoveryID])
     }
 
     /// A successful metadata commit remains successful when cancellation arrives afterwards.
     @Test
-    func `Cancellation after the metadata commit still returns the saved account and routes its window`() async throws {
+    func `Cancellation after the metadata commit still returns the saved account`() async throws {
         let gate = Suspension()
         let recovery = OnboardingRecoveryStore()
         let accounts = OnboardingAccountStore(recovery: recovery, gate: gate)
@@ -174,10 +175,8 @@ extension OnboardingCoordinatorTests {
         let operation = Task { try await coordinator.complete() }
         defer { operation.cancel() }
         await gate.waitUntilStarted()
-        #expect(router.destination == .onboarding)
         operation.cancel()
         let account = try await operation.value
-        #expect(router.destination == .wallet(accountID: account.id))
         #expect(coordinator.account?.id == account.id)
         #expect(coordinator.recovery == nil)
         #expect(await accounts.records.map(\.id) == [account.id])

@@ -116,9 +116,9 @@ extension ImportSubmissionTests {
         #expect(await accounts.records.count == 1)
     }
 
-    /// Leaving after commit cannot turn saved onboarding into a failure or affect another window.
+    /// Leaving after commit cannot turn saved onboarding into a failure, lose its account, or affect another window.
     @Test
-    func `Late cancellation preserves successful routing and another windows prepared draft`() async throws {
+    func `Late cancellation keeps the saved account and another windows prepared draft`() async throws {
         let gate = Suspension()
         let recovery = OnboardingRecoveryStore()
         let accounts = OnboardingAccountStore(recovery: recovery, gate: gate)
@@ -140,7 +140,7 @@ extension ImportSubmissionTests {
         await operation.value
 
         let account = try #require(await accounts.records.first)
-        #expect(router.destination == .wallet(accountID: account.id))
+        #expect(coordinator.account?.id == account.id)
         #expect(await recovery.contains(account.recoveryID))
         #expect(submission.failure == nil)
         #expect(other.recovery?.passphrase == "other-window")

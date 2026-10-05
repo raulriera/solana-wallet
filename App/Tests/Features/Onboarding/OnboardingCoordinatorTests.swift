@@ -42,7 +42,7 @@ struct OnboardingCoordinatorTests {
         try await coordinator.importRecovery(Self.phrase, passphrase: "TREZOR")
         #expect(await recovery.saves.isEmpty)
         let account = try await coordinator.complete()
-        #expect(router.destination == .wallet(accountID: account.id))
+        #expect(router.destination == .onboarding)
         #expect(account.address.value == "7zSmbu6gKkb6HB7UDPtHYjwCWuBHU1D4TpNZFm4sndQe")
         #expect(account.path == .solana)
         #expect(coordinator.account?.id == account.id)
@@ -50,6 +50,38 @@ struct OnboardingCoordinatorTests {
         #expect(try await coordinator.complete().id == account.id)
         #expect(await recovery.saves == [account.recoveryID])
         #expect(await accounts.additions.map(\.id) == [account.id])
+    }
+
+    /// Provider setup follows completion, so the window opens the account only when onboarding finishes.
+    @Test
+    func `Finishing opens the saved account even after its draft is released`() async throws {
+        let recovery = OnboardingRecoveryStore()
+        let accounts = OnboardingAccountStore(recovery: recovery)
+        let router = WindowRouter(initialDestination: .onboarding)
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
+        try await coordinator.importRecovery(Self.phrase, passphrase: "TREZOR")
+        let account = try await coordinator.complete()
+        try coordinator.discard()
+
+        try coordinator.finish()
+
+        #expect(coordinator.account?.id == account.id)
+        #expect(router.destination == .wallet(accountID: account.id))
+    }
+
+    /// An unsaved draft can't end onboarding, so the window stays put.
+    @Test
+    func `Finishing before completion is rejected and keeps the window in onboarding`() async throws {
+        let recovery = OnboardingRecoveryStore()
+        let accounts = OnboardingAccountStore(recovery: recovery)
+        let router = WindowRouter(initialDestination: .onboarding)
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
+        try await coordinator.importRecovery(Self.phrase, passphrase: "TREZOR")
+
+        #expect(throws: OnboardingCoordinatorError.accountRequired) { try coordinator.finish() }
+
+        #expect(router.destination == .onboarding)
+        #expect(coordinator.recovery != nil)
     }
 
     /// Separate windows keep their drafts and original passphrases independent.

@@ -34,7 +34,7 @@ struct ImportSubmissionTests {
         let account = try #require(coordinator.account)
         let saved = try await recovery.recovery(for: account.recoveryID, reason: "Read public test fixture")
         #expect(saved.passphrase == " TrEzOr ")
-        #expect(router.destination == .wallet(accountID: account.id))
+        #expect(router.destination == .onboarding)
         #expect(await recovery.saves.count == 1)
         #expect(await accounts.additions.count == 1)
         #expect(!submission.isPending)

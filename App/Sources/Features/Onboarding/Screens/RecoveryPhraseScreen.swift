@@ -6,8 +6,20 @@ struct RecoveryPhraseScreen: View {
     @Environment(\.palette) private var palette
     @State private var contentInset = LayoutMetrics.contentMargin
     @State private var isConfirmingBackup = false
-    let phrase: RecoveryPhrase
+    @State private var phrase: RecoveryPhrase?
+    let isSaved: Bool
     let continueSetup: () -> Void
+
+    /// Shows the words it opened with until the wallet is saved and the next step covers this screen.
+    /// - Parameters:
+    ///   - initialPhrase: The prepared words when the screen opens; later values are ignored.
+    ///   - isSaved: Whether the wallet is saved; its words then leave memory once this screen is covered.
+    ///   - continueSetup: Saves the wallet after the user confirms their backup.
+    init(initialPhrase: RecoveryPhrase?, isSaved: Bool, continueSetup: @escaping () -> Void) {
+        _phrase = State(initialValue: initialPhrase)
+        self.isSaved = isSaved
+        self.continueSetup = continueSetup
+    }
 
     var body: some View {
         Form {
@@ -21,7 +33,9 @@ struct RecoveryPhraseScreen: View {
             .listRowBackground(palette.surface)
 
             Section {
-                RecoveryWords(phrase: phrase)
+                if let phrase {
+                    RecoveryWords(phrase: phrase)
+                }
             } header: {
                 Text("Recovery Words")
                     .foregroundStyle(palette.secondaryText)
@@ -54,6 +68,10 @@ struct RecoveryPhraseScreen: View {
         } message: {
             Text("Make sure you've written down all the words in order and stored them somewhere safe.")
         }
+        .onDisappear {
+            // A saved wallet never returns to its backup, so release the words once they're off screen.
+            if isSaved { phrase = nil }
+        }
     }
 }
 
@@ -62,7 +80,7 @@ struct RecoveryPhraseScreen: View {
         "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
     {
         NavigationStack {
-            RecoveryPhraseScreen(phrase: phrase, continueSetup: {})
+            RecoveryPhraseScreen(initialPhrase: phrase, isSaved: false, continueSetup: {})
         }
         .tint(RenderedPalette(OriginalAppearance.palette).accent)
     }

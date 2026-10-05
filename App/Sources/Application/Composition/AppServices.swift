@@ -9,6 +9,7 @@ struct AppServices {
     let discovery: any AccountDiscovering
     let recovery: any RecoveryStoring
     let accounts: any AccountStoring
+    let providerConnection: any ProviderConnecting
 
     /// Creates production services after any explicit simulator UI-test reset.
     /// - Throws: An error if the bundled appearance or a storage configuration is invalid.
@@ -22,6 +23,7 @@ struct AppServices {
         discovery = AccountDiscovery(rpc: Solana(network: .mainnet), wallet: wallet)
         recovery = KeychainStore(service: recoveryService)
         accounts = try AccountStore()
+        providerConnection = HeliusConnection(keys: ProviderKeyStore(service: "com.raulriera.widgets.provider"))
     }
 
     /// Creates independent root navigation for a window.

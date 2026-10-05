@@ -17,5 +17,7 @@ services and normal storage locations.
 
 Onboarding tests use the app's normal mainnet discovery client and submit no transactions.
 Import completion requires a successful network scan, including when no funded account is found.
+Completion tests enter `HELIUS_API_KEY` from ignored local configuration; the rejection
+test uses a dummy key.
 
 Follow the shared [testing rules](../../../references/testing.md).

@@ -7,11 +7,13 @@ struct WindowRoot: View {
     @State private var startup: any WindowStarting
     @State private var startupAttempt = 0
     private let appearanceServices: AppearanceServices
+    private let providerConnection: any ProviderConnecting
 
     /// Seeds window-owned state from services that remain fixed for the window's lifetime.
     /// - Parameter services: Shared services that retain no window-specific recovery draft.
     init(services: AppServices) {
         appearanceServices = services.appearance
+        providerConnection = services.providerConnection
         let router = services.makeWindowRouter(initialDestination: .restoringWallets)
         self.router = router
         self.onboarding = services.makeOnboardingCoordinator(router: router)
@@ -26,7 +28,7 @@ struct WindowRoot: View {
             case .walletRestorationFailed:
                 WalletUnavailableScreen(retry: { startupAttempt += 1 })
             case .onboarding:
-                OnboardingScene(coordinator: onboarding)
+                OnboardingScene(coordinator: onboarding, connection: providerConnection)
             case .wallet:
                 WalletReadyScreen()
             }

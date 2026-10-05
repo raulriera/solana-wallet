@@ -27,7 +27,7 @@ struct OnboardingDiscoveryTests {
         #expect(account.path.description == "m/44'/501'/0'")
         #expect(await http.requests.count == 1)
         #expect(await accounts.records.first?.path == account.path)
-        #expect(router.destination == .wallet(accountID: account.id))
+        #expect(coordinator.account?.id == account.id)
     }
 
     /// Only a completed empty scan selects the default first account and preserves the original passphrase.

@@ -5,9 +5,10 @@ import XCTest
 @MainActor
 struct OnboardingApp {
     static let phrase = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
+    private static let recoveryGuidance = "Write down these words in order and keep them somewhere safe. Anyone with them can control your wallet."
 
     /// Stops dependent interactions after a checked UI wait fails.
-    private enum Failure: Error { case missingElement, unavailableControl, walletSetupFailed }
+    private enum Failure: Error { case missingElement, unexpectedElement, unavailableControl, walletSetupFailed, missingConfiguration }
 
     let app = XCUIApplication()
 
@@ -40,28 +41,78 @@ struct OnboardingApp {
         try waitFor(app.buttons["Create Wallet"])
     }
 
-    /// Confirms that successful persistence handed control to the wallet destination.
+    /// Confirms that the window shows the wallet destination.
     /// - Parameters:
     ///   - file: The calling test's source file for failure reporting.
     ///   - line: The calling test's line for failure reporting.
     /// - Throws: A missing wallet destination or an explicit wallet setup failure.
     func expectWallet(file: StaticString = #filePath, line: UInt = #line) throws {
-        let outcome = app.staticTexts.matching(
-            NSPredicate(format: "label IN %@", ["Wallet ready", "Wallet Setup Unavailable"])
-        ).firstMatch
-        try waitFor(outcome, file: file, line: line)
-        guard !app.alerts["Wallet Setup Unavailable"].exists else {
-            XCTFail("The app reported Wallet Setup Unavailable instead of completing wallet setup.", file: file, line: line)
-            throw Failure.walletSetupFailed
+        try expectSetupOutcome(app.staticTexts["Wallet ready"], label: "Wallet ready", file: file, line: line)
+    }
+
+    /// Confirms that saving the wallet pushed provider setup, with no way back to the wallet's earlier steps.
+    /// - Parameters:
+    ///   - file: The calling test's source file for failure reporting.
+    ///   - line: The calling test's line for failure reporting.
+    /// - Throws: A missing provider setup destination, a remaining back button, or an explicit wallet setup failure.
+    func expectProviderSetup(file: StaticString = #filePath, line: UInt = #line) throws {
+        try expectSetupOutcome(app.navigationBars["Connect to Helius"], label: "Connect to Helius", file: file, line: line)
+        // The outgoing step's back button leaves when the push finishes; provider setup has none.
+        try waitForAbsence(app.buttons["BackButton"], file: file, line: line)
+    }
+
+    /// Creates a disposable, unfunded wallet through onboarding and waits for provider setup.
+    /// - Throws: A missing or unavailable control, or an explicit wallet setup failure.
+    func createWallet() throws {
+        try tap(app.buttons["Create Wallet"])
+        try expectRecovery()
+        try tap(app.buttons["Continue"])
+        try waitFor(backupConfirmation)
+        try tap(backupConfirmation.buttons["Yes"])
+        try expectProviderSetup()
+        try waitForAbsence(app.staticTexts[Self.recoveryGuidance])
+    }
+
+    /// Confirms that Helius rejected the entered key, failing immediately if the app reports another error.
+    /// - Parameters:
+    ///   - file: The calling test's source file for failure reporting.
+    ///   - line: The calling test's line for failure reporting.
+    /// - Throws: A missing rejection message or an explicit wallet setup failure.
+    func expectKeyRejected(file: StaticString = #filePath, line: UInt = #line) throws {
+        let message = "Helius didn't accept this API key. Check it and try again."
+        try expectSetupOutcome(app.staticTexts[message], label: message, file: file, line: line)
+    }
+
+    /// Types a provider key into the setup screen and submits it once.
+    /// - Parameter key: The configured key, or a dummy key the provider rejects.
+    /// - Throws: A missing or unavailable control.
+    func submitProviderKey(_ key: String) throws {
+        let field = app.secureTextFields["Helius API key"]
+        try tap(field)
+        field.typeText(key)
+        try tap(app.buttons["Continue"])
+    }
+
+    /// Connects with the Helius key from ignored local configuration and waits for the wallet.
+    /// - Parameters:
+    ///   - file: The calling test's source file for failure reporting.
+    ///   - line: The calling test's line for failure reporting.
+    /// - Throws: A missing key, a missing or unavailable control, or an explicit wallet setup failure.
+    func connectProvider(file: StaticString = #filePath, line: UInt = #line) throws {
+        guard let key = ProcessInfo.processInfo.environment["HELIUS_API_KEY"],
+              !key.isEmpty, !key.hasPrefix("$(") else {
+            XCTFail("HELIUS_API_KEY must be configured for UI tests", file: file, line: line)
+            throw Failure.missingConfiguration
         }
-        try waitFor(app.staticTexts["Wallet ready"], file: file, line: line)
+        try submitProviderKey(key)
+        try expectWallet(file: file, line: line)
     }
 
     /// Checks the production creation screen and its twelve numbered words without expecting a fixed phrase.
     /// - Throws: A missing recovery destination or word row.
     func expectRecovery() throws {
         try waitFor(app.navigationBars["Recovery Phrase"])
-        try waitFor(app.staticTexts["Write down these words in order and keep them somewhere safe. Anyone with them can control your wallet."])
+        try waitFor(app.staticTexts[Self.recoveryGuidance])
         let lastWord = app.staticTexts.matching(NSPredicate(format: "label MATCHES %@", #"12\. [a-z]+"#))
         try waitFor(lastWord.firstMatch)
         let words = app.staticTexts.matching(NSPredicate(format: "label MATCHES %@", #"([1-9]|1[0-2])\. [a-z]+"#))
@@ -99,6 +150,26 @@ struct OnboardingApp {
         try tap(app.toolbars.buttons["Done"])
     }
 
+    /// Waits for a setup destination, failing immediately when the app reports a setup error instead.
+    /// - Parameters:
+    ///   - destination: The element that identifies the expected destination.
+    ///   - label: The destination text that ends the wait alongside the error alert.
+    ///   - file: The calling test's source file for failure reporting.
+    ///   - line: The calling test's line for failure reporting.
+    /// - Throws: A missing destination or an explicit wallet setup failure.
+    private func expectSetupOutcome(_ destination: XCUIElement, label: String,
+                                    file: StaticString, line: UInt) throws {
+        let outcome = app.staticTexts.matching(
+            NSPredicate(format: "label IN %@", [label, "Wallet Setup Unavailable"])
+        ).firstMatch
+        try waitFor(outcome, file: file, line: line)
+        guard !app.alerts["Wallet Setup Unavailable"].exists else {
+            XCTFail("The app reported Wallet Setup Unavailable instead of completing wallet setup.", file: file, line: line)
+            throw Failure.walletSetupFailed
+        }
+        try waitFor(destination, file: file, line: line)
+    }
+
     /// Waits for a required element and stops this test's dependent interactions on timeout.
     /// - Parameters:
     ///   - element: A control or destination selected by its user-facing text or accessibility label.
@@ -109,6 +180,19 @@ struct OnboardingApp {
         guard element.waitForExistence(timeout: 10) else {
             XCTFail("Expected onboarding UI did not appear", file: file, line: line)
             throw Failure.missingElement
+        }
+    }
+
+    /// Waits for an element to leave the screen and stops this test's dependent interactions if it stays.
+    /// - Parameters:
+    ///   - element: A control or text that must be gone, such as the outgoing step during a push.
+    ///   - file: The caller's source file for failure reporting.
+    ///   - line: The caller's source line for failure reporting.
+    /// - Throws: An unexpected-element failure after recording the failed assertion.
+    func waitForAbsence(_ element: XCUIElement, file: StaticString = #filePath, line: UInt = #line) throws {
+        guard element.waitForNonExistence(timeout: 10) else {
+            XCTFail("Onboarding UI that should be gone is still on screen", file: file, line: line)
+            throw Failure.unexpectedElement
         }
     }
 

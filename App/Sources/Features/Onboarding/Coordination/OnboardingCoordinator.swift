@@ -55,7 +55,7 @@ final class OnboardingCoordinator: OnboardingCoordinating {
                           selecting: discoveredAccount)
     }
 
-    /// Commits protected recovery and public metadata before routing this window to its account.
+    /// Commits protected recovery and public metadata; ``finish()`` opens the account afterwards.
     /// - Returns: The saved account, including when cancellation follows its commit.
     /// - Throws: A secret-free storage error, cancellation, or an invalid-state error.
     func complete() async throws -> Account {
@@ -77,18 +77,25 @@ final class OnboardingCoordinator: OnboardingCoordinating {
         account = preparedAccount
         self.preparedAccount = nil
         self.recovery = nil
-        router.route(to: .wallet(accountID: preparedAccount.id))
         return preparedAccount
     }
 
-    /// Drops this window's in-memory state without deleting either store's records.
+    /// Routes this window to the saved account once onboarding's last step succeeds.
+    /// - Throws: ``OnboardingCoordinatorError/accountRequired`` before completion.
+    func finish() throws {
+        guard let account else { throw OnboardingCoordinatorError.accountRequired }
+        router.route(to: .wallet(accountID: account.id))
+    }
+
+    /// Drops this window's unsaved draft without deleting either store's records.
+    ///
+    /// A saved account remains, so a step that ends after completion can't undo it.
     /// - Throws: ``OnboardingCoordinatorError/operationInProgress`` until the caller's active task finishes.
     func discard() throws {
         guard !isWorking else { throw OnboardingCoordinatorError.operationInProgress }
         recovery = nil
         preparedAccount = nil
         recoverySaved = false
-        account = nil
     }
 
     /// Prepares one draft and publishes it only after cancellable account selection succeeds.

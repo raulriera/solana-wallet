@@ -99,8 +99,9 @@ final class ImportWalletUITests: XCTestCase {
 
         try flow.tap(flow.submitImport)
 
-        try flow.expectWallet()
+        try flow.expectProviderSetup()
         XCTAssertFalse(flow.backupConfirmation.exists)
+        try flow.connectProvider()
         flow.relaunch()
         try flow.expectWallet()
         XCTAssertFalse(flow.app.buttons["Import Wallet"].exists)

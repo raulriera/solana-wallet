@@ -13,10 +13,17 @@ enum MainnetClients {
     static func client(helius: Bool = true,
                        transport: any HTTPTransport = URLSessionTransport()) throws -> any RPC & AccountChangeProviding {
         guard helius else { return Solana(network: .mainnet, transport: transport) }
+        return HeliusRPC(apiKey: try heliusAPIKey(), network: .mainnet, transport: transport)
+    }
+
+    /// Reads the Helius key that ignored local configuration supplies to live tests.
+    /// - Returns: The configured mainnet key.
+    /// - Throws: A test prerequisite failure if the key is missing or wasn't expanded.
+    static func heliusAPIKey() throws -> String {
         let apiKey = try #require(ProcessInfo.processInfo.environment["HELIUS_API_KEY"],
                                   "HELIUS_API_KEY must be configured for live Helius tests")
         try #require(!apiKey.isEmpty && !apiKey.hasPrefix("$("),
                      "HELIUS_API_KEY must be configured for live Helius tests")
-        return HeliusRPC(apiKey: apiKey, network: .mainnet, transport: transport)
+        return apiKey
     }
 }
