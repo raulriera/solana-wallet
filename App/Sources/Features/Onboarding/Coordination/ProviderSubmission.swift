@@ -8,6 +8,8 @@ import SwiftUI
 @Observable
 final class ProviderSubmission {
     private(set) var isKeyRejected = false
+    /// Counts rejected keys, so each rejection signals again while its message stays on screen.
+    private(set) var rejectionCount = 0
     var failure: LocalizedStringResource?
     private(set) var attempt: UUID?
     @ObservationIgnored private var pendingKey: String?
@@ -45,6 +47,7 @@ final class ProviderSubmission {
         } catch ProviderConnectionError.invalidKey {
             guard !Task.isCancelled else { return }
             withAnimation { isKeyRejected = true }
+            rejectionCount += 1
             AccessibilityNotification.Announcement(String(localized: ProviderConnectionError.invalidKey.message)).post()
         } catch {
             guard !Task.isCancelled, !(error is CancellationError) else { return }

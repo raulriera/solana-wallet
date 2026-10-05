@@ -26,7 +26,7 @@ struct ProviderSubmissionTests {
         #expect(submission.attempt == nil)
     }
 
-    /// A rejected key keeps setup open with its inline message and accepts another attempt.
+    /// A rejected key keeps setup open with its inline message, and each further rejection signals again.
     @Test
     func `A rejected key shows the inline message and keeps setup open`() async throws {
         let (coordinator, router) = try await completedOnboarding()
@@ -37,10 +37,13 @@ struct ProviderSubmissionTests {
         await submission.run(submission.attempt)
 
         #expect(submission.isKeyRejected)
+        #expect(submission.rejectionCount == 1)
         #expect(submission.failure == nil)
         #expect(router.destination == .onboarding)
         submission.submit("rejected-key")
-        #expect(submission.attempt != nil)
+        await submission.run(submission.attempt)
+        #expect(submission.isKeyRejected)
+        #expect(submission.rejectionCount == 2)
     }
 
     /// Provider failures other than rejection explain their cause in an alert.
