@@ -20,8 +20,8 @@ struct ReadableContentMargins: ViewModifier {
                 safeAreaInsets = $0
             }
             .onGeometryChange(for: CGFloat.self) { geometry in
-                // A sixth on each side leaves two thirds for content.
-                usesReadableWidth ? geometry.size.width / 6 : LayoutMetrics.contentMargin
+                // Wide containers keep content at most 896 pt wide, with at least 20 pt on each side.
+                usesReadableWidth ? max(20, (geometry.size.width - 896) / 2) : LayoutMetrics.contentMargin
             } action: { newInset in
                 inset = newInset
             }
