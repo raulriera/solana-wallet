@@ -29,6 +29,6 @@ let accounts = try await service.accounts(
 
 Recovery requires the original phrase, passphrase, and account path. Public addresses are independent of the selected Solana network. Derivation and signing run concurrently outside the caller's actor and support cancellation.
 
-The service retains no secret state and performs no networking or persistence. Phrase and recovery descriptions omit secrets; explicit property access exposes them, and Swift does not guarantee memory erasure.
+The service retains no secret state and performs no networking or persistence. Seed and key byte buffers are zeroed after use on a best-effort basis. Phrase and recovery descriptions omit secrets; explicit property access exposes them, and Swift does not guarantee memory erasure.
 
 Use [Vault](../Vault/README.md) for protected recovery storage. The caller owns backup verification, account discovery, authentication, and approval before signing.

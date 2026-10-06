@@ -70,9 +70,15 @@ public struct KeychainStore: RecoveryStoring {
             guard let access = SecAccessControlCreateWithFlags(
                 nil, kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly, .userPresence, nil
             ) else { throw Failure.protectionUnavailable }
+            var payload = try StoredRecovery.encode(recovery)
             var attributes = identity(for: walletID)
             attributes[kSecAttrAccessControl as String] = access
-            attributes[kSecValueData as String] = try StoredRecovery.encode(recovery)
+            attributes[kSecValueData as String] = payload
+            defer {
+                // Best effort: release the dictionary's reference first so the zeroing reaches the shared buffer.
+                attributes[kSecValueData as String] = nil
+                payload.resetBytes(in: 0..<payload.count)
+            }
             try Self.check(keychain.add(attributes))
         }
     }
@@ -93,9 +99,12 @@ public struct KeychainStore: RecoveryStoring {
             query[kSecMatchLimit as String] = kSecMatchLimitOne
             query[kSecReturnData as String] = true
             query[kSecUseAuthenticationContext as String] = context
-            let result = keychain.copy(matching: query)
+            var result = keychain.copy(matching: query)
             try Self.check(result.status)
-            guard let data = result.data else { throw Failure.invalidRecovery }
+            // Taking the value leaves this copy as the only owner, so zeroing reaches the real buffer.
+            guard var data = result.data.take() else { throw Failure.invalidRecovery }
+            // Best effort: the decoded phrase lives on as Strings, but the raw payload is zeroed.
+            defer { data.resetBytes(in: 0..<data.count) }
             return try StoredRecovery.decode(data)
         }
     }

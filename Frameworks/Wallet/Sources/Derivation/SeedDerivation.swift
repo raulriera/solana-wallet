@@ -21,6 +21,7 @@ enum SeedDerivation {
         let salt = "mnemonic" + passphrase.decomposedStringWithCompatibilityMapping
         // The 64-byte output fits one SHA-512 block; PBKDF2 numbers blocks from one.
         var block = Array(HMAC<SHA512>.authenticationCode(for: Array(salt.utf8) + [0, 0, 0, 1], using: key))
+        defer { block.erase() }
         var result = block
         for iteration in 1..<2_048 {
             if iteration.isMultiple(of: 64) { try Task.checkCancellation() }

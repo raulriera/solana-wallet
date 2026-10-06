@@ -13,8 +13,10 @@ enum KeyDerivation {
     static func signingKey(
         for phrase: RecoveryPhrase, passphrase: String, path: DerivationPath
     ) throws -> Curve25519.Signing.PrivateKey {
-        let seed = try SeedDerivation.seed(for: phrase, passphrase: passphrase)
-        let bytes = try privateKey(seed: seed, path: path)
+        var seed = try SeedDerivation.seed(for: phrase, passphrase: passphrase)
+        defer { seed.erase() }
+        var bytes = try privateKey(seed: seed, path: path)
+        defer { bytes.erase() }
         return try Curve25519.Signing.PrivateKey(rawRepresentation: bytes)
     }
 
@@ -30,11 +32,13 @@ enum KeyDerivation {
         var node = Array(HMAC<SHA512>.authenticationCode(
             for: seed, using: SymmetricKey(data: Array("ed25519 seed".utf8))
         ))
+        defer { node.erase() }
         for index in path.indices {
             try Task.checkCancellation()
             let child = index | 0x8000_0000
             let indexBytes = [24, 16, 8, 0].map { UInt8(truncatingIfNeeded: child >> $0) }
-            let data = [0] + Array(node.prefix(32)) + indexBytes
+            var data = [0] + Array(node.prefix(32)) + indexBytes
+            defer { data.erase() }
             node = Array(HMAC<SHA512>.authenticationCode(for: data, using: SymmetricKey(data: node.suffix(32))))
         }
         return Array(node.prefix(32))

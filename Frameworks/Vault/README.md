@@ -34,6 +34,6 @@ Storage requires a device passcode; biometrics are optional. Records use `kSecAt
 
 Cancellation dismisses pending authentication; it does not undo completed writes or deletions. Blocking Keychain operations run on a private queue outside the main actor.
 
-The caller owns backup and recovery workflows. Restoring an account requires the original phrase, any BIP-39 passphrase, and derivation path; device authentication does not replace that backup. Recovery descriptions omit secrets, but explicit properties expose them and do not guarantee memory erasure.
+The caller owns backup and recovery workflows. Restoring an account requires the original phrase, any BIP-39 passphrase, and derivation path; device authentication does not replace that backup. Recovery descriptions omit secrets, but explicit properties expose them and do not guarantee memory erasure; the raw Keychain payload is zeroed after use on a best-effort basis.
 
 Simulator Keychain reads can succeed without a prompt. Authentication enforcement and passcode fallback require physical-device verification.
