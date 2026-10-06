@@ -47,7 +47,7 @@ struct RecoveryPhraseScreen: View {
                     .foregroundStyle(palette.secondaryText)
             } footer: {
                 Text(
-                    "These words are your only way to restore this wallet. Neither the app nor iCloud can recover them. You'll need them if you lose this device or change its enrolled biometrics. Copied words stay on this device and clear from the clipboard after \(pasteboard.lifetime, format: .units(allowed: [.minutes, .seconds], width: .wide))."
+                    "These words are your only way to restore this wallet. Neither the app nor iCloud can recover them. You'll need them if you lose this device or remove its passcode. Copied words stay on this device and clear from the clipboard after \(pasteboard.lifetime, format: .units(allowed: [.minutes, .seconds], width: .wide))."
                 )
                 .foregroundStyle(palette.secondaryText)
             }

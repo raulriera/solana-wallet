@@ -21,7 +21,8 @@ final class KeychainStub: KeychainAccessing {
         var queriedOnlyLocalItems = true
         var ranOffMainThread = true
         var promptReasons: [String] = []
-        var permitsFallback = false
+        var hidesPasscode = false
+        var reusesUnlock = false
         var readCount = 0
     }
 
@@ -51,7 +52,7 @@ final class KeychainStub: KeychainAccessing {
     func add(_ attributes: [String: Any]) -> OSStatus {
         let identity = identity(in: attributes)
         let expected = SecAccessControlCreateWithFlags(
-            nil, kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly, .biometryCurrentSet, nil
+            nil, kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly, .userPresence, nil
         )!
         let access = attributes[kSecAttrAccessControl as String] as CFTypeRef?
         let protected = access.map { CFEqual($0, expected) } ?? false
@@ -71,8 +72,8 @@ final class KeychainStub: KeychainAccessing {
         let context = query[kSecUseAuthenticationContext as String] as! LAContext
         state.withLock {
             $0.promptReasons.append(context.localizedReason)
-            $0.permitsFallback = $0.permitsFallback || context.localizedFallbackTitle != ""
-                || context.touchIDAuthenticationAllowableReuseDuration != 0
+            $0.hidesPasscode = $0.hidesPasscode || context.localizedFallbackTitle == ""
+            $0.reusesUnlock = $0.reusesUnlock || context.touchIDAuthenticationAllowableReuseDuration != 0
             $0.readCount += 1
         }
         beforeRead()
@@ -116,7 +117,7 @@ final class TestContext: LAContext, @unchecked Sendable {
 
     /// Creates a context with a thread-safe invalidation observer.
     /// - Parameters:
-    ///   - available: Whether the test permits biometric authentication.
+    ///   - available: Whether the test device has a passcode.
     ///   - onInvalidate: The callback invoked when authentication is invalidated.
     init(available: Bool = true, onInvalidate: @escaping @Sendable () -> Void = {}) {
         self.available = available
@@ -124,13 +125,13 @@ final class TestContext: LAContext, @unchecked Sendable {
         super.init()
     }
 
-    /// Reports availability without consulting simulator biometric configuration.
+    /// Reports availability without consulting simulator authentication configuration.
     /// - Parameters:
     ///   - policy: The authentication policy requested by the production service.
     ///   - error: An optional error output, unused by this test context.
-    /// - Returns: Whether biometrics are available and the policy excludes passcode fallback.
+    /// - Returns: Whether the device has a passcode and the policy accepts biometrics or the passcode.
     override func canEvaluatePolicy(_ policy: LAPolicy, error: NSErrorPointer) -> Bool {
-        available && policy == .deviceOwnerAuthenticationWithBiometrics
+        available && policy == .deviceOwnerAuthentication
     }
 
     /// Records cancellation or completion before invalidating the context.

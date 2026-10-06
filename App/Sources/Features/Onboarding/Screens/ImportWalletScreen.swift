@@ -45,7 +45,7 @@ struct ImportWalletScreen: View {
                 Text("Recovery Words")
                     .foregroundStyle(palette.secondaryText)
             } footer: {
-                Text("Use your recovery words in their original order, separated by spaces. Keep your original words and any BIP-39 passphrase safe. Neither this app nor iCloud can recover them. You'll need your backup if you lose this device or change its enrolled biometrics.")
+                Text("Use your recovery words in their original order, separated by spaces. Keep your original words and any BIP-39 passphrase safe. Neither this app nor iCloud can recover them. You'll need your backup if you lose this device or remove its passcode.")
                     .foregroundStyle(palette.secondaryText)
             }
             .foregroundStyle(palette.primaryText)

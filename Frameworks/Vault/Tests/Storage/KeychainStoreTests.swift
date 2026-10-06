@@ -10,7 +10,7 @@ import Wallet
 /// Verifies storage behavior with isolated Keychain data and no biometric prompts.
 @Suite(.timeLimit(.minutes(1)))
 struct KeychainStoreTests {
-    /// Verifies complete recovery and the device-only biometric policy in the outgoing query.
+    /// Verifies complete recovery and the device-only biometric-or-passcode policy in the outgoing query.
     @Test
     func `Saved recovery preserves the phrase and passphrase`() async throws {
         let keychain = KeychainStub()
@@ -29,12 +29,14 @@ struct KeychainStoreTests {
         let hasRequiredProtection = keychain.state.withLock(\.hasRequiredProtection)
         let queriedOnlyLocalItems = keychain.state.withLock(\.queriedOnlyLocalItems)
         let ranOffMainThread = keychain.state.withLock(\.ranOffMainThread)
-        let permitsFallback = keychain.state.withLock(\.permitsFallback)
+        let hidesPasscode = keychain.state.withLock(\.hidesPasscode)
+        let reusesUnlock = keychain.state.withLock(\.reusesUnlock)
         #expect(hasRequiredProtection)
         #expect(queriedOnlyLocalItems)
         #expect(ranOffMainThread)
         #expect(keychain.state.withLock(\.promptReasons) == ["Reveal recovery phrase"])
-        #expect(!permitsFallback)
+        #expect(!hidesPasscode)
+        #expect(!reusesUnlock)
     }
 
     /// Verifies that a duplicate save never replaces an existing wallet's secrets.
@@ -115,9 +117,9 @@ struct KeychainStoreTests {
         #expect(keychain.state.withLock(\.items) == original)
     }
 
-    /// Verifies that unavailable biometrics never cause weaker or unusable storage.
+    /// Verifies that a device without a passcode never gets weaker or unusable storage.
     @Test
-    func `Saving without available biometrics stores no recovery material`() async throws {
+    func `Saving without a device passcode stores no recovery material`() async throws {
         let keychain = KeychainStub(contextFactory: { TestContext(available: false) })
         let store = KeychainStore(service: "test.recovery", keychain: keychain)
         let recovery = try Fixtures.recovery()

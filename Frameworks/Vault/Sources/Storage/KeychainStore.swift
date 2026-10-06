@@ -3,11 +3,11 @@ public import Foundation
 import LocalAuthentication
 import Security
 
-/// Device-only recovery storage protected by the current biometric enrollment.
+/// Device-only recovery storage that opens with biometrics or the device passcode.
 ///
-/// Each read uses a fresh authentication context. No item synchronizes to iCloud,
-/// migrates to another device, or permits passcode fallback. Authentication
-/// failures never delete or replace stored recovery material.
+/// Each read uses a fresh authentication context. No item synchronizes to iCloud
+/// or migrates to another device. Authentication failures never delete or
+/// replace stored recovery material.
 public struct KeychainStore: RecoveryStoring {
     /// Blocking work that uses an authentication context only on the Keychain queue.
     private typealias Operation<Value: Sendable> = @Sendable (LAContext) throws -> Value
@@ -16,13 +16,13 @@ public struct KeychainStore: RecoveryStoring {
     public enum Failure: Error, Sendable, Equatable {
         /// The wallet identifier already has stored recovery material.
         case duplicateWallet
-        /// No accessible item exists, including items invalidated by enrollment changes.
+        /// No item exists, including items the system deleted when the device passcode was removed.
         case recoveryUnavailable
         /// Authentication didn't authorize access to the item.
         case authenticationFailed
         /// Keychain access couldn't present authentication in the current state.
         case interactionNotAllowed
-        /// Biometric authentication or the requested item protection is unavailable.
+        /// The device has no passcode, or the requested item protection is unavailable.
         case protectionUnavailable
         /// The stored recovery payload is malformed or has an unsupported version.
         case invalidRecovery
@@ -54,7 +54,7 @@ public struct KeychainStore: RecoveryStoring {
 
     /// Saves recovery material without overwriting an existing wallet.
     ///
-    /// Requires a device passcode and enrolled biometrics. Cancellation doesn't
+    /// Requires a device passcode; biometrics are optional. Cancellation doesn't
     /// roll back an add that has already reached the Keychain.
     ///
     /// - Parameters:
@@ -64,11 +64,11 @@ public struct KeychainStore: RecoveryStoring {
     ///   or `CancellationError` if canceled.
     public func save(_ recovery: Recovery, for walletID: UUID) async throws {
         try await perform { context in
-            guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: nil) else {
+            guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: nil) else {
                 throw Failure.protectionUnavailable
             }
             guard let access = SecAccessControlCreateWithFlags(
-                nil, kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly, .biometryCurrentSet, nil
+                nil, kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly, .userPresence, nil
             ) else { throw Failure.protectionUnavailable }
             var attributes = identity(for: walletID)
             attributes[kSecAttrAccessControl as String] = access
@@ -77,11 +77,10 @@ public struct KeychainStore: RecoveryStoring {
         }
     }
 
-    /// Retrieves recovery material using the currently enrolled biometrics.
+    /// Retrieves recovery material after biometric or device passcode authentication.
     ///
-    /// The calling app must supply `NSFaceIDUsageDescription`. A missing item can
-    /// also mean biometric enrollment changed; the system doesn't distinguish
-    /// these cases reliably. Recovery then requires the user's backup.
+    /// The calling app must supply `NSFaceIDUsageDescription`. Biometric enrollment
+    /// changes don't affect access. A missing item requires the user's backup.
     ///
     /// - Parameters:
     ///   - walletID: The local identifier used when saving the wallet.

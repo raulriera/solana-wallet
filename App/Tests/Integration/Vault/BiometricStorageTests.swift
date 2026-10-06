@@ -7,24 +7,15 @@ import Wallet
 /// Opt-in checks against the real Keychain on an isolated, unfunded simulator.
 @Suite(.timeLimit(.minutes(1)))
 struct BiometricStorageTests {
-    /// Verifies unenrolled biometrics prevent saving and leave no readable recovery.
+    /// Verifies the device passcode still protects a real Keychain round trip without enrolled biometrics.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["BIOMETRIC_TEST_STATE"] == "unenrolled"))
-    func `Unenrolled Touch ID prevents saving wallet recovery`() async throws {
+    func `Unenrolled Touch ID still permits saving and reading wallet recovery`() async throws {
         let context = LAContext()
         var error: NSError?
         try #require(!context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error))
         try #require(error?.code == LAError.biometryNotEnrolled.rawValue)
-        let store = KeychainStore(service: "widgetsTests.biometric-probe")
-        let id = UUID()
-        let original = try recovery()
-
-        await #expect(throws: KeychainStore.Failure.protectionUnavailable) {
-            try await store.save(original, for: id)
-        }
-        await #expect(throws: KeychainStore.Failure.recoveryUnavailable) {
-            try await store.recovery(for: id, reason: "Verify no test recovery was saved")
-        }
-        try await store.deleteRecovery(for: id)
+        try #require(context.canEvaluatePolicy(.deviceOwnerAuthentication, error: nil))
+        try await verifyRoundTrip()
     }
 
     /// Verifies enrolled Touch ID permits a real protected Keychain round trip.
@@ -33,6 +24,12 @@ struct BiometricStorageTests {
         let context = LAContext()
         try #require(context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: nil))
         try #require(context.biometryType == .touchID)
+        try await verifyRoundTrip()
+    }
+
+    /// Saves, reads, and deletes a public fixture in the real Keychain.
+    /// - Throws: A storage error, after removing any saved test item.
+    private func verifyRoundTrip() async throws {
         let store = KeychainStore(service: "widgetsTests.biometric-probe")
         let id = UUID()
         let original = try recovery()

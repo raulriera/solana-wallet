@@ -1,6 +1,6 @@
 # Vault
 
-Device-only Keychain storage for wallet recovery material, protected by the device's current biometric enrollment.
+Device-only Keychain storage for wallet recovery material that opens with biometrics or the device passcode.
 
 ## Example Usage
 
@@ -29,10 +29,10 @@ let restored = try await store.recovery(
 
 ## Protection
 
-Storage requires a device passcode and enrolled biometrics. Records use `kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly` and `biometryCurrentSet`, with no device-passcode fallback, iCloud synchronization, or migration to another device. Changing biometric enrollment invalidates access.
+Storage requires a device passcode; biometrics are optional. Records use `kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly` and `userPresence`, with no iCloud synchronization or migration to another device. Biometric enrollment changes don't affect access; removing the device passcode deletes records.
 
 Cancellation dismisses pending authentication; it does not undo completed writes or deletions. Blocking Keychain operations run on a private queue outside the main actor.
 
-The caller owns backup and recovery workflows. Restoring an account requires the original phrase, any BIP-39 passphrase, and derivation path; biometrics do not replace that backup. Recovery descriptions omit secrets, but explicit properties expose them and do not guarantee memory erasure.
+The caller owns backup and recovery workflows. Restoring an account requires the original phrase, any BIP-39 passphrase, and derivation path; device authentication does not replace that backup. Recovery descriptions omit secrets, but explicit properties expose them and do not guarantee memory erasure.
 
-Simulator Keychain reads can succeed without a prompt. Biometric enforcement and enrollment-change invalidation require physical-device verification.
+Simulator Keychain reads can succeed without a prompt. Authentication enforcement and passcode fallback require physical-device verification.

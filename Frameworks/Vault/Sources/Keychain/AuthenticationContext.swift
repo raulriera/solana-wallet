@@ -19,7 +19,6 @@ final class AuthenticationContext: @unchecked Sendable {
     init(context: LAContext, reason: String) {
         self.context = context
         context.localizedReason = reason
-        context.localizedFallbackTitle = ""
         context.touchIDAuthenticationAllowableReuseDuration = 0
     }
 
