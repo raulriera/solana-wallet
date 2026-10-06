@@ -53,7 +53,10 @@ public struct Sender: RPC {
     }
 
     /// Helius's published mainnet tip accounts, distributed to reduce shared write locks.
-    private static let tipAccounts = [
+    ///
+    /// Helius publishes this list only in its Sender documentation; a live test checks
+    /// the bundled addresses against that page.
+    static let tipAccounts = [
         "4ACfpUFoaSD9bfPdeu6DBt89gB6ENTeHBXCAi87NhDEE",
         "D2L6yPZ2FmmmTKPgzaMKdhu6EWZcTpLy1Vhx8uvZe7NZ",
         "9bnz4RShgq1hAnLnZbP8kbgBg1kEmcJBYQq3gQbmnSta",
