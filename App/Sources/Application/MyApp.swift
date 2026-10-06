@@ -2,6 +2,7 @@ import SwiftUI
 
 /// Owns shared services for the lifetime of the app's windows.
 @main struct MyApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var services = Result { try AppServices() }
 
     var body: some Scene {
