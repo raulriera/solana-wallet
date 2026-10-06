@@ -1,15 +1,12 @@
-import Accessibility
 import SwiftUI
 import Wallet
 
 /// Presents a prepared recovery phrase for backup without generating or storing it.
 struct RecoveryPhraseScreen: View {
     @Environment(\.palette) private var palette
-    @Environment(\.canDisplayRecovery) private var canDisplayRecovery
     @State private var contentInset = LayoutMetrics.contentMargin
     @State private var isConfirmingBackup = false
     @State private var phrase: RecoveryPhrase?
-    @State private var copyCount = 0
     let isSaved: Bool
     let pasteboard: any RecoveryCopying
     let continueSetup: () -> Void
@@ -44,8 +41,7 @@ struct RecoveryPhraseScreen: View {
                     RecoveryWords(phrase: phrase)
                 }
 
-                Button("Copy Words", systemImage: "document.on.document", action: copyWords)
-                    .disabled(phrase == nil || !canDisplayRecovery)
+                CopyWordsButton(phrase: phrase, pasteboard: pasteboard)
             } header: {
                 Text("Recovery Words")
                     .foregroundStyle(palette.secondaryText)
@@ -72,7 +68,6 @@ struct RecoveryPhraseScreen: View {
         .background(palette.background)
         .navigationTitle("Recovery Phrase")
         .navigationBarTitleDisplayMode(.inline)
-        .sensoryFeedback(.success, trigger: copyCount)
         .alert("Have you saved your recovery words?", isPresented: $isConfirmingBackup) {
             Button("Yes", role: .confirm, action: continueSetup)
             Button("No", role: .cancel) {}
@@ -83,14 +78,6 @@ struct RecoveryPhraseScreen: View {
             // A saved wallet never returns to its backup, so release the words once they're off screen.
             if isSaved { phrase = nil }
         }
-    }
-
-    /// Copies the words while they're on screen, then confirms without changing the screen.
-    private func copyWords() {
-        guard let phrase, canDisplayRecovery else { return }
-        pasteboard.copy(phrase)
-        copyCount += 1
-        AccessibilityNotification.Announcement(String(localized: "Recovery words copied")).post()
     }
 }
 
