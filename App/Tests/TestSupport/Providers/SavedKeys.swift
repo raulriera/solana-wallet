@@ -28,4 +28,9 @@ actor SavedKeys: ProviderKeyStoring {
         saved = key
         await gate?.suspend()
     }
+
+    /// Forgets the recorded key.
+    func deleteKey() {
+        saved = nil
+    }
 }

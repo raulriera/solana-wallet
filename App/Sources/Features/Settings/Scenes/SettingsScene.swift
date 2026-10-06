@@ -7,8 +7,7 @@ struct SettingsScene: View {
     let settings: AppearanceSettings
     let wallet: AppearanceWallet?
     let account: Account
-    let recovery: any RecoveryRevealing
-    let pasteboard: any RecoveryCopying
+    let security: SecurityFlow
 
     /// Presents the window's preference-editing workflow and its wallet's security choices.
     ///
@@ -17,15 +16,12 @@ struct SettingsScene: View {
     ///   - settings: The window's workflow; the window cancels unfinished work when it closes.
     ///   - wallet: The owning window's selected wallet theme scope, if one exists.
     ///   - account: The owning window's wallet, whose recovery Security & Privacy shows.
-    ///   - recovery: Reads the wallet's recovery after authentication.
-    ///   - pasteboard: Copies recovery words to this device only, for a limited time.
-    init(settings: AppearanceSettings, wallet: AppearanceWallet? = nil, account: Account,
-         recovery: any RecoveryRevealing, pasteboard: any RecoveryCopying) {
+    ///   - security: The window's Security & Privacy navigation and steps.
+    init(settings: AppearanceSettings, wallet: AppearanceWallet? = nil, account: Account, security: SecurityFlow) {
         self.settings = settings
         self.wallet = wallet
         self.account = account
-        self.recovery = recovery
-        self.pasteboard = pasteboard
+        self.security = security
     }
 
     var body: some View {
@@ -35,14 +31,18 @@ struct SettingsScene: View {
             SettingsSidebar(selection: $selection)
                 .navigationSplitViewColumnWidth(min: 220, ideal: 280)
         } detail: {
-            NavigationStack {
-                switch selection ?? .appearance {
-                case .appearance:
+            switch selection ?? .appearance {
+            case .appearance:
+                NavigationStack {
                     AppearanceView(settings: settings, wallet: wallet)
-                case .security:
-                    SecurityScreen(account: account, recovery: recovery, pasteboard: pasteboard)
                 }
+            case .security:
+                SecurityScene(flow: security, account: account)
             }
+        }
+        .onChange(of: selection) { _, selection in
+            // Leaving Security & Privacy closes its screens and releases any open backup.
+            if selection != .security { security.close() }
         }
         .onChange(of: horizontalSizeClass, initial: true) { _, sizeClass in
             // A selection pushes its detail on compact displays, so only expanded layouts start with one.

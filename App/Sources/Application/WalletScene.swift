@@ -10,8 +10,8 @@ struct WalletScene: View {
     let settings: AppearanceSettings
     let connection: any ProviderConnecting
     let keyRevision: ProviderKeyRevision
-    let recovery: any RecoveryRevealing
-    let pasteboard: any RecoveryCopying
+    let security: SecurityFlow
+    let resetRevision: AppResetRevision
 
     var body: some View {
         TabView(selection: $section) {
@@ -19,11 +19,14 @@ struct WalletScene: View {
                 PortfolioScene(coordinator: portfolio, connection: connection, keyRevision: keyRevision)
             }
             Tab("Settings", systemImage: "gearshape", value: .settings) {
-                SettingsScene(settings: settings, account: account, recovery: recovery, pasteboard: pasteboard)
+                SettingsScene(settings: settings, account: account, security: security)
+                    .securityLifecycle(security)
             }
         }
         .tabViewStyle(.tabBarOnly)
         .portfolioObservation(of: account, coordinator: portfolio, keyRevision: keyRevision)
+        // A reset deletes this wallet, so the next wallet opens on its portfolio.
+        .onChange(of: resetRevision.value) { section = .portfolio }
         // Settings work belongs to the window, so switching tabs keeps an import or a saved choice going.
         .onDisappear { settings.cancel() }
     }

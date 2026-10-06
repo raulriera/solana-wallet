@@ -30,6 +30,21 @@ struct ProviderKeyStoreTests {
         #expect(try await store.key() == "second-fixture-key")
     }
 
+    /// Resetting deletes the key, and repeating it without a key still succeeds.
+    /// - Throws: A Keychain failure.
+    @Test
+    func `Deleting the key leaves none to read`() async throws {
+        let service = Self.isolatedService()
+        defer { Self.removeItems(for: service) }
+        let store = ProviderKeyStore(service: service)
+        try await store.save("fixture-key")
+
+        try await store.deleteKey()
+        try await store.deleteKey()
+
+        #expect(try await store.key() == nil)
+    }
+
     /// The saved item never syncs through iCloud and isn't restored to another device.
     /// - Throws: A Keychain failure.
     @Test

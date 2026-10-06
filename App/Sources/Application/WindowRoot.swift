@@ -7,29 +7,21 @@ struct WindowRoot: View {
     @State private var startup: any WindowStarting
     @State private var portfolio: any PortfolioCoordinating
     @State private var settings: AppearanceSettings
+    @State private var security: SecurityFlow
     @State private var startupAttempt = 0
-    private let appearanceServices: AppearanceServices
-    private let providerConnection: any ProviderConnecting
-    private let providerKeyRevision: ProviderKeyRevision
-    private let recoveryPasteboard: any RecoveryCopying
-    private let recoveryReveal: any RecoveryRevealing
-    private let artworkColors: any ArtworkColorProviding
+    private let services: AppServices
 
     /// Seeds window-owned state from services that remain fixed for the window's lifetime.
     /// - Parameter services: Shared services that retain no window-specific recovery draft.
     init(services: AppServices) {
-        appearanceServices = services.appearance
-        providerConnection = services.providerConnection
-        providerKeyRevision = services.providerKeyRevision
-        recoveryPasteboard = services.recoveryPasteboard
-        recoveryReveal = services.recoveryReveal
-        artworkColors = services.artworkColors
+        self.services = services
         let router = services.makeWindowRouter(initialDestination: .restoringWallets)
         self.router = router
         self.onboarding = services.makeOnboardingCoordinator(router: router)
         self.startup = services.makeWindowStartup(router: router)
         self.portfolio = services.makePortfolioCoordinator()
         self.settings = services.makeAppearanceSettings()
+        self.security = services.makeSecurityFlow()
     }
 
     var body: some View {
@@ -40,16 +32,17 @@ struct WindowRoot: View {
             case .walletRestorationFailed:
                 WalletUnavailableScreen(retry: { startupAttempt += 1 })
             case .onboarding:
-                OnboardingScene(coordinator: onboarding, connection: providerConnection, keyRevision: providerKeyRevision,
-                                pasteboard: recoveryPasteboard)
+                OnboardingScene(coordinator: onboarding, connection: services.providerConnection,
+                                keyRevision: services.providerKeyRevision, pasteboard: services.recoveryPasteboard)
             case .wallet(let account):
-                WalletScene(account: account, portfolio: portfolio, settings: settings, connection: providerConnection,
-                            keyRevision: providerKeyRevision, recovery: recoveryReveal, pasteboard: recoveryPasteboard)
+                WalletScene(account: account, portfolio: portfolio, settings: settings, connection: services.providerConnection,
+                            keyRevision: services.providerKeyRevision, security: security, resetRevision: services.resetRevision)
             }
         }
         .animation(.default, value: router.destination)
         .windowRestoration(startup, router: router, attempt: startupAttempt)
-        .windowAppearance(services: appearanceServices)
-        .environment(\.artworkColors, artworkColors)
+        .windowReset(services, router: router, onboarding: $onboarding, security: security)
+        .windowAppearance(services: services.appearance)
+        .environment(\.artworkColors, services.artworkColors)
     }
 }

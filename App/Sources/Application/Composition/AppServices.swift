@@ -17,7 +17,8 @@ struct AppServices {
     // One sampler for every window shares its remembered logo colors.
     let artworkColors: any ArtworkColorProviding = ArtworkColors()
     let recoveryPasteboard: any RecoveryCopying
-    let recoveryReveal: any RecoveryRevealing
+    let resetRevision = AppResetRevision()
+    let security: SecurityServices
 
     /// Creates production services after any explicit simulator UI-test reset.
     /// - Throws: An error if the bundled appearance or a storage configuration is invalid.
@@ -33,13 +34,18 @@ struct AppServices {
         wallet = Wallet()
         discovery = AccountDiscovery(rpc: Solana(network: .mainnet), wallet: wallet)
         recovery = KeychainStore(service: recoveryService)
-        recoveryReveal = RecoveryReveal(store: recovery)
         accounts = try AccountStore()
         let providerKeys = ProviderKeyStore(service: providerService)
         providerConnection = HeliusConnection(keys: providerKeys)
         // One service for every window shares its cache, subscriptions, and price pacing.
         portfolio = Portfolio(rpc: HeliusClient(keys: providerKeys), prices: Jupiter())
         recoveryPasteboard = RecoveryPasteboard()
+        security = SecurityServices(
+            recovery: RecoveryReveal(store: recovery),
+            owner: DeviceOwnerAuthentication(),
+            reset: AppReset(recovery: recovery, accounts: accounts, providerKeys: providerKeys, revision: resetRevision),
+            pasteboard: recoveryPasteboard
+        )
     }
 
     /// Creates independent root navigation for a window.
@@ -67,6 +73,12 @@ struct AppServices {
     /// - Returns: Independent draft state for the window that retains this coordinator.
     func makeOnboardingCoordinator(router: any WindowRouting) -> any OnboardingCoordinating {
         OnboardingCoordinator(discovery: discovery, wallet: wallet, recovery: recovery, accounts: accounts, router: router)
+    }
+
+    /// Creates independent Security & Privacy navigation and steps around the shared security services.
+    /// - Returns: A flow whose path and steps belong to one window.
+    func makeSecurityFlow() -> SecurityFlow {
+        SecurityFlow(services: security)
     }
 
     /// Assembles a preference-editing workflow around the app's shared appearance services.

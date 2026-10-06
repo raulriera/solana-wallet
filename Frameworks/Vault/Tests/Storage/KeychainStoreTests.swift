@@ -148,6 +148,33 @@ struct KeychainStoreTests {
         #expect(keychain.state.withLock(\.readCount) == 0)
     }
 
+    /// Verifies that deleting all recovery empties only this namespace and can repeat safely.
+    @Test
+    func `Deleting all recovery removes every wallet in its namespace only`() async throws {
+        let keychain = KeychainStub()
+        let store = KeychainStore(service: "test.recovery", keychain: keychain)
+        let otherStore = KeychainStore(service: "test.other", keychain: keychain)
+        let ids = [UUID(), UUID()]
+        let otherID = UUID()
+        let recovery = try Fixtures.recovery()
+        for id in ids { try await store.save(recovery, for: id) }
+        try await otherStore.save(recovery, for: otherID)
+
+        try await store.deleteAllRecovery()
+        try await store.deleteAllRecovery()
+
+        for id in ids {
+            await #expect(throws: KeychainStore.Failure.recoveryUnavailable) {
+                try await store.recovery(for: id, reason: "Recover wallet")
+            }
+        }
+        let other = try await otherStore.recovery(for: otherID, reason: "Recover other namespace")
+        #expect(other.phrase.words == recovery.phrase.words)
+        #expect(keychain.state.withLock(\.items.count) == 1)
+        let queriedOnlyLocalItems = keychain.state.withLock(\.queriedOnlyLocalItems)
+        #expect(queriedOnlyLocalItems)
+    }
+
     /// Verifies exact deletion scope across wallet identifiers and service namespaces.
     @Test
     func `Deleting recovery preserves other wallets and namespaces`() async throws {

@@ -66,6 +66,15 @@ nonisolated struct ProviderKeyStore: ProviderKeyStoring {
         }
     }
 
+    /// Deletes the saved key; a missing key is already deleted.
+    /// - Throws: ``Failure`` or `CancellationError`.
+    func deleteKey() async throws {
+        try await perform {
+            let status = SecItemDelete(identity as CFDictionary)
+            if status != errSecItemNotFound { try Self.check(status) }
+        }
+    }
+
     /// The one non-synchronizing item in this store's namespace.
     private var identity: [String: Any] {
         [

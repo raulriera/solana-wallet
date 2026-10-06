@@ -23,4 +23,9 @@ struct StartupAccountStore: AccountStoring {
         Issue.record("Startup must not write account metadata")
         return []
     }
+
+    /// Reports a regression if startup attempts to delete account storage.
+    func removeAll() async throws {
+        Issue.record("Startup must not delete account metadata")
+    }
 }

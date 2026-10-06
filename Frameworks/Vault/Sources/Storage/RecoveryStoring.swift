@@ -24,4 +24,9 @@ public protocol RecoveryStoring: Sendable {
     /// - Parameter walletID: The local wallet identifier to remove.
     /// - Throws: An error if deletion fails. An absent item is already deleted.
     func deleteRecovery(for walletID: UUID) async throws
+
+    /// Deletes the recovery material for every wallet in this store.
+    ///
+    /// - Throws: An error if deletion fails. An empty store is already deleted.
+    func deleteAllRecovery() async throws
 }

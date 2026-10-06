@@ -62,4 +62,9 @@ actor OnboardingRecoveryStore: RecoveryStoring {
     func deleteRecovery(for walletID: UUID) async throws {
         Issue.record("Onboarding must not delete retained recovery.")
     }
+
+    /// Reports any deletion, because onboarding never removes retained recovery.
+    func deleteAllRecovery() async throws {
+        Issue.record("Onboarding must not delete retained recovery.")
+    }
 }

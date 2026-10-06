@@ -1,19 +1,15 @@
 import SwiftUI
 
-/// Explains what stays on this device and opens the window's wallet backup after authentication.
+/// Explains what stays on this device and offers the wallet's backup and the app reset.
 struct SecurityScreen: View {
     @Environment(\.palette) private var palette
-    @State private var request: UUID?
-    @State private var display: RecoveryDisplay?
-    @State private var isShowingFailure = false
+    let flow: SecurityFlow
     let account: Account
-    let recovery: any RecoveryRevealing
-    let pasteboard: any RecoveryCopying
 
     var body: some View {
         Form {
             Section {
-                Button("Show Recovery Phrase") { request = UUID() }
+                Button("Show Recovery Phrase") { flow.showRecovery(for: account) }
                     .foregroundStyle(palette.accent)
             } header: {
                 Text("Recovery Phrase")
@@ -23,35 +19,19 @@ struct SecurityScreen: View {
             }
             .listRowBackground(palette.surface)
             .listRowSeparatorTint(palette.separator)
+
+            Section {
+                Button("Reset App", role: .destructive) { flow.startReset(.standard) }
+                    .foregroundStyle(.red)
+            } footer: {
+                Text("Deletes every wallet, recovery phrase, and your RPC API key from this device. Your themes stay.")
+                    .foregroundStyle(palette.secondaryText)
+            }
+            .listRowBackground(palette.surface)
         }
         .navigationTitle("Security & Privacy")
         .foregroundStyle(palette.primaryText, palette.secondaryText)
         .scrollContentBackground(.hidden)
         .background(palette.background)
-        .task(id: request) { await showRecovery() }
-        // The backup stays in memory only while its screen is open.
-        .navigationDestination(isPresented: $display[isPresented: true]) {
-            if let display {
-                RecoveryBackupScreen(display: display, pasteboard: pasteboard)
-            }
-        }
-        .alert("Couldn't Show Recovery Phrase", isPresented: $isShowingFailure) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("Your recovery phrase couldn't be read. Try again.")
-        }
-    }
-
-    /// Reads the wallet's recovery once per tap and opens the result; a dismissed prompt changes nothing.
-    private func showRecovery() async {
-        guard request != nil else { return }
-        defer { request = nil }
-        do {
-            display = try await recovery.display(for: account)
-        } catch is CancellationError {
-            // The user dismissed authentication or left the screen.
-        } catch {
-            isShowingFailure = true
-        }
     }
 }

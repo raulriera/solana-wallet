@@ -6,7 +6,7 @@ struct RecoveryBackupScreen: View {
     @Environment(\.palette) private var palette
     @Environment(\.canDisplayRecovery) private var canDisplayRecovery
     let display: RecoveryDisplay
-    let pasteboard: any RecoveryCopying
+    let flow: SecurityFlow
 
     var body: some View {
         Group {
@@ -24,12 +24,12 @@ struct RecoveryBackupScreen: View {
 
                     Section {
                         RecoveryWords(phrase: backup.phrase)
-                        CopyWordsButton(phrase: backup.phrase, pasteboard: pasteboard)
+                        CopyWordsButton(phrase: backup.phrase, pasteboard: flow.pasteboard)
                     } header: {
                         Text("Recovery Words")
                             .foregroundStyle(palette.secondaryText)
                     } footer: {
-                        Text("Copied words stay on this device and clear from the clipboard after \(pasteboard.lifetime, format: .units(allowed: [.minutes, .seconds], width: .wide)).")
+                        Text("Copied words stay on this device and clear from the clipboard after \(flow.pasteboard.lifetime, format: .units(allowed: [.minutes, .seconds], width: .wide)).")
                             .foregroundStyle(palette.secondaryText)
                     }
                     .listRowBackground(palette.surface)
@@ -57,6 +57,9 @@ struct RecoveryBackupScreen: View {
                     Label("Recovery Phrase Unavailable", systemImage: "key.slash")
                 } description: {
                     Text("This device no longer has this wallet's recovery phrase. Reset the app and import your written backup.")
+                } actions: {
+                    Button("Reset App", role: .destructive) { flow.startReset(.recoveryUnavailable) }
+                        .foregroundStyle(.red)
                 }
                 .foregroundStyle(palette.primaryText, palette.secondaryText)
             }

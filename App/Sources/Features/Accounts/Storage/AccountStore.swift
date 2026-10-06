@@ -55,6 +55,17 @@ nonisolated struct AccountStore: AccountStoring {
         }
     }
 
+    /// Deletes the account file on the shared I/O queue; a missing file is already deleted.
+    /// - Throws: A filesystem or pre-commit cancellation error.
+    func removeAll() async throws {
+        try await perform { checkCancellation in
+            try checkCancellation()
+            do {
+                try FileManager.default.removeItem(at: file)
+            } catch CocoaError.fileNoSuchFile {}
+        }
+    }
+
     /// Reads one complete file; malformed data and nonregular files are never reset.
     /// - Returns: The decoded and validated accounts.
     /// - Throws: A filesystem, decoding, or account validation error.

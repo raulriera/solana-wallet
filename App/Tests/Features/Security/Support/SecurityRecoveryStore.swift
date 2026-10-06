@@ -43,4 +43,9 @@ actor SecurityRecoveryStore: RecoveryStoring {
     func deleteRecovery(for walletID: UUID) async throws {
         Issue.record("Showing recovery must not delete recovery.")
     }
+
+    /// Reports any deletion, because showing recovery must not change storage.
+    func deleteAllRecovery() async throws {
+        Issue.record("Showing recovery must not delete recovery.")
+    }
 }

@@ -50,4 +50,9 @@ actor OnboardingAccountStore: AccountStoring {
         if let failure { throw failure }
         return records
     }
+
+    /// Reports any deletion, because onboarding never removes saved accounts.
+    func removeAll() async throws {
+        Issue.record("Onboarding must not delete account metadata.")
+    }
 }

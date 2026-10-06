@@ -53,4 +53,9 @@ actor SigningRecoveryStore: RecoveryStoring {
     func deleteRecovery(for walletID: UUID) async throws {
         Issue.record("Signing must not delete recovery material.")
     }
+
+    /// Reports an unexpected deletion during signing.
+    func deleteAllRecovery() async throws {
+        Issue.record("Signing must not delete recovery material.")
+    }
 }

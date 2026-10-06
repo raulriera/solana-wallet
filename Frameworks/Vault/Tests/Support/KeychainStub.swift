@@ -84,18 +84,30 @@ final class KeychainStub: KeychainAccessing {
         }
     }
 
-    /// Removes only the queried item.
+    /// Removes the queried item, or every item in the service when the query names no account.
     /// - Parameter query: The production deletion query.
     /// - Returns: Success or the absent-item status.
     func delete(matching query: [String: Any]) -> OSStatus {
-        let identity = identity(in: query)
-        return state.withLock { $0.items.removeValue(forKey: identity) == nil ? errSecItemNotFound : errSecSuccess }
+        let (service, account) = scope(in: query)
+        return state.withLock { state in
+            let matches = state.items.keys.filter { $0.service == service && (account == nil || $0.account == account) }
+            matches.forEach { state.items.removeValue(forKey: $0) }
+            return matches.isEmpty ? errSecItemNotFound : errSecSuccess
+        }
     }
 
-    /// Extracts the item identity and records query scope and execution context.
-    /// - Parameter query: The add, read, or delete attributes.
+    /// Extracts the item identity for queries that address one item.
+    /// - Parameter query: The add or read attributes.
     /// - Returns: The scoped service and account.
     private func identity(in query: [String: Any]) -> Identity {
+        let (service, account) = scope(in: query)
+        return Identity(service: service, account: account!)
+    }
+
+    /// Extracts the service and optional account and records query scope and execution context.
+    /// - Parameter query: The add, read, or delete attributes.
+    /// - Returns: The scoped service, and the account when the query names one.
+    private func scope(in query: [String: Any]) -> (service: String, account: String?) {
         state.withLock {
             $0.queriedOnlyLocalItems = $0.queriedOnlyLocalItems
                 && query[kSecAttrSynchronizable as String] as? Bool == false
@@ -103,7 +115,7 @@ final class KeychainStub: KeychainAccessing {
                 && query[kSecClass as String] as? String == kSecClassGenericPassword as String
             $0.ranOffMainThread = $0.ranOffMainThread && !Thread.isMainThread
         }
-        return Identity(service: query[kSecAttrService as String] as! String, account: query[kSecAttrAccount as String] as! String)
+        return (query[kSecAttrService as String] as! String, query[kSecAttrAccount as String] as? String)
     }
 }
 

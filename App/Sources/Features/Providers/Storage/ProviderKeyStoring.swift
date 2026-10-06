@@ -9,4 +9,8 @@ nonisolated protocol ProviderKeyStoring: Sendable {
     /// - Parameter key: A key the provider has already accepted.
     /// - Throws: A storage or cancellation error.
     func save(_ key: String) async throws
+
+    /// Deletes the saved key when the user resets the app.
+    /// - Throws: A storage or cancellation error. A missing key is already deleted.
+    func deleteKey() async throws
 }

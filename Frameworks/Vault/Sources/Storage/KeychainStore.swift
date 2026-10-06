@@ -115,17 +115,35 @@ public struct KeychainStore: RecoveryStoring {
         }
     }
 
+    /// Deletes every wallet's recovery material in this namespace without reading or unlocking it.
+    ///
+    /// Call only after the user explicitly chooses to reset the app. This also removes
+    /// items that no saved wallet references. Cancellation doesn't roll back a deletion
+    /// already performed by the Keychain.
+    ///
+    /// - Throws: ``Failure`` if deletion fails, or `CancellationError` if canceled.
+    public func deleteAllRecovery() async throws {
+        try await perform { _ in
+            let status = keychain.delete(matching: namespace)
+            if status != errSecItemNotFound { try Self.check(status) }
+        }
+    }
+
+    /// Matches every non-synchronizing item in this app's namespace.
+    private var namespace: [String: Any] {
+        [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrSynchronizable as String: false,
+            kSecUseDataProtectionKeychain as String: true,
+        ]
+    }
+
     /// Identifies one non-synchronizing item within this app's namespace.
     /// - Parameter walletID: The local identifier used as the Keychain account.
     /// - Returns: The common attributes for add, read, and delete queries.
     private func identity(for walletID: UUID) -> [String: Any] {
-        [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: walletID.uuidString,
-            kSecAttrSynchronizable as String: false,
-            kSecUseDataProtectionKeychain as String: true,
-        ]
+        namespace.merging([kSecAttrAccount as String: walletID.uuidString]) { $1 }
     }
 
     /// Runs a blocking Keychain operation outside Swift's cooperative executor.
