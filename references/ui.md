@@ -11,8 +11,9 @@
 - Startup reads public account metadata before choosing a destination. Open the window's restored account while it is still saved, otherwise the first saved account, or onboarding only after a successful empty read. Loading failures offer an explicit retry without resetting storage; startup never accesses recovery material or replaces a window's resolved selection.
 - After saving a wallet, onboarding asks for a Helius API key and verifies it before opening the wallet.
 - A missing or rejected provider key replaces only the portfolio with an error screen that reopens provider setup.
-- `SettingsScene` owns the settings split view and each window's navigation selection. Appearance is a destination within that container.
-- Every settings sidebar destination uses a native `Label` with an SF Symbol and text, including when the navigation collapses on compact displays.
+- `SettingsScene` owns the settings split view and each window's navigation selection. Appearance and Security & Privacy are destinations within that container. Compact displays open on the sidebar list.
+- Every settings sidebar destination uses a native `Label` with an SF Symbol and text, including when the navigation collapses on compact displays. Symbols use multicolor rendering.
+- **Security & Privacy** shows the window's wallet backup after biometric or passcode authentication: its words with Copy, any BIP-39 passphrase, and the account path. Words hide while the scene is inactive or captured and leave memory when the screen closes. A missing recovery explains that the app must be reset.
 - Reuse the existing portfolio coordinator and its lifecycle contract. Layout, theme, and tab changes must not recreate it or restart observation. Preserve the display distinctions in [Portfolio](portfolio.md).
 
 ## Multiple windows

@@ -2,15 +2,22 @@ import SwiftUI
 
 /// Native icon-and-label navigation for the owning settings window.
 struct SettingsSidebar: View {
+    @ScaledMetric(relativeTo: .body) private var iconWidth = 28.0
     @Binding var selection: SettingsDestination?
 
     var body: some View {
         List(selection: $selection) {
             NavigationLink(value: SettingsDestination.appearance) {
-                Label("Appearance", systemImage: "paintpalette")
+                Label("Appearance", systemImage: "paintpalette.fill")
+            }
+            NavigationLink(value: SettingsDestination.security) {
+                Label("Security & Privacy", systemImage: "hand.raised.fill")
             }
         }
         .labelStyle(.titleAndIcon)
+        // Symbols differ in width, so a shared icon column keeps the titles aligned.
+        .labelReservedIconWidth(iconWidth)
+        .symbolRenderingMode(.multicolor)
         .listStyle(.sidebar)
         .navigationTitle("Settings")
     }

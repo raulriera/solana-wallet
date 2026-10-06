@@ -1,0 +1,54 @@
+import Foundation
+import Testing
+import Vault
+import Wallet
+@testable import widgets
+
+/// Verifies backup reads with public fixture recovery and no Keychain access.
+@Suite(.timeLimit(.minutes(1)))
+struct RecoveryRevealTests {
+    static let phrase = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
+
+    /// The backup pairs the shared words and passphrase with this wallet's own path.
+    @Test
+    func `Showing recovery returns the words, passphrase, and the wallet's own path`() async throws {
+        let account = try Account.fixture(index: 3)
+        let recovery = try Recovery(phrase: RecoveryPhrase(Self.phrase), passphrase: " TREZOR ")
+        let store = SecurityRecoveryStore(records: [account.recoveryID: recovery])
+
+        let display = try await RecoveryReveal(store: store).display(for: account)
+
+        guard case .backup(let backup) = display else {
+            Issue.record("Expected the wallet's backup")
+            return
+        }
+        #expect(backup.phrase.words == recovery.phrase.words)
+        #expect(backup.passphrase == " TREZOR ")
+        #expect(backup.path == account.path)
+        #expect(await store.reads == [account.recoveryID])
+    }
+
+    /// A device without the wallet's recovery explains that instead of failing.
+    @Test
+    func `A missing recovery shows that this device no longer has it`() async throws {
+        let account = try Account.fixture(index: 0)
+
+        let display = try await RecoveryReveal(store: SecurityRecoveryStore()).display(for: account)
+
+        guard case .unavailable = display else {
+            Issue.record("Expected the unavailable state")
+            return
+        }
+    }
+
+    /// A dismissed prompt reaches the screen as cancellation, so nothing opens.
+    @Test
+    func `A cancelled prompt opens no backup`() async throws {
+        let account = try Account.fixture(index: 0)
+        let store = SecurityRecoveryStore(readFailure: CancellationError())
+
+        await #expect(throws: CancellationError.self) {
+            try await RecoveryReveal(store: store).display(for: account)
+        }
+    }
+}

@@ -10,6 +10,8 @@ struct WalletScene: View {
     let settings: AppearanceSettings
     let connection: any ProviderConnecting
     let keyRevision: ProviderKeyRevision
+    let recovery: any RecoveryRevealing
+    let pasteboard: any RecoveryCopying
 
     var body: some View {
         TabView(selection: $section) {
@@ -17,7 +19,7 @@ struct WalletScene: View {
                 PortfolioScene(coordinator: portfolio, connection: connection, keyRevision: keyRevision)
             }
             Tab("Settings", systemImage: "gearshape", value: .settings) {
-                SettingsScene(settings: settings)
+                SettingsScene(settings: settings, account: account, recovery: recovery, pasteboard: pasteboard)
             }
         }
         .tabViewStyle(.tabBarOnly)

@@ -11,7 +11,7 @@ Themes directories, recovery Keychain records, and preferences. This deletes sav
 simulator wallets and appearance settings; use only disposable, unfunded data.
 `relaunch()` omits the flag so startup restores records saved through the UI.
 
-Import tests use a public BIP-39 fixture. Create tests generate real disposable,
+Import tests use a public BIP-39 fixture; the Security test imports it, then opens its backup in Settings. Create tests generate real disposable,
 unfunded wallets whose words may appear in test artifacts. Both exercise production
 services and normal storage locations.
 

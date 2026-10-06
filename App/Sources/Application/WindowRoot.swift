@@ -12,6 +12,7 @@ struct WindowRoot: View {
     private let providerConnection: any ProviderConnecting
     private let providerKeyRevision: ProviderKeyRevision
     private let recoveryPasteboard: any RecoveryCopying
+    private let recoveryReveal: any RecoveryRevealing
     private let artworkColors: any ArtworkColorProviding
 
     /// Seeds window-owned state from services that remain fixed for the window's lifetime.
@@ -21,6 +22,7 @@ struct WindowRoot: View {
         providerConnection = services.providerConnection
         providerKeyRevision = services.providerKeyRevision
         recoveryPasteboard = services.recoveryPasteboard
+        recoveryReveal = services.recoveryReveal
         artworkColors = services.artworkColors
         let router = services.makeWindowRouter(initialDestination: .restoringWallets)
         self.router = router
@@ -42,7 +44,7 @@ struct WindowRoot: View {
                                 pasteboard: recoveryPasteboard)
             case .wallet(let account):
                 WalletScene(account: account, portfolio: portfolio, settings: settings, connection: providerConnection,
-                            keyRevision: providerKeyRevision)
+                            keyRevision: providerKeyRevision, recovery: recoveryReveal, pasteboard: recoveryPasteboard)
             }
         }
         .animation(.default, value: router.destination)

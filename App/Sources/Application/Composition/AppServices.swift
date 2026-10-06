@@ -17,6 +17,7 @@ struct AppServices {
     // One sampler for every window shares its remembered logo colors.
     let artworkColors: any ArtworkColorProviding = ArtworkColors()
     let recoveryPasteboard: any RecoveryCopying
+    let recoveryReveal: any RecoveryRevealing
 
     /// Creates production services after any explicit simulator UI-test reset.
     /// - Throws: An error if the bundled appearance or a storage configuration is invalid.
@@ -32,6 +33,7 @@ struct AppServices {
         wallet = Wallet()
         discovery = AccountDiscovery(rpc: Solana(network: .mainnet), wallet: wallet)
         recovery = KeychainStore(service: recoveryService)
+        recoveryReveal = RecoveryReveal(store: recovery)
         accounts = try AccountStore()
         let providerKeys = ProviderKeyStore(service: providerService)
         providerConnection = HeliusConnection(keys: providerKeys)
