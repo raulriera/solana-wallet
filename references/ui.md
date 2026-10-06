@@ -23,7 +23,7 @@
 - Share underlying services across windows with the same configuration, including portfolio caching, wallet subscriptions, and price-provider pacing. Keep networks isolated and replace a window's portfolio coordinator when its network changes.
 - Transaction review and approval remain bound to the initiating window's exact message, account, and network. Opening another window does not grant approval.
 - Window opening and restoration carry only non-secret identifiers and presentation state. Recovery material remains exclusively under the [Wallet](wallet.md) storage and access rules.
-- Restore each window's section, wallet, and navigation with `SceneStorage` after the system ends the app; removing the app in the app switcher starts fresh. Each container owns its keys, named after the owner, and drops identifiers that no longer resolve. Stored raw values are permanent: add cases, never rename or reuse them. Never restore key input, transaction review, or provider data.
+- Restore each window's section and wallet with `SceneStorage` after the system ends the app; removing the app in the app switcher starts fresh. Each container owns its keys, named after the owner, and drops identifiers that no longer resolve. Stored raw values are permanent: add cases, never rename or reuse them. Never restore key input, transaction review, or provider data.
 
 ## Theme packs
 
