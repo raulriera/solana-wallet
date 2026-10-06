@@ -1,8 +1,10 @@
 import SwiftUI
 
 /// Owns a wallet window's sections behind a tab bar that always stays; each section owns its navigation.
+///
+/// The window reopens the section it showed when the system ended the app.
 struct WalletScene: View {
-    @State private var section = WalletSection.portfolio
+    @SceneStorage("wallet.section") private var section = WalletSection.portfolio
     let account: Account
     let portfolio: any PortfolioCoordinating
     let settings: AppearanceSettings

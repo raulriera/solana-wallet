@@ -1,5 +1,7 @@
 /// A top-level section of a wallet window, shown as a tab.
-enum WalletSection: Hashable {
+///
+/// Each window saves its section's raw value with its scene state. Add cases, but never rename or reuse a raw value.
+nonisolated enum WalletSection: String {
     case portfolio
     case settings
 }
