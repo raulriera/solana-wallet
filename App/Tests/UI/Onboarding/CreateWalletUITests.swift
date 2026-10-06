@@ -21,7 +21,7 @@ final class CreateWalletUITests: XCTestCase {
             return
         }
         try flow.waitFor(flow.app.buttons["Continue"])
-        XCTAssertFalse(flow.app.staticTexts["Wallet ready"].exists)
+        XCTAssertFalse(flow.portfolioTab.exists)
         flow.relaunch()
         try flow.expectWelcome()
     }

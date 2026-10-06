@@ -14,6 +14,7 @@ struct OnboardingApp {
 
     var submitImport: XCUIElement { app.buttons["Import Wallet"] }
     var backupConfirmation: XCUIElement { app.alerts["Have you saved your recovery words?"] }
+    var portfolioTab: XCUIElement { app.tabBars.buttons["Portfolio"] }
 
     /// Selects the language used by the test's user-facing control queries.
     init() {
@@ -47,7 +48,7 @@ struct OnboardingApp {
     ///   - line: The calling test's line for failure reporting.
     /// - Throws: A missing wallet destination or an explicit wallet setup failure.
     func expectWallet(file: StaticString = #filePath, line: UInt = #line) throws {
-        try expectSetupOutcome(app.staticTexts["Wallet ready"], label: "Wallet ready", file: file, line: line)
+        try expectSetupOutcome(portfolioTab, label: "Portfolio", file: file, line: line)
     }
 
     /// Confirms that saving the wallet pushed provider setup as the last step, with no way back to the wallet's earlier steps.
@@ -156,13 +157,13 @@ struct OnboardingApp {
     /// Waits for a setup destination, failing immediately when the app reports a setup error instead.
     /// - Parameters:
     ///   - destination: The element that identifies the expected destination.
-    ///   - label: The destination text that ends the wait alongside the error alert.
+    ///   - label: The destination's label that ends the wait alongside the error alert.
     ///   - file: The calling test's source file for failure reporting.
     ///   - line: The calling test's line for failure reporting.
     /// - Throws: A missing destination or an explicit wallet setup failure.
     private func expectSetupOutcome(_ destination: XCUIElement, label: String,
                                     file: StaticString, line: UInt) throws {
-        let outcome = app.staticTexts.matching(
+        let outcome = app.descendants(matching: .any).matching(
             NSPredicate(format: "label IN %@", [label, "Wallet Setup Unavailable"])
         ).firstMatch
         try waitFor(outcome, file: file, line: line)

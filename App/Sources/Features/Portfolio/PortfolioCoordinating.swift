@@ -6,6 +6,8 @@ import Portfolio
 protocol PortfolioCoordinating: AnyObject, Observable {
     /// The selected wallet's latest state, or `nil` before any data is available.
     var update: Update? { get }
+    /// The latest snapshot's holdings in display order, or none without a snapshot.
+    var holdings: [Holding] { get }
     /// Why the latest update failed, or `nil` when it didn't.
     var failure: PortfolioFailure? { get }
 

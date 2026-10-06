@@ -6,6 +6,7 @@ struct WindowRoot: View {
     @State private var onboarding: any OnboardingCoordinating
     @State private var startup: any WindowStarting
     @State private var portfolio: any PortfolioCoordinating
+    @State private var settings: AppearanceSettings
     @State private var startupAttempt = 0
     private let appearanceServices: AppearanceServices
     private let providerConnection: any ProviderConnecting
@@ -24,6 +25,7 @@ struct WindowRoot: View {
         self.onboarding = services.makeOnboardingCoordinator(router: router)
         self.startup = services.makeWindowStartup(router: router)
         self.portfolio = services.makePortfolioCoordinator()
+        self.settings = services.makeAppearanceSettings()
     }
 
     var body: some View {
@@ -37,8 +39,8 @@ struct WindowRoot: View {
                 OnboardingScene(coordinator: onboarding, connection: providerConnection, keyRevision: providerKeyRevision,
                                 pasteboard: recoveryPasteboard)
             case .wallet(let account):
-                PortfolioScene(account: account, coordinator: portfolio, connection: providerConnection,
-                               keyRevision: providerKeyRevision)
+                WalletScene(account: account, portfolio: portfolio, settings: settings, connection: providerConnection,
+                            keyRevision: providerKeyRevision)
             }
         }
         .animation(.default, value: router.destination)

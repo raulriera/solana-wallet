@@ -173,6 +173,31 @@ struct PortfolioCoordinatorTests {
         #expect(coordinator.update == nil)
     }
 
+    /// Verifies holdings follow each new snapshot in display order and leave with their wallet.
+    @Test
+    func `Holdings follow the latest snapshot in display order`() async throws {
+        let service = PortfolioResponses()
+        let coordinator = PortfolioCoordinator(service: service)
+        var requests = service.requests.makeAsyncIterator()
+        let viewing = Task { await coordinator.observe(for: "wallet-a", isActive: true) }
+        defer { viewing.cancel() }
+        let observation = try #require(await requests.next())
+        let first = pricedSnapshot(["low": 1, "high": 5])
+        observation.continuation.yield(Update(snapshot: first, phase: .ready, revision: 1))
+        await waitForSnapshot(first, in: coordinator)
+        #expect(coordinator.holdings.map(\.id) == [.nativeSOL, .asset("high"), .asset("low")])
+
+        let second = pricedSnapshot(["low": 9, "high": 5])
+        observation.continuation.yield(Update(snapshot: second, phase: .ready, revision: 2))
+        await waitForSnapshot(second, in: coordinator)
+        #expect(coordinator.holdings.map(\.id) == [.nativeSOL, .asset("low"), .asset("high")])
+
+        viewing.cancel()
+        await viewing.value
+        await coordinator.observe(for: "wallet-b", isActive: false)
+        #expect(coordinator.holdings.isEmpty)
+    }
+
     /// Verifies a cancelled provider setup cannot deliver buffered data or stop a newer session.
     @Test
     func `Late registration from a cancelled session cannot publish`() async throws {
@@ -372,6 +397,20 @@ struct PortfolioCoordinatorTests {
     private func snapshot(owner: String, revision: TimeInterval) -> Snapshot {
         Snapshot(owner: owner, network: .devnet, holdings: [], fetchedAt: Date(timeIntervalSince1970: revision),
                  lastIndexedSlot: nil)
+    }
+
+    /// Creates a priced portfolio whose provider order differs from its display order.
+    /// - Parameter values: Each token's mint and USD value, in the provider's order; native SOL comes last.
+    /// - Returns: A complete snapshot for `wallet-a`.
+    private func pricedSnapshot(_ values: KeyValuePairs<String, Decimal>) -> Snapshot {
+        let tokens = values.map { mint, total in
+            Holding(id: .asset(mint), amount: Amount(units: 1, decimals: 0), name: nil, symbol: nil, imageURL: nil,
+                    valuation: Valuation(pricePerUnit: total, total: total, currency: "USD"))
+        }
+        let solana = Holding(id: .nativeSOL, amount: Amount(units: 0, decimals: 9), name: "Solana", symbol: "SOL",
+                             imageURL: nil, valuation: nil)
+        return Snapshot(owner: "wallet-a", network: .devnet, holdings: tokens + [solana],
+                        fetchedAt: Date(timeIntervalSince1970: 1), lastIndexedSlot: nil)
     }
 
     /// Awaits observable snapshot publication without sleeps or polling.

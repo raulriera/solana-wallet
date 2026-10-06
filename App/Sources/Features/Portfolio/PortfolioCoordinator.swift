@@ -9,7 +9,15 @@ import Portfolio
 @MainActor
 @Observable
 final class PortfolioCoordinator: PortfolioCoordinating {
-    private(set) var update: Update?
+    private(set) var update: Update? {
+        didSet {
+            // Sort once per new snapshot, not for every phase change or view update.
+            guard update?.snapshotRevision != oldValue?.snapshotRevision else { return }
+            holdings = HoldingOrder.sorted(update?.holdings ?? [])
+        }
+    }
+
+    private(set) var holdings: [Holding] = []
 
     /// The latest update's failure, classified without retaining the provider's error.
     var failure: PortfolioFailure? { update?.error.map(PortfolioFailure.init) }

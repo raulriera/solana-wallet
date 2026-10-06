@@ -18,7 +18,7 @@ final class ImportWalletUITests: XCTestCase {
         let error = flow.app.staticTexts["These words don't form a valid recovery phrase. Check their spelling and order."]
         try flow.waitFor(error)
         XCTAssertFalse(flow.backupConfirmation.exists)
-        XCTAssertFalse(flow.app.staticTexts["Wallet ready"].exists)
+        XCTAssertFalse(flow.portfolioTab.exists)
         flow.relaunch()
         try flow.expectWelcome()
     }

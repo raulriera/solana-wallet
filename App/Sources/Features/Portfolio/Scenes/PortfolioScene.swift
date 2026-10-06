@@ -1,31 +1,54 @@
-import Foundation
+import Portfolio
 import SwiftUI
-import Transactions
 
-/// Owns the selected wallet's portfolio presentation within the window's appearance environment.
+/// Presents the window's portfolio: its tokens and their details, or why they can't load.
 ///
-/// A missing or rejected provider key replaces only this portfolio content.
+/// The window observes the wallet; this section presents the coordinator's state and starts
+/// explicit refreshes. A missing or rejected provider key replaces only this section.
 struct PortfolioScene: View {
-    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.palette) private var palette
+    @State private var selection: Holding.Identity?
     @State private var providerSetup: ProviderSubmission?
-    let account: Account
     let coordinator: any PortfolioCoordinating
     let connection: any ProviderConnecting
     let keyRevision: ProviderKeyRevision
 
     var body: some View {
-        let session = Session(accountID: account.id, isActive: scenePhase == .active, keyRevision: keyRevision.value)
-        let failure = coordinator.failure
+        let presentation = PortfolioPresentation(coordinator.update)
 
         Group {
-            if let failure, failure.requiresProviderSetup {
-                ProviderUnavailableScreen(isKeyRejected: failure == .invalidKey, setUp: setUpProvider)
-            } else {
-                WalletReadyScreen()
+            switch presentation {
+            case .blank:
+                palette.background
+                    .ignoresSafeArea()
+            case .loading:
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(palette.background)
+            case .unavailable(let failure):
+                PortfolioUnavailableScreen(failure: failure,
+                                           action: failure.requiresProviderSetup ? setUpProvider : retry)
+            case .holdings:
+                NavigationSplitView {
+                    TokenList(selection: $selection, holdings: coordinator.holdings, failure: coordinator.failure)
+                        // A new snapshot is the only change to the rows, so its revision keys their motion.
+                        .animation(.default, value: coordinator.update?.snapshotRevision)
+                        .refreshable { await coordinator.refresh() }
+                        .navigationSplitViewColumnWidth(min: 280, ideal: 320)
+                } detail: {
+                    if let holding = coordinator.holdings.first(where: { $0.id == selection }),
+                       let network = coordinator.update?.snapshot?.network {
+                        TokenDetailScreen(holding: holding, network: network)
+                    } else {
+                        ContentUnavailableView("No Token Selected", systemImage: "wallet.bifold",
+                                               description: Text("Select a token to see its balance and value."))
+                            .foregroundStyle(palette.primaryText)
+                            .background(palette.background)
+                    }
+                }
             }
         }
-        .animation(.default, value: failure?.requiresProviderSetup == true)
-        .task(id: session) { await coordinator.observe(for: account.address.value, isActive: session.isActive) }
+        .animation(.default, value: presentation)
         .sheet(item: $providerSetup) { ProviderSetupSheet(submission: $0) }
     }
 
@@ -34,10 +57,8 @@ struct PortfolioScene: View {
         providerSetup = ProviderSubmission(connection: connection, revision: keyRevision) { providerSetup = nil }
     }
 
-    /// The observation's identity: a new wallet, scene activity, or a key saved in any window restarts it.
-    private struct Session: Equatable {
-        let accountID: UUID
-        let isActive: Bool
-        let keyRevision: Int
+    /// Loads the portfolio again after a failed first load; the loading state shows until the result arrives.
+    private func retry() {
+        Task { await coordinator.refresh() }
     }
 }

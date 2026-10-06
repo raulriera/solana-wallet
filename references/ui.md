@@ -3,7 +3,7 @@
 ## Composition and navigation
 
 - Build one adaptive SwiftUI interface for iPhone Duo, other iPhones, and iPad. Use the [SwiftUI Expert](plugin://swiftui-expert@swiftui-expert-skill) skill.
-- Use `NavigationSplitView` for the main app's navigation. Onboarding is a linear flow owned by `OnboardingScene`'s `NavigationStack`; its welcome screen uses an `ArrangementView` for the introduction and actions, with scrolling inside each region. Design useful expanded content first, then preserve its hierarchy and functionality when columns collapse. Size content from the available space, safe areas, and system layout information.
+- Use a `TabView` with a fixed tab bar for the main app's sections, with a `NavigationSplitView` in each section. Onboarding is a linear flow owned by `OnboardingScene`'s `NavigationStack`; its welcome screen uses an `ArrangementView` for the introduction and actions, with scrolling inside each region. Design useful expanded content first, then preserve its hierarchy and functionality when columns collapse. Size content from the available space, safe areas, and system layout information.
 - Preserve selection, navigation, scroll position, and unfinished input across resizing, folding, and theme changes. Keep native navigation, toolbar placement, menus, and presentation behavior.
 - Use native motion to communicate meaningful state changes. Animate theme-list insertion, removal, and reordering after catalog changes commit using the system default animation. Keep animation scoped to the changing content. Add explicit Reduce Motion adaptations only for pronounced animations identified by the user.
 - Use standard Dynamic Type without custom size caps. Adapt layouts through stacking, scrolling, and column collapse.
@@ -13,7 +13,7 @@
 - A missing or rejected provider key replaces only the portfolio with an error screen that reopens provider setup.
 - `SettingsScene` owns the settings split view and each window's navigation selection. Appearance is a destination within that container.
 - Every settings sidebar destination uses a native `Label` with an SF Symbol and text, including when the navigation collapses on compact displays.
-- Reuse the existing portfolio coordinator and its lifecycle contract. Layout and theme changes must not recreate it or restart observation. Preserve the display distinctions in [Portfolio](portfolio.md).
+- Reuse the existing portfolio coordinator and its lifecycle contract. Layout, theme, and tab changes must not recreate it or restart observation. Preserve the display distinctions in [Portfolio](portfolio.md).
 
 ## Multiple windows
 

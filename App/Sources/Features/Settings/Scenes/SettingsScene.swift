@@ -2,16 +2,16 @@ import SwiftUI
 
 /// Owns settings navigation and presentations within the window's appearance environment.
 struct SettingsScene: View {
-    @State private var settings: AppearanceSettings
     @State private var selection: SettingsDestination? = .appearance
     @State private var preferredColumn: NavigationSplitViewColumn = .detail
+    let settings: AppearanceSettings
     let wallet: AppearanceWallet?
 
-    /// Seeds this scene's independent preference-editing workflow once for its lifetime.
+    /// Presents the window's preference-editing workflow.
     ///
     /// Appearance loading and rendering belong to the owning window's root.
     /// - Parameters:
-    ///   - settings: The workflow assembled for this scene, retained across view updates.
+    ///   - settings: The window's workflow; the window cancels unfinished work when it closes.
     ///   - wallet: The owning window's selected wallet, if one exists.
     init(settings: AppearanceSettings, wallet: AppearanceWallet? = nil) {
         self.settings = settings
@@ -35,6 +35,5 @@ struct SettingsScene: View {
         .alert("Appearance Unavailable", item: $settings.failure) { _ in
             Button("OK", role: .cancel) {}
         } message: { failure in Text(failure) }
-        .onDisappear { settings.cancel() }
     }
 }

@@ -63,7 +63,7 @@ struct AppServices {
     }
 
     /// Assembles a preference-editing workflow around the app's shared appearance services.
-    /// - Returns: Independent operation and presentation state for the owning settings scene.
+    /// - Returns: Independent operation and presentation state for the owning window.
     func makeAppearanceSettings() -> AppearanceSettings {
         AppearanceSettings(appearance: appearance.appearance, catalog: appearance.catalog, packages: appearance.packages)
     }
