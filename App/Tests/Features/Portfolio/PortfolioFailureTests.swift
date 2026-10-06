@@ -60,4 +60,18 @@ struct PortfolioFailureTests {
         viewing.cancel()
         await viewing.value
     }
+
+    /// Refresh failures say why the shown balances may be out of date; key failures hide the balances instead.
+    /// - Parameters:
+    ///   - failure: A presented failure.
+    ///   - status: The subtitle that the portfolio shows above stale balances.
+    @Test(arguments: [
+        (PortfolioFailure.rateLimited, "Too many requests" as String?),
+        (.unavailable, "Couldn't update balances"),
+        (.missingKey, nil),
+        (.invalidKey, nil),
+    ])
+    func `Only refresh failures explain stale balances`(failure: PortfolioFailure, status: String?) {
+        #expect(failure.staleStatus.map { String(localized: $0) } == status)
+    }
 }

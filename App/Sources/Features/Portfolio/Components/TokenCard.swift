@@ -1,0 +1,95 @@
+import Portfolio
+import SwiftUI
+
+/// One token as a card: its logo, symbol, and name, with its balance and value on the trailing side.
+///
+/// The card takes its color from the token's logo. Until the color loads, or when the logo has none,
+/// it uses the window's colors.
+struct TokenCard: View {
+    @Environment(\.palette) private var palette
+    @Environment(\.cardStyle) private var style
+    @Environment(\.artworkColors) private var artworkColors
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @State private var logoColor: ArtworkColor?
+    let symbol: String
+    let name: String
+    let amount: Amount?
+    /// The token's total value and its quote currency, or `nil` when either is unknown.
+    let value: (total: Decimal, currency: String)?
+    let imageURL: URL?
+
+    var body: some View {
+        let tint = logoColor.map { CardTint(logo: $0, colors: style.colors) }
+        let isStacked = typeSize.isAccessibilitySize
+        let layout = isStacked ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(HStackLayout(spacing: 12))
+        let shape = RoundedRectangle(cornerRadius: style.cornerRadius, style: .continuous)
+
+        layout {
+            HStack(spacing: 12) {
+                TokenIcon(symbol: symbol, imageURL: imageURL)
+                    .overlay { Circle().strokeBorder(.white.opacity(0.8), lineWidth: 1.5) }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(symbol)
+                        .font(.title3.bold())
+                        .truncationMode(.middle)
+                    // Provider names aren't localized strings, so they're uppercased for the person's locale;
+                    // VoiceOver reads them as written, not letter by letter.
+                    Text(name.localizedUppercase)
+                        .font(.caption2.weight(.semibold))
+                        .tracking(1.2)
+                        .accessibilityLabel(name)
+                }
+                .lineLimit(isStacked ? nil : 1)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            // Exact amounts never truncate; the name gives way first.
+            VStack(alignment: isStacked ? .leading : .trailing, spacing: 2) {
+                TokenBalance(amount: amount)
+                    .font(.title3.weight(.semibold))
+                if let value {
+                    Text(value.total, format: .currency(code: value.currency))
+                        .font(.caption.weight(.medium))
+                }
+            }
+            .monospacedDigit()
+            .multilineTextAlignment(isStacked ? .leading : .trailing)
+            .layoutPriority(1)
+        }
+        .fontDesign(style.fontDesign)
+        .foregroundStyle(tint?.text ?? palette.primaryText)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
+        .background {
+            shape
+                .fill(LinearGradient(colors: [tint?.top ?? palette.background, tint?.bottom ?? palette.background],
+                                     startPoint: .top, endPoint: .bottom))
+                .overlay { shape.strokeBorder(tint == nil ? palette.separator : .white.opacity(0.7), lineWidth: 1) }
+                .shadow(color: .black.opacity(0.18), radius: 6, y: -2)
+                // The face continues under the next card or into the pocket, so its bottom never shows.
+                .padding(.bottom, -64)
+        }
+        .animation(.default, value: logoColor)
+        .accessibilityElement(children: .combine)
+        .task(id: imageURL) {
+            var color: ArtworkColor?
+            if let url = imageURL {
+                color = await artworkColors?.color(for: url)
+            }
+            guard !Task.isCancelled else { return }
+            logoColor = color
+        }
+    }
+}
+
+#Preview {
+    VStack(spacing: 0) {
+        TokenCard(symbol: "SOL", name: "Solana", amount: Amount(units: 12_500_000_000, decimals: 9),
+                  value: (total: 2_075, currency: "USD"), imageURL: nil)
+        TokenCard(symbol: "MYST", name: "Mystery Token", amount: Amount(units: 42, decimals: 0), value: nil,
+                  imageURL: nil)
+        CardPocket()
+            .padding(.top, 24)
+    }
+}

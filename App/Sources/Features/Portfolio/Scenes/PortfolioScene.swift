@@ -7,7 +7,9 @@ import SwiftUI
 /// explicit refreshes. A missing or rejected provider key replaces only this section.
 struct PortfolioScene: View {
     @Environment(\.palette) private var palette
+    @Environment(\.cardStyle) private var cardStyle
     @State private var selection: Holding.Identity?
+    @State private var preferredColumn = NavigationSplitViewColumn.sidebar
     @State private var providerSetup: ProviderSubmission?
     let coordinator: any PortfolioCoordinating
     let connection: any ProviderConnecting
@@ -29,12 +31,22 @@ struct PortfolioScene: View {
                 PortfolioUnavailableScreen(failure: failure,
                                            action: failure.requiresProviderSetup ? setUpProvider : retry)
             case .holdings:
-                NavigationSplitView {
-                    TokenList(selection: $selection, holdings: coordinator.holdings, failure: coordinator.failure)
-                        // A new snapshot is the only change to the rows, so its revision keys their motion.
-                        .animation(.default, value: coordinator.update?.snapshotRevision)
-                        .refreshable { await coordinator.refresh() }
-                        .navigationSplitViewColumnWidth(min: 280, ideal: 320)
+                NavigationSplitView(preferredCompactColumn: $preferredColumn) {
+                    Group {
+                        switch cardStyle.layout {
+                        case .cards:
+                            TokenCardStack(selection: $selection, preferredColumn: $preferredColumn,
+                                           holdings: coordinator.holdings)
+                        case .rows:
+                            TokenList(selection: $selection, holdings: coordinator.holdings)
+                        }
+                    }
+                    // A new snapshot is the only change to the tokens, so its revision keys their motion.
+                    .animation(.default, value: coordinator.update?.snapshotRevision)
+                    .refreshable { await coordinator.refresh() }
+                    .navigationTitle("Portfolio")
+                    .navigationSubtitle(Text(coordinator.failure?.staleStatus ?? ""))
+                    .navigationSplitViewColumnWidth(min: 280, ideal: 320)
                 } detail: {
                     if let holding = coordinator.holdings.first(where: { $0.id == selection }),
                        let network = coordinator.update?.snapshot?.network {

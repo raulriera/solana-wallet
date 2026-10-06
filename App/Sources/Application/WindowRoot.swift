@@ -12,6 +12,7 @@ struct WindowRoot: View {
     private let providerConnection: any ProviderConnecting
     private let providerKeyRevision: ProviderKeyRevision
     private let recoveryPasteboard: any RecoveryCopying
+    private let artworkColors: any ArtworkColorProviding
 
     /// Seeds window-owned state from services that remain fixed for the window's lifetime.
     /// - Parameter services: Shared services that retain no window-specific recovery draft.
@@ -20,6 +21,7 @@ struct WindowRoot: View {
         providerConnection = services.providerConnection
         providerKeyRevision = services.providerKeyRevision
         recoveryPasteboard = services.recoveryPasteboard
+        artworkColors = services.artworkColors
         let router = services.makeWindowRouter(initialDestination: .restoringWallets)
         self.router = router
         self.onboarding = services.makeOnboardingCoordinator(router: router)
@@ -46,5 +48,6 @@ struct WindowRoot: View {
         .animation(.default, value: router.destination)
         .windowRestoration(startup, router: router, attempt: startupAttempt)
         .windowAppearance(services: appearanceServices)
+        .environment(\.artworkColors, artworkColors)
     }
 }

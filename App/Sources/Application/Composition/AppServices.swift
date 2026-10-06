@@ -13,6 +13,8 @@ struct AppServices {
     let providerConnection: any ProviderConnecting
     let providerKeyRevision = ProviderKeyRevision()
     let portfolio: any PortfolioProviding
+    // One sampler for every window shares its remembered logo colors.
+    let artworkColors: any ArtworkColorProviding = ArtworkColors()
     let recoveryPasteboard: any RecoveryCopying
 
     /// Creates production services after any explicit simulator UI-test reset.
