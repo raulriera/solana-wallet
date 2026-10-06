@@ -141,11 +141,11 @@ struct SigningTests {
         #expect(await http.requests.isEmpty)
     }
 
-    /// Verifies expiry before or during authentication never reaches the message signer.
+    /// Verifies expiry before authentication stops signing, and expiry during authentication discards the signature.
     ///
     /// - Parameter expiresDuringAuthentication: Whether the first expiry check still passes.
     @Test(arguments: [false, true])
-    func `Expired preparations never reach the message signer`(expiresDuringAuthentication: Bool) async throws {
+    func `Expired preparations never yield a signature`(expiresDuringAuthentication: Bool) async throws {
         let fixture = try SigningFixture()
         let http = try HTTPResponses.signing(heights: expiresDuringAuthentication ? [500, 551] : [551])
         let store = SigningRecoveryStore(recovery: fixture.recovery)
@@ -157,7 +157,8 @@ struct SigningTests {
         }
 
         #expect(await store.reads.count == (expiresDuringAuthentication ? 1 : 0))
-        #expect(await wallet.messages.isEmpty)
+        // Signing precedes the recheck so recovery is released first; the expired signature is discarded.
+        #expect(await wallet.messages.count == (expiresDuringAuthentication ? 1 : 0))
     }
 
     /// Verifies changed or unavailable fees require another review before authentication.

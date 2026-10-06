@@ -112,7 +112,7 @@ struct ExternalTransactionTests {
         #expect(await store.reads.isEmpty)
     }
 
-    /// Verifies unknown, expired, or stale blockhash observations cannot reach the wallet signer.
+    /// Verifies unknown, expired, or stale blockhash observations never yield a signed transaction.
     ///
     /// - Parameter stage: The point at which the supplied blockhash becomes unusable.
     @Test(arguments: [
@@ -140,7 +140,8 @@ struct ExternalTransactionTests {
             }
         }
 
-        #expect(await wallet.messages.isEmpty)
+        // Expiry during authentication is detected after signing, once recovery is released; the signature is discarded.
+        #expect(await wallet.messages.count == (stage == "during authentication" ? 1 : 0))
         #expect(await store.reads.count == (stage == "during authentication" ? 1 : 0))
     }
 }

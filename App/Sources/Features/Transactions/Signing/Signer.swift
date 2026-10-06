@@ -34,8 +34,9 @@ nonisolated struct Signer: TransactionSigning {
 
     /// Validates the reviewed bytes before unlocking, then signs them without substitution.
     ///
-    /// Expiry is checked before and after authentication. The original blockhash,
-    /// amount, recipient, and fee configuration are never refreshed automatically.
+    /// Expiry is checked before authentication and again after signing, so a message
+    /// that expired during authentication never yields a usable signature. The original
+    /// blockhash, amount, recipient, and fee configuration are never refreshed automatically.
     /// Recovery material stays local to this operation and isn't returned or cached.
     ///
     /// - Parameters:
@@ -61,6 +62,9 @@ nonisolated struct Signer: TransactionSigning {
 
     /// Limits recovery material's lifetime to authentication and local signing.
     ///
+    /// Recovery is released as soon as the signature exists; the lifetime recheck that
+    /// follows runs without it and discards the signature if the message expired.
+    ///
     /// - Parameters:
     ///   - preparation: The already validated review data.
     ///   - recoveryID: The shared recovery identifier.
@@ -69,9 +73,22 @@ nonisolated struct Signer: TransactionSigning {
     /// - Returns: The signature from the recovered account matching the selected required signer.
     /// - Throws: A storage, expiry, signing, or cancellation error.
     private func signature(for preparation: Preparation, recoveryID: UUID, path: DerivationPath, reason: String) async throws -> Data {
-        let recovery = try await store.recovery(for: recoveryID, reason: reason)
+        let signature = try await signature(for: preparation, using: store.recovery(for: recoveryID, reason: reason), path: path)
         try Task.checkCancellation()
         try await validator.validateLifetime(preparation)
+        try Task.checkCancellation()
+        return signature
+    }
+
+    /// Signs with recovery material whose lifetime ends when this call returns.
+    ///
+    /// - Parameters:
+    ///   - preparation: The already validated review data.
+    ///   - recovery: The authenticated recovery material, owned by this call only.
+    ///   - path: The selected account's derivation path.
+    /// - Returns: The signature over the reviewed message.
+    /// - Throws: A signing or cancellation error.
+    private func signature(for preparation: Preparation, using recovery: Recovery, path: DerivationPath) async throws -> Data {
         try Task.checkCancellation()
         return try await wallet.signature(
             for: preparation.message, using: recovery.phrase, expectedAddress: preparation.signer.value,
