@@ -13,7 +13,7 @@ struct TokenRow: View {
 
         layout {
             HStack(spacing: 12) {
-                TokenIcon(symbol: holding.displaySymbol)
+                TokenIcon(symbol: holding.displaySymbol, imageURL: holding.imageURL)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(holding.displaySymbol)
                         .font(.headline)
