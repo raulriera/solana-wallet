@@ -28,7 +28,7 @@ actor AssetResponses: HTTPTransport {
     ///   - respond: The JSON page supplier, optionally suspending or failing a request.
     init(network: Network = .mainnet,
          assetResponse: @escaping AssetResponder = { id in
-             Data(#"{"id":"\#(id)","interface":"FungibleToken","content":{"metadata":{"name":"Wrapped SOL","symbol":"SOL"},"links":{"image":"https://example.com/sol.png"}}}"#.utf8)
+             Data(#"{"id":"\#(id)","interface":"FungibleToken","content":{"metadata":{"name":"Wrapped SOL","symbol":"SOL"},"files":[{"cdn_uri":"https://cdn.example.com/sol.png","mime":"image/png"}]}}"#.utf8)
          }, respond: @escaping PageResponder) {
         self.network = network
         self.respond = respond

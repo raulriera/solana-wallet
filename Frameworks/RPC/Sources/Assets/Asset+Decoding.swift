@@ -17,11 +17,12 @@ extension Asset {
             Metadata.Media(url: $0.url("uri"), cdnURL: $0.url("cdn_uri"), mimeType: $0.value("mime"))
         }
         let kind = try root.required(String.self, "interface")
-        let imageFile = media?.first { $0.mimeType?.hasPrefix("image/") == true && ($0.url ?? $0.cdnURL) != nil }
+        // Only the provider's HTTPS copy: creator-hosted and off-chain links expose the viewer's IP address.
+        let imageFile = media?.first { $0.mimeType?.hasPrefix("image/") == true && $0.cdnURL?.scheme?.lowercased() == "https" }
         self.init(
             id: try root.required(String.self, "id"), interface: kind,
             name: details?.value("name"), symbol: token?.value("symbol") ?? details?.value("symbol"),
-            imageURL: links?.url("image") ?? imageFile?.url ?? imageFile?.cdnURL,
+            imageURL: imageFile?.cdnURL,
             balance: try token?.optional(UInt64.self, "balance"),
             decimals: try token?.optional(UInt8.self, "decimals"),
             price: try token?.optional(Price.self, "price_info"),

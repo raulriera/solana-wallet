@@ -11,7 +11,7 @@ struct MetadataTests {
         let asset = try await HeliusRPC(apiKey: "fixture-key", network: .devnet, transport: transport).send(GetAsset(id: "mint"))
         #expect(asset.name == "Example")
         #expect(asset.symbol == "EX")
-        #expect(asset.imageURL?.absoluteString == "ipfs://image")
+        #expect(asset.imageURL?.absoluteString == "https://cdn.example.com/image")
         #expect(asset.balance == 9_007_199_254_740_993)
         let metadata = try #require(asset.metadata)
         #expect(metadata.description == "Description")
@@ -45,15 +45,14 @@ struct MetadataTests {
     }
 
     /// Verifies bad optional values don't erase neighboring metadata or precise balances.
-    /// - Parameter fileKey: The original or CDN image location supplied by the provider.
-    @Test(arguments: ["uri", "cdn_uri"])
-    func `Malformed optional metadata preserves valid fields and array entries`(fileKey: String) throws {
+    @Test
+    func `Malformed optional metadata preserves valid fields and array entries`() throws {
         let asset = try JSONDecoder().decode(Asset.self, from: Data(#"""
         {"id":"mint","interface":"FungibleToken","mutable":false,
          "content":{"json_uri":"","metadata":{"name":"Wrapped SOL","description":false,
              "attributes":[false,{"trait_type":"valid","value":true}]},
              "links":{"image":"","external_url":false},
-             "files":[false,{"\#(fileKey)":"https://example.com/sol.png","mime":"image/png"}]},
+             "files":[false,{"cdn_uri":"https://example.com/sol.png","mime":"image/png"}]},
          "creators":[false,{"address":"creator","share":false,"verified":true}],
          "token_info":{"balance":18446744073709551615,"decimals":9}}
         """#.utf8))
@@ -65,6 +64,31 @@ struct MetadataTests {
         #expect(asset.metadata?.attributes == [.init(name: "valid", value: .bool(true))])
         #expect(asset.metadata?.creators == [.init(address: "creator", isVerified: true)])
         #expect(asset.metadata?.isMutable == false)
+    }
+
+    /// Verifies the image comes from the provider's HTTPS copy instead of the creator's own link.
+    @Test
+    func `The image is the provider's HTTPS CDN copy`() throws {
+        let asset = try JSONDecoder().decode(Asset.self, from: Data(#"""
+        {"id":"mint","interface":"FungibleToken",
+         "content":{"links":{"image":"https://creator.example/logo.png"},
+             "files":[{"uri":"https://creator.example/logo.png","cdn_uri":"https://cdn.example.com/logo.png","mime":"image/png"}]}}
+        """#.utf8))
+        #expect(asset.imageURL?.absoluteString == "https://cdn.example.com/logo.png")
+    }
+
+    /// Verifies an image never reveals the viewer to the creator's host or over plain HTTP.
+    /// - Parameter files: Image files without an HTTPS copy from the provider.
+    @Test(arguments: [
+        #"[{"uri":"https://creator.example/logo.png","mime":"image/png"}]"#,
+        #"[{"uri":"https://creator.example/logo.png","cdn_uri":"http://cdn.example.com/logo.png","mime":"image/png"}]"#,
+    ])
+    func `Creator links and plain HTTP copies are never the image`(files: String) throws {
+        let asset = try JSONDecoder().decode(Asset.self, from: Data(#"""
+        {"id":"mint","interface":"FungibleToken",
+         "content":{"links":{"image":"https://creator.example/logo.png"},"files":\#(files)}}
+        """#.utf8))
+        #expect(asset.imageURL == nil)
     }
 }
 

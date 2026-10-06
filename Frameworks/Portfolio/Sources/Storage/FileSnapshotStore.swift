@@ -5,8 +5,8 @@ import RPC
 /// A store that persists one versioned JSON snapshot per wallet and network.
 struct FileSnapshotStore: SnapshotStoring {
     let directory: URL
-    /// Mixed-asset snapshots predate the fungible-only portfolio scope and cannot be reused.
-    private static let version = 2
+    /// Older snapshots may hold NFTs or image links outside the provider's CDN, so they can't be reused.
+    private static let version = 3
 
     /// Reads a stored snapshot, treating unavailable or incompatible files as cache misses.
     ///

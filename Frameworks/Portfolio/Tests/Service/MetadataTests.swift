@@ -5,40 +5,6 @@ import Testing
 
 /// Verifies metadata survives portfolio mapping and persistence without changing SOL identities.
 struct MetadataTests {
-    /// Verifies existing fungible caches retain display data while dropping the removed state field.
-    /// - Throws: A cache, encoding, or test prerequisite error.
-    @Test
-    func `Cached asset state is ignored and omitted when the snapshot is saved again`() throws {
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        defer { try? FileManager.default.removeItem(at: directory) }
-        let store = FileSnapshotStore(directory: directory)
-        let key = CacheKey(owner: "wallet", network: .mainnet)
-        let expected = Snapshot(owner: "wallet", network: .mainnet, holdings: [
-            Holding(id: .asset("mint"), amount: Amount(units: 9_007_199_254_740_993, decimals: 6),
-                    name: "Example", symbol: "EX", imageURL: nil,
-                    valuation: Valuation(pricePerUnit: Decimal(string: "0.1000000000000000001"), total: 20.25, currency: "USD"),
-                    metadata: Metadata(description: "Kept", kind: "FungibleToken")),
-        ], fetchedAt: Date(timeIntervalSinceReferenceDate: 0), lastIndexedSlot: 123)
-        try store.save(expected, for: key)
-        let file = try #require(FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil).first)
-        try Data(#"""
-        {"version":2,"snapshot":{"owner":"wallet","network":"mainnet","fetchedAt":0,"lastIndexedSlot":123,
-          "holdings":[{"id":{"asset":{"_0":"mint"}},"amount":{"units":9007199254740993,"decimals":6},
-            "name":"Example","symbol":"EX","metadata":{"description":"Kept","kind":"FungibleToken"},
-            "valuation":{"pricePerUnit":0.1000000000000000001,"total":20.25,"currency":"USD"},
-            "state":{"supply":18446744073709551615,"ownership":{"owner":"wallet"},"compression":{"isCompressed":false}}}]}}
-        """#.utf8).write(to: file)
-
-        let restored = try #require(store.snapshot(for: key))
-        #expect(restored == expected)
-        try store.save(restored, for: key)
-        let envelope = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any])
-        let snapshot = try #require(envelope["snapshot"] as? [String: Any])
-        let holdings = try #require(snapshot["holdings"] as? [[String: Any]])
-        #expect(holdings.allSatisfy { $0["state"] == nil })
-        #expect(store.snapshot(for: key) == expected)
-    }
-
     /// Verifies every metadata group is cached, and owned Wrapped SOL supplies the native image without another request.
     @Test
     func `Portfolio preserves rich Wrapped SOL metadata and keeps native SOL separate`() async throws {
@@ -57,6 +23,7 @@ struct MetadataTests {
         #expect(native.symbol == "SOL")
         #expect(native.amount == Amount(units: 42, decimals: 9))
         #expect(native.imageURL == wrapped.imageURL)
+        #expect(wrapped.imageURL?.absoluteString == "https://cdn.example.com/provider-sol.png")
         #expect(native.metadata == nil)
         #expect(wrapped.name == "Provider Wrapped SOL")
         #expect(wrapped.symbol == "WSOL")
@@ -76,7 +43,7 @@ struct MetadataTests {
         let result = try await refreshedSnapshot(Portfolio(rpc: http.client, store: FileSnapshotStore(directory: directory)))
         #expect(result.network == .devnet)
         #expect(result.holdings.map(\.id) == [.nativeSOL])
-        #expect(result.holdings.first?.imageURL?.absoluteString == "https://example.com/sol.png")
+        #expect(result.holdings.first?.imageURL?.absoluteString == "https://cdn.example.com/sol.png")
         #expect(result.holdings.first?.metadata == nil)
         #expect(await http.assetRequests == [nativeMint])
         #expect(await http.requests.count == 1)
@@ -126,7 +93,7 @@ private let wrappedAsset = #"""
    "metadata":{"name":"Provider Wrapped SOL","symbol":"WSOL","description":"Kept intact","token_standard":"Fungible",
      "attributes":[{"trait_type":"number","value":9007199254740993}]},
    "links":{"image":"https://example.com/provider-sol.png","external_url":"https://example.com"},
-   "files":[{"uri":"https://example.com/provider-sol.png","mime":"image/png"}]},
+   "files":[{"uri":"https://example.com/provider-sol.png","cdn_uri":"https://cdn.example.com/provider-sol.png","mime":"image/png"}]},
  "grouping":[{"group_key":"collection","group_value":"collection","collection_metadata":{"name":"Collection"}}],
  "creators":[{"address":"creator","share":100,"verified":true}],
  "token_info":{"balance":123,"decimals":9,"supply":18446744073709551615,"token_program":"program"},

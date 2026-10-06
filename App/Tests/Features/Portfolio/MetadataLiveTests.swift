@@ -14,7 +14,7 @@ struct MetadataLiveTests {
         #expect(asset.id == nativeMint)
         #expect(asset.name == "Wrapped SOL")
         #expect(asset.symbol == "SOL")
-        #expect(asset.imageURL != nil)
+        #expect(asset.imageURL?.host() == "cdn.helius-rpc.com")
         #expect(asset.metadata?.media?.isEmpty == false)
         #expect(asset.metadata?.kind == "FungibleToken")
         try printMetadata(asset, network: .mainnet)

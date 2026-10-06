@@ -52,22 +52,23 @@ struct FungibleTests {
         #expect(await updates.next() == nil)
     }
 
-    /// Verifies an older mixed-asset cache is absent during refresh and after a network failure.
+    /// Verifies an older cache, with mixed assets or creator image links, is absent during refresh and after a network failure.
+    /// - Parameter version: An older cache format.
     /// - Throws: A cache fixture or test prerequisite error.
-    @Test
-    func `Legacy mixed portfolios cannot restore NFTs while offline`() async throws {
+    @Test(arguments: [1, 2])
+    func `Older caches are not restored while offline`(version: Int) async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
         let store = FileSnapshotStore(directory: directory)
         let key = CacheKey(owner: "wallet", network: .mainnet)
         let mixed = Snapshot(owner: "wallet", network: .mainnet, holdings: [
             Holding(id: .asset("nft"), amount: Amount(units: 1, decimals: 0), name: "NFT", symbol: nil,
-                    imageURL: nil, valuation: nil, metadata: Metadata(kind: "V1_NFT")),
+                    imageURL: URL(string: "https://creator.example/nft.png"), valuation: nil, metadata: Metadata(kind: "V1_NFT")),
         ], fetchedAt: .distantPast, lastIndexedSlot: nil)
         try store.save(mixed, for: key)
         let file = try #require(FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil).first)
         var envelope = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any])
-        envelope["version"] = 1
+        envelope["version"] = version
         try JSONSerialization.data(withJSONObject: envelope).write(to: file)
         let http = AssetResponses { _ in throw URLError(.notConnectedToInternet) }
         let service = Portfolio(rpc: http.client, store: store)

@@ -527,7 +527,7 @@ struct HeliusRPCTests {
             try reply(to: request, payload: #"""
                 "result":{"last_indexed_slot":12345,"page":2,"limit":1000,"items":[{
                     "id":"mint-address","interface":"FungibleToken",
-                    "content":{"metadata":{"name":"Example Token","symbol":"EX"},"links":{"image":"https://example.com/token.png"}},
+                    "content":{"metadata":{"name":"Example Token","symbol":"EX"},"files":[{"cdn_uri":"https://cdn.example.com/token.png","mime":"image/png"}]},
                     "token_info":{"balance":9007199254740993,"decimals":6,
                         "price_info":{"price_per_token":0.1000000000000000001,"total_price":20.25,"currency":"USD"}}
                 }],"nativeBalance":{"lamports":1234567890,"price_per_sol":120.5,"total_price":148.765430745}}
@@ -543,7 +543,7 @@ struct HeliusRPCTests {
         #expect(asset.decimals == 6)
         #expect(asset.name == "Example Token")
         #expect(asset.symbol == "EX")
-        #expect(asset.imageURL?.absoluteString == "https://example.com/token.png")
+        #expect(asset.imageURL?.absoluteString == "https://cdn.example.com/token.png")
         #expect(asset.price?.perToken == Decimal(string: "0.1000000000000000001"))
         #expect(asset.price?.total == Decimal(string: "20.25"))
         #expect(asset.price?.currency == "USD")
@@ -575,11 +575,11 @@ struct HeliusRPCTests {
     @Test(arguments: [
         (#"{"metadata":{"name":"Example Collectible"},"links":{"image":false},"files":[]}"#,
          "Example Collectible", nil as String?, nil as String?),
-        (#"{"metadata":{"name":"Example Collectible"},"links":{"image":false},"files":[{"uri":"https://example.com/fallback.png","mime":"image/png"}]}"#,
+        (#"{"metadata":{"name":"Example Collectible"},"links":{"image":false},"files":[{"cdn_uri":"https://example.com/fallback.png","mime":"image/png"}]}"#,
          "Example Collectible", nil, "https://example.com/fallback.png"),
-        (#"{"metadata":{"name":false,"symbol":"EX"},"links":{"image":"https://example.com/token.png"}}"#,
+        (#"{"metadata":{"name":false,"symbol":"EX"},"files":[{"cdn_uri":"https://example.com/token.png","mime":"image/png"}]}"#,
          nil, "EX", "https://example.com/token.png"),
-        (#"{"metadata":{"name":"Example Collectible","symbol":false},"files":[false,{"uri":false,"mime":"image/png"},{"uri":"https://example.com/ignored.png","mime":false},{"uri":"https://example.com/fallback.png","mime":"image/png"}]}"#,
+        (#"{"metadata":{"name":"Example Collectible","symbol":false},"files":[false,{"cdn_uri":false,"mime":"image/png"},{"cdn_uri":"https://example.com/ignored.png","mime":false},{"cdn_uri":"https://example.com/fallback.png","mime":"image/png"}]}"#,
          "Example Collectible", nil, "https://example.com/fallback.png"),
         (#"{"metadata":false,"links":false,"files":false}"#, nil, nil, nil),
         ("false", nil, nil, nil),

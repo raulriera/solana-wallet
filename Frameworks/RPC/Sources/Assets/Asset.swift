@@ -10,7 +10,7 @@ public struct Asset: Decodable, Sendable {
     public let name: String?
     /// The asset's ticker symbol, if available.
     public let symbol: String?
-    /// The asset's image URL, if available.
+    /// The provider's HTTPS CDN copy of the asset's image, if available.
     public let imageURL: URL?
     /// The complete descriptive metadata supplied by the provider.
     public let metadata: Metadata?
@@ -28,7 +28,7 @@ public struct Asset: Decodable, Sendable {
     ///   - interface: The DAS interface name.
     ///   - name: The asset's name, or `nil` if unknown.
     ///   - symbol: The ticker symbol, or `nil` if unknown.
-    ///   - imageURL: The image URL, or `nil` if unavailable.
+    ///   - imageURL: The provider's HTTPS CDN image, or `nil` if unavailable.
     ///   - balance: The raw token units held, or `nil` if unknown.
     ///   - decimals: The decimal places, or `nil` if unknown.
     ///   - price: The available valuation, or `nil` if unpriced.
