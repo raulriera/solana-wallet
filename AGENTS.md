@@ -2,7 +2,7 @@
 
 - Keep this file lean: user-approved restrictions and clarifications only.
 - Keep skills machine-independent: discover local devices and paths instead of hardcoding them.
-- Use only three simulators for development and verification: one regular iPhone, one iPad, and one iPhone Duo. Reuse existing devices; do not create additional simulators or expand this matrix without explicit user approval.
+- Use only three simulators for development and verification: one regular iPhone, one iPad, and one iPhone Duo. Test resizing in Device Hub's resize mode on the regular iPhone. Reuse existing devices; do not create additional simulators or expand this matrix without explicit user approval.
 - Use Conventional Commits format for every commit.
 - Commit or explicitly discard each milestone before starting the next; keep completed milestones in separate commits.
 - Do not add module-name prefixes to types; rely on the module namespace.
@@ -35,6 +35,17 @@
 - Pure Swift and Apple frameworks; avoid third-party dependencies where reasonable.
 - Use `'/Applications/SF Symbols.app/Contents/Executables/sfsymbols'` when interacting with SF Symbols.
 - Validate concurrency changes against current Apple documentation and the Swift Concurrency plugin's `swift-concurrency` skill.
+- Use Xcode's skills for their concerns, alongside the plugins named here. `xcrun agent skills export` installs most of them; the accessibility and translation skills come only from Xcode's agent plugin (`xcrun agent plugin path --plugin-format <agent>`). Skills that call Xcode's tools need its MCP bridge (`xcrun mcpbridge`).
+  - `swiftui-specialist` and `swiftui-whats-new-27`: SwiftUI code.
+  - `app-resizability`: layout, resizing, and iPhone Duo reviews.
+  - `device-interaction`: simulator verification.
+  - `accessibility-dynamic-type-specialist`, `accessibility-voiceover-specialist`, and `accessibility-sufficient-contrast-specialist`: accessibility audits.
+  - `app-intents-specialist` and `app-intents-whats-new-27`: App Intents.
+  - `modernize-tests`: test modernization.
+  - `translation` and `translation-coordinator`: String Catalogs.
+  - `audit-xcode-security-settings`: build settings.
+  - `building-document-based-swiftui-applications`: file packages and document types, such as theme packs.
+  - `adopt-c-bounds-safety`: C code.
 - Follow [references/testing.md](references/testing.md) when writing or reviewing tests.
 - Name test functions with sentence-style raw identifiers instead of camelCase; do not duplicate those names in `@Test` display strings.
 - Verify live integrations with real RPC clients: mainnet for read-only behavior, devnet for tests that fund wallets, submit transactions, or incur fees. Keep mainnet-only delivery tests explicitly opt-in with approved spending limits. Do not add fake RPC implementations for tests.
