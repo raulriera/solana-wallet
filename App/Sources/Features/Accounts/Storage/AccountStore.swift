@@ -50,7 +50,8 @@ nonisolated struct AccountStore: AccountStoring {
             let data = try JSONEncoder().encode(accounts.map(Record.init))
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             try checkCancellation()
-            try data.write(to: file, options: .atomic)
+            // Addresses stay unreadable while the device is locked; the app only writes in the foreground.
+            try data.write(to: file, options: [.atomic, .completeFileProtection])
             return accounts
         }
     }

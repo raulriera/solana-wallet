@@ -30,7 +30,8 @@ struct FileSnapshotStore: SnapshotStoring {
     func save(_ snapshot: Snapshot, for key: CacheKey) throws {
         let data = try JSONEncoder().encode(Envelope(version: Self.version, snapshot: snapshot))
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        try data.write(to: fileURL(for: key), options: .atomic)
+        // Holdings stay unreadable while the device is locked; refreshes only run in the foreground.
+        try data.write(to: fileURL(for: key), options: [.atomic, .completeFileProtection])
     }
 
     /// Removes a stored snapshot, allowing a file that's already absent.
