@@ -1,3 +1,5 @@
+import Foundation
+
 /// Selects a window's initial destination without reading or changing recovery material.
 @MainActor
 struct WindowStartup: WindowStarting {
@@ -13,16 +15,19 @@ struct WindowStartup: WindowStarting {
         self.router = router
     }
 
-    /// Opens the first saved account, or onboarding after a successful empty read.
+    /// Opens the window's restored account while it is still saved, otherwise the first saved account,
+    /// or onboarding after a successful empty read.
     /// Read failures preserve storage and expose only a retryable destination.
-    func restore() async {
+    /// - Parameter accountID: The account this window showed before the system ended the app, if any.
+    func restore(preferring accountID: UUID?) async {
         guard canRestore else { return }
         do {
             try Task.checkCancellation()
             let saved = try await accounts.load()
             try Task.checkCancellation()
             guard canRestore else { return }
-            router.route(to: saved.first.map { .wallet($0) } ?? .onboarding)
+            let account = saved.first { $0.id == accountID } ?? saved.first
+            router.route(to: account.map { .wallet($0) } ?? .onboarding)
         } catch is CancellationError {
             return
         } catch {

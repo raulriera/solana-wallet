@@ -39,6 +39,8 @@
 - Make each test self-contained: automatically prepare prerequisites and reset disposable state
   before constructing services. Restrict destructive reset hooks to explicit Debug simulator
   test launches; preserve state during relaunches that verify persistence.
+- Check scene restoration by hand: send the app to the background before stopping it. Ending the
+  app in the foreground discards its saved scene state, so UI tests do not cover restoration.
 - Exercise production services at normal storage locations. Use public fixtures or disposable,
   unfunded generated wallets whose words may appear in user-run screenshots. Never use existing
   or funded recovery in UI automation.

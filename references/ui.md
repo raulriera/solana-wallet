@@ -8,7 +8,7 @@
 - Use native motion to communicate meaningful state changes. Animate theme-list insertion, removal, and reordering after catalog changes commit using the system default animation. Keep animation scoped to the changing content. Add explicit Reduce Motion adaptations only for pronounced animations identified by the user.
 - Use standard Dynamic Type without custom size caps. Adapt layouts through stacking, scrolling, and column collapse.
 - Keep app composition, scene state, feature coordination, feature views, and appearance as separate internal app concerns. Inject services through protocols; views present state and capture intent.
-- Startup reads public account metadata before choosing a destination. Open the first saved account, or onboarding only after a successful empty read. Loading failures offer an explicit retry without resetting storage; startup never accesses recovery material or replaces a window's resolved selection.
+- Startup reads public account metadata before choosing a destination. Open the window's restored account while it is still saved, otherwise the first saved account, or onboarding only after a successful empty read. Loading failures offer an explicit retry without resetting storage; startup never accesses recovery material or replaces a window's resolved selection.
 - After saving a wallet, onboarding asks for a Helius API key and verifies it before opening the wallet.
 - A missing or rejected provider key replaces only the portfolio with an error screen that reopens provider setup.
 - `SettingsScene` owns the settings split view and each window's navigation selection. Appearance is a destination within that container.
@@ -23,6 +23,7 @@
 - Share underlying services across windows with the same configuration, including portfolio caching, wallet subscriptions, and price-provider pacing. Keep networks isolated and replace a window's portfolio coordinator when its network changes.
 - Transaction review and approval remain bound to the initiating window's exact message, account, and network. Opening another window does not grant approval.
 - Window opening and restoration carry only non-secret identifiers and presentation state. Recovery material remains exclusively under the [Wallet](wallet.md) storage and access rules.
+- Restore each window's section, wallet, and navigation with `SceneStorage` after the system ends the app; removing the app in the app switcher starts fresh. Each container owns its keys, named after the owner, and drops identifiers that no longer resolve. Stored raw values are permanent: add cases, never rename or reuse them. Never restore key input, transaction review, or provider data.
 
 ## Theme packs
 

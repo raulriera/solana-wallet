@@ -42,7 +42,7 @@ struct WindowRoot: View {
             }
         }
         .animation(.default, value: router.destination)
-        .task(id: startupAttempt) { await startup.restore() }
+        .windowRestoration(startup, router: router, attempt: startupAttempt)
         .windowAppearance(services: appearanceServices)
     }
 }
