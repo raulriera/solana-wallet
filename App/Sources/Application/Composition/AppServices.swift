@@ -1,3 +1,4 @@
+import Foundation
 import Portfolio
 import RPC
 import Vault
@@ -25,6 +26,8 @@ struct AppServices {
         #if DEBUG && targetEnvironment(simulator)
         try UITestReset.runIfRequested(keychainServices: [recoveryService, providerService])
         #endif
+        // Exclusion is guidance to the system; a failure must not block the app, and the next launch tries again.
+        try? BackupExclusion.apply(to: .applicationSupportDirectory)
         appearance = try AppearanceServices()
         wallet = Wallet()
         discovery = AccountDiscovery(rpc: Solana(network: .mainnet), wallet: wallet)
