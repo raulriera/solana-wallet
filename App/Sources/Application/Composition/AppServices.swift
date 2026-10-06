@@ -17,6 +17,7 @@ struct AppServices {
     // One sampler for every window shares its remembered logo colors.
     let artworkColors: any ArtworkColorProviding = ArtworkColors()
     let recoveryPasteboard: any RecoveryCopying
+    let recoveryCleanup: any RecoveryCleaning
     let resetRevision = AppResetRevision()
     let security: SecurityServices
 
@@ -35,6 +36,7 @@ struct AppServices {
         discovery = AccountDiscovery(rpc: Solana(network: .mainnet), wallet: wallet)
         recovery = KeychainStore(service: recoveryService)
         accounts = try AccountStore()
+        recoveryCleanup = RecoveryCleanup(accounts: accounts, recovery: recovery)
         let providerKeys = ProviderKeyStore(service: providerService)
         providerConnection = HeliusConnection(keys: providerKeys)
         // One service for every window shares its cache, subscriptions, and price pacing.
@@ -55,11 +57,11 @@ struct AppServices {
         WindowRouter(initialDestination: initialDestination)
     }
 
-    /// Assembles read-only startup restoration for one window.
+    /// Assembles startup restoration for one window behind the shared launch cleanup.
     /// - Parameter router: The owning window's navigation.
-    /// - Returns: A workflow that opens saved accounts without accessing recovery material.
+    /// - Returns: A workflow that opens saved accounts without reading recovery material.
     func makeWindowStartup(router: any WindowRouting) -> any WindowStarting {
-        WindowStartup(accounts: accounts, router: router)
+        WindowStartup(accounts: accounts, cleanup: recoveryCleanup, router: router)
     }
 
     /// Creates independent portfolio presentation around the shared portfolio service.

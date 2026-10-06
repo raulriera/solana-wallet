@@ -9,6 +9,7 @@
 - Import preparation scans mainnet and selects the first positive-SOL account in scan order; a successful empty scan selects `m/44'/501'/0'/0'`. Creation remains local, and phrase validity is independent of balances. Each window retains its selected account and recovery IDs across persistence retries without rescanning or repeating committed writes.
 - Account metadata stores the exact validated derivation path used for signing. Missing or invalid required fields fail loading without modifying saved records.
 - Application Support, which holds account metadata and themes, is excluded from device backups on every launch. No app data syncs or restores to another device.
+- Keychain items outlive the app's files. On launch, when no wallet is saved, the app deletes every recovery item in its namespace before any window opens, so a reinstall or an abandoned import leaves no phrase behind. Saved wallets are never touched.
 - An empty scan means no positive SOL balances were found within that range. It cannot prove non-use, validate a BIP-39 passphrase, or discover accounts outside the supported paths/range. Explicit-path derivation remains available for other hardened paths.
 - CryptoKit supplies SHA-256, HMAC-SHA512, and Ed25519. Security supplies secure randomness. Standard word-list data is included locally; no third-party runtime dependency.
 - The shared [Encoding](encoding.md) framework supplies Base58 address encoding; Wallet doesn't maintain a separate codec.

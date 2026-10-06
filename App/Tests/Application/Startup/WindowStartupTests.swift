@@ -23,7 +23,7 @@ struct WindowStartupTests {
 
         for router in [firstWindow, secondWindow] {
             let reopened = try AccountStore(directory: directory)
-            await WindowStartup(accounts: reopened, router: router).restore(preferring: nil)
+            await WindowStartup(accounts: reopened, cleanup: StartupRecoveryCleanup(), router: router).restore(preferring: nil)
             #expect(router.destination == .wallet(first))
         }
         firstWindow.route(to: .wallet(second))
@@ -37,7 +37,7 @@ struct WindowStartupTests {
         let saved = try [Account.fixture(index: 0), Account.fixture(index: 1)]
         let router = WindowRouter(initialDestination: .restoringWallets)
 
-        await WindowStartup(accounts: StartupAccountStore { saved }, router: router).restore(preferring: saved[1].id)
+        await WindowStartup(accounts: StartupAccountStore { saved }, cleanup: StartupRecoveryCleanup(), router: router).restore(preferring: saved[1].id)
 
         #expect(router.destination == .wallet(saved[1]))
     }
@@ -48,7 +48,7 @@ struct WindowStartupTests {
         let saved = try [Account.fixture(index: 0), Account.fixture(index: 1)]
         let router = WindowRouter(initialDestination: .restoringWallets)
 
-        await WindowStartup(accounts: StartupAccountStore { saved }, router: router).restore(preferring: UUID())
+        await WindowStartup(accounts: StartupAccountStore { saved }, cleanup: StartupRecoveryCleanup(), router: router).restore(preferring: UUID())
 
         #expect(router.destination == .wallet(saved[0]))
     }
@@ -58,10 +58,26 @@ struct WindowStartupTests {
     func `An empty account store opens onboarding without writing files`() async throws {
         let directory = URL.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let router = WindowRouter(initialDestination: .restoringWallets)
-        await WindowStartup(accounts: try AccountStore(directory: directory), router: router).restore(preferring: nil)
+        await WindowStartup(accounts: try AccountStore(directory: directory), cleanup: StartupRecoveryCleanup(), router: router).restore(preferring: nil)
 
         #expect(router.destination == .onboarding)
         #expect(!FileManager.default.fileExists(atPath: directory.path))
+    }
+
+    /// A failed launch cleanup is retryable and never lets a window read wallets or open onboarding past it.
+    @Test
+    func `A failed launch cleanup shows an error before any wallet is read`() async throws {
+        let router = WindowRouter(initialDestination: .restoringWallets)
+        let store = StartupAccountStore {
+            Issue.record("Wallets must not be read before the launch cleanup completes")
+            return []
+        }
+        let cleanup = StartupRecoveryCleanup(failure: CocoaError(.fileReadNoPermission))
+
+        await WindowStartup(accounts: store, cleanup: cleanup, router: router).restore(preferring: nil)
+
+        #expect(router.destination == .walletRestorationFailed)
+        #expect(await cleanup.completions == 1)
     }
 
     /// Malformed metadata remains available for recovery and must never masquerade as an empty wallet.
@@ -74,7 +90,7 @@ struct WindowStartupTests {
         try original.write(to: file)
         let router = WindowRouter(initialDestination: .restoringWallets)
 
-        await WindowStartup(accounts: try AccountStore(directory: directory), router: router).restore(preferring: nil)
+        await WindowStartup(accounts: try AccountStore(directory: directory), cleanup: StartupRecoveryCleanup(), router: router).restore(preferring: nil)
 
         #expect(router.destination == .walletRestorationFailed)
         #expect(try Data(contentsOf: file) == original)
@@ -92,7 +108,7 @@ struct WindowStartupTests {
         let original = try Data(contentsOf: file)
         try Data("temporarily-unreadable".utf8).write(to: file)
         let router = WindowRouter(initialDestination: .restoringWallets)
-        let startup = WindowStartup(accounts: store, router: router)
+        let startup = WindowStartup(accounts: store, cleanup: StartupRecoveryCleanup(), router: router)
         await startup.restore(preferring: nil)
         try #require(router.destination == .walletRestorationFailed)
 
@@ -115,7 +131,7 @@ struct WindowStartupTests {
             return []
         }
         let router = WindowRouter(initialDestination: .restoringWallets)
-        let startup = WindowStartup(accounts: store, router: router)
+        let startup = WindowStartup(accounts: store, cleanup: StartupRecoveryCleanup(), router: router)
         let operation = Task { await startup.restore(preferring: nil) }
         defer { operation.cancel() }
         await gate.waitUntilStarted()
@@ -136,7 +152,7 @@ struct WindowStartupTests {
             return []
         }
 
-        await WindowStartup(accounts: store, router: router).restore(preferring: nil)
+        await WindowStartup(accounts: store, cleanup: StartupRecoveryCleanup(), router: router).restore(preferring: nil)
 
         #expect(router.destination == destination)
     }
@@ -152,7 +168,7 @@ struct WindowStartupTests {
             return []
         }
         let router = WindowRouter(initialDestination: .restoringWallets)
-        let startup = WindowStartup(accounts: store, router: router)
+        let startup = WindowStartup(accounts: store, cleanup: StartupRecoveryCleanup(), router: router)
         let operation = Task { await startup.restore(preferring: nil) }
         defer { operation.cancel(); pending.continuation.finish() }
         for await _ in started.stream {}
