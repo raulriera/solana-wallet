@@ -74,6 +74,7 @@ The [Themes framework contract](../Frameworks/Themes/README.md) defines package 
 
 - [Human Interface Guidelines](https://developer.apple.com/tutorials/data/design/human-interface-guidelines.md)
 - [Designing for iPhone Duo](https://developer.apple.com/tutorials/data/design/human-interface-guidelines/designing-for-iphone-duo.md)
+- [Preparing your app for iPhone Duo](https://developer.apple.com/documentation/technologyoverviews/preparing-your-app-for-iphone-duo.md)
 - [Layout](https://developer.apple.com/tutorials/data/design/human-interface-guidelines/layout.md)
 - [Motion](https://developer.apple.com/tutorials/data/design/human-interface-guidelines/motion.md)
 - [Sidebars](https://developer.apple.com/tutorials/data/design/human-interface-guidelines/sidebars.md)
@@ -84,4 +85,5 @@ The [Themes framework contract](../Frameworks/Themes/README.md) defines package 
 - [Images](https://developer.apple.com/tutorials/data/design/human-interface-guidelines/images.md)
 - [Settings bundles](https://developer.apple.com/documentation/foundation/building-a-settings-bundle-for-your-app.md)
 - [WindowGroup](https://developer.apple.com/documentation/swiftui/windowgroup.md)
+- [Prepare your app for iPhone Duo](https://developer.apple.com/videos/play/tech-talks/111461/)
 - [Multiple displays and scenes on iPhone Duo](https://developer.apple.com/videos/play/tech-talks/111464/)
