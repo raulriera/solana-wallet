@@ -14,7 +14,7 @@ struct PortfolioUnavailableScreen: View {
         }
         .defaultScrollAnchor(.center, for: .alignment)
         .scrollEdgeEffectStyle(.soft, for: .bottom)
-        .readableContentMargins(inset: $contentInset)
+        .readableContentMargins(inset: $contentInset, addsSafeArea: false)
         .safeAreaBar(edge: .bottom) {
             Button(actionTitle, action: action)
                 .buttonStyle(.primary)

@@ -14,7 +14,7 @@ struct WalletUnavailableScreen: View {
         }
         .defaultScrollAnchor(.center, for: .alignment)
         .scrollEdgeEffectStyle(.soft, for: .bottom)
-        .readableContentMargins(inset: $contentInset)
+        .readableContentMargins(inset: $contentInset, addsSafeArea: false)
         .safeAreaBar(edge: .bottom) {
             Button("Try Again", action: retry)
                 .buttonStyle(.primary)

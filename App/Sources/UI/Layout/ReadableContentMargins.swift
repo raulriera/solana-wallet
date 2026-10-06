@@ -5,17 +5,19 @@ struct ReadableContentMargins: ViewModifier {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var safeAreaInsets = EdgeInsets()
     @Binding var inset: CGFloat
+    let addsSafeArea: Bool
 
     /// Applies matching content and action margins inside the horizontal safe area.
     /// - Parameter content: The full-width scroll container to measure and inset.
     /// - Returns: The container with independently inset scroll content.
     func body(content: Content) -> some View {
         let usesReadableWidth = horizontalSizeClass == .regular
+        let safeArea = addsSafeArea ? safeAreaInsets : EdgeInsets()
 
         content
-            // Form extends beyond the proposed safe area; explicit content margins replace its native insets.
-            .contentMargins(.leading, inset + safeAreaInsets.leading, for: .scrollContent)
-            .contentMargins(.trailing, inset + safeAreaInsets.trailing, for: .scrollContent)
+            // Form keeps rows out of the safe area but doesn't add it to explicit margins; ScrollView adds it.
+            .contentMargins(.leading, inset + safeArea.leading, for: .scrollContent)
+            .contentMargins(.trailing, inset + safeArea.trailing, for: .scrollContent)
             .onGeometryChange(for: EdgeInsets.self) { $0.safeAreaInsets } action: {
                 safeAreaInsets = $0
             }
@@ -30,9 +32,12 @@ struct ReadableContentMargins: ViewModifier {
 
 extension View {
     /// Insets scroll content and shares the calculated inset with pinned actions.
-    /// - Parameter inset: The calculated horizontal inset for other content to reuse.
+    /// - Parameters:
+    ///   - inset: The calculated horizontal inset for other content to reuse.
+    ///   - addsSafeArea: Whether the margins include the horizontal safe area. A `Form` needs it;
+    ///     pass `false` for a `ScrollView`, which adds the safe area to its margins itself.
     /// - Returns: The view with readable scroll-content margins.
-    func readableContentMargins(inset: Binding<CGFloat>) -> some View {
-        modifier(ReadableContentMargins(inset: inset))
+    func readableContentMargins(inset: Binding<CGFloat>, addsSafeArea: Bool = true) -> some View {
+        modifier(ReadableContentMargins(inset: inset, addsSafeArea: addsSafeArea))
     }
 }
