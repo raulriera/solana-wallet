@@ -270,6 +270,10 @@ nonisolated struct Simulation: Sendable {
     }
     /// The final RPC simulation, retaining execution failures and their diagnostics.
     var diagnostics: SimulateTransaction.Response { preparation.simulation }
+    /// The balances the node observed changing, or `nil` when they're unknown.
+    ///
+    /// Changes are observations of simulated execution, not a cost claim, intent, or safety judgment.
+    var balanceChanges: [BalanceChange]? { BalanceChange.changes(in: transaction, from: diagnostics.value) }
     /// The separate service payments included before approval.
     var tips: [SubmissionRequirements] { preparation.tips }
 

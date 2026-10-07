@@ -12,7 +12,11 @@ extension TextRedactor {
             fee: simulation.fee,
             replacementBlockhash: simulation.replacementBlockhash.map {
                 GetLatestBlockhash.Value(blockhash: redact($0.blockhash), lastValidBlockHeight: $0.lastValidBlockHeight)
-            }
+            },
+            preBalances: simulation.preBalances,
+            postBalances: simulation.postBalances,
+            preTokenBalances: simulation.preTokenBalances,
+            postTokenBalances: simulation.postTokenBalances
         )
     }
 

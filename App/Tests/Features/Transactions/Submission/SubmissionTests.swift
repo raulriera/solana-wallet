@@ -69,6 +69,10 @@ struct SubmissionTests {
         try #require(fee < 1_000_000)
         #expect(simulation.transaction.instructions.count == 2)
         #expect(simulation.transaction.signatures.count == 2)
+        #expect(simulation.balanceChanges == [
+            BalanceChange(owner: sender, asset: .sol, before: senderBalance, after: senderBalance - 1_000_000 - fee),
+            BalanceChange(owner: recipient, asset: .sol, before: recipientBalance, after: recipientBalance + 1_000_000),
+        ])
 
         let result = try await coordinator.confirm(simulation)
         try #require(result.outcome == .succeeded)

@@ -39,7 +39,8 @@ enum PreparationFixture {
             fee: .init(context: Context(slot: 401), value: fee),
             simulation: .init(context: Context(slot: 402), value: .init(
                 error: error, logs: error == nil ? ["Program completed"] : ["Transfer: insufficient lamports 0, need 1"],
-                unitsConsumed: 150, loadedAccountsDataSize: 256, fee: fee, replacementBlockhash: nil
+                unitsConsumed: 150, loadedAccountsDataSize: 256, fee: fee, replacementBlockhash: nil,
+                preBalances: nil, postBalances: nil, preTokenBalances: nil, postTokenBalances: nil
             ))
         )
     }

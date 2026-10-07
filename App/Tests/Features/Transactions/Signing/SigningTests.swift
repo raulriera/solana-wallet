@@ -110,7 +110,8 @@ struct SigningTests {
         }
         fixture.simulation = .init(context: Context(slot: slot), value: .init(
             error: error, logs: nil, unitsConsumed: nil, loadedAccountsDataSize: nil,
-            fee: simulationFee, replacementBlockhash: replacement
+            fee: simulationFee, replacementBlockhash: replacement,
+            preBalances: nil, postBalances: nil, preTokenBalances: nil, postTokenBalances: nil
         ))
         let http = try HTTPResponses.signing()
         let store = SigningRecoveryStore(recovery: fixture.recovery)

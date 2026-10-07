@@ -13,7 +13,9 @@ struct SimulationRedactionTests {
             ])),
             logs: ["Program log: test-key", "Program failed"], unitsConsumed: 150,
             loadedAccountsDataSize: 142, fee: 5000,
-            replacementBlockhash: GetLatestBlockhash.Value(blockhash: "test-key", lastValidBlockHeight: UInt64.max)
+            replacementBlockhash: GetLatestBlockhash.Value(blockhash: "test-key", lastValidBlockHeight: UInt64.max),
+            preBalances: [1_000_000, 0], postBalances: [994_999, 1],
+            preTokenBalances: [balance(amount: 5)], postTokenBalances: [balance(amount: 0)]
         )
 
         let result = redactor.redact(simulation)
@@ -24,7 +26,20 @@ struct SimulationRedactionTests {
             ])),
             logs: ["Program log: [redacted]", "Program failed"], unitsConsumed: 150,
             loadedAccountsDataSize: 142, fee: 5000,
-            replacementBlockhash: GetLatestBlockhash.Value(blockhash: "[redacted]", lastValidBlockHeight: UInt64.max)
+            replacementBlockhash: GetLatestBlockhash.Value(blockhash: "[redacted]", lastValidBlockHeight: UInt64.max),
+            preBalances: [1_000_000, 0], postBalances: [994_999, 1],
+            preTokenBalances: [balance(amount: 5)], postTokenBalances: [balance(amount: 0)]
         ))
+    }
+
+    /// Creates a token balance observation for one raw amount.
+    /// - Parameter amount: The balance in raw units.
+    /// - Returns: A USDC balance attributed to a public address.
+    private func balance(amount: UInt64) -> SimulateTransaction.TokenBalance {
+        SimulateTransaction.TokenBalance(
+            accountIndex: 1, mint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+            owner: "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM", program: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+            amount: amount, decimals: 6
+        )
     }
 }

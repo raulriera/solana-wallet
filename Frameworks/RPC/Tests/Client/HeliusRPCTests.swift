@@ -372,7 +372,8 @@ struct HeliusRPCTests {
             simulation: SimulateTransaction.Value(
                 error: TransactionError(name: "InstructionError", details: .array([.integer(0), .object(["Custom": .integer(1)])])),
                 logs: ["Transfer: insufficient lamports"], unitsConsumed: 150,
-                loadedAccountsDataSize: 142, fee: 5000, replacementBlockhash: nil
+                loadedAccountsDataSize: 142, fee: 5000, replacementBlockhash: nil,
+                preBalances: nil, postBalances: nil, preTokenBalances: nil, postTokenBalances: nil
             )
         )) {
             try await rpc.send(SendTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00])))
@@ -705,7 +706,8 @@ struct HeliusRPCTests {
         let expectedError: RPCError = includesSimulation
             ? .preflight(message: message, simulation: SimulateTransaction.Value(
                 error: TransactionError(name: "BlockhashNotFound", details: nil), logs: [message],
-                unitsConsumed: nil, loadedAccountsDataSize: nil, fee: nil, replacementBlockhash: nil
+                unitsConsumed: nil, loadedAccountsDataSize: nil, fee: nil, replacementBlockhash: nil,
+                preBalances: nil, postBalances: nil, preTokenBalances: nil, postTokenBalances: nil
             ))
             : .server(code: code, message: message)
 
