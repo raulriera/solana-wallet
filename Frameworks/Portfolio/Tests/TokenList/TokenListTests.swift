@@ -24,6 +24,7 @@ struct TokenListTests {
         #expect(mainnet.tokens.map(\.mint.value) == ["EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
                                                      "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"])
         #expect(mainnet.tokens.map(\.symbol) == ["USDC", "USDT"])
+        #expect(mainnet.tokens.map(\.name) == ["USD Coin", "Tether USD"])
         #expect(mainnet.tokens.allSatisfy { $0.program == .token && $0.decimals == 6 })
         #expect(devnet.tokens.isEmpty)
     }
