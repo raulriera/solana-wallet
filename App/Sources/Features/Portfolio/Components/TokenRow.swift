@@ -32,6 +32,7 @@ struct TokenRow: View {
                         .foregroundStyle(.secondary)
                 }
                 .lineLimit(isStacked ? nil : 1)
+                .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
