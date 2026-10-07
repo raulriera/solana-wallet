@@ -8,7 +8,8 @@ struct TokenList: View {
 
     var body: some View {
         List(holdings, selection: $selection) { holding in
-            TokenRow(holding: holding)
+            TokenRow(symbol: holding.displaySymbol, name: holding.displayName, amount: holding.amount,
+                     value: holding.knownValue, change: holding.valuation?.dayChange, imageURL: holding.imageURL)
         }
         .listStyle(.sidebar)
     }
