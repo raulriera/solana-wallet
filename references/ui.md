@@ -9,7 +9,7 @@
 - Use standard Dynamic Type without custom size caps. Adapt layouts through stacking, scrolling, and column collapse.
 - Keep app composition, scene state, feature coordination, feature views, and appearance as separate internal app concerns. Inject services through protocols; views present state and capture intent.
 - Startup reads public account metadata before choosing a destination. Open the window's restored account while it is still saved, otherwise the first saved account, or onboarding only after a successful empty read. Loading failures offer an explicit retry without resetting storage; startup never accesses recovery material or replaces a window's resolved selection.
-- After saving a wallet, onboarding asks for a Helius API key and verifies it before opening the wallet.
+- After saving a wallet, onboarding offers three providers: Solana (free, no key), Helius, and QuickNode. Keyed providers verify the key before the wallet opens.
 - A missing or rejected provider key replaces only the portfolio with an error screen that reopens provider setup.
 - `SettingsScene` owns the settings split view and each window's navigation selection. Appearance and Security & Privacy are destinations within that container. Compact displays open on the sidebar list.
 - Every settings sidebar destination uses a native `Label` with an SF Symbol and text, including when the navigation collapses on compact displays. Symbols use multicolor rendering.

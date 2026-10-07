@@ -10,7 +10,7 @@ The wallet app owns workflow coordination through internal, protocol-based servi
 | [Transactions](../Frameworks/Transactions/README.md) | Composable instructions, generic V1 compilation, decoding, validation, and signature assembly. |
 | [Wallet](../Frameworks/Wallet/README.md) | Local recovery phrases, account derivation, and cryptographic signing. |
 | [Vault](../Frameworks/Vault/README.md) | Protected recovery storage and authentication for access. |
-| [Portfolio](../Frameworks/Portfolio/README.md) | Portfolio snapshots, caching, refresh, and reconciliation of confirmed changes. |
+| [Portfolio](../Frameworks/Portfolio/README.md) | Each account's manual token list, with its balances, prices, refresh, and confirmed changes. |
 | [Encoding](../Frameworks/Encoding/README.md) | Shared codecs. |
 | [Themes](../Frameworks/Themes/README.md) | Color tokens, package reading/writing, validation, and resolution against app-provided defaults. |
 | Internal app services/coordinators | Own portfolio presentation lifetimes and compose review, explicit approval, authentication, signing, and optional submission/confirmation. |
@@ -28,14 +28,14 @@ Program helpers produce `Instruction` values; adding an operation must not intro
 
 ## Framework milestones
 
-The agreed wallet, transaction, portfolio, and initial color-only Themes framework milestones are complete. The deferred capabilities below remain separate milestones.
+The agreed wallet, transaction, and initial color-only Themes framework milestones are complete; the portfolio is being rebuilt around a manual token list. The deferred capabilities below remain separate milestones.
 
 | Framework | Status |
 | --- | --- |
 | Encoding | Complete for the current scope. |
 | Themes | Color-only package service with app-supplied defaults and PNG/JPEG assets. App services manage immutable built-ins, custom installations, app/wallet preferences, deletion fallbacks, and one-time recovery from iOS Settings. Import/export presentation and rendering remain separate; see [UI architecture](ui.md). |
-| RPC | Complete for the agreed transaction, discovery, DAS, pricing, and confirmed account-subscription workflows. The priority-fee provider limitation remains documented in [RPC scope](rpc-scope.md#provider-limitations). |
+| RPC | Complete for the agreed transaction, discovery, DAS, pricing, and confirmed account-subscription workflows. The manual token list adds a QuickNode client, Jupiter token search, and per-account subscriptions. The priority-fee provider limitation remains documented in [RPC scope](rpc-scope.md#provider-limitations). |
 | Transactions | Further capabilities are parked; current SOL and supported-token flows remain available. The goal is all Token-2022 extensions, reviewed and agreed individually before implementation. |
 | Wallet | Complete for local derivation and SOL-only discovery across twenty addresses in two path families, with one RPC lookup per scan; verified on devnet. See [Wallet](wallet.md). |
 | Vault | Implemented and tested, including real simulator Keychain checks. Keep the specific device-validation caveat in [Wallet](wallet.md) separate from framework test status. |
-| Portfolio | Complete for native SOL and fungible tokens: rich metadata, native SOL image resolution, independently refreshed prices, paced price requests, separate five-minute freshness checks, explicit reloads, and confirmed-change observation with bounded indexer reconciliation. NFTs, currency conversion, and behavior without DAS remain deferred; see [Portfolio](portfolio.md). |
+| Portfolio | Being rebuilt around a manual token list for each account, read with standard RPC; DAS token discovery is being removed. NFTs and currency conversion remain deferred; see [Portfolio](portfolio.md). |

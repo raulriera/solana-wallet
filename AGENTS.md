@@ -53,14 +53,15 @@
 - Document every function and initializer using Apple DocC conventions.
 - Solana V1 transactions only; compose ordered instructions through one shared transaction pipeline. Transfers are instruction helpers, not a separate transaction model.
 - Support SPL Token and Token-2022 together through shared token-transfer APIs. Review and agree on each Token-2022 extension with the user before implementing it.
-- Separate frameworks by concern; all Solana RPC, DAS, and price-provider communication belongs in the RPC/API framework.
-- Keep RPC, DAS, and pricing contracts provider-neutral. Helius and Jupiter are implementations; providers must be interchangeable behind protocols and transform responses into shared types.
+- Separate frameworks by concern; all Solana RPC, DAS, price, and token-search communication belongs in the RPC/API framework.
+- Keep RPC, DAS, pricing, and token-search contracts provider-neutral. Public Solana RPC, Helius, QuickNode, and Jupiter are implementations; providers must be interchangeable behind protocols and transform responses into shared types.
 - Surface rate-limit errors to consumers; do not automatically retry. Pace price-provider batches within their request budgets; do not throttle Solana RPC or DAS requests.
 - Add RPC methods only for concrete needs of agreed wallet features; follow [references/rpc-scope.md](references/rpc-scope.md), not endpoint coverage.
 - Keep the app decentralized: no app-owned backend or proxy. Connect directly to Solana RPC providers.
 - Never ship provider API keys in the app bundle or source; users enter them in the app. Ignored local configuration supplies keys to tests only.
+- Offer three built-in providers: public Solana RPC (no key), Helius, and QuickNode. Each supports every wallet feature; they differ only in optional capabilities, such as CDN logos.
 - Use one submission strategy: `none` sends identical signed bytes concurrently through configured same-network ordinary RPCs; `standard` and `premium` use Sender exclusively. Follow [references/transaction-workflow.md](references/transaction-workflow.md).
-- Use the selected provider's DAS interface only for portfolio viewing; keep DAS out of transaction submission contracts, validation, and routing. Follow [references/portfolio.md](references/portfolio.md).
+- Show a manual token list for each account; read its balances with standard RPC and use DAS only to look up CDN logos. Follow [references/portfolio.md](references/portfolio.md).
 - Load token artwork only over HTTPS from the selected provider's CDN; never request creator-hosted or off-chain URLs, which expose the user's IP address.
 - Keep wallet recovery material device-only, excluded from iCloud sync and backups; follow [references/wallet.md](references/wallet.md).
 - Never drop saved wallets during launch, app updates, or validation. Preserve stored metadata and recovery; treat loading errors as failures, not an empty wallet.

@@ -2,14 +2,15 @@
 
 Build for the agreed Simplified and Advanced wallet experiences. A test or hypothetical future use alone doesn't justify an RPC method.
 
-Connect directly to interchangeable RPC, DAS, and pricing providers; no app-owned backend or proxy. `HeliusRPC` and public-endpoint `Solana` share one internal HTTP client. Keep provider-specific endpoints, authentication, batching, and response transformations inside RPC; consumers depend on provider-neutral protocols and values. DAS serves portfolio viewing only; see [portfolio](portfolio.md). App workflow coordination follows [architecture](architecture.md).
+Connect directly to interchangeable RPC, DAS, pricing, and token-search providers; no app-owned backend or proxy. `HeliusRPC` and public-endpoint `Solana` share one internal HTTP client. Keep provider-specific endpoints, authentication, batching, and response transformations inside RPC; consumers depend on provider-neutral protocols and values. DAS serves only CDN logo lookups for listed tokens; see [portfolio](portfolio.md). App workflow coordination follows [architecture](architecture.md).
 
 | Feature | RPC need |
 | --- | --- |
 | Create/import seed phrases; view/copy address | None. Keep these local. |
 | Discover accounts after phrase import | One `GetMultipleAccounts` request for twenty public addresses; keep positive SOL balances and ignore zero-SOL accounts. [Wallet](wallet.md) defines the bounded scan. |
-| View portfolio | DAS through `GetFungibleAssetsByOwner`, using `searchAssets` with a fungible filter. Include native SOL, rich token metadata, and available prices; exclude NFTs and asset state. `GetAsset` supplies the native mint's image when the wallet's holdings don't already provide it. |
-| Observe incoming portfolio changes | `AccountChangeProviding` supplies increasing confirmed change slots. Helius and public Solana use one `accountSubscribe` for SOL and two owner-filtered `programSubscribe` requests for SPL Token and Token-2022. Avoid fixed account-size filters so extended token accounts remain visible. Portfolio reconciles through DAS; notifications do not patch balances. |
+| View portfolio | One `GetMultipleAccounts` request reads native SOL and the listed tokens' accounts, at most 100 accounts. With Helius, DAS lookups of the listed mints supply CDN logos. |
+| Add a token | Jupiter's token search lists verified tokens; a pasted mint address skips the search. |
+| Observe incoming portfolio changes | `accountSubscribe` on the wallet and each listed token account supplies confirmed changes; the portfolio then reads balances again. Notifications do not patch balances. |
 | Update market prices independently | `PriceProviding` returns our `Quote` values keyed by mint. `Jupiter` implements it through Price V3; consumers can switch providers without adopting a provider's response shape. Price requests do not refetch holdings or metadata. |
 | V1 transactions | Ordered instruction compositions: blockhash and expiry, fee/resource estimates, simulation, submission, and signature status. Token transfers use `GetMultipleAccounts` for mint/account state, `GetEpochInfo` for Token-2022 fee schedules, and `GetMinimumBalanceForRentExemption` for new destination deposits. |
 | AI-enhanced transaction simulation | Reuse simulation results, logs, and errors for human-readable explanations in a separate framework after RPC; see [simulation explanations](transaction-simulation.md). |
@@ -17,7 +18,7 @@ Connect directly to interchangeable RPC, DAS, and pricing providers; no app-owne
 - Confidential transfers remain conditional; agree on feasibility and the concrete flow before adding support.
 - Account and rent reads serve token-transfer prerequisites and the agreed SOL-only account-discovery flow; general account exploration and node-version queries remain outside the current scope. Token ownership and address-history methods have no current agreed consumer and are not exposed.
 - RPC completion means the agreed flows have the communication they need. Human-readable simulation explanations remain a separate milestone; AI exploration is parked. UI remains last.
-- Public Solana mainnet (`https://api.mainnet.solana.com`) is built in. Submission chooses ordinary RPC broadcast or one Helius Sender tier, never both; see [submission policy](transaction-workflow.md#submission-and-observation).
+- Public Solana mainnet (`https://api.mainnet.solana.com`), Helius, and QuickNode are the built-in providers. Submission chooses ordinary RPC broadcast or one Helius Sender tier, never both; see [submission policy](transaction-workflow.md#submission-and-observation).
 - Preserve sanitized server errors with null response IDs. Successful results and attributed errors require matching IDs; missing or malformed ID fields are rejected.
 
 ## Rate limits
