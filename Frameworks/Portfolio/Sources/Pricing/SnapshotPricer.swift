@@ -42,7 +42,9 @@ struct SnapshotPricer: Sendable {
                       quote.fetchedAt.timeIntervalSinceReferenceDate.isFinite else { throw PriceError.invalidQuote }
                 valuation = Valuation(pricePerUnit: quote.pricePerUnit,
                                       total: holding.amount.flatMap { total(for: $0, price: quote.pricePerUnit) },
-                                      currency: quote.currency, fetchedAt: quote.fetchedAt)
+                                      currency: quote.currency, fetchedAt: quote.fetchedAt,
+                                      // A change that isn't a number stays unknown; the price is still valid.
+                                      dayChange: quote.dayChange.flatMap { $0.isNaN ? nil : $0 })
             } else {
                 valuation = nil
             }

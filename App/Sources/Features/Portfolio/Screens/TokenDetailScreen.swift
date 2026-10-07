@@ -2,7 +2,7 @@ import Portfolio
 import RPC
 import SwiftUI
 
-/// Shows one token's balance, value, and network.
+/// Shows one token's balance, value, price, 24-hour change, and network.
 struct TokenDetailScreen: View {
     @Environment(\.palette) private var palette
     @State private var contentInset = LayoutMetrics.contentMargin
@@ -25,10 +25,28 @@ struct TokenDetailScreen: View {
                 }
                 LabeledContent("Value") {
                     if let value = holding.knownValue {
-                        Text(value.total, format: .currency(code: value.currency))
+                        TokenValue(total: value.total, currency: value.currency)
                     } else {
                         Text("Unavailable")
                     }
+                }
+                LabeledContent("Price") {
+                    if let price = holding.knownPrice {
+                        TokenPrice(price: price.price, currency: price.currency)
+                    } else {
+                        Text("Unavailable")
+                    }
+                }
+                LabeledContent {
+                    if let change = holding.valuation?.dayChange {
+                        DayChangeLabel(change: change)
+                    } else {
+                        Text("Unavailable")
+                    }
+                } label: {
+                    // The value already says "over 24 hours", so VoiceOver doesn't repeat it.
+                    Text("24h Change")
+                        .accessibilityLabel(Text("Change"))
                 }
             } header: {
                 Text("Holdings")
@@ -72,7 +90,8 @@ struct TokenDetailScreen: View {
     NavigationStack {
         TokenDetailScreen(holding: Holding(id: .nativeSOL, amount: Amount(units: 12_500_000_000, decimals: 9),
                                            name: "Solana", symbol: "SOL", imageURL: nil,
-                                           valuation: Valuation(pricePerUnit: 166, total: 2_075, currency: "USD")),
+                                           valuation: Valuation(pricePerUnit: 166, total: 2_075, currency: "USD",
+                                                                dayChange: Decimal(string: "0.0129"))),
                           network: .mainnet)
     }
 }

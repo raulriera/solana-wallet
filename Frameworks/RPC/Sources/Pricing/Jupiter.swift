@@ -93,9 +93,21 @@ public struct Jupiter: PriceProviding, CustomStringConvertible, CustomDebugStrin
     /// The adapter's private DTO; consumers see only normalized quotes.
     private struct Value: Decodable {
         let pricePerUnit: Decimal?
+        /// The 24-hour change in percent, so `1.29` is a 1.29% rise.
+        let percentChange: Decimal?
 
         private enum CodingKeys: String, CodingKey {
             case pricePerUnit = "usdPrice"
+            case percentChange = "priceChange24h"
+        }
+
+        /// Decodes a price record; a malformed change leaves the change unknown instead of failing the price.
+        /// - Parameter decoder: The decoder for one record of the response.
+        /// - Throws: A decoding error if the price itself is malformed.
+        init(from decoder: any Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            pricePerUnit = try container.decodeIfPresent(Decimal.self, forKey: .pricePerUnit)
+            percentChange = try? container.decodeIfPresent(Decimal.self, forKey: .percentChange)
         }
 
         /// Validates the decoded price and converts it to the shared domain value.
@@ -105,7 +117,8 @@ public struct Jupiter: PriceProviding, CustomStringConvertible, CustomDebugStrin
         func makeQuote(fetchedAt: Date) throws -> Quote? {
             guard let pricePerUnit else { return nil }
             guard !pricePerUnit.isNaN, pricePerUnit >= 0 else { throw RPCError.decoding }
-            return Quote(pricePerUnit: pricePerUnit, currency: "USD", fetchedAt: fetchedAt)
+            return Quote(pricePerUnit: pricePerUnit, currency: "USD", fetchedAt: fetchedAt,
+                         dayChange: percentChange.map { $0 / 100 })
         }
     }
 }

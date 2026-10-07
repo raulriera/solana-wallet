@@ -1,10 +1,10 @@
 import Portfolio
 import SwiftUI
 
-/// One token as a card: its logo, symbol, and name, with its balance and value on the trailing side.
+/// One token as a card: its logo, symbol, and name, with its value and 24-hour change on the trailing side.
 ///
-/// The card takes its color from the token's logo. Until the color loads, or when the logo has none,
-/// it uses the window's colors.
+/// The balance takes the value's place when the value is unknown. The card takes its color from the token's logo;
+/// until the color loads, or when the logo has none, it uses the window's colors.
 struct TokenCard: View {
     @Environment(\.palette) private var palette
     @Environment(\.cardStyle) private var style
@@ -16,6 +16,8 @@ struct TokenCard: View {
     let amount: Amount?
     /// The token's total value and its quote currency, or `nil` when either is unknown.
     let value: (total: Decimal, currency: String)?
+    /// The price's 24-hour change as a fraction, or `nil` when unknown.
+    let change: Decimal?
     let imageURL: URL?
 
     var body: some View {
@@ -24,6 +26,8 @@ struct TokenCard: View {
         let layout = isStacked ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
             : AnyLayout(HStackLayout(spacing: 12))
         let shape = RoundedRectangle(cornerRadius: style.cornerRadius, style: .continuous)
+        let secondary: ReadableSecondary = .readableSecondary(tint?.text ?? palette.primaryText,
+                                                              on: tint?.textBackground ?? palette.background)
 
         layout {
             HStack(spacing: 12) {
@@ -38,19 +42,26 @@ struct TokenCard: View {
                     Text(name.localizedUppercase)
                         .font(.caption2.weight(.semibold))
                         .tracking(1.2)
+                        .foregroundStyle(secondary)
                         .accessibilityLabel(name)
                 }
                 .lineLimit(isStacked ? nil : 1)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            // Exact amounts never truncate; the name gives way first.
+            // Large values and balances shorten, as in 10.2K, so the symbol and name keep their room.
             VStack(alignment: isStacked ? .leading : .trailing, spacing: 2) {
-                TokenBalance(amount: amount)
-                    .font(.title3.weight(.semibold))
                 if let value {
-                    Text(value.total, format: .currency(code: value.currency))
-                        .font(.caption.weight(.medium))
+                    TokenValue(total: value.total, currency: value.currency, abbreviates: true)
+                        .font(.title3.weight(.semibold))
+                    if let change {
+                        DayChangeLabel(change: change)
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(secondary)
+                    }
+                } else {
+                    TokenBalance(amount: amount, abbreviates: true)
+                        .font(.title3.weight(.semibold))
                 }
             }
             .monospacedDigit()
@@ -71,6 +82,8 @@ struct TokenCard: View {
                 .padding(.bottom, -64)
         }
         .animation(.default, value: logoColor)
+        // The card moves as one piece when it re-sorts, so its rolling numbers don't drift apart from it.
+        .geometryGroup()
         .accessibilityElement(children: .combine)
         .task(id: imageURL) {
             var color: ArtworkColor?
@@ -86,9 +99,9 @@ struct TokenCard: View {
 #Preview {
     VStack(spacing: 0) {
         TokenCard(symbol: "SOL", name: "Solana", amount: Amount(units: 12_500_000_000, decimals: 9),
-                  value: (total: 2_075, currency: "USD"), imageURL: nil)
+                  value: (total: 2_075, currency: "USD"), change: Decimal(string: "0.0129"), imageURL: nil)
         TokenCard(symbol: "MYST", name: "Mystery Token", amount: Amount(units: 42, decimals: 0), value: nil,
-                  imageURL: nil)
+                  change: nil, imageURL: nil)
         CardPocket()
             .padding(.top, 24)
     }

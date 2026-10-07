@@ -1,0 +1,21 @@
+import Foundation
+import SwiftUI
+
+/// Shows the price of one token in its quote currency, with enough digits for prices below one cent;
+/// new prices roll into place.
+struct TokenPrice: View {
+    let price: Decimal
+    let currency: String
+
+    var body: some View {
+        Text(price, format: .price(code: currency))
+            .contentTransition(.numericText(value: NSDecimalNumber(decimal: price).doubleValue))
+    }
+}
+
+#Preview {
+    VStack(alignment: .trailing) {
+        TokenPrice(price: 166.23, currency: "USD")
+        TokenPrice(price: Decimal(string: "0.000021")!, currency: "USD")
+    }
+}

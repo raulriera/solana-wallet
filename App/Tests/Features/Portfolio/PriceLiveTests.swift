@@ -4,7 +4,7 @@ import Testing
 
 /// Verifies live market prices through the public provider-neutral contract.
 struct PriceLiveTests {
-    /// Fetches two mainnet market quotes without querying wallets or submitting transactions.
+    /// Fetches two mainnet market quotes and their 24-hour changes without querying wallets or submitting transactions.
     ///
     /// Jupiter supplies mainnet market data; this test makes no devnet valuation claim.
     /// - Throws: A price-provider or test prerequisite error.
@@ -20,6 +20,8 @@ struct PriceLiveTests {
             let quote = try #require(quotes[mint])
             #expect(quote.pricePerUnit > 0)
             #expect(quote.currency == "USD")
+            // Jupiter reports a 24-hour change for both markets; this checks it reaches the shared quote.
+            #expect(quote.dayChange != nil)
         }
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]

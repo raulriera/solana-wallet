@@ -51,6 +51,49 @@ struct ValuationTests {
             try await SnapshotPricer(provider: FixedPrices(quote: quote)).snapshot(pricing: snapshot)
         }
     }
+
+    /// Verifies a valuation keeps the quote's 24-hour change, including an unknown one.
+    /// - Parameter change: The quote's 24-hour change, or `nil` when the provider has none.
+    /// - Throws: A pricing or test prerequisite error.
+    @Test(arguments: [Decimal(string: "0.0129"), nil])
+    func `Valuations keep the quote's 24-hour change`(change: Decimal?) async throws {
+        let valuation = try await pricedValuation(dayChange: change)
+        #expect(valuation.total == 2)
+        #expect(valuation.dayChange == change)
+    }
+
+    /// Verifies a change that isn't a number stays unknown while the price is kept.
+    /// - Throws: A pricing or test prerequisite error.
+    @Test
+    func `A 24-hour change that isn't a number stays unknown`() async throws {
+        let valuation = try await pricedValuation(dayChange: .nan)
+        #expect(valuation.total == 2)
+        #expect(valuation.dayChange == nil)
+    }
+
+    /// Verifies a valuation saved before the 24-hour change existed still loads, with the change unknown.
+    /// - Throws: A decoding error.
+    @Test
+    func `Saved valuations without a 24-hour change still load`() throws {
+        let saved = Data(#"{"pricePerUnit":2,"total":4,"currency":"USD"}"#.utf8)
+        let valuation = try JSONDecoder().decode(Valuation.self, from: saved)
+        #expect(valuation.total == 4)
+        #expect(valuation.dayChange == nil)
+    }
+
+    /// Prices one unit of a token at 2 USD with the given 24-hour change.
+    /// - Parameter dayChange: The quote's 24-hour change.
+    /// - Returns: The token's valuation.
+    /// - Throws: A pricing or test prerequisite error.
+    private func pricedValuation(dayChange: Decimal?) async throws -> Valuation {
+        let quote = Quote(pricePerUnit: 2, currency: "USD", fetchedAt: .now, dayChange: dayChange)
+        let snapshot = Snapshot(owner: "wallet", network: .devnet, holdings: [
+            Holding(id: .asset("mint"), amount: Amount(units: 1, decimals: 0), name: nil, symbol: nil, imageURL: nil,
+                    valuation: nil),
+        ], fetchedAt: .distantPast, lastIndexedSlot: nil)
+        let result = try await SnapshotPricer(provider: FixedPrices(quote: quote)).snapshot(pricing: snapshot)
+        return try #require(result.holdings.first?.valuation)
+    }
 }
 
 /// An alternate normalized provider proving valuation does not depend on Jupiter's format or currency.

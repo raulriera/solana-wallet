@@ -24,4 +24,12 @@ extension Holding {
         guard let total = valuation?.total, let currency = valuation?.currency, !currency.isEmpty else { return nil }
         return (total, currency)
     }
+
+    /// The price of one token and its quote currency, or `nil` when either is unknown.
+    nonisolated var knownPrice: (price: Decimal, currency: String)? {
+        guard let price = valuation?.pricePerUnit, let currency = valuation?.currency, !currency.isEmpty else {
+            return nil
+        }
+        return (price, currency)
+    }
 }

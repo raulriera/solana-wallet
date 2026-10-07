@@ -42,6 +42,22 @@ struct HoldingDisplayTests {
         #expect((holding.knownValue != nil) == isKnown)
     }
 
+    /// A price needs both a unit price and a currency; anything less is unknown, never zero.
+    /// - Parameters:
+    ///   - valuation: The provider's valuation, if any.
+    ///   - isKnown: Whether the detail screen shows a price.
+    @Test(arguments: [
+        (Valuation(pricePerUnit: 2, total: nil, currency: "USD") as Valuation?, true),
+        (Valuation(pricePerUnit: nil, total: 4, currency: "USD"), false),
+        (Valuation(pricePerUnit: 2, total: 4, currency: ""), false),
+        (nil, false),
+    ])
+    func `Prices need a unit price and a currency`(valuation: Valuation?, isKnown: Bool) {
+        let holding = Holding(id: .asset("mint"), amount: nil, name: nil, symbol: nil, imageURL: nil,
+                              valuation: valuation)
+        #expect((holding.knownPrice != nil) == isKnown)
+    }
+
     /// Exact amounts take their digits and separators from the locale that SwiftUI supplies.
     /// - Parameters:
     ///   - identifier: The text environment's locale.
@@ -50,5 +66,49 @@ struct HoldingDisplayTests {
     func `Amounts use the text environment's locale`(identifier: String, shown: String) {
         let amount = Amount(units: 1_234_500_000_000, decimals: 9)
         #expect(AmountFormatStyle().locale(Locale(identifier: identifier)).format(amount) == shown)
+    }
+
+    /// Cards and rows shorten values from 10,000 up to one decimal and show smaller values in full.
+    /// - Parameters:
+    ///   - total: A token's value.
+    ///   - shown: The value as a card shows it in US English.
+    @Test(arguments: [
+        (Decimal(string: "9999.99")!, "$9,999.99"), (Decimal(string: "10234.56")!, "$10.2K"),
+        (Decimal(100_200), "$100.2K"), (Decimal(string: "1234567.89")!, "$1.2M"),
+    ])
+    func `Cards shorten values from 10,000 up`(total: Decimal, shown: String) {
+        let style = ValueFormatStyle.abbreviatedValue(code: "USD").locale(Locale(identifier: "en_US"))
+        #expect(style.format(total) == shown)
+    }
+
+    /// The detail screen and VoiceOver keep large values in full.
+    @Test
+    func `Full values keep every digit`() {
+        let style = ValueFormatStyle.value(code: "USD").locale(Locale(identifier: "en_US"))
+        #expect(style.format(Decimal(string: "1234567.89")!) == "$1,234,567.89")
+    }
+
+    /// Prices keep two decimals from 1 up, up to four below 1, and four significant digits below one cent.
+    /// - Parameters:
+    ///   - price: The price of one token.
+    ///   - shown: The price as the detail screen shows it in US English.
+    @Test(arguments: [
+        (Decimal(string: "166.2345")!, "$166.23"), (Decimal(string: "0.4056018512541055")!, "$0.4056"),
+        (Decimal(string: "0.99995")!, "$1.00"), (Decimal(string: "0.000021")!, "$0.000021"),
+        (Decimal(string: "65000.12")!, "$65,000.12"),
+    ])
+    func `Prices show enough digits to be useful`(price: Decimal, shown: String) {
+        #expect(ValueFormatStyle.price(code: "USD").locale(Locale(identifier: "en_US")).format(price) == shown)
+    }
+
+    /// Cards and rows shorten balances from 10,000 up and keep smaller balances exact.
+    /// - Parameters:
+    ///   - amount: A token balance.
+    ///   - shown: The balance as a card shows it in US English.
+    @Test(arguments: [
+        (Amount(units: 9_999_123_456, decimals: 6), "9,999.123456"), (Amount(units: 1_100_000_000_000, decimals: 5), "11M"),
+    ])
+    func `Cards shorten balances from 10,000 up`(amount: Amount, shown: String) {
+        #expect(AmountFormatStyle.abbreviatedAmount.locale(Locale(identifier: "en_US")).format(amount) == shown)
     }
 }

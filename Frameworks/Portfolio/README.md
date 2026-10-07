@@ -18,7 +18,7 @@ for await update in await service.updates(for: owner, policy: .ifStale) {
 }
 ```
 
-An optional same-network `PriceProviding` provider enables independent prices; without one, holdings retain available DAS valuations. An optional `AccountChangeProviding` provider supplies subscriptions, defaulting to the RPC client's capability.
+An optional same-network `PriceProviding` provider enables independent prices, including each quote's 24-hour change when the provider supplies one; without one, holdings retain available DAS valuations. An optional `AccountChangeProviding` provider supplies subscriptions, defaulting to the RPC client's capability.
 
 | Operation | Behavior |
 | --- | --- |

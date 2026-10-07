@@ -51,6 +51,8 @@ struct PortfolioScene: View {
                     if let holding = coordinator.holdings.first(where: { $0.id == selection }),
                        let network = coordinator.update?.snapshot?.network {
                         TokenDetailScreen(holding: holding, network: network)
+                            // New prices roll into place, as they do in the token list.
+                            .animation(.default, value: coordinator.update?.snapshotRevision)
                     } else {
                         ContentUnavailableView("No Token Selected", systemImage: "wallet.bifold",
                                                description: Text("Select a token to see its balance and value."))

@@ -25,7 +25,7 @@ Typed requests cover account and rent reads, blockhash lifetime, epochs, fees, s
 
 ## Prices and subscriptions
 
-[`PriceProviding`](Sources/Pricing/PriceProviding.swift) returns quotes keyed by mint. Missing entries mean unavailable prices, not zero. Providers own deduplication, batching, and pacing. Reuse a provider instance to share its request budget; refresh scheduling belongs to the caller.
+[`PriceProviding`](Sources/Pricing/PriceProviding.swift) returns quotes keyed by mint. Missing entries mean unavailable prices, not zero. A quote may include its 24-hour change as a fraction; a missing change is unknown, not zero. Providers own deduplication, batching, and pacing. Reuse a provider instance to share its request budget; refresh scheduling belongs to the caller.
 
 [`AccountChangeProviding`](Sources/Subscriptions/AccountChangeProviding.swift) observes confirmed SOL, SPL Token, and Token-2022 account changes. `changedSlots(for:)` returns after subscriptions are acknowledged and emits increasing change slots. These signal a need to reconcile balances; they are not balance updates. Cancel the consuming task to close its connection.
 

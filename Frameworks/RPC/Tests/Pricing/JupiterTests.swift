@@ -43,6 +43,28 @@ struct JupiterTests {
         #expect(request.url?.absoluteString.contains("fixture-key") == false)
     }
 
+    /// Verifies the 24-hour change arrives as a fraction, and that a missing or malformed change stays unknown
+    /// without discarding its price.
+    @Test
+    func `Quotes carry the 24-hour change as a fraction and leave a bad one unknown`() async throws {
+        let transport = StubTransport { request in
+            try priceReply(to: request, body: #"""
+                {"rising":{"usdPrice":2,"priceChange24h":1.29},"falling":{"usdPrice":3,"priceChange24h":-3.47},
+                 "missing":{"usdPrice":4},"malformed":{"usdPrice":5,"priceChange24h":"soon"}}
+                """#)
+        }
+        let quotes = try await Jupiter(transport: transport).prices(for: ["rising", "falling", "missing", "malformed"])
+
+        #expect(quotes["rising"]?.dayChange == Decimal(string: "0.0129"))
+        #expect(quotes["falling"]?.dayChange == Decimal(string: "-0.0347"))
+        let missing = try #require(quotes["missing"])
+        #expect(missing.pricePerUnit == 4)
+        #expect(missing.dayChange == nil)
+        let malformed = try #require(quotes["malformed"])
+        #expect(malformed.pricePerUnit == 5)
+        #expect(malformed.dayChange == nil)
+    }
+
     /// Verifies callers can supply multiple batches without knowing Jupiter's request limit.
     /// - Parameter authenticated: Whether the provider uses the free-key request budget.
     @Test(arguments: [false, true])
