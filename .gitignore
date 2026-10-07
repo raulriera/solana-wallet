@@ -2,3 +2,7 @@
 
 # Xcode user settings.
 xcuserdata/
+
+# Claude docs
+.claude/cleanup
+.claude/research
