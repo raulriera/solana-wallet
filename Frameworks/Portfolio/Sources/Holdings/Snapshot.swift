@@ -1,25 +1,21 @@
 public import Foundation
 public import RPC
 
-/// A complete portfolio retrieval for one wallet and network.
+/// A complete balance read for one wallet and network.
 public struct Snapshot: Codable, Sendable, Equatable {
     /// The wallet whose holdings were retrieved.
     public let owner: String
     /// The network to which these holdings belong.
     public let network: Network
-    /// The wallet's holdings, including a separate native SOL entry.
+    /// Native SOL followed by the wallet's listed tokens.
     public let holdings: [Holding]
-    /// The time at which retrieval of every holdings page completed; price-only updates preserve it.
+    /// The time at which the balance read completed; price-only updates preserve it.
     public let fetchedAt: Date
     /// Completion time of the last successful independent price lookup, including unavailable quotes.
     ///
-    /// This records that prices were checked, not that every asset has a price. Older
-    /// snapshots and snapshots using only DAS valuations have no independent price time.
+    /// This records that prices were checked, not that every asset has a price. Snapshots read
+    /// without a price provider have no independent price time.
     public let pricesFetchedAt: Date?
-    /// The lowest indexing watermark across all pages, or `nil` if any page omits it.
-    ///
-    /// This watermark describes indexing progress; the pages aren't an atomic ledger snapshot.
-    public let lastIndexedSlot: UInt64?
 
     /// The sum of known holding values, kept separate for each quote currency.
     ///
@@ -45,17 +41,14 @@ public struct Snapshot: Codable, Sendable, Equatable {
     /// - Parameters:
     ///   - owner: The wallet address.
     ///   - network: The Solana network.
-    ///   - holdings: The holdings retrieved from all DAS pages.
-    ///   - fetchedAt: The successful retrieval time.
-    ///   - lastIndexedSlot: The common indexing watermark, or `nil` if unknown.
+    ///   - holdings: Native SOL followed by the listed tokens.
+    ///   - fetchedAt: The successful balance read's time.
     ///   - pricesFetchedAt: Completion of the independent price lookup, or `nil` if not performed.
-    public init(owner: String, network: Network, holdings: [Holding], fetchedAt: Date, lastIndexedSlot: UInt64?,
-                pricesFetchedAt: Date? = nil) {
+    public init(owner: String, network: Network, holdings: [Holding], fetchedAt: Date, pricesFetchedAt: Date? = nil) {
         self.owner = owner
         self.network = network
         self.holdings = holdings
         self.fetchedAt = fetchedAt
         self.pricesFetchedAt = pricesFetchedAt
-        self.lastIndexedSlot = lastIndexedSlot
     }
 }

@@ -3,23 +3,22 @@ import RPC
 
 /// Serializes cache access and shares each wallet's active refresh between consumers.
 actor RefreshCoordinator {
-    private let source: any SnapshotFetching
+    private let source: any BalanceReading
     private let store: any SnapshotStoring
     private let pricer: SnapshotPricer?
     private let now: @Sendable () -> Date
     private var flights: [CacheKey: Flight] = [:]
-    private var requiredSlots: [CacheKey: UInt64] = [:]
     private var revision: UInt64 = 0
     private var snapshotRevisions: [CacheKey: UInt64] = [:]
 
     /// Creates a coordinator with independent network and storage dependencies.
     ///
     /// - Parameters:
-    ///   - source: The complete-snapshot source.
+    ///   - source: The balance source.
     ///   - store: The persistent snapshot store.
     ///   - prices: An optional price provider used for full and price-only refreshes.
     ///   - now: The clock for freshness checks and successful price retrievals.
-    init(source: any SnapshotFetching, store: any SnapshotStoring, prices: (any PriceProviding)? = nil,
+    init(source: any BalanceReading, store: any SnapshotStoring, prices: (any PriceProviding)? = nil,
          now: @escaping @Sendable () -> Date = { Date() }) {
         self.source = source
         self.store = store
@@ -49,8 +48,7 @@ actor RefreshCoordinator {
             continuation.finish()
             return stream
         }
-        let requiredScope = scope == .holdings && requiredSlots[key] != nil
-            ? .holdings : scopeRequiringRefresh(scope, policy: policy, cached: cached)
+        let requiredScope = scopeRequiringRefresh(scope, policy: policy, cached: cached)
         let id = UUID()
         continuation.onTermination = { @Sendable _ in
             Task { @concurrent in await self.unsubscribe(key: key, id: id) }
@@ -102,23 +100,6 @@ actor RefreshCoordinator {
         return Update(snapshot: snapshot, phase: phase, revision: revision, snapshotRevision: snapshotRevision)
     }
 
-    /// Invalidates cache freshness until DAS reaches a confirmed change slot.
-    /// - Parameters:
-    ///   - slot: The latest confirmed change observed for this wallet.
-    ///   - owner: The wallet whose holdings require reconciliation.
-    func requireIndexedSlot(_ slot: UInt64, for owner: String) {
-        guard !Task.isCancelled else { return }
-        let key = CacheKey(owner: owner, network: source.network)
-        requiredSlots[key] = max(requiredSlots[key] ?? 0, slot)
-    }
-
-    /// Reports whether observed changes still require a complete holdings refresh.
-    /// - Parameter owner: The wallet to inspect.
-    /// - Returns: Whether a confirmed change remains unreconciled.
-    func hasPendingChanges(for owner: String) -> Bool {
-        requiredSlots[CacheKey(owner: owner, network: source.network)] != nil
-    }
-
     /// Selects only the data whose retrieval time requires another request.
     /// - Parameters:
     ///   - scope: The data requested by the consumer.
@@ -168,7 +149,6 @@ actor RefreshCoordinator {
     /// - Throws: A file-system error if the saved snapshot can't be removed.
     func removeData(for owner: String) throws {
         let key = CacheKey(owner: owner, network: source.network)
-        requiredSlots.removeValue(forKey: key)
         if let flight = flights.removeValue(forKey: key) {
             flight.task?.cancel()
             for continuation in flight.consumers.values { continuation.finish() }
@@ -177,7 +157,7 @@ actor RefreshCoordinator {
         snapshotRevisions.removeValue(forKey: key)
     }
 
-    /// Emits existing state, fetches all holdings, and commits one complete update.
+    /// Emits existing state, reads all balances, and commits one complete update.
     ///
     /// - Parameters:
     ///   - key: The wallet and network being refreshed.
@@ -199,7 +179,6 @@ actor RefreshCoordinator {
             switch flight.scope {
             case .holdings:
                 let holdings = try await source.snapshot(for: key.owner)
-                try validateIndex(holdings, for: key)
                 snapshot = try await pricer?.snapshot(pricing: holdings) ?? holdings
             case .prices:
                 guard let pricer else { throw PriceError.providerUnavailable }
@@ -208,30 +187,17 @@ actor RefreshCoordinator {
             }
             try Task.checkCancellation()
             guard flights[key]?.generation == generation else { return }
-            if flight.scope == .holdings { try validateIndex(snapshot, for: key) }
             available = snapshot
             revision += 1
             availableRevision = revision
             try store.save(snapshot, for: key)
             snapshotRevisions[key] = availableRevision
-            if flight.scope == .holdings { requiredSlots.removeValue(forKey: key) }
             finish(key: key, generation: generation,
                    update: makeUpdate(snapshot: snapshot, phase: .ready, snapshotRevision: availableRevision))
         } catch {
             let update = Task.isCancelled ? nil
                 : makeUpdate(snapshot: available, phase: .failed(error), snapshotRevision: availableRevision)
             finish(key: key, generation: generation, update: update)
-        }
-    }
-
-    /// Rejects a stale indexer result before pricing or persisting it as fresh.
-    /// - Parameters:
-    ///   - snapshot: The complete DAS response to validate.
-    ///   - key: The wallet and network associated with any pending change.
-    /// - Throws: An indexing error when the watermark is missing or behind the observed change.
-    private func validateIndex(_ snapshot: Snapshot, for key: CacheKey) throws {
-        if let expected = requiredSlots[key], snapshot.lastIndexedSlot.map({ $0 >= expected }) != true {
-            throw ObservationError.indexingBehind(expected: expected, observed: snapshot.lastIndexedSlot)
         }
     }
 
@@ -261,9 +227,9 @@ actor RefreshCoordinator {
 
     /// The data refreshed by one shared operation.
     enum Scope {
-        /// Retrieve holdings and metadata, then independent quotes when configured.
+        /// Read balances, then independent quotes when configured.
         case holdings
-        /// Revalue existing holdings without querying DAS.
+        /// Revalue existing holdings without reading balances again.
         case prices
     }
 }

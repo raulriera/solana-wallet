@@ -12,41 +12,41 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
     /// and saves token lists in its Application Support directory.
     ///
     /// - Parameters:
-    ///   - rpc: The RPC client supplying holdings and descriptive metadata.
-    ///   - prices: A same-network price provider; `nil` keeps DAS valuations and disables price-only refreshes.
+    ///   - rpc: The RPC client that reads balances; every provider supports the request it uses.
+    ///   - prices: A same-network price provider; `nil` leaves holdings unpriced and disables price-only refreshes.
     ///   - changes: A same-network subscription provider; `nil` uses the RPC client's capability when available.
     public init(rpc: any RPC, prices: (any PriceProviding)? = nil, changes: (any AccountChangeProviding)? = nil) {
         self.init(rpc: rpc, store: FileSnapshotStore(directory: .cachesDirectory.appendingPathComponent("Portfolio")),
                   prices: prices, changes: changes)
     }
 
-    /// Creates a service with injected stores and page size.
+    /// Creates a service with injected stores.
     ///
     /// - Parameters:
-    ///   - rpc: The RPC client supplying DAS data.
+    ///   - rpc: The RPC client that reads balances.
     ///   - store: The persistent snapshot store.
     ///   - tokenLists: The token-list store; the default saves lists in Application Support.
-    ///   - pageSize: The DAS page size. The default is 1,000.
     ///   - prices: An optional same-network price provider.
     ///   - now: The current time used to evaluate cache age and record price refreshes.
     ///   - changes: The optional confirmed-change provider, defaulting to the RPC client's capability.
-    ///   - pause: Cancellable scheduling for coalescing and bounded indexer catch-up.
+    ///   - pause: Cancellable scheduling for coalescing nearby changes.
     init(rpc: any RPC, store: any SnapshotStoring,
          tokenLists: any TokenListStoring = FileTokenListStore(
             directory: .applicationSupportDirectory.appending(path: "Portfolio/TokenLists", directoryHint: .isDirectory)),
-         pageSize: Int = 1_000, prices: (any PriceProviding)? = nil,
+         prices: (any PriceProviding)? = nil,
          now: @escaping @Sendable () -> Date = { Date() }, changes: (any AccountChangeProviding)? = nil,
          pause: @escaping ObservationCoordinator.Pause = { try await Task.sleep(for: $0) }) {
-        coordinator = RefreshCoordinator(source: SnapshotFetcher(rpc: rpc, pageSize: pageSize), store: store,
+        let lists = TokenListCoordinator(store: tokenLists, network: rpc.network)
+        self.tokenLists = lists
+        coordinator = RefreshCoordinator(source: BalanceReader(rpc: rpc, tokenLists: lists), store: store,
                                          prices: prices, now: now)
         observer = ObservationCoordinator(refresh: coordinator, changes: changes ?? (rpc as? any AccountChangeProviding),
                                           network: rpc.network, pause: pause)
-        self.tokenLists = TokenListCoordinator(store: tokenLists, network: rpc.network)
     }
 
     /// Returns cached state, refreshing holdings and independent prices according to the policy.
     ///
-    /// The service owns cache lookup, pagination, persistence, and failure fallback.
+    /// The service owns cache lookup, persistence, and failure fallback.
     /// Each caller receives its own stream while concurrent callers share the refresh.
     /// Registration completes before this method returns; the refresh arrives through the stream.
     ///
@@ -59,7 +59,7 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
         await coordinator.updates(for: owner, policy: policy)
     }
 
-    /// Refreshes only valuations for existing holdings, retaining balances, metadata, and their retrieval time.
+    /// Refreshes only valuations for existing holdings, retaining balances and their retrieval time.
     /// - Parameters:
     ///   - owner: The wallet whose cached holdings to revalue.
     ///   - policy: Whether to reuse recent prices or request new quotes regardless of age.
@@ -68,7 +68,7 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
         await coordinator.updates(for: owner, scope: .prices, policy: policy)
     }
 
-    /// Observes confirmed wallet changes and refreshes holdings after DAS catches up.
+    /// Observes confirmed wallet changes and reads balances again after each one.
     /// - Parameter owner: The visible wallet to observe until its consuming task is cancelled.
     /// - Returns: Cached state, an initial reload, and event-driven refresh results; disconnects end with an error.
     public func observations(for owner: String) async -> AsyncStream<Update> {

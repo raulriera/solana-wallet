@@ -25,7 +25,7 @@ struct ValuationTests {
         let quote = Quote(pricePerUnit: price, currency: "CAD", fetchedAt: retrieved)
         let snapshot = Snapshot(owner: "wallet", network: .devnet, holdings: [
             Holding(id: .asset("mint"), amount: amount, name: "Token", symbol: "TOK", imageURL: nil, valuation: nil),
-        ], fetchedAt: .distantPast, lastIndexedSlot: 123)
+        ], fetchedAt: .distantPast)
         let result = try await SnapshotPricer(provider: FixedPrices(quote: quote)).snapshot(pricing: snapshot)
         let valuation = try #require(result.holdings.first?.valuation)
         #expect(valuation.pricePerUnit == price)
@@ -46,7 +46,7 @@ struct ValuationTests {
     func `Invalid independent quotes fail valuation`(quote: Quote) async {
         let snapshot = Snapshot(owner: "wallet", network: .devnet, holdings: [
             Holding(id: .asset("mint"), amount: nil, name: nil, symbol: nil, imageURL: nil, valuation: nil),
-        ], fetchedAt: .distantPast, lastIndexedSlot: nil)
+        ], fetchedAt: .distantPast)
         await #expect(throws: PriceError.invalidQuote) {
             try await SnapshotPricer(provider: FixedPrices(quote: quote)).snapshot(pricing: snapshot)
         }
@@ -90,7 +90,7 @@ struct ValuationTests {
         let snapshot = Snapshot(owner: "wallet", network: .devnet, holdings: [
             Holding(id: .asset("mint"), amount: Amount(units: 1, decimals: 0), name: nil, symbol: nil, imageURL: nil,
                     valuation: nil),
-        ], fetchedAt: .distantPast, lastIndexedSlot: nil)
+        ], fetchedAt: .distantPast)
         let result = try await SnapshotPricer(provider: FixedPrices(quote: quote)).snapshot(pricing: snapshot)
         return try #require(result.holdings.first?.valuation)
     }

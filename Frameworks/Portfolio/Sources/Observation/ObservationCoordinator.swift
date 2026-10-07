@@ -1,9 +1,9 @@
 import Foundation
 import RPC
 
-/// Shares a wallet's confirmed subscription and bounds event-driven DAS reconciliation.
+/// Shares a wallet's confirmed subscription and reloads its balances after confirmed changes.
 actor ObservationCoordinator {
-    /// Suspends coalescing or indexer catch-up for a cancellable duration.
+    /// Suspends change coalescing for a cancellable duration.
     typealias Pause = @Sendable (Duration) async throws -> Void
 
     private let refresh: RefreshCoordinator
@@ -14,10 +14,10 @@ actor ObservationCoordinator {
 
     /// Creates observation policy around the same refresh coordinator used by explicit requests.
     /// - Parameters:
-    ///   - refresh: The owner of cache, in-flight refreshes, and pending indexing requirements.
+    ///   - refresh: The owner of cache and in-flight refreshes.
     ///   - changes: The optional provider of confirmed wallet-change slots.
     ///   - network: The network whose portfolio is observed.
-    ///   - pause: Cancellable scheduling for coalescing and indexer catch-up.
+    ///   - pause: Cancellable scheduling for coalescing nearby changes.
     init(refresh: RefreshCoordinator, changes: (any AccountChangeProviding)?, network: Network,
          pause: @escaping Pause) {
         self.refresh = refresh
@@ -77,10 +77,8 @@ actor ObservationCoordinator {
             guard watches[owner]?.generation == generation else { return }
             watches[owner]?.isConnected = true
             schedule(owner: owner, generation: generation, delayed: false)
-            for try await slot in slots {
+            for try await _ in slots {
                 try Task.checkCancellation()
-                guard watches[owner]?.generation == generation else { return }
-                await refresh.requireIndexedSlot(slot, for: owner)
                 guard watches[owner]?.generation == generation else { return }
                 watches[owner]?.revision = UUID()
                 schedule(owner: owner, generation: generation, delayed: true)
@@ -100,17 +98,20 @@ actor ObservationCoordinator {
     /// - Parameters:
     ///   - owner: The wallet to refresh.
     ///   - generation: The current observation lifetime.
-    ///   - delayed: Whether to allow nearby events and the indexer two seconds to catch up.
+    ///   - delayed: Whether to wait two seconds for nearby changes.
     private func schedule(owner: String, generation: UUID, delayed: Bool) {
         guard watches[owner]?.generation == generation, watches[owner]?.reconciliation == nil else { return }
         watches[owner]?.reconciliation = Task { await reconcile(owner: owner, generation: generation, delayed: delayed) }
     }
 
-    /// Retries only successful-but-behind DAS reads, at most three times per reconciliation cycle.
+    /// Reloads balances once per cycle, after an optional wait that gathers nearby changes.
+    ///
+    /// A change that arrives during a reload starts another cycle, so the latest change is always read.
+    /// Failed requests aren't retried.
     /// - Parameters:
-    ///   - owner: The wallet to reconcile.
+    ///   - owner: The wallet to reload.
     ///   - generation: The current observation lifetime.
-    ///   - delayed: Whether to coalesce incoming changes before the first request.
+    ///   - delayed: Whether to gather nearby changes before the request.
     private func reconcile(owner: String, generation: UUID, delayed: Bool) async {
         guard watches[owner]?.generation == generation else { return }
         watches[owner]?.reloadRequested = false
@@ -127,25 +128,13 @@ actor ObservationCoordinator {
         }
         do {
             if delayed { try await pause(.seconds(2)) }
-            for attempt in 0..<3 {
+            try Task.checkCancellation()
+            guard watches[owner]?.generation == generation else { return }
+            handledRevision = watches[owner]?.revision
+            for await update in await refresh.updates(for: owner, policy: .reload) {
                 try Task.checkCancellation()
-                guard watches[owner]?.generation == generation else { return }
-                handledRevision = watches[owner]?.revision
-                let updates = await refresh.updates(for: owner, policy: .reload)
-                var behind = false
-                for await update in updates {
-                    try Task.checkCancellation()
-                    if case .indexingBehind = update.error as? ObservationError {
-                        behind = true
-                        if attempt < 2 { continue }
-                    }
-                    publish(update, owner: owner, generation: generation)
-                    if update.error != nil && !behind { requestFailed = true; return }
-                }
-                try Task.checkCancellation()
-                let stillPending = await refresh.hasPendingChanges(for: owner)
-                if !behind && !stillPending { return }
-                if attempt < 2 { try await pause(.seconds(2)) }
+                publish(update, owner: owner, generation: generation)
+                if update.error != nil { requestFailed = true }
             }
         } catch {
             requestFailed = true

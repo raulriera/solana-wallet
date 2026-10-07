@@ -54,7 +54,7 @@ public struct TokenMint: Sendable {
     /// - Returns: The canonical associated account to query or create.
     /// - Throws: ``TokenError/addressDerivationFailed`` if no valid bump exists.
     public func associatedAccount(for owner: Address) throws -> Address {
-        try ProgramAddress.associatedAccount(owner: owner, mint: address, program: program)
+        try program.associatedAccount(owner: owner, mint: address)
     }
 
     /// Validates supported transfer extensions and selects an explicit fee by epoch.

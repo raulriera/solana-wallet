@@ -3,28 +3,27 @@ import Foundation
 import Testing
 @testable import Portfolio
 
-/// Exercises observation through real Helius decoding with controlled HTTP and WebSocket transports.
+/// Exercises observation through real public-endpoint decoding with controlled HTTP and WebSocket transports.
 struct ObservationTests {
     /// Verifies a new presentation reloads even when an existing consumer retains the connection.
     @Test(.timeLimit(.minutes(1)))
     func `Joining an established observation reloads fresh cached holdings`() async throws {
         let fixture = ObservationFixture()
         defer { fixture.cleanUp() }
-        let pages = ObservedPages()
-        let service = fixture.service(pages: pages)
-        var first = await service.observations(for: "wallet").makeAsyncIterator()
+        let ledger = ObservedLedger()
+        let service = fixture.service(ledger: ledger)
+        var first = await service.observations(for: testWallet).makeAsyncIterator()
         try await nextResult(&first)
-        await pages.set(slot: 101, units: 200)
+        await ledger.set(lamports: 200)
 
-        var joined = await service.observations(for: "wallet").makeAsyncIterator()
+        var joined = await service.observations(for: testWallet).makeAsyncIterator()
         let initial = try #require(await joined.next())
         try #require(initial.isRefreshing)
         let refreshed = try await nextResult(&joined)
         #expect(refreshed.holdings.first?.amount?.units == 200)
-        #expect(refreshed.snapshot?.lastIndexedSlot == 101)
-        #expect(await pages.readCount == 2)
+        #expect(await ledger.readCount == 2)
         #expect(fixture.socket.requests.count == 3)
-        try await service.removeData(for: "wallet")
+        try await service.removeData(for: testWallet)
     }
 
     /// Verifies releasing the final stream stops observation even when its consumer exits normally.
@@ -32,87 +31,93 @@ struct ObservationTests {
     func `Leaving portfolio observation scope closes its connection`() async throws {
         let fixture = ObservationFixture()
         defer { fixture.cleanUp() }
-        let service = fixture.service(pages: ObservedPages())
+        let service = fixture.service(ledger: ObservedLedger())
         let initial = try await firstObservation(from: service)
         #expect(initial.error == nil)
         await fixture.socket.waitUntilCancelled()
         #expect(fixture.store.snapshot(for: fixture.key) == initial.snapshot)
     }
 
-    /// Verifies a confirmed change bypasses fresh cache and waits for indexed holdings before saving.
+    /// Verifies a confirmed change bypasses fresh cache and reads balances after gathering nearby changes.
     @Test(.timeLimit(.minutes(1)))
-    func `Confirmed changes refresh fresh portfolios after DAS catches up`() async throws {
+    func `Confirmed changes refresh fresh portfolios`() async throws {
         let fixture = ObservationFixture()
         defer { fixture.cleanUp() }
-        let pages = ObservedPages()
-        let service = fixture.service(pages: pages)
-        var updates = await service.observations(for: "wallet").makeAsyncIterator()
+        let ledger = ObservedLedger()
+        let service = fixture.service(ledger: ledger)
+        var updates = await service.observations(for: testWallet).makeAsyncIterator()
         let initial = try await nextResult(&updates)
         let original = try #require(initial.snapshot)
-        #expect(original.lastIndexedSlot == 100)
         #expect(fixture.socket.requests.count == 3)
 
-        await pages.set(slot: 108, units: 200)
+        await ledger.set(lamports: 200)
         fixture.socket.notify(slot: 110, subscription: 3, method: "programNotification")
         var delays = fixture.gate.delays.makeAsyncIterator()
         #expect(await delays.next() == .seconds(2))
-        fixture.gate.resume()
-        #expect(await delays.next() == .seconds(2))
         #expect(fixture.store.snapshot(for: fixture.key) == original)
-        await pages.set(slot: 110, units: 200)
         fixture.gate.resume()
         let updated = try await nextResult(&updates)
         #expect(updated.error == nil)
-        #expect(updated.snapshot?.lastIndexedSlot == 110)
         #expect(updated.holdings.first?.amount?.units == 200)
         #expect(fixture.store.snapshot(for: fixture.key) == updated.snapshot)
-        #expect(await pages.readCount == 3)
-        try await service.removeData(for: "wallet")
+        #expect(await ledger.readCount == 2)
+        try await service.removeData(for: testWallet)
         await fixture.socket.waitUntilCancelled()
     }
 
-    /// Verifies missing and lagging watermarks receive only bounded follow-ups and never renew stale cache.
-    /// - Parameter watermark: The indexer's outdated or unavailable slot.
-    @Test(.timeLimit(.minutes(1)), arguments: [UInt64(99), nil])
-    func `Indexer lag is bounded and leaves ordinary reads invalidated`(watermark: UInt64?) async throws {
+    /// Verifies a change that arrives during a balance read leads to another read, so the latest balance shows.
+    @Test(.timeLimit(.minutes(1)))
+    func `A change during a balance read leads to another read`() async throws {
         let fixture = ObservationFixture()
         defer { fixture.cleanUp() }
-        let pages = ObservedPages()
-        let service = fixture.service(pages: pages)
-        var updates = await service.observations(for: "wallet").makeAsyncIterator()
-        let original = try await nextResult(&updates)
-        await pages.set(slot: watermark, units: 999)
+        let ledger = ObservedLedger()
+        let (pending, release) = AsyncStream<Void>.makeStream()
+        let (started, announce) = AsyncStream<Void>.makeStream()
+        defer { release.finish(); announce.finish() }
+        let service = fixture.service { _ in
+            let reading = try await ledger.response()
+            if await ledger.readCount == 2 {
+                announce.yield(())
+                for await _ in pending {}
+            }
+            return reading
+        }
+        var updates = await service.observations(for: testWallet).makeAsyncIterator()
+        try await nextResult(&updates)
+        await ledger.set(lamports: 200)
         fixture.socket.notify(slot: 101)
         var delays = fixture.gate.delays.makeAsyncIterator()
-        for _ in 0..<3 {
-            #expect(await delays.next() == .seconds(2))
-            fixture.gate.resume()
-        }
-        let failed = try await nextResult(&updates)
-        #expect(failed.error as? ObservationError == .indexingBehind(expected: 101, observed: watermark))
-        #expect(failed.snapshot == original.snapshot)
-        #expect(await pages.readCount == 4)
-        #expect(fixture.store.snapshot(for: fixture.key) == original.snapshot)
+        #expect(await delays.next() == .seconds(2))
+        fixture.gate.resume()
+        var startedIterator = started.makeAsyncIterator()
+        _ = try #require(await startedIterator.next())
 
-        var ordinary = await service.updates(for: "wallet").makeAsyncIterator()
-        #expect(try #require(await ordinary.next()).isRefreshing)
-        let stillBehind = try #require(await ordinary.next())
-        #expect(stillBehind.error as? ObservationError == .indexingBehind(expected: 101, observed: watermark))
-        #expect(await pages.readCount == 5)
-        try await service.removeData(for: "wallet")
+        await ledger.set(lamports: 300)
+        fixture.socket.notify(slot: 102)
+        release.finish()
+
+        let earlier = try await nextResult(&updates)
+        #expect(earlier.holdings.first?.amount?.units == 200)
+        #expect(await delays.next() == .seconds(2))
+        fixture.gate.resume()
+        let latest = try await nextResult(&updates)
+        #expect(latest.holdings.first?.amount?.units == 300)
+        #expect(fixture.store.snapshot(for: fixture.key) == latest.snapshot)
+        #expect(await ledger.readCount == 3)
+        try await service.removeData(for: testWallet)
         await fixture.socket.waitUntilCancelled()
     }
 
-    /// Verifies HTTP failure ends reconciliation immediately instead of using its lag retry budget.
+    /// Verifies a failed request ends the cycle immediately instead of retrying.
     @Test(.timeLimit(.minutes(1)))
     func `Observation does not retry failed RPC requests`() async throws {
         let fixture = ObservationFixture()
         defer { fixture.cleanUp() }
-        let pages = ObservedPages()
-        let service = fixture.service(pages: pages)
-        var updates = await service.observations(for: "wallet").makeAsyncIterator()
+        let ledger = ObservedLedger()
+        let service = fixture.service(ledger: ledger)
+        var updates = await service.observations(for: testWallet).makeAsyncIterator()
         let initial = try await nextResult(&updates)
-        await pages.fail()
+        await ledger.fail()
         fixture.socket.notify(slot: 101)
         var delays = fixture.gate.delays.makeAsyncIterator()
         _ = try #require(await delays.next())
@@ -120,39 +125,9 @@ struct ObservationTests {
         let failed = try await nextResult(&updates)
         #expect(failed.error as? RPCError == .transport(.notConnectedToInternet))
         #expect(failed.snapshot == initial.snapshot)
-        #expect(await pages.readCount == 2)
-        try await service.removeData(for: "wallet")
+        #expect(await ledger.readCount == 2)
+        try await service.removeData(for: testWallet)
         await fixture.socket.waitUntilCancelled()
-    }
-
-    /// Verifies a change arriving during a paced price lookup cannot make older holdings appear fresh.
-    @Test(.timeLimit(.minutes(1)))
-    func `Changes received during pricing prevent stale holdings from being saved`() async throws {
-        let fixture = ObservationFixture()
-        defer { fixture.cleanUp() }
-        let pages = ObservedPages()
-        let service = fixture.service(pages: pages)
-        var initial = await service.updates(for: "wallet").makeAsyncIterator()
-        let original = try await nextResult(&initial)
-        let http = AssetResponses { try await pages.response($0) }
-        let prices = PriceResponses { _ in
-            try await fixture.gate.pause(.zero)
-            return Data("{}".utf8)
-        }
-        let coordinator = RefreshCoordinator(source: SnapshotFetcher(rpc: http.client, pageSize: 1_000), store: fixture.store,
-                                             prices: prices.client)
-        var updates = await coordinator.updates(for: "wallet", policy: .reload).makeAsyncIterator()
-        var started = fixture.gate.delays.makeAsyncIterator()
-        _ = try #require(await started.next())
-        await coordinator.requireIndexedSlot(101, for: "wallet")
-        fixture.gate.resume()
-        let failed = try await nextResult(&updates)
-        #expect(failed.error as? ObservationError == .indexingBehind(expected: 101, observed: 100))
-        #expect(failed.snapshot == original.snapshot)
-        #expect(fixture.store.snapshot(for: fixture.key) == original.snapshot)
-        #expect(await coordinator.hasPendingChanges(for: "wallet"))
-        #expect(await pages.readCount == 2)
-        #expect(await prices.requests.count == 1)
     }
 
     /// Verifies separate consumers share one connection and the last cancellation closes it.
@@ -160,10 +135,10 @@ struct ObservationTests {
     func `Portfolio observers share a connection until the final consumer leaves`() async throws {
         let fixture = ObservationFixture()
         defer { fixture.cleanUp() }
-        let pages = ObservedPages()
-        let service = fixture.service(pages: pages)
-        let first = await service.observations(for: "wallet")
-        let second = await service.observations(for: "wallet")
+        let ledger = ObservedLedger()
+        let service = fixture.service(ledger: ledger)
+        let first = await service.observations(for: testWallet)
+        let second = await service.observations(for: testWallet)
         let (ready, announce) = AsyncStream<Void>.makeStream()
         defer { announce.finish() }
         let consumer = Task {
@@ -178,7 +153,7 @@ struct ObservationTests {
         try await nextResult(&remaining)
         #expect(!fixture.socket.isCancelled)
         #expect(fixture.socket.requests.count == 3)
-        #expect(await pages.readCount == 1)
+        #expect(await ledger.readCount == 1)
 
         let last = Task { for await _ in second {} }
         last.cancel()
@@ -187,23 +162,23 @@ struct ObservationTests {
         #expect(fixture.store.snapshot(for: fixture.key) != nil)
     }
 
-    /// Verifies removing a wallet cancels queued catch-up and prevents deleted data from returning.
+    /// Verifies removing a wallet cancels a queued reload and prevents deleted data from returning.
     @Test(.timeLimit(.minutes(1)))
     func `Removing a watched wallet cancels queued reconciliation`() async throws {
         let fixture = ObservationFixture()
         defer { fixture.cleanUp() }
-        let pages = ObservedPages()
-        let service = fixture.service(pages: pages)
-        var updates = await service.observations(for: "wallet").makeAsyncIterator()
+        let ledger = ObservedLedger()
+        let service = fixture.service(ledger: ledger)
+        var updates = await service.observations(for: testWallet).makeAsyncIterator()
         try await nextResult(&updates)
         fixture.socket.notify(slot: 101)
         var delays = fixture.gate.delays.makeAsyncIterator()
         _ = try #require(await delays.next())
-        try await service.removeData(for: "wallet")
+        try await service.removeData(for: testWallet)
         await fixture.socket.waitUntilCancelled()
         #expect(await updates.next() == nil)
         #expect(fixture.store.snapshot(for: fixture.key) == nil)
-        #expect(await pages.readCount == 1)
+        #expect(await ledger.readCount == 1)
     }
 
     /// Verifies socket errors are visible, retain holdings, and end the watch without reconnecting.
@@ -211,8 +186,8 @@ struct ObservationTests {
     func `Subscription failure ends portfolio observation with cached holdings`() async throws {
         let fixture = ObservationFixture()
         defer { fixture.cleanUp() }
-        let service = fixture.service(pages: ObservedPages())
-        var updates = await service.observations(for: "wallet").makeAsyncIterator()
+        let service = fixture.service(ledger: ObservedLedger())
+        var updates = await service.observations(for: testWallet).makeAsyncIterator()
         let original = try await nextResult(&updates)
         fixture.socket.fail(URLError(.networkConnectionLost))
         let failed = try await nextResult(&updates)
@@ -227,43 +202,39 @@ struct ObservationTests {
     func `Observation rejects mismatched networks before connecting`() async throws {
         let fixture = ObservationFixture()
         defer { fixture.cleanUp() }
-        let das = AssetResponses { _ in throw URLError(.notConnectedToInternet) }
-        let changes = Solana(network: .devnet, transport: das, socket: { _ in fixture.socket })
-        let service = Portfolio(rpc: das.client, store: fixture.store, changes: changes)
-        var updates = await service.observations(for: "wallet").makeAsyncIterator()
+        let accounts = AccountResponses { _ in throw URLError(.notConnectedToInternet) }
+        let changes = Solana(network: .devnet, transport: accounts, socket: { _ in fixture.socket })
+        let service = Portfolio(rpc: accounts.client, store: fixture.store, tokenLists: isolatedTokenLists(),
+                                changes: changes)
+        var updates = await service.observations(for: testWallet).makeAsyncIterator()
         let failed = try await nextResult(&updates)
         #expect(failed.error as? ObservationError == .networkMismatch)
         #expect(await updates.next() == nil)
         #expect(fixture.socket.requests.isEmpty)
-        #expect(await das.requests.isEmpty)
+        #expect(await accounts.requests.isEmpty)
     }
 }
 
-/// Holds successful DAS responses behind a controllable indexing watermark.
-private actor ObservedPages {
-    private var slot: UInt64? = 100
-    private var units: UInt64 = 100
+/// Holds the SOL balance that the next successful balance read reports.
+private actor ObservedLedger {
+    private var lamports: UInt64 = 100
     private var offline = false
     private(set) var readCount = 0
 
-    /// Updates the next successful DAS response.
-    /// - Parameters:
-    ///   - slot: Its indexing watermark, or `nil` if unavailable.
-    ///   - units: The native balance returned by the indexer.
-    func set(slot: UInt64?, units: UInt64) { self.slot = slot; self.units = units }
+    /// Updates the balance that later reads report.
+    /// - Parameter lamports: The wallet's SOL balance in lamports.
+    func set(lamports: UInt64) { self.lamports = lamports }
 
-    /// Makes subsequent requests fail instead of returning an outdated successful response.
+    /// Makes subsequent reads fail instead of returning an outdated balance.
     func fail() { offline = true }
 
-    /// Returns a native-only holdings page through the actual Helius decoder.
-    /// - Parameter request: The encoded DAS request decoded by the HTTP fixture.
-    /// - Returns: A page with the configured indexing watermark and balance.
+    /// Counts a read and returns the balance at the moment it starts.
+    /// - Returns: The ledger state for the fixture's balance read.
     /// - Throws: An offline error when configured to fail.
-    func response(_ request: GetFungibleAssetsByOwner) throws -> Data {
+    func response() throws -> Ledger {
         readCount += 1
         if offline { throw URLError(.notConnectedToInternet) }
-        let watermark = slot.map { #", "last_indexed_slot":\#($0)"# } ?? ""
-        return Data(#"{"page":\#(request.page),"limit":1000,"items":[],"nativeBalance":{"lamports":\#(units)}\#(watermark)}"#.utf8)
+        return Ledger(lamports: lamports)
     }
 }
 
@@ -302,16 +273,23 @@ private struct ObservationFixture: Sendable {
     let socket = SocketFixture()
     let gate = PauseGate()
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-    let key = CacheKey(owner: "wallet", network: .mainnet)
+    let key = CacheKey(owner: testWallet, network: .mainnet)
     var store: FileSnapshotStore { FileSnapshotStore(directory: directory) }
 
-    /// Composes a real Helius client with controlled network boundaries and the production Portfolio.
-    /// - Parameter pages: The indexer response state.
+    /// Composes a real public-endpoint client with controlled network boundaries and the production Portfolio.
+    /// - Parameter respond: The balance-read responder.
     /// - Returns: The portfolio service whose observation behavior is exercised.
-    func service(pages: ObservedPages) -> Portfolio {
-        let http = AssetResponses { try await pages.response($0) }
-        let rpc = HeliusRPC(apiKey: "fixture-key", network: .mainnet, transport: http, socket: { _ in socket })
-        return Portfolio(rpc: rpc, store: store, pause: { try await gate.pause($0) })
+    func service(respond: @escaping AccountResponses.Responder) -> Portfolio {
+        let http = AccountResponses(respond: respond)
+        let rpc = Solana(network: .mainnet, transport: http, socket: { _ in socket })
+        return Portfolio(rpc: rpc, store: store, tokenLists: isolatedTokenLists(), pause: { try await gate.pause($0) })
+    }
+
+    /// Composes a service whose balance reads report the given ledger.
+    /// - Parameter ledger: The balance state.
+    /// - Returns: The portfolio service whose observation behavior is exercised.
+    func service(ledger: ObservedLedger) -> Portfolio {
+        service { _ in try await ledger.response() }
     }
 
     /// Ends fixture networking and removes only this test's cache files.
@@ -335,6 +313,6 @@ private func nextResult(_ iterator: inout AsyncStream<Update>.AsyncIterator) asy
 /// - Returns: Its first completed update.
 /// - Throws: A prerequisite error if the stream ends without a result.
 private func firstObservation(from service: Portfolio) async throws -> Update {
-    var iterator = await service.observations(for: "wallet").makeAsyncIterator()
+    var iterator = await service.observations(for: testWallet).makeAsyncIterator()
     return try await nextResult(&iterator)
 }

@@ -1,7 +1,7 @@
 import Foundation
 import RPC
 
-/// Revalues holdings without fetching balances or descriptive metadata.
+/// Revalues holdings without reading their balances again.
 struct SnapshotPricer: Sendable {
     let provider: any PriceProviding
     private let now: @Sendable () -> Date
@@ -49,11 +49,10 @@ struct SnapshotPricer: Sendable {
                 valuation = nil
             }
             return Holding(id: holding.id, amount: holding.amount, name: holding.name, symbol: holding.symbol,
-                           imageURL: holding.imageURL, valuation: valuation, metadata: holding.metadata)
+                           imageURL: holding.imageURL, valuation: valuation)
         }
         return Snapshot(owner: snapshot.owner, network: snapshot.network, holdings: holdings,
-                        fetchedAt: snapshot.fetchedAt, lastIndexedSlot: snapshot.lastIndexedSlot,
-                        pricesFetchedAt: now())
+                        fetchedAt: snapshot.fetchedAt, pricesFetchedAt: now())
     }
 
     /// Identifies the token market for a holding without merging native SOL and Wrapped SOL balances.

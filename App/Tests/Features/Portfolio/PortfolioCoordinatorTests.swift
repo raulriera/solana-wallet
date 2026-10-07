@@ -18,17 +18,17 @@ struct PortfolioCoordinatorTests {
         let viewing = Task { await coordinator.observe(for: "wallet-a", isActive: true) }
         defer { viewing.cancel() }
         let observation = try #require(await requests.next())
-        let before = largeSnapshot(time: 200, slot: 100, units: 10)
+        let before = largeSnapshot(time: 200, units: 10)
         observation.continuation.yield(Update(snapshot: before, phase: .ready, revision: 1))
         await waitForSnapshot(before, in: coordinator)
         let refreshing = Task { await coordinator.refresh() }
         defer { refreshing.cancel() }
         let reload = try #require(await requests.next())
-        let after = largeSnapshot(time: 190, slot: 101, units: 20)
+        let after = largeSnapshot(time: 190, units: 20)
         reload.continuation.yield(Update(snapshot: after, phase: .ready, revision: 2))
         reload.continuation.finish()
         await refreshing.value
-        #expect(coordinator.update?.snapshot?.lastIndexedSlot == 101)
+        #expect(coordinator.update?.snapshot == after)
         #expect(coordinator.update?.holdings.first?.amount?.units == 20)
         #expect(coordinator.update?.holdings.count == 500)
         viewing.cancel()
@@ -68,17 +68,16 @@ struct PortfolioCoordinatorTests {
         await viewing.value
     }
 
-    /// Builds a large deterministic portfolio with independently controlled time and ledger order.
+    /// Builds a large deterministic portfolio with an independently controlled retrieval time.
     /// - Parameters:
     ///   - time: The device wall-clock value at retrieval.
-    ///   - slot: The newer ledger watermark.
     ///   - units: The amount held for each token.
     /// - Returns: Five hundred fungible holdings.
-    private func largeSnapshot(time: TimeInterval, slot: UInt64, units: UInt64) -> Snapshot {
+    private func largeSnapshot(time: TimeInterval, units: UInt64) -> Snapshot {
         Snapshot(owner: "wallet-a", network: .devnet, holdings: (0..<500).map {
             Holding(id: .asset("asset-\($0)"), amount: Amount(units: units, decimals: 6),
                     name: "Token \($0)", symbol: "T\($0)", imageURL: nil, valuation: nil)
-        }, fetchedAt: Date(timeIntervalSince1970: time), lastIndexedSlot: slot)
+        }, fetchedAt: Date(timeIntervalSince1970: time))
     }
 
     /// Verifies an inactive scene or missing selection never starts work.
@@ -395,8 +394,7 @@ struct PortfolioCoordinatorTests {
     ///   - revision: A deterministic retrieval time.
     /// - Returns: A valid empty fungible portfolio.
     private func snapshot(owner: String, revision: TimeInterval) -> Snapshot {
-        Snapshot(owner: owner, network: .devnet, holdings: [], fetchedAt: Date(timeIntervalSince1970: revision),
-                 lastIndexedSlot: nil)
+        Snapshot(owner: owner, network: .devnet, holdings: [], fetchedAt: Date(timeIntervalSince1970: revision))
     }
 
     /// Creates a priced portfolio whose provider order differs from its display order.
@@ -410,7 +408,7 @@ struct PortfolioCoordinatorTests {
         let solana = Holding(id: .nativeSOL, amount: Amount(units: 0, decimals: 9), name: "Solana", symbol: "SOL",
                              imageURL: nil, valuation: nil)
         return Snapshot(owner: "wallet-a", network: .devnet, holdings: tokens + [solana],
-                        fetchedAt: Date(timeIntervalSince1970: 1), lastIndexedSlot: nil)
+                        fetchedAt: Date(timeIntervalSince1970: 1))
     }
 
     /// Awaits observable snapshot publication without sleeps or polling.

@@ -4,6 +4,4 @@ public enum ObservationError: Error, Sendable, Equatable {
     case providerUnavailable
     /// The account-change provider observes a different network from the holdings source.
     case networkMismatch
-    /// DAS hasn't reported indexing through the latest observed change, or omitted its watermark.
-    case indexingBehind(expected: UInt64, observed: UInt64?)
 }

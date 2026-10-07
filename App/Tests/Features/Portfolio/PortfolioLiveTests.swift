@@ -4,22 +4,23 @@ import RPC
 import Testing
 import Transactions
 
-/// Verifies read-only mainnet portfolio retrieval and caching with a public wallet fixture.
+/// Verifies read-only mainnet balance reads and caching with a public wallet fixture.
 struct PortfolioLiveTests {
-    /// Verifies live DAS retrieval, exact native SOL, persistence, and reuse by a new service.
+    /// Verifies a live balance read of the default token list, exact native SOL, persistence, and reuse by a new service.
     ///
-    /// Uses a public address and an isolated cache without wallet recovery or funding.
+    /// Uses a public address and isolated storage without wallet recovery or funding.
     /// - Throws: An RPC, storage, or test prerequisite error.
     @Test(.timeLimit(.minutes(1)))
-    func `Mainnet portfolio persists DAS holdings and reuses its complete snapshot`() async throws {
-        let transport = LiveResponses<GetFungibleAssetsByOwner>()
+    func `Mainnet portfolio persists listed balances and reuses its complete snapshot`() async throws {
+        let transport = LiveResponses<GetMultipleAccounts>()
         let rpc = try MainnetClients.client(transport: transport)
         let owner = PublicWallet.address
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
         let store = FileSnapshotStore(directory: directory)
+        let tokenLists = FileTokenListStore(directory: directory.appendingPathComponent("TokenLists"))
         let key = CacheKey(owner: owner, network: .mainnet)
-        let service: any PortfolioProviding = Portfolio(rpc: rpc, store: store)
+        let service: any PortfolioProviding = Portfolio(rpc: rpc, store: store, tokenLists: tokenLists)
         var updates = await service.updates(for: owner).makeAsyncIterator()
 
         let initial = try #require(await updates.next())
@@ -28,22 +29,19 @@ struct PortfolioLiveTests {
         let completed = try #require(await updates.next())
         if let error = completed.error { throw error }
         let snapshot = try #require(completed.snapshot)
-        let firstPage = try #require(await transport.responses.first)
-        #expect(firstPage.page == 1)
-        let balance = try #require(firstPage.nativeBalance)
+        let read = try #require(await transport.responses.first)
         #expect(!completed.isRefreshing)
         #expect(snapshot.owner == owner)
         #expect(snapshot.network == .mainnet)
-        #expect(snapshot.holdings.first { $0.id == .nativeSOL }?.amount == Amount(units: balance.lamports, decimals: 9))
-        #expect(snapshot.holdings.first { $0.id == .nativeSOL }?.imageURL != nil)
-        #expect(snapshot.holdings.allSatisfy {
-            $0.id == .nativeSOL || $0.metadata?.kind == "FungibleToken" || $0.metadata?.kind == "FungibleAsset"
-        })
-        #expect(Set(snapshot.holdings.map(\.id)).count == snapshot.holdings.count)
+        #expect(snapshot.holdings.map(\.symbol) == ["SOL", "USDC", "USDT"])
+        // A wallet without an account on the ledger holds no SOL.
+        #expect(snapshot.holdings.first?.amount == Amount(units: read.value.first??.lamports ?? 0, decimals: 9))
+        #expect(snapshot.holdings.allSatisfy { $0.amount != nil })
         #expect(store.snapshot(for: key) == snapshot)
         #expect(await updates.next() == nil)
 
-        let recreated: any PortfolioProviding = Portfolio(rpc: rpc, store: FileSnapshotStore(directory: directory))
+        let recreated: any PortfolioProviding = Portfolio(rpc: rpc, store: FileSnapshotStore(directory: directory),
+                                                          tokenLists: tokenLists)
         var reused = await recreated.updates(for: owner).makeAsyncIterator()
         let cached = try #require(await reused.next())
         #expect(!cached.isRefreshing)

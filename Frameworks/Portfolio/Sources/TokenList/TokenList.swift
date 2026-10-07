@@ -1,5 +1,5 @@
 public import RPC
-public import Transactions
+import Transactions
 
 /// The tokens an account lists besides native SOL, which every account keeps.
 public struct TokenList: Sendable, Equatable {

@@ -7,8 +7,7 @@ public protocol PortfolioProviding: Sendable {
     /// Observes confirmed account changes for the lifetime of the consuming task.
     ///
     /// Shares one connection per wallet. Each new consumer requests a reload or joins one in progress.
-    /// Setup completes before the initial reload;
-    /// bursts are coalesced and successful-but-behind DAS reads receive bounded follow-ups.
+    /// Setup completes before the initial reload; bursts of changes are coalesced into one balance read.
     /// Transport and rate-limit errors are surfaced without automatic retries or reconnects.
     /// The app owns starting and cancelling observation with its foreground/view lifecycle.
     /// - Parameter owner: The wallet whose holdings to observe.
@@ -26,7 +25,7 @@ public protocol PortfolioProviding: Sendable {
     ///   by a completed or failed refresh. Failures retain the latest complete snapshot.
     func updates(for owner: String, policy: RefreshPolicy) async -> AsyncStream<Update>
 
-    /// Revalues cached holdings through the injected price provider without querying DAS.
+    /// Revalues cached holdings through the injected price provider without reading balances again.
     ///
     /// A concurrent full refresh can satisfy this request. No polling or retries are scheduled.
     /// - Parameters:
@@ -53,7 +52,7 @@ extension PortfolioProviding {
 
     /// Returns cached prices, refreshing only when the last independent lookup is stale or missing.
     /// - Parameter owner: The wallet whose existing holdings to revalue.
-    /// - Returns: A finite sequence of portfolio states without querying DAS.
+    /// - Returns: A finite sequence of portfolio states without reading balances again.
     public func priceUpdates(for owner: String) async -> AsyncStream<Update> {
         await priceUpdates(for: owner, policy: .ifStale)
     }

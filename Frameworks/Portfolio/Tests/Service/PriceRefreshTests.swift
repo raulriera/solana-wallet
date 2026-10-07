@@ -5,66 +5,62 @@ import Testing
 
 /// Verifies independent valuation, persistence, and coordination through real provider adapters.
 struct PriceRefreshTests {
-    /// Verifies price-only refreshes preserve balances and metadata, share SOL's quote, and clear omitted prices.
+    /// Verifies price-only refreshes preserve balances and names, share SOL's quote, and clear omitted prices.
     /// - Throws: A fixture, refresh, or test prerequisite error.
     @Test
-    func `Price-only refresh preserves holdings and never queries DAS`() async throws {
+    func `Price-only refresh preserves holdings and never reads balances`() async throws {
         let fixture = PricingFixture()
         defer { fixture.removeFiles() }
         let cached = pricingSnapshot()
         try fixture.store.save(cached, for: fixture.key)
-        let das = AssetResponses { _ in throw URLError(.notConnectedToInternet) }
+        let accounts = AccountResponses { _ in throw URLError(.notConnectedToInternet) }
         let prices = PriceResponses { _ in
-            Data(#"{"So11111111111111111111111111111111111111112":{"usdPrice":100},"mint":{"usdPrice":0.1},"missing":{"createdAt":"2025-01-01T00:00:00Z","decimals":6}}"#.utf8)
+            Data(#"{"\#(nativeMint)":{"usdPrice":100},"mint":{"usdPrice":0.1},"missing":{"createdAt":"2025-01-01T00:00:00Z","decimals":6}}"#.utf8)
         }
-        let service: any PortfolioProviding = Portfolio(rpc: das.client, store: fixture.store, prices: prices.client)
-        var updates = await service.priceUpdates(for: "wallet").makeAsyncIterator()
+        let service: any PortfolioProviding = fixture.portfolio(rpc: accounts.client, prices: prices.client)
+        var updates = await service.priceUpdates(for: testWallet).makeAsyncIterator()
         #expect(try #require(await updates.next()).snapshot == cached)
         let update = try #require(await updates.next())
         if let error = update.error { throw error }
         let refreshed = try #require(update.snapshot)
 
         #expect(refreshed.fetchedAt == cached.fetchedAt)
-        #expect(refreshed.lastIndexedSlot == cached.lastIndexedSlot)
         #expect(refreshed.holdings.map(\.id) == cached.holdings.map(\.id))
         #expect(refreshed.holdings.map(\.amount) == cached.holdings.map(\.amount))
-        #expect(refreshed.holdings.map(\.metadata) == cached.holdings.map(\.metadata))
         #expect(refreshed.holdings.map(\.name) == cached.holdings.map(\.name))
         #expect(refreshed.holdings.map(\.imageURL) == cached.holdings.map(\.imageURL))
         #expect(refreshed.holdings.map(\.valuation?.total) == [100, 200, Decimal(string: "0.125"), nil])
         #expect(refreshed.holdings.prefix(3).allSatisfy { $0.valuation?.fetchedAt != nil && $0.valuation?.currency == "USD" })
         #expect(refreshed.holdings.last?.valuation == nil)
         #expect(await prices.requests == [[nativeMint, "mint", "missing"]])
-        #expect(await das.requests.isEmpty)
-        #expect(await das.assetRequests.isEmpty)
+        #expect(await accounts.requests.isEmpty)
         #expect(fixture.store.snapshot(for: fixture.key) == refreshed)
         #expect(await updates.next() == nil)
     }
 
-    /// Verifies a full refresh values newly fetched amounts with the selected independent provider.
+    /// Verifies a full refresh values newly read amounts with the selected independent provider.
     /// - Throws: A fixture, refresh, or test prerequisite error.
     @Test
     func `Full portfolio refresh applies independent quotes to the new holdings`() async throws {
         let fixture = PricingFixture()
         defer { fixture.removeFiles() }
-        let das = AssetResponses { request in freshPage(request.page) }
-        let prices = PriceResponses { _ in Data(#"{"So11111111111111111111111111111111111111112":{"usdPrice":100},"new-mint":{"usdPrice":4}}"#.utf8) }
-        let service = Portfolio(rpc: das.client, store: fixture.store, prices: prices.client)
-        var updates = await service.updates(for: "wallet").makeAsyncIterator()
+        let accounts = AccountResponses { _ in freshLedger }
+        let prices = PriceResponses { _ in Data(#"{"\#(nativeMint)":{"usdPrice":100},"\#(usdcMint)":{"usdPrice":4}}"#.utf8) }
+        let service = fixture.portfolio(rpc: accounts.client, prices: prices.client)
+        var updates = await service.updates(for: testWallet).makeAsyncIterator()
         _ = try #require(await updates.next())
         let update = try #require(await updates.next())
         if let error = update.error { throw error }
         let snapshot = try #require(update.snapshot)
-        #expect(snapshot.holdings.map(\.valuation?.total) == [100, 12])
-        #expect(snapshot.holdings.last?.metadata?.description == "Preserved")
-        #expect(snapshot.holdings.allSatisfy { $0.valuation?.fetchedAt != nil })
-        #expect(await prices.requests == [[nativeMint, "new-mint"]])
-        #expect(await das.requests.map(\.page) == [1, 2])
+        #expect(snapshot.holdings.map(\.valuation?.total) == [100, 12, nil])
+        #expect(snapshot.holdings.prefix(2).allSatisfy { $0.valuation?.fetchedAt != nil })
+        #expect(await prices.requests == [[nativeMint, usdcMint, usdtMint]])
+        #expect(await accounts.requests.count == 1)
         #expect(fixture.store.snapshot(for: fixture.key) == snapshot)
     }
 
     /// Verifies a failed quote request preserves the preceding complete snapshot without retrying.
-    /// - Parameter fullRefresh: Whether the failure follows a fresh holdings fetch.
+    /// - Parameter fullRefresh: Whether the failure follows a fresh balance read.
     /// - Throws: A fixture or test prerequisite error.
     @Test(arguments: [false, true])
     func `Price failures preserve the cached snapshot without retrying`(fullRefresh: Bool) async throws {
@@ -72,10 +68,10 @@ struct PriceRefreshTests {
         defer { fixture.removeFiles() }
         let cached = pricingSnapshot()
         try fixture.store.save(cached, for: fixture.key)
-        let das = AssetResponses { request in freshPage(request.page) }
+        let accounts = AccountResponses { _ in freshLedger }
         let prices = PriceResponses(status: 429) { _ in Data("{}".utf8) }
-        let service = Portfolio(rpc: das.client, store: fixture.store, prices: prices.client)
-        let stream = await (fullRefresh ? service.updates(for: "wallet") : service.priceUpdates(for: "wallet"))
+        let service = fixture.portfolio(rpc: accounts.client, prices: prices.client)
+        let stream = await (fullRefresh ? service.updates(for: testWallet) : service.priceUpdates(for: testWallet))
         var updates = stream.makeAsyncIterator()
         _ = try #require(await updates.next())
         let failed = try #require(await updates.next())
@@ -83,7 +79,7 @@ struct PriceRefreshTests {
         #expect(failed.snapshot == cached)
         #expect(fixture.store.snapshot(for: fixture.key) == cached)
         #expect(await prices.requests.count == 1)
-        #expect(await das.requests.count == (fullRefresh ? 2 : 0))
+        #expect(await accounts.requests.count == (fullRefresh ? 1 : 0))
     }
 
     /// Verifies absent prerequisites and network mismatches fail before any provider request.
@@ -98,17 +94,15 @@ struct PriceRefreshTests {
         let fixture = PricingFixture()
         defer { fixture.removeFiles() }
         if failure != .holdingsUnavailable { try fixture.store.save(pricingSnapshot(), for: fixture.key) }
-        let das = AssetResponses(network: failure == .networkMismatch ? .devnet : .mainnet) { request in freshPage(request.page) }
+        let accounts = AccountResponses(network: failure == .networkMismatch ? .devnet : .mainnet) { _ in freshLedger }
         let prices = PriceResponses { _ in Data("{}".utf8) }
-        let service = Portfolio(rpc: das.client, store: fixture.store,
-                                prices: failure == .providerUnavailable ? nil : prices.client)
-        let stream = await (fullRefresh ? service.updates(for: "wallet") : service.priceUpdates(for: "wallet"))
+        let service = fixture.portfolio(rpc: accounts.client, prices: failure == .providerUnavailable ? nil : prices.client)
+        let stream = await (fullRefresh ? service.updates(for: testWallet) : service.priceUpdates(for: testWallet))
         var updates = stream.makeAsyncIterator()
         _ = try #require(await updates.next())
         let failed = try #require(await updates.next())
         #expect(failed.error as? PriceError == failure)
-        #expect(await das.requests.isEmpty)
-        #expect(await das.assetRequests.isEmpty)
+        #expect(await accounts.requests.isEmpty)
         #expect(await prices.requests.isEmpty)
     }
 
@@ -123,27 +117,27 @@ struct PriceRefreshTests {
         let (pending, release) = AsyncStream<Void>.makeStream()
         let (started, announce) = AsyncStream<Void>.makeStream()
         defer { release.finish(); announce.finish() }
-        let das = AssetResponses { request in
-            if !pricesFirst && request.page == 1 {
+        let accounts = AccountResponses { _ in
+            if !pricesFirst {
                 announce.yield(())
                 for await _ in pending {}
             }
-            return freshPage(request.page)
+            return freshLedger
         }
         let prices = PriceResponses { mints in
             if mints.contains("mint") {
                 announce.yield(())
                 for await _ in pending {}
             }
-            return Data(#"{"So11111111111111111111111111111111111111112":{"usdPrice":100},"new-mint":{"usdPrice":4}}"#.utf8)
+            return Data(#"{"\#(nativeMint)":{"usdPrice":100},"\#(usdcMint)":{"usdPrice":4}}"#.utf8)
         }
-        let service = Portfolio(rpc: das.client, store: fixture.store, prices: prices.client)
-        let firstStream = await (pricesFirst ? service.priceUpdates(for: "wallet") : service.updates(for: "wallet"))
+        let service = fixture.portfolio(rpc: accounts.client, prices: prices.client)
+        let firstStream = await (pricesFirst ? service.priceUpdates(for: testWallet) : service.updates(for: testWallet))
         var first = firstStream.makeAsyncIterator()
         _ = try #require(await first.next())
         var startedIterator = started.makeAsyncIterator()
         _ = try #require(await startedIterator.next())
-        let secondStream = await (pricesFirst ? service.updates(for: "wallet") : service.priceUpdates(for: "wallet"))
+        let secondStream = await (pricesFirst ? service.updates(for: testWallet) : service.priceUpdates(for: testWallet))
         var second = secondStream.makeAsyncIterator()
         _ = try #require(await second.next())
         release.finish()
@@ -152,10 +146,10 @@ struct PriceRefreshTests {
         #expect(firstResult.error == nil)
         #expect(secondResult.error == nil)
         #expect(firstResult.snapshot == secondResult.snapshot)
-        #expect(firstResult.holdings.map(\.id) == [.nativeSOL, .asset("new-mint")])
-        #expect(firstResult.holdings.last?.valuation?.total == 12)
+        #expect(firstResult.holdings.map(\.id) == [.nativeSOL, .asset(usdcMint), .asset(usdtMint)])
+        #expect(firstResult.holdings[1].valuation?.total == 12)
         #expect(fixture.store.snapshot(for: fixture.key) == firstResult.snapshot)
-        #expect(await das.requests.map(\.page) == [1, 2])
+        #expect(await accounts.requests.count == 1)
         #expect(await prices.requests.count == (pricesFirst ? 2 : 1))
         #expect(await first.next() == nil)
         #expect(await second.next() == nil)
@@ -172,60 +166,61 @@ struct PriceRefreshTests {
         let (started, announce) = AsyncStream<Void>.makeStream()
         let (cancelled, cancelledContinuation) = AsyncStream<Void>.makeStream()
         defer { release.finish(); announce.finish(); cancelledContinuation.finish() }
-        let das = AssetResponses { request in freshPage(request.page) }
+        let accounts = AccountResponses { _ in freshLedger }
         let prices = PriceResponses { _ in
             announce.yield(())
             for await _ in pending {}
             if Task.isCancelled { cancelledContinuation.yield(()) }
             return Data("{}".utf8)
         }
-        let service = Portfolio(rpc: das.client, store: fixture.store, prices: prices.client)
-        var updates = await service.priceUpdates(for: "wallet").makeAsyncIterator()
+        let service = fixture.portfolio(rpc: accounts.client, prices: prices.client)
+        var updates = await service.priceUpdates(for: testWallet).makeAsyncIterator()
         _ = try #require(await updates.next())
         var startedIterator = started.makeAsyncIterator()
         _ = try #require(await startedIterator.next())
-        try await service.removeData(for: "wallet")
+        try await service.removeData(for: testWallet)
         var cancelledIterator = cancelled.makeAsyncIterator()
         _ = try #require(await cancelledIterator.next())
         #expect(await updates.next() == nil)
         #expect(fixture.store.snapshot(for: fixture.key) == nil)
-        #expect(await das.requests.isEmpty)
+        #expect(await accounts.requests.isEmpty)
     }
 }
 
 /// A disk cache isolated to one pricing test.
 private struct PricingFixture {
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-    let key = CacheKey(owner: "wallet", network: .mainnet)
+    let key = CacheKey(owner: testWallet, network: .mainnet)
     var store: FileSnapshotStore { FileSnapshotStore(directory: directory) }
+
+    /// Creates a service that keeps its snapshots in this test's directory.
+    /// - Parameters:
+    ///   - rpc: The client whose balance reads the service makes.
+    ///   - prices: The independent price provider, or `nil` for none.
+    /// - Returns: The service under test.
+    func portfolio(rpc: any RPC, prices: (any PriceProviding)?) -> Portfolio {
+        Portfolio(rpc: rpc, store: store, tokenLists: isolatedTokenLists(), prices: prices)
+    }
 
     /// Removes only this fixture's cache files.
     func removeFiles() { try? FileManager.default.removeItem(at: directory) }
 }
 
-private let nativeMint = "So11111111111111111111111111111111111111112"
+/// A new balance read: 1 SOL and 3 USDC, with no USDT account.
+private let freshLedger = Ledger(lamports: 1_000_000_000, tokens: [usdcMint: 3_000_000])
 
-/// Creates a snapshot whose identities, metadata, and retrieval time must survive repricing.
+/// Creates a snapshot whose identities, names, and retrieval time must survive repricing.
 /// - Returns: SOL, Wrapped SOL, a fungible token, and a previously priced token with no new quote.
 private func pricingSnapshot() -> Snapshot {
     let holdings = [
-        Holding(id: .nativeSOL, amount: Amount(units: 1_000_000_000, decimals: 9), name: "Solana", symbol: "SOL", imageURL: nil, valuation: nil),
-        Holding(id: .asset(nativeMint), amount: Amount(units: 2_000_000_000, decimals: 9), name: "Wrapped SOL", symbol: "WSOL", imageURL: nil, valuation: nil),
+        Holding(id: .nativeSOL, amount: Amount(units: 1_000_000_000, decimals: 9), name: "Solana", symbol: "SOL",
+                imageURL: nil, valuation: nil),
+        Holding(id: .asset(nativeMint), amount: Amount(units: 2_000_000_000, decimals: 9), name: "Wrapped SOL",
+                symbol: "WSOL", imageURL: nil, valuation: nil),
         Holding(id: .asset("mint"), amount: Amount(units: 1_250_000, decimals: 6), name: "Token", symbol: "TOK",
-                imageURL: URL(string: "https://example.com/token.png"), valuation: nil, metadata: Metadata(description: "Kept")),
+                imageURL: URL(string: "https://example.com/token.png"), valuation: nil),
         Holding(id: .asset("missing"), amount: Amount(units: 1, decimals: 0), name: nil, symbol: nil, imageURL: nil,
                 valuation: Valuation(pricePerUnit: 20, total: 20, currency: "USDC", fetchedAt: .distantPast)),
     ]
-    return Snapshot(owner: "wallet", network: .mainnet, holdings: holdings, fetchedAt: .distantPast, lastIndexedSlot: 123)
-}
-
-/// Creates complete DAS pages with deliberately different embedded prices from the price source.
-/// - Parameter page: The requested page number.
-/// - Returns: One fungible holding followed by an empty page.
-private func freshPage(_ page: Int) -> Data {
-    let items = page == 1 ? #"""
-    [{"id":"new-mint","interface":"FungibleToken","content":{"metadata":{"description":"Preserved"}},
-      "token_info":{"balance":3000000,"decimals":6,"price_info":{"price_per_token":999,"total_price":2997,"currency":"USDC"}}}]
-    """# : "[]"
-    return Data(#"{"page":\#(page),"limit":1000,"items":\#(items),"nativeBalance":{"lamports":1000000000,"price_per_sol":999,"total_price":999}}"#.utf8)
+    return Snapshot(owner: testWallet, network: .mainnet, holdings: holdings, fetchedAt: .distantPast)
 }

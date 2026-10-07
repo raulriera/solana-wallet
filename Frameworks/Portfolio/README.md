@@ -1,35 +1,33 @@
 # Portfolio
 
-Native SOL and fungible-token portfolios with persistent caching, independent price refreshes, and reconciliation after confirmed account changes. Holdings and metadata come from the selected RPC provider's DAS interface.
+Native SOL and each account's listed tokens, with persistent caching, independent price refreshes, and new balance reads after confirmed changes. One standard `getMultipleAccounts` request reads the wallet and every listed token's associated token account, so any RPC provider works.
 
 ## Example Usage
 
-Inject [`PortfolioProviding`](Sources/Service/PortfolioProviding.swift), implemented by `Portfolio`, with a DAS-capable RPC client. This example uses a built-in provider with a caller-supplied API key, wallet address, and `receive` handler:
+Inject [`PortfolioProviding`](Sources/Service/PortfolioProviding.swift), implemented by `Portfolio`, with any RPC client. This example uses Solana's public endpoint, a caller-supplied wallet address, and a `receive` handler:
 
 ```swift
 import Portfolio
 import RPC
 
-let service: any PortfolioProviding = Portfolio(
-    rpc: HeliusRPC(apiKey: apiKey, network: .mainnet)
-)
+let service: any PortfolioProviding = Portfolio(rpc: Solana(network: .mainnet))
 for await update in await service.updates(for: owner, policy: .ifStale) {
     receive(update)
 }
 ```
 
-An optional same-network `PriceProviding` provider enables independent prices, including each quote's 24-hour change when the provider supplies one; without one, holdings retain available DAS valuations. An optional `AccountChangeProviding` provider supplies subscriptions, defaulting to the RPC client's capability.
+An optional same-network `PriceProviding` provider enables prices, including each quote's 24-hour change when the provider supplies one; without one, holdings stay unpriced. An optional `AccountChangeProviding` provider supplies subscriptions, defaulting to the RPC client's capability.
 
 | Operation | Behavior |
 | --- | --- |
 | `updates(for:policy:)` | Finite stream of cached state and any required refresh. `.ifStale` checks holdings and prices separately against five minutes; `.reload` requests fresh data. |
-| `priceUpdates(for:policy:)` | Revalue cached holdings without querying DAS. Requires existing holdings and a price provider. |
-| `observations(for:)` | Subscribe before the initial reload, then reconcile confirmed changes until cancellation or subscription failure. |
+| `priceUpdates(for:policy:)` | Revalue cached holdings without reading balances again. Requires existing holdings and a price provider. |
+| `observations(for:)` | Subscribe before the initial reload, then read balances again after confirmed changes until cancellation or subscription failure. |
 | `removeData(for:)` | Remove the wallet's local cache and token list, and stop its active work. |
 
 ## Token Lists
 
-Each account keeps a list of the tokens it shows besides native SOL. `Portfolio` also implements [`TokenListProviding`](Sources/TokenList/TokenListProviding.swift): new mainnet lists hold USDC and USDT, devnet lists start empty, and people can add up to 50 tokens. Lists are saved per account and network in Application Support. A saved list that can't be read throws `TokenListError.unreadable` instead of returning the defaults. Share one `Portfolio` per network so that edits from several windows stay serialized.
+Each account keeps a list of the tokens it shows besides native SOL. `Portfolio` also implements [`TokenListProviding`](Sources/TokenList/TokenListProviding.swift): new mainnet lists hold USDC and USDT, devnet lists start empty, and people can add up to 50 tokens. Lists are saved per account and network in Application Support. A saved list that can't be read throws `TokenListError.unreadable` instead of returning the defaults. Changing the list doesn't read balances by itself; request `updates(for:policy:)` with `.reload` afterwards. Share one `Portfolio` per network so that edits from several windows stay serialized.
 
 | Operation | Behavior |
 | --- | --- |

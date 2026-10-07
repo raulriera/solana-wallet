@@ -9,7 +9,7 @@ import Testing
 struct PortfolioCoordinatorLiveTests {
     /// Verifies the app observes and explicitly refreshes a public mainnet wallet.
     ///
-    /// Uses real Helius subscriptions and DAS without funding or transfers.
+    /// Uses real Helius subscriptions and balance reads without funding or transfers.
     /// - Throws: A provider or test prerequisite error.
     @MainActor
     @Test(.timeLimit(.minutes(1)))
@@ -18,7 +18,8 @@ struct PortfolioCoordinatorLiveTests {
         let owner = PublicWallet.address
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
-        let service = Portfolio(rpc: rpc, store: FileSnapshotStore(directory: directory))
+        let service = Portfolio(rpc: rpc, store: FileSnapshotStore(directory: directory),
+                                tokenLists: FileTokenListStore(directory: directory.appendingPathComponent("TokenLists")))
         let coordinator = PortfolioCoordinator(service: service)
         let reloaded = try await withThrowingTaskGroup(of: Void.self) { group in
             group.addTask { await coordinator.observe(for: owner, isActive: true) }
@@ -31,7 +32,7 @@ struct PortfolioCoordinatorLiveTests {
             let initialRevision = try #require(coordinator.update?.snapshotRevision)
             #expect(initial.owner == owner)
             #expect(initial.network == .mainnet)
-            #expect(initial.holdings.first { $0.id == .nativeSOL }?.imageURL != nil)
+            #expect(initial.holdings.first?.id == .nativeSOL)
 
             await coordinator.refresh()
             if let error = coordinator.update?.error { throw error }

@@ -19,7 +19,7 @@ struct SnapshotTests {
         ]
 
         let snapshot = Snapshot(owner: "wallet", network: .mainnet, holdings: holdings,
-                                fetchedAt: Date(timeIntervalSince1970: 1), lastIndexedSlot: nil)
+                                fetchedAt: Date(timeIntervalSince1970: 1))
 
         #expect(snapshot.knownValuesByCurrency["USD"] == Decimal(string: "6.5"))
         #expect(snapshot.knownValuesByCurrency["USDC"] == 3)

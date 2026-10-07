@@ -4,8 +4,8 @@ import RPC
 /// A store that persists one versioned JSON snapshot per wallet and network.
 struct FileSnapshotStore: SnapshotStoring {
     let directory: URL
-    /// Older snapshots may hold NFTs or image links outside the provider's CDN, so they can't be reused.
-    private static let version = 3
+    /// Older snapshots hold tokens and metadata that DAS discovered, so they can't be reused.
+    private static let version = 4
 
     private var files: KeyedFiles { KeyedFiles(directory: directory) }
 
