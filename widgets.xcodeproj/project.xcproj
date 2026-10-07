@@ -159,6 +159,8 @@
           "target-membership": [
             "widgets/frameworks",
             { "build-phase": "widgets/copy/Embed Frameworks", "code-sign-on-copy": true, "header-preservation": "remove-on-copy" },
+            "Portfolio/frameworks",
+            "PortfolioTests/frameworks",
             "widgetsTests/frameworks",
             "TransactionsTests/frameworks",
           ],
@@ -303,6 +305,7 @@
       "product-type": "framework",
       "dependencies": [
         "RPC",
+        "Transactions",
       ],
       "build-phases": [
         "compile-sources",

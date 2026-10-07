@@ -18,3 +18,29 @@ public struct Address: Sendable, Hashable {
         self.bytes = bytes
     }
 }
+
+extension Address: Codable {
+    /// Decodes an address from its Base58 text, with the same validation as ``init(_:)``.
+    ///
+    /// - Parameter decoder: The decoder that supplies the address text.
+    /// - Throws: A decoding error if the text doesn't encode 32 bytes.
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let value = try container.decode(String.self)
+        do {
+            try self.init(value)
+        } catch {
+            throw DecodingError.dataCorrupted(DecodingError.Context(
+                codingPath: container.codingPath, debugDescription: "Invalid Solana address.", underlyingError: error))
+        }
+    }
+
+    /// Encodes the address as its original Base58 text.
+    ///
+    /// - Parameter encoder: The encoder that receives the address text.
+    /// - Throws: An encoding error if the text can't be written.
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(value)
+    }
+}

@@ -25,4 +25,14 @@ An optional same-network `PriceProviding` provider enables independent prices, i
 | `updates(for:policy:)` | Finite stream of cached state and any required refresh. `.ifStale` checks holdings and prices separately against five minutes; `.reload` requests fresh data. |
 | `priceUpdates(for:policy:)` | Revalue cached holdings without querying DAS. Requires existing holdings and a price provider. |
 | `observations(for:)` | Subscribe before the initial reload, then reconcile confirmed changes until cancellation or subscription failure. |
-| `removeData(for:)` | Remove the wallet's local cache and stop its active work. |
+| `removeData(for:)` | Remove the wallet's local cache and token list, and stop its active work. |
+
+## Token Lists
+
+Each account keeps a list of the tokens it shows besides native SOL. `Portfolio` also implements [`TokenListProviding`](Sources/TokenList/TokenListProviding.swift): new mainnet lists hold USDC and USDT, devnet lists start empty, and people can add up to 50 tokens. Lists are saved per account and network in Application Support. A saved list that can't be read throws `TokenListError.unreadable` instead of returning the defaults. Share one `Portfolio` per network so that edits from several windows stay serialized.
+
+| Operation | Behavior |
+| --- | --- |
+| `tokenList(for:)` | The account's saved list, or the network's defaults when it has none. |
+| `addToken(_:for:)` | Append and save a token; a listed token keeps its place, and the 51st added token throws `TokenListError.limitReached`. |
+| `removeToken(_:for:)` | Remove and save a token. |

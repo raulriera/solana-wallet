@@ -1,12 +1,15 @@
 import Foundation
 public import RPC
+public import Transactions
 
 /// A portfolio service that delivers persisted holdings and refreshes stale or explicitly reloaded data.
-public struct Portfolio: PortfolioProviding {
+public struct Portfolio: PortfolioProviding, TokenListProviding {
     private let coordinator: RefreshCoordinator
     private let observer: ObservationCoordinator
+    private let tokenLists: TokenListCoordinator
 
-    /// Creates a portfolio service with persistent storage in the app's cache directory.
+    /// Creates a portfolio service that caches holdings in the app's cache directory
+    /// and saves token lists in its Application Support directory.
     ///
     /// - Parameters:
     ///   - rpc: The RPC client supplying holdings and descriptive metadata.
@@ -17,23 +20,28 @@ public struct Portfolio: PortfolioProviding {
                   prices: prices, changes: changes)
     }
 
-    /// Creates a service with an injected snapshot store and page size.
+    /// Creates a service with injected stores and page size.
     ///
     /// - Parameters:
     ///   - rpc: The RPC client supplying DAS data.
     ///   - store: The persistent snapshot store.
+    ///   - tokenLists: The token-list store; the default saves lists in Application Support.
     ///   - pageSize: The DAS page size. The default is 1,000.
     ///   - prices: An optional same-network price provider.
     ///   - now: The current time used to evaluate cache age and record price refreshes.
     ///   - changes: The optional confirmed-change provider, defaulting to the RPC client's capability.
     ///   - pause: Cancellable scheduling for coalescing and bounded indexer catch-up.
-    init(rpc: any RPC, store: any SnapshotStoring, pageSize: Int = 1_000, prices: (any PriceProviding)? = nil,
+    init(rpc: any RPC, store: any SnapshotStoring,
+         tokenLists: any TokenListStoring = FileTokenListStore(
+            directory: .applicationSupportDirectory.appending(path: "Portfolio/TokenLists", directoryHint: .isDirectory)),
+         pageSize: Int = 1_000, prices: (any PriceProviding)? = nil,
          now: @escaping @Sendable () -> Date = { Date() }, changes: (any AccountChangeProviding)? = nil,
          pause: @escaping ObservationCoordinator.Pause = { try await Task.sleep(for: $0) }) {
         coordinator = RefreshCoordinator(source: SnapshotFetcher(rpc: rpc, pageSize: pageSize), store: store,
                                          prices: prices, now: now)
         observer = ObservationCoordinator(refresh: coordinator, changes: changes ?? (rpc as? any AccountChangeProviding),
                                           network: rpc.network, pause: pause)
+        self.tokenLists = TokenListCoordinator(store: tokenLists, network: rpc.network)
     }
 
     /// Returns cached state, refreshing holdings and independent prices according to the policy.
@@ -67,12 +75,44 @@ public struct Portfolio: PortfolioProviding {
         await observer.observations(for: owner)
     }
 
-    /// Removes locally retained holdings and stops the wallet's active refresh.
+    /// Removes the wallet's cached holdings and token list, and stops its active refresh.
     ///
     /// - Parameter owner: The wallet whose local data to remove.
-    /// - Throws: A file-system error if the persisted snapshot can't be removed.
+    /// - Throws: A file-system error if the persisted snapshot or token list can't be removed.
     public func removeData(for owner: String) async throws {
         await observer.stop(for: owner)
         try await coordinator.removeData(for: owner)
+        try await tokenLists.removeList(for: owner)
+    }
+
+    /// Returns an account's saved token list, or the network's defaults when the account has none yet.
+    ///
+    /// - Parameter owner: The account's wallet address.
+    /// - Returns: The account's token list.
+    /// - Throws: ``TokenListError/unreadable`` if a saved list exists but can't be read.
+    public func tokenList(for owner: String) async throws -> TokenList {
+        try await tokenLists.list(for: owner)
+    }
+
+    /// Adds a token to an account's list and saves the list.
+    ///
+    /// - Parameters:
+    ///   - token: The token to add; a token that's already listed changes nothing.
+    ///   - owner: The account's wallet address.
+    /// - Returns: The saved list.
+    /// - Throws: ``TokenListError`` for a full or unreadable list, or a file-system error if saving fails.
+    public func addToken(_ token: ListedToken, for owner: String) async throws -> TokenList {
+        try await tokenLists.add(token, for: owner)
+    }
+
+    /// Removes a token from an account's list and saves the list.
+    ///
+    /// - Parameters:
+    ///   - mint: The mint address of the token to remove.
+    ///   - owner: The account's wallet address.
+    /// - Returns: The saved list.
+    /// - Throws: ``TokenListError/unreadable`` if the saved list can't be read, or a file-system error if saving fails.
+    public func removeToken(_ mint: Address, for owner: String) async throws -> TokenList {
+        try await tokenLists.remove(mint, for: owner)
     }
 }
