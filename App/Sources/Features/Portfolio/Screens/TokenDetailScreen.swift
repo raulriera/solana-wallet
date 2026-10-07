@@ -59,6 +59,7 @@ struct TokenDetailScreen: View {
             } footer: {
                 if let currency = holding.knownValue?.currency {
                     Text("Values are quoted in \(currency).")
+                        .foregroundStyle(palette.secondaryText)
                 }
             }
             .listRowBackground(palette.surface)
