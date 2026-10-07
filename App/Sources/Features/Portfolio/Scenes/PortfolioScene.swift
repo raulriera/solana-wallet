@@ -46,7 +46,7 @@ struct PortfolioScene: View {
                     .refreshable { await coordinator.refresh() }
                     .navigationTitle("Portfolio")
                     .navigationSubtitle(Text(coordinator.failure?.staleStatus ?? ""))
-                    .navigationSplitViewColumnWidth(min: 280, ideal: 320)
+                    .sidebarColumnWidth()
                 } detail: {
                     if let holding = coordinator.holdings.first(where: { $0.id == selection }),
                        let network = coordinator.update?.snapshot?.network {

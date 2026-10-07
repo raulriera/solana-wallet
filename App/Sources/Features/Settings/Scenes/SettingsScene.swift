@@ -29,7 +29,7 @@ struct SettingsScene: View {
 
         NavigationSplitView {
             SettingsSidebar(selection: $selection)
-                .navigationSplitViewColumnWidth(min: 220, ideal: 280)
+                .sidebarColumnWidth()
         } detail: {
             switch selection ?? .appearance {
             case .appearance:
