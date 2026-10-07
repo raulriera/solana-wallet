@@ -185,12 +185,12 @@ struct PortfolioCoordinatorTests {
         let first = pricedSnapshot(["low": 1, "high": 5])
         observation.continuation.yield(Update(snapshot: first, phase: .ready, revision: 1))
         await waitForSnapshot(first, in: coordinator)
-        #expect(coordinator.holdings.map(\.id) == [.nativeSOL, .asset("high"), .asset("low")])
+        #expect(coordinator.holdings.map(\.id) == [.asset("high"), .asset("low"), .nativeSOL])
 
         let second = pricedSnapshot(["low": 9, "high": 5])
         observation.continuation.yield(Update(snapshot: second, phase: .ready, revision: 2))
         await waitForSnapshot(second, in: coordinator)
-        #expect(coordinator.holdings.map(\.id) == [.nativeSOL, .asset("low"), .asset("high")])
+        #expect(coordinator.holdings.map(\.id) == [.asset("low"), .asset("high"), .nativeSOL])
 
         viewing.cancel()
         await viewing.value

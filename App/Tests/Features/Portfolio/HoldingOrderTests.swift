@@ -5,12 +5,19 @@ import Testing
 
 /// Checks the portfolio's display order without comparing different currencies.
 struct HoldingOrderTests {
-    /// Native SOL leads even without a value, known values follow from high to low, and unknown values come last.
+    /// Known values lead from high to low, and unknown values follow in the provider's order, native SOL included.
     @Test
-    func `Native SOL leads, then known values from high to low, then unknown values`() {
-        let holdings = [token("unpriced"), token("low", value: 1), solana, token("high", value: 5)]
+    func `Known values lead from high to low, then unknown values`() {
+        let holdings = [token("unpriced"), token("low", value: 1), solana(), token("high", value: 5)]
         let order = HoldingOrder.sorted(holdings).map(\.id)
-        #expect(order == [.nativeSOL, .asset("high"), .asset("low"), .asset("unpriced")])
+        #expect(order == [.asset("high"), .asset("low"), .asset("unpriced"), .nativeSOL])
+    }
+
+    /// Native SOL takes the place of its value instead of always coming first.
+    @Test
+    func `Native SOL sorts by its value like any other token`() {
+        let holdings = [solana(value: 3), token("low", value: 1), token("high", value: 5)]
+        #expect(HoldingOrder.sorted(holdings).map(\.id) == [.asset("high"), .nativeSOL, .asset("low")])
     }
 
     /// Equal values keep the provider's order instead of an arbitrary one.
@@ -20,16 +27,20 @@ struct HoldingOrderTests {
         #expect(HoldingOrder.sorted(holdings).map(\.id) == [.asset("c"), .asset("a"), .asset("b")])
     }
 
-    /// Values in different currencies can't be compared, so tokens keep the provider's order after native SOL.
+    /// Values in different currencies can't be compared, so every holding keeps the provider's order.
     @Test
     func `Mixed quote currencies keep the provider's order`() {
-        let holdings = [token("usd", value: 1, currency: "USD"), token("eur", value: 9, currency: "EUR"), solana]
-        #expect(HoldingOrder.sorted(holdings).map(\.id) == [.nativeSOL, .asset("usd"), .asset("eur")])
+        let holdings = [token("usd", value: 1, currency: "USD"), token("eur", value: 9, currency: "EUR"), solana()]
+        #expect(HoldingOrder.sorted(holdings).map(\.id) == [.asset("usd"), .asset("eur"), .nativeSOL])
     }
 
-    /// Native SOL without a price, as a new wallet reports it.
-    private let solana = Holding(id: .nativeSOL, amount: Amount(units: 0, decimals: 9), name: "Solana", symbol: "SOL",
-                                 imageURL: nil, valuation: nil)
+    /// Creates native SOL.
+    /// - Parameter value: The whole balance's USD value, or `nil` when unknown, as a new wallet reports it.
+    /// - Returns: A native SOL holding.
+    private func solana(value: Decimal? = nil) -> Holding {
+        Holding(id: .nativeSOL, amount: Amount(units: 0, decimals: 9), name: "Solana", symbol: "SOL", imageURL: nil,
+                valuation: value.map { Valuation(pricePerUnit: $0, total: $0, currency: "USD") })
+    }
 
     /// Creates a fungible token holding.
     /// - Parameters:
