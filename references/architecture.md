@@ -34,7 +34,7 @@ The agreed wallet, transaction, and initial color-only Themes framework mileston
 | --- | --- |
 | Encoding | Complete for the current scope. |
 | Themes | Color-only package service with app-supplied defaults and PNG/JPEG assets. App services manage immutable built-ins, custom installations, app/wallet preferences, deletion fallbacks, and one-time recovery from iOS Settings. Import/export presentation and rendering remain separate; see [UI architecture](ui.md). |
-| RPC | Complete for the agreed transaction, discovery, DAS, pricing, and confirmed account-subscription workflows. The manual token list adds a QuickNode client, Jupiter token search, and per-account subscriptions. The priority-fee provider limitation remains documented in [RPC scope](rpc-scope.md#provider-limitations). |
+| RPC | Complete for the agreed transaction, discovery, DAS, pricing, and confirmed account-subscription workflows. The manual token list adds a QuickNode client and per-account subscriptions. The priority-fee provider limitation remains documented in [RPC scope](rpc-scope.md#provider-limitations). |
 | Transactions | Further capabilities are parked; current SOL and supported-token flows remain available. The goal is all Token-2022 extensions, reviewed and agreed individually before implementation. |
 | Wallet | Complete for local derivation and SOL-only discovery across twenty addresses in two path families, with one RPC lookup per scan; verified on devnet. See [Wallet](wallet.md). |
 | Vault | Implemented and tested, including real simulator Keychain checks. Keep the specific device-validation caveat in [Wallet](wallet.md) separate from framework test status. |

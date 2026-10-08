@@ -12,6 +12,18 @@ public struct TokenMint: Sendable {
     public let decimals: UInt8
     let data: TokenData
 
+    /// Whether the mint describes one indivisible token, as an NFT does: no decimals and a supply of one.
+    public var isNonFungible: Bool {
+        decimals == 0 && (try? TokenData.integer(data.bytes, at: 36) as UInt64) == 1
+    }
+
+    /// The name and symbol from the mint's own Token-2022 metadata extension, or `nil` without one.
+    ///
+    /// Most SPL tokens keep their metadata in a separate Metaplex account instead; see ``TokenMetadata``.
+    public var metadata: TokenMetadata? {
+        data.extensions[19].flatMap { try? TokenMetadata(metadataExtension: $0, mint: address) }
+    }
+
     /// Account extensions required by the mint extensions supported for transfers.
     private var requiredAccountExtensions: [(type: UInt16, length: UInt64)] {
         let extensions: [(mint: UInt16, account: UInt16, length: UInt64)] = [

@@ -7,6 +7,7 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
     private let coordinator: RefreshCoordinator
     private let observer: ObservationCoordinator
     private let tokenLists: TokenListCoordinator
+    private let lookup: TokenLookup
 
     /// Creates a portfolio service that caches holdings in the app's cache directory
     /// and saves token lists in its Application Support directory.
@@ -38,9 +39,11 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
          now: @escaping @Sendable () -> Date = { Date() }, changes: (any AccountChangeProviding)? = nil,
          pause: @escaping ObservationCoordinator.Pause = { try await Task.sleep(for: $0) }) {
         let lists = TokenListCoordinator(store: tokenLists, network: rpc.network)
+        let logos = rpc as? any LogoProviding
         self.tokenLists = lists
+        lookup = TokenLookup(rpc: rpc, logos: logos)
         coordinator = RefreshCoordinator(source: BalanceReader(rpc: rpc, tokenLists: lists), store: store,
-                                         prices: prices, logos: rpc as? any LogoProviding, now: now)
+                                         prices: prices, logos: logos, now: now)
         observer = ObservationCoordinator(refresh: coordinator, tokenLists: lists,
                                           changes: changes ?? (rpc as? any AccountChangeProviding),
                                           network: rpc.network, pause: pause)
@@ -122,6 +125,17 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
         let edit = try await tokenLists.remove(mint, for: owner)
         if edit.changed { await listChanged(for: owner) }
         return edit.list
+    }
+
+    /// Looks up a token by its pasted mint address, so a person can check it before adding it.
+    ///
+    /// One standard RPC request reads the mint and its Metaplex metadata account, so every provider
+    /// supports the lookup. A provider that hosts logo copies adds the logo.
+    /// - Parameter mint: The pasted mint address.
+    /// - Returns: The token to show and to pass to ``addToken(_:for:)``, with its logo when available.
+    /// - Throws: ``TokenLookupError`` when the address isn't a fungible token mint, or a validation or RPC error.
+    public func token(at mint: Address) async throws -> TokenPreview {
+        try await lookup.preview(of: mint)
     }
 
     /// Reads and watches an account's balances again with its changed token list.

@@ -1,7 +1,7 @@
 # Portfolio
 
 - Each account shows a manual token list: native SOL, USDC, and USDT by default, plus up to 50 tokens the person adds. People who need more tokens use another account.
-- Search for tokens to add lists only tokens Jupiter verifies; pasting a mint address can add any token.
+- People add a token by pasting its mint address. The app checks the address on chain and shows the token's on-chain name and symbol, and its logo where the provider has one, before adding it. Addresses that aren't fungible token mints, including NFTs, are refused.
 - Include native SOL and fungible SPL Token and Token-2022 tokens only. Non-fungible tokens (NFTs) will be included in a separate future milestone.
 - Read balances with standard RPC, so every provider supports the portfolio. DAS does not supply balances or discover tokens.
 - Keep balances exact and native SOL distinct from Wrapped SOL.

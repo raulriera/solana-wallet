@@ -34,3 +34,4 @@ Each account keeps a list of the tokens it shows besides native SOL. `Portfolio`
 | `tokenList(for:)` | The account's saved list, or the network's defaults when it has none. |
 | `addToken(_:for:)` | Append and save a token; a listed token keeps its place, and the 51st added token throws `TokenListError.limitReached`. |
 | `removeToken(_:for:)` | Remove and save a token. |
+| `token(at:)` | Look up a pasted mint address for a preview: one standard request reads the mint and its Metaplex metadata account, and a provider that hosts logos adds the logo. Other accounts throw `TokenLookupError.notToken`, and NFTs `.nonFungible`. |

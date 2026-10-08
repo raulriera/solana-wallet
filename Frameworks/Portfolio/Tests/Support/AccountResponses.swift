@@ -66,8 +66,7 @@ actor AccountResponses: HTTPTransport {
     /// - Returns: The fixture's response data and HTTP metadata.
     /// - Throws: A fixture, transport, or cancellation error.
     func data(for request: URLRequest) async throws -> (Data, URLResponse) {
-        let data = try #require(request.httpBody)
-        let body = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let body = try rpcBody(request)
         let result: Any
         if body["method"] as? String == "getAssetBatch" {
             result = try await assets(for: try #require((body["params"] as? [String: Any])?["ids"] as? [String]))
@@ -76,10 +75,7 @@ actor AccountResponses: HTTPTransport {
             let params = try #require(body["params"] as? [Any])
             result = try await accounts(at: try #require(params.first as? [String]))
         }
-        let envelope: [String: Any] = ["jsonrpc": "2.0", "id": try #require(body["id"]), "result": result]
-        let url = try #require(request.url)
-        return (try JSONSerialization.data(withJSONObject: envelope),
-                try #require(HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)))
+        return try rpcReply(to: body, result: result, request: request)
     }
 
     /// Records one balance read and encodes the wallet and its token accounts.
@@ -101,12 +97,7 @@ actor AccountResponses: HTTPTransport {
     /// - Throws: A fixture or cancellation error.
     private func assets(for mints: [String]) async throws -> Any {
         logoRequests.append(mints)
-        let found = try await logos(mints)
-        return mints.map { mint -> Any in
-            guard let logo = found[mint] else { return NSNull() }
-            return ["id": mint, "interface": "FungibleToken",
-                    "content": ["files": [["cdn_uri": logo, "mime": "image/png"]]]] as [String: Any]
-        }
+        return assetBatch(for: mints, logos: try await logos(mints))
     }
 
     /// Encodes the wallet's system account, or a missing account.

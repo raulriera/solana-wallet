@@ -1,6 +1,6 @@
 public import Transactions
 
-/// A type that keeps each account's token list on the device.
+/// A type that keeps each account's token list on the device and looks up tokens to add to it.
 ///
 /// Every account lists native SOL; the list holds the other tokens it shows.
 public protocol TokenListProviding: Sendable {
@@ -31,4 +31,11 @@ public protocol TokenListProviding: Sendable {
     /// - Throws: ``TokenListError/unreadable`` if the saved list can't be read,
     ///   or a file-system error if the list can't be saved.
     func removeToken(_ mint: Address, for owner: String) async throws -> TokenList
+
+    /// Looks up a token by its pasted mint address, so a person can check it before adding it.
+    ///
+    /// - Parameter mint: The pasted mint address.
+    /// - Returns: The token with its on-chain name and symbol, and its logo when the provider has one.
+    /// - Throws: ``TokenLookupError`` when the address isn't a fungible token mint, or a request error.
+    func token(at mint: Address) async throws -> TokenPreview
 }

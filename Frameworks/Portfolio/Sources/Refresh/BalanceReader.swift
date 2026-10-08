@@ -25,22 +25,21 @@ struct BalanceReader: BalanceReading {
     ///
     /// - Parameter owner: The wallet address to read.
     /// - Returns: Native SOL followed by the listed tokens, without prices.
-    /// - Throws: A cancellation, validation, token-list, or RPC error, or ``BalanceError`` for a mismatched response.
+    /// - Throws: A cancellation, validation, token-list, or RPC error, or ``AccountReadError`` for a mismatched response.
     @concurrent
     func snapshot(for owner: String) async throws -> Snapshot {
         let list = try await tokenLists.list(for: owner)
         let wallet = try Address(owner)
         let accounts = try list.accounts(of: wallet)
         try Task.checkCancellation()
-        let response = try await rpc.send(GetMultipleAccounts(addresses: accounts.map(\.value)))
-        guard response.value.count == accounts.count else { throw BalanceError.mismatchedResponse }
+        let contents = try await rpc.accounts(at: accounts)
         // A wallet that was never funded has no account on the ledger, so it holds no SOL.
-        let native = Holding(id: .nativeSOL, amount: Amount(units: response.value[0]?.lamports ?? 0, decimals: 9),
+        let native = Holding(id: .nativeSOL, amount: Amount(units: contents[0]?.lamports ?? 0, decimals: 9),
                              name: "Solana", symbol: "SOL", imageURL: nil, valuation: nil)
         let tokens = list.tokens.indices.map { index in
             let token = list.tokens[index]
             return Holding(id: .asset(token.mint.value),
-                           amount: amount(of: token, at: accounts[index + 1], in: response.value[index + 1], owner: wallet),
+                           amount: amount(of: token, at: accounts[index + 1], in: contents[index + 1], owner: wallet),
                            name: token.name, symbol: token.symbol, imageURL: nil, valuation: nil)
         }
         try Task.checkCancellation()
@@ -65,10 +64,4 @@ struct BalanceReader: BalanceReading {
               decoded.mint == token.mint, decoded.owner == owner else { return nil }
         return Amount(units: decoded.amount, decimals: token.decimals)
     }
-}
-
-/// A failure that prevents a complete balance read.
-enum BalanceError: Error {
-    /// The provider returned a different number of accounts than the request asked for.
-    case mismatchedResponse
 }

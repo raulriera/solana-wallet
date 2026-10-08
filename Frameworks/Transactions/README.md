@@ -41,6 +41,6 @@ let unsigned = try assembler.simulationTransaction(for: message)
 - Only V1 envelopes are supported, bounded to 4,096 bytes, 64 accounts, 64 instructions, and 12 signatures.
 - Decoding establishes structure, not signature validity or instruction meaning. Signature insertion verifies occupied slots and the new signature, preserving every other byte.
 
-`TokenMint`, `TokenAccount`, and `TokenTransfer` share validation for SPL Token and Token-2022. Transfers use integer base units, validate account relationships and supported extensions, and can include destination-account creation and memos. Unsupported extensions fail explicitly. See [token behavior and limits](../../references/transactions.md).
+`TokenMint`, `TokenAccount`, and `TokenTransfer` share validation for SPL Token and Token-2022. Transfers use integer base units, validate account relationships and supported extensions, and can include destination-account creation and memos. Unsupported extensions fail explicitly. See [token behavior and limits](../../references/transactions.md). `TokenMetadata` reads a token's name and symbol from its Token-2022 metadata extension or its Metaplex metadata account.
 
 The caller supplies current account observations, blockhash validity, fee estimates, simulation, user approval, signing, and submission. Address validation alone does not establish account existence or ownership.
