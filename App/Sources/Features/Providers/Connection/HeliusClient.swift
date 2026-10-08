@@ -1,10 +1,11 @@
+import Foundation
 import RPC
 
 /// Sends mainnet requests through Helius with the API key currently saved on this device.
 ///
 /// Each request and subscription reads the saved key, so a key saved in any window applies
 /// to the next request. The client for the latest key is kept to reuse its connections.
-nonisolated struct HeliusClient: RPC, AccountChangeProviding {
+nonisolated struct HeliusClient: RPC, AccountChangeProviding, LogoProviding {
     /// A key problem that only a new key can fix, never containing the key.
     enum Failure: Error, Equatable {
         /// No Helius API key is saved on this device.
@@ -22,7 +23,7 @@ nonisolated struct HeliusClient: RPC, AccountChangeProviding {
     ///   - keys: Device-only storage for the accepted key.
     ///   - client: Creates the mainnet Helius client for a saved key.
     init(keys: any ProviderKeyStoring,
-         client: @escaping @Sendable (String) -> any RPC & AccountChangeProviding = {
+         client: @escaping @Sendable (String) -> any RPC & AccountChangeProviding & LogoProviding = {
              HeliusRPC(apiKey: $0, network: .mainnet)
          }) {
         self.keys = keys
@@ -57,10 +58,24 @@ nonisolated struct HeliusClient: RPC, AccountChangeProviding {
         }
     }
 
+    /// Looks up Helius's copies of token logos with the saved key.
+    /// - Parameter mints: Mint addresses; duplicates are ignored.
+    /// - Returns: Logo URLs on Helius's CDN, keyed by mint address.
+    /// - Throws: ``Failure`` for a missing or rejected key, a storage error, any other `RPCError`,
+    ///   or `CancellationError`.
+    func logos(for mints: [String]) async throws -> [String: URL] {
+        let client = try await client()
+        do {
+            return try await client.logos(for: mints)
+        } catch {
+            throw Self.keyFailure(for: error) ?? error
+        }
+    }
+
     /// Reads the saved key and returns its client.
     /// - Returns: The client for the key saved now.
     /// - Throws: ``Failure/missingKey`` before a key is saved, or a storage or cancellation error.
-    private func client() async throws -> any RPC & AccountChangeProviding {
+    private func client() async throws -> any RPC & AccountChangeProviding & LogoProviding {
         guard let key = try await keys.key() else {
             try Task.checkCancellation()
             throw Failure.missingKey
@@ -80,19 +95,19 @@ nonisolated struct HeliusClient: RPC, AccountChangeProviding {
 
     /// Keeps the client for the most recent key and replaces it when the key changes.
     private actor Clients {
-        private let make: @Sendable (String) -> any RPC & AccountChangeProviding
-        private var current: (key: String, client: any RPC & AccountChangeProviding)?
+        private let make: @Sendable (String) -> any RPC & AccountChangeProviding & LogoProviding
+        private var current: (key: String, client: any RPC & AccountChangeProviding & LogoProviding)?
 
         /// Creates an empty cache.
         /// - Parameter make: Creates the client for a key.
-        init(make: @escaping @Sendable (String) -> any RPC & AccountChangeProviding) {
+        init(make: @escaping @Sendable (String) -> any RPC & AccountChangeProviding & LogoProviding) {
             self.make = make
         }
 
         /// Returns the kept client for this key, or creates one for a new key.
         /// - Parameter key: The key read from storage for this request.
         /// - Returns: A client that sends requests with this key.
-        func client(for key: String) -> any RPC & AccountChangeProviding {
+        func client(for key: String) -> any RPC & AccountChangeProviding & LogoProviding {
             if let current, current.key == key { return current.client }
             let client = make(key)
             current = (key, client)

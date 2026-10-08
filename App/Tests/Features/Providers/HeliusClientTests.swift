@@ -7,7 +7,7 @@ import Testing
 /// Checks that requests use the key saved when they're sent, through the real Helius client and local HTTP fixtures.
 @Suite(.timeLimit(.minutes(1)))
 struct HeliusClientTests {
-    /// Without a saved key, requests and subscriptions fail before anything reaches Helius.
+    /// Without a saved key, requests, subscriptions, and logo lookups fail before anything reaches Helius.
     @Test
     func `A missing key fails before contacting Helius`() async {
         let responses = HTTPResponses.keyCheck()
@@ -15,6 +15,7 @@ struct HeliusClientTests {
 
         await #expect(throws: HeliusClient.Failure.missingKey) { _ = try await client.send(GetAsset(id: HTTPResponses.keyCheckAsset)) }
         await #expect(throws: HeliusClient.Failure.missingKey) { _ = try await client.changedSlots(for: [PublicWallet.address]) }
+        await #expect(throws: HeliusClient.Failure.missingKey) { _ = try await client.logos(for: [HTTPResponses.keyCheckAsset]) }
         #expect(await responses.requests.isEmpty)
     }
 

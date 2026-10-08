@@ -27,49 +27,86 @@ struct Ledger: Sendable {
     var corrupt: Set<String> = []
 }
 
-/// Balance-read HTTP fixtures decoded by the real RPC client during portfolio refreshes.
+/// Balance-read and logo-lookup HTTP fixtures decoded by the real RPC clients during portfolio refreshes.
 actor AccountResponses: HTTPTransport {
     /// Supplies the ledger state for one balance read of the requested addresses.
     typealias Responder = @Sendable ([String]) async throws -> Ledger
+    /// Supplies the CDN logo URL of each requested mint that has one, for one DAS logo lookup.
+    typealias LogoResponder = @Sendable ([String]) async throws -> [String: String]
 
     private nonisolated let network: Network
     private(set) var requests: [[String]] = []
+    private(set) var logoRequests: [[String]] = []
     private let respond: Responder
+    private let logos: LogoResponder
 
     /// The real public-endpoint client receiving the fixture's HTTP responses.
     nonisolated var client: Solana {
         Solana(network: network, transport: self)
     }
 
-    /// Creates isolated balance reads for cache, refresh, and cancellation checks.
+    /// The real Helius client, which also looks up logos through DAS.
+    nonisolated var heliusClient: HeliusRPC {
+        HeliusRPC(apiKey: "fixture-key", network: network, transport: self)
+    }
+
+    /// Creates isolated balance reads and logo lookups for cache, refresh, and cancellation checks.
     /// - Parameters:
     ///   - network: The network associated with cached snapshots.
+    ///   - logos: The logo supplier for DAS lookups, which may fail a request; the default has no logos.
     ///   - respond: The ledger supplier, which may suspend or fail a request.
-    init(network: Network = .mainnet, respond: @escaping Responder) {
+    init(network: Network = .mainnet, logos: @escaping LogoResponder = { _ in [:] }, respond: @escaping Responder) {
         self.network = network
+        self.logos = logos
         self.respond = respond
     }
 
-    /// Records the requested addresses and returns their accounts in a JSON-RPC envelope.
+    /// Records the requested addresses or mints and returns their accounts or assets in a JSON-RPC envelope.
     /// - Parameter request: The HTTP request created by the RPC client.
     /// - Returns: The fixture's response data and HTTP metadata.
     /// - Throws: A fixture, transport, or cancellation error.
     func data(for request: URLRequest) async throws -> (Data, URLResponse) {
         let data = try #require(request.httpBody)
         let body = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
-        try #require(body["method"] as? String == "getMultipleAccounts")
-        let params = try #require(body["params"] as? [Any])
-        let addresses = try #require(params.first as? [String])
+        let result: Any
+        if body["method"] as? String == "getAssetBatch" {
+            result = try await assets(for: try #require((body["params"] as? [String: Any])?["ids"] as? [String]))
+        } else {
+            try #require(body["method"] as? String == "getMultipleAccounts")
+            let params = try #require(body["params"] as? [Any])
+            result = try await accounts(at: try #require(params.first as? [String]))
+        }
+        let envelope: [String: Any] = ["jsonrpc": "2.0", "id": try #require(body["id"]), "result": result]
+        let url = try #require(request.url)
+        return (try JSONSerialization.data(withJSONObject: envelope),
+                try #require(HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)))
+    }
+
+    /// Records one balance read and encodes the wallet and its token accounts.
+    /// - Parameter addresses: The wallet, then each listed token's associated account.
+    /// - Returns: The `getMultipleAccounts` result.
+    /// - Throws: A fixture, validation, or cancellation error.
+    private func accounts(at addresses: [String]) async throws -> Any {
         requests.append(addresses)
         let ledger = try await respond(addresses)
         let accounts = try addresses.enumerated().map { index, address in
             try index == 0 ? walletAccount(ledger) : tokenAccount(at: address, owner: addresses[0], in: ledger)
         }
-        let result: [String: Any] = ["context": ["slot": 100], "value": accounts]
-        let envelope: [String: Any] = ["jsonrpc": "2.0", "id": try #require(body["id"]), "result": result]
-        let url = try #require(request.url)
-        return (try JSONSerialization.data(withJSONObject: envelope),
-                try #require(HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)))
+        return ["context": ["slot": 100], "value": accounts] as [String: Any]
+    }
+
+    /// Records one logo lookup and encodes each mint as a DAS asset with its CDN copy, or `null` without one.
+    /// - Parameter mints: The mints the lookup asks for.
+    /// - Returns: The `getAssetBatch` result, in request order.
+    /// - Throws: A fixture or cancellation error.
+    private func assets(for mints: [String]) async throws -> Any {
+        logoRequests.append(mints)
+        let found = try await logos(mints)
+        return mints.map { mint -> Any in
+            guard let logo = found[mint] else { return NSNull() }
+            return ["id": mint, "interface": "FungibleToken",
+                    "content": ["files": [["cdn_uri": logo, "mime": "image/png"]]]] as [String: Any]
+        }
     }
 
     /// Encodes the wallet's system account, or a missing account.

@@ -1,7 +1,8 @@
-import Foundation
+public import Foundation
 
 /// A client that sends typed JSON-RPC requests to Helius on a selected Solana network.
-public struct HeliusRPC: RPC, AccountChangeProviding, CustomStringConvertible, CustomDebugStringConvertible {
+public struct HeliusRPC: RPC, AccountChangeProviding, LogoProviding, CustomStringConvertible,
+                         CustomDebugStringConvertible {
     /// The Solana network that receives the client's requests.
     public let network: Network
 
@@ -68,5 +69,24 @@ public struct HeliusRPC: RPC, AccountChangeProviding, CustomStringConvertible, C
     /// - Throws: A sanitized subscription, transport, timeout, or cancellation error.
     public func changedSlots(for addresses: [String]) async throws -> AsyncThrowingStream<UInt64, any Error> {
         try await subscriptions.changedSlots(for: addresses)
+    }
+
+    /// Looks up Helius's HTTPS copies of token logos with DAS batch requests of at most 1,000 mints.
+    ///
+    /// A mint that DAS doesn't know, or whose image Helius doesn't copy, has no entry.
+    /// - Parameter mints: Mint addresses; duplicates are ignored.
+    /// - Returns: Logo URLs on Helius's CDN, keyed by mint address.
+    /// - Throws: An `RPCError` or `CancellationError`.
+    public func logos(for mints: [String]) async throws -> [String: URL] {
+        var requested: Set<String> = []
+        let unique = mints.filter { requested.insert($0).inserted }
+        var logos: [String: URL] = [:]
+        for start in stride(from: 0, to: unique.count, by: 1_000) {
+            let batch = Array(unique[start..<min(start + 1_000, unique.count)])
+            for case let asset? in try await send(GetAssetBatch(ids: batch)) where requested.contains(asset.id) {
+                logos[asset.id] = asset.imageURL
+            }
+        }
+        return logos
     }
 }

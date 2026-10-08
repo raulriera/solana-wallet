@@ -3,16 +3,15 @@ import Foundation
 extension Asset {
     /// Decodes DAS fields into our asset and descriptive metadata values.
     ///
-    /// Malformed descriptive fields are omitted independently. Asset identity,
-    /// balances, decimals, and prices remain strictly decoded.
+    /// Malformed descriptive fields are omitted independently. Asset identity remains strictly decoded.
     /// - Parameter decoder: The decoder containing the DAS asset.
-    /// - Throws: A decoding error for malformed identity, balances, or prices.
+    /// - Throws: A decoding error for a malformed identity.
     public init(from decoder: any Decoder) throws {
         let root = try Fields(from: decoder)
         let content = root.object("content")
         let details = content?.object("metadata")
         let links = content?.object("links")
-        let token = try root.optional(Fields.self, "token_info")
+        let token = root.object("token_info")
         let media = content?.objects("files")?.map {
             Metadata.Media(url: $0.url("uri"), cdnURL: $0.url("cdn_uri"), mimeType: $0.value("mime"))
         }
@@ -23,9 +22,6 @@ extension Asset {
             id: try root.required(String.self, "id"), interface: kind,
             name: details?.value("name"), symbol: token?.value("symbol") ?? details?.value("symbol"),
             imageURL: imageFile?.cdnURL,
-            balance: try token?.optional(UInt64.self, "balance"),
-            decimals: try token?.optional(UInt8.self, "decimals"),
-            price: try token?.optional(Price.self, "price_info"),
             metadata: Metadata(
                 description: details?.value("description"), websiteURL: links?.url("external_url"),
                 metadataURL: content?.url("json_uri"), media: media,

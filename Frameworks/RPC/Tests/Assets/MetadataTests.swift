@@ -12,7 +12,6 @@ struct MetadataTests {
         #expect(asset.name == "Example")
         #expect(asset.symbol == "EX")
         #expect(asset.imageURL?.absoluteString == "https://cdn.example.com/image")
-        #expect(asset.balance == 9_007_199_254_740_993)
         let metadata = try #require(asset.metadata)
         #expect(metadata.description == "Description")
         #expect(metadata.websiteURL?.absoluteString == "https://example.com")
@@ -44,7 +43,7 @@ struct MetadataTests {
         #expect(params["options"] as? [String: Bool] == ["showCollectionMetadata": true, "showUnverifiedCollections": true])
     }
 
-    /// Verifies bad optional values don't erase neighboring metadata or precise balances.
+    /// Verifies bad optional values don't erase neighboring metadata.
     @Test
     func `Malformed optional metadata preserves valid fields and array entries`() throws {
         let asset = try JSONDecoder().decode(Asset.self, from: Data(#"""
@@ -58,7 +57,6 @@ struct MetadataTests {
         """#.utf8))
         #expect(asset.name == "Wrapped SOL")
         #expect(asset.imageURL?.absoluteString == "https://example.com/sol.png")
-        #expect(asset.balance == UInt64.max)
         #expect(asset.metadata?.description == nil)
         #expect(asset.metadata?.metadataURL == nil)
         #expect(asset.metadata?.attributes == [.init(name: "valid", value: .bool(true))])

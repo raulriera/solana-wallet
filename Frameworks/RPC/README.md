@@ -17,15 +17,17 @@ let blockhash = response.value.blockhash
 | Provider | Capabilities |
 | --- | --- |
 | `Solana(network:)` | Public mainnet or devnet RPC and confirmed account subscriptions. No DAS. |
-| `HeliusRPC(apiKey:network:)` | Mainnet or devnet RPC, DAS, and confirmed account subscriptions. |
+| `HeliusRPC(apiKey:network:)` | Mainnet or devnet RPC, DAS, logo copies, and confirmed account subscriptions. |
 | `Sender(tier:)` | Optional mainnet transaction submission with `standard` or `premium` routing. Preparation and confirmation use ordinary RPC. |
 | `Jupiter(apiKey:)` | Mainnet prices through `PriceProviding`; independent of RPC and DAS. |
 
-Typed requests cover account and rent reads, blockhash lifetime, epochs, fees, simulation, submission, signature status, and fungible-asset queries. See [supported request scope](../../references/rpc-scope.md).
+Typed requests cover account and rent reads, blockhash lifetime, epochs, fees, simulation, submission, signature status, and DAS asset lookups. See [supported request scope](../../references/rpc-scope.md).
 
-## Prices and subscriptions
+## Prices, logos, and subscriptions
 
 [`PriceProviding`](Sources/Pricing/PriceProviding.swift) returns quotes keyed by mint. Missing entries mean unavailable prices, not zero. A quote may include its 24-hour change as a fraction; a missing change is unknown, not zero. Providers own deduplication, batching, and pacing. Reuse a provider instance to share its request budget; refresh scheduling belongs to the caller.
+
+[`LogoProviding`](Sources/Assets/LogoProviding.swift) returns a provider's HTTPS copies of token logos, keyed by mint, never creator-hosted links. `HeliusRPC` implements it with DAS batch lookups; a missing entry means no logo.
 
 [`AccountChangeProviding`](Sources/Subscriptions/AccountChangeProviding.swift) observes confirmed changes to a list of accounts on one connection, including accounts that don't exist yet. `changedSlots(for:)` returns after subscriptions are acknowledged and emits increasing change slots. These signal a need to reconcile balances; they are not balance updates. Cancel the consuming task to close its connection.
 

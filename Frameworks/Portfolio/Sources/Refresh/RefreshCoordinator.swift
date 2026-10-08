@@ -6,6 +6,7 @@ actor RefreshCoordinator {
     private let source: any BalanceReading
     private let store: any SnapshotStoring
     private let pricer: SnapshotPricer?
+    private let logos: LogoReader?
     private let now: @Sendable () -> Date
     private var flights: [CacheKey: Flight] = [:]
     private var revision: UInt64 = 0
@@ -17,13 +18,15 @@ actor RefreshCoordinator {
     ///   - source: The balance source.
     ///   - store: The persistent snapshot store.
     ///   - prices: An optional price provider used for full and price-only refreshes.
+    ///   - logos: An optional provider of logo copies for the listed tokens after each balance read.
     ///   - now: The clock for freshness checks and successful price retrievals.
     init(source: any BalanceReading, store: any SnapshotStoring, prices: (any PriceProviding)? = nil,
-         now: @escaping @Sendable () -> Date = { Date() }) {
+         logos: (any LogoProviding)? = nil, now: @escaping @Sendable () -> Date = { Date() }) {
         self.source = source
         self.store = store
         self.now = now
         pricer = prices.map { SnapshotPricer(provider: $0, now: now) }
+        self.logos = logos.map { LogoReader(provider: $0) }
     }
 
     /// Registers an independent update stream and starts or joins the wallet's refresh.
@@ -186,7 +189,8 @@ actor RefreshCoordinator {
             let snapshot: Snapshot
             switch flight.scope {
             case .holdings:
-                let holdings = try await source.snapshot(for: key.owner)
+                let balances = try await source.snapshot(for: key.owner)
+                let holdings = await logos?.snapshot(addingLogosTo: balances, keeping: cached) ?? balances
                 snapshot = try await pricer?.snapshot(pricing: holdings) ?? holdings
             case .prices:
                 guard let pricer else { throw PriceError.providerUnavailable }

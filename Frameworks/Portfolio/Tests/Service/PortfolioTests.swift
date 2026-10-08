@@ -1,5 +1,6 @@
 import Foundation
 @testable import RPC
+import Synchronization
 import Testing
 import Transactions
 @testable import Portfolio
@@ -433,6 +434,97 @@ struct PortfolioTests {
         #expect(fixture.store.snapshot(for: key) == nil)
         #expect(await updates.next() == nil)
     }
+
+    /// Verifies listed tokens get the provider's logo copies, which later reads keep without asking again.
+    ///
+    /// - Throws: A fixture setup error or failed prerequisite.
+    @Test(.timeLimit(.minutes(1)))
+    func `Listed tokens get logos once from a provider that has them`() async throws {
+        let fixture = Fixture()
+        defer { fixture.removeFiles() }
+        let http = AccountResponses(logos: { mints in
+            Dictionary(uniqueKeysWithValues: mints.map { ($0, "https://cdn.example.com/\($0).png") })
+        }) { _ in Ledger() }
+        let service = fixture.portfolio(rpc: http.heliusClient)
+        let usdcLogo = try #require(URL(string: "https://cdn.example.com/\(usdcMint).png"))
+        let usdtLogo = try #require(URL(string: "https://cdn.example.com/\(usdtMint).png"))
+
+        let first = try #require(try await reload(service).snapshot)
+        let second = try #require(try await reload(service).snapshot)
+
+        #expect(first.holdings.map(\.imageURL) == [nil, usdcLogo, usdtLogo])
+        #expect(second.holdings.map(\.imageURL) == [nil, usdcLogo, usdtLogo])
+        #expect(await http.logoRequests == [[usdcMint, usdtMint]])
+    }
+
+    /// Verifies a lookup asks only for tokens without a logo, so a token the provider lacks is asked for again.
+    ///
+    /// - Throws: A fixture setup error or failed prerequisite.
+    @Test(.timeLimit(.minutes(1)))
+    func `Only tokens without a logo are looked up again`() async throws {
+        let fixture = Fixture()
+        defer { fixture.removeFiles() }
+        let http = AccountResponses(logos: { mints in
+            mints.contains(usdcMint) ? [usdcMint: "https://cdn.example.com/usdc.png"] : [:]
+        }) { _ in Ledger() }
+        let service = fixture.portfolio(rpc: http.heliusClient)
+        let usdcLogo = try #require(URL(string: "https://cdn.example.com/usdc.png"))
+
+        let first = try #require(try await reload(service).snapshot)
+        let second = try #require(try await reload(service).snapshot)
+
+        #expect(first.holdings.map(\.imageURL) == [nil, usdcLogo, nil])
+        #expect(second.holdings.map(\.imageURL) == [nil, usdcLogo, nil])
+        #expect(await http.logoRequests == [[usdcMint, usdtMint], [usdtMint]])
+    }
+
+    /// Verifies a failed lookup keeps the balances without logos, and the next balance read asks again.
+    ///
+    /// - Throws: A fixture setup error or failed prerequisite.
+    @Test(.timeLimit(.minutes(1)))
+    func `A failed logo lookup keeps the balances and the next read asks again`() async throws {
+        let fixture = Fixture()
+        defer { fixture.removeFiles() }
+        let offline = Mutex(true)
+        let http = AccountResponses(logos: { _ in
+            if offline.withLock({ $0 }) { throw URLError(.notConnectedToInternet) }
+            return [usdcMint: "https://cdn.example.com/usdc.png"]
+        }) { _ in Ledger(tokens: [usdcMint: 5]) }
+        let service = fixture.portfolio(rpc: http.heliusClient)
+        let usdcLogo = try #require(URL(string: "https://cdn.example.com/usdc.png"))
+
+        let failed = try await reload(service)
+        offline.withLock { $0 = false }
+        let recovered = try #require(try await reload(service).snapshot)
+
+        #expect(failed.error == nil)
+        #expect(failed.snapshot?.holdings.map(\.amount) == [Amount(units: 100, decimals: 9), Amount(units: 5, decimals: 6),
+                                                              Amount(units: 0, decimals: 6)])
+        #expect(failed.snapshot?.holdings.allSatisfy { $0.imageURL == nil } == true)
+        #expect(recovered.holdings.map(\.imageURL) == [nil, usdcLogo, nil])
+        #expect(await http.logoRequests == [[usdcMint, usdtMint], [usdcMint, usdtMint]])
+    }
+
+    /// Verifies a provider without logo copies shows none, even when the cached snapshot has logos.
+    ///
+    /// - Throws: A fixture setup error or failed prerequisite.
+    @Test(.timeLimit(.minutes(1)))
+    func `A provider without logos shows none`() async throws {
+        let fixture = Fixture()
+        defer { fixture.removeFiles() }
+        let logo = try #require(URL(string: "https://cdn.example.com/usdc.png"))
+        let cached = Snapshot(owner: testWallet, network: .mainnet,
+                              holdings: [Holding(id: .asset(usdcMint), amount: Amount(units: 1, decimals: 6),
+                                                 name: "USD Coin", symbol: "USDC", imageURL: logo, valuation: nil)],
+                              fetchedAt: Date(timeIntervalSince1970: 1))
+        try fixture.store.save(cached, for: CacheKey(owner: testWallet, network: .mainnet))
+        let http = AccountResponses { _ in Ledger() }
+
+        let refreshed = try #require(try await reload(fixture.portfolio(rpc: http.client)).snapshot)
+
+        #expect(refreshed.holdings.allSatisfy { $0.imageURL == nil })
+        #expect(await http.logoRequests.isEmpty)
+    }
 }
 
 /// Real disk stores isolated to one test invocation.
@@ -478,6 +570,16 @@ private struct WriteFailingStore: SnapshotStoring {
     /// - Parameter key: The wallet and network being removed.
     /// - Throws: The file-system write-permission error.
     func remove(for key: CacheKey) throws { throw CocoaError(.fileWriteNoPermission) }
+}
+
+/// Reads the test wallet's balances again and returns the refresh's final state.
+/// - Parameter service: The service to refresh.
+/// - Returns: The completed or failed update that ends the refresh.
+/// - Throws: A test prerequisite error if the refresh ends without a state.
+private func reload(_ service: Portfolio) async throws -> Update {
+    var last: Update?
+    for await update in await service.updates(for: testWallet, policy: .reload) { last = update }
+    return try #require(last)
 }
 
 /// Creates a previously retrieved portfolio fixture.

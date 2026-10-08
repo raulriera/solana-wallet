@@ -13,6 +13,7 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
     ///
     /// - Parameters:
     ///   - rpc: The RPC client that reads balances; every provider supports the request it uses.
+    ///     A client that also hosts logo copies, such as Helius, adds logos to the listed tokens.
     ///   - prices: A same-network price provider; `nil` leaves holdings unpriced and disables price-only refreshes.
     ///   - changes: A same-network subscription provider; `nil` uses the RPC client's capability when available.
     public init(rpc: any RPC, prices: (any PriceProviding)? = nil, changes: (any AccountChangeProviding)? = nil) {
@@ -23,7 +24,7 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
     /// Creates a service with injected stores.
     ///
     /// - Parameters:
-    ///   - rpc: The RPC client that reads balances.
+    ///   - rpc: The RPC client that reads balances, and adds logos when it hosts logo copies.
     ///   - store: The persistent snapshot store.
     ///   - tokenLists: The token-list store; the default saves lists in Application Support.
     ///   - prices: An optional same-network price provider.
@@ -39,7 +40,7 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
         let lists = TokenListCoordinator(store: tokenLists, network: rpc.network)
         self.tokenLists = lists
         coordinator = RefreshCoordinator(source: BalanceReader(rpc: rpc, tokenLists: lists), store: store,
-                                         prices: prices, now: now)
+                                         prices: prices, logos: rpc as? any LogoProviding, now: now)
         observer = ObservationCoordinator(refresh: coordinator, tokenLists: lists,
                                           changes: changes ?? (rpc as? any AccountChangeProviding),
                                           network: rpc.network, pause: pause)

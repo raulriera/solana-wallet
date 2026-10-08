@@ -16,7 +16,7 @@ for await update in await service.updates(for: owner, policy: .ifStale) {
 }
 ```
 
-An optional same-network `PriceProviding` provider enables prices, including each quote's 24-hour change when the provider supplies one; without one, holdings stay unpriced. An optional `AccountChangeProviding` provider supplies subscriptions, defaulting to the RPC client's capability.
+An optional same-network `PriceProviding` provider enables prices, including each quote's 24-hour change when the provider supplies one; without one, holdings stay unpriced. An optional `AccountChangeProviding` provider supplies subscriptions, defaulting to the RPC client's capability. An RPC client that implements `LogoProviding`, such as `HeliusRPC`, adds logos to the listed tokens after each balance read; a failed lookup leaves them out until the next read.
 
 | Operation | Behavior |
 | --- | --- |
