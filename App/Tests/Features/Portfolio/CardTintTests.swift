@@ -4,11 +4,12 @@ import Testing
 
 /// Checks that a card's text reads on the color its logo gives the card.
 struct CardTintTests {
-    /// Logo colors from dark and saturated to light.
+    /// Logo colors from dark and saturated to light, plus the gray that cards without a logo color use.
     private static let logos = [
         ArtworkColor(red: 0, green: 0, blue: 0.25), ArtworkColor(red: 0.3, green: 0, blue: 0),
         ArtworkColor(red: 0, green: 0.7, blue: 0), ArtworkColor(red: 0, green: 0.6, blue: 0.6),
         ArtworkColor(red: 0.6, green: 0.27, blue: 1), ArtworkColor(red: 0.95, green: 0.9, blue: 0.2),
+        .placeholder,
     ]
 
     /// Every logo color, dark or light, leaves the text at the 4.5:1 WCAG minimum on both gradient stops.

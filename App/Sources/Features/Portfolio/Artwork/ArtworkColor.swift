@@ -7,3 +7,8 @@ nonisolated struct ArtworkColor: Equatable, Sendable {
     /// The blue component, from 0 to 1.
     let blue: Double
 }
+
+nonisolated extension ArtworkColor {
+    /// The system gray behind a token's letter placeholder, for cards whose logo has no color.
+    static let placeholder = ArtworkColor(red: 142 / 255, green: 142 / 255, blue: 147 / 255)
+}

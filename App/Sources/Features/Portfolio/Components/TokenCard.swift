@@ -4,9 +4,8 @@ import SwiftUI
 /// One token as a card: its logo, symbol, and name, with its value and 24-hour change on the trailing side.
 ///
 /// The balance takes the value's place when the value is unknown. The card takes its color from the token's logo;
-/// until the color loads, or when the logo has none, it uses the window's colors.
+/// until the color loads, or when the logo has none, it takes the gray behind the letter placeholder.
 struct TokenCard: View {
-    @Environment(\.palette) private var palette
     @Environment(\.cardStyle) private var style
     @Environment(\.artworkColors) private var artworkColors
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -21,13 +20,12 @@ struct TokenCard: View {
     let imageURL: URL?
 
     var body: some View {
-        let tint = logoColor.map { CardTint(logo: $0, colors: style.colors) }
+        let tint = CardTint(logo: logoColor ?? .placeholder, colors: style.colors)
         let isStacked = typeSize.isAccessibilitySize
         let layout = isStacked ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
             : AnyLayout(HStackLayout(spacing: 12))
         let shape = RoundedRectangle(cornerRadius: style.cornerRadius, style: .continuous)
-        let secondary: ReadableSecondary = .readableSecondary(tint?.text ?? palette.primaryText,
-                                                              on: tint?.textBackground ?? palette.background)
+        let secondary: ReadableSecondary = .readableSecondary(tint.text, on: tint.textBackground)
 
         layout {
             HStack(spacing: 12) {
@@ -69,14 +67,13 @@ struct TokenCard: View {
             .layoutPriority(1)
         }
         .fontDesign(style.fontDesign)
-        .foregroundStyle(tint?.text ?? palette.primaryText)
+        .foregroundStyle(tint.text)
         .padding(.horizontal, 20)
         .padding(.vertical, 16)
         .background {
             shape
-                .fill(LinearGradient(colors: [tint?.top ?? palette.background, tint?.bottom ?? palette.background],
-                                     startPoint: .top, endPoint: .bottom))
-                .overlay { shape.strokeBorder(tint == nil ? palette.separator : .white.opacity(0.7), lineWidth: 1) }
+                .fill(LinearGradient(colors: [tint.top, tint.bottom], startPoint: .top, endPoint: .bottom))
+                .overlay { shape.strokeBorder(.white.opacity(0.7), lineWidth: 1) }
                 .shadow(color: .black.opacity(0.18), radius: 6, y: -2)
                 // The face continues under the next card or into the pocket, so its bottom never shows.
                 .padding(.bottom, -64)
