@@ -10,4 +10,5 @@
 - Price providers identify their network. Jupiter supplies mainnet USD quotes; do not apply them to devnet balances. Currency conversion remains deferred.
 - Deduplicate price mints and batch within the provider's limits. Jupiter sends at most fifty mints per request, spaced at twenty requests/minute without a key or forty with a key. HTTP `429` errors surface without retrying.
 - Watch the wallet and its listed token accounts for confirmed changes, then read their balances again. Opening the portfolio and pull-to-refresh reload balances and prices; the app does not poll.
+- Observation refreshes require a response at or after the newest confirmed change slot. An older response leaves the cached snapshot intact and surfaces a failure without automatic retries.
 - When adding currency support, revisit `Amount` so asset and balance displays follow the device's locale and currency settings.

@@ -19,6 +19,8 @@ let nativeMint = "So11111111111111111111111111111111111111112"
 
 /// The ledger state a balance-read fixture reports.
 struct Ledger: Sendable {
+    /// The slot at which these balances were observed.
+    var slot: UInt64 = 100
     /// The wallet's SOL balance in lamports, or `nil` when the wallet has no account.
     var lamports: UInt64? = 100
     /// The balances of the token accounts that exist, keyed by mint address.
@@ -36,6 +38,7 @@ actor AccountResponses: HTTPTransport {
 
     private nonisolated let network: Network
     private(set) var requests: [[String]] = []
+    private(set) var minimumSlots: [UInt64?] = []
     private(set) var logoRequests: [[String]] = []
     private let respond: Responder
     private let logos: LogoResponder
@@ -73,6 +76,7 @@ actor AccountResponses: HTTPTransport {
         } else {
             try #require(body["method"] as? String == "getMultipleAccounts")
             let params = try #require(body["params"] as? [Any])
+            minimumSlots.append((params.last as? [String: Any])?["minContextSlot"] as? UInt64)
             result = try await accounts(at: try #require(params.first as? [String]))
         }
         return try rpcReply(to: body, result: result, request: request)
@@ -88,7 +92,7 @@ actor AccountResponses: HTTPTransport {
         let accounts = try addresses.enumerated().map { index, address in
             try index == 0 ? walletAccount(ledger) : tokenAccount(at: address, owner: addresses[0], in: ledger)
         }
-        return ["context": ["slot": 100], "value": accounts] as [String: Any]
+        return ["context": ["slot": ledger.slot], "value": accounts] as [String: Any]
     }
 
     /// Records one logo lookup and encodes each mint as a DAS asset with its CDN copy, or `null` without one.

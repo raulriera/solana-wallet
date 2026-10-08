@@ -63,7 +63,7 @@ actor ObservationCoordinator {
         guard let watch = watches[owner] else { return }
         watch.connection?.cancel()
         watch.reconciliation?.cancel()
-        connect(owner: owner, consumers: watch.consumers, latest: watch.latest)
+        connect(owner: owner, consumers: watch.consumers, latest: watch.latest, minContextSlot: watch.minContextSlot)
     }
 
     /// Cancels this wallet's observation before its cache is removed.
@@ -80,9 +80,11 @@ actor ObservationCoordinator {
     ///   - owner: The watched wallet.
     ///   - consumers: The streams that receive the wallet's updates.
     ///   - latest: The newest update those consumers already received, if any.
-    private func connect(owner: String, consumers: [UUID: AsyncStream<Update>.Continuation], latest: Update? = nil) {
+    ///   - minContextSlot: The newest confirmed change already observed, if any.
+    private func connect(owner: String, consumers: [UUID: AsyncStream<Update>.Continuation], latest: Update? = nil,
+                         minContextSlot: UInt64? = nil) {
         let generation = UUID()
-        watches[owner] = Watch(generation: generation, consumers: consumers, latest: latest)
+        watches[owner] = Watch(generation: generation, minContextSlot: minContextSlot, consumers: consumers, latest: latest)
         watches[owner]?.connection = Task { await listen(owner: owner, generation: generation) }
     }
 
@@ -102,10 +104,12 @@ actor ObservationCoordinator {
             guard watches[owner]?.generation == generation else { return }
             watches[owner]?.isConnected = true
             schedule(owner: owner, generation: generation, delayed: false)
-            for try await _ in slots {
+            for try await slot in slots {
                 try Task.checkCancellation()
                 guard watches[owner]?.generation == generation else { return }
                 watches[owner]?.revision = UUID()
+                let minContextSlot = max(watches[owner]?.minContextSlot ?? 0, slot)
+                watches[owner]?.minContextSlot = minContextSlot
                 schedule(owner: owner, generation: generation, delayed: true)
             }
             try Task.checkCancellation()
@@ -156,7 +160,8 @@ actor ObservationCoordinator {
             try Task.checkCancellation()
             guard watches[owner]?.generation == generation else { return }
             handledRevision = watches[owner]?.revision
-            for await update in await refresh.updates(for: owner, policy: .reload) {
+            let minContextSlot = watches[owner]?.minContextSlot
+            for await update in await refresh.updates(for: owner, policy: .reload, minContextSlot: minContextSlot) {
                 try Task.checkCancellation()
                 publish(update, owner: owner, generation: generation)
                 if update.error != nil { requestFailed = true }
@@ -196,6 +201,7 @@ actor ObservationCoordinator {
         var isConnected = false
         var reloadRequested = false
         var revision = UUID()
+        var minContextSlot: UInt64?
         var consumers: [UUID: AsyncStream<Update>.Continuation]
         var latest: Update?
         var connection: Task<Void, Never>?

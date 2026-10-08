@@ -9,10 +9,12 @@ protocol BalanceReading: Sendable {
 
     /// Reads native SOL and every listed token's balance.
     ///
-    /// - Parameter owner: The wallet address to read.
+    /// - Parameters:
+    ///   - owner: The wallet address to read.
+    ///   - minContextSlot: The earliest acceptable balance observation, or `nil`.
     /// - Returns: A complete snapshot without prices.
     /// - Throws: A cancellation, validation, token-list, or RPC error.
-    func snapshot(for owner: String) async throws -> Snapshot
+    func snapshot(for owner: String, minContextSlot: UInt64?) async throws -> Snapshot
 }
 
 /// Reads an account's balances with one standard RPC request, which every provider supports.
@@ -23,16 +25,18 @@ struct BalanceReader: BalanceReading {
 
     /// Reads the wallet and each listed token's associated token account at one ledger context.
     ///
-    /// - Parameter owner: The wallet address to read.
+    /// - Parameters:
+    ///   - owner: The wallet address to read.
+    ///   - minContextSlot: The earliest acceptable balance observation, or `nil`.
     /// - Returns: Native SOL followed by the listed tokens, without prices.
-    /// - Throws: A cancellation, validation, token-list, or RPC error, or ``AccountReadError`` for a mismatched response.
+    /// - Throws: A cancellation, validation, token-list, or RPC error, or ``AccountReadError`` for an invalid response.
     @concurrent
-    func snapshot(for owner: String) async throws -> Snapshot {
+    func snapshot(for owner: String, minContextSlot: UInt64? = nil) async throws -> Snapshot {
         let list = try await tokenLists.list(for: owner)
         let wallet = try Address(owner)
         let accounts = try list.accounts(of: wallet)
         try Task.checkCancellation()
-        let contents = try await rpc.accounts(at: accounts)
+        let contents = try await rpc.accounts(at: accounts, minContextSlot: minContextSlot)
         // A wallet that was never funded has no account on the ledger, so it holds no SOL.
         let native = Holding(id: .nativeSOL, amount: Amount(units: contents[0]?.lamports ?? 0, decimals: 9),
                              name: "Solana", symbol: "SOL", imageURL: nil, valuation: nil)

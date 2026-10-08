@@ -35,8 +35,10 @@ actor RefreshCoordinator {
     ///   - owner: The wallet whose holdings to retrieve.
     ///   - scope: Whether to refresh all data or only the cached holdings' prices.
     ///   - policy: Whether to reuse fresh data or perform a network refresh regardless of age.
+    ///   - minContextSlot: The earliest acceptable observation for a scheduled balance read, or `nil`.
     /// - Returns: A registered stream, or a finished stream if the calling task is cancelled.
-    func updates(for owner: String, scope: Scope = .holdings, policy: RefreshPolicy) -> AsyncStream<Update> {
+    func updates(for owner: String, scope: Scope = .holdings, policy: RefreshPolicy,
+                 minContextSlot: UInt64? = nil) -> AsyncStream<Update> {
         let (stream, continuation) = AsyncStream<Update>.makeStream(bufferingPolicy: .bufferingNewest(2))
         guard !Task.isCancelled else {
             continuation.finish()
@@ -59,9 +61,11 @@ actor RefreshCoordinator {
         if var flight = flights[key] {
             flight.consumers[id] = continuation
             if let initial = flight.initial { continuation.yield(initial) }
-            if requiredScope == .holdings, flight.scope == .prices {
-                // A full refresh also satisfies price consumers; obsolete price work cannot overwrite its balances.
+            let needsNewerContext = (minContextSlot ?? 0) > (flight.minContextSlot ?? 0)
+            if needsNewerContext || (requiredScope == .holdings && flight.scope == .prices) {
+                // Keep every consumer, but replace work that cannot satisfy the stronger balance request.
                 flight.scope = .holdings
+                if needsNewerContext { flight.minContextSlot = minContextSlot }
                 restart(&flight, key: key)
             }
             flights[key] = flight
@@ -73,7 +77,8 @@ actor RefreshCoordinator {
             return stream
         }
         let generation = UUID()
-        flights[key] = Flight(generation: generation, scope: requiredScope, consumers: [id: continuation])
+        flights[key] = Flight(generation: generation, scope: requiredScope, minContextSlot: minContextSlot,
+                              consumers: [id: continuation])
         flights[key]?.task = Task { await refresh(key: key, generation: generation) }
         return stream
     }
@@ -189,7 +194,7 @@ actor RefreshCoordinator {
             let snapshot: Snapshot
             switch flight.scope {
             case .holdings:
-                let balances = try await source.snapshot(for: key.owner)
+                let balances = try await source.snapshot(for: key.owner, minContextSlot: flight.minContextSlot)
                 let holdings = await logos?.snapshot(addingLogosTo: balances, keeping: cached) ?? balances
                 snapshot = try await pricer?.snapshot(pricing: holdings) ?? holdings
             case .prices:
@@ -244,6 +249,7 @@ actor RefreshCoordinator {
     private struct Flight {
         var generation: UUID
         var scope: Scope
+        var minContextSlot: UInt64?
         var consumers: [UUID: AsyncStream<Update>.Continuation]
         var initial: Update?
         var task: Task<Void, Never>?

@@ -6,6 +6,128 @@ import Transactions
 
 /// Exercises observation through real public-endpoint decoding with controlled HTTP and WebSocket transports.
 struct ObservationTests {
+    /// Verifies lagging balance responses preserve the last complete snapshot and report failure.
+    /// - Parameter slot: A response slot older than the confirmed change.
+    @Test(.timeLimit(.minutes(1)), arguments: [100, 109] as [UInt64])
+    func `Confirmed changes reject older balance responses`(slot: UInt64) async throws {
+        let fixture = ObservationFixture()
+        defer { fixture.cleanUp() }
+        let ledger = ObservedLedger()
+        let http = AccountResponses { try await ledger.response(for: $0) }
+        let service = fixture.service(http: http)
+        var updates = await service.observations(for: testWallet).makeAsyncIterator()
+        let initial = try await nextResult(&updates)
+        let original = try #require(initial.snapshot)
+
+        await ledger.set(lamports: 100, slot: slot)
+        fixture.socket.notify(slot: 110)
+        var delays = fixture.gate.delays.makeAsyncIterator()
+        _ = try #require(await delays.next())
+        fixture.gate.resume()
+        let failed = try await nextResult(&updates)
+
+        #expect(failed.error as? AccountReadError == .staleContext)
+        #expect(failed.snapshot == original)
+        #expect(fixture.store.snapshot(for: fixture.key) == original)
+        #expect(await http.minimumSlots == [nil, 110])
+        #expect(await ledger.readCount == 2)
+        try await service.removeData(for: testWallet)
+        await fixture.socket.waitUntilCancelled()
+    }
+
+    /// Verifies a confirmed change replaces an older manual read while preserving both consumers.
+    @Test(.timeLimit(.minutes(1)))
+    func `A confirmed change replaces an active manual read with a newer read`() async throws {
+        let fixture = ObservationFixture()
+        defer { fixture.cleanUp() }
+        let ledger = ObservedLedger()
+        let (pending, release) = AsyncStream<Void>.makeStream()
+        let (started, announce) = AsyncStream<Void>.makeStream()
+        defer { release.finish(); announce.finish() }
+        let http = AccountResponses { accounts in
+            let reading = try await ledger.response(for: accounts)
+            if await ledger.readCount == 2 {
+                announce.yield(())
+                for await _ in pending {}
+            }
+            return reading
+        }
+        let service = fixture.service(http: http)
+        var observed = await service.observations(for: testWallet).makeAsyncIterator()
+        try await nextResult(&observed)
+
+        await ledger.set(lamports: 200, slot: 100)
+        var manual = await service.updates(for: testWallet, policy: .reload).makeAsyncIterator()
+        _ = try #require(await manual.next())
+        var startedIterator = started.makeAsyncIterator()
+        _ = try #require(await startedIterator.next())
+
+        await ledger.set(lamports: 300, slot: 110)
+        fixture.socket.notify(slot: 110)
+        var delays = fixture.gate.delays.makeAsyncIterator()
+        _ = try #require(await delays.next())
+        fixture.gate.resume()
+        let joined = try #require(await observed.next())
+        try #require(joined.isRefreshing)
+        release.finish()
+
+        let manualResult = try await nextResult(&manual)
+        let observedResult = try await nextResult(&observed)
+        #expect(manualResult.error == nil)
+        #expect(observedResult.error == nil)
+        #expect(manualResult.holdings.first?.amount?.units == 300)
+        #expect(observedResult.snapshot == manualResult.snapshot)
+        #expect(fixture.store.snapshot(for: fixture.key) == manualResult.snapshot)
+        #expect(await http.minimumSlots == [nil, nil, 110])
+        #expect(await manual.next() == nil)
+        try await service.removeData(for: testWallet)
+        await fixture.socket.waitUntilCancelled()
+    }
+
+    /// Verifies restarting subscriptions and receiving an older notification cannot lower the required slot.
+    @Test(.timeLimit(.minutes(1)))
+    func `Token list changes preserve the newest confirmed slot across connections`() async throws {
+        let fixture = ObservationFixture()
+        defer { fixture.cleanUp() }
+        let ledger = ObservedLedger()
+        let http = AccountResponses { try await ledger.response(for: $0) }
+        let connections = Connections()
+        let service = fixture.service(http: http) { connections.connect(to: $0) }
+        var sockets = connections.opened.makeAsyncIterator()
+        var updates = await service.observations(for: testWallet).makeAsyncIterator()
+        try await nextResult(&updates)
+        let first = try #require(await sockets.next())
+
+        await ledger.set(lamports: 200, slot: 110)
+        first.notify(slot: 110)
+        var delays = fixture.gate.delays.makeAsyncIterator()
+        _ = try #require(await delays.next())
+        fixture.gate.resume()
+        try await nextResult(&updates)
+
+        _ = try await service.removeToken(Address(usdcMint), for: testWallet)
+        await first.waitUntilCancelled()
+        let second = try #require(await sockets.next())
+        let changed = try await nextResult(&updates)
+        let current = try #require(changed.snapshot)
+        try #require(changed.error == nil)
+        #expect(changed.holdings.map(\.id) == [.nativeSOL, .asset(usdtMint)])
+        #expect(await http.minimumSlots == [nil, 110, 110])
+
+        await ledger.set(lamports: 300, slot: 109)
+        second.notify(slot: 109)
+        _ = try #require(await delays.next())
+        fixture.gate.resume()
+        let failed = try await nextResult(&updates)
+
+        #expect(failed.error as? AccountReadError == .staleContext)
+        #expect(failed.snapshot == current)
+        #expect(fixture.store.snapshot(for: fixture.key) == current)
+        #expect(await http.minimumSlots == [nil, 110, 110, 110])
+        try await service.removeData(for: testWallet)
+        await second.waitUntilCancelled()
+    }
+
     /// The ways a person changes an account's token list.
     enum ListChange: CaseIterable {
         /// Adding a token the list doesn't hold.
@@ -48,18 +170,20 @@ struct ObservationTests {
     }
 
     /// Verifies a confirmed change bypasses fresh cache and reads balances after gathering nearby changes.
-    @Test(.timeLimit(.minutes(1)))
-    func `Confirmed changes refresh fresh portfolios`() async throws {
+    /// - Parameter slot: A response slot at or beyond the confirmed change.
+    @Test(.timeLimit(.minutes(1)), arguments: [110, 120] as [UInt64])
+    func `Confirmed changes refresh fresh portfolios`(slot: UInt64) async throws {
         let fixture = ObservationFixture()
         defer { fixture.cleanUp() }
         let ledger = ObservedLedger()
-        let service = fixture.service(ledger: ledger)
+        let http = AccountResponses { try await ledger.response(for: $0) }
+        let service = fixture.service(http: http)
         var updates = await service.observations(for: testWallet).makeAsyncIterator()
         let initial = try await nextResult(&updates)
         let original = try #require(initial.snapshot)
         #expect(fixture.socket.requests.count == 3)
 
-        await ledger.set(lamports: 200)
+        await ledger.set(lamports: 200, slot: slot)
         fixture.socket.notify(slot: 110, subscription: 3)
         var delays = fixture.gate.delays.makeAsyncIterator()
         #expect(await delays.next() == .seconds(2))
@@ -69,6 +193,7 @@ struct ObservationTests {
         #expect(updated.error == nil)
         #expect(updated.holdings.first?.amount?.units == 200)
         #expect(fixture.store.snapshot(for: fixture.key) == updated.snapshot)
+        #expect(await http.minimumSlots == [nil, 110])
         #expect(await ledger.readCount == 2)
         try await service.removeData(for: testWallet)
         await fixture.socket.waitUntilCancelled()
@@ -308,6 +433,7 @@ struct ObservationTests {
 /// Holds the SOL balance that the next successful balance read reports, and records each read's accounts.
 private actor ObservedLedger {
     private var lamports: UInt64 = 100
+    private var slot: UInt64 = 100
     private var offline = false
     /// The accounts each balance read requested, in order.
     private(set) var reads: [[String]] = []
@@ -315,8 +441,13 @@ private actor ObservedLedger {
     var readCount: Int { reads.count }
 
     /// Updates the balance that later reads report.
-    /// - Parameter lamports: The wallet's SOL balance in lamports.
-    func set(lamports: UInt64) { self.lamports = lamports }
+    /// - Parameters:
+    ///   - lamports: The wallet's SOL balance in lamports.
+    ///   - slot: The slot of the updated balances.
+    func set(lamports: UInt64, slot: UInt64 = 110) {
+        self.lamports = lamports
+        self.slot = slot
+    }
 
     /// Makes subsequent reads fail instead of returning an outdated balance.
     func fail() { offline = true }
@@ -328,7 +459,7 @@ private actor ObservedLedger {
     func response(for accounts: [String]) throws -> Ledger {
         reads.append(accounts)
         if offline { throw URLError(.notConnectedToInternet) }
-        return Ledger(lamports: lamports)
+        return Ledger(slot: slot, lamports: lamports)
     }
 }
 
@@ -378,6 +509,15 @@ private struct ObservationFixture: Sendable {
     func service(connect: (@Sendable (URL) -> any WebSocketConnection)? = nil,
                  respond: @escaping AccountResponses.Responder) -> Portfolio {
         let http = AccountResponses(respond: respond)
+        return service(http: http, connect: connect)
+    }
+
+    /// Composes the real client with a transport whose request options the test can inspect.
+    /// - Parameters:
+    ///   - http: The scripted account response transport.
+    ///   - connect: Opens each subscription connection; `nil` reuses the fixture's socket.
+    /// - Returns: The portfolio service whose observation behavior is exercised.
+    func service(http: AccountResponses, connect: (@Sendable (URL) -> any WebSocketConnection)? = nil) -> Portfolio {
         let rpc = Solana(network: .mainnet, transport: http, socket: connect ?? { _ in socket })
         return Portfolio(rpc: rpc, store: store, tokenLists: isolatedTokenLists(), pause: { try await gate.pause($0) })
     }
