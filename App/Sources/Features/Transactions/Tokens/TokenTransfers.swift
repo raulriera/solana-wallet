@@ -48,8 +48,13 @@ nonisolated struct TokenTransfers {
         let currentMint = try TokenMint(address: mint, owner: Address(mintAccount.owner), data: mintAccount.data)
         guard currentMint.program == discoveredMint.program else { throw TokenError.accountMismatch }
         let tokenSource = try TokenAccount(address: sourceAddress, programOwner: Address(sourceAccount.owner), data: sourceAccount.data)
-        let destination = try snapshot.value[2].map {
-            try TokenAccount(address: destinationAddress, programOwner: Address($0.owner), data: $0.data)
+        let destinationAccount = snapshot.value[2]
+        let destination = try destinationAccount.flatMap { account -> TokenAccount? in
+            if account.owner == "11111111111111111111111111111111" {
+                guard account.data.isEmpty else { throw TokenError.invalidAccount }
+                return nil
+            }
+            return try TokenAccount(address: destinationAddress, programOwner: Address(account.owner), data: account.data)
         }
         var minimumSlot = snapshot.context.slot
         var epoch: UInt64?
@@ -64,7 +69,9 @@ nonisolated struct TokenTransfers {
                                          destination: destination, amount: amount, epoch: epoch, memo: memo)
         let rent: UInt64
         if let size = transfer.destinationAccountSize {
-            rent = max(1, try await rpc.send(GetMinimumBalanceForRentExemption(dataLength: size)))
+            let minimumBalance = max(1, try await rpc.send(GetMinimumBalanceForRentExemption(dataLength: size)))
+            let existingBalance = destinationAccount?.lamports ?? 0
+            rent = existingBalance < minimumBalance ? minimumBalance - existingBalance : 0
         } else {
             rent = 0
         }

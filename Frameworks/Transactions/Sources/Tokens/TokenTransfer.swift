@@ -19,7 +19,7 @@ public struct TokenTransfer: Sendable {
     public let expectedFee: UInt64?
     /// Whether the transaction includes idempotent destination-account creation.
     public let createsDestination: Bool
-    /// The new destination's allocation size in bytes, or `nil` for an existing account.
+    /// The destination's allocation size in bytes, or `nil` for an initialized account.
     ///
     /// Includes immutable ownership and required mint extensions for Token-2022.
     /// Use this size to query rent; the source account may have a different size.
@@ -36,7 +36,7 @@ public struct TokenTransfer: Sendable {
     ///   - recipient: The wallet whose associated account receives the tokens.
     ///   - mint: The initialized mint observed through RPC.
     ///   - source: The source account observed through RPC.
-    ///   - destination: The observed associated account, or `nil` when RPC confirms it is absent.
+    ///   - destination: The initialized associated account, or `nil` when the destination requires initialization.
     ///   - amount: The positive base-unit debit, never a floating-point UI amount.
     ///   - epoch: The current ledger epoch for transfer fees, or `nil` for fee-free mints.
     ///   - memo: An optional memo; required when the destination enables incoming memos.
