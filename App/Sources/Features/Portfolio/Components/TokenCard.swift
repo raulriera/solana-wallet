@@ -30,7 +30,6 @@ struct TokenCard: View {
         layout {
             HStack(spacing: 12) {
                 TokenIcon(symbol: symbol, imageURL: imageURL)
-                    .overlay { Circle().strokeBorder(.white.opacity(0.8), lineWidth: 1.5) }
                 VStack(alignment: .leading, spacing: 2) {
                     Text(symbol)
                         .font(.title3.bold())
