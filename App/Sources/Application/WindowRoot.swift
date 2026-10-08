@@ -34,6 +34,7 @@ struct WindowRoot: View {
             case .onboarding:
                 OnboardingScene(coordinator: onboarding, connection: services.providerConnection,
                                 keyRevision: services.providerKeyRevision, pasteboard: services.recoveryPasteboard)
+                    .onboardingIdentity()
             case .wallet(let account):
                 WalletScene(account: account, portfolio: portfolio, settings: settings, connection: services.providerConnection,
                             keyRevision: services.providerKeyRevision, security: security, resetRevision: services.resetRevision)
