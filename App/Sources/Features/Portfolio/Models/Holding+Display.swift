@@ -17,6 +17,18 @@ extension Holding {
         return id == .nativeSOL ? "Solana" : displaySymbol
     }
 
+    /// The app's own logo for native SOL and the default tokens, otherwise the provider's copy, if any.
+    nonisolated var logoURL: URL? {
+        let bundledName: String? = switch id {
+        case .nativeSOL: "sol"
+        case .asset(DefaultToken.usdc.rawValue): "usdc"
+        case .asset(DefaultToken.usdt.rawValue): "usdt"
+        case .asset: nil
+        }
+        // A bundled logo needs no request, so it wins over the provider's copy.
+        return bundledName.flatMap { Bundle.main.url(forResource: $0, withExtension: "png") } ?? imageURL
+    }
+
     /// The whole holding's value and its quote currency, or `nil` when either is unknown.
     ///
     /// An unknown value is never zero.

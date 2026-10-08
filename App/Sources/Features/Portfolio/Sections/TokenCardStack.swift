@@ -17,7 +17,7 @@ struct TokenCardStack: View {
                     TokenCardOption(selection: $selection, preferredColumn: $preferredColumn, id: holding.id) {
                         TokenCard(symbol: holding.displaySymbol, name: holding.displayName, amount: holding.amount,
                                   value: holding.knownValue, change: holding.valuation?.dayChange,
-                                  imageURL: holding.imageURL)
+                                  imageURL: holding.logoURL)
                     }
                     .padding(.horizontal, 12)
                 }

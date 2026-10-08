@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// A token's round logo, or the first letter of its symbol when the provider has no logo or it can't load.
+/// A token's round logo, or the first letter of its symbol when it has no logo or the logo can't load.
 struct TokenIcon: View {
     @ScaledMetric(relativeTo: .headline) private var diameter = 40
     let symbol: String

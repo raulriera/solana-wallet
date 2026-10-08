@@ -72,9 +72,9 @@ public struct TokenList: Sendable, Equatable {
     private static func defaultTokens(for network: Network) throws -> [ListedToken] {
         switch network {
         case .mainnet:
-            [ListedToken(mint: try Address("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"), program: .token, decimals: 6,
+            [ListedToken(mint: try Address(DefaultToken.usdc.rawValue), program: .token, decimals: 6,
                          symbol: "USDC", name: "USD Coin"),
-             ListedToken(mint: try Address("Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"), program: .token, decimals: 6,
+             ListedToken(mint: try Address(DefaultToken.usdt.rawValue), program: .token, decimals: 6,
                          symbol: "USDT", name: "Tether USD")]
         case .devnet:
             []

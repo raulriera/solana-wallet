@@ -5,6 +5,8 @@ import Testing
 
 /// Checks what the portfolio shows when metadata or prices are missing.
 struct HoldingDisplayTests {
+    private static let providerLogo = URL(string: "https://cdn.example.com/logo.png")!
+
     /// Metadata wins; without it, native SOL keeps its own name and tokens show their mint address.
     /// - Parameters:
     ///   - id: The holding's identity.
@@ -40,6 +42,32 @@ struct HoldingDisplayTests {
         let holding = Holding(id: .asset("mint"), amount: nil, name: nil, symbol: nil, imageURL: nil,
                               valuation: valuation)
         #expect((holding.knownValue != nil) == isKnown)
+    }
+
+    /// Native SOL and the default tokens show the app's own logo, even when the provider has a copy.
+    /// - Parameters:
+    ///   - id: The holding's identity.
+    ///   - file: The bundled logo it shows.
+    @Test(arguments: [
+        (Holding.Identity.nativeSOL, "sol.png"),
+        (.asset(DefaultToken.usdc.rawValue), "usdc.png"),
+        (.asset(DefaultToken.usdt.rawValue), "usdt.png"),
+    ])
+    func `Bundled logos win over the provider's copy`(id: Holding.Identity, file: String) throws {
+        let holding = Holding(id: id, amount: nil, name: nil, symbol: nil, imageURL: Self.providerLogo, valuation: nil)
+        let logo = try #require(holding.logoURL)
+        #expect(logo.isFileURL)
+        #expect(logo.lastPathComponent == file)
+    }
+
+    /// Other tokens show the provider's copy, or no logo when the provider has none.
+    @Test
+    func `Other tokens show the provider's copy when it has one`() {
+        let listed = Holding(id: .asset("mint"), amount: nil, name: nil, symbol: nil, imageURL: Self.providerLogo,
+                             valuation: nil)
+        let unknown = Holding(id: .asset("mint"), amount: nil, name: nil, symbol: nil, imageURL: nil, valuation: nil)
+        #expect(listed.logoURL == Self.providerLogo)
+        #expect(unknown.logoURL == nil)
     }
 
     /// A price needs both a unit price and a currency; anything less is unknown, never zero.
