@@ -43,15 +43,15 @@ nonisolated struct HeliusClient: RPC, AccountChangeProviding {
         }
     }
 
-    /// Observes confirmed SOL and owned token-account changes with the saved key.
-    /// - Parameter owner: The wallet address to watch.
+    /// Observes confirmed changes to each account with the saved key.
+    /// - Parameter addresses: The accounts to watch; a repeated address is watched once.
     /// - Returns: Increasing confirmed change slots after all subscriptions are acknowledged.
     /// - Throws: ``Failure`` for a missing or rejected key, a storage error, or another sanitized
     ///   subscription, transport, timeout, or cancellation error.
-    func changedSlots(for owner: String) async throws -> AsyncThrowingStream<UInt64, any Error> {
+    func changedSlots(for addresses: [String]) async throws -> AsyncThrowingStream<UInt64, any Error> {
         let client = try await client()
         do {
-            return try await client.changedSlots(for: owner)
+            return try await client.changedSlots(for: addresses)
         } catch {
             throw Self.keyFailure(for: error) ?? error
         }

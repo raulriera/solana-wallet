@@ -1,15 +1,21 @@
+import Encoding
+import Portfolio
 import RPC
 import Testing
 
 /// Verifies standard confirmed subscriptions on mainnet without funding or transfers.
 struct AccountChangeLiveTests {
-    /// Watches a changing public sysvar while also registering both wallet-owner token filters.
+    /// Watches a changing public sysvar on one connection together with as many accounts as a full token list.
+    ///
+    /// A full list watches the wallet, USDC, USDT, and every added token. The other accounts here
+    /// don't need to exist, since any 32 bytes form an address.
     /// - Parameter helius: Whether to verify Helius or public Solana's mainnet endpoint.
     /// - Throws: A credential, provider, timeout, or test prerequisite error.
     @Test(.timeLimit(.minutes(1)), arguments: [true, false])
-    func `Mainnet clients deliver confirmed account notifications`(helius: Bool) async throws {
+    func `Mainnet clients deliver confirmed account notifications while watching a full token list`(helius: Bool) async throws {
         let source = try MainnetClients.client(helius: helius)
-        let slots = try await source.changedSlots(for: "SysvarC1ock11111111111111111111111111111111")
+        let tokenAccounts = (1...(2 + TokenList.addedTokenLimit)).map { Base58.encode(Array(repeating: UInt8($0), count: 32)) }
+        let slots = try await source.changedSlots(for: ["SysvarC1ock11111111111111111111111111111111"] + tokenAccounts)
         try await withThrowingTaskGroup(of: Void.self) { group in
             let (received, relay) = AsyncThrowingStream<UInt64, any Error>.makeStream(bufferingPolicy: .bufferingNewest(2))
             group.addTask {

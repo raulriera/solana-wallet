@@ -12,6 +12,8 @@ let otherWallet = "4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T"
 let usdcMint = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
 /// The USDT mint, a default token on mainnet.
 let usdtMint = "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"
+/// The PayPal USD mint, a Token-2022 token a person might add.
+let pyusdMint = "2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo"
 /// The mint that native SOL shares with Wrapped SOL for prices.
 let nativeMint = "So11111111111111111111111111111111111111112"
 

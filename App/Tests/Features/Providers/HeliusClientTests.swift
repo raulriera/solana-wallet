@@ -14,7 +14,7 @@ struct HeliusClientTests {
         let client = responses.heliusClient(keys: SavedKeys())
 
         await #expect(throws: HeliusClient.Failure.missingKey) { _ = try await client.send(GetAsset(id: HTTPResponses.keyCheckAsset)) }
-        await #expect(throws: HeliusClient.Failure.missingKey) { _ = try await client.changedSlots(for: PublicWallet.address) }
+        await #expect(throws: HeliusClient.Failure.missingKey) { _ = try await client.changedSlots(for: [PublicWallet.address]) }
         #expect(await responses.requests.isEmpty)
     }
 

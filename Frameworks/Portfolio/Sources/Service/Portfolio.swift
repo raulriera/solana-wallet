@@ -40,7 +40,8 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
         self.tokenLists = lists
         coordinator = RefreshCoordinator(source: BalanceReader(rpc: rpc, tokenLists: lists), store: store,
                                          prices: prices, now: now)
-        observer = ObservationCoordinator(refresh: coordinator, changes: changes ?? (rpc as? any AccountChangeProviding),
+        observer = ObservationCoordinator(refresh: coordinator, tokenLists: lists,
+                                          changes: changes ?? (rpc as? any AccountChangeProviding),
                                           network: rpc.network, pause: pause)
     }
 
@@ -68,7 +69,7 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
         await coordinator.updates(for: owner, scope: .prices, policy: policy)
     }
 
-    /// Observes confirmed wallet changes and reads balances again after each one.
+    /// Observes confirmed changes to the wallet and its listed token accounts, and reads balances again after each one.
     /// - Parameter owner: The visible wallet to observe until its consuming task is cancelled.
     /// - Returns: Cached state, an initial reload, and event-driven refresh results; disconnects end with an error.
     public func observations(for owner: String) async -> AsyncStream<Update> {
@@ -96,23 +97,38 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
 
     /// Adds a token to an account's list and saves the list.
     ///
+    /// An observed account then watches the new list and reads its balances once.
     /// - Parameters:
     ///   - token: The token to add; a token that's already listed changes nothing.
     ///   - owner: The account's wallet address.
     /// - Returns: The saved list.
     /// - Throws: ``TokenListError`` for a full or unreadable list, or a file-system error if saving fails.
     public func addToken(_ token: ListedToken, for owner: String) async throws -> TokenList {
-        try await tokenLists.add(token, for: owner)
+        let edit = try await tokenLists.add(token, for: owner)
+        if edit.changed { await listChanged(for: owner) }
+        return edit.list
     }
 
     /// Removes a token from an account's list and saves the list.
     ///
+    /// An observed account then watches the new list and reads its balances once.
     /// - Parameters:
     ///   - mint: The mint address of the token to remove.
     ///   - owner: The account's wallet address.
     /// - Returns: The saved list.
     /// - Throws: ``TokenListError/unreadable`` if the saved list can't be read, or a file-system error if saving fails.
     public func removeToken(_ mint: Address, for owner: String) async throws -> TokenList {
-        try await tokenLists.remove(mint, for: owner)
+        let edit = try await tokenLists.remove(mint, for: owner)
+        if edit.changed { await listChanged(for: owner) }
+        return edit.list
+    }
+
+    /// Reads and watches an account's balances again with its changed token list.
+    ///
+    /// A balance read in progress starts again first, so no read returns the previous list's balances.
+    /// - Parameter owner: The account whose token list changed.
+    private func listChanged(for owner: String) async {
+        await coordinator.restartBalanceRead(for: owner)
+        await observer.restart(for: owner)
     }
 }

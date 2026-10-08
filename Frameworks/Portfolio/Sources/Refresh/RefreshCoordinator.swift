@@ -58,11 +58,8 @@ actor RefreshCoordinator {
             if let initial = flight.initial { continuation.yield(initial) }
             if requiredScope == .holdings, flight.scope == .prices {
                 // A full refresh also satisfies price consumers; obsolete price work cannot overwrite its balances.
-                flight.task?.cancel()
-                flight.generation = UUID()
                 flight.scope = .holdings
-                let generation = flight.generation
-                flight.task = Task { await refresh(key: key, generation: generation) }
+                restart(&flight, key: key)
             }
             flights[key] = flight
             return stream
@@ -76,6 +73,17 @@ actor RefreshCoordinator {
         flights[key] = Flight(generation: generation, scope: requiredScope, consumers: [id: continuation])
         flights[key]?.task = Task { await refresh(key: key, generation: generation) }
         return stream
+    }
+
+    /// Starts a balance read in progress again, so that it reads the account's current token list.
+    ///
+    /// Its consumers keep waiting and receive only the new read's result.
+    /// - Parameter owner: The account whose token list changed.
+    func restartBalanceRead(for owner: String) {
+        let key = CacheKey(owner: owner, network: source.network)
+        guard var flight = flights[key], flight.scope == .holdings else { return }
+        restart(&flight, key: key)
+        flights[key] = flight
     }
 
     /// Orders observation status in the same sequence as manual and price refreshes.
@@ -199,6 +207,18 @@ actor RefreshCoordinator {
                 : makeUpdate(snapshot: available, phase: .failed(error), snapshotRevision: availableRevision)
             finish(key: key, generation: generation, update: update)
         }
+    }
+
+    /// Replaces a refresh's work under a new generation, so the replaced work can't deliver its results.
+    ///
+    /// - Parameters:
+    ///   - flight: The refresh whose consumers wait for the new work.
+    ///   - key: The wallet and network being refreshed.
+    private func restart(_ flight: inout Flight, key: CacheKey) {
+        flight.task?.cancel()
+        flight.generation = UUID()
+        let generation = flight.generation
+        flight.task = Task { await refresh(key: key, generation: generation) }
     }
 
     /// Delivers the final state and closes every consumer of the matching refresh.

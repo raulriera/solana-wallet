@@ -22,12 +22,12 @@ An optional same-network `PriceProviding` provider enables prices, including eac
 | --- | --- |
 | `updates(for:policy:)` | Finite stream of cached state and any required refresh. `.ifStale` checks holdings and prices separately against five minutes; `.reload` requests fresh data. |
 | `priceUpdates(for:policy:)` | Revalue cached holdings without reading balances again. Requires existing holdings and a price provider. |
-| `observations(for:)` | Subscribe before the initial reload, then read balances again after confirmed changes until cancellation or subscription failure. |
+| `observations(for:)` | Watch the wallet and each listed token account before the initial reload, then read balances again after confirmed changes until cancellation or subscription failure. |
 | `removeData(for:)` | Remove the wallet's local cache and token list, and stop its active work. |
 
 ## Token Lists
 
-Each account keeps a list of the tokens it shows besides native SOL. `Portfolio` also implements [`TokenListProviding`](Sources/TokenList/TokenListProviding.swift): new mainnet lists hold USDC and USDT, devnet lists start empty, and people can add up to 50 tokens. Lists are saved per account and network in Application Support. A saved list that can't be read throws `TokenListError.unreadable` instead of returning the defaults. Changing the list doesn't read balances by itself; request `updates(for:policy:)` with `.reload` afterwards. Share one `Portfolio` per network so that edits from several windows stay serialized.
+Each account keeps a list of the tokens it shows besides native SOL. `Portfolio` also implements [`TokenListProviding`](Sources/TokenList/TokenListProviding.swift): new mainnet lists hold USDC and USDT, devnet lists start empty, and people can add up to 50 tokens. Lists are saved per account and network in Application Support. A saved list that can't be read throws `TokenListError.unreadable` instead of returning the defaults. After a change, an observed account watches its new list and reads balances once; otherwise the next reload reads the new list. Share one `Portfolio` per network so that edits from several windows stay serialized.
 
 | Operation | Behavior |
 | --- | --- |

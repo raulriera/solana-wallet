@@ -1,10 +1,19 @@
 import Foundation
 @testable import RPC
 import Testing
+import Transactions
 @testable import Portfolio
 
 /// Exercises observation through real public-endpoint decoding with controlled HTTP and WebSocket transports.
 struct ObservationTests {
+    /// The ways a person changes an account's token list.
+    enum ListChange: CaseIterable {
+        /// Adding a token the list doesn't hold.
+        case addition
+        /// Removing a listed token.
+        case removal
+    }
+
     /// Verifies a new presentation reloads even when an existing consumer retains the connection.
     @Test(.timeLimit(.minutes(1)))
     func `Joining an established observation reloads fresh cached holdings`() async throws {
@@ -51,7 +60,7 @@ struct ObservationTests {
         #expect(fixture.socket.requests.count == 3)
 
         await ledger.set(lamports: 200)
-        fixture.socket.notify(slot: 110, subscription: 3, method: "programNotification")
+        fixture.socket.notify(slot: 110, subscription: 3)
         var delays = fixture.gate.delays.makeAsyncIterator()
         #expect(await delays.next() == .seconds(2))
         #expect(fixture.store.snapshot(for: fixture.key) == original)
@@ -74,8 +83,8 @@ struct ObservationTests {
         let (pending, release) = AsyncStream<Void>.makeStream()
         let (started, announce) = AsyncStream<Void>.makeStream()
         defer { release.finish(); announce.finish() }
-        let service = fixture.service { _ in
-            let reading = try await ledger.response()
+        let service = fixture.service { accounts in
+            let reading = try await ledger.response(for: accounts)
             if await ledger.readCount == 2 {
                 announce.yield(())
                 for await _ in pending {}
@@ -104,6 +113,87 @@ struct ObservationTests {
         #expect(latest.holdings.first?.amount?.units == 300)
         #expect(fixture.store.snapshot(for: fixture.key) == latest.snapshot)
         #expect(await ledger.readCount == 3)
+        try await service.removeData(for: testWallet)
+        await fixture.socket.waitUntilCancelled()
+    }
+
+    /// Verifies observation watches the wallet and each listed token's associated account, as balance reads do.
+    @Test(.timeLimit(.minutes(1)))
+    func `Observation watches the wallet and each listed token account`() async throws {
+        let fixture = ObservationFixture()
+        defer { fixture.cleanUp() }
+        let ledger = ObservedLedger()
+        let service = fixture.service(ledger: ledger)
+        var updates = await service.observations(for: testWallet).makeAsyncIterator()
+        try await nextResult(&updates)
+
+        let wallet = try Address(testWallet)
+        let tokenAccounts = try [usdcMint, usdtMint].map {
+            try TokenProgram.token.associatedAccount(owner: wallet, mint: Address($0)).value
+        }
+        #expect(fixture.socket.subscribedAddresses == [testWallet] + tokenAccounts)
+        #expect(await ledger.reads == [[testWallet] + tokenAccounts])
+        try await service.removeData(for: testWallet)
+        await fixture.socket.waitUntilCancelled()
+    }
+
+    /// Verifies a list change moves an observed account's alerts to a new connection for the new list, then reads once.
+    /// - Parameter change: How the token list changes.
+    @Test(.timeLimit(.minutes(1)), arguments: ListChange.allCases)
+    func `Changing an observed token list watches the new list and reads balances once`(_ change: ListChange) async throws {
+        let fixture = ObservationFixture()
+        defer { fixture.cleanUp() }
+        let ledger = ObservedLedger()
+        let connections = Connections()
+        let service = fixture.service(ledger: ledger) { connections.connect(to: $0) }
+        var sockets = connections.opened.makeAsyncIterator()
+        var updates = await service.observations(for: testWallet).makeAsyncIterator()
+        try await nextResult(&updates)
+        let first = try #require(await sockets.next())
+
+        let list = switch change {
+        case .addition:
+            try await service.addToken(ListedToken(mint: Address(pyusdMint), program: .token2022, decimals: 6,
+                                                   symbol: "PYUSD", name: "PayPal USD"), for: testWallet)
+        case .removal:
+            try await service.removeToken(Address(usdcMint), for: testWallet)
+        }
+        await first.waitUntilCancelled()
+        let second = try #require(await sockets.next())
+        let changed = try await nextResult(&updates)
+
+        #expect(changed.error == nil)
+        #expect(changed.holdings.map(\.id) == [.nativeSOL] + list.tokens.map { .asset($0.mint.value) })
+        let reads = await ledger.reads
+        #expect(reads.count == 2)
+        #expect(second.subscribedAddresses == reads.last)
+        try await service.removeData(for: testWallet)
+        await second.waitUntilCancelled()
+    }
+
+    /// Verifies list edits that change nothing keep the observed account's connection and read nothing.
+    @Test(.timeLimit(.minutes(1)))
+    func `Token list edits that change nothing keep the observation`() async throws {
+        let fixture = ObservationFixture()
+        defer { fixture.cleanUp() }
+        let ledger = ObservedLedger()
+        let service = fixture.service(ledger: ledger)
+        var updates = await service.observations(for: testWallet).makeAsyncIterator()
+        try await nextResult(&updates)
+
+        let usdc = try #require(try await service.tokenList(for: testWallet).tokens.first)
+        _ = try await service.addToken(usdc, for: testWallet)
+        _ = try await service.removeToken(Address(pyusdMint), for: testWallet)
+        await ledger.set(lamports: 200)
+        fixture.socket.notify(slot: 101)
+        var delays = fixture.gate.delays.makeAsyncIterator()
+        _ = try #require(await delays.next())
+        fixture.gate.resume()
+        let updated = try await nextResult(&updates)
+
+        #expect(updated.holdings.first?.amount?.units == 200)
+        #expect(await ledger.readCount == 2)
+        #expect(fixture.socket.requests.count == 3)
         try await service.removeData(for: testWallet)
         await fixture.socket.waitUntilCancelled()
     }
@@ -215,11 +305,14 @@ struct ObservationTests {
     }
 }
 
-/// Holds the SOL balance that the next successful balance read reports.
+/// Holds the SOL balance that the next successful balance read reports, and records each read's accounts.
 private actor ObservedLedger {
     private var lamports: UInt64 = 100
     private var offline = false
-    private(set) var readCount = 0
+    /// The accounts each balance read requested, in order.
+    private(set) var reads: [[String]] = []
+    /// The number of balance reads so far.
+    var readCount: Int { reads.count }
 
     /// Updates the balance that later reads report.
     /// - Parameter lamports: The wallet's SOL balance in lamports.
@@ -228,11 +321,12 @@ private actor ObservedLedger {
     /// Makes subsequent reads fail instead of returning an outdated balance.
     func fail() { offline = true }
 
-    /// Counts a read and returns the balance at the moment it starts.
+    /// Records a read and returns the balance at the moment it starts.
+    /// - Parameter accounts: The accounts the read requests.
     /// - Returns: The ledger state for the fixture's balance read.
     /// - Throws: An offline error when configured to fail.
-    func response() throws -> Ledger {
-        readCount += 1
+    func response(for accounts: [String]) throws -> Ledger {
+        reads.append(accounts)
         if offline { throw URLError(.notConnectedToInternet) }
         return Ledger(lamports: lamports)
     }
@@ -277,23 +371,47 @@ private struct ObservationFixture: Sendable {
     var store: FileSnapshotStore { FileSnapshotStore(directory: directory) }
 
     /// Composes a real public-endpoint client with controlled network boundaries and the production Portfolio.
-    /// - Parameter respond: The balance-read responder.
+    /// - Parameters:
+    ///   - connect: Opens each subscription connection; `nil` reuses the fixture's socket.
+    ///   - respond: The balance-read responder.
     /// - Returns: The portfolio service whose observation behavior is exercised.
-    func service(respond: @escaping AccountResponses.Responder) -> Portfolio {
+    func service(connect: (@Sendable (URL) -> any WebSocketConnection)? = nil,
+                 respond: @escaping AccountResponses.Responder) -> Portfolio {
         let http = AccountResponses(respond: respond)
-        let rpc = Solana(network: .mainnet, transport: http, socket: { _ in socket })
+        let rpc = Solana(network: .mainnet, transport: http, socket: connect ?? { _ in socket })
         return Portfolio(rpc: rpc, store: store, tokenLists: isolatedTokenLists(), pause: { try await gate.pause($0) })
     }
 
     /// Composes a service whose balance reads report the given ledger.
-    /// - Parameter ledger: The balance state.
+    /// - Parameters:
+    ///   - ledger: The balance state.
+    ///   - connect: Opens each subscription connection; `nil` reuses the fixture's socket.
     /// - Returns: The portfolio service whose observation behavior is exercised.
-    func service(ledger: ObservedLedger) -> Portfolio {
-        service { _ in try await ledger.response() }
+    func service(ledger: ObservedLedger, connect: (@Sendable (URL) -> any WebSocketConnection)? = nil) -> Portfolio {
+        service(connect: connect) { try await ledger.response(for: $0) }
     }
 
     /// Ends fixture networking and removes only this test's cache files.
     func cleanUp() { socket.cancel(); gate.finish(); try? FileManager.default.removeItem(at: directory) }
+}
+
+/// Gives each subscription connection a new socket and hands it to the test, so tests can follow reconnections.
+private struct Connections: Sendable {
+    /// The sockets in the order the service opened them.
+    let opened: AsyncStream<SocketFixture>
+    private let announce: AsyncStream<SocketFixture>.Continuation
+
+    /// Creates a source of new sockets.
+    init() { (opened, announce) = AsyncStream.makeStream() }
+
+    /// Opens a new socket for one connection.
+    /// - Parameter endpoint: The provider's WebSocket endpoint, which the fixture ignores.
+    /// - Returns: A new scripted socket.
+    func connect(to endpoint: URL) -> any WebSocketConnection {
+        let socket = SocketFixture()
+        announce.yield(socket)
+        return socket
+    }
 }
 
 /// Reads through progress updates to one complete success or failure.

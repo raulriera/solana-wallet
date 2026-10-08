@@ -54,6 +54,15 @@ public struct TokenList: Sendable, Equatable {
         tokens.removeAll { $0.mint == mint }
     }
 
+    /// Lists the accounts that hold the balances the list shows, which the portfolio reads and watches.
+    ///
+    /// - Parameter owner: The wallet that lists the tokens.
+    /// - Returns: The wallet, then each listed token's associated token account in list order.
+    /// - Throws: A derivation error if a token's associated account address can't be derived.
+    func accounts(of owner: Address) throws -> [Address] {
+        try [owner] + tokens.map { try $0.program.associatedAccount(owner: owner, mint: $0.mint) }
+    }
+
     /// Lists the tokens a new account starts with on a network.
     ///
     /// Devnet has no official USDT, so devnet lists start empty.

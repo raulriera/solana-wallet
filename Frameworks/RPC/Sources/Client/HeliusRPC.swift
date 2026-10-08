@@ -62,11 +62,11 @@ public struct HeliusRPC: RPC, AccountChangeProviding, CustomStringConvertible, C
         try await client.send(request)
     }
 
-    /// Observes confirmed SOL and owned token-account changes through standard Solana subscriptions.
-    /// - Parameter owner: The wallet address to watch.
+    /// Observes confirmed changes to each account through standard Solana subscriptions on one connection.
+    /// - Parameter addresses: The accounts to watch; a repeated address is watched once.
     /// - Returns: Increasing confirmed change slots after all subscriptions are acknowledged.
     /// - Throws: A sanitized subscription, transport, timeout, or cancellation error.
-    public func changedSlots(for owner: String) async throws -> AsyncThrowingStream<UInt64, any Error> {
-        try await subscriptions.changedSlots(for: owner)
+    public func changedSlots(for addresses: [String]) async throws -> AsyncThrowingStream<UInt64, any Error> {
+        try await subscriptions.changedSlots(for: addresses)
     }
 }

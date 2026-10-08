@@ -57,7 +57,7 @@ struct PortfolioTests {
     func `Token-2022 balances come from their own associated accounts`() async throws {
         let fixture = Fixture()
         defer { fixture.removeFiles() }
-        let mint = "2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo"
+        let mint = pyusdMint
         let http = AccountResponses { _ in Ledger(lamports: 1, tokens: [mint: 42]) }
         let service = fixture.portfolio(rpc: http.client)
         let token = ListedToken(mint: try Address(mint), program: .token2022, decimals: 6, symbol: "PYUSD", name: "PayPal USD")
@@ -72,6 +72,41 @@ struct PortfolioTests {
         #expect(updated.holdings.last?.amount == Amount(units: 42, decimals: 6))
         let tokenAccount = try TokenProgram.token2022.associatedAccount(owner: Address(testWallet), mint: Address(mint))
         #expect(await http.requests.first?.last == tokenAccount.value)
+    }
+
+    /// Verifies a balance read in progress starts again when the list changes, so its consumers never get the old list.
+    ///
+    /// - Throws: A fixture setup error or failed prerequisite.
+    @Test(.timeLimit(.minutes(1)))
+    func `A balance read in progress starts again when the token list changes`() async throws {
+        let fixture = Fixture()
+        defer { fixture.removeFiles() }
+        let (started, announce) = AsyncStream<Void>.makeStream()
+        let (pending, release) = AsyncStream<Void>.makeStream()
+        defer { announce.finish(); release.finish() }
+        let http = AccountResponses { addresses in
+            // Holds the read of the original list, the wallet and two default tokens, until it's cancelled.
+            if addresses.count == 3 {
+                announce.yield(())
+                for await _ in pending {}
+            }
+            return Ledger(lamports: 100, tokens: [pyusdMint: 42])
+        }
+        let service = fixture.portfolio(rpc: http.client)
+        var updates = await service.updates(for: testWallet, policy: .reload).makeAsyncIterator()
+        _ = try #require(await updates.next())
+        var reading = started.makeAsyncIterator()
+        _ = try #require(await reading.next())
+
+        let token = ListedToken(mint: try Address(pyusdMint), program: .token2022, decimals: 6, symbol: "PYUSD", name: "PayPal USD")
+        _ = try await service.addToken(token, for: testWallet)
+        let updated = try #require(await updates.next())
+
+        #expect(updated.error == nil)
+        #expect(updated.holdings.map(\.id) == [.nativeSOL, .asset(usdcMint), .asset(usdtMint), .asset(pyusdMint)])
+        #expect(updated.holdings.last?.amount == Amount(units: 42, decimals: 6))
+        #expect(await updates.next() == nil)
+        #expect(await http.requests.map(\.count) == [3, 4])
     }
 
     /// Verifies one token account with unexpected contents leaves only that balance unknown.

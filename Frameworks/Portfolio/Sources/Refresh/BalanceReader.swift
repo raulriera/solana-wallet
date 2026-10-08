@@ -30,17 +30,17 @@ struct BalanceReader: BalanceReading {
     func snapshot(for owner: String) async throws -> Snapshot {
         let list = try await tokenLists.list(for: owner)
         let wallet = try Address(owner)
-        let tokenAccounts = try list.tokens.map { try $0.program.associatedAccount(owner: wallet, mint: $0.mint) }
+        let accounts = try list.accounts(of: wallet)
         try Task.checkCancellation()
-        let response = try await rpc.send(GetMultipleAccounts(addresses: [owner] + tokenAccounts.map(\.value)))
-        guard response.value.count == tokenAccounts.count + 1 else { throw BalanceError.mismatchedResponse }
+        let response = try await rpc.send(GetMultipleAccounts(addresses: accounts.map(\.value)))
+        guard response.value.count == accounts.count else { throw BalanceError.mismatchedResponse }
         // A wallet that was never funded has no account on the ledger, so it holds no SOL.
         let native = Holding(id: .nativeSOL, amount: Amount(units: response.value[0]?.lamports ?? 0, decimals: 9),
                              name: "Solana", symbol: "SOL", imageURL: nil, valuation: nil)
         let tokens = list.tokens.indices.map { index in
             let token = list.tokens[index]
             return Holding(id: .asset(token.mint.value),
-                           amount: amount(of: token, at: tokenAccounts[index], in: response.value[index + 1], owner: wallet),
+                           amount: amount(of: token, at: accounts[index + 1], in: response.value[index + 1], owner: wallet),
                            name: token.name, symbol: token.symbol, imageURL: nil, valuation: nil)
         }
         try Task.checkCancellation()

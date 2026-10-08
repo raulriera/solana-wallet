@@ -1,5 +1,6 @@
 import Foundation
 import RPC
+import Transactions
 
 /// Shares a wallet's confirmed subscription and reloads its balances after confirmed changes.
 actor ObservationCoordinator {
@@ -7,6 +8,7 @@ actor ObservationCoordinator {
     typealias Pause = @Sendable (Duration) async throws -> Void
 
     private let refresh: RefreshCoordinator
+    private let tokenLists: TokenListCoordinator
     private let changes: (any AccountChangeProviding)?
     private let network: Network
     private let pause: Pause
@@ -15,12 +17,14 @@ actor ObservationCoordinator {
     /// Creates observation policy around the same refresh coordinator used by explicit requests.
     /// - Parameters:
     ///   - refresh: The owner of cache and in-flight refreshes.
-    ///   - changes: The optional provider of confirmed wallet-change slots.
+    ///   - tokenLists: The token lists whose accounts each wallet's subscription watches.
+    ///   - changes: The optional provider of confirmed account-change slots.
     ///   - network: The network whose portfolio is observed.
     ///   - pause: Cancellable scheduling for coalescing nearby changes.
-    init(refresh: RefreshCoordinator, changes: (any AccountChangeProviding)?, network: Network,
-         pause: @escaping Pause) {
+    init(refresh: RefreshCoordinator, tokenLists: TokenListCoordinator, changes: (any AccountChangeProviding)?,
+         network: Network, pause: @escaping Pause) {
         self.refresh = refresh
+        self.tokenLists = tokenLists
         self.changes = changes
         self.network = network
         self.pause = pause
@@ -46,11 +50,20 @@ actor ObservationCoordinator {
             watches[owner] = watch
             if watch.reloadRequested { schedule(owner: owner, generation: watch.generation, delayed: false) }
         } else {
-            let generation = UUID()
-            watches[owner] = Watch(generation: generation, consumers: [id: continuation])
-            watches[owner]?.connection = Task { await listen(owner: owner, generation: generation) }
+            connect(owner: owner, consumers: [id: continuation])
         }
         return stream
+    }
+
+    /// Watches an observed wallet's accounts again after its token list changes, then reads its balances once.
+    ///
+    /// Consumers keep their streams. A wallet that isn't observed is left alone.
+    /// - Parameter owner: The wallet whose token list changed.
+    func restart(for owner: String) {
+        guard let watch = watches[owner] else { return }
+        watch.connection?.cancel()
+        watch.reconciliation?.cancel()
+        connect(owner: owner, consumers: watch.consumers, latest: watch.latest)
     }
 
     /// Cancels this wallet's observation before its cache is removed.
@@ -60,6 +73,17 @@ actor ObservationCoordinator {
         watch.connection?.cancel()
         watch.reconciliation?.cancel()
         for consumer in watch.consumers.values { consumer.finish() }
+    }
+
+    /// Starts a new observation lifetime for a wallet's consumers, so earlier work can't deliver results.
+    /// - Parameters:
+    ///   - owner: The watched wallet.
+    ///   - consumers: The streams that receive the wallet's updates.
+    ///   - latest: The newest update those consumers already received, if any.
+    private func connect(owner: String, consumers: [UUID: AsyncStream<Update>.Continuation], latest: Update? = nil) {
+        let generation = UUID()
+        watches[owner] = Watch(generation: generation, consumers: consumers, latest: latest)
+        watches[owner]?.connection = Task { await listen(owner: owner, generation: generation) }
     }
 
     /// Establishes subscriptions before requesting initial catch-up, avoiding the setup-to-fetch gap.
@@ -72,7 +96,8 @@ actor ObservationCoordinator {
         do {
             guard let changes else { throw ObservationError.providerUnavailable }
             guard changes.network == network else { throw ObservationError.networkMismatch }
-            let slots = try await changes.changedSlots(for: owner)
+            let accounts = try await tokenLists.list(for: owner).accounts(of: Address(owner))
+            let slots = try await changes.changedSlots(for: accounts.map(\.value))
             try Task.checkCancellation()
             guard watches[owner]?.generation == generation else { return }
             watches[owner]?.isConnected = true

@@ -6,19 +6,19 @@ struct SubscriptionClient: Sendable {
     let connect: @Sendable (URL) -> any WebSocketConnection
     let redactor: any TextRedactor
 
-    /// Opens three confirmed subscriptions and then streams their increasing change slots.
-    /// - Parameter owner: The wallet's SOL address and token-account authority.
+    /// Opens one confirmed subscription per account on one connection, then streams their increasing change slots.
+    /// - Parameter addresses: The accounts to watch; a repeated address is watched once.
     /// - Returns: A cancellable stream after all subscription acknowledgments arrive.
     /// - Throws: A sanitized setup, timeout, or cancellation error.
     @concurrent
-    func changedSlots(for owner: String) async throws -> AsyncThrowingStream<UInt64, any Error> {
+    func changedSlots(for addresses: [String]) async throws -> AsyncThrowingStream<UInt64, any Error> {
         try Task.checkCancellation()
         let socket = connect(endpoint)
         do {
             let state = try await withThrowingTaskGroup(of: SubscriptionState.self) { group in
                 group.addTask {
                     try await withTaskCancellationHandler {
-                        try await handshake(owner: owner, socket: socket)
+                        try await handshake(addresses: addresses, socket: socket)
                     } onCancel: { socket.cancel() }
                 }
                 group.addTask {
@@ -67,21 +67,17 @@ struct SubscriptionClient: Sendable {
         }
     }
 
-    /// Registers SOL and both token-program filters before returning control to the consumer.
+    /// Registers every account before returning control to the consumer.
     /// - Parameters:
-    ///   - owner: The wallet address to filter.
+    ///   - addresses: The accounts to watch.
     ///   - socket: The connected transport.
     /// - Returns: Validated subscription IDs and any change observed during setup.
     /// - Throws: An encoding, transport, response, or cancellation error.
-    private func handshake(owner: String, socket: any WebSocketConnection) async throws -> SubscriptionState {
-        let requests = [
-            SubscriptionRequest(owner: owner),
-            SubscriptionRequest(owner: owner, program: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
-            SubscriptionRequest(owner: owner, program: "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"),
-        ]
-        var state = SubscriptionState(pending: Dictionary(uniqueKeysWithValues: requests.map {
-            ($0.id, $0.method == "accountSubscribe" ? "accountNotification" : "programNotification")
-        }))
+    private func handshake(addresses: [String], socket: any WebSocketConnection) async throws -> SubscriptionState {
+        // Providers either reuse one subscription for a repeated account or notify it twice, so send each once.
+        var unique = Set<String>()
+        let requests = addresses.filter { unique.insert($0).inserted }.map(SubscriptionRequest.init(address:))
+        var state = SubscriptionState(pending: Set(requests.map(\.id)))
         for request in requests {
             try Task.checkCancellation()
             guard let data = try? JSONEncoder().encode(request) else { throw RPCError.encoding }

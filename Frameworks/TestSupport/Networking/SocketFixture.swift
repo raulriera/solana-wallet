@@ -33,6 +33,14 @@ final class SocketFixture: WebSocketConnection {
     var requests: [Data] { state.withLock(\.requests) }
     var isCancelled: Bool { state.withLock(\.cancelled) }
 
+    /// The account each sent subscription request watches, in the order they were sent.
+    var subscribedAddresses: [String] {
+        requests.compactMap { request in
+            let body = try? JSONSerialization.jsonObject(with: request) as? [String: Any]
+            return (body?["params"] as? [Any])?.first as? String
+        }
+    }
+
     /// Records an outgoing request and enqueues its scripted replies.
     /// - Parameter data: The request encoded by the real provider.
     /// - Throws: A fixture or cancellation error.
@@ -75,13 +83,12 @@ final class SocketFixture: WebSocketConnection {
         _ = await iterator.next()
     }
 
-    /// Delivers a confirmed-change notification through the real protocol decoder.
+    /// Delivers a confirmed account-change notification through the real protocol decoder.
     /// - Parameters:
     ///   - slot: The notification's context slot.
     ///   - subscription: The acknowledged server subscription ID.
-    ///   - method: The corresponding notification method.
-    func notify(slot: UInt64, subscription: UInt64 = 1, method: String = "accountNotification") {
-        incoming.yield(Data(#"{"jsonrpc":"2.0","method":"\#(method)","params":{"subscription":\#(subscription),"result":{"context":{"slot":\#(slot)},"value":{}}}}"#.utf8))
+    func notify(slot: UInt64, subscription: UInt64 = 1) {
+        incoming.yield(Data(#"{"jsonrpc":"2.0","method":"accountNotification","params":{"subscription":\#(subscription),"result":{"context":{"slot":\#(slot)},"value":{}}}}"#.utf8))
     }
 
     /// Ends the transport with a scripted network failure.
