@@ -102,7 +102,7 @@ struct TokenCard: View {
                   value: (total: 2_075, currency: "USD"), change: Decimal(string: "0.0129"), imageURL: nil)
         TokenCard(symbol: "MYST", name: "Mystery Token", amount: Amount(units: 42, decimals: 0), value: nil,
                   change: nil, imageURL: nil)
-        CardPocket()
-            .padding(.top, 24)
     }
+    .padding(.bottom, 24)
+    .clipShape(PocketClip())
 }
