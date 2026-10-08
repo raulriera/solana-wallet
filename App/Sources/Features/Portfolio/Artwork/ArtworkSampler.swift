@@ -11,11 +11,12 @@ nonisolated enum ArtworkSampler {
     /// - Returns: The average color of the most common colored region, or `nil` when the data isn't an image
     ///   or has no colored pixels.
     static func color(from data: Data) -> ArtworkColor? {
+        // At 64 pixels, thin marks such as SOL's bars keep more fill than edges blended into the background.
         guard let source = CGImageSourceCreateWithData(data as CFData, [kCGImageSourceShouldCache: false] as CFDictionary),
               let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [
                   kCGImageSourceCreateThumbnailFromImageAlways: true,
                   kCGImageSourceCreateThumbnailWithTransform: true,
-                  kCGImageSourceThumbnailMaxPixelSize: 32,
+                  kCGImageSourceThumbnailMaxPixelSize: 64,
               ] as CFDictionary),
               let space = CGColorSpace(name: CGColorSpace.sRGB),
               let context = CGContext(data: nil, width: image.width, height: image.height, bitsPerComponent: 8,
