@@ -4,6 +4,16 @@ import Testing
 /// Checks input mutation and cleanup without duplicating the Wallet framework's BIP-39 tests.
 @MainActor
 struct RecoveryInputTests {
+    /// Unsupported lengths explain that words may be missing or extra, including counts above twelve.
+    /// - Parameter count: An unsupported number of public fixture words.
+    @Test(arguments: [11, 13, 25])
+    func `Unsupported recovery lengths ask to check for missing or extra words`(count: Int) {
+        let input = RecoveryInput(phrase: Array(repeating: "abandon", count: count).joined(separator: " "))
+
+        #expect(!input.validate())
+        #expect(input.validationMessage == "Check for missing or extra words.")
+    }
+
     /// Editing clears the previous inline failure immediately without observing the phrase as a key.
     @Test
     func `Editing recovery clears validation while preserving the exact passphrase`() {

@@ -36,7 +36,7 @@ final class RecoveryInput {
     var validationMessage: String? {
         switch validationError {
         case .invalidWordCount:
-            return String(localized: "Enter at least 12 recovery words.")
+            return String(localized: "Check for missing or extra words.")
         case .unknownWord(let position):
             let words = phrase.decomposedStringWithCompatibilityMapping.split(whereSeparator: \.isWhitespace)
             guard words.indices.contains(position) else { return nil }
