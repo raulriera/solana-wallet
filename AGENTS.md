@@ -8,6 +8,7 @@
 - Do not add module-name prefixes to types; rely on the module namespace.
 - Keep project files grouped by concern in real folders that Xcode mirrors; organize UI features into focused subfolders for scenes, screens, sections, components, and models as needed. Group related tests accordingly.
 - Keep app entry and window ownership in `App/Sources/Application`, service and coordinator assembly in its `Composition`, destination contracts and navigation state in `Routing`, and launch restoration in `Startup`. Keep root views focused on window/scene ownership and feature composition; extract presentation lifecycles into focused modifiers with fluent helpers.
+- Workflow models report completion as observable state, such as `isSaved`; never give them closures that capture view state. Presented views close themselves with `dismiss`; other owners react with `onChange`.
 - Keep app source and tests in `App/Sources` and `App/Tests`. Keep every framework in `Frameworks/<Module>` with `Sources`, `Tests`, and `README.md`.
 - Organize `App/Sources` into `Application`, `Features`, `Appearance`, `UI`, `Resources`, and `Configuration`. Keep shipped assets, settings bundles, built-in themes, and the privacy manifest in `Resources`; keep Info.plist and entitlements in `Configuration`.
 - Keep feature workflows, coordinators, contracts, and models in `Features/<Feature>`. Add focused folders only as needed: scenes own navigation containers, screens are destinations, and sections, components, routing, and styles stay with their feature unless shared.
