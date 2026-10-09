@@ -46,5 +46,7 @@
   or funded recovery in UI automation.
 - Query visible text and accessibility labels, scoping by native container only when needed.
   Do not add test-only accessibility identifiers; incorrect user-facing labels must fail.
+- Do not write tests that only check accessibility, such as accessibility audits or label
+  assertions. Use the Xcode accessibility skills for accessibility reviews.
 - Check readiness before acting. Unexpected setup alerts fail immediately; never mask them
   with generic timeouts, automatic dismissal, or blind retries of committed actions.

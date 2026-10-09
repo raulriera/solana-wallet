@@ -80,7 +80,8 @@ final class ImportWalletUITests: XCTestCase {
         XCTAssertTrue(flow.submitImport.isEnabled)
         try flow.tap(reveal)
         try flow.waitFor(flow.app.buttons["Hide words"])
-        XCTAssertEqual(flow.app.descendants(matching: .any)["Recovery words"].value as? String, OnboardingApp.phrase)
+        // The revealed field exposes the words only as its value, without a label.
+        try flow.waitFor(flow.app.textFields.matching(NSPredicate(format: "value == %@", OnboardingApp.phrase)).firstMatch)
         let passphrase = flow.app.secureTextFields["BIP-39 passphrase, optional"]
         if !passphrase.isHittable { flow.app.swipeUp() }
         try flow.waitFor(passphrase)

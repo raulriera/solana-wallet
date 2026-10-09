@@ -26,9 +26,9 @@ final class TokenAdditionUITests: XCTestCase {
         try flow.tap(paste)
         let preview = NSPredicate(format: "label == %@", "Bonk · Solana")
         try flow.expectOutcome(flow.app.staticTexts["Bonk · Solana"], matching: preview, unless: Self.failure)
-        // The toolbar's Add Token button stays behind the sheet, so the sheet's own button comes last.
-        let addButtons = flow.app.buttons.matching(identifier: "Add Token")
-        try flow.tap(addButtons.element(boundBy: addButtons.count - 1))
+        // The toolbar's Add Token button stays behind the sheet and can't be tapped, so tap the sheet's own button.
+        let addButtons = flow.app.buttons.matching(identifier: "Add Token").allElementsBoundByIndex
+        try flow.tap(try XCTUnwrap(addButtons.first(where: \.isHittable)))
 
         let listed = NSPredicate(format: "elementType == %lu AND label BEGINSWITH %@",
                                  XCUIElement.ElementType.button.rawValue, "Bonk")
