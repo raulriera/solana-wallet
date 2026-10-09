@@ -7,7 +7,6 @@ struct TokenDetailScreen: View {
     @Environment(\.palette) private var palette
     @State private var contentInset = LayoutMetrics.contentMargin
     let holding: Holding
-    let network: Network
 
     var body: some View {
         Form {
@@ -48,12 +47,6 @@ struct TokenDetailScreen: View {
                 }
             } header: {
                 Text("Holdings")
-            }
-            .listRowBackground(palette.surface)
-
-            Section {
-                LabeledContent("Network") { Text(networkName) }
-                LabeledContent("Asset") { Text(assetKind) }
             } footer: {
                 if let currency = holding.knownValue?.currency {
                     Text("Values are quoted in \(currency).")
@@ -70,19 +63,6 @@ struct TokenDetailScreen: View {
         .navigationTitle(holding.displayName)
         .navigationBarTitleDisplayMode(.inline)
     }
-
-    /// The network's name as people know it.
-    private var networkName: LocalizedStringResource {
-        switch network {
-        case .mainnet: "Mainnet"
-        case .devnet: "Devnet"
-        }
-    }
-
-    /// Whether this is the network's own currency or a token.
-    private var assetKind: LocalizedStringResource {
-        holding.id == .nativeSOL ? "Native SOL" : "Fungible token"
-    }
 }
 
 #Preview {
@@ -90,7 +70,6 @@ struct TokenDetailScreen: View {
         TokenDetailScreen(holding: Holding(id: .nativeSOL, amount: Amount(units: 12_500_000_000, decimals: 9),
                                            name: "Solana", symbol: "SOL", imageURL: nil,
                                            valuation: Valuation(pricePerUnit: 166, total: 2_075, currency: "USD",
-                                                                dayChange: Decimal(string: "0.0129"))),
-                          network: .mainnet)
+                                                                dayChange: Decimal(string: "0.0129"))))
     }
 }
