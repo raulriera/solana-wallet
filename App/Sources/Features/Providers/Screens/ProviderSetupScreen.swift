@@ -25,8 +25,8 @@ struct ProviderSetupScreen: View {
                     .foregroundStyle(palette.primaryText)
 
                 if isKeyRejected {
-                    Text(ProviderConnectionError.invalidKey.message)
-                        .foregroundStyle(.red)
+                    Label(ProviderConnectionError.invalidKey.message, systemImage: "exclamationmark.circle.fill")
+                        .labelStyle(.warning)
                 }
             } header: {
                 Text("API Key")

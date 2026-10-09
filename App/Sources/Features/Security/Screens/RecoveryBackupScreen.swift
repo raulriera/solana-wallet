@@ -58,8 +58,8 @@ struct RecoveryBackupScreen: View {
                 } description: {
                     Text("This device no longer has this wallet's recovery phrase. Reset the app and import your written backup.")
                 } actions: {
-                    Button("Reset App", role: .destructive) { flow.startReset(.recoveryUnavailable) }
-                        .foregroundStyle(.red)
+                    Button("Reset App", systemImage: "trash", role: .destructive) { flow.startReset(.recoveryUnavailable) }
+                        .labelStyle(.warning)
                 }
                 .foregroundStyle(palette.primaryText, palette.secondaryText)
             }

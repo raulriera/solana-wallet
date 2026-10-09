@@ -36,8 +36,8 @@ struct ImportWalletScreen: View {
                     .contentTransition(.opacity)
 
                 if let validationMessage = input.validationMessage {
-                    Text(validationMessage)
-                        .foregroundStyle(.red)
+                    Label(validationMessage, systemImage: "exclamationmark.circle.fill")
+                        .labelStyle(.warning)
                         .contentTransition(.opacity)
                         .transition(.opacity)
                 }

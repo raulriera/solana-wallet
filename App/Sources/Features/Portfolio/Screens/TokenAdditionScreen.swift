@@ -33,8 +33,8 @@ struct TokenAdditionScreen: View {
                 }
 
                 if let message = addition.message {
-                    Text(message)
-                        .foregroundStyle(.red)
+                    Label(message, systemImage: "exclamationmark.circle.fill")
+                        .labelStyle(.warning)
                         .contentTransition(.opacity)
                         .transition(.opacity)
                 }

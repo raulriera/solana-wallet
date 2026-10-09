@@ -21,8 +21,8 @@ struct SecurityScreen: View {
             .listRowSeparatorTint(palette.separator)
 
             Section {
-                Button("Reset App", role: .destructive) { flow.startReset(.standard) }
-                    .foregroundStyle(.red)
+                Button("Reset App", systemImage: "trash", role: .destructive) { flow.startReset(.standard) }
+                    .labelStyle(.warning)
             } footer: {
                 Text("Deletes every wallet, recovery phrase, and your RPC API key from this device. Your themes stay.")
                     .foregroundStyle(palette.secondaryText)
