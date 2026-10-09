@@ -34,8 +34,8 @@
 
 ## UI automation
 
-- Follow XCUITest Resilience. Only the user runs UI tests; agents may build without executing
-  test setup. Reuse approved simulators and disable parallel execution.
+- Follow XCUITest Resilience. Only the user runs UI tests; agents skip them with
+  `-skip-testing:widgetsUITests`. Reuse approved simulators and disable parallel execution.
 - Make each test self-contained: automatically prepare prerequisites and reset disposable state
   before constructing services. Restrict destructive reset hooks to explicit Debug simulator
   test launches; preserve state during relaunches that verify persistence.

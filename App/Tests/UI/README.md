@@ -1,10 +1,11 @@
 # UI tests
 
-Use the shared `widgetsUITests` scheme, an existing regular iPhone simulator, and
-Product > Test with parallel execution disabled. Only the user runs these tests;
-agents may compile them without invoking the Test action or its setup.
+The `widgets` scheme runs these tests with the unit tests, without parallel clones. Select an
+existing regular iPhone simulator and use Product > Test or the Test navigator. Only the user
+runs these tests; agents pass `-skip-testing:widgetsUITests`.
 
-The scheme's Test pre-action enables biometrics on the selected simulator.
+The scheme's Test pre-action enables biometrics on the selected simulator before every test run,
+unless `TEST_RUNNER_BIOMETRIC_TEST_STATE` is set for the biometric-tests skill.
 `OnboardingApp.launch()` sets `UI_TEST_RESET=1` for the first launch of each scenario.
 Before service construction, the Debug simulator app deletes its real Accounts and
 Themes directories, recovery Keychain records, and preferences. This deletes saved

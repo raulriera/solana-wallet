@@ -1,6 +1,11 @@
 #!/bin/bash
-# The UI-test scheme runs this automatically before XCTest starts, including individual tests.
+# The widgets scheme runs this automatically before XCTest starts, including individual tests.
 set -euo pipefail
+
+# The biometric-tests skill sets this and needs the simulator's enrollment unchanged.
+if [[ -n "${TEST_RUNNER_BIOMETRIC_TEST_STATE:-}" ]]; then
+    exit 0
+fi
 
 if [[ "${PLATFORM_NAME:-}" != iphonesimulator ]]; then
     echo "Onboarding UI tests require an iOS Simulator destination." >&2
