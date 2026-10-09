@@ -82,7 +82,7 @@ struct PortfolioScene: View {
 
     /// Opens provider setup; a saved key closes it, and every window observes again with that key.
     private func setUpProvider() {
-        providerSetup = ProviderSubmission(connection: connection, revision: keyRevision) { providerSetup = nil }
+        providerSetup = ProviderSubmission(connection: connection, revision: keyRevision)
     }
 
     /// Loads the portfolio again after a failed first load; the loading state shows until the result arrives.

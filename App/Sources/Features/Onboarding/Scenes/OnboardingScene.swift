@@ -25,7 +25,7 @@ struct OnboardingScene: View {
         let importSubmission = ImportSubmission(coordinator: coordinator)
         self.importSubmission = importSubmission
         navigation = OnboardingNavigation(importSubmission: importSubmission)
-        providerSubmission = ProviderSubmission(connection: connection, revision: keyRevision, finish: coordinator.finish)
+        providerSubmission = ProviderSubmission(connection: connection, revision: keyRevision)
     }
 
     var body: some View {
@@ -73,6 +73,7 @@ struct OnboardingScene: View {
         }
         .onChange(of: coordinator.account?.id) { showProviderSetup() }
         .onChange(of: navigation.path.last) { showProviderSetup() }
+        .onChange(of: providerSubmission.isSaved) { openWallet() }
         .onDisappear {
             // Active work releases its draft after cancellation unwinds.
             if !coordinator.isWorking, !importSubmission.isPending { discardDraft() }
@@ -115,6 +116,14 @@ struct OnboardingScene: View {
             } else {
                 failure = String(localized: "Your wallet could not be prepared. Please try again.")
             }
+        }
+    }
+
+    /// Opens the saved wallet once its provider key is saved.
+    private func openWallet() {
+        do { try coordinator.finish() }
+        catch {
+            failure = String(localized: "Your wallet could not be opened. Please try again.")
         }
     }
 

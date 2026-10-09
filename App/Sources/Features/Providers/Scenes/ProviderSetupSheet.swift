@@ -9,6 +9,7 @@ struct ProviderSetupSheet: View {
         NavigationStack {
             ProviderSetupScreen(isKeyRejected: submission.isKeyRejected, submit: submission.submit)
                 .providerSetupLifecycle(submission)
+                .onChange(of: submission.isSaved) { dismiss() }
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         // Toolbar buttons keep the system's monochrome look; the theme's tint is for content.

@@ -10,17 +10,16 @@ struct ProviderSubmissionTests {
     /// Each test starts from a fresh app-wide count of saved keys.
     private let revision = ProviderKeyRevision()
 
-    /// A saved key finishes the flow that asked for it.
+    /// An accepted key is saved, so the flow that asked for it can continue.
     @Test
-    func `An accepted key is saved and finishes the flow`() async {
+    func `An accepted key is saved`() async {
         let keys = SavedKeys()
-        var finishes = 0
-        let submission = ProviderSubmission(connection: HTTPResponses.keyCheck().connection(keys: keys), revision: revision) { finishes += 1 }
+        let submission = ProviderSubmission(connection: HTTPResponses.keyCheck().connection(keys: keys), revision: revision)
 
         submission.submit("fixture-key")
         await submission.run(submission.attempt)
 
-        #expect(finishes == 1)
+        #expect(submission.isSaved)
         #expect(revision.value == 1)
         #expect(await keys.saved == "fixture-key")
         #expect(!submission.isKeyRejected)
@@ -32,8 +31,7 @@ struct ProviderSubmissionTests {
     @Test
     func `A rejected key shows the inline message and keeps setup open`() async {
         let responses = HTTPResponses.keyCheck(failure: .http(statusCode: 401, retryAfter: nil))
-        var finishes = 0
-        let submission = ProviderSubmission(connection: responses.connection(keys: SavedKeys()), revision: revision) { finishes += 1 }
+        let submission = ProviderSubmission(connection: responses.connection(keys: SavedKeys()), revision: revision)
 
         submission.submit("rejected-key")
         await submission.run(submission.attempt)
@@ -41,7 +39,7 @@ struct ProviderSubmissionTests {
         #expect(submission.isKeyRejected)
         #expect(submission.rejectionCount == 1)
         #expect(submission.failure == nil)
-        #expect(finishes == 0)
+        #expect(!submission.isSaved)
         #expect(revision.value == 0)
         submission.submit("rejected-key")
         await submission.run(submission.attempt)
@@ -59,30 +57,26 @@ struct ProviderSubmissionTests {
     ])
     func `Failures other than rejection explain their cause in an alert`(status: Int, message: String) async {
         let responses = HTTPResponses.keyCheck(failure: .http(statusCode: status, retryAfter: nil))
-        var finishes = 0
-        let submission = ProviderSubmission(connection: responses.connection(keys: SavedKeys()), revision: revision) { finishes += 1 }
+        let submission = ProviderSubmission(connection: responses.connection(keys: SavedKeys()), revision: revision)
 
         submission.submit("fixture-key")
         await submission.run(submission.attempt)
 
         #expect(submission.failure.map { String(localized: $0) } == message)
         #expect(!submission.isKeyRejected)
-        #expect(finishes == 0)
+        #expect(!submission.isSaved)
     }
 
     /// An accepted key that this device can't store keeps setup open and says so.
     @Test
     func `An accepted key that can't be saved explains the storage failure`() async {
-        var finishes = 0
-        let submission = ProviderSubmission(connection: HTTPResponses.keyCheck().connection(keys: SavedKeys(failsSaving: true)), revision: revision) {
-            finishes += 1
-        }
+        let submission = ProviderSubmission(connection: HTTPResponses.keyCheck().connection(keys: SavedKeys(failsSaving: true)), revision: revision)
 
         submission.submit("fixture-key")
         await submission.run(submission.attempt)
 
         #expect(submission.failure.map { String(localized: $0) } == "Your API key couldn't be saved. Please try again.")
-        #expect(finishes == 0)
+        #expect(!submission.isSaved)
     }
 
     /// The rejection stays on screen while the next check runs, then gives way to that check's different failure.
@@ -92,7 +86,7 @@ struct ProviderSubmissionTests {
         let rejecting = HTTPResponses.keyCheck(failure: .http(statusCode: 401, retryAfter: nil))
         let limiting = HTTPResponses.keyCheck(failure: .http(statusCode: 429, retryAfter: nil), gate: gate)
         let connection = HTTPResponses.connection(keys: SavedKeys()) { $0 == "rejected-key" ? rejecting : limiting }
-        let submission = ProviderSubmission(connection: connection, revision: revision) {}
+        let submission = ProviderSubmission(connection: connection, revision: revision)
         submission.submit("rejected-key")
         await submission.run(submission.attempt)
         try #require(submission.isKeyRejected)
@@ -116,7 +110,7 @@ struct ProviderSubmissionTests {
         let gate = Suspension()
         let responses = HTTPResponses.keyCheck(gate: gate)
         let keys = SavedKeys()
-        let submission = ProviderSubmission(connection: responses.connection(keys: keys), revision: revision) {}
+        let submission = ProviderSubmission(connection: responses.connection(keys: keys), revision: revision)
         submission.submit("first-key")
         let attempt = try #require(submission.attempt)
         let operation = Task { await submission.run(attempt) }
@@ -139,8 +133,7 @@ struct ProviderSubmissionTests {
         let gate = Suspension()
         let responses = HTTPResponses.keyCheck(gate: gate)
         let keys = SavedKeys()
-        var finishes = 0
-        let submission = ProviderSubmission(connection: responses.connection(keys: keys), revision: revision) { finishes += 1 }
+        let submission = ProviderSubmission(connection: responses.connection(keys: keys), revision: revision)
         submission.submit("fixture-key")
         let attempt = try #require(submission.attempt)
         let operation = Task { await submission.run(attempt) }
@@ -155,16 +148,15 @@ struct ProviderSubmissionTests {
         #expect(submission.failure == nil)
         #expect(!submission.isKeyRejected)
         #expect(submission.attempt == nil)
-        #expect(finishes == 0)
+        #expect(!submission.isSaved)
     }
 
-    /// Once the key is saved, late cancellation can't undo it, so the flow still finishes.
+    /// Once the key is saved, late cancellation can't undo it, so the flow can still continue.
     @Test
-    func `Cancellation after the key is saved still finishes the flow`() async throws {
+    func `Cancellation after the key is saved still counts the key as saved`() async throws {
         let gate = Suspension()
         let keys = SavedKeys(gate: gate)
-        var finishes = 0
-        let submission = ProviderSubmission(connection: HTTPResponses.keyCheck().connection(keys: keys), revision: revision) { finishes += 1 }
+        let submission = ProviderSubmission(connection: HTTPResponses.keyCheck().connection(keys: keys), revision: revision)
         submission.submit("fixture-key")
         let attempt = try #require(submission.attempt)
         let operation = Task { await submission.run(attempt) }
@@ -175,7 +167,7 @@ struct ProviderSubmissionTests {
         await operation.value
 
         #expect(await keys.saved == "fixture-key")
-        #expect(finishes == 1)
+        #expect(submission.isSaved)
         #expect(revision.value == 1)
         #expect(submission.failure == nil)
     }

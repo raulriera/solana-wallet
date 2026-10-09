@@ -3,7 +3,7 @@ import Foundation
 import Observation
 import SwiftUI
 
-/// Owns one window's provider key checks, then continues the flow that asked for a key.
+/// Owns one window's provider key checks; the flow that asked for a key continues once it's saved.
 @MainActor
 @Observable
 final class ProviderSubmission: Identifiable {
@@ -12,20 +12,19 @@ final class ProviderSubmission: Identifiable {
     private(set) var rejectionCount = 0
     var failure: LocalizedStringResource?
     private(set) var attempt: UUID?
+    /// Whether an accepted key is saved; the flow that asked for it continues when it is.
+    private(set) var isSaved = false
     @ObservationIgnored private var pendingKey: String?
     private let connection: any ProviderConnecting
     private let revision: ProviderKeyRevision
-    private let finish: @MainActor () throws -> Void
 
-    /// Pairs the shared provider connection with the step that follows a saved key.
+    /// Works with the shared provider connection.
     /// - Parameters:
     ///   - connection: Verifies and saves the provider's API key.
     ///   - revision: Tells every window when a key is saved.
-    ///   - finish: Continues the owning flow once the key is saved, such as opening the wallet.
-    init(connection: any ProviderConnecting, revision: ProviderKeyRevision, finish: @escaping @MainActor () throws -> Void) {
+    init(connection: any ProviderConnecting, revision: ProviderKeyRevision) {
         self.connection = connection
         self.revision = revision
-        self.finish = finish
     }
 
     /// Accepts one key; taps during a check are ignored.
@@ -36,10 +35,10 @@ final class ProviderSubmission: Identifiable {
         attempt = UUID()
     }
 
-    /// Checks one accepted key in the screen's SwiftUI-managed task, then finishes the owning flow.
+    /// Checks one accepted key in the screen's SwiftUI-managed task.
     ///
     /// The inline rejection changes only when a result arrives, so it never flashes during a check.
-    /// A saved key finishes the flow even if cancellation arrives afterwards.
+    /// A saved key counts even if cancellation arrives afterwards.
     /// - Parameter attempt: The attempt captured by the owning view task.
     func run(_ attempt: UUID?) async {
         guard let attempt, self.attempt == attempt, let key = pendingKey.take() else { return }
@@ -47,7 +46,7 @@ final class ProviderSubmission: Identifiable {
         do {
             try await connection.connect(apiKey: key)
             revision.advance()
-            try finish()
+            isSaved = true
         } catch ProviderConnectionError.invalidKey {
             guard !Task.isCancelled else { return }
             withAnimation { isKeyRejected = true }
