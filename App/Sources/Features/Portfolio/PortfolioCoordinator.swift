@@ -1,11 +1,12 @@
 import Foundation
 import Observation
 import Portfolio
+import Transactions
 
 /// Owns one presentation's portfolio work and publishes state on the main actor.
 ///
 /// Inject a service bound to the selected network; create a new coordinator when
-/// changing networks. The service continues to own caching, pricing, and subscriptions.
+/// changing networks. The service continues to own caching, pricing, subscriptions, and token lists.
 @MainActor
 @Observable
 final class PortfolioCoordinator: PortfolioCoordinating {
@@ -22,7 +23,7 @@ final class PortfolioCoordinator: PortfolioCoordinating {
     /// The latest update's failure, classified without retaining the provider's error.
     var failure: PortfolioFailure? { update?.error.map(PortfolioFailure.init) }
 
-    private let service: any PortfolioProviding
+    private let service: any PortfolioProviding & TokenListProviding
     @ObservationIgnored private var owner: String?
     @ObservationIgnored private var session: UUID?
     @ObservationIgnored private var observation: Task<Void, Never>?
@@ -31,8 +32,8 @@ final class PortfolioCoordinator: PortfolioCoordinating {
     @ObservationIgnored private var reloading: Task<Void, Never>?
 
     /// Creates presentation coordination around an interchangeable portfolio service.
-    /// - Parameter service: The portfolio provider for one configured network.
-    init(service: any PortfolioProviding) {
+    /// - Parameter service: The portfolio and token-list provider for one configured network.
+    init(service: any PortfolioProviding & TokenListProviding) {
         self.service = service
     }
 
@@ -109,6 +110,22 @@ final class PortfolioCoordinator: PortfolioCoordinating {
                 settleProgress()
             }
         }
+    }
+
+    /// Looks up a pasted mint address through the window's portfolio service.
+    /// - Parameter mint: The pasted mint address.
+    /// - Returns: The token with its on-chain name and symbol, and its logo when the provider has one.
+    /// - Throws: `TokenLookupError` when the address isn't a fungible token mint, or a request error.
+    func token(at mint: Address) async throws -> TokenPreview {
+        try await service.token(at: mint)
+    }
+
+    /// Adds a token to the selected wallet's list; an observed wallet then reads its balances again.
+    /// - Parameter token: A token that ``token(at:)`` found.
+    /// - Throws: `TokenListError` for a full or unreadable list, or a file-system error if the list can't be saved.
+    func add(_ token: ListedToken) async throws {
+        guard let owner else { return }
+        _ = try await service.addToken(token, for: owner)
     }
 
     /// Publishes only the current session's results, retaining the newest complete data.

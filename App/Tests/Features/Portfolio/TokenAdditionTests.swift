@@ -1,0 +1,346 @@
+import Foundation
+import Observation
+import Portfolio
+import RPC
+import Testing
+import Transactions
+@testable import widgets
+
+/// Checks the add-token sheet: what it says about pasted text, and what it adds.
+@MainActor
+@Suite(.timeLimit(.minutes(1)))
+struct TokenAdditionTests {
+    private static let bonk = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"
+    private static let jup = "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN"
+
+    /// Pasted text that isn't an address asks for a valid one and looks nothing up.
+    @Test
+    func `Pasted text that isn't an address asks for one without a lookup`() {
+        let addition = TokenAddition(coordinator: ListPortfolio())
+
+        addition.paste("not an address")
+        #expect(shown(addition.message) == "This isn't a valid address.")
+        #expect(addition.refusalCount == 1)
+        #expect(addition.lookup == nil)
+
+        addition.paste("")
+        #expect(addition.message == nil)
+    }
+
+    /// Each refusal signals again, even when the same message is already on screen.
+    @Test
+    func `Each refusal signals again`() {
+        let addition = TokenAddition(coordinator: ListPortfolio())
+
+        addition.paste("not an address")
+        addition.paste("still not an address")
+
+        #expect(shown(addition.message) == "This isn't a valid address.")
+        #expect(addition.refusalCount == 2)
+    }
+
+    /// A pasted address, with the spaces and line break a copy can bring, shows the token it names.
+    /// - Throws: A test prerequisite error.
+    @Test
+    func `A pasted address shows its token`() async throws {
+        let portfolio = ListPortfolio()
+        portfolio.preview = try Self.preview(Self.bonk)
+        let addition = TokenAddition(coordinator: portfolio)
+
+        addition.paste(" \(Self.bonk)\n")
+        await addition.lookUp(addition.lookup)
+
+        #expect(addition.text == Self.bonk)
+        #expect(addition.preview == portfolio.preview)
+        #expect(addition.message == nil)
+        #expect(portfolio.lookups.map(\.value) == [Self.bonk])
+    }
+
+    /// A refusal stays while the next address is looked up, so its message changes in place, and a found token clears it.
+    /// - Throws: A test prerequisite error.
+    @Test
+    func `A refusal stays until the next lookup answers`() async throws {
+        let portfolio = ListPortfolio()
+        portfolio.lookupError = TokenLookupError.notToken
+        let addition = TokenAddition(coordinator: portfolio)
+        addition.paste(Self.bonk)
+        await addition.lookUp(addition.lookup)
+
+        portfolio.lookupError = nil
+        portfolio.preview = try Self.preview(Self.jup)
+        addition.paste(Self.jup)
+        #expect(shown(addition.message) == "This address isn't a token.")
+
+        await addition.lookUp(addition.lookup)
+        #expect(addition.message == nil)
+        #expect(addition.preview == portfolio.preview)
+    }
+
+    /// A token that's already in the list is refused before any lookup.
+    @Test
+    func `A listed token is refused without a lookup`() async {
+        let portfolio = ListPortfolio()
+        portfolio.holdings = [Holding(id: .asset(Self.bonk), amount: nil, name: "Bonk", symbol: "Bonk", imageURL: nil,
+                                      valuation: nil)]
+        let addition = TokenAddition(coordinator: portfolio)
+
+        addition.paste(Self.bonk)
+        await addition.lookUp(addition.lookup)
+
+        #expect(shown(addition.message) == "This token is already in your list.")
+        #expect(addition.refusalCount == 1)
+        #expect(portfolio.lookups.isEmpty)
+    }
+
+    /// Addresses that aren't fungible token mints are refused with what they are.
+    /// - Parameters:
+    ///   - error: Why the lookup refused the address.
+    ///   - message: What the sheet says under the pasted text.
+    @Test(arguments: [(TokenLookupError.notToken, "This address isn't a token."),
+                      (.nonFungible, "NFTs can't be added yet.")])
+    func `Addresses that aren't fungible tokens are refused`(error: TokenLookupError, message: String) async {
+        let portfolio = ListPortfolio()
+        portfolio.lookupError = error
+        let addition = TokenAddition(coordinator: portfolio)
+
+        addition.paste(Self.bonk)
+        await addition.lookUp(addition.lookup)
+
+        #expect(shown(addition.message) == message)
+        #expect(addition.refusalCount == 1)
+        #expect(addition.preview == nil)
+    }
+
+    /// A different address replaces the previous preview at once, so the earlier token can't be added by mistake.
+    /// - Throws: A test prerequisite error.
+    @Test
+    func `A new address replaces the previous preview`() async throws {
+        let portfolio = ListPortfolio()
+        portfolio.preview = try Self.preview(Self.bonk)
+        let addition = TokenAddition(coordinator: portfolio)
+        addition.paste(Self.bonk)
+        await addition.lookUp(addition.lookup)
+        try #require(addition.preview == portfolio.preview)
+        let previous = addition.lookup
+
+        addition.paste(Self.jup)
+
+        #expect(addition.preview == nil)
+        #expect(addition.lookup != nil && addition.lookup != previous)
+    }
+
+    /// A lookup that ends after a newer paste leaves the newer address's state alone, whatever its result.
+    /// - Parameter error: The stale lookup's failure, or `nil` when it finds the token.
+    /// - Throws: A test prerequisite error.
+    @Test(arguments: [nil, TokenLookupError.notToken, RPCError.http(statusCode: 503, retryAfter: nil)] as [(any Error)?])
+    func `A lookup that ends after a newer paste is ignored`(error: (any Error)?) async throws {
+        let portfolio = ListPortfolio()
+        portfolio.preview = try Self.preview(Self.bonk)
+        portfolio.lookupError = error
+        portfolio.holdsLookups = true
+        let addition = TokenAddition(coordinator: portfolio)
+        addition.paste(Self.bonk)
+        let stale = addition.lookup
+        let lookup = Task { await addition.lookUp(stale) }
+        for await _ in portfolio.heldLookups { break }
+
+        addition.paste(Self.jup)
+        let newer = addition.lookup
+        portfolio.releaseLookups()
+        await lookup.value
+
+        #expect(addition.preview == nil)
+        #expect(addition.message == nil)
+        #expect(addition.failure == nil)
+        #expect(addition.lookup == newer)
+    }
+
+    /// Adding the previewed token saves it and closes the sheet.
+    /// - Throws: A test prerequisite error.
+    @Test
+    func `Adding the previewed token closes the sheet`() async throws {
+        let portfolio = ListPortfolio()
+        portfolio.preview = try Self.preview(Self.bonk)
+        let addition = TokenAddition(coordinator: portfolio)
+        addition.paste(Self.bonk)
+        await addition.lookUp(addition.lookup)
+
+        addition.add()
+        await addition.run(addition.attempt)
+
+        #expect(portfolio.added == [portfolio.preview?.token])
+        #expect(addition.isAdded)
+        #expect(addition.attempt == nil)
+    }
+
+    /// A list that is full or can't be read explains why and keeps the sheet open, without offering to try again.
+    /// - Parameters:
+    ///   - error: Why the list refused the token.
+    ///   - message: What the alert says.
+    /// - Throws: A test prerequisite error.
+    @Test(arguments: [
+        (TokenListError.limitReached,
+         "You can add up to \(Portfolio::TokenList.addedTokenLimit) tokens. Remove one to add another."),
+        (.unreadable, "Your token list can't be read, so no token can be added."),
+    ])
+    func `A list that can't take the token explains why`(error: TokenListError, message: String) async throws {
+        let portfolio = ListPortfolio()
+        portfolio.preview = try Self.preview(Self.bonk)
+        portfolio.addError = error
+        let addition = TokenAddition(coordinator: portfolio)
+        addition.paste(Self.bonk)
+        await addition.lookUp(addition.lookup)
+
+        addition.add()
+        await addition.run(addition.attempt)
+
+        #expect(shown(addition.failure?.message) == message)
+        #expect(addition.failure?.canRetry == false)
+        #expect(!addition.isAdded)
+    }
+
+    /// A token list that fails to save keeps the sheet open, and trying again adds the token.
+    /// - Throws: A test prerequisite error.
+    @Test
+    func `A failed save can try again`() async throws {
+        let portfolio = ListPortfolio()
+        portfolio.preview = try Self.preview(Self.bonk)
+        portfolio.addError = CocoaError(.fileWriteUnknown)
+        let addition = TokenAddition(coordinator: portfolio)
+        addition.paste(Self.bonk)
+        await addition.lookUp(addition.lookup)
+        addition.add()
+        await addition.run(addition.attempt)
+        #expect(shown(addition.failure?.message) == "Your token list couldn't be saved. Try again.")
+        #expect(addition.failure?.canRetry == true)
+        #expect(!addition.isAdded)
+
+        portfolio.addError = nil
+        addition.failure = nil
+        addition.retry()
+        await addition.run(addition.attempt)
+
+        #expect(portfolio.added == [portfolio.preview?.token])
+        #expect(addition.isAdded)
+    }
+
+    /// A rejected RPC API key offers no retry, and pasting the address again looks it up again.
+    /// - Throws: A test prerequisite error.
+    @Test
+    func `A rejected key offers no retry until the address is pasted again`() async throws {
+        let portfolio = ListPortfolio()
+        portfolio.preview = try Self.preview(Self.bonk)
+        portfolio.lookupError = HeliusClient.Failure.invalidKey
+        let addition = TokenAddition(coordinator: portfolio)
+        addition.paste(Self.bonk)
+        await addition.lookUp(addition.lookup)
+        #expect(addition.failure?.canRetry == false)
+        #expect(addition.lookup == nil)
+
+        portfolio.lookupError = nil
+        addition.paste(Self.bonk)
+        await addition.lookUp(addition.lookup)
+
+        #expect(addition.preview == portfolio.preview)
+    }
+
+    /// A lookup that fails for a reason outside the address can run again.
+    /// - Throws: A test prerequisite error.
+    @Test
+    func `A failed lookup can try again`() async throws {
+        let portfolio = ListPortfolio()
+        portfolio.preview = try Self.preview(Self.bonk)
+        portfolio.lookupError = RPCError.http(statusCode: 503, retryAfter: nil)
+        let addition = TokenAddition(coordinator: portfolio)
+        addition.paste(Self.bonk)
+        await addition.lookUp(addition.lookup)
+        #expect(addition.failure?.canRetry == true)
+
+        portfolio.lookupError = nil
+        addition.failure = nil
+        addition.retry()
+        await addition.lookUp(addition.lookup)
+
+        #expect(addition.preview == portfolio.preview)
+        #expect(portfolio.lookups.count == 2)
+    }
+
+    /// Builds the preview of a token at an address.
+    /// - Parameter mint: The token's mint address.
+    /// - Returns: A preview without a logo.
+    /// - Throws: A validation error if the address is malformed.
+    private static func preview(_ mint: String) throws -> TokenPreview {
+        TokenPreview(token: ListedToken(mint: try Address(mint), program: .token, decimals: 5, symbol: "Bonk",
+                                        name: "Bonk"), logo: nil)
+    }
+
+    /// Resolves a message the sheet shows, for comparison with its English text.
+    /// - Parameter message: The message, if any.
+    /// - Returns: The message's text, or `nil` when there's none.
+    private func shown(_ message: LocalizedStringResource?) -> String? {
+        message.map { String(localized: $0) }
+    }
+}
+
+/// Answers lookups and records added tokens in place of the window's portfolio, without any request.
+@MainActor
+@Observable
+private final class ListPortfolio: PortfolioCoordinating {
+    var holdings: [Holding] = []
+    var preview: TokenPreview?
+    var lookupError: (any Error)?
+    var addError: (any Error)?
+    /// Whether each lookup waits for ``releaseLookups()``, so a test can paste again while one runs.
+    var holdsLookups = false
+    /// Reports each lookup that starts waiting.
+    let heldLookups: AsyncStream<Void>
+    private let heldLookup: AsyncStream<Void>.Continuation
+    @ObservationIgnored private var waitingLookups: [CheckedContinuation<Void, Never>] = []
+    private(set) var lookups: [Address] = []
+    private(set) var added: [ListedToken] = []
+
+    /// Starts with no tokens, previews, or failures.
+    init() {
+        (heldLookups, heldLookup) = AsyncStream<Void>.makeStream()
+    }
+
+    var update: Update? { nil }
+    var failure: PortfolioFailure? { nil }
+
+    /// Ignores observation, which the sheet never starts.
+    /// - Parameters:
+    ///   - owner: The selected wallet.
+    ///   - isActive: Whether the scene is active.
+    func observe(for owner: String?, isActive: Bool) async {}
+
+    /// Ignores refreshes, which the sheet never starts.
+    func refresh() async {}
+
+    /// Answers a lookup with the configured preview or error, once released when lookups are held.
+    /// - Parameter mint: The pasted mint address.
+    /// - Returns: The configured preview.
+    /// - Throws: The configured error, or `TokenLookupError.notToken` without a preview.
+    func token(at mint: Address) async throws -> TokenPreview {
+        lookups.append(mint)
+        if holdsLookups {
+            await withCheckedContinuation { waitingLookups.append($0); heldLookup.yield() }
+        }
+        if let lookupError { throw lookupError }
+        guard let preview else { throw TokenLookupError.notToken }
+        return preview
+    }
+
+    /// Lets every waiting lookup finish.
+    func releaseLookups() {
+        for lookup in waitingLookups { lookup.resume() }
+        waitingLookups.removeAll()
+    }
+
+    /// Records an added token, or fails with the configured error.
+    /// - Parameter token: The token to add.
+    /// - Throws: The configured error.
+    func add(_ token: ListedToken) async throws {
+        if let addError { throw addError }
+        added.append(token)
+    }
+}

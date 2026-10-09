@@ -12,9 +12,7 @@ struct TokenDetailScreen: View {
     var body: some View {
         Form {
             Section {
-                TitleCardContent(title: "\(holding.displayName)", message: "\(holding.displaySymbol) · Solana") {
-                    TokenIcon(symbol: holding.displaySymbol, imageURL: holding.logoURL)
-                }
+                TokenTitleCard(symbol: holding.displaySymbol, name: holding.displayName, logoURL: holding.logoURL)
             }
             .listRowBackground(palette.surface)
 

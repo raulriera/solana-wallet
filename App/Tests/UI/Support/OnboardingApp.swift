@@ -8,7 +8,7 @@ struct OnboardingApp {
     private static let recoveryGuidance = "Write down these words in order and keep them somewhere safe. Anyone with them can control your wallet."
 
     /// Stops dependent interactions after a checked UI wait fails.
-    private enum Failure: Error { case missingElement, unexpectedElement, unavailableControl, walletSetupFailed, missingConfiguration }
+    private enum Failure: Error { case missingElement, unexpectedElement, unavailableControl, reportedFailure, missingConfiguration }
 
     let app = XCUIApplication()
 
@@ -163,13 +163,25 @@ struct OnboardingApp {
     /// - Throws: A missing destination or an explicit wallet setup failure.
     private func expectSetupOutcome(_ destination: XCUIElement, label: String,
                                     file: StaticString, line: UInt) throws {
-        let outcome = app.descendants(matching: .any).matching(
-            NSPredicate(format: "label IN %@", [label, "Wallet Setup Unavailable"])
-        ).firstMatch
-        try waitFor(outcome, file: file, line: line)
-        guard !app.alerts["Wallet Setup Unavailable"].exists else {
-            XCTFail("The app reported Wallet Setup Unavailable instead of completing wallet setup.", file: file, line: line)
-            throw Failure.walletSetupFailed
+        try expectOutcome(destination, matching: NSPredicate(format: "label == %@", label),
+                          unless: "Wallet Setup Unavailable", file: file, line: line)
+    }
+
+    /// Waits for an expected element, failing immediately when the app shows the named alert instead.
+    /// - Parameters:
+    ///   - destination: The expected element.
+    ///   - outcome: Matches the expected element, so the wait also ends when the alert appears.
+    ///   - alert: The title of the alert that reports a failure.
+    ///   - file: The calling test's source file for failure reporting.
+    ///   - line: The calling test's line for failure reporting.
+    /// - Throws: A missing destination, or the failure the app reported.
+    func expectOutcome(_ destination: XCUIElement, matching outcome: NSPredicate, unless alert: String,
+                       file: StaticString = #filePath, line: UInt = #line) throws {
+        let either = NSCompoundPredicate(orPredicateWithSubpredicates: [outcome, NSPredicate(format: "label == %@", alert)])
+        try waitFor(app.descendants(matching: .any).matching(either).firstMatch, file: file, line: line)
+        guard !app.alerts[alert].exists else {
+            XCTFail("The app reported \(alert) instead of the expected result.", file: file, line: line)
+            throw Failure.reportedFailure
         }
         try waitFor(destination, file: file, line: line)
     }

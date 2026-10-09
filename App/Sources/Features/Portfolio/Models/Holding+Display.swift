@@ -1,7 +1,15 @@
 import Foundation
 import Portfolio
+import Transactions
 
 extension Holding {
+    /// A holding without a balance that shows a looked-up token the way the token list will.
+    /// - Parameter preview: The looked-up token and the provider's logo.
+    nonisolated init(preview: TokenPreview) {
+        self.init(id: .asset(preview.token.mint.value), amount: nil, name: preview.token.name,
+                  symbol: preview.token.symbol, imageURL: preview.logo, valuation: nil)
+    }
+
     /// Metadata's symbol, or the asset's identity when metadata has none.
     nonisolated var displaySymbol: String {
         if let symbol, !symbol.isEmpty { return symbol }

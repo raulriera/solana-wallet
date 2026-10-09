@@ -11,6 +11,7 @@ struct PortfolioScene: View {
     @State private var selection: Holding.Identity?
     @State private var preferredColumn = NavigationSplitViewColumn.sidebar
     @State private var providerSetup: ProviderSubmission?
+    @State private var tokenAddition: TokenAddition?
     let coordinator: any PortfolioCoordinating
     let connection: any ProviderConnecting
     let keyRevision: ProviderKeyRevision
@@ -46,6 +47,13 @@ struct PortfolioScene: View {
                     .refreshable { await coordinator.refresh() }
                     .navigationTitle("Portfolio")
                     .navigationSubtitle(Text(coordinator.failure?.staleStatus ?? ""))
+                    .toolbar {
+                        ToolbarItem(placement: .primaryAction) {
+                            // Toolbar buttons keep the system's monochrome look; the theme's tint is for content.
+                            Button("Add Token", systemImage: "plus", action: addToken)
+                                .tint(.primary)
+                        }
+                    }
                     .sidebarColumnWidth()
                 } detail: {
                     if let holding = coordinator.holdings.first(where: { $0.id == selection }),
@@ -64,6 +72,12 @@ struct PortfolioScene: View {
         }
         .animation(.default, value: presentation)
         .sheet(item: $providerSetup) { ProviderSetupSheet(submission: $0) }
+        .sheet(item: $tokenAddition) { TokenAdditionSheet(addition: $0) }
+    }
+
+    /// Opens the add-token sheet; an added token closes it and appears with the next balances.
+    private func addToken() {
+        tokenAddition = TokenAddition(coordinator: coordinator)
     }
 
     /// Opens provider setup; a saved key closes it, and every window observes again with that key.

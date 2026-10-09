@@ -1,8 +1,9 @@
 import Foundation
 import Observation
-import Portfolio
+@testable import Portfolio
 import RPC
 import Testing
+import Transactions
 @testable import widgets
 
 /// Exercises the view lifetime separately from the framework's network behavior.
@@ -78,6 +79,25 @@ struct PortfolioCoordinatorTests {
             Holding(id: .asset("asset-\($0)"), amount: Amount(units: units, decimals: 6),
                     name: "Token \($0)", symbol: "T\($0)", imageURL: nil, valuation: nil)
         }, fetchedAt: Date(timeIntervalSince1970: time))
+    }
+
+    /// Verifies an added token is saved to the selected wallet's list.
+    /// - Throws: A storage or test prerequisite error.
+    @Test
+    func `Adding a token saves it to the selected wallet's list`() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let tokenLists = FileTokenListStore(directory: directory.appendingPathComponent("TokenLists"))
+        let service = Portfolio(rpc: Solana(network: .mainnet), store: FileSnapshotStore(directory: directory),
+                                tokenLists: tokenLists)
+        let coordinator = PortfolioCoordinator(service: service)
+        let bonk = ListedToken(mint: try Address("DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"), program: .token,
+                               decimals: 5, symbol: "Bonk", name: "Bonk")
+
+        await coordinator.observe(for: PublicWallet.address, isActive: false)
+        try await coordinator.add(bonk)
+
+        #expect(try await service.tokenList(for: PublicWallet.address).tokens.last == bonk)
     }
 
     /// Verifies an inactive scene or missing selection never starts work.

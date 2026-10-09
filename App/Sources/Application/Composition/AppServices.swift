@@ -13,7 +13,7 @@ struct AppServices {
     let accounts: any AccountStoring
     let providerConnection: any ProviderConnecting
     let providerKeyRevision = ProviderKeyRevision()
-    let portfolio: any PortfolioProviding
+    let portfolio: any PortfolioProviding & TokenListProviding
     // One sampler for every window shares its remembered logo colors.
     let artworkColors: any ArtworkColorProviding = ArtworkColors()
     let recoveryPasteboard: any RecoveryCopying

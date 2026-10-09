@@ -16,6 +16,7 @@
 - **Security & Privacy** shows the window's wallet backup after biometric or passcode authentication: its words with Copy, any BIP-39 passphrase, and the account path. Words hide while the scene is inactive or captured and leave memory when the screen closes. A missing recovery explains that the app must be reset.
 - **Reset App** asks for biometrics or the passcode, then shows two confirmation screens. It skips authentication when the device has no passcode or when it starts from a missing recovery. It deletes every recovery phrase, then all wallet metadata, then the provider key; themes and appearance settings stay. After a successful reset, every window returns to Welcome with fresh onboarding state, including windows already setting up a wallet; their previous setup tasks are cancelled. The reset screens explain this scope, and each window's next wallet opens on Portfolio. A failed step offers Try Again, which deletes what remains.
 - Reuse the existing portfolio coordinator and its lifecycle contract. Layout, theme, and tab changes must not recreate it or restart observation. Preserve the display distinctions in [Portfolio](portfolio.md).
+- The token list's **Add Token** button opens a native sheet that the system places on each display. People paste a mint address and check the token's preview before adding it; the token appears with the next balances.
 
 ## Multiple windows
 

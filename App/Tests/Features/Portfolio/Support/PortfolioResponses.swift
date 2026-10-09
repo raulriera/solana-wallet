@@ -1,5 +1,7 @@
 import Foundation
 import Portfolio
+import Testing
+import Transactions
 
 /// Controls portfolio workflow events without substituting an RPC client.
 actor PortfolioResponses: PortfolioProviding {
@@ -47,19 +49,20 @@ actor PortfolioResponses: PortfolioProviding {
         makeStream(for: owner, kind: .refresh(policy))
     }
 
-    /// Rejects unexpected independent price work in the lifecycle coordinator.
+    /// Reports unexpected independent price work in the lifecycle coordinator.
     /// - Parameters:
     ///   - owner: The requested wallet.
     ///   - policy: The requested freshness policy.
     /// - Returns: A finished stream; price-only work is outside this coordinator's scope.
     func priceUpdates(for owner: String, policy: RefreshPolicy) async -> AsyncStream<Update> {
-        preconditionFailure("Lifecycle coordination must not schedule independent price requests")
+        Issue.record("Lifecycle coordination must not schedule independent price requests.")
+        return AsyncStream { $0.finish() }
     }
 
-    /// Rejects unexpected cache removal during view lifecycle changes.
+    /// Reports unexpected cache removal during view lifecycle changes.
     /// - Parameter owner: The requested wallet.
     func removeData(for owner: String) async throws {
-        preconditionFailure("Leaving a view must not remove persisted holdings")
+        Issue.record("Leaving a view must not remove persisted holdings.")
     }
 
     /// Captures an operation and reports when cancellation releases its stream.
@@ -95,5 +98,48 @@ actor PortfolioResponses: PortfolioProviding {
             for continuation in waiting { continuation.resume() }
             waiting.removeAll()
         }
+    }
+}
+
+// The app's own TokenList view shares the framework type's name, so the module selector names the list.
+extension PortfolioResponses: TokenListProviding {
+    /// Reports token-list reads, which the lifecycle coordinator never makes.
+    /// - Parameter owner: The requested wallet.
+    /// - Returns: Nothing; the read always fails.
+    /// - Throws: An unreadable-list error.
+    func tokenList(for owner: String) async throws -> Portfolio::TokenList {
+        Issue.record("Lifecycle coordination must not read token lists.")
+        throw TokenListError.unreadable
+    }
+
+    /// Reports token-list edits during view lifecycle changes.
+    /// - Parameters:
+    ///   - token: The token to add.
+    ///   - owner: The requested wallet.
+    /// - Returns: Nothing; the edit always fails.
+    /// - Throws: An unreadable-list error.
+    func addToken(_ token: ListedToken, for owner: String) async throws -> Portfolio::TokenList {
+        Issue.record("Lifecycle coordination must not edit token lists.")
+        throw TokenListError.unreadable
+    }
+
+    /// Reports token-list edits during view lifecycle changes.
+    /// - Parameters:
+    ///   - mint: The token to remove.
+    ///   - owner: The requested wallet.
+    /// - Returns: Nothing; the edit always fails.
+    /// - Throws: An unreadable-list error.
+    func removeToken(_ mint: Address, for owner: String) async throws -> Portfolio::TokenList {
+        Issue.record("Lifecycle coordination must not edit token lists.")
+        throw TokenListError.unreadable
+    }
+
+    /// Reports token lookups during view lifecycle changes.
+    /// - Parameter mint: The requested mint address.
+    /// - Returns: Nothing; the lookup always fails.
+    /// - Throws: A not-a-token error.
+    func token(at mint: Address) async throws -> TokenPreview {
+        Issue.record("Lifecycle coordination must not look up tokens.")
+        throw TokenLookupError.notToken
     }
 }

@@ -1,5 +1,6 @@
 import Observation
 import Portfolio
+import Transactions
 
 /// The portfolio presentation's lifetime and explicit refresh boundary.
 @MainActor
@@ -25,4 +26,15 @@ protocol PortfolioCoordinating: AnyObject, Observable {
     /// Overlapping calls share one operation. Cancellation detaches that operation;
     /// the confirmed-change observation remains active. Inactive calls do nothing.
     func refresh() async
+
+    /// Looks up a pasted mint address, so the person can check the token before adding it.
+    /// - Parameter mint: The pasted mint address.
+    /// - Returns: The token with its on-chain name and symbol, and its logo when the provider has one.
+    /// - Throws: `TokenLookupError` when the address isn't a fungible token mint, or a request error.
+    func token(at mint: Address) async throws -> TokenPreview
+
+    /// Adds a token to the selected wallet's list; its balance arrives with the next snapshot.
+    /// - Parameter token: A token that ``token(at:)`` found.
+    /// - Throws: `TokenListError` for a full or unreadable list, or a file-system error if the list can't be saved.
+    func add(_ token: ListedToken) async throws
 }
