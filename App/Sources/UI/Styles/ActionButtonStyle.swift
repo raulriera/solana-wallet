@@ -1,21 +1,5 @@
 import SwiftUI
 
-/// A color an action takes from the window's palette, or a fixed system color that no theme replaces.
-fileprivate enum ActionColor {
-    case palette(KeyPath<RenderedPalette, Color>)
-    case fixed(Color)
-
-    /// Resolves the color for the current window.
-    /// - Parameter palette: The window's palette.
-    /// - Returns: The palette's color for this role, or the fixed color.
-    func resolved(in palette: RenderedPalette) -> Color {
-        switch self {
-        case .palette(let role): palette[keyPath: role]
-        case .fixed(let color): color
-        }
-    }
-}
-
 /// Applies shared action sizing and theme colors around a native button style.
 struct ActionButtonStyle<Base: PrimitiveButtonStyle>: PrimitiveButtonStyle {
     @Environment(\.palette) private var palette
@@ -40,7 +24,7 @@ struct ActionButtonStyle<Base: PrimitiveButtonStyle>: PrimitiveButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         Button(role: configuration.role, action: configuration.trigger) {
             configuration.label
-                .frame(maxWidth: .infinity, minHeight: LayoutMetrics.actionLabelMinimumHeight)
+                .frame(maxWidth: .infinity)
         }
         .buttonStyle(base)
         .controlSize(.large)
@@ -60,4 +44,20 @@ extension PrimitiveButtonStyle where Self == ActionButtonStyle<BorderedProminent
 extension PrimitiveButtonStyle where Self == ActionButtonStyle<BorderedButtonStyle> {
     /// A secondary action with the window's primary text color for its label.
     static var secondary: Self { Self(base: .bordered, tint: .palette(\.primaryText), foreground: .palette(\.primaryText)) }
+}
+
+/// A color an action takes from the window's palette, or a fixed system color that no theme replaces.
+fileprivate enum ActionColor {
+    case palette(KeyPath<RenderedPalette, Color>)
+    case fixed(Color)
+
+    /// Resolves the color for the current window.
+    /// - Parameter palette: The window's palette.
+    /// - Returns: The palette's color for this role, or the fixed color.
+    func resolved(in palette: RenderedPalette) -> Color {
+        switch self {
+        case .palette(let role): palette[keyPath: role]
+        case .fixed(let color): color
+        }
+    }
 }
