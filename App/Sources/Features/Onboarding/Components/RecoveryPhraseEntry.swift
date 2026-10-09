@@ -8,11 +8,13 @@ struct RecoveryPhraseEntry: View {
     var body: some View {
         if input.showsWords {
             TextField("Recovery words", text: $input.phrase, axis: .vertical)
+                .accessibilityLabel("Recovery words")
                 .lineLimit(3...6)
                 .focused($focusedField, equals: .revealedPhrase)
                 .transition(.opacity)
         } else {
             SecureField("Recovery words", text: $input.phrase)
+                .accessibilityLabel("Recovery words")
                 .focused($focusedField, equals: .hiddenPhrase)
                 .submitLabel(.next)
                 .onSubmit { focusedField = .passphrase }
