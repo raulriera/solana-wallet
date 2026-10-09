@@ -11,7 +11,9 @@ struct ProviderSetupSheet: View {
                 .providerSetupLifecycle(submission)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
+                        // Toolbar buttons keep the system's monochrome look; the theme's tint is for content.
                         Button("Cancel", role: .cancel) { dismiss() }
+                            .tint(.primary)
                     }
                 }
         }
