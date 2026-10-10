@@ -62,7 +62,7 @@
 - Add RPC methods only for concrete needs of agreed wallet features; follow [references/rpc-scope.md](references/rpc-scope.md), not endpoint coverage.
 - Keep the app decentralized: no app-owned backend or proxy. Connect directly to Solana RPC providers.
 - Never ship provider API keys in the app bundle or source; users enter them in the app. Ignored local configuration supplies keys to tests only.
-- Offer three built-in providers: public Solana RPC (no key), Helius, and QuickNode. Each supports every wallet feature; they differ only in optional capabilities, such as CDN logos.
+- Offer three built-in providers: public Solana RPC (no key), Helius, and QuickNode. People can also add custom HTTPS RPC URLs that serve standard requests and account subscriptions. Each supports every wallet feature; they differ only in optional capabilities, such as CDN logos.
 - Use one submission strategy: `none` sends identical signed bytes concurrently through configured same-network ordinary RPCs; `standard` and `premium` use Sender exclusively. Follow [references/transaction-workflow.md](references/transaction-workflow.md).
 - Show a manual token list for each account; read its balances with standard RPC and use DAS only to look up CDN logos. Follow [references/portfolio.md](references/portfolio.md).
 - Load token artwork only over HTTPS from the selected provider's CDN; never request creator-hosted or off-chain URLs, which expose the user's IP address.
