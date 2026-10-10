@@ -17,6 +17,7 @@ let blockhash = response.value.blockhash
 | Provider | Capabilities |
 | --- | --- |
 | `Solana(network:)` | Public mainnet or devnet RPC and confirmed account subscriptions. No DAS. |
+| `Solana(endpoint:network:)` | RPC at a custom HTTPS URL, with confirmed account subscriptions at the same URL over WSS. No DAS. |
 | `HeliusRPC(apiKey:network:)` | Mainnet or devnet RPC, DAS, logo copies, and confirmed account subscriptions. |
 | `Sender(tier:)` | Optional mainnet transaction submission with `standard` or `premium` routing. Preparation and confirmation use ordinary RPC. |
 | `Jupiter(apiKey:)` | Mainnet prices through `PriceProviding`; independent of RPC and DAS. |

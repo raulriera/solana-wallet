@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import RPC
 
-/// Verifies the public endpoint adapter uses the shared typed request transport.
+/// Verifies public and custom endpoint clients use the shared typed request transport.
 struct SolanaTests {
     /// Verifies public endpoints receive ordinary RPC submission without credentials or DAS.
     ///
@@ -31,5 +31,56 @@ struct SolanaTests {
         #expect(body["method"] as? String == "sendTransaction")
         let params = try #require(body["params"] as? [Any])
         #expect(params.first as? String == bytes.base64EncodedString())
+    }
+
+    /// Verifies a custom endpoint receives requests at its URL and subscriptions at the same URL over WSS.
+    /// - Parameter endpoint: The same URL, given whole or relative to its base.
+    @Test(.timeLimit(.minutes(1)), arguments: [
+        URL(string: "https://rpc.example.com:8443/fixture-token/?api-key=fixture-key")!,
+        URL(string: "fixture-token/?api-key=fixture-key", relativeTo: URL(string: "https://rpc.example.com:8443/"))!,
+    ])
+    func `Custom endpoints receive requests and subscriptions at their URL`(endpoint: URL) async throws {
+        let transport = StubTransport { try reply(to: $0, payload: #""result":12345"#) }
+        let socket = SocketFixture()
+        defer { socket.cancel() }
+        let client = Solana(endpoint: endpoint, network: .mainnet, transport: transport) { url in
+            #expect(url.absoluteString == "wss://rpc.example.com:8443/fixture-token/?api-key=fixture-key")
+            return socket
+        }
+        let rpc = try #require(client)
+
+        _ = try await rpc.send(GetBlockHeight())
+        _ = try await rpc.changedSlots(for: ["wallet"])
+
+        #expect(await transport.requests.first?.url?.absoluteString == "https://rpc.example.com:8443/fixture-token/?api-key=fixture-key")
+        #expect(socket.subscribedAddresses == ["wallet"])
+    }
+
+    /// Verifies a custom endpoint is refused when requests would travel without HTTPS or to no host.
+    /// - Parameter url: A URL that a custom endpoint can't use.
+    @Test(arguments: ["http://rpc.example.com", "wss://rpc.example.com", "https://", "https:///fixture-token",
+                      "https://:8443/fixture-token", "https://fixture-user@/fixture-token"])
+    func `Custom endpoints require HTTPS and a host`(url: String) throws {
+        let endpoint = try #require(URL(string: url))
+
+        #expect(Solana(endpoint: endpoint) == nil)
+    }
+
+    /// Verifies server errors and descriptions omit a custom endpoint and each part that can hold its key.
+    @Test
+    func `Custom endpoint diagnostics hide the URL and its key`() async throws {
+        let endpoint = URL(string: "https://fixture-user:fixture-pass@rpc.example.com/path-token?api-key=query-key&bare-key")!
+        let transport = StubTransport { request in
+            let url = try #require(request.url?.absoluteString)
+            return try reply(to: request, payload: #""error":{"code":-32603,"message":"\#(url) fixture-user fixture-pass path-token query-key bare-key"}"#)
+        }
+        let rpc = try #require(Solana(endpoint: endpoint, network: .mainnet, transport: transport))
+
+        let message = Array(repeating: "[redacted]", count: 6).joined(separator: " ")
+        await #expect(throws: RPCError.server(code: -32603, message: message)) {
+            try await rpc.send(GetBlockHeight())
+        }
+        #expect(String(describing: rpc) == "Solana(mainnet)")
+        #expect(String(reflecting: rpc) == "Solana(mainnet)")
     }
 }

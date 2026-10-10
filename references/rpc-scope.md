@@ -2,7 +2,7 @@
 
 Build for the agreed Simplified and Advanced wallet experiences. A test or hypothetical future use alone doesn't justify an RPC method.
 
-Connect directly to interchangeable RPC, DAS, and pricing providers; no app-owned backend or proxy. `HeliusRPC` and public-endpoint `Solana` share one internal HTTP client. Keep provider-specific endpoints, authentication, batching, and response transformations inside RPC; consumers depend on provider-neutral protocols and values. DAS serves only CDN logo lookups; see [portfolio](portfolio.md). App workflow coordination follows [architecture](architecture.md).
+Connect directly to interchangeable RPC, DAS, and pricing providers; no app-owned backend or proxy. `HeliusRPC` and `Solana`, at a public or custom endpoint, share one internal HTTP client. Keep provider-specific endpoints, authentication, batching, and response transformations inside RPC; consumers depend on provider-neutral protocols and values. DAS serves only CDN logo lookups; see [portfolio](portfolio.md). App workflow coordination follows [architecture](architecture.md).
 
 | Feature | RPC need |
 | --- | --- |
