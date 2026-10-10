@@ -24,6 +24,7 @@ An optional same-network `PriceProviding` provider enables prices, including eac
 | `priceUpdates(for:policy:)` | Revalue cached holdings without reading balances again. Requires existing holdings and a price provider. |
 | `observations(for:)` | Watch the wallet and each listed token account before the initial reload, then read balances again after confirmed changes until cancellation or subscription failure. |
 | `removeData(for:)` | Remove the wallet's local cache and token list, and stop its active work. |
+| `providerDidChange()` | After the RPC client switches providers, end every observation and refresh and remove logos from saved snapshots; observe again to use the new provider. |
 
 ## Token Lists
 

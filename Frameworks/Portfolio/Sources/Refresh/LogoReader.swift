@@ -27,12 +27,22 @@ struct LogoReader: Sendable {
         if !missing.isEmpty, let found = try? await provider.logos(for: missing) {
             logos.merge(found) { kept, _ in kept }
         }
-        let holdings = snapshot.holdings.map { holding in
+        return snapshot.replacingLogos(with: logos)
+    }
+}
+
+extension Snapshot {
+    /// Returns the same holdings with each listed token's logo replaced.
+    ///
+    /// - Parameter logos: Logo URLs keyed by mint; a token without an entry has no logo.
+    /// - Returns: A snapshot that differs only in its listed tokens' logos.
+    func replacingLogos(with logos: [String: URL]) -> Snapshot {
+        let holdings = self.holdings.map { holding in
             guard case .asset(let mint) = holding.id else { return holding }
             return Holding(id: holding.id, amount: holding.amount, name: holding.name, symbol: holding.symbol,
                            imageURL: logos[mint], valuation: holding.valuation)
         }
-        return Snapshot(owner: snapshot.owner, network: snapshot.network, holdings: holdings,
-                        fetchedAt: snapshot.fetchedAt, pricesFetchedAt: snapshot.pricesFetchedAt)
+        return Snapshot(owner: owner, network: network, holdings: holdings, fetchedAt: fetchedAt,
+                        pricesFetchedAt: pricesFetchedAt)
     }
 }

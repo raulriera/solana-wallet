@@ -20,6 +20,20 @@ struct KeyedFiles: Sendable {
         }
     }
 
+    /// Reads every wallet's file in the directory.
+    ///
+    /// - Returns: The contents of each file that can be read, in no particular order; none when the directory is missing.
+    /// - Throws: A file-system error if the directory exists but can't be listed.
+    func readAll() throws -> [Data] {
+        let urls: [URL]
+        do {
+            urls = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+        } catch CocoaError.fileReadNoSuchFile {
+            return []
+        }
+        return urls.filter { $0.pathExtension == "json" }.compactMap { try? Data(contentsOf: $0) }
+    }
+
     /// Atomically replaces a wallet's file, so an interrupted write preserves the previous contents.
     ///
     /// - Parameters:

@@ -16,6 +16,13 @@ protocol SnapshotStoring: Sendable {
     /// - Returns: The stored snapshot, or `nil` if unavailable or incompatible.
     func snapshot(for key: CacheKey) -> Snapshot?
 
+    /// Reads every compatible stored snapshot.
+    ///
+    /// Unreadable or incompatible files are skipped.
+    /// - Returns: The stored snapshots, in no particular order.
+    /// - Throws: A file-system error if the stored snapshots can't be listed.
+    func snapshots() throws -> [Snapshot]
+
     /// Replaces a wallet's stored snapshot after a complete refresh.
     ///
     /// - Parameters:

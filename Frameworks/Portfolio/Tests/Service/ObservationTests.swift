@@ -128,6 +128,55 @@ struct ObservationTests {
         await second.waitUntilCancelled()
     }
 
+    /// Verifies a provider change closes the connection, drops the read in progress, and lets a new observation
+    /// read balances from a provider that is behind the previous provider's newest confirmed change.
+    @Test(.timeLimit(.minutes(1)))
+    func `A provider change ends observation and the next one needs no earlier confirmed slot`() async throws {
+        let fixture = ObservationFixture()
+        defer { fixture.cleanUp() }
+        let ledger = ObservedLedger()
+        let (pending, release) = AsyncStream<Void>.makeStream()
+        let (started, announce) = AsyncStream<Void>.makeStream()
+        defer { release.finish(); announce.finish() }
+        let http = AccountResponses { accounts in
+            let reading = try await ledger.response(for: accounts)
+            if await ledger.readCount == 2 {
+                announce.yield(())
+                for await _ in pending {}
+            }
+            return reading
+        }
+        let connections = Connections()
+        let service = fixture.service(http: http) { connections.connect(to: $0) }
+        var sockets = connections.opened.makeAsyncIterator()
+        var updates = await service.observations(for: testWallet).makeAsyncIterator()
+        try await nextResult(&updates)
+        let first = try #require(await sockets.next())
+        await ledger.set(lamports: 200, slot: 110)
+        first.notify(slot: 110)
+        var delays = fixture.gate.delays.makeAsyncIterator()
+        _ = try #require(await delays.next())
+        fixture.gate.resume()
+        var startedIterator = started.makeAsyncIterator()
+        _ = try #require(await startedIterator.next())
+
+        try await service.providerDidChange()
+
+        while let update = await updates.next() { #expect(update.isRefreshing) }
+        await first.waitUntilCancelled()
+        await ledger.set(lamports: 300, slot: 100)
+        release.finish()
+        var observed = await service.observations(for: testWallet).makeAsyncIterator()
+        let second = try #require(await sockets.next())
+        let result = try await nextResult(&observed)
+        #expect(result.error == nil)
+        #expect(result.holdings.first?.amount?.units == 300)
+        #expect(fixture.store.snapshot(for: fixture.key) == result.snapshot)
+        #expect(await http.minimumSlots == [nil, 110, nil])
+        try await service.removeData(for: testWallet)
+        await second.waitUntilCancelled()
+    }
+
     /// The ways a person changes an account's token list.
     enum ListChange: CaseIterable {
         /// Adding a token the list doesn't hold.

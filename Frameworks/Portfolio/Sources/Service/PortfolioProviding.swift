@@ -2,7 +2,8 @@
 ///
 /// Assign increasing `Update.revision` values across all streams from one provider instance.
 /// Forwarded or replayed updates keep their revision; cached snapshots retain their original
-/// `Update.snapshotRevision`. Consumers can then order data and status independently of wall time.
+/// `Update.snapshotRevision` until a provider change. Consumers can then order data and status
+/// independently of wall time.
 public protocol PortfolioProviding: Sendable {
     /// Observes confirmed account changes for the lifetime of the consuming task.
     ///
@@ -11,7 +12,8 @@ public protocol PortfolioProviding: Sendable {
     /// Transport and rate-limit errors are surfaced without automatic retries or reconnects.
     /// The app owns starting and cancelling observation with its foreground/view lifecycle.
     /// - Parameter owner: The wallet whose holdings to observe.
-    /// - Returns: A stream of cached state and refresh results, ending on cancellation or subscription failure.
+    /// - Returns: A stream of cached state and refresh results, ending on cancellation, subscription failure,
+    ///   or a provider change.
     func observations(for owner: String) async -> AsyncStream<Update>
 
     /// Returns cached portfolio state and refreshes the data required by the policy.
@@ -40,6 +42,16 @@ public protocol PortfolioProviding: Sendable {
     /// - Parameter owner: The wallet whose local data to remove.
     /// - Throws: A file-system error if the stored snapshot can't be removed.
     func removeData(for owner: String) async throws
+
+    /// Ends the work that used the previous RPC provider and removes its logos from saved snapshots.
+    ///
+    /// Call this after the RPC client starts to use the new provider, then observe again.
+    /// Observations and refreshes end without a further update, which closes their subscriptions.
+    /// Cached snapshots keep their balances and prices, lose their logos, and arrive with a newer
+    /// `Update.snapshotRevision`, so consumers replace copies that show the previous provider's logos.
+    /// The next balance read doesn't require an earlier confirmed slot and looks up logos from the new provider.
+    /// - Throws: A file-system error if a saved snapshot's logos can't be removed; the work ends regardless.
+    func providerDidChange() async throws
 }
 
 extension PortfolioProviding {

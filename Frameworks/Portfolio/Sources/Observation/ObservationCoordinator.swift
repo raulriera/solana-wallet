@@ -75,6 +75,11 @@ actor ObservationCoordinator {
         for consumer in watch.consumers.values { consumer.finish() }
     }
 
+    /// Cancels every wallet's observation and ends its consumers' streams.
+    func stopAll() {
+        for owner in watches.keys { stop(for: owner) }
+    }
+
     /// Starts a new observation lifetime for a wallet's consumers, so earlier work can't deliver results.
     /// - Parameters:
     ///   - owner: The watched wallet.

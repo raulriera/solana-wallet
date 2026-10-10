@@ -192,12 +192,34 @@ actor RefreshCoordinator {
     /// - Throws: A file-system error if the saved snapshot can't be removed.
     func removeData(for owner: String) throws {
         let key = CacheKey(owner: owner, network: source.network)
-        if let flight = flights.removeValue(forKey: key) {
-            flight.task?.cancel()
-            for continuation in flight.consumers.values { continuation.finish() }
-        }
+        endRefresh(for: key)
         try store.remove(for: key)
         snapshotRevisions.removeValue(forKey: key)
+    }
+
+    /// Ends every refresh and removes logos from this network's saved snapshots after an RPC provider change.
+    ///
+    /// Each snapshot gets a newer snapshot revision, so consumers replace copies that show the previous
+    /// provider's logos.
+    /// - Throws: A file-system error if the snapshots can't be listed or one can't be rewritten.
+    func providerDidChange() throws {
+        for key in flights.keys { endRefresh(for: key) }
+        // A revision newer than any snapshot that consumers already hold.
+        revision += 1
+        for snapshot in try store.snapshots() where snapshot.network == source.network {
+            let key = CacheKey(owner: snapshot.owner, network: snapshot.network)
+            let stripped = snapshot.replacingLogos(with: [:])
+            if stripped != snapshot { try store.save(stripped, for: key) }
+            snapshotRevisions[key] = revision
+        }
+    }
+
+    /// Cancels a wallet's refresh and ends its consumers' streams, so the refresh can't deliver or save a result.
+    /// - Parameter key: The wallet and network whose refresh ends.
+    private func endRefresh(for key: CacheKey) {
+        guard let flight = flights.removeValue(forKey: key) else { return }
+        flight.task?.cancel()
+        for continuation in flight.consumers.values { continuation.finish() }
     }
 
     /// Emits existing state, reads all balances, and commits one complete update.

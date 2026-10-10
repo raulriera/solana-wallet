@@ -23,6 +23,8 @@ public struct Update: Sendable {
     ///
     /// Cached snapshots keep their revision when a later operation reports progress or fails.
     /// This lets consumers retain newer unsaved data while still presenting a subsequent error.
+    /// A provider change gives cached snapshots a newer revision, so consumers replace copies that show
+    /// the previous provider's logos.
     public let snapshotRevision: UInt64?
 
     /// The available holdings, or an empty array when no snapshot exists.

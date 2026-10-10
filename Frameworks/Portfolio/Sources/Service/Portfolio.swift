@@ -90,6 +90,15 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
         try await tokenLists.removeList(for: owner)
     }
 
+    /// Ends the work that used the previous RPC provider and removes its logos from saved snapshots.
+    ///
+    /// Observation stops first, so no reconciliation can start a read with the previous provider's slot.
+    /// - Throws: A file-system error if a saved snapshot's logos can't be removed.
+    public func providerDidChange() async throws {
+        await observer.stopAll()
+        try await coordinator.providerDidChange()
+    }
+
     /// Returns an account's saved token list, or the network's defaults when the account has none yet.
     ///
     /// - Parameter owner: The account's wallet address.

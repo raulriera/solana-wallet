@@ -562,6 +562,93 @@ struct PortfolioTests {
         #expect(refreshed.holdings.allSatisfy { $0.imageURL == nil })
         #expect(await http.logoRequests.isEmpty)
     }
+
+    /// Verifies a provider change removes every saved logo, keeps the balances, and lets the next read
+    /// replace earlier copies and ask the new provider for logos.
+    ///
+    /// - Throws: A fixture setup error or failed prerequisite.
+    @Test(.timeLimit(.minutes(1)))
+    func `A provider change removes saved logos and keeps balances`() async throws {
+        let fixture = Fixture()
+        defer { fixture.removeFiles() }
+        let host = Mutex("old.example.com")
+        let http = AccountResponses(logos: { mints in
+            let host = host.withLock { $0 }
+            return Dictionary(uniqueKeysWithValues: mints.map { ($0, "https://\(host)/\($0).png") })
+        }) { _ in Ledger(tokens: [usdcMint: 5]) }
+        let service = fixture.portfolio(rpc: http.heliusClient)
+        let read = try await reload(service)
+        let otherKey = CacheKey(owner: otherWallet, network: .mainnet)
+        let logo = try #require(URL(string: "https://old.example.com/usdc.png"))
+        let other = Snapshot(owner: otherWallet, network: .mainnet,
+                             holdings: [Holding(id: .asset(usdcMint), amount: Amount(units: 1, decimals: 6),
+                                                name: "USD Coin", symbol: "USDC", imageURL: logo, valuation: nil)],
+                             fetchedAt: Date(timeIntervalSince1970: 1))
+        try fixture.store.save(other, for: otherKey)
+
+        try await service.providerDidChange()
+
+        let original = try #require(read.snapshot)
+        let saved = try #require(fixture.store.snapshot(for: CacheKey(owner: testWallet, network: .mainnet)))
+        let otherSaved = try #require(fixture.store.snapshot(for: otherKey))
+        #expect(saved.holdings.allSatisfy { $0.imageURL == nil })
+        #expect(saved.holdings.map(\.amount) == original.holdings.map(\.amount))
+        #expect(saved.fetchedAt == original.fetchedAt)
+        #expect(otherSaved.holdings.map(\.imageURL) == [nil])
+        #expect(otherSaved.holdings.map(\.amount) == other.holdings.map(\.amount))
+        host.withLock { $0 = "new.example.com" }
+        var updates = await service.updates(for: testWallet, policy: .reload).makeAsyncIterator()
+        let initial = try #require(await updates.next())
+        let refreshed = try #require(await updates.next())
+        let earlierRevision = try #require(read.snapshotRevision)
+        #expect(initial.snapshot == saved)
+        #expect(try #require(initial.snapshotRevision) > earlierRevision)
+        #expect(refreshed.holdings.compactMap { $0.imageURL?.host() } == ["new.example.com", "new.example.com"])
+        #expect(await http.logoRequests == [[usdcMint, usdtMint], [usdcMint, usdtMint]])
+    }
+
+    /// Verifies a provider change with nothing saved yet leaves nothing to rewrite.
+    ///
+    /// - Throws: A fixture setup error or failed prerequisite.
+    @Test
+    func `A provider change without saved snapshots succeeds`() async throws {
+        let fixture = Fixture()
+        defer { fixture.removeFiles() }
+        let http = AccountResponses { _ in Ledger() }
+
+        try await fixture.portfolio(rpc: http.client).providerDidChange()
+
+        #expect(!FileManager.default.fileExists(atPath: fixture.directory.path()))
+    }
+
+    /// Verifies a provider change reports a snapshot that a full disk can't rewrite without its logos,
+    /// and still ends the refresh in progress.
+    ///
+    /// - Throws: A fixture setup error or failed prerequisite.
+    @Test(.timeLimit(.minutes(1)))
+    func `A provider change reports a snapshot whose logos can't be removed and still ends its work`() async throws {
+        let fixture = Fixture()
+        defer { fixture.removeFiles() }
+        let cached = snapshot(owner: testWallet, network: .mainnet, units: 3,
+                              imageURL: URL(string: "https://old.example.com/usdc.png"))
+        let (pending, release) = AsyncStream<Void>.makeStream()
+        let (started, announce) = AsyncStream<Void>.makeStream()
+        defer { release.finish(); announce.finish() }
+        let http = AccountResponses { _ in
+            announce.yield(())
+            for await _ in pending {}
+            return Ledger()
+        }
+        let service = fixture.portfolio(rpc: http.client, store: WriteFailingStore(cached: cached))
+        var updates = await service.updates(for: testWallet, policy: .reload).makeAsyncIterator()
+        _ = try #require(await updates.next())
+        var startedIterator = started.makeAsyncIterator()
+        _ = try #require(await startedIterator.next())
+
+        await #expect(throws: CocoaError(.fileWriteOutOfSpace)) { try await service.providerDidChange() }
+
+        #expect(await updates.next() == nil)
+    }
 }
 
 /// Real disk stores isolated to one test invocation.
@@ -594,6 +681,11 @@ private struct WriteFailingStore: SnapshotStoring {
     /// - Returns: The fixture's preceding snapshot.
     func snapshot(for key: CacheKey) -> Snapshot? { cached }
 
+    /// Lists the preceding snapshot without accessing the file system.
+    ///
+    /// - Returns: The fixture's preceding snapshot, if any.
+    func snapshots() -> [Snapshot] { cached.map { [$0] } ?? [] }
+
     /// Rejects a write because the simulated disk is full.
     ///
     /// - Parameters:
@@ -625,10 +717,11 @@ private func reload(_ service: Portfolio) async throws -> Update {
 ///   - owner: The wallet address.
 ///   - network: The snapshot's network.
 ///   - units: The cached USDC balance.
+///   - imageURL: The cached USDC logo, if any.
 /// - Returns: An immutable snapshot with an earlier successful retrieval time.
-private func snapshot(owner: String, network: Network, units: UInt64) -> Snapshot {
+private func snapshot(owner: String, network: Network, units: UInt64, imageURL: URL? = nil) -> Snapshot {
     Snapshot(owner: owner, network: network,
              holdings: [Holding(id: .asset(usdcMint), amount: Amount(units: units, decimals: 6),
-                                name: nil, symbol: nil, imageURL: nil, valuation: nil)],
+                                name: nil, symbol: nil, imageURL: imageURL, valuation: nil)],
              fetchedAt: Date(timeIntervalSince1970: 1))
 }

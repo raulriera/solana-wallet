@@ -65,6 +65,11 @@ actor PortfolioResponses: PortfolioProviding {
         Issue.record("Leaving a view must not remove persisted holdings.")
     }
 
+    /// Reports an unexpected provider change during view lifecycle changes.
+    func providerDidChange() async throws {
+        Issue.record("Lifecycle coordination must not change providers.")
+    }
+
     /// Captures an operation and reports when cancellation releases its stream.
     /// - Parameters:
     ///   - owner: The requested wallet.

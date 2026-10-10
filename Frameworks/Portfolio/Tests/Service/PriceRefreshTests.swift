@@ -185,6 +185,46 @@ struct PriceRefreshTests {
         #expect(fixture.store.snapshot(for: fixture.key) == nil)
         #expect(await accounts.requests.isEmpty)
     }
+
+    /// Verifies a provider change ends a price refresh, so it can't save the previous provider's logos again.
+    /// - Throws: A fixture or test prerequisite error.
+    @Test(.timeLimit(.minutes(1)))
+    func `A price refresh during a provider change can't save the previous logos`() async throws {
+        let fixture = PricingFixture()
+        defer { fixture.removeFiles() }
+        let priced = pricingSnapshot()
+        let cached = Snapshot(owner: priced.owner, network: priced.network, holdings: priced.holdings,
+                              fetchedAt: priced.fetchedAt, pricesFetchedAt: .distantPast)
+        try fixture.store.save(cached, for: fixture.key)
+        let (pending, release) = AsyncStream<Void>.makeStream()
+        let (started, announce) = AsyncStream<Void>.makeStream()
+        let (cancelled, cancelledContinuation) = AsyncStream<Void>.makeStream()
+        defer { release.finish(); announce.finish(); cancelledContinuation.finish() }
+        let accounts = AccountResponses { _ in freshLedger }
+        let prices = PriceResponses { _ in
+            announce.yield(())
+            for await _ in pending {}
+            if Task.isCancelled { cancelledContinuation.yield(()) }
+            return Data(#"{"mint":{"usdPrice":0.1}}"#.utf8)
+        }
+        let service = fixture.portfolio(rpc: accounts.client, prices: prices.client)
+        var updates = await service.priceUpdates(for: testWallet).makeAsyncIterator()
+        _ = try #require(await updates.next())
+        var startedIterator = started.makeAsyncIterator()
+        _ = try #require(await startedIterator.next())
+
+        try await service.providerDidChange()
+
+        var cancelledIterator = cancelled.makeAsyncIterator()
+        _ = try #require(await cancelledIterator.next())
+        #expect(await updates.next() == nil)
+        let saved = try #require(fixture.store.snapshot(for: fixture.key))
+        #expect(saved.holdings.allSatisfy { $0.imageURL == nil })
+        #expect(saved.holdings.map(\.amount) == cached.holdings.map(\.amount))
+        #expect(saved.holdings.map(\.valuation) == cached.holdings.map(\.valuation))
+        #expect(saved.pricesFetchedAt == cached.pricesFetchedAt)
+        #expect(await accounts.requests.isEmpty)
+    }
 }
 
 /// A disk cache isolated to one pricing test.
