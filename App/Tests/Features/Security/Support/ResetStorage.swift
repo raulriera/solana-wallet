@@ -4,7 +4,7 @@ import Vault
 @testable import widgets
 
 /// Records the order of reset deletions across every sensitive store, optionally failing one step once.
-actor ResetStorage: RecoveryStoring, AccountStoring, ProviderKeyStoring {
+actor ResetStorage: RecoveryStoring, AccountStoring {
     /// A store that a reset empties.
     enum Step: String, Sendable { case recovery, wallets, key }
 
@@ -25,14 +25,13 @@ actor ResetStorage: RecoveryStoring, AccountStoring, ProviderKeyStoring {
     /// - Throws: A scripted failure.
     func removeAll() async throws { try delete(.wallets) }
 
-    /// Deletes the API key, unless this step fails.
-    /// - Throws: A scripted failure.
-    func deleteKey() async throws { try delete(.key) }
+    /// The provider's API key, whose deletion this storage records.
+    nonisolated var key: ResetValue<String> { ResetValue(storage: self, step: .key) }
 
     /// Records a successful deletion or throws the step's one scripted failure.
     /// - Parameter step: The store being emptied.
     /// - Throws: A write error the first time the failing step runs.
-    private func delete(_ step: Step) throws {
+    func delete(_ step: Step) throws {
         if failing == step {
             failing = nil
             throw CocoaError(.fileWriteUnknown)
@@ -72,12 +71,4 @@ actor ResetStorage: RecoveryStoring, AccountStoring, ProviderKeyStoring {
         Issue.record("A reset must not add accounts.")
         return []
     }
-
-    /// Returns no key.
-    /// - Returns: `nil`.
-    func key() async throws -> String? { nil }
-
-    /// Reports any save, because a reset only deletes.
-    /// - Parameter key: The key the caller tried to save.
-    func save(_ key: String) async throws { Issue.record("A reset must not save a key.") }
 }

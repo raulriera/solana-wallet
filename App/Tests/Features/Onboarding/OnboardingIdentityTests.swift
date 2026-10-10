@@ -16,13 +16,13 @@ struct OnboardingIdentityTests {
         defer { try? FileManager.default.removeItem(at: directory) }
         let accounts = try AccountStore(directory: directory)
         let recovery = ResetRecoveryStore()
-        let keys = SavedKeys()
+        let keys = StoredValue<String>()
         let gate = Suspension()
         let http = HTTPResponses.discovery(gate: gate)
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: http.client), wallet: Wallet(),
                                                 recovery: recovery, accounts: accounts, router: router)
-        let connection = HTTPResponses.keyCheck().connection(keys: keys)
+        let connection = HTTPResponses.keyCheck().connection(providerKey: keys)
         let providerRevision = Revision()
         let original = OnboardingScene(coordinator: coordinator, connection: connection,
                                        providerRevision: providerRevision, pasteboard: NoPasteboard())
@@ -48,7 +48,7 @@ struct OnboardingIdentityTests {
             try #require(await http.requests.count == 1)
 
             let revision = Revision()
-            try await AppReset(recovery: recovery, accounts: accounts, providerKeys: keys, revision: revision).reset()
+            try await AppReset(recovery: recovery, accounts: accounts, providerKey: keys, revision: revision).reset()
             try #require(revision.value == 1)
             try #require(try await accounts.load().isEmpty)
             try #require(await recovery.count == 0)

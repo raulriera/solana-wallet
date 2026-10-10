@@ -21,7 +21,7 @@ struct PortfolioErrorTests {
         (RPCError.http(statusCode: 500, retryAfter: nil), .unavailable),
         (RPCError.transport(.notConnectedToInternet), .unavailable),
         (ObservationError.networkMismatch, .unavailable),
-        (KeyStoreError.unreadable, .unavailable),
+        (KeychainItemError.unreadable, .unavailable),
         (TokenListError.unreadable, .listUnreadable),
     ])
     func `Portfolio errors map to what the person can do`(error: any Error, expected: PortfolioError) {
@@ -49,7 +49,7 @@ struct PortfolioErrorTests {
     func `A missing key reaches the portfolio as a typed failure`() async {
         let directory = URL.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
-        let client = HTTPResponses.keyCheck().heliusClient(keys: SavedKeys())
+        let client = HTTPResponses.keyCheck().heliusClient(providerKey: StoredValue<String>())
         let coordinator = PortfolioCoordinator(service: Portfolio(rpc: client, store: FileSnapshotStore(directory: directory)))
         let viewing = Task { await coordinator.observe(for: PublicWallet.address, isActive: true) }
         defer { viewing.cancel() }

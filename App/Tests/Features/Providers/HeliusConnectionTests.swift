@@ -11,11 +11,11 @@ struct HeliusConnectionTests {
     @Test
     func `An accepted key is checked and saved without surrounding whitespace`() async throws {
         let responses = HTTPResponses.keyCheck()
-        let keys = SavedKeys()
+        let keys = StoredValue<String>()
 
-        try await responses.connection(keys: keys).connect(apiKey: " fixture-key \n")
+        try await responses.connection(providerKey: keys).connect(apiKey: " fixture-key \n")
 
-        #expect(await keys.saved == "fixture-key")
+        #expect(await keys.value == "fixture-key")
         #expect(await responses.requests.count == 1)
         #expect(await responses.requests.first?.url?.query() == "api-key=fixture-key")
     }
@@ -24,14 +24,14 @@ struct HeliusConnectionTests {
     @Test
     func `Blank input is rejected without contacting Helius`() async {
         let responses = HTTPResponses.keyCheck()
-        let keys = SavedKeys()
+        let keys = StoredValue<String>()
 
         await #expect(throws: ProviderConnectionError.invalidKey) {
-            try await responses.connection(keys: keys).connect(apiKey: " \n ")
+            try await responses.connection(providerKey: keys).connect(apiKey: " \n ")
         }
 
         #expect(await responses.requests.isEmpty)
-        #expect(await keys.saved == nil)
+        #expect(await keys.value == nil)
     }
 
     /// Each failed check reports the cause the setup screen presents, and nothing is saved.
@@ -46,14 +46,14 @@ struct HeliusConnectionTests {
     ])
     func `Failed checks report their cause and save nothing`(status: Int, expected: ProviderConnectionError) async {
         let responses = HTTPResponses.keyCheck(error: .http(statusCode: status, retryAfter: nil))
-        let keys = SavedKeys()
+        let keys = StoredValue<String>()
 
         await #expect(throws: expected) {
-            try await responses.connection(keys: keys).connect(apiKey: "fixture-key")
+            try await responses.connection(providerKey: keys).connect(apiKey: "fixture-key")
         }
 
         #expect(await responses.requests.count == 1)
-        #expect(await keys.saved == nil)
+        #expect(await keys.value == nil)
     }
 
     /// A key Helius accepted still fails setup when this device can't store it.
@@ -62,7 +62,7 @@ struct HeliusConnectionTests {
         let responses = HTTPResponses.keyCheck()
 
         await #expect(throws: ProviderConnectionError.storageFailed) {
-            try await responses.connection(keys: SavedKeys(failsSaving: true)).connect(apiKey: "fixture-key")
+            try await responses.connection(providerKey: StoredValue<String>(failsSaving: true)).connect(apiKey: "fixture-key")
         }
     }
 
@@ -71,8 +71,8 @@ struct HeliusConnectionTests {
     func `A cancelled check reports cancellation and saves nothing`() async {
         let gate = Suspension()
         let responses = HTTPResponses.keyCheck(gate: gate)
-        let keys = SavedKeys()
-        let check = responses.connection(keys: keys)
+        let keys = StoredValue<String>()
+        let check = responses.connection(providerKey: keys)
         let operation = Task { try await check.connect(apiKey: "fixture-key") }
         defer { operation.cancel() }
         await gate.waitUntilStarted()
@@ -81,6 +81,6 @@ struct HeliusConnectionTests {
 
         await #expect(throws: CancellationError.self) { try await operation.value }
         #expect(await responses.wasCancelled)
-        #expect(await keys.saved == nil)
+        #expect(await keys.value == nil)
     }
 }

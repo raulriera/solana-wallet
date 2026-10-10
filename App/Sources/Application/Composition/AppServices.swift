@@ -37,15 +37,15 @@ struct AppServices {
         recovery = KeychainStore(service: recoveryService)
         accounts = try AccountStore()
         recoveryCleanup = RecoveryCleanup(accounts: accounts, recovery: recovery)
-        let providerKeys = ProviderKeyStore(service: providerService)
-        providerConnection = HeliusConnection(keys: providerKeys)
+        let providerKey = KeychainItem(service: providerService, account: "api-key", coding: .utf8)
+        providerConnection = HeliusConnection(providerKey: providerKey)
         // One service for every window shares its cache, subscriptions, and price pacing.
-        portfolio = Portfolio(rpc: HeliusClient(keys: providerKeys), prices: Jupiter())
+        portfolio = Portfolio(rpc: HeliusClient(providerKey: providerKey), prices: Jupiter())
         recoveryPasteboard = RecoveryPasteboard()
         security = SecurityServices(
             recovery: RecoveryReveal(store: recovery),
             owner: DeviceOwnerAuthentication(),
-            reset: AppReset(recovery: recovery, accounts: accounts, providerKeys: providerKeys, revision: resetRevision),
+            reset: AppReset(recovery: recovery, accounts: accounts, providerKey: providerKey, revision: resetRevision),
             pasteboard: recoveryPasteboard
         )
     }

@@ -7,18 +7,18 @@ import RPC
 /// to the next request. The client for the latest key is kept to reuse its connections.
 nonisolated struct HeliusClient: RPC, AccountChangeProviding, LogoProviding {
     let network = Network.mainnet
-    private let keys: any ProviderKeyStoring
+    private let providerKey: any ValueStoring<String>
     private let clients: Clients
 
     /// Creates a client that reads its key from device storage before every request.
     /// - Parameters:
-    ///   - keys: Device-only storage for the accepted key.
+    ///   - providerKey: Device-only storage for the accepted key.
     ///   - client: Creates the mainnet Helius client for a saved key.
-    init(keys: any ProviderKeyStoring,
+    init(providerKey: any ValueStoring<String>,
          client: @escaping @Sendable (String) -> any RPC & AccountChangeProviding & LogoProviding = {
              HeliusRPC(apiKey: $0, network: .mainnet)
          }) {
-        self.keys = keys
+        self.providerKey = providerKey
         clients = Clients(make: client)
     }
 
@@ -68,7 +68,7 @@ nonisolated struct HeliusClient: RPC, AccountChangeProviding, LogoProviding {
     /// - Returns: The client for the key saved now.
     /// - Throws: ``HeliusClientError/missingKey`` before a key is saved, or a storage or cancellation error.
     private func client() async throws -> any RPC & AccountChangeProviding & LogoProviding {
-        guard let key = try await keys.key() else {
+        guard let key = try await providerKey.load() else {
             try Task.checkCancellation()
             throw HeliusClientError.missingKey
         }

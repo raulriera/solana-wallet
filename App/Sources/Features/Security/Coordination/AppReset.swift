@@ -5,20 +5,20 @@ import Vault
 struct AppReset: AppResetting {
     private let recovery: any RecoveryStoring
     private let accounts: any AccountStoring
-    private let providerKeys: any ProviderKeyStoring
+    private let providerKey: any ValueStoring<String>
     private let revision: Revision
 
     /// Connects the reset to every store that holds sensitive data.
     /// - Parameters:
     ///   - recovery: The protected recovery storage.
     ///   - accounts: The public wallet metadata.
-    ///   - providerKeys: The provider's API key storage.
+    ///   - providerKey: The provider's API key storage.
     ///   - revision: Tells every window when the reset finishes.
-    init(recovery: any RecoveryStoring, accounts: any AccountStoring, providerKeys: any ProviderKeyStoring,
+    init(recovery: any RecoveryStoring, accounts: any AccountStoring, providerKey: any ValueStoring<String>,
          revision: Revision) {
         self.recovery = recovery
         self.accounts = accounts
-        self.providerKeys = providerKeys
+        self.providerKey = providerKey
         self.revision = revision
     }
 
@@ -27,7 +27,7 @@ struct AppReset: AppResetting {
     func reset() async throws {
         try await recovery.deleteAllRecovery()
         try await accounts.removeAll()
-        try await providerKeys.deleteKey()
+        try await providerKey.delete()
         revision.advance()
     }
 }

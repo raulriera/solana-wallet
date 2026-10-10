@@ -8,14 +8,14 @@ struct HeliusConnectionLiveTests {
     /// - Throws: A missing-credential prerequisite or a connection failure.
     @Test
     func `Helius accepts the configured key`() async throws {
-        try await HeliusConnection(keys: SavedKeys()).connect(apiKey: try MainnetClients.heliusAPIKey())
+        try await HeliusConnection(providerKey: StoredValue<String>()).connect(apiKey: try MainnetClients.heliusAPIKey())
     }
 
     /// Helius itself rejects an unknown key.
     @Test
     func `Helius rejects an unknown key`() async {
         await #expect(throws: ProviderConnectionError.invalidKey) {
-            try await HeliusConnection(keys: SavedKeys()).connect(apiKey: "00000000-0000-0000-0000-000000000000")
+            try await HeliusConnection(providerKey: StoredValue<String>()).connect(apiKey: "00000000-0000-0000-0000-000000000000")
         }
     }
 }

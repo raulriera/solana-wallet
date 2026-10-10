@@ -2,27 +2,37 @@ import Dispatch
 import Foundation
 import Security
 
-/// Device-only Keychain storage for one item, such as a provider's API key.
+/// A value saved on this device as one Keychain item, such as a provider's API key.
 ///
-/// A conforming store names its item; the default implementation reads, saves, and deletes it.
 /// The item never synchronizes to iCloud or moves to another device. It can be read whenever
 /// the device is unlocked, without biometric authentication.
-nonisolated protocol KeyStoring: Sendable {
-    /// The stable, app-specific namespace that holds the item.
-    var service: String { get }
-    /// The item's name within its namespace.
-    var account: String { get }
-}
-
-nonisolated extension KeyStoring {
+nonisolated struct KeychainItem<Coding: ValueCoding>: ValueStoring {
     /// Blocking Security work that runs only on the Keychain queue.
-    private typealias Operation<Value: Sendable> = @Sendable () throws -> Value
+    private typealias Operation<Result: Sendable> = @Sendable () throws -> Result
 
-    /// Reads the item without user interaction.
-    /// - Returns: The item's data, or `nil` before any is saved.
-    /// - Throws: ``KeyStoreError`` or `CancellationError`.
-    func data() async throws -> Data? {
-        try await perform {
+    /// The stable, app-specific namespace that holds the item.
+    let service: String
+    /// The item's name within its namespace.
+    let account: String
+    /// How the value is kept as bytes.
+    let coding: Coding
+
+    /// Names an item in the app's Keychain access group.
+    /// - Parameters:
+    ///   - service: The stable, app-specific namespace that holds the item.
+    ///   - account: The item's name within its namespace.
+    ///   - coding: How the value is kept as bytes, such as `.utf8`.
+    init(service: String, account: String, coding: Coding) {
+        self.service = service
+        self.account = account
+        self.coding = coding
+    }
+
+    /// Reads the saved value without user interaction.
+    /// - Returns: The value, or `nil` before one is saved.
+    /// - Throws: ``KeychainItemError`` or `CancellationError`.
+    func load() async throws -> Coding.Value? {
+        let data: Data? = try await perform {
             var query = identity
             query[kSecMatchLimit as String] = kSecMatchLimitOne
             query[kSecReturnData as String] = true
@@ -30,17 +40,21 @@ nonisolated extension KeyStoring {
             let status = SecItemCopyMatching(query as CFDictionary, &result)
             if status == errSecItemNotFound { return nil }
             try check(status)
-            guard let data = result as? Data else { throw KeyStoreError.unreadable }
+            guard let data = result as? Data else { throw KeychainItemError.unreadable }
             return data
         }
+        guard let data else { return nil }
+        guard let value = coding.decode(data) else { throw KeychainItemError.unreadable }
+        return value
     }
 
-    /// Saves the item, replacing any data already stored.
+    /// Saves a value, replacing any value already saved.
     ///
     /// Cancellation doesn't roll back a save that has already reached the Keychain.
-    /// - Parameter data: The complete new value.
-    /// - Throws: ``KeyStoreError/keychain(status:)`` or `CancellationError`.
-    func save(_ data: Data) async throws {
+    /// - Parameter value: The new value.
+    /// - Throws: ``KeychainItemError``, an encoding error, or `CancellationError`.
+    func save(_ value: Coding.Value) async throws {
+        let data = try coding.encode(value)
         try await perform {
             let value = [kSecValueData as String: data]
             switch SecItemUpdate(identity as CFDictionary, value as CFDictionary) {
@@ -54,8 +68,8 @@ nonisolated extension KeyStoring {
         }
     }
 
-    /// Deletes the item; a missing item is already deleted.
-    /// - Throws: ``KeyStoreError/keychain(status:)`` or `CancellationError`.
+    /// Deletes the saved value; a missing value is already deleted.
+    /// - Throws: ``KeychainItemError`` or `CancellationError`.
     func delete() async throws {
         try await perform {
             let status = SecItemDelete(identity as CFDictionary)
@@ -63,7 +77,7 @@ nonisolated extension KeyStoring {
         }
     }
 
-    /// The one non-synchronizing item that this store names.
+    /// The one non-synchronizing item that keeps this value.
     private var identity: [String: Any] {
         [
             kSecClass as String: kSecClassGenericPassword,
@@ -78,22 +92,22 @@ nonisolated extension KeyStoring {
     /// - Parameter operation: Security work whose queries stay on the Keychain queue.
     /// - Returns: The operation's result.
     /// - Throws: The operation's error, or `CancellationError` if canceled before it's scheduled.
-    private func perform<Value: Sendable>(_ operation: @escaping Operation<Value>) async throws -> Value {
+    private func perform<Result: Sendable>(_ operation: @escaping Operation<Result>) async throws -> Result {
         try Task.checkCancellation()
         return try await withCheckedThrowingContinuation { continuation in
-            KeychainQueue.shared.async { continuation.resume(with: Result(catching: operation)) }
+            KeychainQueue.shared.async { continuation.resume(with: Swift.Result(catching: operation)) }
         }
     }
 }
 
 /// Converts a Security status into a value-free storage error.
 /// - Parameter status: The Keychain operation's status.
-/// - Throws: ``KeyStoreError/keychain(status:)`` for any status other than success.
+/// - Throws: ``KeychainItemError/keychain(status:)`` for any status other than success.
 nonisolated private func check(_ status: OSStatus) throws {
-    guard status == errSecSuccess else { throw KeyStoreError.keychain(status: status) }
+    guard status == errSecSuccess else { throw KeychainItemError.keychain(status: status) }
 }
 
-/// The serial queue that every key store shares, so each update-then-add save runs atomically.
+/// The serial queue that every Keychain item shares, so each update-then-add save runs atomically.
 nonisolated private enum KeychainQueue {
-    static let shared = DispatchQueue(label: "KeyStoring.Keychain", qos: .userInitiated)
+    static let shared = DispatchQueue(label: "KeychainItem.Keychain", qos: .userInitiated)
 }

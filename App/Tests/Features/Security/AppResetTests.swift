@@ -12,7 +12,7 @@ struct AppResetTests {
         let storage = ResetStorage()
         let revision = Revision()
 
-        try await AppReset(recovery: storage, accounts: storage, providerKeys: storage, revision: revision).reset()
+        try await AppReset(recovery: storage, accounts: storage, providerKey: storage.key, revision: revision).reset()
 
         #expect(await storage.deletions == [.recovery, .wallets, .key])
         #expect(revision.value == 1)
@@ -24,7 +24,7 @@ struct AppResetTests {
     func `Retrying after a failed step finishes the reset`(_ step: ResetStorage.Step) async throws {
         let storage = ResetStorage(failingOnce: step)
         let revision = Revision()
-        let reset = AppReset(recovery: storage, accounts: storage, providerKeys: storage, revision: revision)
+        let reset = AppReset(recovery: storage, accounts: storage, providerKey: storage.key, revision: revision)
         let order: [ResetStorage.Step] = [.recovery, .wallets, .key]
 
         await #expect(throws: CocoaError.self) { try await reset.reset() }

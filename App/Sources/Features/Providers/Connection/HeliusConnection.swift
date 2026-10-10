@@ -6,16 +6,16 @@ nonisolated struct HeliusConnection: ProviderConnecting {
     /// The native SOL mint, whose metadata any Helius key can read.
     private static let nativeMint = "So11111111111111111111111111111111111111112"
 
-    private let keys: any ProviderKeyStoring
+    private let providerKey: any ValueStoring<String>
     private let client: @Sendable (String) -> any RPC
 
     /// Creates a connection that checks keys against Helius mainnet.
     /// - Parameters:
-    ///   - keys: Device-only storage for the accepted key.
+    ///   - providerKey: Device-only storage for the accepted key.
     ///   - client: Creates the Helius client for a candidate key.
-    init(keys: any ProviderKeyStoring,
+    init(providerKey: any ValueStoring<String>,
          client: @escaping @Sendable (String) -> any RPC = { HeliusRPC(apiKey: $0, network: .mainnet) }) {
-        self.keys = keys
+        self.providerKey = providerKey
         self.client = client
     }
 
@@ -38,7 +38,7 @@ nonisolated struct HeliusConnection: ProviderConnecting {
         }
         try Task.checkCancellation()
         do {
-            try await keys.save(key)
+            try await providerKey.save(key)
         } catch {
             try Task.checkCancellation()
             throw ProviderConnectionError.storageFailed

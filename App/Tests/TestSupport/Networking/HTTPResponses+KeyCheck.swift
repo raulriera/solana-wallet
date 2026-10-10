@@ -17,25 +17,25 @@ extension HTTPResponses {
 
     /// Creates the production connection, answering each checked key with its own fixtures.
     /// - Parameters:
-    ///   - keys: The test's isolated key storage.
+    ///   - providerKey: The test's isolated key storage.
     ///   - responses: The fixtures that answer a given key.
     /// - Returns: A connection whose Helius client never leaves the process.
-    nonisolated static func connection(keys: any ProviderKeyStoring,
+    nonisolated static func connection(providerKey: any ValueStoring<String>,
                                        responding responses: @escaping @Sendable (String) -> HTTPResponses) -> HeliusConnection {
-        HeliusConnection(keys: keys) { HeliusRPC(apiKey: $0, network: .mainnet, transport: responses($0)) }
+        HeliusConnection(providerKey: providerKey) { HeliusRPC(apiKey: $0, network: .mainnet, transport: responses($0)) }
     }
 
     /// Creates the production connection with these fixtures in place of the network.
-    /// - Parameter keys: The test's isolated key storage.
+    /// - Parameter providerKey: The test's isolated key storage.
     /// - Returns: A connection whose Helius client never leaves the process.
-    nonisolated func connection(keys: any ProviderKeyStoring) -> HeliusConnection {
-        Self.connection(keys: keys) { _ in self }
+    nonisolated func connection(providerKey: any ValueStoring<String>) -> HeliusConnection {
+        Self.connection(providerKey: providerKey) { _ in self }
     }
 
     /// Creates the production saved-key client with these fixtures in place of the network.
-    /// - Parameter keys: The test's isolated key storage.
+    /// - Parameter providerKey: The test's isolated key storage.
     /// - Returns: A client whose Helius requests never leave the process.
-    nonisolated func heliusClient(keys: any ProviderKeyStoring) -> HeliusClient {
-        HeliusClient(keys: keys) { HeliusRPC(apiKey: $0, network: .mainnet, transport: self) }
+    nonisolated func heliusClient(providerKey: any ValueStoring<String>) -> HeliusClient {
+        HeliusClient(providerKey: providerKey) { HeliusRPC(apiKey: $0, network: .mainnet, transport: self) }
     }
 }

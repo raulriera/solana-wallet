@@ -11,7 +11,7 @@ struct HeliusClientTests {
     @Test
     func `A missing key fails before contacting Helius`() async {
         let responses = HTTPResponses.keyCheck()
-        let client = responses.heliusClient(keys: SavedKeys())
+        let client = responses.heliusClient(providerKey: StoredValue<String>())
 
         await #expect(throws: HeliusClientError.missingKey) { _ = try await client.send(GetAsset(id: HTTPResponses.keyCheckAsset)) }
         await #expect(throws: HeliusClientError.missingKey) { _ = try await client.changedSlots(for: [PublicWallet.address]) }
@@ -24,11 +24,11 @@ struct HeliusClientTests {
     @Test(arguments: [401, 403])
     func `A rejected key is reported as a key failure`(status: Int) async throws {
         let responses = HTTPResponses.keyCheck(error: .http(statusCode: status, retryAfter: nil))
-        let keys = SavedKeys()
+        let keys = StoredValue<String>()
         try await keys.save("rejected-key")
 
         await #expect(throws: HeliusClientError.invalidKey) {
-            _ = try await responses.heliusClient(keys: keys).send(GetAsset(id: HTTPResponses.keyCheckAsset))
+            _ = try await responses.heliusClient(providerKey: keys).send(GetAsset(id: HTTPResponses.keyCheckAsset))
         }
     }
 
@@ -36,11 +36,11 @@ struct HeliusClientTests {
     @Test
     func `Other request failures pass through unchanged`() async throws {
         let responses = HTTPResponses.keyCheck(error: .http(statusCode: 429, retryAfter: nil))
-        let keys = SavedKeys()
+        let keys = StoredValue<String>()
         try await keys.save("fixture-key")
 
         await #expect(throws: RPCError.http(statusCode: 429, retryAfter: nil)) {
-            _ = try await responses.heliusClient(keys: keys).send(GetAsset(id: HTTPResponses.keyCheckAsset))
+            _ = try await responses.heliusClient(providerKey: keys).send(GetAsset(id: HTTPResponses.keyCheckAsset))
         }
     }
 
@@ -48,9 +48,9 @@ struct HeliusClientTests {
     @Test
     func `Requests use the key saved when they're sent`() async throws {
         let responses = HTTPResponses.keyCheck()
-        let keys = SavedKeys()
+        let keys = StoredValue<String>()
         let created = Mutex<[String]>([])
-        let client = HeliusClient(keys: keys) { key in
+        let client = HeliusClient(providerKey: keys) { key in
             created.withLock { $0.append(key) }
             return HeliusRPC(apiKey: key, network: .mainnet, transport: responses)
         }

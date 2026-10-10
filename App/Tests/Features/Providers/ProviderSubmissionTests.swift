@@ -13,15 +13,15 @@ struct ProviderSubmissionTests {
     /// An accepted key is saved, so the flow that asked for it can continue.
     @Test
     func `An accepted key is saved`() async {
-        let keys = SavedKeys()
-        let submission = ProviderSubmission(connection: HTTPResponses.keyCheck().connection(keys: keys), revision: revision)
+        let keys = StoredValue<String>()
+        let submission = ProviderSubmission(connection: HTTPResponses.keyCheck().connection(providerKey: keys), revision: revision)
 
         submission.submit("fixture-key")
         await submission.run(submission.attempt)
 
         #expect(submission.isSaved)
         #expect(revision.value == 1)
-        #expect(await keys.saved == "fixture-key")
+        #expect(await keys.value == "fixture-key")
         #expect(!submission.isKeyRejected)
         #expect(submission.error == nil)
         #expect(submission.attempt == nil)
@@ -31,7 +31,7 @@ struct ProviderSubmissionTests {
     @Test
     func `A rejected key shows the inline message and keeps setup open`() async {
         let responses = HTTPResponses.keyCheck(error: .http(statusCode: 401, retryAfter: nil))
-        let submission = ProviderSubmission(connection: responses.connection(keys: SavedKeys()), revision: revision)
+        let submission = ProviderSubmission(connection: responses.connection(providerKey: StoredValue<String>()), revision: revision)
 
         submission.submit("rejected-key")
         await submission.run(submission.attempt)
@@ -57,7 +57,7 @@ struct ProviderSubmissionTests {
     ])
     func `Failures other than rejection explain their cause in an alert`(status: Int, expected: ProviderConnectionError) async {
         let responses = HTTPResponses.keyCheck(error: .http(statusCode: status, retryAfter: nil))
-        let submission = ProviderSubmission(connection: responses.connection(keys: SavedKeys()), revision: revision)
+        let submission = ProviderSubmission(connection: responses.connection(providerKey: StoredValue<String>()), revision: revision)
 
         submission.submit("fixture-key")
         await submission.run(submission.attempt)
@@ -70,7 +70,7 @@ struct ProviderSubmissionTests {
     /// An accepted key that this device can't store keeps setup open and says so.
     @Test
     func `An accepted key that can't be saved explains the storage failure`() async {
-        let submission = ProviderSubmission(connection: HTTPResponses.keyCheck().connection(keys: SavedKeys(failsSaving: true)), revision: revision)
+        let submission = ProviderSubmission(connection: HTTPResponses.keyCheck().connection(providerKey: StoredValue<String>(failsSaving: true)), revision: revision)
 
         submission.submit("fixture-key")
         await submission.run(submission.attempt)
@@ -85,7 +85,7 @@ struct ProviderSubmissionTests {
         let gate = Suspension()
         let rejecting = HTTPResponses.keyCheck(error: .http(statusCode: 401, retryAfter: nil))
         let limiting = HTTPResponses.keyCheck(error: .http(statusCode: 429, retryAfter: nil), gate: gate)
-        let connection = HTTPResponses.connection(keys: SavedKeys()) { $0 == "rejected-key" ? rejecting : limiting }
+        let connection = HTTPResponses.connection(providerKey: StoredValue<String>()) { $0 == "rejected-key" ? rejecting : limiting }
         let submission = ProviderSubmission(connection: connection, revision: revision)
         submission.submit("rejected-key")
         await submission.run(submission.attempt)
@@ -109,8 +109,8 @@ struct ProviderSubmissionTests {
     func `Taps during a check can't replace the key being checked`() async throws {
         let gate = Suspension()
         let responses = HTTPResponses.keyCheck(gate: gate)
-        let keys = SavedKeys()
-        let submission = ProviderSubmission(connection: responses.connection(keys: keys), revision: revision)
+        let keys = StoredValue<String>()
+        let submission = ProviderSubmission(connection: responses.connection(providerKey: keys), revision: revision)
         submission.submit("first-key")
         let attempt = try #require(submission.attempt)
         let operation = Task { await submission.run(attempt) }
@@ -123,7 +123,7 @@ struct ProviderSubmissionTests {
         gate.resume()
         await operation.value
 
-        #expect(await keys.saved == "first-key")
+        #expect(await keys.value == "first-key")
         #expect(await responses.requests.count == 1)
     }
 
@@ -132,8 +132,8 @@ struct ProviderSubmissionTests {
     func `A cancelled check reports nothing and keeps setup open`() async throws {
         let gate = Suspension()
         let responses = HTTPResponses.keyCheck(gate: gate)
-        let keys = SavedKeys()
-        let submission = ProviderSubmission(connection: responses.connection(keys: keys), revision: revision)
+        let keys = StoredValue<String>()
+        let submission = ProviderSubmission(connection: responses.connection(providerKey: keys), revision: revision)
         submission.submit("fixture-key")
         let attempt = try #require(submission.attempt)
         let operation = Task { await submission.run(attempt) }
@@ -144,7 +144,7 @@ struct ProviderSubmissionTests {
         await operation.value
 
         #expect(await responses.wasCancelled)
-        #expect(await keys.saved == nil)
+        #expect(await keys.value == nil)
         #expect(submission.error == nil)
         #expect(!submission.isKeyRejected)
         #expect(submission.attempt == nil)
@@ -155,8 +155,8 @@ struct ProviderSubmissionTests {
     @Test
     func `Cancellation after the key is saved still counts the key as saved`() async throws {
         let gate = Suspension()
-        let keys = SavedKeys(gate: gate)
-        let submission = ProviderSubmission(connection: HTTPResponses.keyCheck().connection(keys: keys), revision: revision)
+        let keys = StoredValue<String>(gate: gate)
+        let submission = ProviderSubmission(connection: HTTPResponses.keyCheck().connection(providerKey: keys), revision: revision)
         submission.submit("fixture-key")
         let attempt = try #require(submission.attempt)
         let operation = Task { await submission.run(attempt) }
@@ -166,7 +166,7 @@ struct ProviderSubmissionTests {
         operation.cancel()
         await operation.value
 
-        #expect(await keys.saved == "fixture-key")
+        #expect(await keys.value == "fixture-key")
         #expect(submission.isSaved)
         #expect(revision.value == 1)
         #expect(submission.error == nil)

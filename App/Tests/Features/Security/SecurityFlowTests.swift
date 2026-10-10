@@ -140,7 +140,7 @@ struct SecurityFlowTests {
         SecurityFlow(services: SecurityServices(
             recovery: RecoveryReveal(store: recovery),
             owner: owner,
-            reset: AppReset(recovery: storage, accounts: storage, providerKeys: storage, revision: revision),
+            reset: AppReset(recovery: storage, accounts: storage, providerKey: storage.key, revision: revision),
             pasteboard: NoPasteboard()
         ))
     }
