@@ -25,11 +25,7 @@ struct TokenAdditionScreen: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                    // The system button pastes without asking for permission, and turns off when there's nothing to paste.
-                    // Only its shape and tint can change.
-                    PasteButton(payloadType: String.self) { addition.paste($0.first ?? "") }
-                        .buttonBorderShape(.capsule)
-                        .tint(palette.accent)
+                    PasteTextButton(paste: addition.paste)
                 }
 
                 if let message = addition.message {

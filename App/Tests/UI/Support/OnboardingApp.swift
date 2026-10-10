@@ -89,7 +89,7 @@ struct OnboardingApp {
     /// - Parameter key: The configured key, or a dummy key the provider rejects.
     /// - Throws: A missing or unavailable control.
     func submitProviderKey(_ key: String) throws {
-        let field = app.secureTextFields["Helius API key"]
+        let field = app.secureTextFields["RPC API key"]
         try tap(field)
         field.typeText(key)
         try tap(app.buttons["Continue"])
