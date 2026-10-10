@@ -9,13 +9,19 @@ struct SecurityScreen: View {
     var body: some View {
         Form {
             Section {
+                TitleCardContent(
+                    title: "Security & Privacy",
+                    message: "Your wallets and recovery phrase stay on this device. They are not in iCloud or in device backups.",
+                    systemImage: "hand.raised.fill"
+                )
+            }
+            .listRowBackground(palette.surface)
+
+            Section {
                 Button("Show Recovery Phrase") { flow.showRecovery(for: account) }
                     .foregroundStyle(palette.accent)
             } header: {
                 Text("Recovery Phrase")
-            } footer: {
-                Text("Your wallets and recovery phrase stay on this device. They are not in iCloud or in device backups.")
-                    .foregroundStyle(palette.secondaryText)
             }
             .listRowBackground(palette.surface)
             .listRowSeparatorTint(palette.separator)
@@ -30,6 +36,7 @@ struct SecurityScreen: View {
             .listRowBackground(palette.surface)
         }
         .navigationTitle("Security & Privacy")
+        .navigationBarTitleDisplayMode(.inline)
         .foregroundStyle(palette.primaryText, palette.secondaryText)
         .scrollContentBackground(.hidden)
         .background(palette.background)

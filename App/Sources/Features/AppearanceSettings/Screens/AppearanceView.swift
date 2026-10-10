@@ -14,6 +14,15 @@ struct AppearanceView: View {
 
     var body: some View {
         Form {
+            Section {
+                TitleCardContent(
+                    title: "Appearance",
+                    message: "Choose themes for the app and your wallets, and import your own theme packs.",
+                    systemImage: "paintpalette.fill"
+                )
+            }
+            .listRowBackground(palette.surface)
+
             ThemeSelectionSection(entries: settings.entries,
                                   selection: settings.appearance.snapshot?.preferences.appThemeID ?? OriginalAppearance.id,
                                   actions: settings)
@@ -24,6 +33,7 @@ struct AppearanceView: View {
         }
         .animation(.default, value: settings.entryIDs)
         .navigationTitle("Appearance")
+        .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(for: AppearancePreferences.Scope.self) { scope in
             ThemeChooser(entries: settings.entries, entryIDs: settings.entryIDs, scope: scope, selection: selection(for: scope),
                          actions: settings)

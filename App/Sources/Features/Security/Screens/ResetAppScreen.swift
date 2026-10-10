@@ -20,10 +20,10 @@ struct ResetAppScreen: View {
 
     var body: some View {
         Form {
-            Section {
-                TitleCardContent(title: "Reset App", message: message, systemImage: "arrow.counterclockwise")
+            Section {} footer: {
+                Text(message)
+                    .foregroundStyle(palette.secondaryText)
             }
-            .listRowBackground(palette.surface)
 
             if mode == .standard {
                 Section {

@@ -9,14 +9,10 @@ struct ResetConfirmationScreen: View {
 
     var body: some View {
         Form {
-            Section {
-                TitleCardContent(
-                    title: "Reset This Device?",
-                    message: "This can't be undone. Every wallet, recovery phrase, and your RPC API key will be deleted from this device. Every window will return to Welcome.",
-                    systemImage: "exclamationmark.triangle.fill"
-                )
+            Section {} footer: {
+                Text("This can't be undone. Every wallet, recovery phrase, and your RPC API key will be deleted from this device. Every window will return to Welcome.")
+                    .foregroundStyle(palette.secondaryText)
             }
-            .listRowBackground(palette.surface)
         }
         .scrollContentBackground(.hidden)
         .scrollEdgeEffectStyle(.soft, for: .bottom)

@@ -14,22 +14,13 @@ struct RecoveryBackupScreen: View {
             case .backup(let backup):
                 Form {
                     Section {
-                        TitleCardContent(
-                            title: "Recovery Phrase",
-                            message: "Write down these words in order and keep them somewhere safe. Anyone with them can control your wallet.",
-                            systemImage: "key.fill"
-                        )
-                    }
-                    .listRowBackground(palette.surface)
-
-                    Section {
                         RecoveryWords(phrase: backup.phrase)
                         CopyWordsButton(phrase: backup.phrase, pasteboard: flow.pasteboard)
                     } header: {
                         Text("Recovery Words")
                             .foregroundStyle(palette.secondaryText)
                     } footer: {
-                        Text("Copied words stay on this device and clear from the clipboard after \(flow.pasteboard.lifetime, format: .units(allowed: [.minutes, .seconds], width: .wide)).")
+                        Text("Write down these words in order and keep them somewhere safe. Anyone with them can control your wallet. Copied words stay on this device and clear from the clipboard after \(flow.pasteboard.lifetime, format: .units(allowed: [.minutes, .seconds], width: .wide)).")
                             .foregroundStyle(palette.secondaryText)
                     }
                     .listRowBackground(palette.surface)
