@@ -10,8 +10,8 @@ protocol WebSocketConnection: Sendable {
     /// - Returns: The message bytes.
     /// - Throws: A transport or connection-closure error.
     func receive() async throws -> Data
-    /// Checks that the connection remains responsive.
-    /// - Throws: A transport error if the ping fails.
+    /// Checks that the connection remains responsive, and stops waiting for the answer when the task is cancelled.
+    /// - Throws: A transport error if the ping fails, or a cancellation error.
     func ping() async throws
     /// Closes the connection and cancels pending transport operations.
     func cancel()
@@ -52,15 +52,16 @@ final class URLSessionSocket: WebSocketConnection {
         } catch { throw upgradeError(error) }
     }
 
-    /// Sends a WebSocket ping and awaits its pong.
-    /// - Throws: The transport failure reported by URLSession.
+    /// Sends a WebSocket ping and awaits its pong, or stops waiting when the task is cancelled.
+    /// - Throws: The transport failure reported by URLSession, or a cancellation error.
     func ping() async throws {
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
-            task.sendPing { error in
-                if let error { continuation.resume(throwing: self.upgradeError(error)) }
-                else { continuation.resume() }
-            }
-        }
+        try Task.checkCancellation()
+        // URLSession may never call the pong handler, such as after the server's close frame,
+        // and a cancelled task ends the stream without it.
+        let (pong, received) = AsyncThrowingStream<Void, any Error>.makeStream()
+        task.sendPing { error in received.finish(throwing: error.map(self.upgradeError)) }
+        for try await _ in pong {}
+        try Task.checkCancellation()
     }
 
     /// Cancels transport operations and releases all server subscriptions by closing the socket.

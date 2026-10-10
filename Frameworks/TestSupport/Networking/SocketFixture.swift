@@ -16,10 +16,13 @@ final class SocketFixture: WebSocketConnection {
     private let didClose: AsyncStream<Void>.Continuation
     private let state = Mutex(State())
     private let respond: Responder
+    private let answersPings: Bool
 
     /// Creates a connection with automatic or scripted subscription responses.
-    /// - Parameter respond: The response frames for an outgoing message and its ordinal.
-    init(respond: @escaping Responder = { data, ordinal in
+    /// - Parameters:
+    ///   - answersPings: Whether each keep-alive ping gets its pong; without one, a ping waits until cancelled.
+    ///   - respond: The response frames for an outgoing message and its ordinal.
+    init(answersPings: Bool = true, respond: @escaping Responder = { data, ordinal in
         let request = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
         let id = try #require(request["id"] as? String)
         return [Data(#"{"jsonrpc":"2.0","id":"\#(id)","result":\#(ordinal)}"#.utf8)]
@@ -27,6 +30,7 @@ final class SocketFixture: WebSocketConnection {
         (messages, incoming) = AsyncThrowingStream.makeStream()
         (sent, outgoing) = AsyncStream.makeStream()
         (closure, didClose) = AsyncStream.makeStream(bufferingPolicy: .bufferingNewest(1))
+        self.answersPings = answersPings
         self.respond = respond
     }
 
@@ -63,9 +67,14 @@ final class SocketFixture: WebSocketConnection {
         return frame
     }
 
-    /// Provides a successful keep-alive operation for the fixture connection.
-    /// - Throws: A cancellation error when the read operation has ended.
-    func ping() async throws { try Task.checkCancellation() }
+    /// Answers a keep-alive ping at once, or never when the server doesn't answer pings.
+    /// - Throws: A cancellation error when the read operation has ended or the client stops waiting.
+    func ping() async throws {
+        try Task.checkCancellation()
+        guard !answersPings else { return }
+        // The pong never arrives, so only cancellation ends the wait.
+        try await Task.sleep(for: .seconds(3_600))
+    }
 
     /// Releases waiting receive calls and records transport cancellation.
     func cancel() {

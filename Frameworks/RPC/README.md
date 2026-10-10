@@ -33,7 +33,7 @@ Typed requests cover account and rent reads, blockhash lifetime, epochs, fees, s
 
 ## Errors and submission
 
-Requests are single-attempt. Ordinary RPC and DAS calls are not throttled; price batches are paced within provider limits. HTTP rate limits surface as `RPCError.http(statusCode:retryAfter:)`. Failed price batches throw without partial results. Subscription failures end the stream without automatic reconnection.
+Requests are single-attempt. Ordinary RPC and DAS calls are not throttled; price batches are paced within provider limits. HTTP rate limits surface as `RPCError.http(statusCode:retryAfter:)`. Failed price batches throw without partial results. Subscription failures end the stream without automatic reconnection. A keep-alive ping without a pong within 10 seconds ends it with `RPCError.transport(.timedOut)`.
 
 The caller owns transaction construction, review, signing, routing, and confirmation. `submissionRequirements` exposes a submission service's tip and minimum priority fee for inclusion before signing. Sending bytes does not establish confirmation.
 

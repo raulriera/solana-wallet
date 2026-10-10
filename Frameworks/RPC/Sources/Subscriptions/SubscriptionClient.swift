@@ -5,6 +5,10 @@ struct SubscriptionClient: Sendable {
     let endpoint: URL
     let connect: @Sendable (URL) -> any WebSocketConnection
     let redactor: any TextRedactor
+    /// How long the connection waits between keep-alive pings.
+    var pingInterval: Duration = .seconds(30)
+    /// How long each keep-alive ping waits for its pong before the connection counts as lost.
+    var pongTimeout: Duration = .seconds(10)
 
     /// Opens one confirmed subscription per account on one connection, then streams their increasing change slots.
     /// - Parameter addresses: The accounts to watch; a repeated address is watched once.
@@ -15,18 +19,10 @@ struct SubscriptionClient: Sendable {
         try Task.checkCancellation()
         let socket = connect(endpoint)
         do {
-            let state = try await withThrowingTaskGroup(of: SubscriptionState.self) { group in
-                group.addTask {
-                    try await withTaskCancellationHandler {
-                        try await handshake(addresses: addresses, socket: socket)
-                    } onCancel: { socket.cancel() }
-                }
-                group.addTask {
-                    try await Task.sleep(for: .seconds(30))
-                    throw RPCError.transport(.timedOut)
-                }
-                defer { group.cancelAll() }
-                return try await group.next()!
+            let state = try await withTimeout(.seconds(30)) {
+                try await withTaskCancellationHandler {
+                    try await handshake(addresses: addresses, socket: socket)
+                } onCancel: { socket.cancel() }
             }
             try Task.checkCancellation()
             let (stream, continuation) = AsyncThrowingStream<UInt64, any Error>.makeStream(bufferingPolicy: .bufferingNewest(1))
@@ -48,8 +44,8 @@ struct SubscriptionClient: Sendable {
                         group.addTask {
                             try await withTaskCancellationHandler {
                                 while !Task.isCancelled {
-                                    try await Task.sleep(for: .seconds(30))
-                                    try await socket.ping()
+                                    try await Task.sleep(for: pingInterval)
+                                    try await withTimeout(pongTimeout) { try await socket.ping() }
                                 }
                             } onCancel: { socket.cancel() }
                         }
@@ -64,6 +60,25 @@ struct SubscriptionClient: Sendable {
         } catch {
             socket.cancel()
             throw sanitized(error)
+        }
+    }
+
+    /// Runs an operation that must finish within a time limit.
+    /// - Parameters:
+    ///   - limit: The longest the operation may take.
+    ///   - operation: The work, which must stop when its task is cancelled.
+    /// - Returns: The operation's result.
+    /// - Throws: A transport timeout when the limit passes first, or the operation's error.
+    private func withTimeout<Value: Sendable>(_ limit: Duration,
+                                              _ operation: @escaping @Sendable () async throws -> Value) async throws -> Value {
+        try await withThrowingTaskGroup(of: Value.self) { group in
+            group.addTask { try await operation() }
+            group.addTask {
+                try await Task.sleep(for: limit)
+                throw RPCError.transport(.timedOut)
+            }
+            defer { group.cancelAll() }
+            return try await group.next()!
         }
     }
 

@@ -101,6 +101,19 @@ struct SubscriptionTests {
         #expect(socket.requests.count == 1)
     }
 
+    /// Verifies a keep-alive ping without a pong ends the stream as a lost connection instead of waiting forever.
+    @Test(.timeLimit(.minutes(1)))
+    func `A ping without a pong ends the stream with a timeout`() async throws {
+        let socket = SocketFixture(answersPings: false)
+        let subscriptions = SubscriptionClient(endpoint: URL(string: "wss://fixture.invalid")!, connect: { _ in socket },
+                                               redactor: SecretRedactor(secrets: []),
+                                               pingInterval: .milliseconds(10), pongTimeout: .milliseconds(10))
+        let stream = try await subscriptions.changedSlots(for: ["wallet"])
+        var iterator = stream.makeAsyncIterator()
+        await #expect(throws: RPCError.transport(.timedOut)) { try await iterator.next() }
+        #expect(socket.isCancelled)
+    }
+
     /// Verifies cancellation while waiting for an acknowledgment promptly closes the socket.
     @Test(.timeLimit(.minutes(1)))
     func `Cancelling subscription setup closes its connection`() async throws {
