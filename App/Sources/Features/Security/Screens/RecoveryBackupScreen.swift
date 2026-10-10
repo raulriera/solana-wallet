@@ -37,7 +37,8 @@ struct RecoveryBackupScreen: View {
                     Section {
                         if !backup.passphrase.isEmpty {
                             LabeledContent("BIP-39 Passphrase") {
-                                Text(verbatim: canDisplayRecovery ? backup.passphrase : String(localized: "Hidden"))
+                                (canDisplayRecovery ? Text(backup.passphrase, format: .passphrase) : Text("Hidden"))
+                                    .accessibilityLabel(canDisplayRecovery ? Text(backup.passphrase, format: .spokenPassphrase) : Text("Hidden"))
                                     .privacySensitive()
                             }
                         }
