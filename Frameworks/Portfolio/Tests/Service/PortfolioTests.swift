@@ -128,6 +128,26 @@ struct PortfolioTests {
         #expect(updated.holdings.map(\.amount) == [Amount(units: 100, decimals: 9), nil, Amount(units: 7, decimals: 6)])
     }
 
+    /// Verifies an address that received SOL before its token account exists holds none of the token.
+    ///
+    /// - Throws: A fixture setup error or failed prerequisite.
+    @Test
+    func `A prefunded associated address holds nothing until its token account exists`() async throws {
+        let fixture = Fixture()
+        defer { fixture.removeFiles() }
+        let http = AccountResponses { _ in Ledger(lamports: 100, tokens: [usdtMint: 7], prefunded: [usdcMint]) }
+        let service = fixture.portfolio(rpc: http.client)
+        var updates = await service.updates(for: testWallet).makeAsyncIterator()
+        _ = try #require(await updates.next())
+
+        let updated = try #require(await updates.next())
+
+        #expect(updated.error == nil)
+        #expect(updated.holdings.map(\.amount) == [
+            Amount(units: 100, decimals: 9), Amount(units: 0, decimals: 6), Amount(units: 7, decimals: 6),
+        ])
+    }
+
     /// Verifies that an initial failure reports an error without inventing a zero portfolio.
     ///
     /// - Throws: A failed test prerequisite.

@@ -57,15 +57,21 @@ struct BalanceReader: BalanceReading {
     ///   - address: The token's associated token account address.
     ///   - tokenAccount: The account's contents, or `nil` if it doesn't exist.
     ///   - owner: The wallet that must own the token account.
-    /// - Returns: The exact balance, zero when the token account doesn't exist,
-    ///   or `nil` when it holds something other than the owner's tokens.
+    /// - Returns: The exact balance, zero when the token account doesn't exist yet, even at an address that holds SOL,
+    ///   or `nil` when the account can't be read or holds something other than the owner's tokens.
     private func amount(of token: ListedToken, at address: Address, in tokenAccount: Account?, owner: Address) -> Amount? {
-        // A token account that doesn't exist holds nothing.
-        guard let tokenAccount else { return Amount(units: 0, decimals: token.decimals) }
-        // One unreadable token account leaves that balance unknown instead of failing every other balance.
-        guard let program = try? Address(tokenAccount.owner),
-              let decoded = try? TokenAccount(address: address, programOwner: program, data: tokenAccount.data),
-              decoded.mint == token.mint, decoded.owner == owner else { return nil }
+        let decoded: TokenAccount?
+        do {
+            decoded = try tokenAccount.flatMap {
+                try TokenAccount(associatedAt: address, programOwner: Address($0.owner), data: $0.data)
+            }
+        } catch {
+            // One unreadable token account leaves that balance unknown instead of failing every other balance.
+            return nil
+        }
+        // A token account that doesn't exist yet holds nothing.
+        guard let decoded else { return Amount(units: 0, decimals: token.decimals) }
+        guard decoded.mint == token.mint, decoded.owner == owner else { return nil }
         return Amount(units: decoded.amount, decimals: token.decimals)
     }
 }

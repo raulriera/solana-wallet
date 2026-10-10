@@ -41,12 +41,8 @@ nonisolated struct TokenTransfers {
         guard currentMint.program == discoveredMint.program else { throw TokenError.accountMismatch }
         let tokenSource = try TokenAccount(address: sourceAddress, programOwner: Address(sourceAccount.owner), data: sourceAccount.data)
         let destinationAccount = snapshot.value[2]
-        let destination = try destinationAccount.flatMap { account -> TokenAccount? in
-            if account.owner == "11111111111111111111111111111111" {
-                guard account.data.isEmpty else { throw TokenError.invalidAccount }
-                return nil
-            }
-            return try TokenAccount(address: destinationAddress, programOwner: Address(account.owner), data: account.data)
+        let destination = try destinationAccount.flatMap {
+            try TokenAccount(associatedAt: destinationAddress, programOwner: Address($0.owner), data: $0.data)
         }
         var minimumSlot = snapshot.context.slot
         var epoch: UInt64?

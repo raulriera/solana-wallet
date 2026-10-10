@@ -38,6 +38,24 @@ public struct TokenAccount: Sendable {
         self.data = decoded
     }
 
+    /// Decodes the account at an associated token account address, which can hold SOL before its token account exists.
+    ///
+    /// Anyone can send SOL to the address first, which leaves an unallocated System Program account there.
+    /// The initializer fails for that account, because the token account doesn't exist yet.
+    ///
+    /// - Parameters:
+    ///   - address: The associated token account address requested from RPC.
+    ///   - programOwner: The RPC-reported account owner program.
+    ///   - data: The raw base64-decoded account data.
+    /// - Throws: ``TokenError`` for unsupported owners, malformed account data, or a System Program account with data.
+    public init?(associatedAt address: Address, programOwner: Address, data: Data) throws {
+        if programOwner.value == "11111111111111111111111111111111" {
+            guard data.isEmpty else { throw TokenError.invalidAccount }
+            return nil
+        }
+        try self.init(address: address, programOwner: programOwner, data: data)
+    }
+
     /// Checks account extensions needed by an ordinary top-level transfer.
     ///
     /// - Parameter receiving: Whether this account is the destination of the transfer.

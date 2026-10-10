@@ -27,6 +27,8 @@ struct Ledger: Sendable {
     var tokens: [String: UInt64] = [:]
     /// Mints whose token accounts hold bytes that aren't a token account.
     var corrupt: Set<String> = []
+    /// Mints whose associated addresses received SOL before their token accounts were created.
+    var prefunded: Set<String> = []
 }
 
 /// Balance-read and logo-lookup HTTP fixtures decoded by the real RPC clients during portfolio refreshes.
@@ -113,7 +115,8 @@ actor AccountResponses: HTTPTransport {
                 "data": ["", "base64"]] as [String: Any]
     }
 
-    /// Encodes the token account at an address when it's an existing associated account in the ledger.
+    /// Encodes the token account at an address when it's an existing associated account in the ledger,
+    /// or the empty system account of a prefunded address.
     /// - Parameters:
     ///   - address: The requested associated token account.
     ///   - owner: The wallet whose token accounts the ledger describes.
@@ -129,6 +132,13 @@ actor AccountResponses: HTTPTransport {
                     : tokenAccountData(mint: token, owner: wallet, units: units, program: program)
                 return ["owner": program.rawValue, "lamports": 2_039_280, "executable": false,
                         "data": [data.base64EncodedString(), "base64"]] as [String: Any]
+            }
+        }
+        for mint in ledger.prefunded {
+            let token = try Address(mint)
+            for program in TokenProgram.allCases where try program.associatedAccount(owner: wallet, mint: token).value == address {
+                return ["owner": "11111111111111111111111111111111", "lamports": 890_880, "executable": false,
+                        "data": ["", "base64"]] as [String: Any]
             }
         }
         return NSNull()
