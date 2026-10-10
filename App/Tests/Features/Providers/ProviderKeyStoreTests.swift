@@ -45,6 +45,18 @@ struct ProviderKeyStoreTests {
         #expect(try await store.key() == nil)
     }
 
+    /// A stored value that isn't text is reported as unreadable instead of becoming a key.
+    /// - Throws: A Keychain failure.
+    @Test
+    func `A stored value that isn't text is unreadable`() async throws {
+        let service = Self.isolatedService()
+        defer { Self.removeItems(for: service) }
+        let store = ProviderKeyStore(service: service)
+        try await store.save(Data([0xFF, 0xFE]))
+
+        await #expect(throws: KeyStoreError.unreadable) { try await store.key() }
+    }
+
     /// The saved item never syncs through iCloud and isn't restored to another device.
     /// - Throws: A Keychain failure.
     @Test

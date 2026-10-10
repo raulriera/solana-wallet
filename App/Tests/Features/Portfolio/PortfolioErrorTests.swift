@@ -21,7 +21,7 @@ struct PortfolioErrorTests {
         (RPCError.http(statusCode: 500, retryAfter: nil), .unavailable),
         (RPCError.transport(.notConnectedToInternet), .unavailable),
         (ObservationError.networkMismatch, .unavailable),
-        (ProviderKeyStoreError.unreadable, .unavailable),
+        (KeyStoreError.unreadable, .unavailable),
         (TokenListError.unreadable, .listUnreadable),
     ])
     func `Portfolio errors map to what the person can do`(error: any Error, expected: PortfolioError) {
