@@ -31,6 +31,7 @@ struct ImportWalletScreen: View {
 
             Section {
                 RecoveryPhraseEntry(input: input, focusedField: $focusedField)
+                    .disabled(submission.isPending)
 
                 if let validationMessage = input.validationMessage {
                     Label(validationMessage, systemImage: "exclamationmark.circle.fill")
@@ -45,12 +46,11 @@ struct ImportWalletScreen: View {
                 Text("Use your recovery words in their original order, separated by spaces. Keep your original words and any BIP-39 passphrase safe. Neither this app nor iCloud can recover them. You'll need your backup if you lose this device or remove its passcode.")
                     .foregroundStyle(palette.secondaryText)
             }
-            .foregroundStyle(palette.primaryText)
             .listRowBackground(palette.surface)
 
             Section {
                 RecoveryPassphraseEntry(input: input, focusedField: $focusedField)
-                    .foregroundStyle(palette.primaryText)
+                    .disabled(submission.isPending)
             } header: {
                 Text("BIP-39 Passphrase (Optional)")
                     .foregroundStyle(palette.secondaryText)
@@ -78,11 +78,21 @@ struct ImportWalletScreen: View {
         .scrollEdgeEffectStyle(.soft, for: .bottom)
         .readableContentMargins(inset: $contentInset)
         .safeAreaBar(edge: .bottom) {
-            Button("Import Wallet", action: submit)
-                .buttonStyle(.primary)
-                .disabled(!input.hasPhrase || !canDisplayRecovery)
-                .padding(.horizontal, contentInset)
-                .padding(.vertical, LayoutMetrics.actionBarVerticalPadding)
+            Button(action: submit) {
+                // The spinner takes the title's place without changing the button's size.
+                Text("Import Wallet")
+                    .opacity(submission.isPending ? 0 : 1)
+                    .overlay {
+                        // The action style's large controls would make the spinner taller than the title.
+                        if submission.isPending { ProgressView().controlSize(.regular) }
+                    }
+            }
+            // A hidden title isn't read, so VoiceOver keeps the button's name while the spinner shows.
+            .accessibilityLabel("Import Wallet")
+            .buttonStyle(.primary)
+            .disabled(!input.hasPhrase || !canDisplayRecovery || submission.isPending)
+            .padding(.horizontal, contentInset)
+            .padding(.vertical, LayoutMetrics.actionBarVerticalPadding)
         }
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
@@ -137,6 +147,8 @@ struct ImportWalletScreen: View {
 
 /// Keeps public-fixture previews local without persistence or task side effects.
 private struct PreviewImportSubmission: ImportSubmitting {
+    var isPending: Bool { false }
+
     /// Accepts preview interaction without retaining or saving its supplied input.
     /// - Parameters:
     ///   - phrase: The preview's recovery input.

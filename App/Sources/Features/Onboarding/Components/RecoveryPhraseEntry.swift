@@ -2,6 +2,7 @@ import SwiftUI
 
 /// Isolates recovery typing from the form's unrelated appearance and layout work, with a control to check the words.
 struct RecoveryPhraseEntry: View {
+    @Environment(\.palette) private var palette
     @Bindable var input: RecoveryInput
     @FocusState.Binding var focusedField: RecoveryInput.Field?
 
@@ -20,6 +21,8 @@ struct RecoveryPhraseEntry: View {
                     }
                 }
                 .accessibilityLabel("Recovery words")
+                // Only the text takes the window's text color; the reveal button keeps the tint and its disabled look.
+                .foregroundStyle(palette.primaryText)
                 .focused($focusedField, equals: input.phraseField)
                 .transition(.opacity)
             }

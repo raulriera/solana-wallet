@@ -2,6 +2,7 @@ import SwiftUI
 
 /// Isolates original-passphrase typing without applying text normalization, with a control to check it exactly.
 struct RecoveryPassphraseEntry: View {
+    @Environment(\.palette) private var palette
     @Bindable var input: RecoveryInput
     @FocusState.Binding var focusedField: RecoveryInput.Field?
 
@@ -19,6 +20,8 @@ struct RecoveryPassphraseEntry: View {
                     }
                 }
                 .accessibilityLabel("BIP-39 passphrase, optional")
+                // Only the text takes the window's text color; the reveal button keeps the tint and its disabled look.
+                .foregroundStyle(palette.primaryText)
                 .focused($focusedField, equals: input.passphraseField)
                 .submitLabel(.done)
                 .onSubmit { focusedField = nil }

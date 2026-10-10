@@ -11,7 +11,8 @@ import Wallet
 struct ImportSubmissionTests {
     private static let phrase = OnboardingCoordinatorTests.phrase
 
-    /// Submission preserves the original passphrase and commits only once despite repeated taps/tasks.
+    /// Submission preserves the original passphrase and commits only once despite repeated taps/tasks,
+    /// and the screen sees the import in flight so it can lock its input until the import ends.
     @Test
     func `Repeated submission and task evaluation complete one accepted import`() async throws {
         let recovery = OnboardingRecoveryStore()
@@ -19,17 +20,18 @@ struct ImportSubmissionTests {
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
         let submission = ImportSubmission(coordinator: coordinator)
+        let screen: any ImportSubmitting = submission
         submission.present()
-        submission.submit(Self.phrase, passphrase: " TrEzOr ")
+        screen.submit(Self.phrase, passphrase: " TrEzOr ")
         let attempt = try #require(submission.attempt)
-        submission.submit(Self.phrase, passphrase: "different")
+        screen.submit(Self.phrase, passphrase: "different")
         #expect(submission.attempt == attempt)
-        #expect(submission.isPending)
+        #expect(screen.isPending)
         #expect(await recovery.saves.isEmpty)
 
         await submission.run(attempt)
         await submission.run(attempt)
-        submission.submit(Self.phrase, passphrase: "different")
+        screen.submit(Self.phrase, passphrase: "different")
         #expect(submission.attempt == nil)
 
         let account = try #require(coordinator.account)
@@ -38,7 +40,7 @@ struct ImportSubmissionTests {
         #expect(router.destination == .onboarding)
         #expect(await recovery.saves.count == 1)
         #expect(await accounts.additions.count == 1)
-        #expect(!submission.isPending)
+        #expect(!screen.isPending)
         #expect(submission.error == nil)
     }
 
