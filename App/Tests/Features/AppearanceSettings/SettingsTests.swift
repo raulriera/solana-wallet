@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import SwiftUI
 import Synchronization
 import Testing
 import Themes
@@ -116,6 +117,22 @@ struct AppearanceSettingsTests {
         let colors = try #require(tokens["colors"] as? [String: [String: Any]])
         #expect(colors.count == 4)
         #expect(colors.values.allSatisfy { $0.count == 7 })
+    }
+
+    /// An export staged while Theme Packs was off screen opens when the section appears, instead of locking theme actions.
+    @Test func `Theme Packs opens an export staged before it appeared`() async throws {
+        let fixture = try CatalogFixture()
+        defer { fixture.remove() }
+        let settings = try makeSettings(fixture)
+        defer { settings.finishExport() }
+        settings.prepareExport()
+        await settings.waitForOperation()
+        try #require(settings.export != nil)
+
+        let hosted = try HostedWindow(Form { ThemePacksSection(settings: settings) })
+        defer { hosted.close() }
+
+        #expect(try await hosted.presentsViewController())
     }
 
     /// Cancellation while staging never installs a partial theme or reports a user error.

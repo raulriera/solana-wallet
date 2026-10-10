@@ -2,7 +2,6 @@ import Foundation
 import Observation
 import SwiftUI
 import Testing
-import UIKit
 import Wallet
 @testable import widgets
 
@@ -31,18 +30,11 @@ struct OnboardingIdentityTests {
         let navigation: OnboardingNavigation = try initialState("_navigation", in: original)
         let submission: ImportSubmission = try initialState("_importSubmission", in: original)
         let rendered = AsyncStream<Int>.makeStream()
-        let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
-        let previousKeyWindow = scene.windows.first(where: \.isKeyWindow)
-        let window = UIWindow(windowScene: scene)
-        let host = UIHostingController(rootView: OnboardingIdentityRoot(scene: original, generation: 0,
-                                                                        rendered: rendered.continuation))
-        window.rootViewController = host
-        window.makeKeyAndVisible()
+        let hosted = try HostedWindow(OnboardingIdentityRoot(scene: original, generation: 0,
+                                                             rendered: rendered.continuation))
         defer {
             gate.resume()
-            window.isHidden = true
-            window.rootViewController = nil
-            previousKeyWindow?.makeKey()
+            hosted.close()
             rendered.continuation.finish()
         }
 
@@ -65,7 +57,7 @@ struct OnboardingIdentityTests {
             let replacement = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client),
                                                     wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
             router.route(to: .onboarding)
-            host.rootView = OnboardingIdentityRoot(
+            hosted.host.rootView = OnboardingIdentityRoot(
                 scene: OnboardingScene(coordinator: replacement, connection: connection,
                                        keyRevision: keyRevision, pasteboard: NoPasteboard()),
                 generation: 1, rendered: rendered.continuation)

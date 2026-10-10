@@ -26,7 +26,7 @@ struct ThemePacksSection: View {
         .listRowBackground(palette.surface)
         .listRowSeparatorTint(palette.separator)
         .fileImporter(isPresented: $isImporting, allowedContentTypes: [.themePack], onCompletion: completeImport)
-        .onChange(of: settings.export?.url) { _, url in isExporting = url != nil }
+        .onChange(of: settings.export?.url, initial: true) { _, url in isExporting = url != nil }
         .fileExporter(isPresented: $isExporting, item: settings.export, defaultFilename: "Theme.xtheme",
                       onCompletion: completeExport, onCancellation: settings.finishExport)
     }
