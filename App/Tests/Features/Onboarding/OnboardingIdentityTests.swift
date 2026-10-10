@@ -23,9 +23,9 @@ struct OnboardingIdentityTests {
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: http.client), wallet: Wallet(),
                                                 recovery: recovery, accounts: accounts, router: router)
         let connection = HTTPResponses.keyCheck().connection(keys: keys)
-        let keyRevision = ProviderKeyRevision()
+        let providerRevision = Revision()
         let original = OnboardingScene(coordinator: coordinator, connection: connection,
-                                       keyRevision: keyRevision, pasteboard: NoPasteboard())
+                                       providerRevision: providerRevision, pasteboard: NoPasteboard())
         // Read only the public model references in initial State, never recovery or input text.
         let navigation: OnboardingNavigation = try initialState("_navigation", in: original)
         let submission: ImportSubmission = try initialState("_importSubmission", in: original)
@@ -47,7 +47,7 @@ struct OnboardingIdentityTests {
             try #require(submission.isPending)
             try #require(await http.requests.count == 1)
 
-            let revision = AppResetRevision()
+            let revision = Revision()
             try await AppReset(recovery: recovery, accounts: accounts, providerKeys: keys, revision: revision).reset()
             try #require(revision.value == 1)
             try #require(try await accounts.load().isEmpty)
@@ -59,7 +59,7 @@ struct OnboardingIdentityTests {
             router.route(to: .onboarding)
             hosted.host.rootView = OnboardingIdentityRoot(
                 scene: OnboardingScene(coordinator: replacement, connection: connection,
-                                       keyRevision: keyRevision, pasteboard: NoPasteboard()),
+                                       providerRevision: providerRevision, pasteboard: NoPasteboard()),
                 generation: 1, rendered: rendered.continuation)
             try #require(await renders.next() == 1)
             gate.resume()

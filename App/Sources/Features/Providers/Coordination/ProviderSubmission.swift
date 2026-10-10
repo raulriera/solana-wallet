@@ -16,13 +16,13 @@ final class ProviderSubmission: Identifiable {
     private(set) var isSaved = false
     @ObservationIgnored private var pendingKey: String?
     private let connection: any ProviderConnecting
-    private let revision: ProviderKeyRevision
+    private let revision: Revision
 
     /// Works with the shared provider connection.
     /// - Parameters:
     ///   - connection: Verifies and saves the provider's API key.
-    ///   - revision: Tells every window when a key is saved.
-    init(connection: any ProviderConnecting, revision: ProviderKeyRevision) {
+    ///   - revision: Tells every window when a provider change applies, such as a saved key.
+    init(connection: any ProviderConnecting, revision: Revision) {
         self.connection = connection
         self.revision = revision
     }

@@ -78,7 +78,7 @@ struct SecurityFlowTests {
     @Test
     func `Confirming the reset resets the app`() async {
         let storage = ResetStorage()
-        let revision = AppResetRevision()
+        let revision = Revision()
         let flow = makeFlow(storage: storage, revision: revision)
 
         flow.confirmReset()
@@ -136,7 +136,7 @@ struct SecurityFlowTests {
     ///   - revision: Counts finished resets.
     /// - Returns: A flow with an empty path.
     private func makeFlow(recovery: SecurityRecoveryStore = SecurityRecoveryStore(), owner: TestOwner = TestOwner(),
-                          storage: ResetStorage = ResetStorage(), revision: AppResetRevision = AppResetRevision()) -> SecurityFlow {
+                          storage: ResetStorage = ResetStorage(), revision: Revision = Revision()) -> SecurityFlow {
         SecurityFlow(services: SecurityServices(
             recovery: RecoveryReveal(store: recovery),
             owner: owner,

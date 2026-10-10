@@ -10,7 +10,7 @@ struct AppResetTests {
     @Test
     func `Reset deletes recovery first, then wallets, then the API key`() async throws {
         let storage = ResetStorage()
-        let revision = AppResetRevision()
+        let revision = Revision()
 
         try await AppReset(recovery: storage, accounts: storage, providerKeys: storage, revision: revision).reset()
 
@@ -23,7 +23,7 @@ struct AppResetTests {
     @Test(arguments: [ResetStorage.Step.recovery, .wallets, .key])
     func `Retrying after a failed step finishes the reset`(_ step: ResetStorage.Step) async throws {
         let storage = ResetStorage(failingOnce: step)
-        let revision = AppResetRevision()
+        let revision = Revision()
         let reset = AppReset(recovery: storage, accounts: storage, providerKeys: storage, revision: revision)
         let order: [ResetStorage.Step] = [.recovery, .wallets, .key]
 

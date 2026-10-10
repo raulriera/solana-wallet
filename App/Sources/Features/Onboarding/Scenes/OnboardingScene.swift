@@ -16,16 +16,16 @@ struct OnboardingScene: View {
     /// - Parameters:
     ///   - coordinator: The owning window's preparation, persistence, and routing workflow.
     ///   - connection: Verifies and saves the provider's API key after the wallet is saved.
-    ///   - keyRevision: Tells every window when a key is saved.
+    ///   - providerRevision: Tells every window when a provider change applies, such as a saved key.
     ///   - pasteboard: Copies a new wallet's recovery words to this device only, for a limited time.
-    init(coordinator: any OnboardingCoordinating, connection: any ProviderConnecting, keyRevision: ProviderKeyRevision,
+    init(coordinator: any OnboardingCoordinating, connection: any ProviderConnecting, providerRevision: Revision,
          pasteboard: any RecoveryCopying) {
         self.coordinator = coordinator
         self.pasteboard = pasteboard
         let importSubmission = ImportSubmission(coordinator: coordinator)
         self.importSubmission = importSubmission
         navigation = OnboardingNavigation(importSubmission: importSubmission)
-        providerSubmission = ProviderSubmission(connection: connection, revision: keyRevision)
+        providerSubmission = ProviderSubmission(connection: connection, revision: providerRevision)
     }
 
     var body: some View {

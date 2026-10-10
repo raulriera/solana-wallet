@@ -12,13 +12,13 @@ struct AppServices {
     let recovery: any RecoveryStoring
     let accounts: any AccountStoring
     let providerConnection: any ProviderConnecting
-    let providerKeyRevision = ProviderKeyRevision()
+    let providerRevision = Revision()
     let portfolio: any PortfolioProviding & TokenListProviding
     // One sampler for every window shares its remembered logo colors.
     let artworkColors: any ArtworkColorProviding = ArtworkColors()
     let recoveryPasteboard: any RecoveryCopying
     let recoveryCleanup: any RecoveryCleaning
-    let resetRevision = AppResetRevision()
+    let resetRevision = Revision()
     let security: SecurityServices
 
     /// Creates production services after any explicit simulator UI-test reset.

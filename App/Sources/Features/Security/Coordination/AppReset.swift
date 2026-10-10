@@ -6,7 +6,7 @@ struct AppReset: AppResetting {
     private let recovery: any RecoveryStoring
     private let accounts: any AccountStoring
     private let providerKeys: any ProviderKeyStoring
-    private let revision: AppResetRevision
+    private let revision: Revision
 
     /// Connects the reset to every store that holds sensitive data.
     /// - Parameters:
@@ -15,7 +15,7 @@ struct AppReset: AppResetting {
     ///   - providerKeys: The provider's API key storage.
     ///   - revision: Tells every window when the reset finishes.
     init(recovery: any RecoveryStoring, accounts: any AccountStoring, providerKeys: any ProviderKeyStoring,
-         revision: AppResetRevision) {
+         revision: Revision) {
         self.recovery = recovery
         self.accounts = accounts
         self.providerKeys = providerKeys

@@ -14,7 +14,7 @@ struct PortfolioScene: View {
     @State private var tokenAddition: TokenAddition?
     let coordinator: any PortfolioCoordinating
     let connection: any ProviderConnecting
-    let keyRevision: ProviderKeyRevision
+    let providerRevision: Revision
     /// The window's token removals, which the parent runs with ``tokenRemovalLifecycle()``.
     let removal: TokenRemovalFlow
 
@@ -84,7 +84,7 @@ struct PortfolioScene: View {
 
     /// Opens provider setup; a saved key closes it, and every window observes again with that key.
     private func setUpProvider() {
-        providerSetup = ProviderSubmission(connection: connection, revision: keyRevision)
+        providerSetup = ProviderSubmission(connection: connection, revision: providerRevision)
     }
 
     /// Loads the portfolio again after a failed first load; the loading state shows until the result arrives.

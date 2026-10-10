@@ -8,7 +8,7 @@ import Testing
 @Suite(.timeLimit(.minutes(1)))
 struct ProviderSubmissionTests {
     /// Each test starts from a fresh app-wide count of saved keys.
-    private let revision = ProviderKeyRevision()
+    private let revision = Revision()
 
     /// An accepted key is saved, so the flow that asked for it can continue.
     @Test

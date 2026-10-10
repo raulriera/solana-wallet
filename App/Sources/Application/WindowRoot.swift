@@ -36,11 +36,11 @@ struct WindowRoot: View {
                 WalletUnavailableScreen(retry: { startupAttempt += 1 })
             case .onboarding:
                 OnboardingScene(coordinator: onboarding, connection: services.providerConnection,
-                                keyRevision: services.providerKeyRevision, pasteboard: services.recoveryPasteboard)
+                                providerRevision: services.providerRevision, pasteboard: services.recoveryPasteboard)
                     .onboardingIdentity()
             case .wallet(let account):
                 WalletScene(account: account, portfolio: portfolio, tokenRemoval: tokenRemoval, settings: settings,
-                            connection: services.providerConnection, keyRevision: services.providerKeyRevision,
+                            connection: services.providerConnection, providerRevision: services.providerRevision,
                             security: security, resetRevision: services.resetRevision)
             }
         }

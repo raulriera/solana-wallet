@@ -10,14 +10,14 @@ struct WalletScene: View {
     let tokenRemoval: TokenRemovalFlow
     let settings: AppearanceSettings
     let connection: any ProviderConnecting
-    let keyRevision: ProviderKeyRevision
+    let providerRevision: Revision
     let security: SecurityFlow
-    let resetRevision: AppResetRevision
+    let resetRevision: Revision
 
     var body: some View {
         TabView(selection: $section) {
             Tab("Portfolio", systemImage: "wallet.bifold", value: .portfolio) {
-                PortfolioScene(coordinator: portfolio, connection: connection, keyRevision: keyRevision,
+                PortfolioScene(coordinator: portfolio, connection: connection, providerRevision: providerRevision,
                                removal: tokenRemoval)
                     .tokenRemovalLifecycle()
             }
@@ -27,7 +27,7 @@ struct WalletScene: View {
             }
         }
         .tabViewStyle(.tabBarOnly)
-        .portfolioObservation(of: account, coordinator: portfolio, keyRevision: keyRevision)
+        .portfolioObservation(of: account, coordinator: portfolio, providerRevision: providerRevision)
         // A reset deletes this wallet, so the next wallet opens on its portfolio.
         .onChange(of: resetRevision.value) { section = .portfolio }
         // Settings work belongs to the window, so switching tabs keeps an import or a saved choice going.
