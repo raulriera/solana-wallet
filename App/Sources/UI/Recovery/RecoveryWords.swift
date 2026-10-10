@@ -14,7 +14,7 @@ struct RecoveryWords: View {
             // Positions preserve backup order across resizing and repeated words.
             ForEach(numberedWords, id: \.position) { word in
                 Text("\(word.position). \(word.word)")
-                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .foregroundStyle(palette.primaryText)

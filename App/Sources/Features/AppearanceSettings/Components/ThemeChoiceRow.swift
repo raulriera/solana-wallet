@@ -24,7 +24,6 @@ struct ThemeChoiceRow: View {
                 }
             }
             .foregroundStyle(palette.primaryText)
-            .frame(minHeight: 44)
             .contentShape(.rect)
         }
         .listRowBackground(palette.surface)
