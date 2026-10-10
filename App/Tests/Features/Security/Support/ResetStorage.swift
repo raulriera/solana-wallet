@@ -6,7 +6,7 @@ import Vault
 /// Records the order of reset deletions across every sensitive store, optionally failing one step once.
 actor ResetStorage: RecoveryStoring, AccountStoring {
     /// A store that a reset empties.
-    enum Step: String, Sendable { case recovery, wallets, key }
+    enum Step: String, Sendable { case recovery, wallets, key, settings }
 
     private var failing: Step?
     private(set) var deletions: [Step] = []
@@ -27,6 +27,9 @@ actor ResetStorage: RecoveryStoring, AccountStoring {
 
     /// The provider's API key, whose deletion this storage records.
     nonisolated var key: ResetValue<String> { ResetValue(storage: self, step: .key) }
+
+    /// The provider choice and custom RPCs, whose deletion this storage records.
+    nonisolated var settings: ResetValue<ProviderSettings> { ResetValue(storage: self, step: .settings) }
 
     /// Records a successful deletion or throws the step's one scripted failure.
     /// - Parameter step: The store being emptied.

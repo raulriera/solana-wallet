@@ -228,7 +228,7 @@ struct TokenAdditionTests {
     func `A rejected key offers no retry until the address is pasted again`() async throws {
         let portfolio = RecordingPortfolio()
         portfolio.preview = try Self.preview(Self.bonk)
-        portfolio.lookupError = HeliusClientError.invalidKey
+        portfolio.lookupError = ProviderClientError.invalidKey
         let addition = TokenAddition(coordinator: portfolio)
         addition.paste(Self.bonk)
         await addition.lookUp(addition.lookup)

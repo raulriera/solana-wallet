@@ -13,8 +13,8 @@ struct PortfolioErrorTests {
     ///   - error: An error a portfolio update can report.
     ///   - expected: The error the app presents.
     @Test(arguments: [
-        (HeliusClientError.missingKey as any Error, PortfolioError.missingKey),
-        (HeliusClientError.invalidKey, .invalidKey),
+        (ProviderClientError.missingKey as any Error, PortfolioError.missingKey),
+        (ProviderClientError.invalidKey, .invalidKey),
         (RPCError.http(statusCode: 401, retryAfter: nil), .unavailable),
         (RPCError.http(statusCode: 403, retryAfter: nil), .unavailable),
         (RPCError.http(statusCode: 429, retryAfter: "3"), .rateLimited),
@@ -49,7 +49,7 @@ struct PortfolioErrorTests {
     func `A missing key reaches the portfolio as a typed failure`() async {
         let directory = URL.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
-        let client = HTTPResponses.keyCheck().heliusClient(providerKey: StoredValue<String>())
+        let client = HTTPResponses.keyCheck().providerClient(settings: StoredValue<ProviderSettings>(), providerKey: StoredValue<String>())
         let coordinator = PortfolioCoordinator(service: Portfolio(rpc: client, store: FileSnapshotStore(directory: directory)))
         let viewing = Task { await coordinator.observe(for: PublicWallet.address, isActive: true) }
         defer { viewing.cancel() }

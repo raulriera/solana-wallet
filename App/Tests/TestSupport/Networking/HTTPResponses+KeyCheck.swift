@@ -32,10 +32,24 @@ extension HTTPResponses {
         Self.connection(providerKey: providerKey) { _ in self }
     }
 
-    /// Creates the production saved-key client with these fixtures in place of the network.
-    /// - Parameter providerKey: The test's isolated key storage.
-    /// - Returns: A client whose Helius requests never leave the process.
-    nonisolated func heliusClient(providerKey: any ValueStoring<String>) -> HeliusClient {
-        HeliusClient(providerKey: providerKey) { HeliusRPC(apiKey: $0, network: .mainnet, transport: self) }
+    /// Creates the client that production uses for an endpoint, with these fixtures in place of the network.
+    /// - Parameter endpoint: The provider and what it needs to accept requests.
+    /// - Returns: The provider's client, or `nil` for a custom URL that isn't HTTPS with a host.
+    nonisolated func client(for endpoint: ProviderClient.Endpoint) -> (any RPC & AccountChangeProviding)? {
+        switch endpoint {
+        case .solana: Solana(network: .mainnet, transport: self)
+        case .helius(let key): HeliusRPC(apiKey: key, network: .mainnet, transport: self)
+        case .custom(let url): Solana(endpoint: url, network: .mainnet, transport: self)
+        }
+    }
+
+    /// Creates the production selected-provider client with these fixtures in place of the network.
+    /// - Parameters:
+    ///   - settings: The test's provider choice.
+    ///   - providerKey: The test's isolated key storage.
+    /// - Returns: A client whose requests never leave the process.
+    nonisolated func providerClient(settings: any ValueStoring<ProviderSettings>,
+                                    providerKey: any ValueStoring<String>) -> ProviderClient {
+        ProviderClient(settings: settings, providerKey: providerKey) { self.client(for: $0) }
     }
 }

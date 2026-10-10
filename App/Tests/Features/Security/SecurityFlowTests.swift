@@ -86,7 +86,7 @@ struct SecurityFlowTests {
         await flow.run(flow.attempt)
 
         #expect(flow.path == [.resetConfirmation])
-        #expect(await storage.deletions == [.recovery, .wallets, .key])
+        #expect(await storage.deletions == [.recovery, .wallets, .key, .settings])
         #expect(revision.value == 1)
         #expect(flow.error == nil)
     }
@@ -140,7 +140,8 @@ struct SecurityFlowTests {
         SecurityFlow(services: SecurityServices(
             recovery: RecoveryReveal(store: recovery),
             owner: owner,
-            reset: AppReset(recovery: storage, accounts: storage, providerKey: storage.key, revision: revision),
+            reset: AppReset(recovery: storage, accounts: storage, providerKey: storage.key, providerSettings: storage.settings,
+                            revision: revision),
             pasteboard: NoPasteboard()
         ))
     }

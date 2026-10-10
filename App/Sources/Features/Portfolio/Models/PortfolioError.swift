@@ -19,8 +19,8 @@ nonisolated enum PortfolioError: Error, Equatable {
     /// - Parameter error: The failed update's error, which isn't retained.
     init(_ error: any Error) {
         switch error {
-        case HeliusClientError.missingKey: self = .missingKey
-        case HeliusClientError.invalidKey: self = .invalidKey
+        case ProviderClientError.missingKey: self = .missingKey
+        case ProviderClientError.invalidKey: self = .invalidKey
         case RPCError.http(statusCode: 429, retryAfter: _): self = .rateLimited
         case TokenListError.unreadable: self = .listUnreadable
         default: self = .unavailable

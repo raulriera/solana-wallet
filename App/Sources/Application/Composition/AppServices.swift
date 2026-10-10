@@ -14,6 +14,7 @@ struct AppServices {
     let providerConnection: any ProviderConnecting
     let providerRevision = Revision()
     let portfolio: any PortfolioProviding & TokenListProviding
+    let providerSelection: any ProviderSelecting
     // One sampler for every window shares its remembered logo colors.
     let artworkColors: any ArtworkColorProviding = ArtworkColors()
     let recoveryPasteboard: any RecoveryCopying
@@ -38,14 +39,18 @@ struct AppServices {
         accounts = try AccountStore()
         recoveryCleanup = RecoveryCleanup(accounts: accounts, recovery: recovery)
         let providerKey = KeychainItem(service: providerService, account: "api-key", coding: .utf8)
+        let providerSettings = KeychainItem(service: providerService, account: "settings", coding: .json(ProviderSettings.self))
         providerConnection = HeliusConnection(providerKey: providerKey)
         // One service for every window shares its cache, subscriptions, and price pacing.
-        portfolio = Portfolio(rpc: HeliusClient(providerKey: providerKey), prices: Jupiter())
+        let portfolio = Portfolio(rpc: ProviderClient(settings: providerSettings, providerKey: providerKey), prices: Jupiter())
+        self.portfolio = portfolio
+        providerSelection = ProviderSelection(settings: providerSettings, portfolio: portfolio, revision: providerRevision)
         recoveryPasteboard = RecoveryPasteboard()
         security = SecurityServices(
             recovery: RecoveryReveal(store: recovery),
             owner: DeviceOwnerAuthentication(),
-            reset: AppReset(recovery: recovery, accounts: accounts, providerKey: providerKey, revision: resetRevision),
+            reset: AppReset(recovery: recovery, accounts: accounts, providerKey: providerKey,
+                            providerSettings: providerSettings, revision: resetRevision),
             pasteboard: recoveryPasteboard
         )
     }

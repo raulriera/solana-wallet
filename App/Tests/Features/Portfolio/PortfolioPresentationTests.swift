@@ -29,8 +29,8 @@ struct PortfolioPresentationTests {
     /// - Parameters:
     ///   - error: The provider's key failure.
     ///   - hasHoldings: Whether earlier holdings are available.
-    @Test(arguments: [HeliusClientError.missingKey, .invalidKey], [false, true])
-    func `Key failures replace holdings`(error: HeliusClientError, hasHoldings: Bool) {
+    @Test(arguments: [ProviderClientError.missingKey, .invalidKey], [false, true])
+    func `Key failures replace holdings`(error: ProviderClientError, hasHoldings: Bool) {
         let update = Update(snapshot: hasHoldings ? snapshot : nil, phase: .failed(error), revision: 1)
         #expect(PortfolioPresentation(update) == .unavailable(PortfolioError(error)))
     }
