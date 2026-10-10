@@ -8,21 +8,35 @@ import Wallet
 final class RecoveryInput {
     var phrase: String {
         didSet {
+            // Switching between the hidden and shown fields writes the same words back; only an edit clears the check.
+            guard phrase != oldValue else { return }
             hasPhrase = phrase.contains { !$0.isWhitespace }
             withAnimation { validationError = nil }
         }
     }
     var passphrase = ""
     var showsWords = false
+    var showsPassphrase = false
     private(set) var hasPhrase: Bool
     private(set) var validationError: RecoveryPhrase.ValidationError?
 
     /// Native focus identity contains no recovery material and has constant-time equality.
     enum Field: UInt8, Hashable {
-        case hiddenPhrase = 1, revealedPhrase, passphrase
+        case hiddenPhrase = 1, revealedPhrase, passphrase, revealedPassphrase
 
-        var isPhrase: Bool { self != .passphrase }
+        var isPhrase: Bool {
+            switch self {
+            case .hiddenPhrase, .revealedPhrase: true
+            case .passphrase, .revealedPassphrase: false
+            }
+        }
     }
+
+    /// The focus identity of the recovery words control currently shown.
+    var phraseField: Field { showsWords ? .revealedPhrase : .hiddenPhrase }
+
+    /// The focus identity of the passphrase control currently shown.
+    var passphraseField: Field { showsPassphrase ? .revealedPassphrase : .passphrase }
 
     /// Seeds optional public-fixture preview input once without replacing subsequent edits.
     /// - Parameter phrase: Empty for normal imports; public fixture words in previews.
@@ -73,5 +87,6 @@ final class RecoveryInput {
         passphrase = ""
         validationError = nil
         showsWords = false
+        showsPassphrase = false
     }
 }

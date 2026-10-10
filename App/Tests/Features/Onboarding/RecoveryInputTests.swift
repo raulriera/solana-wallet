@@ -29,12 +29,25 @@ struct RecoveryInputTests {
         #expect(input.passphrase == " TrEzOr ")
     }
 
+    /// Switching between the hidden and shown word fields writes the same words back, which isn't an edit.
+    @Test
+    func `Writing back the same words keeps the last check`() throws {
+        let input = RecoveryInput(phrase: "public invalid fixture")
+        input.validate()
+        let message = try #require(input.validationMessage)
+
+        input.phrase = "public invalid fixture"
+
+        #expect(input.validationMessage == message)
+    }
+
     /// Leaving a screen resets the model retained by its SwiftUI state storage.
     @Test
     func `Leaving recovery entry clears input validation and reveal state`() {
         let input = RecoveryInput(phrase: "public invalid fixture")
         input.passphrase = " TrEzOr "
         input.showsWords = true
+        input.showsPassphrase = true
         input.validate()
 
         input.clear()
@@ -43,6 +56,7 @@ struct RecoveryInputTests {
         #expect(input.passphrase.isEmpty)
         #expect(!input.hasPhrase)
         #expect(!input.showsWords)
+        #expect(!input.showsPassphrase)
         #expect(input.validationMessage == nil)
     }
 }

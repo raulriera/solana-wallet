@@ -32,9 +32,6 @@ struct ImportWalletScreen: View {
             Section {
                 RecoveryPhraseEntry(input: input, focusedField: $focusedField)
 
-                Button(input.showsWords ? "Hide words" : "Show words", action: toggleWords)
-                    .contentTransition(.opacity)
-
                 if let validationMessage = input.validationMessage {
                     Label(validationMessage, systemImage: "exclamationmark.circle.fill")
                         .labelStyle(.warning)
@@ -101,7 +98,7 @@ struct ImportWalletScreen: View {
             // Replacing the phrase control also resigns its focus; that isn't an editing exit.
             let oldField = RecoveryInput.Field(rawValue: oldValue)
             let newField = RecoveryInput.Field(rawValue: newValue)
-            if oldField == (input.showsWords ? .revealedPhrase : .hiddenPhrase),
+            if oldField == input.phraseField,
                newField?.isPhrase != true, input.hasPhrase, canDisplayRecovery {
                 input.validate()
             }
@@ -110,20 +107,12 @@ struct ImportWalletScreen: View {
             if !canDisplayRecovery {
                 focusedField = nil
                 input.showsWords = false
+                input.showsPassphrase = false
             }
         }
         .onDisappear {
             focusedField = nil
             input.clear()
-        }
-    }
-
-    /// Switches native controls while preserving input and the user's editing focus.
-    private func toggleWords() {
-        let wasEditingPhrase = focusedField?.isPhrase == true
-        withAnimation {
-            input.showsWords.toggle()
-            if wasEditingPhrase { focusedField = input.showsWords ? .revealedPhrase : .hiddenPhrase }
         }
     }
 

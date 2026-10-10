@@ -88,6 +88,27 @@ final class ImportWalletUITests: XCTestCase {
         XCTAssertNotEqual(try XCTUnwrap(passphrase.value as? String), "Optional")
     }
 
+    /// A hidden passphrase field replaces its text when edited again, so the exact passphrase can be revealed and checked.
+    @objc(testRevealPassphraseAndReturnError:)
+    func `test The passphrase can be revealed to check it exactly`() throws {
+        let flow = OnboardingApp()
+        defer { flow.app.terminate() }
+        try flow.launch()
+        try flow.openImport()
+        try flow.enterPhrase()
+        try flow.enterPassphrase(" TrEzOr ")
+
+        try flow.tap(flow.app.buttons["Show passphrase"])
+
+        let revealed = flow.app.textFields["BIP-39 passphrase, optional"]
+        try flow.waitFor(revealed)
+        XCTAssertEqual(revealed.value as? String, " TrEzOr ")
+        try flow.tap(flow.app.buttons["Hide passphrase"])
+        let hidden = flow.app.secureTextFields["BIP-39 passphrase, optional"]
+        try flow.waitFor(hidden)
+        XCTAssertNotEqual(hidden.value as? String, "Optional")
+    }
+
     /// Import bypasses backup confirmation and survives a fresh process through real startup restoration.
     @objc(testImportWithPassphraseRestoresAfterRelaunchAndReturnError:)
     func `test Import with an original passphrase completes and restores after relaunch`() throws {
