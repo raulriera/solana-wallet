@@ -26,7 +26,7 @@ let restored = try await store.recovery(
 - `recovery(for:reason:)` uses a fresh authentication context. Supply a localized, nonsecret reason for the system prompt. Failed reads preserve the stored record.
 - `deleteRecovery(for:)` removes that shared recovery record; a missing record is a no-op.
 - `deleteAllRecovery()` removes every record in the service, including records no wallet uses. Call it only for an explicit app reset.
-- [`KeychainStore.Failure`](Sources/Storage/KeychainStore.swift) distinguishes duplicate records, unavailable recovery or protection, authentication failures, invalid recovery, and Keychain errors.
+- [`KeychainStoreError`](Sources/Storage/KeychainStoreError.swift) distinguishes duplicate records, unavailable recovery or protection, authentication failures, invalid recovery, and Keychain errors.
 
 ## Protection
 

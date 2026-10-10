@@ -12,11 +12,7 @@ private struct ProviderSetupLifecycle: ViewModifier {
         content
             .task(id: attempt) { await submission.run(attempt) }
             .sensoryFeedback(.error, trigger: submission.rejectionCount)
-            .alert("Wallet Setup Unavailable", item: $submission.failure) { _ in
-                Button("OK", role: .cancel) {}
-            } message: { failure in
-                Text(failure)
-            }
+            .errorAlert($submission.error)
     }
 }
 

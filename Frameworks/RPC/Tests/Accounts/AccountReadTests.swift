@@ -43,7 +43,7 @@ struct AccountReadTests {
     /// - Parameter count: An address count outside the supported range.
     @Test(arguments: [0, 101])
     func `Account reads reject empty and oversized address lists`(_ count: Int) {
-        #expect(throws: GetMultipleAccounts.Failure.invalidAddressCount) {
+        #expect(throws: GetMultipleAccountsError.invalidAddressCount) {
             try GetMultipleAccounts(addresses: Array(repeating: "address", count: count))
         }
     }

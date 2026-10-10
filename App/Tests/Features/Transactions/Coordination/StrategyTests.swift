@@ -60,7 +60,7 @@ struct StrategyTests {
         let coordinator = try TransactionCoordinator(rpc: rpc,
             store: KeychainStore(service: "widgetsTests.Strategy"), rpcs: [rpc], strategy: strategy, configuration: configuration)
 
-        await #expect(throws: Preparer.Failure.priorityFeeTooLow(minimumLamports: minimumFee)) {
+        await #expect(throws: PreparerError.priorityFeeTooLow(minimumLamports: minimumFee)) {
             try await coordinator.simulate([transfer], using: Account(id: UUID(), recoveryID: UUID(), address: transfer.accounts[0].address, path: .solana))
         }
     }
@@ -73,7 +73,7 @@ struct StrategyTests {
     ])
     func `Sender strategies reject devnet without falling back to ordinary RPCs`(strategy: TransactionCoordinator.Strategy) throws {
         let rpc = Solana(network: .devnet)
-        #expect(throws: Submitter.Failure.noProviders) {
+        #expect(throws: SubmitterError.noProviders) {
             try TransactionCoordinator(rpc: rpc, store: KeychainStore(service: "widgetsTests.Strategy"),
                                        rpcs: [rpc], strategy: strategy)
         }

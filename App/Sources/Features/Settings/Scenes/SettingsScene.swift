@@ -48,8 +48,6 @@ struct SettingsScene: View {
             // A selection pushes its detail on compact displays, so only expanded layouts start with one.
             if sizeClass == .regular, selection == nil { selection = .appearance }
         }
-        .alert("Appearance Unavailable", item: $settings.failure) { _ in
-            Button("OK", role: .cancel) {}
-        } message: { failure in Text(failure) }
+        .errorAlert($settings.error)
     }
 }

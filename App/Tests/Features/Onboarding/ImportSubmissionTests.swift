@@ -1,4 +1,5 @@
 import Foundation
+import RPC
 import Testing
 import Vault
 import Wallet
@@ -38,7 +39,7 @@ struct ImportSubmissionTests {
         #expect(await recovery.saves.count == 1)
         #expect(await accounts.additions.count == 1)
         #expect(!submission.isPending)
-        #expect(submission.failure == nil)
+        #expect(submission.error == nil)
     }
 
     /// An explicit retry reuses the prepared account even when phrase spacing changes.
@@ -46,19 +47,19 @@ struct ImportSubmissionTests {
     func `Persistence retry keeps the draft identity and skips committed recovery`() async throws {
         let http = HTTPResponses.discovery(fundedOffsets: [1])
         let recovery = OnboardingRecoveryStore()
-        let accounts = OnboardingAccountStore(recovery: recovery, firstFailure: OnboardingCoordinatorError.accountStorageFailed)
+        let accounts = OnboardingAccountStore(recovery: recovery, firstError: OnboardingCoordinatorError.accountStorageFailed)
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: http.client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
         let submission = ImportSubmission(coordinator: coordinator)
         submission.present()
         submission.submit(Self.phrase, passphrase: "TREZOR")
         await submission.run(submission.attempt)
-        #expect(submission.failure != nil)
+        #expect(submission.error == .saveFailed)
         #expect(router.destination == .onboarding)
         let firstAccount = try #require(await accounts.additions.first)
 
         submission.submit("  " + Self.phrase.replacingOccurrences(of: " ", with: "\n") + "  ", passphrase: "TREZOR")
-        #expect(submission.failure == nil)
+        #expect(submission.error == nil)
         await submission.run(submission.attempt)
 
         #expect(coordinator.account?.id == firstAccount.id)
@@ -74,7 +75,7 @@ struct ImportSubmissionTests {
     @Test(arguments: ["trezor", " TREZOR "])
     func `Changed input starts a new import while retaining previously saved recovery`(passphrase: String) async throws {
         let recovery = OnboardingRecoveryStore()
-        let accounts = OnboardingAccountStore(recovery: recovery, firstFailure: OnboardingCoordinatorError.accountStorageFailed)
+        let accounts = OnboardingAccountStore(recovery: recovery, firstError: OnboardingCoordinatorError.accountStorageFailed)
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
         let submission = ImportSubmission(coordinator: coordinator)
@@ -101,25 +102,43 @@ struct ImportSubmissionTests {
         let recovery = OnboardingRecoveryStore()
         let accounts = OnboardingAccountStore(recovery: recovery)
         let router = WindowRouter(initialDestination: .onboarding)
-        let wallet = OnboardingWallet(failure: NSError(domain: "private-marker", code: 1))
+        let wallet = OnboardingWallet(error: NSError(domain: "private-marker", code: 1))
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: wallet, recovery: recovery, accounts: accounts, router: router)
         let submission = ImportSubmission(coordinator: coordinator)
         submission.present()
         submission.submit(Self.phrase, passphrase: "TREZOR")
         let attempt = try #require(submission.attempt)
         await submission.run(attempt)
-        #expect(submission.failure != nil)
-        #expect(submission.failure?.contains("private-marker") == false)
+        #expect(submission.error == .preparationFailed)
         #expect(!submission.isPending)
         #expect(coordinator.recovery == nil)
 
         submission.submit(Self.phrase, passphrase: "TREZOR")
         #expect(submission.attempt != nil)
         #expect(submission.attempt != attempt)
-        #expect(submission.failure == nil)
+        #expect(submission.error == nil)
         await submission.run(submission.attempt)
         #expect(await recovery.saves.isEmpty)
         #expect(await accounts.additions.isEmpty)
+    }
+
+    /// A rate-limited account lookup says so, so the person waits before trying again.
+    @Test
+    func `A rate-limited account lookup explains the limit`() async {
+        let http = HTTPResponses.discovery(error: .http(statusCode: 429, retryAfter: "3"))
+        let recovery = OnboardingRecoveryStore()
+        let accounts = OnboardingAccountStore(recovery: recovery)
+        let router = WindowRouter(initialDestination: .onboarding)
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: http.client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
+        let submission = ImportSubmission(coordinator: coordinator)
+        submission.present()
+        submission.submit(Self.phrase, passphrase: "TREZOR")
+
+        await submission.run(submission.attempt)
+
+        #expect(submission.error == .rateLimited)
+        #expect(!submission.isPending)
+        #expect(await recovery.saves.isEmpty)
     }
 
     /// Leaving before SwiftUI starts its task invalidates the queued secret-bearing request.

@@ -8,13 +8,13 @@ extension OnboardingCoordinatorTests {
     /// Known Vault failures preserve context while unknown dependency payloads remain redacted.
     @Test
     func `Recovery storage preserves its typed protection failure without wrapping secret text`() async throws {
-        let recovery = OnboardingRecoveryStore(firstFailure: KeychainStore.Failure.protectionUnavailable)
+        let recovery = OnboardingRecoveryStore(firstError: KeychainStoreError.protectionUnavailable)
         let accounts = OnboardingAccountStore(recovery: recovery)
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
         try await coordinator.importRecovery(Self.phrase, passphrase: "TREZOR")
 
-        await #expect(throws: KeychainStore.Failure.protectionUnavailable) { try await coordinator.complete() }
+        await #expect(throws: KeychainStoreError.protectionUnavailable) { try await coordinator.complete() }
 
         #expect(coordinator.recovery != nil)
         #expect(await accounts.additions.isEmpty)
@@ -24,13 +24,13 @@ extension OnboardingCoordinatorTests {
     @Test
     func `Account storage preserves its typed invalid storage failure`() async throws {
         let recovery = OnboardingRecoveryStore()
-        let accounts = OnboardingAccountStore(recovery: recovery, firstFailure: AccountStore.Failure.invalidStorage)
+        let accounts = OnboardingAccountStore(recovery: recovery, firstError: AccountStoreError.invalidStorage)
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
         try await coordinator.importRecovery(Self.phrase, passphrase: "TREZOR")
 
         await #expect { try await coordinator.complete() } throws: { error in
-            if case AccountStore.Failure.invalidStorage = error { return true }
+            if case AccountStoreError.invalidStorage = error { return true }
             return false
         }
 
@@ -65,8 +65,8 @@ extension OnboardingCoordinatorTests {
     /// - Parameter committed: Whether recovery was written before its save reported failure.
     @Test(arguments: [false, true])
     func `Failed recovery saves retain the draft and safely retry the same identity`(committed: Bool) async throws {
-        let recovery = OnboardingRecoveryStore(firstFailure: NSError(domain: "private-recovery-marker", code: 1),
-                                               commitBeforeFailure: committed)
+        let recovery = OnboardingRecoveryStore(firstError: NSError(domain: "private-recovery-marker", code: 1),
+                                               commitBeforeError: committed)
         let accounts = OnboardingAccountStore(recovery: recovery)
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
@@ -87,7 +87,7 @@ extension OnboardingCoordinatorTests {
     @Test
     func `A duplicate recovery containing different material cannot complete onboarding`() async throws {
         let replacement = Recovery(phrase: try RecoveryPhrase(Self.phrase), passphrase: "different")
-        let recovery = OnboardingRecoveryStore(firstFailure: CancellationError(), commitBeforeFailure: true,
+        let recovery = OnboardingRecoveryStore(firstError: CancellationError(), commitBeforeError: true,
                                                replacement: replacement)
         let accounts = OnboardingAccountStore(recovery: recovery)
         let router = WindowRouter(initialDestination: .onboarding)
@@ -106,8 +106,8 @@ extension OnboardingCoordinatorTests {
     @Test(arguments: [false, true])
     func `Failed account saves retry without generating or saving another recovery`(committed: Bool) async throws {
         let recovery = OnboardingRecoveryStore()
-        let accounts = OnboardingAccountStore(recovery: recovery, firstFailure: NSError(domain: "private-marker", code: 1),
-                                              commitBeforeFailure: committed)
+        let accounts = OnboardingAccountStore(recovery: recovery, firstError: NSError(domain: "private-marker", code: 1),
+                                              commitBeforeError: committed)
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
         try await coordinator.importRecovery(Self.phrase, passphrase: "TREZOR")
@@ -127,8 +127,8 @@ extension OnboardingCoordinatorTests {
     @Test
     func `A conflicting account record cannot complete a pending draft`() async throws {
         let recovery = OnboardingRecoveryStore()
-        let accounts = OnboardingAccountStore(recovery: recovery, firstFailure: AccountStore.Failure.duplicateAccount,
-                                              commitBeforeFailure: true, conflict: true)
+        let accounts = OnboardingAccountStore(recovery: recovery, firstError: AccountStoreError.duplicateAccount,
+                                              commitBeforeError: true, conflict: true)
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
         try await coordinator.importRecovery(Self.phrase, passphrase: "TREZOR")

@@ -6,7 +6,7 @@ private struct WindowAppearance: ViewModifier {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.colorSchemeContrast) private var contrast
     @State private var rendered = RenderedAppearance()
-    @State private var failure: String?
+    @State private var error: ThemeError?
     let services: AppearanceServices
     let walletID: UUID?
 
@@ -23,26 +23,26 @@ private struct WindowAppearance: ViewModifier {
             .task(id: scenePhase) {
                 if scenePhase == .active {
                     do { try await services.appearance.activate() }
-                    catch { report(error) }
+                    catch { report(error, as: .settingsUnreadable) }
                 }
             }
             .task(id: selectedTheme?.revision) { await loadSelectedTheme() }
-            .alert("Appearance Unavailable", item: $failure) { _ in
-                Button("OK", role: .cancel) {}
-            } message: { failure in Text(failure) }
+            .errorAlert($error)
     }
 
     /// Refreshes this window's colors without exposing package loading to feature scenes.
     private func loadSelectedTheme() async {
         do { try await rendered.load(selectedTheme, catalog: services.catalog, packages: services.packages) }
-        catch { report(error) }
+        catch { report(error, as: .themeUnreadable) }
     }
 
-    /// Presents appearance failures only while this window's task is still active.
-    /// - Parameter error: A theme loading or preference activation failure.
-    private func report(_ error: any Error) {
+    /// Presents appearance failures only while this window's task is still active, without the underlying error.
+    /// - Parameters:
+    ///   - error: A theme loading or preference activation failure.
+    ///   - themeError: The error the alert explains.
+    private func report(_ error: any Error, as themeError: ThemeError) {
         guard !Task.isCancelled, !(error is CancellationError) else { return }
-        failure = error.localizedDescription
+        self.error = themeError
     }
 }
 

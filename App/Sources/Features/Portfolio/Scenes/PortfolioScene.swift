@@ -28,9 +28,9 @@ struct PortfolioScene: View {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(palette.background)
-            case .unavailable(let failure):
-                PortfolioUnavailableScreen(failure: failure,
-                                           action: failure.requiresProviderSetup ? setUpProvider : retry)
+            case .unavailable(let error):
+                PortfolioUnavailableScreen(error: error,
+                                           action: error.requiresProviderSetup ? setUpProvider : retry)
             case .holdings:
                 NavigationSplitView(preferredCompactColumn: $preferredColumn) {
                     Group {
@@ -46,7 +46,7 @@ struct PortfolioScene: View {
                     .animation(.default, value: coordinator.update?.snapshotRevision)
                     .refreshable { await coordinator.refresh() }
                     .navigationTitle("Portfolio")
-                    .navigationSubtitle(Text(coordinator.failure?.staleStatus ?? ""))
+                    .navigationSubtitle(Text(coordinator.error?.staleStatus ?? ""))
                     .toolbar {
                         ToolbarItem(placement: .primaryAction) {
                             // Toolbar buttons keep the system's monochrome look; the theme's tint is for content.

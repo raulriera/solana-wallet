@@ -14,8 +14,8 @@ final class SecurityFlow {
     }
     /// What the backup screen shows while it's open.
     private(set) var backup: RecoveryDisplay?
-    /// A secret-free failure for the alert.
-    var failure: SecurityFailure?
+    /// A secret-free error for the alert.
+    var error: SecurityError?
     /// The step waiting for the scene's task, identified without secrets.
     private(set) var attempt: UUID?
     @ObservationIgnored private var request: Request?
@@ -66,7 +66,7 @@ final class SecurityFlow {
     func close() {
         attempt = nil
         request = nil
-        failure = nil
+        error = nil
         path = []
     }
 
@@ -93,7 +93,7 @@ final class SecurityFlow {
             // The user dismissed authentication or the scene left.
         } catch {
             guard self.attempt == attempt else { return }
-            failure = switch request {
+            self.error = switch request {
             case .showRecovery: .recoveryUnreadable
             case .confirmOwner: .ownerNotConfirmed
             case .reset: .resetIncomplete
@@ -105,7 +105,7 @@ final class SecurityFlow {
     /// - Parameter request: The step to run.
     private func begin(_ request: Request) {
         guard attempt == nil else { return }
-        failure = nil
+        error = nil
         self.request = request
         attempt = UUID()
     }

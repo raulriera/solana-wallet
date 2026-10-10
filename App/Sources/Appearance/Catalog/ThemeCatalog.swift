@@ -3,15 +3,6 @@ import Themes
 
 /// App-owned installed packages with immutable built-ins and explicit custom replacement.
 nonisolated struct ThemeCatalog: ThemeCatalogProviding {
-    /// A catalog operation cannot proceed with the supplied identity or revision.
-    enum Failure: Error, Sendable, Equatable {
-        case builtInTheme
-        case replacementRequired(ThemeEntry)
-        case changed
-        case invalidStorage
-        case duplicateBuiltIn
-    }
-
     private let directory: URL
     private let builtIns: [UUID: BundledTheme]
     private let packages: any PackServicing
@@ -24,8 +15,8 @@ nonisolated struct ThemeCatalog: ThemeCatalogProviding {
     /// - Throws: A configuration error for duplicate built-in identities or a non-file location.
     init(directory: URL = URL.applicationSupportDirectory.appendingPathComponent("Themes"),
          builtIns: [BundledTheme] = [], packages: any PackServicing = PackService()) throws {
-        guard directory.isFileURL else { throw Failure.invalidStorage }
-        guard Set(builtIns.map(\.entry.id)).count == builtIns.count else { throw Failure.duplicateBuiltIn }
+        guard directory.isFileURL else { throw ThemeCatalogError.invalidStorage }
+        guard Set(builtIns.map(\.entry.id)).count == builtIns.count else { throw ThemeCatalogError.duplicateBuiltIn }
         self.directory = directory
         self.builtIns = Dictionary(uniqueKeysWithValues: builtIns.map { ($0.entry.id, $0) })
         self.packages = packages
@@ -50,8 +41,8 @@ nonisolated struct ThemeCatalog: ThemeCatalogProviding {
     /// - Throws: A conflict, immutable-theme, storage, or pre-commit cancellation error.
     @concurrent
     func install(_ pack: Pack, replacing existing: ThemeEntry?) async throws -> ThemeEntry {
-        guard builtIns[pack.id] == nil, existing?.origin != .builtIn else { throw Failure.builtInTheme }
-        guard existing == nil || existing?.id == pack.id else { throw Failure.changed }
+        guard builtIns[pack.id] == nil, existing?.origin != .builtIn else { throw ThemeCatalogError.builtInTheme }
+        guard existing == nil || existing?.id == pack.id else { throw ThemeCatalogError.changed }
         let stage = try await CatalogIO.perform { checkCancellation in
             try CatalogFiles.check(pack.id, expected: existing, in: directory)
             try checkCancellation()
@@ -92,7 +83,7 @@ nonisolated struct ThemeCatalog: ThemeCatalogProviding {
     func pack(for entry: ThemeEntry) async throws -> Pack {
         let url: URL
         if let bundled = builtIns[entry.id] {
-            guard bundled.entry == entry else { throw Failure.changed }
+            guard bundled.entry == entry else { throw ThemeCatalogError.changed }
             url = bundled.url
         } else {
             try await CatalogIO.perform { _ -> Void in
@@ -106,7 +97,7 @@ nonisolated struct ThemeCatalog: ThemeCatalogProviding {
                 try CatalogFiles.check(entry.id, expected: entry, in: directory)
             }
         }
-        guard pack.id == entry.id, pack.name == entry.name else { throw Failure.invalidStorage }
+        guard pack.id == entry.id, pack.name == entry.name else { throw ThemeCatalogError.invalidStorage }
         return pack
     }
 
@@ -115,7 +106,7 @@ nonisolated struct ThemeCatalog: ThemeCatalogProviding {
     /// - Throws: An immutable-theme, changed-entry, storage, or pre-commit cancellation error.
     @concurrent
     func remove(_ entry: ThemeEntry) async throws {
-        guard builtIns[entry.id] == nil, entry.origin == .custom else { throw Failure.builtInTheme }
+        guard builtIns[entry.id] == nil, entry.origin == .custom else { throw ThemeCatalogError.builtInTheme }
         try await CatalogIO.perform { checkCancellation in
             var state = try CatalogFiles.check(entry.id, expected: entry, in: directory)
             state.customEntries[entry.id] = nil

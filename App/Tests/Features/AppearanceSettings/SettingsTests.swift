@@ -24,7 +24,7 @@ struct AppearanceSettingsTests {
         await settings.waitForOperation()
 
         #expect(settings.appearance.snapshot?.preferences.appThemeID == entry.id)
-        #expect(settings.failure == nil)
+        #expect(settings.error == nil)
         #expect(settings.canStartOperation)
     }
 
@@ -36,7 +36,7 @@ struct AppearanceSettingsTests {
         try await settings.appearance.activate()
         settings.importPack(from: try fixture.source(name: "Imported"))
         await settings.waitForOperation()
-        #expect(settings.failure == nil)
+        #expect(settings.error == nil)
         #expect(settings.entries.map(\.name) == ["Imported"])
         #expect(settings.appearance.snapshot?.preferences == AppearancePreferences())
     }
@@ -56,7 +56,7 @@ struct AppearanceSettingsTests {
         try Data("{}".utf8).write(to: invalid.appendingPathComponent("manifest.json"))
         settings.importPack(from: invalid)
         await settings.waitForOperation()
-        #expect(settings.failure != nil)
+        #expect(settings.error == .importFailed)
         #expect(settings.appearance.snapshot == before)
     }
 
@@ -77,7 +77,7 @@ struct AppearanceSettingsTests {
         #expect(settings.entries.first?.name == "Second")
         settings.replace(approval)
         await settings.waitForOperation()
-        #expect(settings.failure != nil)
+        #expect(settings.error == .changedElsewhere)
         #expect(settings.entries.first?.name == "Second")
     }
 
@@ -139,7 +139,7 @@ struct AppearanceSettingsTests {
         release.continuation.finish()
         await settings.waitForOperation()
         #expect(try await catalog.entries().isEmpty)
-        #expect(settings.failure == nil)
+        #expect(settings.error == nil)
         #expect(settings.canStartOperation)
     }
 
@@ -162,7 +162,7 @@ struct AppearanceSettingsTests {
         release.continuation.finish()
         await settings.waitForOperation()
         #expect(shared.snapshot?.entries.values.first?.name == "Committed")
-        #expect(settings.failure == nil)
+        #expect(settings.error == nil)
     }
 
     /// A wallet can explicitly keep Original while other wallets follow a custom app default.
@@ -245,6 +245,28 @@ struct AppearanceSettingsTests {
 
         let notified = changed.withLock(\.self)
         #expect(notified == changesColors)
+    }
+
+    /// Catalog conflicts explain their cause, other failures show the failed action's error, and cancellation is silent.
+    /// - Parameters:
+    ///   - error: A service or file dialog error.
+    ///   - expected: The error the alert explains, or `nil` when no alert shows.
+    /// - Throws: An invalid test storage configuration.
+    @Test(arguments: [
+        (ThemeCatalogError.builtInTheme as any Error, ThemeError.builtInTheme as ThemeError?),
+        (ThemeCatalogError.changed, .changedElsewhere),
+        (CocoaError(.fileWriteUnknown), .exportFailed),
+        (CocoaError(.userCancelled), nil),
+        (CancellationError(), nil),
+    ])
+    func `Failures map to the alert's explanation`(error: any Error, expected: ThemeError?) throws {
+        let fixture = try CatalogFixture()
+        defer { fixture.remove() }
+        let settings = try makeSettings(fixture)
+
+        settings.report(error, defaultingTo: .exportFailed)
+
+        #expect(settings.error == expected)
     }
 
     /// Creates real services against one test's isolated storage.

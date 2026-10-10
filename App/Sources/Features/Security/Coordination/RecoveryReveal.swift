@@ -20,7 +20,7 @@ nonisolated struct RecoveryReveal: RecoveryRevealing {
             let recovery = try await store.recovery(for: account.recoveryID,
                                                     reason: String(localized: "Show your recovery phrase"))
             return .backup(RecoveryBackup(phrase: recovery.phrase, passphrase: recovery.passphrase, path: account.path))
-        } catch KeychainStore.Failure.recoveryUnavailable {
+        } catch KeychainStoreError.recoveryUnavailable {
             return .unavailable
         }
     }

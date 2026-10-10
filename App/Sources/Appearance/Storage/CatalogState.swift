@@ -14,6 +14,6 @@ nonisolated struct CatalogState: Codable, Sendable {
     /// - Returns: All available entries, indexed by identity.
     /// - Throws: A storage error if custom metadata collides with a protected built-in.
     func entries(including builtIns: [UUID: ThemeEntry]) throws -> [UUID: ThemeEntry] {
-        try customEntries.merging(builtIns) { _, _ in throw ThemeCatalog.Failure.invalidStorage }
+        try customEntries.merging(builtIns) { _, _ in throw ThemeCatalogError.invalidStorage }
     }
 }

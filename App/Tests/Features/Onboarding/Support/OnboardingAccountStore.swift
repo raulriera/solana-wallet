@@ -6,8 +6,8 @@ import Transactions
 /// Isolated account persistence that checks recovery ordering and scripted failures.
 actor OnboardingAccountStore: AccountStoring {
     private let recovery: OnboardingRecoveryStore
-    private let firstFailure: (any Error)?
-    private let commitBeforeFailure: Bool
+    private let firstError: (any Error)?
+    private let commitBeforeError: Bool
     private let conflict: Bool
     private let gate: Suspension?
     private(set) var records: [widgets.Account] = []
@@ -16,15 +16,15 @@ actor OnboardingAccountStore: AccountStoring {
     /// Configures one test's public persistence boundary.
     /// - Parameters:
     ///   - recovery: The recovery store whose commit must precede each addition.
-    ///   - firstFailure: The first addition's scripted error.
-    ///   - commitBeforeFailure: Whether that addition commits before reporting failure.
+    ///   - firstError: The first addition's scripted error.
+    ///   - commitBeforeError: Whether that addition commits before reporting failure.
     ///   - conflict: Whether a duplicate record has a different recovery identity.
     ///   - gate: An optional cancellable suspension after the metadata commit.
-    init(recovery: OnboardingRecoveryStore, firstFailure: (any Error)? = nil,
-         commitBeforeFailure: Bool = false, conflict: Bool = false, gate: Suspension? = nil) {
+    init(recovery: OnboardingRecoveryStore, firstError: (any Error)? = nil,
+         commitBeforeError: Bool = false, conflict: Bool = false, gate: Suspension? = nil) {
         self.recovery = recovery
-        self.firstFailure = firstFailure
-        self.commitBeforeFailure = commitBeforeFailure
+        self.firstError = firstError
+        self.commitBeforeError = commitBeforeError
         self.conflict = conflict
         self.gate = gate
     }
@@ -40,14 +40,14 @@ actor OnboardingAccountStore: AccountStoring {
     func add(_ account: widgets.Account) async throws -> [widgets.Account] {
         try #require(await recovery.contains(account.recoveryID))
         additions.append(account)
-        guard !records.contains(where: { $0.id == account.id }) else { throw AccountStore.Failure.duplicateAccount }
-        let failure = additions.count == 1 ? firstFailure : nil
-        if failure == nil || commitBeforeFailure {
+        guard !records.contains(where: { $0.id == account.id }) else { throw AccountStoreError.duplicateAccount }
+        let error = additions.count == 1 ? firstError : nil
+        if error == nil || commitBeforeError {
             records.append(Account(id: account.id, recoveryID: conflict ? UUID() : account.recoveryID,
                                    address: account.address, path: account.path))
         }
         if let gate { await gate.suspend() }
-        if let failure { throw failure }
+        if let error { throw error }
         return records
     }
 

@@ -18,24 +18,6 @@ nonisolated protocol PreparationValidating: Sendable {
 
 /// Shared validation used before signing and before submission.
 nonisolated struct PreparationValidator: PreparationValidating {
-    /// An operation prerequisite that requires a new preparation or user review.
-    enum Failure: Error, Sendable, Equatable {
-        /// The selected provider serves a different network from the reviewed preparation.
-        case networkMismatch
-        /// The encoded message differs from the reviewed inspection or local instruction composition.
-        case messageMismatch
-        /// Simulation reported that the transaction couldn't execute.
-        case simulationFailed
-        /// The preparation has no known network fee to review.
-        case feeUnavailable
-        /// The simulation, fee, or ledger contexts conflict with the prepared message.
-        case inconsistentPreparation
-        /// The provider can no longer confirm the reviewed total fee.
-        case feeChanged
-        /// The original blockhash has expired or its current validity can't be established.
-        case expired
-    }
-
     private let rpc: any RPC
     private let messageBuilder: any MessageBuilding
     private let transactionBuilder: any TransactionBuilding
@@ -67,39 +49,39 @@ nonisolated struct PreparationValidator: PreparationValidating {
         ))
         try Task.checkCancellation()
         guard fee.context.slot >= preparation.minimumSlot,
-              fee.value == preparation.fee.value else { throw Failure.feeChanged }
+              fee.value == preparation.fee.value else { throw PreparationValidatorError.feeChanged }
     }
 
     /// Checks that review metadata agrees with exact message bytes and any local instruction composition.
     ///
     /// - Parameter preparation: The review data to validate before signing or submission.
-    /// - Throws: ``Failure`` for inconsistent or unsuccessful review data, or an encoding error.
+    /// - Throws: ``PreparationValidatorError`` for inconsistent or unsuccessful review data, or an encoding error.
     private func validateReview(_ preparation: Preparation) throws {
-        guard preparation.network == rpc.network else { throw Failure.networkMismatch }
-        guard preparation.simulation.value.error == nil else { throw Failure.simulationFailed }
-        guard let fee = preparation.fee.value else { throw Failure.feeUnavailable }
+        guard preparation.network == rpc.network else { throw PreparationValidatorError.networkMismatch }
+        guard preparation.simulation.value.error == nil else { throw PreparationValidatorError.simulationFailed }
+        guard let fee = preparation.fee.value else { throw PreparationValidatorError.feeUnavailable }
         guard fee >= (preparation.transaction.requests.priorityFeeLamports ?? 0),
               preparation.simulation.value.fee.map({ $0 == fee }) ?? true,
               preparation.simulation.value.replacementBlockhash == nil,
               preparation.fee.context.slot >= preparation.source.context.slot,
               preparation.simulation.context.slot >= preparation.source.context.slot else {
-            throw Failure.inconsistentPreparation
+            throw PreparationValidatorError.inconsistentPreparation
         }
         switch preparation.source {
         case .local(let instructions, let payer, let configuration, let blockhash):
             let message = try messageBuilder.message(instructions: instructions, payer: payer,
                 recentBlockhash: blockhash.value.blockhash, configuration: configuration)
-            guard message == preparation.message else { throw Failure.messageMismatch }
+            guard message == preparation.message else { throw PreparationValidatorError.messageMismatch }
         case .external: break
         }
         let decoded = try transactionBuilder.validateSignatures(in: preparation.bytes, for: preparation.signer)
-        guard decoded == preparation.transaction else { throw Failure.messageMismatch }
+        guard decoded == preparation.transaction else { throw PreparationValidatorError.messageMismatch }
     }
 
     /// Checks the original lifetime at the current ledger without replacing it.
     ///
     /// - Parameter preparation: The blockhash expiry and context to check.
-    /// - Throws: ``Failure/expired``, an RPC error, or cancellation.
+    /// - Throws: ``PreparationValidatorError/expired``, an RPC error, or cancellation.
     func validateLifetime(_ preparation: Preparation) async throws {
         try Task.checkCancellation()
         switch preparation.source {
@@ -108,14 +90,14 @@ nonisolated struct PreparationValidator: PreparationValidating {
                 commitment: .confirmed, minContextSlot: preparation.minimumSlot
             ))
             try Task.checkCancellation()
-            guard height <= blockhash.value.lastValidBlockHeight else { throw Failure.expired }
+            guard height <= blockhash.value.lastValidBlockHeight else { throw PreparationValidatorError.expired }
         case .external:
             let validity = try await rpc.send(IsBlockhashValid(
                 blockhash: preparation.transaction.lifetimeSpecifier,
                 commitment: .confirmed, minContextSlot: preparation.minimumSlot
             ))
             try Task.checkCancellation()
-            guard validity.value, validity.context.slot >= preparation.minimumSlot else { throw Failure.expired }
+            guard validity.value, validity.context.slot >= preparation.minimumSlot else { throw PreparationValidatorError.expired }
         }
     }
 }

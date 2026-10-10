@@ -21,7 +21,7 @@ struct PreparationTests {
         let store = SigningRecoveryStore(recovery: fixture.recovery)
         let coordinator = try TransactionCoordinator(rpc: http.client, store: store)
 
-        await #expect(throws: Preparer.Failure.resourceUsageUnavailable) {
+        await #expect(throws: PreparerError.resourceUsageUnavailable) {
             try await coordinator.simulate([fixture.transfer], using: fixture.account)
         }
         #expect(await store.reads.isEmpty)
@@ -40,7 +40,7 @@ struct PreparationTests {
             "getLatestBlockhash": [#"{"context":{"slot":400},"value":{"blockhash":"11111111111111111111111111111111","lastValidBlockHeight":550}}"#],
             "simulateTransaction": [response],
         ])
-        await #expect(throws: Preparer.Failure.inconsistentResponse) {
+        await #expect(throws: PreparerError.inconsistentResponse) {
             try await Preparer(rpc: http.client).prepare([fixture.transfer],
                 payer: fixture.transfer.accounts[0].address, signer: fixture.transfer.accounts[0].address)
         }
@@ -124,11 +124,11 @@ struct PreparationTests {
     func `A failed blockhash request stops preparation without retrying`() async throws {
         let expected = try PreparationFixture.preparation()
         let expectedSource = try PreparationFixture.source(expected)
-        let failure = RPCError.http(statusCode: 429, retryAfter: "3")
-        let http = try HTTPResponses.preparation(fixture: expected, blockhashFailure: failure)
+        let error = RPCError.http(statusCode: 429, retryAfter: "3")
+        let http = try HTTPResponses.preparation(fixture: expected, blockhashError: error)
         let service = Preparer(rpc: http.client)
 
-        await #expect(throws: failure) {
+        await #expect(throws: error) {
             try await service.prepare([expectedSource.instruction], payer: expectedSource.payer, signer: expected.signer, configuration: PreparationFixture.configuration(), minimumSlot: nil)
         }
 

@@ -36,14 +36,14 @@ struct ThemePacksSection: View {
     private func completeImport(_ result: Result<URL, any Error>) {
         switch result {
         case .success(let url): settings.importPack(from: url)
-        case .failure(let error): settings.report(error)
+        case .failure(let error): settings.report(error, defaultingTo: .importFailed)
         }
     }
 
     /// Reports export errors before releasing the completed export's staging directory.
     /// - Parameter result: The system export dialog's outcome.
     private func completeExport(_ result: Result<URL, any Error>) {
-        if case .failure(let error) = result { settings.report(error) }
+        if case .failure(let error) = result { settings.report(error, defaultingTo: .exportFailed) }
         settings.finishExport()
     }
 }

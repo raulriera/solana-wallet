@@ -5,7 +5,7 @@ import Vault
 struct OnboardingScene: View {
     @State private var isCreating = false
     @State private var isCompleting = false
-    @State private var failure: String?
+    @State private var error: OnboardingError?
     @State private var navigation: OnboardingNavigation
     @State private var importSubmission: ImportSubmission
     @State private var providerSubmission: ProviderSubmission
@@ -78,11 +78,7 @@ struct OnboardingScene: View {
             // Active work releases its draft after cancellation unwinds.
             if !coordinator.isWorking, !importSubmission.isPending { discardDraft() }
         }
-        .alert("Wallet Setup Unavailable", item: $failure) { _ in
-            Button("OK", role: .cancel) {}
-        } message: { failure in
-            Text(failure)
-        }
+        .errorAlert($error)
     }
 
     /// Saves only after backup confirmation; failures preserve the draft for another attempt.
@@ -96,7 +92,7 @@ struct OnboardingScene: View {
         do { _ = try await coordinator.complete() }
         catch {
             if !Task.isCancelled, !(error is CancellationError) {
-                failure = String(localized: "Your wallet could not be saved. Your recovery words are still available. Please try again.")
+                self.error = .saveFailed
             }
         }
     }
@@ -114,7 +110,7 @@ struct OnboardingScene: View {
             if Task.isCancelled || error is CancellationError {
                 discardDraft()
             } else {
-                failure = String(localized: "Your wallet could not be prepared. Please try again.")
+                self.error = .preparationFailed
             }
         }
     }
@@ -123,7 +119,7 @@ struct OnboardingScene: View {
     private func openWallet() {
         do { try coordinator.finish() }
         catch {
-            failure = String(localized: "Your wallet could not be opened. Please try again.")
+            self.error = .openFailed
         }
     }
 
@@ -139,7 +135,7 @@ struct OnboardingScene: View {
     private func discardDraft() {
         do { try coordinator.discard() }
         catch {
-            failure = String(localized: "Wallet setup is still finishing. Please try again.")
+            self.error = .stillFinishing
         }
     }
 }

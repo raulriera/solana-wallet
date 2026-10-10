@@ -4,17 +4,6 @@ import Transactions
 
 /// A stateless service that evaluates exact V1 bytes through an injected RPC provider.
 nonisolated struct Preparer: TransactionPreparing {
-    /// A preparation requirement that the supplied transaction or configuration doesn't meet.
-    enum Failure: Error, Sendable, Equatable {
-        /// The node cannot confirm the supplied value as a valid recent blockhash.
-        case invalidBlockhash
-        /// The selected submission service requires a larger reviewed priority fee.
-        case priorityFeeTooLow(minimumLamports: UInt64)
-        /// Provider observations conflict with the requested ledger context or exact message.
-        case inconsistentResponse
-        /// The provider omitted the resource usage needed to estimate V1 limits.
-        case resourceUsageUnavailable
-    }
     private let rpc: any RPC
     private let messageBuilder: any MessageBuilding
     private let transactionBuilder: any TransactionBuilding
@@ -60,7 +49,7 @@ nonisolated struct Preparer: TransactionPreparing {
         var requests = try configuration ?? Configuration(priorityFeeLamports: minimumFee,
             computeUnitLimit: 1_400_000, loadedAccountsDataSizeLimit: 67_108_864)
         guard requests.priorityFeeLamports >= minimumFee else {
-            throw Failure.priorityFeeTooLow(minimumLamports: minimumFee)
+            throw PreparerError.priorityFeeTooLow(minimumLamports: minimumFee)
         }
         let tips = try requirements.map {
             try SystemProgram.transfer(from: payer, to: Address($0.tipRecipient), lamports: $0.tipLamports)
@@ -68,7 +57,7 @@ nonisolated struct Preparer: TransactionPreparing {
         let invocations = instructions + tips
         let blockhash = try await rpc.send(GetLatestBlockhash(commitment: .confirmed, minContextSlot: minimumSlot))
         try Task.checkCancellation()
-        guard blockhash.context.slot >= (minimumSlot ?? 0) else { throw Failure.inconsistentResponse }
+        guard blockhash.context.slot >= (minimumSlot ?? 0) else { throw PreparerError.inconsistentResponse }
         var message = try messageBuilder.message(instructions: invocations, payer: payer,
             recentBlockhash: blockhash.value.blockhash, configuration: requests)
         var transaction = try transactionBuilder.validateSignatures(in:
@@ -80,12 +69,12 @@ nonisolated struct Preparer: TransactionPreparing {
                 replacesRecentBlockhash: false))
             try Task.checkCancellation()
             guard estimate.context.slot >= context, estimate.value.replacementBlockhash == nil else {
-                throw Failure.inconsistentResponse
+                throw PreparerError.inconsistentResponse
             }
             context = estimate.context.slot
             if estimate.value.error == nil {
                 guard let units = estimate.value.unitsConsumed, let bytes = estimate.value.loadedAccountsDataSize,
-                      units <= 1_400_000, bytes <= 67_108_864 else { throw Failure.resourceUsageUnavailable }
+                      units <= 1_400_000, bytes <= 67_108_864 else { throw PreparerError.resourceUsageUnavailable }
                 requests = try Configuration(priorityFeeLamports: minimumFee,
                     computeUnitLimit: UInt32(min(1_400_000, max(1, units + (units + 9) / 10))),
                     loadedAccountsDataSizeLimit: UInt32(min(67_108_864, max(1, bytes + (bytes + 9) / 10))))
@@ -114,7 +103,7 @@ nonisolated struct Preparer: TransactionPreparing {
         guard transaction == imported else { throw ValidationError.invalidTransaction }
         let validity = try await rpc.send(IsBlockhashValid(blockhash: transaction.lifetimeSpecifier))
         try Task.checkCancellation()
-        guard validity.value else { throw Failure.invalidBlockhash }
+        guard validity.value else { throw PreparerError.invalidBlockhash }
         return try await evaluate(transaction, source: .external(validity.context), signer: signer, network: network)
     }
 
@@ -144,7 +133,7 @@ nonisolated struct Preparer: TransactionPreparing {
         try Task.checkCancellation()
         let floor = minimumSlot ?? source.context.slot
         guard observations.0.context.slot >= floor, observations.1.context.slot >= floor,
-              observations.1.value.replacementBlockhash == nil else { throw Failure.inconsistentResponse }
+              observations.1.value.replacementBlockhash == nil else { throw PreparerError.inconsistentResponse }
         return Preparation(
             source: source, signer: signer, transaction: transaction, network: network,
             fee: observations.0, simulation: observations.1, tips: tips

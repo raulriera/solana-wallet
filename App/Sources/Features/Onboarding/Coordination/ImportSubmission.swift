@@ -12,7 +12,7 @@ final class ImportSubmission: ImportSubmitting {
             if !isPresented { endPresentation() }
         }
     }
-    var failure: String?
+    var error: OnboardingError?
     private(set) var presentationID: UUID?
     private(set) var attempt: UUID?
     private var isRunning = false
@@ -37,7 +37,7 @@ final class ImportSubmission: ImportSubmitting {
     /// Opens phrase entry only after the preceding operation and its cleanup finish.
     func present() {
         guard !isPresented, !isPending, !coordinator.isWorking else { return }
-        failure = nil
+        error = nil
         presentationID = UUID()
         ownsPresentation = true
         isPresented = true
@@ -50,7 +50,7 @@ final class ImportSubmission: ImportSubmitting {
     func submit(_ phrase: String, passphrase: String) {
         guard isPresented, !isPending, !coordinator.isWorking, coordinator.account == nil else { return }
         pendingInput = Input(phrase: phrase, passphrase: passphrase)
-        failure = nil
+        error = nil
         attempt = UUID()
     }
 
@@ -78,9 +78,10 @@ final class ImportSubmission: ImportSubmitting {
             // Completion owns the commit boundary, including a successful late cancellation.
         } catch {
             guard isPresented, !Task.isCancelled, !(error is CancellationError) else { return }
-            failure = isPreparing
-                ? String(localized: "Your wallet could not be prepared. Please try again.")
-                : String(localized: "Your wallet could not be saved. Your recovery words are still available. Please try again.")
+            self.error = switch error {
+            case OnboardingCoordinatorError.discoveryRateLimited: .rateLimited
+            default: isPreparing ? .preparationFailed : .saveFailed
+            }
         }
     }
 
@@ -97,7 +98,7 @@ final class ImportSubmission: ImportSubmitting {
         ownsPresentation = false
         attempt = nil
         pendingInput = nil
-        failure = nil
+        error = nil
         if !isRunning { discardDraft() }
     }
 
@@ -118,7 +119,7 @@ final class ImportSubmission: ImportSubmitting {
     private func discardDraft() {
         do { try coordinator.discard() }
         catch {
-            failure = String(localized: "Wallet setup is still finishing. Please try again.")
+            self.error = .stillFinishing
         }
     }
 }

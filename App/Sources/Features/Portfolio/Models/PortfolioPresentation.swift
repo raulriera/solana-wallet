@@ -9,18 +9,18 @@ nonisolated enum PortfolioPresentation: Equatable {
     /// Holdings are available, including when the latest refresh failed.
     case holdings
     /// No holdings can show until the person acts on this failure.
-    case unavailable(PortfolioFailure)
+    case unavailable(PortfolioError)
 
     /// Chooses the presentation; a missing or rejected key hides holdings, other failures don't.
     /// - Parameter update: The coordinator's latest update, or `nil` before the first one.
     init(_ update: Update?) {
-        let failure = update?.error.map(PortfolioFailure.init)
-        if let failure, failure.requiresProviderSetup {
-            self = .unavailable(failure)
+        let error = update?.error.map(PortfolioError.init)
+        if let error, error.requiresProviderSetup {
+            self = .unavailable(error)
         } else if update?.snapshot != nil {
             self = .holdings
-        } else if let failure {
-            self = .unavailable(failure)
+        } else if let error {
+            self = .unavailable(error)
         } else {
             self = update == nil ? .blank : .loading
         }

@@ -5,16 +5,16 @@ import Vault
 /// Read-only public-fixture recovery storage with a controllable read failure.
 actor SecurityRecoveryStore: RecoveryStoring {
     private let records: [UUID: Recovery]
-    private let readFailure: (any Error)?
+    private let readError: (any Error)?
     private(set) var reads: [UUID] = []
 
     /// Configures saved fixtures and an optional failure for every read.
     /// - Parameters:
     ///   - records: Public test recovery by recovery identity.
-    ///   - readFailure: The error every read throws, such as a cancelled prompt.
-    init(records: [UUID: Recovery] = [:], readFailure: (any Error)? = nil) {
+    ///   - readError: The error every read throws, such as a cancelled prompt.
+    init(records: [UUID: Recovery] = [:], readError: (any Error)? = nil) {
         self.records = records
-        self.readFailure = readFailure
+        self.readError = readError
     }
 
     /// Reports any write, because showing recovery must not change storage.
@@ -33,8 +33,8 @@ actor SecurityRecoveryStore: RecoveryStoring {
     /// - Throws: The configured failure, or a missing-recovery error when no record exists.
     func recovery(for walletID: UUID, reason: String) async throws -> Recovery {
         reads.append(walletID)
-        if let readFailure { throw readFailure }
-        guard let recovery = records[walletID] else { throw KeychainStore.Failure.recoveryUnavailable }
+        if let readError { throw readError }
+        guard let recovery = records[walletID] else { throw KeychainStoreError.recoveryUnavailable }
         return recovery
     }
 

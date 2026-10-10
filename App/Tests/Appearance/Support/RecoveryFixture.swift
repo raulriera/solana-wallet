@@ -13,7 +13,7 @@ nonisolated struct RecoveryFixture {
     /// - Throws: An unavailable-domain error.
     func defaults() throws -> UserDefaults {
         guard let defaults = UserDefaults(suiteName: suiteName) else {
-            throw SettingsRecoveryRequest.Failure.unavailablePreferences
+            throw SettingsRecoveryRequestError.unavailablePreferences
         }
         return defaults
     }

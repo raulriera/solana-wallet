@@ -8,23 +8,15 @@ nonisolated struct AccountStore: AccountStoring {
     /// Filesystem work that can check cancellation before committing a write.
     private typealias Operation<Value: Sendable> = @Sendable (_ checkCancellation: () throws -> Void) throws -> Value
 
-    /// A storage location or account identity that cannot be accepted.
-    enum Failure: Error {
-        /// Storage isn't a local regular file or its configured directory isn't local.
-        case invalidStorage
-        /// An account ID, public address, or recovery-and-path pair occurs more than once.
-        case duplicateAccount
-    }
-
     private let directory: URL
     private var file: URL { directory.appendingPathComponent("accounts.json") }
     private static let queue = DispatchQueue(label: "AccountStore.IO", qos: .utility)
 
     /// Configures local storage without creating directories or reading account data.
     /// - Parameter directory: The app-private directory containing account metadata.
-    /// - Throws: ``Failure/invalidStorage`` if the directory isn't a file URL.
+    /// - Throws: ``AccountStoreError/invalidStorage`` if the directory isn't a file URL.
     init(directory: URL = URL.applicationSupportDirectory.appendingPathComponent("Accounts", isDirectory: true)) throws {
-        guard directory.isFileURL else { throw Failure.invalidStorage }
+        guard directory.isFileURL else { throw AccountStoreError.invalidStorage }
         self.directory = directory
     }
 
@@ -73,7 +65,7 @@ nonisolated struct AccountStore: AccountStoring {
     private func read() throws -> [Account] {
         do {
             let values = try file.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey])
-            guard values.isRegularFile == true, values.isSymbolicLink != true else { throw Failure.invalidStorage }
+            guard values.isRegularFile == true, values.isSymbolicLink != true else { throw AccountStoreError.invalidStorage }
         } catch CocoaError.fileReadNoSuchFile { return [] }
         let accounts = try JSONDecoder().decode([Record].self, from: Data(contentsOf: file)).map { try $0.account() }
         try Self.validate(accounts)
@@ -82,7 +74,7 @@ nonisolated struct AccountStore: AccountStoring {
 
     /// Checks unique identities before accepting a complete list.
     /// - Parameter accounts: The full loaded or proposed list.
-    /// - Throws: ``Failure/duplicateAccount``.
+    /// - Throws: ``AccountStoreError/duplicateAccount``.
     private static func validate(_ accounts: [Account]) throws {
         var ids: Set<UUID> = []
         var addresses: Set<Address> = []
@@ -91,7 +83,7 @@ nonisolated struct AccountStore: AccountStoring {
             guard ids.insert(account.id).inserted,
                   addresses.insert(account.address).inserted,
                   paths[account.recoveryID, default: []].insert(account.path.description).inserted else {
-                throw Failure.duplicateAccount
+                throw AccountStoreError.duplicateAccount
             }
         }
     }

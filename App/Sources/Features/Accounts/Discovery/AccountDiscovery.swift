@@ -3,12 +3,6 @@ import Wallet
 
 /// Discovers SOL-funded accounts with one RPC request and no retained recovery material.
 nonisolated struct AccountDiscovery: AccountDiscovering {
-    /// A scan cannot be completed with the supplied range or provider response.
-    enum Failure: Error, Equatable {
-        case invalidRange
-        case mismatchedAccounts
-    }
-
     private let wallet: any WalletProviding
     private let rpc: any RPC
 
@@ -36,15 +30,15 @@ nonisolated struct AccountDiscovery: AccountDiscovering {
     func discover(for phrase: RecoveryPhrase, passphrase: String, indices: Range<UInt32>) async throws -> Discovery {
         try Task.checkCancellation()
         guard !indices.isEmpty, indices.upperBound <= 0x8000_0000,
-              indices.upperBound - indices.lowerBound <= Discovery.indicesPerScan else { throw Failure.invalidRange }
+              indices.upperBound - indices.lowerBound <= Discovery.indicesPerScan else { throw AccountDiscoveryError.invalidRange }
         let paths = try indices.flatMap { index in
             try [DerivationPath("m/44'/501'/\(index)'/0'"), DerivationPath("m/44'/501'/\(index)'")]
         }
         let candidates = try await wallet.accounts(for: phrase, passphrase: passphrase, paths: paths)
-        guard candidates.map(\.path) == paths else { throw Failure.mismatchedAccounts }
+        guard candidates.map(\.path) == paths else { throw AccountDiscoveryError.mismatchedAccounts }
         try Task.checkCancellation()
         let native = try await rpc.send(GetMultipleAccounts(addresses: candidates.map(\.address)))
-        guard native.value.count == candidates.count else { throw Failure.mismatchedAccounts }
+        guard native.value.count == candidates.count else { throw AccountDiscoveryError.mismatchedAccounts }
 
         let matches = zip(candidates, native.value).compactMap { candidate, account in
             (account?.lamports ?? 0) > 0 ? candidate : nil

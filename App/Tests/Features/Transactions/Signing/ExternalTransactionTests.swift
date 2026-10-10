@@ -104,7 +104,7 @@ struct ExternalTransactionTests {
         let http = try HTTPResponses.signing(fee: 15_000)
         let store = SigningRecoveryStore(recovery: try SigningFixture().recovery)
 
-        await #expect(throws: PreparationValidator.Failure.messageMismatch) {
+        await #expect(throws: PreparationValidatorError.messageMismatch) {
             try await Signer(rpc: http.client, store: store).sign(preparation, for: SigningFixture().account, reason: "Approve transaction")
         }
 
@@ -129,13 +129,13 @@ struct ExternalTransactionTests {
             signer: Signer(rpc: signingHTTP.client, store: store, wallet: wallet), submitter: Submitter(rpc: signingHTTP.client), confirmer: Confirmer(rpc: signingHTTP.client))
 
         if stage == "preparation" {
-            await #expect(throws: Preparer.Failure.invalidBlockhash) {
+            await #expect(throws: PreparerError.invalidBlockhash) {
                 try await coordinator.simulate(expected.transaction, using: SigningFixture().account)
             }
             #expect(await preparationHTTP.requests.count == 1)
         } else {
             let preparation = try await coordinator.simulate(expected.transaction, using: SigningFixture().account)
-            await #expect(throws: PreparationValidator.Failure.expired) {
+            await #expect(throws: PreparationValidatorError.expired) {
                 try await coordinator.sign(preparation)
             }
         }

@@ -38,7 +38,7 @@ struct AppearanceCoordinationTests {
         let coordinator = AppearanceCoordinator(store: store)
         try await coordinator.reload()
         let before = coordinator.snapshot
-        await #expect(throws: ThemeCatalog.Failure.changed) { try await coordinator.select(UUID(), for: .application) }
+        await #expect(throws: ThemeCatalogError.changed) { try await coordinator.select(UUID(), for: .application) }
         #expect(coordinator.snapshot == before)
     }
 

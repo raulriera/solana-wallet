@@ -51,7 +51,7 @@ struct ConfirmationTests {
             ? [status(.confirmed), nil] : [status(.confirmed)]
         let http = try HTTPResponses.confirmation(responses: [.init(context: Context(slot: kind == "future slot" ? 404 : 406), value: values)])
 
-        await #expect(throws: Confirmer.Failure.invalidResponse) {
+        await #expect(throws: ConfirmerError.invalidResponse) {
             try await Confirmer(rpc: http.client, clock: pollingClock()).confirm(submission)
         }
 
@@ -63,7 +63,7 @@ struct ConfirmationTests {
     func `Confirmation rejects another network before requesting status`() async throws {
         let http = try HTTPResponses.confirmation(responses: [])
 
-        await #expect(throws: Confirmer.Failure.networkMismatch) {
+        await #expect(throws: ConfirmerError.networkMismatch) {
             try await Confirmer(rpc: http.client).confirm(Submission(signature: submission.signature, network: .mainnet))
         }
 
@@ -72,14 +72,14 @@ struct ConfirmationTests {
 
     /// Verifies a failed lookup remains an observation error without an automatic retry.
     ///
-    /// - Parameter failure: The transport or rate-limit error from the provider.
+    /// - Parameter error: The transport or rate-limit error from the provider.
     @Test(arguments: [
         RPCError.transport(.timedOut), .http(statusCode: 429, retryAfter: "3")
     ])
-    func `Status lookup failures preserve provider diagnostics without retrying`(_ failure: RPCError) async throws {
-        let http = try HTTPResponses.confirmation(responses: [], failure: failure)
+    func `Status lookup failures preserve provider diagnostics without retrying`(_ error: RPCError) async throws {
+        let http = try HTTPResponses.confirmation(responses: [], error: error)
 
-        await #expect(throws: failure) {
+        await #expect(throws: error) {
             try await Confirmer(rpc: http.client, clock: pollingClock()).confirm(submission)
         }
 
@@ -96,7 +96,7 @@ struct ConfirmationTests {
             await pending.waitUntilStarted()
         }
 
-        await #expect(throws: Confirmer.Failure.timedOut) {
+        await #expect(throws: ConfirmerError.timedOut) {
             try await Confirmer(rpc: http.client, clock: clock).confirm(submission)
         }
 

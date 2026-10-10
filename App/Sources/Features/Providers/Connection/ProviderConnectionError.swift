@@ -1,7 +1,7 @@
 import Foundation
 
 /// A provider setup failure that never contains the entered key.
-nonisolated enum ProviderConnectionError: Error, Equatable {
+nonisolated enum ProviderConnectionError: LocalizedError, Equatable {
     /// The key is empty, or the provider rejected it.
     case invalidKey
     /// The provider is limiting requests; the user decides when to try again.
@@ -10,6 +10,19 @@ nonisolated enum ProviderConnectionError: Error, Equatable {
     case unavailable
     /// The accepted key couldn't be saved on this device.
     case storageFailed
+
+    /// Names the failure in an alert's title.
+    var errorDescription: String? {
+        switch self {
+        case .invalidKey: String(localized: "API Key Not Accepted")
+        case .rateLimited: String(localized: "Too Many Requests")
+        case .unavailable: String(localized: "Couldn't Connect")
+        case .storageFailed: String(localized: "Couldn't Save API Key")
+        }
+    }
+
+    /// Explains the failure in an alert's message.
+    var recoverySuggestion: String? { String(localized: message) }
 
     /// Explains the failure to the person setting up the provider, without the key or underlying error text.
     var message: LocalizedStringResource {

@@ -151,7 +151,7 @@ struct TokenAdditionTests {
 
         #expect(addition.preview == nil)
         #expect(addition.message == nil)
-        #expect(addition.failure == nil)
+        #expect(addition.error == nil)
         #expect(addition.lookup == newer)
     }
 
@@ -176,14 +176,13 @@ struct TokenAdditionTests {
     /// A list that is full or can't be read explains why and keeps the sheet open, without offering to try again.
     /// - Parameters:
     ///   - error: Why the list refused the token.
-    ///   - message: What the alert says.
+    ///   - expected: The error the alert explains.
     /// - Throws: A test prerequisite error.
     @Test(arguments: [
-        (TokenListError.limitReached,
-         "You can add up to \(Portfolio::TokenList.addedTokenLimit) tokens. Remove one to add another."),
-        (.unreadable, "Your token list can't be read, so no token can be added."),
+        (TokenListError.limitReached, TokenAdditionError.limitReached),
+        (.unreadable, .listUnreadable),
     ])
-    func `A list that can't take the token explains why`(error: TokenListError, message: String) async throws {
+    func `A list that can't take the token explains why`(error: TokenListError, expected: TokenAdditionError) async throws {
         let portfolio = ListPortfolio()
         portfolio.preview = try Self.preview(Self.bonk)
         portfolio.addError = error
@@ -194,8 +193,8 @@ struct TokenAdditionTests {
         addition.add()
         await addition.run(addition.attempt)
 
-        #expect(shown(addition.failure?.message) == message)
-        #expect(addition.failure?.canRetry == false)
+        #expect(addition.error == expected)
+        #expect(addition.error?.canRetry == false)
         #expect(!addition.isAdded)
     }
 
@@ -211,12 +210,12 @@ struct TokenAdditionTests {
         await addition.lookUp(addition.lookup)
         addition.add()
         await addition.run(addition.attempt)
-        #expect(shown(addition.failure?.message) == "Your token list couldn't be saved. Try again.")
-        #expect(addition.failure?.canRetry == true)
+        #expect(addition.error == .saveFailed)
+        #expect(addition.error?.canRetry == true)
         #expect(!addition.isAdded)
 
         portfolio.addError = nil
-        addition.failure = nil
+        addition.error = nil
         addition.retry()
         await addition.run(addition.attempt)
 
@@ -230,11 +229,11 @@ struct TokenAdditionTests {
     func `A rejected key offers no retry until the address is pasted again`() async throws {
         let portfolio = ListPortfolio()
         portfolio.preview = try Self.preview(Self.bonk)
-        portfolio.lookupError = HeliusClient.Failure.invalidKey
+        portfolio.lookupError = HeliusClientError.invalidKey
         let addition = TokenAddition(coordinator: portfolio)
         addition.paste(Self.bonk)
         await addition.lookUp(addition.lookup)
-        #expect(addition.failure?.canRetry == false)
+        #expect(addition.error?.canRetry == false)
         #expect(addition.lookup == nil)
 
         portfolio.lookupError = nil
@@ -254,10 +253,10 @@ struct TokenAdditionTests {
         let addition = TokenAddition(coordinator: portfolio)
         addition.paste(Self.bonk)
         await addition.lookUp(addition.lookup)
-        #expect(addition.failure?.canRetry == true)
+        #expect(addition.error?.canRetry == true)
 
         portfolio.lookupError = nil
-        addition.failure = nil
+        addition.error = nil
         addition.retry()
         await addition.lookUp(addition.lookup)
 
@@ -305,7 +304,7 @@ private final class ListPortfolio: PortfolioCoordinating {
     }
 
     var update: Update? { nil }
-    var failure: PortfolioFailure? { nil }
+    var error: PortfolioError? { nil }
 
     /// Ignores observation, which the sheet never starts.
     /// - Parameters:

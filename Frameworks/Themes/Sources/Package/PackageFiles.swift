@@ -134,23 +134,23 @@ enum PackageFiles {
     /// - Throws: A validation or cooperative cancellation error.
     private static func readFile(_ components: [String], in root: Int32, path: String, byteLimit: Int,
                                  checkCancellation: () throws -> Void) throws -> Data {
-        let failure = ValidationError(path: path, reason: "Expected a readable regular file inside the package; symbolic links are unsupported.")
+        let unreadable = ValidationError(path: path, reason: "Expected a readable regular file inside the package; symbolic links are unsupported.")
         var directory = root
         defer { if directory != root { close(directory) } }
         for component in components.dropLast() {
             try checkCancellation()
             let next = openat(directory, component, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
-            guard next >= 0 else { throw failure }
+            guard next >= 0 else { throw unreadable }
             if directory != root { close(directory) }
             directory = next
         }
-        guard let filename = components.last else { throw failure }
+        guard let filename = components.last else { throw unreadable }
         let descriptor = openat(directory, filename, O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC)
-        guard descriptor >= 0 else { throw failure }
+        guard descriptor >= 0 else { throw unreadable }
         let handle = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
         defer { try? handle.close() }
         var attributes = stat()
-        guard fstat(descriptor, &attributes) == 0, attributes.st_mode & S_IFMT == S_IFREG else { throw failure }
+        guard fstat(descriptor, &attributes) == 0, attributes.st_mode & S_IFMT == S_IFREG else { throw unreadable }
         try ResourceLimits.checkBytes(attributes.st_size, limit: byteLimit, path: path)
         var data = Data()
         data.reserveCapacity(Int(attributes.st_size))
@@ -160,7 +160,7 @@ enum PackageFiles {
             do {
                 chunk = try autoreleasepool { try handle.read(upToCount: min(65_536, byteLimit - data.count + 1)) ?? Data() }
             } catch {
-                throw failure
+                throw unreadable
             }
             if chunk.isEmpty { break }
             // Recheck actual bytes: another process need not honor coordination or the earlier size.

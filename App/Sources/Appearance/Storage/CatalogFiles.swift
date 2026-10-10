@@ -14,12 +14,12 @@ nonisolated enum CatalogFiles {
         let url = directory.appendingPathComponent(metadataName)
         do {
             let values = try url.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey])
-            guard values.isRegularFile == true, values.isSymbolicLink != true else { throw ThemeCatalog.Failure.invalidStorage }
+            guard values.isRegularFile == true, values.isSymbolicLink != true else { throw ThemeCatalogError.invalidStorage }
         } catch CocoaError.fileReadNoSuchFile { return CatalogState() }
         let state = try JSONDecoder().decode(CatalogState.self, from: Data(contentsOf: url))
         guard state.customEntries.allSatisfy({ $0.key == $0.value.id && $0.value.origin == .custom }),
               Set(state.customEntries.values.map(\.revision)).count == state.customEntries.count else {
-            throw ThemeCatalog.Failure.invalidStorage
+            throw ThemeCatalogError.invalidStorage
         }
         return state
     }
@@ -35,8 +35,8 @@ nonisolated enum CatalogFiles {
     static func check(_ id: UUID, expected: ThemeEntry?, in directory: URL) throws -> CatalogState {
         let state = try state(in: directory)
         let current = state.customEntries[id]
-        if let current, expected == nil { throw ThemeCatalog.Failure.replacementRequired(current) }
-        guard current == expected else { throw ThemeCatalog.Failure.changed }
+        if let current, expected == nil { throw ThemeCatalogError.replacementRequired(current) }
+        guard current == expected else { throw ThemeCatalogError.changed }
         return state
     }
 
@@ -62,7 +62,7 @@ nonisolated enum CatalogFiles {
     static func commit(_ state: CatalogState, in directory: URL,
                        checkCancellation: () throws -> Void) throws -> CatalogState {
         var committed = state
-        guard committed.revision < UInt64.max else { throw ThemeCatalog.Failure.invalidStorage }
+        guard committed.revision < UInt64.max else { throw ThemeCatalogError.invalidStorage }
         committed.revision += 1
         let data = try JSONEncoder().encode(committed)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -88,15 +88,15 @@ nonisolated enum CatalogFiles {
     ///   - destination: The final location on the same volume.
     /// - Throws: The filesystem error from the atomic operation.
     static func move(_ source: URL, to destination: URL) throws {
-        let failure = try source.withUnsafeFileSystemRepresentation { sourcePath in
-            guard let sourcePath else { throw ThemeCatalog.Failure.invalidStorage }
+        let errorCode = try source.withUnsafeFileSystemRepresentation { sourcePath in
+            guard let sourcePath else { throw ThemeCatalogError.invalidStorage }
             return try destination.withUnsafeFileSystemRepresentation { destinationPath in
-                guard let destinationPath else { throw ThemeCatalog.Failure.invalidStorage }
+                guard let destinationPath else { throw ThemeCatalogError.invalidStorage }
                 let status = renameatx_np(AT_FDCWD, sourcePath, AT_FDCWD, destinationPath,
                                          UInt32(RENAME_EXCL))
                 return status == 0 ? 0 : errno
             }
         }
-        guard failure == 0 else { throw POSIXError(POSIXErrorCode(rawValue: failure) ?? .EIO) }
+        guard errorCode == 0 else { throw POSIXError(POSIXErrorCode(rawValue: errorCode) ?? .EIO) }
     }
 }

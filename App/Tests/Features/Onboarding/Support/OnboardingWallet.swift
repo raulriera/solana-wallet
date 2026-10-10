@@ -3,15 +3,15 @@ import Wallet
 /// Real local derivation with an optional failure or cancellable suspension.
 struct OnboardingWallet: WalletProviding {
     let gate: Suspension?
-    let failure: (any Error)?
+    let error: (any Error)?
 
     /// Configures an isolated dependency without retaining any generated recovery.
     /// - Parameters:
     ///   - gate: Suspension before returning the derived public address, even after cancellation.
-    ///   - failure: A scripted derivation error.
-    init(gate: Suspension? = nil, failure: (any Error)? = nil) {
+    ///   - error: A scripted derivation error.
+    init(gate: Suspension? = nil, error: (any Error)? = nil) {
         self.gate = gate
-        self.failure = failure
+        self.error = error
     }
 
     /// Generates real recovery material using the requested entropy size.
@@ -30,7 +30,7 @@ struct OnboardingWallet: WalletProviding {
     /// - Returns: The derived public address.
     /// - Throws: The scripted error, cancellation, or a derivation error.
     func address(for phrase: RecoveryPhrase, passphrase: String, path: DerivationPath) async throws -> String {
-        if let failure { throw failure }
+        if let error { throw error }
         let address = try await Wallet().address(for: phrase, passphrase: passphrase, path: path)
         if let gate { await gate.suspend() }
         return address

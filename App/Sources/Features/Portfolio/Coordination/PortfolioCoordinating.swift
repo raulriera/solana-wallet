@@ -10,7 +10,7 @@ protocol PortfolioCoordinating: AnyObject, Observable {
     /// The latest snapshot's holdings in display order, or none without a snapshot.
     var holdings: [Holding] { get }
     /// Why the latest update failed, or `nil` when it didn't.
-    var failure: PortfolioFailure? { get }
+    var error: PortfolioError? { get }
 
     /// Observes the selected wallet for the lifetime of the calling view task.
     ///

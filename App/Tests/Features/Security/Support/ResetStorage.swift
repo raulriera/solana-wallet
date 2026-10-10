@@ -54,7 +54,7 @@ actor ResetStorage: RecoveryStoring, AccountStoring, ProviderKeyStoring {
     /// - Throws: A missing-recovery error.
     func recovery(for walletID: UUID, reason: String) async throws -> Recovery {
         Issue.record("A reset must not read recovery.")
-        throw KeychainStore.Failure.recoveryUnavailable
+        throw KeychainStoreError.recoveryUnavailable
     }
 
     /// Reports a single-wallet deletion, because a reset deletes every wallet at once.

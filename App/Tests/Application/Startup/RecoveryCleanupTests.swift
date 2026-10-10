@@ -53,11 +53,11 @@ struct RecoveryCleanupTests {
     /// A failed deletion surfaces its error and is attempted again on the next completion.
     @Test
     func `A failed deletion is retried`() async throws {
-        let recovery = StartupRecoveryStore(failure: KeychainStore.Failure.keychain(status: -1))
+        let recovery = StartupRecoveryStore(error: KeychainStoreError.keychain(status: -1))
         let cleanup = RecoveryCleanup(accounts: StartupAccountStore { [] }, recovery: recovery)
 
-        await #expect(throws: KeychainStore.Failure.keychain(status: -1)) { try await cleanup.complete() }
-        await #expect(throws: KeychainStore.Failure.keychain(status: -1)) { try await cleanup.complete() }
+        await #expect(throws: KeychainStoreError.keychain(status: -1)) { try await cleanup.complete() }
+        await #expect(throws: KeychainStoreError.keychain(status: -1)) { try await cleanup.complete() }
 
         #expect(await recovery.deletions == 2)
     }

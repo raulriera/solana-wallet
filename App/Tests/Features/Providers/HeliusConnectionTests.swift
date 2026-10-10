@@ -45,7 +45,7 @@ struct HeliusConnectionTests {
         (500, ProviderConnectionError.unavailable),
     ])
     func `Failed checks report their cause and save nothing`(status: Int, expected: ProviderConnectionError) async {
-        let responses = HTTPResponses.keyCheck(failure: .http(statusCode: status, retryAfter: nil))
+        let responses = HTTPResponses.keyCheck(error: .http(statusCode: status, retryAfter: nil))
         let keys = SavedKeys()
 
         await #expect(throws: expected) {

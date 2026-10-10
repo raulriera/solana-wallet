@@ -10,7 +10,7 @@ final class ProviderSubmission: Identifiable {
     private(set) var isKeyRejected = false
     /// Counts rejected keys, so each rejection signals again while its message stays on screen.
     private(set) var rejectionCount = 0
-    var failure: LocalizedStringResource?
+    var error: ProviderConnectionError?
     private(set) var attempt: UUID?
     /// Whether an accepted key is saved; the flow that asked for it continues when it is.
     private(set) var isSaved = false
@@ -56,7 +56,7 @@ final class ProviderSubmission: Identifiable {
             guard !Task.isCancelled, !(error is CancellationError) else { return }
             withAnimation { isKeyRejected = false }
             // Anything else stays generic, so no underlying error text reaches the alert.
-            failure = (error as? ProviderConnectionError ?? .unavailable).message
+            self.error = error as? ProviderConnectionError ?? .unavailable
         }
     }
 }

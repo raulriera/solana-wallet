@@ -53,7 +53,7 @@ struct DiscoveryTests {
     func `Discovery rejects invalid ranges before networking`(_ indices: Range<UInt32>) async throws {
         let http = HTTPResponses([:])
         let phrase = try publicPhrase()
-        await #expect(throws: AccountDiscovery.Failure.invalidRange) {
+        await #expect(throws: AccountDiscoveryError.invalidRange) {
             try await AccountDiscovery(rpc: http.client).discover(for: phrase, passphrase: "", indices: indices)
         }
         #expect(await http.requests.isEmpty)
@@ -74,7 +74,7 @@ struct DiscoveryTests {
     func `Discovery rejects a truncated native account response`() async throws {
         let http = HTTPResponses(["getMultipleAccounts": [accountResponse([nativeAccount(lamports: 1)])]])
         let phrase = try publicPhrase()
-        await #expect(throws: AccountDiscovery.Failure.mismatchedAccounts) {
+        await #expect(throws: AccountDiscoveryError.mismatchedAccounts) {
             try await AccountDiscovery(rpc: http.client).discover(for: phrase, passphrase: "", indices: 0..<1)
         }
         #expect(await http.requests.count == 1)
@@ -83,10 +83,10 @@ struct DiscoveryTests {
     /// Verifies provider rate limits propagate without retries or a misleading empty result.
     @Test
     func `Discovery surfaces rate limits without retrying`() async throws {
-        let failure = RPCError.http(statusCode: 429, retryAfter: "3")
-        let http = HTTPResponses([:], failure: failure)
+        let error = RPCError.http(statusCode: 429, retryAfter: "3")
+        let http = HTTPResponses([:], error: error)
         let phrase = try publicPhrase()
-        await #expect(throws: failure) { try await AccountDiscovery(rpc: http.client).discover(for: phrase) }
+        await #expect(throws: error) { try await AccountDiscovery(rpc: http.client).discover(for: phrase) }
         #expect(await http.requests.count == 1)
     }
 

@@ -29,12 +29,12 @@ nonisolated struct HeliusConnection: ProviderConnecting {
             _ = try await client(key).send(GetAsset(id: Self.nativeMint))
         } catch {
             try Task.checkCancellation()
-            let failure: ProviderConnectionError = switch error as? RPCError {
+            let connectionError: ProviderConnectionError = switch error as? RPCError {
             case .http(statusCode: 401, retryAfter: _)?, .http(statusCode: 403, retryAfter: _)?: .invalidKey
             case .http(statusCode: 429, retryAfter: _)?: .rateLimited
             default: .unavailable
             }
-            throw failure
+            throw connectionError
         }
         try Task.checkCancellation()
         do {

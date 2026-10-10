@@ -6,9 +6,12 @@ import XCTest
 struct OnboardingApp {
     static let phrase = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
     private static let recoveryGuidance = "Write down these words in order and keep them somewhere safe. Anyone with them can control your wallet."
+    /// The titles of the alerts that report a wallet setup or provider key error.
+    private static let setupErrorTitles = ["Wallet Setup Unavailable", "Too Many Requests", "Couldn't Connect",
+                                           "Couldn't Save API Key"]
 
     /// Stops dependent interactions after a checked UI wait fails.
-    private enum Failure: Error { case missingElement, unexpectedElement, unavailableControl, reportedFailure, missingConfiguration }
+    private enum FlowError: Error { case missingElement, unexpectedElement, unavailableControl, reportedError, missingConfiguration }
 
     let app = XCUIApplication()
 
@@ -104,7 +107,7 @@ struct OnboardingApp {
         guard let key = ProcessInfo.processInfo.environment["HELIUS_API_KEY"],
               !key.isEmpty, !key.hasPrefix("$(") else {
             XCTFail("HELIUS_API_KEY must be configured for UI tests", file: file, line: line)
-            throw Failure.missingConfiguration
+            throw FlowError.missingConfiguration
         }
         try submitProviderKey(key)
         try expectWallet(file: file, line: line)
@@ -121,7 +124,7 @@ struct OnboardingApp {
         let words = app.staticTexts.matching(NSPredicate(format: "label MATCHES %@", #"([1-9]|1[0-2])\. [a-z]+"#))
         guard words.count == 12 else {
             XCTFail("Recovery must expose twelve numbered word labels")
-            throw Failure.missingElement
+            throw FlowError.missingElement
         }
     }
 
@@ -164,24 +167,25 @@ struct OnboardingApp {
     private func expectSetupOutcome(_ destination: XCUIElement, label: String,
                                     file: StaticString, line: UInt) throws {
         try expectOutcome(destination, matching: NSPredicate(format: "label == %@", label),
-                          unless: "Wallet Setup Unavailable", file: file, line: line)
+                          unless: Self.setupErrorTitles, file: file, line: line)
     }
 
-    /// Waits for an expected element, failing immediately when the app shows the named alert instead.
+    /// Waits for an expected element, failing immediately when the app shows one of the named alerts instead.
     /// - Parameters:
     ///   - destination: The expected element.
-    ///   - outcome: Matches the expected element, so the wait also ends when the alert appears.
-    ///   - alert: The title of the alert that reports a failure.
+    ///   - outcome: Matches the expected element, so the wait also ends when an alert appears.
+    ///   - alerts: The titles of the alerts that report a failure.
     ///   - file: The calling test's source file for failure reporting.
     ///   - line: The calling test's line for failure reporting.
     /// - Throws: A missing destination, or the failure the app reported.
-    func expectOutcome(_ destination: XCUIElement, matching outcome: NSPredicate, unless alert: String,
+    func expectOutcome(_ destination: XCUIElement, matching outcome: NSPredicate, unless alerts: [String],
                        file: StaticString = #filePath, line: UInt = #line) throws {
-        let either = NSCompoundPredicate(orPredicateWithSubpredicates: [outcome, NSPredicate(format: "label == %@", alert)])
+        let reports = alerts.map { NSPredicate(format: "label == %@", $0) }
+        let either = NSCompoundPredicate(orPredicateWithSubpredicates: [outcome] + reports)
         try waitFor(app.descendants(matching: .any).matching(either).firstMatch, file: file, line: line)
-        guard !app.alerts[alert].exists else {
+        if let alert = alerts.first(where: { app.alerts[$0].exists }) {
             XCTFail("The app reported \(alert) instead of the expected result.", file: file, line: line)
-            throw Failure.reportedFailure
+            throw FlowError.reportedError
         }
         try waitFor(destination, file: file, line: line)
     }
@@ -195,7 +199,7 @@ struct OnboardingApp {
     func waitFor(_ element: XCUIElement, file: StaticString = #filePath, line: UInt = #line) throws {
         guard element.waitForExistence(timeout: 10) else {
             XCTFail("Expected onboarding UI did not appear", file: file, line: line)
-            throw Failure.missingElement
+            throw FlowError.missingElement
         }
     }
 
@@ -208,7 +212,7 @@ struct OnboardingApp {
     func waitForAbsence(_ element: XCUIElement, file: StaticString = #filePath, line: UInt = #line) throws {
         guard element.waitForNonExistence(timeout: 10) else {
             XCTFail("Onboarding UI that should be gone is still on screen", file: file, line: line)
-            throw Failure.unexpectedElement
+            throw FlowError.unexpectedElement
         }
     }
 
@@ -223,7 +227,7 @@ struct OnboardingApp {
         let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
         guard XCTWaiter.wait(for: [expectation], timeout: 10) == .completed else {
             XCTFail("Expected onboarding control did not become ready", file: file, line: line)
-            throw Failure.unavailableControl
+            throw FlowError.unavailableControl
         }
         element.tap()
     }

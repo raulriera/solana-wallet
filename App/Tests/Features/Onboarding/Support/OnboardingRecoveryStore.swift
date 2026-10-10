@@ -5,8 +5,8 @@ import Vault
 /// Isolated public-fixture recovery storage with controllable save outcomes.
 actor OnboardingRecoveryStore: RecoveryStoring {
     private var records: [UUID: Recovery] = [:]
-    private let firstFailure: (any Error)?
-    private let commitBeforeFailure: Bool
+    private let firstError: (any Error)?
+    private let commitBeforeError: Bool
     private let replacement: Recovery?
     private let gate: Suspension?
     private(set) var saves: [UUID] = []
@@ -14,14 +14,14 @@ actor OnboardingRecoveryStore: RecoveryStoring {
 
     /// Configures the first save's failure or suspension without touching the Keychain.
     /// - Parameters:
-    ///   - firstFailure: The error thrown by the first save, if any.
-    ///   - commitBeforeFailure: Whether that save commits before reporting failure.
+    ///   - firstError: The error thrown by the first save, if any.
+    ///   - commitBeforeError: Whether that save commits before reporting failure.
     ///   - replacement: Deliberately mismatched public recovery to retain instead.
     ///   - gate: An optional cancellable suspension after the first save commits.
-    init(firstFailure: (any Error)? = nil, commitBeforeFailure: Bool = false,
+    init(firstError: (any Error)? = nil, commitBeforeError: Bool = false,
          replacement: Recovery? = nil, gate: Suspension? = nil) {
-        self.firstFailure = firstFailure
-        self.commitBeforeFailure = commitBeforeFailure
+        self.firstError = firstError
+        self.commitBeforeError = commitBeforeError
         self.replacement = replacement
         self.gate = gate
     }
@@ -33,11 +33,11 @@ actor OnboardingRecoveryStore: RecoveryStoring {
     /// - Throws: The scripted first failure or a duplicate error.
     func save(_ recovery: Recovery, for walletID: UUID) async throws {
         saves.append(walletID)
-        guard records[walletID] == nil else { throw KeychainStore.Failure.duplicateWallet }
-        let failure = saves.count == 1 ? firstFailure : nil
-        if failure == nil || commitBeforeFailure { records[walletID] = replacement ?? recovery }
+        guard records[walletID] == nil else { throw KeychainStoreError.duplicateWallet }
+        let error = saves.count == 1 ? firstError : nil
+        if error == nil || commitBeforeError { records[walletID] = replacement ?? recovery }
         if saves.count == 1, let gate { await gate.suspend() }
-        if let failure { throw failure }
+        if let error { throw error }
     }
 
     /// Returns public fixture recovery while recording each verification read.
@@ -48,7 +48,7 @@ actor OnboardingRecoveryStore: RecoveryStoring {
     /// - Throws: A missing-recovery error when no record exists.
     func recovery(for walletID: UUID, reason: String) async throws -> Recovery {
         reads.append(walletID)
-        guard let recovery = records[walletID] else { throw KeychainStore.Failure.recoveryUnavailable }
+        guard let recovery = records[walletID] else { throw KeychainStoreError.recoveryUnavailable }
         return recovery
     }
 

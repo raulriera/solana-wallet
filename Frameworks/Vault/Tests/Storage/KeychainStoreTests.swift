@@ -49,7 +49,7 @@ struct KeychainStoreTests {
         try await store.save(original, for: id)
         let replacement = Recovery(phrase: original.phrase, passphrase: "different")
 
-        await #expect(throws: KeychainStore.Failure.duplicateWallet) { try await store.save(replacement, for: id) }
+        await #expect(throws: KeychainStoreError.duplicateWallet) { try await store.save(replacement, for: id) }
 
         let recovered = try await store.recovery(for: id, reason: "Recover wallet")
         #expect(recovered.passphrase == original.passphrase)
@@ -73,9 +73,9 @@ struct KeychainStoreTests {
         } throws: { error in
             switch status {
             case errSecUserCanceled: return error is CancellationError
-            case errSecAuthFailed: return error as? KeychainStore.Failure == .authenticationFailed
-            case errSecItemNotFound: return error as? KeychainStore.Failure == .recoveryUnavailable
-            default: return error as? KeychainStore.Failure == .interactionNotAllowed
+            case errSecAuthFailed: return error as? KeychainStoreError == .authenticationFailed
+            case errSecItemNotFound: return error as? KeychainStoreError == .recoveryUnavailable
+            default: return error as? KeychainStoreError == .interactionNotAllowed
             }
         }
         #expect(keychain.state.withLock(\.items) == original)
@@ -124,7 +124,7 @@ struct KeychainStoreTests {
         let store = KeychainStore(service: "test.recovery", keychain: keychain)
         let recovery = try Fixtures.recovery()
 
-        await #expect(throws: KeychainStore.Failure.protectionUnavailable) {
+        await #expect(throws: KeychainStoreError.protectionUnavailable) {
             try await store.save(recovery, for: UUID())
         }
         let isEmpty = keychain.state.withLock(\.items.isEmpty)
@@ -164,7 +164,7 @@ struct KeychainStoreTests {
         try await store.deleteAllRecovery()
 
         for id in ids {
-            await #expect(throws: KeychainStore.Failure.recoveryUnavailable) {
+            await #expect(throws: KeychainStoreError.recoveryUnavailable) {
                 try await store.recovery(for: id, reason: "Recover wallet")
             }
         }
@@ -191,7 +191,7 @@ struct KeychainStoreTests {
         try await store.deleteRecovery(for: id)
         try await store.deleteRecovery(for: id)
 
-        await #expect(throws: KeychainStore.Failure.recoveryUnavailable) {
+        await #expect(throws: KeychainStoreError.recoveryUnavailable) {
             try await store.recovery(for: id, reason: "Recover wallet")
         }
         let first = try await store.recovery(for: otherID, reason: "Recover other wallet")
@@ -218,7 +218,7 @@ struct KeychainStoreTests {
         let original = keychain.state.withLock(\.items)
         keychain.state.withLock { $0.dataOverride = Data(invalid.utf8) }
 
-        await #expect(throws: KeychainStore.Failure.invalidRecovery) {
+        await #expect(throws: KeychainStoreError.invalidRecovery) {
             try await store.recovery(for: id, reason: "Recover wallet")
         }
         #expect(keychain.state.withLock(\.items) == original)

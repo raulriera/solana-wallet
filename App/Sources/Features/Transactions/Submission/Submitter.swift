@@ -3,18 +3,6 @@ import Transactions
 
 /// Submits the exact reviewed transaction with preflight enabled and no automatic retry.
 nonisolated struct Submitter: TransactionSubmitting {
-    /// A submission prerequisite or acknowledgment that cannot be accepted.
-    enum Failure: Error, Sendable, Equatable {
-        /// At least one required signature slot is still empty.
-        case missingSignatures
-        /// The signed message or preserved signatures differ from the reviewed transaction.
-        case transactionMismatch
-        /// The provider acknowledged another signature; the local transaction may still have been received.
-        case responseMismatch(expectedSignature: String)
-        /// No supplied RPC serves the transaction's network.
-        case noProviders
-    }
-
     /// Every RPC failed to acknowledge a transaction whose delivery may remain unknown.
     struct Rejection: Error, Sendable {
         /// The locally verified identifier available for subsequent status lookup.
@@ -60,16 +48,16 @@ nonisolated struct Submitter: TransactionSubmitting {
     func submit(_ signed: SignedTransaction) async throws -> Submission {
         try Task.checkCancellation()
         let rpcs = rpcs.filter { $0.network == signed.preparation.network }
-        guard !rpcs.isEmpty else { throw Failure.noProviders }
+        guard !rpcs.isEmpty else { throw SubmitterError.noProviders }
         let bytes = signed.transaction.serializedRepresentation
         let transaction = try transactionBuilder.validateSignatures(in: bytes)
         guard transaction == signed.transaction, transaction.message == signed.preparation.message else {
-            throw Failure.transactionMismatch
+            throw SubmitterError.transactionMismatch
         }
-        guard signed.isFullySigned, let signature = transaction.signature else { throw Failure.missingSignatures }
+        guard signed.isFullySigned, let signature = transaction.signature else { throw SubmitterError.missingSignatures }
         for (original, current) in zip(signed.preparation.transaction.signatures, transaction.signatures)
             where original.contains(where: { $0 != 0 }) {
-            guard original == current else { throw Failure.transactionMismatch }
+            guard original == current else { throw SubmitterError.transactionMismatch }
         }
         try await validator.validate(signed.preparation)
         try Task.checkCancellation()
@@ -85,7 +73,7 @@ nonisolated struct Submitter: TransactionSubmitting {
                         let acknowledged = try await rpc.send(request)
                         try Task.checkCancellation()
                         guard acknowledged == signature else {
-                            throw Failure.responseMismatch(expectedSignature: signature)
+                            throw SubmitterError.responseMismatch(expectedSignature: signature)
                         }
                         return .success(())
                     } catch {

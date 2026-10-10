@@ -21,8 +21,8 @@ nonisolated struct AppearanceStore: AppearanceStoring {
     /// - Throws: An invalid location or duplicate built-in identity error.
     init(directory: URL,
          builtIns: [BundledTheme] = []) throws {
-        guard directory.isFileURL else { throw ThemeCatalog.Failure.invalidStorage }
-        guard Set(builtIns.map(\.entry.id)).count == builtIns.count else { throw ThemeCatalog.Failure.duplicateBuiltIn }
+        guard directory.isFileURL else { throw ThemeCatalogError.invalidStorage }
+        guard Set(builtIns.map(\.entry.id)).count == builtIns.count else { throw ThemeCatalogError.duplicateBuiltIn }
         self.directory = directory
         self.builtIns = Dictionary(uniqueKeysWithValues: builtIns.map { ($0.entry.id, $0.entry) })
     }
@@ -44,7 +44,7 @@ nonisolated struct AppearanceStore: AppearanceStoring {
     @concurrent
     func select(_ themeID: UUID?, for scope: AppearancePreferences.Scope) async throws -> AppearanceSnapshot {
         try await update { preferences, entries in
-            if let themeID, entries[themeID] == nil { throw ThemeCatalog.Failure.changed }
+            if let themeID, entries[themeID] == nil { throw ThemeCatalogError.changed }
             preferences.select(themeID, for: scope)
         }
     }

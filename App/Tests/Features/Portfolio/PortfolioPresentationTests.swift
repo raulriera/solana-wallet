@@ -29,23 +29,23 @@ struct PortfolioPresentationTests {
     /// - Parameters:
     ///   - error: The provider's key failure.
     ///   - hasHoldings: Whether earlier holdings are available.
-    @Test(arguments: [HeliusClient.Failure.missingKey, .invalidKey], [false, true])
-    func `Key failures replace holdings`(error: HeliusClient.Failure, hasHoldings: Bool) {
+    @Test(arguments: [HeliusClientError.missingKey, .invalidKey], [false, true])
+    func `Key failures replace holdings`(error: HeliusClientError, hasHoldings: Bool) {
         let update = Update(snapshot: hasHoldings ? snapshot : nil, phase: .failed(error), revision: 1)
-        #expect(PortfolioPresentation(update) == .unavailable(PortfolioFailure(error)))
+        #expect(PortfolioPresentation(update) == .unavailable(PortfolioError(error)))
     }
 
     /// Without holdings, a failed first load shows its failure so the person can try again.
     /// - Parameters:
     ///   - error: The failed load's error.
-    ///   - failure: The failure the section shows.
+    ///   - expected: The error the section shows.
     @Test(arguments: [
-        (RPCError.http(statusCode: 429, retryAfter: nil), PortfolioFailure.rateLimited),
+        (RPCError.http(statusCode: 429, retryAfter: nil), PortfolioError.rateLimited),
         (.transport(.notConnectedToInternet), .unavailable),
     ])
-    func `A failed first load shows its failure`(error: RPCError, failure: PortfolioFailure) {
+    func `A failed first load shows its failure`(error: RPCError, expected: PortfolioError) {
         let update = Update(snapshot: nil, phase: .failed(error), revision: 1)
-        #expect(PortfolioPresentation(update) == .unavailable(failure))
+        #expect(PortfolioPresentation(update) == .unavailable(expected))
     }
 
     /// An empty wallet's complete snapshot.

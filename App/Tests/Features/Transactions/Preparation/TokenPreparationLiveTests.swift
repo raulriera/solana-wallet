@@ -26,7 +26,7 @@ struct TokenPreparationLiveTests {
         await #expect {
             try await coordinator.transfer(1, token: mint, using: account, to: account.address, source: absent)
         } throws: { error in
-            if case TokenTransfers.Failure.missingAccount = error { return true }
+            if case TokenTransfersError.missingAccount = error { return true }
             return false
         }
     }

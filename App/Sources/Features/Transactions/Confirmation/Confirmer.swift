@@ -2,16 +2,6 @@ import RPC
 
 /// Observes one accepted transaction through bounded, cancellable status queries.
 nonisolated struct Confirmer: TransactionConfirming {
-    /// An observation failure that doesn't establish an on-chain execution outcome.
-    enum Failure: Error, Sendable, Equatable {
-        /// The provider serves a different network from the submission.
-        case networkMismatch
-        /// The response cannot describe the single requested signature consistently.
-        case invalidResponse
-        /// The observation deadline elapsed; the transaction's outcome remains unknown.
-        case timedOut
-    }
-
     private let rpc: any RPC
     private let clock: any Clock<Duration>
 
@@ -34,18 +24,18 @@ nonisolated struct Confirmer: TransactionConfirming {
     ///
     /// - Parameter submission: The accepted signature and original network.
     /// - Returns: A confirmed or finalized execution outcome from the provider.
-    /// - Throws: ``Failure``, an RPC error, or `CancellationError`.
+    /// - Throws: ``ConfirmerError``, an RPC error, or `CancellationError`.
     @concurrent
     func confirm(_ submission: Submission) async throws -> Confirmation {
         try Task.checkCancellation()
-        guard rpc.network == submission.network else { throw Failure.networkMismatch }
+        guard rpc.network == submission.network else { throw ConfirmerError.networkMismatch }
         do {
             return try await withThrowingTaskGroup(of: Confirmation.self) { group in
                 group.addTask { try await observe(submission) }
                 group.addTask {
                     try await clock.sleep(for: .seconds(60))
                     try Task.checkCancellation()
-                    throw Failure.timedOut
+                    throw ConfirmerError.timedOut
                 }
                 defer { group.cancelAll() }
                 guard let confirmation = try await group.next() else { throw CancellationError() }
@@ -70,9 +60,9 @@ nonisolated struct Confirmer: TransactionConfirming {
                 signatures: [submission.signature], searchesTransactionHistory: true
             ))
             try Task.checkCancellation()
-            guard response.value.count == 1 else { throw Failure.invalidResponse }
+            guard response.value.count == 1 else { throw ConfirmerError.invalidResponse }
             if let status = response.value[0] {
-                guard status.slot <= response.context.slot else { throw Failure.invalidResponse }
+                guard status.slot <= response.context.slot else { throw ConfirmerError.invalidResponse }
                 if let commitment = status.confirmationStatus, commitment != .processed {
                     return Confirmation(submission: submission, slot: status.slot, commitment: commitment,
                                         outcome: status.error.map(Confirmation.Outcome.failed) ?? .succeeded)

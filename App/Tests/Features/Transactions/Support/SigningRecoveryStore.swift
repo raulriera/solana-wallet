@@ -5,7 +5,7 @@ import Vault
 /// Records recovery access while keeping every test's public fixture isolated.
 actor SigningRecoveryStore: RecoveryStoring {
     private let stored: Recovery
-    private let failure: KeychainStore.Failure?
+    private let error: KeychainStoreError?
     private let gate: Suspension?
     private(set) var reads: [(walletID: UUID, reason: String)] = []
 
@@ -13,11 +13,11 @@ actor SigningRecoveryStore: RecoveryStoring {
     ///
     /// - Parameters:
     ///   - recovery: Public fixture material returned by the store.
-    ///   - failure: An optional storage error raised instead of returning recovery.
+    ///   - error: An optional storage error raised instead of returning recovery.
     ///   - gate: An optional suspension for testing cancellation during authentication.
-    init(recovery: Recovery, failure: KeychainStore.Failure? = nil, gate: Suspension? = nil) {
+    init(recovery: Recovery, error: KeychainStoreError? = nil, gate: Suspension? = nil) {
         stored = recovery
-        self.failure = failure
+        self.error = error
         self.gate = gate
     }
 
@@ -33,7 +33,7 @@ actor SigningRecoveryStore: RecoveryStoring {
     /// - Throws: The scripted storage failure.
     func recovery(for walletID: UUID, reason: String) async throws -> Recovery {
         reads.append((walletID, reason))
-        if let failure { throw failure }
+        if let error { throw error }
         if let gate { await gate.suspend() }
         return stored
     }

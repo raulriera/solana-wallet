@@ -9,14 +9,6 @@ import Transactions
 @MainActor
 @Observable
 final class TokenAddition: Identifiable {
-    /// A failure the person dismisses; trying again repeats the step that failed.
-    struct Failure: Equatable {
-        /// What went wrong and what to do about it.
-        let message: LocalizedStringResource
-        /// Whether trying again can help.
-        let canRetry: Bool
-    }
-
     /// The pasted text without the spaces and line breaks around it; a new address replaces the previous preview
     /// and starts a lookup.
     ///
@@ -37,7 +29,8 @@ final class TokenAddition: Identifiable {
     private(set) var message: LocalizedStringResource?
     /// Counts refusals, so each one signals again while its message stays on screen.
     private(set) var refusalCount = 0
-    var failure: Failure?
+    /// An error the person dismisses; trying again repeats the step that failed.
+    var error: TokenAdditionError?
     /// The current address's lookup, or `nil` when the text isn't an address.
     private(set) var lookup: UUID?
     /// The accepted add, while it waits or runs.
@@ -91,10 +84,9 @@ final class TokenAddition: Identifiable {
             case TokenLookupError.nonFungible: refuse("NFTs can't be added yet.")
             default:
                 // Trying again can't help a rejected key, so pasting the address again looks it up instead.
-                let reason = PortfolioFailure(error)
                 withAnimation { message = nil }
                 self.lookup = nil
-                failure = Failure(message: Self.explanation(for: reason), canRetry: !reason.requiresProviderSetup)
+                self.error = TokenAdditionError(lookup: PortfolioError(error))
             }
         }
     }
@@ -115,14 +107,12 @@ final class TokenAddition: Identifiable {
             try await coordinator.add(token)
             isAdded = true
         } catch TokenListError.limitReached {
-            // The app's own TokenList view hides the framework's type, so the module selector names it.
-            let limit = Portfolio::TokenList.addedTokenLimit
-            failure = Failure(message: "You can add up to \(limit) tokens. Remove one to add another.", canRetry: false)
+            self.error = .limitReached
         } catch TokenListError.unreadable {
-            failure = Failure(message: "Your token list can't be read, so no token can be added.", canRetry: false)
+            self.error = .listUnreadable
         } catch {
             guard !Task.isCancelled, !(error is CancellationError) else { return }
-            failure = Failure(message: "Your token list couldn't be saved. Try again.", canRetry: true)
+            self.error = .saveFailed
         }
     }
 
@@ -150,16 +140,5 @@ final class TokenAddition: Identifiable {
         let token = Holding(preview: preview)
         guard token.name?.isEmpty == false || token.symbol?.isEmpty == false else { return "Found a token." }
         return "Found a token named \(token.displayName)."
-    }
-
-    /// Explains a failed lookup without naming the provider or showing its error.
-    /// - Parameter failure: The lookup's error, classified by what the person can do.
-    /// - Returns: What went wrong and what to do about it.
-    private static func explanation(for failure: PortfolioFailure) -> LocalizedStringResource {
-        switch failure {
-        case .rateLimited: "Too many requests. Try again in a moment."
-        case .missingKey, .invalidKey: "Your RPC API key wasn't accepted."
-        case .unavailable: "Couldn't check this address. Check your connection and try again."
-        }
     }
 }

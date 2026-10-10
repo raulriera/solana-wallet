@@ -14,13 +14,11 @@ private struct TokenAdditionLifecycle: ViewModifier {
             .task(id: lookup) { await addition.lookUp(lookup) }
             .task(id: attempt) { await addition.run(attempt) }
             .sensoryFeedback(.error, trigger: addition.refusalCount)
-            .alert("Couldn't Add Token", item: $addition.failure) { failure in
-                if failure.canRetry {
+            .errorAlert($addition.error) { error in
+                if error.canRetry {
                     Button("Try Again", action: addition.retry)
                 }
-                Button(failure.canRetry ? "Cancel" : "OK", role: .cancel) {}
-            } message: { failure in
-                Text(failure.message)
+                Button(error.canRetry ? "Cancel" : "OK", role: .cancel) {}
             }
     }
 }

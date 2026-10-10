@@ -13,11 +13,7 @@ private struct ImportLifecycle: ViewModifier {
         content
             .task(id: attempt) { await submission.run(attempt) }
             .onDisappear { submission.leave(presentationID) }
-            .alert("Wallet Setup Unavailable", item: $submission.failure) { _ in
-                Button("OK", role: .cancel) {}
-            } message: { failure in
-                Text(failure)
-            }
+            .errorAlert($submission.error)
     }
 }
 

@@ -49,7 +49,7 @@ struct AppearanceRenderingTests {
         try await rendered.load(entry, catalog: catalog, packages: PackService())
         #expect(rendered.palette(scheme: .light, contrast: .standard).accent != RenderedPalette(OriginalAppearance.palette).accent)
         try await catalog.remove(entry)
-        await #expect(throws: ThemeCatalog.Failure.changed) {
+        await #expect(throws: ThemeCatalogError.changed) {
             try await rendered.load(entry, catalog: catalog, packages: PackService())
         }
         #expect(rendered.palette(scheme: .light, contrast: .standard).accent == RenderedPalette(OriginalAppearance.palette).accent)

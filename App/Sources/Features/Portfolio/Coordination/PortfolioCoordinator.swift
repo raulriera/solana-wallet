@@ -20,8 +20,8 @@ final class PortfolioCoordinator: PortfolioCoordinating {
 
     private(set) var holdings: [Holding] = []
 
-    /// The latest update's failure, classified without retaining the provider's error.
-    var failure: PortfolioFailure? { update?.error.map(PortfolioFailure.init) }
+    /// The latest update's error, classified without retaining the provider's error.
+    var error: PortfolioError? { update?.error.map(PortfolioError.init) }
 
     private let service: any PortfolioProviding & TokenListProviding
     @ObservationIgnored private var owner: String?

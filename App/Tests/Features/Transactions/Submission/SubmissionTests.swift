@@ -13,7 +13,7 @@ struct SubmissionTests {
     func `One rate-limited route does not prevent another route accepting the transaction`() async throws {
         let signed = try ExternalFixture.signedResult()
         let checks = try HTTPResponses.signing(fee: 15_000)
-        let limited = HTTPResponses([:], failure: .http(statusCode: 429, retryAfter: "3"))
+        let limited = HTTPResponses([:], error: .http(statusCode: 429, retryAfter: "3"))
         let accepted = HTTPResponses(["sendTransaction": [try HTTPResponses.json(ExternalFixture.signature)]])
 
         let result = try await Submitter(rpc: checks.client, rpcs: [limited.client, accepted.client]).submit(signed)
@@ -31,7 +31,7 @@ struct SubmissionTests {
     func `Failed routes retain rate-limit details and reject a mismatched acknowledgment`() async throws {
         let signed = try ExternalFixture.signedResult()
         let checks = try HTTPResponses.signing(fee: 15_000)
-        let limited = HTTPResponses([:], failure: .http(statusCode: 429, retryAfter: "3"))
+        let limited = HTTPResponses([:], error: .http(statusCode: 429, retryAfter: "3"))
         let mismatched = HTTPResponses(["sendTransaction": [#""another-signature""#]])
 
         await #expect {
@@ -41,7 +41,7 @@ struct SubmissionTests {
             return rejection.signature == ExternalFixture.signature && rejection.network == .devnet
                 && rejection.errors.count == 2
                 && rejection.errors.contains { $0 as? RPCError == .http(statusCode: 429, retryAfter: "3") }
-                && rejection.errors.contains { $0 as? Submitter.Failure == .responseMismatch(expectedSignature: ExternalFixture.signature) }
+                && rejection.errors.contains { $0 as? SubmitterError == .responseMismatch(expectedSignature: ExternalFixture.signature) }
         }
         #expect(await limited.requests.count == 1)
         #expect(await mismatched.requests.count == 1)
@@ -119,7 +119,7 @@ struct SubmissionTests {
         let signed = try ExternalFixture.signedResult(hasPayerSignature: false)
         let rpc = Solana(network: .devnet)
 
-        await #expect(throws: Submitter.Failure.missingSignatures) {
+        await #expect(throws: SubmitterError.missingSignatures) {
             try await Submitter(rpc: rpc).submit(signed)
         }
     }
@@ -135,7 +135,7 @@ struct SubmissionTests {
                                   instructions: original.instructions, signatures: [replacement, original.signatures[1]])
         let input = SignedTransaction(preparation: signed.preparation, transaction: altered)
 
-        await #expect(throws: Submitter.Failure.transactionMismatch) {
+        await #expect(throws: SubmitterError.transactionMismatch) {
             try await Submitter(rpc: Solana(network: .devnet)).submit(input)
         }
     }
@@ -146,7 +146,7 @@ struct SubmissionTests {
     /// - Throws: A configuration error when the local API key isn't supplied.
     func devnetRPCs() throws -> [any RPC] {
         guard let key = ProcessInfo.processInfo.environment["HELIUS_API_KEY"],
-              !key.isEmpty, !key.hasPrefix("$(") else { throw SetupFailure.missingAPIKey }
+              !key.isEmpty, !key.hasPrefix("$(") else { throw SetupError.missingAPIKey }
         return [HeliusRPC(apiKey: key, network: .devnet), Solana(network: .devnet)]
     }
 
@@ -181,11 +181,11 @@ struct SubmissionTests {
                 print("Devnet faucet unavailable: \(error)")
             }
         }
-        throw SetupFailure.fundingUnavailable(address: address)
+        throw SetupError.fundingUnavailable(address: address)
     }
 
     /// Missing local setup or devnet funding, without including credentials or the seed.
-    private enum SetupFailure: Error { case missingAPIKey, fundingUnavailable(address: String) }
+    private enum SetupError: Error { case missingAPIKey, fundingUnavailable(address: String) }
 
     /// A test-only request to the actual devnet faucet; it isn't an app RPC feature.
     private struct Airdrop: RPCRequest {

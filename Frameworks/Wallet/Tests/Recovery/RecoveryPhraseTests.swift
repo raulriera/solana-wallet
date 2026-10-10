@@ -66,7 +66,7 @@ struct RecoveryPhraseTests {
     @Test
     func `Unavailable secure randomness prevents phrase creation`() {
         let wallet = Wallet(entropy: UnavailableEntropy())
-        #expect(throws: UnavailableEntropy.Failure.unavailable) {
+        #expect(throws: UnavailableEntropyError.unavailable) {
             try wallet.recoveryPhrase()
         }
     }
@@ -86,15 +86,16 @@ private struct FixedEntropy: EntropyProviding {
     }
 }
 
+/// The error an always-failing entropy source reports.
+private enum UnavailableEntropyError: Error { case unavailable }
+
 /// An entropy source that always fails.
 private struct UnavailableEntropy: EntropyProviding {
-    enum Failure: Error { case unavailable }
-
     /// Reports an unavailable random number generator.
     ///
     /// - Parameter count: The requested entropy size.
-    /// - Throws: ``Failure/unavailable`` for every request.
+    /// - Throws: ``UnavailableEntropyError/unavailable`` for every request.
     func bytes(count: Int) throws -> [UInt8] {
-        throw Failure.unavailable
+        throw UnavailableEntropyError.unavailable
     }
 }

@@ -10,14 +10,6 @@ nonisolated struct ProviderKeyStore: ProviderKeyStoring {
     /// Blocking Security work that runs only on the Keychain queue.
     private typealias Operation<Value: Sendable> = @Sendable () throws -> Value
 
-    /// A storage failure that never contains the key.
-    enum Failure: Error, Equatable {
-        /// The stored value isn't valid UTF-8 text.
-        case unreadable
-        /// A Security framework failure, identified only by its status code.
-        case keychain(status: Int32)
-    }
-
     private let service: String
     /// One serial queue for every store value, so each update-then-add save runs atomically.
     private static let queue = DispatchQueue(label: "ProviderKeyStore.Keychain", qos: .userInitiated)
@@ -30,7 +22,7 @@ nonisolated struct ProviderKeyStore: ProviderKeyStoring {
 
     /// Reads the saved key without user interaction.
     /// - Returns: The key, or `nil` before one is saved.
-    /// - Throws: ``Failure`` or `CancellationError`.
+    /// - Throws: ``ProviderKeyStoreError`` or `CancellationError`.
     func key() async throws -> String? {
         try await perform {
             var query = identity
@@ -41,7 +33,7 @@ nonisolated struct ProviderKeyStore: ProviderKeyStoring {
             if status == errSecItemNotFound { return nil }
             try Self.check(status)
             guard let data = result as? Data, let key = String(data: data, encoding: .utf8) else {
-                throw Failure.unreadable
+                throw ProviderKeyStoreError.unreadable
             }
             return key
         }
@@ -51,7 +43,7 @@ nonisolated struct ProviderKeyStore: ProviderKeyStoring {
     ///
     /// Cancellation doesn't roll back a save that has already reached the Keychain.
     /// - Parameter key: A key the provider has already accepted.
-    /// - Throws: ``Failure`` or `CancellationError`.
+    /// - Throws: ``ProviderKeyStoreError`` or `CancellationError`.
     func save(_ key: String) async throws {
         try await perform {
             let value = [kSecValueData as String: Data(key.utf8)]
@@ -67,7 +59,7 @@ nonisolated struct ProviderKeyStore: ProviderKeyStoring {
     }
 
     /// Deletes the saved key; a missing key is already deleted.
-    /// - Throws: ``Failure`` or `CancellationError`.
+    /// - Throws: ``ProviderKeyStoreError`` or `CancellationError`.
     func deleteKey() async throws {
         try await perform {
             let status = SecItemDelete(identity as CFDictionary)
@@ -99,8 +91,8 @@ nonisolated struct ProviderKeyStore: ProviderKeyStoring {
 
     /// Converts a Security status into a key-free storage error.
     /// - Parameter status: The Keychain operation's status.
-    /// - Throws: ``Failure/keychain(status:)`` for any status other than success.
+    /// - Throws: ``ProviderKeyStoreError/keychain(status:)`` for any status other than success.
     private static func check(_ status: OSStatus) throws {
-        guard status == errSecSuccess else { throw Failure.keychain(status: status) }
+        guard status == errSecSuccess else { throw ProviderKeyStoreError.keychain(status: status) }
     }
 }

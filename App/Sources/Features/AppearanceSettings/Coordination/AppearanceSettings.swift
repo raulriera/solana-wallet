@@ -19,7 +19,7 @@ import Themes
     private let packages: any PackServicing
     private(set) var export: ThemeExport?
     var replacement: Replacement?
-    var failure: String?
+    var error: ThemeError?
     @ObservationIgnored private var operation: Task<Void, Never>?
 
     /// Injects services shared with the other wallet windows.
@@ -45,18 +45,20 @@ import Themes
     ///   - id: A selected theme, or `nil` for inheritance.
     ///   - scope: The application or selected wallet.
     func select(_ id: UUID?, for scope: AppearancePreferences.Scope) {
-        run { try await self.appearance.select(id, for: scope) }
+        run(defaultingTo: .saveFailed) { try await self.appearance.select(id, for: scope) }
     }
 
     /// Reads an independent package snapshot and installs without selecting it.
     /// - Parameter url: The security-scoped URL returned by the Files picker.
     func importPack(from url: URL) {
-        run {
-            let pack = try await self.packages.read(from: url)
+        run(defaultingTo: .saveFailed) {
+            let pack: Pack
+            do { pack = try await self.packages.read(from: url) }
+            catch let error where !(error is CancellationError) { throw ThemeError.importFailed }
             do {
                 _ = try await self.catalog.install(pack)
                 try await self.reloadAfterCommit()
-            } catch ThemeCatalog.Failure.replacementRequired(let existing) {
+            } catch ThemeCatalogError.replacementRequired(let existing) {
                 self.replacement = Replacement(pack: pack, existing: existing)
             }
         }
@@ -66,7 +68,7 @@ import Themes
     /// - Parameter approved: The retained import snapshot and exact installed revision.
     func replace(_ approved: Replacement) {
         replacement = nil
-        run {
+        run(defaultingTo: .saveFailed) {
             _ = try await self.catalog.install(approved.pack, replacing: approved.existing)
             try await self.reloadAfterCommit()
         }
@@ -75,7 +77,7 @@ import Themes
     /// Removes an approved custom revision and reloads its atomic preference fallbacks.
     /// - Parameter entry: The exact entry presented in the removal confirmation.
     func remove(_ entry: ThemeEntry) {
-        run {
+        run(defaultingTo: .saveFailed) {
             try await self.catalog.remove(entry)
             try await self.reloadAfterCommit()
         }
@@ -83,7 +85,7 @@ import Themes
 
     /// Prepares a complete default template before presenting the system destination picker.
     func prepareExport() {
-        run {
+        run(defaultingTo: .exportFailed) {
             let root = URL.temporaryDirectory.appendingPathComponent(UUID().uuidString)
             let url = root.appendingPathComponent("Theme.xtheme")
             do {
@@ -124,27 +126,32 @@ import Themes
         try await Task { try await appearance.reload() }.value
     }
 
-    /// Converts actionable failures to presentation text; cancellation is silent.
-    /// - Parameter error: An error from a service or a system file dialog.
-    func report(_ error: any Error) {
+    /// Classifies a failure for its alert without keeping the underlying error; cancellation is silent.
+    /// - Parameters:
+    ///   - error: An error from a service or a system file dialog.
+    ///   - fallback: The error to show when the failure has no more specific cause.
+    func report(_ error: any Error, defaultingTo fallback: ThemeError) {
         let cocoaError = error as NSError
         guard !Task.isCancelled, !(error is CancellationError),
               !(cocoaError.domain == NSCocoaErrorDomain && cocoaError.code == NSUserCancelledError) else { return }
-        switch error {
-        case ThemeCatalog.Failure.builtInTheme: failure = String(localized: "Built-in themes cannot be replaced or removed.")
-        case ThemeCatalog.Failure.changed: failure = String(localized: "This theme changed in another window. Try again.")
-        default: failure = error.localizedDescription
+        self.error = switch error {
+        case let error as ThemeError: error
+        case ThemeCatalogError.builtInTheme: .builtInTheme
+        case ThemeCatalogError.changed: .changedElsewhere
+        default: fallback
         }
     }
 
     /// Serializes this window's user actions while service work suspends the main actor.
-    /// - Parameter action: Service calls and small presentation-state updates.
-    private func run(action: @escaping Action) {
+    /// - Parameters:
+    ///   - fallback: The error to show when the action fails without a more specific cause.
+    ///   - action: Service calls and small presentation-state updates.
+    private func run(defaultingTo fallback: ThemeError, action: @escaping Action) {
         guard canStartOperation else { return }
         operation = Task {
             defer { self.operation = nil }
             do { try await action() }
-            catch { self.report(error) }
+            catch { self.report(error, defaultingTo: fallback) }
         }
     }
 }

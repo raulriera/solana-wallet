@@ -3,14 +3,6 @@ import Transactions
 
 /// Resolves token instruction prerequisites through either first-party token program.
 nonisolated struct TokenTransfers {
-    /// An account observation that cannot supply consistent instruction prerequisites.
-    enum Failure: Error, Sendable, Equatable {
-        /// A required mint or source account is absent.
-        case missingAccount(Address)
-        /// Account observations have an unexpected count or an older ledger context.
-        case inconsistentAccounts
-    }
-
     private let rpc: any RPC
 
     /// Creates account discovery using the transaction workflow's read provider.
@@ -38,13 +30,13 @@ nonisolated struct TokenTransfers {
         try Task.checkCancellation()
         guard amount > 0 else { throw ValidationError.invalidAmount }
         let discovery = try await accounts(at: [mint])
-        guard let discoveredAccount = discovery.value[0] else { throw Failure.missingAccount(mint) }
+        guard let discoveredAccount = discovery.value[0] else { throw TokenTransfersError.missingAccount(mint) }
         let discoveredMint = try TokenMint(address: mint, owner: Address(discoveredAccount.owner), data: discoveredAccount.data)
         let sourceAddress = try source ?? discoveredMint.associatedAccount(for: sender)
         let destinationAddress = try discoveredMint.associatedAccount(for: recipient)
         let snapshot = try await accounts(at: [mint, sourceAddress, destinationAddress], minimumSlot: discovery.context.slot)
-        guard let mintAccount = snapshot.value[0] else { throw Failure.missingAccount(mint) }
-        guard let sourceAccount = snapshot.value[1] else { throw Failure.missingAccount(sourceAddress) }
+        guard let mintAccount = snapshot.value[0] else { throw TokenTransfersError.missingAccount(mint) }
+        guard let sourceAccount = snapshot.value[1] else { throw TokenTransfersError.missingAccount(sourceAddress) }
         let currentMint = try TokenMint(address: mint, owner: Address(mintAccount.owner), data: mintAccount.data)
         guard currentMint.program == discoveredMint.program else { throw TokenError.accountMismatch }
         let tokenSource = try TokenAccount(address: sourceAddress, programOwner: Address(sourceAccount.owner), data: sourceAccount.data)
@@ -61,7 +53,7 @@ nonisolated struct TokenTransfers {
         if currentMint.program == .token2022 {
             let observation = try await rpc.send(GetEpochInfo(commitment: .confirmed, minContextSlot: minimumSlot))
             try Task.checkCancellation()
-            guard observation.absoluteSlot >= minimumSlot else { throw Failure.inconsistentAccounts }
+            guard observation.absoluteSlot >= minimumSlot else { throw TokenTransfersError.inconsistentAccounts }
             minimumSlot = observation.absoluteSlot
             epoch = observation.epoch
         }
@@ -91,7 +83,7 @@ nonisolated struct TokenTransfers {
                                                             commitment: .confirmed, minContextSlot: minimumSlot))
         try Task.checkCancellation()
         guard response.value.count == addresses.count, response.context.slot >= (minimumSlot ?? 0) else {
-            throw Failure.inconsistentAccounts
+            throw TokenTransfersError.inconsistentAccounts
         }
         guard !response.value.contains(where: { $0?.executable == true }) else { throw TokenError.invalidAccount }
         return response

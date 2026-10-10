@@ -84,24 +84,24 @@ struct PriceRefreshTests {
 
     /// Verifies absent prerequisites and network mismatches fail before any provider request.
     /// - Parameters:
-    ///   - failure: The missing or incompatible price-refresh prerequisite.
+    ///   - error: The missing or incompatible price-refresh prerequisite.
     ///   - fullRefresh: Whether to verify a full refresh's network validation.
     /// - Throws: A fixture or test prerequisite error.
     @Test(arguments: [
         (PriceError.providerUnavailable, false), (.holdingsUnavailable, false), (.networkMismatch, false), (.networkMismatch, true),
     ])
-    func `Price refresh rejects unavailable prerequisites before networking`(failure: PriceError, fullRefresh: Bool) async throws {
+    func `Price refresh rejects unavailable prerequisites before networking`(error: PriceError, fullRefresh: Bool) async throws {
         let fixture = PricingFixture()
         defer { fixture.removeFiles() }
-        if failure != .holdingsUnavailable { try fixture.store.save(pricingSnapshot(), for: fixture.key) }
-        let accounts = AccountResponses(network: failure == .networkMismatch ? .devnet : .mainnet) { _ in freshLedger }
+        if error != .holdingsUnavailable { try fixture.store.save(pricingSnapshot(), for: fixture.key) }
+        let accounts = AccountResponses(network: error == .networkMismatch ? .devnet : .mainnet) { _ in freshLedger }
         let prices = PriceResponses { _ in Data("{}".utf8) }
-        let service = fixture.portfolio(rpc: accounts.client, prices: failure == .providerUnavailable ? nil : prices.client)
+        let service = fixture.portfolio(rpc: accounts.client, prices: error == .providerUnavailable ? nil : prices.client)
         let stream = await (fullRefresh ? service.updates(for: testWallet) : service.priceUpdates(for: testWallet))
         var updates = stream.makeAsyncIterator()
         _ = try #require(await updates.next())
         let failed = try #require(await updates.next())
-        #expect(failed.error as? PriceError == failure)
+        #expect(failed.error as? PriceError == error)
         #expect(await accounts.requests.isEmpty)
         #expect(await prices.requests.isEmpty)
     }

@@ -367,7 +367,7 @@ struct PortfolioCoordinatorTests {
         observation.continuation.finish()
         await waitForSnapshot(cached, in: coordinator)
         #expect(coordinator.update?.error as? RPCError == error)
-        #expect(coordinator.failure == .rateLimited)
+        #expect(coordinator.error == .rateLimited)
 
         let refreshing = Task { await coordinator.refresh() }
         defer { refreshing.cancel() }
@@ -377,7 +377,7 @@ struct PortfolioCoordinatorTests {
         reload.continuation.finish()
         await refreshing.value
         #expect(coordinator.update?.error == nil)
-        #expect(coordinator.failure == nil)
+        #expect(coordinator.error == nil)
         #expect(await service.calls.count == 2)
         viewing.cancel()
         await viewing.value

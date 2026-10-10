@@ -180,7 +180,7 @@ nonisolated struct PreferencesTests {
         let entry = try await catalog.install(PackService().read(from: fixture.source()))
         let store = try AppearanceStore(directory: fixture.directory)
         let before = try await store.select(entry.id, for: .application)
-        await #expect(throws: ThemeCatalog.Failure.changed) { try await store.select(UUID(), for: .application) }
+        await #expect(throws: ThemeCatalogError.changed) { try await store.select(UUID(), for: .application) }
         #expect(try await store.load() == before)
     }
 

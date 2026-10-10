@@ -4,9 +4,6 @@ import Foundation
 nonisolated struct SettingsRecoveryRequest: RecoveryRequesting {
     static let key = "resetAppearance"
 
-    /// The requested defaults domain could not be opened.
-    enum Failure: Error { case unavailablePreferences }
-
     private let suiteName: String?
 
     /// Uses the application defaults domain or an isolated domain supplied by a test.
@@ -38,7 +35,7 @@ nonisolated struct SettingsRecoveryRequest: RecoveryRequesting {
     /// - Returns: The configured defaults object, confined to the calling operation.
     /// - Throws: An unavailable-domain error.
     private func defaults() throws -> UserDefaults {
-        guard let defaults = UserDefaults(suiteName: suiteName) else { throw Failure.unavailablePreferences }
+        guard let defaults = UserDefaults(suiteName: suiteName) else { throw SettingsRecoveryRequestError.unavailablePreferences }
         return defaults
     }
 }

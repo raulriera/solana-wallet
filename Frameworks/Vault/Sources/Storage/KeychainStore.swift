@@ -12,24 +12,6 @@ public struct KeychainStore: RecoveryStoring {
     /// Blocking work that uses an authentication context only on the Keychain queue.
     private typealias Operation<Value: Sendable> = @Sendable (LAContext) throws -> Value
 
-    /// A storage failure that contains no recovery material or underlying error text.
-    public enum Failure: Error, Sendable, Equatable {
-        /// The wallet identifier already has stored recovery material.
-        case duplicateWallet
-        /// No item exists, including items the system deleted when the device passcode was removed.
-        case recoveryUnavailable
-        /// Authentication didn't authorize access to the item.
-        case authenticationFailed
-        /// Keychain access couldn't present authentication in the current state.
-        case interactionNotAllowed
-        /// The device has no passcode, or the requested item protection is unavailable.
-        case protectionUnavailable
-        /// The stored recovery payload is malformed or has an unsupported version.
-        case invalidRecovery
-        /// Another Security framework failure, identified only by its status code.
-        case keychain(status: Int32)
-    }
-
     private let service: String
     private let keychain: any KeychainAccessing
     private let queue = DispatchQueue(label: "Vault.Keychain", qos: .userInitiated)
@@ -60,16 +42,16 @@ public struct KeychainStore: RecoveryStoring {
     /// - Parameters:
     ///   - recovery: The shared phrase and original BIP-39 passphrase.
     ///   - walletID: The caller's local wallet identifier.
-    /// - Throws: ``Failure`` if the item can't be protected or already exists,
+    /// - Throws: ``KeychainStoreError`` if the item can't be protected or already exists,
     ///   or `CancellationError` if canceled.
     public func save(_ recovery: Recovery, for walletID: UUID) async throws {
         try await perform { context in
             guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: nil) else {
-                throw Failure.protectionUnavailable
+                throw KeychainStoreError.protectionUnavailable
             }
             guard let access = SecAccessControlCreateWithFlags(
                 nil, kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly, .userPresence, nil
-            ) else { throw Failure.protectionUnavailable }
+            ) else { throw KeychainStoreError.protectionUnavailable }
             var payload = try StoredRecovery.encode(recovery)
             var attributes = identity(for: walletID)
             attributes[kSecAttrAccessControl as String] = access
@@ -92,7 +74,7 @@ public struct KeychainStore: RecoveryStoring {
     ///   - walletID: The local identifier used when saving the wallet.
     ///   - reason: A localized, secret-free explanation shown during authentication.
     /// - Returns: The validated recovery material.
-    /// - Throws: ``Failure`` if access fails, or `CancellationError` if canceled.
+    /// - Throws: ``KeychainStoreError`` if access fails, or `CancellationError` if canceled.
     public func recovery(for walletID: UUID, reason: String) async throws -> Recovery {
         try await perform(reason: reason) { context in
             var query = identity(for: walletID)
@@ -102,7 +84,7 @@ public struct KeychainStore: RecoveryStoring {
             var result = keychain.copy(matching: query)
             try Self.check(result.status)
             // Taking the value leaves this copy as the only owner, so zeroing reaches the real buffer.
-            guard var data = result.data.take() else { throw Failure.invalidRecovery }
+            guard var data = result.data.take() else { throw KeychainStoreError.invalidRecovery }
             // Best effort: the decoded phrase lives on as Strings, but the raw payload is zeroed.
             defer { data.resetBytes(in: 0..<data.count) }
             return try StoredRecovery.decode(data)
@@ -116,7 +98,7 @@ public struct KeychainStore: RecoveryStoring {
     /// a deletion already performed by the Keychain.
     ///
     /// - Parameter walletID: The local identifier to remove.
-    /// - Throws: ``Failure`` if deletion fails, or `CancellationError` if canceled.
+    /// - Throws: ``KeychainStoreError`` if deletion fails, or `CancellationError` if canceled.
     public func deleteRecovery(for walletID: UUID) async throws {
         try await perform { _ in
             let status = keychain.delete(matching: identity(for: walletID))
@@ -130,7 +112,7 @@ public struct KeychainStore: RecoveryStoring {
     /// items that no saved wallet references. Cancellation doesn't roll back a deletion
     /// already performed by the Keychain.
     ///
-    /// - Throws: ``Failure`` if deletion fails, or `CancellationError` if canceled.
+    /// - Throws: ``KeychainStoreError`` if deletion fails, or `CancellationError` if canceled.
     public func deleteAllRecovery() async throws {
         try await perform { _ in
             let status = keychain.delete(matching: namespace)
@@ -187,16 +169,16 @@ public struct KeychainStore: RecoveryStoring {
 
     /// Converts a Security status into a secret-free storage error.
     /// - Parameter status: The status returned by the Keychain operation.
-    /// - Throws: A matching ``Failure`` or `CancellationError` for user cancellation.
+    /// - Throws: A matching ``KeychainStoreError`` or `CancellationError` for user cancellation.
     private static func check(_ status: OSStatus) throws {
         switch status {
         case errSecSuccess: return
-        case errSecDuplicateItem: throw Failure.duplicateWallet
-        case errSecItemNotFound: throw Failure.recoveryUnavailable
+        case errSecDuplicateItem: throw KeychainStoreError.duplicateWallet
+        case errSecItemNotFound: throw KeychainStoreError.recoveryUnavailable
         case errSecUserCanceled: throw CancellationError()
-        case errSecAuthFailed: throw Failure.authenticationFailed
-        case errSecInteractionNotAllowed: throw Failure.interactionNotAllowed
-        default: throw Failure.keychain(status: status)
+        case errSecAuthFailed: throw KeychainStoreError.authenticationFailed
+        case errSecInteractionNotAllowed: throw KeychainStoreError.interactionNotAllowed
+        default: throw KeychainStoreError.keychain(status: status)
         }
     }
 }

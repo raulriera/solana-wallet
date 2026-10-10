@@ -50,7 +50,7 @@ struct OnboardingDiscoveryTests {
 
     /// A failed scan cannot silently fall back, save recovery, or retry without another explicit call.
     /// - Parameters:
-    ///   - failure: A transport or provider failure observed by the actual RPC client.
+    ///   - error: A transport or provider failure observed by the actual RPC client.
     ///   - expected: The payload-free failure exposed by onboarding.
     @Test(arguments: [
         (RPCError.http(statusCode: 429, retryAfter: "3"), OnboardingCoordinatorError.discoveryRateLimited),
@@ -58,9 +58,9 @@ struct OnboardingDiscoveryTests {
         (.transport(.notConnectedToInternet), .preparationFailed),
     ])
     func `Discovery failures stop preparation until an explicit retry`(
-        failure: RPCError, expected: OnboardingCoordinatorError
+        error: RPCError, expected: OnboardingCoordinatorError
     ) async throws {
-        let http = HTTPResponses.discovery(failure: failure)
+        let http = HTTPResponses.discovery(error: error)
         let recovery = OnboardingRecoveryStore()
         let accounts = OnboardingAccountStore(recovery: recovery)
         let router = WindowRouter(initialDestination: .onboarding)

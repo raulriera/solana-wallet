@@ -5,29 +5,6 @@ import Vault
 
 /// The app's typed entry point for simulating and approving arbitrary V1 transactions.
 nonisolated struct TransactionCoordinator: TransactionCoordinating {
-    /// A review cannot authorize more than one signing attempt.
-    enum Failure: Error, Sendable, Equatable {
-        /// This review has already entered signing, including an attempt that later failed.
-        case reviewAlreadyUsed
-    }
-
-    /// A failed delivery or observation with the identifier needed to reconcile its outcome.
-    struct DeliveryFailure: Error, Sendable {
-        /// The locally verified signature and network, even when acknowledgment was lost.
-        let submission: Submission
-        /// The original error, including rate-limit details or cancellation.
-        let cause: any Error
-
-        /// Retains delivery context without asserting whether the transaction reached a validator.
-        /// - Parameters:
-        ///   - submission: The signed transaction's identifier and network.
-        ///   - cause: The unchanged delivery or observation error.
-        init(submission: Submission, cause: any Error) {
-            self.submission = submission
-            self.cause = cause
-        }
-    }
-
     /// The mutually exclusive submission strategy selected in app settings.
     enum Strategy: Sendable, CaseIterable, Equatable {
         /// Submits through all configured ordinary RPCs without a Sender service tip.
@@ -43,7 +20,7 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
         ///   - network: The network used for preparation and confirmation.
         ///   - rpcs: The ordinary RPC candidates used when Sender is disabled.
         /// - Returns: Same-network ordinary RPCs or one Sender client.
-        /// - Throws: ``Submitter/Failure/noProviders`` if the strategy has no route on this network.
+        /// - Throws: ``SubmitterError/noProviders`` if the strategy has no route on this network.
         func clients(for network: Network, from rpcs: [any RPC]) throws -> [any RPC] {
             let candidates: [any RPC] = switch self {
             case .none: rpcs.filter { $0.submissionRequirements == nil }
@@ -51,7 +28,7 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
             case .premium: [Sender(tier: .premium)]
             }
             let clients = candidates.filter { $0.network == network }
-            guard !clients.isEmpty else { throw Submitter.Failure.noProviders }
+            guard !clients.isEmpty else { throw SubmitterError.noProviders }
             return clients
         }
     }
@@ -72,7 +49,7 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
     ///   - rpcs: Ordinary RPC candidates for `.none`, or `nil` to use `rpc` alone.
     ///   - strategy: The submission strategy. The default disables Sender.
     ///   - configuration: Explicit V1 requests, or `nil` for automatic resource estimation.
-    /// - Throws: ``Submitter/Failure/noProviders`` if no selected route serves the read client's network.
+    /// - Throws: ``SubmitterError/noProviders`` if no selected route serves the read client's network.
     init(rpc: any RPC = Solana(), store: any RecoveryStoring, rpcs: [any RPC]? = nil,
          strategy: Strategy = .none, configuration: Configuration? = nil) throws {
         let clients = try strategy.clients(for: rpc.network, from: rpcs ?? [rpc])
@@ -175,16 +152,16 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
         let local = Set(simulation.wallets.map(\.address))
         for (account, signature) in zip(simulation.transaction.accounts, simulation.transaction.signatures)
             where signature.allSatisfy({ $0 == 0 }) {
-            guard local.contains(account.address) else { throw Submitter.Failure.missingSignatures }
+            guard local.contains(account.address) else { throw SubmitterError.missingSignatures }
         }
         let signed = try await signed(simulation)
-        guard let signature = signed.signature else { throw Submitter.Failure.missingSignatures }
+        guard let signature = signed.signature else { throw SubmitterError.missingSignatures }
         let receipt = Submission(signature: signature, network: signed.preparation.network)
         do {
             let submission = try await submitter.submit(signed)
             return try await confirmer.confirm(submission)
         } catch {
-            throw DeliveryFailure(submission: receipt, cause: error)
+            throw DeliveryError(submission: receipt, cause: error)
         }
     }
 
@@ -305,7 +282,7 @@ fileprivate actor Approval {
     /// - Throws: A cancellation error or an already-used review error.
     func consume() throws {
         try Task.checkCancellation()
-        guard !consumed else { throw TransactionCoordinator.Failure.reviewAlreadyUsed }
+        guard !consumed else { throw TransactionCoordinatorError.reviewAlreadyUsed }
         consumed = true
     }
 }

@@ -142,7 +142,7 @@ struct OnboardingCoordinatorTests {
         let accounts = OnboardingAccountStore(recovery: recovery)
         let error = NSError(domain: "private-recovery-marker", code: 1)
         let router = WindowRouter(initialDestination: .onboarding)
-        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: OnboardingWallet(failure: error), recovery: recovery, accounts: accounts, router: router)
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: OnboardingWallet(error: error), recovery: recovery, accounts: accounts, router: router)
         await #expect(throws: OnboardingCoordinatorError.preparationFailed) {
             try await coordinator.importRecovery(Self.phrase, passphrase: "private-passphrase-marker")
         }

@@ -39,14 +39,14 @@ nonisolated struct CatalogTests {
         let first = try await PackService().read(from: fixture.source())
         let old = try await catalog.install(first)
         let second = try await PackService().read(from: fixture.source(id: first.id, name: "Updated"))
-        await #expect(throws: ThemeCatalog.Failure.replacementRequired(old)) { try await catalog.install(second) }
+        await #expect(throws: ThemeCatalogError.replacementRequired(old)) { try await catalog.install(second) }
         #expect(try await catalog.pack(for: old).name == first.name)
         let updated = try await catalog.install(second, replacing: old)
         #expect(updated.id == old.id)
         #expect(updated.revision != old.revision)
         #expect(try await catalog.pack(for: updated).name == "Updated")
-        await #expect(throws: ThemeCatalog.Failure.changed) { try await catalog.install(first, replacing: old) }
-        await #expect(throws: ThemeCatalog.Failure.changed) { try await catalog.remove(old) }
+        await #expect(throws: ThemeCatalogError.changed) { try await catalog.install(first, replacing: old) }
+        await #expect(throws: ThemeCatalogError.changed) { try await catalog.remove(old) }
         #expect(try await catalog.entries() == [updated])
     }
 
@@ -59,8 +59,8 @@ nonisolated struct CatalogTests {
         let bundled = BundledTheme(id: pack.id, name: pack.name, url: source)
         let catalog = try ThemeCatalog(directory: fixture.directory, builtIns: [bundled])
         #expect(try await catalog.entries() == [bundled.entry])
-        await #expect(throws: ThemeCatalog.Failure.builtInTheme) { try await catalog.install(pack) }
-        await #expect(throws: ThemeCatalog.Failure.builtInTheme) { try await catalog.remove(bundled.entry) }
+        await #expect(throws: ThemeCatalogError.builtInTheme) { try await catalog.install(pack) }
+        await #expect(throws: ThemeCatalogError.builtInTheme) { try await catalog.remove(bundled.entry) }
         #expect(try await catalog.pack(for: bundled.entry).id == pack.id)
         #expect(!FileManager.default.fileExists(atPath: fixture.directory.path))
     }
@@ -75,7 +75,7 @@ nonisolated struct CatalogTests {
         try await catalog.remove(a)
         #expect(try await catalog.entries() == [b])
         #expect(!FileManager.default.fileExists(atPath: CatalogFiles.package(for: a, in: fixture.directory).path))
-        await #expect(throws: ThemeCatalog.Failure.changed) { try await catalog.pack(for: a) }
+        await #expect(throws: ThemeCatalogError.changed) { try await catalog.pack(for: a) }
     }
 
     /// Listing remains independent of package reads, even when a stored manifest becomes unreadable.
@@ -112,7 +112,7 @@ nonisolated struct CatalogTests {
             for _ in 0..<8 {
                 group.addTask {
                     do { _ = try await catalog.install(pack); return true }
-                    catch ThemeCatalog.Failure.replacementRequired { return false }
+                    catch ThemeCatalogError.replacementRequired { return false }
                     catch { Issue.record(error); return false }
                 }
             }
@@ -144,7 +144,7 @@ nonisolated struct CatalogTests {
         for await _ in staged.stream {}
         let winner = try await catalog.install(pack, replacing: original)
         release.continuation.finish()
-        let conflict: ThemeCatalog.Failure = replacing ? .changed : .replacementRequired(winner)
+        let conflict: ThemeCatalogError = replacing ? .changed : .replacementRequired(winner)
         await #expect(throws: conflict) { try await pending.value }
         #expect(try await catalog.entries() == [winner])
         #expect(try await catalog.pack(for: winner).id == pack.id)
@@ -152,14 +152,14 @@ nonisolated struct CatalogTests {
 
     /// A failed write never publishes its staged replacement or removes the prior package.
     @Test func `Failed staging preserves installed revision`() async throws {
-        enum Failure: Error { case injected }
+        enum InjectedError: Error { case injected }
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let pack = try await PackService().read(from: fixture.source())
         let catalog = try ThemeCatalog(directory: fixture.directory)
         let entry = try await catalog.install(pack)
-        let failing = try ThemeCatalog(directory: fixture.directory, packages: InterceptedPackages { throw Failure.injected })
-        await #expect(throws: Failure.self) { try await failing.install(pack, replacing: entry) }
+        let failing = try ThemeCatalog(directory: fixture.directory, packages: InterceptedPackages { throw InjectedError.injected })
+        await #expect(throws: InjectedError.self) { try await failing.install(pack, replacing: entry) }
         #expect(try await catalog.entries() == [entry])
         #expect(try await catalog.pack(for: entry).id == pack.id)
     }

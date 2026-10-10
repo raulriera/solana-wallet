@@ -75,7 +75,7 @@ struct SigningTests {
         let store = SigningRecoveryStore(recovery: fixture.recovery)
         let signer = Signer(rpc: http.client, store: store)
 
-        await #expect(throws: PreparationValidator.Failure.messageMismatch) {
+        await #expect(throws: PreparationValidatorError.messageMismatch) {
             try await signer.sign(fixture.preparation, for: fixture.account, reason: "Approve transfer")
         }
 
@@ -91,7 +91,7 @@ struct SigningTests {
     ])
     func `Failed or inconsistent review results cannot unlock recovery`(_ condition: String) async throws {
         var fixture = try SigningFixture()
-        var expected = PreparationValidator.Failure.inconsistentPreparation
+        var expected = PreparationValidatorError.inconsistentPreparation
         var error: TransactionError?
         var simulationFee: UInt64? = 10_000
         var replacement: GetLatestBlockhash.Value?
@@ -134,7 +134,7 @@ struct SigningTests {
         let store = SigningRecoveryStore(recovery: fixture.recovery)
         let signer = Signer(rpc: http.client, store: store)
 
-        await #expect(throws: PreparationValidator.Failure.networkMismatch) {
+        await #expect(throws: PreparationValidatorError.networkMismatch) {
             try await signer.sign(fixture.preparation, for: fixture.account, reason: "Approve transfer")
         }
 
@@ -153,7 +153,7 @@ struct SigningTests {
         let wallet = RecordingWallet()
         let signer = Signer(rpc: http.client, store: store, wallet: wallet)
 
-        await #expect(throws: PreparationValidator.Failure.expired) {
+        await #expect(throws: PreparationValidatorError.expired) {
             try await signer.sign(fixture.preparation, for: fixture.account, reason: "Approve transfer")
         }
 
@@ -172,7 +172,7 @@ struct SigningTests {
         let store = SigningRecoveryStore(recovery: fixture.recovery)
         let signer = Signer(rpc: http.client, store: store)
 
-        await #expect(throws: PreparationValidator.Failure.feeChanged) {
+        await #expect(throws: PreparationValidatorError.feeChanged) {
             try await signer.sign(fixture.preparation, for: fixture.account, reason: "Approve transfer")
         }
 
@@ -184,11 +184,11 @@ struct SigningTests {
     @Test
     func `Denied wallet authentication prevents message signing`() async throws {
         let fixture = try SigningFixture()
-        let store = SigningRecoveryStore(recovery: fixture.recovery, failure: .authenticationFailed)
+        let store = SigningRecoveryStore(recovery: fixture.recovery, error: .authenticationFailed)
         let wallet = RecordingWallet()
         let signer = Signer(rpc: (try HTTPResponses.signing()).client, store: store, wallet: wallet)
 
-        await #expect(throws: KeychainStore.Failure.authenticationFailed) {
+        await #expect(throws: KeychainStoreError.authenticationFailed) {
             try await signer.sign(fixture.preparation, for: fixture.account, reason: "Approve transfer")
         }
 

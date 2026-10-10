@@ -14,15 +14,13 @@ private struct SecurityLifecycle: ViewModifier {
         let attempt = flow.attempt
         content
             .task(id: attempt) { await flow.run(attempt) }
-            .alert(flow.failure.map { String(localized: $0.title) } ?? "", item: $flow.failure) { failure in
-                if failure == .resetIncomplete {
+            .errorAlert($flow.error) { error in
+                if error == .resetIncomplete {
                     Button("Try Again", action: flow.reset)
                     Button("Cancel", role: .cancel) {}
                 } else {
                     Button("OK", role: .cancel) {}
                 }
-            } message: { failure in
-                Text(failure.message)
             }
     }
 }

@@ -23,14 +23,14 @@ struct ProviderSubmissionTests {
         #expect(revision.value == 1)
         #expect(await keys.saved == "fixture-key")
         #expect(!submission.isKeyRejected)
-        #expect(submission.failure == nil)
+        #expect(submission.error == nil)
         #expect(submission.attempt == nil)
     }
 
     /// A rejected key keeps setup open with its inline message, and each further rejection signals again.
     @Test
     func `A rejected key shows the inline message and keeps setup open`() async {
-        let responses = HTTPResponses.keyCheck(failure: .http(statusCode: 401, retryAfter: nil))
+        let responses = HTTPResponses.keyCheck(error: .http(statusCode: 401, retryAfter: nil))
         let submission = ProviderSubmission(connection: responses.connection(keys: SavedKeys()), revision: revision)
 
         submission.submit("rejected-key")
@@ -38,7 +38,7 @@ struct ProviderSubmissionTests {
 
         #expect(submission.isKeyRejected)
         #expect(submission.rejectionCount == 1)
-        #expect(submission.failure == nil)
+        #expect(submission.error == nil)
         #expect(!submission.isSaved)
         #expect(revision.value == 0)
         submission.submit("rejected-key")
@@ -50,19 +50,19 @@ struct ProviderSubmissionTests {
     /// Provider failures other than rejection explain their cause in an alert.
     /// - Parameters:
     ///   - status: The HTTP status Helius returns.
-    ///   - message: The alert's expected explanation.
+    ///   - expected: The error the alert explains.
     @Test(arguments: [
-        (429, "Helius is limiting requests right now. Please try again in a moment."),
-        (500, "Helius couldn't be reached. Check your connection and try again."),
+        (429, ProviderConnectionError.rateLimited),
+        (500, .unavailable),
     ])
-    func `Failures other than rejection explain their cause in an alert`(status: Int, message: String) async {
-        let responses = HTTPResponses.keyCheck(failure: .http(statusCode: status, retryAfter: nil))
+    func `Failures other than rejection explain their cause in an alert`(status: Int, expected: ProviderConnectionError) async {
+        let responses = HTTPResponses.keyCheck(error: .http(statusCode: status, retryAfter: nil))
         let submission = ProviderSubmission(connection: responses.connection(keys: SavedKeys()), revision: revision)
 
         submission.submit("fixture-key")
         await submission.run(submission.attempt)
 
-        #expect(submission.failure.map { String(localized: $0) } == message)
+        #expect(submission.error == expected)
         #expect(!submission.isKeyRejected)
         #expect(!submission.isSaved)
     }
@@ -75,7 +75,7 @@ struct ProviderSubmissionTests {
         submission.submit("fixture-key")
         await submission.run(submission.attempt)
 
-        #expect(submission.failure.map { String(localized: $0) } == "Your API key couldn't be saved. Please try again.")
+        #expect(submission.error == .storageFailed)
         #expect(!submission.isSaved)
     }
 
@@ -83,8 +83,8 @@ struct ProviderSubmissionTests {
     @Test
     func `A rejection changes only when the next result arrives`() async throws {
         let gate = Suspension()
-        let rejecting = HTTPResponses.keyCheck(failure: .http(statusCode: 401, retryAfter: nil))
-        let limiting = HTTPResponses.keyCheck(failure: .http(statusCode: 429, retryAfter: nil), gate: gate)
+        let rejecting = HTTPResponses.keyCheck(error: .http(statusCode: 401, retryAfter: nil))
+        let limiting = HTTPResponses.keyCheck(error: .http(statusCode: 429, retryAfter: nil), gate: gate)
         let connection = HTTPResponses.connection(keys: SavedKeys()) { $0 == "rejected-key" ? rejecting : limiting }
         let submission = ProviderSubmission(connection: connection, revision: revision)
         submission.submit("rejected-key")
@@ -101,7 +101,7 @@ struct ProviderSubmissionTests {
         await operation.value
 
         #expect(!submission.isKeyRejected)
-        #expect(submission.failure.map { String(localized: $0) } == "Helius is limiting requests right now. Please try again in a moment.")
+        #expect(submission.error == .rateLimited)
     }
 
     /// Taps and task reruns during a check can't replace the key being checked.
@@ -145,7 +145,7 @@ struct ProviderSubmissionTests {
 
         #expect(await responses.wasCancelled)
         #expect(await keys.saved == nil)
-        #expect(submission.failure == nil)
+        #expect(submission.error == nil)
         #expect(!submission.isKeyRejected)
         #expect(submission.attempt == nil)
         #expect(!submission.isSaved)
@@ -169,6 +169,6 @@ struct ProviderSubmissionTests {
         #expect(await keys.saved == "fixture-key")
         #expect(submission.isSaved)
         #expect(revision.value == 1)
-        #expect(submission.failure == nil)
+        #expect(submission.error == nil)
     }
 }

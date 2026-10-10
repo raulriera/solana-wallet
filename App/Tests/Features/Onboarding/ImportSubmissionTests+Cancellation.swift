@@ -56,7 +56,7 @@ extension ImportSubmissionTests {
         await operation.value
 
         #expect(coordinator.recovery == nil)
-        #expect(submission.failure == nil)
+        #expect(submission.error == nil)
         #expect(!submission.isPending)
         #expect(await recovery.saves.isEmpty)
         #expect(await http.requests.count == 1)
@@ -89,14 +89,14 @@ extension ImportSubmissionTests {
         #expect(await recovery.contains(retainedID))
         #expect(await accounts.additions.isEmpty)
         #expect(coordinator.recovery == nil)
-        #expect(submission.failure == nil)
+        #expect(submission.error == nil)
         #expect(router.destination == .onboarding)
     }
 
     /// A dependency cancellation while the screen remains open permits retry of the prepared draft.
     @Test
     func `Cancelled authentication retains the prepared import for an explicit retry`() async throws {
-        let recovery = OnboardingRecoveryStore(firstFailure: CancellationError(), commitBeforeFailure: true)
+        let recovery = OnboardingRecoveryStore(firstError: CancellationError(), commitBeforeError: true)
         let accounts = OnboardingAccountStore(recovery: recovery)
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
@@ -105,7 +105,7 @@ extension ImportSubmissionTests {
         submission.submit(OnboardingCoordinatorTests.phrase, passphrase: "TREZOR")
         await submission.run(submission.attempt)
         let retainedID = try #require(await recovery.saves.first)
-        #expect(submission.failure == nil)
+        #expect(submission.error == nil)
         #expect(coordinator.recovery != nil)
 
         submission.submit(OnboardingCoordinatorTests.phrase, passphrase: "TREZOR")
@@ -142,7 +142,7 @@ extension ImportSubmissionTests {
         let account = try #require(await accounts.records.first)
         #expect(coordinator.account?.id == account.id)
         #expect(await recovery.contains(account.recoveryID))
-        #expect(submission.failure == nil)
+        #expect(submission.error == nil)
         #expect(other.recovery?.passphrase == "other-window")
         #expect(otherRouter.destination == .onboarding)
     }

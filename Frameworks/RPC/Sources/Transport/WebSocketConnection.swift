@@ -36,7 +36,7 @@ final class URLSessionSocket: WebSocketConnection {
     /// - Throws: A transport or HTTP upgrade error.
     func send(_ data: Data) async throws {
         do { try await task.send(.string(String(decoding: data, as: UTF8.self))) }
-        catch { throw failure(error) }
+        catch { throw upgradeError(error) }
     }
 
     /// Receives a message without exposing provider response bodies in errors.
@@ -49,7 +49,7 @@ final class URLSessionSocket: WebSocketConnection {
             case .string(let string): return Data(string.utf8)
             @unknown default: throw RPCError.decoding
             }
-        } catch { throw failure(error) }
+        } catch { throw upgradeError(error) }
     }
 
     /// Sends a WebSocket ping and awaits its pong.
@@ -57,7 +57,7 @@ final class URLSessionSocket: WebSocketConnection {
     func ping() async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
             task.sendPing { error in
-                if let error { continuation.resume(throwing: self.failure(error)) }
+                if let error { continuation.resume(throwing: self.upgradeError(error)) }
                 else { continuation.resume() }
             }
         }
@@ -72,7 +72,7 @@ final class URLSessionSocket: WebSocketConnection {
     /// Preserves HTTP upgrade failures for sanitization by the subscription client.
     /// - Parameter error: The URLSession error.
     /// - Returns: An HTTP status error when available, otherwise the original transport error.
-    private func failure(_ error: any Error) -> any Error {
+    private func upgradeError(_ error: any Error) -> any Error {
         if let response = task.response as? HTTPURLResponse, response.statusCode != 101,
            !(200..<300).contains(response.statusCode) {
             return RPCError.http(statusCode: response.statusCode,

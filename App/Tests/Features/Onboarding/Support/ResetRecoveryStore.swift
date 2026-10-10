@@ -21,7 +21,7 @@ actor ResetRecoveryStore: RecoveryStoring {
     /// - Returns: The retained public fixture.
     /// - Throws: A missing-recovery error when the isolated store has no matching record.
     func recovery(for walletID: UUID, reason: String) async throws -> Recovery {
-        guard let recovery = records[walletID] else { throw KeychainStore.Failure.recoveryUnavailable }
+        guard let recovery = records[walletID] else { throw KeychainStoreError.recoveryUnavailable }
         return recovery
     }
 

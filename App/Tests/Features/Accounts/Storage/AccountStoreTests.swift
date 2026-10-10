@@ -71,7 +71,7 @@ struct AccountStoreTests {
         let duplicate = Account(id: field == "id" ? first.id : other.id, recoveryID: first.recoveryID,
             address: field == "address" ? first.address : other.address,
             path: field == "path" ? first.path : other.path)
-        await #expect(throws: AccountStore.Failure.duplicateAccount) { try await store.add(duplicate) }
+        await #expect(throws: AccountStoreError.duplicateAccount) { try await store.add(duplicate) }
         #expect(try Data(contentsOf: file) == original)
     }
 
@@ -103,7 +103,7 @@ struct AccountStoreTests {
                 return false
             case "address": return error as? Transactions.ValidationError == .invalidAddress
             case "path": return error as? DerivationPath.ValidationError == .invalidPath
-            case "duplicate": return error as? AccountStore.Failure == .duplicateAccount
+            case "duplicate": return error as? AccountStoreError == .duplicateAccount
             case "missing field":
                 guard case let DecodingError.keyNotFound(key, _) = error else { return false }
                 return key.stringValue == "recoveryID"
@@ -131,8 +131,8 @@ struct AccountStoreTests {
             try FileManager.default.createDirectory(at: file, withIntermediateDirectories: false)
         }
         let store = try AccountStore(directory: directory)
-        await #expect(throws: AccountStore.Failure.invalidStorage) { try await store.load() }
-        await #expect(throws: AccountStore.Failure.invalidStorage) { try await store.add(account(index: 0)) }
+        await #expect(throws: AccountStoreError.invalidStorage) { try await store.load() }
+        await #expect(throws: AccountStoreError.invalidStorage) { try await store.add(account(index: 0)) }
         #expect(try Data(contentsOf: target) == bytes)
         let values = try file.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
         #expect(symbolicLink ? values.isSymbolicLink == true : values.isDirectory == true)

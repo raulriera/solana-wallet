@@ -48,7 +48,7 @@ struct ApprovalTests {
         let coordinator = try TransactionCoordinator(rpc: http.client, store: store)
         let review = try await coordinator.simulate(fixture.transaction, using: SigningFixture().account)
 
-        await #expect(throws: Submitter.Failure.missingSignatures) { try await coordinator.confirm(review) }
+        await #expect(throws: SubmitterError.missingSignatures) { try await coordinator.confirm(review) }
         #expect(await store.reads.isEmpty)
     }
 
@@ -71,7 +71,7 @@ struct ApprovalTests {
                     do {
                         _ = try await coordinator.sign(review)
                         return true
-                    } catch TransactionCoordinator.Failure.reviewAlreadyUsed {
+                    } catch TransactionCoordinatorError.reviewAlreadyUsed {
                         return false
                     }
                 }
@@ -102,9 +102,9 @@ struct ApprovalTests {
         await #expect {
             try await coordinator.confirm(review)
         } throws: { error in
-            guard let failure = error as? TransactionCoordinator.DeliveryFailure else { return false }
-            return failure.submission.network == .devnet && !failure.submission.signature.isEmpty
-                && (failure.cause as? Submitter.Failure) == .noProviders
+            guard let delivery = error as? DeliveryError else { return false }
+            return delivery.submission.network == .devnet && !delivery.submission.signature.isEmpty
+                && (delivery.cause as? SubmitterError) == .noProviders
         }
         #expect(await store.reads.count == 1)
     }

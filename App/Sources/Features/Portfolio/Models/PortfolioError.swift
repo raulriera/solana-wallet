@@ -1,8 +1,9 @@
 import Foundation
+import Portfolio
 import RPC
 
 /// Why the portfolio couldn't load or refresh, classified by what the person can do about it.
-nonisolated enum PortfolioFailure: Error, Equatable {
+nonisolated enum PortfolioError: Error, Equatable {
     /// No Helius API key is saved on this device.
     case missingKey
     /// Helius rejected the saved key.
@@ -11,14 +12,17 @@ nonisolated enum PortfolioFailure: Error, Equatable {
     case rateLimited
     /// The portfolio couldn't load or refresh for another reason, such as a lost connection.
     case unavailable
+    /// The saved token list can't be read, so trying again can't load the balances.
+    case listUnreadable
 
     /// Classifies an error reported by a portfolio update.
     /// - Parameter error: The failed update's error, which isn't retained.
     init(_ error: any Error) {
         switch error {
-        case HeliusClient.Failure.missingKey: self = .missingKey
-        case HeliusClient.Failure.invalidKey: self = .invalidKey
+        case HeliusClientError.missingKey: self = .missingKey
+        case HeliusClientError.invalidKey: self = .invalidKey
         case RPCError.http(statusCode: 429, retryAfter: _): self = .rateLimited
+        case TokenListError.unreadable: self = .listUnreadable
         default: self = .unavailable
         }
     }
@@ -30,7 +34,7 @@ nonisolated enum PortfolioFailure: Error, Equatable {
     var staleStatus: LocalizedStringResource? {
         switch self {
         case .rateLimited: "Too many requests"
-        case .unavailable: "Couldn't update balances"
+        case .unavailable, .listUnreadable: "Couldn't update balances"
         case .missingKey, .invalidKey: nil
         }
     }

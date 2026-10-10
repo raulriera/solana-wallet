@@ -4,20 +4,20 @@ import Vault
 
 /// Counts namespace deletions while rejecting any other recovery access during startup.
 actor StartupRecoveryStore: RecoveryStoring {
-    private let failure: (any Error)?
+    private let error: (any Error)?
     private(set) var deletions = 0
 
     /// Configures whether namespace deletion succeeds.
-    /// - Parameter failure: The error thrown by every deletion, if any.
-    init(failure: (any Error)? = nil) {
-        self.failure = failure
+    /// - Parameter error: The error thrown by every deletion, if any.
+    init(error: (any Error)? = nil) {
+        self.error = error
     }
 
     /// Records one deletion of every recovery item.
     /// - Throws: The scripted failure.
     func deleteAllRecovery() async throws {
         deletions += 1
-        if let failure { throw failure }
+        if let error { throw error }
     }
 
     /// Reports an unexpected write during startup.
@@ -35,7 +35,7 @@ actor StartupRecoveryStore: RecoveryStoring {
     /// - Returns: Never; the test fails first.
     func recovery(for walletID: UUID, reason: String) async throws -> Recovery {
         Issue.record("Startup must not read recovery material")
-        throw KeychainStore.Failure.recoveryUnavailable
+        throw KeychainStoreError.recoveryUnavailable
     }
 
     /// Reports an unexpected single deletion during startup.

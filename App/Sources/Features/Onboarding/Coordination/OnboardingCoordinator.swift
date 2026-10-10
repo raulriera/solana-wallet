@@ -157,7 +157,7 @@ final class OnboardingCoordinator: OnboardingCoordinating {
         do {
             do {
                 try await recoveryStore.save(recovery, for: id)
-            } catch KeychainStore.Failure.duplicateWallet {
+            } catch KeychainStoreError.duplicateWallet {
                 let stored = try await recoveryStore.recovery(for: id,
                     reason: String(localized: "Verify recovery before completing wallet setup"))
                 guard stored.phrase.words == recovery.phrase.words, stored.passphrase == recovery.passphrase else {
@@ -168,7 +168,7 @@ final class OnboardingCoordinator: OnboardingCoordinating {
             throw error
         } catch OnboardingCoordinatorError.recoveryMismatch {
             throw OnboardingCoordinatorError.recoveryMismatch
-        } catch let error as KeychainStore.Failure {
+        } catch let error as KeychainStoreError {
             // Vault's typed failures retain useful context without recovery or underlying error text.
             throw error
         } catch {
@@ -184,7 +184,7 @@ final class OnboardingCoordinator: OnboardingCoordinating {
         do {
             do {
                 _ = try await accountStore.add(account)
-            } catch AccountStore.Failure.duplicateAccount {
+            } catch AccountStoreError.duplicateAccount {
                 let stored = try await accountStore.load()
                 guard stored.contains(where: {
                     $0.id == account.id && $0.recoveryID == account.recoveryID
@@ -193,7 +193,7 @@ final class OnboardingCoordinator: OnboardingCoordinating {
             }
         } catch let error as CancellationError {
             throw error
-        } catch let error as AccountStore.Failure {
+        } catch let error as AccountStoreError {
             // These closed, payload-free cases are safe to preserve for the caller.
             throw error
         } catch {

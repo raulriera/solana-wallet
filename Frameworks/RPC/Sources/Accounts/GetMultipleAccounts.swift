@@ -3,12 +3,6 @@ public struct GetMultipleAccounts: RPCRequest {
     /// The provider-neutral JSON-RPC method name.
     public static let method = "getMultipleAccounts"
 
-    /// A local request error detected before networking.
-    public enum Failure: Error, Sendable, Equatable {
-        /// A request must contain between one and 100 addresses.
-        case invalidAddressCount
-    }
-
     /// Ordered account observations, retaining missing accounts as `nil`.
     public struct Response: Decodable, Sendable {
         /// The shared slot at which the accounts were evaluated.
@@ -38,9 +32,9 @@ public struct GetMultipleAccounts: RPCRequest {
     ///   - addresses: One through 100 account addresses.
     ///   - commitment: The confirmation level, defaulting to `confirmed`.
     ///   - minContextSlot: The earliest acceptable observation slot, or `nil`.
-    /// - Throws: ``Failure/invalidAddressCount`` for an empty or oversized request.
+    /// - Throws: ``GetMultipleAccountsError/invalidAddressCount`` for an empty or oversized request.
     public init(addresses: [String], commitment: Commitment = .confirmed, minContextSlot: UInt64? = nil) throws {
-        guard (1...100).contains(addresses.count) else { throw Failure.invalidAddressCount }
+        guard (1...100).contains(addresses.count) else { throw GetMultipleAccountsError.invalidAddressCount }
         self.addresses = addresses
         self.commitment = commitment
         self.minContextSlot = minContextSlot

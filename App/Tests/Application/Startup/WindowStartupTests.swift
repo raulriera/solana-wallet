@@ -72,7 +72,7 @@ struct WindowStartupTests {
             Issue.record("Wallets must not be read before the launch cleanup completes")
             return []
         }
-        let cleanup = StartupRecoveryCleanup(failure: CocoaError(.fileReadNoPermission))
+        let cleanup = StartupRecoveryCleanup(error: CocoaError(.fileReadNoPermission))
 
         await WindowStartup(accounts: store, cleanup: cleanup, router: router).restore(preferring: nil)
 

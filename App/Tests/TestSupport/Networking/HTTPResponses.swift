@@ -6,7 +6,7 @@ import Testing
 /// HTTP fixtures exercised through the real client's encoding, validation, and decoding.
 actor HTTPResponses: HTTPTransport {
     private var responses: [String: [String]]
-    private let failure: RPCError?
+    private let error: RPCError?
     private let gate: Suspension?
     private let heldMethod: String?
     private(set) var requests: [URLRequest] = []
@@ -20,13 +20,13 @@ actor HTTPResponses: HTTPTransport {
     /// Creates independent HTTP responses for one test.
     /// - Parameters:
     ///   - responses: JSON result values keyed by RPC method; the last value repeats.
-    ///   - failure: An optional transport or HTTP failure.
+    ///   - error: An optional transport or HTTP failure.
     ///   - gate: An optional suspension for cancellation checks.
     ///   - heldMethod: The method to suspend, or `nil` to suspend every request.
-    init(_ responses: [String: [String]], failure: RPCError? = nil,
+    init(_ responses: [String: [String]], error: RPCError? = nil,
          gate: Suspension? = nil, heldMethod: String? = nil) {
         self.responses = responses
-        self.failure = failure
+        self.error = error
         self.gate = gate
         self.heldMethod = heldMethod
     }
@@ -42,10 +42,10 @@ actor HTTPResponses: HTTPTransport {
         if let gate, heldMethod == nil || heldMethod == method { await gate.suspend() }
         wasCancelled = Task.isCancelled
         try Task.checkCancellation()
-        if case .transport(let code) = failure { throw URLError(code) }
+        if case .transport(let code) = error { throw URLError(code) }
         let status: Int
         let headers: [String: String]
-        if case .http(let code, let retryAfter) = failure {
+        if case .http(let code, let retryAfter) = error {
             status = code
             headers = retryAfter.map { ["Retry-After": $0] } ?? [:]
         } else { status = 200; headers = [:] }
@@ -62,12 +62,12 @@ actor HTTPResponses: HTTPTransport {
     /// Creates fee, lifetime, and simulation responses from a public transaction fixture.
     /// - Parameters:
     ///   - fixture: The observations to encode as JSON.
-    ///   - blockhashFailure: An optional HTTP failure.
+    ///   - blockhashError: An optional HTTP failure.
     ///   - blockhashValid: Whether an imported blockhash remains valid.
     ///   - simulationGate: An optional simulation suspension.
     /// - Returns: HTTP responses for the preparation workflow.
     /// - Throws: A JSON encoding or fixture error.
-    static func preparation(fixture: Preparation, blockhashFailure: RPCError? = nil,
+    static func preparation(fixture: Preparation, blockhashError: RPCError? = nil,
                             blockhashValid: Bool = true, simulationGate: Suspension? = nil) throws -> HTTPResponses {
         var responses = [
             "isBlockhashValid": [try json(["context": ["slot": fixture.source.context.slot], "value": blockhashValid])],
@@ -78,7 +78,7 @@ actor HTTPResponses: HTTPTransport {
             responses["getLatestBlockhash"] = [try json(["context": ["slot": blockhash.context.slot],
                 "value": ["blockhash": blockhash.value.blockhash, "lastValidBlockHeight": blockhash.value.lastValidBlockHeight]])]
         }
-        return HTTPResponses(responses, failure: blockhashFailure, gate: simulationGate, heldMethod: "simulateTransaction")
+        return HTTPResponses(responses, error: blockhashError, gate: simulationGate, heldMethod: "simulateTransaction")
     }
 
     /// Creates the ledger observations used before and after authentication.
@@ -101,11 +101,11 @@ actor HTTPResponses: HTTPTransport {
     /// Creates positional signature-status responses through real JSON decoding.
     /// - Parameters:
     ///   - responses: The status observations in arrival order.
-    ///   - failure: An optional transport or HTTP failure.
+    ///   - error: An optional transport or HTTP failure.
     ///   - gate: An optional in-flight suspension.
     /// - Returns: HTTP responses for confirmation.
     /// - Throws: A JSON encoding error.
-    static func confirmation(responses: [GetSignatureStatuses.Response], failure: RPCError? = nil,
+    static func confirmation(responses: [GetSignatureStatuses.Response], error: RPCError? = nil,
                              gate: Suspension? = nil) throws -> HTTPResponses {
         let values = try responses.map { response in
             try json(["context": ["slot": response.context.slot], "value": response.value.map { status -> Any in
@@ -114,7 +114,7 @@ actor HTTPResponses: HTTPTransport {
                         "err": errorValue(status.error), "confirmationStatus": status.confirmationStatus?.rawValue as Any? ?? NSNull()]
             }])
         }
-        return HTTPResponses(["getSignatureStatuses": values], failure: failure, gate: gate)
+        return HTTPResponses(["getSignatureStatuses": values], error: error, gate: gate)
     }
 
     /// Encodes a simulation fixture without adding encoding requirements to production types.

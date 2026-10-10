@@ -7,12 +7,12 @@ extension HTTPResponses {
 
     /// Answers the provider's key check with a minimal DAS asset accepted by the real response decoder.
     /// - Parameters:
-    ///   - failure: An optional HTTP or transport failure.
+    ///   - error: An optional HTTP or transport failure.
     ///   - gate: An optional suspension before returning the HTTP response.
     /// - Returns: A request-recording transport for provider key checks.
-    static func keyCheck(failure: RPCError? = nil, gate: Suspension? = nil) -> HTTPResponses {
+    static func keyCheck(error: RPCError? = nil, gate: Suspension? = nil) -> HTTPResponses {
         let asset = #"{"id":"\#(keyCheckAsset)","interface":"FungibleToken","mutable":false}"#
-        return HTTPResponses(["getAsset": [asset]], failure: failure, gate: gate)
+        return HTTPResponses(["getAsset": [asset]], error: error, gate: gate)
     }
 
     /// Creates the production connection, answering each checked key with its own fixtures.

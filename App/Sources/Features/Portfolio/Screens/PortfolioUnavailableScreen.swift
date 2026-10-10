@@ -1,10 +1,10 @@
 import SwiftUI
 
-/// Explains why the portfolio can't show balances and offers the one action that can fix it.
+/// Explains why the portfolio can't show balances and offers the one action that can fix it, if any.
 struct PortfolioUnavailableScreen: View {
     @Environment(\.palette) private var palette
     @State private var contentInset = LayoutMetrics.contentMargin
-    let failure: PortfolioFailure
+    let error: PortfolioError
     let action: () -> Void
 
     var body: some View {
@@ -16,53 +16,66 @@ struct PortfolioUnavailableScreen: View {
         .scrollEdgeEffectStyle(.soft, for: .bottom)
         .readableContentMargins(inset: $contentInset, addsSafeArea: false)
         .safeAreaBar(edge: .bottom) {
-            Button(actionTitle, action: action)
-                .buttonStyle(.primary)
-                .padding(.horizontal, contentInset)
-                .padding(.vertical, LayoutMetrics.actionBarVerticalPadding)
+            if let actionTitle {
+                Button(actionTitle, action: action)
+                    .buttonStyle(.primary)
+                    .padding(.horizontal, contentInset)
+                    .padding(.vertical, LayoutMetrics.actionBarVerticalPadding)
+            }
         }
         .background(palette.background)
     }
 
     /// Names what went wrong.
     private var title: LocalizedStringResource {
-        switch failure {
+        switch error {
         case .missingKey: "API Key Required"
         case .invalidKey: "API Key Not Accepted"
         case .rateLimited: "Too Many Requests"
         case .unavailable: "Balances Unavailable"
+        case .listUnreadable: "Token List Unavailable"
         }
     }
 
     /// Explains why balances aren't shown and what the action does.
     private var message: LocalizedStringResource {
-        switch failure {
+        switch error {
         case .missingKey: "This wallet needs your Helius API key to load your balances."
         case .invalidKey: "Helius didn't accept your saved API key. Enter a new key to load your balances."
         case .rateLimited: "Your provider is limiting requests. Wait a moment, then try again."
         case .unavailable: "Your balances couldn't be loaded. Check your connection, then try again."
+        case .listUnreadable: "Your token list can't be read, so your balances can't load."
         }
     }
 
-    /// Pictures the cause: the key, the provider's limit, or the connection.
+    /// Pictures the cause: the key, the provider's limit, the connection, or the saved list.
     private var systemImage: String {
-        switch failure {
+        switch error {
         case .missingKey, .invalidKey: "key.slash"
         case .rateLimited: "hourglass"
         case .unavailable: "wifi.exclamationmark"
+        case .listUnreadable: "exclamationmark.triangle.text.page"
         }
     }
 
-    /// A new key fixes key failures; other failures need another try.
-    private var actionTitle: LocalizedStringResource {
-        failure.requiresProviderSetup ? "Enter API Key" : "Try Again"
+    /// A new key fixes key failures and another try fixes passing ones; nothing in the app fixes an unreadable list.
+    private var actionTitle: LocalizedStringResource? {
+        switch error {
+        case .missingKey, .invalidKey: "Enter API Key"
+        case .rateLimited, .unavailable: "Try Again"
+        case .listUnreadable: nil
+        }
     }
 }
 
 #Preview("Missing key") {
-    PortfolioUnavailableScreen(failure: .missingKey, action: {})
+    PortfolioUnavailableScreen(error: .missingKey, action: {})
 }
 
 #Preview("Rate limited") {
-    PortfolioUnavailableScreen(failure: .rateLimited, action: {})
+    PortfolioUnavailableScreen(error: .rateLimited, action: {})
+}
+
+#Preview("Unreadable list") {
+    PortfolioUnavailableScreen(error: .listUnreadable, action: {})
 }

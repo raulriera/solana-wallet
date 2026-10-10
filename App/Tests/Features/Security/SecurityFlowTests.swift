@@ -88,7 +88,7 @@ struct SecurityFlowTests {
         #expect(flow.path == [.resetConfirmation])
         #expect(await storage.deletions == [.recovery, .wallets, .key])
         #expect(revision.value == 1)
-        #expect(flow.failure == nil)
+        #expect(flow.error == nil)
     }
 
     /// A failed step explains itself and stays on the current screen.
@@ -96,9 +96,9 @@ struct SecurityFlowTests {
     @Test(arguments: Step.allCases)
     func `A failed step explains itself without moving on`(_ step: Step) async throws {
         let account = try Account.fixture(index: 0)
-        let failure = KeychainStore.Failure.authenticationFailed
-        let flow = makeFlow(recovery: SecurityRecoveryStore(readFailure: step == .recovery ? failure : nil),
-                            owner: TestOwner(failure: step == .owner ? failure : nil),
+        let error = KeychainStoreError.authenticationFailed
+        let flow = makeFlow(recovery: SecurityRecoveryStore(readError: step == .recovery ? error : nil),
+                            owner: TestOwner(error: step == .owner ? error : nil),
                             storage: ResetStorage(failingOnce: step == .reset ? .recovery : nil))
 
         switch step {
@@ -109,7 +109,7 @@ struct SecurityFlowTests {
         await flow.run(flow.attempt)
 
         #expect(flow.path.isEmpty)
-        #expect(flow.failure == [.recovery: .recoveryUnreadable, .owner: .ownerNotConfirmed, .reset: .resetIncomplete][step])
+        #expect(flow.error == [.recovery: .recoveryUnreadable, .owner: .ownerNotConfirmed, .reset: .resetIncomplete][step])
     }
 
     /// Dismissing the system prompt changes nothing.
@@ -117,14 +117,14 @@ struct SecurityFlowTests {
     @Test(arguments: [Step.recovery, .owner])
     func `A dismissed prompt changes nothing`(_ step: Step) async throws {
         let account = try Account.fixture(index: 0)
-        let flow = makeFlow(recovery: SecurityRecoveryStore(readFailure: step == .recovery ? CancellationError() : nil),
-                            owner: TestOwner(failure: step == .owner ? CancellationError() : nil))
+        let flow = makeFlow(recovery: SecurityRecoveryStore(readError: step == .recovery ? CancellationError() : nil),
+                            owner: TestOwner(error: step == .owner ? CancellationError() : nil))
 
         if step == .recovery { flow.showRecovery(for: account) } else { flow.startReset(.standard) }
         await flow.run(flow.attempt)
 
         #expect(flow.path.isEmpty)
-        #expect(flow.failure == nil)
+        #expect(flow.error == nil)
         #expect(flow.attempt == nil)
     }
 

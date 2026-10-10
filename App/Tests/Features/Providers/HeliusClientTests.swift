@@ -13,9 +13,9 @@ struct HeliusClientTests {
         let responses = HTTPResponses.keyCheck()
         let client = responses.heliusClient(keys: SavedKeys())
 
-        await #expect(throws: HeliusClient.Failure.missingKey) { _ = try await client.send(GetAsset(id: HTTPResponses.keyCheckAsset)) }
-        await #expect(throws: HeliusClient.Failure.missingKey) { _ = try await client.changedSlots(for: [PublicWallet.address]) }
-        await #expect(throws: HeliusClient.Failure.missingKey) { _ = try await client.logos(for: [HTTPResponses.keyCheckAsset]) }
+        await #expect(throws: HeliusClientError.missingKey) { _ = try await client.send(GetAsset(id: HTTPResponses.keyCheckAsset)) }
+        await #expect(throws: HeliusClientError.missingKey) { _ = try await client.changedSlots(for: [PublicWallet.address]) }
+        await #expect(throws: HeliusClientError.missingKey) { _ = try await client.logos(for: [HTTPResponses.keyCheckAsset]) }
         #expect(await responses.requests.isEmpty)
     }
 
@@ -23,11 +23,11 @@ struct HeliusClientTests {
     /// - Parameter status: The HTTP status Helius returns.
     @Test(arguments: [401, 403])
     func `A rejected key is reported as a key failure`(status: Int) async throws {
-        let responses = HTTPResponses.keyCheck(failure: .http(statusCode: status, retryAfter: nil))
+        let responses = HTTPResponses.keyCheck(error: .http(statusCode: status, retryAfter: nil))
         let keys = SavedKeys()
         try await keys.save("rejected-key")
 
-        await #expect(throws: HeliusClient.Failure.invalidKey) {
+        await #expect(throws: HeliusClientError.invalidKey) {
             _ = try await responses.heliusClient(keys: keys).send(GetAsset(id: HTTPResponses.keyCheckAsset))
         }
     }
@@ -35,7 +35,7 @@ struct HeliusClientTests {
     /// Other failures reach the caller unchanged, so they're never mistaken for a key problem.
     @Test
     func `Other request failures pass through unchanged`() async throws {
-        let responses = HTTPResponses.keyCheck(failure: .http(statusCode: 429, retryAfter: nil))
+        let responses = HTTPResponses.keyCheck(error: .http(statusCode: 429, retryAfter: nil))
         let keys = SavedKeys()
         try await keys.save("fixture-key")
 
