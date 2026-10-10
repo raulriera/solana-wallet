@@ -12,14 +12,16 @@ nonisolated struct TokenTransfers {
     /// Reads consistent token account state for composable transfer instructions.
     ///
     /// Mint discovery determines associated addresses. A subsequent batch rereads
-    /// the mint with both accounts at one confirmed slot. Epoch reads
-    /// cannot precede that snapshot. No request is retried automatically.
+    /// the mint with the source, destination, and recipient accounts at one confirmed slot.
+    /// A recipient owned by a token program must be a token account for the mint, which
+    /// receives the tokens directly; any other nonexecutable recipient is a wallet that receives
+    /// at its associated account. Epoch reads cannot precede that snapshot. No request is retried automatically.
     ///
     /// - Parameters:
     ///   - mint: The on-chain mint address.
     ///   - amount: The requested positive debit in raw token units.
     ///   - sender: The token owner authorizing the transfer.
-    ///   - recipient: The wallet receiving tokens at its associated token account.
+    ///   - recipient: The receiving wallet, or a token account for the mint.
     ///   - source: A specific source account, or `nil` for the sender's associated account.
     ///   - memo: An optional memo placed immediately before the token transfer.
     /// - Returns: The validated instruction source, its minimum context, and estimated account deposit.
@@ -34,15 +36,28 @@ nonisolated struct TokenTransfers {
         let discoveredMint = try TokenMint(address: mint, owner: Address(discoveredAccount.owner), data: discoveredAccount.data)
         let sourceAddress = try source ?? discoveredMint.associatedAccount(for: sender)
         let destinationAddress = try discoveredMint.associatedAccount(for: recipient)
-        let snapshot = try await accounts(at: [mint, sourceAddress, destinationAddress], minimumSlot: discovery.context.slot)
+        // The executable check also rejects a program as the recipient; tokens sent to its associated account are lost.
+        let snapshot = try await accounts(at: [mint, sourceAddress, destinationAddress, recipient],
+                                          minimumSlot: discovery.context.slot)
         guard let mintAccount = snapshot.value[0] else { throw TokenTransfersError.missingAccount(mint) }
         guard let sourceAccount = snapshot.value[1] else { throw TokenTransfersError.missingAccount(sourceAddress) }
         let currentMint = try TokenMint(address: mint, owner: Address(mintAccount.owner), data: mintAccount.data)
         guard currentMint.program == discoveredMint.program else { throw TokenError.accountMismatch }
         let tokenSource = try TokenAccount(address: sourceAddress, programOwner: Address(sourceAccount.owner), data: sourceAccount.data)
         let destinationAccount = snapshot.value[2]
-        let destination = try destinationAccount.flatMap {
-            try TokenAccount(associatedAt: destinationAddress, programOwner: Address($0.owner), data: $0.data)
+        let owner: Address
+        let destination: TokenAccount?
+        if let recipientAccount = snapshot.value[3], TokenProgram(rawValue: recipientAccount.owner) != nil {
+            // Decoding rejects mints and other token-program accounts; the transfer rejects other mints.
+            let tokenAccount = try TokenAccount(address: recipient, programOwner: Address(recipientAccount.owner),
+                                                data: recipientAccount.data)
+            owner = tokenAccount.owner
+            destination = tokenAccount
+        } else {
+            owner = recipient
+            destination = try destinationAccount.flatMap {
+                try TokenAccount(associatedAt: destinationAddress, programOwner: Address($0.owner), data: $0.data)
+            }
         }
         var minimumSlot = snapshot.context.slot
         var epoch: UInt64?
@@ -53,7 +68,7 @@ nonisolated struct TokenTransfers {
             minimumSlot = observation.absoluteSlot
             epoch = observation.epoch
         }
-        let transfer = try TokenTransfer(sender: sender, recipient: recipient, mint: currentMint, source: tokenSource,
+        let transfer = try TokenTransfer(sender: sender, recipient: owner, mint: currentMint, source: tokenSource,
                                          destination: destination, amount: amount, epoch: epoch, memo: memo)
         let rent: UInt64
         if let size = transfer.destinationAccountSize {

@@ -109,7 +109,7 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
     ///   - amount: The positive amount in lamports or raw token units.
     ///   - token: The token mint, or `nil` for native SOL.
     ///   - wallet: The selected token authority and fee payer.
-    ///   - recipient: The receiving wallet address.
+    ///   - recipient: The receiving wallet, or a token account for `token`.
     ///   - source: An optional non-associated source token account.
     ///   - memo: An optional memo immediately before the payment instruction.
     /// - Returns: The exact simulated transaction with applicable token and rent observations.

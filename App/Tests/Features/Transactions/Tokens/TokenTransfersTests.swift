@@ -76,6 +76,62 @@ struct TokenTransfersTests {
         #expect(try await http.requests.allSatisfy { try $0.rpcMethod != "getMinimumBalanceForRentExemption" })
     }
 
+    /// A token account for the mint, such as one copied from an explorer, receives the tokens with no new account.
+    /// - Parameter program: The mint's token program.
+    @Test(arguments: TokenProgram.allCases)
+    func `Token account recipients receive directly with no creation or rent`(program: TokenProgram) async throws {
+        let fixture = try TokenTransferResponses(program: program)
+        let http = try fixture.http(destination: .absent, recipient: .tokenAccount)
+
+        let result = try await TokenTransfers(rpc: http.client).transfer(
+            mint: fixture.mint, amount: 1, from: fixture.sender, to: fixture.tokenAccount, source: fixture.source)
+
+        #expect(result.transfer.destination == fixture.tokenAccount)
+        #expect(result.transfer.recipient == fixture.recipient)
+        #expect(!result.transfer.createsDestination)
+        #expect(result.rent == 0)
+        #expect(try result.transfer.instructions().count == 1)
+        let methods = try await http.requests.map { try $0.rpcMethod }
+        #expect(methods.filter { $0 == "getMultipleAccounts" }.count == 2)
+        #expect(!methods.contains("getMinimumBalanceForRentExemption"))
+    }
+
+    /// Tokens sent to the mint, another mint's token account, or a program would be lost or stranded.
+    /// - Parameters:
+    ///   - program: The mint's token program.
+    ///   - recipient: The account at the address entered as the recipient.
+    @Test(arguments: TokenProgram.allCases, [
+        TokenTransferResponses.Recipient.mint, .otherMintTokenAccount, .program,
+    ])
+    func `Mint, other-mint token account, and program recipients are rejected`(
+        program: TokenProgram, recipient: TokenTransferResponses.Recipient
+    ) async throws {
+        let fixture = try TokenTransferResponses(program: program)
+        let http = try fixture.http(destination: .absent, recipient: recipient)
+        let address = recipient == .mint ? fixture.mint : fixture.recipient
+
+        await #expect(throws: TokenError.self) {
+            try await TokenTransfers(rpc: http.client).transfer(
+                mint: fixture.mint, amount: 1, from: fixture.sender, to: address, source: fixture.source)
+        }
+    }
+
+    /// Absent and other-program recipients stay wallets, including program-derived ones, and receive at their associated account.
+    /// - Parameter recipient: The account at the address entered as the recipient.
+    @Test(arguments: [TokenTransferResponses.Recipient.absent, .programOwned])
+    func `Recipients outside the token programs receive at their associated account`(
+        recipient: TokenTransferResponses.Recipient
+    ) async throws {
+        let fixture = try TokenTransferResponses(program: .token)
+        let http = try fixture.http(destination: .absent, recipient: recipient)
+
+        let result = try await TokenTransfers(rpc: http.client).transfer(
+            mint: fixture.mint, amount: 1, from: fixture.sender, to: fixture.recipient, source: fixture.source)
+
+        #expect(result.transfer.destination == fixture.tokenAccount)
+        #expect(result.transfer.createsDestination)
+    }
+
     /// Prefunding cannot turn another program's account or allocated/executable data into a creatable ATA.
     /// - Parameters:
     ///   - program: The mint's token program.

@@ -5,13 +5,13 @@
 public struct TokenTransfer: Sendable {
     /// The token owner whose signature authorizes the transfer.
     public let sender: Address
-    /// The recipient wallet, distinct from its associated token account.
+    /// The wallet that owns the destination account.
     public let recipient: Address
     /// The mint and program governing this transfer.
     public let mint: TokenMint
     /// The source account, including support for non-associated token accounts.
     public let source: TokenAccount
-    /// The canonical associated token account receiving the tokens.
+    /// The token account receiving the tokens: an existing account the recipient owns, or its associated account.
     public let destination: Address
     /// The requested debit in integer base units, before any token transfer fee.
     public let amount: UInt64
@@ -33,10 +33,10 @@ public struct TokenTransfer: Sendable {
     ///
     /// - Parameters:
     ///   - sender: The source owner authorizing the token debit.
-    ///   - recipient: The wallet whose associated account receives the tokens.
+    ///   - recipient: The wallet that owns the destination account.
     ///   - mint: The initialized mint observed through RPC.
     ///   - source: The source account observed through RPC.
-    ///   - destination: The initialized associated account, or `nil` when the destination requires initialization.
+    ///   - destination: An initialized token account the recipient owns, or `nil` to create the recipient's associated account.
     ///   - amount: The positive base-unit debit, never a floating-point UI amount.
     ///   - epoch: The current ledger epoch for transfer fees, or `nil` for fee-free mints.
     ///   - memo: An optional memo; required when the destination enables incoming memos.
@@ -45,13 +45,13 @@ public struct TokenTransfer: Sendable {
     public init(sender: Address, recipient: Address, mint: TokenMint, source: TokenAccount,
                 destination: TokenAccount?, amount: UInt64, epoch: UInt64? = nil, memo: String? = nil) throws {
         guard amount > 0 else { throw ValidationError.invalidAmount }
-        let target = try mint.associatedAccount(for: recipient)
+        let target = try destination?.address ?? mint.associatedAccount(for: recipient)
         guard source.program == mint.program, source.mint == mint.address, source.owner == sender,
-              source.address != sender, mint.address != sender, target != sender,
+              source.address != sender, mint.address != sender, recipient != mint.address, target != sender,
               source.address != mint.address, target != mint.address else { throw TokenError.accountMismatch }
         if let destination {
             guard destination.program == mint.program, destination.mint == mint.address,
-                  destination.owner == recipient, destination.address == target else {
+                  destination.owner == recipient else {
                 throw TokenError.accountMismatch
             }
         }

@@ -165,6 +165,35 @@ struct TokenTransferTests {
         }
     }
 
+    /// Verifies a token account the recipient owns receives the tokens even when it isn't the associated account.
+    ///
+    /// - Parameter fixture: An original-token or Token-2022 example with an existing destination.
+    @Test(arguments: TokenFixtures.transfers.filter { !$0.createsDestination })
+    func `Token transfers send directly to another token account the recipient owns`(_ fixture: TokenFixture) throws {
+        let account = try TokenAccount(address: Address("7HYrVp9r32ggmv4UHmNh8EKJjg91Cqf8CF2WfT684eXb"),
+                                       programOwner: Address(fixture.program),
+                                       data: #require(Data(base64Encoded: fixture.destinationData)))
+        let transfer = try TokenTransfer(sender: Address(TokenFixtures.sender), recipient: Address(TokenFixtures.recipient),
+                                         mint: fixture.mint(), source: fixture.source(), destination: account, amount: 1)
+        let instructions = try transfer.instructions()
+
+        #expect(transfer.destination == account.address)
+        #expect(!transfer.createsDestination)
+        try #require(instructions.count == 1)
+        #expect(instructions[0].accounts[2].address == account.address)
+    }
+
+    /// Verifies tokens can't go to an associated account that the mint itself owns.
+    ///
+    /// - Parameter fixture: An original-token or Token-2022 example without a destination.
+    @Test(arguments: TokenFixtures.transfers.filter(\.createsDestination))
+    func `Token transfers reject the mint as the recipient`(_ fixture: TokenFixture) throws {
+        #expect(throws: TokenError.accountMismatch) {
+            try TokenTransfer(sender: Address(TokenFixtures.sender), recipient: Address(TokenFixtures.mint),
+                              mint: fixture.mint(), source: fixture.source(), destination: nil, amount: 1)
+        }
+    }
+
     /// Verifies an observed source balance cannot be exceeded locally.
     @Test
     func `Token transfers reject an amount above the source balance`() throws {

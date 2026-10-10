@@ -23,7 +23,7 @@ nonisolated protocol TransactionCoordinating: Sendable {
     ///   - amount: Positive lamports or raw token units.
     ///   - token: The token mint, or `nil` for SOL.
     ///   - wallet: The authority and fee payer.
-    ///   - recipient: The receiving wallet.
+    ///   - recipient: The receiving wallet, or a token account for `token`.
     ///   - source: An optional non-associated token account.
     ///   - memo: An optional payment memo.
     /// - Returns: The simulated transaction and applicable payment observations.
@@ -50,7 +50,7 @@ extension TransactionCoordinating {
     ///   - amount: Positive lamports or raw token units.
     ///   - token: The mint, or `nil` for SOL.
     ///   - wallet: The selected authority and fee payer.
-    ///   - recipient: The receiving wallet.
+    ///   - recipient: The receiving wallet, or a token account for `token`.
     /// - Returns: The exact simulated transaction for review.
     /// - Throws: A resolution, preparation, or cancellation error.
     func transfer(_ amount: UInt64, token: Address? = nil, using wallet: Account,
