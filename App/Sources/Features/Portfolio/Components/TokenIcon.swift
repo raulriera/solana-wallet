@@ -22,6 +22,8 @@ struct TokenIcon: View {
                     .foregroundStyle(.secondary)
             }
         }
+        // A new or missing logo starts a fresh image, so a logo never outlives its URL, as after a provider change.
+        .id(imageURL)
         .frame(width: diameter, height: diameter)
         .background(.fill.tertiary, in: .circle)
         .clipShape(.circle)
