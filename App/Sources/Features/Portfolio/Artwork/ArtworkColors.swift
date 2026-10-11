@@ -3,7 +3,8 @@ import Foundation
 /// Samples each logo once and shares its color with every window.
 ///
 /// Only logos bundled with the app or served over HTTPS load. A logo without a usable color is remembered too,
-/// so it doesn't load again; a failed or cancelled load is tried again on the next request.
+/// so it doesn't load again. A failed or cancelled load is tried again; an error the provider caches is tried
+/// again once its cache time ends.
 actor ArtworkColors: ArtworkColorProviding {
     /// Loads a logo request and returns its data and response.
     typealias Fetch = @Sendable (URLRequest) async throws -> (Data, URLResponse)
@@ -23,9 +24,8 @@ actor ArtworkColors: ArtworkColorProviding {
     func color(for url: URL) async -> ArtworkColor? {
         guard url.isFileURL || url.scheme?.lowercased() == "https" else { return nil }
         if let color = colors[url] { return color }
-        // Logos rarely change, so any cached copy is used before the provider is asked again.
-        let request = URLRequest(url: url, cachePolicy: .returnCacheDataElseLoad)
-        guard let (data, response) = try? await fetch(request) else { return nil }
+        // Standard HTTP caching follows the provider's headers, so a cached error expires like any other response.
+        guard let (data, response) = try? await fetch(URLRequest(url: url)) else { return nil }
         // A bundled file has no HTTP status; the provider's copy must arrive successfully.
         if let status = (response as? HTTPURLResponse)?.statusCode, !(200..<300).contains(status) { return nil }
         let color = ArtworkSampler.color(from: data)

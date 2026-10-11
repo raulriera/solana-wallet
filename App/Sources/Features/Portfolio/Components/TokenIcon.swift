@@ -7,9 +7,7 @@ struct TokenIcon: View {
     let imageURL: URL?
 
     var body: some View {
-        // Logos rarely change, so a cached copy of any age is used before the provider is asked again.
-        AsyncImage(request: imageURL.map { URLRequest(url: $0, cachePolicy: .returnCacheDataElseLoad) },
-                   transaction: Transaction(animation: .default)) { phase in
+        AsyncImage(url: imageURL, transaction: Transaction(animation: .default)) { phase in
             switch phase {
             case .success(let image):
                 image
