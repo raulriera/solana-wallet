@@ -7,6 +7,7 @@ struct WalletScene: View {
     @SceneStorage("wallet.section") private var section = WalletSection.portfolio
     let account: Account
     let portfolio: any PortfolioCoordinating
+    let tokenRemoval: TokenRemovalFlow
     let settings: AppearanceSettings
     let connection: any ProviderConnecting
     let keyRevision: ProviderKeyRevision
@@ -16,7 +17,9 @@ struct WalletScene: View {
     var body: some View {
         TabView(selection: $section) {
             Tab("Portfolio", systemImage: "wallet.bifold", value: .portfolio) {
-                PortfolioScene(coordinator: portfolio, connection: connection, keyRevision: keyRevision)
+                PortfolioScene(coordinator: portfolio, connection: connection, keyRevision: keyRevision,
+                               removal: tokenRemoval)
+                    .tokenRemovalLifecycle()
             }
             Tab("Settings", systemImage: "gearshape", value: .settings) {
                 SettingsScene(settings: settings, account: account, security: security)

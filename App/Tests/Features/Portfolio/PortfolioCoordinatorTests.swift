@@ -10,6 +10,9 @@ import Transactions
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct PortfolioCoordinatorTests {
+    /// BONK's mainnet mint address, a public token.
+    private static let bonk = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"
+
     /// Verifies a clock correction cannot reject newer balances for a large portfolio.
     @Test
     func `Clock rollback still displays the next complete 500-token portfolio`() async throws {
@@ -87,17 +90,29 @@ struct PortfolioCoordinatorTests {
     func `Adding a token saves it to the selected wallet's list`() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
-        let tokenLists = FileTokenListStore(directory: directory.appendingPathComponent("TokenLists"))
-        let service = Portfolio(rpc: Solana(network: .mainnet), store: FileSnapshotStore(directory: directory),
-                                tokenLists: tokenLists)
+        let service = filePortfolio(in: directory)
         let coordinator = PortfolioCoordinator(service: service)
-        let bonk = ListedToken(mint: try Address("DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"), program: .token,
-                               decimals: 5, symbol: "Bonk", name: "Bonk")
+        let bonk = ListedToken(mint: try Address(Self.bonk), program: .token, decimals: 5, symbol: "Bonk", name: "Bonk")
 
         await coordinator.observe(for: PublicWallet.address, isActive: false)
         try await coordinator.add(bonk)
 
         #expect(try await service.tokenList(for: PublicWallet.address).tokens.last == bonk)
+    }
+
+    /// Verifies a removed token leaves the selected wallet's saved list.
+    /// - Throws: A storage or test prerequisite error.
+    @Test
+    func `Removing a token saves the selected wallet's list without it`() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let service = filePortfolio(in: directory)
+        let coordinator = PortfolioCoordinator(service: service)
+
+        await coordinator.observe(for: PublicWallet.address, isActive: false)
+        try await coordinator.remove(Address(DefaultToken.usdt.rawValue))
+
+        #expect(try await service.tokenList(for: PublicWallet.address).tokens.map(\.mint.value) == [DefaultToken.usdc.rawValue])
     }
 
     /// Verifies an inactive scene or missing selection never starts work.
@@ -415,6 +430,14 @@ struct PortfolioCoordinatorTests {
     /// - Returns: A valid empty fungible portfolio.
     private func snapshot(owner: String, revision: TimeInterval) -> Snapshot {
         Snapshot(owner: owner, network: .devnet, holdings: [], fetchedAt: Date(timeIntervalSince1970: revision))
+    }
+
+    /// Creates a portfolio service that keeps its token lists and snapshots in a test's directory.
+    /// - Parameter directory: The test's private directory.
+    /// - Returns: A mainnet service that makes no requests for token-list edits.
+    private func filePortfolio(in directory: URL) -> Portfolio {
+        Portfolio(rpc: Solana(network: .mainnet), store: FileSnapshotStore(directory: directory),
+                  tokenLists: FileTokenListStore(directory: directory.appendingPathComponent("TokenLists")))
     }
 
     /// Creates a priced portfolio whose provider order differs from its display order.

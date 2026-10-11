@@ -20,6 +20,6 @@ Onboarding tests use the app's normal mainnet discovery client and submit no tra
 Import completion requires a successful network scan, including when no funded account is found.
 Completion tests enter `HELIUS_API_KEY` from ignored local configuration; the rejection
 test uses a dummy key.
-The token test pastes BONK's public mint address into a new wallet's portfolio with that key; it leaves the address on the simulator clipboard, which can sync to the Mac.
+The token test pastes BONK's public mint address into a new wallet's portfolio with that key, then removes the token; it leaves the address on the simulator clipboard, which can sync to the Mac.
 
 Follow the shared [testing rules](../../../references/testing.md).

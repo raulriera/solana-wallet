@@ -37,4 +37,11 @@ protocol PortfolioCoordinating: AnyObject, Observable {
     /// - Parameter token: A token that ``token(at:)`` found.
     /// - Throws: `TokenListError` for a full or unreadable list, or a file-system error if the list can't be saved.
     func add(_ token: ListedToken) async throws
+
+    /// Removes a token from the selected wallet's list; it leaves ``holdings`` with the next snapshot.
+    ///
+    /// Native SOL has no mint address, so it always stays.
+    /// - Parameter mint: The mint address of a listed token.
+    /// - Throws: `TokenListError.unreadable` for an unreadable list, or a file-system error if the list can't be saved.
+    func remove(_ mint: Address) async throws
 }

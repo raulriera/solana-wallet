@@ -15,6 +15,8 @@ struct PortfolioScene: View {
     let coordinator: any PortfolioCoordinating
     let connection: any ProviderConnecting
     let keyRevision: ProviderKeyRevision
+    /// The window's token removals, which the parent runs with ``tokenRemovalLifecycle()``.
+    let removal: TokenRemovalFlow
 
     var body: some View {
         let presentation = PortfolioPresentation(coordinator.update)
@@ -57,7 +59,7 @@ struct PortfolioScene: View {
                     .sidebarColumnWidth()
                 } detail: {
                     if let holding = coordinator.holdings.first(where: { $0.id == selection }) {
-                        TokenDetailScreen(holding: holding)
+                        TokenDetailScreen(holding: holding, remove: removal.remove)
                             // New prices roll into place, as they do in the token list.
                             .animation(.default, value: coordinator.update?.snapshotRevision)
                     } else {

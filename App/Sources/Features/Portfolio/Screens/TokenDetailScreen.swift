@@ -2,11 +2,14 @@ import Portfolio
 import RPC
 import SwiftUI
 
-/// Shows one token's balance, value, price, 24-hour change, and network.
+/// Shows one token's balance, value, price, and 24-hour change, and removes any token except native SOL.
 struct TokenDetailScreen: View {
     @Environment(\.palette) private var palette
+    @Environment(\.dismiss) private var dismiss
     @State private var contentInset = LayoutMetrics.contentMargin
     let holding: Holding
+    /// Removes a confirmed token from the wallet's list; the screen then closes itself.
+    let remove: (Holding) -> Void
 
     var body: some View {
         Form {
@@ -62,6 +65,18 @@ struct TokenDetailScreen: View {
         .background(palette.background)
         .navigationTitle(holding.displayName)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            // Native SOL isn't part of the token list, so it always stays.
+            if holding.id != .nativeSOL {
+                ToolbarItem(placement: .primaryAction) {
+                    TokenActionsMenu(token: holding) { token in
+                        remove(token)
+                        // Compact width goes back to the list; expanded width clears the selection.
+                        dismiss()
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -70,6 +85,7 @@ struct TokenDetailScreen: View {
         TokenDetailScreen(holding: Holding(id: .nativeSOL, amount: Amount(units: 12_500_000_000, decimals: 9),
                                            name: "Solana", symbol: "SOL", imageURL: nil,
                                            valuation: Valuation(pricePerUnit: 166, total: 2_075, currency: "USD",
-                                                                dayChange: Decimal(string: "0.0129"))))
+                                                                dayChange: Decimal(string: "0.0129"))),
+                          remove: { _ in })
     }
 }

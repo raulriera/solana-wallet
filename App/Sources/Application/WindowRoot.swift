@@ -6,6 +6,7 @@ struct WindowRoot: View {
     @State private var onboarding: any OnboardingCoordinating
     @State private var startup: any WindowStarting
     @State private var portfolio: any PortfolioCoordinating
+    @State private var tokenRemoval: TokenRemovalFlow
     @State private var settings: AppearanceSettings
     @State private var security: SecurityFlow
     @State private var startupAttempt = 0
@@ -19,7 +20,9 @@ struct WindowRoot: View {
         self.router = router
         self.onboarding = services.makeOnboardingCoordinator(router: router)
         self.startup = services.makeWindowStartup(router: router)
-        self.portfolio = services.makePortfolioCoordinator()
+        let portfolio = services.makePortfolioCoordinator()
+        self.portfolio = portfolio
+        self.tokenRemoval = TokenRemovalFlow(coordinator: portfolio)
         self.settings = services.makeAppearanceSettings()
         self.security = services.makeSecurityFlow()
     }
@@ -36,8 +39,9 @@ struct WindowRoot: View {
                                 keyRevision: services.providerKeyRevision, pasteboard: services.recoveryPasteboard)
                     .onboardingIdentity()
             case .wallet(let account):
-                WalletScene(account: account, portfolio: portfolio, settings: settings, connection: services.providerConnection,
-                            keyRevision: services.providerKeyRevision, security: security, resetRevision: services.resetRevision)
+                WalletScene(account: account, portfolio: portfolio, tokenRemoval: tokenRemoval, settings: settings,
+                            connection: services.providerConnection, keyRevision: services.providerKeyRevision,
+                            security: security, resetRevision: services.resetRevision)
             }
         }
         .animation(.default, value: router.destination)

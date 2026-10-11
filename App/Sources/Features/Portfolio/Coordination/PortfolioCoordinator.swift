@@ -128,6 +128,14 @@ final class PortfolioCoordinator: PortfolioCoordinating {
         _ = try await service.addToken(token, for: owner)
     }
 
+    /// Removes a token from the selected wallet's list; the service sends the next snapshot without it.
+    /// - Parameter mint: The mint address of a listed token.
+    /// - Throws: `TokenListError.unreadable` for an unreadable list, or a file-system error if the list can't be saved.
+    func remove(_ mint: Address) async throws {
+        guard let owner else { return }
+        _ = try await service.removeToken(mint, for: owner)
+    }
+
     /// Publishes only the current session's results, retaining the newest complete data.
     /// - Parameters:
     ///   - incoming: A state from observation or an explicit refresh.
