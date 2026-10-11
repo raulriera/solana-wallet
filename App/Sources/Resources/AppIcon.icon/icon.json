@@ -1,0 +1,174 @@
+{
+  "features" : [
+    "refractivity",
+    "specular-location"
+  ],
+  "fill-specializations" : [
+    {
+      "value" : {
+        "automatic-gradient" : "gray:0.10348,1.00000"
+      }
+    },
+    {
+      "appearance" : "dark",
+      "value" : {
+        "automatic-gradient" : "gray:0.15846,1.00000"
+      }
+    }
+  ],
+  "groups" : [
+    {
+      "blur-material" : null,
+      "layers" : [
+        {
+          "blend-mode" : "normal",
+          "fill-specializations" : [
+            {
+              "value" : {
+                "linear-gradient" : [
+                  "display-p3:0.09824,0.09824,0.09824,1.00000",
+                  "display-p3:0.10175,0.10107,0.09875,1.00000"
+                ],
+                "orientation" : {
+                  "start" : {
+                    "x" : 0.5153369906146134,
+                    "y" : 0
+                  },
+                  "stop" : {
+                    "x" : 0.5142214252258521,
+                    "y" : 0.660405023482528
+                  }
+                }
+              }
+            },
+            {
+              "appearance" : "dark",
+              "value" : {
+                "automatic-gradient" : "gray:0.15846,1.00000"
+              }
+            }
+          ],
+          "glass" : true,
+          "hidden" : false,
+          "image-name" : "05-wallet-sleeve.svg",
+          "name" : "05-wallet-sleeve",
+          "position" : {
+            "scale" : 1.5,
+            "translation-in-points" : [
+              -18,
+              192
+            ]
+          }
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0
+      },
+      "translucency" : {
+        "enabled" : false,
+        "value" : 1
+      }
+    },
+    {
+      "blend-mode" : "normal",
+      "blur-material" : null,
+      "hidden" : false,
+      "layers" : [
+        {
+          "fill" : {
+            "automatic-gradient" : "extended-srgb:0.59751,0.27179,1.00063,1.00000"
+          },
+          "glass" : true,
+          "image-name" : "02-purple-card.svg",
+          "name" : "02-purple-card",
+          "opacity" : 1,
+          "position" : {
+            "scale" : 1.5,
+            "translation-in-points" : [
+              0,
+              355
+            ]
+          }
+        },
+        {
+          "fill" : {
+            "automatic-gradient" : "extended-srgb:0.28693,0.67102,0.80624,1.00000"
+          },
+          "image-name" : "03-blue-card.svg",
+          "name" : "03-blue-card",
+          "opacity" : 1,
+          "position" : {
+            "scale" : 1.5,
+            "translation-in-points" : [
+              0,
+              138
+            ]
+          }
+        },
+        {
+          "fill" : {
+            "linear-gradient" : [
+              "display-p3:0.43138,0.87938,0.59497,1.00000",
+              "extended-srgb:0.09829,0.84783,0.52897,1.00000"
+            ]
+          },
+          "glass" : true,
+          "hidden" : false,
+          "image-name" : "04-teal-card.svg",
+          "name" : "04-teal-card",
+          "opacity" : 1,
+          "position" : {
+            "scale" : 1.5,
+            "translation-in-points" : [
+              0,
+              -79
+            ]
+          }
+        }
+      ],
+      "lighting" : "individual",
+      "name" : "Cards",
+      "position" : {
+        "scale" : 0.9,
+        "translation-in-points" : [
+          0,
+          15
+        ]
+      },
+      "refractivity" : {
+        "depth" : 0.108359375,
+        "enabled" : true,
+        "strength" : 0.841484375
+      },
+      "shadow" : {
+        "kind" : "layer-color",
+        "opacity" : 0.6
+      },
+      "specular" : "outside",
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.6
+      }
+    },
+    {
+      "layers" : [
+
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.3
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}
