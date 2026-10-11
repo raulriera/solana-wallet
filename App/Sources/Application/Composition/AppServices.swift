@@ -89,6 +89,12 @@ struct AppServices {
         SecurityFlow(services: security)
     }
 
+    /// Creates independent RPC provider choices and key entry around the shared provider services.
+    /// - Returns: A flow whose choices and key entry belong to one window.
+    func makeProvidersFlow() -> ProvidersFlow {
+        ProvidersFlow(providers: providerSelection, connection: providerConnection, revision: providerRevision)
+    }
+
     /// Assembles a preference-editing workflow around the app's shared appearance services.
     /// - Returns: Independent operation and presentation state for the owning window.
     func makeAppearanceSettings() -> AppearanceSettings {

@@ -10,6 +10,19 @@ nonisolated struct ProviderSettings: Codable, Equatable, Sendable {
         case helius
         /// A custom HTTPS RPC, identified by its URL, which can contain a key.
         case custom(URL)
+
+        /// The provider's name as people see it; a custom RPC shows only its host, never a key in its URL.
+        var name: LocalizedStringResource {
+            switch self {
+            case .solana: "Solana"
+            case .helius: "Helius"
+            case .custom(let url):
+                LocalizedStringResource("\(url.host() ?? "")", comment: "A custom RPC's host, shown exactly as entered.")
+            }
+        }
+
+        /// Whether the provider has details to show, such as Helius's key.
+        var hasDetails: Bool { self == .helius }
     }
 
     /// The provider in use: Helius until a person chooses another, as before this setting existed.

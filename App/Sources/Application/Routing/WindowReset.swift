@@ -1,11 +1,13 @@
 import SwiftUI
 
-/// Returns a window to onboarding with a fresh draft and closed Security & Privacy screens after the app resets.
+/// Returns a window to onboarding with a fresh draft, closed Security & Privacy screens, and no pending provider work
+/// after the app resets.
 private struct WindowReset: ViewModifier {
     @Binding var onboarding: any OnboardingCoordinating
     let services: AppServices
     let router: any WindowRouting
     let security: SecurityFlow
+    let providers: ProvidersFlow
 
     /// Starts onboarding over each time any window resets the app.
     /// - Parameter content: The window's root destinations.
@@ -16,6 +18,7 @@ private struct WindowReset: ViewModifier {
                 // The finished draft still refers to a deleted wallet, so onboarding starts with a new one.
                 onboarding = services.makeOnboardingCoordinator(router: router)
                 security.close()
+                providers.close()
                 router.route(to: .onboarding)
             }
     }
@@ -28,9 +31,11 @@ extension View {
     ///   - router: The window's navigation.
     ///   - onboarding: The window's onboarding draft, replaced after a reset.
     ///   - security: The window's Security & Privacy flow, closed after a reset.
+    ///   - providers: The window's Providers flow, closed after a reset.
     /// - Returns: A view whose window starts over after a reset.
     func windowReset(_ services: AppServices, router: any WindowRouting, onboarding: Binding<any OnboardingCoordinating>,
-                     security: SecurityFlow) -> some View {
-        modifier(WindowReset(onboarding: onboarding, services: services, router: router, security: security))
+                     security: SecurityFlow, providers: ProvidersFlow) -> some View {
+        modifier(WindowReset(onboarding: onboarding, services: services, router: router, security: security,
+                             providers: providers))
     }
 }

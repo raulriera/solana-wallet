@@ -9,6 +9,7 @@ struct WindowRoot: View {
     @State private var tokenRemoval: TokenRemovalFlow
     @State private var settings: AppearanceSettings
     @State private var security: SecurityFlow
+    @State private var providers: ProvidersFlow
     @State private var startupAttempt = 0
     private let services: AppServices
 
@@ -25,6 +26,7 @@ struct WindowRoot: View {
         self.tokenRemoval = TokenRemovalFlow(coordinator: portfolio)
         self.settings = services.makeAppearanceSettings()
         self.security = services.makeSecurityFlow()
+        self.providers = services.makeProvidersFlow()
     }
 
     var body: some View {
@@ -41,12 +43,12 @@ struct WindowRoot: View {
             case .wallet(let account):
                 WalletScene(account: account, portfolio: portfolio, tokenRemoval: tokenRemoval, settings: settings,
                             connection: services.providerConnection, providerRevision: services.providerRevision,
-                            security: security, resetRevision: services.resetRevision)
+                            security: security, providers: providers, resetRevision: services.resetRevision)
             }
         }
         .animation(.default, value: router.destination)
         .windowRestoration(startup, router: router, attempt: startupAttempt)
-        .windowReset(services, router: router, onboarding: $onboarding, security: security)
+        .windowReset(services, router: router, onboarding: $onboarding, security: security, providers: providers)
         .windowAppearance(services: services.appearance)
         .environment(\.artworkColors, services.artworkColors)
     }

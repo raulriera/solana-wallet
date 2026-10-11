@@ -6,7 +6,7 @@ import SwiftUI
 /// Owns one window's provider key checks; the flow that asked for a key continues once it's saved.
 @MainActor
 @Observable
-final class ProviderSubmission: Identifiable {
+final class ProviderSubmission: Identifiable, Equatable {
     private(set) var isKeyRejected = false
     /// Counts rejected keys, so each rejection signals again while its message stays on screen.
     private(set) var rejectionCount = 0
@@ -25,6 +25,15 @@ final class ProviderSubmission: Identifiable {
     init(connection: any ProviderConnecting, revision: Revision) {
         self.connection = connection
         self.revision = revision
+    }
+
+    /// Compares submissions by identity, so assigning the same key check again changes nothing.
+    /// - Parameters:
+    ///   - lhs: A key check.
+    ///   - rhs: Another key check.
+    /// - Returns: Whether both are the same key check.
+    nonisolated static func == (lhs: ProviderSubmission, rhs: ProviderSubmission) -> Bool {
+        lhs === rhs
     }
 
     /// Accepts one key; taps during a check are ignored.

@@ -8,8 +8,9 @@ struct SettingsScene: View {
     let wallet: AppearanceWallet?
     let account: Account
     let security: SecurityFlow
+    let providers: ProvidersFlow
 
-    /// Presents the window's preference-editing workflow and its wallet's security choices.
+    /// Presents the window's preference-editing workflow, its RPC provider choices, and its wallet's security choices.
     ///
     /// Appearance loading and rendering belong to the owning window's root.
     /// - Parameters:
@@ -17,11 +18,14 @@ struct SettingsScene: View {
     ///   - wallet: The owning window's selected wallet theme scope, if one exists.
     ///   - account: The owning window's wallet, whose recovery Security & Privacy shows.
     ///   - security: The window's Security & Privacy navigation and steps.
-    init(settings: AppearanceSettings, wallet: AppearanceWallet? = nil, account: Account, security: SecurityFlow) {
+    ///   - providers: The window's RPC provider choices and key entry.
+    init(settings: AppearanceSettings, wallet: AppearanceWallet? = nil, account: Account, security: SecurityFlow,
+         providers: ProvidersFlow) {
         self.settings = settings
         self.wallet = wallet
         self.account = account
         self.security = security
+        self.providers = providers
     }
 
     var body: some View {
@@ -35,6 +39,11 @@ struct SettingsScene: View {
             case .appearance:
                 NavigationStack {
                     AppearanceView(settings: settings, wallet: wallet)
+                }
+            case .providers:
+                NavigationStack {
+                    ProvidersScreen(flow: providers)
+                        .providersLifecycle(providers)
                 }
             case .security:
                 SecurityScene(flow: security, account: account)

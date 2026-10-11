@@ -12,6 +12,7 @@ struct WalletScene: View {
     let connection: any ProviderConnecting
     let providerRevision: Revision
     let security: SecurityFlow
+    let providers: ProvidersFlow
     let resetRevision: Revision
 
     var body: some View {
@@ -22,7 +23,7 @@ struct WalletScene: View {
                     .tokenRemovalLifecycle()
             }
             Tab("Settings", systemImage: "gearshape", value: .settings) {
-                SettingsScene(settings: settings, account: account, security: security)
+                SettingsScene(settings: settings, account: account, security: security, providers: providers)
                     .securityLifecycle(security)
             }
         }

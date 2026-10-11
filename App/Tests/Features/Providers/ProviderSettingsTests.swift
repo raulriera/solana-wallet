@@ -26,6 +26,15 @@ struct ProviderSettingsTests {
         #expect(settings == ProviderSettings(selection: .custom(custom), customRPCs: [custom]))
     }
 
+    /// A custom RPC shows only its host, so a key in its URL never appears on screen.
+    /// - Throws: A test prerequisite error.
+    @Test
+    func `A custom RPC shows only its host`() throws {
+        let custom = try #require(URL(string: "https://rpc.example.com/fixture-token?api-key=fixture-key"))
+
+        #expect(String(localized: ProviderSettings.Provider.custom(custom).name) == "rpc.example.com")
+    }
+
     /// Choosing the provider in use changes nothing.
     @Test
     func `Choosing the provider in use changes nothing`() {
