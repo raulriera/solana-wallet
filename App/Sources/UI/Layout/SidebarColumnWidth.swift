@@ -6,7 +6,7 @@ struct SidebarColumnWidth: ViewModifier {
     /// - Parameter content: The content of a split view's sidebar column.
     /// - Returns: The sidebar content with the shared preferred width.
     func body(content: Content) -> some View {
-        content.navigationSplitViewColumnWidth(min: 280, ideal: 320)
+        content.navigationSplitViewColumnWidth(min: 320, ideal: 400)
     }
 }
 
