@@ -14,7 +14,7 @@ struct ProviderSelectionTests {
         let gate = Suspension()
         let portfolio = ProviderChanges(gate: gate)
         let revision = Revision()
-        let selection = ProviderSelection(settings: settings, portfolio: portfolio, revision: revision)
+        let selection = ProviderSelection(settings: settings, providerKey: StoredValue(), portfolio: portfolio, revision: revision)
 
         let selecting = Task { try await selection.select(.solana) }
         await gate.waitUntilStarted()
@@ -35,11 +35,60 @@ struct ProviderSelectionTests {
         let portfolio = ProviderChanges()
         let revision = Revision()
 
-        try await ProviderSelection(settings: settings, portfolio: portfolio, revision: revision).select(.helius)
+        try await ProviderSelection(settings: settings, providerKey: StoredValue("fixture-key"), portfolio: portfolio,
+                                    revision: revision).select(.helius)
 
         #expect(await settings.value == nil)
         #expect(await portfolio.count == 0)
         #expect(revision.value == 0)
+    }
+
+    /// Helius needs its key before anything changes, whether or not it's already in use.
+    /// - Parameter saved: The saved choice, or `nil` while Helius is in use by default.
+    @Test(arguments: [nil, ProviderSettings(selection: .solana)])
+    func `Helius isn't chosen without a saved key`(saved: ProviderSettings?) async {
+        let settings = StoredValue(saved)
+        let portfolio = ProviderChanges()
+        let revision = Revision()
+
+        await #expect(throws: ProviderClientError.missingKey) {
+            try await ProviderSelection(settings: settings, providerKey: StoredValue(), portfolio: portfolio, revision: revision)
+                .select(.helius)
+        }
+
+        #expect(await settings.value == saved)
+        #expect(await portfolio.count == 0)
+        #expect(revision.value == 0)
+    }
+
+    /// A choice of Helius cancelled before its key is found stays a cancellation, so no key entry opens later.
+    @Test
+    func `A cancelled choice of Helius isn't reported as a missing key`() async {
+        let settings = StoredValue(ProviderSettings(selection: .solana))
+        let selection = ProviderSelection(settings: settings, providerKey: StoredValue(), portfolio: ProviderChanges(),
+                                          revision: Revision())
+
+        let selecting = Task { try await selection.select(.helius) }
+        selecting.cancel()
+
+        await #expect(throws: CancellationError.self) { try await selecting.value }
+        #expect(await settings.value?.selection == .solana)
+    }
+
+    /// A saved key lets Helius replace another provider.
+    /// - Throws: A selection failure.
+    @Test
+    func `A saved key lets Helius be chosen`() async throws {
+        let settings = StoredValue(ProviderSettings(selection: .solana))
+        let portfolio = ProviderChanges()
+        let revision = Revision()
+
+        try await ProviderSelection(settings: settings, providerKey: StoredValue("fixture-key"), portfolio: portfolio,
+                                    revision: revision).select(.helius)
+
+        #expect(await settings.value?.selection == .helius)
+        #expect(await portfolio.count == 1)
+        #expect(revision.value == 1)
     }
 
     /// A new choice keeps the custom RPCs that are already saved.
@@ -49,7 +98,8 @@ struct ProviderSelectionTests {
         let custom = try #require(URL(string: "https://rpc.example.com/fixture-token"))
         let settings = StoredValue(ProviderSettings(customRPCs: [custom]))
 
-        try await ProviderSelection(settings: settings, portfolio: ProviderChanges(), revision: Revision()).select(.solana)
+        try await ProviderSelection(settings: settings, providerKey: StoredValue(), portfolio: ProviderChanges(), revision: Revision())
+            .select(.solana)
 
         #expect(await settings.value == ProviderSettings(selection: .solana, customRPCs: [custom]))
     }
@@ -62,7 +112,8 @@ struct ProviderSelectionTests {
         let revision = Revision()
 
         await #expect(throws: CocoaError.self) {
-            try await ProviderSelection(settings: settings, portfolio: portfolio, revision: revision).select(.solana)
+            try await ProviderSelection(settings: settings, providerKey: StoredValue(), portfolio: portfolio, revision: revision)
+                .select(.solana)
         }
 
         #expect(await settings.value == nil)
@@ -75,8 +126,8 @@ struct ProviderSelectionTests {
     func `Windows observe again when saved logos can't be removed`() async {
         let settings = StoredValue<ProviderSettings>()
         let revision = Revision()
-        let selection = ProviderSelection(settings: settings, portfolio: ProviderChanges(error: CocoaError(.fileWriteOutOfSpace)),
-                                          revision: revision)
+        let selection = ProviderSelection(settings: settings, providerKey: StoredValue(),
+                                          portfolio: ProviderChanges(error: CocoaError(.fileWriteOutOfSpace)), revision: revision)
 
         await #expect(throws: CocoaError(.fileWriteOutOfSpace)) { try await selection.select(.solana) }
 

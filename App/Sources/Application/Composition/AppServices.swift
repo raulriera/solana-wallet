@@ -44,7 +44,8 @@ struct AppServices {
         // One service for every window shares its cache, subscriptions, and price pacing.
         let portfolio = Portfolio(rpc: ProviderClient(settings: providerSettings, providerKey: providerKey), prices: Jupiter())
         self.portfolio = portfolio
-        providerSelection = ProviderSelection(settings: providerSettings, portfolio: portfolio, revision: providerRevision)
+        providerSelection = ProviderSelection(settings: providerSettings, providerKey: providerKey, portfolio: portfolio,
+                                              revision: providerRevision)
         recoveryPasteboard = RecoveryPasteboard()
         security = SecurityServices(
             recovery: RecoveryReveal(store: recovery),
