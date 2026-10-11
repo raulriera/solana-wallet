@@ -40,6 +40,7 @@ struct SettingsScene: View {
                 SecurityScene(flow: security, account: account)
             }
         }
+        .navigationSplitViewStyle(.tabSection)
         .onChange(of: selection) { _, selection in
             // Leaving Security & Privacy closes its screens and releases any open backup.
             if selection != .security { security.close() }

@@ -67,6 +67,7 @@ struct PortfolioScene: View {
                             .background(palette.background)
                     }
                 }
+                .navigationSplitViewStyle(.tabSection)
             }
         }
         .animation(.default, value: presentation)
