@@ -227,6 +227,23 @@ struct PortfolioTests {
         while await retry.next() != nil {}
     }
 
+    /// Verifies a removal stands when the cached holdings can't be saved again, since the saved list holds the truth.
+    ///
+    /// - Throws: A failed test prerequisite.
+    @Test
+    func `A removal stands when cached holdings can't be saved`() async throws {
+        let fixture = Fixture()
+        defer { fixture.removeFiles() }
+        let cached = snapshot(owner: testWallet, network: .mainnet, units: 3)
+        let service = fixture.portfolio(rpc: AccountResponses { _ in Ledger() }.client,
+                                        store: WriteFailingStore(cached: cached))
+
+        let list = try await service.removeToken(Address(usdcMint), for: testWallet)
+
+        #expect(list.tokens.map(\.mint.value) == [DefaultToken.usdt.rawValue])
+        #expect(try await service.tokenList(for: testWallet) == list)
+    }
+
     /// Verifies that a successful read replaces old balances, and that missing accounts hold nothing.
     ///
     /// - Throws: A fixture setup error or failed prerequisite.

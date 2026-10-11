@@ -296,6 +296,72 @@ struct ObservationTests {
         await second.waitUntilCancelled()
     }
 
+    /// Verifies a removed token leaves every observer at once, before the account's balances are read again.
+    @Test(.timeLimit(.minutes(1)))
+    func `A removed token leaves an observed account before the next balance read`() async throws {
+        let fixture = ObservationFixture()
+        defer { fixture.cleanUp() }
+        let connections = Connections()
+        let service = fixture.service(ledger: ObservedLedger()) { connections.connect(to: $0) }
+        var sockets = connections.opened.makeAsyncIterator()
+        var updates = await service.observations(for: testWallet).makeAsyncIterator()
+        let initial = try await nextResult(&updates)
+        let first = try #require(await sockets.next())
+
+        _ = try await service.removeToken(Address(usdcMint), for: testWallet)
+        let removed = try #require(await updates.next())
+
+        let remaining = initial.holdings.map(\.id).filter { $0 != .asset(usdcMint) }
+        #expect(removed.isRefreshing)
+        #expect(removed.holdings.map(\.id) == remaining)
+        #expect(removed.snapshotRevision.map { $0 > initial.snapshotRevision ?? 0 } == true)
+        #expect(fixture.store.snapshot(for: fixture.key)?.holdings.map(\.id) == remaining)
+        await first.waitUntilCancelled()
+        let second = try #require(await sockets.next())
+        try await service.removeData(for: testWallet)
+        await second.waitUntilCancelled()
+    }
+
+    /// Verifies a removal during a balance read starts the read again, so its consumers get the edited holdings first
+    /// and the previous list's balances never arrive.
+    @Test(.timeLimit(.minutes(1)))
+    func `A removal during a balance read replaces the read of the previous list`() async throws {
+        let fixture = ObservationFixture()
+        defer { fixture.cleanUp() }
+        let ledger = ObservedLedger()
+        let (pending, release) = AsyncStream<Void>.makeStream()
+        let (started, announce) = AsyncStream<Void>.makeStream()
+        defer { release.finish(); announce.finish() }
+        let http = AccountResponses { accounts in
+            let reading = try await ledger.response(for: accounts)
+            if await ledger.readCount == 2 {
+                announce.yield(())
+                for await _ in pending {}
+            }
+            return reading
+        }
+        let service = fixture.service(http: http)
+        var first = await service.updates(for: testWallet, policy: .reload).makeAsyncIterator()
+        let cached = try await nextResult(&first)
+        var reload = await service.updates(for: testWallet, policy: .reload).makeAsyncIterator()
+        _ = try #require(await reload.next())
+        var startedIterator = started.makeAsyncIterator()
+        _ = try #require(await startedIterator.next())
+
+        _ = try await service.removeToken(Address(usdcMint), for: testWallet)
+        let edited = try #require(await reload.next())
+        release.finish()
+        let result = try await nextResult(&reload)
+
+        let remaining = cached.holdings.map(\.id).filter { $0 != .asset(usdcMint) }
+        #expect(edited.isRefreshing)
+        #expect(edited.holdings.map(\.id) == remaining)
+        #expect(result.error == nil)
+        #expect(result.holdings.map(\.id) == remaining)
+        #expect(fixture.store.snapshot(for: fixture.key)?.holdings.map(\.id) == remaining)
+        #expect(await reload.next() == nil)
+    }
+
     /// Verifies list edits that change nothing keep the observed account's connection and read nothing.
     @Test(.timeLimit(.minutes(1)))
     func `Token list edits that change nothing keep the observation`() async throws {

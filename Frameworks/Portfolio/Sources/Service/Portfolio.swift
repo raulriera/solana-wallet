@@ -115,7 +115,8 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
 
     /// Removes a token from an account's list and saves the list.
     ///
-    /// An observed account then watches the new list and reads its balances once.
+    /// The cached holdings drop the token at once, so observers and later launches don't show it while
+    /// balances are read again. An observed account then watches the new list and reads its balances once.
     /// - Parameters:
     ///   - mint: The mint address of the token to remove.
     ///   - owner: The account's wallet address.
@@ -123,7 +124,11 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
     /// - Throws: ``TokenListError/unreadable`` if the saved list can't be read, or a file-system error if saving fails.
     public func removeToken(_ mint: Address, for owner: String) async throws -> TokenList {
         let edit = try await tokenLists.remove(mint, for: owner)
-        if edit.changed { await listChanged(for: owner) }
+        if edit.changed {
+            // The saved list is already correct; cached holdings that can't be saved give way to the next read.
+            try? await coordinator.removeHolding(.asset(mint.value), for: owner)
+            await observer.restart(for: owner)
+        }
         return edit.list
     }
 

@@ -94,6 +94,33 @@ actor RefreshCoordinator {
         flights[key] = flight
     }
 
+    /// Takes a removed token out of the saved snapshot, so no consumer or later launch shows it before the next read.
+    ///
+    /// The snapshot gets a new revision, so consumers that receive it replace their older copy. A refresh in progress
+    /// starts again in the same step, so no read of the previous list can save over the edited snapshot.
+    /// - Parameters:
+    ///   - id: The removed token's identity.
+    ///   - owner: The account whose token list no longer holds the token.
+    /// - Throws: An encoding or file-system error if the snapshot can't be saved; the refresh starts again either way.
+    func removeHolding(_ id: Holding.Identity, for owner: String) throws {
+        let key = CacheKey(owner: owner, network: source.network)
+        defer {
+            if var flight = flights[key] {
+                // The restarted refresh sends its consumers the edited snapshot instead of the earlier one.
+                flight.initial = nil
+                restart(&flight, key: key)
+                flights[key] = flight
+            }
+        }
+        guard let cached = store.snapshot(for: key), cached.holdings.contains(where: { $0.id == id }) else { return }
+        let snapshot = Snapshot(owner: cached.owner, network: cached.network,
+                                holdings: cached.holdings.filter { $0.id != id },
+                                fetchedAt: cached.fetchedAt, pricesFetchedAt: cached.pricesFetchedAt)
+        try store.save(snapshot, for: key)
+        revision += 1
+        snapshotRevisions[key] = revision
+    }
+
     /// Orders observation status in the same sequence as manual and price refreshes.
     /// - Parameters:
     ///   - owner: The wallet whose cached holdings accompany the status.

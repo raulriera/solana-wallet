@@ -44,6 +44,29 @@ struct TokenListTests {
         #expect(restored.tokens.last == added)
     }
 
+    /// Verifies a removed token leaves the cached holdings at once, so a later launch doesn't show it before a read.
+    @Test
+    func `A removed token leaves the cached holdings`() async throws {
+        let fixture = TokenListFixture()
+        defer { fixture.removeFiles() }
+        let service = fixture.portfolio()
+        let tokens = try await service.tokenList(for: "wallet").tokens
+        let holdings = [Holding(id: .nativeSOL, amount: Amount(units: 1, decimals: 9), name: "Solana", symbol: "SOL",
+                                imageURL: nil, valuation: nil)]
+            + tokens.map { Holding(id: .asset($0.mint.value), amount: Amount(units: 1, decimals: $0.decimals),
+                                   name: $0.name, symbol: $0.symbol, imageURL: nil, valuation: nil) }
+        try fixture.snapshots.save(Snapshot(owner: "wallet", network: .mainnet, holdings: holdings, fetchedAt: Date()),
+                                   for: CacheKey(owner: "wallet", network: .mainnet))
+        let usdc = try #require(tokens.first)
+
+        _ = try await service.removeToken(usdc.mint, for: "wallet")
+
+        // The cache is fresh and no price provider is set, so the new service answers without a request.
+        var updates = await fixture.portfolio().updates(for: "wallet", policy: .ifStale).makeAsyncIterator()
+        let cached = try #require(await updates.next())
+        #expect(cached.snapshot?.holdings.map(\.id) == [.nativeSOL, .asset(DefaultToken.usdt.rawValue)])
+    }
+
     /// Verifies a token that's already listed keeps its place instead of appearing twice.
     @Test
     func `Adding a listed token changes nothing`() async throws {
@@ -147,6 +170,8 @@ private struct TokenListFixture {
 
     /// The token-list store in this test's directory.
     var store: FileTokenListStore { FileTokenListStore(directory: directory) }
+    /// The cached-holdings store in this test's directory.
+    var snapshots: FileSnapshotStore { FileSnapshotStore(directory: directory.appendingPathComponent("Snapshots")) }
 
     /// Creates a service that keeps its token lists and snapshots in this test's directory.
     ///
@@ -154,8 +179,7 @@ private struct TokenListFixture {
     /// - Parameter network: The network of the service's RPC client.
     /// - Returns: A service backed by this test's files.
     func portfolio(network: Network = .mainnet) -> Portfolio {
-        Portfolio(rpc: Solana(network: network),
-                  store: FileSnapshotStore(directory: directory.appendingPathComponent("Snapshots")), tokenLists: store)
+        Portfolio(rpc: Solana(network: network), store: snapshots, tokenLists: store)
     }
 
     /// Removes only this test's files.
