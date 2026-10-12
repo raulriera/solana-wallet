@@ -12,11 +12,7 @@ struct ThemeRow: View {
                        actions: actions)
             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                 if entry.origin == .custom {
-                    // Only the confirmation commits deletion, so keep the row visible while asking.
-                    Button("Delete", systemImage: "trash") { removal = entry }
-                        .labelStyle(.iconOnly)
-                        .foregroundStyle(.white)
-                        .tint(.red)
+                    SwipeDeleteButton(removal: $removal, item: entry)
                 }
             }
             .confirmationDialog("Delete Theme?", item: $removal) { approved in
