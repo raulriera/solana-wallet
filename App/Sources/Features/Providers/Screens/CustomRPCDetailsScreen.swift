@@ -1,0 +1,43 @@
+import SwiftUI
+
+/// Shows a custom RPC's URL, shortened so a key in it stays hidden, and deletes the RPC after the person confirms.
+struct CustomRPCDetailsScreen: View {
+    @Environment(\.palette) private var palette
+    @Environment(\.dismiss) private var dismiss
+    @State private var contentInset = LayoutMetrics.contentMargin
+    let url: URL
+    /// Whether the RPC is still in the list; the screen closes itself once any window deletes it.
+    let isListed: Bool
+    /// The custom RPC waiting for the person to confirm its deletion.
+    @Binding var removal: URL?
+
+    var body: some View {
+        Form {
+            Section {
+                Text(url, format: .shortenedURL)
+                    .foregroundStyle(palette.primaryText)
+            } header: {
+                Text("URL")
+            } footer: {
+                Text("Your wallets use this RPC for balances and live updates. Part of its URL is hidden because it can contain a key.")
+                    .foregroundStyle(palette.secondaryText)
+            }
+            .listRowBackground(palette.surface)
+        }
+        .foregroundStyle(palette.primaryText, palette.secondaryText)
+        .scrollContentBackground(.hidden)
+        .scrollEdgeEffectStyle(.soft, for: .bottom)
+        .readableContentMargins(inset: $contentInset)
+        .safeAreaBar(edge: .bottom) {
+            Button("Delete RPC", role: .destructive) { removal = url }
+                .buttonStyle(.destructive)
+                .padding(.horizontal, contentInset)
+                .padding(.vertical, LayoutMetrics.actionBarVerticalPadding)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(palette.background)
+        .navigationTitle(Text(ProviderSettings.Provider.custom(url).name))
+        .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: isListed) { dismiss() }
+    }
+}

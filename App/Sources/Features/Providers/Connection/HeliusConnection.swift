@@ -3,30 +3,32 @@ import RPC
 
 /// Connects the app to Helius, its only DAS provider, with a user-supplied mainnet key.
 nonisolated struct HeliusConnection: ProviderConnecting {
-    /// The native SOL mint, whose metadata any Helius key can read.
-    private static let nativeMint = "So11111111111111111111111111111111111111112"
+    typealias EntryError = ProviderConnectionError
 
     private let providerKey: any ValueStoring<String>
+    private let revision: Revision
     private let client: @Sendable (String) -> any RPC
 
     /// Creates a connection that checks keys against Helius mainnet.
     /// - Parameters:
     ///   - providerKey: Device-only storage for the accepted key.
+    ///   - revision: Tells every window when a saved key applies.
     ///   - client: Creates the Helius client for a candidate key.
-    init(providerKey: any ValueStoring<String>,
+    init(providerKey: any ValueStoring<String>, revision: Revision,
          client: @escaping @Sendable (String) -> any RPC = { HeliusRPC(apiKey: $0, network: .mainnet) }) {
         self.providerKey = providerKey
+        self.revision = revision
         self.client = client
     }
 
-    /// Makes one DAS request with the key and saves the key only after Helius accepts it.
-    /// - Parameter apiKey: The key as entered; surrounding whitespace is ignored.
+    /// Makes one DAS request with the key, saves the key only after Helius accepts it, and tells every window.
+    /// - Parameter entry: The key as entered; surrounding whitespace is ignored.
     /// - Throws: ``ProviderConnectionError`` or `CancellationError`, never containing the key.
-    func connect(apiKey: String) async throws {
-        let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+    func connect(_ entry: String) async throws {
+        let key = entry.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !key.isEmpty else { throw ProviderConnectionError.invalidKey }
         do {
-            _ = try await client(key).send(GetAsset(id: Self.nativeMint))
+            _ = try await client(key).send(GetAsset(id: Self.checkedAccount))
         } catch {
             try Task.checkCancellation()
             let connectionError: ProviderConnectionError = switch error as? RPCError {
@@ -43,5 +45,6 @@ nonisolated struct HeliusConnection: ProviderConnecting {
             try Task.checkCancellation()
             throw ProviderConnectionError.storageFailed
         }
+        await revision.advance()
     }
 }

@@ -10,11 +10,10 @@ struct PortfolioScene: View {
     @Environment(\.cardStyle) private var cardStyle
     @State private var selection: Holding.Identity?
     @State private var preferredColumn = NavigationSplitViewColumn.sidebar
-    @State private var providerSetup: ProviderSubmission?
+    @State private var providerSetup: ProviderSubmission<ProviderConnectionError>?
     @State private var tokenAddition: TokenAddition?
     let coordinator: any PortfolioCoordinating
-    let connection: any ProviderConnecting
-    let providerRevision: Revision
+    let connection: any ProviderConnecting<ProviderConnectionError>
     /// The window's token removals, which the parent runs with ``tokenRemovalLifecycle()``.
     let removal: TokenRemovalFlow
 
@@ -84,7 +83,7 @@ struct PortfolioScene: View {
 
     /// Opens provider setup; a saved key closes it, and every window observes again with that key.
     private func setUpProvider() {
-        providerSetup = ProviderSubmission(connection: connection, revision: providerRevision)
+        providerSetup = ProviderSubmission(connection: connection)
     }
 
     /// Loads the portfolio again after a failed first load; the loading state shows until the result arrives.

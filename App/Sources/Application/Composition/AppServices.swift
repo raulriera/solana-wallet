@@ -11,10 +11,12 @@ struct AppServices {
     let discovery: any AccountDiscovering
     let recovery: any RecoveryStoring
     let accounts: any AccountStoring
-    let providerConnection: any ProviderConnecting
+    let providerKey: any ValueStoring<String>
+    let providerConnection: any ProviderConnecting<ProviderConnectionError>
     let providerRevision = Revision()
     let portfolio: any PortfolioProviding & TokenListProviding
     let providerSelection: any ProviderSelecting
+    let customRPCConnection: any ProviderConnecting<CustomRPCError>
     // One sampler for every window shares its remembered logo colors.
     let artworkColors: any ArtworkColorProviding = ArtworkColors()
     let recoveryPasteboard: any RecoveryCopying
@@ -40,12 +42,15 @@ struct AppServices {
         recoveryCleanup = RecoveryCleanup(accounts: accounts, recovery: recovery)
         let providerKey = KeychainItem(service: providerService, account: "api-key", coding: .utf8)
         let providerSettings = KeychainItem(service: providerService, account: "settings", coding: .json(ProviderSettings.self))
-        providerConnection = HeliusConnection(providerKey: providerKey)
+        self.providerKey = providerKey
+        providerConnection = HeliusConnection(providerKey: providerKey, revision: providerRevision)
         // One service for every window shares its cache, subscriptions, and price pacing.
         let portfolio = Portfolio(rpc: ProviderClient(settings: providerSettings, providerKey: providerKey), prices: Jupiter())
         self.portfolio = portfolio
-        providerSelection = ProviderSelection(settings: providerSettings, providerKey: providerKey, portfolio: portfolio,
-                                              revision: providerRevision)
+        let providerSelection = ProviderSelection(settings: providerSettings, providerKey: providerKey,
+                                                  portfolio: portfolio, revision: providerRevision)
+        self.providerSelection = providerSelection
+        customRPCConnection = CustomRPCConnection(providers: providerSelection)
         recoveryPasteboard = RecoveryPasteboard()
         security = SecurityServices(
             recovery: RecoveryReveal(store: recovery),
@@ -89,10 +94,11 @@ struct AppServices {
         SecurityFlow(services: security)
     }
 
-    /// Creates independent RPC provider choices and key entry around the shared provider services.
-    /// - Returns: A flow whose choices and key entry belong to one window.
+    /// Creates independent RPC provider choices, pushed screens, and key entry around the shared provider services.
+    /// - Returns: A flow whose choices, pushed screens, and key entry belong to one window.
     func makeProvidersFlow() -> ProvidersFlow {
-        ProvidersFlow(providers: providerSelection, connection: providerConnection, revision: providerRevision)
+        ProvidersFlow(providers: providerSelection, providerKey: providerKey, connection: providerConnection,
+                      customRPCConnection: customRPCConnection, revision: providerRevision)
     }
 
     /// Assembles a preference-editing workflow around the app's shared appearance services.

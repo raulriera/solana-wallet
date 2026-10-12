@@ -1,3 +1,4 @@
+import Foundation
 @testable import RPC
 @testable import widgets
 
@@ -18,28 +19,37 @@ extension HTTPResponses {
     /// Creates the production connection, answering each checked key with its own fixtures.
     /// - Parameters:
     ///   - providerKey: The test's isolated key storage.
+    ///   - revision: Counts saved keys that every window hears about.
     ///   - responses: The fixtures that answer a given key.
     /// - Returns: A connection whose Helius client never leaves the process.
-    nonisolated static func connection(providerKey: any ValueStoring<String>,
+    nonisolated static func connection(providerKey: any ValueStoring<String>, revision: Revision,
                                        responding responses: @escaping @Sendable (String) -> HTTPResponses) -> HeliusConnection {
-        HeliusConnection(providerKey: providerKey) { HeliusRPC(apiKey: $0, network: .mainnet, transport: responses($0)) }
+        HeliusConnection(providerKey: providerKey, revision: revision) {
+            HeliusRPC(apiKey: $0, network: .mainnet, transport: responses($0))
+        }
     }
 
     /// Creates the production connection with these fixtures in place of the network.
-    /// - Parameter providerKey: The test's isolated key storage.
+    /// - Parameters:
+    ///   - providerKey: The test's isolated key storage.
+    ///   - revision: Counts saved keys that every window hears about.
     /// - Returns: A connection whose Helius client never leaves the process.
-    nonisolated func connection(providerKey: any ValueStoring<String>) -> HeliusConnection {
-        Self.connection(providerKey: providerKey) { _ in self }
+    nonisolated func connection(providerKey: any ValueStoring<String>, revision: Revision) -> HeliusConnection {
+        Self.connection(providerKey: providerKey, revision: revision) { _ in self }
     }
 
     /// Creates the client that production uses for an endpoint, with these fixtures in place of the network.
-    /// - Parameter endpoint: The provider and what it needs to accept requests.
+    /// - Parameters:
+    ///   - endpoint: The provider and what it needs to accept requests.
+    ///   - socket: Opens each subscription connection; by default, a local socket that acknowledges each subscription.
     /// - Returns: The provider's client, or `nil` for a custom URL that isn't HTTPS with a host.
-    nonisolated func client(for endpoint: ProviderClient.Endpoint) -> (any RPC & AccountChangeProviding)? {
+    nonisolated func client(for endpoint: ProviderClient.Endpoint,
+                            socket: @escaping @Sendable (URL) -> any WebSocketConnection = { _ in SocketFixture() })
+        -> (any RPC & AccountChangeProviding)? {
         switch endpoint {
-        case .solana: Solana(network: .mainnet, transport: self)
-        case .helius(let key): HeliusRPC(apiKey: key, network: .mainnet, transport: self)
-        case .custom(let url): Solana(endpoint: url, network: .mainnet, transport: self)
+        case .solana: Solana(network: .mainnet, transport: self, socket: socket)
+        case .helius(let key): HeliusRPC(apiKey: key, network: .mainnet, transport: self, socket: socket)
+        case .custom(let url): Solana(endpoint: url, network: .mainnet, transport: self, socket: socket)
         }
     }
 

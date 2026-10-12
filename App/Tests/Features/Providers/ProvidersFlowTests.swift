@@ -2,7 +2,8 @@ import Foundation
 import Testing
 @testable import widgets
 
-/// Checks Providers choices, key entry, and failures with the production selection over in-memory stores.
+/// Checks Providers choices, custom RPCs, Helius's details, key entry, and failures with the production selection over
+/// in-memory stores.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct ProvidersFlowTests {
@@ -64,7 +65,7 @@ struct ProvidersFlowTests {
         #expect(flow.error == nil)
     }
 
-    /// Replacing the key never changes the provider, even after key entry for a choice of Helius is dismissed.
+    /// A replaced key never changes the provider, even after key entry for a choice of Helius is dismissed.
     /// - Throws: A test prerequisite error.
     @Test
     func `A replaced key keeps the provider in use`() async throws {
@@ -77,12 +78,148 @@ struct ProvidersFlowTests {
         flow.keyEntry = nil
 
         flow.showDetails(for: .helius)
-        let keyEntry = try #require(flow.keyEntry)
-        try await saveKey(in: keyEntry, for: flow)
+        flow.changeKey()
+        try #require(flow.path == [.providerDetails, .providerKey])
+        let replacement = try #require(flow.newKey)
+        replacement.submit("replacement-key")
+        await replacement.run(replacement.attempt)
+        try #require(replacement.isSaved)
 
+        #expect(flow.keyEntry == nil)
         #expect(await settings.value?.selection == .solana)
         #expect(flow.attempt == nil)
         #expect(revision.value == 1)
+    }
+
+    /// Helius's details open without a key check.
+    @Test
+    func `Helius's details open without a key check`() {
+        let flow = makeFlow(settings: StoredValue(), providerKey: StoredValue("fixture-key"))
+
+        flow.showDetails(for: .helius)
+
+        #expect(flow.path == [.providerDetails])
+        #expect(flow.newKey == nil)
+        #expect(flow.keyEntry == nil)
+    }
+
+    /// Back keeps a closed screen's check or RPC, so the screen keeps its content while it slides away.
+    /// - Throws: A test prerequisite error.
+    @Test
+    func `A closed screen keeps its content`() throws {
+        let url = try #require(URL(string: "https://rpc.example.com"))
+        let flow = makeFlow(settings: StoredValue(), providerKey: StoredValue())
+
+        flow.changeKey()
+        let newKey = try #require(flow.newKey)
+        flow.path.removeLast()
+        flow.addCustomRPC()
+        let setup = try #require(flow.setup)
+        flow.path.removeLast()
+        flow.showDetails(for: .custom(url))
+        try #require(flow.path == [.customRPCDetails])
+        flow.path.removeLast()
+
+        #expect(flow.newKey === newKey)
+        #expect(flow.setup === setup)
+        #expect(flow.details == url)
+    }
+
+    /// Each opening of a closed screen starts a new check, so the new screen shows no earlier result and closes after
+    /// its own save.
+    /// - Throws: A test prerequisite error.
+    @Test
+    func `A screen that opens again starts a new check`() async throws {
+        let flow = makeFlow(settings: StoredValue(), providerKey: StoredValue())
+        flow.changeKey()
+        let saved = try #require(flow.newKey)
+        saved.submit("fixture-key")
+        await saved.run(saved.attempt)
+        try #require(saved.isSaved)
+        flow.path.removeLast()
+
+        flow.changeKey()
+
+        #expect(flow.newKey !== saved)
+        #expect(flow.newKey?.isSaved == false)
+        #expect(flow.path == [.providerKey])
+    }
+
+    /// Key entry from Helius's details replaces a key only when one is saved, and keeps that wording while it saves.
+    /// - Throws: A test prerequisite error.
+    @Test
+    func `Key entry from details replaces a key only when one is saved`() async throws {
+        let saved = makeFlow(settings: StoredValue(), providerKey: StoredValue("fixture-key"))
+        let missing = makeFlow(settings: StoredValue(), providerKey: StoredValue())
+        await saved.reload()
+        await missing.reload()
+
+        saved.showDetails(for: .helius)
+        saved.changeKey()
+        missing.showDetails(for: .helius)
+        missing.changeKey()
+        let added = try #require(missing.newKey)
+        added.submit("fixture-key")
+        await added.run(added.attempt)
+        try #require(added.isSaved)
+        await missing.reload()
+
+        #expect(saved.replacesSavedKey)
+        #expect(missing.replacesSavedKey == false)
+        #expect(missing.keyPreview == "fixt•••••••")
+    }
+
+    /// Helius's details show only the saved key's first characters, and nothing before a key is saved.
+    /// - Parameters:
+    ///   - saved: The saved key, or `nil` before one is saved.
+    ///   - preview: The key preview the details show.
+    @Test(arguments: [("fixture-key", "fixt•••••••"), (nil, nil)] as [(String?, String?)])
+    func `Helius's details show only the start of the saved key`(saved: String?, preview: String?) async {
+        let flow = makeFlow(settings: StoredValue(), providerKey: StoredValue(saved))
+
+        await flow.reload()
+
+        #expect(flow.keyPreview == preview)
+    }
+
+    /// A key that can't be read keeps the last preview and shows no alert, because no choice depends on it.
+    /// - Throws: A test prerequisite error.
+    @Test
+    func `A key that can't be read keeps the last preview`() async throws {
+        let keys = StoredValue("fixture-key")
+        let flow = makeFlow(settings: StoredValue(ProviderSettings(selection: .solana)), providerKey: keys)
+        await flow.reload()
+        try #require(flow.keyPreview == "fixt•••••••")
+
+        await keys.failLoading()
+        await flow.reload()
+
+        #expect(flow.keyPreview == "fixt•••••••")
+        #expect(flow.selection == .solana)
+        #expect(flow.error == nil)
+    }
+
+    /// A key saved in another window shows in this window's details after its next read.
+    /// - Throws: A test prerequisite error.
+    @Test
+    func `A key changed in another window shows after the next read`() async throws {
+        let settings = StoredValue<ProviderSettings>()
+        let keys = StoredValue("fixture-key")
+        let revision = Revision()
+        let flow = makeFlow(settings: settings, providerKey: keys, revision: revision)
+        let otherWindow = makeFlow(settings: settings, providerKey: keys, revision: revision)
+        await flow.reload()
+        flow.showDetails(for: .helius)
+
+        otherWindow.showDetails(for: .helius)
+        otherWindow.changeKey()
+        let replacement = try #require(otherWindow.newKey)
+        replacement.submit("replacement-key")
+        await replacement.run(replacement.attempt)
+        try #require(revision.value == 1)
+        await flow.reload()
+
+        #expect(flow.keyPreview == "repl•••••••••••")
     }
 
     /// Solana has no details, so asking for them opens nothing.
@@ -92,6 +229,7 @@ struct ProvidersFlowTests {
 
         flow.showDetails(for: .solana)
 
+        #expect(flow.path.isEmpty)
         #expect(flow.keyEntry == nil)
     }
 
@@ -99,18 +237,26 @@ struct ProvidersFlowTests {
     /// - Throws: A test prerequisite error.
     @Test
     func `Taps during a choice are ignored`() async throws {
-        let settings = StoredValue<ProviderSettings>()
+        let url = try #require(URL(string: "https://rpc.example.com"))
+        let settings = StoredValue(ProviderSettings(customRPCs: [url]))
         let flow = makeFlow(settings: settings, providerKey: StoredValue())
 
         flow.select(.solana)
         let attempt = try #require(flow.attempt)
         flow.select(.helius)
         flow.showDetails(for: .helius)
+        flow.showDetails(for: .custom(url))
+        flow.addCustomRPC()
+        flow.changeKey()
+        flow.remove(url)
 
         #expect(flow.attempt == attempt)
         #expect(flow.keyEntry == nil)
+        #expect(flow.path.isEmpty)
+        #expect(flow.setup == nil)
+        #expect(flow.newKey == nil)
         await flow.run(attempt)
-        #expect(await settings.value?.selection == .solana)
+        #expect(await settings.value == ProviderSettings(selection: .solana, customRPCs: [url]))
     }
 
     /// Leaving the screen during a choice of Helius neither asks for the key nor explains a failure.
@@ -202,17 +348,27 @@ struct ProvidersFlowTests {
         #expect(flow.selection == .solana)
     }
 
-    /// Closing after a reset drops a waiting choice, key entry, the choice that asked for a key, and the last read.
+    /// Closing after a reset drops a waiting choice, key entry, the choice that asked for a key, pushed screens and what
+    /// they show, a deletion waiting for confirmation, and the last read.
     /// - Throws: A test prerequisite error.
     @Test
     func `Closing drops waiting work and key entry`() async throws {
-        let settings = StoredValue<ProviderSettings>()
+        let url = try #require(URL(string: "https://rpc.example.com"))
+        let settings = StoredValue(ProviderSettings(customRPCs: [url]))
         let flow = makeFlow(settings: settings, providerKey: StoredValue())
         await flow.reload()
         try #require(flow.selection == .helius)
+        try #require(flow.customRPCs == [url])
         flow.select(.helius)
         await flow.run(flow.attempt)
         try #require(flow.keyEntry != nil)
+        flow.addCustomRPC()
+        try #require(flow.setup != nil)
+        flow.changeKey()
+        try #require(flow.newKey != nil)
+        flow.showDetails(for: .custom(url))
+        try #require(flow.details == url)
+        flow.removal = url
         flow.select(.solana)
 
         let attempt = try #require(flow.attempt)
@@ -223,7 +379,103 @@ struct ProvidersFlowTests {
         #expect(flow.keyEntry == nil)
         #expect(flow.attempt == nil)
         #expect(flow.selection == nil)
-        #expect(await settings.value == nil)
+        #expect(flow.customRPCs.isEmpty)
+        #expect(flow.removal == nil)
+        #expect(flow.path.isEmpty)
+        #expect(flow.setup == nil)
+        #expect(flow.newKey == nil)
+        #expect(flow.details == nil)
+        #expect(await settings.value == ProviderSettings(customRPCs: [url]))
+    }
+
+    /// Closing after a reset drops the key preview, because the reset deleted the key without a provider change.
+    /// - Throws: A test prerequisite error.
+    @Test
+    func `Closing drops the key preview`() async throws {
+        let flow = makeFlow(settings: StoredValue(), providerKey: StoredValue("fixture-key"))
+        await flow.reload()
+        try #require(flow.keyPreview != nil)
+
+        flow.close()
+
+        #expect(flow.keyPreview == nil)
+    }
+
+    /// Leaving Providers closes its pushed screens and drops a deletion waiting for confirmation.
+    /// - Throws: A test prerequisite error.
+    @Test
+    func `Leaving Providers closes its screens and any waiting deletion`() throws {
+        let url = try #require(URL(string: "https://rpc.example.com"))
+        let flow = makeFlow(settings: StoredValue(), providerKey: StoredValue())
+
+        flow.addCustomRPC()
+        try #require(flow.path == [.customRPCSetup])
+        flow.removal = url
+        flow.leave()
+
+        #expect(flow.path.isEmpty)
+        #expect(flow.removal == nil)
+    }
+
+    /// Deleting a custom RPC saves the deletion and leaves every window's list on its next read, so its open details
+    /// close themselves.
+    /// - Throws: A test prerequisite error.
+    @Test
+    func `Deleting a custom RPC leaves every window's list`() async throws {
+        let deleted = try #require(URL(string: "https://one.example.com"))
+        let kept = try #require(URL(string: "https://two.example.com"))
+        let settings = StoredValue(ProviderSettings(selection: .custom(deleted), customRPCs: [deleted, kept]))
+        let revision = Revision()
+        let flow = makeFlow(settings: settings, providerKey: StoredValue(), revision: revision)
+        let otherWindow = makeFlow(settings: settings, providerKey: StoredValue(), revision: revision)
+        await flow.reload()
+        try #require(flow.customRPCs == [deleted, kept])
+
+        flow.remove(deleted)
+        await flow.run(flow.attempt)
+        await flow.reload()
+        await otherWindow.reload()
+
+        #expect(flow.customRPCs == [kept])
+        #expect(otherWindow.customRPCs == [kept])
+        #expect(flow.selection == .solana)
+        #expect(revision.value == 1)
+        #expect(flow.error == nil)
+    }
+
+    /// A deletion saved before the old logos fail to clear applies, so it isn't an error.
+    /// - Throws: A test prerequisite error.
+    @Test
+    func `A deletion saved before its old logos fail to clear shows no error`() async throws {
+        let url = try #require(URL(string: "https://rpc.example.com"))
+        let flow = makeFlow(settings: StoredValue(ProviderSettings(selection: .custom(url), customRPCs: [url])),
+                            providerKey: StoredValue(), portfolio: ProviderChanges(error: CocoaError(.fileWriteOutOfSpace)))
+
+        flow.remove(url)
+        await flow.run(flow.attempt)
+        await flow.reload()
+
+        #expect(flow.error == nil)
+        #expect(flow.customRPCs.isEmpty)
+        #expect(flow.selection == .solana)
+    }
+
+    /// A deletion that can't be saved explains it, and the RPC stays listed.
+    /// - Throws: A test prerequisite error.
+    @Test
+    func `A deletion that can't be saved explains it`() async throws {
+        let url = try #require(URL(string: "https://rpc.example.com"))
+        let settings = StoredValue(ProviderSettings(customRPCs: [url]), failsSaving: true)
+        let flow = makeFlow(settings: settings, providerKey: StoredValue())
+        await flow.reload()
+
+        flow.remove(url)
+        await flow.run(flow.attempt)
+
+        #expect(flow.error == .deletionUnsaved)
+        #expect(flow.customRPCs == [url])
+        #expect(await settings.value?.customRPCs == [url])
+        #expect(flow.attempt == nil)
     }
 
     /// Saves a key through key entry, then closes it as the sheet does after a saved key.
@@ -231,7 +483,7 @@ struct ProvidersFlowTests {
     ///   - keyEntry: The flow's open key entry.
     ///   - flow: The flow that owns key entry.
     /// - Throws: A test prerequisite error when the key isn't saved.
-    private func saveKey(in keyEntry: ProviderSubmission, for flow: ProvidersFlow) async throws {
+    private func saveKey(in keyEntry: ProviderSubmission<ProviderConnectionError>, for flow: ProvidersFlow) async throws {
         keyEntry.submit("fixture-key")
         await keyEntry.run(keyEntry.attempt)
         try #require(keyEntry.isSaved)
@@ -239,17 +491,21 @@ struct ProvidersFlowTests {
         flow.keyEntry = nil
     }
 
-    /// Creates a flow around the production selection and key connection over in-memory stores.
+    /// Creates a flow around the production selection, key connection, and custom RPC check over in-memory stores.
     /// - Parameters:
-    ///   - settings: The saved provider choice.
-    ///   - providerKey: Helius's saved key, which key entry fills and the selection reads.
+    ///   - settings: The saved provider choice and custom RPCs.
+    ///   - providerKey: Helius's saved key, which key entry fills, the selection reads, and the flow previews.
     ///   - portfolio: Records provider changes.
     ///   - revision: Counts provider changes that every window hears about.
     /// - Returns: A flow that never leaves the process.
     private func makeFlow(settings: StoredValue<ProviderSettings>, providerKey: StoredValue<String>,
                           portfolio: ProviderChanges = ProviderChanges(), revision: Revision = Revision()) -> ProvidersFlow {
-        ProvidersFlow(providers: ProviderSelection(settings: settings, providerKey: providerKey, portfolio: portfolio,
-                                                   revision: revision),
-                      connection: HTTPResponses.keyCheck().connection(providerKey: providerKey), revision: revision)
+        let providers = ProviderSelection(settings: settings, providerKey: providerKey, portfolio: portfolio,
+                                          revision: revision)
+        let connection = HTTPResponses.keyCheck().connection(providerKey: providerKey, revision: revision)
+        // Unplanned requests fail instead of reaching the network.
+        let customRPCConnection = CustomRPCConnection(providers: providers) { HTTPResponses([:]).client(for: $0) }
+        return ProvidersFlow(providers: providers, providerKey: providerKey, connection: connection,
+                             customRPCConnection: customRPCConnection, revision: revision)
     }
 }

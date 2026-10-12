@@ -3,7 +3,7 @@ import SwiftUI
 /// Lists the RPC providers with a checkmark on the one that every window uses.
 struct ProvidersScreen: View {
     @Environment(\.palette) private var palette
-    let flow: ProvidersFlow
+    @Bindable var flow: ProvidersFlow
 
     var body: some View {
         Form {
@@ -16,7 +16,8 @@ struct ProvidersScreen: View {
             }
             .listRowBackground(palette.surface)
 
-            ProviderSelectionSection(selection: flow.selection, actions: flow)
+            ProviderSelectionSection(selection: flow.selection, customRPCs: flow.customRPCs, removal: $flow.removal,
+                                     actions: flow)
         }
         .navigationTitle("Providers")
         .navigationBarTitleDisplayMode(.inline)

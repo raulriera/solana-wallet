@@ -1,6 +1,6 @@
 # Architecture
 
-App source and tests live in `App/Sources` and `App/Tests`. Each framework lives in `Frameworks/<Module>` with `Sources`, `Tests`, and a `README.md`. Xcode mirrors these folders; target and module names are independent of the folder names. Shared framework test helpers live in `Frameworks/TestSupport`.
+App source and tests live in `App/Sources` and `App/Tests`. Each framework lives in `Frameworks/<Module>` with `Sources`, `Tests`, and a `README.md`. Xcode mirrors these folders; target and module names are independent of the folder names. Test helpers shared by frameworks, and by app tests of framework clients, live in `Frameworks/TestSupport`.
 
 The wallet app owns workflow coordination through internal, protocol-based services. Construct shared services in app composition and presentation coordinators within each window's feature lifetime; callers use the workflow they need without assembling every helper. Views present state and capture approval. Follow the [UI architecture](ui.md) for navigation, window ownership, and themes.
 

@@ -41,10 +41,7 @@ struct SettingsScene: View {
                     AppearanceView(settings: settings, wallet: wallet)
                 }
             case .providers:
-                NavigationStack {
-                    ProvidersScreen(flow: providers)
-                        .providersLifecycle(providers)
-                }
+                ProvidersScene(flow: providers)
             case .security:
                 SecurityScene(flow: security, account: account)
             }
@@ -53,6 +50,8 @@ struct SettingsScene: View {
         .onChange(of: selection) { _, selection in
             // Leaving Security & Privacy closes its screens and releases any open backup.
             if selection != .security { security.close() }
+            // Leaving Providers closes its screens.
+            if selection != .providers { providers.leave() }
         }
         .onChange(of: horizontalSizeClass, initial: true) { _, sizeClass in
             // A selection pushes its detail on compact displays, so only expanded layouts start with one.

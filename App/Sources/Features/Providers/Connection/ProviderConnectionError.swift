@@ -1,7 +1,7 @@
 import Foundation
 
 /// A provider setup failure that never contains the entered key.
-nonisolated enum ProviderConnectionError: LocalizedError, Equatable {
+nonisolated enum ProviderConnectionError: ProviderEntryError {
     /// The key is empty, or the provider rejected it.
     case invalidKey
     /// The provider is limiting requests; the user decides when to try again.
@@ -10,6 +10,9 @@ nonisolated enum ProviderConnectionError: LocalizedError, Equatable {
     case unavailable
     /// The accepted key couldn't be saved on this device.
     case storageFailed
+
+    /// Whether Helius refused the key itself, so the screen explains it under the field.
+    var rejectsEntry: Bool { self == .invalidKey }
 
     /// Names the failure in an alert's title.
     var errorDescription: String? {

@@ -8,24 +8,23 @@ struct OnboardingScene: View {
     @State private var error: OnboardingError?
     @State private var navigation: OnboardingNavigation
     @State private var importSubmission: ImportSubmission
-    @State private var providerSubmission: ProviderSubmission
+    @State private var providerSubmission: ProviderSubmission<ProviderConnectionError>
     let coordinator: any OnboardingCoordinating
     let pasteboard: any RecoveryCopying
 
     /// Seeds presentation once; the parent retains these services for the window's lifetime.
     /// - Parameters:
     ///   - coordinator: The owning window's preparation, persistence, and routing workflow.
-    ///   - connection: Verifies and saves the provider's API key after the wallet is saved.
-    ///   - providerRevision: Tells every window when a provider change applies, such as a saved key.
+    ///   - connection: Verifies and saves the provider's API key after the wallet is saved, and tells every window.
     ///   - pasteboard: Copies a new wallet's recovery words to this device only, for a limited time.
-    init(coordinator: any OnboardingCoordinating, connection: any ProviderConnecting, providerRevision: Revision,
+    init(coordinator: any OnboardingCoordinating, connection: any ProviderConnecting<ProviderConnectionError>,
          pasteboard: any RecoveryCopying) {
         self.coordinator = coordinator
         self.pasteboard = pasteboard
         let importSubmission = ImportSubmission(coordinator: coordinator)
         self.importSubmission = importSubmission
         navigation = OnboardingNavigation(importSubmission: importSubmission)
-        providerSubmission = ProviderSubmission(connection: connection, revision: providerRevision)
+        providerSubmission = ProviderSubmission(connection: connection)
     }
 
     var body: some View {
@@ -54,8 +53,7 @@ struct OnboardingScene: View {
                             }
                         case .providerSetup:
                             // The wallet is already saved, so its earlier steps no longer apply.
-                            ProviderSetupScreen(isKeyRejected: providerSubmission.isKeyRejected,
-                                                submit: providerSubmission.submit)
+                            ProviderSetupScreen(purpose: .connect, submission: providerSubmission)
                                 .providerSetupLifecycle(providerSubmission)
                                 .navigationBarBackButtonHidden()
                         }

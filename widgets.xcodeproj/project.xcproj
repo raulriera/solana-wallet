@@ -70,9 +70,23 @@
             { "kind": "folder", "path": "Tests", "target-membership": [ "RPCTests" ] },
             { "path": "README.md" },
           ],
-        },
-        { "kind": "folder", "path": "TestSupport", "target-membership": [ "PortfolioTests", "RPCTests" ] },
-        {
+        }, {
+          "kind": "folder",
+          "path": "TestSupport",
+          "target-membership": [
+            "PortfolioTests",
+            "RPCTests",
+            "widgetsTests",
+          ],
+          "membership-exceptions": [
+            {
+              "target": "widgetsTests",
+              "exclusions": [
+                "Networking/SilentWebSocketServer.swift",
+              ],
+            },
+          ],
+        }, {
           "kind": "group",
           "path": "Themes",
           "children": [

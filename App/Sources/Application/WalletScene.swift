@@ -9,7 +9,7 @@ struct WalletScene: View {
     let portfolio: any PortfolioCoordinating
     let tokenRemoval: TokenRemovalFlow
     let settings: AppearanceSettings
-    let connection: any ProviderConnecting
+    let connection: any ProviderConnecting<ProviderConnectionError>
     let providerRevision: Revision
     let security: SecurityFlow
     let providers: ProvidersFlow
@@ -18,13 +18,12 @@ struct WalletScene: View {
     var body: some View {
         TabView(selection: $section) {
             Tab("Portfolio", systemImage: "wallet.bifold", value: .portfolio) {
-                PortfolioScene(coordinator: portfolio, connection: connection, providerRevision: providerRevision,
-                               removal: tokenRemoval)
+                PortfolioScene(coordinator: portfolio, connection: connection, removal: tokenRemoval)
                     .tokenRemovalLifecycle()
             }
             Tab("Settings", systemImage: "gearshape", value: .settings) {
                 SettingsScene(settings: settings, account: account, security: security, providers: providers)
-                    .securityLifecycle(security)
+                    .settingsLifecycle(security: security, providers: providers)
             }
         }
         .tabViewStyle(.tabBarOnly)

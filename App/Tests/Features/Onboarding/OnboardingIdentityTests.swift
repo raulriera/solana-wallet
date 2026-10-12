@@ -22,10 +22,8 @@ struct OnboardingIdentityTests {
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: http.client), wallet: Wallet(),
                                                 recovery: recovery, accounts: accounts, router: router)
-        let connection = HTTPResponses.keyCheck().connection(providerKey: keys)
-        let providerRevision = Revision()
-        let original = OnboardingScene(coordinator: coordinator, connection: connection,
-                                       providerRevision: providerRevision, pasteboard: NoPasteboard())
+        let connection = HTTPResponses.keyCheck().connection(providerKey: keys, revision: Revision())
+        let original = OnboardingScene(coordinator: coordinator, connection: connection, pasteboard: NoPasteboard())
         // Read only the public model references in initial State, never recovery or input text.
         let navigation: OnboardingNavigation = try initialState("_navigation", in: original)
         let submission: ImportSubmission = try initialState("_importSubmission", in: original)
@@ -59,8 +57,7 @@ struct OnboardingIdentityTests {
                                                     wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
             router.route(to: .onboarding)
             hosted.host.rootView = OnboardingIdentityRoot(
-                scene: OnboardingScene(coordinator: replacement, connection: connection,
-                                       providerRevision: providerRevision, pasteboard: NoPasteboard()),
+                scene: OnboardingScene(coordinator: replacement, connection: connection, pasteboard: NoPasteboard()),
                 generation: 1, rendered: rendered.continuation)
             try #require(await renders.next() == 1)
             gate.resume()

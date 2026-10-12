@@ -1,6 +1,7 @@
+import Foundation
 import Portfolio
 
-/// Applies a new RPC provider choice to the shared portfolio and every window.
+/// Applies RPC provider choices and custom RPC changes to the shared portfolio and every window.
 @MainActor
 struct ProviderSelection: ProviderSelecting {
     private let store: any ValueStoring<ProviderSettings>
@@ -10,7 +11,7 @@ struct ProviderSelection: ProviderSelecting {
 
     /// Connects the choice to the stores and windows it changes.
     /// - Parameters:
-    ///   - settings: Device-only storage for the provider choice.
+    ///   - settings: Device-only storage for the provider choice and custom RPCs.
     ///   - providerKey: Device-only storage for Helius's accepted key.
     ///   - portfolio: The shared portfolio, whose client reads the choice before every request.
     ///   - revision: Tells every window when a provider change applies.
@@ -40,11 +41,51 @@ struct ProviderSelection: ProviderSelecting {
             try Task.checkCancellation()
             throw ProviderClientError.missingKey
         }
-        var current = try await settings()
-        guard current.select(provider) else { return }
-        try await store.save(current)
+        guard try await update({ $0.select(provider) }) else { return }
         // The previous provider's work has ended even when its logos can't be removed, so windows observe again.
         defer { revision.advance() }
         try await portfolio.providerDidChange()
+    }
+
+    /// Saves a checked custom RPC, chooses it for every window, and ends the previous provider's portfolio work.
+    /// - Parameter url: The checked HTTPS RPC URL; adding a listed RPC only chooses it.
+    /// - Throws: A storage or cancellation error when the RPC can't be saved, which changes nothing; or a file-system
+    ///   error when saved logos can't be removed, after the RPC is saved and windows observe again.
+    func add(_ url: URL) async throws {
+        guard try await update({ $0.add(url) }) else { return }
+        // The previous provider's work has ended even when its logos can't be removed, so windows observe again.
+        defer { revision.advance() }
+        try await portfolio.providerDidChange()
+    }
+
+    /// Deletes a custom RPC and tells every window; deleting the RPC in use switches every window to Solana.
+    /// - Parameter url: The RPC URL to delete; an unlisted URL changes nothing.
+    /// - Throws: A storage or cancellation error when the deletion can't be saved, which changes nothing; or a
+    ///   file-system error when saved logos can't be removed, after the deletion is saved and windows observe again.
+    func remove(_ url: URL) async throws {
+        let (listed, selectionChanged) = try await update { settings in
+            settings.customRPCs.contains(url) ? (true, settings.remove(url)) : (false, false)
+        }
+        guard listed else { return }
+        // Every window's list changes, so windows read the settings again even when the provider stays.
+        defer { revision.advance() }
+        if selectionChanged { try await portfolio.providerDidChange() }
+    }
+
+    /// Changes the saved settings in one storage step, so changes from several windows don't overwrite each other.
+    /// - Parameter change: Changes the settings, which start from the defaults before anything is saved.
+    /// - Returns: The change's result.
+    /// - Throws: A storage or cancellation error, which changes nothing.
+    private func update<Result: Sendable>(
+        _ change: @escaping @Sendable (inout ProviderSettings) -> Result
+    ) async throws -> Result {
+        try await store.update { saved in
+            let current = saved ?? ProviderSettings()
+            var settings = current
+            let result = change(&settings)
+            // Unchanged defaults stay unsaved.
+            if settings != current { saved = settings }
+            return result
+        }
     }
 }

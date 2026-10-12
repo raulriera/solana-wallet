@@ -2,7 +2,8 @@ import Foundation
 import Testing
 @testable import widgets
 
-/// Checks that a provider choice is saved before the previous provider's work ends, and that windows observe again after.
+/// Checks that provider choices and custom RPC changes are saved before the previous provider's work ends, and that
+/// windows observe again after.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct ProviderSelectionTests {
@@ -133,5 +134,109 @@ struct ProviderSelectionTests {
 
         #expect(await settings.value?.selection == .solana)
         #expect(revision.value == 1)
+    }
+
+    /// A checked custom RPC is saved and chosen, the previous provider's work ends, and windows observe again.
+    /// - Throws: A selection failure or a test prerequisite error.
+    @Test
+    func `A new custom RPC is saved and chosen`() async throws {
+        let custom = try #require(URL(string: "https://rpc.example.com/fixture-token"))
+        let settings = StoredValue<ProviderSettings>()
+        let portfolio = ProviderChanges()
+        let revision = Revision()
+
+        try await ProviderSelection(settings: settings, providerKey: StoredValue(), portfolio: portfolio, revision: revision)
+            .add(custom)
+
+        #expect(await settings.value == ProviderSettings(selection: .custom(custom), customRPCs: [custom]))
+        #expect(await portfolio.count == 1)
+        #expect(revision.value == 1)
+    }
+
+    /// Adding the custom RPC in use saves nothing, keeps the portfolio's work, and doesn't restart windows.
+    /// - Throws: A selection failure or a test prerequisite error.
+    @Test
+    func `Adding the custom RPC in use changes nothing`() async throws {
+        let custom = try #require(URL(string: "https://rpc.example.com"))
+        let saved = ProviderSettings(selection: .custom(custom), customRPCs: [custom])
+        let settings = StoredValue(saved)
+        let portfolio = ProviderChanges()
+        let revision = Revision()
+
+        try await ProviderSelection(settings: settings, providerKey: StoredValue(), portfolio: portfolio, revision: revision)
+            .add(custom)
+
+        #expect(await settings.value == saved)
+        #expect(await portfolio.count == 0)
+        #expect(revision.value == 0)
+    }
+
+    /// Deleting the custom RPC in use switches every window to Solana and ends the RPC's portfolio work.
+    /// - Throws: A selection failure or a test prerequisite error.
+    @Test
+    func `Deleting the custom RPC in use switches to Solana`() async throws {
+        let deleted = try #require(URL(string: "https://one.example.com"))
+        let kept = try #require(URL(string: "https://two.example.com"))
+        let settings = StoredValue(ProviderSettings(selection: .custom(deleted), customRPCs: [deleted, kept]))
+        let portfolio = ProviderChanges()
+        let revision = Revision()
+
+        try await ProviderSelection(settings: settings, providerKey: StoredValue(), portfolio: portfolio, revision: revision)
+            .remove(deleted)
+
+        #expect(await settings.value == ProviderSettings(selection: .solana, customRPCs: [kept]))
+        #expect(await portfolio.count == 1)
+        #expect(revision.value == 1)
+    }
+
+    /// Deleting another custom RPC keeps the provider in use and its portfolio work; windows still update their lists.
+    /// - Throws: A selection failure or a test prerequisite error.
+    @Test
+    func `Deleting another custom RPC keeps the provider in use`() async throws {
+        let deleted = try #require(URL(string: "https://one.example.com"))
+        let kept = try #require(URL(string: "https://two.example.com"))
+        let settings = StoredValue(ProviderSettings(selection: .custom(kept), customRPCs: [deleted, kept]))
+        let portfolio = ProviderChanges()
+        let revision = Revision()
+
+        try await ProviderSelection(settings: settings, providerKey: StoredValue(), portfolio: portfolio, revision: revision)
+            .remove(deleted)
+
+        #expect(await settings.value == ProviderSettings(selection: .custom(kept), customRPCs: [kept]))
+        #expect(await portfolio.count == 0)
+        #expect(revision.value == 1)
+    }
+
+    /// When saved logos can't be removed, the deletion stays saved and windows still observe again.
+    /// - Throws: A test prerequisite error.
+    @Test
+    func `Deleting the RPC in use still applies when saved logos can't be removed`() async throws {
+        let deleted = try #require(URL(string: "https://one.example.com"))
+        let settings = StoredValue(ProviderSettings(selection: .custom(deleted), customRPCs: [deleted]))
+        let revision = Revision()
+        let selection = ProviderSelection(settings: settings, providerKey: StoredValue(),
+                                          portfolio: ProviderChanges(error: CocoaError(.fileWriteOutOfSpace)), revision: revision)
+
+        await #expect(throws: CocoaError(.fileWriteOutOfSpace)) { try await selection.remove(deleted) }
+
+        #expect(await settings.value == ProviderSettings(selection: .solana, customRPCs: []))
+        #expect(revision.value == 1)
+    }
+
+    /// Deleting an RPC that isn't listed saves nothing and tells no window.
+    /// - Throws: A selection failure or a test prerequisite error.
+    @Test
+    func `Deleting an unlisted RPC changes nothing`() async throws {
+        let unlisted = try #require(URL(string: "https://one.example.com"))
+        let settings = StoredValue<ProviderSettings>()
+        let portfolio = ProviderChanges()
+        let revision = Revision()
+
+        try await ProviderSelection(settings: settings, providerKey: StoredValue(), portfolio: portfolio, revision: revision)
+            .remove(unlisted)
+
+        #expect(await settings.value == nil)
+        #expect(await portfolio.count == 0)
+        #expect(revision.value == 0)
     }
 }

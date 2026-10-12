@@ -5,12 +5,24 @@ struct ProviderSelectionSection: View {
     @Environment(\.palette) private var palette
     /// The provider in use, or `nil` before the choice is read.
     let selection: ProviderSettings.Provider?
+    /// The custom RPCs, in the order they were added.
+    let customRPCs: [URL]
+    /// The custom RPC waiting for the person to confirm its deletion.
+    @Binding var removal: URL?
     let actions: any ProviderActions
 
     var body: some View {
         Section {
             ProviderRow(provider: .solana, isSelected: selection == .solana, actions: actions)
             ProviderRow(provider: .helius, isSelected: selection == .helius, actions: actions)
+            // Duplicates are refused, so each URL identifies its row.
+            ForEach(customRPCs, id: \.self) { url in
+                CustomRPCRow(url: url, isSelected: selection == .custom(url), removal: $removal, actions: actions)
+            }
+            Button("Add Custom RPC…", systemImage: "plus", action: actions.addCustomRPC)
+                .foregroundStyle(palette.accent)
+                .listRowBackground(palette.surface)
+                .listRowSeparatorTint(palette.separator)
         } header: {
             Text("RPC")
         } footer: {

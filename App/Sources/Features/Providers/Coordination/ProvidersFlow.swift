@@ -1,53 +1,118 @@
 import Foundation
 import Observation
+import SwiftUI
 
-/// Owns one Settings window's RPC provider choices and the key entry they need.
+/// Owns one Settings window's RPC provider choices, custom RPCs, and the key entry they need.
 @MainActor
 @Observable
 final class ProvidersFlow: ProviderActions {
     /// The provider in use as last read, or `nil` before the first read, so no provider shows as in use.
     private(set) var selection: ProviderSettings.Provider?
-    /// The key sheet's checks while it's open; each opening starts a new one.
-    var keyEntry: ProviderSubmission?
+    /// The custom RPCs as last read, in the order they were added.
+    private(set) var customRPCs: [URL] = []
+    /// The screens pushed above Providers; Back removes the last one.
+    ///
+    /// A closed screen's check or RPC stays until the screen opens again, so the screen keeps its content while it
+    /// slides away.
+    var path: [ProvidersRoute] = []
+    /// The custom RPC check for the last opening of its screen; each opening starts a new one.
+    private(set) var setup: ProviderSubmission<CustomRPCError>?
+    /// The custom RPC whose details opened last.
+    private(set) var details: URL?
+    /// The saved key as last read, with all but its first four characters masked, or `nil` when no key is saved; the
+    /// full key is never kept.
+    private(set) var keyPreview: String?
+    /// The new key's checks for the last opening of its screen; each opening starts a new one.
+    private(set) var newKey: ProviderSubmission<ProviderConnectionError>?
+    /// Whether the new key replaces a saved key, read when its screen opens so the wording stays while it saves.
+    private(set) var replacesSavedKey = false
+    /// The custom RPC waiting for the person to confirm its deletion.
+    var removal: URL?
+    /// The key sheet's checks while a choice waits for a key; each opening starts a new one.
+    var keyEntry: ProviderSubmission<ProviderConnectionError>?
     /// A secret-free error for the alert.
     var error: ProvidersError?
-    /// The choice waiting for the screen's task, identified without secrets.
+    /// The change waiting for the screen's task, identified without secrets.
     private(set) var attempt: UUID?
     /// Tells every window when a provider change applies, including a saved key.
     let revision: Revision
-    @ObservationIgnored private var pending: ProviderSettings.Provider?
+    @ObservationIgnored private var request: Request?
     /// The provider to choose once key entry saves its key.
     @ObservationIgnored private var selectsAfterKey: ProviderSettings.Provider?
     private let providers: any ProviderSelecting
-    private let connection: any ProviderConnecting
+    private let providerKey: any ValueStoring<String>
+    private let connection: any ProviderConnecting<ProviderConnectionError>
+    private let customRPCConnection: any ProviderConnecting<CustomRPCError>
+
+    /// A change that waits for storage.
+    private enum Request {
+        case select(ProviderSettings.Provider)
+        case remove(URL)
+    }
 
     /// Connects the flow to the shared provider services.
     /// - Parameters:
-    ///   - providers: Reads and changes the provider that every window uses.
+    ///   - providers: Reads and changes the provider that every window uses, and the custom RPCs.
+    ///   - providerKey: Device-only storage for Helius's accepted key, read only to show its first characters.
     ///   - connection: Verifies and saves the provider's API key.
+    ///   - customRPCConnection: Checks a custom RPC URL, then adds it and chooses it.
     ///   - revision: Tells every window when a provider change applies.
-    init(providers: any ProviderSelecting, connection: any ProviderConnecting, revision: Revision) {
+    init(providers: any ProviderSelecting, providerKey: any ValueStoring<String>,
+         connection: any ProviderConnecting<ProviderConnectionError>,
+         customRPCConnection: any ProviderConnecting<CustomRPCError>, revision: Revision) {
         self.providers = providers
+        self.providerKey = providerKey
         self.connection = connection
+        self.customRPCConnection = customRPCConnection
         self.revision = revision
     }
 
     /// Chooses the provider that every window uses, asking for its key first when none is saved.
     ///
-    /// Taps while another choice waits are ignored.
+    /// Taps while another change waits are ignored.
     /// - Parameter provider: The provider to use.
     func select(_ provider: ProviderSettings.Provider) {
-        guard attempt == nil else { return }
-        error = nil
-        pending = provider
-        attempt = UUID()
+        begin(.select(provider))
     }
 
-    /// Shows a provider's details: Helius's are its key entry, which replaces the key; the provider in use stays.
+    /// Pushes a provider's details: Helius's saved key or a custom RPC's URL.
+    ///
+    /// The provider in use stays.
     /// - Parameter provider: The provider whose details to show.
     func showDetails(for provider: ProviderSettings.Provider) {
-        guard attempt == nil, provider.hasDetails else { return }
-        openKeyEntry(continuing: nil)
+        guard attempt == nil else { return }
+        switch provider {
+        case .helius:
+            path.append(.providerDetails)
+        case .custom(let url):
+            details = url
+            path.append(.customRPCDetails)
+        case .solana:
+            break
+        }
+    }
+
+    /// Pushes the screen that checks a new key and saves it in place of any saved key; the provider in use stays.
+    func changeKey() {
+        guard attempt == nil else { return }
+        replacesSavedKey = keyPreview != nil
+        newKey = ProviderSubmission(connection: connection)
+        path.append(.providerKey)
+    }
+
+    /// Opens the screen that checks and adds a custom RPC.
+    func addCustomRPC() {
+        guard attempt == nil else { return }
+        setup = ProviderSubmission(connection: customRPCConnection)
+        path.append(.customRPCSetup)
+    }
+
+    /// Deletes a confirmed custom RPC for every window; its details close themselves once the list no longer has it.
+    ///
+    /// Deleting the RPC in use switches every window to Solana. Taps while another change waits are ignored.
+    /// - Parameter url: The RPC to delete.
+    func remove(_ url: URL) {
+        begin(.remove(url))
     }
 
     /// Continues the choice that asked for a key, after key entry saves it.
@@ -56,55 +121,97 @@ final class ProvidersFlow: ProviderActions {
         select(provider)
     }
 
-    /// Reads the saved choice again; an unreadable choice keeps the last one read and explains the failure.
+    /// Reads the saved choice, custom RPCs, and key again; unreadable settings keep the last ones read and explain
+    /// the failure.
+    ///
+    /// The key is read separately and only its first characters are kept; a key that can't be read keeps the last
+    /// preview without an alert, because no choice depends on it.
     func reload() async {
         do {
             let settings = try await providers.settings()
             guard !Task.isCancelled else { return }
             selection = settings.selection
+            // Rows animate in and out with the change that adds or deletes them.
+            withAnimation { customRPCs = settings.customRPCs }
         } catch is CancellationError {
-            // The screen left before the choice was read.
+            // The screen left before the settings were read.
+            return
         } catch {
             guard !Task.isCancelled else { return }
             self.error = .selectionUnreadable
         }
-    }
-
-    /// Ends the flow after a reset, dropping key entry, any waiting choice, and the choice last read.
-    func close() {
-        selectsAfterKey = nil
-        keyEntry = nil
-        attempt = nil
-        pending = nil
-        error = nil
-        selection = nil
-    }
-
-    /// Runs the waiting choice once in the screen's SwiftUI-managed task.
-    /// - Parameter attempt: The identifier the screen's task captured.
-    func run(_ attempt: UUID?) async {
-        guard let attempt, self.attempt == attempt, let provider = pending.take() else { return }
-        defer { if self.attempt == attempt { self.attempt = nil } }
         do {
-            try await providers.select(provider)
-        } catch is CancellationError {
-            // The screen left before the choice was saved.
-        } catch ProviderClientError.missingKey {
-            guard !Task.isCancelled, self.attempt == attempt else { return }
-            openKeyEntry(continuing: provider)
+            let key = try await providerKey.load()
+            guard !Task.isCancelled else { return }
+            keyPreview = key?.formatted(.keyPreview)
         } catch {
-            // A choice saved before its old logos failed to clear is in use, so only an unsaved choice is an error;
-            // a choice that can't be read back counts as unsaved.
-            let saved = try? await providers.settings()
-            guard !Task.isCancelled, self.attempt == attempt, saved?.selection != provider else { return }
-            self.error = .selectionUnsaved
+            // A key that can't be read keeps the last preview.
         }
     }
 
-    /// Opens key entry with a new key check.
-    /// - Parameter provider: The provider to choose once the key is saved, or `nil` to keep the provider in use.
-    private func openKeyEntry(continuing provider: ProviderSettings.Provider?) {
-        selectsAfterKey = provider
-        keyEntry = ProviderSubmission(connection: connection, revision: revision)
+    /// Closes the screens pushed above Providers, and any deletion waiting for confirmation, when another Settings
+    /// destination opens.
+    func leave() {
+        removal = nil
+        path = []
+    }
+
+    /// Ends the flow after a reset, dropping pushed screens and what they show, key entry, any waiting change or
+    /// deletion, and the settings and key preview last read.
+    func close() {
+        selectsAfterKey = nil
+        keyEntry = nil
+        setup = nil
+        details = nil
+        newKey = nil
+        removal = nil
+        attempt = nil
+        request = nil
+        error = nil
+        selection = nil
+        customRPCs = []
+        keyPreview = nil
+        path = []
+    }
+
+    /// Runs the waiting change once in the screen's SwiftUI-managed task.
+    /// - Parameter attempt: The identifier the screen's task captured.
+    func run(_ attempt: UUID?) async {
+        guard let attempt, self.attempt == attempt, let request = request.take() else { return }
+        defer { if self.attempt == attempt { self.attempt = nil } }
+        do {
+            switch request {
+            case .select(let provider): try await providers.select(provider)
+            case .remove(let url): try await providers.remove(url)
+            }
+        } catch is CancellationError {
+            // The screen left before the change was saved.
+        } catch ProviderClientError.missingKey {
+            guard !Task.isCancelled, self.attempt == attempt, case .select(let provider) = request else { return }
+            selectsAfterKey = provider
+            keyEntry = ProviderSubmission(connection: connection)
+        } catch {
+            // A change saved before the previous provider's logos failed to clear applies, so only an unsaved change
+            // is an error; settings that can't be read back count as unsaved.
+            let saved = try? await providers.settings()
+            guard !Task.isCancelled, self.attempt == attempt else { return }
+            switch request {
+            case .select(let provider) where saved?.selection != provider:
+                self.error = .selectionUnsaved
+            case .remove(let url) where saved?.customRPCs.contains(url) != false:
+                self.error = .deletionUnsaved
+            case .select, .remove:
+                break
+            }
+        }
+    }
+
+    /// Accepts one change at a time, ignoring taps while another change waits.
+    /// - Parameter request: The change to run.
+    private func begin(_ request: Request) {
+        guard attempt == nil else { return }
+        error = nil
+        self.request = request
+        attempt = UUID()
     }
 }

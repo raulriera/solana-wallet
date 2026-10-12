@@ -3,69 +3,68 @@ import Foundation
 import Observation
 import SwiftUI
 
-/// Owns one window's provider key checks; the flow that asked for a key continues once it's saved.
+/// Owns one window's checks of a provider entry, such as an API key or an RPC URL; the flow that asked for the
+/// entry continues once it's saved.
 @MainActor
 @Observable
-final class ProviderSubmission: Identifiable, Equatable {
-    private(set) var isKeyRejected = false
-    /// Counts rejected keys, so each rejection signals again while its message stays on screen.
+final class ProviderSubmission<EntryError: ProviderEntryError>: ProviderSubmitting, Identifiable, Equatable {
+    /// The refused entry's explanation while it shows under the field.
+    private(set) var rejection: EntryError?
+    /// Counts refused entries, so each refusal signals again while its message stays on screen.
     private(set) var rejectionCount = 0
-    var error: ProviderConnectionError?
+    var error: EntryError?
     private(set) var attempt: UUID?
-    /// Whether an accepted key is saved; the flow that asked for it continues when it is.
+    /// Whether an accepted entry is still being checked, so the screen keeps its input locked until it ends.
+    var isPending: Bool { attempt != nil }
+    /// Whether an accepted entry is saved; the flow that asked for it continues when it is.
     private(set) var isSaved = false
-    @ObservationIgnored private var pendingKey: String?
-    private let connection: any ProviderConnecting
-    private let revision: Revision
+    @ObservationIgnored private var pendingEntry: String?
+    private let connection: any ProviderConnecting<EntryError>
 
-    /// Works with the shared provider connection.
-    /// - Parameters:
-    ///   - connection: Verifies and saves the provider's API key.
-    ///   - revision: Tells every window when a provider change applies, such as a saved key.
-    init(connection: any ProviderConnecting, revision: Revision) {
+    /// Works with a shared provider connection.
+    /// - Parameter connection: Checks and saves the entry, and tells every window.
+    init(connection: any ProviderConnecting<EntryError>) {
         self.connection = connection
-        self.revision = revision
     }
 
-    /// Compares submissions by identity, so assigning the same key check again changes nothing.
+    /// Compares submissions by identity, so assigning the same check again changes nothing.
     /// - Parameters:
-    ///   - lhs: A key check.
-    ///   - rhs: Another key check.
-    /// - Returns: Whether both are the same key check.
+    ///   - lhs: An entry check.
+    ///   - rhs: Another entry check.
+    /// - Returns: Whether both are the same entry check.
     nonisolated static func == (lhs: ProviderSubmission, rhs: ProviderSubmission) -> Bool {
         lhs === rhs
     }
 
-    /// Accepts one key; taps during a check are ignored.
-    /// - Parameter key: The key as entered, kept out of task identity.
-    func submit(_ key: String) {
+    /// Accepts one entry; taps during a check are ignored.
+    /// - Parameter entry: The text as entered, kept out of task identity.
+    func submit(_ entry: String) {
         guard attempt == nil else { return }
-        pendingKey = key
+        pendingEntry = entry
         attempt = UUID()
     }
 
-    /// Checks one accepted key in the screen's SwiftUI-managed task.
+    /// Checks one accepted entry in the screen's SwiftUI-managed task.
     ///
     /// The inline rejection changes only when a result arrives, so it never flashes during a check.
-    /// A saved key counts even if cancellation arrives afterwards.
+    /// A saved entry counts even if cancellation arrives afterwards.
     /// - Parameter attempt: The attempt captured by the owning view task.
     func run(_ attempt: UUID?) async {
-        guard let attempt, self.attempt == attempt, let key = pendingKey.take() else { return }
+        guard let attempt, self.attempt == attempt, let entry = pendingEntry.take() else { return }
         defer { self.attempt = nil }
         do {
-            try await connection.connect(apiKey: key)
-            revision.advance()
+            try await connection.connect(entry)
             isSaved = true
-        } catch ProviderConnectionError.invalidKey {
+        } catch let error as EntryError where error.rejectsEntry {
             guard !Task.isCancelled else { return }
-            withAnimation { isKeyRejected = true }
+            withAnimation { rejection = error }
             rejectionCount += 1
-            AccessibilityNotification.Announcement(String(localized: ProviderConnectionError.invalidKey.message)).post()
+            AccessibilityNotification.Announcement(String(localized: error.message)).post()
         } catch {
             guard !Task.isCancelled, !(error is CancellationError) else { return }
-            withAnimation { isKeyRejected = false }
+            withAnimation { rejection = nil }
             // Anything else stays generic, so no underlying error text reaches the alert.
-            self.error = error as? ProviderConnectionError ?? .unavailable
+            self.error = error as? EntryError ?? .unavailable
         }
     }
 }
