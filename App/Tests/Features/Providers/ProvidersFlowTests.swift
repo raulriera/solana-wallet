@@ -65,7 +65,7 @@ struct ProvidersFlowTests {
         #expect(flow.error == nil)
     }
 
-    /// A replaced key never changes the provider, even after key entry for a choice of Helius is dismissed.
+    /// A replaced key never changes the provider, even after key entry for a choice of Helius closes without a key.
     /// - Throws: A test prerequisite error.
     @Test
     func `A replaced key keeps the provider in use`() async throws {
@@ -84,7 +84,9 @@ struct ProvidersFlowTests {
         replacement.submit("replacement-key")
         await replacement.run(replacement.attempt)
         try #require(replacement.isSaved)
+        flow.keySaved()
 
+        #expect(!flow.isKeyChoiceSaved)
         #expect(flow.keyEntry == nil)
         #expect(await settings.value?.selection == .solana)
         #expect(flow.attempt == nil)
@@ -359,7 +361,7 @@ struct ProvidersFlowTests {
         try #require(flow.customRPCs == [url])
         flow.select(.helius)
         await flow.run(flow.attempt)
-        try #require(flow.keyEntry != nil)
+        let keyEntry = try #require(flow.keyEntry)
         flow.addCustomRPC()
         try #require(flow.setup != nil)
         flow.changeKey()
@@ -372,8 +374,13 @@ struct ProvidersFlowTests {
         let attempt = try #require(flow.attempt)
         flow.close()
         await flow.run(attempt)
+        // A key sheet that saves after the reset continues no choice.
+        keyEntry.submit("fixture-key")
+        await keyEntry.run(keyEntry.attempt)
+        try #require(keyEntry.isSaved)
         flow.keySaved()
 
+        #expect(!flow.isKeyChoiceSaved)
         #expect(flow.keyEntry == nil)
         #expect(flow.attempt == nil)
         #expect(flow.selection == nil)
@@ -459,7 +466,8 @@ struct ProvidersFlowTests {
         #expect(flow.attempt == nil)
     }
 
-    /// Saves a key through key entry, then closes it as the sheet does after a saved key.
+    /// Saves a key through key entry, closes the sheet as it closes itself after a saved key, then continues the choice
+    /// as the lifecycle does.
     /// - Parameters:
     ///   - keyEntry: The flow's open key entry.
     ///   - flow: The flow that owns key entry.
@@ -468,7 +476,8 @@ struct ProvidersFlowTests {
         keyEntry.submit("fixture-key")
         await keyEntry.run(keyEntry.attempt)
         try #require(keyEntry.isSaved)
-        flow.keySaved()
         flow.keyEntry = nil
+        try #require(flow.isKeyChoiceSaved)
+        flow.keySaved()
     }
 }

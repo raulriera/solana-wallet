@@ -35,8 +35,8 @@ final class ProvidersFlow: ProviderActions {
     /// Tells every window when a provider change applies, including a saved key.
     let revision: Revision
     @ObservationIgnored private var request: Request?
-    /// The provider to choose once key entry saves its key.
-    @ObservationIgnored private var selectsAfterKey: ProviderSettings.Provider?
+    /// The choice that waits for a key; kept after its key sheet closes, so the sheet's saved key still continues it.
+    private var keyChoice: KeyChoice?
     private let providers: any ProviderSelecting
     private let providerKey: any ValueStoring<String>
     private let connection: any ProviderConnecting<ProviderConnectionError>
@@ -46,6 +46,12 @@ final class ProvidersFlow: ProviderActions {
     private enum Request {
         case select(ProviderSettings.Provider)
         case remove(URL)
+    }
+
+    /// A choice that waits for a key, with the checks of the key sheet it opened.
+    private struct KeyChoice: Equatable {
+        let provider: ProviderSettings.Provider
+        let entry: ProviderSubmission<ProviderConnectionError>
     }
 
     /// Connects the flow to the shared provider services.
@@ -114,9 +120,14 @@ final class ProvidersFlow: ProviderActions {
         begin(.remove(url))
     }
 
-    /// Continues the choice that asked for a key, after key entry saves it.
+    /// Whether the key sheet that a waiting choice opened has saved its key, so the choice can continue.
+    var isKeyChoiceSaved: Bool { keyChoice?.entry.isSaved ?? false }
+
+    /// Continues the choice that asked for a key, once its key sheet has saved the key; a sheet that closed without a
+    /// saved key continues nothing.
     func keySaved() {
-        guard let provider = selectsAfterKey.take() else { return }
+        guard isKeyChoiceSaved, let provider = keyChoice?.provider else { return }
+        keyChoice = nil
         select(provider)
     }
 
@@ -158,7 +169,7 @@ final class ProvidersFlow: ProviderActions {
     /// Ends the flow after a reset, dropping pushed screens and what they show, key entry, any waiting change or
     /// deletion, and the settings and key preview last read.
     func close() {
-        selectsAfterKey = nil
+        keyChoice = nil
         keyEntry = nil
         setup = nil
         details = nil
@@ -187,8 +198,9 @@ final class ProvidersFlow: ProviderActions {
             // The screen left before the change was saved.
         } catch ProviderClientError.missingKey {
             guard !Task.isCancelled, self.attempt == attempt, case .select(let provider) = request else { return }
-            selectsAfterKey = provider
-            keyEntry = ProviderSubmission(connection: connection)
+            let keyEntry = ProviderSubmission(connection: connection)
+            keyChoice = KeyChoice(provider: provider, entry: keyEntry)
+            self.keyEntry = keyEntry
         } catch {
             guard !Task.isCancelled, self.attempt == attempt else { return }
             switch request {

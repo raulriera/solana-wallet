@@ -18,11 +18,10 @@ struct ProvidersLifecycle: ViewModifier {
         content
             .task(id: flow.revision.value) { await flow.reload() }
             .task(id: attempt) { await flow.run(attempt) }
-            .sheet(item: $flow.keyEntry) { submission in
-                // The sheet closes itself after a saved key; the choice that asked for the key continues.
-                ProviderSetupSheet(submission: submission)
-                    .onChange(of: submission.isSaved) { flow.keySaved() }
-            }
+            .sheet(item: $flow.keyEntry) { ProviderSetupSheet(submission: $0) }
+            // The sheet closes itself after a saved key, before its own content could react, so the choice that asked
+            // for the key continues from here.
+            .onChange(of: flow.isKeyChoiceSaved) { flow.keySaved() }
             .alert("Delete RPC?", item: $flow.removal) { url in
                 Button("Delete", role: .destructive) { flow.remove(url) }
                 Button("Cancel", role: .cancel) {}

@@ -28,11 +28,29 @@ final class HostedWindow<Content: View> {
     /// - Returns: Whether the host presented a view controller in time.
     /// - Throws: `CancellationError` when the test is cancelled while waiting.
     func presentsViewController(within limit: Duration = .seconds(5)) async throws -> Bool {
+        try await waits(within: limit) { host.presentedViewController != nil }
+    }
+
+    /// Waits for the view controller that the hosted view presented, such as a sheet, to close.
+    /// - Parameter limit: How long to wait before giving up.
+    /// - Returns: Whether the presented view controller closed in time.
+    /// - Throws: `CancellationError` when the test is cancelled while waiting.
+    func closesPresentedViewController(within limit: Duration = .seconds(5)) async throws -> Bool {
+        try await waits(within: limit) { host.presentedViewController == nil }
+    }
+
+    /// Checks UIKit's presentation state, which nothing observes, until it matches or the time runs out.
+    /// - Parameters:
+    ///   - limit: How long to wait before giving up.
+    ///   - condition: The presentation state to wait for.
+    /// - Returns: Whether the condition became true in time.
+    /// - Throws: `CancellationError` when the test is cancelled while waiting.
+    private func waits(within limit: Duration, until condition: () -> Bool) async throws -> Bool {
         let deadline = ContinuousClock.now + limit
-        while host.presentedViewController == nil, ContinuousClock.now < deadline {
+        while !condition(), ContinuousClock.now < deadline {
             try await Task.sleep(for: .milliseconds(50))
         }
-        return host.presentedViewController != nil
+        return condition()
     }
 
     /// Removes the window and its presentations, and makes the previous key window key again.
