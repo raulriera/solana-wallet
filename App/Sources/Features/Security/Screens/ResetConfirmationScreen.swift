@@ -10,7 +10,7 @@ struct ResetConfirmationScreen: View {
     var body: some View {
         Form {
             Section {} footer: {
-                Text("This can't be undone. Every wallet, recovery phrase, and your RPC API key will be deleted from this device. Every window will return to Welcome.")
+                Text("This can't be undone. Every wallet, recovery phrase, your RPC API key, and custom RPCs will be deleted from this device. Every window will return to Welcome.")
                     .foregroundStyle(palette.secondaryText)
             }
         }
@@ -31,7 +31,7 @@ struct ResetConfirmationScreen: View {
             Button("Reset App", role: .destructive) { flow.reset() }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Every wallet, recovery phrase, and your RPC API key will be deleted from this device. Every window will return to Welcome.")
+            Text("Every wallet, recovery phrase, your RPC API key, and custom RPCs will be deleted from this device. Every window will return to Welcome.")
         }
     }
 }
