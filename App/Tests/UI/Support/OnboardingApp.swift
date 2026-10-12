@@ -197,25 +197,24 @@ struct OnboardingApp {
         try waitFor(app.staticTexts["Step 1 of 2"])
     }
 
-    /// Enters public fixture words and dismisses the keyboard through the screen's native toolbar.
+    /// Enters public fixture words and leaves the field with the keyboard's Next key, which checks them.
     /// - Parameter phrase: Public test input, never real wallet recovery.
     /// - Throws: A missing or unavailable control.
     func enterPhrase(_ phrase: String = Self.phrase) throws {
         let field = app.secureTextFields["Recovery words"]
         try tap(field)
-        field.typeText(phrase)
-        try tap(app.toolbars.buttons["Done"])
+        field.typeText(phrase + "\n")
     }
 
-    /// Enters a public fixture's original passphrase without transforming its case or whitespace.
+    /// Enters a public fixture's original passphrase without transforming its case or whitespace, then closes the
+    /// keyboard with its Done key.
     /// - Parameter passphrase: The public fixture passphrase.
     /// - Throws: A missing or unavailable control.
     func enterPassphrase(_ passphrase: String) throws {
         let field = app.secureTextFields["BIP-39 passphrase, optional"]
         if !field.isHittable { app.swipeUp() }
         try tap(field)
-        field.typeText(passphrase)
-        try tap(app.toolbars.buttons["Done"])
+        field.typeText(passphrase + "\n")
     }
 
     /// Waits for a setup destination, failing immediately when the app reports a setup error instead.

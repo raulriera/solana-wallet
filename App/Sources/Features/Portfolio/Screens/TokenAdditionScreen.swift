@@ -4,7 +4,6 @@ import SwiftUI
 /// Pastes a mint address and previews the token it names; the owning sheet adds the token.
 struct TokenAdditionScreen: View {
     @Environment(\.palette) private var palette
-    @State private var contentInset = LayoutMetrics.contentMargin
     let addition: TokenAddition
 
     var body: some View {
@@ -52,15 +51,8 @@ struct TokenAdditionScreen: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .scrollEdgeEffectStyle(.soft, for: .bottom)
-        .readableContentMargins(inset: $contentInset)
-        .safeAreaBar(edge: .bottom) {
-            Button("Add Token", action: addition.add)
-                .buttonStyle(.primary)
-                .disabled(addition.preview == nil)
-                .padding(.horizontal, contentInset)
-                .padding(.vertical, LayoutMetrics.actionBarVerticalPadding)
-        }
+        .readableContentMargins()
+        .confirmationAction("Add Token", isEnabled: addition.preview != nil, action: addition.add)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(palette.background)
         .navigationTitle("Add Token")

@@ -4,7 +4,6 @@ import SwiftUI
 struct ProviderSetupScreen: View {
     @Environment(\.palette) private var palette
     @State private var input = ProviderInput()
-    @State private var contentInset = LayoutMetrics.contentMargin
     @FocusState private var isFocused: Bool
     /// Why the screen asks for an entry, which sets its field and wording.
     let purpose: ProviderEntryPurpose
@@ -64,15 +63,9 @@ struct ProviderSetupScreen: View {
         .textInputAutocapitalization(.never)
         .autocorrectionDisabled()
         .scrollContentBackground(.hidden)
-        .scrollEdgeEffectStyle(.soft, for: .bottom)
-        .readableContentMargins(inset: $contentInset)
-        .safeAreaBar(edge: .bottom) {
-            Button(purpose.action, action: submitEntry)
-                .buttonStyle(.primary(isPending: submission.isPending))
-                .disabled(!input.hasText || submission.isPending)
-                .padding(.horizontal, contentInset)
-                .padding(.vertical, LayoutMetrics.actionBarVerticalPadding)
-        }
+        .readableContentMargins()
+        .confirmationAction(purpose.action, isEnabled: input.hasText, isPending: submission.isPending,
+                            action: submitEntry)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(palette.background)
         .navigationTitle(Text(purpose.title))

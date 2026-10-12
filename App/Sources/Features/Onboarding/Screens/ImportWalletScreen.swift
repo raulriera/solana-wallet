@@ -5,7 +5,6 @@ struct ImportWalletScreen: View {
     @Environment(\.palette) private var palette
     @Environment(\.canDisplayRecovery) private var canDisplayRecovery
     @State private var input: RecoveryInput
-    @State private var contentInset = LayoutMetrics.contentMargin
     @FocusState private var focusedField: RecoveryInput.Field?
     private let submission: any ImportSubmitting
 
@@ -75,21 +74,9 @@ struct ImportWalletScreen: View {
         }
         .scrollContentBackground(.hidden)
         .scrollDismissesKeyboard(.interactively)
-        .scrollEdgeEffectStyle(.soft, for: .bottom)
-        .readableContentMargins(inset: $contentInset)
-        .safeAreaBar(edge: .bottom) {
-            Button("Import Wallet", action: submit)
-                .buttonStyle(.primary(isPending: submission.isPending))
-                .disabled(!input.hasPhrase || !canDisplayRecovery || submission.isPending)
-                .padding(.horizontal, contentInset)
-                .padding(.vertical, LayoutMetrics.actionBarVerticalPadding)
-        }
-        .toolbar {
-            ToolbarItemGroup(placement: .keyboard) {
-                Spacer()
-                Button("Done") { focusedField = nil }
-            }
-        }
+        .readableContentMargins()
+        .confirmationAction("Import Wallet", isEnabled: input.hasPhrase && canDisplayRecovery,
+                            isPending: submission.isPending, action: submit)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(palette.background)
         .navigationTitle("Import Wallet")
