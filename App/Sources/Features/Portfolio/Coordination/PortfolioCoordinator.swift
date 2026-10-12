@@ -58,8 +58,8 @@ final class PortfolioCoordinator: PortfolioCoordinating {
                 guard !Task.isCancelled else { return }
                 await self?.receive(update, session: session, fromObservation: true)
             }
-            // A disconnected stream must not reconnect automatically. Keep the
-            // view's cancellation boundary alive so explicit refresh still works.
+            // The service ends the stream only when it stops the wallet's work, such as after a
+            // provider change. Keep the view's cancellation boundary alive so explicit refresh still works.
             let lifetime = AsyncStream<Never> { _ in }
             for await _ in lifetime {}
         }
@@ -73,7 +73,7 @@ final class PortfolioCoordinator: PortfolioCoordinating {
         stop(session: session)
     }
 
-    /// Forces one reload for the active wallet without restarting its subscription.
+    /// Forces one reload for the active wallet; the service also reconnects a disconnected subscription.
     func refresh() async {
         guard !Task.isCancelled, let session, let owner else { return }
         let id: UUID
