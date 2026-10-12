@@ -10,18 +10,17 @@ struct ProviderSubmissionTests {
     /// Each test starts from a fresh app-wide count of saved keys.
     private let revision = Revision()
 
-    /// An accepted key is saved, so the flow that asked for it can continue.
+    /// An accepted key is saved without the whitespace a paste can add, so the flow that asked for it can continue.
     @Test
-    func `An accepted key is saved`() async {
+    func `An accepted key is saved without surrounding whitespace`() async {
         let keys = StoredValue<String>()
         let submission = ProviderSubmission(
             connection: HTTPResponses.keyCheck().connection(providerKey: keys, revision: revision))
 
-        submission.submit("fixture-key")
+        submission.submit(" fixture-key \n")
         await submission.run(submission.attempt)
 
         #expect(submission.isSaved)
-        #expect(revision.value == 1)
         #expect(await keys.value == "fixture-key")
         #expect(submission.rejection == nil)
         #expect(submission.error == nil)
@@ -49,38 +48,18 @@ struct ProviderSubmissionTests {
         #expect(submission.rejectionCount == 2)
     }
 
-    /// Provider failures other than rejection explain their cause in an alert.
-    /// - Parameters:
-    ///   - status: The HTTP status Helius returns.
-    ///   - expected: The error the alert explains.
-    @Test(arguments: [
-        (429, ProviderConnectionError.rateLimited),
-        (500, .unavailable),
-    ])
-    func `Failures other than rejection explain their cause in an alert`(status: Int, expected: ProviderConnectionError) async {
-        let responses = HTTPResponses.keyCheck(error: .http(statusCode: status, retryAfter: nil))
+    /// A failure other than rejection explains its cause in an alert and keeps setup open.
+    @Test
+    func `Failures other than rejection explain their cause in an alert`() async {
+        let responses = HTTPResponses.keyCheck(error: .http(statusCode: 429, retryAfter: nil))
         let submission = ProviderSubmission(
             connection: responses.connection(providerKey: StoredValue<String>(), revision: revision))
 
         submission.submit("fixture-key")
         await submission.run(submission.attempt)
 
-        #expect(submission.error == expected)
+        #expect(submission.error == .rateLimited)
         #expect(submission.rejection == nil)
-        #expect(!submission.isSaved)
-    }
-
-    /// An accepted key that this device can't store keeps setup open and says so.
-    @Test
-    func `An accepted key that can't be saved explains the storage failure`() async {
-        let keys = StoredValue<String>(failsSaving: true)
-        let submission = ProviderSubmission(
-            connection: HTTPResponses.keyCheck().connection(providerKey: keys, revision: revision))
-
-        submission.submit("fixture-key")
-        await submission.run(submission.attempt)
-
-        #expect(submission.error == .storageFailed)
         #expect(!submission.isSaved)
     }
 
@@ -137,14 +116,13 @@ struct ProviderSubmissionTests {
         #expect(!submission.isPending)
     }
 
-    /// Leaving setup mid-check reports nothing and saves nothing.
+    /// Leaving setup mid-check reports nothing and keeps setup open.
     @Test
     func `A cancelled check reports nothing and keeps setup open`() async throws {
         let gate = Suspension()
         let responses = HTTPResponses.keyCheck(gate: gate)
-        let keys = StoredValue<String>()
         let submission = ProviderSubmission(
-            connection: responses.connection(providerKey: keys, revision: revision))
+            connection: responses.connection(providerKey: StoredValue<String>(), revision: revision))
         submission.submit("fixture-key")
         let attempt = try #require(submission.attempt)
         let operation = Task { await submission.run(attempt) }
@@ -154,8 +132,6 @@ struct ProviderSubmissionTests {
         operation.cancel()
         await operation.value
 
-        #expect(await responses.wasCancelled)
-        #expect(await keys.value == nil)
         #expect(submission.error == nil)
         #expect(submission.rejection == nil)
         #expect(submission.attempt == nil)

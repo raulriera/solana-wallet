@@ -122,15 +122,16 @@ struct ProviderSelectionTests {
         #expect(revision.value == 0)
     }
 
-    /// When saved logos can't be removed, the choice stays saved and windows still observe again.
+    /// Saved logos that can't be removed don't undo a saved change, and windows still observe again.
+    /// - Throws: A selection failure.
     @Test
-    func `Windows observe again when saved logos can't be removed`() async {
+    func `A change applies when saved logos can't be removed`() async throws {
         let settings = StoredValue<ProviderSettings>()
         let revision = Revision()
         let selection = ProviderSelection(settings: settings, providerKey: StoredValue(),
                                           portfolio: ProviderChanges(error: CocoaError(.fileWriteOutOfSpace)), revision: revision)
 
-        await #expect(throws: CocoaError(.fileWriteOutOfSpace)) { try await selection.select(.solana) }
+        try await selection.select(.solana)
 
         #expect(await settings.value?.selection == .solana)
         #expect(revision.value == 1)
@@ -140,15 +141,16 @@ struct ProviderSelectionTests {
     /// - Throws: A selection failure or a test prerequisite error.
     @Test
     func `A new custom RPC is saved and chosen`() async throws {
+        let listed = try #require(URL(string: "https://one.example.com"))
         let custom = try #require(URL(string: "https://rpc.example.com/fixture-token"))
-        let settings = StoredValue<ProviderSettings>()
+        let settings = StoredValue(ProviderSettings(customRPCs: [listed]))
         let portfolio = ProviderChanges()
         let revision = Revision()
 
         try await ProviderSelection(settings: settings, providerKey: StoredValue(), portfolio: portfolio, revision: revision)
             .add(custom)
 
-        #expect(await settings.value == ProviderSettings(selection: .custom(custom), customRPCs: [custom]))
+        #expect(await settings.value == ProviderSettings(selection: .custom(custom), customRPCs: [listed, custom]))
         #expect(await portfolio.count == 1)
         #expect(revision.value == 1)
     }
@@ -204,22 +206,6 @@ struct ProviderSelectionTests {
 
         #expect(await settings.value == ProviderSettings(selection: .custom(kept), customRPCs: [kept]))
         #expect(await portfolio.count == 0)
-        #expect(revision.value == 1)
-    }
-
-    /// When saved logos can't be removed, the deletion stays saved and windows still observe again.
-    /// - Throws: A test prerequisite error.
-    @Test
-    func `Deleting the RPC in use still applies when saved logos can't be removed`() async throws {
-        let deleted = try #require(URL(string: "https://one.example.com"))
-        let settings = StoredValue(ProviderSettings(selection: .custom(deleted), customRPCs: [deleted]))
-        let revision = Revision()
-        let selection = ProviderSelection(settings: settings, providerKey: StoredValue(),
-                                          portfolio: ProviderChanges(error: CocoaError(.fileWriteOutOfSpace)), revision: revision)
-
-        await #expect(throws: CocoaError(.fileWriteOutOfSpace)) { try await selection.remove(deleted) }
-
-        #expect(await settings.value == ProviderSettings(selection: .solana, customRPCs: []))
         #expect(revision.value == 1)
     }
 

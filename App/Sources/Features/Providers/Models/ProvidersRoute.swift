@@ -6,6 +6,6 @@ enum ProvidersRoute: Hashable {
     case customRPCDetails
     /// Helius's details: the saved key, mostly hidden.
     case providerDetails
-    /// Entry of a new key, saved in place of any saved key.
-    case providerKey
+    /// Entry of a new key, saved in place of any saved key, worded for adding or changing it.
+    case providerKey(ProviderEntryPurpose)
 }

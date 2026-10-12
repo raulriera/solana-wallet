@@ -13,3 +13,8 @@ nonisolated protocol ProviderEntryError: LocalizedError, Equatable, Sendable {
     /// Explains the failure without the entry or underlying error text.
     var message: LocalizedStringResource { get }
 }
+
+nonisolated extension ProviderEntryError {
+    /// Explains the failure in an alert's message.
+    var recoverySuggestion: String? { String(localized: message) }
+}

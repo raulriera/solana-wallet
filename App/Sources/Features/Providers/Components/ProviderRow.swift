@@ -32,7 +32,5 @@ struct ProviderRow: View {
                     .buttonStyle(.borderless)
             }
         }
-        .listRowBackground(palette.surface)
-        .listRowSeparatorTint(palette.separator)
     }
 }

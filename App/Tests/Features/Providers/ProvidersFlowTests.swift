@@ -79,7 +79,7 @@ struct ProvidersFlowTests {
 
         flow.showDetails(for: .helius)
         flow.changeKey()
-        try #require(flow.path == [.providerDetails, .providerKey])
+        try #require(flow.path == [.providerDetails, .providerKey(.add)])
         let replacement = try #require(flow.newKey)
         replacement.submit("replacement-key")
         await replacement.run(replacement.attempt)
@@ -142,7 +142,7 @@ struct ProvidersFlowTests {
 
         #expect(flow.newKey !== saved)
         #expect(flow.newKey?.isSaved == false)
-        #expect(flow.path == [.providerKey])
+        #expect(flow.path == [.providerKey(.add)])
     }
 
     /// Key entry from Helius's details replaces a key only when one is saved, and keeps that wording while it saves.
@@ -164,9 +164,9 @@ struct ProvidersFlowTests {
         try #require(added.isSaved)
         await missing.reload()
 
-        #expect(saved.replacesSavedKey)
-        #expect(missing.replacesSavedKey == false)
-        #expect(missing.keyPreview == "fixt•••••••")
+        #expect(saved.path.last == .providerKey(.change))
+        #expect(missing.path.last == .providerKey(.add))
+        #expect(missing.keyPreview == "fixture-key".formatted(.masked))
     }
 
     /// Helius's details show only the saved key's first characters, and nothing before a key is saved.
@@ -189,12 +189,12 @@ struct ProvidersFlowTests {
         let keys = StoredValue("fixture-key")
         let flow = makeFlow(settings: StoredValue(ProviderSettings(selection: .solana)), providerKey: keys)
         await flow.reload()
-        try #require(flow.keyPreview == "fixt•••••••")
+        let preview = try #require(flow.keyPreview)
 
         await keys.failLoading()
         await flow.reload()
 
-        #expect(flow.keyPreview == "fixt•••••••")
+        #expect(flow.keyPreview == preview)
         #expect(flow.selection == .solana)
         #expect(flow.error == nil)
     }
@@ -219,7 +219,7 @@ struct ProvidersFlowTests {
         try #require(revision.value == 1)
         await flow.reload()
 
-        #expect(flow.keyPreview == "repl•••••••••••")
+        #expect(flow.keyPreview == "replacement-key".formatted(.masked))
     }
 
     /// Solana has no details, so asking for them opens nothing.
@@ -318,6 +318,20 @@ struct ProvidersFlowTests {
         #expect(flow.attempt == nil)
     }
 
+    /// Choosing the provider in use changes nothing, so a key that can't be read isn't an error.
+    @Test
+    func `Choosing Helius again with an unreadable key shows no error`() async {
+        let flow = makeFlow(settings: StoredValue(ProviderSettings(selection: .helius)),
+                            providerKey: StoredValue("fixture-key", failsLoading: true))
+        await flow.reload()
+
+        flow.select(.helius)
+        await flow.run(flow.attempt)
+
+        #expect(flow.error == nil)
+        #expect(flow.selection == .helius)
+    }
+
     /// A choice that can't be read explains it and keeps the provider read before checked.
     @Test
     func `A choice that can't be read explains it and keeps the checkmark`() async {
@@ -329,22 +343,6 @@ struct ProvidersFlowTests {
         await flow.reload()
 
         #expect(flow.error == .selectionUnreadable)
-        #expect(flow.selection == .solana)
-    }
-
-    /// A choice saved before the previous provider's logos fail to clear is in use, so it isn't an error.
-    @Test
-    func `A choice saved before its old logos fail to clear shows no error`() async {
-        let revision = Revision()
-        let flow = makeFlow(settings: StoredValue(), providerKey: StoredValue(),
-                            portfolio: ProviderChanges(error: CocoaError(.fileWriteOutOfSpace)), revision: revision)
-
-        flow.select(.solana)
-        await flow.run(flow.attempt)
-        await flow.reload()
-
-        #expect(flow.error == nil)
-        #expect(revision.value == 1)
         #expect(flow.selection == .solana)
     }
 
@@ -443,23 +441,6 @@ struct ProvidersFlowTests {
         #expect(flow.error == nil)
     }
 
-    /// A deletion saved before the old logos fail to clear applies, so it isn't an error.
-    /// - Throws: A test prerequisite error.
-    @Test
-    func `A deletion saved before its old logos fail to clear shows no error`() async throws {
-        let url = try #require(URL(string: "https://rpc.example.com"))
-        let flow = makeFlow(settings: StoredValue(ProviderSettings(selection: .custom(url), customRPCs: [url])),
-                            providerKey: StoredValue(), portfolio: ProviderChanges(error: CocoaError(.fileWriteOutOfSpace)))
-
-        flow.remove(url)
-        await flow.run(flow.attempt)
-        await flow.reload()
-
-        #expect(flow.error == nil)
-        #expect(flow.customRPCs.isEmpty)
-        #expect(flow.selection == .solana)
-    }
-
     /// A deletion that can't be saved explains it, and the RPC stays listed.
     /// - Throws: A test prerequisite error.
     @Test
@@ -495,12 +476,11 @@ struct ProvidersFlowTests {
     /// - Parameters:
     ///   - settings: The saved provider choice and custom RPCs.
     ///   - providerKey: Helius's saved key, which key entry fills, the selection reads, and the flow previews.
-    ///   - portfolio: Records provider changes.
     ///   - revision: Counts provider changes that every window hears about.
     /// - Returns: A flow that never leaves the process.
     private func makeFlow(settings: StoredValue<ProviderSettings>, providerKey: StoredValue<String>,
-                          portfolio: ProviderChanges = ProviderChanges(), revision: Revision = Revision()) -> ProvidersFlow {
-        let providers = ProviderSelection(settings: settings, providerKey: providerKey, portfolio: portfolio,
+                          revision: Revision = Revision()) -> ProvidersFlow {
+        let providers = ProviderSelection(settings: settings, providerKey: providerKey, portfolio: ProviderChanges(),
                                           revision: revision)
         let connection = HTTPResponses.keyCheck().connection(providerKey: providerKey, revision: revision)
         // Unplanned requests fail instead of reaching the network.

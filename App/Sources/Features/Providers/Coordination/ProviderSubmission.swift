@@ -37,10 +37,10 @@ final class ProviderSubmission<EntryError: ProviderEntryError>: ProviderSubmitti
     }
 
     /// Accepts one entry; taps during a check are ignored.
-    /// - Parameter entry: The text as entered, kept out of task identity.
+    /// - Parameter entry: The text as entered, kept out of task identity; surrounding whitespace is dropped.
     func submit(_ entry: String) {
         guard attempt == nil else { return }
-        pendingEntry = entry
+        pendingEntry = entry.trimmingCharacters(in: .whitespacesAndNewlines)
         attempt = UUID()
     }
 

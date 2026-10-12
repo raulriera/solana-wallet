@@ -9,7 +9,6 @@ struct ProviderDetailsScreen: View {
     let actions: any ProviderActions
 
     var body: some View {
-        let changeTitle: LocalizedStringResource = keyPreview == nil ? "Add API Key" : "Change API Key"
         let footer: LocalizedStringResource = keyPreview == nil
             ? "Your wallets use this key for balances and live updates."
             : "Your wallets use this key for balances and live updates. It's stored only on this device, and most of it is hidden."
@@ -19,8 +18,7 @@ struct ProviderDetailsScreen: View {
                 if let keyPreview {
                     Text(verbatim: keyPreview)
                         .foregroundStyle(palette.primaryText)
-                        .accessibilityLabel(Text("\(Text(keyPreview, format: .keyStart).speechSpellsOutCharacters()), rest hidden",
-                                                 comment: "VoiceOver text for the saved API key. The variable is its first characters, read one by one."))
+                        .accessibilityLabel(Text(keyPreview, format: .spokenMasked))
                 } else {
                     Text("None", comment: "Shown in place of the RPC API key when no key is saved.")
                         .foregroundStyle(palette.secondaryText)
@@ -38,7 +36,8 @@ struct ProviderDetailsScreen: View {
         .scrollEdgeEffectStyle(.soft, for: .bottom)
         .readableContentMargins(inset: $contentInset)
         .safeAreaBar(edge: .bottom) {
-            Button(changeTitle, action: actions.changeKey)
+            // The button names the screen it opens.
+            Button(ProviderEntryPurpose(keyPreview: keyPreview).title, action: actions.changeKey)
                 .buttonStyle(.primary)
                 .padding(.horizontal, contentInset)
                 .padding(.vertical, LayoutMetrics.actionBarVerticalPadding)

@@ -22,7 +22,7 @@ struct CustomRPCConnectionTests {
         let revision = Revision()
 
         try await makeConnection(settings: settings, responses: responses, socket: socket, revision: revision)
-            .connect(" https://rpc.example.com/fixture-token \n")
+            .connect("https://rpc.example.com/fixture-token")
 
         #expect(await settings.value == ProviderSettings(selection: .custom(url), customRPCs: [url]))
         #expect(revision.value == 1)
@@ -33,7 +33,7 @@ struct CustomRPCConnectionTests {
 
     /// Text that isn't an HTTPS URL with a host is refused before any request.
     /// - Parameter entry: The text as entered.
-    @Test(arguments: ["http://rpc.example.com", "rpc.example.com", " "])
+    @Test(arguments: ["http://rpc.example.com", "rpc.example.com", ""])
     func `A URL that isn't HTTPS is refused without a request`(entry: String) async {
         let settings = StoredValue<ProviderSettings>()
         let responses = HTTPResponses([:])
@@ -62,16 +62,24 @@ struct CustomRPCConnectionTests {
         #expect(await responses.requests.isEmpty)
     }
 
-    /// A URL that doesn't answer a standard request is refused before any subscription, and nothing is saved.
-    /// - Parameter error: How the URL fails the request.
-    @Test(arguments: [RPCError.http(statusCode: 404, retryAfter: nil), .http(statusCode: 401, retryAfter: nil),
-                      .transport(.cannotFindHost)])
-    func `A URL that doesn't answer as a Solana RPC is refused`(error: RPCError) async {
+    /// A failed standard request stops the check before any subscription, and nothing is saved: a URL that doesn't
+    /// answer as a Solana RPC is refused, and one that limits requests asks to try again later.
+    /// - Parameters:
+    ///   - error: How the URL fails the request.
+    ///   - expected: The check's failure.
+    @Test(arguments: [
+        (RPCError.http(statusCode: 404, retryAfter: nil), CustomRPCError.unreachable),
+        (.http(statusCode: 401, retryAfter: nil), .unreachable),
+        (.transport(.cannotFindHost), .unreachable),
+        (.http(statusCode: 429, retryAfter: nil), .rateLimited),
+    ] as [(RPCError, CustomRPCError)])
+    func `A failed standard request stops the check before any subscription`(error: RPCError,
+                                                                              expected: CustomRPCError) async {
         let settings = StoredValue<ProviderSettings>()
         let socket = SocketFixture()
         defer { socket.cancel() }
 
-        await #expect(throws: CustomRPCError.unreachable) {
+        await #expect(throws: expected) {
             try await makeConnection(settings: settings, responses: HTTPResponses([:], error: error), socket: socket)
                 .connect("https://rpc.example.com")
         }
@@ -80,47 +88,18 @@ struct CustomRPCConnectionTests {
         #expect(await settings.value == nil)
     }
 
-    /// An RPC whose live updates fail at the same URL is refused, and nothing is saved.
-    @Test
-    func `An RPC without live updates is refused`() async {
+    /// A failed live-updates subscription at the same URL stops the check, and nothing is saved: an RPC without live
+    /// updates is refused, and one that limits subscriptions asks to try again later.
+    /// - Parameters:
+    ///   - code: The JSON-RPC error code in the subscription's reply.
+    ///   - expected: The check's failure.
+    @Test(arguments: [(-32601, CustomRPCError.noLiveUpdates), (429, .rateLimited)])
+    func `A failed live-updates subscription stops the check`(code: Int, expected: CustomRPCError) async {
         let settings = StoredValue<ProviderSettings>()
-        let socket = SocketFixture { _, _ in [Self.serverError(code: -32601)] }
+        let socket = SocketFixture { _, _ in [Self.serverError(code: code)] }
         defer { socket.cancel() }
 
-        await #expect(throws: CustomRPCError.noLiveUpdates) {
-            let responses = HTTPResponses(["getMultipleAccounts": [Self.accounts]])
-            try await makeConnection(settings: settings, responses: responses, socket: socket)
-                .connect("https://rpc.example.com")
-        }
-
-        #expect(await settings.value == nil)
-    }
-
-    /// An RPC that limits standard requests asks to try again later before any subscription.
-    @Test
-    func `An RPC that limits requests asks to try again later`() async {
-        let settings = StoredValue<ProviderSettings>()
-        let socket = SocketFixture()
-        defer { socket.cancel() }
-
-        await #expect(throws: CustomRPCError.rateLimited) {
-            let responses = HTTPResponses([:], error: .http(statusCode: 429, retryAfter: nil))
-            try await makeConnection(settings: settings, responses: responses, socket: socket)
-                .connect("https://rpc.example.com")
-        }
-
-        #expect(socket.requests.isEmpty)
-        #expect(await settings.value == nil)
-    }
-
-    /// An RPC that limits subscriptions in its reply asks to try again later.
-    @Test
-    func `An RPC that limits live updates asks to try again later`() async {
-        let settings = StoredValue<ProviderSettings>()
-        let socket = SocketFixture { _, _ in [Self.serverError(code: 429)] }
-        defer { socket.cancel() }
-
-        await #expect(throws: CustomRPCError.rateLimited) {
+        await #expect(throws: expected) {
             let responses = HTTPResponses(["getMultipleAccounts": [Self.accounts]])
             try await makeConnection(settings: settings, responses: responses, socket: socket)
                 .connect("https://rpc.example.com")
@@ -172,25 +151,6 @@ struct CustomRPCConnectionTests {
         #expect(revision.value == 0)
     }
 
-    /// An RPC saved before the previous provider's logos fail to clear is in use, so the check succeeds.
-    /// - Throws: A connection failure or a test prerequisite error.
-    @Test
-    func `An RPC saved before old logos fail to clear counts as added`() async throws {
-        let url = try #require(URL(string: "https://rpc.example.com"))
-        let settings = StoredValue<ProviderSettings>()
-        let socket = SocketFixture()
-        defer { socket.cancel() }
-        let revision = Revision()
-
-        try await makeConnection(settings: settings, responses: HTTPResponses(["getMultipleAccounts": [Self.accounts]]),
-                                 socket: socket, portfolio: ProviderChanges(error: CocoaError(.fileWriteOutOfSpace)),
-                                 revision: revision)
-            .connect(url.absoluteString)
-
-        #expect(await settings.value?.selection == .custom(url))
-        #expect(revision.value == 1)
-    }
-
     /// Leaving the screen during the check saves nothing.
     @Test
     func `A cancelled check saves nothing`() async {
@@ -224,13 +184,11 @@ struct CustomRPCConnectionTests {
     ///   - settings: The saved provider choice and custom RPCs.
     ///   - responses: The fixtures that answer standard requests.
     ///   - socket: The connection that answers subscriptions.
-    ///   - portfolio: Records provider changes.
     ///   - revision: Counts provider changes that every window hears about.
     /// - Returns: A check whose requests never leave the process.
     private func makeConnection(settings: StoredValue<ProviderSettings>, responses: HTTPResponses,
-                                socket: SocketFixture, portfolio: ProviderChanges = ProviderChanges(),
-                                revision: Revision = Revision()) -> CustomRPCConnection {
-        let providers = ProviderSelection(settings: settings, providerKey: StoredValue(), portfolio: portfolio,
+                                socket: SocketFixture, revision: Revision = Revision()) -> CustomRPCConnection {
+        let providers = ProviderSelection(settings: settings, providerKey: StoredValue(), portfolio: ProviderChanges(),
                                           revision: revision)
         return CustomRPCConnection(providers: providers) { responses.client(for: $0, socket: { _ in socket }) }
     }

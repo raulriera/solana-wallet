@@ -51,9 +51,11 @@ struct KeychainItemTests {
     func `Saved bytes that aren't a value are unreadable`() async throws {
         let service = Self.isolatedService()
         defer { Self.removeItems(for: service) }
-        try await KeychainItem(service: service, account: "value", coding: ByteCoding()).save(Data([0xFF, 0xFE]))
+        try await Self.text(in: service).save("not settings")
 
-        await #expect(throws: KeychainItemError.unreadable) { try await Self.text(in: service).load() }
+        await #expect(throws: KeychainItemError.unreadable) {
+            try await KeychainItem(service: service, account: "value", coding: .json(ProviderSettings.self)).load()
+        }
     }
 
     /// Items with different accounts share a namespace without touching each other.
@@ -178,17 +180,4 @@ struct KeychainItemTests {
         let status = SecItemDelete(items(for: service) as CFDictionary)
         #expect(status == errSecSuccess || status == errSecItemNotFound)
     }
-}
-
-/// Keeps bytes unchanged, so a test can save bytes that another coding can't read.
-private struct ByteCoding: ValueCoding {
-    /// Keeps the bytes as they are.
-    /// - Parameter value: The bytes to save.
-    /// - Returns: The same bytes.
-    func encode(_ value: Data) -> Data { value }
-
-    /// Returns the kept bytes as they are.
-    /// - Parameter data: The kept bytes.
-    /// - Returns: The same bytes.
-    func decode(_ data: Data) -> Data? { data }
 }

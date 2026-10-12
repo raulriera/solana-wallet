@@ -1,29 +1,19 @@
 import SwiftUI
 
-/// Collects the RPC provider's API key; the owning scene checks and saves it.
+/// Collects an entry for an RPC provider, Helius's API key or a custom RPC URL; the owning scene checks and saves it.
 struct ProviderSetupScreen: View {
-    /// Why the screen asks for a key, which sets its wording.
-    enum Purpose {
-        /// A first key, which connects the provider.
-        case connect
-        /// A first key added from Helius's details, which leaves the provider in use as it is.
-        case add
-        /// A new key, which replaces the saved key once it's checked.
-        case change
-    }
-
     @Environment(\.palette) private var palette
     @State private var input = ProviderInput()
     @State private var contentInset = LayoutMetrics.contentMargin
-    @FocusState private var isKeyFocused: Bool
-    /// Why the screen asks for a key.
-    let purpose: Purpose
-    /// Checks the submitted key and reports why Helius refused it.
-    let submission: any ProviderSubmitting<ProviderConnectionError>
+    @FocusState private var isFocused: Bool
+    /// Why the screen asks for an entry, which sets its field and wording.
+    let purpose: ProviderEntryPurpose
+    /// Checks the submitted entry and reports why the provider refused it.
+    let submission: any ProviderSubmitting
 
     var body: some View {
         Form {
-            // Settings shows title cards only on its root screens, so the pushed Add and Change screens get none.
+            // Settings shows title cards only on its root screens, so the pushed entry screens get none.
             if purpose == .connect {
                 Section {
                     TitleCardContent(
@@ -36,9 +26,17 @@ struct ProviderSetupScreen: View {
             }
 
             Section {
-                ProviderEntry(input: input, isFocused: $isKeyFocused) { text in
-                    SecureField("RPC API key", text: text)
-                        .accessibilityLabel("RPC API key")
+                ProviderEntry(input: input, isFocused: $isFocused) { text in
+                    if purpose == .customRPC {
+                        TextField("RPC URL", text: text)
+                            .accessibilityLabel("RPC URL")
+                            .keyboardType(.URL)
+                            .textContentType(.URL)
+                            .writingToolsBehavior(.disabled)
+                    } else {
+                        SecureField("RPC API key", text: text)
+                            .accessibilityLabel("RPC API key")
+                    }
                 }
                 .disabled(submission.isPending)
 
@@ -55,7 +53,9 @@ struct ProviderSetupScreen: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(purpose.footer)
                         .foregroundStyle(palette.secondaryText)
-                    Link("Get an API key from Helius", destination: URL(string: "https://dashboard.helius.dev")!)
+                    if purpose != .customRPC {
+                        Link("Get an API key from Helius", destination: URL(string: "https://dashboard.helius.dev")!)
+                    }
                 }
                 .font(.footnote)
             }
@@ -67,7 +67,7 @@ struct ProviderSetupScreen: View {
         .scrollEdgeEffectStyle(.soft, for: .bottom)
         .readableContentMargins(inset: $contentInset)
         .safeAreaBar(edge: .bottom) {
-            Button(purpose.action, action: submitKey)
+            Button(purpose.action, action: submitEntry)
                 .buttonStyle(.primary(isPending: submission.isPending))
                 .disabled(!input.hasText || submission.isPending)
                 .padding(.horizontal, contentInset)
@@ -79,84 +79,61 @@ struct ProviderSetupScreen: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    /// Dismisses the keyboard so the result stays visible, then hands the key to the scene.
-    private func submitKey() {
-        isKeyFocused = false
+    /// Dismisses the keyboard so the result stays visible, then hands the entry to the scene.
+    private func submitEntry() {
+        isFocused = false
         submission.submit(input.text)
-    }
-}
-
-extension ProviderSetupScreen.Purpose {
-    /// The screen's title.
-    var title: LocalizedStringResource {
-        switch self {
-        case .connect: "Connect to Helius"
-        case .add: "Add API Key"
-        case .change: "Change API Key"
-        }
-    }
-
-    /// The key section's header.
-    var header: LocalizedStringResource {
-        switch self {
-        case .connect, .add: "API Key"
-        case .change: "New API Key"
-        }
-    }
-
-    /// The key section's footer, which says where the key goes.
-    var footer: LocalizedStringResource {
-        switch self {
-        case .connect: "Your key is stored only on this device and is sent only to Helius."
-        case .add: "Your key is stored only on this device and is sent only to this provider."
-        case .change:
-            "The saved key stays until the new key is checked. Your key is stored only on this device and is sent only to this provider."
-        }
-    }
-
-    /// The title of the action that checks and saves the key.
-    var action: LocalizedStringResource {
-        switch self {
-        case .connect: "Continue"
-        case .add, .change: "Save"
-        }
     }
 }
 
 #Preview("Empty") {
     NavigationStack {
-        ProviderSetupScreen(purpose: .connect, submission: PreviewKeySubmission(rejection: nil))
+        ProviderSetupScreen(purpose: .connect, submission: PreviewSubmission<ProviderConnectionError>(rejection: nil))
     }
     .tint(RenderedPalette(OriginalAppearance.palette).accent)
 }
 
 #Preview("Rejected key") {
     NavigationStack {
-        ProviderSetupScreen(purpose: .connect, submission: PreviewKeySubmission(rejection: .invalidKey))
+        ProviderSetupScreen(purpose: .connect, submission: PreviewSubmission(rejection: ProviderConnectionError.invalidKey))
     }
     .tint(RenderedPalette(OriginalAppearance.palette).accent)
 }
 
 #Preview("Add") {
     NavigationStack {
-        ProviderSetupScreen(purpose: .add, submission: PreviewKeySubmission(rejection: nil))
+        ProviderSetupScreen(purpose: .add, submission: PreviewSubmission<ProviderConnectionError>(rejection: nil))
     }
     .tint(RenderedPalette(OriginalAppearance.palette).accent)
 }
 
 #Preview("Change") {
     NavigationStack {
-        ProviderSetupScreen(purpose: .change, submission: PreviewKeySubmission(rejection: nil))
+        ProviderSetupScreen(purpose: .change, submission: PreviewSubmission<ProviderConnectionError>(rejection: nil))
     }
     .tint(RenderedPalette(OriginalAppearance.palette).accent)
 }
 
-/// Keeps previews local, showing a fixed rejection without checking or saving a key.
-private struct PreviewKeySubmission: ProviderSubmitting {
-    let rejection: ProviderConnectionError?
+#Preview("Add Custom RPC") {
+    NavigationStack {
+        ProviderSetupScreen(purpose: .customRPC, submission: PreviewSubmission<CustomRPCError>(rejection: nil))
+    }
+    .tint(RenderedPalette(OriginalAppearance.palette).accent)
+}
+
+#Preview("No live updates") {
+    NavigationStack {
+        ProviderSetupScreen(purpose: .customRPC, submission: PreviewSubmission(rejection: CustomRPCError.noLiveUpdates))
+    }
+    .tint(RenderedPalette(OriginalAppearance.palette).accent)
+}
+
+/// Keeps previews local, showing a fixed rejection without checking or saving an entry.
+private struct PreviewSubmission<EntryError: ProviderEntryError>: ProviderSubmitting {
+    let rejection: EntryError?
     var isPending: Bool { false }
 
-    /// Accepts preview interaction without checking or retaining the key.
-    /// - Parameter entry: The preview's key.
+    /// Accepts preview interaction without checking or retaining the entry.
+    /// - Parameter entry: The preview's entry.
     func submit(_ entry: String) {}
 }

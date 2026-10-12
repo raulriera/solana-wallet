@@ -4,7 +4,7 @@ nonisolated protocol ProviderConnecting<EntryError>: Sendable {
     associatedtype EntryError: ProviderEntryError
 
     /// Checks an entry with the provider, saves it on this device, and tells every window.
-    /// - Parameter entry: The text as entered; surrounding whitespace is ignored.
+    /// - Parameter entry: The text as entered, without surrounding whitespace.
     /// - Throws: `EntryError` or `CancellationError`, never containing the entry.
     func connect(_ entry: String) async throws
 }

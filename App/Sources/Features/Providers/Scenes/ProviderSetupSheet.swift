@@ -8,8 +8,7 @@ struct ProviderSetupSheet: View {
     var body: some View {
         NavigationStack {
             ProviderSetupScreen(purpose: .connect, submission: submission)
-                .providerSetupLifecycle(submission)
-                .onChange(of: submission.isSaved) { dismiss() }
+                .providerSetupLifecycle(submission, closesWhenSaved: true)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         // Toolbar buttons keep the system's monochrome look; the theme's tint is for content.

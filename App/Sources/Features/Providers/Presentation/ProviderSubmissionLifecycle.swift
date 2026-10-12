@@ -22,22 +22,13 @@ private struct ProviderSubmissionLifecycle<EntryError: ProviderEntryError>: View
 }
 
 extension ProviderSetupScreen {
-    /// Runs accepted key checks only while this screen is on screen.
+    /// Runs accepted entry checks only while this screen is on screen.
     /// - Parameters:
-    ///   - submission: The owning window's provider key checks.
-    ///   - closesWhenSaved: Whether the screen closes itself once the key is saved, as a pushed screen does.
-    /// - Returns: The screen with managed key checks, rejection feedback, failure presentation, and closing when set.
-    func providerSetupLifecycle(_ submission: ProviderSubmission<ProviderConnectionError>,
-                                closesWhenSaved: Bool = false) -> some View {
+    ///   - submission: The owning window's checks of an API key or a custom RPC URL.
+    ///   - closesWhenSaved: Whether the screen closes itself once the entry is saved; onboarding continues instead.
+    /// - Returns: The screen with managed entry checks, rejection feedback, failure presentation, and closing when set.
+    func providerSetupLifecycle<EntryError: ProviderEntryError>(_ submission: ProviderSubmission<EntryError>,
+                                                                closesWhenSaved: Bool = false) -> some View {
         modifier(ProviderSubmissionLifecycle(submission: submission, closesWhenSaved: closesWhenSaved))
-    }
-}
-
-extension CustomRPCSetupScreen {
-    /// Runs accepted URL checks only while this screen is on screen, and closes it once the RPC is saved.
-    /// - Parameter submission: The owning window's custom RPC checks.
-    /// - Returns: The screen with managed URL checks, rejection feedback, failure presentation, and closing.
-    func customRPCSetupLifecycle(_ submission: ProviderSubmission<CustomRPCError>) -> some View {
-        modifier(ProviderSubmissionLifecycle(submission: submission, closesWhenSaved: true))
     }
 }

@@ -21,11 +21,10 @@ nonisolated struct CustomRPCConnection: ProviderConnecting {
     /// Makes one standard request and one live-updates subscription at the URL, then adds the RPC and chooses it.
     ///
     /// Both reach only a public account, never a person's wallet.
-    /// - Parameter entry: The URL as entered; surrounding whitespace is ignored.
+    /// - Parameter entry: The URL, without surrounding whitespace.
     /// - Throws: ``CustomRPCError`` or `CancellationError`, never containing the URL.
     func connect(_ entry: String) async throws {
-        let text = entry.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let url = URL(string: text), let rpc = client(.custom(url)) else { throw CustomRPCError.notHTTPS }
+        guard let url = URL(string: entry), let rpc = client(.custom(url)) else { throw CustomRPCError.notHTTPS }
         let listed: [URL]
         do {
             listed = try await providers.settings().customRPCs
@@ -52,13 +51,8 @@ nonisolated struct CustomRPCConnection: ProviderConnecting {
         do {
             try await providers.add(url)
         } catch {
-            // A saved RPC is in use even when the previous provider's logos couldn't be removed, so only an unsaved
-            // RPC is an error; settings that can't be read back count as unsaved.
-            let saved = try? await providers.settings()
-            guard saved?.selection == .custom(url) else {
-                try Task.checkCancellation()
-                throw CustomRPCError.storageFailed
-            }
+            try Task.checkCancellation()
+            throw CustomRPCError.storageFailed
         }
     }
 

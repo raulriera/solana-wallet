@@ -7,15 +7,15 @@ import Testing
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct HeliusConnectionTests {
-    /// Surrounding whitespace from a paste never reaches Helius or storage, and every window hears about the key.
+    /// An accepted key is saved, and every window hears about it.
     /// - Throws: A connection failure.
     @Test
-    func `An accepted key is checked and saved without surrounding whitespace`() async throws {
+    func `An accepted key is checked and saved`() async throws {
         let responses = HTTPResponses.keyCheck()
         let keys = StoredValue<String>()
         let revision = Revision()
 
-        try await responses.connection(providerKey: keys, revision: revision).connect(" fixture-key \n")
+        try await responses.connection(providerKey: keys, revision: revision).connect("fixture-key")
 
         #expect(await keys.value == "fixture-key")
         #expect(revision.value == 1)
@@ -23,14 +23,14 @@ struct HeliusConnectionTests {
         #expect(await responses.requests.first?.url?.query() == "api-key=fixture-key")
     }
 
-    /// Blank input fails locally, so no request ever carries an empty key.
+    /// An empty key fails locally, so no request ever carries an empty key.
     @Test
-    func `Blank input is rejected without contacting Helius`() async {
+    func `An empty key is rejected without contacting Helius`() async {
         let responses = HTTPResponses.keyCheck()
         let keys = StoredValue<String>()
 
         await #expect(throws: ProviderConnectionError.invalidKey) {
-            try await responses.connection(providerKey: keys, revision: Revision()).connect(" \n ")
+            try await responses.connection(providerKey: keys, revision: Revision()).connect("")
         }
 
         #expect(await responses.requests.isEmpty)
@@ -60,6 +60,17 @@ struct HeliusConnectionTests {
         #expect(await responses.requests.count == 1)
         #expect(await keys.value == "saved-key")
         #expect(revision.value == 0)
+    }
+
+    /// Refused keys show under the field, and other failures explain their cause in an alert.
+    /// - Parameters:
+    ///   - error: A check failure.
+    ///   - rejectsEntry: Whether the failure shows under the field.
+    @Test(arguments: [
+        (ProviderConnectionError.invalidKey, true), (.rateLimited, false), (.unavailable, false), (.storageFailed, false),
+    ])
+    func `Only refused keys show under the field`(error: ProviderConnectionError, rejectsEntry: Bool) {
+        #expect(error.rejectsEntry == rejectsEntry)
     }
 
     /// A key Helius accepted still fails setup when this device can't store it.

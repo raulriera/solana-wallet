@@ -22,10 +22,9 @@ nonisolated struct HeliusConnection: ProviderConnecting {
     }
 
     /// Makes one DAS request with the key, saves the key only after Helius accepts it, and tells every window.
-    /// - Parameter entry: The key as entered; surrounding whitespace is ignored.
+    /// - Parameter key: The key, without surrounding whitespace.
     /// - Throws: ``ProviderConnectionError`` or `CancellationError`, never containing the key.
-    func connect(_ entry: String) async throws {
-        let key = entry.trimmingCharacters(in: .whitespacesAndNewlines)
+    func connect(_ key: String) async throws {
         guard !key.isEmpty else { throw ProviderConnectionError.invalidKey }
         do {
             _ = try await client(key).send(GetAsset(id: Self.checkedAccount))

@@ -96,12 +96,21 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, LogoProviding {
         case .custom(let url):
             return .custom(url)
         case .helius:
-            guard let key = try await providerKey.load() else {
-                try Task.checkCancellation()
-                throw ProviderClientError.missingKey
-            }
-            return .helius(key: key)
+            return .helius(key: try await Self.heliusKey(in: providerKey))
         }
+    }
+
+    /// Reads Helius's saved key.
+    /// - Parameter store: Device-only storage for Helius's accepted key.
+    /// - Returns: The saved key.
+    /// - Throws: ``ProviderClientError/missingKey`` when no key is saved, or a storage or cancellation error; a
+    ///   cancelled read is never reported as a missing key.
+    static func heliusKey(in store: any ValueStoring<String>) async throws -> String {
+        guard let key = try await store.load() else {
+            try Task.checkCancellation()
+            throw ProviderClientError.missingKey
+        }
+        return key
     }
 
     /// Identifies Helius rejecting the key, so other responses can't be mistaken for it.

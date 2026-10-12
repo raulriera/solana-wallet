@@ -24,8 +24,6 @@ final class ProvidersFlow: ProviderActions {
     private(set) var keyPreview: String?
     /// The new key's checks for the last opening of its screen; each opening starts a new one.
     private(set) var newKey: ProviderSubmission<ProviderConnectionError>?
-    /// Whether the new key replaces a saved key, read when its screen opens so the wording stays while it saves.
-    private(set) var replacesSavedKey = false
     /// The custom RPC waiting for the person to confirm its deletion.
     var removal: URL?
     /// The key sheet's checks while a choice waits for a key; each opening starts a new one.
@@ -93,11 +91,12 @@ final class ProvidersFlow: ProviderActions {
     }
 
     /// Pushes the screen that checks a new key and saves it in place of any saved key; the provider in use stays.
+    ///
+    /// The screen's wording, adding or changing a key, is set when it opens, so it stays while the key saves.
     func changeKey() {
         guard attempt == nil else { return }
-        replacesSavedKey = keyPreview != nil
         newKey = ProviderSubmission(connection: connection)
-        path.append(.providerKey)
+        path.append(.providerKey(ProviderEntryPurpose(keyPreview: keyPreview)))
     }
 
     /// Opens the screen that checks and adds a custom RPC.
@@ -143,7 +142,7 @@ final class ProvidersFlow: ProviderActions {
         do {
             let key = try await providerKey.load()
             guard !Task.isCancelled else { return }
-            keyPreview = key?.formatted(.keyPreview)
+            keyPreview = key?.formatted(.masked)
         } catch {
             // A key that can't be read keeps the last preview.
         }
@@ -191,17 +190,13 @@ final class ProvidersFlow: ProviderActions {
             selectsAfterKey = provider
             keyEntry = ProviderSubmission(connection: connection)
         } catch {
-            // A change saved before the previous provider's logos failed to clear applies, so only an unsaved change
-            // is an error; settings that can't be read back count as unsaved.
-            let saved = try? await providers.settings()
             guard !Task.isCancelled, self.attempt == attempt else { return }
             switch request {
-            case .select(let provider) where saved?.selection != provider:
-                self.error = .selectionUnsaved
-            case .remove(let url) where saved?.customRPCs.contains(url) != false:
-                self.error = .deletionUnsaved
-            case .select, .remove:
+            case .select(let provider) where provider == selection:
+                // Choosing the provider in use changes nothing, even when its key can't be read.
                 break
+            case .select: self.error = .selectionUnsaved
+            case .remove: self.error = .deletionUnsaved
             }
         }
     }

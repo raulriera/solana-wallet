@@ -22,10 +22,9 @@ struct ProviderClientTests {
     /// Helius rejecting the saved key is reported as a typed error, never as a generic HTTP error.
     /// - Parameter status: The HTTP status Helius returns.
     @Test(arguments: [401, 403])
-    func `A rejected Helius key is reported as a key error`(status: Int) async throws {
+    func `A rejected Helius key is reported as a key error`(status: Int) async {
         let responses = HTTPResponses.keyCheck(error: .http(statusCode: status, retryAfter: nil))
-        let keys = StoredValue<String>()
-        try await keys.save("rejected-key")
+        let keys = StoredValue("rejected-key")
 
         await #expect(throws: ProviderClientError.invalidKey) {
             _ = try await responses.providerClient(settings: StoredValue<ProviderSettings>(), providerKey: keys).send(GetAsset(id: HTTPResponses.keyCheckAsset))
@@ -34,10 +33,9 @@ struct ProviderClientTests {
 
     /// Other failures reach the caller unchanged, so they're never mistaken for a key problem.
     @Test
-    func `Other request failures pass through unchanged`() async throws {
+    func `Other request failures pass through unchanged`() async {
         let responses = HTTPResponses.keyCheck(error: .http(statusCode: 429, retryAfter: nil))
-        let keys = StoredValue<String>()
-        try await keys.save("fixture-key")
+        let keys = StoredValue("fixture-key")
 
         await #expect(throws: RPCError.http(statusCode: 429, retryAfter: nil)) {
             _ = try await responses.providerClient(settings: StoredValue<ProviderSettings>(), providerKey: keys).send(GetAsset(id: HTTPResponses.keyCheckAsset))
@@ -93,8 +91,7 @@ struct ProviderClientTests {
     @Test(arguments: [(ProviderSettings.Provider.helius, 1), (.solana, 0)])
     func `Only a provider with logo copies looks up logos`(provider: ProviderSettings.Provider, lookups: Int) async throws {
         let responses = HTTPResponses(["getAssetBatch": ["[null]"]])
-        let keys = StoredValue<String>()
-        try await keys.save("fixture-key")
+        let keys = StoredValue("fixture-key")
         let client = responses.providerClient(settings: StoredValue(ProviderSettings(selection: provider)), providerKey: keys)
 
         #expect(try await client.logos(for: [HTTPResponses.keyCheckAsset]).isEmpty)

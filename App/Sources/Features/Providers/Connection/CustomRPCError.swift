@@ -35,9 +35,6 @@ nonisolated enum CustomRPCError: ProviderEntryError {
         }
     }
 
-    /// Explains the failure in an alert's message.
-    var recoverySuggestion: String? { String(localized: message) }
-
     /// Explains the failure without the URL or underlying error text.
     var message: LocalizedStringResource {
         switch self {

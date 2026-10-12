@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Shows a custom RPC's URL, shortened so a key in it stays hidden, and deletes the RPC after the person confirms.
+/// Shows a custom RPC's URL, masked so a key in it stays hidden, and deletes the RPC after the person confirms.
 struct CustomRPCDetailsScreen: View {
     @Environment(\.palette) private var palette
     @Environment(\.dismiss) private var dismiss
@@ -14,8 +14,9 @@ struct CustomRPCDetailsScreen: View {
     var body: some View {
         Form {
             Section {
-                Text(url, format: .shortenedURL)
+                Text(url, format: .maskedURL)
                     .foregroundStyle(palette.primaryText)
+                    .accessibilityLabel(Text(url, format: .spokenMaskedURL))
             } header: {
                 Text("URL")
             } footer: {

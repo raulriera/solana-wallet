@@ -33,59 +33,46 @@ struct ProviderSelection: ProviderSelecting {
     /// Saves a new provider choice, ends the previous provider's portfolio work, and has every window observe again.
     /// - Parameter provider: The provider to use.
     /// - Throws: ``ProviderClientError/missingKey`` for Helius without a saved key, or a storage or cancellation
-    ///   error when the choice can't be saved, which change nothing; or a file-system error when saved logos can't
-    ///   be removed, after the choice is saved and windows observe again.
+    ///   error, which change nothing.
     func select(_ provider: ProviderSettings.Provider) async throws {
         // Helius can't load anything without its key, so every window would lose its holdings.
-        if provider == .helius, try await providerKey.load() == nil {
-            try Task.checkCancellation()
-            throw ProviderClientError.missingKey
-        }
-        guard try await update({ $0.select(provider) }) else { return }
-        // The previous provider's work has ended even when its logos can't be removed, so windows observe again.
-        defer { revision.advance() }
-        try await portfolio.providerDidChange()
+        if provider == .helius { _ = try await ProviderClient.heliusKey(in: providerKey) }
+        try await apply { $0.select(provider) }
     }
 
     /// Saves a checked custom RPC, chooses it for every window, and ends the previous provider's portfolio work.
     /// - Parameter url: The checked HTTPS RPC URL; adding a listed RPC only chooses it.
-    /// - Throws: A storage or cancellation error when the RPC can't be saved, which changes nothing; or a file-system
-    ///   error when saved logos can't be removed, after the RPC is saved and windows observe again.
+    /// - Throws: A storage or cancellation error, which changes nothing.
     func add(_ url: URL) async throws {
-        guard try await update({ $0.add(url) }) else { return }
-        // The previous provider's work has ended even when its logos can't be removed, so windows observe again.
-        defer { revision.advance() }
-        try await portfolio.providerDidChange()
+        try await apply { $0.add(url) }
     }
 
     /// Deletes a custom RPC and tells every window; deleting the RPC in use switches every window to Solana.
     /// - Parameter url: The RPC URL to delete; an unlisted URL changes nothing.
-    /// - Throws: A storage or cancellation error when the deletion can't be saved, which changes nothing; or a
-    ///   file-system error when saved logos can't be removed, after the deletion is saved and windows observe again.
+    /// - Throws: A storage or cancellation error, which changes nothing.
     func remove(_ url: URL) async throws {
-        let (listed, selectionChanged) = try await update { settings in
-            settings.customRPCs.contains(url) ? (true, settings.remove(url)) : (false, false)
-        }
-        guard listed else { return }
-        // Every window's list changes, so windows read the settings again even when the provider stays.
-        defer { revision.advance() }
-        if selectionChanged { try await portfolio.providerDidChange() }
+        try await apply { $0.remove(url) }
     }
 
-    /// Changes the saved settings in one storage step, so changes from several windows don't overwrite each other.
+    /// Saves a change in one storage step, so changes from several windows don't overwrite each other, then ends the
+    /// previous provider's portfolio work when the provider changed and has every window observe again.
+    ///
+    /// Unchanged settings aren't saved and tell no window. The change is already saved, so logos that can't be
+    /// removed, as on a full disk, don't undo it; they stay until a later change.
     /// - Parameter change: Changes the settings, which start from the defaults before anything is saved.
-    /// - Returns: The change's result.
     /// - Throws: A storage or cancellation error, which changes nothing.
-    private func update<Result: Sendable>(
-        _ change: @escaping @Sendable (inout ProviderSettings) -> Result
-    ) async throws -> Result {
-        try await store.update { saved in
-            let current = saved ?? ProviderSettings()
-            var settings = current
-            let result = change(&settings)
+    private func apply(_ change: @escaping @Sendable (inout ProviderSettings) -> Void) async throws {
+        let (old, new) = try await store.update { saved in
+            let old = saved ?? ProviderSettings()
+            var new = old
+            change(&new)
             // Unchanged defaults stay unsaved.
-            if settings != current { saved = settings }
-            return result
+            if new != old { saved = new }
+            return (old, new)
         }
+        guard new != old else { return }
+        // Every window's list can change even when the provider stays.
+        if new.selection != old.selection { try? await portfolio.providerDidChange() }
+        revision.advance()
     }
 }

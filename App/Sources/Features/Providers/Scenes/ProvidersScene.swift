@@ -11,14 +11,14 @@ struct ProvidersScene: View {
                     switch route {
                     case .customRPCSetup:
                         if let setup = flow.setup {
-                            CustomRPCSetupScreen(submission: setup)
-                                .customRPCSetupLifecycle(setup)
+                            ProviderSetupScreen(purpose: .customRPC, submission: setup)
+                                .providerSetupLifecycle(setup, closesWhenSaved: true)
                         }
                     case .providerDetails:
                         ProviderDetailsScreen(keyPreview: flow.keyPreview, actions: flow)
-                    case .providerKey:
+                    case .providerKey(let purpose):
                         if let newKey = flow.newKey {
-                            ProviderSetupScreen(purpose: flow.replacesSavedKey ? .change : .add, submission: newKey)
+                            ProviderSetupScreen(purpose: purpose, submission: newKey)
                                 .providerSetupLifecycle(newKey, closesWhenSaved: true)
                         }
                     case .customRPCDetails:

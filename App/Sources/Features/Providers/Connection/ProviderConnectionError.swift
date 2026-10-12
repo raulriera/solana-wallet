@@ -24,9 +24,6 @@ nonisolated enum ProviderConnectionError: ProviderEntryError {
         }
     }
 
-    /// Explains the failure in an alert's message.
-    var recoverySuggestion: String? { String(localized: message) }
-
     /// Explains the failure to the person setting up the provider, without the key or underlying error text.
     var message: LocalizedStringResource {
         switch self {
