@@ -27,13 +27,10 @@ struct CustomRPCDetailsScreen: View {
         }
         .foregroundStyle(palette.primaryText, palette.secondaryText)
         .scrollContentBackground(.hidden)
-        .scrollEdgeEffectStyle(.soft, for: .bottom)
         .readableContentMargins(inset: $contentInset)
-        .safeAreaBar(edge: .bottom) {
+        .pinnedAction(inset: contentInset) {
             Button("Delete RPC", role: .destructive) { removal = url }
                 .buttonStyle(.destructive)
-                .padding(.horizontal, contentInset)
-                .padding(.vertical, LayoutMetrics.actionBarVerticalPadding)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(palette.background)

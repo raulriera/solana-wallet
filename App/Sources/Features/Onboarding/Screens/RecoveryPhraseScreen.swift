@@ -54,15 +54,12 @@ struct RecoveryPhraseScreen: View {
             .listRowBackground(palette.surface)
         }
         .scrollContentBackground(.hidden)
-        .scrollEdgeEffectStyle(.soft, for: .bottom)
         .readableContentMargins(inset: $contentInset)
-        .safeAreaBar(edge: .bottom) {
+        .pinnedAction(inset: contentInset) {
             Button("Continue") {
                 isConfirmingBackup = true
             }
             .buttonStyle(.primary)
-            .padding(.horizontal, contentInset)
-            .padding(.vertical, LayoutMetrics.actionBarVerticalPadding)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(palette.background)

@@ -15,13 +15,10 @@ struct ResetConfirmationScreen: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .scrollEdgeEffectStyle(.soft, for: .bottom)
         .readableContentMargins(inset: $contentInset)
-        .safeAreaBar(edge: .bottom) {
+        .pinnedAction(inset: contentInset) {
             Button("Reset App", role: .destructive) { isConfirming = true }
                 .buttonStyle(.destructive)
-                .padding(.horizontal, contentInset)
-                .padding(.vertical, LayoutMetrics.actionBarVerticalPadding)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(palette.background)

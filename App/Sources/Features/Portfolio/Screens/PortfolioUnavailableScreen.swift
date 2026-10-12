@@ -13,14 +13,11 @@ struct PortfolioUnavailableScreen: View {
                 .foregroundStyle(palette.primaryText)
         }
         .defaultScrollAnchor(.center, for: .alignment)
-        .scrollEdgeEffectStyle(.soft, for: .bottom)
         .readableContentMargins(inset: $contentInset, addsSafeArea: false)
-        .safeAreaBar(edge: .bottom) {
+        .pinnedAction(inset: contentInset) {
             if let actionTitle {
                 Button(actionTitle, action: action)
                     .buttonStyle(.primary)
-                    .padding(.horizontal, contentInset)
-                    .padding(.vertical, LayoutMetrics.actionBarVerticalPadding)
             }
         }
         .background(palette.background)

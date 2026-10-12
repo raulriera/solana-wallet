@@ -9,13 +9,10 @@ struct ProviderChoiceScreen: View {
 
     var body: some View {
         ProvidersScreen(flow: flow)
-            .scrollEdgeEffectStyle(.soft, for: .bottom)
             .readableContentMargins(inset: $contentInset)
-            .safeAreaBar(edge: .bottom) {
+            .pinnedAction(inset: contentInset) {
                 Button("Continue", action: continueSetup)
                     .buttonStyle(.primary)
-                    .padding(.horizontal, contentInset)
-                    .padding(.vertical, LayoutMetrics.actionBarVerticalPadding)
             }
     }
 }

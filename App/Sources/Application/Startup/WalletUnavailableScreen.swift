@@ -13,13 +13,10 @@ struct WalletUnavailableScreen: View {
                 .foregroundStyle(palette.primaryText)
         }
         .defaultScrollAnchor(.center, for: .alignment)
-        .scrollEdgeEffectStyle(.soft, for: .bottom)
         .readableContentMargins(inset: $contentInset, addsSafeArea: false)
-        .safeAreaBar(edge: .bottom) {
+        .pinnedAction(inset: contentInset) {
             Button("Try Again", action: retry)
                 .buttonStyle(.primary)
-                .padding(.horizontal, contentInset)
-                .padding(.vertical, LayoutMetrics.actionBarVerticalPadding)
         }
         .background(palette.background)
     }

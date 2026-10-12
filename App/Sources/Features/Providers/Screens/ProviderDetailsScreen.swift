@@ -33,14 +33,11 @@ struct ProviderDetailsScreen: View {
         }
         .foregroundStyle(palette.primaryText, palette.secondaryText)
         .scrollContentBackground(.hidden)
-        .scrollEdgeEffectStyle(.soft, for: .bottom)
         .readableContentMargins(inset: $contentInset)
-        .safeAreaBar(edge: .bottom) {
+        .pinnedAction(inset: contentInset) {
             // The button names the screen it opens.
             Button(ProviderEntryPurpose(keyPreview: keyPreview).title, action: actions.changeKey)
                 .buttonStyle(.primary)
-                .padding(.horizontal, contentInset)
-                .padding(.vertical, LayoutMetrics.actionBarVerticalPadding)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(palette.background)
