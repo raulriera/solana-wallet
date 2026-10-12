@@ -1,7 +1,7 @@
 /// Checks whether public address bytes decompress on the Ed25519 curve.
 ///
-/// This is public-data arithmetic for Solana PDA derivation, not secret-key
-/// arithmetic or signature validation. Field elements use five 51-bit limbs.
+/// This is public-data arithmetic for Solana PDA derivation and ``Address/isOnCurve``,
+/// not secret-key arithmetic or signature validation. Field elements use five 51-bit limbs.
 enum EdwardsPoint {
     /// Tests the Edwards equation, accepting the same reduced y coordinates as Dalek.
     ///

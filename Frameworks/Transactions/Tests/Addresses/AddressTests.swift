@@ -2,7 +2,7 @@ import Foundation
 import Testing
 import Transactions
 
-/// Verifies strict Base58 validation at the public address boundary.
+/// Verifies strict Base58 validation and curve checks at the public address boundary.
 struct AddressTests {
     private static let malformedAddresses: [String] = [
         "9WzDXwBbmkg8ZTbNMqUxvQRАyrZzDsGYdLVL9zYtAWWM", // Cyrillic А, U+0410.
@@ -34,5 +34,15 @@ struct AddressTests {
     func `Decoding rejects text that isn't a valid address`(_ value: String) throws {
         let data = try JSONEncoder().encode(value)
         #expect(throws: DecodingError.self) { try JSONDecoder().decode(Address.self, from: data) }
+    }
+
+    /// Verifies a signing account decodes on the curve and an associated token account doesn't.
+    ///
+    /// - Parameters:
+    ///   - address: A signing account or an associated token account from the independent fixtures.
+    ///   - onCurve: Whether the address decodes to an Ed25519 point.
+    @Test(arguments: [(SignedTransferFixture.sender, true), (TokenFixtures.transfers[0].destination, false)])
+    func `Curve checks tell signing keys from program-derived addresses`(address: String, onCurve: Bool) throws {
+        #expect(try Address(address).isOnCurve == onCurve)
     }
 }

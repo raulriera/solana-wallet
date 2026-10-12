@@ -17,6 +17,17 @@ public struct Address: Sendable, Hashable {
         self.value = value
         self.bytes = bytes
     }
+
+    /// Whether the address bytes decode to a point on the Ed25519 curve.
+    ///
+    /// `false` means no private key exists for the address, as with program-derived addresses.
+    /// `true` means the bytes decode to an Ed25519 point, as every keypair address does; it doesn't
+    /// prove a key exists, because small-order points decode but can't sign.
+    ///
+    /// The result never makes an address invalid; callers may warn, not reject.
+    public var isOnCurve: Bool {
+        EdwardsPoint.isOnCurve(bytes)
+    }
 }
 
 extension Address: Codable {
