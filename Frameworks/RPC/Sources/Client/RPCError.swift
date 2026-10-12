@@ -33,4 +33,16 @@ public enum RPCError: Error, Sendable, Equatable {
         /// The response contained both `result` and `error`, or neither field.
         case invalidEnvelope
     }
+
+    /// Whether the failure can clear without a person's action, so the caller may connect or read again later.
+    ///
+    /// Transport failures, such as no network or a missing pong, HTTP 5xx statuses, and JSON-RPC code `-32005`,
+    /// which reports a node that is behind, are recoverable. Rate limits, rejected or missing keys, and every
+    /// other refusal are not, so automatic retries can't make them worse.
+    public var isRecoverable: Bool {
+        switch self {
+        case .transport, .http(statusCode: 500..<600, retryAfter: _), .server(code: -32005, message: _): true
+        case .encoding, .decoding, .http, .server, .preflight, .invalidResponse: false
+        }
+    }
 }

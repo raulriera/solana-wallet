@@ -118,8 +118,8 @@ actor ObservationCoordinator {
 
     /// Watches the wallet for the observation's lifetime, reconnecting after each dropped connection.
     ///
-    /// Each failure shows its error at once. After a drop, the watch waits the reconnection delay and connects
-    /// again. Other errors leave the watch disconnected.
+    /// Each failure shows its error at once. After a failure that `RPCError.isRecoverable` accepts, the watch
+    /// waits the reconnection delay and connects again. Other errors leave the watch disconnected.
     /// - Parameters:
     ///   - owner: The watched wallet.
     ///   - generation: The observation lifetime, used to reject late work after cancellation.
@@ -136,7 +136,8 @@ actor ObservationCoordinator {
                 let failed = await refresh.status(for: owner, phase: .failed(error))
                 guard watches[owner]?.generation == generation else { return }
                 publish(failed, owner: owner, generation: generation)
-                guard Self.canReconnect(after: error), await waitToReconnect(owner: owner, generation: generation) else {
+                guard (error as? RPCError)?.isRecoverable == true,
+                      await waitToReconnect(owner: owner, generation: generation) else {
                     return
                 }
             }
@@ -186,20 +187,6 @@ actor ObservationCoordinator {
         guard watches[owner]?.generation == generation else { return false }
         watches[owner]?.state = .connecting
         return true
-    }
-
-    /// Whether a failure is a dropped connection that can work again without a person's action.
-    ///
-    /// Transport failures, such as no network or a missing pong, and server errors can recover. Rate limits,
-    /// rejected or missing keys, and every other refusal wait for a person, so automatic retries can't make them worse.
-    /// - Parameter error: Why the subscriptions couldn't start or ended.
-    /// - Returns: `true` when observation reconnects by itself.
-    private static func canReconnect(after error: any Error) -> Bool {
-        switch error {
-        case RPCError.transport: true
-        case RPCError.http(statusCode: 500..<600, retryAfter: _): true
-        default: false
-        }
     }
 
     /// Coalesces notifications into one active reconciliation task for this wallet.
