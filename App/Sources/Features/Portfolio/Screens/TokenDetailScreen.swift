@@ -6,7 +6,6 @@ import SwiftUI
 struct TokenDetailScreen: View {
     @Environment(\.palette) private var palette
     @Environment(\.dismiss) private var dismiss
-    @State private var contentInset = LayoutMetrics.contentMargin
     let holding: Holding
     /// Removes a confirmed token from the wallet's list; the screen then closes itself.
     let remove: (Holding) -> Void
@@ -61,7 +60,7 @@ struct TokenDetailScreen: View {
         .monospacedDigit()
         .foregroundStyle(palette.primaryText, palette.secondaryText)
         .scrollContentBackground(.hidden)
-        .readableContentMargins(inset: $contentInset)
+        .readableContentMargins()
         .background(palette.background)
         .navigationTitle(holding.displayName)
         .navigationBarTitleDisplayMode(.inline)

@@ -40,4 +40,25 @@ extension View {
     func readableContentMargins(inset: Binding<CGFloat>, addsSafeArea: Bool = true) -> some View {
         modifier(ReadableContentMargins(inset: inset, addsSafeArea: addsSafeArea))
     }
+
+    /// Insets scroll content on a screen that shares the calculated inset with nothing else.
+    /// - Parameter addsSafeArea: Whether the margins include the horizontal safe area. A `Form` needs it;
+    ///   pass `false` for a `ScrollView`, which adds the safe area to its margins itself.
+    /// - Returns: The view with readable scroll-content margins.
+    func readableContentMargins(addsSafeArea: Bool = true) -> some View {
+        modifier(OwnedReadableContentMargins(addsSafeArea: addsSafeArea))
+    }
+}
+
+/// Keeps the calculated inset for content that doesn't share it with a pinned action.
+private struct OwnedReadableContentMargins: ViewModifier {
+    @State private var inset = LayoutMetrics.contentMargin
+    let addsSafeArea: Bool
+
+    /// Applies readable margins with an inset this modifier owns.
+    /// - Parameter content: The full-width scroll container to measure and inset.
+    /// - Returns: The container with readable scroll-content margins.
+    func body(content: Content) -> some View {
+        content.readableContentMargins(inset: $inset, addsSafeArea: addsSafeArea)
+    }
 }
