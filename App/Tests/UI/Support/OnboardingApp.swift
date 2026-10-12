@@ -17,7 +17,10 @@ struct OnboardingApp {
 
     var submitImport: XCUIElement { app.buttons["Import Wallet"] }
     var backupConfirmation: XCUIElement { app.alerts["Have you saved your recovery words?"] }
-    var portfolioTab: XCUIElement { app.tabBars.buttons["Portfolio"] }
+    /// The wallet's Portfolio tab, in the bottom tab bar on iPhone and the top one on iPad, which isn't a tab bar element.
+    var portfolioTab: XCUIElement { app.buttons["Portfolio"].firstMatch }
+    /// The wallet's Settings tab, found the same way as the Portfolio tab.
+    var settingsTab: XCUIElement { app.buttons["Settings"].firstMatch }
     var keySheet: XCUIElement { app.navigationBars["Connect to Helius"] }
 
     /// Selects the language used by the test's user-facing control queries.
@@ -137,7 +140,9 @@ struct OnboardingApp {
         try tap(try frontButton("Continue"))
     }
 
-    /// Opens the saved wallet with the provider in use and waits for it.
+    /// Opens the saved wallet with the provider in use, waits for it, and shows its portfolio.
+    ///
+    /// The window can restore the tab it showed before the reset that started the test, so the portfolio is selected.
     /// - Parameters:
     ///   - file: The calling test's source file for failure reporting.
     ///   - line: The calling test's line for failure reporting.
@@ -145,6 +150,7 @@ struct OnboardingApp {
     func openWallet(file: StaticString = #filePath, line: UInt = #line) throws {
         try tap(app.buttons["Continue"], file: file, line: line)
         try expectWallet(file: file, line: line)
+        try tap(portfolioTab, file: file, line: line)
     }
 
     /// Chooses Helius with the key from ignored local configuration, then opens the wallet.
