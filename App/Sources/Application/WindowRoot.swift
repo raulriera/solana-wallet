@@ -41,8 +41,8 @@ struct WindowRoot: View {
                     .onboardingLifecycle()
             case .wallet(let account):
                 WalletScene(account: account, portfolio: portfolio, tokenRemoval: tokenRemoval, settings: settings,
-                            connection: services.providerConnection, providerRevision: services.providerRevision,
-                            security: security, providers: providers, resetRevision: services.resetRevision)
+                            connection: services.providerConnection, security: security, providers: providers,
+                            resetRevision: services.resetRevision)
             }
         }
         .animation(.default, value: router.destination)
