@@ -64,16 +64,17 @@ struct AccountReadTests {
         }
     }
 
-    /// Verifies fee selection receives the exact epoch and its observation slot.
+    /// Verifies epoch reads return the exact epoch with the slot and block height of the observation.
     @Test
-    func `Epoch reads return the fee schedule epoch and observation slot`() async throws {
+    func `Epoch reads return the epoch, observation slot, and block height`() async throws {
         let transport = StubTransport { request in
-            try reply(to: request, payload: #""result":{"epoch":100,"absoluteSlot":43200001}"#)
+            try reply(to: request, payload: #""result":{"epoch":100,"absoluteSlot":43200001,"blockHeight":41000017}"#)
         }
         let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
         let result = try await rpc.send(GetEpochInfo(minContextSlot: 43200000))
         #expect(result.epoch == 100)
         #expect(result.absoluteSlot == 43200001)
+        #expect(result.blockHeight == 41000017)
         let body = try requestBody(#require(await transport.requests.first))
         #expect(body["method"] as? String == "getEpochInfo")
         let params = try #require(body["params"] as? [[String: Any]])

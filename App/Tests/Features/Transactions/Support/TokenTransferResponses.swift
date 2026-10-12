@@ -76,7 +76,7 @@ struct TokenTransferResponses {
                 try HTTPResponses.json(["context": ["slot": 100], "value": [mintAccount]]),
                 try HTTPResponses.json(["context": ["slot": 101], "value": [mintAccount, sourceAccount, destinationAccount, recipientAccount]]),
             ],
-            "getEpochInfo": [#"{"epoch":1,"absoluteSlot":101}"#],
+            "getEpochInfo": [#"{"epoch":1,"absoluteSlot":101,"blockHeight":91}"#],
             "getMinimumBalanceForRentExemption": ["2100000"],
         ])
     }
