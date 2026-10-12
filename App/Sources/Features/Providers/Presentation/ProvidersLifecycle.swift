@@ -1,16 +1,16 @@
 import SwiftUI
 
-/// Keeps Providers' choice, custom RPCs, and key preview current while Settings is on screen, runs each change, and
-/// presents key entry, deletion confirmations, and failures.
+/// Keeps Providers' choice, custom RPCs, and key preview current while Settings or onboarding is on screen, runs each
+/// change, and presents key entry, deletion confirmations, and failures.
 ///
-/// It attaches to the settings split view, which stays on screen while Providers pushes screens; on compact displays
-/// the split view merges those pushes into its own stack. So a failure to read the settings can alert on any Settings
-/// destination.
+/// It attaches to the container that stays on screen while Providers pushes screens: the settings split view, which
+/// merges those pushes into its own stack on compact displays, or onboarding's navigation stack. So a failure to read
+/// the settings can alert on any screen of that container.
 struct ProvidersLifecycle: ViewModifier {
     @Bindable var flow: ProvidersFlow
 
     /// Reads the settings whenever any window changes them and awaits one change at a time.
-    /// - Parameter content: The settings scene.
+    /// - Parameter content: The settings or onboarding scene.
     /// - Returns: The scene with managed reads, changes, key entry, deletion confirmations, and failure
     ///   presentation.
     func body(content: Content) -> some View {

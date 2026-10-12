@@ -8,27 +8,27 @@ struct OnboardingScene: View {
     @State private var error: OnboardingError?
     @State private var navigation: OnboardingNavigation
     @State private var importSubmission: ImportSubmission
-    @State private var providerSubmission: ProviderSubmission<ProviderConnectionError>
     let coordinator: any OnboardingCoordinating
+    let providers: ProvidersFlow
     let pasteboard: any RecoveryCopying
 
     /// Seeds presentation once; the parent retains these services for the window's lifetime.
     /// - Parameters:
     ///   - coordinator: The owning window's preparation, persistence, and routing workflow.
-    ///   - connection: Verifies and saves the provider's API key after the wallet is saved, and tells every window.
+    ///   - providers: The window's RPC provider choice, shown after the wallet is saved; `onboardingLifecycle()` runs
+    ///     its work.
     ///   - pasteboard: Copies a new wallet's recovery words to this device only, for a limited time.
-    init(coordinator: any OnboardingCoordinating, connection: any ProviderConnecting<ProviderConnectionError>,
-         pasteboard: any RecoveryCopying) {
+    init(coordinator: any OnboardingCoordinating, providers: ProvidersFlow, pasteboard: any RecoveryCopying) {
         self.coordinator = coordinator
+        self.providers = providers
         self.pasteboard = pasteboard
         let importSubmission = ImportSubmission(coordinator: coordinator)
         self.importSubmission = importSubmission
-        navigation = OnboardingNavigation(importSubmission: importSubmission)
-        providerSubmission = ProviderSubmission(connection: connection)
+        navigation = OnboardingNavigation(importSubmission: importSubmission, providers: providers)
     }
 
     var body: some View {
-        NavigationStack(path: $navigation.path) {
+        NavigationStack(path: $navigation.stack) {
             WelcomeScreen(createWallet: {
                 guard !coordinator.isWorking, !isCreating, !isCompleting, !importSubmission.isPending,
                       !importSubmission.isPresented else { return }
@@ -51,11 +51,12 @@ struct OnboardingScene: View {
                                     .importLifecycle(importSubmission, presentationID: presentationID)
                                     .id(presentationID)
                             }
-                        case .providerSetup:
+                        case .providers:
                             // The wallet is already saved, so its earlier steps no longer apply.
-                            ProviderSetupScreen(purpose: .connect, submission: providerSubmission)
-                                .providerSetupLifecycle(providerSubmission)
+                            ProviderChoiceScreen(flow: providers, continueSetup: openWallet)
                                 .navigationBarBackButtonHidden()
+                        case .providersRoute(let route):
+                            ProvidersDestination(flow: providers, route: route)
                         }
                     }
                     .navigationSubtitle("Step \(step.number) of \(OnboardingStep.total)")
@@ -69,9 +70,8 @@ struct OnboardingScene: View {
             isCompleting = false
             if !coordinator.isWorking { discardDraft() }
         }
-        .onChange(of: coordinator.account?.id) { showProviderSetup() }
-        .onChange(of: navigation.path.last) { showProviderSetup() }
-        .onChange(of: providerSubmission.isSaved) { openWallet() }
+        .onChange(of: coordinator.account?.id) { showProviders() }
+        .onChange(of: navigation.path.last) { showProviders() }
         .onDisappear {
             // Active work releases its draft after cancellation unwinds.
             if !coordinator.isWorking, !importSubmission.isPending { discardDraft() }
@@ -113,20 +113,24 @@ struct OnboardingScene: View {
         }
     }
 
-    /// Opens the saved wallet once its provider key is saved.
+    /// Opens the saved wallet with the provider in use.
+    ///
+    /// Taps while a provider change waits to be saved are ignored, so the wallet never opens on the previous provider.
+    /// Saving a choice is quick, so the button shows no waiting state.
     private func openWallet() {
+        guard providers.attempt == nil else { return }
         do { try coordinator.finish() }
         catch {
             self.error = .openFailed
         }
     }
 
-    /// Pushes provider setup over the step that saved the wallet, and again if anything pops past it.
+    /// Pushes the provider choice over the step that saved the wallet, and again if anything pops past it.
     ///
     /// Creation and import both end by saving the account; the saved wallet's earlier steps no longer apply.
-    private func showProviderSetup() {
-        guard coordinator.account != nil, navigation.path.last != .providerSetup else { return }
-        navigation.path.append(.providerSetup)
+    private func showProviders() {
+        guard coordinator.account != nil, navigation.path.last != .providers else { return }
+        navigation.path.append(.providers)
     }
 
     /// Releases the uncommitted recovery without reporting secret-bearing errors.

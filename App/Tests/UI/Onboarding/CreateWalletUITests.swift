@@ -39,8 +39,8 @@ final class CreateWalletUITests: XCTestCase {
 
         try flow.tap(flow.backupConfirmation.buttons["Yes"])
 
-        try flow.expectProviderSetup()
-        try flow.connectProvider()
+        try flow.expectProviders()
+        try flow.openWallet()
         flow.relaunch()
         try flow.expectWallet()
         XCTAssertFalse(flow.app.buttons["Create Wallet"].exists)

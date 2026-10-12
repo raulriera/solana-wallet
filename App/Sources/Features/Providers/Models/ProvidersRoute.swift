@@ -1,5 +1,5 @@
 /// A screen pushed inside Providers; routes never carry an RPC URL, which can hold a key.
-enum ProvidersRoute: Hashable {
+nonisolated enum ProvidersRoute: Hashable, Sendable {
     /// Adding a custom RPC.
     case customRPCSetup
     /// A custom RPC's details.

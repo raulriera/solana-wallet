@@ -6,9 +6,9 @@ import XCTest
 struct OnboardingApp {
     static let phrase = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
     private static let recoveryGuidance = "Write down these words in order and keep them somewhere safe. Anyone with them can control your wallet."
-    /// The titles of the alerts that report a wallet setup or provider key error.
+    /// The titles of the alerts that report a wallet setup, provider choice, or provider key error.
     private static let setupErrorTitles = ["Wallet Setup Unavailable", "Too Many Requests", "Couldn't Connect",
-                                           "Couldn't Save API Key"]
+                                           "Couldn't Save API Key", "Couldn't Load Provider", "Couldn't Change Provider"]
 
     /// Stops dependent interactions after a checked UI wait fails.
     private enum FlowError: Error { case missingElement, unexpectedElement, unavailableControl, reportedError, missingConfiguration }
@@ -18,6 +18,7 @@ struct OnboardingApp {
     var submitImport: XCUIElement { app.buttons["Import Wallet"] }
     var backupConfirmation: XCUIElement { app.alerts["Have you saved your recovery words?"] }
     var portfolioTab: XCUIElement { app.tabBars.buttons["Portfolio"] }
+    var keySheet: XCUIElement { app.navigationBars["Connect to Helius"] }
 
     /// Selects the language used by the test's user-facing control queries.
     init() {
@@ -54,19 +55,20 @@ struct OnboardingApp {
         try expectSetupOutcome(portfolioTab, label: "Portfolio", file: file, line: line)
     }
 
-    /// Confirms that saving the wallet pushed provider setup as the last step, with no way back to the wallet's earlier steps.
+    /// Confirms that saving the wallet pushed the provider choice as the last step, with no way back to the wallet's
+    /// earlier steps.
     /// - Parameters:
     ///   - file: The calling test's source file for failure reporting.
     ///   - line: The calling test's line for failure reporting.
-    /// - Throws: A missing provider setup destination or step count, a remaining back button, or an explicit wallet setup failure.
-    func expectProviderSetup(file: StaticString = #filePath, line: UInt = #line) throws {
-        try expectSetupOutcome(app.navigationBars["Connect to Helius"], label: "Connect to Helius", file: file, line: line)
+    /// - Throws: A missing provider choice or step count, a remaining back button, or an explicit wallet setup failure.
+    func expectProviders(file: StaticString = #filePath, line: UInt = #line) throws {
+        try expectSetupOutcome(app.navigationBars["Providers"], label: "Providers", file: file, line: line)
         try waitFor(app.staticTexts["Step 2 of 2"], file: file, line: line)
-        // The outgoing step's back button leaves when the push finishes; provider setup has none.
+        // The outgoing step's back button leaves when the push finishes; the provider choice has none.
         try waitForAbsence(app.buttons["BackButton"], file: file, line: line)
     }
 
-    /// Creates a disposable, unfunded wallet through onboarding and waits for provider setup.
+    /// Creates a disposable, unfunded wallet through onboarding and waits for the provider choice.
     /// - Throws: A missing or unavailable control, or an explicit wallet setup failure.
     func createWallet() throws {
         try tap(app.buttons["Create Wallet"])
@@ -74,7 +76,7 @@ struct OnboardingApp {
         try tap(app.buttons["Continue"])
         try waitFor(backupConfirmation)
         try tap(backupConfirmation.buttons["Yes"])
-        try expectProviderSetup()
+        try expectProviders()
         try waitForAbsence(app.staticTexts[Self.recoveryGuidance])
     }
 
@@ -88,17 +90,64 @@ struct OnboardingApp {
         try expectSetupOutcome(app.staticTexts[message], label: message, file: file, line: line)
     }
 
-    /// Types a provider key into the setup screen and submits it once.
+    /// Chooses Helius on the provider choice and waits for its key sheet, failing immediately if the app reports an
+    /// error instead.
+    /// - Parameters:
+    ///   - file: The calling test's source file for failure reporting.
+    ///   - line: The calling test's line for failure reporting.
+    /// - Throws: A missing or unavailable control, a missing key sheet, or an explicit setup failure.
+    func chooseHelius(file: StaticString = #filePath, line: UInt = #line) throws {
+        try tap(app.buttons["Helius"], file: file, line: line)
+        try expectSetupOutcome(keySheet, label: "Connect to Helius", file: file, line: line)
+    }
+
+    /// The button with this label that a person can tap; a button behind a sheet shares its label but can't be tapped.
+    /// - Parameters:
+    ///   - label: The button's label, such as "Continue" on both a sheet and the screen behind it.
+    ///   - file: The caller's source file for failure reporting.
+    ///   - line: The caller's source line for failure reporting.
+    /// - Returns: The front button.
+    /// - Throws: A missing button after recording the failed assertion.
+    func frontButton(_ label: String, file: StaticString = #filePath, line: UInt = #line) throws -> XCUIElement {
+        try XCTUnwrap(app.buttons.matching(identifier: label).allElementsBoundByIndex.first(where: \.isHittable),
+                      "No tappable \(label) button", file: file, line: line)
+    }
+
+    /// Matches a portfolio holding's button by the start of its label, such as the token's symbol.
+    /// - Parameter prefix: The start of the holding's label.
+    /// - Returns: A predicate for the holding's button.
+    static func holdingLabel(beginningWith prefix: String) -> NSPredicate {
+        NSPredicate(format: "elementType == %lu AND label BEGINSWITH %@", XCUIElement.ElementType.button.rawValue, prefix)
+    }
+
+    /// The first portfolio holding whose label starts with a prefix, such as the token's symbol.
+    /// - Parameter prefix: The start of the holding's label.
+    /// - Returns: The holding's button.
+    func holding(_ prefix: String) -> XCUIElement {
+        app.buttons.matching(Self.holdingLabel(beginningWith: prefix)).firstMatch
+    }
+
+    /// Types a provider key into the key sheet and submits it once.
     /// - Parameter key: The configured key, or a dummy key the provider rejects.
     /// - Throws: A missing or unavailable control.
     func submitProviderKey(_ key: String) throws {
         let field = app.secureTextFields["RPC API key"]
         try tap(field)
         field.typeText(key)
-        try tap(app.buttons["Continue"])
+        try tap(try frontButton("Continue"))
     }
 
-    /// Connects with the Helius key from ignored local configuration and waits for the wallet.
+    /// Opens the saved wallet with the provider in use and waits for it.
+    /// - Parameters:
+    ///   - file: The calling test's source file for failure reporting.
+    ///   - line: The calling test's line for failure reporting.
+    /// - Throws: A missing or unavailable control, or an explicit wallet setup failure.
+    func openWallet(file: StaticString = #filePath, line: UInt = #line) throws {
+        try tap(app.buttons["Continue"], file: file, line: line)
+        try expectWallet(file: file, line: line)
+    }
+
+    /// Chooses Helius with the key from ignored local configuration, then opens the wallet.
     /// - Parameters:
     ///   - file: The calling test's source file for failure reporting.
     ///   - line: The calling test's line for failure reporting.
@@ -109,8 +158,14 @@ struct OnboardingApp {
             XCTFail("HELIUS_API_KEY must be configured for UI tests", file: file, line: line)
             throw FlowError.missingConfiguration
         }
+        try chooseHelius(file: file, line: line)
         try submitProviderKey(key)
-        try expectWallet(file: file, line: line)
+        // The sheet closes once the key is saved, and Helius is chosen after it; a check or save that fails shows an
+        // alert, which ends the wait at once.
+        let chosen = NSPredicate(format: "label == %@ AND selected == true", "Helius")
+        try expectOutcome(app.buttons["Helius"], matching: chosen, unless: Self.setupErrorTitles, file: file, line: line)
+        try waitForAbsence(keySheet, file: file, line: line)
+        try openWallet(file: file, line: line)
     }
 
     /// Checks the production creation screen as the first step and its twelve numbered words without expecting a fixed phrase.

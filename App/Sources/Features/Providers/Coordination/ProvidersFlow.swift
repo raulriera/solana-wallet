@@ -2,7 +2,7 @@ import Foundation
 import Observation
 import SwiftUI
 
-/// Owns one Settings window's RPC provider choices, custom RPCs, and the key entry they need.
+/// Owns one window's RPC provider choices, custom RPCs, and the key entry they need, in Settings and onboarding.
 @MainActor
 @Observable
 final class ProvidersFlow: ProviderActions {

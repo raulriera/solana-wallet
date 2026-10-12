@@ -2,7 +2,7 @@ import Foundation
 
 /// The RPC provider that every window uses and the custom RPCs a person added, saved on this device.
 nonisolated struct ProviderSettings: Codable, Equatable, Sendable {
-    /// An RPC provider. Saved case names are permanent.
+    /// An RPC provider.
     nonisolated enum Provider: Codable, Hashable, Sendable {
         /// Solana's public mainnet RPC, which needs no key.
         case solana
@@ -25,8 +25,8 @@ nonisolated struct ProviderSettings: Codable, Equatable, Sendable {
         var hasDetails: Bool { self != .solana }
     }
 
-    /// The provider in use: Helius until a person chooses another, as before this setting existed.
-    var selection = Provider.helius
+    /// The provider in use: Solana's public RPC until a person chooses another.
+    var selection = Provider.solana
     /// Custom RPC URLs, in the order they were added.
     var customRPCs: [URL] = []
 

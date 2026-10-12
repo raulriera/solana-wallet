@@ -11,7 +11,7 @@ struct ProviderSelectionTests {
     /// - Throws: A selection failure.
     @Test
     func `A new provider is saved before the previous provider's work ends and windows observe again after`() async throws {
-        let settings = StoredValue<ProviderSettings>()
+        let settings = StoredValue(ProviderSettings(selection: .helius))
         let gate = Suspension()
         let portfolio = ProviderChanges(gate: gate)
         let revision = Revision()
@@ -28,7 +28,8 @@ struct ProviderSelectionTests {
         #expect(revision.value == 1)
     }
 
-    /// Choosing the provider in use saves nothing, keeps the portfolio's work, and doesn't restart windows.
+    /// Choosing the provider in use, Solana's public RPC before anything is saved, saves nothing, keeps the portfolio's
+    /// work, and doesn't restart windows.
     /// - Throws: A selection failure.
     @Test
     func `Choosing the provider in use changes nothing`() async throws {
@@ -36,8 +37,8 @@ struct ProviderSelectionTests {
         let portfolio = ProviderChanges()
         let revision = Revision()
 
-        try await ProviderSelection(settings: settings, providerKey: StoredValue("fixture-key"), portfolio: portfolio,
-                                    revision: revision).select(.helius)
+        try await ProviderSelection(settings: settings, providerKey: StoredValue(), portfolio: portfolio, revision: revision)
+            .select(.solana)
 
         #expect(await settings.value == nil)
         #expect(await portfolio.count == 0)
@@ -45,8 +46,8 @@ struct ProviderSelectionTests {
     }
 
     /// Helius needs its key before anything changes, whether or not it's already in use.
-    /// - Parameter saved: The saved choice, or `nil` while Helius is in use by default.
-    @Test(arguments: [nil, ProviderSettings(selection: .solana)])
+    /// - Parameter saved: The saved choice, or `nil` while Solana is in use by default.
+    @Test(arguments: [nil, ProviderSettings(selection: .helius)])
     func `Helius isn't chosen without a saved key`(saved: ProviderSettings?) async {
         let settings = StoredValue(saved)
         let portfolio = ProviderChanges()
@@ -80,7 +81,7 @@ struct ProviderSelectionTests {
     /// - Throws: A selection failure.
     @Test
     func `A saved key lets Helius be chosen`() async throws {
-        let settings = StoredValue(ProviderSettings(selection: .solana))
+        let settings = StoredValue<ProviderSettings>()
         let portfolio = ProviderChanges()
         let revision = Revision()
 
@@ -97,7 +98,7 @@ struct ProviderSelectionTests {
     @Test
     func `A new provider keeps the saved custom RPCs`() async throws {
         let custom = try #require(URL(string: "https://rpc.example.com/fixture-token"))
-        let settings = StoredValue(ProviderSettings(customRPCs: [custom]))
+        let settings = StoredValue(ProviderSettings(selection: .helius, customRPCs: [custom]))
 
         try await ProviderSelection(settings: settings, providerKey: StoredValue(), portfolio: ProviderChanges(), revision: Revision())
             .select(.solana)
@@ -108,7 +109,8 @@ struct ProviderSelectionTests {
     /// A choice that can't be saved leaves the previous provider in use everywhere.
     @Test
     func `A choice that can't be saved changes nothing`() async {
-        let settings = StoredValue<ProviderSettings>(failsSaving: true)
+        let saved = ProviderSettings(selection: .helius)
+        let settings = StoredValue(saved, failsSaving: true)
         let portfolio = ProviderChanges()
         let revision = Revision()
 
@@ -117,7 +119,7 @@ struct ProviderSelectionTests {
                 .select(.solana)
         }
 
-        #expect(await settings.value == nil)
+        #expect(await settings.value == saved)
         #expect(await portfolio.count == 0)
         #expect(revision.value == 0)
     }
@@ -126,7 +128,7 @@ struct ProviderSelectionTests {
     /// - Throws: A selection failure.
     @Test
     func `A change applies when saved logos can't be removed`() async throws {
-        let settings = StoredValue<ProviderSettings>()
+        let settings = StoredValue(ProviderSettings(selection: .helius))
         let revision = Revision()
         let selection = ProviderSelection(settings: settings, providerKey: StoredValue(),
                                           portfolio: ProviderChanges(error: CocoaError(.fileWriteOutOfSpace)), revision: revision)

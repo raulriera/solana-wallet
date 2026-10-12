@@ -10,7 +10,7 @@ struct ProvidersFlowTests {
     /// A choice made in one window shows in every window's next read.
     @Test
     func `Every window checks a new provider after its next read`() async {
-        let settings = StoredValue<ProviderSettings>()
+        let settings = StoredValue(ProviderSettings(selection: .helius))
         let keys = StoredValue<String>()
         let revision = Revision()
         let flow = ProvidersFlow.inMemory(settings: settings, providerKey: keys, revision: revision)
@@ -28,31 +28,19 @@ struct ProvidersFlowTests {
         #expect(flow.error == nil)
     }
 
-    /// Helius without a key asks for one and keeps the provider in use.
-    @Test
-    func `Choosing Helius without a saved key asks for the key and keeps the provider in use`() async {
-        let flow = ProvidersFlow.inMemory(settings: StoredValue(ProviderSettings(selection: .solana)), providerKey: StoredValue())
-
-        flow.select(.helius)
-        await flow.run(flow.attempt)
-
-        #expect(flow.keyEntry != nil)
-        #expect(flow.attempt == nil)
-        #expect(flow.error == nil)
-    }
-
-    /// A saved key continues the choice that asked for it.
+    /// Helius without a key asks for one without an error, and a saved key continues the choice that asked for it.
     /// - Parameters:
-    ///   - saved: The saved choice, or `nil` while Helius is in use by default.
+    ///   - saved: The saved choice, or `nil` while Solana is in use by default.
     ///   - revisions: The provider changes every window hears about: the saved key, then any new choice.
     /// - Throws: A test prerequisite error.
-    @Test(arguments: [(nil, 1), (ProviderSettings(selection: .solana), 2)])
+    @Test(arguments: [(nil, 2), (ProviderSettings(selection: .helius), 1)])
     func `Helius is in use once its key is saved`(saved: ProviderSettings?, revisions: Int) async throws {
         let revision = Revision()
         let flow = ProvidersFlow.inMemory(settings: StoredValue(saved), providerKey: StoredValue(), revision: revision)
         flow.select(.helius)
         await flow.run(flow.attempt)
         let keyEntry = try #require(flow.keyEntry)
+        #expect(flow.error == nil)
 
         try await saveKey(in: keyEntry, for: flow)
         let attempt = try #require(flow.attempt)
@@ -189,7 +177,7 @@ struct ProvidersFlowTests {
     @Test
     func `A key that can't be read keeps the last preview`() async throws {
         let keys = StoredValue("fixture-key")
-        let flow = ProvidersFlow.inMemory(settings: StoredValue(ProviderSettings(selection: .solana)), providerKey: keys)
+        let flow = ProvidersFlow.inMemory(settings: StoredValue(), providerKey: keys)
         await flow.reload()
         let preview = try #require(flow.keyPreview)
 
@@ -240,7 +228,7 @@ struct ProvidersFlowTests {
     @Test
     func `Taps during a choice are ignored`() async throws {
         let url = try #require(URL(string: "https://rpc.example.com"))
-        let settings = StoredValue(ProviderSettings(customRPCs: [url]))
+        let settings = StoredValue(ProviderSettings(selection: .helius, customRPCs: [url]))
         let flow = ProvidersFlow.inMemory(settings: settings, providerKey: StoredValue())
 
         flow.select(.solana)
@@ -265,7 +253,7 @@ struct ProvidersFlowTests {
     /// - Throws: A test prerequisite error.
     @Test
     func `A cancelled choice opens no key entry and shows no error`() async throws {
-        let flow = ProvidersFlow.inMemory(settings: StoredValue(ProviderSettings(selection: .solana)), providerKey: StoredValue())
+        let flow = ProvidersFlow.inMemory(settings: StoredValue(), providerKey: StoredValue())
         flow.select(.helius)
         let attempt = try #require(flow.attempt)
 
@@ -294,7 +282,8 @@ struct ProvidersFlowTests {
     /// - Throws: A test prerequisite error.
     @Test
     func `A cancelled choice that fails shows no error`() async throws {
-        let flow = ProvidersFlow.inMemory(settings: StoredValue(failsSaving: true), providerKey: StoredValue())
+        let flow = ProvidersFlow.inMemory(settings: StoredValue(ProviderSettings(selection: .helius), failsSaving: true),
+                                          providerKey: StoredValue())
         flow.select(.solana)
         let attempt = try #require(flow.attempt)
 
@@ -309,7 +298,8 @@ struct ProvidersFlowTests {
     /// A choice that can't be saved explains it, and the provider in use stays checked.
     @Test
     func `A choice that can't be saved explains it and keeps the checkmark`() async {
-        let flow = ProvidersFlow.inMemory(settings: StoredValue(failsSaving: true), providerKey: StoredValue())
+        let flow = ProvidersFlow.inMemory(settings: StoredValue(ProviderSettings(selection: .helius), failsSaving: true),
+                                          providerKey: StoredValue())
         await flow.reload()
 
         flow.select(.solana)
@@ -337,7 +327,7 @@ struct ProvidersFlowTests {
     /// A choice that can't be read explains it and keeps the provider read before checked.
     @Test
     func `A choice that can't be read explains it and keeps the checkmark`() async {
-        let settings = StoredValue(ProviderSettings(selection: .solana))
+        let settings = StoredValue(ProviderSettings(selection: .helius))
         let flow = ProvidersFlow.inMemory(settings: settings, providerKey: StoredValue())
         await flow.reload()
 
@@ -345,7 +335,7 @@ struct ProvidersFlowTests {
         await flow.reload()
 
         #expect(flow.error == .selectionUnreadable)
-        #expect(flow.selection == .solana)
+        #expect(flow.selection == .helius)
     }
 
     /// Closing after a reset drops a waiting choice, key entry, the choice that asked for a key, pushed screens and what
@@ -354,7 +344,8 @@ struct ProvidersFlowTests {
     @Test
     func `Closing drops waiting work and key entry`() async throws {
         let url = try #require(URL(string: "https://rpc.example.com"))
-        let settings = StoredValue(ProviderSettings(customRPCs: [url]))
+        let saved = ProviderSettings(selection: .helius, customRPCs: [url])
+        let settings = StoredValue(saved)
         let flow = ProvidersFlow.inMemory(settings: settings, providerKey: StoredValue())
         await flow.reload()
         try #require(flow.selection == .helius)
@@ -390,7 +381,7 @@ struct ProvidersFlowTests {
         #expect(flow.setup == nil)
         #expect(flow.newKey == nil)
         #expect(flow.details == nil)
-        #expect(await settings.value == ProviderSettings(customRPCs: [url]))
+        #expect(await settings.value == saved)
     }
 
     /// Closing after a reset drops the key preview, because the reset deleted the key without a provider change.

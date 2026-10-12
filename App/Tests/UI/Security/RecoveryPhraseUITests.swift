@@ -13,8 +13,8 @@ final class RecoveryPhraseUITests: XCTestCase {
         try flow.enterPhrase()
         try flow.enterPassphrase(" TrEzOr ")
         try flow.tap(flow.submitImport)
-        try flow.expectProviderSetup()
-        try flow.connectProvider()
+        try flow.expectProviders()
+        try flow.openWallet()
 
         try flow.tap(flow.app.tabBars.buttons["Settings"])
         try flow.tap(flow.app.buttons["Security & Privacy"])

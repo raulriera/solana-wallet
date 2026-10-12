@@ -9,7 +9,7 @@ struct OnboardingIdentityRoot: View {
 
     var body: some View {
         scene
-            .onboardingIdentity()
+            .onboardingLifecycle()
             .onChange(of: generation, initial: true) {
                 rendered.yield(generation)
             }

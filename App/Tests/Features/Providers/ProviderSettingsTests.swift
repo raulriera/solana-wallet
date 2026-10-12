@@ -4,12 +4,12 @@ import Testing
 
 /// Checks the saved settings' defaults and the rules that the provider selection doesn't exercise.
 struct ProviderSettingsTests {
-    /// Without a saved choice, Helius stays in use and no custom RPCs exist, as before this setting.
+    /// Without a saved choice, Solana's public RPC is in use, so a wallet loads without a key, and no custom RPCs exist.
     @Test
-    func `New settings select Helius without custom RPCs`() {
+    func `New settings select Solana without custom RPCs`() {
         let settings = ProviderSettings()
 
-        #expect(settings.selection == .helius)
+        #expect(settings.selection == .solana)
         #expect(settings.customRPCs.isEmpty)
     }
 

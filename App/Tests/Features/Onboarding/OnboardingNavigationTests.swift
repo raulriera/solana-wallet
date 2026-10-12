@@ -3,7 +3,8 @@ import Testing
 import Wallet
 @testable import widgets
 
-/// Verifies that onboarding's navigation path is the single signal that ends phrase entry.
+/// Verifies that onboarding's navigation path is the single signal that ends phrase entry, and that the provider choice's
+/// screens show above onboarding's steps.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct OnboardingNavigationTests {
@@ -17,7 +18,7 @@ struct OnboardingNavigationTests {
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery(gate: gate).client),
                                                 wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
         let submission = ImportSubmission(coordinator: coordinator)
-        let navigation = OnboardingNavigation(importSubmission: submission)
+        let navigation = OnboardingNavigation(importSubmission: submission, providers: .inMemory(settings: StoredValue(), providerKey: StoredValue()))
         navigation.showImport()
         try #require(navigation.path == [.importWallet])
         submission.submit(OnboardingCoordinatorTests.phrase, passphrase: "TREZOR")
@@ -35,5 +36,40 @@ struct OnboardingNavigationTests {
         #expect(coordinator.account == nil)
         #expect(await recovery.saves.isEmpty)
         #expect(await accounts.additions.isEmpty)
+    }
+
+    /// The provider choice's pushed screens show above onboarding's steps, and Back from them leaves those steps.
+    /// - Throws: A test prerequisite error.
+    @Test
+    func `The provider choice's screens show above onboarding's steps`() throws {
+        let providers = ProvidersFlow.inMemory(settings: StoredValue(), providerKey: StoredValue())
+        let navigation = OnboardingNavigation(importSubmission: Self.submission(), providers: providers)
+        navigation.path = [.recovery, .providers]
+
+        providers.addCustomRPC()
+        try #require(navigation.stack == [.recovery, .providers, .providersRoute(.customRPCSetup)])
+        navigation.stack.removeLast()
+
+        #expect(providers.path.isEmpty)
+        #expect(navigation.path == [.recovery, .providers])
+        #expect(navigation.stack == [.recovery, .providers])
+    }
+
+    /// Every screen of the provider choice counts as onboarding's last step.
+    /// - Parameter step: A screen of the provider choice.
+    @Test(arguments: [OnboardingStep.providers, .providersRoute(.customRPCSetup), .providersRoute(.providerDetails)])
+    func `The provider choice's screens are the last step`(step: OnboardingStep) {
+        #expect(step.number == OnboardingStep.total)
+    }
+
+    /// Creates an import submission whose coordinator never reaches the network or device storage.
+    /// - Returns: A submission for navigation that never imports.
+    private static func submission() -> ImportSubmission {
+        let recovery = OnboardingRecoveryStore()
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client),
+                                                wallet: Wallet(), recovery: recovery,
+                                                accounts: OnboardingAccountStore(recovery: recovery),
+                                                router: WindowRouter(initialDestination: .onboarding))
+        return ImportSubmission(coordinator: coordinator)
     }
 }

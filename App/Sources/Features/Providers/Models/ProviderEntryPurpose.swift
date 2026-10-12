@@ -1,7 +1,7 @@
 import Foundation
 
 /// Why a provider entry screen asks for an API key or an RPC URL, which sets its wording.
-enum ProviderEntryPurpose: Hashable {
+nonisolated enum ProviderEntryPurpose: Hashable, Sendable {
     /// A first key, which connects the provider.
     case connect
     /// A first key added from Helius's details, which leaves the provider in use as it is.

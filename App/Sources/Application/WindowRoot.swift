@@ -37,9 +37,8 @@ struct WindowRoot: View {
             case .walletRestorationFailed:
                 WalletUnavailableScreen(retry: { startupAttempt += 1 })
             case .onboarding:
-                OnboardingScene(coordinator: onboarding, connection: services.providerConnection,
-                                pasteboard: services.recoveryPasteboard)
-                    .onboardingIdentity()
+                OnboardingScene(coordinator: onboarding, providers: providers, pasteboard: services.recoveryPasteboard)
+                    .onboardingLifecycle()
             case .wallet(let account):
                 WalletScene(account: account, portfolio: portfolio, tokenRemoval: tokenRemoval, settings: settings,
                             connection: services.providerConnection, providerRevision: services.providerRevision,

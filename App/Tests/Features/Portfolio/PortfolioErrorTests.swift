@@ -49,7 +49,8 @@ struct PortfolioErrorTests {
     func `A missing key reaches the portfolio as a typed failure`() async {
         let directory = URL.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
-        let client = HTTPResponses.keyCheck().providerClient(settings: StoredValue<ProviderSettings>(), providerKey: StoredValue<String>())
+        let client = HTTPResponses.keyCheck().providerClient(settings: StoredValue(ProviderSettings(selection: .helius)),
+                                                              providerKey: StoredValue<String>())
         let coordinator = PortfolioCoordinator(service: Portfolio(rpc: client, store: FileSnapshotStore(directory: directory)))
         let viewing = Task { await coordinator.observe(for: PublicWallet.address, isActive: true) }
         defer { viewing.cancel() }

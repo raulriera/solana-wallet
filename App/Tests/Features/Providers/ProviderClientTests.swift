@@ -11,7 +11,8 @@ struct ProviderClientTests {
     @Test
     func `A missing Helius key fails before contacting Helius`() async {
         let responses = HTTPResponses.keyCheck()
-        let client = responses.providerClient(settings: StoredValue<ProviderSettings>(), providerKey: StoredValue<String>())
+        let client = responses.providerClient(settings: StoredValue(ProviderSettings(selection: .helius)),
+                                              providerKey: StoredValue<String>())
 
         await #expect(throws: ProviderClientError.missingKey) { _ = try await client.send(GetAsset(id: HTTPResponses.keyCheckAsset)) }
         await #expect(throws: ProviderClientError.missingKey) { _ = try await client.changedSlots(for: [PublicWallet.address]) }
@@ -27,7 +28,8 @@ struct ProviderClientTests {
         let keys = StoredValue("rejected-key")
 
         await #expect(throws: ProviderClientError.invalidKey) {
-            _ = try await responses.providerClient(settings: StoredValue<ProviderSettings>(), providerKey: keys).send(GetAsset(id: HTTPResponses.keyCheckAsset))
+            _ = try await responses.providerClient(settings: StoredValue(ProviderSettings(selection: .helius)), providerKey: keys)
+                .send(GetAsset(id: HTTPResponses.keyCheckAsset))
         }
     }
 
@@ -38,15 +40,17 @@ struct ProviderClientTests {
         let keys = StoredValue("fixture-key")
 
         await #expect(throws: RPCError.http(statusCode: 429, retryAfter: nil)) {
-            _ = try await responses.providerClient(settings: StoredValue<ProviderSettings>(), providerKey: keys).send(GetAsset(id: HTTPResponses.keyCheckAsset))
+            _ = try await responses.providerClient(settings: StoredValue(ProviderSettings(selection: .helius)), providerKey: keys)
+                .send(GetAsset(id: HTTPResponses.keyCheckAsset))
         }
     }
 
-    /// Each request reads the saved choice and key, and requests to the same endpoint share one client.
+    /// Each request reads the saved choice and key, starting at Solana's public RPC before anything is saved, and
+    /// requests to the same endpoint share one client.
     @Test
     func `Each request goes to the provider and key saved when it's sent`() async throws {
         let responses = HTTPResponses.keyCheck()
-        let settings = StoredValue(ProviderSettings(selection: .solana))
+        let settings = StoredValue<ProviderSettings>()
         let keys = StoredValue<String>()
         let custom = try #require(URL(string: "https://rpc.example.com/fixture-token"))
         let created = Mutex<[ProviderClient.Endpoint]>([])

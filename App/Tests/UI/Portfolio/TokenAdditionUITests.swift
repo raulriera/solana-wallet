@@ -29,12 +29,10 @@ final class TokenAdditionUITests: XCTestCase {
         try flow.expectOutcome(flow.app.staticTexts["Bonk · Solana"], matching: preview,
                                unless: [Self.additionErrorTitle])
         // The toolbar's Add Token button stays behind the sheet and can't be tapped, so tap the sheet's own button.
-        let addButtons = flow.app.buttons.matching(identifier: "Add Token").allElementsBoundByIndex
-        try flow.tap(try XCTUnwrap(addButtons.first(where: \.isHittable)))
+        try flow.tap(try flow.frontButton("Add Token"))
 
-        let listed = NSPredicate(format: "elementType == %lu AND label BEGINSWITH %@",
-                                 XCUIElement.ElementType.button.rawValue, "Bonk")
-        let token = flow.app.buttons.matching(listed).firstMatch
+        let listed = OnboardingApp.holdingLabel(beginningWith: "Bonk")
+        let token = flow.holding("Bonk")
         try flow.expectOutcome(token, matching: listed, unless: [Self.additionErrorTitle])
         try flow.waitForAbsence(paste)
 
@@ -50,9 +48,7 @@ final class TokenAdditionUITests: XCTestCase {
         // A relaunch shows the saved list and cached balances, which no longer hold the token.
         flow.relaunch()
         try flow.expectWallet()
-        let solana = NSPredicate(format: "elementType == %lu AND label BEGINSWITH %@",
-                                 XCUIElement.ElementType.button.rawValue, "SOL")
-        try flow.waitFor(flow.app.buttons.matching(solana).firstMatch)
+        try flow.waitFor(flow.holding("SOL"))
         XCTAssertFalse(token.exists, "The removed token came back after a relaunch.")
     }
 }
