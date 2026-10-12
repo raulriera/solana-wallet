@@ -2,7 +2,7 @@ import Foundation
 @testable import widgets
 
 /// Keeps one value in memory in place of device storage, optionally failing each read or save, or suspending each save.
-actor StoredValue<Value: Sendable>: ValueStoring {
+actor StoredValue<Value: Equatable & Sendable>: ValueStoring {
     private(set) var value: Value?
     private var failsLoading: Bool
     private let failsSaving: Bool
@@ -46,5 +46,20 @@ actor StoredValue<Value: Sendable>: ValueStoring {
     /// Forgets the recorded value.
     func delete() {
         value = nil
+    }
+
+    /// Changes the recorded value in one step, or throws when this storage is configured to fail.
+    /// - Parameter change: Changes the recorded value; an unchanged value isn't saved again.
+    /// - Returns: The change's result.
+    /// - Throws: The change's error, a read error when `failsLoading` is set, or a write error when `failsSaving` is
+    ///   set and the value changed.
+    func update<Result: Sendable>(_ change: @Sendable (inout Value?) throws -> Result) async throws -> Result {
+        var changed = try load()
+        let result = try change(&changed)
+        guard changed != value else { return result }
+        if failsSaving { throw CocoaError(.fileWriteUnknown) }
+        value = changed
+        await gate?.suspend()
+        return result
     }
 }

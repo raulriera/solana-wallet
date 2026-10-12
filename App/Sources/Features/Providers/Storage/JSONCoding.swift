@@ -1,7 +1,7 @@
 import Foundation
 
 /// Keeps a value as JSON.
-nonisolated struct JSONCoding<Value: Codable & Sendable>: ValueCoding {
+nonisolated struct JSONCoding<Value: Codable & Equatable & Sendable>: ValueCoding {
     /// Converts a value to JSON.
     /// - Parameter value: The value to save.
     /// - Returns: The value's JSON.

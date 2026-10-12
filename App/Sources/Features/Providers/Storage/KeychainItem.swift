@@ -32,20 +32,7 @@ nonisolated struct KeychainItem<Coding: ValueCoding>: ValueStoring {
     /// - Returns: The value, or `nil` before one is saved.
     /// - Throws: ``KeychainItemError`` or `CancellationError`.
     func load() async throws -> Coding.Value? {
-        let data: Data? = try await perform {
-            var query = identity
-            query[kSecMatchLimit as String] = kSecMatchLimitOne
-            query[kSecReturnData as String] = true
-            var result: CFTypeRef?
-            let status = SecItemCopyMatching(query as CFDictionary, &result)
-            if status == errSecItemNotFound { return nil }
-            try check(status)
-            guard let data = result as? Data else { throw KeychainItemError.unreadable }
-            return data
-        }
-        guard let data else { return nil }
-        guard let value = coding.decode(data) else { throw KeychainItemError.unreadable }
-        return value
+        try await perform { [self] in try read() }
     }
 
     /// Saves a value, replacing any value already saved.
@@ -54,27 +41,72 @@ nonisolated struct KeychainItem<Coding: ValueCoding>: ValueStoring {
     /// - Parameter value: The new value.
     /// - Throws: ``KeychainItemError``, an encoding error, or `CancellationError`.
     func save(_ value: Coding.Value) async throws {
-        let data = try coding.encode(value)
-        try await perform {
-            let value = [kSecValueData as String: data]
-            switch SecItemUpdate(identity as CFDictionary, value as CFDictionary) {
-            case errSecItemNotFound:
-                var attributes = identity.merging(value) { $1 }
-                attributes[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
-                try check(SecItemAdd(attributes as CFDictionary, nil))
-            case let status:
-                try check(status)
-            }
-        }
+        try await perform { [self] in try write(value) }
     }
 
     /// Deletes the saved value; a missing value is already deleted.
     /// - Throws: ``KeychainItemError`` or `CancellationError`.
     func delete() async throws {
-        try await perform {
-            let status = SecItemDelete(identity as CFDictionary)
-            if status != errSecItemNotFound { try check(status) }
+        try await perform { [self] in try remove() }
+    }
+
+    /// Reads, changes, and saves the value in one Keychain step, so changes made at the same time don't overwrite
+    /// each other.
+    ///
+    /// Cancellation doesn't roll back a change that has already reached the Keychain.
+    /// - Parameter change: Changes the saved value, or `nil` before one is saved; setting `nil` deletes the value,
+    ///   and an unchanged value isn't saved again.
+    /// - Returns: The change's result.
+    /// - Throws: The change's error, which keeps the saved value, ``KeychainItemError``, an encoding error, or
+    ///   `CancellationError`.
+    func update<Result: Sendable>(
+        _ change: @escaping @Sendable (inout Coding.Value?) throws -> Result
+    ) async throws -> Result {
+        try await perform { [self] in
+            let saved = try read()
+            var value = saved
+            let result = try change(&value)
+            guard value != saved else { return result }
+            if let value { try write(value) } else { try remove() }
+            return result
         }
+    }
+
+    /// Reads the saved value on the Keychain queue.
+    /// - Returns: The value, or `nil` before one is saved.
+    /// - Throws: ``KeychainItemError``.
+    private func read() throws -> Coding.Value? {
+        var query = identity
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+        query[kSecReturnData as String] = true
+        var result: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        if status == errSecItemNotFound { return nil }
+        try check(status)
+        guard let data = result as? Data, let value = coding.decode(data) else { throw KeychainItemError.unreadable }
+        return value
+    }
+
+    /// Saves a value on the Keychain queue, replacing any value already saved.
+    /// - Parameter value: The new value.
+    /// - Throws: ``KeychainItemError`` or an encoding error.
+    private func write(_ value: Coding.Value) throws {
+        let value = [kSecValueData as String: try coding.encode(value)]
+        switch SecItemUpdate(identity as CFDictionary, value as CFDictionary) {
+        case errSecItemNotFound:
+            var attributes = identity.merging(value) { $1 }
+            attributes[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+            try check(SecItemAdd(attributes as CFDictionary, nil))
+        case let status:
+            try check(status)
+        }
+    }
+
+    /// Deletes the saved value on the Keychain queue; a missing value is already deleted.
+    /// - Throws: ``KeychainItemError``.
+    private func remove() throws {
+        let status = SecItemDelete(identity as CFDictionary)
+        if status != errSecItemNotFound { try check(status) }
     }
 
     /// The one non-synchronizing item that keeps this value.
@@ -107,7 +139,7 @@ nonisolated private func check(_ status: OSStatus) throws {
     guard status == errSecSuccess else { throw KeychainItemError.keychain(status: status) }
 }
 
-/// The serial queue that every Keychain item shares, so each update-then-add save runs atomically.
+/// The serial queue that every Keychain item shares, so each save and each read-change-save runs atomically.
 nonisolated private enum KeychainQueue {
     static let shared = DispatchQueue(label: "KeychainItem.Keychain", qos: .userInitiated)
 }

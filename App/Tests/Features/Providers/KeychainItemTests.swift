@@ -73,6 +73,57 @@ struct KeychainItemTests {
         #expect(try await second.load() == "second-value")
     }
 
+    /// Changes made at the same time each read the value the previous one saved, so none is lost.
+    /// - Throws: A Keychain failure.
+    @Test
+    func `Changes made at the same time all apply`() async throws {
+        let service = Self.isolatedService()
+        defer { Self.removeItems(for: service) }
+        let item = Self.text(in: service)
+
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            for _ in 0..<20 {
+                group.addTask { try await item.update { $0 = ($0 ?? "") + "x" } }
+            }
+            try await group.waitForAll()
+        }
+
+        #expect(try await item.load() == String(repeating: "x", count: 20))
+    }
+
+    /// A change that leaves no value deletes the saved one.
+    /// - Throws: A Keychain failure.
+    @Test
+    func `A change to no value deletes the saved value`() async throws {
+        let service = Self.isolatedService()
+        defer { Self.removeItems(for: service) }
+        let item = Self.text(in: service)
+        try await item.save("fixture-key")
+
+        try await item.update { $0 = nil }
+
+        #expect(try await item.load() == nil)
+    }
+
+    /// A change that fails keeps the saved value.
+    /// - Throws: A Keychain failure.
+    @Test
+    func `A failed change keeps the saved value`() async throws {
+        let service = Self.isolatedService()
+        defer { Self.removeItems(for: service) }
+        let item = Self.text(in: service)
+        try await item.save("fixture-key")
+
+        await #expect(throws: CocoaError(.fileWriteUnknown)) {
+            try await item.update { value in
+                value = "replacement"
+                throw CocoaError(.fileWriteUnknown)
+            }
+        }
+
+        #expect(try await item.load() == "fixture-key")
+    }
+
     /// The saved item never syncs through iCloud and isn't restored to another device.
     /// - Throws: A Keychain failure.
     @Test

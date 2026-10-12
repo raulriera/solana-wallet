@@ -3,7 +3,7 @@ import Foundation
 /// Converts a saved value to and from the bytes that a store keeps.
 nonisolated protocol ValueCoding<Value>: Sendable {
     /// The type of the value.
-    associatedtype Value: Sendable
+    associatedtype Value: Equatable & Sendable
 
     /// Converts a value to the bytes to keep.
     /// - Parameter value: The value to save.
