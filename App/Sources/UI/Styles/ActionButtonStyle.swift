@@ -6,16 +6,19 @@ struct ActionButtonStyle<Base: PrimitiveButtonStyle>: PrimitiveButtonStyle {
     private let base: Base
     private let tint: ActionColor
     private let foreground: ActionColor
+    private let isPending: Bool
 
     /// Pairs a native treatment with its button and label colors.
     /// - Parameters:
     ///   - base: The native style responsible for appearance and interaction.
     ///   - tint: The button's color.
     ///   - foreground: The label's color.
-    fileprivate init(base: Base, tint: ActionColor, foreground: ActionColor) {
+    ///   - isPending: Whether the action's work is running, so a spinner takes the title's place.
+    fileprivate init(base: Base, tint: ActionColor, foreground: ActionColor, isPending: Bool = false) {
         self.base = base
         self.tint = tint
         self.foreground = foreground
+        self.isPending = isPending
     }
 
     /// Styles the label while delegating activation and feedback to a native button.
@@ -24,6 +27,13 @@ struct ActionButtonStyle<Base: PrimitiveButtonStyle>: PrimitiveButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         Button(role: configuration.role, action: configuration.trigger) {
             configuration.label
+                // A clear title keeps the button's size, and VoiceOver still reads it, while the spinner shows;
+                // white keeps the native style's colors, including its disabled look.
+                .colorMultiply(isPending ? .clear : .white)
+                .overlay {
+                    // The large controls would make the spinner taller than the title.
+                    if isPending { ProgressView().controlSize(.regular) }
+                }
                 .frame(maxWidth: .infinity)
         }
         .buttonStyle(base)
@@ -35,7 +45,15 @@ struct ActionButtonStyle<Base: PrimitiveButtonStyle>: PrimitiveButtonStyle {
 
 extension PrimitiveButtonStyle where Self == ActionButtonStyle<BorderedProminentButtonStyle> {
     /// A prominent action with the window's contrasting background color for its label.
-    static var primary: Self { Self(base: .borderedProminent, tint: .palette(\.primaryText), foreground: .palette(\.background)) }
+    static var primary: Self { .primary(isPending: false) }
+
+    /// A prominent action that shows a spinner in place of its title while its work runs.
+    /// - Parameter isPending: Whether the action's work is running.
+    /// - Returns: The prominent action style.
+    static func primary(isPending: Bool) -> Self {
+        Self(base: .borderedProminent, tint: .palette(\.primaryText), foreground: .palette(\.background),
+             isPending: isPending)
+    }
 
     /// A prominent destructive action in the system's red, which no theme replaces.
     static var destructive: Self { Self(base: .borderedProminent, tint: .fixed(.red), foreground: .fixed(.white)) }

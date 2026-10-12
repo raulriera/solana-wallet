@@ -78,21 +78,11 @@ struct ImportWalletScreen: View {
         .scrollEdgeEffectStyle(.soft, for: .bottom)
         .readableContentMargins(inset: $contentInset)
         .safeAreaBar(edge: .bottom) {
-            Button(action: submit) {
-                // The spinner takes the title's place without changing the button's size.
-                Text("Import Wallet")
-                    .opacity(submission.isPending ? 0 : 1)
-                    .overlay {
-                        // The action style's large controls would make the spinner taller than the title.
-                        if submission.isPending { ProgressView().controlSize(.regular) }
-                    }
-            }
-            // A hidden title isn't read, so VoiceOver keeps the button's name while the spinner shows.
-            .accessibilityLabel("Import Wallet")
-            .buttonStyle(.primary)
-            .disabled(!input.hasPhrase || !canDisplayRecovery || submission.isPending)
-            .padding(.horizontal, contentInset)
-            .padding(.vertical, LayoutMetrics.actionBarVerticalPadding)
+            Button("Import Wallet", action: submit)
+                .buttonStyle(.primary(isPending: submission.isPending))
+                .disabled(!input.hasPhrase || !canDisplayRecovery || submission.isPending)
+                .padding(.horizontal, contentInset)
+                .padding(.vertical, LayoutMetrics.actionBarVerticalPadding)
         }
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
