@@ -4,6 +4,8 @@ import Transactions
 nonisolated protocol TransactionPreparing: Sendable {
     /// Compiles and evaluates instructions for explicit review.
     ///
+    /// Service tips precede the caller's instructions, so the caller's last instruction stays last.
+    ///
     /// - Parameters:
     ///   - instructions: The ordered program invocations.
     ///   - payer: The account paying network fees.

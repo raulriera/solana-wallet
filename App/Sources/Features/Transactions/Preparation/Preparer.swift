@@ -30,6 +30,7 @@ nonisolated struct Preparer: TransactionPreparing {
 
     /// Compiles and simulates ordered instructions without accessing wallet recovery.
     ///
+    /// Service tips precede the caller's instructions, so the caller's last instruction stays last.
     /// Automatic resource estimation happens before the final review. Explicit
     /// configuration is preserved. No instructions or requests change after review.
     ///
@@ -54,7 +55,7 @@ nonisolated struct Preparer: TransactionPreparing {
         let tips = try requirements.map {
             try SystemProgram.transfer(from: payer, to: Address($0.tipRecipient), lamports: $0.tipLamports)
         }
-        let invocations = instructions + tips
+        let invocations = tips + instructions
         let blockhash = try await rpc.send(GetLatestBlockhash(commitment: .confirmed, minContextSlot: minimumSlot))
         try Task.checkCancellation()
         guard blockhash.context.slot >= (minimumSlot ?? 0) else { throw PreparerError.inconsistentResponse }

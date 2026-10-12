@@ -85,6 +85,36 @@ struct PreparationTests {
         #expect(options["replaceRecentBlockhash"] as? Bool == false)
     }
 
+    /// Verifies a service tip leads the composition, so a memo stays before its transfer and the payment stays last.
+    @Test
+    func `Sender tips precede the caller's instructions`() async throws {
+        let fixture = try PreparationFixture.preparation()
+        let transfer = try PreparationFixture.source(fixture).instruction
+        let payer = transfer.accounts[0].address
+        let memo = try MemoProgram.memo("widgets tip order", signers: [payer])
+        let sender = Sender(tier: .standard)
+        let requirements = try #require(sender.submissionRequirements)
+        let tip = try SystemProgram.transfer(from: payer, to: Address(requirements.tipRecipient),
+                                             lamports: requirements.tipLamports)
+        let http = try HTTPResponses.preparation(fixture: fixture)
+        let rpc = try #require(http.client(for: .solana))
+
+        let result = try await Preparer(rpc: rpc, rpcs: [sender]).prepare([memo, transfer], payer: payer, signer: payer,
+            configuration: PreparationFixture.configuration())
+
+        let expected = [tip, memo, transfer]
+        guard case .local(let instructions, _, _, _) = result.source else {
+            Issue.record("Expected local construction details")
+            return
+        }
+        #expect(instructions == expected)
+        let accounts = result.transaction.accounts.map(\.address)
+        #expect(result.transaction.instructions.map { accounts[$0.programIndex] } == expected.map(\.program))
+        #expect(result.transaction.instructions.map { $0.accountIndices.map { accounts[$0] } }
+                == expected.map { $0.accounts.map(\.address) })
+        #expect(result.transaction.instructions.map(\.data) == expected.map(\.data))
+    }
+
     /// Verifies execution failures remain usable alongside the transfer's review data.
     @Test
     func `Insufficient funds preserve simulation diagnostics and transfer details`() async throws {
