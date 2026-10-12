@@ -9,16 +9,19 @@ public protocol PortfolioProviding: Sendable {
     ///
     /// Shares one connection per wallet. Each new consumer requests a reload or joins one in progress.
     /// Setup completes before the initial reload; bursts of changes are coalesced into one balance read.
-    /// Transport and rate-limit errors are surfaced without automatic retries or reconnects.
+    /// Every connection error is surfaced at once. A dropped connection then reconnects by itself, waiting
+    /// 2 seconds and doubling the wait after each failed attempt up to a minute. Rate limits, rejected keys, and other refusals stay until a reload, a token-list change,
+    /// or a new consumer connects again. Failed balance reads aren't retried.
     /// The app owns starting and cancelling observation with its foreground/view lifecycle.
     /// - Parameter owner: The wallet whose holdings to observe.
-    /// - Returns: A stream of cached state and refresh results, ending on cancellation, subscription failure,
-    ///   or a provider change.
+    /// - Returns: A stream of cached state, refresh results, and connection errors, ending on cancellation,
+    ///   data removal, or a provider change.
     func observations(for owner: String) async -> AsyncStream<Update>
 
     /// Returns cached portfolio state and refreshes the data required by the policy.
     ///
     /// The consumer is registered before this method returns. Network results arrive through the stream.
+    /// A reload also connects the wallet's observation again at once when it is disconnected.
     ///
     /// - Parameters:
     ///   - owner: The wallet address whose portfolio to retrieve.

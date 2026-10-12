@@ -1,5 +1,6 @@
 import Foundation
 @testable import RPC
+import Synchronization
 import Testing
 import Transactions
 @testable import Portfolio
@@ -511,20 +512,182 @@ struct ObservationTests {
         #expect(await ledger.readCount == 1)
     }
 
-    /// Verifies socket errors are visible, retain holdings, and end the watch without reconnecting.
+    /// Verifies a dropped connection shows its error at once, keeps the stream, and reconnects to the same accounts.
     @Test(.timeLimit(.minutes(1)))
-    func `Subscription failure ends portfolio observation with cached holdings`() async throws {
+    func `A dropped connection reconnects and reads balances again`() async throws {
         let fixture = ObservationFixture()
         defer { fixture.cleanUp() }
-        let service = fixture.service(ledger: ObservedLedger())
+        let ledger = ObservedLedger()
+        let connections = Connections()
+        let service = fixture.service(ledger: ledger) { connections.connect(to: $0) }
+        var sockets = connections.opened.makeAsyncIterator()
         var updates = await service.observations(for: testWallet).makeAsyncIterator()
         let original = try await nextResult(&updates)
-        fixture.socket.fail(URLError(.networkConnectionLost))
+        let first = try #require(await sockets.next())
+
+        first.fail(URLError(.networkConnectionLost))
         let failed = try await nextResult(&updates)
         #expect(failed.error as? RPCError == .transport(.networkConnectionLost))
         #expect(failed.snapshot == original.snapshot)
-        #expect(await updates.next() == nil)
-        #expect(fixture.socket.requests.count == 3)
+        var delays = fixture.gate.delays.makeAsyncIterator()
+        #expect(await delays.next() == .seconds(2))
+        await ledger.set(lamports: 200)
+        fixture.gate.resume()
+        let second = try #require(await sockets.next())
+        let reconnected = try await nextResult(&updates)
+
+        #expect(reconnected.error == nil)
+        #expect(reconnected.holdings.first?.amount?.units == 200)
+        #expect(second.subscribedAddresses == first.subscribedAddresses)
+        #expect(await ledger.readCount == 2)
+        try await service.removeData(for: testWallet)
+        await second.waitUntilCancelled()
+    }
+
+    /// Verifies failed reconnections wait twice as long each time, up to a minute, and a working connection starts over.
+    @Test(.timeLimit(.minutes(1)))
+    func `Reconnection waits longer after each failed attempt`() async throws {
+        let fixture = ObservationFixture()
+        defer { fixture.cleanUp() }
+        // No network and server errors both count as dropped connections.
+        let connections = Connections { number in
+            guard (2...9).contains(number) else { return nil }
+            let offline: any Error = URLError(.notConnectedToInternet)
+            return number.isMultiple(of: 2) ? offline : RPCError.http(statusCode: 503, retryAfter: nil)
+        }
+        let service = fixture.service(ledger: ObservedLedger()) { connections.connect(to: $0) }
+        var sockets = connections.opened.makeAsyncIterator()
+        var updates = await service.observations(for: testWallet).makeAsyncIterator()
+        try await nextResult(&updates)
+        var latest = try #require(await sockets.next())
+
+        latest.fail(URLError(.networkConnectionLost))
+        var delays = fixture.gate.delays.makeAsyncIterator()
+        var waited: [Duration] = []
+        for _ in 2...10 {
+            waited.append(try #require(await delays.next()))
+            fixture.gate.resume()
+            latest = try #require(await sockets.next())
+        }
+        #expect(waited == [2, 4, 8, 16, 32, 60, 60, 60, 60].map(Duration.seconds))
+
+        while try await nextResult(&updates).error != nil {}
+        latest.fail(URLError(.networkConnectionLost))
+        #expect(await delays.next() == .seconds(2))
+        fixture.gate.resume()
+        let reconnected = try #require(await sockets.next())
+        try await service.removeData(for: testWallet)
+        await reconnected.waitUntilCancelled()
+    }
+
+    /// Verifies a rate limit or a rejected key stops reconnection but keeps the stream, and a reload connects again.
+    /// - Parameter rejection: Why the provider refuses the subscription.
+    @Test(.timeLimit(.minutes(1)),
+          arguments: [RPCError.http(statusCode: 429, retryAfter: nil), RPCError.http(statusCode: 401, retryAfter: nil)])
+    func `A refused subscription waits for a reload to connect again`(rejection: RPCError) async throws {
+        let fixture = ObservationFixture()
+        defer { fixture.cleanUp() }
+        let ledger = ObservedLedger()
+        let connections = Connections { $0 == 1 ? rejection : nil }
+        let service = fixture.service(ledger: ledger) { connections.connect(to: $0) }
+        var sockets = connections.opened.makeAsyncIterator()
+        var updates = await service.observations(for: testWallet).makeAsyncIterator()
+        let refused = try await nextResult(&updates)
+        _ = try #require(await sockets.next())
+        #expect(refused.error as? RPCError == rejection)
+
+        await ledger.set(lamports: 200)
+        var manual = await service.updates(for: testWallet, policy: .reload).makeAsyncIterator()
+        let second = try #require(await sockets.next())
+        let reloaded = try await nextResult(&manual)
+        let observed = try await nextResult(&updates)
+
+        #expect(reloaded.holdings.first?.amount?.units == 200)
+        #expect(observed.error == nil)
+        #expect(observed.holdings.first?.amount?.units == 200)
+        fixture.gate.finish()
+        var waited: [Duration] = []
+        for await delay in fixture.gate.delays { waited.append(delay) }
+        #expect(waited.isEmpty)
+        try await service.removeData(for: testWallet)
+        await second.waitUntilCancelled()
+    }
+
+    /// Verifies adding a token to a stopped observation connects again for the new list and reads its balances.
+    @Test(.timeLimit(.minutes(1)))
+    func `Adding a token connects a stopped observation again`() async throws {
+        let fixture = ObservationFixture()
+        defer { fixture.cleanUp() }
+        let ledger = ObservedLedger()
+        let connections = Connections { $0 == 1 ? RPCError.http(statusCode: 429, retryAfter: nil) : nil }
+        let service = fixture.service(ledger: ledger) { connections.connect(to: $0) }
+        var sockets = connections.opened.makeAsyncIterator()
+        var updates = await service.observations(for: testWallet).makeAsyncIterator()
+        try await nextResult(&updates)
+        _ = try #require(await sockets.next())
+
+        let list = try await service.addToken(ListedToken(mint: Address(pyusdMint), program: .token2022, decimals: 6,
+                                                          symbol: "PYUSD", name: "PayPal USD"), for: testWallet)
+        let second = try #require(await sockets.next())
+        let changed = try await nextResult(&updates)
+
+        #expect(changed.error == nil)
+        #expect(changed.holdings.map(\.id) == [.nativeSOL] + list.tokens.map { .asset($0.mint.value) })
+        #expect(await ledger.reads == [second.subscribedAddresses])
+        try await service.removeData(for: testWallet)
+        await second.waitUntilCancelled()
+    }
+
+    /// Verifies a new consumer connects a stopped observation again, as a second window does.
+    @Test(.timeLimit(.minutes(1)))
+    func `Joining a stopped observation connects again`() async throws {
+        let fixture = ObservationFixture()
+        defer { fixture.cleanUp() }
+        let connections = Connections { $0 == 1 ? RPCError.http(statusCode: 429, retryAfter: nil) : nil }
+        let service = fixture.service(ledger: ObservedLedger()) { connections.connect(to: $0) }
+        var sockets = connections.opened.makeAsyncIterator()
+        var first = await service.observations(for: testWallet).makeAsyncIterator()
+        try await nextResult(&first)
+        _ = try #require(await sockets.next())
+
+        var joined = await service.observations(for: testWallet).makeAsyncIterator()
+        let second = try #require(await sockets.next())
+        let joinedResult = try await nextResult(&joined)
+        let firstResult = try await nextResult(&first)
+
+        #expect(joinedResult.error == nil)
+        #expect(firstResult.error == nil)
+        try await service.removeData(for: testWallet)
+        await second.waitUntilCancelled()
+    }
+
+    /// Verifies a reload connects at once while a reconnection waits.
+    @Test(.timeLimit(.minutes(1)))
+    func `A reload connects at once while the reconnection waits`() async throws {
+        let fixture = ObservationFixture()
+        defer { fixture.cleanUp() }
+        let ledger = ObservedLedger()
+        let connections = Connections()
+        let service = fixture.service(ledger: ledger) { connections.connect(to: $0) }
+        var sockets = connections.opened.makeAsyncIterator()
+        var updates = await service.observations(for: testWallet).makeAsyncIterator()
+        try await nextResult(&updates)
+        let first = try #require(await sockets.next())
+        first.fail(URLError(.notConnectedToInternet))
+        try await nextResult(&updates)
+        var delays = fixture.gate.delays.makeAsyncIterator()
+        _ = try #require(await delays.next())
+
+        await ledger.set(lamports: 200)
+        var manual = await service.updates(for: testWallet, policy: .reload).makeAsyncIterator()
+        let second = try #require(await sockets.next())
+        try await nextResult(&manual)
+        let observed = try await nextResult(&updates)
+
+        #expect(observed.error == nil)
+        #expect(observed.holdings.first?.amount?.units == 200)
+        try await service.removeData(for: testWallet)
+        await second.waitUntilCancelled()
     }
 
     /// Verifies subscriptions cannot invalidate holdings on another network.
@@ -539,7 +702,6 @@ struct ObservationTests {
         var updates = await service.observations(for: testWallet).makeAsyncIterator()
         let failed = try await nextResult(&updates)
         #expect(failed.error as? ObservationError == .networkMismatch)
-        #expect(await updates.next() == nil)
         #expect(fixture.socket.requests.isEmpty)
         #expect(await accounts.requests.isEmpty)
     }
@@ -651,19 +813,30 @@ private struct ObservationFixture: Sendable {
 }
 
 /// Gives each subscription connection a new socket and hands it to the test, so tests can follow reconnections.
-private struct Connections: Sendable {
+private final class Connections: Sendable {
     /// The sockets in the order the service opened them.
     let opened: AsyncStream<SocketFixture>
     private let announce: AsyncStream<SocketFixture>.Continuation
+    private let rejection: @Sendable (Int) -> (any Error)?
+    private let opens = Mutex(0)
+
+    /// The number of connections the service opened.
+    var count: Int { opens.withLock { $0 } }
 
     /// Creates a source of new sockets.
-    init() { (opened, announce) = AsyncStream.makeStream() }
+    /// - Parameter rejection: The error that refuses the subscriptions on the connection with this one-based number,
+    ///   or `nil` to accept them.
+    init(rejection: @escaping @Sendable (Int) -> (any Error)? = { _ in nil }) {
+        (opened, announce) = AsyncStream.makeStream()
+        self.rejection = rejection
+    }
 
     /// Opens a new socket for one connection.
     /// - Parameter endpoint: The provider's WebSocket endpoint, which the fixture ignores.
     /// - Returns: A new scripted socket.
     func connect(to endpoint: URL) -> any WebSocketConnection {
-        let socket = SocketFixture()
+        let number = opens.withLock { $0 += 1; return $0 }
+        let socket = if let error = rejection(number) { SocketFixture { _, _ in throw error } } else { SocketFixture() }
         announce.yield(socket)
         return socket
     }

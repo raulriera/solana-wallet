@@ -3,9 +3,17 @@ import RPC
 import Transactions
 
 /// Shares a wallet's confirmed subscription and reloads its balances after confirmed changes.
+///
+/// A dropped connection reconnects by itself. An error that a person must act on, such as a rate limit
+/// or a rejected key, keeps the consumers' streams but waits for a person's reload or token-list change.
 actor ObservationCoordinator {
-    /// Suspends change coalescing for a cancellable duration.
+    /// Suspends change coalescing or a reconnection for a cancellable duration.
     typealias Pause = @Sendable (Duration) async throws -> Void
+
+    /// The wait before the first reconnection after a drop.
+    private static let firstReconnectDelay = Duration.seconds(2)
+    /// The longest wait between reconnections; each failed attempt doubles the wait up to this value.
+    private static let longestReconnectDelay = Duration.seconds(60)
 
     private let refresh: RefreshCoordinator
     private let tokenLists: TokenListCoordinator
@@ -20,7 +28,7 @@ actor ObservationCoordinator {
     ///   - tokenLists: The token lists whose accounts each wallet's subscription watches.
     ///   - changes: The optional provider of confirmed account-change slots.
     ///   - network: The network whose portfolio is observed.
-    ///   - pause: Cancellable scheduling for coalescing nearby changes.
+    ///   - pause: Cancellable scheduling for coalescing nearby changes and spacing reconnections.
     init(refresh: RefreshCoordinator, tokenLists: TokenListCoordinator, changes: (any AccountChangeProviding)?,
          network: Network, pause: @escaping Pause) {
         self.refresh = refresh
@@ -31,6 +39,8 @@ actor ObservationCoordinator {
     }
 
     /// Registers a consumer before starting or joining the wallet's long-lived observation.
+    ///
+    /// Joining a disconnected observation connects it again at once.
     /// - Parameter owner: The wallet whose holdings to observe.
     /// - Returns: Cached state, initial reload, and subsequent confirmed-change refresh results.
     func observations(for owner: String) -> AsyncStream<Update> {
@@ -44,11 +54,15 @@ actor ObservationCoordinator {
             watch.consumers[id] = continuation
             if let latest = watch.latest, latest.isRefreshing {
                 continuation.yield(latest)
-            } else if watch.isConnected {
+            } else if watch.state == .connected {
                 watch.reloadRequested = true
             }
             watches[owner] = watch
-            if watch.reloadRequested { schedule(owner: owner, generation: watch.generation, delayed: false) }
+            if watch.state == .disconnected {
+                restart(for: owner)
+            } else if watch.reloadRequested {
+                schedule(owner: owner, generation: watch.generation, delayed: false)
+            }
         } else {
             connect(owner: owner, consumers: [id: continuation])
         }
@@ -64,6 +78,15 @@ actor ObservationCoordinator {
         watch.connection?.cancel()
         watch.reconciliation?.cancel()
         connect(owner: owner, consumers: watch.consumers, latest: watch.latest, minContextSlot: watch.minContextSlot)
+    }
+
+    /// Connects a disconnected observation again at once, so a person's reload also restores live updates.
+    ///
+    /// An observation that is connected or connecting is left alone, as is a wallet that isn't observed.
+    /// - Parameter owner: The wallet that a person reloads.
+    func reconnect(for owner: String) {
+        guard watches[owner]?.state == .disconnected else { return }
+        restart(for: owner)
     }
 
     /// Cancels this wallet's observation before its cache is removed.
@@ -93,38 +116,89 @@ actor ObservationCoordinator {
         watches[owner]?.connection = Task { await listen(owner: owner, generation: generation) }
     }
 
-    /// Establishes subscriptions before requesting initial catch-up, avoiding the setup-to-fetch gap.
+    /// Watches the wallet for the observation's lifetime, reconnecting after each dropped connection.
+    ///
+    /// Each failure shows its error at once. After a drop, the watch waits the reconnection delay and connects
+    /// again. Other errors leave the watch disconnected.
     /// - Parameters:
     ///   - owner: The watched wallet.
     ///   - generation: The observation lifetime, used to reject late work after cancellation.
     private func listen(owner: String, generation: UUID) async {
         let initial = await refresh.status(for: owner, phase: .refreshing)
         publish(initial, owner: owner, generation: generation)
-        do {
-            guard let changes else { throw ObservationError.providerUnavailable }
-            guard changes.network == network else { throw ObservationError.networkMismatch }
-            let accounts = try await tokenLists.list(for: owner).accounts(of: Address(owner))
-            let slots = try await changes.changedSlots(for: accounts.map(\.value))
-            try Task.checkCancellation()
-            guard watches[owner]?.generation == generation else { return }
-            watches[owner]?.isConnected = true
-            schedule(owner: owner, generation: generation, delayed: false)
-            for try await slot in slots {
-                try Task.checkCancellation()
+        while true {
+            do {
+                try await watchChanges(owner: owner, generation: generation)
+                return
+            } catch {
+                guard !Task.isCancelled, watches[owner]?.generation == generation else { return }
+                watches[owner]?.state = .disconnected
+                let failed = await refresh.status(for: owner, phase: .failed(error))
                 guard watches[owner]?.generation == generation else { return }
-                watches[owner]?.revision = UUID()
-                let minContextSlot = max(watches[owner]?.minContextSlot ?? 0, slot)
-                watches[owner]?.minContextSlot = minContextSlot
-                schedule(owner: owner, generation: generation, delayed: true)
+                publish(failed, owner: owner, generation: generation)
+                guard Self.canReconnect(after: error), await waitToReconnect(owner: owner, generation: generation) else {
+                    return
+                }
             }
+        }
+    }
+
+    /// Establishes subscriptions before requesting initial catch-up, avoiding the setup-to-fetch gap.
+    /// - Parameters:
+    ///   - owner: The watched wallet.
+    ///   - generation: The observation lifetime, used to reject late work after cancellation.
+    /// - Throws: Why the subscriptions couldn't start or ended; a stream that ends counts as a lost connection.
+    private func watchChanges(owner: String, generation: UUID) async throws {
+        guard let changes else { throw ObservationError.providerUnavailable }
+        guard changes.network == network else { throw ObservationError.networkMismatch }
+        let accounts = try await tokenLists.list(for: owner).accounts(of: Address(owner))
+        let slots = try await changes.changedSlots(for: accounts.map(\.value))
+        try Task.checkCancellation()
+        guard watches[owner]?.generation == generation else { return }
+        watches[owner]?.state = .connected
+        watches[owner]?.reconnectDelay = Self.firstReconnectDelay
+        schedule(owner: owner, generation: generation, delayed: false)
+        for try await slot in slots {
             try Task.checkCancellation()
-            throw RPCError.transport(.networkConnectionLost)
-        } catch {
-            guard !Task.isCancelled, watches[owner]?.generation == generation else { return }
-            let failed = await refresh.status(for: owner, phase: .failed(error))
             guard watches[owner]?.generation == generation else { return }
-            publish(failed, owner: owner, generation: generation)
-            stop(for: owner)
+            watches[owner]?.revision = UUID()
+            let minContextSlot = max(watches[owner]?.minContextSlot ?? 0, slot)
+            watches[owner]?.minContextSlot = minContextSlot
+            schedule(owner: owner, generation: generation, delayed: true)
+        }
+        try Task.checkCancellation()
+        throw RPCError.transport(.networkConnectionLost)
+    }
+
+    /// Waits the reconnection delay and doubles it for the next attempt.
+    /// - Parameters:
+    ///   - owner: The disconnected wallet.
+    ///   - generation: The observation lifetime, used to reject late work after cancellation.
+    /// - Returns: Whether this observation lifetime connects again.
+    private func waitToReconnect(owner: String, generation: UUID) async -> Bool {
+        guard let watch = watches[owner], watch.generation == generation else { return false }
+        watches[owner]?.reconnectDelay = min(watch.reconnectDelay * 2, Self.longestReconnectDelay)
+        do {
+            try await pause(watch.reconnectDelay)
+        } catch {
+            return false
+        }
+        guard watches[owner]?.generation == generation else { return false }
+        watches[owner]?.state = .connecting
+        return true
+    }
+
+    /// Whether a failure is a dropped connection that can work again without a person's action.
+    ///
+    /// Transport failures, such as no network or a missing pong, and server errors can recover. Rate limits,
+    /// rejected or missing keys, and every other refusal wait for a person, so automatic retries can't make them worse.
+    /// - Parameter error: Why the subscriptions couldn't start or ended.
+    /// - Returns: `true` when observation reconnects by itself.
+    private static func canReconnect(after error: any Error) -> Bool {
+        switch error {
+        case RPCError.transport: true
+        case RPCError.http(statusCode: 500..<600, retryAfter: _): true
+        default: false
         }
     }
 
@@ -202,8 +276,19 @@ actor ObservationCoordinator {
 
     /// One shared connection and its independent consumer streams.
     private struct Watch {
+        /// The progress of a watch's connection.
+        enum State {
+            /// Opening subscriptions.
+            case connecting
+            /// Subscriptions are live.
+            case connected
+            /// Waiting to reconnect after a drop, or stopped by an error that a person must act on.
+            case disconnected
+        }
+
         let generation: UUID
-        var isConnected = false
+        var state = State.connecting
+        var reconnectDelay = ObservationCoordinator.firstReconnectDelay
         var reloadRequested = false
         var revision = UUID()
         var minContextSlot: UInt64?

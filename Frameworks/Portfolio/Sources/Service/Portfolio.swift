@@ -31,7 +31,7 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
     ///   - prices: An optional same-network price provider.
     ///   - now: The current time used to evaluate cache age and record price refreshes.
     ///   - changes: The optional confirmed-change provider, defaulting to the RPC client's capability.
-    ///   - pause: Cancellable scheduling for coalescing nearby changes.
+    ///   - pause: Cancellable scheduling for coalescing nearby changes and spacing reconnections.
     init(rpc: any RPC, store: any SnapshotStoring,
          tokenLists: any TokenListStoring = FileTokenListStore(
             directory: .applicationSupportDirectory.appending(path: "Portfolio/TokenLists", directoryHint: .isDirectory)),
@@ -54,6 +54,7 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
     /// The service owns cache lookup, persistence, and failure fallback.
     /// Each caller receives its own stream while concurrent callers share the refresh.
     /// Registration completes before this method returns; the refresh arrives through the stream.
+    /// A reload also connects the wallet's observation again at once when it is disconnected.
     ///
     /// - Parameters:
     ///   - owner: The wallet address whose holdings to retrieve.
@@ -61,7 +62,9 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
     /// - Returns: A finite stream of complete states. Cancelling its consuming task
     ///   detaches that consumer without clearing cached data.
     public func updates(for owner: String, policy: RefreshPolicy) async -> AsyncStream<Update> {
-        await coordinator.updates(for: owner, policy: policy)
+        let updates = await coordinator.updates(for: owner, policy: policy)
+        if policy == .reload { await observer.reconnect(for: owner) }
+        return updates
     }
 
     /// Refreshes only valuations for existing holdings, retaining balances and their retrieval time.
@@ -74,8 +77,10 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
     }
 
     /// Observes confirmed changes to the wallet and its listed token accounts, and reads balances again after each one.
+    ///
+    /// A dropped connection reports its error, then reconnects by itself and reads balances again.
     /// - Parameter owner: The visible wallet to observe until its consuming task is cancelled.
-    /// - Returns: Cached state, an initial reload, and event-driven refresh results; disconnects end with an error.
+    /// - Returns: Cached state, an initial reload, event-driven refresh results, and connection errors.
     public func observations(for owner: String) async -> AsyncStream<Update> {
         await observer.observations(for: owner)
     }
