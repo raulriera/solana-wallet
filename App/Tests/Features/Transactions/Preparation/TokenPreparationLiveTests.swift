@@ -24,11 +24,8 @@ struct TokenPreparationLiveTests {
         let absent = try Address(await Wallet().address(for: RecoveryPhrase(PublicWallet.words),
                                                        passphrase: "missing-token-source"))
 
-        await #expect {
+        await #expect(throws: TokenTransfersError.missingAccount(absent)) {
             try await coordinator.transfer(1, token: mint, using: account, to: account.address, source: absent)
-        } throws: { error in
-            if case TokenTransfersError.missingAccount = error { return true }
-            return false
         }
     }
 }

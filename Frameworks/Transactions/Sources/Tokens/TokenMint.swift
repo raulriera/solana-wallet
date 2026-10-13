@@ -34,8 +34,11 @@ public struct TokenMint: Sendable {
         return extensions.filter { data.extensions[$0.mint] != nil }.map { ($0.account, $0.length) }
     }
 
-    /// The ATA allocation size after transfer validation has rejected unsupported extensions.
-    var associatedAccountSize: UInt64 {
+    /// The allocation size of a new associated token account for this mint, used to query its rent.
+    ///
+    /// Token accounts use 165 bytes. Token-2022 accounts add an account-type byte, immutable ownership, and the
+    /// account extensions that the mint's supported extensions require; transfer validation rejects other extensions.
+    public var associatedAccountSize: UInt64 {
         guard program == .token2022 else { return 165 }
         // 165 base bytes, one account-type byte, and ImmutableOwner's four-byte TLV header.
         return requiredAccountExtensions.reduce(170) { $0 + 4 + $1.length }

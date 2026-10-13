@@ -61,7 +61,7 @@ extension SubmissionTests {
         #expect(transfer.mint.program == program)
         #expect(transfer.amount == amount)
         #expect(transfer.createsDestination)
-        let rent = try await rpc.send(GetMinimumBalanceForRentExemption(dataLength: #require(transfer.destinationAccountSize)))
+        let rent = try await rpc.send(GetMinimumBalanceForRentExemption(dataLength: transfer.mint.associatedAccountSize))
         #expect(review.destinationAccountRent == rent)
         let changes = try #require(review.balanceChanges)
         let fee = try #require(review.fee)

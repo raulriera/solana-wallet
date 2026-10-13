@@ -28,20 +28,21 @@ struct TokenRentTests {
             mint: fixture.mint(mint.base64EncodedString()), source: fixture.source(source),
             destination: nil, amount: 1, epoch: 100)
 
-        #expect(transfer.destinationAccountSize == expectedSize)
+        #expect(transfer.mint.associatedAccountSize == expectedSize)
     }
 
-    /// Verifies existing accounts request no allocation and legacy ATA creation uses 165 bytes.
+    /// Verifies only absent destinations are created, and that legacy ATAs use 165 bytes and Token-2022 ATAs without
+    /// extensions use 170.
     ///
     /// - Parameter fixture: Either token program with an existing or absent destination.
     @Test(arguments: TokenFixtures.transfers)
-    func `Only absent token destinations require an allocation`(_ fixture: TokenFixture) throws {
+    func `Only absent token destinations are created at their program's account size`(_ fixture: TokenFixture) throws {
         let transfer = try TokenTransfer(sender: Address(TokenFixtures.sender), recipient: Address(TokenFixtures.recipient),
             mint: fixture.mint(), source: fixture.source(),
             destination: fixture.createsDestination ? nil : fixture.target(), amount: 1)
 
-        let expected: UInt64? = fixture.createsDestination ? (transfer.mint.program == .token ? 165 : 170) : nil
-        #expect(transfer.destinationAccountSize == expected)
+        #expect(transfer.createsDestination == fixture.createsDestination)
+        #expect(transfer.mint.associatedAccountSize == (transfer.mint.program == .token ? 165 : 170))
     }
 
     /// TLV bytes produced offline by the SDK's `getExtensionEncoder`; no SDK runs in tests.

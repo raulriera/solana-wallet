@@ -96,25 +96,27 @@ struct TokenTransfersTests {
         #expect(result.rent == 0)
         #expect(try result.transfer.instructions().count == 1)
         let methods = try await http.requests.map { try $0.rpcMethod }
-        #expect(methods.filter { $0 == "getMultipleAccounts" }.count == 2)
+        #expect(methods.filter { $0 == "getMultipleAccounts" }.count == 1)
         #expect(!methods.contains("getMinimumBalanceForRentExemption"))
     }
 
     /// Tokens sent to the mint, another mint's token account, or a program would be lost or stranded.
     /// - Parameters:
     ///   - program: The mint's token program.
-    ///   - recipient: The account at the address entered as the recipient.
+    ///   - rejection: The account at the address entered as the recipient, and why it's rejected: a mint doesn't
+    ///     decode as a token account, another mint's account doesn't match, and a program is executable.
     @Test(arguments: TokenProgram.allCases, [
-        TokenTransferResponses.Recipient.mint, .otherMintTokenAccount, .program,
+        (recipient: TokenTransferResponses.Recipient.mint, error: TokenError.invalidAccount),
+        (recipient: .otherMintTokenAccount, error: .accountMismatch), (recipient: .program, error: .invalidAccount),
     ])
     func `Mint, other-mint token account, and program recipients are rejected`(
-        program: TokenProgram, recipient: TokenTransferResponses.Recipient
+        program: TokenProgram, rejection: (recipient: TokenTransferResponses.Recipient, error: TokenError)
     ) async throws {
         let fixture = try TokenTransferResponses(program: program)
-        let http = try fixture.http(destination: .absent, recipient: recipient)
-        let address = recipient == .mint ? fixture.mint : fixture.recipient
+        let http = try fixture.http(destination: .absent, recipient: rejection.recipient)
+        let address = rejection.recipient == .mint ? fixture.mint : fixture.recipient
 
-        await #expect(throws: TokenError.self) {
+        await #expect(throws: rejection.error) {
             try await TokenTransfers(rpc: http.client).transfer(
                 mint: fixture.mint, amount: 1, from: fixture.sender, to: address, source: fixture.source)
         }
@@ -139,22 +141,24 @@ struct TokenTransfersTests {
     /// Prefunding cannot turn another program's account or allocated/executable data into a creatable ATA.
     /// - Parameters:
     ///   - program: The mint's token program.
-    ///   - destination: The invalid account observed at the canonical destination.
+    ///   - rejection: The invalid account observed at the canonical destination, and why it's rejected: another
+    ///     program owns it, or it holds data or a program.
     @Test(arguments: TokenProgram.allCases, [
-        TokenTransferResponses.Destination.unsupportedOwner, .nonemptySystem, .executable,
+        (destination: TokenTransferResponses.Destination.unsupportedOwner, error: TokenError.unsupportedProgram),
+        (destination: .nonemptySystem, error: .invalidAccount), (destination: .executable, error: .invalidAccount),
     ])
     func `Invalid destination accounts remain rejected`(
-        program: TokenProgram, destination: TokenTransferResponses.Destination
+        program: TokenProgram, rejection: (destination: TokenTransferResponses.Destination, error: TokenError)
     ) async throws {
         let fixture = try TokenTransferResponses(program: program)
-        let http = try fixture.http(destination: destination)
+        let http = try fixture.http(destination: rejection.destination)
 
-        await #expect(throws: TokenError.self) {
+        await #expect(throws: rejection.error) {
             try await TokenTransfers(rpc: http.client).transfer(
                 mint: fixture.mint, amount: 1, from: fixture.sender, to: fixture.recipient, source: fixture.source)
         }
 
-        #expect(await http.requests.count == 2)
+        #expect(await http.requests.count == 1)
     }
 
     /// An unallocated prefunded address still uses the mint's rules for newly initialized accounts.

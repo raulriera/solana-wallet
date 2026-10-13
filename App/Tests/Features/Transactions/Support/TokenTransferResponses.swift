@@ -44,7 +44,10 @@ struct TokenTransferResponses {
         tokenAccount = try program.associatedAccount(owner: recipient, mint: mint)
     }
 
-    /// Supplies ordered discovery, snapshot, epoch, and rent responses without network access.
+    /// Supplies account, epoch, and rent responses without network access.
+    ///
+    /// The account read answers a transfer from the explicit ``source``: the mint, the recipient, the source, and the
+    /// recipient's associated account under each token program, where only the mint's program has the destination.
     /// - Parameters:
     ///   - destination: The observed account at the recipient's associated address.
     ///   - recipient: The observed account at the recipient address itself.
@@ -72,10 +75,9 @@ struct TokenTransferResponses {
         case .program: account(owner: "BPFLoaderUpgradeab1e11111111111111111111111", executable: true)
         }
         return HTTPResponses([
-            "getMultipleAccounts": [
-                try HTTPResponses.json(["context": ["slot": 100], "value": [mintAccount]]),
-                try HTTPResponses.json(["context": ["slot": 101], "value": [mintAccount, sourceAccount, destinationAccount, recipientAccount]]),
-            ],
+            "getMultipleAccounts": [try HTTPResponses.json(["context": ["slot": 101], "value": [
+                mintAccount, recipientAccount, sourceAccount,
+            ] + TokenProgram.allCases.map { $0 == program ? destinationAccount : NSNull() }])],
             "getEpochInfo": [#"{"epoch":1,"absoluteSlot":101,"blockHeight":91}"#],
             "getMinimumBalanceForRentExemption": ["2100000"],
         ])
