@@ -5,7 +5,7 @@ import Testing
 import Transactions
 @testable import widgets
 
-/// Checks the add-token sheet's model: how it refuses pasted text, and what it adds.
+/// Checks the add-token sheet's model: how it rejects pasted text, and what it adds.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct TokenAdditionModelTests {
@@ -18,24 +18,24 @@ struct TokenAdditionModelTests {
         let addition = TokenAdditionModel(coordinator: RecordingPortfolio())
 
         addition.paste("not an address")
-        #expect(addition.refusal == .notAddress)
-        #expect(addition.refusalCount == 1)
+        #expect(addition.rejection == .notAddress)
+        #expect(addition.rejectionCount == 1)
         #expect(addition.lookup == nil)
 
         addition.paste("")
-        #expect(addition.refusal == nil)
+        #expect(addition.rejection == nil)
     }
 
-    /// Each refusal signals again, even when the same refusal is already on screen.
+    /// Each rejection signals again, even when the same rejection is already on screen.
     @Test
-    func `Each refusal signals again`() {
+    func `Each rejection signals again`() {
         let addition = TokenAdditionModel(coordinator: RecordingPortfolio())
 
         addition.paste("not an address")
         addition.paste("still not an address")
 
-        #expect(addition.refusal == .notAddress)
-        #expect(addition.refusalCount == 2)
+        #expect(addition.rejection == .notAddress)
+        #expect(addition.rejectionCount == 2)
     }
 
     /// A pasted address, with the spaces and line break a copy can bring, shows the token it names.
@@ -51,14 +51,14 @@ struct TokenAdditionModelTests {
 
         #expect(addition.text == Self.bonk)
         #expect(addition.preview == portfolio.preview)
-        #expect(addition.refusal == nil)
+        #expect(addition.rejection == nil)
         #expect(portfolio.lookups.map(\.value) == [Self.bonk])
     }
 
-    /// A refusal stays while the next address is looked up, so it changes in place, and a found token clears it.
+    /// A rejection stays while the next address is looked up, so it changes in place, and a found token clears it.
     /// - Throws: A test prerequisite error.
     @Test
-    func `A refusal stays until the next lookup answers`() async throws {
+    func `A rejection stays until the next lookup answers`() async throws {
         let portfolio = RecordingPortfolio()
         portfolio.lookupError = TokenLookupError.notToken
         let addition = TokenAdditionModel(coordinator: portfolio)
@@ -68,16 +68,16 @@ struct TokenAdditionModelTests {
         portfolio.lookupError = nil
         portfolio.preview = try Self.preview(Self.jup)
         addition.paste(Self.jup)
-        #expect(addition.refusal == .notToken)
+        #expect(addition.rejection == .notToken)
 
         await addition.lookUp(addition.lookup)
-        #expect(addition.refusal == nil)
+        #expect(addition.rejection == nil)
         #expect(addition.preview == portfolio.preview)
     }
 
-    /// A token that's already in the list is refused before any lookup.
+    /// A token that's already in the list is rejected before any lookup.
     @Test
-    func `A listed token is refused without a lookup`() async {
+    func `A listed token is rejected without a lookup`() async {
         let portfolio = RecordingPortfolio()
         portfolio.holdings = [Holding(id: .asset(Self.bonk), amount: nil, name: "Bonk", symbol: "Bonk", imageURL: nil,
                                       valuation: nil)]
@@ -86,17 +86,18 @@ struct TokenAdditionModelTests {
         addition.paste(Self.bonk)
         await addition.lookUp(addition.lookup)
 
-        #expect(addition.refusal == .alreadyListed)
-        #expect(addition.refusalCount == 1)
+        #expect(addition.rejection == .alreadyListed)
+        #expect(addition.rejectionCount == 1)
         #expect(portfolio.lookups.isEmpty)
     }
 
-    /// Addresses that aren't fungible token mints are refused with what they are.
+    /// Addresses that aren't fungible token mints are rejected with what they are.
     /// - Parameters:
-    ///   - error: Why the lookup refused the address.
-    ///   - refusal: Why the sheet refuses the address.
-    @Test(arguments: [(TokenLookupError.notToken, TokenRefusal.notToken), (.nonFungible, .nonFungible)])
-    func `Addresses that aren't fungible tokens are refused`(error: TokenLookupError, refusal: TokenRefusal) async {
+    ///   - error: Why the lookup rejected the address.
+    ///   - rejection: Why the sheet rejects the address.
+    @Test(arguments: [(TokenLookupError.notToken, TokenRejection.notToken), (.nonFungible, .nonFungible)])
+    func `Addresses that aren't fungible tokens are rejected`(error: TokenLookupError,
+                                                              rejection: TokenRejection) async {
         let portfolio = RecordingPortfolio()
         portfolio.lookupError = error
         let addition = TokenAdditionModel(coordinator: portfolio)
@@ -104,8 +105,8 @@ struct TokenAdditionModelTests {
         addition.paste(Self.bonk)
         await addition.lookUp(addition.lookup)
 
-        #expect(addition.refusal == refusal)
-        #expect(addition.refusalCount == 1)
+        #expect(addition.rejection == rejection)
+        #expect(addition.rejectionCount == 1)
         #expect(addition.preview == nil)
     }
 
@@ -148,7 +149,7 @@ struct TokenAdditionModelTests {
         await lookup.value
 
         #expect(addition.preview == nil)
-        #expect(addition.refusal == nil)
+        #expect(addition.rejection == nil)
         #expect(addition.error == nil)
         #expect(addition.lookup == newer)
     }
@@ -173,7 +174,7 @@ struct TokenAdditionModelTests {
 
     /// A list that is full or can't be read explains why and keeps the sheet open, without offering to try again.
     /// - Parameters:
-    ///   - error: Why the list refused the token.
+    ///   - error: Why the list rejected the token.
     ///   - expected: The error the alert explains.
     /// - Throws: A test prerequisite error.
     @Test(arguments: [

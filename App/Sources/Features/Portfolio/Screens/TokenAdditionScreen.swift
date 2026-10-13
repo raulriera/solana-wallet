@@ -27,8 +27,8 @@ struct TokenAdditionScreen: View {
                     PasteTextButton(paste: paste)
                 }
 
-                if let refusal = addition.refusal {
-                    Label(refusal.message, systemImage: "exclamationmark.circle.fill")
+                if let rejection = addition.rejection {
+                    Label(rejection.message, systemImage: "exclamationmark.circle.fill")
                         .labelStyle(.warning)
                         .contentTransition(.opacity)
                         .transition(.opacity)
@@ -50,7 +50,7 @@ struct TokenAdditionScreen: View {
                 .listRowBackground(palette.surface)
             }
         }
-        .animation(.default, value: addition.refusal)
+        .animation(.default, value: addition.rejection)
         // A preview only ever appears or clears, so its presence keys its motion.
         .animation(.default, value: addition.preview != nil)
         .scrollContentBackground(.hidden)
@@ -62,7 +62,7 @@ struct TokenAdditionScreen: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    /// Takes the pasted text, animating the change to the field and any refusal it brings.
+    /// Takes the pasted text, animating the change to the field and any rejection it brings.
     /// - Parameter text: The pasteboard's text.
     private func paste(_ text: String) {
         withAnimation { addition.paste(text) }

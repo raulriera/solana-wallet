@@ -1,7 +1,7 @@
 import Foundation
 
 /// Why the add-token sheet can't add the pasted text, explained under it.
-nonisolated enum TokenRefusal: Equatable {
+nonisolated enum TokenRejection: Equatable {
     /// The pasted text isn't an address.
     case notAddress
     /// The token is already in the list.
@@ -11,7 +11,7 @@ nonisolated enum TokenRefusal: Equatable {
     /// The address is an NFT, which the list can't hold yet.
     case nonFungible
 
-    /// Explains the refusal under the pasted text.
+    /// Explains the rejection under the pasted text.
     var message: LocalizedStringResource {
         switch self {
         case .notAddress: "This isn't a valid address."

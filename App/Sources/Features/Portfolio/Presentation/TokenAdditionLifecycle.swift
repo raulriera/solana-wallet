@@ -6,19 +6,20 @@ import SwiftUI
 private struct TokenAdditionLifecycle: ViewModifier {
     @Bindable var addition: TokenAdditionModel
 
-    /// Runs the current lookup and accepted add, signals refusals and found tokens, and presents failures.
+    /// Runs the current lookup and accepted add, signals rejections and found tokens, and presents failures.
     /// - Parameter content: The add-token screen.
-    /// - Returns: The screen with managed lookups and adds, refusal feedback, announcements, and failure presentation.
+    /// - Returns: The screen with managed lookups and adds, rejection feedback, announcements, and failure
+    ///   presentation.
     func body(content: Content) -> some View {
         let lookup = addition.lookup
         let attempt = addition.attempt
         content
             .task(id: lookup) { await addition.lookUp(lookup) }
             .task(id: attempt) { await addition.run(attempt) }
-            .sensoryFeedback(.error, trigger: addition.refusalCount)
-            .onChange(of: addition.refusalCount) {
-                guard let refusal = addition.refusal else { return }
-                AccessibilityNotification.Announcement(String(localized: refusal.message)).post()
+            .sensoryFeedback(.error, trigger: addition.rejectionCount)
+            .onChange(of: addition.rejectionCount) {
+                guard let rejection = addition.rejection else { return }
+                AccessibilityNotification.Announcement(String(localized: rejection.message)).post()
             }
             // A new address clears the previous preview first, so each found token appears from nothing.
             .onChange(of: addition.preview != nil) { _, isFound in
@@ -46,7 +47,8 @@ private struct TokenAdditionLifecycle: ViewModifier {
 
 extension TokenAdditionScreen {
     /// Runs the screen's lookups and adds only while it is on screen.
-    /// - Returns: The screen with managed lookups and adds, refusal feedback, announcements, and failure presentation.
+    /// - Returns: The screen with managed lookups and adds, rejection feedback, announcements, and failure
+    ///   presentation.
     func tokenAdditionLifecycle() -> some View {
         modifier(TokenAdditionLifecycle(addition: addition))
     }

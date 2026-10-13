@@ -10,23 +10,23 @@ final class TokenAdditionModel: Identifiable {
     /// The pasted text without the spaces and line breaks around it; a new address replaces the previous preview
     /// and starts a lookup.
     ///
-    /// A refusal stays until the new address's lookup answers, so it changes in place.
+    /// A rejection stays until the new address's lookup answers, so it changes in place.
     /// After a failed lookup, pasting the address again looks it up again; otherwise, pasting the same address
-    /// keeps its preview or refusal without signaling again.
+    /// keeps its preview or rejection without signaling again.
     private(set) var text = "" {
         didSet {
             guard address != (try? Address(oldValue)) || lookup == nil else { return }
             preview = nil
-            if address == nil { refusal = nil }
+            if address == nil { rejection = nil }
             lookup = address.map { _ in UUID() }
         }
     }
     /// The token that the current address names, once the lookup finds it.
     private(set) var preview: TokenPreview?
     /// Why the pasted text can't be added, or `nil` while there's nothing to explain.
-    private(set) var refusal: TokenRefusal?
-    /// Counts refusals, so each one signals again while the same refusal stays on screen.
-    private(set) var refusalCount = 0
+    private(set) var rejection: TokenRejection?
+    /// Counts rejections, so each one signals again while the same rejection stays on screen.
+    private(set) var rejectionCount = 0
     /// An error the person dismisses; trying again repeats the step that failed.
     var error: TokenAdditionError?
     /// The current address's lookup, or `nil` when the text isn't an address.
@@ -48,38 +48,38 @@ final class TokenAdditionModel: Identifiable {
 
     /// Takes pasted text, ignoring the spaces and line breaks that a copy can bring along.
     ///
-    /// Text that isn't an address is refused at once, without a lookup.
+    /// Text that isn't an address is rejected at once, without a lookup.
     /// - Parameter pasted: The pasteboard's text.
     func paste(_ pasted: String) {
         text = pasted.trimmingCharacters(in: .whitespacesAndNewlines)
         if !text.isEmpty, address == nil {
-            refuse(.notAddress)
+            reject(.notAddress)
         }
     }
 
     /// Looks up the current address in the screen's SwiftUI-managed task; a newer address cancels it.
     ///
-    /// A token that's already listed is refused without a request.
+    /// A token that's already listed is rejected without a request.
     /// - Parameter lookup: The lookup captured by the owning view task.
     func lookUp(_ lookup: UUID?) async {
         guard let lookup, self.lookup == lookup, let address else { return }
         guard !coordinator.holdings.contains(where: { $0.id == .asset(address.value) }) else {
-            return refuse(.alreadyListed)
+            return reject(.alreadyListed)
         }
         do {
             let preview = try await coordinator.token(at: address)
             guard self.lookup == lookup, !Task.isCancelled else { return }
             self.preview = preview
-            refusal = nil
+            rejection = nil
         } catch {
             // A newer address or a closed sheet replaces this lookup's result.
             guard self.lookup == lookup, !Task.isCancelled, !(error is CancellationError) else { return }
             switch error {
-            case TokenLookupError.notToken: refuse(.notToken)
-            case TokenLookupError.nonFungible: refuse(.nonFungible)
+            case TokenLookupError.notToken: reject(.notToken)
+            case TokenLookupError.nonFungible: reject(.nonFungible)
             default:
                 // Trying again can't help a rejected key, so pasting the address again looks it up instead.
-                refusal = nil
+                rejection = nil
                 self.lookup = nil
                 self.error = TokenAdditionError(lookup: PortfolioError(error))
             }
@@ -120,10 +120,10 @@ final class TokenAdditionModel: Identifiable {
         }
     }
 
-    /// Records why the current address can't be added, and counts the refusal.
+    /// Records why the current address can't be added, and counts the rejection.
     /// - Parameter reason: Why the address can't be added.
-    private func refuse(_ reason: TokenRefusal) {
-        refusal = reason
-        refusalCount += 1
+    private func reject(_ reason: TokenRejection) {
+        rejection = reason
+        rejectionCount += 1
     }
 }
