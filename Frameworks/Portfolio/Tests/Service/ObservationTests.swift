@@ -457,6 +457,9 @@ struct ObservationTests {
         #expect(failed.error as? RPCError == .transport(.notConnectedToInternet))
         #expect(failed.snapshot == initial.snapshot)
         #expect(await ledger.readCount == 2)
+        // A retry would first wait to gather changes; no such wait was requested.
+        fixture.gate.finish()
+        #expect(await delays.next() == nil)
         try await service.removeData(for: testWallet)
         await fixture.socket.waitUntilCancelled()
     }
@@ -578,6 +581,33 @@ struct ObservationTests {
         let reconnected = try #require(await sockets.next())
         try await service.removeData(for: testWallet)
         await reconnected.waitUntilCancelled()
+    }
+
+    /// Verifies an acknowledged subscription whose balance read fails doesn't reset the reconnection wait.
+    @Test(.timeLimit(.minutes(1)))
+    func `A connection whose balance read fails keeps waiting longer`() async throws {
+        let fixture = ObservationFixture()
+        defer { fixture.cleanUp() }
+        let ledger = ObservedLedger()
+        let connections = Connections()
+        let service = fixture.service(ledger: ledger) { connections.connect(to: $0) }
+        var sockets = connections.opened.makeAsyncIterator()
+        var updates = await service.observations(for: testWallet).makeAsyncIterator()
+        try await nextResult(&updates)
+        let first = try #require(await sockets.next())
+
+        await ledger.fail()
+        first.fail(URLError(.networkConnectionLost))
+        #expect(try await nextResult(&updates).error as? RPCError == .transport(.networkConnectionLost))
+        var delays = fixture.gate.delays.makeAsyncIterator()
+        #expect(await delays.next() == .seconds(2))
+        fixture.gate.resume()
+        let second = try #require(await sockets.next())
+        #expect(try await nextResult(&updates).error as? RPCError == .transport(.notConnectedToInternet))
+        second.fail(URLError(.networkConnectionLost))
+
+        #expect(await delays.next() == .seconds(4))
+        try await service.removeData(for: testWallet)
     }
 
     /// Verifies a rate limit or a rejected key stops reconnection but keeps the stream, and a reload connects again.

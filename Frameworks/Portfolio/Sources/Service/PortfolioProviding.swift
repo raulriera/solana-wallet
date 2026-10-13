@@ -10,7 +10,8 @@ public protocol PortfolioProviding: Sendable {
     /// Shares one connection per wallet. Each new consumer requests a reload or joins one in progress.
     /// Setup completes before the initial reload; bursts of changes are coalesced into one balance read.
     /// Every connection error is surfaced at once. A dropped connection then reconnects by itself, waiting
-    /// 2 seconds and doubling the wait after each failed attempt up to a minute. Rate limits, rejected keys, and other refusals stay until a reload, a token-list change,
+    /// 2 seconds and doubling the wait after each failed attempt up to a minute, until a connection reads balances
+    /// successfully. Rate limits, rejected keys, and other refusals stay until a reload, a token-list change,
     /// or a new consumer connects again. Failed balance reads aren't retried.
     /// The app owns starting and cancelling observation with its foreground/view lifecycle.
     /// - Parameter owner: The wallet whose holdings to observe.

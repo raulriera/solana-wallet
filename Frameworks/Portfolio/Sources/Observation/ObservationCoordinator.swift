@@ -4,8 +4,9 @@ import Transactions
 
 /// Shares a wallet's finalized subscription and reloads its balances after finalized changes.
 ///
-/// A dropped connection reconnects by itself. An error that a person must act on, such as a rate limit
-/// or a rejected key, keeps the consumers' streams but waits for a person's reload or token-list change.
+/// A dropped connection reconnects by itself, waiting longer after each attempt until a connection's balance read
+/// succeeds. An error that a person must act on, such as a rate limit or a rejected key, keeps the consumers' streams
+/// but waits for a person's reload, a token-list change, or a new consumer.
 actor ObservationCoordinator {
     /// Suspends change coalescing or a reconnection for a cancellable duration.
     typealias Pause = @Sendable (Duration) async throws -> Void
@@ -119,7 +120,8 @@ actor ObservationCoordinator {
     /// Watches the wallet for the observation's lifetime, reconnecting after each dropped connection.
     ///
     /// Each failure shows its error at once. After a failure that `RPCError.isRecoverable` accepts, the watch
-    /// waits the reconnection delay and connects again. Other errors leave the watch disconnected.
+    /// waits the reconnection delay and connects again. Other errors leave the watch disconnected. The delay starts
+    /// over once a connection's balance read succeeds, not when its subscription is acknowledged.
     /// - Parameters:
     ///   - owner: The watched wallet.
     ///   - generation: The observation lifetime, used to reject late work after cancellation.
@@ -157,7 +159,6 @@ actor ObservationCoordinator {
         try Task.checkCancellation()
         guard watches[owner]?.generation == generation else { return }
         watches[owner]?.state = .connected
-        watches[owner]?.reconnectDelay = Self.firstReconnectDelay
         schedule(owner: owner, generation: generation, delayed: false)
         for try await slot in slots {
             try Task.checkCancellation()
@@ -202,7 +203,7 @@ actor ObservationCoordinator {
     /// Reloads balances once per cycle, after an optional wait that gathers nearby changes.
     ///
     /// A change that arrives during a reload starts another cycle, so the latest change is always read.
-    /// Failed requests aren't retried.
+    /// Failed requests aren't retried. A completed reload over a live connection resets the reconnection delay.
     /// - Parameters:
     ///   - owner: The wallet to reload.
     ///   - generation: The current observation lifetime.
@@ -229,6 +230,11 @@ actor ObservationCoordinator {
             let minContextSlot = watches[owner]?.minContextSlot
             for await update in await refresh.updates(for: owner, policy: .reload, minContextSlot: minContextSlot) {
                 try Task.checkCancellation()
+                if case .ready = update.phase, let watch = watches[owner], watch.generation == generation,
+                   watch.state == .connected {
+                    // The connection works, so a later drop waits the shortest time again.
+                    watches[owner]?.reconnectDelay = Self.firstReconnectDelay
+                }
                 publish(update, owner: owner, generation: generation)
                 if update.error != nil { requestFailed = true }
             }
