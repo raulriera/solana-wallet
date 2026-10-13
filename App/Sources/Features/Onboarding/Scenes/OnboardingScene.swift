@@ -7,7 +7,7 @@ struct OnboardingScene: View {
     @State private var isCompleting = false
     @State private var error: OnboardingError?
     @State private var navigation: OnboardingNavigation
-    @State private var importSubmission: ImportSubmission
+    @State private var walletImport: ImportWalletModel
     let coordinator: any OnboardingCoordinating
     let providers: ProvidersCoordinator
     let pasteboard: any RecoveryCopying
@@ -22,16 +22,16 @@ struct OnboardingScene: View {
         self.coordinator = coordinator
         self.providers = providers
         self.pasteboard = pasteboard
-        let importSubmission = ImportSubmission(coordinator: coordinator)
-        self.importSubmission = importSubmission
-        navigation = OnboardingNavigation(importSubmission: importSubmission, providers: providers)
+        let walletImport = ImportWalletModel(coordinator: coordinator)
+        self.walletImport = walletImport
+        navigation = OnboardingNavigation(walletImport: walletImport, providers: providers)
     }
 
     var body: some View {
         NavigationStack(path: $navigation.stack) {
             WelcomeScreen(createWallet: {
-                guard !coordinator.isWorking, !isCreating, !isCompleting, !importSubmission.isPending,
-                      !importSubmission.isPresented else { return }
+                guard !coordinator.isWorking, !isCreating, !isCompleting, !walletImport.isPending,
+                      !walletImport.isPresented else { return }
                 isCreating = true
             }, importWallet: {
                 guard !isCreating, !isCompleting else { return }
@@ -46,9 +46,9 @@ struct OnboardingScene: View {
                                                  pasteboard: pasteboard,
                                                  continueSetup: { isCompleting = true })
                         case .importWallet:
-                            if let presentationID = importSubmission.presentationID {
-                                ImportWalletScreen(submission: importSubmission)
-                                    .importLifecycle(importSubmission, presentationID: presentationID)
+                            if let presentationID = walletImport.presentationID {
+                                ImportWalletScreen(submission: walletImport)
+                                    .importLifecycle(walletImport, presentationID: presentationID)
                                     .id(presentationID)
                             }
                         case .providers:
@@ -74,7 +74,7 @@ struct OnboardingScene: View {
         .onChange(of: navigation.path.last) { showProviders() }
         .onDisappear {
             // Active work releases its draft after cancellation unwinds.
-            if !coordinator.isWorking, !importSubmission.isPending { discardDraft() }
+            if !coordinator.isWorking, !walletImport.isPending { discardDraft() }
         }
         .errorAlert($error)
     }

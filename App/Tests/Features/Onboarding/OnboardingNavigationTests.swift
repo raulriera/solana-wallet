@@ -17,8 +17,8 @@ struct OnboardingNavigationTests {
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery(gate: gate).client),
                                                 wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
-        let submission = ImportSubmission(coordinator: coordinator)
-        let navigation = OnboardingNavigation(importSubmission: submission, providers: .inMemory(settings: StoredValue(), providerKey: StoredValue()))
+        let submission = ImportWalletModel(coordinator: coordinator)
+        let navigation = OnboardingNavigation(walletImport: submission, providers: .inMemory(settings: StoredValue(), providerKey: StoredValue()))
         navigation.showImport()
         try #require(navigation.path == [.importWallet])
         submission.submit(OnboardingCoordinatorTests.phrase, passphrase: "TREZOR")
@@ -43,7 +43,7 @@ struct OnboardingNavigationTests {
     @Test
     func `The provider choice's screens show above onboarding's steps`() throws {
         let providers = ProvidersCoordinator.inMemory(settings: StoredValue(), providerKey: StoredValue())
-        let navigation = OnboardingNavigation(importSubmission: Self.submission(), providers: providers)
+        let navigation = OnboardingNavigation(walletImport: Self.submission(), providers: providers)
         navigation.path = [.recovery, .providers]
 
         providers.addCustomRPC()
@@ -64,12 +64,12 @@ struct OnboardingNavigationTests {
 
     /// Creates an import submission whose coordinator never reaches the network or device storage.
     /// - Returns: A submission for navigation that never imports.
-    private static func submission() -> ImportSubmission {
+    private static func submission() -> ImportWalletModel {
         let recovery = OnboardingRecoveryStore()
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client),
                                                 wallet: Wallet(), recovery: recovery,
                                                 accounts: OnboardingAccountStore(recovery: recovery),
                                                 router: WindowRouter(initialDestination: .onboarding))
-        return ImportSubmission(coordinator: coordinator)
+        return ImportWalletModel(coordinator: coordinator)
     }
 }

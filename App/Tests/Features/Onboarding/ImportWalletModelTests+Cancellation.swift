@@ -4,7 +4,7 @@ import Vault
 import Wallet
 @testable import widgets
 
-extension ImportSubmissionTests {
+extension ImportWalletModelTests {
     /// A disappearing destination can finish its transition after another presentation begins.
     @Test
     func `Late disappearance from a previous presentation cannot cancel the next import`() async throws {
@@ -12,7 +12,7 @@ extension ImportSubmissionTests {
         let accounts = OnboardingAccountStore(recovery: recovery)
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
-        let submission = ImportSubmission(coordinator: coordinator)
+        let submission = ImportWalletModel(coordinator: coordinator)
         submission.present()
         let oldPresentation = submission.presentationID
         submission.isPresented = false
@@ -39,7 +39,7 @@ extension ImportSubmissionTests {
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: http.client), wallet: Wallet(), recovery: recovery,
                                                 accounts: accounts, router: router)
-        let submission = ImportSubmission(coordinator: coordinator)
+        let submission = ImportWalletModel(coordinator: coordinator)
         submission.present()
         submission.submit(OnboardingCoordinatorTests.phrase, passphrase: "TREZOR")
         let attempt = submission.attempt
@@ -73,7 +73,7 @@ extension ImportSubmissionTests {
         let accounts = OnboardingAccountStore(recovery: recovery)
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
-        let submission = ImportSubmission(coordinator: coordinator)
+        let submission = ImportWalletModel(coordinator: coordinator)
         submission.present()
         submission.submit(OnboardingCoordinatorTests.phrase, passphrase: "TREZOR")
         let attempt = submission.attempt
@@ -100,7 +100,7 @@ extension ImportSubmissionTests {
         let accounts = OnboardingAccountStore(recovery: recovery)
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
-        let submission = ImportSubmission(coordinator: coordinator)
+        let submission = ImportWalletModel(coordinator: coordinator)
         submission.present()
         submission.submit(OnboardingCoordinatorTests.phrase, passphrase: "TREZOR")
         await submission.run(submission.attempt)
@@ -127,7 +127,7 @@ extension ImportSubmissionTests {
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
         let other = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: otherRouter)
         try await other.importRecovery(OnboardingCoordinatorTests.phrase, passphrase: "other-window")
-        let submission = ImportSubmission(coordinator: coordinator)
+        let submission = ImportWalletModel(coordinator: coordinator)
         submission.present()
         submission.submit(OnboardingCoordinatorTests.phrase, passphrase: "TREZOR")
         let attempt = submission.attempt

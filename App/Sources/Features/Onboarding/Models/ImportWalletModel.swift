@@ -6,7 +6,7 @@ import Wallet
 /// Owns one window's explicit import attempts while the existing coordinator owns its draft.
 @MainActor
 @Observable
-final class ImportSubmission: ImportSubmitting {
+final class ImportWalletModel: ImportSubmitting {
     var isPresented = false {
         didSet {
             if !isPresented { endPresentation() }

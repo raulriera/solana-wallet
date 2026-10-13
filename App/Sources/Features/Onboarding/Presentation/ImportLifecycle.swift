@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Binds accepted imports to the phrase destination's lifetime without retaining task handles.
 private struct ImportLifecycle: ViewModifier {
-    @Bindable var submission: ImportSubmission
+    @Bindable var submission: ImportWalletModel
     let presentationID: UUID
 
     /// Awaits one non-secret attempt and releases its presentation when the destination leaves.
@@ -23,7 +23,7 @@ extension ImportWalletScreen {
     ///   - submission: The initiating window's import submission state.
     ///   - presentationID: This destination's identity, independent of recovery input.
     /// - Returns: The view with managed import work and failure presentation.
-    func importLifecycle(_ submission: ImportSubmission, presentationID: UUID) -> some View {
+    func importLifecycle(_ submission: ImportWalletModel, presentationID: UUID) -> some View {
         modifier(ImportLifecycle(submission: submission, presentationID: presentationID))
     }
 }

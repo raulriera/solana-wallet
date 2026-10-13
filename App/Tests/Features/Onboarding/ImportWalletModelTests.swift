@@ -8,7 +8,7 @@ import Wallet
 /// Exercises presentation orchestration with public fixtures and isolated existing stores.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
-struct ImportSubmissionTests {
+struct ImportWalletModelTests {
     private static let phrase = OnboardingCoordinatorTests.phrase
 
     /// Submission preserves the original passphrase and commits only once despite repeated taps/tasks,
@@ -19,7 +19,7 @@ struct ImportSubmissionTests {
         let accounts = OnboardingAccountStore(recovery: recovery)
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
-        let submission = ImportSubmission(coordinator: coordinator)
+        let submission = ImportWalletModel(coordinator: coordinator)
         let screen: any ImportSubmitting = submission
         submission.present()
         screen.submit(Self.phrase, passphrase: " TrEzOr ")
@@ -52,7 +52,7 @@ struct ImportSubmissionTests {
         let accounts = OnboardingAccountStore(recovery: recovery, firstError: OnboardingCoordinatorError.accountStorageFailed)
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: http.client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
-        let submission = ImportSubmission(coordinator: coordinator)
+        let submission = ImportWalletModel(coordinator: coordinator)
         submission.present()
         submission.submit(Self.phrase, passphrase: "TREZOR")
         await submission.run(submission.attempt)
@@ -80,7 +80,7 @@ struct ImportSubmissionTests {
         let accounts = OnboardingAccountStore(recovery: recovery, firstError: OnboardingCoordinatorError.accountStorageFailed)
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
-        let submission = ImportSubmission(coordinator: coordinator)
+        let submission = ImportWalletModel(coordinator: coordinator)
         submission.present()
         submission.submit(Self.phrase, passphrase: "TREZOR")
         await submission.run(submission.attempt)
@@ -106,7 +106,7 @@ struct ImportSubmissionTests {
         let router = WindowRouter(initialDestination: .onboarding)
         let wallet = OnboardingWallet(error: NSError(domain: "private-marker", code: 1))
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: wallet, recovery: recovery, accounts: accounts, router: router)
-        let submission = ImportSubmission(coordinator: coordinator)
+        let submission = ImportWalletModel(coordinator: coordinator)
         submission.present()
         submission.submit(Self.phrase, passphrase: "TREZOR")
         let attempt = try #require(submission.attempt)
@@ -132,7 +132,7 @@ struct ImportSubmissionTests {
         let accounts = OnboardingAccountStore(recovery: recovery)
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: http.client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
-        let submission = ImportSubmission(coordinator: coordinator)
+        let submission = ImportWalletModel(coordinator: coordinator)
         submission.present()
         submission.submit(Self.phrase, passphrase: "TREZOR")
 
@@ -150,7 +150,7 @@ struct ImportSubmissionTests {
         let accounts = OnboardingAccountStore(recovery: recovery)
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
-        let submission = ImportSubmission(coordinator: coordinator)
+        let submission = ImportWalletModel(coordinator: coordinator)
         submission.present()
         submission.submit(Self.phrase, passphrase: "TREZOR")
         let attempt = try #require(submission.attempt)

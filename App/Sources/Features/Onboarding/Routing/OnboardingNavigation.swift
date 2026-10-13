@@ -10,7 +10,7 @@ final class OnboardingNavigation {
         didSet {
             // Back must invalidate an in-flight import before SwiftUI delivers task cancellation.
             if oldValue.contains(.importWallet), !path.contains(.importWallet) {
-                importSubmission.isPresented = false
+                walletImport.isPresented = false
             }
         }
     }
@@ -31,22 +31,22 @@ final class OnboardingNavigation {
             if providers.path != routes { providers.path = routes }
         }
     }
-    private let importSubmission: ImportSubmission
+    private let walletImport: ImportWalletModel
     private let providers: ProvidersCoordinator
 
     /// Creates an empty path that keeps the window's import presentation and provider screens in step with navigation.
     /// - Parameters:
-    ///   - importSubmission: The window's import attempts, ended when phrase entry leaves the path.
+    ///   - walletImport: The window's import attempts, ended when phrase entry leaves the path.
     ///   - providers: The window's provider choice, whose pushed screens show above onboarding's steps.
-    init(importSubmission: ImportSubmission, providers: ProvidersCoordinator) {
-        self.importSubmission = importSubmission
+    init(walletImport: ImportWalletModel, providers: ProvidersCoordinator) {
+        self.walletImport = walletImport
         self.providers = providers
     }
 
     /// Pushes phrase entry once the import submission accepts a new presentation.
     func showImport() {
         guard path.isEmpty else { return }
-        importSubmission.present()
-        if importSubmission.isPresented { path = [.importWallet] }
+        walletImport.present()
+        if walletImport.isPresented { path = [.importWallet] }
     }
 }

@@ -26,7 +26,7 @@ struct OnboardingIdentityTests {
         let original = OnboardingScene(coordinator: coordinator, providers: providers, pasteboard: NoPasteboard())
         // Read only the public model references in initial State, never recovery or input text.
         let navigation: OnboardingNavigation = try initialState("_navigation", in: original)
-        let submission: ImportSubmission = try initialState("_importSubmission", in: original)
+        let submission: ImportWalletModel = try initialState("_walletImport", in: original)
         let rendered = AsyncStream<Int>.makeStream()
         let hosted = try HostedWindow(OnboardingIdentityRoot(scene: original, generation: 0,
                                                              rendered: rendered.continuation))
@@ -79,7 +79,7 @@ struct OnboardingIdentityTests {
 
     /// Awaits pending-state changes until the production view task has completely unwound.
     /// - Parameter submission: The retained import whose completion must precede storage assertions or cleanup.
-    private func waitForCompletion(_ submission: ImportSubmission) async {
+    private func waitForCompletion(_ submission: ImportWalletModel) async {
         while submission.isPending, !Task.isCancelled {
             let changed = AsyncStream<Void>.makeStream()
             withObservationTracking {
