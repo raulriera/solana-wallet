@@ -45,3 +45,16 @@ protocol OnboardingCoordinating: AnyObject, Observable {
     /// - Throws: An invalid-state error if work is still in progress.
     func discard() throws
 }
+
+extension OnboardingCoordinating {
+    /// Releases this window's draft, explaining a failure without its underlying error.
+    /// - Returns: ``OnboardingError/stillFinishing`` while work still holds the draft, or `nil` once it's released.
+    func releaseDraft() -> OnboardingError? {
+        do {
+            try discard()
+            return nil
+        } catch {
+            return .stillFinishing
+        }
+    }
+}

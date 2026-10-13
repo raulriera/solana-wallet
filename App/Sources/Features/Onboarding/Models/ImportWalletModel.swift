@@ -117,9 +117,6 @@ final class ImportWalletModel: ImportSubmitting {
 
     /// Releases references without deleting records or retaining underlying errors.
     private func discardDraft() {
-        do { try coordinator.discard() }
-        catch {
-            self.error = .stillFinishing
-        }
+        if let error = coordinator.releaseDraft() { self.error = error }
     }
 }
