@@ -163,6 +163,21 @@ struct SigningTests {
         #expect(await wallet.messages.count == (expiresDuringAuthentication ? 1 : 0))
     }
 
+    /// Verifies a review that expired reports its expiry even when its fee changed too, although both reads run together.
+    @Test
+    func `An expired review reports its expiry before a changed fee`() async throws {
+        let fixture = try SigningFixture()
+        let http = try HTTPResponses.signing(heights: [551], fee: 11_000)
+        let store = SigningRecoveryStore(recovery: fixture.recovery)
+        let signer = Signer(rpc: http.client, store: store)
+
+        await #expect(throws: PreparationValidatorError.expired) {
+            try await signer.sign(fixture.preparation, for: fixture.account, reason: "Approve transfer")
+        }
+
+        #expect(await store.reads.isEmpty)
+    }
+
     /// Verifies changed or unavailable fees require another review before authentication.
     ///
     /// - Parameter fee: The fee now reported by the provider.

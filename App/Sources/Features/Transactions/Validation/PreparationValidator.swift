@@ -37,14 +37,17 @@ nonisolated struct PreparationValidator: PreparationValidating {
 
     /// Checks the exact reviewed transaction before an operation with external effects.
     ///
+    /// The lifetime and fee reads run together; an expired lifetime is reported before a changed fee.
     /// - Parameter preparation: The review whose metadata, lifetime, and fee to verify.
     /// - Throws: A prerequisite, RPC, or cancellation error without substituting new bytes.
     @concurrent
     func validate(_ preparation: Preparation) async throws {
         try Task.checkCancellation()
         try validateReview(preparation)
-        try await validateLifetime(preparation)
-        let fee = try await rpc.send(GetFeeForMessage(message: preparation.message, minContextSlot: preparation.minimumSlot))
+        async let lifetime: Void = validateLifetime(preparation)
+        async let currentFee = rpc.send(GetFeeForMessage(message: preparation.message,
+                                                         minContextSlot: preparation.minimumSlot))
+        let (_, fee) = try await (lifetime, currentFee)
         try Task.checkCancellation()
         guard fee.context.slot >= preparation.minimumSlot,
               fee.value == preparation.fee.value else { throw PreparationValidatorError.feeChanged }
