@@ -156,7 +156,7 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
         }
         let signed = try await signed(simulation)
         guard let signature = signed.signature else { throw SubmitterError.missingSignatures }
-        let receipt = Submission(signature: signature, network: signed.preparation.network)
+        let receipt = Submission(signature: signature, preparation: signed.preparation)
         do {
             let submission = try await submitter.submit(signed)
             return try await confirmer.confirm(submission)
@@ -242,8 +242,8 @@ nonisolated struct Simulation: Sendable {
     var fee: UInt64? { preparation.fee.value }
     /// The original local block-height expiry, or `nil` for imported recent blockhashes.
     var lastValidBlockHeight: UInt64? {
-        guard case .local(_, _, _, let blockhash) = preparation.source else { return nil }
-        return blockhash.value.lastValidBlockHeight
+        guard case .local = preparation.source else { return nil }
+        return preparation.source.lastValidBlockHeight
     }
     /// The final RPC simulation, retaining execution failures and their diagnostics.
     var diagnostics: SimulateTransaction.Response { preparation.simulation }

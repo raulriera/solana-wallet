@@ -40,12 +40,14 @@ enum ExternalFixture {
 
     /// Creates external review observations without performing network or wallet access.
     ///
+    /// The blockhash was valid at slot 400, where the confirmed block height was 500.
+    ///
     /// - Parameter hasPayerSignature: Whether the independent payer signature is present.
     /// - Returns: Typed observations encoded by the HTTP fixtures.
     /// - Throws: A fixture or structural decoding error.
     static func preparation(hasPayerSignature: Bool = true) throws -> Preparation {
         let observations = try PreparationFixture.preparation(fee: 15_000)
-        return Preparation(source: .external(Context(slot: 400)), signer: try Address(signer),
+        return Preparation(source: .external(Context(slot: 400), lastValidBlockHeight: 650), signer: try Address(signer),
                            transaction: try TransactionDecoder().decode(unsigned(hasPayerSignature: hasPayerSignature)),
                            network: .devnet, fee: observations.fee, simulation: observations.simulation)
     }

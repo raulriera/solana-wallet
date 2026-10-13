@@ -42,7 +42,7 @@ nonisolated struct Submitter: TransactionSubmitting {
     /// settle, succeeds if any RPC acknowledges the signature, and owns all cancellation.
     ///
     /// - Parameter signed: The exact approved result of the signing workflow.
-    /// - Returns: A plain receipt with the accepted signature and network.
+    /// - Returns: A plain receipt with the accepted signature, network, and blockhash expiry.
     /// - Throws: A prerequisite, signature, RPC, acknowledgment, or cancellation error.
     @concurrent
     func submit(_ signed: SignedTransaction) async throws -> Submission {
@@ -91,6 +91,6 @@ nonisolated struct Submitter: TransactionSubmitting {
         guard errors.count < rpcs.count else {
             throw Rejection(signature: signature, network: signed.preparation.network, errors: errors)
         }
-        return Submission(signature: signature, network: signed.preparation.network)
+        return Submission(signature: signature, preparation: signed.preparation)
     }
 }

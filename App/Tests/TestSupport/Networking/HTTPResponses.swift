@@ -60,6 +60,9 @@ actor HTTPResponses: HTTPTransport {
     }
 
     /// Creates fee, lifetime, and simulation responses from a public transaction fixture.
+    ///
+    /// An external fixture's confirmed block height is 150 below its expiry bound.
+    ///
     /// - Parameters:
     ///   - fixture: The observations to encode as JSON.
     ///   - blockhashError: An optional HTTP failure.
@@ -74,9 +77,12 @@ actor HTTPResponses: HTTPTransport {
             "getFeeForMessage": [try json(["context": ["slot": fixture.fee.context.slot], "value": fixture.fee.value as Any? ?? NSNull()])],
             "simulateTransaction": [try simulation(fixture.simulation)],
         ]
-        if case .local(_, _, _, let blockhash) = fixture.source {
+        switch fixture.source {
+        case .local(_, _, _, let blockhash):
             responses["getLatestBlockhash"] = [try json(["context": ["slot": blockhash.context.slot],
                 "value": ["blockhash": blockhash.value.blockhash, "lastValidBlockHeight": blockhash.value.lastValidBlockHeight]])]
+        case .external(_, let lastValidBlockHeight):
+            responses["getBlockHeight"] = [String(lastValidBlockHeight - 150)]
         }
         return HTTPResponses(responses, error: blockhashError, gate: simulationGate, heldMethod: "simulateTransaction")
     }

@@ -47,6 +47,21 @@ struct SubmissionTests {
         #expect(await mismatched.requests.count == 1)
     }
 
+    /// Verifies the receipt keeps the reviewed blockhash expiry of a locally composed transaction.
+    @Test
+    func `A local receipt carries the reviewed last valid block height`() async throws {
+        let fixture = try SigningFixture()
+        let checks = try HTTPResponses.signing()
+        let signed = try await Signer(rpc: checks.client, store: SigningRecoveryStore(recovery: fixture.recovery))
+            .sign(fixture.preparation, for: fixture.account, reason: "Approve transaction")
+        let signature = try #require(signed.signature)
+        let accepted = HTTPResponses(["sendTransaction": [try HTTPResponses.json(signature)]])
+
+        let receipt = try await Submitter(rpc: checks.client, rpcs: [accepted.client]).submit(signed)
+
+        #expect(receipt == Submission(signature: signature, network: .devnet, lastValidBlockHeight: 550))
+    }
+
     /// Verifies 0.001 SOL reaches the configured recipient, where it stays.
     @Test(.timeLimit(.minutes(3)))
     func `Devnet submission delivers 0.001 SOL to the configured recipient`() async throws {
@@ -172,7 +187,10 @@ struct SubmissionTests {
         for rpc in rpcs {
             do {
                 let signature = try await rpc.send(Airdrop(address: address))
-                let receipt = Submission(signature: signature, network: .devnet)
+                // The faucet chose its blockhash before answering; the margin covers a node behind it.
+                let blockhash = try await rpc.send(GetLatestBlockhash(commitment: .processed))
+                let receipt = Submission(signature: signature, network: .devnet,
+                                         lastValidBlockHeight: blockhash.value.lastValidBlockHeight + 150)
                 let confirmation = try await Confirmer(rpc: rpc).confirm(receipt)
                 if confirmation.outcome == .succeeded { return }
             } catch is CancellationError {

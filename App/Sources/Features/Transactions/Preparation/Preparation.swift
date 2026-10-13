@@ -10,14 +10,22 @@ nonisolated struct Preparation: Sendable {
     enum Source: Sendable {
         /// Ordered local instructions, their fee payer, resource requests, and original expiry.
         case local([Instruction], Address, Configuration, GetLatestBlockhash.Response)
-        /// Externally supplied bytes whose recent blockhash was checked at this context.
-        case external(Context)
+        /// Externally supplied bytes whose recent blockhash was checked at this context, with an upper bound on its expiry.
+        case external(Context, lastValidBlockHeight: UInt64)
 
         /// The baseline context for fee estimation, simulation, and subsequent validation.
         var context: Context {
             switch self {
             case .local(_, _, _, let blockhash): blockhash.context
-            case .external(let context): context
+            case .external(let context, _): context
+            }
+        }
+
+        /// The last block height at which the blockhash is valid; an upper bound for external bytes.
+        var lastValidBlockHeight: UInt64 {
+            switch self {
+            case .local(_, _, _, let blockhash): blockhash.value.lastValidBlockHeight
+            case .external(_, let lastValidBlockHeight): lastValidBlockHeight
             }
         }
     }

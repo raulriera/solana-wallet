@@ -39,7 +39,7 @@ struct ExternalTransactionTests {
         #expect(signed.signatures.allSatisfy { $0.contains(where: { $0 != 0 }) } == hasPayerSignature)
         #expect(await store.reads.count == 1)
         let requests = await preparationHTTP.requests
-        #expect(requests.count == 3)
+        #expect(requests.count == 4)
         let validity = try #require(requests.first).rpcParameters
         #expect(validity[0] as? String == expected.transaction.lifetimeSpecifier)
         let simulation = try #require(requests.first { try $0.rpcMethod == "simulateTransaction" }).rpcParameters
@@ -51,6 +51,49 @@ struct ExternalTransactionTests {
             #expect(parameters[0] as? String == expected.transaction.lifetimeSpecifier)
             #expect((parameters[1] as? [String: Any])?["minContextSlot"] as? Int == 402)
         }
+    }
+
+    /// Verifies an imported receipt expires 150 blocks after the confirmed height where its blockhash was valid,
+    /// while the review shows no expiry because that bound isn't the blockhash's own.
+    @Test
+    func `An imported receipt expires 150 blocks after the confirmed block height`() async throws {
+        let expected = try ExternalFixture.preparation()
+        let preparationHTTP = try HTTPResponses.preparation(fixture: expected)
+        let signingHTTP = try HTTPResponses.signing(fee: 15_000)
+        let store = SigningRecoveryStore(recovery: try SigningFixture().recovery)
+        let coordinator = TransactionCoordinator(rpc: preparationHTTP.client, preparer: Preparer(rpc: preparationHTTP.client),
+            signer: Signer(rpc: signingHTTP.client, store: store), submitter: Submitter(rpc: signingHTTP.client, rpcs: []),
+            confirmer: Confirmer(rpc: signingHTTP.client))
+
+        let simulation = try await coordinator.simulate(expected.transaction, using: SigningFixture().account)
+
+        #expect(simulation.lastValidBlockHeight == nil)
+        let error = try await #require(throws: DeliveryError.self) {
+            try await coordinator.confirm(simulation)
+        }
+        #expect(error.submission.lastValidBlockHeight == 650)
+        let requests = await preparationHTTP.requests
+        #expect(try requests.prefix(2).map { try $0.rpcMethod } == ["isBlockhashValid", "getBlockHeight"])
+        let height = try #require(requests.first { try $0.rpcMethod == "getBlockHeight" })
+        let options = try #require(height.rpcParameters.first as? [String: Any])
+        #expect(options["commitment"] as? String == "confirmed")
+        #expect(options["minContextSlot"] as? Int == 400)
+    }
+
+    /// Verifies a block height with no representable expiry bound cannot produce a review.
+    @Test
+    func `An imported review rejects a block height without a representable expiry`() async throws {
+        let expected = try ExternalFixture.preparation()
+        let http = HTTPResponses([
+            "isBlockhashValid": [try HTTPResponses.json(["context": ["slot": 400], "value": true])],
+            "getBlockHeight": [String(UInt64.max)],
+        ])
+
+        await #expect(throws: PreparerError.inconsistentResponse) {
+            try await Preparer(rpc: http.client).prepare(expected.transaction, for: expected.signer)
+        }
+
+        #expect(try await http.requests.map { try $0.rpcMethod } == ["isBlockhashValid", "getBlockHeight"])
     }
 
     /// Verifies malformed authority cannot reach provider work or produce a review.

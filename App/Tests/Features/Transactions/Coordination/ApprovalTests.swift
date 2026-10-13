@@ -85,9 +85,9 @@ struct ApprovalTests {
         #expect(await store.reads.count == 1)
     }
 
-    /// Verifies failure after signing doesn't hide the identifier needed to reconcile delivery.
+    /// Verifies failure after signing doesn't hide the receipt needed to reconcile delivery.
     @Test
-    func `A delivery failure retains the signed transaction identifier and original cause`() async throws {
+    func `A delivery failure retains the signed transaction receipt, its expiry, and the original cause`() async throws {
         let fixture = try SigningFixture()
         let http = try HTTPResponses.signing()
         let store = SigningRecoveryStore(recovery: fixture.recovery)
@@ -99,13 +99,13 @@ struct ApprovalTests {
         )
         let review = try await coordinator.simulate([fixture.transfer],
             using: fixture.account)
-        await #expect {
+        let error = try await #require(throws: DeliveryError.self) {
             try await coordinator.confirm(review)
-        } throws: { error in
-            guard let delivery = error as? DeliveryError else { return false }
-            return delivery.submission.network == .devnet && !delivery.submission.signature.isEmpty
-                && (delivery.cause as? SubmitterError) == .noProviders
         }
+        #expect(error.submission.network == .devnet)
+        #expect(error.submission.signature.isEmpty == false)
+        #expect(error.submission.lastValidBlockHeight == 550)
+        #expect((error.cause as? SubmitterError) == .noProviders)
         #expect(await store.reads.count == 1)
     }
 }

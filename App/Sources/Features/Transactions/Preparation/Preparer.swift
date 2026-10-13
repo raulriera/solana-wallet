@@ -91,10 +91,13 @@ nonisolated struct Preparer: TransactionPreparing {
 
     /// Validates an imported transaction and its blockhash without accessing protected recovery.
     ///
+    /// A valid blockhash expires at most 150 blocks after the current height, so the
+    /// confirmed height at or after the validity context plus 150 bounds the transaction's expiry.
+    ///
     /// - Parameters:
     ///   - imported: The typed transaction supplied by the import boundary.
     ///   - signer: The account whose required signature slot must be empty.
-    /// - Returns: The unchanged transaction and network observations available for review.
+    /// - Returns: The unchanged transaction, its expiry bound, and network observations available for review.
     /// - Throws: A validation, blockhash, RPC, or cancellation error.
     @concurrent
     func prepare(_ imported: Transaction, for signer: Address) async throws -> Preparation {
@@ -105,7 +108,12 @@ nonisolated struct Preparer: TransactionPreparing {
         let validity = try await rpc.send(IsBlockhashValid(blockhash: transaction.lifetimeSpecifier))
         try Task.checkCancellation()
         guard validity.value else { throw PreparerError.invalidBlockhash }
-        return try await evaluate(transaction, source: .external(validity.context), signer: signer, network: network)
+        let height = try await rpc.send(GetBlockHeight(commitment: .confirmed, minContextSlot: validity.context.slot))
+        try Task.checkCancellation()
+        let (lastValidBlockHeight, overflow) = height.addingReportingOverflow(150)
+        guard !overflow else { throw PreparerError.inconsistentResponse }
+        return try await evaluate(transaction, source: .external(validity.context, lastValidBlockHeight: lastValidBlockHeight),
+                                  signer: signer, network: network)
     }
 
     /// Retrieves the fee and final simulation concurrently.

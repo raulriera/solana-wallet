@@ -4,7 +4,7 @@ nonisolated enum PreparerError: Error, Sendable, Equatable {
     case invalidBlockhash
     /// The selected submission service requires a larger reviewed priority fee.
     case priorityFeeTooLow(minimumLamports: UInt64)
-    /// Provider observations conflict with the requested ledger context or exact message.
+    /// Provider observations conflict with the requested ledger context or exact message, or are out of range.
     case inconsistentResponse
     /// The provider omitted the resource usage needed to estimate V1 limits.
     case resourceUsageUnavailable

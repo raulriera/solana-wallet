@@ -5,7 +5,7 @@ import Testing
 
 /// Verifies observed execution separately from submission and unresolved status.
 struct ConfirmationTests {
-    private let submission = Submission(signature: ExternalFixture.signature, network: .devnet)
+    private let submission = Submission(signature: ExternalFixture.signature, network: .devnet, lastValidBlockHeight: 650)
 
     /// Verifies missing and provisional statuses don't produce a successful confirmation.
     ///
@@ -64,7 +64,9 @@ struct ConfirmationTests {
         let http = try HTTPResponses.confirmation(responses: [])
 
         await #expect(throws: ConfirmerError.networkMismatch) {
-            try await Confirmer(rpc: http.client).confirm(Submission(signature: submission.signature, network: .mainnet))
+            try await Confirmer(rpc: http.client).confirm(Submission(
+                signature: submission.signature, network: .mainnet, lastValidBlockHeight: submission.lastValidBlockHeight
+            ))
         }
 
         #expect(await http.requests.isEmpty)
