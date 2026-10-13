@@ -47,10 +47,13 @@ struct TokenLookupTests {
         #expect(preview.token == ListedToken(mint: mint, program: .token, decimals: 6, symbol: nil, name: nil))
     }
 
-    /// Verifies addresses that aren't fungible token mints are refused before they can reach a list.
-    /// - Parameter refusal: The kind of address pasted.
-    @Test(arguments: Refusal.allCases)
-    func `Addresses that aren't fungible token mints are refused`(_ refusal: Refusal) async throws {
+    /// Verifies addresses that aren't fungible token mints are refused before they can reach a list, including while a
+    /// provider with logo copies looks up the address's logo.
+    /// - Parameters:
+    ///   - refusal: The kind of address pasted.
+    ///   - helius: Whether the provider also looks up logos.
+    @Test(arguments: Refusal.allCases, [false, true])
+    func `Addresses that aren't fungible token mints are refused`(_ refusal: Refusal, helius: Bool) async throws {
         let mint = try Address(usdcMint)
         let account: Account? = switch refusal {
         case .missing: nil
@@ -62,8 +65,10 @@ struct TokenLookupTests {
         }
         let http = LookupResponses(accounts: account.map { [usdcMint: $0] } ?? [:])
 
+        let rpc: any RPC = helius ? http.heliusClient : http.client
+
         await #expect(throws: refusal == .nft ? TokenLookupError.nonFungible : .notToken) {
-            try await Portfolio(rpc: http.client).token(at: mint)
+            try await Portfolio(rpc: rpc).token(at: mint)
         }
     }
 

@@ -7,13 +7,15 @@ struct TokenLookup: Sendable {
     let rpc: any RPC
     let logos: (any LogoProviding)?
 
-    /// Reads a mint and its Metaplex metadata account with one request, then adds the provider's logo.
+    /// Reads a mint and its Metaplex metadata account with one request while the provider looks up the logo.
     ///
+    /// The logo lookup needs only the mint, so an address that isn't a token still costs one lookup.
     /// - Parameter mint: The pasted mint address.
     /// - Returns: The token with its on-chain name and symbol, and its logo when the provider has one.
     /// - Throws: ``TokenLookupError`` when the address isn't a fungible token mint, or a validation or RPC error.
     @concurrent
     func preview(of mint: Address) async throws -> TokenPreview {
+        async let logoLookup = logos?.logos(for: [mint.value])
         let accounts = try await rpc.accounts(at: [mint, TokenMetadata.metaplexAccount(for: mint)])
         guard let account = accounts[0], let owner = try? Address(account.owner),
               let tokenMint = try? TokenMint(address: mint, owner: owner, data: account.data) else {
@@ -28,7 +30,7 @@ struct TokenLookup: Sendable {
         let token = ListedToken(mint: mint, program: tokenMint.program, decimals: tokenMint.decimals,
                                 symbol: metadata?.symbol, name: metadata?.name)
         // A logo is decoration: a failed lookup leaves the preview without one.
-        let logo = try? await logos?.logos(for: [mint.value])[mint.value]
+        let logo = (try? await logoLookup)?[mint.value]
         try Task.checkCancellation()
         return TokenPreview(token: token, logo: logo)
     }
