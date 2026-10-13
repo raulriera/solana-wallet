@@ -39,15 +39,18 @@ struct ConfirmationTests {
 
         #expect(confirmation == Confirmation(submission: submission, slot: nil, outcome: outcome))
         let requests = await http.requests
-        try #require(try requests.map { try $0.rpcMethod } == ["getSignatureStatuses", "getEpochInfo"])
-        #expect(try requests[0].rpcParameters[0] as? [String] == [submission.signature])
-        #expect(try (requests[0].rpcParameters[1] as? [String: Bool])?["searchTransactionHistory"] == true)
-        #expect(try (requests[1].rpcParameters[0] as? [String: Any])?["commitment"] as? String == "finalized")
+        try #require(requests.count == 2)
+        let statusRead = try #require(requests.first { try $0.rpcMethod == "getSignatureStatuses" })
+        let epochRead = try #require(requests.first { try $0.rpcMethod == "getEpochInfo" })
+        #expect(try statusRead.rpcParameters[0] as? [String] == [submission.signature])
+        #expect(try (statusRead.rpcParameters[1] as? [String: Bool])?["searchTransactionHistory"] == true)
+        #expect(try (epochRead.rpcParameters[0] as? [String: Any])?["commitment"] as? String == "finalized")
         #expect(sockets.sockets.count == 1)
         await sockets.waitUntilClosed()
     }
 
-    /// Verifies the status read after subscribing settles a transaction that landed before the subscription started.
+    /// Verifies the status read after subscribing settles a transaction that landed before the subscription started,
+    /// without waiting for the expiry check that runs alongside it.
     /// - Parameters:
     ///   - error: The finalized execution failure, if any.
     ///   - outcome: The expected outcome.
@@ -58,13 +61,14 @@ struct ConfirmationTests {
     func `A catch-up read settles a transaction that landed before the subscription`(
         error: TransactionError?, outcome: widgets.Confirmation.Outcome
     ) async throws {
-        let http = try HTTPResponses.confirmation(statuses: [response(status(.finalized, error: error))])
+        let http = try HTTPResponses.confirmation(statuses: [response(status(.finalized, error: error))],
+                                                  epochs: [epoch(slot: 1_000, height: 600)])
         let sockets = SocketSequence()
 
         let confirmation = try await confirmer(http, sockets).confirm(submission)
 
         #expect(confirmation == Confirmation(submission: submission, slot: 405, outcome: outcome))
-        #expect(try await http.requests.map { try $0.rpcMethod } == ["getSignatureStatuses"])
+        #expect(try await reads(of: http)["getSignatureStatuses"] == 1)
         #expect(sockets.sockets.count == 1)
         await sockets.waitUntilClosed()
     }
@@ -82,7 +86,7 @@ struct ConfirmationTests {
         let confirmation = try await confirmer(http, sockets).confirm(submission)
 
         #expect(confirmation == Confirmation(submission: submission, slot: nil, outcome: .succeeded))
-        #expect(try await http.requests.map { try $0.rpcMethod } == ["getSignatureStatuses", "getEpochInfo"])
+        #expect(try await reads(of: http) == ["getSignatureStatuses": 1, "getEpochInfo": 1])
     }
 
     /// Verifies roots read the finalized block height only from the slot at which it can first pass the expiry,
@@ -100,9 +104,7 @@ struct ConfirmationTests {
         #expect(confirmation == Confirmation(submission: submission, slot: nil, outcome: .dropped))
         // Roots 1,010, 1,050, and 1,061 read nothing; root 1,051 reads the epoch, and root 1,062 settles the watch.
         #expect(reads == [2, 2, 2, 3, 3])
-        #expect(try await http.requests.map { try $0.rpcMethod } == [
-            "getSignatureStatuses", "getEpochInfo", "getEpochInfo", "getEpochInfo", "getSignatureStatuses",
-        ])
+        #expect(try await self.reads(of: http) == ["getSignatureStatuses": 2, "getEpochInfo": 3])
     }
 
     /// Verifies a root ahead of the finalized slot schedules the next check from that root, so later roots cause no reads.
@@ -120,7 +122,7 @@ struct ConfirmationTests {
         let confirmation = try await confirmer(http, sockets).confirm(submission)
 
         #expect(confirmation.outcome == .succeeded)
-        #expect(try await http.requests.map { try $0.rpcMethod } == ["getSignatureStatuses", "getEpochInfo", "getEpochInfo"])
+        #expect(try await reads(of: http) == ["getSignatureStatuses": 1, "getEpochInfo": 2])
     }
 
     /// Verifies a status found after the blockhash expired settles the watch with that status's outcome.
@@ -133,9 +135,7 @@ struct ConfirmationTests {
         let confirmation = try await confirmer(http, sockets).confirm(submission)
 
         #expect(confirmation == Confirmation(submission: submission, slot: 405, outcome: .failed(Self.instructionError)))
-        #expect(try await http.requests.map { try $0.rpcMethod } == [
-            "getSignatureStatuses", "getEpochInfo", "getEpochInfo", "getSignatureStatuses",
-        ])
+        #expect(try await reads(of: http) == ["getSignatureStatuses": 2, "getEpochInfo": 2])
     }
 
     /// Verifies a status read from a node behind the expiry slot is read again only once roots cover the slots it lags.
@@ -150,9 +150,7 @@ struct ConfirmationTests {
         #expect(confirmation == Confirmation(submission: submission, slot: nil, outcome: .dropped))
         // Root 1,060 reads nothing.
         #expect(reads == [2, 4, 4])
-        #expect(try await http.requests.map { try $0.rpcMethod } == [
-            "getSignatureStatuses", "getEpochInfo", "getEpochInfo", "getSignatureStatuses", "getSignatureStatuses",
-        ])
+        #expect(try await self.reads(of: http) == ["getSignatureStatuses": 3, "getEpochInfo": 2])
     }
 
     /// Verifies a status that isn't finalized after the blockhash expired keeps the watch open, the next root reads it
@@ -168,9 +166,7 @@ struct ConfirmationTests {
         #expect(confirmation == Confirmation(submission: submission, slot: nil, outcome: .dropped))
         // The watch waits for root 1,052 before it reads the status again.
         #expect(reads == [2, 4])
-        #expect(try await http.requests.map { try $0.rpcMethod } == [
-            "getSignatureStatuses", "getEpochInfo", "getEpochInfo", "getSignatureStatuses", "getSignatureStatuses",
-        ])
+        #expect(try await self.reads(of: http) == ["getSignatureStatuses": 3, "getEpochInfo": 2])
     }
 
     /// Verifies checks due past the largest slot saturate instead of overflowing, so the watch continues until the landing.
@@ -178,15 +174,15 @@ struct ConfirmationTests {
     ///   - lastValidBlockHeight: The receipt's last valid block height.
     ///   - slot: The finalized slot of the epoch read.
     ///   - height: The finalized block height of the epoch read.
-    ///   - methods: The expected HTTP reads.
+    ///   - methods: The expected HTTP reads by method.
     @Test(.timeLimit(.minutes(1)), arguments: [
         // At height 0, the remaining heights put the next check past the largest slot.
-        (UInt64.max, UInt64(1_000), UInt64(0), ["getSignatureStatuses", "getEpochInfo"]),
+        (UInt64.max, UInt64(1_000), UInt64(0), ["getSignatureStatuses": 1, "getEpochInfo": 1]),
         // The blockhash expired at the largest slot; the final read is from slot 2,000, so the next one waits past it.
-        (650, .max, 651, ["getSignatureStatuses", "getEpochInfo", "getSignatureStatuses"]),
+        (650, .max, 651, ["getSignatureStatuses": 2, "getEpochInfo": 1]),
     ])
     func `Checks due past the largest slot keep watching until the landing`(
-        lastValidBlockHeight: UInt64, slot: UInt64, height: UInt64, methods: [String]
+        lastValidBlockHeight: UInt64, slot: UInt64, height: UInt64, methods: [String: Int]
     ) async throws {
         let receipt = Submission(signature: submission.signature, network: .devnet, lastValidBlockHeight: lastValidBlockHeight)
         let http = try HTTPResponses.confirmation(statuses: [response(nil)], epochs: [epoch(slot: slot, height: height)])
@@ -197,7 +193,22 @@ struct ConfirmationTests {
         let confirmation = try await confirmer(http, sockets).confirm(receipt)
 
         #expect(confirmation == Confirmation(submission: receipt, slot: nil, outcome: .succeeded))
-        #expect(try await http.requests.map { try $0.rpcMethod } == methods)
+        #expect(try await reads(of: http) == methods)
+        await sockets.waitUntilClosed()
+    }
+
+    /// Verifies that when the first expiry check finds the blockhash expired, a catch-up read from the expiry slot or later
+    /// proves the drop without another status read.
+    @Test(.timeLimit(.minutes(1)))
+    func `A catch-up read past an expiry found alongside it proves a drop`() async throws {
+        let http = try HTTPResponses.confirmation(statuses: [response(nil, at: 1_060)],
+                                                  epochs: [epoch(slot: 1_051, height: 651)])
+        let sockets = SocketSequence()
+
+        let confirmation = try await confirmer(http, sockets).confirm(submission)
+
+        #expect(confirmation == Confirmation(submission: submission, slot: nil, outcome: .dropped))
+        #expect(try await reads(of: http) == ["getSignatureStatuses": 1, "getEpochInfo": 1])
         await sockets.waitUntilClosed()
     }
 
@@ -205,8 +216,10 @@ struct ConfirmationTests {
     /// and that a first read behind the expiry slot waits for roots past that slot, not for the first root.
     @Test(.timeLimit(.minutes(1)))
     func `A reconnection after expiry settles the watch with one status read`() async throws {
-        // The first final read comes from slot 1,041, 10 slots behind expiry slot 1,051, so roots before 1,061 cause no reads.
-        let http = try HTTPResponses.confirmation(statuses: [response(nil), response(nil, at: 1_041), response(nil, at: 1_051)],
+        // The catch-up read from slot 1,000 can't prove the drop at expiry slot 1,051, and the final read comes from
+        // slot 1,041, 10 slots behind it, so roots before 1,061 cause no reads.
+        let http = try HTTPResponses.confirmation(statuses: [response(nil, at: 1_000), response(nil, at: 1_041),
+                                                             response(nil, at: 1_051)],
                                                   epochs: [epoch(slot: 1_051, height: 651)])
         let sockets = SocketSequence { connection in
             guard connection == 0 else { return SocketSequence.watch() }
@@ -223,9 +236,7 @@ struct ConfirmationTests {
         #expect(waits.withLock(\.self) == [.seconds(2)])
         #expect(sockets.sockets.count == 2)
         await sockets.waitUntilClosed()
-        #expect(try await http.requests.map { try $0.rpcMethod } == [
-            "getSignatureStatuses", "getEpochInfo", "getSignatureStatuses", "getSignatureStatuses",
-        ])
+        #expect(try await reads(of: http) == ["getSignatureStatuses": 3, "getEpochInfo": 1])
     }
 
     /// Verifies a lost connection reconnects after two seconds and catches up on a landing it missed.
@@ -248,7 +259,8 @@ struct ConfirmationTests {
         #expect(waits.withLock(\.self) == [.seconds(2)])
         #expect(sockets.sockets.count == 2)
         await sockets.waitUntilClosed()
-        #expect(try await http.requests.map { try $0.rpcMethod } == ["getSignatureStatuses", "getEpochInfo", "getSignatureStatuses"])
+        // The second connection's catch-up read settles the watch, whether or not its expiry check was sent.
+        #expect(try await reads(of: http)["getSignatureStatuses"] == 2)
     }
 
     /// Verifies reconnection waits double up to a minute after each failed attempt and reset after a subscription and
@@ -276,7 +288,8 @@ struct ConfirmationTests {
         #expect(waits.withLock(\.self) == [2, 4, 8, 16, 32, 60, 60, 2, 4].map { Duration.seconds($0) })
         #expect(sockets.sockets.count == 10)
         await sockets.waitUntilClosed()
-        #expect(try await http.requests.map { try $0.rpcMethod } == ["getSignatureStatuses", "getEpochInfo", "getSignatureStatuses"])
+        // The second connection's catch-up read settles the watch, whether or not its expiry check was sent.
+        #expect(try await reads(of: http)["getSignatureStatuses"] == 2)
     }
 
     /// Verifies a connection that delivers no root for thirty seconds counts as lost and reconnects.
@@ -298,7 +311,8 @@ struct ConfirmationTests {
         #expect(waits.withLock(\.self) == [.seconds(2)])
         #expect(sockets.sockets.count == 2)
         await sockets.waitUntilClosed()
-        #expect(try await http.requests.map { try $0.rpcMethod } == ["getSignatureStatuses", "getEpochInfo", "getSignatureStatuses"])
+        // The second connection's catch-up read settles the watch, whether or not its expiry check was sent.
+        #expect(try await reads(of: http)["getSignatureStatuses"] == 2)
     }
 
     /// Verifies a server or transport error reconnects instead of throwing, whether it answers the subscription,
@@ -307,17 +321,17 @@ struct ConfirmationTests {
     ///   - readError: The recoverable failure that the failing reads return, or `nil` when the subscriptions fail.
     ///   - failingMethod: The only read that fails, or `nil` when every read fails.
     ///   - connection: The responder for every connection, which fails or acknowledges the subscriptions.
-    ///   - reads: The expected HTTP reads.
+    ///   - statusReads: The expected status reads; each connection's expiry check runs alongside its status read.
     @Test(.timeLimit(.minutes(1)), arguments: [
         (RPCError?.none, String?.none, SocketSequence.failing(with: Self.unavailable), 0),
         (nil, nil, SocketSequence.failing(with: RPCError.transport(.timedOut)), 0),
         // A subscription whose first reads fail doesn't reset the wait, whether the status read or the expiry check fails.
         (Self.unavailable, nil, SocketSequence.watch(), 2),
         (.transport(.timedOut), nil, SocketSequence.watch(), 2),
-        (Self.unavailable, "getEpochInfo", SocketSequence.watch(), 4),
+        (Self.unavailable, "getEpochInfo", SocketSequence.watch(), 2),
     ])
     func `A server or transport error reconnects instead of throwing`(
-        readError: RPCError?, failingMethod: String?, connection: @escaping SocketFixture.Responder, reads: Int
+        readError: RPCError?, failingMethod: String?, connection: @escaping SocketFixture.Responder, statusReads: Int
     ) async throws {
         let held = Suspension()
         let http = try HTTPResponses.confirmation(statuses: [response(nil)], error: readError, failingMethod: failingMethod)
@@ -337,7 +351,7 @@ struct ConfirmationTests {
         #expect(waits.withLock(\.self) == [.seconds(2), .seconds(4)])
         #expect(sockets.sockets.count == 2)
         await sockets.waitUntilClosed()
-        #expect(await http.requests.count == reads)
+        #expect(try await reads(of: http)["getSignatureStatuses", default: 0] == statusReads)
     }
 
     /// Verifies a rate limit or a rejected key stops the watch without reconnecting, and the coordinator keeps the receipt.
@@ -345,7 +359,7 @@ struct ConfirmationTests {
     ///   - refusal: The provider's refusal, which the delivery error keeps.
     ///   - readError: The refusal when it answers the status read, or `nil` when it answers the subscription.
     ///   - connection: The responder for the connection, which refuses or acknowledges the subscriptions.
-    ///   - reads: The expected HTTP reads.
+    ///   - statusReads: The expected status reads; the expiry check runs alongside the status read.
     @Test(.timeLimit(.minutes(1)), arguments: [
         (Self.rateLimit, RPCError?.none, SocketSequence.failing(with: Self.rateLimit), 0),
         (Self.rejectedKey, nil, SocketSequence.failing(with: Self.rejectedKey), 0),
@@ -353,7 +367,7 @@ struct ConfirmationTests {
         (Self.rejectedKey, Self.rejectedKey, SocketSequence.watch(), 1),
     ])
     func `A rate limit or rejected key stops the watch with the receipt`(
-        refusal: RPCError, readError: RPCError?, connection: @escaping SocketFixture.Responder, reads: Int
+        refusal: RPCError, readError: RPCError?, connection: @escaping SocketFixture.Responder, statusReads: Int
     ) async throws {
         let http = try HTTPResponses.confirmation(statuses: [], error: readError)
         let sockets = SocketSequence { _ in connection }
@@ -365,7 +379,7 @@ struct ConfirmationTests {
 
         #expect(delivery.submission == submission)
         #expect(delivery.cause as? RPCError == refusal)
-        #expect(await http.requests.count == reads)
+        #expect(try await reads(of: http)["getSignatureStatuses", default: 0] == statusReads)
         #expect(sockets.sockets.count == 1)
         await sockets.waitUntilClosed()
         #expect(await store.reads.isEmpty)
@@ -396,13 +410,16 @@ struct ConfirmationTests {
     /// Verifies the coordinator watches a receipt through its confirmer alone, without reading recovery or sending.
     @Test(.timeLimit(.minutes(1)))
     func `A coordinator confirms a receipt without reading recovery or sending`() async throws {
-        let http = try HTTPResponses.confirmation(statuses: [response(status(.finalized))])
+        let http = try HTTPResponses.confirmation(statuses: [response(status(.finalized))],
+                                                  epochs: [epoch(slot: 1_000, height: 600)])
         let store = SigningRecoveryStore(recovery: try SigningFixture().recovery)
 
         let confirmation = try await coordinator(over: http, sockets: SocketSequence(), store: store).confirm(submission)
 
         #expect(confirmation == Confirmation(submission: submission, slot: 405, outcome: .succeeded))
-        #expect(try await http.requests.map { try $0.rpcMethod } == ["getSignatureStatuses"])
+        let methods = try await reads(of: http)
+        #expect(methods["getSignatureStatuses"] == 1)
+        #expect(methods["sendTransaction"] == nil)
         #expect(await store.reads.isEmpty)
     }
 
@@ -436,7 +453,7 @@ struct ConfirmationTests {
             try await confirmer(http, sockets).confirm(submission)
         }
 
-        #expect(try await http.requests.map { try $0.rpcMethod } == ["getSignatureStatuses", "getEpochInfo"])
+        #expect(try await reads(of: http) == ["getSignatureStatuses": 1, "getEpochInfo": 1])
         #expect(sockets.sockets.count == 1)
         await sockets.waitUntilClosed()
     }
@@ -456,14 +473,15 @@ struct ConfirmationTests {
     ] as [([GetSignatureStatuses.Status?], UInt64)])
     func `Inconsistent status responses cannot confirm a transaction`(statuses: [GetSignatureStatuses.Status?],
                                                                      contextSlot: UInt64) async throws {
-        let http = try HTTPResponses.confirmation(statuses: [.init(context: Context(slot: contextSlot), value: statuses)])
+        let http = try HTTPResponses.confirmation(statuses: [.init(context: Context(slot: contextSlot), value: statuses)],
+                                                  epochs: [epoch(slot: 1_000, height: 600)])
         let sockets = SocketSequence()
 
         await #expect(throws: ConfirmerError.invalidResponse) {
             try await confirmer(http, sockets).confirm(submission)
         }
 
-        #expect(await http.requests.count == 1)
+        #expect(try await reads(of: http)["getSignatureStatuses"] == 1)
         #expect(sockets.sockets.count == 1)
         await sockets.waitUntilClosed()
     }
@@ -571,6 +589,16 @@ struct ConfirmationTests {
 
         await sockets.waitUntilClosed()
         return (confirmation, reads.withLock(\.self))
+    }
+
+    /// Counts the watch's HTTP reads by method.
+    ///
+    /// Each connection's status read and expiry check run together, so their order can differ between runs.
+    /// - Parameter http: The fixture that answered the reads.
+    /// - Returns: The number of reads of each method.
+    /// - Throws: A test failure when a request isn't JSON-RPC.
+    private func reads(of http: HTTPResponses) async throws -> [String: Int] {
+        try await http.requests.reduce(into: [:]) { counts, request in counts[try request.rpcMethod, default: 0] += 1 }
     }
 
     /// Creates a coordinator whose services share one HTTP fixture, one socket sequence, and one recovery store.

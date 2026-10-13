@@ -30,8 +30,9 @@ nonisolated struct Confirmer: TransactionConfirming {
     /// Watches the transaction until it lands at finalized commitment or its blockhash expires without it.
     ///
     /// After each subscription, one status read catches up on an earlier landing; once the blockhash has expired, it is
-    /// also the final read. Before that, a finalized epoch read checks the expiry, and a status read follows the one
-    /// that finds it. Roots schedule later checks.
+    /// also the final read. Before that, a finalized epoch read checks the expiry alongside it, and when it finds the
+    /// expiry, a catch-up read from the expiry slot or later proves a drop; otherwise a status read follows.
+    /// Roots schedule later checks.
     /// An error that `RPCError.isRecoverable` accepts, or 30 seconds without a root, reconnects after 2 seconds,
     /// doubling the wait up to a minute until a subscription and its first reads succeed; the schedule carries over.
     /// Rate limits, rejected keys, refused subscriptions, and malformed responses throw. The watch has no deadline,
@@ -70,12 +71,24 @@ nonisolated struct Confirmer: TransactionConfirming {
     private func watch(_ submission: Submission, schedule: inout Schedule) async throws -> Confirmation {
         let events = try await rpc.events(for: submission.signature)
         // The subscription can miss a landing from before it started; after expiry, this read is also the final one.
-        let catchUp = try await status(of: submission)
+        // Until then, the expiry check runs alongside it, and a landing settles the watch without waiting for it.
+        let checksExpiry = schedule.expiry == nil
+        async let catchUpRead = status(of: submission)
+        async let epochRead = checksExpiry ? rpc.send(GetEpochInfo()) : nil
+        let catchUp = try await catchUpRead
         if let confirmation = settle(catchUp, for: submission, at: schedule.root, schedule: &schedule) {
             return confirmation
         }
-        if schedule.expiry == nil, let confirmation = try await check(submission, at: schedule.root, schedule: &schedule) {
-            return confirmation
+        if let epoch = try await epochRead { record(epoch, for: submission, at: schedule.root, schedule: &schedule) }
+        // Once the expiry is found, a catch-up read from the expiry slot or later proves a drop; an earlier one can't,
+        // so another status read follows.
+        if checksExpiry, schedule.expiry != nil {
+            if let confirmation = settle(catchUp, for: submission, at: schedule.root, schedule: &schedule) {
+                return confirmation
+            }
+            if let confirmation = try await check(submission, at: schedule.root, schedule: &schedule) {
+                return confirmation
+            }
         }
         schedule.reconnectDelay = Self.firstReconnectDelay
         while let event = try await next(from: events) {
@@ -156,11 +169,8 @@ nonisolated struct Confirmer: TransactionConfirming {
         return nil
     }
 
-    /// Reads whether the blockhash expired at finalized commitment, recording the expiry slot once it has, and
-    /// schedules the next check while it's valid.
+    /// Reads whether the blockhash expired at finalized commitment, unless an earlier read found that it has.
     ///
-    /// Block height grows by at most one per slot, so the next check waits for a root past the slots that the
-    /// remaining heights need. A root ahead of the finalized slot moves the check past that root.
     /// - Parameters:
     ///   - submission: The transaction and its last valid block height.
     ///   - root: The newest root.
@@ -169,14 +179,28 @@ nonisolated struct Confirmer: TransactionConfirming {
     /// - Throws: A read or cancellation error.
     private func hasExpired(_ submission: Submission, at root: UInt64, schedule: inout Schedule) async throws -> Bool {
         if schedule.expiry != nil { return true }
-        let epoch = try await rpc.send(GetEpochInfo())
+        record(try await rpc.send(GetEpochInfo()), for: submission, at: root, schedule: &schedule)
+        return schedule.expiry != nil
+    }
+
+    /// Records the expiry slot once a finalized block height passes the last valid one, and schedules the next check
+    /// while the blockhash is valid.
+    ///
+    /// Block height grows by at most one per slot, so the next check waits for a root past the slots that the
+    /// remaining heights need. A root ahead of the finalized slot moves the check past that root.
+    /// - Parameters:
+    ///   - epoch: A finalized epoch read.
+    ///   - submission: The transaction and its last valid block height.
+    ///   - root: The newest root.
+    ///   - schedule: The next check or, once the blockhash has expired, the expiry slot.
+    private func record(_ epoch: GetEpochInfo.Response, for submission: Submission, at root: UInt64,
+                        schedule: inout Schedule) {
         guard epoch.blockHeight > submission.lastValidBlockHeight else {
             let remaining = submission.lastValidBlockHeight - epoch.blockHeight
             schedule.nextCheck = Self.sum(max(root, epoch.absoluteSlot), Self.sum(remaining, 1))
-            return false
+            return
         }
         schedule.expiry = epoch.absoluteSlot
-        return true
     }
 
     /// Reads the transaction's status, searching history beyond the recent status cache.
