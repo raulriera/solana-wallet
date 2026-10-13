@@ -1,32 +1,36 @@
 import RPC
 
-/// An observed transaction outcome at confirmed or finalized commitment.
+/// A sent transaction's settled outcome: execution at confirmed or finalized commitment, or proof that it can never land.
 nonisolated struct Confirmation: Sendable, Equatable {
     /// The execution outcome, independently of confirmation progress.
     enum Outcome: Sendable, Equatable {
         /// The transaction executed without a reported error.
         case succeeded
-        /// The transaction's execution failed with the provider's structured diagnostics.
+        /// The transaction's execution failed with the provider's structured diagnostics; it still paid its fee.
         case failed(TransactionError)
+        /// The transaction can never land, because its blockhash expired at finalized commitment without it.
+        case dropped
     }
 
-    /// The signature and network whose execution was observed.
+    /// The signature and network whose outcome was observed.
     let submission: Submission
-    /// The slot in which the transaction executed.
-    let slot: UInt64
-    /// The observed commitment; confirmed execution may not yet be finalized.
+    /// The slot in which the transaction executed, when a status read reported it.
+    ///
+    /// A landing notification doesn't report the execution slot, and a dropped transaction has none.
+    let slot: UInt64?
+    /// The observed commitment: confirmed or finalized execution, or finalized expiry for a dropped transaction.
     let commitment: Commitment
-    /// Whether execution succeeded or failed at the observed commitment.
+    /// Whether the transaction succeeded, failed, or was dropped.
     let outcome: Outcome
 
-    /// Creates an execution observation without interpreting program-specific errors.
+    /// Creates an outcome observation without interpreting program-specific errors.
     ///
     /// - Parameters:
     ///   - submission: The accepted signature and network.
-    ///   - slot: The transaction's execution slot.
+    ///   - slot: The transaction's execution slot, or `nil` when the observation doesn't report it.
     ///   - commitment: The observed confirmed or finalized commitment.
-    ///   - outcome: The execution result, retaining structured failure details.
-    init(submission: Submission, slot: UInt64, commitment: Commitment, outcome: Outcome) {
+    ///   - outcome: The result, retaining structured failure details.
+    init(submission: Submission, slot: UInt64?, commitment: Commitment, outcome: Outcome) {
         self.submission = submission
         self.slot = slot
         self.commitment = commitment

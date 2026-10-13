@@ -96,7 +96,7 @@ struct CustomRPCConnectionTests {
     @Test(arguments: [(-32601, CustomRPCError.noLiveUpdates), (429, .rateLimited)])
     func `A failed live-updates subscription stops the check`(code: Int, expected: CustomRPCError) async {
         let settings = StoredValue<ProviderSettings>()
-        let socket = SocketFixture { _, _ in [Self.serverError(code: code)] }
+        let socket = SocketFixture { _, _ in [SocketFixture.serverError(code: code)] }
         defer { socket.cancel() }
 
         await #expect(throws: expected) {
@@ -170,13 +170,6 @@ struct CustomRPCConnectionTests {
         #expect(await responses.wasCancelled)
         #expect(socket.requests.isEmpty)
         #expect(await settings.value == nil)
-    }
-
-    /// A subscription reply that refuses the request with a JSON-RPC error code.
-    /// - Parameter code: The error code.
-    /// - Returns: One WebSocket frame.
-    nonisolated private static func serverError(code: Int) -> Data {
-        Data(#"{"jsonrpc":"2.0","id":null,"error":{"code":\#(code),"message":"refused"}}"#.utf8)
     }
 
     /// Creates the production check over in-memory stores, local HTTP fixtures, and a scripted socket.

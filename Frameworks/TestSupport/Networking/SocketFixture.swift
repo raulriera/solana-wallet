@@ -23,9 +23,7 @@ final class SocketFixture: WebSocketConnection {
     ///   - answersPings: Whether each keep-alive ping gets its pong; without one, a ping waits until cancelled.
     ///   - respond: The response frames for an outgoing message and its ordinal.
     init(answersPings: Bool = true, respond: @escaping Responder = { data, ordinal in
-        let request = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
-        let id = try #require(request["id"] as? String)
-        return [Data(#"{"jsonrpc":"2.0","id":"\#(id)","result":\#(ordinal)}"#.utf8)]
+        [try SocketFixture.acknowledgment(of: data, ordinal: ordinal)]
     }) {
         (messages, incoming) = AsyncThrowingStream.makeStream()
         (sent, outgoing) = AsyncStream.makeStream()
@@ -105,7 +103,7 @@ final class SocketFixture: WebSocketConnection {
     ///   - error: The JSON of the transaction's execution error; `null` reports success.
     ///   - subscription: The acknowledged server subscription ID.
     func notifyLanding(error: String = "null", subscription: UInt64 = 1) {
-        incoming.yield(Data(#"{"jsonrpc":"2.0","method":"signatureNotification","params":{"subscription":\#(subscription),"result":{"context":{"slot":5},"value":{"err":\#(error)}}}}"#.utf8))
+        incoming.yield(Self.landingNotification(error: error, subscription: subscription))
     }
 
     /// Delivers a new root notification through the real protocol decoder.
@@ -113,7 +111,44 @@ final class SocketFixture: WebSocketConnection {
     ///   - root: The root slot.
     ///   - subscription: The acknowledged server subscription ID.
     func notify(root: UInt64, subscription: UInt64 = 2) {
-        incoming.yield(Data(#"{"jsonrpc":"2.0","method":"rootNotification","params":{"subscription":\#(subscription),"result":\#(root)}}"#.utf8))
+        incoming.yield(Self.rootNotification(root, subscription: subscription))
+    }
+
+    /// Acknowledges a subscription request with its ordinal as the subscription ID.
+    /// - Parameters:
+    ///   - request: The request encoded by the real provider.
+    ///   - ordinal: The request's one-based position on the connection.
+    /// - Returns: The acknowledgment frame.
+    /// - Throws: A fixture error when the request has no ID.
+    static func acknowledgment(of request: Data, ordinal: Int) throws -> Data {
+        let body = try #require(JSONSerialization.jsonObject(with: request) as? [String: Any])
+        let id = try #require(body["id"] as? String)
+        return Data(#"{"jsonrpc":"2.0","id":"\#(id)","result":\#(ordinal)}"#.utf8)
+    }
+
+    /// Creates a confirmed signature notification frame.
+    /// - Parameters:
+    ///   - error: The JSON of the transaction's execution error; `null` reports success.
+    ///   - subscription: The acknowledged server subscription ID.
+    /// - Returns: One WebSocket frame.
+    static func landingNotification(error: String = "null", subscription: UInt64 = 1) -> Data {
+        Data(#"{"jsonrpc":"2.0","method":"signatureNotification","params":{"subscription":\#(subscription),"result":{"context":{"slot":5},"value":{"err":\#(error)}}}}"#.utf8)
+    }
+
+    /// Creates a new root notification frame.
+    /// - Parameters:
+    ///   - root: The root slot.
+    ///   - subscription: The acknowledged server subscription ID.
+    /// - Returns: One WebSocket frame.
+    static func rootNotification(_ root: UInt64, subscription: UInt64 = 2) -> Data {
+        Data(#"{"jsonrpc":"2.0","method":"rootNotification","params":{"subscription":\#(subscription),"result":\#(root)}}"#.utf8)
+    }
+
+    /// Creates a JSON-RPC error without a request ID, which refuses a subscription or ends its stream.
+    /// - Parameter code: The error code.
+    /// - Returns: One WebSocket frame.
+    static func serverError(code: Int) -> Data {
+        Data(#"{"jsonrpc":"2.0","id":null,"error":{"code":\#(code),"message":"refused"}}"#.utf8)
     }
 
     /// Ends the transport with a scripted network failure.

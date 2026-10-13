@@ -1,188 +1,605 @@
 import Foundation
 import RPC
+import Synchronization
 import Testing
 @testable import widgets
 
-/// Verifies observed execution separately from submission and unresolved status.
+/// Verifies the real-time watch through the real client, local HTTP fixtures and sockets, and test-controlled time.
+///
+/// The receipt's blockhash is valid through block height 650.
 struct ConfirmationTests {
+    /// The second instruction's custom program error, which `{"InstructionError":[1,{"Custom":6001}]}` reports.
+    private static let instructionError = TransactionError(name: "InstructionError",
+                                                           details: .array([.integer(1), .object(["Custom": .integer(6001)])]))
+    /// A provider's temporary server error.
+    private static let unavailable = RPCError.http(statusCode: 503, retryAfter: nil)
+    /// A provider's rate limit.
+    private static let rateLimit = RPCError.http(statusCode: 429, retryAfter: "3")
+    /// A provider's rejection of the RPC API key.
+    private static let rejectedKey = RPCError.http(statusCode: 401, retryAfter: nil)
+    /// A successful execution at slot 405, observed at confirmed commitment.
+    private static let confirmedStatus = GetSignatureStatuses.Status(slot: 405, confirmations: nil, error: nil,
+                                                                     confirmationStatus: .confirmed)
+
     private let submission = Submission(signature: ExternalFixture.signature, network: .devnet, lastValidBlockHeight: 650)
 
-    /// Verifies missing and provisional statuses don't produce a successful confirmation.
-    ///
-    /// - Parameter commitment: A commitment level sufficient to complete observation.
-    @Test(arguments: [Commitment.confirmed, .finalized])
-    func `Confirmation waits for confirmed or finalized execution`(_ commitment: Commitment) async throws {
-        let http = try HTTPResponses.confirmation(responses: [response(nil), response(status(.processed)),
-                                              response(status(nil)), response(status(commitment))])
-        let confirmation = try await Confirmer(rpc: http.client, clock: pollingClock()).confirm(submission)
+    /// Verifies a landing notification settles the watch at confirmed commitment, keeping execution failures.
+    /// - Parameters:
+    ///   - error: The JSON of the notification's execution error.
+    ///   - outcome: The expected outcome.
+    @Test(.timeLimit(.minutes(1)), arguments: [
+        ("null", widgets.Confirmation.Outcome.succeeded),
+        (#"{"InstructionError":[1,{"Custom":6001}]}"#, .failed(Self.instructionError)),
+    ])
+    func `A landing settles the watch with its execution result`(error: String, outcome: widgets.Confirmation.Outcome) async throws {
+        let http = try HTTPResponses.confirmation(statuses: [response(nil)], epochs: [epoch(slot: 1_000, height: 600)])
+        let sockets = SocketSequence { _ in SocketSequence.watch(then: [SocketFixture.landingNotification(error: error)]) }
 
-        #expect(confirmation == Confirmation(submission: submission, slot: 405,
-                                             commitment: commitment, outcome: .succeeded))
+        let confirmation = try await confirmer(http, sockets).confirm(submission)
+
+        #expect(confirmation == Confirmation(submission: submission, slot: nil, commitment: .confirmed, outcome: outcome))
         let requests = await http.requests
-        #expect(requests.count == 4)
-        for request in requests {
-            let parameters = try request.rpcParameters
-            #expect(parameters[0] as? [String] == [submission.signature])
-            #expect((parameters[1] as? [String: Bool])?["searchTransactionHistory"] == true)
+        try #require(try requests.map { try $0.rpcMethod } == ["getSignatureStatuses", "getEpochInfo"])
+        #expect(try requests[0].rpcParameters[0] as? [String] == [submission.signature])
+        #expect(try (requests[0].rpcParameters[1] as? [String: Bool])?["searchTransactionHistory"] == true)
+        #expect(try (requests[1].rpcParameters[0] as? [String: Any])?["commitment"] as? String == "finalized")
+        #expect(sockets.sockets.count == 1)
+        await sockets.waitUntilClosed()
+    }
+
+    /// Verifies the status read after subscribing settles a transaction that landed before the subscription started.
+    /// - Parameters:
+    ///   - commitment: The observed confirmed or finalized commitment.
+    ///   - error: The execution failure, if any.
+    ///   - outcome: The expected outcome.
+    @Test(.timeLimit(.minutes(1)), arguments: [
+        (Commitment.confirmed, TransactionError?.none, widgets.Confirmation.Outcome.succeeded),
+        (.finalized, Self.instructionError, .failed(Self.instructionError)),
+    ])
+    func `A catch-up read settles a transaction that landed before the subscription`(
+        commitment: Commitment, error: TransactionError?, outcome: widgets.Confirmation.Outcome
+    ) async throws {
+        let http = try HTTPResponses.confirmation(statuses: [response(status(commitment, error: error))])
+        let sockets = SocketSequence()
+
+        let confirmation = try await confirmer(http, sockets).confirm(submission)
+
+        #expect(confirmation == Confirmation(submission: submission, slot: 405, commitment: commitment, outcome: outcome))
+        #expect(try await http.requests.map { try $0.rpcMethod } == ["getSignatureStatuses"])
+        #expect(sockets.sockets.count == 1)
+        await sockets.waitUntilClosed()
+    }
+
+    /// Verifies a status that isn't confirmed yet keeps the watch open until the transaction lands.
+    /// - Parameter commitment: A processed or unavailable confirmation level.
+    @Test(.timeLimit(.minutes(1)), arguments: [Commitment.processed, nil])
+    func `A status that isn't confirmed keeps watching until the landing`(_ commitment: Commitment?) async throws {
+        let http = try HTTPResponses.confirmation(statuses: [response(status(commitment))],
+                                                  epochs: [epoch(slot: 1_000, height: 600)])
+        let sockets = SocketSequence { _ in
+            SocketSequence.watch(then: [SocketFixture.rootNotification(1_010), SocketFixture.landingNotification()])
         }
+
+        let confirmation = try await confirmer(http, sockets).confirm(submission)
+
+        #expect(confirmation == Confirmation(submission: submission, slot: nil, commitment: .confirmed, outcome: .succeeded))
+        #expect(try await http.requests.map { try $0.rpcMethod } == ["getSignatureStatuses", "getEpochInfo"])
     }
 
-    /// Verifies an execution failure retains its details only once its fork is confirmed.
-    @Test
-    func `Confirmed execution failures retain instruction details`() async throws {
-        let error = TransactionError(name: "InstructionError", details: .array([.integer(1), .object(["Custom": .integer(6001)])]))
-        let http = try HTTPResponses.confirmation(responses: [response(status(.processed, error: error)),
-                                              response(status(.confirmed, error: error))])
+    /// Verifies roots read the finalized block height only from the slot at which it can first pass the expiry,
+    /// and that a missing status after expiry reports the transaction as dropped.
+    @Test(.timeLimit(.minutes(1)))
+    func `Roots check the expiry only from the scheduled slot, then a missing status reports a drop`() async throws {
+        // Height 600 at slot 1,000 leaves 50 blocks, so slot 1,051 is the first that can pass height 650;
+        // height 640 at slot 1,051 moves the next check to slot 1,062.
+        let http = try HTTPResponses.confirmation(statuses: [response(nil), response(nil, at: 1_062)], epochs: [
+            epoch(slot: 1_000, height: 600), epoch(slot: 1_051, height: 640), epoch(slot: 1_062, height: 651),
+        ])
 
-        let confirmation = try await Confirmer(rpc: http.client, clock: pollingClock()).confirm(submission)
+        let (confirmation, reads) = try await confirm(over: http, pacing: [1_010, 1_050, 1_051, 1_061, 1_062])
 
-        #expect(confirmation.outcome == .failed(error))
-        #expect(confirmation.slot == 405)
-        #expect(confirmation.commitment == .confirmed)
-        #expect(await http.requests.count == 2)
+        #expect(confirmation == Confirmation(submission: submission, slot: nil, commitment: .finalized, outcome: .dropped))
+        // Roots 1,010, 1,050, and 1,061 read nothing; root 1,051 reads the epoch, and root 1,062 settles the watch.
+        #expect(reads == [2, 2, 2, 3, 3])
+        #expect(try await http.requests.map { try $0.rpcMethod } == [
+            "getSignatureStatuses", "getEpochInfo", "getEpochInfo", "getEpochInfo", "getSignatureStatuses",
+        ])
     }
 
-    /// Verifies the coordinator observes a receipt through its confirmer alone.
-    @Test
-    func `A coordinator confirms a receipt without reading recovery or sending`() async throws {
-        let http = try HTTPResponses.confirmation(responses: [response(status(.confirmed))])
+    /// Verifies a root ahead of the finalized slot schedules the next check from that root, so later roots cause no reads.
+    @Test(.timeLimit(.minutes(1)))
+    func `A root ahead of the finalized slot causes no extra reads`() async throws {
+        // At root 1,100, finalized slot 1,060 has 40 blocks left, so the next check is at root 1,141.
+        let http = try HTTPResponses.confirmation(statuses: [response(nil)], epochs: [
+            epoch(slot: 1_000, height: 600), epoch(slot: 1_060, height: 610),
+        ])
+        let sockets = SocketSequence { _ in
+            SocketSequence.watch(then: [1_100, 1_101, 1_140].map { SocketFixture.rootNotification($0) }
+                                 + [SocketFixture.landingNotification()])
+        }
+
+        let confirmation = try await confirmer(http, sockets).confirm(submission)
+
+        #expect(confirmation.outcome == .succeeded)
+        #expect(try await http.requests.map { try $0.rpcMethod } == ["getSignatureStatuses", "getEpochInfo", "getEpochInfo"])
+    }
+
+    /// Verifies a status found after the blockhash expired settles the watch with that status's outcome.
+    @Test(.timeLimit(.minutes(1)))
+    func `A status found after expiry settles the watch with its outcome`() async throws {
+        let http = try HTTPResponses.confirmation(statuses: [response(nil), response(status(.finalized, error: Self.instructionError))],
+                                                  epochs: [epoch(slot: 1_000, height: 600), epoch(slot: 1_051, height: 651)])
+        let sockets = SocketSequence { _ in SocketSequence.watch(then: [SocketFixture.rootNotification(1_051)]) }
+
+        let confirmation = try await confirmer(http, sockets).confirm(submission)
+
+        #expect(confirmation == Confirmation(submission: submission, slot: 405, commitment: .finalized,
+                                             outcome: .failed(Self.instructionError)))
+        #expect(try await http.requests.map { try $0.rpcMethod } == [
+            "getSignatureStatuses", "getEpochInfo", "getEpochInfo", "getSignatureStatuses",
+        ])
+    }
+
+    /// Verifies a status read from a node behind the expiry slot is read again only once roots cover the slots it lags.
+    @Test(.timeLimit(.minutes(1)))
+    func `A status read behind the expiry slot waits for roots to cover the lag`() async throws {
+        // The read at root 1,051 comes from slot 1,041, 10 slots behind expiry slot 1,051, so the next one is at root 1,061.
+        let http = try HTTPResponses.confirmation(statuses: [response(nil), response(nil, at: 1_041), response(nil, at: 1_051)],
+                                                  epochs: [epoch(slot: 1_000, height: 600), epoch(slot: 1_051, height: 651)])
+
+        let (confirmation, reads) = try await confirm(over: http, pacing: [1_051, 1_060, 1_061])
+
+        #expect(confirmation == Confirmation(submission: submission, slot: nil, commitment: .finalized, outcome: .dropped))
+        // Root 1,060 reads nothing.
+        #expect(reads == [2, 4, 4])
+        #expect(try await http.requests.map { try $0.rpcMethod } == [
+            "getSignatureStatuses", "getEpochInfo", "getEpochInfo", "getSignatureStatuses", "getSignatureStatuses",
+        ])
+    }
+
+    /// Verifies a status that isn't confirmed after the blockhash expired keeps the watch open, the next root reads it
+    /// again, and a missing status then reports the transaction as dropped.
+    @Test(.timeLimit(.minutes(1)))
+    func `A processed status after expiry is read again, then a missing one reports a drop`() async throws {
+        // At root 1,051, height 651 proves the expiry, and the final read at expiry slot 1,051 finds only a processed status.
+        let http = try HTTPResponses.confirmation(statuses: [response(nil), response(status(.processed), at: 1_051), response(nil)],
+                                                  epochs: [epoch(slot: 1_000, height: 600), epoch(slot: 1_051, height: 651)])
+
+        let (confirmation, reads) = try await confirm(over: http, pacing: [1_051, 1_052])
+
+        #expect(confirmation == Confirmation(submission: submission, slot: nil, commitment: .finalized, outcome: .dropped))
+        // The watch waits for root 1,052 before it reads the status again.
+        #expect(reads == [2, 4])
+        #expect(try await http.requests.map { try $0.rpcMethod } == [
+            "getSignatureStatuses", "getEpochInfo", "getEpochInfo", "getSignatureStatuses", "getSignatureStatuses",
+        ])
+    }
+
+    /// Verifies checks due past the largest slot saturate instead of overflowing, so the watch continues until the landing.
+    /// - Parameters:
+    ///   - lastValidBlockHeight: The receipt's last valid block height.
+    ///   - slot: The finalized slot of the epoch read.
+    ///   - height: The finalized block height of the epoch read.
+    ///   - methods: The expected HTTP reads.
+    @Test(.timeLimit(.minutes(1)), arguments: [
+        // At height 0, the remaining heights put the next check past the largest slot.
+        (UInt64.max, UInt64(1_000), UInt64(0), ["getSignatureStatuses", "getEpochInfo"]),
+        // The blockhash expired at the largest slot; the final read is from slot 2,000, so the next one waits past it.
+        (650, .max, 651, ["getSignatureStatuses", "getEpochInfo", "getSignatureStatuses"]),
+    ])
+    func `Checks due past the largest slot keep watching until the landing`(
+        lastValidBlockHeight: UInt64, slot: UInt64, height: UInt64, methods: [String]
+    ) async throws {
+        let receipt = Submission(signature: submission.signature, network: .devnet, lastValidBlockHeight: lastValidBlockHeight)
+        let http = try HTTPResponses.confirmation(statuses: [response(nil)], epochs: [epoch(slot: slot, height: height)])
+        let sockets = SocketSequence { _ in
+            SocketSequence.watch(then: [SocketFixture.rootNotification(1_010), SocketFixture.landingNotification()])
+        }
+
+        let confirmation = try await confirmer(http, sockets).confirm(receipt)
+
+        #expect(confirmation == Confirmation(submission: receipt, slot: nil, commitment: .confirmed, outcome: .succeeded))
+        #expect(try await http.requests.map { try $0.rpcMethod } == methods)
+        await sockets.waitUntilClosed()
+    }
+
+    /// Verifies a reconnection after the blockhash expired reads the status once, as both the catch-up and the final read,
+    /// and that a first read behind the expiry slot waits for roots past that slot, not for the first root.
+    @Test(.timeLimit(.minutes(1)))
+    func `A reconnection after expiry settles the watch with one status read`() async throws {
+        // The first final read comes from slot 1,041, 10 slots behind expiry slot 1,051, so roots before 1,061 cause no reads.
+        let http = try HTTPResponses.confirmation(statuses: [response(nil), response(nil, at: 1_041), response(nil, at: 1_051)],
+                                                  epochs: [epoch(slot: 1_051, height: 651)])
+        let sockets = SocketSequence { connection in
+            guard connection == 0 else { return SocketSequence.watch() }
+            return SocketSequence.watch(then: [1_052, 1_060].map { SocketFixture.rootNotification($0) }
+                                        + [SocketFixture.serverError(code: -32005)])
+        }
+        let waits = Mutex<[Duration]>([])
+
+        let confirmation = try await confirmer(http, sockets, clock: clock(wait: { duration in
+            waits.withLock { $0.append(duration) }
+        })).confirm(submission)
+
+        #expect(confirmation == Confirmation(submission: submission, slot: nil, commitment: .finalized, outcome: .dropped))
+        #expect(waits.withLock(\.self) == [.seconds(2)])
+        #expect(sockets.sockets.count == 2)
+        await sockets.waitUntilClosed()
+        #expect(try await http.requests.map { try $0.rpcMethod } == [
+            "getSignatureStatuses", "getEpochInfo", "getSignatureStatuses", "getSignatureStatuses",
+        ])
+    }
+
+    /// Verifies a lost connection reconnects after two seconds and catches up on a landing it missed.
+    @Test(.timeLimit(.minutes(1)))
+    func `A lost connection reconnects after two seconds and catches up`() async throws {
+        let held = Suspension()
+        let http = try HTTPResponses.confirmation(statuses: [response(nil), response(status(.confirmed))],
+                                                  epochs: [epoch(slot: 1_000, height: 600)], gate: held, heldMethod: "getEpochInfo")
+        let sockets = SocketSequence()
+        let waits = Mutex<[Duration]>([])
+        let watch = confirmer(http, sockets, clock: clock(wait: { duration in waits.withLock { $0.append(duration) } }))
+        let operation = Task { @concurrent in try await watch.confirm(submission) }
+        defer { operation.cancel() }
+        await held.waitUntilStarted()
+
+        try #require(sockets.sockets.first).fail(URLError(.networkConnectionLost))
+        held.resume()
+
+        #expect(try await operation.value == Confirmation(submission: submission, slot: 405, commitment: .confirmed,
+                                                          outcome: .succeeded))
+        #expect(waits.withLock(\.self) == [.seconds(2)])
+        #expect(sockets.sockets.count == 2)
+        await sockets.waitUntilClosed()
+        #expect(try await http.requests.map { try $0.rpcMethod } == ["getSignatureStatuses", "getEpochInfo", "getSignatureStatuses"])
+    }
+
+    /// Verifies reconnection waits double up to a minute after each failed attempt and reset after a subscription and
+    /// its first reads succeed.
+    @Test(.timeLimit(.minutes(1)))
+    func `Reconnection waits double up to a minute and reset after a subscription and its first reads`() async throws {
+        let http = try HTTPResponses.confirmation(statuses: [response(nil), response(status(.confirmed))],
+                                                  epochs: [epoch(slot: 1_000, height: 600)])
+        // The eighth connection subscribes and reads the status and epoch, then reports a node that is behind;
+        // the tenth subscribes and catches up.
+        let sockets = SocketSequence { connection in
+            switch connection {
+            case 7: SocketSequence.watch(then: [SocketFixture.serverError(code: -32005)])
+            case 9: SocketSequence.watch()
+            default: SocketSequence.failing(with: URLError(.notConnectedToInternet))
+            }
+        }
+        let waits = Mutex<[Duration]>([])
+
+        let confirmation = try await confirmer(http, sockets, clock: clock(wait: { duration in
+            waits.withLock { $0.append(duration) }
+        })).confirm(submission)
+
+        #expect(confirmation.outcome == .succeeded)
+        #expect(waits.withLock(\.self) == [2, 4, 8, 16, 32, 60, 60, 2, 4].map { Duration.seconds($0) })
+        #expect(sockets.sockets.count == 10)
+        await sockets.waitUntilClosed()
+        #expect(try await http.requests.map { try $0.rpcMethod } == ["getSignatureStatuses", "getEpochInfo", "getSignatureStatuses"])
+    }
+
+    /// Verifies a connection that delivers no root for thirty seconds counts as lost and reconnects.
+    @Test(.timeLimit(.minutes(1)))
+    func `A connection without roots for thirty seconds reconnects`() async throws {
+        let http = try HTTPResponses.confirmation(statuses: [response(nil), response(status(.confirmed))],
+                                                  epochs: [epoch(slot: 1_000, height: 600)])
+        let sockets = SocketSequence()
+        let stalls = Mutex(0)
+        let waits = Mutex<[Duration]>([])
+
+        let confirmation = try await confirmer(http, sockets, clock: clock(stall: { _ in
+            // Only the first stall timer fires; any later one never does.
+            if stalls.withLock({ $0 += 1; return $0 }) > 1 { try await Task.sleep(for: .seconds(3_600)) }
+        }, wait: { duration in waits.withLock { $0.append(duration) } })).confirm(submission)
+
+        #expect(confirmation.outcome == .succeeded)
+        #expect(stalls.withLock(\.self) == 1)
+        #expect(waits.withLock(\.self) == [.seconds(2)])
+        #expect(sockets.sockets.count == 2)
+        await sockets.waitUntilClosed()
+        #expect(try await http.requests.map { try $0.rpcMethod } == ["getSignatureStatuses", "getEpochInfo", "getSignatureStatuses"])
+    }
+
+    /// Verifies a server or transport error reconnects instead of throwing, whether it answers the subscription,
+    /// the status read, or the first expiry check, and that each failed attempt doubles the wait.
+    /// - Parameters:
+    ///   - readError: The recoverable failure that the failing reads return, or `nil` when the subscriptions fail.
+    ///   - failingMethod: The only read that fails, or `nil` when every read fails.
+    ///   - connection: The responder for every connection, which fails or acknowledges the subscriptions.
+    ///   - reads: The expected HTTP reads.
+    @Test(.timeLimit(.minutes(1)), arguments: [
+        (RPCError?.none, String?.none, SocketSequence.failing(with: Self.unavailable), 0),
+        (nil, nil, SocketSequence.failing(with: RPCError.transport(.timedOut)), 0),
+        // A subscription whose first reads fail doesn't reset the wait, whether the status read or the expiry check fails.
+        (Self.unavailable, nil, SocketSequence.watch(), 2),
+        (.transport(.timedOut), nil, SocketSequence.watch(), 2),
+        (Self.unavailable, "getEpochInfo", SocketSequence.watch(), 4),
+    ])
+    func `A server or transport error reconnects instead of throwing`(
+        readError: RPCError?, failingMethod: String?, connection: @escaping SocketFixture.Responder, reads: Int
+    ) async throws {
+        let held = Suspension()
+        let http = try HTTPResponses.confirmation(statuses: [response(nil)], error: readError, failingMethod: failingMethod)
+        let sockets = SocketSequence { _ in connection }
+        let waits = Mutex<[Duration]>([])
+        // The first wait elapses at once; the second holds the watch until it's cancelled.
+        let watch = confirmer(http, sockets, clock: clock(wait: { duration in
+            if waits.withLock({ $0.append(duration); return $0.count }) > 1 { await held.suspend() }
+        }))
+        let operation = Task { @concurrent in try await watch.confirm(submission) }
+        defer { operation.cancel() }
+        await held.waitUntilStarted()
+
+        operation.cancel()
+
+        await #expect(throws: CancellationError.self) { try await operation.value }
+        #expect(waits.withLock(\.self) == [.seconds(2), .seconds(4)])
+        #expect(sockets.sockets.count == 2)
+        await sockets.waitUntilClosed()
+        #expect(await http.requests.count == reads)
+    }
+
+    /// Verifies a rate limit or a rejected key stops the watch without reconnecting, and the coordinator keeps the receipt.
+    /// - Parameters:
+    ///   - refusal: The provider's refusal, which the delivery error keeps.
+    ///   - readError: The refusal when it answers the status read, or `nil` when it answers the subscription.
+    ///   - connection: The responder for the connection, which refuses or acknowledges the subscriptions.
+    ///   - reads: The expected HTTP reads.
+    @Test(.timeLimit(.minutes(1)), arguments: [
+        (Self.rateLimit, RPCError?.none, SocketSequence.failing(with: Self.rateLimit), 0),
+        (Self.rejectedKey, nil, SocketSequence.failing(with: Self.rejectedKey), 0),
+        (Self.rateLimit, Self.rateLimit, SocketSequence.watch(), 1),
+        (Self.rejectedKey, Self.rejectedKey, SocketSequence.watch(), 1),
+    ])
+    func `A rate limit or rejected key stops the watch with the receipt`(
+        refusal: RPCError, readError: RPCError?, connection: @escaping SocketFixture.Responder, reads: Int
+    ) async throws {
+        let http = try HTTPResponses.confirmation(statuses: [], error: readError)
+        let sockets = SocketSequence { _ in connection }
         let store = SigningRecoveryStore(recovery: try SigningFixture().recovery)
 
-        let confirmation = try await coordinator(over: http, store: store).confirm(submission)
+        let delivery = try await #require(throws: DeliveryError.self) {
+            try await coordinator(over: http, sockets: sockets, store: store).confirm(submission)
+        }
+
+        #expect(delivery.submission == submission)
+        #expect(delivery.cause as? RPCError == refusal)
+        #expect(await http.requests.count == reads)
+        #expect(sockets.sockets.count == 1)
+        await sockets.waitUntilClosed()
+        #expect(await store.reads.isEmpty)
+    }
+
+    /// Verifies cancelling the coordinator's watch throws a delivery error that keeps the receipt and the cancellation.
+    @Test(.timeLimit(.minutes(1)))
+    func `Cancelling a coordinator's watch keeps the receipt`() async throws {
+        let pending = Suspension()
+        let http = try HTTPResponses.confirmation(statuses: [response(nil)], gate: pending)
+        let sockets = SocketSequence()
+        let store = SigningRecoveryStore(recovery: try SigningFixture().recovery)
+        let transactions = coordinator(over: http, sockets: sockets, store: store)
+        let operation = Task { @concurrent in try await transactions.confirm(submission) }
+        defer { operation.cancel() }
+        await pending.waitUntilStarted()
+
+        operation.cancel()
+
+        let delivery = try await #require(throws: DeliveryError.self) { try await operation.value }
+        #expect(delivery.submission == submission)
+        #expect(delivery.cause is CancellationError)
+        #expect(await http.wasCancelled)
+        await sockets.waitUntilClosed()
+        #expect(await store.reads.isEmpty)
+    }
+
+    /// Verifies the coordinator watches a receipt through its confirmer alone, without reading recovery or sending.
+    @Test(.timeLimit(.minutes(1)))
+    func `A coordinator confirms a receipt without reading recovery or sending`() async throws {
+        let http = try HTTPResponses.confirmation(statuses: [response(status(.confirmed))])
+        let store = SigningRecoveryStore(recovery: try SigningFixture().recovery)
+
+        let confirmation = try await coordinator(over: http, sockets: SocketSequence(), store: store).confirm(submission)
 
         #expect(confirmation == Confirmation(submission: submission, slot: 405, commitment: .confirmed, outcome: .succeeded))
         #expect(try await http.requests.map { try $0.rpcMethod } == ["getSignatureStatuses"])
         #expect(await store.reads.isEmpty)
     }
 
-    /// Verifies a failed observation keeps the receipt and the provider's error without reading recovery.
-    @Test
-    func `A coordinator wraps observation errors with the receipt`() async throws {
-        let rateLimit = RPCError.http(statusCode: 429, retryAfter: "3")
-        let http = try HTTPResponses.confirmation(responses: [], error: rateLimit)
-        let store = SigningRecoveryStore(recovery: try SigningFixture().recovery)
+    /// Verifies a provider that refuses the root subscription stops the watch before any read, without reconnecting.
+    @Test(.timeLimit(.minutes(1)))
+    func `A refused subscription throws without reading or reconnecting`() async throws {
+        let http = try HTTPResponses.confirmation(statuses: [])
+        let refusal: SocketFixture.Responder = { request, ordinal in
+            guard ordinal == 2 else { return [try SocketFixture.acknowledgment(of: request, ordinal: ordinal)] }
+            return [SocketFixture.serverError(code: -32601)]
+        }
+        let sockets = SocketSequence { _ in refusal }
 
-        let error = try await #require(throws: DeliveryError.self) {
-            try await coordinator(over: http, store: store).confirm(submission)
+        await #expect(throws: RPCError.server(code: -32601, message: "refused")) {
+            try await confirmer(http, sockets).confirm(submission)
         }
 
-        #expect(error.submission == submission)
-        #expect((error.cause as? RPCError) == rateLimit)
-        #expect(await http.requests.count == 1)
-        #expect(await store.reads.isEmpty)
+        #expect(await http.requests.isEmpty)
+        #expect(sockets.sockets.count == 1)
+        await sockets.waitUntilClosed()
+    }
+
+    /// Verifies a landing without its execution result stops the watch after setup, without reconnecting.
+    @Test(.timeLimit(.minutes(1)))
+    func `A malformed landing throws without reconnecting`() async throws {
+        let http = try HTTPResponses.confirmation(statuses: [response(nil)], epochs: [epoch(slot: 1_000, height: 600)])
+        let malformed = Data(#"{"jsonrpc":"2.0","method":"signatureNotification","params":{"subscription":1,"result":{"context":{"slot":5},"value":{}}}}"#.utf8)
+        let sockets = SocketSequence { _ in SocketSequence.watch(then: [malformed]) }
+
+        await #expect(throws: RPCError.decoding) {
+            try await confirmer(http, sockets).confirm(submission)
+        }
+
+        #expect(try await http.requests.map { try $0.rpcMethod } == ["getSignatureStatuses", "getEpochInfo"])
+        #expect(sockets.sockets.count == 1)
+        await sockets.waitUntilClosed()
     }
 
     /// Verifies malformed positional or ledger observations cannot become confirmations.
     ///
-    /// - Parameter kind: The malformed response shape or context.
-    @Test(arguments: ["empty", "extra status", "future slot"])
-    func `Inconsistent status responses cannot confirm a transaction`(_ kind: String) async throws {
-        let values: [GetSignatureStatuses.Status?] = kind == "empty" ? [] : kind == "extra status"
-            ? [status(.confirmed), nil] : [status(.confirmed)]
-        let http = try HTTPResponses.confirmation(responses: [.init(context: Context(slot: kind == "future slot" ? 404 : 406), value: values)])
+    /// - Parameters:
+    ///   - statuses: The response's statuses for the one requested signature.
+    ///   - contextSlot: The slot at which the node read them.
+    @Test(.timeLimit(.minutes(1)), arguments: [
+        // No status for the requested signature.
+        ([GetSignatureStatuses.Status?](), 406),
+        // More statuses than requested signatures.
+        ([Self.confirmedStatus, nil], 406),
+        // A status from a slot after the read's context slot.
+        ([Self.confirmedStatus], 404),
+    ] as [([GetSignatureStatuses.Status?], UInt64)])
+    func `Inconsistent status responses cannot confirm a transaction`(statuses: [GetSignatureStatuses.Status?],
+                                                                     contextSlot: UInt64) async throws {
+        let http = try HTTPResponses.confirmation(statuses: [.init(context: Context(slot: contextSlot), value: statuses)])
+        let sockets = SocketSequence()
 
         await #expect(throws: ConfirmerError.invalidResponse) {
-            try await Confirmer(rpc: http.client, clock: pollingClock()).confirm(submission)
+            try await confirmer(http, sockets).confirm(submission)
         }
 
         #expect(await http.requests.count == 1)
+        #expect(sockets.sockets.count == 1)
+        await sockets.waitUntilClosed()
     }
 
-    /// Verifies observing another network never sends the signature to the provider.
+    /// Verifies watching another network never sends the signature to the provider.
     @Test
-    func `Confirmation rejects another network before requesting status`() async throws {
-        let http = try HTTPResponses.confirmation(responses: [])
+    func `Confirmation rejects another network before subscribing or reading`() async throws {
+        let http = try HTTPResponses.confirmation(statuses: [])
+        let sockets = SocketSequence()
 
         await #expect(throws: ConfirmerError.networkMismatch) {
-            try await Confirmer(rpc: http.client).confirm(Submission(
+            try await confirmer(http, sockets).confirm(Submission(
                 signature: submission.signature, network: .mainnet, lastValidBlockHeight: submission.lastValidBlockHeight
             ))
         }
 
         #expect(await http.requests.isEmpty)
+        #expect(sockets.sockets.isEmpty)
     }
 
-    /// Verifies a failed lookup remains an observation error without an automatic retry.
-    ///
-    /// - Parameter error: The transport or rate-limit error from the provider.
-    @Test(arguments: [
-        RPCError.transport(.timedOut), .http(statusCode: 429, retryAfter: "3")
-    ])
-    func `Status lookup failures preserve provider diagnostics without retrying`(_ error: RPCError) async throws {
-        let http = try HTTPResponses.confirmation(responses: [], error: error)
-
-        await #expect(throws: error) {
-            try await Confirmer(rpc: http.client, clock: pollingClock()).confirm(submission)
-        }
-
-        #expect(await http.requests.count == 1)
-    }
-
-    /// Verifies the deadline cancels an in-flight request without fabricating an execution failure.
+    /// Verifies cancelling the watch while it subscribes closes the connection before any read.
     @Test(.timeLimit(.minutes(1)))
-    func `Confirmation timeout cancels pending status work and leaves the outcome unknown`() async throws {
-        let pending = Suspension()
-        let http = try HTTPResponses.confirmation(responses: [response(status(.confirmed))], gate: pending)
-        let clock = ControlledClock { duration in
-            #expect(duration == .seconds(60))
-            await pending.waitUntilStarted()
-        }
+    func `Cancelling a subscription closes its connection before any read`() async throws {
+        let http = try HTTPResponses.confirmation(statuses: [])
+        // The connection never acknowledges the subscriptions.
+        let sockets = SocketSequence { _ in { _, _ in [] } }
+        let watch = confirmer(http, sockets)
+        let operation = Task { @concurrent in try await watch.confirm(submission) }
+        defer { operation.cancel() }
+        var openings = sockets.openings.makeAsyncIterator()
+        _ = await openings.next()
 
-        await #expect(throws: ConfirmerError.timedOut) {
-            try await Confirmer(rpc: http.client, clock: clock).confirm(submission)
-        }
+        operation.cancel()
 
-        #expect(await http.wasCancelled)
-        #expect(await http.requests.count == 1)
+        await #expect(throws: CancellationError.self) { try await operation.value }
+        #expect(sockets.sockets.count == 1)
+        await sockets.waitUntilClosed()
+        #expect(await http.requests.isEmpty)
     }
 
-    /// Verifies cancellation reaches either the pending RPC or the interval between queries.
+    /// Verifies cancellation stops a watch that waits for events or to reconnect, and closes its connection.
     ///
-    /// - Parameter duringRequest: Whether the task is cancelled during a request or a poll delay.
-    @Test(.timeLimit(.minutes(1)), arguments: [true, false])
-    func `Cancelling confirmation stops requests and polling delays`(duringRequest: Bool) async throws {
+    /// The coordinator's cancellation test covers a status read in flight.
+    /// - Parameters:
+    ///   - connection: The responder for every connection, which acknowledges the subscriptions or fails to connect.
+    ///   - reads: The HTTP reads that finish before the cancellation.
+    @Test(.timeLimit(.minutes(1)), arguments: [
+        (SocketSequence.watch(), 2), (SocketSequence.failing(with: URLError(.notConnectedToInternet)), 0),
+    ])
+    func `Cancelling a waiting watch stops it and closes its connection`(connection: @escaping SocketFixture.Responder,
+                                                                        reads: Int) async throws {
         let pending = Suspension()
-        let deadline = Suspension()
-        let http = try HTTPResponses.confirmation(responses: [response(duringRequest ? status(.confirmed) : nil)],
-                                  gate: duringRequest ? pending : nil)
-        let clock = ControlledClock { duration in
-            if duration == .seconds(60) { await deadline.suspend() }
-            else { await pending.suspend() }
-        }
-        let operation = Task { @concurrent in
-            try await Confirmer(rpc: http.client, clock: clock).confirm(submission)
-        }
+        let http = try HTTPResponses.confirmation(statuses: [response(nil)], epochs: [epoch(slot: 1_000, height: 600)])
+        let sockets = SocketSequence { _ in connection }
+        // The first stall timer or reconnection wait holds the watch until it's cancelled.
+        let watch = confirmer(http, sockets, clock: ControlledClock { _ in await pending.suspend() })
+        let operation = Task { @concurrent in try await watch.confirm(submission) }
         defer { operation.cancel() }
         await pending.waitUntilStarted()
 
         operation.cancel()
 
         await #expect(throws: CancellationError.self) { try await operation.value }
-        #expect(await http.requests.count == 1)
-        #expect(await http.wasCancelled == duringRequest)
+        #expect(sockets.sockets.count == 1)
+        await sockets.waitUntilClosed()
+        #expect(await http.requests.count == reads)
+        #expect(await !http.wasCancelled)
     }
 
-    /// Creates a coordinator whose services share one HTTP fixture and recovery store.
+    /// Creates a watch whose requests and subscriptions never reach the network.
+    ///
+    /// - Parameters:
+    ///   - http: The fixture that answers status and epoch reads.
+    ///   - sockets: The connections that answer subscriptions.
+    ///   - clock: The test's clock, or `nil` for one whose stall timers never fire and whose waits elapse at once.
+    /// - Returns: A watch over the real Helius client.
+    private func confirmer(_ http: HTTPResponses, _ sockets: SocketSequence, clock: ControlledClock? = nil) -> Confirmer {
+        Confirmer(rpc: http.client(socket: { sockets.connect($0) }), clock: clock ?? self.clock())
+    }
+
+    /// Watches the receipt over one connection that receives each root only when the watch waits for an event.
+    ///
+    /// Each wait records the HTTP reads so far, so a test can tell which root caused each read.
+    /// - Parameters:
+    ///   - http: The fixture that answers status and epoch reads.
+    ///   - roots: The roots to deliver, one at each wait.
+    /// - Returns: The settled watch, and the HTTP read count at each wait.
+    /// - Throws: The watch's error, or a test failure when the watch waits again after the last root.
+    private func confirm(over http: HTTPResponses,
+                         pacing roots: [UInt64]) async throws -> (confirmation: widgets.Confirmation, reads: [Int]) {
+        let sockets = SocketSequence()
+        let pending = Mutex(roots[...])
+        let reads = Mutex<[Int]>([])
+        let watch = confirmer(http, sockets, clock: clock(stall: { _ in
+            let count = await http.requests.count
+            reads.withLock { $0.append(count) }
+            let next = pending.withLock { $0.popFirst() }
+            let root = try #require(next, "The watch waits again after the last root")
+            try #require(sockets.sockets.last).notify(root: root)
+            // The root ends the wait, which cancels this timer.
+            try await Task.sleep(for: .seconds(3_600))
+        }))
+
+        let confirmation = try await watch.confirm(submission)
+
+        await sockets.waitUntilClosed()
+        return (confirmation, reads.withLock(\.self))
+    }
+
+    /// Creates a coordinator whose services share one HTTP fixture, one socket sequence, and one recovery store.
     ///
     /// - Parameters:
     ///   - http: The fixture that serves every RPC request.
+    ///   - sockets: The connections that answer subscriptions.
     ///   - store: The recovery store that records reads.
-    /// - Returns: A coordinator that confirms with a polling clock.
-    private func coordinator(over http: HTTPResponses, store: SigningRecoveryStore) -> any TransactionCoordinating {
-        TransactionCoordinator(
-            rpc: http.client, preparer: Preparer(rpc: http.client), signer: Signer(rpc: http.client, store: store),
-            submitter: Submitter(rpc: http.client), confirmer: Confirmer(rpc: http.client, clock: pollingClock())
-        )
+    /// - Returns: A coordinator whose watch has no wall-time delays.
+    private func coordinator(over http: HTTPResponses, sockets: SocketSequence,
+                             store: SigningRecoveryStore) -> any TransactionCoordinating {
+        let rpc = http.client(socket: { sockets.connect($0) })
+        return TransactionCoordinator(rpc: rpc, preparer: Preparer(rpc: rpc), signer: Signer(rpc: rpc, store: store),
+                                      submitter: Submitter(rpc: rpc), confirmer: confirmer(http, sockets))
     }
 
-    /// Creates a clock that advances polling immediately and holds the deadline until cancelled.
+    /// Creates a clock that tells 30-second stall timers apart from reconnection waits.
     ///
-    /// - Returns: An independent clock with no wall-time delays.
-    private func pollingClock() -> ControlledClock {
-        let deadline = Suspension()
-        return ControlledClock { duration in
-            if duration == .seconds(60) { await deadline.suspend() }
-            else { #expect(duration == .seconds(1)) }
+    /// - Parameters:
+    ///   - stall: Handles each stall timer; by default, it never fires.
+    ///   - wait: Handles each reconnection wait; by default, it elapses at once.
+    /// - Returns: A clock with no wall-time delays.
+    private func clock(stall: @escaping ControlledClock.Sleep = { _ in try await Task.sleep(for: .seconds(3_600)) },
+                       wait: @escaping ControlledClock.Sleep = { _ in }) -> ControlledClock {
+        ControlledClock { duration in
+            if duration == .seconds(30) { try await stall(duration) } else { try await wait(duration) }
         }
     }
 
@@ -198,9 +615,21 @@ struct ConfirmationTests {
 
     /// Wraps a positional status in the provider's ledger context.
     ///
-    /// - Parameter status: The observation, or `nil` for an unknown transaction.
-    /// - Returns: A one-signature response observed at slot 406.
-    private func response(_ status: GetSignatureStatuses.Status?) -> GetSignatureStatuses.Response {
-        .init(context: Context(slot: 406), value: [status])
+    /// - Parameters:
+    ///   - status: The observation, or `nil` for an unknown transaction.
+    ///   - slot: The context slot at which the node read it.
+    /// - Returns: A one-signature response.
+    private func response(_ status: GetSignatureStatuses.Status?, at slot: UInt64 = 2_000) -> GetSignatureStatuses.Response {
+        .init(context: Context(slot: slot), value: [status])
+    }
+
+    /// Creates a finalized epoch observation.
+    ///
+    /// - Parameters:
+    ///   - slot: The finalized slot.
+    ///   - height: The finalized block height.
+    /// - Returns: An observation in epoch 1.
+    private func epoch(slot: UInt64, height: UInt64) -> GetEpochInfo.Response {
+        .init(epoch: 1, absoluteSlot: slot, blockHeight: height)
     }
 }

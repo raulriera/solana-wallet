@@ -117,8 +117,8 @@ struct SubmissionTests {
         for rpc in rpcs {
             let confirmation = try await Confirmer(rpc: rpc).confirm(submission)
             try #require(confirmation.outcome == .succeeded)
-            let accounts = try await rpc.send(GetMultipleAccounts(addresses: [sender.value, recipient.value],
-                                                                  minContextSlot: confirmation.slot))
+            let slot = try await confirmation.executionSlot(through: rpc)
+            let accounts = try await rpc.send(GetMultipleAccounts(addresses: [sender.value, recipient.value], minContextSlot: slot))
             #expect(accounts.value[0]?.lamports == senderBalance - 1_000_000 - fee)
             #expect(accounts.value[1]?.lamports == recipientBalance + 1_000_000)
         }
@@ -180,9 +180,9 @@ struct SubmissionTests {
 
     /// Creates real clients restricted to devnet using a test-runner credential.
     ///
-    /// - Returns: Helius and public Solana clients on the same test network.
+    /// - Returns: Helius and public Solana clients on the same test network, which also watch signatures.
     /// - Throws: A configuration error when the local API key isn't supplied.
-    func devnetRPCs() throws -> [any RPC] {
+    func devnetRPCs() throws -> [any RPC & SignatureEventProviding] {
         guard let key = ProcessInfo.processInfo.environment["HELIUS_API_KEY"],
               !key.isEmpty, !key.hasPrefix("$(") else { throw SetupError.missingAPIKey }
         return [HeliusRPC(apiKey: key, network: .devnet), Solana(network: .devnet)]
@@ -202,9 +202,9 @@ struct SubmissionTests {
     ///
     /// - Parameters:
     ///   - address: The configured devnet sender's public address.
-    ///   - rpcs: The real devnet clients that can request funding and read its status.
+    ///   - rpcs: The real devnet clients that can request funding and watch it land.
     /// - Throws: A funding or cancellation error; no mainnet RPC is used.
-    private func fund(_ address: String, using rpcs: [any RPC]) async throws {
+    private func fund(_ address: String, using rpcs: [any RPC & SignatureEventProviding]) async throws {
         let current = try await rpcs[0].send(GetMultipleAccounts(addresses: [address]))
         if let account = current.value.first ?? nil, account.lamports >= 1_010_000 { return }
         for rpc in rpcs {

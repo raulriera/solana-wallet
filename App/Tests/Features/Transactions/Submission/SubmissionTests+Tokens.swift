@@ -80,18 +80,20 @@ extension SubmissionTests {
     /// Reads the exact delivered token balances through each configured real provider.
     /// - Parameters:
     ///   - addresses: The token accounts to observe.
-    ///   - rpcs: The same-network clients used for broadcast.
-    ///   - receipt: The confirmed transaction establishing the minimum observation slot.
+    ///   - rpcs: The same-network clients used for broadcast, each watching the transaction again.
+    ///   - receipt: The confirmed transaction whose receipt each client watches.
     ///   - program: The expected owner program.
     /// - Returns: The observed raw balances, after asserting agreement between providers.
     /// - Throws: An RPC, account-decoding, or prerequisite error.
-    private func tokenBalances(_ addresses: [Address], through rpcs: [any RPC], after receipt: widgets.Confirmation,
+    private func tokenBalances(_ addresses: [Address], through rpcs: [any RPC & SignatureEventProviding],
+                               after receipt: widgets.Confirmation,
                                program: TokenProgram) async throws -> [UInt64] {
         var expected: [UInt64]?
         for rpc in rpcs {
             let confirmation = try await Confirmer(rpc: rpc).confirm(receipt.submission)
             try #require(confirmation.outcome == .succeeded)
-            let response = try await rpc.send(GetMultipleAccounts(addresses: addresses.map(\.value), minContextSlot: confirmation.slot))
+            let slot = try await confirmation.executionSlot(through: rpc)
+            let response = try await rpc.send(GetMultipleAccounts(addresses: addresses.map(\.value), minContextSlot: slot))
             let values = try zip(addresses, response.value).map { address, value in
                 let account = try #require(value)
                 #expect(account.owner == program.rawValue)

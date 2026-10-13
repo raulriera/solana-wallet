@@ -7,28 +7,38 @@ import Testing
 actor HTTPResponses: HTTPTransport {
     private var responses: [String: [String]]
     private let error: RPCError?
+    private let failingMethod: String?
     private let gate: Suspension?
     private let heldMethod: String?
     private(set) var requests: [URLRequest] = []
     private(set) var wasCancelled = false
 
-    /// A real devnet client whose transport never reaches the network.
+    /// A real devnet client whose requests and subscriptions never reach the network.
     nonisolated var client: HeliusRPC {
-        HeliusRPC(apiKey: "fixture-key", network: .devnet, transport: self)
+        client(socket: { _ in SocketFixture() })
     }
 
     /// Creates independent HTTP responses for one test.
     /// - Parameters:
     ///   - responses: JSON result values keyed by RPC method; the last value repeats.
     ///   - error: An optional transport or HTTP failure.
+    ///   - failingMethod: The method to fail, or `nil` to fail every request.
     ///   - gate: An optional suspension for cancellation checks.
     ///   - heldMethod: The method to suspend, or `nil` to suspend every request.
-    init(_ responses: [String: [String]], error: RPCError? = nil,
+    init(_ responses: [String: [String]], error: RPCError? = nil, failingMethod: String? = nil,
          gate: Suspension? = nil, heldMethod: String? = nil) {
         self.responses = responses
         self.error = error
+        self.failingMethod = failingMethod
         self.gate = gate
         self.heldMethod = heldMethod
+    }
+
+    /// Creates a real devnet client whose requests use these fixtures and whose subscriptions use local sockets.
+    /// - Parameter socket: Opens each subscription connection.
+    /// - Returns: A client that never reaches the network.
+    nonisolated func client(socket: @escaping @Sendable (URL) -> any WebSocketConnection) -> HeliusRPC {
+        HeliusRPC(apiKey: "fixture-key", network: .devnet, transport: self, socket: socket)
     }
 
     /// Records an actual HTTP request and wraps its fixture in a matching JSON-RPC envelope.
@@ -42,6 +52,7 @@ actor HTTPResponses: HTTPTransport {
         if let gate, heldMethod == nil || heldMethod == method { await gate.suspend() }
         wasCancelled = Task.isCancelled
         try Task.checkCancellation()
+        let error = failingMethod == nil || failingMethod == method ? self.error : nil
         if case .transport(let code) = error { throw URLError(code) }
         let status: Int
         let headers: [String: String]
@@ -104,23 +115,33 @@ actor HTTPResponses: HTTPTransport {
         ])
     }
 
-    /// Creates positional signature-status responses through real JSON decoding.
+    /// Creates positional signature-status and finalized epoch responses through real JSON decoding.
     /// - Parameters:
-    ///   - responses: The status observations in arrival order.
+    ///   - statuses: The status observations in arrival order.
+    ///   - epochs: The epoch observations in arrival order; without any, an epoch read fails the test.
     ///   - error: An optional transport or HTTP failure.
+    ///   - failingMethod: The method to fail, or `nil` to fail every request.
     ///   - gate: An optional in-flight suspension.
+    ///   - heldMethod: The method to suspend, or `nil` to suspend every request.
     /// - Returns: HTTP responses for confirmation.
     /// - Throws: A JSON encoding error.
-    static func confirmation(responses: [GetSignatureStatuses.Response], error: RPCError? = nil,
-                             gate: Suspension? = nil) throws -> HTTPResponses {
-        let values = try responses.map { response in
+    static func confirmation(statuses: [GetSignatureStatuses.Response], epochs: [GetEpochInfo.Response] = [],
+                             error: RPCError? = nil, failingMethod: String? = nil, gate: Suspension? = nil,
+                             heldMethod: String? = nil) throws -> HTTPResponses {
+        let values = try statuses.map { response in
             try json(["context": ["slot": response.context.slot], "value": response.value.map { status -> Any in
                 guard let status else { return NSNull() }
                 return ["slot": status.slot, "confirmations": status.confirmations as Any? ?? NSNull(),
                         "err": errorValue(status.error), "confirmationStatus": status.confirmationStatus?.rawValue as Any? ?? NSNull()]
             }])
         }
-        return HTTPResponses(["getSignatureStatuses": values], error: error, gate: gate)
+        var responses = ["getSignatureStatuses": values]
+        if !epochs.isEmpty {
+            responses["getEpochInfo"] = try epochs.map {
+                try json(["epoch": $0.epoch, "absoluteSlot": $0.absoluteSlot, "blockHeight": $0.blockHeight])
+            }
+        }
+        return HTTPResponses(responses, error: error, failingMethod: failingMethod, gate: gate, heldMethod: heldMethod)
     }
 
     /// Encodes a simulation fixture without adding encoding requirements to production types.

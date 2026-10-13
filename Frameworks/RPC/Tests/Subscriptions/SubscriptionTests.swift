@@ -50,9 +50,7 @@ struct SubscriptionTests {
     @Test(.timeLimit(.minutes(1)))
     func `Subscription setup retains early notifications`() async throws {
         let socket = SocketFixture { data, ordinal in
-            let body = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
-            let id = try #require(body["id"] as? String)
-            var frames = [Data(#"{"jsonrpc":"2.0","id":"\#(id)","result":\#(ordinal)}"#.utf8)]
+            var frames = [try SocketFixture.acknowledgment(of: data, ordinal: ordinal)]
             if ordinal == 1 {
                 frames.append(Data(#"{"jsonrpc":"2.0","method":"accountNotification","params":{"subscription":1,"result":{"context":{"slot":99},"value":{}}}}"#.utf8))
             }
@@ -88,9 +86,7 @@ struct SubscriptionTests {
     ])
     func `Notifications with another method or without a slot terminate the stream`(frame: String, error: RPCError) async throws {
         let socket = SocketFixture { data, ordinal in
-            let body = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
-            let id = try #require(body["id"] as? String)
-            return [Data(#"{"jsonrpc":"2.0","id":"\#(id)","result":\#(ordinal)}"#.utf8), Data(frame.utf8)]
+            [try SocketFixture.acknowledgment(of: data, ordinal: ordinal), Data(frame.utf8)]
         }
         let stream = try await client(socket: socket).changedSlots(for: ["wallet"])
         var iterator = stream.makeAsyncIterator()

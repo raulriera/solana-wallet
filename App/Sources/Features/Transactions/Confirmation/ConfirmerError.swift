@@ -4,6 +4,4 @@ nonisolated enum ConfirmerError: Error, Sendable, Equatable {
     case networkMismatch
     /// The response cannot describe the single requested signature consistently.
     case invalidResponse
-    /// The observation deadline elapsed; the transaction's outcome remains unknown.
-    case timedOut
 }

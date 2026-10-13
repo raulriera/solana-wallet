@@ -63,13 +63,8 @@ extension SubscriptionTests {
     @Test(.timeLimit(.minutes(1)))
     func `A landing during setup stays ahead of later roots`() async throws {
         let socket = SocketFixture { data, ordinal in
-            let body = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
-            let id = try #require(body["id"] as? String)
-            var frames = [Data(#"{"jsonrpc":"2.0","id":"\#(id)","result":\#(ordinal)}"#.utf8)]
-            if ordinal == 1 {
-                frames.append(Data(#"{"jsonrpc":"2.0","method":"signatureNotification","params":{"subscription":1,"result":{"context":{"slot":5},"value":{"err":null}}}}"#.utf8))
-            }
-            return frames
+            let acknowledgment = try SocketFixture.acknowledgment(of: data, ordinal: ordinal)
+            return ordinal == 1 ? [acknowledgment, SocketFixture.landingNotification()] : [acknowledgment]
         }
         let events = try await client(socket: socket).events(for: "fixture-signature")
         socket.notify(root: 10)
@@ -92,9 +87,7 @@ extension SubscriptionTests {
     ])
     func `Malformed landings and roots terminate the stream`(frame: String) async throws {
         let socket = SocketFixture { data, ordinal in
-            let body = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
-            let id = try #require(body["id"] as? String)
-            let acknowledgment = Data(#"{"jsonrpc":"2.0","id":"\#(id)","result":\#(ordinal)}"#.utf8)
+            let acknowledgment = try SocketFixture.acknowledgment(of: data, ordinal: ordinal)
             return ordinal == 2 ? [acknowledgment, Data(frame.utf8)] : [acknowledgment]
         }
         let events = try await client(socket: socket).events(for: "fixture-signature")

@@ -44,13 +44,13 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
     /// Creates the wallet workflow with a shared provider and protected recovery store.
     ///
     /// - Parameters:
-    ///   - rpc: The provider used for prerequisites, simulation, and confirmation. Public mainnet is the default.
+    ///   - rpc: The provider used for prerequisites, simulation, and the real-time watch. Public mainnet is the default.
     ///   - store: The recovery store that authenticates access to the selected wallet.
     ///   - rpcs: Ordinary RPC candidates for `.none`, or `nil` to use `rpc` alone.
     ///   - strategy: The submission strategy. The default disables Sender.
     ///   - configuration: Explicit V1 requests, or `nil` for automatic resource estimation.
     /// - Throws: ``SubmitterError/noProviders`` if no selected route serves the read client's network.
-    init(rpc: any RPC = Solana(), store: any RecoveryStoring, rpcs: [any RPC]? = nil,
+    init(rpc: any RPC & SignatureEventProviding = Solana(), store: any RecoveryStoring, rpcs: [any RPC]? = nil,
          strategy: Strategy = .none, configuration: Configuration? = nil) throws {
         let clients = try strategy.clients(for: rpc.network, from: rpcs ?? [rpc])
         self.init(rpc: rpc, configuration: configuration, preparer: Preparer(rpc: rpc, rpcs: clients), signer: Signer(rpc: rpc, store: store),
@@ -166,12 +166,12 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
         }
     }
 
-    /// Observes a sent transaction without reading recovery or sending it again.
+    /// Watches a sent transaction without reading recovery or sending it again.
     ///
     /// - Parameter submission: The receipt from ``submit(_:)`` or a ``DeliveryError``.
-    /// - Returns: The observed on-chain execution outcome, which can include failure.
+    /// - Returns: The succeeded, failed, or dropped outcome.
     /// - Throws: A ``DeliveryError`` that retains the receipt and the network, response, RPC,
-    ///   timeout, or cancellation error.
+    ///   or cancellation error.
     func confirm(_ submission: Submission) async throws -> Confirmation {
         do {
             return try await confirmer.confirm(submission)
