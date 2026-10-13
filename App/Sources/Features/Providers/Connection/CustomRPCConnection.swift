@@ -18,9 +18,11 @@ nonisolated struct CustomRPCConnection: ProviderConnecting {
         self.client = client
     }
 
-    /// Makes one standard request and one live-updates subscription at the URL, then adds the RPC and chooses it.
+    /// Makes one standard request and the live-updates subscriptions that portfolios and payment watches need at
+    /// the URL, then adds the RPC and chooses it.
     ///
-    /// Both reach only a public account, never a person's wallet.
+    /// They reach only a public account and a signature that no transaction carries, never a person's wallet or
+    /// payment.
     /// - Parameter entry: The URL, without surrounding whitespace.
     /// - Throws: ``CustomRPCError`` or `CancellationError`, never containing the URL.
     func connect(_ entry: String) async throws {
@@ -41,8 +43,11 @@ nonisolated struct CustomRPCConnection: ProviderConnecting {
             throw Self.isRateLimited(error) ? CustomRPCError.rateLimited : .unreachable
         }
         do {
-            // Discarding the stream closes its connection.
-            _ = try await rpc.changedSlots(for: [Self.checkedAccount])
+            // Both subscribe at once. Each call returns once its subscriptions are acknowledged, and discarding its
+            // stream closes its connection; a failure cancels the other call.
+            async let accounts = rpc.changedSlots(for: [Self.checkedAccount])
+            async let watch = rpc.events(for: Self.checkedSignature)
+            _ = try await (accounts, watch)
         } catch {
             try Task.checkCancellation()
             throw Self.isRateLimited(error) ? CustomRPCError.rateLimited : .noLiveUpdates
@@ -55,6 +60,10 @@ nonisolated struct CustomRPCConnection: ProviderConnecting {
             throw CustomRPCError.storageFailed
         }
     }
+
+    /// A well-formed signature that no transaction carries: sixty-four zero bytes, so the check watches no one's
+    /// payment.
+    private static var checkedSignature: String { String(repeating: "1", count: 64) }
 
     /// Identifies an RPC that's limiting requests, over HTTP or in a subscription reply.
     /// - Parameter error: An error from a request or subscription.

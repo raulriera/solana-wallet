@@ -18,7 +18,7 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, LogoProviding {
     }
 
     /// The client for an endpoint, or `nil` when the endpoint can't be used.
-    typealias ClientFactory = @Sendable (Endpoint) -> (any RPC & AccountChangeProviding)?
+    typealias ClientFactory = @Sendable (Endpoint) -> (any RPC & AccountChangeProviding & SignatureEventProviding)?
 
     let network = Network.mainnet
     private let settings: any ValueStoring<ProviderSettings>
@@ -126,7 +126,7 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, LogoProviding {
     /// Creates the production mainnet client for an endpoint.
     /// - Parameter endpoint: The provider and what it needs to accept requests.
     /// - Returns: The provider's client, or `nil` for a custom URL that isn't HTTPS with a host.
-    static func mainnetClient(for endpoint: Endpoint) -> (any RPC & AccountChangeProviding)? {
+    static func mainnetClient(for endpoint: Endpoint) -> (any RPC & AccountChangeProviding & SignatureEventProviding)? {
         switch endpoint {
         case .solana: Solana(network: .mainnet)
         case .helius(let key): HeliusRPC(apiKey: key, network: .mainnet)

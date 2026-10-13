@@ -2,7 +2,7 @@ import Foundation
 import Synchronization
 @testable import RPC
 
-/// Opens a new local socket for each subscription connection, so a test can follow reconnections.
+/// Opens a new local socket for each subscription connection, so a test can follow every connection and reconnection.
 final class SocketSequence: Sendable {
     /// Produces the responder for a connection from its zero-based position.
     typealias Script = @Sendable (Int) -> SocketFixture.Responder
@@ -14,7 +14,7 @@ final class SocketSequence: Sendable {
     private let state = Mutex<[SocketFixture]>([])
 
     /// Creates connections that each follow their script.
-    /// - Parameter script: The responder for each connection; by default, each one acknowledges a signature watch.
+    /// - Parameter script: The responder for each connection; by default, each one acknowledges every subscription.
     init(_ script: @escaping Script = { _ in SocketSequence.watch() }) {
         (openings, opened) = AsyncStream.makeStream()
         self.script = script

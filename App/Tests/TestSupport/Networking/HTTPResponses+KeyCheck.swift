@@ -45,7 +45,7 @@ extension HTTPResponses {
     /// - Returns: The provider's client, or `nil` for a custom URL that isn't HTTPS with a host.
     nonisolated func client(for endpoint: ProviderClient.Endpoint,
                             socket: @escaping @Sendable (URL) -> any WebSocketConnection = { _ in SocketFixture() })
-        -> (any RPC & AccountChangeProviding)? {
+        -> (any RPC & AccountChangeProviding & SignatureEventProviding)? {
         switch endpoint {
         case .solana: Solana(network: .mainnet, transport: self, socket: socket)
         case .helius(let key): HeliusRPC(apiKey: key, network: .mainnet, transport: self, socket: socket)
