@@ -1,6 +1,5 @@
 import Foundation
 import Observation
-import SwiftUI
 
 /// Owns one window's RPC provider choices, custom RPCs, and the key entry they need, in Settings and onboarding.
 @MainActor
@@ -141,8 +140,7 @@ final class ProvidersCoordinator: ProviderActions {
             let settings = try await providers.settings()
             guard !Task.isCancelled else { return }
             selection = settings.selection
-            // Rows animate in and out with the change that adds or deletes them.
-            withAnimation { customRPCs = settings.customRPCs }
+            customRPCs = settings.customRPCs
         } catch is CancellationError {
             // The screen left before the settings were read.
             return

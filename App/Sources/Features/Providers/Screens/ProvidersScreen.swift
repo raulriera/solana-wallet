@@ -19,6 +19,8 @@ struct ProvidersScreen: View {
             ProviderSelectionSection(selection: coordinator.selection, customRPCs: coordinator.customRPCs,
                                      removal: $coordinator.removal, actions: coordinator)
         }
+        // Each save adds or deletes one custom RPC, so its rows animate whenever the count changes.
+        .animation(.default, value: coordinator.customRPCs.count)
         .navigationTitle("Providers")
         .navigationBarTitleDisplayMode(.inline)
         .foregroundStyle(palette.primaryText, palette.secondaryText)
