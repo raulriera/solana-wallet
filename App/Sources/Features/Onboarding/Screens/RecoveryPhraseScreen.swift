@@ -4,7 +4,6 @@ import Wallet
 /// Presents a prepared recovery phrase for backup without generating or storing it.
 struct RecoveryPhraseScreen: View {
     @Environment(\.palette) private var palette
-    @State private var contentInset = LayoutMetrics.contentMargin
     @State private var isConfirmingBackup = false
     @State private var phrase: RecoveryPhrase?
     let isSaved: Bool
@@ -54,8 +53,8 @@ struct RecoveryPhraseScreen: View {
             .listRowBackground(palette.surface)
         }
         .scrollContentBackground(.hidden)
-        .readableContentMargins(inset: $contentInset)
-        .pinnedAction(inset: contentInset) {
+        .readableContentWidth()
+        .pinnedAction {
             Button("Continue") {
                 isConfirmingBackup = true
             }

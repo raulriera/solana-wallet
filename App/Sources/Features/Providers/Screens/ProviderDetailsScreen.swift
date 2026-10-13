@@ -3,7 +3,6 @@ import SwiftUI
 /// Shows Helius's saved key, mostly hidden, and opens the screen that adds or changes it.
 struct ProviderDetailsScreen: View {
     @Environment(\.palette) private var palette
-    @State private var contentInset = LayoutMetrics.contentMargin
     /// The saved key with all but its first characters masked, or `nil` when no key is saved.
     let keyPreview: String?
     let actions: any ProviderActions
@@ -33,8 +32,8 @@ struct ProviderDetailsScreen: View {
         }
         .foregroundStyle(palette.primaryText, palette.secondaryText)
         .scrollContentBackground(.hidden)
-        .readableContentMargins(inset: $contentInset)
-        .pinnedAction(inset: contentInset) {
+        .readableContentWidth()
+        .pinnedAction {
             // The button names the screen it opens.
             Button(ProviderEntryPurpose(keyPreview: keyPreview).title, action: actions.changeKey)
                 .buttonStyle(.primary)

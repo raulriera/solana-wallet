@@ -60,7 +60,7 @@ struct TokenDetailScreen: View {
         .monospacedDigit()
         .foregroundStyle(palette.primaryText, palette.secondaryText)
         .scrollContentBackground(.hidden)
-        .readableContentMargins()
+        .readableContentWidth()
         .background(palette.background)
         .navigationTitle(holding.displayName)
         .navigationBarTitleDisplayMode(.inline)

@@ -25,6 +25,7 @@ struct ProvidersScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         .foregroundStyle(palette.primaryText, palette.secondaryText)
         .scrollContentBackground(.hidden)
+        .readableContentWidth()
         .background(palette.background)
     }
 }

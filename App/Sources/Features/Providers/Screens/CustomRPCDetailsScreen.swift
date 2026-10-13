@@ -4,7 +4,6 @@ import SwiftUI
 struct CustomRPCDetailsScreen: View {
     @Environment(\.palette) private var palette
     @Environment(\.dismiss) private var dismiss
-    @State private var contentInset = LayoutMetrics.contentMargin
     let url: URL
     /// Whether the RPC is still in the list; the screen closes itself once any window deletes it.
     let isListed: Bool
@@ -27,8 +26,8 @@ struct CustomRPCDetailsScreen: View {
         }
         .foregroundStyle(palette.primaryText, palette.secondaryText)
         .scrollContentBackground(.hidden)
-        .readableContentMargins(inset: $contentInset)
-        .pinnedAction(inset: contentInset) {
+        .readableContentWidth()
+        .pinnedAction {
             Button("Delete RPC", role: .destructive) { removal = url }
                 .buttonStyle(.destructive)
         }

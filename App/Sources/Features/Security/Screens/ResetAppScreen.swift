@@ -3,7 +3,6 @@ import SwiftUI
 /// Explains what a reset deletes before the final confirmation.
 struct ResetAppScreen: View {
     @Environment(\.palette) private var palette
-    @State private var contentInset = LayoutMetrics.contentMargin
     let mode: ResetMode
     let account: Account
     let coordinator: SecurityCoordinator
@@ -37,8 +36,8 @@ struct ResetAppScreen: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .readableContentMargins(inset: $contentInset)
-        .pinnedAction(inset: contentInset) {
+        .readableContentWidth()
+        .pinnedAction {
             Button("Continue") { coordinator.confirmReset() }
                 .buttonStyle(.primary)
         }

@@ -64,7 +64,7 @@ struct ProviderSetupScreen<Submission: ProviderSubmitting>: View {
         .textInputAutocapitalization(.never)
         .autocorrectionDisabled()
         .scrollContentBackground(.hidden)
-        .readableContentMargins()
+        .readableContentWidth()
         .confirmationAction(purpose.action, isEnabled: input.hasText, isPending: submission.isPending,
                             action: submitEntry)
         .frame(maxWidth: .infinity, maxHeight: .infinity)

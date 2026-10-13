@@ -2,10 +2,9 @@ import SwiftUI
 
 /// Pins a screen's single action to its bottom edge in a bar over the content's soft scroll edge.
 private struct PinnedAction<Action: View>: ViewModifier {
-    let inset: CGFloat
     let action: Action?
 
-    /// Places the action in a bottom bar aligned with the content.
+    /// Places the action in a bottom bar with the system's horizontal padding, no wider than readable content.
     /// - Parameter content: The scroll container the bar insets.
     /// - Returns: The container with the action pinned below it, or without a bar when there's no action.
     func body(content: Content) -> some View {
@@ -15,7 +14,8 @@ private struct PinnedAction<Action: View>: ViewModifier {
                 // Padding alone would keep an empty bar, so a screen without an action gets none.
                 if let action {
                     action
-                        .padding(.horizontal, inset)
+                        .frame(maxWidth: LayoutMetrics.readableWidth)
+                        .padding(.horizontal)
                         .padding(.vertical, LayoutMetrics.actionBarVerticalPadding)
                 }
             }
@@ -24,11 +24,9 @@ private struct PinnedAction<Action: View>: ViewModifier {
 
 extension View {
     /// Pins a single action to the bottom edge, below the scrolling content.
-    /// - Parameters:
-    ///   - inset: The horizontal inset that aligns the action with the content.
-    ///   - action: The action, usually one button, or `nil` when the screen has none.
+    /// - Parameter action: The action, usually one button, or `nil` when the screen has none.
     /// - Returns: The view with the action pinned to its bottom edge.
-    func pinnedAction<Action: View>(inset: CGFloat, @ViewBuilder _ action: () -> Action?) -> some View {
-        modifier(PinnedAction(inset: inset, action: action()))
+    func pinnedAction<Action: View>(@ViewBuilder _ action: () -> Action?) -> some View {
+        modifier(PinnedAction(action: action()))
     }
 }

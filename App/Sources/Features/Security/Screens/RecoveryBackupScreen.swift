@@ -57,6 +57,7 @@ struct RecoveryBackupScreen: View {
             }
         }
         .scrollContentBackground(.hidden)
+        .readableContentWidth()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(palette.background)
         .navigationTitle("Recovery Phrase")

@@ -3,7 +3,6 @@ import SwiftUI
 /// Asks for the final confirmation before the reset; every window then returns to onboarding.
 struct ResetConfirmationScreen: View {
     @Environment(\.palette) private var palette
-    @State private var contentInset = LayoutMetrics.contentMargin
     @State private var isConfirming = false
     let coordinator: SecurityCoordinator
 
@@ -15,8 +14,8 @@ struct ResetConfirmationScreen: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .readableContentMargins(inset: $contentInset)
-        .pinnedAction(inset: contentInset) {
+        .readableContentWidth()
+        .pinnedAction {
             Button("Reset App", role: .destructive) { isConfirming = true }
                 .buttonStyle(.destructive)
         }

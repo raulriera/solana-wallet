@@ -74,8 +74,8 @@ struct ImportWalletScreen: View {
             }
         }
         .scrollContentBackground(.hidden)
+        .readableContentWidth()
         .scrollDismissesKeyboard(.interactively)
-        .readableContentMargins()
         .confirmationAction("Import Wallet", isEnabled: input.hasPhrase && canDisplayRecovery,
                             isPending: submission.isPending, action: submit)
         .frame(maxWidth: .infinity, maxHeight: .infinity)

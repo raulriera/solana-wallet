@@ -54,7 +54,7 @@ struct TokenAdditionScreen: View {
         // A preview only ever appears or clears, so its presence keys its motion.
         .animation(.default, value: addition.preview != nil)
         .scrollContentBackground(.hidden)
-        .readableContentMargins()
+        .readableContentWidth()
         .confirmationAction("Add Token", isEnabled: addition.preview != nil, action: addition.add)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(palette.background)

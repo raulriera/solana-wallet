@@ -3,7 +3,6 @@ import SwiftUI
 /// Explains why the portfolio can't show balances and offers the one action that can fix it, if any.
 struct PortfolioUnavailableScreen: View {
     @Environment(\.palette) private var palette
-    @State private var contentInset = LayoutMetrics.contentMargin
     let error: PortfolioError
     let action: () -> Void
 
@@ -11,10 +10,10 @@ struct PortfolioUnavailableScreen: View {
         ScrollView {
             ContentUnavailableView(title, systemImage: systemImage, description: Text(message))
                 .foregroundStyle(palette.primaryText)
+                .frame(maxWidth: LayoutMetrics.readableWidth)
         }
         .defaultScrollAnchor(.center, for: .alignment)
-        .readableContentMargins(inset: $contentInset, addsSafeArea: false)
-        .pinnedAction(inset: contentInset) {
+        .pinnedAction {
             if let actionTitle {
                 Button(actionTitle, action: action)
                     .buttonStyle(.primary)

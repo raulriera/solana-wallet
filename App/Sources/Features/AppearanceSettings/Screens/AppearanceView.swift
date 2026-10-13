@@ -40,6 +40,7 @@ struct AppearanceView: View {
         }
         .foregroundStyle(palette.primaryText, palette.secondaryText)
         .scrollContentBackground(.hidden)
+        .readableContentWidth()
         .background(palette.background)
         .disabled(settings.appearance.snapshot == nil)
     }
