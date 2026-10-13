@@ -10,8 +10,8 @@ struct WalletScene: View {
     let tokenRemoval: TokenRemovalFlow
     let settings: AppearanceSettings
     let connection: any ProviderConnecting<ProviderConnectionError>
-    let security: SecurityFlow
-    let providers: ProvidersFlow
+    let security: SecurityCoordinator
+    let providers: ProvidersCoordinator
     let resetRevision: Revision
 
     var body: some View {

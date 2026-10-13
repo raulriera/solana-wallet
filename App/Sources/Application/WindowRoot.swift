@@ -8,8 +8,8 @@ struct WindowRoot: View {
     @State private var portfolio: any PortfolioCoordinating
     @State private var tokenRemoval: TokenRemovalFlow
     @State private var settings: AppearanceSettings
-    @State private var security: SecurityFlow
-    @State private var providers: ProvidersFlow
+    @State private var security: SecurityCoordinator
+    @State private var providers: ProvidersCoordinator
     @State private var startupAttempt = 0
     private let services: AppServices
 
@@ -25,8 +25,8 @@ struct WindowRoot: View {
         self.portfolio = portfolio
         self.tokenRemoval = TokenRemovalFlow(coordinator: portfolio)
         self.settings = services.makeAppearanceSettings()
-        self.security = services.makeSecurityFlow()
-        self.providers = services.makeProvidersFlow()
+        self.security = services.makeSecurityCoordinator()
+        self.providers = services.makeProvidersCoordinator()
     }
 
     var body: some View {

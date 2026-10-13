@@ -6,7 +6,7 @@ struct RecoveryBackupScreen: View {
     @Environment(\.palette) private var palette
     @Environment(\.canDisplayRecovery) private var canDisplayRecovery
     let display: RecoveryDisplay
-    let flow: SecurityFlow
+    let coordinator: SecurityCoordinator
 
     var body: some View {
         Group {
@@ -15,12 +15,12 @@ struct RecoveryBackupScreen: View {
                 Form {
                     Section {
                         RecoveryWords(phrase: backup.phrase)
-                        CopyWordsButton(phrase: backup.phrase, pasteboard: flow.pasteboard)
+                        CopyWordsButton(phrase: backup.phrase, pasteboard: coordinator.pasteboard)
                     } header: {
                         Text("Recovery Words")
                             .foregroundStyle(palette.secondaryText)
                     } footer: {
-                        Text("Write down these words in order and keep them somewhere safe. Anyone with them can control your wallet. Copied words stay on this device and clear from the clipboard after \(flow.pasteboard.lifetime, format: .units(allowed: [.minutes, .seconds], width: .wide)).")
+                        Text("Write down these words in order and keep them somewhere safe. Anyone with them can control your wallet. Copied words stay on this device and clear from the clipboard after \(coordinator.pasteboard.lifetime, format: .units(allowed: [.minutes, .seconds], width: .wide)).")
                             .foregroundStyle(palette.secondaryText)
                     }
                     .listRowBackground(palette.surface)
@@ -50,7 +50,7 @@ struct RecoveryBackupScreen: View {
                 } description: {
                     Text("This device no longer has this wallet's recovery phrase. Reset the app and import your written backup.")
                 } actions: {
-                    Button("Reset App", systemImage: "trash", role: .destructive) { flow.startReset(.recoveryUnavailable) }
+                    Button("Reset App", systemImage: "trash", role: .destructive) { coordinator.startReset(.recoveryUnavailable) }
                         .labelStyle(.warning)
                 }
                 .foregroundStyle(palette.primaryText, palette.secondaryText)

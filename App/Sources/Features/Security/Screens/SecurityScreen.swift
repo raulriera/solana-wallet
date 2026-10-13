@@ -3,7 +3,7 @@ import SwiftUI
 /// Explains what stays on this device and offers the wallet's backup and the app reset.
 struct SecurityScreen: View {
     @Environment(\.palette) private var palette
-    let flow: SecurityFlow
+    let coordinator: SecurityCoordinator
     let account: Account
 
     var body: some View {
@@ -18,7 +18,7 @@ struct SecurityScreen: View {
             .listRowBackground(palette.surface)
 
             Section {
-                Button("Show Recovery Phrase") { flow.showRecovery(for: account) }
+                Button("Show Recovery Phrase") { coordinator.showRecovery(for: account) }
                     .foregroundStyle(palette.accent)
             } header: {
                 Text("Recovery Phrase")
@@ -27,7 +27,7 @@ struct SecurityScreen: View {
             .listRowSeparatorTint(palette.separator)
 
             Section {
-                Button("Reset App", systemImage: "trash", role: .destructive) { flow.startReset(.standard) }
+                Button("Reset App", systemImage: "trash", role: .destructive) { coordinator.startReset(.standard) }
                     .labelStyle(.warning)
             } footer: {
                 Text("Deletes every wallet, recovery phrase, your RPC API key, and custom RPCs from this device. Your themes stay.")

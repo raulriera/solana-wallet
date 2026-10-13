@@ -5,7 +5,7 @@ struct ResetConfirmationScreen: View {
     @Environment(\.palette) private var palette
     @State private var contentInset = LayoutMetrics.contentMargin
     @State private var isConfirming = false
-    let flow: SecurityFlow
+    let coordinator: SecurityCoordinator
 
     var body: some View {
         Form {
@@ -25,7 +25,7 @@ struct ResetConfirmationScreen: View {
         .navigationTitle("Reset App")
         .navigationBarTitleDisplayMode(.inline)
         .alert("Reset App?", isPresented: $isConfirming) {
-            Button("Reset App", role: .destructive) { flow.reset() }
+            Button("Reset App", role: .destructive) { coordinator.reset() }
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("Every wallet, recovery phrase, your RPC API key, and custom RPCs will be deleted from this device. Every window will return to Welcome.")

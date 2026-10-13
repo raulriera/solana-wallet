@@ -11,9 +11,9 @@ struct ProvidersLifecycleTests {
     /// - Throws: A test prerequisite error.
     @Test
     func `Saving the key that a choice asked for chooses Helius`() async throws {
-        let providers = ProvidersFlow.inMemory(settings: StoredValue(ProviderSettings(selection: .solana)),
-                                               providerKey: StoredValue())
-        let hosted = try HostedWindow(Color.clear.modifier(ProvidersLifecycle(flow: providers)))
+        let providers = ProvidersCoordinator.inMemory(settings: StoredValue(ProviderSettings(selection: .solana)),
+                                                      providerKey: StoredValue())
+        let hosted = try HostedWindow(Color.clear.modifier(ProvidersLifecycle(coordinator: providers)))
         defer { hosted.close() }
         providers.select(.helius)
         try #require(try await hosted.presentsViewController())

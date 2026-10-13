@@ -32,13 +32,13 @@ final class OnboardingNavigation {
         }
     }
     private let importSubmission: ImportSubmission
-    private let providers: ProvidersFlow
+    private let providers: ProvidersCoordinator
 
     /// Creates an empty path that keeps the window's import presentation and provider screens in step with navigation.
     /// - Parameters:
     ///   - importSubmission: The window's import attempts, ended when phrase entry leaves the path.
     ///   - providers: The window's provider choice, whose pushed screens show above onboarding's steps.
-    init(importSubmission: ImportSubmission, providers: ProvidersFlow) {
+    init(importSubmission: ImportSubmission, providers: ProvidersCoordinator) {
         self.importSubmission = importSubmission
         self.providers = providers
     }

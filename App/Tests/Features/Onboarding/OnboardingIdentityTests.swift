@@ -22,7 +22,7 @@ struct OnboardingIdentityTests {
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: http.client), wallet: Wallet(),
                                                 recovery: recovery, accounts: accounts, router: router)
-        let providers = ProvidersFlow.inMemory(settings: StoredValue(), providerKey: keys)
+        let providers = ProvidersCoordinator.inMemory(settings: StoredValue(), providerKey: keys)
         let original = OnboardingScene(coordinator: coordinator, providers: providers, pasteboard: NoPasteboard())
         // Read only the public model references in initial State, never recovery or input text.
         let navigation: OnboardingNavigation = try initialState("_navigation", in: original)

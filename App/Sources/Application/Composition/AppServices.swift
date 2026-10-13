@@ -89,16 +89,16 @@ struct AppServices {
     }
 
     /// Creates independent Security & Privacy navigation and steps around the shared security services.
-    /// - Returns: A flow whose path and steps belong to one window.
-    func makeSecurityFlow() -> SecurityFlow {
-        SecurityFlow(services: security)
+    /// - Returns: A coordinator whose path and steps belong to one window.
+    func makeSecurityCoordinator() -> SecurityCoordinator {
+        SecurityCoordinator(services: security)
     }
 
     /// Creates independent RPC provider choices, pushed screens, and key entry around the shared provider services.
-    /// - Returns: A flow whose choices, pushed screens, and key entry belong to one window.
-    func makeProvidersFlow() -> ProvidersFlow {
-        ProvidersFlow(providers: providerSelection, providerKey: providerKey, connection: providerConnection,
-                      customRPCConnection: customRPCConnection, revision: providerRevision)
+    /// - Returns: A coordinator whose choices, pushed screens, and key entry belong to one window.
+    func makeProvidersCoordinator() -> ProvidersCoordinator {
+        ProvidersCoordinator(providers: providerSelection, providerKey: providerKey, connection: providerConnection,
+                             customRPCConnection: customRPCConnection, revision: providerRevision)
     }
 
     /// Assembles a preference-editing workflow around the app's shared appearance services.

@@ -1,23 +1,23 @@
 import SwiftUI
 
-/// Owns Security & Privacy's navigation container; the flow decides what's pushed.
+/// Owns Security & Privacy's navigation container; the coordinator decides what's pushed.
 struct SecurityScene: View {
-    @Bindable var flow: SecurityFlow
+    @Bindable var coordinator: SecurityCoordinator
     let account: Account
 
     var body: some View {
-        NavigationStack(path: $flow.path) {
-            SecurityScreen(flow: flow, account: account)
+        NavigationStack(path: $coordinator.path) {
+            SecurityScreen(coordinator: coordinator, account: account)
                 .navigationDestination(for: SecurityRoute.self) { route in
                     switch route {
                     case .recoveryBackup:
-                        if let backup = flow.backup {
-                            RecoveryBackupScreen(display: backup, flow: flow)
+                        if let backup = coordinator.backup {
+                            RecoveryBackupScreen(display: backup, coordinator: coordinator)
                         }
                     case .resetApp(let mode):
-                        ResetAppScreen(mode: mode, account: account, flow: flow)
+                        ResetAppScreen(mode: mode, account: account, coordinator: coordinator)
                     case .resetConfirmation:
-                        ResetConfirmationScreen(flow: flow)
+                        ResetConfirmationScreen(coordinator: coordinator)
                     }
                 }
         }

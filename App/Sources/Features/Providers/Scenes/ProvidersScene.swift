@@ -1,13 +1,15 @@
 import SwiftUI
 
-/// Owns Providers' navigation container; the flow decides what's pushed.
+/// Owns Providers' navigation container; the coordinator decides what's pushed.
 struct ProvidersScene: View {
-    @Bindable var flow: ProvidersFlow
+    @Bindable var coordinator: ProvidersCoordinator
 
     var body: some View {
-        NavigationStack(path: $flow.path) {
-            ProvidersScreen(flow: flow)
-                .navigationDestination(for: ProvidersRoute.self) { ProvidersDestination(flow: flow, route: $0) }
+        NavigationStack(path: $coordinator.path) {
+            ProvidersScreen(coordinator: coordinator)
+                .navigationDestination(for: ProvidersRoute.self) {
+                    ProvidersDestination(coordinator: coordinator, route: $0)
+                }
         }
     }
 }

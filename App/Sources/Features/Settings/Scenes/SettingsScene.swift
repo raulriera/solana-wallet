@@ -7,8 +7,8 @@ struct SettingsScene: View {
     let settings: AppearanceSettings
     let wallet: AppearanceWallet?
     let account: Account
-    let security: SecurityFlow
-    let providers: ProvidersFlow
+    let security: SecurityCoordinator
+    let providers: ProvidersCoordinator
 
     /// Presents the window's preference-editing workflow, its RPC provider choices, and its wallet's security choices.
     ///
@@ -19,8 +19,8 @@ struct SettingsScene: View {
     ///   - account: The owning window's wallet, whose recovery Security & Privacy shows.
     ///   - security: The window's Security & Privacy navigation and steps.
     ///   - providers: The window's RPC provider choices and key entry.
-    init(settings: AppearanceSettings, wallet: AppearanceWallet? = nil, account: Account, security: SecurityFlow,
-         providers: ProvidersFlow) {
+    init(settings: AppearanceSettings, wallet: AppearanceWallet? = nil, account: Account, security: SecurityCoordinator,
+         providers: ProvidersCoordinator) {
         self.settings = settings
         self.wallet = wallet
         self.account = account
@@ -41,9 +41,9 @@ struct SettingsScene: View {
                     AppearanceView(settings: settings, wallet: wallet)
                 }
             case .providers:
-                ProvidersScene(flow: providers)
+                ProvidersScene(coordinator: providers)
             case .security:
-                SecurityScene(flow: security, account: account)
+                SecurityScene(coordinator: security, account: account)
             }
         }
         .navigationSplitViewStyle(.tabSection)

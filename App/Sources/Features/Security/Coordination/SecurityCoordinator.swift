@@ -4,7 +4,7 @@ import Observation
 /// Owns one Settings window's Security & Privacy navigation and runs its recovery and reset steps.
 @MainActor
 @Observable
-final class SecurityFlow {
+final class SecurityCoordinator {
     /// The screens pushed above Security & Privacy; Back removes the last one.
     var path: [SecurityRoute] = [] {
         didSet {
@@ -31,7 +31,7 @@ final class SecurityFlow {
         case reset
     }
 
-    /// Connects the flow to the window's security services.
+    /// Connects the coordinator to the window's security services.
     /// - Parameter services: Shows recovery, confirms the device owner, and resets the app.
     init(services: SecurityServices) {
         self.services = services
@@ -62,7 +62,7 @@ final class SecurityFlow {
         begin(.reset)
     }
 
-    /// Ends the flow when its scene leaves, releasing any open backup.
+    /// Closes the coordinator when its scene leaves, releasing any open backup.
     func close() {
         attempt = nil
         request = nil

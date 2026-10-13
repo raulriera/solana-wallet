@@ -6,8 +6,8 @@ private struct WindowReset: ViewModifier {
     @Binding var onboarding: any OnboardingCoordinating
     let services: AppServices
     let router: any WindowRouting
-    let security: SecurityFlow
-    let providers: ProvidersFlow
+    let security: SecurityCoordinator
+    let providers: ProvidersCoordinator
 
     /// Starts onboarding over each time any window resets the app.
     /// - Parameter content: The window's root destinations.
@@ -30,11 +30,11 @@ extension View {
     ///   - services: The shared services that count resets and create onboarding drafts.
     ///   - router: The window's navigation.
     ///   - onboarding: The window's onboarding draft, replaced after a reset.
-    ///   - security: The window's Security & Privacy flow, closed after a reset.
-    ///   - providers: The window's Providers flow, closed after a reset.
+    ///   - security: The window's Security & Privacy coordinator, closed after a reset.
+    ///   - providers: The window's Providers coordinator, closed after a reset.
     /// - Returns: A view whose window starts over after a reset.
     func windowReset(_ services: AppServices, router: any WindowRouting, onboarding: Binding<any OnboardingCoordinating>,
-                     security: SecurityFlow, providers: ProvidersFlow) -> some View {
+                     security: SecurityCoordinator, providers: ProvidersCoordinator) -> some View {
         modifier(WindowReset(onboarding: onboarding, services: services, router: router, security: security,
                              providers: providers))
     }

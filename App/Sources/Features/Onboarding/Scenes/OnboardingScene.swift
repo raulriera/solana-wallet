@@ -9,7 +9,7 @@ struct OnboardingScene: View {
     @State private var navigation: OnboardingNavigation
     @State private var importSubmission: ImportSubmission
     let coordinator: any OnboardingCoordinating
-    let providers: ProvidersFlow
+    let providers: ProvidersCoordinator
     let pasteboard: any RecoveryCopying
 
     /// Seeds presentation once; the parent retains these services for the window's lifetime.
@@ -18,7 +18,7 @@ struct OnboardingScene: View {
     ///   - providers: The window's RPC provider choice, shown after the wallet is saved; `onboardingLifecycle()` runs
     ///     its work.
     ///   - pasteboard: Copies a new wallet's recovery words to this device only, for a limited time.
-    init(coordinator: any OnboardingCoordinating, providers: ProvidersFlow, pasteboard: any RecoveryCopying) {
+    init(coordinator: any OnboardingCoordinating, providers: ProvidersCoordinator, pasteboard: any RecoveryCopying) {
         self.coordinator = coordinator
         self.providers = providers
         self.pasteboard = pasteboard
@@ -53,10 +53,10 @@ struct OnboardingScene: View {
                             }
                         case .providers:
                             // The wallet is already saved, so its earlier steps no longer apply.
-                            ProviderChoiceScreen(flow: providers, continueSetup: openWallet)
+                            ProviderChoiceScreen(coordinator: providers, continueSetup: openWallet)
                                 .navigationBarBackButtonHidden()
                         case .providersRoute(let route):
-                            ProvidersDestination(flow: providers, route: route)
+                            ProvidersDestination(coordinator: providers, route: route)
                         }
                     }
                     .navigationSubtitle("Step \(step.number) of \(OnboardingStep.total)")

@@ -5,7 +5,7 @@ import SwiftUI
 /// Owns one window's RPC provider choices, custom RPCs, and the key entry they need, in Settings and onboarding.
 @MainActor
 @Observable
-final class ProvidersFlow: ProviderActions {
+final class ProvidersCoordinator: ProviderActions {
     /// The provider in use as last read, or `nil` before the first read, so no provider shows as in use.
     private(set) var selection: ProviderSettings.Provider?
     /// The custom RPCs as last read, in the order they were added.
@@ -54,7 +54,7 @@ final class ProvidersFlow: ProviderActions {
         let entry: ProviderSubmission<ProviderConnectionError>
     }
 
-    /// Connects the flow to the shared provider services.
+    /// Connects the coordinator to the shared provider services.
     /// - Parameters:
     ///   - providers: Reads and changes the provider that every window uses, and the custom RPCs.
     ///   - providerKey: Device-only storage for Helius's accepted key, read only to show its first characters.
@@ -166,8 +166,8 @@ final class ProvidersFlow: ProviderActions {
         path = []
     }
 
-    /// Ends the flow after a reset, dropping pushed screens and what they show, key entry, any waiting change or
-    /// deletion, and the settings and key preview last read.
+    /// Closes the coordinator after a reset, dropping pushed screens and what they show, key entry, any waiting change
+    /// or deletion, and the settings and key preview last read.
     func close() {
         keyChoice = nil
         keyEntry = nil

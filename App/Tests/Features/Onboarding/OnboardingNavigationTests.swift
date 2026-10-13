@@ -42,7 +42,7 @@ struct OnboardingNavigationTests {
     /// - Throws: A test prerequisite error.
     @Test
     func `The provider choice's screens show above onboarding's steps`() throws {
-        let providers = ProvidersFlow.inMemory(settings: StoredValue(), providerKey: StoredValue())
+        let providers = ProvidersCoordinator.inMemory(settings: StoredValue(), providerKey: StoredValue())
         let navigation = OnboardingNavigation(importSubmission: Self.submission(), providers: providers)
         navigation.path = [.recovery, .providers]
 

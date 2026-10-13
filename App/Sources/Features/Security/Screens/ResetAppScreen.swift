@@ -6,7 +6,7 @@ struct ResetAppScreen: View {
     @State private var contentInset = LayoutMetrics.contentMargin
     let mode: ResetMode
     let account: Account
-    let flow: SecurityFlow
+    let coordinator: SecurityCoordinator
 
     /// The explanation for why the user is resetting.
     private var message: LocalizedStringResource {
@@ -27,7 +27,7 @@ struct ResetAppScreen: View {
 
             if mode == .standard {
                 Section {
-                    Button("Show Recovery Phrase") { flow.showRecovery(for: account) }
+                    Button("Show Recovery Phrase") { coordinator.showRecovery(for: account) }
                         .foregroundStyle(palette.accent)
                 } footer: {
                     Text("Make sure you've written down your recovery phrase before you continue.")
@@ -39,7 +39,7 @@ struct ResetAppScreen: View {
         .scrollContentBackground(.hidden)
         .readableContentMargins(inset: $contentInset)
         .pinnedAction(inset: contentInset) {
-            Button("Continue") { flow.confirmReset() }
+            Button("Continue") { coordinator.confirmReset() }
                 .buttonStyle(.primary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

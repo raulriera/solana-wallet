@@ -6,7 +6,7 @@ extension OnboardingScene {
     /// - Returns: Onboarding whose presentation, including the provider choice's work, starts over when its coordinator
     ///   is replaced.
     func onboardingLifecycle() -> some View {
-        modifier(ProvidersLifecycle(flow: providers))
+        modifier(ProvidersLifecycle(coordinator: providers))
             .id(ObjectIdentifier(coordinator))
     }
 }
