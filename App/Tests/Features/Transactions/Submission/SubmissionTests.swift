@@ -123,7 +123,6 @@ struct SubmissionTests {
             #expect(accounts.value[0]?.lamports == senderBalance - 1_000_000 - fee)
             #expect(accounts.value[1]?.lamports == recipientBalance + 1_000_000)
         }
-        print("Devnet delivered 0.001 SOL to \(recipient.value): \(submission.signature)")
     }
 
     /// Verifies real validators reject an unfunded payer, independently for each RPC.
@@ -218,7 +217,8 @@ struct SubmissionTests {
             } catch is CancellationError {
                 throw CancellationError()
             } catch {
-                print("Devnet faucet unavailable: \(error)")
+                // Another faucet may still fund the sender; if none does, setup stops below.
+                continue
             }
         }
         throw SetupError.fundingUnavailable(address: address)

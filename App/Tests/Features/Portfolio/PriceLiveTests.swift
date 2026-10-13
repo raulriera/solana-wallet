@@ -24,9 +24,5 @@ struct PriceLiveTests {
             // Jupiter reports a 24-hour change for both markets; this checks it reaches the shared quote.
             #expect(quote.dayChange != nil)
         }
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        encoder.dateEncodingStrategy = .iso8601
-        print("Live price quotes:\n\(String(decoding: try encoder.encode(quotes), as: UTF8.self))")
     }
 }

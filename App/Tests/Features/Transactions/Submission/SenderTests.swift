@@ -40,6 +40,5 @@ struct SenderTests {
         let final = try await rpc.send(GetMultipleAccounts(addresses: [account.address.value], minContextSlot: slot))
         try #require(final.value.count == 1)
         #expect(final.value[0]?.lamports == initial - fee - tip)
-        print("Mainnet Sender \(strategy) confirmed: \(result.submission.signature); cost: \(fee + tip) lamports")
     }
 }

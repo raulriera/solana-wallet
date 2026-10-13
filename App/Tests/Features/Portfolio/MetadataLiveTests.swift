@@ -18,7 +18,6 @@ struct MetadataLiveTests {
         #expect(asset.imageURL?.host() == "cdn.helius-rpc.com")
         #expect(asset.metadata?.media?.isEmpty == false)
         #expect(asset.metadata?.kind == "FungibleToken")
-        try printMetadata(asset, network: .mainnet)
     }
 
     /// Checks rich NFT metadata without funding or transactions.
@@ -33,17 +32,5 @@ struct MetadataLiveTests {
         #expect(collectible.metadata?.attributes?.isEmpty == false)
         #expect(collectible.metadata?.collections?.first?.name != nil)
         #expect(collectible.metadata?.creators?.isEmpty == false)
-        try printMetadata(collectible, network: .mainnet)
-    }
-
-    /// Prints only normalized public metadata for inspection.
-    /// - Parameters:
-    ///   - asset: The decoded provider response.
-    ///   - network: The network queried.
-    /// - Throws: An encoding error if metadata can't be represented.
-    private func printMetadata(_ asset: Asset, network: Network) throws {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        print("Live metadata for \(asset.id) on \(network):\n\(String(decoding: try encoder.encode(asset.metadata), as: UTF8.self))")
     }
 }

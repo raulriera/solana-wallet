@@ -74,7 +74,6 @@ extension SubmissionTests {
         try #require(delivered.outcome == .succeeded)
         let balances = try await tokenBalances([source, destination], through: rpcs, after: delivered, program: program)
         #expect(balances == [0, amount])
-        print("Devnet \(program) delivery: \(delivered.submission.signature)")
     }
 
     /// Reads the exact delivered token balances through each configured real provider.
