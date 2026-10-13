@@ -4,8 +4,8 @@ import SwiftUI
 struct ImportWalletScreen: View {
     @Environment(\.palette) private var palette
     @Environment(\.canDisplayRecovery) private var canDisplayRecovery
-    @State private var input: RecoveryInput
-    @FocusState private var focusedField: RecoveryInput.Field?
+    @State private var input: RecoveryEntryModel
+    @FocusState private var focusedField: RecoveryEntryModel.Field?
     private let submission: any ImportSubmitting
 
     /// Creates an entry screen with an optional one-time seed for public-fixture previews.
@@ -13,7 +13,7 @@ struct ImportWalletScreen: View {
     ///   - initialPhrase: Initial input, empty for normal wallet imports; later values never replace edits.
     ///   - submission: Receives locally validated input after explicit approval; owns subsequent work.
     init(initialPhrase: String = "", submission: any ImportSubmitting) {
-        input = RecoveryInput(phrase: initialPhrase)
+        input = RecoveryEntryModel(phrase: initialPhrase)
         self.submission = submission
     }
 
@@ -32,8 +32,8 @@ struct ImportWalletScreen: View {
                 RecoveryPhraseEntry(input: input, focusedField: $focusedField)
                     .disabled(submission.isPending)
 
-                if let validationMessage = input.validationMessage {
-                    Label(validationMessage, systemImage: "exclamationmark.circle.fill")
+                if let message = input.rejection?.message(in: input.phrase) {
+                    Label(message, systemImage: "exclamationmark.circle.fill")
                         .labelStyle(.warning)
                         .contentTransition(.opacity)
                         .transition(.opacity)
@@ -59,6 +59,7 @@ struct ImportWalletScreen: View {
             }
             .listRowBackground(palette.surface)
         }
+        .animation(.default, value: input.rejection)
         .textInputAutocapitalization(.never)
         .autocorrectionDisabled()
         .writingToolsBehavior(.disabled)
@@ -83,8 +84,8 @@ struct ImportWalletScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         .onChange(of: focusedField?.rawValue ?? 0) { oldValue, newValue in
             // Replacing the phrase control also resigns its focus; that isn't an editing exit.
-            let oldField = RecoveryInput.Field(rawValue: oldValue)
-            let newField = RecoveryInput.Field(rawValue: newValue)
+            let oldField = RecoveryEntryModel.Field(rawValue: oldValue)
+            let newField = RecoveryEntryModel.Field(rawValue: newValue)
             if oldField == input.phraseField,
                newField?.isPhrase != true, input.hasPhrase, canDisplayRecovery {
                 input.validate()

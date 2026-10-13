@@ -3,8 +3,8 @@ import SwiftUI
 /// Isolates recovery typing from the form's unrelated appearance and layout work, with a control to check the words.
 struct RecoveryPhraseEntry: View {
     @Environment(\.palette) private var palette
-    @Bindable var input: RecoveryInput
-    @FocusState.Binding var focusedField: RecoveryInput.Field?
+    @Bindable var input: RecoveryEntryModel
+    @FocusState.Binding var focusedField: RecoveryEntryModel.Field?
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 16) {

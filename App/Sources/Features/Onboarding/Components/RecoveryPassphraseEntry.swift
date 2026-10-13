@@ -3,8 +3,8 @@ import SwiftUI
 /// Isolates original-passphrase typing without applying text normalization, with a control to check it exactly.
 struct RecoveryPassphraseEntry: View {
     @Environment(\.palette) private var palette
-    @Bindable var input: RecoveryInput
-    @FocusState.Binding var focusedField: RecoveryInput.Field?
+    @Bindable var input: RecoveryEntryModel
+    @FocusState.Binding var focusedField: RecoveryEntryModel.Field?
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 16) {
