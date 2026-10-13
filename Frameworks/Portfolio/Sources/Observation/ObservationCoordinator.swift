@@ -2,7 +2,7 @@ import Foundation
 import RPC
 import Transactions
 
-/// Shares a wallet's confirmed subscription and reloads its balances after confirmed changes.
+/// Shares a wallet's finalized subscription and reloads its balances after finalized changes.
 ///
 /// A dropped connection reconnects by itself. An error that a person must act on, such as a rate limit
 /// or a rejected key, keeps the consumers' streams but waits for a person's reload or token-list change.
@@ -26,7 +26,7 @@ actor ObservationCoordinator {
     /// - Parameters:
     ///   - refresh: The owner of cache and in-flight refreshes.
     ///   - tokenLists: The token lists whose accounts each wallet's subscription watches.
-    ///   - changes: The optional provider of confirmed account-change slots.
+    ///   - changes: The optional provider of finalized account-change slots.
     ///   - network: The network whose portfolio is observed.
     ///   - pause: Cancellable scheduling for coalescing nearby changes and spacing reconnections.
     init(refresh: RefreshCoordinator, tokenLists: TokenListCoordinator, changes: (any AccountChangeProviding)?,
@@ -42,7 +42,7 @@ actor ObservationCoordinator {
     ///
     /// Joining a disconnected observation connects it again at once.
     /// - Parameter owner: The wallet whose holdings to observe.
-    /// - Returns: Cached state, initial reload, and subsequent confirmed-change refresh results.
+    /// - Returns: Cached state, initial reload, and subsequent finalized-change refresh results.
     func observations(for owner: String) -> AsyncStream<Update> {
         let (stream, continuation) = AsyncStream<Update>.makeStream(bufferingPolicy: .bufferingNewest(2))
         guard !Task.isCancelled else { continuation.finish(); return stream }
@@ -108,7 +108,7 @@ actor ObservationCoordinator {
     ///   - owner: The watched wallet.
     ///   - consumers: The streams that receive the wallet's updates.
     ///   - latest: The newest update those consumers already received, if any.
-    ///   - minContextSlot: The newest confirmed change already observed, if any.
+    ///   - minContextSlot: The newest finalized change already observed, if any.
     private func connect(owner: String, consumers: [UUID: AsyncStream<Update>.Continuation], latest: Update? = nil,
                          minContextSlot: UInt64? = nil) {
         let generation = UUID()

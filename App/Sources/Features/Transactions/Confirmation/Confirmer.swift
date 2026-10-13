@@ -27,7 +27,7 @@ nonisolated struct Confirmer: TransactionConfirming {
         self.clock = clock
     }
 
-    /// Watches the transaction until it lands at confirmed commitment or its blockhash expires without it.
+    /// Watches the transaction until it lands at finalized commitment or its blockhash expires without it.
     ///
     /// After each subscription, one status read catches up on an earlier landing; once the blockhash has expired, it is
     /// also the final read. Before that, a finalized epoch read checks the expiry, and a status read follows the one
@@ -38,7 +38,7 @@ nonisolated struct Confirmer: TransactionConfirming {
     /// and nothing rebuilds, resigns, or resubmits the transaction.
     ///
     /// - Parameter submission: The accepted signature, original network, and blockhash expiry.
-    /// - Returns: A confirmed or finalized execution outcome, or finalized proof that the transaction was dropped.
+    /// - Returns: A finalized execution outcome, or finalized proof that the transaction was dropped.
     /// - Throws: ``ConfirmerError``, an RPC error that reconnecting can't clear, or `CancellationError`.
     @concurrent
     func confirm(_ submission: Submission) async throws -> Confirmation {
@@ -82,7 +82,7 @@ nonisolated struct Confirmer: TransactionConfirming {
             try Task.checkCancellation()
             switch event {
             case .landed(let error):
-                return Confirmation(submission: submission, slot: nil, commitment: .confirmed,
+                return Confirmation(submission: submission, slot: nil,
                                     outcome: error.map(Confirmation.Outcome.failed) ?? .succeeded)
             case .rooted(let root):
                 schedule.root = root
@@ -131,11 +131,11 @@ nonisolated struct Confirmer: TransactionConfirming {
         return settle(response, for: submission, at: root, schedule: &schedule)
     }
 
-    /// Settles a status read: a confirmed status gives its outcome, and once the blockhash has expired, a missing
+    /// Settles a status read: a finalized status gives its outcome, and once the blockhash has expired, a missing
     /// status from a node that has reached the expiry slot proves the transaction was dropped.
     ///
     /// After expiry, a node behind the expiry slot is read again once roots advance by the slots it lags; a status
-    /// that isn't confirmed yet is read again on the next root.
+    /// that isn't finalized yet is read again on the next root.
     /// - Parameters:
     ///   - response: The transaction's status read.
     ///   - submission: The receipt that the outcome belongs to.
@@ -149,7 +149,7 @@ nonisolated struct Confirmer: TransactionConfirming {
         guard let expiry = schedule.expiry else { return nil }
         let context = response.context.slot
         if context >= expiry, status == nil {
-            return Confirmation(submission: submission, slot: nil, commitment: .finalized, outcome: .dropped)
+            return Confirmation(submission: submission, slot: nil, outcome: .dropped)
         }
         // Before the first root, the expiry slot stands in for it.
         schedule.nextCheck = Self.sum(max(root, expiry), context < expiry ? expiry - context : 1)
@@ -169,7 +169,7 @@ nonisolated struct Confirmer: TransactionConfirming {
     /// - Throws: A read or cancellation error.
     private func hasExpired(_ submission: Submission, at root: UInt64, schedule: inout Schedule) async throws -> Bool {
         if schedule.expiry != nil { return true }
-        let epoch = try await rpc.send(GetEpochInfo(commitment: .finalized))
+        let epoch = try await rpc.send(GetEpochInfo())
         guard epoch.blockHeight > submission.lastValidBlockHeight else {
             let remaining = submission.lastValidBlockHeight - epoch.blockHeight
             schedule.nextCheck = Self.sum(max(root, epoch.absoluteSlot), Self.sum(remaining, 1))
@@ -193,15 +193,15 @@ nonisolated struct Confirmer: TransactionConfirming {
         return response
     }
 
-    /// Settles a status once its commitment is confirmed or finalized, keeping execution failures as outcomes.
+    /// Settles a status once it's finalized, keeping execution failures as outcomes.
     ///
     /// - Parameters:
     ///   - status: The transaction's status.
     ///   - submission: The receipt that the outcome belongs to.
-    /// - Returns: The outcome, or `nil` for a processed status or one without a commitment.
+    /// - Returns: The outcome, or `nil` for a processed or confirmed status, or one without a commitment.
     private func confirmation(of status: GetSignatureStatuses.Status, for submission: Submission) -> Confirmation? {
-        guard let commitment = status.confirmationStatus, commitment != .processed else { return nil }
-        return Confirmation(submission: submission, slot: status.slot, commitment: commitment,
+        guard status.confirmationStatus == .finalized else { return nil }
+        return Confirmation(submission: submission, slot: status.slot,
                             outcome: status.error.map(Confirmation.Outcome.failed) ?? .succeeded)
     }
 

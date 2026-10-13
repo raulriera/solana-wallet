@@ -213,13 +213,13 @@ public struct SimulateTransaction: RPCRequest {
     ///
     /// - Parameters:
     ///   - transaction: The complete serialized transaction, including its signature slots.
-    ///   - commitment: The confirmation level to query. The default is `confirmed`.
+    ///   - commitment: The confirmation level to query. The default is `finalized`.
     ///   - minContextSlot: The minimum evaluation slot. The default is `nil`.
     ///   - verifiesSignatures: Whether to verify signatures. The default is `false`.
     ///   - replacesRecentBlockhash: Whether to replace the blockhash. The default is `false`.
     public init(
         transaction: Data,
-        commitment: Commitment = .confirmed,
+        commitment: Commitment = .finalized,
         minContextSlot: UInt64? = nil,
         verifiesSignatures: Bool = false,
         replacesRecentBlockhash: Bool = false

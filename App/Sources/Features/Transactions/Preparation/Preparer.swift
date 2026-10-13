@@ -56,7 +56,7 @@ nonisolated struct Preparer: TransactionPreparing {
             try SystemProgram.transfer(from: payer, to: Address($0.tipRecipient), lamports: $0.tipLamports)
         }
         let invocations = tips + instructions
-        let blockhash = try await rpc.send(GetLatestBlockhash(commitment: .confirmed, minContextSlot: minimumSlot))
+        let blockhash = try await rpc.send(GetLatestBlockhash(minContextSlot: minimumSlot))
         try Task.checkCancellation()
         guard blockhash.context.slot >= (minimumSlot ?? 0) else { throw PreparerError.inconsistentResponse }
         var message = try messageBuilder.message(instructions: invocations, payer: payer,
@@ -66,8 +66,7 @@ nonisolated struct Preparer: TransactionPreparing {
         var context = blockhash.context.slot
         if configuration == nil {
             let estimate = try await rpc.send(SimulateTransaction(transaction: transaction.serializedRepresentation,
-                commitment: .confirmed, minContextSlot: context, verifiesSignatures: false,
-                replacesRecentBlockhash: false))
+                minContextSlot: context, verifiesSignatures: false, replacesRecentBlockhash: false))
             try Task.checkCancellation()
             guard estimate.context.slot >= context, estimate.value.replacementBlockhash == nil else {
                 throw PreparerError.inconsistentResponse
@@ -92,7 +91,7 @@ nonisolated struct Preparer: TransactionPreparing {
     /// Validates an imported transaction and its blockhash without accessing protected recovery.
     ///
     /// A valid blockhash expires at most 150 blocks after the current height, so the
-    /// confirmed height at or after the validity context plus 150 bounds the transaction's expiry.
+    /// finalized height at or after the validity context plus 150 bounds the transaction's expiry.
     ///
     /// - Parameters:
     ///   - imported: The typed transaction supplied by the import boundary.
@@ -108,7 +107,7 @@ nonisolated struct Preparer: TransactionPreparing {
         let validity = try await rpc.send(IsBlockhashValid(blockhash: transaction.lifetimeSpecifier))
         try Task.checkCancellation()
         guard validity.value else { throw PreparerError.invalidBlockhash }
-        let height = try await rpc.send(GetBlockHeight(commitment: .confirmed, minContextSlot: validity.context.slot))
+        let height = try await rpc.send(GetBlockHeight(minContextSlot: validity.context.slot))
         try Task.checkCancellation()
         let (lastValidBlockHeight, overflow) = height.addingReportingOverflow(150)
         guard !overflow else { throw PreparerError.inconsistentResponse }
@@ -132,10 +131,10 @@ nonisolated struct Preparer: TransactionPreparing {
                   tips: [SubmissionRequirements] = []) async throws -> Preparation {
         try Task.checkCancellation()
         async let fee = rpc.send(GetFeeForMessage(
-            message: transaction.message, commitment: .confirmed, minContextSlot: minimumSlot ?? source.context.slot
+            message: transaction.message, minContextSlot: minimumSlot ?? source.context.slot
         ))
         async let simulation = rpc.send(SimulateTransaction(
-            transaction: transaction.serializedRepresentation, commitment: .confirmed, minContextSlot: minimumSlot ?? source.context.slot,
+            transaction: transaction.serializedRepresentation, minContextSlot: minimumSlot ?? source.context.slot,
             verifiesSignatures: false, replacesRecentBlockhash: false
         ))
         let observations = try await (fee, simulation)

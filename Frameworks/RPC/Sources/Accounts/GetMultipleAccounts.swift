@@ -30,10 +30,10 @@ public struct GetMultipleAccounts: RPCRequest {
     ///
     /// - Parameters:
     ///   - addresses: One through 100 account addresses.
-    ///   - commitment: The confirmation level, defaulting to `confirmed`.
+    ///   - commitment: The confirmation level, defaulting to `finalized`.
     ///   - minContextSlot: The earliest acceptable observation slot, or `nil`.
     /// - Throws: ``GetMultipleAccountsError/invalidAddressCount`` for an empty or oversized request.
-    public init(addresses: [String], commitment: Commitment = .confirmed, minContextSlot: UInt64? = nil) throws {
+    public init(addresses: [String], commitment: Commitment = .finalized, minContextSlot: UInt64? = nil) throws {
         guard (1...100).contains(addresses.count) else { throw GetMultipleAccountsError.invalidAddressCount }
         self.addresses = addresses
         self.commitment = commitment

@@ -72,7 +72,7 @@ actor HTTPResponses: HTTPTransport {
 
     /// Creates fee, lifetime, and simulation responses from a public transaction fixture.
     ///
-    /// An external fixture's confirmed block height is 150 below its expiry bound.
+    /// An external fixture's finalized block height is 150 below its expiry bound.
     ///
     /// - Parameters:
     ///   - fixture: The observations to encode as JSON.

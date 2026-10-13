@@ -44,19 +44,25 @@ struct ExternalTransactionTests {
         #expect(validity[0] as? String == expected.transaction.lifetimeSpecifier)
         let simulation = try #require(requests.first { try $0.rpcMethod == "simulateTransaction" }).rpcParameters
         #expect(simulation[0] as? String == input.base64EncodedString())
+        // The validity, height, fee, and simulation reads all use finalized state.
+        for request in requests {
+            #expect(try (request.rpcParameters.last as? [String: Any])?["commitment"] as? String == "finalized")
+        }
         let checks = try await signingHTTP.requests.filter { try $0.rpcMethod == "isBlockhashValid" }
         #expect(checks.count == 2)
         for check in checks {
             let parameters = try check.rpcParameters
             #expect(parameters[0] as? String == expected.transaction.lifetimeSpecifier)
-            #expect((parameters[1] as? [String: Any])?["minContextSlot"] as? Int == 402)
+            let options = try #require(parameters[1] as? [String: Any])
+            #expect(options["commitment"] as? String == "finalized")
+            #expect(options["minContextSlot"] as? Int == 402)
         }
     }
 
-    /// Verifies an imported receipt expires 150 blocks after the confirmed height where its blockhash was valid,
+    /// Verifies an imported receipt expires 150 blocks after the finalized height where its blockhash was valid,
     /// while the review shows no expiry because that bound isn't the blockhash's own.
     @Test
-    func `An imported receipt expires 150 blocks after the confirmed block height`() async throws {
+    func `An imported receipt expires 150 blocks after the finalized block height`() async throws {
         let expected = try ExternalFixture.preparation()
         let preparationHTTP = try HTTPResponses.preparation(fixture: expected)
         let signingHTTP = try HTTPResponses.signing(fee: 15_000)
@@ -76,7 +82,6 @@ struct ExternalTransactionTests {
         #expect(try requests.prefix(2).map { try $0.rpcMethod } == ["isBlockhashValid", "getBlockHeight"])
         let height = try #require(requests.first { try $0.rpcMethod == "getBlockHeight" })
         let options = try #require(height.rpcParameters.first as? [String: Any])
-        #expect(options["commitment"] as? String == "confirmed")
         #expect(options["minContextSlot"] as? Int == 400)
     }
 

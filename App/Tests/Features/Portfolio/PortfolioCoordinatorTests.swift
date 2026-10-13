@@ -304,7 +304,7 @@ struct PortfolioCoordinatorTests {
         #expect(await service.calls.count == 2)
     }
 
-    /// Verifies cancelling a manual refresh does not cancel confirmed-change observation.
+    /// Verifies cancelling a manual refresh does not cancel finalized-change observation.
     @Test
     func `Cancelling pull to refresh leaves observation active`() async throws {
         let service = PortfolioResponses()

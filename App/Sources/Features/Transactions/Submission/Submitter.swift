@@ -34,7 +34,7 @@ nonisolated struct Submitter: TransactionSubmitting {
 
     /// Validates and serializes a typed signed result before sending it once.
     ///
-    /// The original message and blockhash are preserved. Preflight uses confirmed
+    /// The original message and blockhash are preserved. Preflight uses finalized
     /// commitment and the newest reviewed slot. Cancellation after dispatch doesn't
     /// revoke a transaction; its locally known signature remains the lookup identifier.
     ///
@@ -62,7 +62,7 @@ nonisolated struct Submitter: TransactionSubmitting {
         try await validator.validate(signed.preparation)
         try Task.checkCancellation()
         let request = SendTransaction(
-            transaction: bytes, preflightCommitment: .confirmed, minContextSlot: signed.preparation.minimumSlot,
+            transaction: bytes, minContextSlot: signed.preparation.minimumSlot,
             skipsPreflight: false, maxRetries: 0
         )
         let errors = await withTaskGroup(of: Result<Void, any Error>.self) { group in

@@ -46,9 +46,9 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, LogoProviding {
         try await perform { try await $0.send(request) }
     }
 
-    /// Observes confirmed changes to each account through the selected provider.
+    /// Observes finalized changes to each account through the selected provider.
     /// - Parameter addresses: The accounts to watch; a repeated address is watched once.
-    /// - Returns: Increasing confirmed change slots after all subscriptions are acknowledged.
+    /// - Returns: Increasing finalized change slots after all subscriptions are acknowledged.
     /// - Throws: ``ProviderClientError`` for a missing or rejected Helius key, a storage error, or another
     ///   sanitized subscription, transport, timeout, or cancellation error.
     func changedSlots(for addresses: [String]) async throws -> AsyncThrowingStream<UInt64, any Error> {

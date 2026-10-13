@@ -8,9 +8,9 @@ import Transactions
 /// Exercises observation through real public-endpoint decoding with controlled HTTP and WebSocket transports.
 struct ObservationTests {
     /// Verifies lagging balance responses preserve the last complete snapshot and report failure.
-    /// - Parameter slot: A response slot older than the confirmed change.
+    /// - Parameter slot: A response slot older than the finalized change.
     @Test(.timeLimit(.minutes(1)), arguments: [100, 109] as [UInt64])
-    func `Confirmed changes reject older balance responses`(slot: UInt64) async throws {
+    func `Finalized changes reject older balance responses`(slot: UInt64) async throws {
         let fixture = ObservationFixture()
         defer { fixture.cleanUp() }
         let ledger = ObservedLedger()
@@ -36,9 +36,9 @@ struct ObservationTests {
         await fixture.socket.waitUntilCancelled()
     }
 
-    /// Verifies a confirmed change replaces an older manual read while preserving both consumers.
+    /// Verifies a finalized change replaces an older manual read while preserving both consumers.
     @Test(.timeLimit(.minutes(1)))
-    func `A confirmed change replaces an active manual read with a newer read`() async throws {
+    func `A finalized change replaces an active manual read with a newer read`() async throws {
         let fixture = ObservationFixture()
         defer { fixture.cleanUp() }
         let ledger = ObservedLedger()
@@ -87,7 +87,7 @@ struct ObservationTests {
 
     /// Verifies restarting subscriptions and receiving an older notification cannot lower the required slot.
     @Test(.timeLimit(.minutes(1)))
-    func `Token list changes preserve the newest confirmed slot across connections`() async throws {
+    func `Token list changes preserve the newest finalized slot across connections`() async throws {
         let fixture = ObservationFixture()
         defer { fixture.cleanUp() }
         let ledger = ObservedLedger()
@@ -130,9 +130,9 @@ struct ObservationTests {
     }
 
     /// Verifies a provider change closes the connection, drops the read in progress, and lets a new observation
-    /// read balances from a provider that is behind the previous provider's newest confirmed change.
+    /// read balances from a provider that is behind the previous provider's newest finalized change.
     @Test(.timeLimit(.minutes(1)))
-    func `A provider change ends observation and the next one needs no earlier confirmed slot`() async throws {
+    func `A provider change ends observation and the next one needs no earlier finalized slot`() async throws {
         let fixture = ObservationFixture()
         defer { fixture.cleanUp() }
         let ledger = ObservedLedger()
@@ -219,10 +219,10 @@ struct ObservationTests {
         #expect(fixture.store.snapshot(for: fixture.key) == initial.snapshot)
     }
 
-    /// Verifies a confirmed change bypasses fresh cache and reads balances after gathering nearby changes.
-    /// - Parameter slot: A response slot at or beyond the confirmed change.
+    /// Verifies a finalized change bypasses fresh cache and reads balances after gathering nearby changes.
+    /// - Parameter slot: A response slot at or beyond the finalized change.
     @Test(.timeLimit(.minutes(1)), arguments: [110, 120] as [UInt64])
-    func `Confirmed changes refresh fresh portfolios`(slot: UInt64) async throws {
+    func `Finalized changes refresh fresh portfolios`(slot: UInt64) async throws {
         let fixture = ObservationFixture()
         defer { fixture.cleanUp() }
         let ledger = ObservedLedger()

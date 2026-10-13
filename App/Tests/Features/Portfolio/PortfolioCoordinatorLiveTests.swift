@@ -14,7 +14,7 @@ struct PortfolioCoordinatorLiveTests {
     @MainActor
     @Test(.timeLimit(.minutes(1)))
     func `Portfolio presentation observes and reloads a public mainnet wallet`() async throws {
-        let rpc = try MainnetClients.client()
+        let rpc = try LiveClients.client()
         let owner = PublicWallet.address
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }

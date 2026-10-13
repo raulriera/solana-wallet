@@ -23,6 +23,7 @@ struct SubmissionTests {
             let requests = await transport.requests
             try #require(requests.count == 1)
             #expect(try requests[0].rpcParameters[0] as? String == signed.transaction.serializedRepresentation.base64EncodedString())
+            #expect(try (requests[0].rpcParameters[1] as? [String: Any])?["preflightCommitment"] as? String == "finalized")
         }
     }
 
@@ -181,11 +182,9 @@ struct SubmissionTests {
     /// Creates real clients restricted to devnet using a test-runner credential.
     ///
     /// - Returns: Helius and public Solana clients on the same test network, which also watch signatures.
-    /// - Throws: A configuration error when the local API key isn't supplied.
+    /// - Throws: A test prerequisite failure when the local API key isn't supplied.
     func devnetRPCs() throws -> [any RPC & SignatureEventProviding] {
-        guard let key = ProcessInfo.processInfo.environment["HELIUS_API_KEY"],
-              !key.isEmpty, !key.hasPrefix("$(") else { throw SetupError.missingAPIKey }
-        return [HeliusRPC(apiKey: key, network: .devnet), Solana(network: .devnet)]
+        try [LiveClients.client(network: .devnet), LiveClients.client(helius: false, network: .devnet)]
     }
 
     /// Supplies explicit V1 resource limits for a small native transfer.
@@ -211,7 +210,7 @@ struct SubmissionTests {
             do {
                 let signature = try await rpc.send(Airdrop(address: address))
                 // The faucet chose its blockhash before answering; the margin covers a node behind it.
-                let blockhash = try await rpc.send(GetLatestBlockhash(commitment: .processed))
+                let blockhash = try await rpc.send(GetLatestBlockhash())
                 let receipt = Submission(signature: signature, network: .devnet,
                                          lastValidBlockHeight: blockhash.value.lastValidBlockHeight + 150)
                 let confirmation = try await Confirmer(rpc: rpc).confirm(receipt)
@@ -225,8 +224,8 @@ struct SubmissionTests {
         throw SetupError.fundingUnavailable(address: address)
     }
 
-    /// Missing local setup or devnet funding, without including credentials or the seed.
-    private enum SetupError: Error { case missingAPIKey, fundingUnavailable(address: String) }
+    /// Missing devnet funding, without including credentials or the seed.
+    private enum SetupError: Error { case fundingUnavailable(address: String) }
 
     /// A test-only request to the actual devnet faucet; it isn't an app RPC feature.
     private struct Airdrop: RPCRequest {

@@ -18,7 +18,7 @@
 
 ## Live integrations
 
-- Use real RPC clients; no fake RPCs. Read-only live checks and UI flows use mainnet.
+- Use real RPC clients; no fake RPCs. Read-only live checks and UI flows use mainnet; a read-only check may use devnet for behavior that only devnet runs yet, such as Alpenglow.
   Tests that fund wallets, submit transactions, or incur fees use devnet, including their
   setup and confirmation. Mainnet-only delivery checks are explicitly opt-in, require
   approval of exact spending limits, and stop if the quote changes.

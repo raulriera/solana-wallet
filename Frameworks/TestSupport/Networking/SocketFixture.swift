@@ -90,7 +90,7 @@ final class SocketFixture: WebSocketConnection {
         _ = await iterator.next()
     }
 
-    /// Delivers a confirmed account-change notification through the real protocol decoder.
+    /// Delivers a finalized account-change notification through the real protocol decoder.
     /// - Parameters:
     ///   - slot: The notification's context slot.
     ///   - subscription: The acknowledged server subscription ID.
@@ -98,7 +98,7 @@ final class SocketFixture: WebSocketConnection {
         incoming.yield(Data(#"{"jsonrpc":"2.0","method":"accountNotification","params":{"subscription":\#(subscription),"result":{"context":{"slot":\#(slot)},"value":{}}}}"#.utf8))
     }
 
-    /// Delivers a confirmed signature notification through the real protocol decoder.
+    /// Delivers a finalized signature notification through the real protocol decoder.
     /// - Parameters:
     ///   - error: The JSON of the transaction's execution error; `null` reports success.
     ///   - subscription: The acknowledged server subscription ID.
@@ -126,7 +126,7 @@ final class SocketFixture: WebSocketConnection {
         return Data(#"{"jsonrpc":"2.0","id":"\#(id)","result":\#(ordinal)}"#.utf8)
     }
 
-    /// Creates a confirmed signature notification frame.
+    /// Creates a finalized signature notification frame.
     /// - Parameters:
     ///   - error: The JSON of the transaction's execution error; `null` reports success.
     ///   - subscription: The acknowledged server subscription ID.

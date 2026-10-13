@@ -1,6 +1,6 @@
 import RPC
 
-/// A sent transaction's settled outcome: execution at confirmed or finalized commitment, or proof that it can never land.
+/// A sent transaction's settled outcome: finalized execution, or finalized proof that it can never land.
 nonisolated struct Confirmation: Sendable, Equatable {
     /// The execution outcome, independently of confirmation progress.
     enum Outcome: Sendable, Equatable {
@@ -18,8 +18,6 @@ nonisolated struct Confirmation: Sendable, Equatable {
     ///
     /// A landing notification doesn't report the execution slot, and a dropped transaction has none.
     let slot: UInt64?
-    /// The observed commitment: confirmed or finalized execution, or finalized expiry for a dropped transaction.
-    let commitment: Commitment
     /// Whether the transaction succeeded, failed, or was dropped.
     let outcome: Outcome
 
@@ -28,12 +26,10 @@ nonisolated struct Confirmation: Sendable, Equatable {
     /// - Parameters:
     ///   - submission: The accepted signature and network.
     ///   - slot: The transaction's execution slot, or `nil` when the observation doesn't report it.
-    ///   - commitment: The observed confirmed or finalized commitment.
     ///   - outcome: The result, retaining structured failure details.
-    init(submission: Submission, slot: UInt64?, commitment: Commitment, outcome: Outcome) {
+    init(submission: Submission, slot: UInt64?, outcome: Outcome) {
         self.submission = submission
         self.slot = slot
-        self.commitment = commitment
         self.outcome = outcome
     }
 }

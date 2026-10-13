@@ -5,7 +5,7 @@
 /// `Update.snapshotRevision` until a provider change. Consumers can then order data and status
 /// independently of wall time.
 public protocol PortfolioProviding: Sendable {
-    /// Observes confirmed account changes for the lifetime of the consuming task.
+    /// Observes finalized account changes for the lifetime of the consuming task.
     ///
     /// Shares one connection per wallet. Each new consumer requests a reload or joins one in progress.
     /// Setup completes before the initial reload; bursts of changes are coalesced into one balance read.
@@ -52,7 +52,7 @@ public protocol PortfolioProviding: Sendable {
     /// Observations and refreshes end without a further update, which closes their subscriptions.
     /// Cached snapshots keep their balances and prices, lose their logos, and arrive with a newer
     /// `Update.snapshotRevision`, so consumers replace copies that show the previous provider's logos.
-    /// The next balance read doesn't require an earlier confirmed slot and looks up logos from the new provider.
+    /// The next balance read doesn't require an earlier finalized slot and looks up logos from the new provider.
     /// - Throws: A file-system error if a saved snapshot's logos can't be removed; the work ends regardless.
     func providerDidChange() async throws
 }

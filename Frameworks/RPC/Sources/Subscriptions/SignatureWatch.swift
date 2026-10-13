@@ -1,4 +1,4 @@
-/// A confirmed subscription to one signature and a subscription to new roots, whose notifications become signature events.
+/// A finalized subscription to one signature and a subscription to new roots, whose notifications become signature events.
 struct SignatureWatch: SubscriptionGroup {
     let requests: [SubscriptionRequest]
     private var latestRoot: UInt64?
@@ -30,9 +30,9 @@ struct SignatureWatch: SubscriptionGroup {
         return .rooted(root)
     }
 
-    /// Requests the landing at confirmed commitment.
+    /// Requests the landing at finalized commitment.
     private struct Configuration: Encodable, Sendable {
-        let commitment = "confirmed"
+        let commitment = "finalized"
     }
 
     /// The part of a signature notification's result that carries the execution result.
@@ -61,7 +61,7 @@ struct SignatureWatch: SubscriptionGroup {
 }
 
 extension SubscriptionGroup where Self == SignatureWatch {
-    /// A confirmed subscription to a signature and a subscription to new roots, on one connection.
+    /// A finalized subscription to a signature and a subscription to new roots, on one connection.
     /// - Parameter signature: The base-58 encoded signature of a sent transaction.
     /// - Returns: The signature subscription, followed by the root subscription.
     static func signatureWatch(for signature: String) -> SignatureWatch {

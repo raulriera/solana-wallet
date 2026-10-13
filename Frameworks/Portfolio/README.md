@@ -1,6 +1,6 @@
 # Portfolio
 
-Native SOL and each account's listed tokens, with persistent caching, independent price refreshes, and new balance reads after confirmed changes. One standard `getMultipleAccounts` request reads the wallet and every listed token's associated token account, so any RPC provider works.
+Native SOL and each account's listed tokens, with persistent caching, independent price refreshes, and new balance reads after finalized changes. One standard `getMultipleAccounts` request reads the wallet and every listed token's associated token account, so any RPC provider works.
 
 ## Example Usage
 
@@ -22,7 +22,7 @@ An optional same-network `PriceProviding` provider enables prices, including eac
 | --- | --- |
 | `updates(for:policy:)` | Finite stream of cached state and any required refresh. `.ifStale` checks holdings and prices separately against five minutes; `.reload` requests fresh data and connects a disconnected observation again. |
 | `priceUpdates(for:policy:)` | Revalue cached holdings without reading balances again. Requires existing holdings and a price provider. |
-| `observations(for:)` | Watch the wallet and each listed token account before the initial reload, then read balances again after confirmed changes until cancellation. A dropped connection or a temporary server failure (`RPCError.isRecoverable`) reports its error and reconnects after 2 seconds, doubling the wait after each failed attempt up to a minute; rate limits and other refusals wait for a reload, a token-list change, or a new consumer. |
+| `observations(for:)` | Watch the wallet and each listed token account before the initial reload, then read balances again after finalized changes until cancellation. A dropped connection or a temporary server failure (`RPCError.isRecoverable`) reports its error and reconnects after 2 seconds, doubling the wait after each failed attempt up to a minute; rate limits and other refusals wait for a reload, a token-list change, or a new consumer. |
 | `removeData(for:)` | Remove the wallet's local cache and token list, and stop its active work. |
 | `providerDidChange()` | After the RPC client switches providers, end every observation and refresh and remove logos from saved snapshots; observe again to use the new provider. |
 

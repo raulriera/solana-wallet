@@ -32,9 +32,9 @@ public struct GetEpochInfo: RPCRequest {
     /// Creates an epoch request at the selected confirmation level.
     ///
     /// - Parameters:
-    ///   - commitment: The confirmation level, defaulting to `confirmed`.
+    ///   - commitment: The confirmation level, defaulting to `finalized`.
     ///   - minContextSlot: The earliest acceptable observation slot, or `nil`.
-    public init(commitment: Commitment = .confirmed, minContextSlot: UInt64? = nil) {
+    public init(commitment: Commitment = .finalized, minContextSlot: UInt64? = nil) {
         configuration = LedgerConfiguration(commitment: commitment, minContextSlot: minContextSlot)
     }
 

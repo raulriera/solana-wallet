@@ -22,6 +22,6 @@ extension RPC {
 enum AccountReadError: Error, Equatable {
     /// The provider returned a different number of accounts than the request asked for.
     case mismatchedResponse
-    /// The provider returned balances from before the required confirmed change.
+    /// The provider returned balances from before the required finalized change.
     case staleContext
 }

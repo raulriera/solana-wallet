@@ -15,9 +15,9 @@ public struct GetBlockHeight: RPCRequest {
     /// Creates a request for the current block height.
     ///
     /// - Parameters:
-    ///   - commitment: The confirmation level to query. The default is `confirmed`.
+    ///   - commitment: The confirmation level to query. The default is `finalized`.
     ///   - minContextSlot: The minimum evaluation slot. The default is `nil`.
-    public init(commitment: Commitment = .confirmed, minContextSlot: UInt64? = nil) {
+    public init(commitment: Commitment = .finalized, minContextSlot: UInt64? = nil) {
         self.commitment = commitment
         self.minContextSlot = minContextSlot
     }

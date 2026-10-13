@@ -44,9 +44,7 @@ nonisolated struct PreparationValidator: PreparationValidating {
         try Task.checkCancellation()
         try validateReview(preparation)
         try await validateLifetime(preparation)
-        let fee = try await rpc.send(GetFeeForMessage(
-            message: preparation.message, commitment: .confirmed, minContextSlot: preparation.minimumSlot
-        ))
+        let fee = try await rpc.send(GetFeeForMessage(message: preparation.message, minContextSlot: preparation.minimumSlot))
         try Task.checkCancellation()
         guard fee.context.slot >= preparation.minimumSlot,
               fee.value == preparation.fee.value else { throw PreparationValidatorError.feeChanged }
@@ -86,15 +84,12 @@ nonisolated struct PreparationValidator: PreparationValidating {
         try Task.checkCancellation()
         switch preparation.source {
         case .local(_, _, _, let blockhash):
-            let height = try await rpc.send(GetBlockHeight(
-                commitment: .confirmed, minContextSlot: preparation.minimumSlot
-            ))
+            let height = try await rpc.send(GetBlockHeight(minContextSlot: preparation.minimumSlot))
             try Task.checkCancellation()
             guard height <= blockhash.value.lastValidBlockHeight else { throw PreparationValidatorError.expired }
         case .external:
             let validity = try await rpc.send(IsBlockhashValid(
-                blockhash: preparation.transaction.lifetimeSpecifier,
-                commitment: .confirmed, minContextSlot: preparation.minimumSlot
+                blockhash: preparation.transaction.lifetimeSpecifier, minContextSlot: preparation.minimumSlot
             ))
             try Task.checkCancellation()
             guard validity.value, validity.context.slot >= preparation.minimumSlot else { throw PreparationValidatorError.expired }

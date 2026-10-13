@@ -13,7 +13,7 @@ struct DiscoveryLiveTests {
     @Test(.timeLimit(.minutes(1)), arguments: [true, false])
     func `Mainnet discovery matches observed SOL balances for a public phrase`(helius: Bool) async throws {
         let transport = LiveResponses<GetMultipleAccounts>()
-        let rpc = try MainnetClients.client(helius: helius, transport: transport)
+        let rpc = try LiveClients.client(helius: helius, transport: transport)
         let phrase = try RecoveryPhrase(PublicWallet.words)
         let paths = try (0..<10).flatMap { index in
             try [DerivationPath("m/44'/501'/\(index)'/0'"), DerivationPath("m/44'/501'/\(index)'")]

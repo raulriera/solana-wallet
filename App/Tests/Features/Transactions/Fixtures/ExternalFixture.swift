@@ -40,7 +40,7 @@ enum ExternalFixture {
 
     /// Creates external review observations without performing network or wallet access.
     ///
-    /// The blockhash was valid at slot 400, where the confirmed block height was 500.
+    /// The blockhash was valid at slot 400, where the finalized block height was 500.
     ///
     /// - Parameter hasPayerSignature: Whether the independent payer signature is present.
     /// - Returns: Typed observations encoded by the HTTP fixtures.

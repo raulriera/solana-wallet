@@ -14,10 +14,10 @@ struct SubscriptionTests {
         #expect(socket.isCancelled)
     }
 
-    /// Verifies both concrete providers watch each account once at confirmed and decode the same events.
+    /// Verifies both concrete providers watch each account once at finalized and decode the same events.
     /// - Parameter helius: Whether to exercise Helius or the public Solana client.
     @Test(.timeLimit(.minutes(1)), arguments: [false, true])
-    func `Each account gets one confirmed subscription`(helius: Bool) async throws {
+    func `Each account gets one finalized subscription`(helius: Bool) async throws {
         let socket = SocketFixture()
         let source = client(socket: socket, helius: helius)
         let slots = try await source.changedSlots(for: ["wallet", "token-account", "wallet"])
@@ -28,7 +28,7 @@ struct SubscriptionTests {
             let params = try #require(body["params"] as? [Any])
             try #require(params.count == 2)
             let options = try #require(params[1] as? [String: Any])
-            #expect(options["commitment"] as? String == "confirmed")
+            #expect(options["commitment"] as? String == "finalized")
             #expect(options["encoding"] as? String == "base64")
         }
         let (observed, delivered) = AsyncStream<UInt64>.makeStream()

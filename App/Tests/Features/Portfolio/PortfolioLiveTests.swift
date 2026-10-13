@@ -13,7 +13,7 @@ struct PortfolioLiveTests {
     @Test(.timeLimit(.minutes(1)))
     func `Mainnet portfolio persists listed balances and reuses its complete snapshot`() async throws {
         let transport = LiveResponses<GetMultipleAccounts>()
-        let rpc = try MainnetClients.client(transport: transport)
+        let rpc = try LiveClients.client(transport: transport)
         let owner = PublicWallet.address
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }

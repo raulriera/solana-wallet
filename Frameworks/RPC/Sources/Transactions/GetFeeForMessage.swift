@@ -55,9 +55,9 @@ public struct GetFeeForMessage: RPCRequest {
     ///
     /// - Parameters:
     ///   - message: The serialized message bytes, without the transaction's signatures.
-    ///   - commitment: The confirmation level to query. The default is `confirmed`.
+    ///   - commitment: The confirmation level to query. The default is `finalized`.
     ///   - minContextSlot: The minimum evaluation slot. The default is `nil`.
-    public init(message: Data, commitment: Commitment = .confirmed, minContextSlot: UInt64? = nil) {
+    public init(message: Data, commitment: Commitment = .finalized, minContextSlot: UInt64? = nil) {
         self.message = message
         self.commitment = commitment
         self.minContextSlot = minContextSlot

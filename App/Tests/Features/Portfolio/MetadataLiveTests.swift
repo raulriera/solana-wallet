@@ -9,7 +9,7 @@ struct MetadataLiveTests {
     @Test(.timeLimit(.minutes(1)))
     func `Live DAS preserves SOL identity`() async throws {
         let nativeMint = "So11111111111111111111111111111111111111112"
-        let rpc = try MainnetClients.client()
+        let rpc = try LiveClients.client()
         let asset = try await rpc.send(GetAsset(id: nativeMint))
         #expect(asset.id == nativeMint)
         #expect(asset.name == "Wrapped SOL")
@@ -24,7 +24,7 @@ struct MetadataLiveTests {
     /// - Throws: An RPC or test prerequisite error.
     @Test(.timeLimit(.minutes(1)))
     func `Live DAS preserves rich asset metadata`() async throws {
-        let rpc = try MainnetClients.client()
+        let rpc = try LiveClients.client()
         let collectible = try await rpc.send(GetAsset(id: "F9Lw3ki3hJ7PF9HQXsBzoY8GyE6sPoEZZdXJBsTTD2rk"))
         #expect(collectible.metadata?.description != nil)
         #expect(collectible.metadata?.websiteURL != nil)

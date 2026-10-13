@@ -18,7 +18,7 @@ struct SenderTests {
     @Test(.enabled(if: ProcessInfo.processInfo.environment["VERIFY_MAINNET_SENDER"] == "APPROVED"),
           .timeLimit(.minutes(2)), arguments: [TransactionCoordinator.Strategy.standard, .premium])
     func `Sender confirms a reviewed mainnet transaction at its quoted fee and tip`(_ strategy: TransactionCoordinator.Strategy) async throws {
-        let rpc = try MainnetClients.client()
+        let rpc = try LiveClients.client()
         let wallets = try await DevnetWallets.configured()
         let account = wallets.sender
         let balance = try await rpc.send(GetMultipleAccounts(addresses: [account.address.value]))

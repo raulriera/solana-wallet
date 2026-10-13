@@ -13,7 +13,7 @@ struct TokenPreparationLiveTests {
     /// - Throws: A derivation, provider, or test prerequisite error.
     @Test(.timeLimit(.minutes(1)), arguments: TokenProgram.allCases)
     func `Mainnet token preparation reports a missing source account`(_ program: TokenProgram) async throws {
-        let rpc = try MainnetClients.client()
+        let rpc = try LiveClients.client()
         let account = Account(id: UUID(), recoveryID: UUID(), address: try Address(PublicWallet.address),
                               path: try DerivationPath("m/44'/501'/0'"))
         let mint = try Address(program == .token ? "So11111111111111111111111111111111111111112"

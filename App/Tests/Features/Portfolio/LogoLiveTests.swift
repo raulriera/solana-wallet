@@ -11,7 +11,7 @@ struct LogoLiveTests {
     @Test(.timeLimit(.minutes(1)))
     func `An expired cached error doesn't hide a live logo`() async throws {
         let usdc = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
-        let provider: any LogoProviding = HeliusRPC(apiKey: try MainnetClients.heliusAPIKey(), network: .mainnet)
+        let provider: any LogoProviding = HeliusRPC(apiKey: try LiveClients.heliusAPIKey(), network: .mainnet)
         let logo = try #require(try await provider.logos(for: [usdc])[usdc])
         // The CDN answered 404 days ago, with its usual four-hour cache time.
         let request = URLRequest(url: logo)
@@ -30,7 +30,7 @@ struct LogoLiveTests {
     func `Live logos come only from Helius's CDN`() async throws {
         let usdc = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
         let bonk = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"
-        let provider: any LogoProviding = HeliusRPC(apiKey: try MainnetClients.heliusAPIKey(), network: .mainnet)
+        let provider: any LogoProviding = HeliusRPC(apiKey: try LiveClients.heliusAPIKey(), network: .mainnet)
 
         let logos = try await provider.logos(for: [usdc, bonk, PublicWallet.address])
 

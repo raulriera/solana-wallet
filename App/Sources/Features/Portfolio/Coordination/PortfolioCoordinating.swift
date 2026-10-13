@@ -24,7 +24,7 @@ protocol PortfolioCoordinating: AnyObject, Observable {
     /// Reloads the active wallet, awaiting completion for pull-to-refresh.
     ///
     /// Overlapping calls share one operation, and a disconnected observation connects again.
-    /// Cancellation detaches that operation; the confirmed-change observation remains active.
+    /// Cancellation detaches that operation; the finalized-change observation remains active.
     /// Inactive calls do nothing.
     func refresh() async
 

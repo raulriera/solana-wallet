@@ -83,6 +83,10 @@ struct PreparationTests {
         #expect(options["minContextSlot"] as? Int == 400)
         #expect(options["sigVerify"] as? Bool == false)
         #expect(options["replaceRecentBlockhash"] as? Bool == false)
+        // The blockhash, fee, and simulation all read finalized state.
+        for request in requests {
+            #expect(try (request.rpcParameters.last as? [String: Any])?["commitment"] as? String == "finalized")
+        }
     }
 
     /// Verifies a service tip leads the composition, so a memo stays before its transfer and the payment stays last.

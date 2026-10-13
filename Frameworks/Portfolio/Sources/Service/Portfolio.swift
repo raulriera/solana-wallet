@@ -30,7 +30,7 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
     ///   - tokenLists: The token-list store; the default saves lists in Application Support.
     ///   - prices: An optional same-network price provider.
     ///   - now: The current time used to evaluate cache age and record price refreshes.
-    ///   - changes: The optional confirmed-change provider, defaulting to the RPC client's capability.
+    ///   - changes: The optional finalized-change provider, defaulting to the RPC client's capability.
     ///   - pause: Cancellable scheduling for coalescing nearby changes and spacing reconnections.
     init(rpc: any RPC, store: any SnapshotStoring,
          tokenLists: any TokenListStoring = FileTokenListStore(
@@ -76,7 +76,7 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
         await coordinator.updates(for: owner, scope: .prices, policy: policy)
     }
 
-    /// Observes confirmed changes to the wallet and its listed token accounts, and reads balances again after each one.
+    /// Observes finalized changes to the wallet and its listed token accounts, and reads balances again after each one.
     ///
     /// A dropped connection reports its error, then reconnects by itself and reads balances again.
     /// - Parameter owner: The visible wallet to observe until its consuming task is cancelled.

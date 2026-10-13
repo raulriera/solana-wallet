@@ -45,11 +45,12 @@ struct SigningTests {
         #expect(heights.count == 2)
         for height in heights {
             let options = try #require(height.rpcParameters.first as? [String: Any])
-            #expect(options["commitment"] as? String == "confirmed")
+            #expect(options["commitment"] as? String == "finalized")
             #expect(options["minContextSlot"] as? Int == 402)
         }
         let fee = try #require(requests.first { try $0.rpcMethod == "getFeeForMessage" }).rpcParameters
         #expect(fee[0] as? String == fixture.message.base64EncodedString())
+        #expect((fee[1] as? [String: Any])?["commitment"] as? String == "finalized")
     }
 
     /// Verifies changing either review metadata or encoded bytes cannot reach recovery access.

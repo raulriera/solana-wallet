@@ -63,15 +63,15 @@ public struct HeliusRPC: RPC, AccountChangeProviding, SignatureEventProviding, L
         try await client.send(request)
     }
 
-    /// Observes confirmed changes to each account through standard Solana subscriptions on one connection.
+    /// Observes finalized changes to each account through standard Solana subscriptions on one connection.
     /// - Parameter addresses: The accounts to watch; a repeated address is watched once.
-    /// - Returns: Increasing confirmed change slots after all subscriptions are acknowledged.
+    /// - Returns: Increasing finalized change slots after all subscriptions are acknowledged.
     /// - Throws: A sanitized subscription, transport, timeout, or cancellation error.
     public func changedSlots(for addresses: [String]) async throws -> AsyncThrowingStream<UInt64, any Error> {
         try await subscriptions.changedSlots(for: addresses)
     }
 
-    /// Watches a signature at confirmed commitment and new roots with standard Solana subscriptions on one connection.
+    /// Watches a signature at finalized commitment and new roots with standard Solana subscriptions on one connection.
     /// - Parameter signature: The base-58 encoded signature of a sent transaction.
     /// - Returns: The transaction's landing and increasing roots after both subscriptions are acknowledged.
     /// - Throws: A sanitized subscription, transport, timeout, or cancellation error.

@@ -37,7 +37,7 @@ public struct SendTransaction: RPCRequest {
     ///
     /// - Parameters:
     ///   - transaction: The complete serialized, signed V1 transaction.
-    ///   - preflightCommitment: The preflight confirmation level. The default is `confirmed`.
+    ///   - preflightCommitment: The preflight confirmation level. The default is `finalized`.
     ///     The node ignores this option when preflight is skipped.
     ///   - minContextSlot: The minimum evaluation slot. The default is `nil`.
     ///   - skipsPreflight: Whether to bypass preflight checks. The default is `false`.
@@ -45,7 +45,7 @@ public struct SendTransaction: RPCRequest {
     ///     the node's retry policy.
     public init(
         transaction: Data,
-        preflightCommitment: Commitment = .confirmed,
+        preflightCommitment: Commitment = .finalized,
         minContextSlot: UInt64? = nil,
         skipsPreflight: Bool = false,
         maxRetries: UInt64? = 0

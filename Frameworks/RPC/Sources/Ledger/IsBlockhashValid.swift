@@ -32,9 +32,9 @@ public struct IsBlockhashValid: RPCRequest {
     ///
     /// - Parameters:
     ///   - blockhash: The encoded recent blockhash to check.
-    ///   - commitment: The confirmation level. The default is `confirmed`.
+    ///   - commitment: The confirmation level. The default is `finalized`.
     ///   - minContextSlot: The earliest evaluation slot. The default is `nil`.
-    public init(blockhash: String, commitment: Commitment = .confirmed, minContextSlot: UInt64? = nil) {
+    public init(blockhash: String, commitment: Commitment = .finalized, minContextSlot: UInt64? = nil) {
         self.blockhash = blockhash
         self.commitment = commitment
         self.minContextSlot = minContextSlot

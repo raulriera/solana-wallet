@@ -42,8 +42,8 @@ struct HeliusRPCTests {
     ///   - expectedSlot: The minimum evaluation slot, or `nil` when it should be omitted.
     /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
     @Test(arguments: [
-        (GetLatestBlockhash(), "confirmed", UInt64?.none),
-        (GetLatestBlockhash(commitment: .finalized, minContextSlot: 12340), "finalized", 12340),
+        (GetLatestBlockhash(), "finalized", UInt64?.none),
+        (GetLatestBlockhash(commitment: .processed, minContextSlot: 12340), "processed", 12340),
     ])
     func `Get latest blockhash returns a blockhash expiry height and slot`(
         query: GetLatestBlockhash, expectedCommitment: String, expectedSlot: UInt64?
@@ -90,7 +90,7 @@ struct HeliusRPCTests {
     ///   - expectedSlot: The minimum evaluation slot, or `nil` when it should be omitted.
     /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
     @Test(arguments: [
-        (GetBlockHeight(), "confirmed", UInt64?.none),
+        (GetBlockHeight(), "finalized", UInt64?.none),
         (GetBlockHeight(commitment: .processed, minContextSlot: 12340), "processed", 12340),
     ])
     func `Get block height returns the current ledger height`(
@@ -125,8 +125,8 @@ struct HeliusRPCTests {
     ///   - expectedSlot: The minimum evaluation slot, or `nil` when it should be omitted.
     /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
     @Test(arguments: [
-        (GetFeeForMessage(message: Data([0x81, 0xFB, 0xFF, 0x00])), "confirmed", UInt64?.none),
-        (GetFeeForMessage(message: Data([0x81, 0xFB, 0xFF, 0x00]), commitment: .finalized, minContextSlot: 12340), "finalized", 12340),
+        (GetFeeForMessage(message: Data([0x81, 0xFB, 0xFF, 0x00])), "finalized", UInt64?.none),
+        (GetFeeForMessage(message: Data([0x81, 0xFB, 0xFF, 0x00]), commitment: .processed, minContextSlot: 12340), "processed", 12340),
     ])
     func `Get fee for message returns fee lamports and slot`(
         query: GetFeeForMessage, expectedCommitment: String, expectedSlot: UInt64?
@@ -192,9 +192,9 @@ struct HeliusRPCTests {
     ///   - expectedVerification: Whether signature verification should be requested.
     /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
     @Test(arguments: [
-        (SimulateTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00])), "confirmed", UInt64?.none, false),
-        (SimulateTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00]), commitment: .finalized,
-                             minContextSlot: 12340, verifiesSignatures: true), "finalized", 12340, true),
+        (SimulateTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00])), "finalized", UInt64?.none, false),
+        (SimulateTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00]), commitment: .processed,
+                             minContextSlot: 12340, verifiesSignatures: true), "processed", 12340, true),
     ])
     func `Simulation returns logs compute usage fee and slot`(
         query: SimulateTransaction, expectedCommitment: String, expectedSlot: UInt64?, expectedVerification: Bool
@@ -318,10 +318,10 @@ struct HeliusRPCTests {
     ///   - expectedRetries: The node's retry limit, or `nil` when omitted.
     /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
     @Test(arguments: [
-        (SendTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00])), "confirmed", UInt64?.none, false, UInt64?(0)),
+        (SendTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00])), "finalized", UInt64?.none, false, UInt64?(0)),
         (SendTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00]), preflightCommitment: .processed,
                          minContextSlot: 12340, skipsPreflight: true, maxRetries: 2), "processed", 12340, true, 2),
-        (SendTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00]), maxRetries: nil), "confirmed", nil, false, nil),
+        (SendTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00]), maxRetries: nil), "finalized", nil, false, nil),
     ])
     func `Send transaction returns the accepted signature and preserves signed bytes`(
         query: SendTransaction, expectedCommitment: String, expectedSlot: UInt64?, expectedSkip: Bool, expectedRetries: UInt64?

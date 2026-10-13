@@ -10,7 +10,7 @@ struct HeliusConnectionLiveTests {
     @Test
     func `Helius accepts the configured key`() async throws {
         try await HeliusConnection(providerKey: StoredValue<String>(), revision: Revision())
-            .connect(try MainnetClients.heliusAPIKey())
+            .connect(try LiveClients.heliusAPIKey())
     }
 
     /// Helius itself rejects an unknown key.

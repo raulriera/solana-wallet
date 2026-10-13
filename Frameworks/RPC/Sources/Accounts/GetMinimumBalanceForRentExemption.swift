@@ -14,8 +14,8 @@ public struct GetMinimumBalanceForRentExemption: RPCRequest {
     ///
     /// - Parameters:
     ///   - dataLength: The account's allocated data size in bytes.
-    ///   - commitment: The confirmation level, defaulting to `confirmed`.
-    public init(dataLength: UInt64, commitment: Commitment = .confirmed) {
+    ///   - commitment: The confirmation level, defaulting to `finalized`.
+    public init(dataLength: UInt64, commitment: Commitment = .finalized) {
         self.dataLength = dataLength
         self.commitment = commitment
     }

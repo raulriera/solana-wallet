@@ -3,7 +3,7 @@ public protocol SignatureEventProviding: Sendable {
     /// The network whose transactions are watched.
     var network: Network { get }
 
-    /// Subscribes to one signature at confirmed commitment and to new roots, on one connection.
+    /// Subscribes to one signature at finalized commitment and to new roots, on one connection.
     ///
     /// Returns after both subscriptions are acknowledged. The stream keeps every unread event,
     /// including notifications received during setup, so a later root never replaces a landing.

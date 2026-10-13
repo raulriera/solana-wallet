@@ -10,7 +10,7 @@ struct SubscriptionClient: Sendable {
     /// How long each keep-alive ping waits for its pong before the connection counts as lost.
     var pongTimeout: Duration = .seconds(10)
 
-    /// Opens one confirmed subscription per account on one connection, then streams their increasing change slots.
+    /// Opens one finalized subscription per account on one connection, then streams their increasing change slots.
     /// - Parameter addresses: The accounts to watch; a repeated address is watched once.
     /// - Returns: A cancellable stream after all subscription acknowledgments arrive.
     /// - Throws: A sanitized setup, timeout, or cancellation error.
@@ -18,7 +18,7 @@ struct SubscriptionClient: Sendable {
         try await events(for: .accountChanges(for: addresses))
     }
 
-    /// Subscribes to a signature at confirmed commitment and to new roots on one connection, then streams their events.
+    /// Subscribes to a signature at finalized commitment and to new roots on one connection, then streams their events.
     /// - Parameter signature: The base-58 encoded signature of a sent transaction.
     /// - Returns: A cancellable stream after both subscription acknowledgments arrive.
     /// - Throws: A sanitized setup, timeout, or cancellation error.

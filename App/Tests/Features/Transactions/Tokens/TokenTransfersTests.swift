@@ -56,6 +56,10 @@ struct TokenTransfersTests {
         let requests = await http.requests
         let rentRequest = try #require(requests.first { try $0.rpcMethod == "getMinimumBalanceForRentExemption" })
         #expect(try rentRequest.rpcParameters.first as? Int == allocationSize)
+        // The account, Token-2022 epoch, and rent reads all use finalized state.
+        for request in requests {
+            #expect(try (request.rpcParameters.last as? [String: Any])?["commitment"] as? String == "finalized")
+        }
     }
 
     /// A decoded token destination needs only the transfer, with no deposit lookup.

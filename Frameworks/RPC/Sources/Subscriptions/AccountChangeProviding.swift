@@ -1,9 +1,9 @@
-/// A provider of confirmed account changes, independent of DAS and transaction submission.
+/// A provider of finalized account changes, independent of DAS and transaction submission.
 public protocol AccountChangeProviding: Sendable {
     /// The network whose accounts are observed.
     var network: Network { get }
 
-    /// Subscribes to each account's changes at confirmed commitment, on one connection.
+    /// Subscribes to each account's changes at finalized commitment, on one connection.
     ///
     /// Returns after all subscriptions are acknowledged. Notifications received during
     /// setup are retained. An account that doesn't exist yet notifies when it's created.
@@ -12,7 +12,7 @@ public protocol AccountChangeProviding: Sendable {
     /// Cancel the task consuming the stream to close the connection. Errors terminate
     /// the stream without reconnecting automatically; consumers may explicitly start again.
     /// - Parameter addresses: The accounts to watch; a repeated address is watched once.
-    /// - Returns: Confirmed change slots, buffered to retain the latest outstanding slot.
+    /// - Returns: Finalized change slots, buffered to retain the latest outstanding slot.
     /// - Throws: A sanitized subscription, transport, timeout, or cancellation error during setup.
     func changedSlots(for addresses: [String]) async throws -> AsyncThrowingStream<UInt64, any Error>
 }

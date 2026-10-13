@@ -12,7 +12,7 @@ nonisolated struct TokenTransfers {
     /// Reads consistent token account state for composable transfer instructions.
     ///
     /// Mint discovery determines associated addresses. A subsequent batch rereads
-    /// the mint with the source, destination, and recipient accounts at one confirmed slot.
+    /// the mint with the source, destination, and recipient accounts at one finalized slot.
     /// A recipient owned by a token program must be a token account for the mint, which
     /// receives the tokens directly; any other nonexecutable recipient is a wallet that receives
     /// at its associated account. Epoch reads cannot precede that snapshot. No request is retried automatically.
@@ -62,7 +62,7 @@ nonisolated struct TokenTransfers {
         var minimumSlot = snapshot.context.slot
         var epoch: UInt64?
         if currentMint.program == .token2022 {
-            let observation = try await rpc.send(GetEpochInfo(commitment: .confirmed, minContextSlot: minimumSlot))
+            let observation = try await rpc.send(GetEpochInfo(minContextSlot: minimumSlot))
             try Task.checkCancellation()
             guard observation.absoluteSlot >= minimumSlot else { throw TokenTransfersError.inconsistentAccounts }
             minimumSlot = observation.absoluteSlot
@@ -90,8 +90,7 @@ nonisolated struct TokenTransfers {
     /// - Returns: Account observations, retaining absent accounts as `nil`.
     /// - Throws: An inconsistent-response, executable-account, RPC, or cancellation error.
     private func accounts(at addresses: [Address], minimumSlot: UInt64? = nil) async throws -> GetMultipleAccounts.Response {
-        let response = try await rpc.send(GetMultipleAccounts(addresses: addresses.map(\.value),
-                                                            commitment: .confirmed, minContextSlot: minimumSlot))
+        let response = try await rpc.send(GetMultipleAccounts(addresses: addresses.map(\.value), minContextSlot: minimumSlot))
         try Task.checkCancellation()
         guard response.value.count == addresses.count, response.context.slot >= (minimumSlot ?? 0) else {
             throw TokenTransfersError.inconsistentAccounts

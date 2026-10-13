@@ -4,7 +4,7 @@ import Synchronization
 import Testing
 
 extension SubscriptionTests {
-    /// Verifies both concrete providers watch the signature at confirmed and new roots on the same connection.
+    /// Verifies both concrete providers watch the signature at finalized and new roots on the same connection.
     /// - Parameter helius: Whether to exercise Helius or the public Solana client.
     @Test(.timeLimit(.minutes(1)), arguments: [false, true])
     func `A signature and new roots share one connection`(helius: Bool) async throws {
@@ -20,7 +20,7 @@ extension SubscriptionTests {
         let params = try #require(signature["params"] as? [Any])
         try #require(params.count == 2)
         #expect(params[0] as? String == "fixture-signature")
-        #expect(params[1] as? [String: String] == ["commitment": "confirmed"])
+        #expect(params[1] as? [String: String] == ["commitment": "finalized"])
         let roots = try #require(JSONSerialization.jsonObject(with: socket.requests[1]) as? [String: Any])
         #expect(roots["method"] as? String == "rootSubscribe")
         #expect((roots["params"] as? [Any])?.isEmpty == true)
