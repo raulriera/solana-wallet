@@ -16,18 +16,18 @@ final class ProvidersCoordinator: ProviderActions {
     /// slides away.
     var path: [ProvidersRoute] = []
     /// The custom RPC check for the last opening of its screen; each opening starts a new one.
-    private(set) var setup: ProviderSubmission<CustomRPCError>?
+    private(set) var setup: ProviderSetupModel<CustomRPCError>?
     /// The custom RPC whose details opened last.
     private(set) var details: URL?
     /// The saved key as last read, with all but its first four characters masked, or `nil` when no key is saved; the
     /// full key is never kept.
     private(set) var keyPreview: String?
     /// The new key's checks for the last opening of its screen; each opening starts a new one.
-    private(set) var newKey: ProviderSubmission<ProviderConnectionError>?
+    private(set) var newKey: ProviderSetupModel<ProviderConnectionError>?
     /// The custom RPC waiting for the person to confirm its deletion.
     var removal: URL?
     /// The key sheet's checks while a choice waits for a key; each opening starts a new one.
-    var keyEntry: ProviderSubmission<ProviderConnectionError>?
+    var keyEntry: ProviderSetupModel<ProviderConnectionError>?
     /// A secret-free error for the alert.
     var error: ProvidersError?
     /// The change waiting for the screen's task, identified without secrets.
@@ -51,7 +51,7 @@ final class ProvidersCoordinator: ProviderActions {
     /// A choice that waits for a key, with the checks of the key sheet it opened.
     private struct KeyChoice: Equatable {
         let provider: ProviderSettings.Provider
-        let entry: ProviderSubmission<ProviderConnectionError>
+        let entry: ProviderSetupModel<ProviderConnectionError>
     }
 
     /// Connects the coordinator to the shared provider services.
@@ -101,14 +101,14 @@ final class ProvidersCoordinator: ProviderActions {
     /// The screen's wording, adding or changing a key, is set when it opens, so it stays while the key saves.
     func changeKey() {
         guard attempt == nil else { return }
-        newKey = ProviderSubmission(connection: connection)
+        newKey = ProviderSetupModel(connection: connection)
         path.append(.providerKey(ProviderEntryPurpose(keyPreview: keyPreview)))
     }
 
     /// Opens the screen that checks and adds a custom RPC.
     func addCustomRPC() {
         guard attempt == nil else { return }
-        setup = ProviderSubmission(connection: customRPCConnection)
+        setup = ProviderSetupModel(connection: customRPCConnection)
         path.append(.customRPCSetup)
     }
 
@@ -198,7 +198,7 @@ final class ProvidersCoordinator: ProviderActions {
             // The screen left before the change was saved.
         } catch ProviderClientError.missingKey {
             guard !Task.isCancelled, self.attempt == attempt, case .select(let provider) = request else { return }
-            let keyEntry = ProviderSubmission(connection: connection)
+            let keyEntry = ProviderSetupModel(connection: connection)
             keyChoice = KeyChoice(provider: provider, entry: keyEntry)
             self.keyEntry = keyEntry
         } catch {

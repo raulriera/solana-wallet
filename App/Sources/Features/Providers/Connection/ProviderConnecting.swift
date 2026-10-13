@@ -1,6 +1,6 @@
 /// Checks and saves what a person entered for an RPC provider, such as an API key or an RPC URL.
 nonisolated protocol ProviderConnecting<EntryError>: Sendable {
-    /// The failure that explains a refused or failed entry.
+    /// The failure that explains a rejected or failed entry.
     associatedtype EntryError: ProviderEntryError
 
     /// Checks an entry with the provider, saves it on this device, and tells every window.

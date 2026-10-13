@@ -69,7 +69,7 @@ struct HeliusConnectionTests {
     @Test(arguments: [
         (ProviderConnectionError.invalidKey, true), (.rateLimited, false), (.unavailable, false), (.storageFailed, false),
     ])
-    func `Only refused keys show under the field`(error: ProviderConnectionError, rejectsEntry: Bool) {
+    func `Only rejected keys show under the field`(error: ProviderConnectionError, rejectsEntry: Bool) {
         #expect(error.rejectsEntry == rejectsEntry)
     }
 

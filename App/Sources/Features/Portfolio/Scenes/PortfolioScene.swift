@@ -10,7 +10,7 @@ struct PortfolioScene: View {
     @Environment(\.cardStyle) private var cardStyle
     @State private var selection: Holding.Identity?
     @State private var preferredColumn = NavigationSplitViewColumn.sidebar
-    @State private var providerSetup: ProviderSubmission<ProviderConnectionError>?
+    @State private var providerSetup: ProviderSetupModel<ProviderConnectionError>?
     @State private var tokenAddition: TokenAdditionModel?
     let coordinator: any PortfolioCoordinating
     let connection: any ProviderConnecting<ProviderConnectionError>
@@ -83,7 +83,7 @@ struct PortfolioScene: View {
 
     /// Opens provider setup; a saved key closes it, and every window observes again with that key.
     private func setUpProvider() {
-        providerSetup = ProviderSubmission(connection: connection)
+        providerSetup = ProviderSetupModel(connection: connection)
     }
 
     /// Loads the portfolio again after a failed first load; the loading state shows until the result arrives.

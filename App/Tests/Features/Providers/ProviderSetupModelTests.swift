@@ -6,7 +6,7 @@ import Testing
 /// Checks provider setup's key submissions through the real Helius client and local HTTP fixtures.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
-struct ProviderSubmissionTests {
+struct ProviderSetupModelTests {
     /// Each test starts from a fresh app-wide count of saved keys.
     private let revision = Revision()
 
@@ -14,7 +14,7 @@ struct ProviderSubmissionTests {
     @Test
     func `An accepted key is saved without surrounding whitespace`() async {
         let keys = StoredValue<String>()
-        let submission = ProviderSubmission(
+        let submission = ProviderSetupModel(
             connection: HTTPResponses.keyCheck().connection(providerKey: keys, revision: revision))
 
         submission.submit(" fixture-key \n")
@@ -31,7 +31,7 @@ struct ProviderSubmissionTests {
     @Test
     func `A rejected key shows the inline message and keeps setup open`() async {
         let responses = HTTPResponses.keyCheck(error: .http(statusCode: 401, retryAfter: nil))
-        let submission = ProviderSubmission(
+        let submission = ProviderSetupModel(
             connection: responses.connection(providerKey: StoredValue<String>(), revision: revision))
 
         submission.submit("rejected-key")
@@ -52,7 +52,7 @@ struct ProviderSubmissionTests {
     @Test
     func `Failures other than rejection explain their cause in an alert`() async {
         let responses = HTTPResponses.keyCheck(error: .http(statusCode: 429, retryAfter: nil))
-        let submission = ProviderSubmission(
+        let submission = ProviderSetupModel(
             connection: responses.connection(providerKey: StoredValue<String>(), revision: revision))
 
         submission.submit("fixture-key")
@@ -72,7 +72,7 @@ struct ProviderSubmissionTests {
         let connection = HTTPResponses.connection(providerKey: StoredValue<String>(), revision: revision) {
             $0 == "rejected-key" ? rejecting : limiting
         }
-        let submission = ProviderSubmission(connection: connection)
+        let submission = ProviderSetupModel(connection: connection)
         submission.submit("rejected-key")
         await submission.run(submission.attempt)
         try #require(submission.rejection == .invalidKey)
@@ -96,7 +96,7 @@ struct ProviderSubmissionTests {
         let gate = Suspension()
         let responses = HTTPResponses.keyCheck(gate: gate)
         let keys = StoredValue<String>()
-        let submission = ProviderSubmission(
+        let submission = ProviderSetupModel(
             connection: responses.connection(providerKey: keys, revision: revision))
         submission.submit("first-key")
         let attempt = try #require(submission.attempt)
@@ -121,7 +121,7 @@ struct ProviderSubmissionTests {
     func `A cancelled check reports nothing and keeps setup open`() async throws {
         let gate = Suspension()
         let responses = HTTPResponses.keyCheck(gate: gate)
-        let submission = ProviderSubmission(
+        let submission = ProviderSetupModel(
             connection: responses.connection(providerKey: StoredValue<String>(), revision: revision))
         submission.submit("fixture-key")
         let attempt = try #require(submission.attempt)
@@ -143,7 +143,7 @@ struct ProviderSubmissionTests {
     func `Cancellation after the key is saved still counts the key as saved`() async throws {
         let gate = Suspension()
         let keys = StoredValue<String>(gate: gate)
-        let submission = ProviderSubmission(
+        let submission = ProviderSetupModel(
             connection: HTTPResponses.keyCheck().connection(providerKey: keys, revision: revision))
         submission.submit("fixture-key")
         let attempt = try #require(submission.attempt)

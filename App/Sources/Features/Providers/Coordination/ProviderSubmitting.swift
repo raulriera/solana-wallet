@@ -3,7 +3,7 @@
 protocol ProviderSubmitting<EntryError> {
     associatedtype EntryError: ProviderEntryError
 
-    /// The refused entry's explanation while it shows under the field.
+    /// Why the provider rejected the entry, while it shows under the field.
     var rejection: EntryError? { get }
     /// Whether an accepted entry is still being checked, so the screen keeps its input locked until it ends.
     var isPending: Bool { get }

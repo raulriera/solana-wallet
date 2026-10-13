@@ -11,7 +11,7 @@ nonisolated enum ProviderConnectionError: ProviderEntryError {
     /// The accepted key couldn't be saved on this device.
     case storageFailed
 
-    /// Whether Helius refused the key itself, so the screen explains it under the field.
+    /// Whether Helius rejected the key itself, so the screen explains it under the field.
     var rejectsEntry: Bool { self == .invalidKey }
 
     /// Names the failure in an alert's title.

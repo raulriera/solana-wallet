@@ -470,7 +470,8 @@ struct ProvidersCoordinatorTests {
     ///   - keyEntry: The coordinator's open key entry.
     ///   - coordinator: The coordinator that owns key entry.
     /// - Throws: A test prerequisite error when the key isn't saved.
-    private func saveKey(in keyEntry: ProviderSubmission<ProviderConnectionError>, for coordinator: ProvidersCoordinator) async throws {
+    private func saveKey(in keyEntry: ProviderSetupModel<ProviderConnectionError>,
+                         for coordinator: ProvidersCoordinator) async throws {
         keyEntry.submit("fixture-key")
         await keyEntry.run(keyEntry.attempt)
         try #require(keyEntry.isSaved)

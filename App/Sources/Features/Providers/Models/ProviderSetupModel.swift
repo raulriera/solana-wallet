@@ -1,16 +1,14 @@
-import Accessibility
 import Foundation
 import Observation
-import SwiftUI
 
 /// Owns one window's checks of a provider entry, such as an API key or an RPC URL; the flow that asked for the
 /// entry continues once it's saved.
 @MainActor
 @Observable
-final class ProviderSubmission<EntryError: ProviderEntryError>: ProviderSubmitting, Identifiable, Equatable {
-    /// The refused entry's explanation while it shows under the field.
+final class ProviderSetupModel<EntryError: ProviderEntryError>: ProviderSubmitting, Identifiable, Equatable {
+    /// Why the provider rejected the entry, while it shows under the field.
     private(set) var rejection: EntryError?
-    /// Counts refused entries, so each refusal signals again while its message stays on screen.
+    /// Counts rejected entries, so each rejection signals again while the same rejection stays on screen.
     private(set) var rejectionCount = 0
     var error: EntryError?
     private(set) var attempt: UUID?
@@ -32,7 +30,7 @@ final class ProviderSubmission<EntryError: ProviderEntryError>: ProviderSubmitti
     ///   - lhs: An entry check.
     ///   - rhs: Another entry check.
     /// - Returns: Whether both are the same entry check.
-    nonisolated static func == (lhs: ProviderSubmission, rhs: ProviderSubmission) -> Bool {
+    nonisolated static func == (lhs: ProviderSetupModel, rhs: ProviderSetupModel) -> Bool {
         lhs === rhs
     }
 
@@ -57,12 +55,11 @@ final class ProviderSubmission<EntryError: ProviderEntryError>: ProviderSubmitti
             isSaved = true
         } catch let error as EntryError where error.rejectsEntry {
             guard !Task.isCancelled else { return }
-            withAnimation { rejection = error }
+            rejection = error
             rejectionCount += 1
-            AccessibilityNotification.Announcement(String(localized: error.message)).post()
         } catch {
             guard !Task.isCancelled, !(error is CancellationError) else { return }
-            withAnimation { rejection = nil }
+            rejection = nil
             // Anything else stays generic, so no underlying error text reaches the alert.
             self.error = error as? EntryError ?? .unavailable
         }

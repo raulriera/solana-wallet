@@ -31,10 +31,10 @@ struct CustomRPCConnectionTests {
         #expect(socket.subscribedAddresses == [HTTPResponses.keyCheckAsset])
     }
 
-    /// Text that isn't an HTTPS URL with a host is refused before any request.
+    /// Text that isn't an HTTPS URL with a host is rejected before any request.
     /// - Parameter entry: The text as entered.
     @Test(arguments: ["http://rpc.example.com", "rpc.example.com", ""])
-    func `A URL that isn't HTTPS is refused without a request`(entry: String) async {
+    func `A URL that isn't HTTPS is rejected without a request`(entry: String) async {
         let settings = StoredValue<ProviderSettings>()
         let responses = HTTPResponses([:])
 
@@ -46,10 +46,10 @@ struct CustomRPCConnectionTests {
         #expect(await settings.value == nil)
     }
 
-    /// An RPC that's already listed is refused before any request.
+    /// An RPC that's already listed is rejected before any request.
     /// - Throws: A test prerequisite error.
     @Test
-    func `A listed RPC is refused without a request`() async throws {
+    func `A listed RPC is rejected without a request`() async throws {
         let url = try #require(URL(string: "https://rpc.example.com"))
         let settings = StoredValue(ProviderSettings(customRPCs: [url]))
         let responses = HTTPResponses([:])
@@ -63,7 +63,7 @@ struct CustomRPCConnectionTests {
     }
 
     /// A failed standard request stops the check before any subscription, and nothing is saved: a URL that doesn't
-    /// answer as a Solana RPC is refused, and one that limits requests asks to try again later.
+    /// answer as a Solana RPC is rejected, and one that limits requests asks to try again later.
     /// - Parameters:
     ///   - error: How the URL fails the request.
     ///   - expected: The check's failure.
@@ -89,7 +89,7 @@ struct CustomRPCConnectionTests {
     }
 
     /// A failed live-updates subscription at the same URL stops the check, and nothing is saved: an RPC without live
-    /// updates is refused, and one that limits subscriptions asks to try again later.
+    /// updates is rejected, and one that limits subscriptions asks to try again later.
     /// - Parameters:
     ///   - code: The JSON-RPC error code in the subscription's reply.
     ///   - expected: The check's failure.
@@ -130,7 +130,7 @@ struct CustomRPCConnectionTests {
         (CustomRPCError.notHTTPS, true), (.duplicate, true), (.unreachable, true), (.noLiveUpdates, true),
         (.rateLimited, false), (.unavailable, false), (.storageFailed, false),
     ])
-    func `Only refused URLs show under the field`(error: CustomRPCError, rejectsEntry: Bool) {
+    func `Only rejected URLs show under the field`(error: CustomRPCError, rejectsEntry: Bool) {
         #expect(error.rejectsEntry == rejectsEntry)
     }
 

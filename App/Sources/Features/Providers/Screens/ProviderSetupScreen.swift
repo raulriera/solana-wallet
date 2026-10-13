@@ -1,14 +1,14 @@
 import SwiftUI
 
 /// Collects an entry for an RPC provider, Helius's API key or a custom RPC URL; the owning scene checks and saves it.
-struct ProviderSetupScreen: View {
+struct ProviderSetupScreen<Submission: ProviderSubmitting>: View {
     @Environment(\.palette) private var palette
     @State private var input = ProviderInput()
     @FocusState private var isFocused: Bool
     /// Why the screen asks for an entry, which sets its field and wording.
     let purpose: ProviderEntryPurpose
-    /// Checks the submitted entry and reports why the provider refused it.
-    let submission: any ProviderSubmitting
+    /// Checks the submitted entry and reports why the provider rejected it.
+    let submission: Submission
 
     var body: some View {
         Form {
@@ -60,6 +60,7 @@ struct ProviderSetupScreen: View {
             }
             .listRowBackground(palette.surface)
         }
+        .animation(.default, value: submission.rejection)
         .textInputAutocapitalization(.never)
         .autocorrectionDisabled()
         .scrollContentBackground(.hidden)

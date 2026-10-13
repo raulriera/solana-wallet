@@ -10,14 +10,14 @@ struct ProvidersDestination: View {
         case .customRPCSetup:
             if let setup = coordinator.setup {
                 ProviderSetupScreen(purpose: .customRPC, submission: setup)
-                    .providerSetupLifecycle(setup)
+                    .providerSetupLifecycle()
             }
         case .providerDetails:
             ProviderDetailsScreen(keyPreview: coordinator.keyPreview, actions: coordinator)
         case .providerKey(let purpose):
             if let newKey = coordinator.newKey {
                 ProviderSetupScreen(purpose: purpose, submission: newKey)
-                    .providerSetupLifecycle(newKey)
+                    .providerSetupLifecycle()
             }
         case .customRPCDetails:
             if let url = coordinator.details {

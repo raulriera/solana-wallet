@@ -17,7 +17,7 @@ nonisolated enum CustomRPCError: ProviderEntryError {
     /// The checked RPC couldn't be saved on this device.
     case storageFailed
 
-    /// Whether the URL itself was refused, so the screen explains it under the field.
+    /// Whether the URL itself was rejected, so the screen explains it under the field.
     var rejectsEntry: Bool {
         switch self {
         case .notHTTPS, .duplicate, .unreachable, .noLiveUpdates: true
