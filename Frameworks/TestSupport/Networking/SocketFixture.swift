@@ -100,6 +100,22 @@ final class SocketFixture: WebSocketConnection {
         incoming.yield(Data(#"{"jsonrpc":"2.0","method":"accountNotification","params":{"subscription":\#(subscription),"result":{"context":{"slot":\#(slot)},"value":{}}}}"#.utf8))
     }
 
+    /// Delivers a confirmed signature notification through the real protocol decoder.
+    /// - Parameters:
+    ///   - error: The JSON of the transaction's execution error; `null` reports success.
+    ///   - subscription: The acknowledged server subscription ID.
+    func notifyLanding(error: String = "null", subscription: UInt64 = 1) {
+        incoming.yield(Data(#"{"jsonrpc":"2.0","method":"signatureNotification","params":{"subscription":\#(subscription),"result":{"context":{"slot":5},"value":{"err":\#(error)}}}}"#.utf8))
+    }
+
+    /// Delivers a new root notification through the real protocol decoder.
+    /// - Parameters:
+    ///   - root: The root slot.
+    ///   - subscription: The acknowledged server subscription ID.
+    func notify(root: UInt64, subscription: UInt64 = 2) {
+        incoming.yield(Data(#"{"jsonrpc":"2.0","method":"rootNotification","params":{"subscription":\#(subscription),"result":\#(root)}}"#.utf8))
+    }
+
     /// Ends the transport with a scripted network failure.
     /// - Parameter error: The error delivered to the client's reader.
     func fail(_ error: any Error) { incoming.finish(throwing: error) }

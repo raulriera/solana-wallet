@@ -1,8 +1,8 @@
 public import Foundation
 
 /// A client that sends typed JSON-RPC requests to Helius on a selected Solana network.
-public struct HeliusRPC: RPC, AccountChangeProviding, LogoProviding, CustomStringConvertible,
-                         CustomDebugStringConvertible {
+public struct HeliusRPC: RPC, AccountChangeProviding, SignatureEventProviding, LogoProviding,
+                         CustomStringConvertible, CustomDebugStringConvertible {
     /// The Solana network that receives the client's requests.
     public let network: Network
 
@@ -69,6 +69,14 @@ public struct HeliusRPC: RPC, AccountChangeProviding, LogoProviding, CustomStrin
     /// - Throws: A sanitized subscription, transport, timeout, or cancellation error.
     public func changedSlots(for addresses: [String]) async throws -> AsyncThrowingStream<UInt64, any Error> {
         try await subscriptions.changedSlots(for: addresses)
+    }
+
+    /// Watches a signature at confirmed commitment and new roots with standard Solana subscriptions on one connection.
+    /// - Parameter signature: The base-58 encoded signature of a sent transaction.
+    /// - Returns: The transaction's landing and increasing roots after both subscriptions are acknowledged.
+    /// - Throws: A sanitized subscription, transport, timeout, or cancellation error.
+    public func events(for signature: String) async throws -> AsyncThrowingStream<SignatureEvent, any Error> {
+        try await subscriptions.events(for: signature)
     }
 
     /// Looks up Helius's HTTPS copies of token logos with DAS batch requests of at most 1,000 mints.

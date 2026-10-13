@@ -1,6 +1,6 @@
 # RPC
 
-Typed Solana RPC, DAS asset queries, market prices, and confirmed account subscriptions. Clients connect directly to providers and encapsulate request encoding, transport, and response decoding.
+Typed Solana RPC, DAS asset queries, market prices, confirmed account subscriptions, and signature watches. Clients connect directly to providers and encapsulate request encoding, transport, and response decoding.
 
 ## Example Usage
 
@@ -16,9 +16,9 @@ let blockhash = response.value.blockhash
 
 | Provider | Capabilities |
 | --- | --- |
-| `Solana(network:)` | Public mainnet or devnet RPC and confirmed account subscriptions. No DAS. |
-| `Solana(endpoint:network:)` | RPC at a custom HTTPS URL, with confirmed account subscriptions at the same URL over WSS. No DAS. |
-| `HeliusRPC(apiKey:network:)` | Mainnet or devnet RPC, DAS, logo copies, and confirmed account subscriptions. |
+| `Solana(network:)` | Public mainnet or devnet RPC, confirmed account subscriptions, and signature watches. No DAS. |
+| `Solana(endpoint:network:)` | RPC at a custom HTTPS URL, with confirmed account subscriptions and signature watches at the same URL over WSS. No DAS. |
+| `HeliusRPC(apiKey:network:)` | Mainnet or devnet RPC, DAS, logo copies, confirmed account subscriptions, and signature watches. |
 | `Sender(tier:)` | Optional mainnet transaction submission with `standard` or `premium` routing. Preparation and confirmation use ordinary RPC. |
 | `Jupiter(apiKey:)` | Mainnet prices through `PriceProviding`; independent of RPC and DAS. |
 
@@ -31,6 +31,8 @@ Typed requests cover account and rent reads, blockhash lifetime, epochs, fees, s
 [`LogoProviding`](Sources/Assets/LogoProviding.swift) returns a provider's HTTPS copies of token logos, keyed by mint, never creator-hosted links. `HeliusRPC` implements it with DAS batch lookups; a missing entry means no logo.
 
 [`AccountChangeProviding`](Sources/Subscriptions/AccountChangeProviding.swift) observes confirmed changes to a list of accounts on one connection, including accounts that don't exist yet. `changedSlots(for:)` returns after subscriptions are acknowledged and emits increasing change slots. These signal a need to reconcile balances; they are not balance updates. Cancel the consuming task to close its connection.
+
+[`SignatureEventProviding`](Sources/Subscriptions/SignatureEventProviding.swift) watches a sent transaction with `signatureSubscribe` at confirmed and `rootSubscribe` on one connection. `events(for:)` returns after both subscriptions are acknowledged and keeps every event: `.landed(error:)` with the execution error, or `nil` after success, and increasing `.rooted` slots. A landing has no slot, because a notification's context slot isn't guaranteed to be the execution slot. Cancel the consuming task to close its connection.
 
 ## Errors and submission
 

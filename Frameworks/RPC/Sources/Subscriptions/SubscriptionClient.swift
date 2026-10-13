@@ -18,6 +18,14 @@ struct SubscriptionClient: Sendable {
         try await events(for: .accountChanges(for: addresses))
     }
 
+    /// Subscribes to a signature at confirmed commitment and to new roots on one connection, then streams their events.
+    /// - Parameter signature: The base-58 encoded signature of a sent transaction.
+    /// - Returns: A cancellable stream after both subscription acknowledgments arrive.
+    /// - Throws: A sanitized setup, timeout, or cancellation error.
+    func events(for signature: String) async throws -> AsyncThrowingStream<SignatureEvent, any Error> {
+        try await events(for: .signatureWatch(for: signature))
+    }
+
     /// Opens a group's subscriptions on one connection, then streams the events that their notifications produce.
     /// - Parameter subscriptions: The subscriptions to open and the decoding of their notifications.
     /// - Returns: A cancellable stream after all subscription acknowledgments arrive,

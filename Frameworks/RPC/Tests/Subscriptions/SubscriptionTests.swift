@@ -179,17 +179,21 @@ struct SubscriptionTests {
     /// - Parameters:
     ///   - socket: The scripted WebSocket connection.
     ///   - helius: Whether to use Helius or the public Solana client.
-    /// - Returns: The provider-neutral subscription contract.
-    private func client(socket: SocketFixture, helius: Bool = true) -> any AccountChangeProviding {
+    ///   - connected: Runs each time the provider opens a WebSocket connection.
+    /// - Returns: The provider-neutral subscription contracts.
+    func client(socket: SocketFixture, helius: Bool = true,
+                connected: @escaping @Sendable () -> Void = {}) -> any AccountChangeProviding & SignatureEventProviding {
         let http = StubTransport { _ in throw URLError(.notConnectedToInternet) }
         if helius {
             return HeliusRPC(apiKey: "fixture-key", network: .devnet, transport: http, socket: { url in
                 #expect(url.scheme == "wss" && url.host() == "devnet.helius-rpc.com")
+                connected()
                 return socket
             })
         }
         return Solana(network: .devnet, transport: http, socket: { url in
             #expect(url.scheme == "wss" && url.host() == "api.devnet.solana.com")
+            connected()
             return socket
         })
     }

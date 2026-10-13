@@ -14,6 +14,7 @@ Connect directly to interchangeable RPC, DAS, and pricing providers; no app-owne
 | Observe incoming portfolio changes | `accountSubscribe` on the wallet and each listed token account supplies confirmed changes; the portfolio then reads balances again. Notifications do not patch balances. |
 | Update market prices independently | `PriceProviding` returns our `Quote` values keyed by mint. `Jupiter` implements it through Price V3; consumers can switch providers without adopting a provider's response shape. Price requests do not refetch holdings or metadata. |
 | V1 transactions | Ordered instruction compositions: blockhash and expiry, fee/resource estimates, simulation, submission, and signature status. Token transfers use `GetMultipleAccounts` for mint/account state, `GetEpochInfo` for Token-2022 fee schedules, and `GetMinimumBalanceForRentExemption` for new destination deposits. |
+| Watch a sent transaction | `signatureSubscribe` gives the result; `rootSubscribe` schedules checks; both share one WSS connection. `GetEpochInfo` at `finalized` proves expiry. `GetSignatureStatuses` runs once after each subscription and once after expiry. |
 | AI-enhanced transaction simulation | Reuse simulation results, logs, and errors for human-readable explanations in a separate framework after RPC; see [simulation explanations](transaction-simulation.md). |
 
 - Confidential transfers remain conditional; agree on feasibility and the concrete flow before adding support.

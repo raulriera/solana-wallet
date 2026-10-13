@@ -11,7 +11,8 @@ enum MainnetClients {
     /// - Returns: A real client on mainnet, with DAS available through Helius.
     /// - Throws: A test prerequisite failure if Helius credentials are missing.
     static func client(helius: Bool = true,
-                       transport: any HTTPTransport = URLSessionTransport()) throws -> any RPC & AccountChangeProviding {
+                       transport: any HTTPTransport = URLSessionTransport()) throws
+        -> any RPC & AccountChangeProviding & SignatureEventProviding {
         guard helius else { return Solana(network: .mainnet, transport: transport) }
         return HeliusRPC(apiKey: try heliusAPIKey(), network: .mainnet, transport: transport)
     }
