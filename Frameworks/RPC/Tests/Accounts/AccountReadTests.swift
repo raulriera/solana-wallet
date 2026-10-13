@@ -78,7 +78,6 @@ struct AccountReadTests {
         let body = try requestBody(#require(await transport.requests.first))
         #expect(body["method"] as? String == "getEpochInfo")
         let params = try #require(body["params"] as? [[String: Any]])
-        #expect(params.first?["commitment"] as? String == "finalized")
         #expect(params.first?["minContextSlot"] as? UInt64 == 43200000)
     }
 }

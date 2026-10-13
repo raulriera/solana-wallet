@@ -32,7 +32,7 @@ struct SignatureWatch: SubscriptionGroup {
 
     /// Requests the landing at finalized commitment.
     private struct Configuration: Encodable, Sendable {
-        let commitment = "finalized"
+        let commitment = Commitment.finalized
     }
 
     /// The part of a signature notification's result that carries the execution result.

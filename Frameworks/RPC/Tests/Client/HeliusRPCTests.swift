@@ -36,17 +36,19 @@ struct HeliusRPCTests {
 
     /// Verifies the blockhash request, its expiry height, and its independent ledger slot.
     ///
+    /// This test also covers the configuration that ledger requests share: finalized
+    /// commitment, and no minimum evaluation slot when it's `nil`.
+    ///
     /// - Parameters:
-    ///   - query: The request using default or explicit ledger configuration.
-    ///   - expectedCommitment: The confirmation level expected in the outgoing request.
+    ///   - query: The request with or without a minimum evaluation slot.
     ///   - expectedSlot: The minimum evaluation slot, or `nil` when it should be omitted.
     /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
     @Test(arguments: [
-        (GetLatestBlockhash(), "finalized", UInt64?.none),
-        (GetLatestBlockhash(commitment: .processed, minContextSlot: 12340), "processed", 12340),
+        (GetLatestBlockhash(), UInt64?.none),
+        (GetLatestBlockhash(minContextSlot: 12340), UInt64?(12340)),
     ])
     func `Get latest blockhash returns a blockhash expiry height and slot`(
-        query: GetLatestBlockhash, expectedCommitment: String, expectedSlot: UInt64?
+        query: GetLatestBlockhash, expectedSlot: UInt64?
     ) async throws {
         let transport = StubTransport { request in
             try reply(to: request, payload: #""result":{"context":{"slot":12345},"value":{"blockhash":"EkSnNWid2cvwEVnVx9aBqawnmiCNiDgp3gUdkDPTKN1N","lastValidBlockHeight":9007199254740993}}"#)
@@ -64,7 +66,7 @@ struct HeliusRPCTests {
         #expect(body["method"] as? String == "getLatestBlockhash")
         #expect(parameters.count == 1)
         let configuration = try #require(parameters.first)
-        #expect(configuration["commitment"] as? String == expectedCommitment)
+        #expect(configuration["commitment"] as? String == "finalized")
         #expect(configuration["minContextSlot"] as? UInt64 == expectedSlot)
         #expect(configuration.count == (expectedSlot == nil ? 1 : 2))
     }
@@ -84,24 +86,15 @@ struct HeliusRPCTests {
 
     /// Verifies the height request and exact integer decoding without a context envelope.
     ///
-    /// - Parameters:
-    ///   - query: The request using default or explicit ledger configuration.
-    ///   - expectedCommitment: The confirmation level expected in the outgoing request.
-    ///   - expectedSlot: The minimum evaluation slot, or `nil` when it should be omitted.
     /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
-    @Test(arguments: [
-        (GetBlockHeight(), "finalized", UInt64?.none),
-        (GetBlockHeight(commitment: .processed, minContextSlot: 12340), "processed", 12340),
-    ])
-    func `Get block height returns the current ledger height`(
-        query: GetBlockHeight, expectedCommitment: String, expectedSlot: UInt64?
-    ) async throws {
+    @Test
+    func `Get block height returns the current ledger height`() async throws {
         let transport = StubTransport { request in
             try reply(to: request, payload: #""result":9007199254740993"#)
         }
         let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
 
-        let height = try await rpc.send(query)
+        let height = try await rpc.send(GetBlockHeight(minContextSlot: 12340))
 
         #expect(height == 9_007_199_254_740_993)
         let request = try #require(await transport.requests.first)
@@ -109,34 +102,22 @@ struct HeliusRPCTests {
         let parameters = try #require(body["params"] as? [[String: Any]])
         #expect(body["method"] as? String == "getBlockHeight")
         #expect(parameters.count == 1)
-        let configuration = try #require(parameters.first)
-        #expect(configuration["commitment"] as? String == expectedCommitment)
-        #expect(configuration["minContextSlot"] as? UInt64 == expectedSlot)
-        #expect(configuration.count == (expectedSlot == nil ? 1 : 2))
+        #expect(parameters.first?["minContextSlot"] as? UInt64 == 12340)
     }
 
-    /// Verifies the base64 message, ledger configuration, and decoded fee and slot.
+    /// Verifies the base64 message, minimum evaluation slot, and decoded fee and slot.
     ///
     /// The bytes are an encoding fixture; this test doesn't construct a transaction.
     ///
-    /// - Parameters:
-    ///   - query: The request using default or explicit ledger configuration.
-    ///   - expectedCommitment: The confirmation level expected in the outgoing request.
-    ///   - expectedSlot: The minimum evaluation slot, or `nil` when it should be omitted.
     /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
-    @Test(arguments: [
-        (GetFeeForMessage(message: Data([0x81, 0xFB, 0xFF, 0x00])), "finalized", UInt64?.none),
-        (GetFeeForMessage(message: Data([0x81, 0xFB, 0xFF, 0x00]), commitment: .processed, minContextSlot: 12340), "processed", 12340),
-    ])
-    func `Get fee for message returns fee lamports and slot`(
-        query: GetFeeForMessage, expectedCommitment: String, expectedSlot: UInt64?
-    ) async throws {
+    @Test
+    func `Get fee for message returns fee lamports and slot`() async throws {
         let transport = StubTransport { request in
             try reply(to: request, payload: #""result":{"context":{"slot":12345},"value":5000}"#)
         }
         let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
 
-        let response = try await rpc.send(query)
+        let response = try await rpc.send(GetFeeForMessage(message: Data([0x81, 0xFB, 0xFF, 0x00]), minContextSlot: 12340))
 
         #expect(response.value == 5000)
         #expect(response.context.slot == 12345)
@@ -147,9 +128,7 @@ struct HeliusRPCTests {
         #expect(parameters.count == 2)
         #expect(parameters.first as? String == "gfv/AA==")
         let configuration = try #require(parameters.last as? [String: Any])
-        #expect(configuration["commitment"] as? String == expectedCommitment)
-        #expect(configuration["minContextSlot"] as? UInt64 == expectedSlot)
-        #expect(configuration.count == (expectedSlot == nil ? 1 : 2))
+        #expect(configuration["minContextSlot"] as? UInt64 == 12340)
     }
 
     /// Verifies that an unavailable fee remains distinct from a zero-lamport fee.
@@ -187,17 +166,16 @@ struct HeliusRPCTests {
     ///
     /// - Parameters:
     ///   - query: The request using default or explicit execution options.
-    ///   - expectedCommitment: The confirmation level expected in the request.
     ///   - expectedSlot: The minimum evaluation slot, or `nil` when omitted.
     ///   - expectedVerification: Whether signature verification should be requested.
     /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
     @Test(arguments: [
-        (SimulateTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00])), "finalized", UInt64?.none, false),
-        (SimulateTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00]), commitment: .processed,
-                             minContextSlot: 12340, verifiesSignatures: true), "processed", 12340, true),
+        (SimulateTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00])), UInt64?.none, false),
+        (SimulateTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00]), minContextSlot: 12340, verifiesSignatures: true),
+         12340, true),
     ])
     func `Simulation returns logs compute usage fee and slot`(
-        query: SimulateTransaction, expectedCommitment: String, expectedSlot: UInt64?, expectedVerification: Bool
+        query: SimulateTransaction, expectedSlot: UInt64?, expectedVerification: Bool
     ) async throws {
         let transport = StubTransport { request in
             try reply(to: request, payload: #"""
@@ -226,7 +204,7 @@ struct HeliusRPCTests {
         #expect(parameters.first as? String == "gfv/AA==")
         let configuration = try #require(parameters.last as? [String: Any])
         #expect(configuration["encoding"] as? String == "base64")
-        #expect(configuration["commitment"] as? String == expectedCommitment)
+        #expect(configuration["commitment"] as? String == "finalized")
         #expect(configuration["minContextSlot"] as? UInt64 == expectedSlot)
         #expect(configuration["sigVerify"] as? Bool == expectedVerification)
         #expect(configuration["replaceRecentBlockhash"] as? Bool == false)
@@ -312,19 +290,18 @@ struct HeliusRPCTests {
     ///
     /// - Parameters:
     ///   - query: The request using default or explicit submission options.
-    ///   - expectedCommitment: The preflight confirmation level expected in the request.
     ///   - expectedSlot: The minimum evaluation slot, or `nil` when omitted.
     ///   - expectedSkip: Whether preflight checks should be skipped.
     ///   - expectedRetries: The node's retry limit, or `nil` when omitted.
     /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
     @Test(arguments: [
-        (SendTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00])), "finalized", UInt64?.none, false, UInt64?(0)),
-        (SendTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00]), preflightCommitment: .processed,
-                         minContextSlot: 12340, skipsPreflight: true, maxRetries: 2), "processed", 12340, true, 2),
-        (SendTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00]), maxRetries: nil), "finalized", nil, false, nil),
+        (SendTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00])), UInt64?.none, false, UInt64?(0)),
+        (SendTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00]), minContextSlot: 12340, skipsPreflight: true,
+                         maxRetries: 2), 12340, true, 2),
+        (SendTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00]), maxRetries: nil), nil, false, nil),
     ])
     func `Send transaction returns the accepted signature and preserves signed bytes`(
-        query: SendTransaction, expectedCommitment: String, expectedSlot: UInt64?, expectedSkip: Bool, expectedRetries: UInt64?
+        query: SendTransaction, expectedSlot: UInt64?, expectedSkip: Bool, expectedRetries: UInt64?
     ) async throws {
         let signature = "2id3YC2jK9G5Wo2phDx4gJVAew8DcY5NAojnVuao8rkxwPYPe8cSwE5GzhEgJA2y8fVjDEo6iR6ykBvDxrTQrtpb"
         let transport = StubTransport { request in
@@ -344,7 +321,7 @@ struct HeliusRPCTests {
         #expect(parameters.first as? String == "gfv/AA==")
         let configuration = try #require(parameters.last as? [String: Any])
         #expect(configuration["encoding"] as? String == "base64")
-        #expect(configuration["preflightCommitment"] as? String == expectedCommitment)
+        #expect(configuration["preflightCommitment"] as? String == "finalized")
         #expect(configuration["minContextSlot"] as? UInt64 == expectedSlot)
         #expect(configuration["skipPreflight"] as? Bool == expectedSkip)
         #expect(configuration["maxRetries"] as? UInt64 == expectedRetries)

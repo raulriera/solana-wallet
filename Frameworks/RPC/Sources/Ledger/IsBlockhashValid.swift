@@ -23,20 +23,16 @@ public struct IsBlockhashValid: RPCRequest {
 
     /// The Base58 recent blockhash whose validity to check.
     public let blockhash: String
-    /// The confirmation level used to evaluate the blockhash.
-    public let commitment: Commitment
     /// The minimum ledger slot to evaluate, or `nil` for no minimum.
     public let minContextSlot: UInt64?
 
-    /// Creates a validity request without asserting durable-nonce validity.
+    /// Creates a validity request at finalized commitment, without asserting durable-nonce validity.
     ///
     /// - Parameters:
     ///   - blockhash: The encoded recent blockhash to check.
-    ///   - commitment: The confirmation level. The default is `finalized`.
     ///   - minContextSlot: The earliest evaluation slot. The default is `nil`.
-    public init(blockhash: String, commitment: Commitment = .finalized, minContextSlot: UInt64? = nil) {
+    public init(blockhash: String, minContextSlot: UInt64? = nil) {
         self.blockhash = blockhash
-        self.commitment = commitment
         self.minContextSlot = minContextSlot
     }
 
@@ -47,6 +43,6 @@ public struct IsBlockhashValid: RPCRequest {
     public func encode(to encoder: any Encoder) throws {
         var parameters = encoder.unkeyedContainer()
         try parameters.encode(blockhash)
-        try parameters.encode(LedgerConfiguration(commitment: commitment, minContextSlot: minContextSlot))
+        try parameters.encode(LedgerConfiguration(minContextSlot: minContextSlot))
     }
 }

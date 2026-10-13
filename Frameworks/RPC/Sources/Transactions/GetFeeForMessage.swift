@@ -42,24 +42,19 @@ public struct GetFeeForMessage: RPCRequest {
     /// The serialized message bytes, without the transaction's signatures.
     public let message: Data
 
-    /// The confirmation level requested for the fee calculation.
-    public let commitment: Commitment
-
     /// The earliest slot at which the node may evaluate the request, or `nil` for no minimum.
     public let minContextSlot: UInt64?
 
-    /// Creates a request for the fee of a serialized transaction message.
+    /// Creates a request for the fee of a serialized transaction message at finalized commitment.
     ///
     /// Message construction belongs to the caller. This request converts the bytes
     /// to base64 for transport; the server validates the message.
     ///
     /// - Parameters:
     ///   - message: The serialized message bytes, without the transaction's signatures.
-    ///   - commitment: The confirmation level to query. The default is `finalized`.
     ///   - minContextSlot: The minimum evaluation slot. The default is `nil`.
-    public init(message: Data, commitment: Commitment = .finalized, minContextSlot: UInt64? = nil) {
+    public init(message: Data, minContextSlot: UInt64? = nil) {
         self.message = message
-        self.commitment = commitment
         self.minContextSlot = minContextSlot
     }
 
@@ -70,6 +65,6 @@ public struct GetFeeForMessage: RPCRequest {
     public func encode(to encoder: any Encoder) throws {
         var parameters = encoder.unkeyedContainer()
         try parameters.encode(message.base64EncodedString())
-        try parameters.encode(LedgerConfiguration(commitment: commitment, minContextSlot: minContextSlot))
+        try parameters.encode(LedgerConfiguration(minContextSlot: minContextSlot))
     }
 }

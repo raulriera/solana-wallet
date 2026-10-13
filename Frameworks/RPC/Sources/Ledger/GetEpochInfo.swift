@@ -1,4 +1,4 @@
-/// A request for the current epoch, absolute slot, and block height at a given confirmation level.
+/// A request for the current epoch, absolute slot, and block height at finalized commitment.
 public struct GetEpochInfo: RPCRequest {
     /// The provider-neutral JSON-RPC method name.
     public static let method = "getEpochInfo"
@@ -29,13 +29,11 @@ public struct GetEpochInfo: RPCRequest {
 
     private let configuration: LedgerConfiguration
 
-    /// Creates an epoch request at the selected confirmation level.
+    /// Creates an epoch request at finalized commitment.
     ///
-    /// - Parameters:
-    ///   - commitment: The confirmation level, defaulting to `finalized`.
-    ///   - minContextSlot: The earliest acceptable observation slot, or `nil`.
-    public init(commitment: Commitment = .finalized, minContextSlot: UInt64? = nil) {
-        configuration = LedgerConfiguration(commitment: commitment, minContextSlot: minContextSlot)
+    /// - Parameter minContextSlot: The earliest acceptable observation slot, or `nil`.
+    public init(minContextSlot: UInt64? = nil) {
+        configuration = LedgerConfiguration(minContextSlot: minContextSlot)
     }
 
     /// Encodes the ledger constraints as a single positional configuration.

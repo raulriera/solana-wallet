@@ -15,7 +15,7 @@ struct BlockhashValidityTests {
         let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
         let hash = "11111111111111111111111111111111"
 
-        let result = try await rpc.send(IsBlockhashValid(blockhash: hash, commitment: .finalized, minContextSlot: 400))
+        let result = try await rpc.send(IsBlockhashValid(blockhash: hash, minContextSlot: 400))
 
         #expect(result.value == valid)
         #expect(result.context.slot == 402)
@@ -25,7 +25,6 @@ struct BlockhashValidityTests {
         #expect(params.count == 2)
         #expect(params.first as? String == hash)
         let configuration = try #require(params.last as? [String: Any])
-        #expect(configuration["commitment"] as? String == "finalized")
         #expect(configuration["minContextSlot"] as? UInt64 == 400)
     }
 

@@ -43,19 +43,13 @@ public struct GetLatestBlockhash: RPCRequest {
         }
     }
 
-    /// The confirmation level requested for the blockhash.
-    public let commitment: Commitment
-
     /// The earliest slot at which the node may evaluate the request, or `nil` for no minimum.
     public let minContextSlot: UInt64?
 
-    /// Creates a request for the latest blockhash and its expiry height.
+    /// Creates a request for the latest finalized blockhash and its expiry height.
     ///
-    /// - Parameters:
-    ///   - commitment: The confirmation level to query. The default is `finalized`.
-    ///   - minContextSlot: The minimum evaluation slot. The default is `nil`.
-    public init(commitment: Commitment = .finalized, minContextSlot: UInt64? = nil) {
-        self.commitment = commitment
+    /// - Parameter minContextSlot: The minimum evaluation slot. The default is `nil`.
+    public init(minContextSlot: UInt64? = nil) {
         self.minContextSlot = minContextSlot
     }
 
@@ -65,6 +59,6 @@ public struct GetLatestBlockhash: RPCRequest {
     /// - Throws: An encoding error if the encoder can't represent a parameter.
     public func encode(to encoder: any Encoder) throws {
         var parameters = encoder.unkeyedContainer()
-        try parameters.encode(LedgerConfiguration(commitment: commitment, minContextSlot: minContextSlot))
+        try parameters.encode(LedgerConfiguration(minContextSlot: minContextSlot))
     }
 }

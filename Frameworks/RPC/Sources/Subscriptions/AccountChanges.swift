@@ -30,7 +30,7 @@ struct AccountChanges: SubscriptionGroup {
 
     /// Requests compact account bytes, since notifications only signal a change.
     private struct Configuration: Encodable, Sendable {
-        let commitment = "finalized"
+        let commitment = Commitment.finalized
         let encoding = "base64"
     }
 

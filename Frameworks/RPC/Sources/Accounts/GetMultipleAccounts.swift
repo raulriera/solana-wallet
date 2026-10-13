@@ -23,24 +23,21 @@ public struct GetMultipleAccounts: RPCRequest {
 
     /// The addresses to retrieve in the same order as the response values.
     public let addresses: [String]
-    private let commitment: Commitment
     private let minContextSlot: UInt64?
 
-    /// Creates one bounded account read, without chunking into inconsistent contexts.
+    /// Creates one bounded account read at finalized commitment, without chunking into inconsistent contexts.
     ///
     /// - Parameters:
     ///   - addresses: One through 100 account addresses.
-    ///   - commitment: The confirmation level, defaulting to `finalized`.
     ///   - minContextSlot: The earliest acceptable observation slot, or `nil`.
     /// - Throws: ``GetMultipleAccountsError/invalidAddressCount`` for an empty or oversized request.
-    public init(addresses: [String], commitment: Commitment = .finalized, minContextSlot: UInt64? = nil) throws {
+    public init(addresses: [String], minContextSlot: UInt64? = nil) throws {
         guard (1...100).contains(addresses.count) else { throw GetMultipleAccountsError.invalidAddressCount }
         self.addresses = addresses
-        self.commitment = commitment
         self.minContextSlot = minContextSlot
     }
 
-    /// Requests base64 account bytes with the chosen ledger context constraints.
+    /// Requests base64 account bytes at finalized commitment and the chosen minimum slot.
     ///
     /// - Parameter encoder: The encoder receiving positional RPC parameters.
     /// - Throws: An encoding error if the parameters cannot be represented.
@@ -49,7 +46,7 @@ public struct GetMultipleAccounts: RPCRequest {
         try parameters.encode(addresses)
         var options = parameters.nestedContainer(keyedBy: CodingKeys.self)
         try options.encode("base64", forKey: .encoding)
-        try options.encode(commitment, forKey: .commitment)
+        try options.encode(Commitment.finalized, forKey: .commitment)
         try options.encodeIfPresent(minContextSlot, forKey: .minContextSlot)
     }
 

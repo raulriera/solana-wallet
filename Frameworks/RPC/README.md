@@ -22,7 +22,7 @@ let blockhash = response.value.blockhash
 | `Sender(tier:)` | Optional mainnet transaction submission with `standard` or `premium` routing. Preparation and confirmation use ordinary RPC. |
 | `Jupiter(apiKey:)` | Mainnet prices through `PriceProviding`; independent of RPC and DAS. |
 
-Typed requests cover account and rent reads, blockhash lifetime, epochs, fees, simulation, submission, signature status, and DAS asset lookups. Commitments default to `finalized`. See [supported request scope](../../references/rpc-scope.md).
+Typed requests cover account and rent reads, blockhash lifetime, epochs, fees, simulation, submission, signature status, and DAS asset lookups. Requests that send a commitment always send `finalized`. See [supported request scope](../../references/rpc-scope.md).
 
 ## Prices, logos, and subscriptions
 
