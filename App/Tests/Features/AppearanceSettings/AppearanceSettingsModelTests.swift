@@ -7,7 +7,7 @@ import Themes
 @testable import widgets
 
 @MainActor @Suite(.timeLimit(.minutes(1)))
-struct AppearanceSettingsTests {
+struct AppearanceSettingsModelTests {
     /// Selection keeps committed state visible and rejects overlapping writes until persistence completes.
     @Test func `Selection rejects overlapping operations`() async throws {
         let fixture = try CatalogFixture()
@@ -147,8 +147,8 @@ struct AppearanceSettingsTests {
             for await _ in release.stream {}
             try Task.checkCancellation()
         })
-        let settings = AppearanceSettings(appearance: AppearanceCoordinator(store: try AppearanceStore(directory: fixture.directory)),
-                                          catalog: catalog, packages: PackService())
+        let settings = AppearanceSettingsModel(appearance: AppearanceCoordinator(store: try AppearanceStore(directory: fixture.directory)),
+                                               catalog: catalog, packages: PackService())
         settings.importPack(from: try fixture.source())
         for await _ in staged.stream {}
         #expect(!settings.canStartOperation)
@@ -172,7 +172,7 @@ struct AppearanceSettingsTests {
             for await _ in release.stream {}
         }
         let shared = AppearanceCoordinator(store: try AppearanceStore(directory: fixture.directory))
-        let settings = AppearanceSettings(appearance: shared, catalog: catalog, packages: PackService())
+        let settings = AppearanceSettingsModel(appearance: shared, catalog: catalog, packages: PackService())
         settings.importPack(from: try fixture.source(name: "Committed"))
         for await _ in committed.stream {}
         settings.cancel()
@@ -190,7 +190,7 @@ struct AppearanceSettingsTests {
         let bundled = [BundledTheme(id: OriginalAppearance.id, name: "Original", url: nativeURL)]
         let catalog = try ThemeCatalog(directory: fixture.directory, builtIns: bundled)
         let appearance = AppearanceCoordinator(store: try AppearanceStore(directory: fixture.directory, builtIns: bundled))
-        let settings = AppearanceSettings(appearance: appearance, catalog: catalog, packages: PackService())
+        let settings = AppearanceSettingsModel(appearance: appearance, catalog: catalog, packages: PackService())
         let entry = try await catalog.install(PackService().read(from: fixture.source()))
         let wallet = UUID()
         settings.select(entry.id, for: .application)
@@ -214,7 +214,7 @@ struct AppearanceSettingsTests {
         let settings = try makeSettings(fixture)
         if hasPendingReplacement {
             let pack = try await PackService().read(from: fixture.source())
-            settings.replacement = AppearanceSettings.Replacement(
+            settings.replacement = AppearanceSettingsModel.Replacement(
                 pack: pack, existing: ThemeEntry(id: pack.id, name: pack.name, origin: .custom)
             )
         }
@@ -243,7 +243,7 @@ struct AppearanceSettingsTests {
         let source = try fixture.source()
         let first = try await PackService().read(from: source)
         let existing = ThemeEntry(id: first.id, name: first.name, origin: .custom)
-        settings.replacement = AppearanceSettings.Replacement(pack: first, existing: existing)
+        settings.replacement = AppearanceSettingsModel.Replacement(pack: first, existing: existing)
         if changesColors {
             let url = source.appendingPathComponent("manifest.json")
             var manifest = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
@@ -258,7 +258,7 @@ struct AppearanceSettingsTests {
             changed.withLock { $0 = true }
         }
 
-        settings.replacement = AppearanceSettings.Replacement(pack: second, existing: existing)
+        settings.replacement = AppearanceSettingsModel.Replacement(pack: second, existing: existing)
 
         let notified = changed.withLock(\.self)
         #expect(notified == changesColors)
@@ -288,10 +288,12 @@ struct AppearanceSettingsTests {
 
     /// Creates real services against one test's isolated storage.
     /// - Parameter fixture: The owner of this test's temporary directories.
-    /// - Returns: An independent presentation coordinator.
+    /// - Returns: An appearance settings model with its own window state.
     /// - Throws: An invalid test storage configuration.
-    private func makeSettings(_ fixture: CatalogFixture) throws -> AppearanceSettings {
-        AppearanceSettings(appearance: AppearanceCoordinator(store: try AppearanceStore(directory: fixture.directory)),
-                           catalog: try ThemeCatalog(directory: fixture.directory), packages: PackService())
+    private func makeSettings(_ fixture: CatalogFixture) throws -> AppearanceSettingsModel {
+        AppearanceSettingsModel(
+            appearance: AppearanceCoordinator(store: try AppearanceStore(directory: fixture.directory)),
+            catalog: try ThemeCatalog(directory: fixture.directory), packages: PackService()
+        )
     }
 }

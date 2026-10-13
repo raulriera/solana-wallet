@@ -4,7 +4,7 @@ import SwiftUI
 struct SettingsScene: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var selection: SettingsDestination?
-    let settings: AppearanceSettings
+    let settings: AppearanceSettingsModel
     let wallet: AppearanceWallet?
     let account: Account
     let security: SecurityCoordinator
@@ -19,8 +19,8 @@ struct SettingsScene: View {
     ///   - account: The owning window's wallet, whose recovery Security & Privacy shows.
     ///   - security: The window's Security & Privacy navigation and steps.
     ///   - providers: The window's RPC provider choices and key entry.
-    init(settings: AppearanceSettings, wallet: AppearanceWallet? = nil, account: Account, security: SecurityCoordinator,
-         providers: ProvidersCoordinator) {
+    init(settings: AppearanceSettingsModel, wallet: AppearanceWallet? = nil, account: Account,
+         security: SecurityCoordinator, providers: ProvidersCoordinator) {
         self.settings = settings
         self.wallet = wallet
         self.account = account

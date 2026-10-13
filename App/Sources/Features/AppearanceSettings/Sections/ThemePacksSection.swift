@@ -4,7 +4,7 @@ import Themes
 /// Owns Files import and default-template export presentation.
 struct ThemePacksSection: View {
     @Environment(\.palette) private var palette
-    @Bindable var settings: AppearanceSettings
+    @Bindable var settings: AppearanceSettingsModel
     @State private var isImporting = false
     @State private var isExporting = false
 

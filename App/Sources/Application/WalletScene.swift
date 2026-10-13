@@ -8,7 +8,7 @@ struct WalletScene: View {
     let account: Account
     let portfolio: any PortfolioCoordinating
     let tokenRemoval: TokenRemovalModel
-    let settings: AppearanceSettings
+    let settings: AppearanceSettingsModel
     let connection: any ProviderConnecting<ProviderConnectionError>
     let security: SecurityCoordinator
     let providers: ProvidersCoordinator

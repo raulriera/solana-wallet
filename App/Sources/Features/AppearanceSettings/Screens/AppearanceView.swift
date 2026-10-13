@@ -3,7 +3,7 @@ import SwiftUI
 /// Composes appearance settings from independently updating sections.
 struct AppearanceView: View {
     @Environment(\.palette) private var palette
-    let settings: AppearanceSettings
+    let settings: AppearanceSettingsModel
     let wallet: AppearanceWallet?
 
     private var walletThemeName: String? {
