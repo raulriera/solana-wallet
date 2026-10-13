@@ -1,7 +1,6 @@
 {
   "features" : [
-    "refractivity",
-    "specular-location"
+    "refractivity"
   ],
   "fill-specializations" : [
     {
@@ -27,7 +26,7 @@
               "value" : {
                 "linear-gradient" : [
                   "display-p3:0.09824,0.09824,0.09824,1.00000",
-                  "display-p3:0.10175,0.10107,0.09875,1.00000"
+                  "display-p3:0.11765,0.11765,0.11765,1.00000"
                 ],
                 "orientation" : {
                   "start" : {
@@ -77,41 +76,7 @@
       "layers" : [
         {
           "fill" : {
-            "automatic-gradient" : "extended-srgb:0.59751,0.27179,1.00063,1.00000"
-          },
-          "glass" : true,
-          "image-name" : "02-purple-card.svg",
-          "name" : "02-purple-card",
-          "opacity" : 1,
-          "position" : {
-            "scale" : 1.5,
-            "translation-in-points" : [
-              0,
-              355
-            ]
-          }
-        },
-        {
-          "fill" : {
-            "automatic-gradient" : "extended-srgb:0.28693,0.67102,0.80624,1.00000"
-          },
-          "image-name" : "03-blue-card.svg",
-          "name" : "03-blue-card",
-          "opacity" : 1,
-          "position" : {
-            "scale" : 1.5,
-            "translation-in-points" : [
-              0,
-              138
-            ]
-          }
-        },
-        {
-          "fill" : {
-            "linear-gradient" : [
-              "display-p3:0.43138,0.87938,0.59497,1.00000",
-              "extended-srgb:0.09829,0.84783,0.52897,1.00000"
-            ]
+            "automatic-gradient" : "display-p3:0.79199,0.94141,0.81592,1.00000"
           },
           "glass" : true,
           "hidden" : false,
@@ -121,8 +86,39 @@
           "position" : {
             "scale" : 1.5,
             "translation-in-points" : [
+              1.1368683772161603e-13,
+              199.66666666666617
+            ]
+          }
+        },
+        {
+          "fill" : {
+            "automatic-gradient" : "display-p3:0.51758,0.63135,0.84717,1.00000"
+          },
+          "image-name" : "03-blue-card.svg",
+          "name" : "03-blue-card",
+          "opacity" : 1,
+          "position" : {
+            "scale" : 1.5,
+            "translation-in-points" : [
               0,
-              -79
+              133.55555555555566
+            ]
+          }
+        },
+        {
+          "fill" : {
+            "automatic-gradient" : "display-p3:0.75293,0.65479,0.96484,1.00000"
+          },
+          "glass" : true,
+          "image-name" : "02-purple-card.svg",
+          "name" : "02-purple-card",
+          "opacity" : 1,
+          "position" : {
+            "scale" : 1.5,
+            "translation-in-points" : [
+              0,
+              77.66666666666731
             ]
           }
         }
@@ -137,17 +133,17 @@
         ]
       },
       "refractivity" : {
-        "depth" : 0.108359375,
+        "depth" : 0.177734375,
         "enabled" : true,
-        "strength" : 0.841484375
+        "strength" : 0
       },
       "shadow" : {
         "kind" : "layer-color",
         "opacity" : 0.6
       },
-      "specular" : "outside",
+      "specular" : true,
       "translucency" : {
-        "enabled" : true,
+        "enabled" : false,
         "value" : 0.6
       }
     },
@@ -155,6 +151,7 @@
       "layers" : [
 
       ],
+      "name" : "Group",
       "shadow" : {
         "kind" : "neutral",
         "opacity" : 0.5
