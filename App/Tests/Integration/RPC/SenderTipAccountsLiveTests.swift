@@ -3,7 +3,7 @@ import Foundation
 import Testing
 
 /// Compares the bundled Sender tip accounts with the list Helius publishes; there is no endpoint for it.
-@Suite(.timeLimit(.minutes(1)))
+@Suite(.tags(.network), .timeLimit(.minutes(1)))
 struct SenderTipAccountsLiveTests {
     /// Every bundled tip account must still appear in Helius's Sender documentation.
     @Test

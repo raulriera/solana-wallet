@@ -6,6 +6,7 @@ import Testing
 @testable import widgets
 
 /// Verifies independent read-only portfolio presentation against mainnet.
+@Suite(.tags(.network))
 struct PortfolioCoordinatorLiveTests {
     /// Verifies the app observes and explicitly refreshes a public mainnet wallet.
     ///

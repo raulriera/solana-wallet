@@ -7,6 +7,7 @@ import Wallet
 @testable import widgets
 
 /// Exercises token preparation's read-only mainnet validation without retained wallets or submission.
+@Suite(.tags(.network))
 struct TokenPreparationLiveTests {
     /// Verifies an absent source account fails before signing or transferring funds.
     /// - Parameter program: The token program whose native mint supplies the real account context.

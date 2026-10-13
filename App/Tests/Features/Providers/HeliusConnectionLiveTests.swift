@@ -3,7 +3,7 @@ import Testing
 
 /// Verifies Helius's real key check on mainnet with read-only requests.
 @MainActor
-@Suite(.timeLimit(.minutes(1)))
+@Suite(.tags(.network), .timeLimit(.minutes(1)))
 struct HeliusConnectionLiveTests {
     /// The configured key passes the same check onboarding performs.
     /// - Throws: A missing-credential prerequisite or a connection failure.

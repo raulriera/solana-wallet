@@ -1,8 +1,8 @@
 # UI tests
 
-The `widgets` scheme runs these tests with the unit tests, without parallel clones. Select an
-existing regular iPhone simulator and use Product > Test or the Test navigator. Only the user
-runs these tests; agents pass `-skip-testing:widgetsUITests`.
+The `widgets` scheme's `UI` test plan runs these tests, without parallel clones. Select an
+existing regular iPhone simulator, choose Product > Test Plan > UI, and use Product > Test or the
+Test navigator. Only the user runs these tests, on request.
 
 The scheme's Test pre-action enables biometrics on the selected simulator before every test run,
 unless `TEST_RUNNER_BIOMETRIC_TEST_STATE` is set for the biometric-tests skill.

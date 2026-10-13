@@ -1,0 +1,34 @@
+{
+  "configurations" : [
+    {
+      "id" : "883D0403-C0BF-4FCB-8021-B35A81F2D633",
+      "name" : "Configuration 1",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "environmentVariableEntries" : [
+      {
+        "key" : "IS_UNIT_TESTING",
+        "value" : "1"
+      }
+    ]
+  },
+  "testTargets" : [
+    {
+      "skippedTags" : {
+        "tags" : [
+          ".network"
+        ]
+      },
+      "target" : {
+        "containerPath" : "container:widgets.xcodeproj",
+        "identifier" : "A70000000000000000000015",
+        "name" : "widgetsTests"
+      }
+    }
+  ],
+  "version" : 1
+}

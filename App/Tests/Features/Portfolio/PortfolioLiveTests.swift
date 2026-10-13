@@ -5,6 +5,7 @@ import Testing
 import Transactions
 
 /// Verifies read-only mainnet balance reads and caching with a public wallet fixture.
+@Suite(.tags(.network))
 struct PortfolioLiveTests {
     /// Verifies a live balance read of the default token list, exact native SOL, persistence, and reuse by a new service.
     ///

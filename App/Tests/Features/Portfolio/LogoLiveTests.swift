@@ -4,6 +4,7 @@ import Testing
 @testable import widgets
 
 /// Verifies live logo lookups through the provider-neutral contract with real Helius responses.
+@Suite(.tags(.network))
 struct LogoLiveTests {
     /// Loads a mainnet logo after an old CDN error for it was cached, without reading balances or submitting transactions.
     ///

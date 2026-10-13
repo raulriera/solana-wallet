@@ -85,7 +85,7 @@ struct OnboardingDiscoveryTests {
     }
 
     /// Performs a read-only mainnet scan using a public phrase without funding or touching saved wallets.
-    @Test
+    @Test(.tags(.network))
     func `A real mainnet lookup prepares an import without persisting it`() async throws {
         let recovery = OnboardingRecoveryStore()
         let accounts = OnboardingAccountStore(recovery: recovery)

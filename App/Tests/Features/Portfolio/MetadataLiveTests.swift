@@ -3,6 +3,7 @@ import RPC
 import Testing
 
 /// Verifies metadata through public RPC contracts with real provider responses.
+@Suite(.tags(.network))
 struct MetadataLiveTests {
     /// Checks Wrapped SOL identity without funding or transactions.
     /// - Throws: An RPC or test prerequisite error.

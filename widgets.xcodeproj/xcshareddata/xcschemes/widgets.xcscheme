@@ -82,46 +82,18 @@
             ReferencedContainer = "container:widgets.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
-      <EnvironmentVariables>
-         <EnvironmentVariable
-            key = "HELIUS_API_KEY"
-            value = "$(HELIUS_API_KEY)"
-            isEnabled = "YES">
-         </EnvironmentVariable>
-         <EnvironmentVariable
-            key = "DEVNET_TEST_SEED"
-            value = "$(DEVNET_TEST_SEED)"
-            isEnabled = "YES">
-         </EnvironmentVariable>
-         <EnvironmentVariable
-            key = "IS_UNIT_TESTING"
-            value = "1"
-            isEnabled = "YES">
-         </EnvironmentVariable>
-      </EnvironmentVariables>
-      <Testables>
-         <TestableReference
-            skipped = "NO"
-            parallelizable = "NO">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "A70000000000000000000015"
-               BuildableName = "widgetsTests.xctest"
-               BlueprintName = "widgetsTests"
-               ReferencedContainer = "container:widgets.xcodeproj">
-            </BuildableReference>
-         </TestableReference>
-         <TestableReference
-            skipped = "NO">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "AA0000000000000000000015"
-               BuildableName = "widgetsUITests.xctest"
-               BlueprintName = "widgetsUITests"
-               ReferencedContainer = "container:widgets.xcodeproj">
-            </BuildableReference>
-         </TestableReference>
-      </Testables>
+      <TestPlans>
+         <TestPlanReference
+            reference = "container:App/Tests/Unit.xctestplan"
+            default = "YES">
+         </TestPlanReference>
+         <TestPlanReference
+            reference = "container:App/Tests/Integration.xctestplan">
+         </TestPlanReference>
+         <TestPlanReference
+            reference = "container:App/Tests/UI.xctestplan">
+         </TestPlanReference>
+      </TestPlans>
    </TestAction>
    <LaunchAction
       buildConfiguration = "Debug"

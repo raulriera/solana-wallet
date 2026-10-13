@@ -4,6 +4,7 @@ import RPC
 import Testing
 
 /// Verifies standard finalized subscriptions on mainnet without funding or transfers.
+@Suite(.tags(.network))
 struct AccountChangeLiveTests {
     /// Watches a changing public sysvar on one connection together with as many accounts as a full token list.
     ///

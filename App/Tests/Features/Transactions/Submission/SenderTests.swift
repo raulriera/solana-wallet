@@ -7,7 +7,7 @@ import Wallet
 
 /// Explicitly authorized mainnet checks; Sender has no devnet delivery route.
 /// Cases run serially because both spend from the configured test wallet's sender.
-@Suite(.serialized)
+@Suite(.tags(.network), .serialized)
 struct SenderTests {
     /// Verifies a selected Sender route lands the reviewed message within its quoted cost.
     ///

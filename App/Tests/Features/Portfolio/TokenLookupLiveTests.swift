@@ -4,6 +4,7 @@ import Testing
 import Transactions
 
 /// Verifies live mint lookups through public mainnet RPC, which every provider choice supports.
+@Suite(.tags(.network))
 struct TokenLookupLiveTests {
     /// Looks up an SPL token and a Token-2022 token without reading wallets or submitting transactions.
     ///

@@ -4,6 +4,7 @@ import Wallet
 @testable import widgets
 
 /// Checks discovery against real mainnet observations using published recovery input.
+@Suite(.tags(.network))
 struct DiscoveryLiveTests {
     /// Compares ordered discovery with the balances returned by its single live lookup.
     ///

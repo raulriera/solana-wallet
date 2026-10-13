@@ -3,7 +3,7 @@ import RPC
 import Testing
 
 /// Verifies a custom endpoint against public mainnet RPC, given as a URL.
-@Suite(.timeLimit(.minutes(1)))
+@Suite(.tags(.network), .timeLimit(.minutes(1)))
 struct SolanaLiveTests {
     /// Reads the native mint and watches it through the same URL, without reading wallets or submitting transactions.
     @Test

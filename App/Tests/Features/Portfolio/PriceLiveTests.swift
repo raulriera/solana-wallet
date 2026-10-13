@@ -3,6 +3,7 @@ import RPC
 import Testing
 
 /// Verifies live market prices through the public provider-neutral contract.
+@Suite(.tags(.network))
 struct PriceLiveTests {
     /// Fetches two mainnet market quotes and their 24-hour changes without querying wallets or submitting transactions.
     ///

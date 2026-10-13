@@ -2,6 +2,7 @@ import RPC
 import Testing
 
 /// Verifies signature watches on real networks without funding or sending transactions.
+@Suite(.tags(.network))
 struct SignatureEventLiveTests {
     /// Watches a signature that never lands and waits for a new root on the same connection.
     ///

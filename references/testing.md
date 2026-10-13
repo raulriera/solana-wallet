@@ -16,6 +16,19 @@
   consumer through simulation, explicit submission, and confirmation.
 - Test redaction independently and through one client test using fake credentials.
 
+## Test plans
+
+- `Unit`, the `widgets` scheme's default plan, runs `widgetsTests` offline. Run it for every change:
+  `xcodebuild test -scheme widgets`.
+- `Integration` runs only tests tagged `.network`:
+  `xcodebuild test -scheme widgets -testPlan Integration -parallel-testing-enabled NO`.
+  Run it only when a change touches the RPC, Transactions, or Portfolio frameworks, or the app's
+  provider, account discovery, portfolio, or transaction workflows, or when the user asks.
+- `UI` runs `widgetsUITests`. Only the user runs it, on request.
+- Tag every test that sends a request to a real provider with `.network`: on its suite, or on the test
+  in a suite that mixes local and live tests. Framework test bundles stay offline; put their live
+  checks in `App/Tests/Integration/<Framework>`.
+
 ## Live integrations
 
 - Use real RPC clients; no fake RPCs. Read-only live checks and UI flows use mainnet; a read-only check may use devnet for behavior that only devnet runs yet, such as Alpenglow.
@@ -30,13 +43,12 @@
 - Funded devnet tests send from account 0 to account 1 of that seed, never create wallets, and
   leave the funds with account 1; refill account 0 manually when it runs low. A missing seed or
   an unfunded sender stops setup.
-- Run funded tests with `-parallel-testing-enabled NO`. Follow [biometric-tests](../.agents/skills/biometric-tests/SKILL.md)
-  for real biometric checks.
+- Follow [biometric-tests](../.agents/skills/biometric-tests/SKILL.md) for real biometric checks.
 
 ## UI automation
 
-- Follow XCUITest Resilience. Only the user runs UI tests; agents skip them with
-  `-skip-testing:widgetsUITests`. Reuse approved simulators and disable parallel execution.
+- Follow XCUITest Resilience. Only the user runs the `UI` test plan, on request. Reuse approved
+  simulators and disable parallel execution.
 - Make each test self-contained: automatically prepare prerequisites and reset disposable state
   before constructing services. Restrict destructive reset hooks to explicit Debug simulator
   test launches; preserve state during relaunches that verify persistence.

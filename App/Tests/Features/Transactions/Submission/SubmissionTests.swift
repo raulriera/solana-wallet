@@ -86,7 +86,7 @@ struct SubmissionTests {
     }
 
     /// Verifies 0.001 SOL reaches the configured recipient, where it stays.
-    @Test(.timeLimit(.minutes(3)))
+    @Test(.tags(.network), .timeLimit(.minutes(3)))
     func `Devnet submission delivers 0.001 SOL to the configured recipient`() async throws {
         let rpcs = try devnetRPCs()
         let wallets = try await DevnetWallets.configured()
@@ -127,7 +127,7 @@ struct SubmissionTests {
     }
 
     /// Verifies real validators reject an unfunded payer, independently for each RPC.
-    @Test(.timeLimit(.minutes(2)))
+    @Test(.tags(.network), .timeLimit(.minutes(2)))
     func `Devnet RPCs reject a signed transaction from an unfunded wallet`() async throws {
         let rpcs = try devnetRPCs()
         let wallet = Wallet()

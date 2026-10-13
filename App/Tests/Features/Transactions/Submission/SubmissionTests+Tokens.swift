@@ -12,7 +12,7 @@ extension SubmissionTests {
     /// first closes the token accounts the previous run left, so the delivered funds stay with the
     /// recipient. Both authorities are accounts of the devnet wallet your local configuration supplies.
     /// - Parameter program: The first-party token program exercised through the same consumer API.
-    @Test(.timeLimit(.minutes(3)), arguments: TokenProgram.allCases)
+    @Test(.tags(.network), .timeLimit(.minutes(3)), arguments: TokenProgram.allCases)
     func `Devnet token transfers deliver balances to the configured recipient`(_ program: TokenProgram) async throws {
         let rpcs = try devnetRPCs()
         let rpc = rpcs[0]
