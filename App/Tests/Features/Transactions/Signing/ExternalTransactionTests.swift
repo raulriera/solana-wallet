@@ -69,7 +69,7 @@ struct ExternalTransactionTests {
 
         #expect(simulation.lastValidBlockHeight == nil)
         let error = try await #require(throws: DeliveryError.self) {
-            try await coordinator.confirm(simulation)
+            try await coordinator.submit(simulation)
         }
         #expect(error.submission.lastValidBlockHeight == 650)
         let requests = await preparationHTTP.requests

@@ -13,7 +13,7 @@
 - Check workflow models through their typed state, such as a rejection case, not message text.
 - Use local fixtures for decoding, cryptography, and validation. Check instruction compilation
   against independent SDK fixtures with mixed programs and multiple signers; exercise the app
-  consumer through simulation and explicit confirmation.
+  consumer through simulation, explicit submission, and confirmation.
 - Test redaction independently and through one client test using fake credentials.
 
 ## Live integrations

@@ -42,6 +42,36 @@ struct ConfirmationTests {
         #expect(await http.requests.count == 2)
     }
 
+    /// Verifies the coordinator observes a receipt through its confirmer alone.
+    @Test
+    func `A coordinator confirms a receipt without reading recovery or sending`() async throws {
+        let http = try HTTPResponses.confirmation(responses: [response(status(.confirmed))])
+        let store = SigningRecoveryStore(recovery: try SigningFixture().recovery)
+
+        let confirmation = try await coordinator(over: http, store: store).confirm(submission)
+
+        #expect(confirmation == Confirmation(submission: submission, slot: 405, commitment: .confirmed, outcome: .succeeded))
+        #expect(try await http.requests.map { try $0.rpcMethod } == ["getSignatureStatuses"])
+        #expect(await store.reads.isEmpty)
+    }
+
+    /// Verifies a failed observation keeps the receipt and the provider's error without reading recovery.
+    @Test
+    func `A coordinator wraps observation errors with the receipt`() async throws {
+        let rateLimit = RPCError.http(statusCode: 429, retryAfter: "3")
+        let http = try HTTPResponses.confirmation(responses: [], error: rateLimit)
+        let store = SigningRecoveryStore(recovery: try SigningFixture().recovery)
+
+        let error = try await #require(throws: DeliveryError.self) {
+            try await coordinator(over: http, store: store).confirm(submission)
+        }
+
+        #expect(error.submission == submission)
+        #expect((error.cause as? RPCError) == rateLimit)
+        #expect(await http.requests.count == 1)
+        #expect(await store.reads.isEmpty)
+    }
+
     /// Verifies malformed positional or ledger observations cannot become confirmations.
     ///
     /// - Parameter kind: The malformed response shape or context.
@@ -130,6 +160,19 @@ struct ConfirmationTests {
         await #expect(throws: CancellationError.self) { try await operation.value }
         #expect(await http.requests.count == 1)
         #expect(await http.wasCancelled == duringRequest)
+    }
+
+    /// Creates a coordinator whose services share one HTTP fixture and recovery store.
+    ///
+    /// - Parameters:
+    ///   - http: The fixture that serves every RPC request.
+    ///   - store: The recovery store that records reads.
+    /// - Returns: A coordinator that confirms with a polling clock.
+    private func coordinator(over http: HTTPResponses, store: SigningRecoveryStore) -> any TransactionCoordinating {
+        TransactionCoordinator(
+            rpc: http.client, preparer: Preparer(rpc: http.client), signer: Signer(rpc: http.client, store: store),
+            submitter: Submitter(rpc: http.client), confirmer: Confirmer(rpc: http.client, clock: pollingClock())
+        )
     }
 
     /// Creates a clock that advances polling immediately and holds the deadline until cancelled.

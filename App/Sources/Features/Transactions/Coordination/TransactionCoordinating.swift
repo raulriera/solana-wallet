@@ -1,7 +1,10 @@
 import Transactions
 
 /// The app's review-and-approval boundary for arbitrary V1 transactions.
-nonisolated protocol TransactionCoordinating: Sendable {
+///
+/// Submit an approved review, then observe its receipt with ``TransactionConfirming/confirm(_:)``.
+/// Errors after signing are ``DeliveryError`` values that retain the receipt.
+nonisolated protocol TransactionCoordinating: TransactionConfirming {
     /// Simulates ordered instructions with the first selected wallet paying fees.
     /// - Parameters:
     ///   - instructions: The program invocations composing one transaction.
@@ -37,11 +40,12 @@ nonisolated protocol TransactionCoordinating: Sendable {
     /// - Throws: A validation, authentication, or signing error.
     func sign(_ simulation: Simulation) async throws -> Transaction
 
-    /// Signs, submits, and observes a review after explicit approval.
+    /// Signs and sends a review after explicit approval, without waiting for its outcome.
     /// - Parameter simulation: The unchanged review approved by the user.
-    /// - Returns: The on-chain execution outcome, including execution failures.
-    /// - Throws: A validation, authentication, delivery, or observation error.
-    func confirm(_ simulation: Simulation) async throws -> Confirmation
+    /// - Returns: The receipt, once sending settles and a route accepted it.
+    /// - Throws: A validation, authentication, signing, or cancellation error. After signing, a
+    ///   ``DeliveryError`` that retains the receipt, because delivery may remain unknown.
+    func submit(_ simulation: Simulation) async throws -> Submission
 }
 
 extension TransactionCoordinating {

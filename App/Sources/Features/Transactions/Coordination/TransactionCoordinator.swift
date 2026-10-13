@@ -139,15 +139,17 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
         try await signed(simulation).transaction
     }
 
-    /// Authenticates, signs, submits, and observes the transaction after explicit approval.
+    /// Authenticates, signs, and sends the transaction after explicit approval.
     ///
     /// The message is never rebuilt. An expired review requires a new simulation
-    /// and approval. Submission errors may leave delivery unknown.
+    /// and approval. Returns once sending settles and a route accepted the transaction,
+    /// without waiting for its outcome; submission errors may leave delivery unknown.
     ///
     /// - Parameter simulation: The exact review approved by the user.
-    /// - Returns: The observed on-chain execution outcome, which can include failure.
-    /// - Throws: A review, authentication, signing, delivery, observation, or cancellation error.
-    func confirm(_ simulation: Simulation) async throws -> Confirmation {
+    /// - Returns: The receipt to observe with ``confirm(_:)``.
+    /// - Throws: A review, authentication, signing, or cancellation error. After signing, a
+    ///   ``DeliveryError`` that retains the receipt and the delivery or cancellation error.
+    func submit(_ simulation: Simulation) async throws -> Submission {
         try validateOrigin(simulation)
         let local = Set(simulation.wallets.map(\.address))
         for (account, signature) in zip(simulation.transaction.accounts, simulation.transaction.signatures)
@@ -158,10 +160,23 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
         guard let signature = signed.signature else { throw SubmitterError.missingSignatures }
         let receipt = Submission(signature: signature, preparation: signed.preparation)
         do {
-            let submission = try await submitter.submit(signed)
-            return try await confirmer.confirm(submission)
+            return try await submitter.submit(signed)
         } catch {
             throw DeliveryError(submission: receipt, cause: error)
+        }
+    }
+
+    /// Observes a sent transaction without reading recovery or sending it again.
+    ///
+    /// - Parameter submission: The receipt from ``submit(_:)`` or a ``DeliveryError``.
+    /// - Returns: The observed on-chain execution outcome, which can include failure.
+    /// - Throws: A ``DeliveryError`` that retains the receipt and the network, response, RPC,
+    ///   timeout, or cancellation error.
+    func confirm(_ submission: Submission) async throws -> Confirmation {
+        do {
+            return try await confirmer.confirm(submission)
+        } catch {
+            throw DeliveryError(submission: submission, cause: error)
         }
     }
 

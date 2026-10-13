@@ -41,14 +41,14 @@ struct ApprovalTests {
 
     /// Verifies broadcasting requires every unsigned authority before asking for biometrics.
     @Test
-    func `Confirmation with a missing cosigner cannot unlock recovery`() async throws {
+    func `Submitting with a missing cosigner cannot unlock recovery`() async throws {
         let fixture = try ExternalFixture.preparation(hasPayerSignature: false)
         let http = try HTTPResponses.preparation(fixture: fixture)
         let store = SigningRecoveryStore(recovery: try SigningFixture().recovery)
         let coordinator = try TransactionCoordinator(rpc: http.client, store: store)
         let review = try await coordinator.simulate(fixture.transaction, using: SigningFixture().account)
 
-        await #expect(throws: SubmitterError.missingSignatures) { try await coordinator.confirm(review) }
+        await #expect(throws: SubmitterError.missingSignatures) { try await coordinator.submit(review) }
         #expect(await store.reads.isEmpty)
     }
 
@@ -100,7 +100,7 @@ struct ApprovalTests {
         let review = try await coordinator.simulate([fixture.transfer],
             using: fixture.account)
         let error = try await #require(throws: DeliveryError.self) {
-            try await coordinator.confirm(review)
+            try await coordinator.submit(review)
         }
         #expect(error.submission.network == .devnet)
         #expect(error.submission.signature.isEmpty == false)

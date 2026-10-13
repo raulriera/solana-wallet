@@ -62,6 +62,28 @@ struct SubmissionTests {
         #expect(receipt == Submission(signature: signature, network: .devnet, lastValidBlockHeight: 550))
     }
 
+    /// Verifies submitting hands back the receipt once a route acknowledges it, before any status lookup.
+    @Test
+    func `Submitting a review returns its receipt without waiting for confirmation`() async throws {
+        let expected = try ExternalFixture.preparation()
+        let preparationHTTP = try HTTPResponses.preparation(fixture: expected)
+        let checks = try HTTPResponses.signing(fee: 15_000)
+        let accepted = HTTPResponses(["sendTransaction": [try HTTPResponses.json(ExternalFixture.signature)]])
+        let store = SigningRecoveryStore(recovery: try SigningFixture().recovery)
+        let coordinator: any TransactionCoordinating = TransactionCoordinator(
+            rpc: preparationHTTP.client, preparer: Preparer(rpc: preparationHTTP.client),
+            signer: Signer(rpc: checks.client, store: store), submitter: Submitter(rpc: checks.client, rpcs: [accepted.client]),
+            confirmer: Confirmer(rpc: checks.client)
+        )
+        let simulation = try await coordinator.simulate(expected.transaction, using: SigningFixture().account)
+
+        let receipt = try await coordinator.submit(simulation)
+
+        #expect(receipt == Submission(signature: ExternalFixture.signature, network: .devnet, lastValidBlockHeight: 650))
+        #expect(try await accepted.requests.map { try $0.rpcMethod } == ["sendTransaction"])
+        #expect(try await checks.requests.allSatisfy { try $0.rpcMethod != "getSignatureStatuses" })
+    }
+
     /// Verifies 0.001 SOL reaches the configured recipient, where it stays.
     @Test(.timeLimit(.minutes(3)))
     func `Devnet submission delivers 0.001 SOL to the configured recipient`() async throws {
@@ -89,17 +111,18 @@ struct SubmissionTests {
             BalanceChange(owner: recipient, asset: .sol, before: recipientBalance, after: recipientBalance + 1_000_000),
         ])
 
-        let result = try await coordinator.confirm(simulation)
+        let submission = try await coordinator.submit(simulation)
+        let result = try await coordinator.confirm(submission)
         try #require(result.outcome == .succeeded)
         for rpc in rpcs {
-            let confirmation = try await Confirmer(rpc: rpc).confirm(result.submission)
+            let confirmation = try await Confirmer(rpc: rpc).confirm(submission)
             try #require(confirmation.outcome == .succeeded)
             let accounts = try await rpc.send(GetMultipleAccounts(addresses: [sender.value, recipient.value],
                                                                   minContextSlot: confirmation.slot))
             #expect(accounts.value[0]?.lamports == senderBalance - 1_000_000 - fee)
             #expect(accounts.value[1]?.lamports == recipientBalance + 1_000_000)
         }
-        print("Devnet delivered 0.001 SOL to \(recipient.value): \(result.submission.signature)")
+        print("Devnet delivered 0.001 SOL to \(recipient.value): \(submission.signature)")
     }
 
     /// Verifies real validators reject an unfunded payer, independently for each RPC.

@@ -39,7 +39,7 @@ extension SubmissionTests {
         if !recoveryInstructions.isEmpty {
             let review = try await coordinator.simulate(recoveryInstructions,
                 using: oldAccounts.value[1] == nil ? [sender] : [sender, recipient])
-            let recovered = try await coordinator.confirm(review)
+            let recovered = try await coordinator.confirm(coordinator.submit(review))
             try #require(recovered.outcome == .succeeded)
         }
         let initial = try await rpc.send(GetMultipleAccounts(addresses: [sender.address.value]))
@@ -53,7 +53,7 @@ extension SubmissionTests {
                 .init(address: source, isSigner: false, isWritable: true)
             ], data: Data([17])),
         ], using: sender)
-        let setupResult = try await coordinator.confirm(setup)
+        let setupResult = try await coordinator.confirm(coordinator.submit(setup))
         try #require(setupResult.outcome == .succeeded)
 
         let review = try await coordinator.transfer(amount, token: mintAddress, using: sender, to: recipient.address)
@@ -70,7 +70,7 @@ extension SubmissionTests {
         let token = BalanceChange.Asset.token(mint: mintAddress, decimals: transfer.mint.decimals)
         #expect(changes.contains(BalanceChange(owner: sender.address, asset: token, before: amount, after: 0)))
         #expect(changes.contains(BalanceChange(owner: recipient.address, asset: token, before: 0, after: amount)))
-        let delivered = try await coordinator.confirm(review)
+        let delivered = try await coordinator.confirm(coordinator.submit(review))
         try #require(delivered.outcome == .succeeded)
         let balances = try await tokenBalances([source, destination], through: rpcs, after: delivered, program: program)
         #expect(balances == [0, amount])
