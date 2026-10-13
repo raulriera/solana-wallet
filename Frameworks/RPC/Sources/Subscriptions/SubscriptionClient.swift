@@ -14,19 +14,30 @@ struct SubscriptionClient: Sendable {
     /// - Parameter addresses: The accounts to watch; a repeated address is watched once.
     /// - Returns: A cancellable stream after all subscription acknowledgments arrive.
     /// - Throws: A sanitized setup, timeout, or cancellation error.
-    @concurrent
     func changedSlots(for addresses: [String]) async throws -> AsyncThrowingStream<UInt64, any Error> {
+        try await events(for: .accountChanges(for: addresses))
+    }
+
+    /// Opens a group's subscriptions on one connection, then streams the events that their notifications produce.
+    /// - Parameter subscriptions: The subscriptions to open and the decoding of their notifications.
+    /// - Returns: A cancellable stream after all subscription acknowledgments arrive,
+    ///   starting with the setup events that the group's buffering policy keeps.
+    /// - Throws: A sanitized setup, timeout, or cancellation error.
+    @concurrent
+    func events<Group: SubscriptionGroup>(for subscriptions: Group) async throws
+        -> AsyncThrowingStream<Group.Event, any Error> {
         try Task.checkCancellation()
         let socket = connect(endpoint)
         do {
-            let state = try await withTimeout(.seconds(30)) {
+            let (state, setupEvents) = try await withTimeout(.seconds(30)) {
                 try await withTaskCancellationHandler {
-                    try await handshake(addresses: addresses, socket: socket)
+                    try await handshake(subscriptions, socket: socket)
                 } onCancel: { socket.cancel() }
             }
             try Task.checkCancellation()
-            let (stream, continuation) = AsyncThrowingStream<UInt64, any Error>.makeStream(bufferingPolicy: .bufferingNewest(1))
-            if let slot = state.latestSlot { continuation.yield(slot) }
+            let (stream, continuation) = AsyncThrowingStream<Group.Event, any Error>.makeStream(
+                bufferingPolicy: subscriptions.bufferingPolicy)
+            for event in setupEvents { continuation.yield(event) }
             let operation = Task { @concurrent in
                 defer { socket.cancel() }
                 do {
@@ -35,8 +46,8 @@ struct SubscriptionClient: Sendable {
                             var state = state
                             try await withTaskCancellationHandler {
                                 while !Task.isCancelled {
-                                    if let slot = try state.accept(await socket.receive(), redactor: redactor) {
-                                        continuation.yield(slot)
+                                    if let event = try state.accept(await socket.receive(), redactor: redactor) {
+                                        continuation.yield(event)
                                     }
                                 }
                             } onCancel: { socket.cancel() }
@@ -82,27 +93,26 @@ struct SubscriptionClient: Sendable {
         }
     }
 
-    /// Registers every account before returning control to the consumer.
+    /// Registers every subscription before returning control to the consumer.
     /// - Parameters:
-    ///   - addresses: The accounts to watch.
+    ///   - subscriptions: The subscriptions to open.
     ///   - socket: The connected transport.
-    /// - Returns: Validated subscription IDs and any change observed during setup.
+    /// - Returns: The acknowledged subscriptions and the events from notifications received during setup.
     /// - Throws: An encoding, transport, response, or cancellation error.
-    private func handshake(addresses: [String], socket: any WebSocketConnection) async throws -> SubscriptionState {
-        // Providers either reuse one subscription for a repeated account or notify it twice, so send each once.
-        var unique = Set<String>()
-        let requests = addresses.filter { unique.insert($0).inserted }.map(SubscriptionRequest.init(address:))
-        var state = SubscriptionState(pending: Set(requests.map(\.id)))
-        for request in requests {
+    private func handshake<Group: SubscriptionGroup>(_ subscriptions: Group, socket: any WebSocketConnection) async throws
+        -> (state: SubscriptionState<Group>, events: [Group.Event]) {
+        var state = SubscriptionState(group: subscriptions)
+        for request in state.requests {
             try Task.checkCancellation()
             guard let data = try? JSONEncoder().encode(request) else { throw RPCError.encoding }
             try await socket.send(data)
         }
-        while !state.pending.isEmpty {
+        var events: [Group.Event] = []
+        while !state.isAcknowledged {
             try Task.checkCancellation()
-            _ = try state.accept(await socket.receive(), redactor: redactor)
+            if let event = try state.accept(await socket.receive(), redactor: redactor) { events.append(event) }
         }
-        return state
+        return (state, events)
     }
 
     /// Removes authenticated endpoints and provider text from errors before crossing the module boundary.

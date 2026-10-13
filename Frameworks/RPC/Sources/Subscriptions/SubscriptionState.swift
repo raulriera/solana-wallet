@@ -1,41 +1,48 @@
 import Foundation
 
-/// Validates acknowledgments and notifications for one connection's account subscriptions.
-struct SubscriptionState: Sendable {
-    var pending: Set<String>
-    private var subscriptions: Set<UInt64> = []
-    private(set) var latestSlot: UInt64?
+/// Validates acknowledgments and routes notifications for one connection's subscriptions.
+struct SubscriptionState<Group: SubscriptionGroup>: Sendable {
+    /// The requests to send, in order; read once from the group so the sent IDs match the awaited acknowledgments.
+    let requests: [SubscriptionRequest]
+    private var group: Group
+    private var pending: [String: SubscriptionRequest]
+    private var subscriptions: [UInt64: SubscriptionRequest] = [:]
 
-    /// Creates a decoder for the outstanding subscription requests.
-    /// - Parameter pending: The IDs of the requests that still await acknowledgment.
-    init(pending: Set<String>) { self.pending = pending }
+    /// Creates a state that awaits an acknowledgment for each of the group's requests.
+    /// - Parameter group: The connection's subscriptions and the decoding of their notifications.
+    init(group: Group) {
+        self.group = group
+        requests = group.requests
+        pending = Dictionary(uniqueKeysWithValues: requests.map { ($0.id, $0) })
+    }
 
-    /// Validates one message and coalesces notifications into increasing confirmed slots.
+    /// Whether the server has acknowledged every subscription request.
+    var isAcknowledged: Bool { pending.isEmpty }
+
+    /// Validates one message and turns a notification into the group's event.
     /// - Parameters:
     ///   - data: The received JSON bytes.
     ///   - redactor: The provider's diagnostic redaction policy.
-    /// - Returns: A newer change slot, or `nil` for an acknowledgment or duplicate event.
+    /// - Returns: An event, or `nil` for an acknowledgment or a notification that adds nothing new.
     /// - Throws: A server, decoding, or envelope-validation error.
-    mutating func accept(_ data: Data, redactor: any TextRedactor) throws -> UInt64? {
+    mutating func accept(_ data: Data, redactor: any TextRedactor) throws -> Group.Event? {
         let decoder = JSONDecoder()
         let header = try decoder.decode(Header.self, from: data)
         guard header.jsonrpc == "2.0" else { throw RPCError.invalidResponse(.unsupportedVersion) }
         if let method = header.method {
-            let notification = try decoder.decode(Notification.self, from: data)
-            guard method == "accountNotification", subscriptions.contains(notification.params.subscription) else {
+            let route = try decoder.decode(Route.self, from: data)
+            guard let request = subscriptions[route.params.subscription], method == request.notification else {
                 throw RPCError.invalidResponse(.mismatchedID)
             }
-            let slot = notification.params.result.context.slot
-            guard latestSlot == nil || slot > latestSlot! else { return nil }
-            latestSlot = slot
-            return slot
+            return try group.event(for: SubscriptionNotification(request: request, data: data))
         }
         let response = try decoder.decode(JSONRPCResponse<UInt64>.self, from: data)
-        if let id = response.id, !pending.contains(id) { throw RPCError.invalidResponse(.mismatchedID) }
+        if let id = response.id, pending[id] == nil { throw RPCError.invalidResponse(.mismatchedID) }
         switch response.result {
         case .failure(let error): throw RPCError.server(code: error.code, message: redactor.redact(error.message))
         case .success(let subscription):
-            guard let id = response.id, pending.remove(id) != nil, subscriptions.insert(subscription).inserted else {
+            guard let id = response.id, let request = pending.removeValue(forKey: id),
+                  subscriptions.updateValue(request, forKey: subscription) == nil else {
                 throw RPCError.invalidResponse(.mismatchedID)
             }
             return nil
@@ -44,11 +51,9 @@ struct SubscriptionState: Sendable {
 
     /// The routing fields common to subscription messages.
     private struct Header: Decodable { let jsonrpc: String; let method: String? }
-    /// A notification's validated routing metadata and indexing signal.
-    private struct Notification: Decodable {
+    /// The acknowledged subscription that a notification belongs to.
+    private struct Route: Decodable {
         let params: Parameters
-        struct Parameters: Decodable { let subscription: UInt64; let result: Result }
-        struct Result: Decodable { let context: SlotContext }
-        struct SlotContext: Decodable { let slot: UInt64 }
+        struct Parameters: Decodable { let subscription: UInt64 }
     }
 }
