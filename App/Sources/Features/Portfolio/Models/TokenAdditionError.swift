@@ -7,6 +7,8 @@ nonisolated enum TokenAdditionError: LocalizedError, Equatable {
     case rateLimited
     /// The RPC API key is missing or wasn't accepted.
     case keyRejected
+    /// The selected custom RPC doesn't serve the portfolio's network.
+    case unsupportedNetwork
     /// The lookup couldn't finish for another reason, such as a lost connection.
     case lookupUnavailable
     /// The list already holds the most tokens a person can add.
@@ -22,16 +24,18 @@ nonisolated enum TokenAdditionError: LocalizedError, Equatable {
         self = switch error {
         case .rateLimited: .rateLimited
         case .missingKey, .invalidKey: .keyRejected
+        case .unsupportedNetwork: .unsupportedNetwork
         case .unavailable: .lookupUnavailable
         case .listUnreadable: .listUnreadable
         }
     }
 
-    /// Whether trying again can help; a new key, a removed token, or a readable list can't come from a retry.
+    /// Whether trying again can help; a new key, another provider, a removed token, or a readable list can't come
+    /// from a retry.
     var canRetry: Bool {
         switch self {
         case .rateLimited, .lookupUnavailable, .saveFailed: true
-        case .keyRejected, .limitReached, .listUnreadable: false
+        case .keyRejected, .unsupportedNetwork, .limitReached, .listUnreadable: false
         }
     }
 
@@ -43,6 +47,8 @@ nonisolated enum TokenAdditionError: LocalizedError, Equatable {
         switch self {
         case .rateLimited: String(localized: "Too many requests. Try again in a moment.")
         case .keyRejected: String(localized: "Your RPC API key wasn't accepted.")
+        case .unsupportedNetwork:
+            String(localized: "Custom RPCs use mainnet. Choose another provider or switch this window to Mainnet in Settings.")
         case .lookupUnavailable: String(localized: "Couldn't check this address. Check your connection and try again.")
         case .limitReached:
             // The app's own TokenList view hides the framework's type, so the module selector names it.

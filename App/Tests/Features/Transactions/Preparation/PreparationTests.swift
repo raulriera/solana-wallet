@@ -101,7 +101,7 @@ struct PreparationTests {
         let tip = try SystemProgram.transfer(from: payer, to: Address(requirements.tipRecipient),
                                              lamports: requirements.tipLamports)
         let http = try HTTPResponses.preparation(fixture: fixture)
-        let rpc = try #require(http.client(for: .solana))
+        let rpc = try #require(http.client(for: .solana, on: .mainnet))
 
         let result = try await Preparer(rpc: rpc, rpcs: [sender]).prepare([memo, transfer], payer: payer, signer: payer,
             configuration: PreparationFixture.configuration())

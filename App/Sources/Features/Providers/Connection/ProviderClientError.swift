@@ -8,4 +8,6 @@ nonisolated enum ProviderClientError: Error, Equatable {
     case invalidKey
     /// The saved custom RPC URL can't be used.
     case unusableEndpoint
+    /// The selected custom RPC doesn't serve the requested network; custom RPCs serve mainnet.
+    case unsupportedNetwork
 }

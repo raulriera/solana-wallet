@@ -15,7 +15,7 @@ extension ProvidersCoordinator {
                                           revision: revision)
         let connection = HTTPResponses.keyCheck().connection(providerKey: providerKey, revision: revision)
         // Unplanned requests fail instead of reaching the network.
-        let customRPCConnection = CustomRPCConnection(providers: providers) { HTTPResponses([:]).client(for: $0) }
+        let customRPCConnection = CustomRPCConnection(providers: providers) { HTTPResponses([:]).client(for: $0, on: $1) }
         return ProvidersCoordinator(providers: providers, providerKey: providerKey, connection: connection,
                                     customRPCConnection: customRPCConnection, revision: revision)
     }

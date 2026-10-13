@@ -201,7 +201,7 @@ struct CustomRPCConnectionTests {
                                 revision: Revision = Revision()) -> CustomRPCConnection {
         let providers = ProviderSelection(settings: settings, providerKey: StoredValue(), portfolio: ProviderChanges(),
                                           revision: revision)
-        return CustomRPCConnection(providers: providers) { responses.client(for: $0, socket: { sockets.connect($0) }) }
+        return CustomRPCConnection(providers: providers) { responses.client(for: $0, on: $1, socket: { sockets.connect($0) }) }
     }
 
     /// Decodes a subscription request that the real client sent.

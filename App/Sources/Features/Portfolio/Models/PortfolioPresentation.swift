@@ -11,7 +11,7 @@ nonisolated enum PortfolioPresentation: Equatable {
     /// No holdings can show until the person acts on this failure.
     case unavailable(PortfolioError)
 
-    /// Chooses the presentation; a missing or rejected key hides holdings, other failures don't.
+    /// Chooses the presentation; a failure that only provider setup fixes hides holdings, other failures don't.
     /// - Parameter update: The coordinator's latest update, or `nil` before the first one.
     init(_ update: Update?) {
         let error = update?.error.map(PortfolioError.init)

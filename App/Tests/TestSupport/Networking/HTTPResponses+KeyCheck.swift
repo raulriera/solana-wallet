@@ -38,28 +38,31 @@ extension HTTPResponses {
         Self.connection(providerKey: providerKey, revision: revision) { _ in self }
     }
 
-    /// Creates the client that production uses for an endpoint, with these fixtures in place of the network.
+    /// Creates the client that production uses for an endpoint on a Solana network, with these fixtures in place of
+    /// the internet.
     /// - Parameters:
     ///   - endpoint: The provider and what it needs to accept requests.
+    ///   - network: The Solana network that receives the client's requests.
     ///   - socket: Opens each subscription connection; by default, a local socket that acknowledges each subscription.
     /// - Returns: The provider's client, or `nil` for a custom URL that isn't HTTPS with a host.
-    nonisolated func client(for endpoint: ProviderClient.Endpoint,
+    nonisolated func client(for endpoint: ProviderClient.Endpoint, on network: Network,
                             socket: @escaping @Sendable (URL) -> any WebSocketConnection = { _ in SocketFixture() })
         -> (any RPC & AccountChangeProviding & SignatureEventProviding)? {
         switch endpoint {
-        case .solana: Solana(network: .mainnet, transport: self, socket: socket)
-        case .helius(let key): HeliusRPC(apiKey: key, network: .mainnet, transport: self, socket: socket)
-        case .custom(let url): Solana(endpoint: url, network: .mainnet, transport: self, socket: socket)
+        case .solana: Solana(network: network, transport: self, socket: socket)
+        case .helius(let key): HeliusRPC(apiKey: key, network: network, transport: self, socket: socket)
+        case .custom(let url): Solana(endpoint: url, network: network, transport: self, socket: socket)
         }
     }
 
-    /// Creates the production selected-provider client with these fixtures in place of the network.
+    /// Creates the production selected-provider client with these fixtures in place of the internet.
     /// - Parameters:
+    ///   - network: The Solana network that receives every request; mainnet by default.
     ///   - settings: The test's provider choice.
     ///   - providerKey: The test's isolated key storage.
     /// - Returns: A client whose requests never leave the process.
-    nonisolated func providerClient(settings: any ValueStoring<ProviderSettings>,
+    nonisolated func providerClient(network: Network = .mainnet, settings: any ValueStoring<ProviderSettings>,
                                     providerKey: any ValueStoring<String>) -> ProviderClient {
-        ProviderClient(settings: settings, providerKey: providerKey) { self.client(for: $0) }
+        ProviderClient(network: network, settings: settings, providerKey: providerKey) { self.client(for: $0, on: $1) }
     }
 }

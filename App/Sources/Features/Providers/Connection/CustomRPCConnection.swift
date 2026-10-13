@@ -11,9 +11,9 @@ nonisolated struct CustomRPCConnection: ProviderConnecting {
     /// Creates a check that adds accepted RPCs to the shared provider settings.
     /// - Parameters:
     ///   - providers: Reads the custom RPCs, and saves and chooses an accepted one.
-    ///   - client: Creates the mainnet client for a candidate URL.
+    ///   - client: Creates the client for a candidate URL on mainnet, the network that custom RPCs serve.
     init(providers: any ProviderSelecting,
-         client: @escaping ProviderClient.ClientFactory = ProviderClient.mainnetClient(for:)) {
+         client: @escaping ProviderClient.ClientFactory = ProviderClient.client(for:on:)) {
         self.providers = providers
         self.client = client
     }
@@ -26,7 +26,7 @@ nonisolated struct CustomRPCConnection: ProviderConnecting {
     /// - Parameter entry: The URL, without surrounding whitespace.
     /// - Throws: ``CustomRPCError`` or `CancellationError`, never containing the URL.
     func connect(_ entry: String) async throws {
-        guard let url = URL(string: entry), let rpc = client(.custom(url)) else { throw CustomRPCError.notHTTPS }
+        guard let url = URL(string: entry), let rpc = client(.custom(url), .mainnet) else { throw CustomRPCError.notHTTPS }
         let listed: [URL]
         do {
             listed = try await providers.settings().customRPCs

@@ -44,7 +44,7 @@ nonisolated enum ProviderEntryPurpose: Hashable, Sendable {
         case .change:
             "The saved key stays until the new key is checked. Your key is stored only on this device and is sent only to this provider."
         case .customRPC:
-            "Use your RPC's HTTPS URL. It must support live updates at the same URL. The URL stays on this device and is sent only to that RPC."
+            "Use your RPC's HTTPS URL. It must support live updates at the same URL. Custom RPCs serve mainnet. The URL stays on this device and is sent only to that RPC."
         }
     }
 

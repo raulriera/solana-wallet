@@ -54,9 +54,9 @@ struct ProviderClientTests {
         let keys = StoredValue<String>()
         let custom = try #require(URL(string: "https://rpc.example.com/fixture-token"))
         let created = Mutex<[ProviderClient.Endpoint]>([])
-        let client = ProviderClient(settings: settings, providerKey: keys) { endpoint in
+        let client = ProviderClient(network: .mainnet, settings: settings, providerKey: keys) { endpoint, network in
             created.withLock { $0.append(endpoint) }
-            return responses.client(for: endpoint)
+            return responses.client(for: endpoint, on: network)
         }
 
         _ = try await client.send(GetAsset(id: HTTPResponses.keyCheckAsset))
@@ -73,6 +73,48 @@ struct ProviderClientTests {
             "api.mainnet.solana.com", "api.mainnet.solana.com", "rpc.example.com", "mainnet.helius-rpc.com", "mainnet.helius-rpc.com",
         ])
         #expect(created.withLock(\.self) == [.solana, .custom(custom), .helius(key: "first-key"), .helius(key: "second-key")])
+    }
+
+    /// On devnet, Solana's public RPC and Helius each serve requests at their own devnet host, Helius with the same
+    /// saved key.
+    /// - Parameters:
+    ///   - provider: A built-in provider.
+    ///   - host: The provider's devnet host.
+    ///   - key: The API key that the request carries, or `nil` for a provider without one.
+    /// - Throws: A test prerequisite error.
+    @Test(arguments: [
+        (ProviderSettings.Provider.solana, "api.devnet.solana.com", nil),
+        (.helius, "devnet.helius-rpc.com", "fixture-key"),
+    ] as [(ProviderSettings.Provider, String, String?)])
+    func `Devnet requests go to each provider's devnet host`(provider: ProviderSettings.Provider, host: String,
+                                                             key: String?) async throws {
+        let responses = HTTPResponses.keyCheck()
+        let settings = StoredValue(ProviderSettings(selection: provider))
+        let client = responses.providerClient(network: .devnet, settings: settings, providerKey: StoredValue("fixture-key"))
+
+        _ = try await client.send(GetAsset(id: HTTPResponses.keyCheckAsset))
+
+        let url = try #require(await responses.requests.first?.url)
+        let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        #expect(url.host() == host)
+        #expect(query.first(where: { $0.name == "api-key" })?.value == key)
+    }
+
+    /// On devnet, a selected custom RPC fails before anything is sent, instead of using another provider, because
+    /// custom RPCs serve mainnet.
+    /// - Throws: A test prerequisite error.
+    @Test
+    func `A custom RPC fails on devnet before contacting it`() async throws {
+        let responses = HTTPResponses.keyCheck()
+        let custom = try #require(URL(string: "https://rpc.example.com"))
+        let settings = StoredValue(ProviderSettings(selection: .custom(custom)))
+        let client = responses.providerClient(network: .devnet, settings: settings, providerKey: StoredValue<String>())
+        let asset = HTTPResponses.keyCheckAsset
+
+        await #expect(throws: ProviderClientError.unsupportedNetwork) { _ = try await client.send(GetAsset(id: asset)) }
+        await #expect(throws: ProviderClientError.unsupportedNetwork) { _ = try await client.changedSlots(for: [PublicWallet.address]) }
+        await #expect(throws: ProviderClientError.unsupportedNetwork) { _ = try await client.logos(for: [asset]) }
+        #expect(await responses.requests.isEmpty)
     }
 
     /// Providers other than Helius need no key and pass their own rejections through unchanged.
@@ -102,18 +144,22 @@ struct ProviderClientTests {
         #expect(await responses.requests.count == lookups)
     }
 
-    /// Each endpoint gets its production client, and a custom URL that isn't HTTPS gets none.
+    /// Each endpoint gets its production client for the network, and a custom URL that isn't HTTPS gets none.
     /// - Parameters:
     ///   - endpoint: A saved endpoint.
+    ///   - network: The network that receives the client's requests.
     ///   - description: The created client's description, or `nil` when no client can be created.
     @Test(arguments: [
-        (ProviderClient.Endpoint.solana, "Solana(mainnet)"),
-        (.helius(key: "fixture-key"), "HeliusRPC(mainnet)"),
-        (.custom(URL(string: "https://rpc.example.com")!), "Solana(mainnet)"),
-        (.custom(URL(string: "http://rpc.example.com")!), nil),
-    ] as [(ProviderClient.Endpoint, String?)])
-    func `Each endpoint gets its production client`(endpoint: ProviderClient.Endpoint, description: String?) {
-        #expect(ProviderClient.mainnetClient(for: endpoint).map { String(describing: $0) } == description)
+        (ProviderClient.Endpoint.solana, Network.mainnet, "Solana(mainnet)"),
+        (.solana, .devnet, "Solana(devnet)"),
+        (.helius(key: "fixture-key"), .mainnet, "HeliusRPC(mainnet)"),
+        (.helius(key: "fixture-key"), .devnet, "HeliusRPC(devnet)"),
+        (.custom(URL(string: "https://rpc.example.com")!), .mainnet, "Solana(mainnet)"),
+        (.custom(URL(string: "http://rpc.example.com")!), .mainnet, nil),
+    ] as [(ProviderClient.Endpoint, Network, String?)])
+    func `Each endpoint gets its production client for the network`(endpoint: ProviderClient.Endpoint, network: Network,
+                                                                    description: String?) {
+        #expect(ProviderClient.client(for: endpoint, on: network).map { String(describing: $0) } == description)
     }
 
     /// A saved custom URL that the client can't use fails without sending a request.

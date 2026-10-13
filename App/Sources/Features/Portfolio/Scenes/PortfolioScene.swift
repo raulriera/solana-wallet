@@ -4,7 +4,7 @@ import SwiftUI
 /// Presents the window's portfolio: its tokens and their details, or why they can't load.
 ///
 /// The window observes the wallet; this section presents the coordinator's state and starts
-/// explicit refreshes. A missing or rejected provider key replaces only this section.
+/// explicit refreshes. A failure that only provider setup fixes replaces only this section.
 struct PortfolioScene: View {
     @Environment(\.palette) private var palette
     @Environment(\.cardStyle) private var cardStyle

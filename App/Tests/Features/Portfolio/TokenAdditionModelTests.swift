@@ -222,16 +222,25 @@ struct TokenAdditionModelTests {
         #expect(addition.isAdded)
     }
 
-    /// A rejected RPC API key offers no retry, and pasting the address again looks it up again.
+    /// A rejected RPC API key, or a provider that doesn't serve the network, offers no retry, and pasting the address
+    /// again looks it up again.
+    /// - Parameters:
+    ///   - error: The provider's failure.
+    ///   - expected: The error the alert explains.
     /// - Throws: A test prerequisite error.
-    @Test
-    func `A rejected key offers no retry until the address is pasted again`() async throws {
+    @Test(arguments: [
+        (ProviderClientError.invalidKey, TokenAdditionError.keyRejected),
+        (.unsupportedNetwork, .unsupportedNetwork),
+    ])
+    func `A provider setup failure offers no retry until the address is pasted again`(error: ProviderClientError,
+                                                                                      expected: TokenAdditionError) async throws {
         let portfolio = RecordingPortfolio()
         portfolio.preview = try Self.preview(Self.bonk)
-        portfolio.lookupError = ProviderClientError.invalidKey
+        portfolio.lookupError = error
         let addition = TokenAdditionModel(coordinator: portfolio)
         addition.paste(Self.bonk)
         await addition.lookUp(addition.lookup)
+        #expect(addition.error == expected)
         #expect(addition.error?.canRetry == false)
         #expect(addition.lookup == nil)
 

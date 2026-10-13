@@ -13,7 +13,7 @@ struct PortfolioPresentationTests {
         #expect(PortfolioPresentation(Update(snapshot: nil, phase: .refreshing, revision: 1)) == .loading)
     }
 
-    /// Holdings stay through refreshes and through failures that a new key can't fix.
+    /// Holdings stay through refreshes and through failures that provider setup can't fix.
     /// - Parameter phase: A refresh's progress or outcome while holdings exist.
     @Test(arguments: [
         Update.Phase.ready,
@@ -25,12 +25,13 @@ struct PortfolioPresentationTests {
         #expect(PortfolioPresentation(Update(snapshot: snapshot, phase: phase, revision: 1)) == .holdings)
     }
 
-    /// A missing or rejected key replaces holdings, because no refresh can succeed without a new key.
+    /// A missing or rejected key, or a provider that doesn't serve the network, replaces holdings, because no refresh
+    /// can succeed without a new key or another provider.
     /// - Parameters:
-    ///   - error: The provider's key failure.
+    ///   - error: The provider's key or network failure.
     ///   - hasHoldings: Whether earlier holdings are available.
-    @Test(arguments: [ProviderClientError.missingKey, .invalidKey], [false, true])
-    func `Key failures replace holdings`(error: ProviderClientError, hasHoldings: Bool) {
+    @Test(arguments: [ProviderClientError.missingKey, .invalidKey, .unsupportedNetwork], [false, true])
+    func `Provider setup failures replace holdings`(error: ProviderClientError, hasHoldings: Bool) {
         let update = Update(snapshot: hasHoldings ? snapshot : nil, phase: .failed(error), revision: 1)
         #expect(PortfolioPresentation(update) == .unavailable(PortfolioError(error)))
     }

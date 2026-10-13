@@ -45,7 +45,8 @@ struct AppServices {
         self.providerKey = providerKey
         providerConnection = HeliusConnection(providerKey: providerKey, revision: providerRevision)
         // One service for every window shares its cache, subscriptions, and price pacing.
-        let portfolio = Portfolio(rpc: ProviderClient(settings: providerSettings, providerKey: providerKey), prices: Jupiter())
+        let portfolio = Portfolio(rpc: ProviderClient(network: .mainnet, settings: providerSettings, providerKey: providerKey),
+                                  prices: Jupiter())
         self.portfolio = portfolio
         let providerSelection = ProviderSelection(settings: providerSettings, providerKey: providerKey,
                                                   portfolio: portfolio, revision: providerRevision)
