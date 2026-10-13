@@ -1,33 +1,31 @@
-import Accessibility
 import Foundation
 import Observation
 import Portfolio
-import SwiftUI
 import Transactions
 
 /// Owns one window's add-token sheet: it looks up the pasted address, then adds the token the person checked.
 @MainActor
 @Observable
-final class TokenAddition: Identifiable {
+final class TokenAdditionModel: Identifiable {
     /// The pasted text without the spaces and line breaks around it; a new address replaces the previous preview
     /// and starts a lookup.
     ///
-    /// A refusal stays until the new address's lookup answers, so its message changes in place.
+    /// A refusal stays until the new address's lookup answers, so it changes in place.
     /// After a failed lookup, pasting the address again looks it up again; otherwise, pasting the same address
     /// keeps its preview or refusal without signaling again.
     private(set) var text = "" {
         didSet {
             guard address != (try? Address(oldValue)) || lookup == nil else { return }
             preview = nil
-            if address == nil { message = nil }
+            if address == nil { refusal = nil }
             lookup = address.map { _ in UUID() }
         }
     }
     /// The token that the current address names, once the lookup finds it.
     private(set) var preview: TokenPreview?
-    /// Why the pasted text can't be added, shown under it, or `nil` while there's nothing to explain.
-    private(set) var message: LocalizedStringResource?
-    /// Counts refusals, so each one signals again while its message stays on screen.
+    /// Why the pasted text can't be added, or `nil` while there's nothing to explain.
+    private(set) var refusal: TokenRefusal?
+    /// Counts refusals, so each one signals again while the same refusal stays on screen.
     private(set) var refusalCount = 0
     /// An error the person dismisses; trying again repeats the step that failed.
     var error: TokenAdditionError?
@@ -53,9 +51,9 @@ final class TokenAddition: Identifiable {
     /// Text that isn't an address is refused at once, without a lookup.
     /// - Parameter pasted: The pasteboard's text.
     func paste(_ pasted: String) {
-        withAnimation { text = pasted.trimmingCharacters(in: .whitespacesAndNewlines) }
+        text = pasted.trimmingCharacters(in: .whitespacesAndNewlines)
         if !text.isEmpty, address == nil {
-            refuse("This isn't a valid address.")
+            refuse(.notAddress)
         }
     }
 
@@ -66,25 +64,22 @@ final class TokenAddition: Identifiable {
     func lookUp(_ lookup: UUID?) async {
         guard let lookup, self.lookup == lookup, let address else { return }
         guard !coordinator.holdings.contains(where: { $0.id == .asset(address.value) }) else {
-            return refuse("This token is already in your list.")
+            return refuse(.alreadyListed)
         }
         do {
             let preview = try await coordinator.token(at: address)
             guard self.lookup == lookup, !Task.isCancelled else { return }
-            withAnimation {
-                self.preview = preview
-                message = nil
-            }
-            AccessibilityNotification.Announcement(String(localized: Self.announcement(for: preview))).post()
+            self.preview = preview
+            refusal = nil
         } catch {
             // A newer address or a closed sheet replaces this lookup's result.
             guard self.lookup == lookup, !Task.isCancelled, !(error is CancellationError) else { return }
             switch error {
-            case TokenLookupError.notToken: refuse("This address isn't a token.")
-            case TokenLookupError.nonFungible: refuse("NFTs can't be added yet.")
+            case TokenLookupError.notToken: refuse(.notToken)
+            case TokenLookupError.nonFungible: refuse(.nonFungible)
             default:
                 // Trying again can't help a rejected key, so pasting the address again looks it up instead.
-                withAnimation { message = nil }
+                refusal = nil
                 self.lookup = nil
                 self.error = TokenAdditionError(lookup: PortfolioError(error))
             }
@@ -125,20 +120,10 @@ final class TokenAddition: Identifiable {
         }
     }
 
-    /// Explains why the current address can't be added, with an error signal and a VoiceOver announcement.
-    /// - Parameter reason: The explanation shown under the pasted text.
-    private func refuse(_ reason: LocalizedStringResource) {
-        withAnimation { message = reason }
+    /// Records why the current address can't be added, and counts the refusal.
+    /// - Parameter reason: Why the address can't be added.
+    private func refuse(_ reason: TokenRefusal) {
+        refusal = reason
         refusalCount += 1
-        AccessibilityNotification.Announcement(String(localized: reason)).post()
-    }
-
-    /// Tells VoiceOver which token the address names, without reading out the address itself.
-    /// - Parameter preview: The token the lookup found.
-    /// - Returns: The token's claimed name or symbol, or a plain confirmation when it has neither.
-    private static func announcement(for preview: TokenPreview) -> LocalizedStringResource {
-        let token = Holding(preview: preview)
-        guard token.name?.isEmpty == false || token.symbol?.isEmpty == false else { return "Found a token." }
-        return "Found a token named \(token.displayName)."
     }
 }

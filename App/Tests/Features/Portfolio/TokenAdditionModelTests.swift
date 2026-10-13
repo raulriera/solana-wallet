@@ -5,36 +5,36 @@ import Testing
 import Transactions
 @testable import widgets
 
-/// Checks the add-token sheet: what it says about pasted text, and what it adds.
+/// Checks the add-token sheet's model: how it refuses pasted text, and what it adds.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
-struct TokenAdditionTests {
+struct TokenAdditionModelTests {
     private static let bonk = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"
     private static let jup = "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN"
 
     /// Pasted text that isn't an address asks for a valid one and looks nothing up.
     @Test
     func `Pasted text that isn't an address asks for one without a lookup`() {
-        let addition = TokenAddition(coordinator: RecordingPortfolio())
+        let addition = TokenAdditionModel(coordinator: RecordingPortfolio())
 
         addition.paste("not an address")
-        #expect(shown(addition.message) == "This isn't a valid address.")
+        #expect(addition.refusal == .notAddress)
         #expect(addition.refusalCount == 1)
         #expect(addition.lookup == nil)
 
         addition.paste("")
-        #expect(addition.message == nil)
+        #expect(addition.refusal == nil)
     }
 
-    /// Each refusal signals again, even when the same message is already on screen.
+    /// Each refusal signals again, even when the same refusal is already on screen.
     @Test
     func `Each refusal signals again`() {
-        let addition = TokenAddition(coordinator: RecordingPortfolio())
+        let addition = TokenAdditionModel(coordinator: RecordingPortfolio())
 
         addition.paste("not an address")
         addition.paste("still not an address")
 
-        #expect(shown(addition.message) == "This isn't a valid address.")
+        #expect(addition.refusal == .notAddress)
         #expect(addition.refusalCount == 2)
     }
 
@@ -44,34 +44,34 @@ struct TokenAdditionTests {
     func `A pasted address shows its token`() async throws {
         let portfolio = RecordingPortfolio()
         portfolio.preview = try Self.preview(Self.bonk)
-        let addition = TokenAddition(coordinator: portfolio)
+        let addition = TokenAdditionModel(coordinator: portfolio)
 
         addition.paste(" \(Self.bonk)\n")
         await addition.lookUp(addition.lookup)
 
         #expect(addition.text == Self.bonk)
         #expect(addition.preview == portfolio.preview)
-        #expect(addition.message == nil)
+        #expect(addition.refusal == nil)
         #expect(portfolio.lookups.map(\.value) == [Self.bonk])
     }
 
-    /// A refusal stays while the next address is looked up, so its message changes in place, and a found token clears it.
+    /// A refusal stays while the next address is looked up, so it changes in place, and a found token clears it.
     /// - Throws: A test prerequisite error.
     @Test
     func `A refusal stays until the next lookup answers`() async throws {
         let portfolio = RecordingPortfolio()
         portfolio.lookupError = TokenLookupError.notToken
-        let addition = TokenAddition(coordinator: portfolio)
+        let addition = TokenAdditionModel(coordinator: portfolio)
         addition.paste(Self.bonk)
         await addition.lookUp(addition.lookup)
 
         portfolio.lookupError = nil
         portfolio.preview = try Self.preview(Self.jup)
         addition.paste(Self.jup)
-        #expect(shown(addition.message) == "This address isn't a token.")
+        #expect(addition.refusal == .notToken)
 
         await addition.lookUp(addition.lookup)
-        #expect(addition.message == nil)
+        #expect(addition.refusal == nil)
         #expect(addition.preview == portfolio.preview)
     }
 
@@ -81,12 +81,12 @@ struct TokenAdditionTests {
         let portfolio = RecordingPortfolio()
         portfolio.holdings = [Holding(id: .asset(Self.bonk), amount: nil, name: "Bonk", symbol: "Bonk", imageURL: nil,
                                       valuation: nil)]
-        let addition = TokenAddition(coordinator: portfolio)
+        let addition = TokenAdditionModel(coordinator: portfolio)
 
         addition.paste(Self.bonk)
         await addition.lookUp(addition.lookup)
 
-        #expect(shown(addition.message) == "This token is already in your list.")
+        #expect(addition.refusal == .alreadyListed)
         #expect(addition.refusalCount == 1)
         #expect(portfolio.lookups.isEmpty)
     }
@@ -94,18 +94,17 @@ struct TokenAdditionTests {
     /// Addresses that aren't fungible token mints are refused with what they are.
     /// - Parameters:
     ///   - error: Why the lookup refused the address.
-    ///   - message: What the sheet says under the pasted text.
-    @Test(arguments: [(TokenLookupError.notToken, "This address isn't a token."),
-                      (.nonFungible, "NFTs can't be added yet.")])
-    func `Addresses that aren't fungible tokens are refused`(error: TokenLookupError, message: String) async {
+    ///   - refusal: Why the sheet refuses the address.
+    @Test(arguments: [(TokenLookupError.notToken, TokenRefusal.notToken), (.nonFungible, .nonFungible)])
+    func `Addresses that aren't fungible tokens are refused`(error: TokenLookupError, refusal: TokenRefusal) async {
         let portfolio = RecordingPortfolio()
         portfolio.lookupError = error
-        let addition = TokenAddition(coordinator: portfolio)
+        let addition = TokenAdditionModel(coordinator: portfolio)
 
         addition.paste(Self.bonk)
         await addition.lookUp(addition.lookup)
 
-        #expect(shown(addition.message) == message)
+        #expect(addition.refusal == refusal)
         #expect(addition.refusalCount == 1)
         #expect(addition.preview == nil)
     }
@@ -116,7 +115,7 @@ struct TokenAdditionTests {
     func `A new address replaces the previous preview`() async throws {
         let portfolio = RecordingPortfolio()
         portfolio.preview = try Self.preview(Self.bonk)
-        let addition = TokenAddition(coordinator: portfolio)
+        let addition = TokenAdditionModel(coordinator: portfolio)
         addition.paste(Self.bonk)
         await addition.lookUp(addition.lookup)
         try #require(addition.preview == portfolio.preview)
@@ -137,7 +136,7 @@ struct TokenAdditionTests {
         portfolio.preview = try Self.preview(Self.bonk)
         portfolio.lookupError = error
         portfolio.holdsLookups = true
-        let addition = TokenAddition(coordinator: portfolio)
+        let addition = TokenAdditionModel(coordinator: portfolio)
         addition.paste(Self.bonk)
         let stale = addition.lookup
         let lookup = Task { await addition.lookUp(stale) }
@@ -149,7 +148,7 @@ struct TokenAdditionTests {
         await lookup.value
 
         #expect(addition.preview == nil)
-        #expect(addition.message == nil)
+        #expect(addition.refusal == nil)
         #expect(addition.error == nil)
         #expect(addition.lookup == newer)
     }
@@ -160,7 +159,7 @@ struct TokenAdditionTests {
     func `Adding the previewed token closes the sheet`() async throws {
         let portfolio = RecordingPortfolio()
         portfolio.preview = try Self.preview(Self.bonk)
-        let addition = TokenAddition(coordinator: portfolio)
+        let addition = TokenAdditionModel(coordinator: portfolio)
         addition.paste(Self.bonk)
         await addition.lookUp(addition.lookup)
 
@@ -185,7 +184,7 @@ struct TokenAdditionTests {
         let portfolio = RecordingPortfolio()
         portfolio.preview = try Self.preview(Self.bonk)
         portfolio.addError = error
-        let addition = TokenAddition(coordinator: portfolio)
+        let addition = TokenAdditionModel(coordinator: portfolio)
         addition.paste(Self.bonk)
         await addition.lookUp(addition.lookup)
 
@@ -204,7 +203,7 @@ struct TokenAdditionTests {
         let portfolio = RecordingPortfolio()
         portfolio.preview = try Self.preview(Self.bonk)
         portfolio.addError = CocoaError(.fileWriteUnknown)
-        let addition = TokenAddition(coordinator: portfolio)
+        let addition = TokenAdditionModel(coordinator: portfolio)
         addition.paste(Self.bonk)
         await addition.lookUp(addition.lookup)
         addition.add()
@@ -229,7 +228,7 @@ struct TokenAdditionTests {
         let portfolio = RecordingPortfolio()
         portfolio.preview = try Self.preview(Self.bonk)
         portfolio.lookupError = ProviderClientError.invalidKey
-        let addition = TokenAddition(coordinator: portfolio)
+        let addition = TokenAdditionModel(coordinator: portfolio)
         addition.paste(Self.bonk)
         await addition.lookUp(addition.lookup)
         #expect(addition.error?.canRetry == false)
@@ -249,7 +248,7 @@ struct TokenAdditionTests {
         let portfolio = RecordingPortfolio()
         portfolio.preview = try Self.preview(Self.bonk)
         portfolio.lookupError = RPCError.http(statusCode: 503, retryAfter: nil)
-        let addition = TokenAddition(coordinator: portfolio)
+        let addition = TokenAdditionModel(coordinator: portfolio)
         addition.paste(Self.bonk)
         await addition.lookUp(addition.lookup)
         #expect(addition.error?.canRetry == true)
@@ -270,12 +269,5 @@ struct TokenAdditionTests {
     private static func preview(_ mint: String) throws -> TokenPreview {
         TokenPreview(token: ListedToken(mint: try Address(mint), program: .token, decimals: 5, symbol: "Bonk",
                                         name: "Bonk"), logo: nil)
-    }
-
-    /// Resolves a message the sheet shows, for comparison with its English text.
-    /// - Parameter message: The message, if any.
-    /// - Returns: The message's text, or `nil` when there's none.
-    private func shown(_ message: LocalizedStringResource?) -> String? {
-        message.map { String(localized: $0) }
     }
 }

@@ -4,7 +4,7 @@ import SwiftUI
 /// Pastes a mint address and previews the token it names; the owning sheet adds the token.
 struct TokenAdditionScreen: View {
     @Environment(\.palette) private var palette
-    let addition: TokenAddition
+    let addition: TokenAdditionModel
 
     var body: some View {
         Form {
@@ -24,11 +24,11 @@ struct TokenAdditionScreen: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                    PasteTextButton(paste: addition.paste)
+                    PasteTextButton(paste: paste)
                 }
 
-                if let message = addition.message {
-                    Label(message, systemImage: "exclamationmark.circle.fill")
+                if let refusal = addition.refusal {
+                    Label(refusal.message, systemImage: "exclamationmark.circle.fill")
                         .labelStyle(.warning)
                         .contentTransition(.opacity)
                         .transition(.opacity)
@@ -50,6 +50,9 @@ struct TokenAdditionScreen: View {
                 .listRowBackground(palette.surface)
             }
         }
+        .animation(.default, value: addition.refusal)
+        // A preview only ever appears or clears, so its presence keys its motion.
+        .animation(.default, value: addition.preview != nil)
         .scrollContentBackground(.hidden)
         .readableContentMargins()
         .confirmationAction("Add Token", isEnabled: addition.preview != nil, action: addition.add)
@@ -57,5 +60,11 @@ struct TokenAdditionScreen: View {
         .background(palette.background)
         .navigationTitle("Add Token")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    /// Takes the pasted text, animating the change to the field and any refusal it brings.
+    /// - Parameter text: The pasteboard's text.
+    private func paste(_ text: String) {
+        withAnimation { addition.paste(text) }
     }
 }

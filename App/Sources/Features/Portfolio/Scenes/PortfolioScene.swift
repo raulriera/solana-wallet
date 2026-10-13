@@ -11,7 +11,7 @@ struct PortfolioScene: View {
     @State private var selection: Holding.Identity?
     @State private var preferredColumn = NavigationSplitViewColumn.sidebar
     @State private var providerSetup: ProviderSubmission<ProviderConnectionError>?
-    @State private var tokenAddition: TokenAddition?
+    @State private var tokenAddition: TokenAdditionModel?
     let coordinator: any PortfolioCoordinating
     let connection: any ProviderConnecting<ProviderConnectionError>
     /// The window's token removals, which the parent runs with ``tokenRemovalLifecycle()``.
@@ -78,7 +78,7 @@ struct PortfolioScene: View {
 
     /// Opens the add-token sheet; an added token closes it and appears with the next balances.
     private func addToken() {
-        tokenAddition = TokenAddition(coordinator: coordinator)
+        tokenAddition = TokenAdditionModel(coordinator: coordinator)
     }
 
     /// Opens provider setup; a saved key closes it, and every window observes again with that key.

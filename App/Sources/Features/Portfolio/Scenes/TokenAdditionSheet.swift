@@ -5,7 +5,7 @@ import SwiftUI
 /// The sheet closes itself on Cancel and once the token is added.
 struct TokenAdditionSheet: View {
     @Environment(\.dismiss) private var dismiss
-    let addition: TokenAddition
+    let addition: TokenAdditionModel
 
     var body: some View {
         NavigationStack {
