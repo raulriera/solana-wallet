@@ -15,6 +15,7 @@ struct ThemePacksSection: View {
                 isImporting = true
             }
                 .foregroundStyle(palette.accent)
+                .fileImporter(isPresented: $isImporting, allowedContentTypes: [.themePack], onCompletion: completeImport)
                 .confirmationDialog("Replace Theme?", item: $settings.replacement) { replacement in
                     Button("Replace", role: .destructive) { settings.replace(replacement) }
                 } message: { replacement in
@@ -22,13 +23,12 @@ struct ThemePacksSection: View {
                 }
             Button("Export Default Template…", systemImage: "square.and.arrow.up") { settings.prepareExport() }
                 .foregroundStyle(palette.accent)
+                .onChange(of: settings.export != nil, initial: true) { _, isReady in isExporting = isReady }
+                .fileExporter(isPresented: $isExporting, item: settings.export, defaultFilename: "Theme.xtheme",
+                              onCompletion: completeExport, onCancellation: settings.finishExport)
         }
         .listRowBackground(palette.surface)
         .listRowSeparatorTint(palette.separator)
-        .fileImporter(isPresented: $isImporting, allowedContentTypes: [.themePack], onCompletion: completeImport)
-        .onChange(of: settings.export?.url, initial: true) { _, url in isExporting = url != nil }
-        .fileExporter(isPresented: $isExporting, item: settings.export, defaultFilename: "Theme.xtheme",
-                      onCompletion: completeExport, onCancellation: settings.finishExport)
     }
 
     /// Passes the picked file or a picker error to the package workflow.
