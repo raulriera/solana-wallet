@@ -7,7 +7,7 @@ import Transactions
 /// Checks token removal: what it removes, and what it says when the list can't be saved.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
-struct TokenRemovalFlowTests {
+struct TokenRemovalModelTests {
     private static let bonk = Holding(id: .asset("DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"), amount: nil,
                                       name: "Bonk", symbol: "Bonk", imageURL: nil, valuation: nil)
 
@@ -15,7 +15,7 @@ struct TokenRemovalFlowTests {
     @Test
     func `Removing a token removes it from the wallet's list`() async {
         let portfolio = RecordingPortfolio()
-        let removal = TokenRemovalFlow(coordinator: portfolio)
+        let removal = TokenRemovalModel(coordinator: portfolio)
 
         removal.remove(Self.bonk)
         await removal.run(removal.attempt)
@@ -29,7 +29,7 @@ struct TokenRemovalFlowTests {
     @Test
     func `Native SOL stays`() async {
         let portfolio = RecordingPortfolio()
-        let removal = TokenRemovalFlow(coordinator: portfolio)
+        let removal = TokenRemovalModel(coordinator: portfolio)
 
         removal.remove(Holding(id: .nativeSOL, amount: nil, name: "Solana", symbol: "SOL", imageURL: nil,
                                valuation: nil))
@@ -50,7 +50,7 @@ struct TokenRemovalFlowTests {
     func `A list that can't change explains why`(error: any Error, expected: TokenRemovalError) async {
         let portfolio = RecordingPortfolio()
         portfolio.removeError = error
-        let removal = TokenRemovalFlow(coordinator: portfolio)
+        let removal = TokenRemovalModel(coordinator: portfolio)
 
         removal.remove(Self.bonk)
         await removal.run(removal.attempt)
@@ -64,7 +64,7 @@ struct TokenRemovalFlowTests {
     func `A cancelled removal still explains a failed save`() async {
         let portfolio = RecordingPortfolio()
         portfolio.removeError = CocoaError(.fileWriteUnknown)
-        let removal = TokenRemovalFlow(coordinator: portfolio)
+        let removal = TokenRemovalModel(coordinator: portfolio)
         removal.remove(Self.bonk)
         let attempt = removal.attempt
 
@@ -81,7 +81,7 @@ struct TokenRemovalFlowTests {
     func `An attempt removes its token once`() async {
         let portfolio = RecordingPortfolio()
         portfolio.holdsRemovals = true
-        let removal = TokenRemovalFlow(coordinator: portfolio)
+        let removal = TokenRemovalModel(coordinator: portfolio)
         removal.remove(Self.bonk)
         let attempt = removal.attempt
         let first = Task { await removal.run(attempt) }

@@ -6,7 +6,7 @@ struct WindowRoot: View {
     @State private var onboarding: any OnboardingCoordinating
     @State private var startup: any WindowStarting
     @State private var portfolio: any PortfolioCoordinating
-    @State private var tokenRemoval: TokenRemovalFlow
+    @State private var tokenRemoval: TokenRemovalModel
     @State private var settings: AppearanceSettings
     @State private var security: SecurityCoordinator
     @State private var providers: ProvidersCoordinator
@@ -23,7 +23,7 @@ struct WindowRoot: View {
         self.startup = services.makeWindowStartup(router: router)
         let portfolio = services.makePortfolioCoordinator()
         self.portfolio = portfolio
-        self.tokenRemoval = TokenRemovalFlow(coordinator: portfolio)
+        self.tokenRemoval = TokenRemovalModel(coordinator: portfolio)
         self.settings = services.makeAppearanceSettings()
         self.security = services.makeSecurityCoordinator()
         self.providers = services.makeProvidersCoordinator()

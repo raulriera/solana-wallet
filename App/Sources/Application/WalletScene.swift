@@ -7,7 +7,7 @@ struct WalletScene: View {
     @SceneStorage("wallet.section") private var section = WalletSection.portfolio
     let account: Account
     let portfolio: any PortfolioCoordinating
-    let tokenRemoval: TokenRemovalFlow
+    let tokenRemoval: TokenRemovalModel
     let settings: AppearanceSettings
     let connection: any ProviderConnecting<ProviderConnectionError>
     let security: SecurityCoordinator

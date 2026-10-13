@@ -4,7 +4,7 @@ import SwiftUI
 ///
 /// It attaches to the portfolio, which stays on screen when a removed token's details close.
 private struct TokenRemovalLifecycle: ViewModifier {
-    @Bindable var removal: TokenRemovalFlow
+    @Bindable var removal: TokenRemovalModel
 
     /// Runs each confirmed removal and presents a failed save.
     /// - Parameter content: The portfolio scene.

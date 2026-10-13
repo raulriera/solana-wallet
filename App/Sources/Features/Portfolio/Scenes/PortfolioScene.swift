@@ -15,7 +15,7 @@ struct PortfolioScene: View {
     let coordinator: any PortfolioCoordinating
     let connection: any ProviderConnecting<ProviderConnectionError>
     /// The window's token removals, which the parent runs with ``tokenRemovalLifecycle()``.
-    let removal: TokenRemovalFlow
+    let removal: TokenRemovalModel
 
     var body: some View {
         let presentation = PortfolioPresentation(coordinator.update)

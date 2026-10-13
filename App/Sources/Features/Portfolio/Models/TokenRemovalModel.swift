@@ -6,7 +6,7 @@ import Transactions
 /// Owns one window's token removals: it removes each token the person confirms and explains a failed save.
 @MainActor
 @Observable
-final class TokenRemovalFlow {
+final class TokenRemovalModel {
     /// Why the last removal couldn't be saved; the token stays in the list.
     var error: TokenRemovalError?
     /// The confirmed removal, while it waits for the scene's task or runs.
