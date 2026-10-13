@@ -9,6 +9,7 @@
 - Use standard Dynamic Type without custom size caps. Adapt layouts through stacking, scrolling, and column collapse.
 - Use system semantic colors, such as the secondary label gray and system red, as Apple ships them, even below 4.5:1 contrast. Contrast requirements apply to colors the app computes, such as token card tints.
 - Keep app composition, scene state, feature coordination, feature views, and appearance as separate internal app concerns. Inject services through protocols; views present state and capture intent.
+- A task's workflow model publishes what happened; its views decide how it feels. Wrap the person's actions in `withAnimation` where the view calls the model, animate later results with `animation(_:value:)` on light keys, signal with `sensoryFeedback`, and post VoiceOver announcements from `onChange`.
 - Startup reads public account metadata before choosing a destination. Open the window's restored account while it is still saved, otherwise the first saved account, or onboarding only after a successful empty read. Loading failures offer an explicit retry without resetting storage; startup never accesses recovery material or replaces a window's resolved selection.
 - After saving a wallet, onboarding shows Providers, as in Settings, with Continue to open the wallet. Solana's public RPC (free, no key) is in use until a person chooses another provider; keyed providers verify the key before they're chosen.
 - A missing or rejected provider key replaces only the portfolio with an error screen that reopens provider setup.

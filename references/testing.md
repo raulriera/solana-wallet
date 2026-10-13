@@ -10,6 +10,7 @@
 - Test internal workflows in app-hosted tests with `@testable` imports.
   Prefer ordinary imports for framework APIs; use existing internal transport or storage
   seams when setup requires them, without widening the production API.
+- Check workflow models through their typed state, such as a refusal case, not message text.
 - Use local fixtures for decoding, cryptography, and validation. Check instruction compilation
   against independent SDK fixtures with mixed programs and multiple signers; exercise the app
   consumer through simulation and explicit confirmation.
