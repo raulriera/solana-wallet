@@ -14,29 +14,25 @@ nonisolated struct Submitter: TransactionSubmitting {
     }
 
     private let rpcs: [any RPC]
-    private let validator: any PreparationValidating
     private let transactionBuilder: any TransactionBuilding
 
-    /// Creates submission with the same prerequisites used by signing.
+    /// Creates submission through one or more ordinary RPCs.
     ///
     /// - Parameters:
-    ///   - rpc: The provider used for prerequisite checks.
+    ///   - rpc: The provider to submit through when `rpcs` is `nil`.
     ///   - rpcs: Every RPC to submit through, or `nil` to use `rpc` alone.
-    ///   - messageBuilder: The encoder that checks locally composed instructions.
     ///   - transactionBuilder: The validator for all required transaction signatures.
-    init(rpc: any RPC, rpcs: [any RPC]? = nil,
-         messageBuilder: any MessageBuilding = MessageBuilder(),
-         transactionBuilder: any TransactionBuilding = TransactionBuilder()) {
+    init(rpc: any RPC, rpcs: [any RPC]? = nil, transactionBuilder: any TransactionBuilding = TransactionBuilder()) {
         self.rpcs = rpcs ?? [rpc]
         self.transactionBuilder = transactionBuilder
-        validator = PreparationValidator(rpc: rpc, messageBuilder: messageBuilder, transactionBuilder: transactionBuilder)
     }
 
-    /// Validates and serializes a typed signed result before sending it once.
+    /// Checks a typed signed result against its review locally, then sends it once.
     ///
-    /// The original message and blockhash are preserved. Preflight uses finalized
-    /// commitment and the newest reviewed slot. Cancellation after dispatch doesn't
-    /// revoke a transaction; its locally known signature remains the lookup identifier.
+    /// Signing has just checked the review's fee and lifetime with the network and rechecked the lifetime after
+    /// signing, so submission doesn't read them again. The original message and blockhash are preserved. Preflight
+    /// uses finalized commitment and the newest reviewed slot. Cancellation after dispatch doesn't revoke a
+    /// transaction; its locally known signature remains the lookup identifier.
     ///
     /// All RPC requests start concurrently. The operation finishes after the attempts
     /// settle, succeeds if any RPC acknowledges the signature, and owns all cancellation.
@@ -59,7 +55,6 @@ nonisolated struct Submitter: TransactionSubmitting {
             where original.contains(where: { $0 != 0 }) {
             guard original == current else { throw SubmitterError.transactionMismatch }
         }
-        try await validator.validate(signed.preparation)
         try Task.checkCancellation()
         let request = SendTransaction(
             transaction: bytes, minContextSlot: signed.preparation.minimumSlot,

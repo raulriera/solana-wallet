@@ -27,6 +27,19 @@ struct SubmissionTests {
         }
     }
 
+    /// Verifies sending reads nothing before it dispatches, because signing has just checked the fee and lifetime.
+    @Test
+    func `Sending reads nothing before dispatch`() async throws {
+        let signed = try ExternalFixture.signedResult()
+        let reads = HTTPResponses([:])
+        let accepted = HTTPResponses(["sendTransaction": [try HTTPResponses.json(ExternalFixture.signature)]])
+
+        _ = try await Submitter(rpc: reads.client, rpcs: [accepted.client]).submit(signed)
+
+        #expect(await reads.requests.isEmpty)
+        #expect(try await accepted.requests.map { try $0.rpcMethod } == ["sendTransaction"])
+    }
+
     /// Verifies all failed routes retain the local signature and independent reasons without retrying.
     @Test
     func `Failed routes retain rate-limit details and reject a mismatched acknowledgment`() async throws {
