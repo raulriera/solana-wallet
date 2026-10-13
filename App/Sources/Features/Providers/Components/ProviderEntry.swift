@@ -4,7 +4,7 @@ import SwiftUI
 /// appearance and layout work.
 struct ProviderEntry<Field: View>: View {
     @Environment(\.palette) private var palette
-    @Bindable var input: ProviderInput
+    @Bindable var input: ProviderEntryModel
     @FocusState.Binding var isFocused: Bool
     /// The text field, built around the entry's text.
     @ViewBuilder let field: (Binding<String>) -> Field
