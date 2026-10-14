@@ -228,7 +228,7 @@ actor ObservationCoordinator {
             guard watches[owner]?.generation == generation else { return }
             handledRevision = watches[owner]?.revision
             let minContextSlot = watches[owner]?.minContextSlot
-            for await update in await refresh.updates(for: owner, policy: .reload, minContextSlot: minContextSlot) {
+            for await update in await refresh.updates(for: owner, minContextSlot: minContextSlot) {
                 try Task.checkCancellation()
                 if case .ready = update.phase, let watch = watches[owner], watch.generation == generation,
                    watch.state == .connected {

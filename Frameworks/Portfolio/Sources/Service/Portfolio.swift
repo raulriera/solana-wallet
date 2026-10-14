@@ -2,7 +2,7 @@ import Foundation
 public import RPC
 public import Transactions
 
-/// A portfolio service that delivers persisted holdings and refreshes stale or explicitly reloaded data.
+/// A portfolio service that delivers persisted holdings and reads them again on request and after finalized changes.
 public struct Portfolio: PortfolioProviding, TokenListProviding {
     private let coordinator: RefreshCoordinator
     private let observer: ObservationCoordinator
@@ -15,11 +15,11 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
     /// - Parameters:
     ///   - rpc: The RPC client that reads balances; every provider supports the request it uses.
     ///     A client that also hosts logo copies, such as Helius, adds logos to the listed tokens.
-    ///   - prices: A same-network price provider; `nil` leaves holdings unpriced and disables price-only refreshes.
-    ///   - changes: A same-network subscription provider; `nil` uses the RPC client's capability when available.
-    public init(rpc: any RPC, prices: (any PriceProviding)? = nil, changes: (any AccountChangeProviding)? = nil) {
+    ///     A client that also provides account subscriptions watches the accounts for finalized changes.
+    ///   - prices: A same-network price provider; `nil` leaves holdings unpriced.
+    public init(rpc: any RPC, prices: (any PriceProviding)? = nil) {
         self.init(rpc: rpc, store: FileSnapshotStore(directory: .cachesDirectory.appendingPathComponent("Portfolio")),
-                  prices: prices, changes: changes)
+                  prices: prices)
     }
 
     /// Creates a service with injected stores.
@@ -29,7 +29,7 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
     ///   - store: The persistent snapshot store.
     ///   - tokenLists: The token-list store; the default saves lists in Application Support.
     ///   - prices: An optional same-network price provider.
-    ///   - now: The current time used to evaluate cache age and record price refreshes.
+    ///   - now: The current time used to record price refreshes.
     ///   - changes: The optional finalized-change provider, defaulting to the RPC client's capability.
     ///   - pause: Cancellable scheduling for coalescing nearby changes and spacing reconnections.
     init(rpc: any RPC, store: any SnapshotStoring,
@@ -42,38 +42,27 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
         let logos = rpc as? any LogoProviding
         self.tokenLists = lists
         lookup = TokenLookup(rpc: rpc, logos: logos)
-        coordinator = RefreshCoordinator(source: BalanceReader(rpc: rpc, tokenLists: lists), store: store,
+        coordinator = RefreshCoordinator(source: BalanceReader(rpc: rpc), tokenLists: lists, store: store,
                                          prices: prices, logos: logos, now: now)
         observer = ObservationCoordinator(refresh: coordinator, tokenLists: lists,
                                           changes: changes ?? (rpc as? any AccountChangeProviding),
                                           network: rpc.network, pause: pause)
     }
 
-    /// Returns cached state, refreshing holdings and independent prices according to the policy.
+    /// Returns cached state, then reads balances, logos, and prices again.
     ///
     /// The service owns cache lookup, persistence, and failure fallback.
     /// Each caller receives its own stream while concurrent callers share the refresh.
     /// Registration completes before this method returns; the refresh arrives through the stream.
-    /// A reload also connects the wallet's observation again at once when it is disconnected.
+    /// The reload also connects the wallet's observation again at once when it is disconnected.
     ///
-    /// - Parameters:
-    ///   - owner: The wallet address whose holdings to retrieve.
-    ///   - policy: Whether to reuse fresh data or reload when opening the view or refreshing explicitly.
+    /// - Parameter owner: The wallet address whose holdings to retrieve.
     /// - Returns: A finite stream of complete states. Cancelling its consuming task
     ///   detaches that consumer without clearing cached data.
-    public func updates(for owner: String, policy: RefreshPolicy) async -> AsyncStream<Update> {
-        let updates = await coordinator.updates(for: owner, policy: policy)
-        if policy == .reload { await observer.reconnect(for: owner) }
+    public func updates(for owner: String) async -> AsyncStream<Update> {
+        let updates = await coordinator.updates(for: owner)
+        await observer.reconnect(for: owner)
         return updates
-    }
-
-    /// Refreshes only valuations for existing holdings, retaining balances and their retrieval time.
-    /// - Parameters:
-    ///   - owner: The wallet whose cached holdings to revalue.
-    ///   - policy: Whether to reuse recent prices or request new quotes regardless of age.
-    /// - Returns: Cached state followed by refreshed prices or an error, without scheduling another cycle.
-    public func priceUpdates(for owner: String, policy: RefreshPolicy) async -> AsyncStream<Update> {
-        await coordinator.updates(for: owner, scope: .prices, policy: policy)
     }
 
     /// Observes finalized changes to the wallet and its listed token accounts, and reads balances again after each one.

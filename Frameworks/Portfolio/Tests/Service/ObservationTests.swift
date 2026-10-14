@@ -58,7 +58,7 @@ struct ObservationTests {
         try await nextResult(&observed)
 
         await ledger.set(lamports: 200, slot: 100)
-        var manual = await service.updates(for: testWallet, policy: .reload).makeAsyncIterator()
+        var manual = await service.updates(for: testWallet).makeAsyncIterator()
         _ = try #require(await manual.next())
         var startedIterator = started.makeAsyncIterator()
         _ = try #require(await startedIterator.next())
@@ -391,9 +391,9 @@ struct ObservationTests {
             return reading
         }
         let service = fixture.service(http: http)
-        var first = await service.updates(for: testWallet, policy: .reload).makeAsyncIterator()
+        var first = await service.updates(for: testWallet).makeAsyncIterator()
         let cached = try await nextResult(&first)
-        var reload = await service.updates(for: testWallet, policy: .reload).makeAsyncIterator()
+        var reload = await service.updates(for: testWallet).makeAsyncIterator()
         _ = try #require(await reload.next())
         var startedIterator = started.makeAsyncIterator()
         _ = try #require(await startedIterator.next())
@@ -627,7 +627,7 @@ struct ObservationTests {
         #expect(refused.error as? RPCError == rejection)
 
         await ledger.set(lamports: 200)
-        var manual = await service.updates(for: testWallet, policy: .reload).makeAsyncIterator()
+        var manual = await service.updates(for: testWallet).makeAsyncIterator()
         let second = try #require(await sockets.next())
         let reloaded = try await nextResult(&manual)
         let observed = try await nextResult(&updates)
@@ -709,7 +709,7 @@ struct ObservationTests {
         _ = try #require(await delays.next())
 
         await ledger.set(lamports: 200)
-        var manual = await service.updates(for: testWallet, policy: .reload).makeAsyncIterator()
+        var manual = await service.updates(for: testWallet).makeAsyncIterator()
         let second = try #require(await sockets.next())
         try await nextResult(&manual)
         let observed = try await nextResult(&updates)

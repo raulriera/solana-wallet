@@ -3,26 +3,21 @@ import RPC
 import Portfolio
 import Testing
 
-/// Tests usable portfolio values through the framework's public API.
+/// Tests saved snapshots through the framework's public API.
 struct SnapshotTests {
-    /// Verifies currency isolation and explicit incomplete valuation using public fixtures.
+    /// Verifies a snapshot read without a price lookup saves no lookup time and loads unchanged.
+    /// - Throws: An encoding, decoding, or test prerequisite error.
     @Test
-    func `Portfolio values keep quote currencies separate and count unpriced holdings`() {
-        let holdings = [
-            Holding(id: .nativeSOL, amount: Amount(units: 1, decimals: 9), name: "Solana", symbol: "SOL", imageURL: nil,
-                    valuation: Valuation(pricePerUnit: nil, total: Decimal(string: "2.5"), currency: "USD")),
-            Holding(id: .asset("token-a"), amount: nil, name: nil, symbol: nil, imageURL: nil,
-                    valuation: Valuation(pricePerUnit: nil, total: 4, currency: "USD")),
-            Holding(id: .asset("token-b"), amount: nil, name: nil, symbol: nil, imageURL: nil,
-                    valuation: Valuation(pricePerUnit: nil, total: 3, currency: "USDC")),
-            Holding(id: .asset("token-c"), amount: nil, name: nil, symbol: nil, imageURL: nil, valuation: nil),
-        ]
-
-        let snapshot = Snapshot(owner: "wallet", network: .mainnet, holdings: holdings,
-                                fetchedAt: Date(timeIntervalSince1970: 1))
-
-        #expect(snapshot.knownValuesByCurrency["USD"] == Decimal(string: "6.5"))
-        #expect(snapshot.knownValuesByCurrency["USDC"] == 3)
-        #expect(snapshot.unpricedHoldingCount == 1)
+    func `Snapshots without a price lookup time round-trip`() throws {
+        let original = Snapshot(owner: "wallet", network: .mainnet, holdings: [
+            Holding(id: .nativeSOL, amount: Amount(units: 100, decimals: 9), name: "Solana", symbol: "SOL",
+                    imageURL: nil, valuation: Valuation(pricePerUnit: 1, total: 1, currency: "USD")),
+        ], fetchedAt: Date(timeIntervalSince1970: 1_999_999_995))
+        let encoded = try JSONEncoder().encode(original)
+        let fields = try #require(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        #expect(fields["pricesFetchedAt"] == nil)
+        let decoded = try JSONDecoder().decode(Snapshot.self, from: encoded)
+        #expect(decoded == original)
+        #expect(decoded.pricesFetchedAt == nil)
     }
 }

@@ -4,10 +4,10 @@ import RPC
 /// Serializes cache access and shares each wallet's active refresh between consumers.
 actor RefreshCoordinator {
     private let source: any BalanceReading
+    private let tokenLists: TokenListCoordinator
     private let store: any SnapshotStoring
     private let pricer: SnapshotPricer?
     private let logos: LogoReader?
-    private let now: @Sendable () -> Date
     private var flights: [CacheKey: Flight] = [:]
     private var revision: UInt64 = 0
     private var snapshotRevisions: [CacheKey: UInt64] = [:]
@@ -16,15 +16,16 @@ actor RefreshCoordinator {
     ///
     /// - Parameters:
     ///   - source: The balance source.
+    ///   - tokenLists: The token lists whose tokens each balance read covers.
     ///   - store: The persistent snapshot store.
-    ///   - prices: An optional price provider used for full and price-only refreshes.
-    ///   - logos: An optional provider of logo copies for the listed tokens after each balance read.
-    ///   - now: The clock for freshness checks and successful price retrievals.
-    init(source: any BalanceReading, store: any SnapshotStoring, prices: (any PriceProviding)? = nil,
-         logos: (any LogoProviding)? = nil, now: @escaping @Sendable () -> Date = { Date() }) {
+    ///   - prices: An optional price provider for the listed tokens.
+    ///   - logos: An optional provider of logo copies for the listed tokens.
+    ///   - now: The clock for successful price retrievals.
+    init(source: any BalanceReading, tokenLists: TokenListCoordinator, store: any SnapshotStoring,
+         prices: (any PriceProviding)?, logos: (any LogoProviding)?, now: @escaping @Sendable () -> Date) {
         self.source = source
+        self.tokenLists = tokenLists
         self.store = store
-        self.now = now
         pricer = prices.map { SnapshotPricer(provider: $0, now: now) }
         self.logos = logos.map { LogoReader(provider: $0) }
     }
@@ -33,27 +34,15 @@ actor RefreshCoordinator {
     ///
     /// - Parameters:
     ///   - owner: The wallet whose holdings to retrieve.
-    ///   - scope: Whether to refresh all data or only the cached holdings' prices.
-    ///   - policy: Whether to reuse fresh data or perform a network refresh regardless of age.
     ///   - minContextSlot: The earliest acceptable observation for a scheduled balance read, or `nil`.
     /// - Returns: A registered stream, or a finished stream if the calling task is cancelled.
-    func updates(for owner: String, scope: Scope = .holdings, policy: RefreshPolicy,
-                 minContextSlot: UInt64? = nil) -> AsyncStream<Update> {
+    func updates(for owner: String, minContextSlot: UInt64? = nil) -> AsyncStream<Update> {
         let (stream, continuation) = AsyncStream<Update>.makeStream(bufferingPolicy: .bufferingNewest(2))
         guard !Task.isCancelled else {
             continuation.finish()
             return stream
         }
         let key = CacheKey(owner: owner, network: source.network)
-        let cached = store.snapshot(for: key)
-        if scope == .prices, pricer == nil {
-            continuation.yield(makeUpdate(snapshot: cached, phase: .refreshing, snapshotRevision: snapshotRevisions[key] ?? 0))
-            continuation.yield(makeUpdate(snapshot: cached, phase: .failed(PriceError.providerUnavailable),
-                                          snapshotRevision: snapshotRevisions[key] ?? 0))
-            continuation.finish()
-            return stream
-        }
-        let requiredScope = scopeRequiringRefresh(scope, policy: policy, cached: cached)
         let id = UUID()
         continuation.onTermination = { @Sendable _ in
             Task { @concurrent in await self.unsubscribe(key: key, id: id) }
@@ -61,24 +50,16 @@ actor RefreshCoordinator {
         if var flight = flights[key] {
             flight.consumers[id] = continuation
             if let initial = flight.initial { continuation.yield(initial) }
-            let needsNewerContext = (minContextSlot ?? 0) > (flight.minContextSlot ?? 0)
-            if needsNewerContext || (requiredScope == .holdings && flight.scope == .prices) {
-                // Keep every consumer, but replace work that cannot satisfy the stronger balance request.
-                flight.scope = .holdings
-                if needsNewerContext { flight.minContextSlot = minContextSlot }
+            if (minContextSlot ?? 0) > (flight.minContextSlot ?? 0) {
+                // Keep every consumer, but replace work that cannot satisfy the newer balance request.
+                flight.minContextSlot = minContextSlot
                 restart(&flight, key: key)
             }
             flights[key] = flight
             return stream
         }
-        guard let requiredScope else {
-            continuation.yield(makeUpdate(snapshot: cached, phase: .ready, snapshotRevision: snapshotRevisions[key] ?? 0))
-            continuation.finish()
-            return stream
-        }
         let generation = UUID()
-        flights[key] = Flight(generation: generation, scope: requiredScope, minContextSlot: minContextSlot,
-                              consumers: [id: continuation])
+        flights[key] = Flight(generation: generation, minContextSlot: minContextSlot, consumers: [id: continuation])
         flights[key]?.task = Task { await refresh(key: key, generation: generation) }
         return stream
     }
@@ -89,7 +70,7 @@ actor RefreshCoordinator {
     /// - Parameter owner: The account whose token list changed.
     func restartBalanceRead(for owner: String) {
         let key = CacheKey(owner: owner, network: source.network)
-        guard var flight = flights[key], flight.scope == .holdings else { return }
+        guard var flight = flights[key] else { return }
         restart(&flight, key: key)
         flights[key] = flight
     }
@@ -121,7 +102,7 @@ actor RefreshCoordinator {
         snapshotRevisions[key] = revision
     }
 
-    /// Orders observation status in the same sequence as manual and price refreshes.
+    /// Orders observation status in the same sequence as manual refreshes.
     /// - Parameters:
     ///   - owner: The wallet whose cached holdings accompany the status.
     ///   - phase: The connection's progress or failure.
@@ -141,33 +122,6 @@ actor RefreshCoordinator {
     private func makeUpdate(snapshot: Snapshot?, phase: Update.Phase, snapshotRevision: UInt64) -> Update {
         revision += 1
         return Update(snapshot: snapshot, phase: phase, revision: revision, snapshotRevision: snapshotRevision)
-    }
-
-    /// Selects only the data whose retrieval time requires another request.
-    /// - Parameters:
-    ///   - scope: The data requested by the consumer.
-    ///   - policy: Whether freshness checks may skip networking.
-    ///   - cached: The wallet's preceding complete snapshot, if any.
-    /// - Returns: Required network work, or `nil` when the cached snapshot is sufficient.
-    private func scopeRequiringRefresh(_ scope: Scope, policy: RefreshPolicy, cached: Snapshot?) -> Scope? {
-        guard policy == .ifStale, let cached else { return scope }
-        // A fresh cache must not hide a misconfigured provider's network error.
-        if let pricer, pricer.provider.network != source.network { return scope }
-        let currentTime = now()
-        if scope == .holdings, !isFresh(cached.fetchedAt, at: currentTime) { return .holdings }
-        if pricer != nil, !isFresh(cached.pricesFetchedAt, at: currentTime) { return .prices }
-        return nil
-    }
-
-    /// Checks the five-minute lifetime without treating future or invalid dates as fresh.
-    /// - Parameters:
-    ///   - retrievedAt: The last successful retrieval time, or `nil` if not yet checked.
-    ///   - currentTime: The clock value shared by this request's freshness checks.
-    /// - Returns: Whether the timestamp is less than five minutes old and not in the future.
-    private func isFresh(_ retrievedAt: Date?, at currentTime: Date) -> Bool {
-        guard let retrievedAt else { return false }
-        let age = currentTime.timeIntervalSince(retrievedAt)
-        return age.isFinite && age >= 0 && age < 300
     }
 
     /// Detaches one consumer and cancels work only when no consumers remain.
@@ -222,7 +176,7 @@ actor RefreshCoordinator {
         for continuation in flight.consumers.values { continuation.finish() }
     }
 
-    /// Emits existing state, reads all balances, and commits one complete update.
+    /// Emits existing state, reads all balances with their logos and prices, and commits one complete update.
     ///
     /// - Parameters:
     ///   - key: The wallet and network being refreshed.
@@ -240,16 +194,16 @@ actor RefreshCoordinator {
         var availableRevision = snapshotRevisions[key] ?? 0
         do {
             try pricer?.validate(network: source.network)
-            let snapshot: Snapshot
-            switch flight.scope {
-            case .holdings:
-                let balances = try await source.snapshot(for: key.owner, minContextSlot: flight.minContextSlot)
-                let holdings = await logos?.snapshot(addingLogosTo: balances, keeping: cached) ?? balances
-                snapshot = try await pricer?.snapshot(pricing: holdings) ?? holdings
-            case .prices:
-                guard let pricer else { throw PriceError.providerUnavailable }
-                guard let cached else { throw PriceError.holdingsUnavailable }
-                snapshot = try await pricer.snapshot(pricing: cached)
+            let list = try await tokenLists.list(for: key.owner)
+            let holdings = list.holdingIDs
+            // Logos and prices need only the listed tokens, so they're looked up while balances are read.
+            async let balances = source.snapshot(of: list, for: key.owner, minContextSlot: flight.minContextSlot)
+            async let logoLookup = logos?.logos(for: holdings, keeping: cached)
+            async let quoteLookup = pricer?.quotes(for: holdings)
+            var snapshot = try await balances
+            if let found = await logoLookup { snapshot = snapshot.replacingLogos(with: found) }
+            if let pricer, let quotes = try await quoteLookup {
+                snapshot = try pricer.snapshot(pricing: snapshot, with: quotes)
             }
             try Task.checkCancellation()
             guard flights[key]?.generation == generation else { return }
@@ -297,18 +251,9 @@ actor RefreshCoordinator {
     /// The consumers and task owned by one refresh generation.
     private struct Flight {
         var generation: UUID
-        var scope: Scope
         var minContextSlot: UInt64?
         var consumers: [UUID: AsyncStream<Update>.Continuation]
         var initial: Update?
         var task: Task<Void, Never>?
-    }
-
-    /// The data refreshed by one shared operation.
-    enum Scope {
-        /// Read balances, then independent quotes when configured.
-        case holdings
-        /// Revalue existing holdings without reading balances again.
-        case prices
     }
 }

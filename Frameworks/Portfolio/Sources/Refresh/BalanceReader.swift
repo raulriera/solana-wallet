@@ -7,32 +7,32 @@ protocol BalanceReading: Sendable {
     /// The network queried by the source.
     var network: Network { get }
 
-    /// Reads native SOL and every listed token's balance.
+    /// Reads native SOL and the balance of every token in the account's list.
     ///
     /// - Parameters:
+    ///   - list: The account's token list.
     ///   - owner: The wallet address to read.
     ///   - minContextSlot: The earliest acceptable balance observation, or `nil`.
-    /// - Returns: A complete snapshot without prices.
-    /// - Throws: A cancellation, validation, token-list, or RPC error.
-    func snapshot(for owner: String, minContextSlot: UInt64?) async throws -> Snapshot
+    /// - Returns: A complete snapshot without prices, whose holdings follow ``TokenList/holdingIDs``.
+    /// - Throws: A cancellation, validation, or RPC error.
+    func snapshot(of list: TokenList, for owner: String, minContextSlot: UInt64?) async throws -> Snapshot
 }
 
 /// Reads an account's balances with one standard RPC request, which every provider supports.
 struct BalanceReader: BalanceReading {
     let rpc: any RPC
-    let tokenLists: TokenListCoordinator
     var network: Network { rpc.network }
 
     /// Reads the wallet and each listed token's associated token account at one ledger context.
     ///
     /// - Parameters:
+    ///   - list: The account's token list.
     ///   - owner: The wallet address to read.
     ///   - minContextSlot: The earliest acceptable balance observation, or `nil`.
     /// - Returns: Native SOL followed by the listed tokens, without prices.
-    /// - Throws: A cancellation, validation, token-list, or RPC error, or ``AccountReadError`` for an invalid response.
+    /// - Throws: A cancellation, validation, or RPC error, or ``AccountReadError`` for an invalid response.
     @concurrent
-    func snapshot(for owner: String, minContextSlot: UInt64? = nil) async throws -> Snapshot {
-        let list = try await tokenLists.list(for: owner)
+    func snapshot(of list: TokenList, for owner: String, minContextSlot: UInt64?) async throws -> Snapshot {
         let wallet = try Address(owner)
         let accounts = try list.accounts(of: wallet)
         try Task.checkCancellation()
@@ -73,5 +73,12 @@ struct BalanceReader: BalanceReading {
         guard let decoded else { return Amount(units: 0, decimals: token.decimals) }
         guard decoded.mint == token.mint, decoded.owner == owner else { return nil }
         return Amount(units: decoded.amount, decimals: token.decimals)
+    }
+}
+
+extension TokenList {
+    /// The holdings that a balance read of this list returns, in order: native SOL, then each listed token.
+    var holdingIDs: [Holding.Identity] {
+        [.nativeSOL] + tokens.map { .asset($0.mint.value) }
     }
 }

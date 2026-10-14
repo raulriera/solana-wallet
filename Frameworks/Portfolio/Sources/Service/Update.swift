@@ -4,7 +4,7 @@ public struct Update: Sendable {
     public enum Phase: Sendable {
         /// Existing data is available while a refresh is running.
         case refreshing
-        /// A fresh cached snapshot is available, or a requested refresh completed and was saved.
+        /// A requested refresh completed and was saved.
         case ready
         /// Retrieval or persistence failed, retaining the latest complete snapshot.
         case failed(any Error)

@@ -8,7 +8,7 @@ actor PortfolioResponses: PortfolioProviding {
     /// The portfolio operations requested by a presentation.
     enum Kind: Sendable, Equatable {
         case observation
-        case refresh(RefreshPolicy)
+        case refresh
     }
 
     /// A request whose updates and termination can be driven independently.
@@ -41,22 +41,10 @@ actor PortfolioResponses: PortfolioProviding {
     }
 
     /// Registers a controllable explicit refresh.
-    /// - Parameters:
-    ///   - owner: The wallet selected by the coordinator.
-    ///   - policy: The requested freshness policy.
+    /// - Parameter owner: The wallet selected by the coordinator.
     /// - Returns: The requested refresh's stream.
-    func updates(for owner: String, policy: RefreshPolicy) async -> AsyncStream<Update> {
-        makeStream(for: owner, kind: .refresh(policy))
-    }
-
-    /// Reports unexpected independent price work in the lifecycle coordinator.
-    /// - Parameters:
-    ///   - owner: The requested wallet.
-    ///   - policy: The requested freshness policy.
-    /// - Returns: A finished stream; price-only work is outside this coordinator's scope.
-    func priceUpdates(for owner: String, policy: RefreshPolicy) async -> AsyncStream<Update> {
-        Issue.record("Lifecycle coordination must not schedule independent price requests.")
-        return AsyncStream { $0.finish() }
+    func updates(for owner: String) async -> AsyncStream<Update> {
+        makeStream(for: owner, kind: .refresh)
     }
 
     /// Reports unexpected cache removal during view lifecycle changes.

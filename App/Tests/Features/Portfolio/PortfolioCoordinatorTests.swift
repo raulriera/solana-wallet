@@ -289,7 +289,7 @@ struct PortfolioCoordinatorTests {
         defer { refreshing.cancel() }
         let reload = try #require(await requests.next())
         #expect(reload.owner == "wallet-a")
-        #expect(reload.kind == .refresh(.reload))
+        #expect(reload.kind == .refresh)
         let refreshed = snapshot(owner: "wallet-a", revision: 2)
         reload.continuation.yield(Update(snapshot: refreshed, phase: .ready, revision: 14))
         reload.continuation.finish()
@@ -387,7 +387,7 @@ struct PortfolioCoordinatorTests {
         let refreshing = Task { await coordinator.refresh() }
         defer { refreshing.cancel() }
         let reload = try #require(await requests.next())
-        #expect(reload.kind == .refresh(.reload))
+        #expect(reload.kind == .refresh)
         reload.continuation.yield(Update(snapshot: cached, phase: .ready, revision: 21))
         reload.continuation.finish()
         await refreshing.value

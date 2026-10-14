@@ -34,23 +34,11 @@ actor ProviderChanges: PortfolioProviding {
         return AsyncStream { $0.finish() }
     }
 
-    /// Reports a refresh, because selecting a provider never reads balances.
-    /// - Parameters:
-    ///   - owner: The requested wallet.
-    ///   - policy: The requested freshness policy.
+    /// Reports a refresh, because selecting a provider never reads balances or prices.
+    /// - Parameter owner: The requested wallet.
     /// - Returns: A finished stream.
-    func updates(for owner: String, policy: RefreshPolicy) async -> AsyncStream<Update> {
+    func updates(for owner: String) async -> AsyncStream<Update> {
         Issue.record("Selecting a provider must not read balances.")
-        return AsyncStream { $0.finish() }
-    }
-
-    /// Reports price work, because selecting a provider never reads prices.
-    /// - Parameters:
-    ///   - owner: The requested wallet.
-    ///   - policy: The requested freshness policy.
-    /// - Returns: A finished stream.
-    func priceUpdates(for owner: String, policy: RefreshPolicy) async -> AsyncStream<Update> {
-        Issue.record("Selecting a provider must not read prices.")
         return AsyncStream { $0.finish() }
     }
 

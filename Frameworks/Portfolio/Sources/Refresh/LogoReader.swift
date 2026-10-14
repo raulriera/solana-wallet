@@ -1,33 +1,33 @@
 import Foundation
 import RPC
 
-/// Adds a provider's logo copies to a balance read's listed tokens.
+/// Finds a provider's logo copies for an account's listed tokens.
 struct LogoReader: Sendable {
     let provider: any LogoProviding
 
-    /// Returns the balance read with logos, looking up only the tokens that don't have one yet.
+    /// Returns the listed tokens' logos, looking up only the tokens that don't have one yet.
     ///
     /// Each token keeps the logo the cached snapshot shows. One lookup asks for the others. A failed
     /// lookup leaves them without a logo, so the next balance read asks again. Native SOL has no lookup.
     /// - Parameters:
-    ///   - snapshot: A balance read without logos.
+    ///   - holdings: The holdings that the balance read returns.
     ///   - cached: The account's previous complete snapshot, if any.
-    /// - Returns: The same balances, with the logos that are available.
+    /// - Returns: The available logos, keyed by mint.
     @concurrent
-    func snapshot(addingLogosTo snapshot: Snapshot, keeping cached: Snapshot?) async -> Snapshot {
+    func logos(for holdings: [Holding.Identity], keeping cached: Snapshot?) async -> [String: URL] {
         var logos: [String: URL] = [:]
         for holding in cached?.holdings ?? [] {
             if case .asset(let mint) = holding.id, let logo = holding.imageURL { logos[mint] = logo }
         }
-        let missing = snapshot.holdings.compactMap { holding -> String? in
-            guard case .asset(let mint) = holding.id, logos[mint] == nil else { return nil }
+        let missing = holdings.compactMap { holding -> String? in
+            guard case .asset(let mint) = holding, logos[mint] == nil else { return nil }
             return mint
         }
         // A logo is decoration: a failure must not fail the balances it accompanies.
         if !missing.isEmpty, let found = try? await provider.logos(for: missing) {
             logos.merge(found) { kept, _ in kept }
         }
-        return snapshot.replacingLogos(with: logos)
+        return logos
     }
 }
 

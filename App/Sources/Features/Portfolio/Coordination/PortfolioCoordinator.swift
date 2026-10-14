@@ -86,7 +86,7 @@ final class PortfolioCoordinator: PortfolioCoordinating {
             let service = service
             operation = Task { @concurrent [weak self] in
                 guard !Task.isCancelled else { return }
-                let updates = await service.updates(for: owner, policy: .reload)
+                let updates = await service.updates(for: owner)
                 for await update in updates {
                     guard !Task.isCancelled else { return }
                     await self?.receive(update, session: session, fromObservation: false)

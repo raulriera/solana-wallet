@@ -1,6 +1,6 @@
 # Portfolio
 
-Native SOL and each account's listed tokens, with persistent caching, independent price refreshes, and new balance reads after finalized changes. One standard `getMultipleAccounts` request reads the wallet and every listed token's associated token account, so any RPC provider works.
+Native SOL and each account's listed tokens, with persistent caching, prices, and new balance reads after finalized changes. One standard `getMultipleAccounts` request reads the wallet and every listed token's associated token account, so any RPC provider works.
 
 ## Example Usage
 
@@ -11,17 +11,16 @@ import Portfolio
 import RPC
 
 let service: any PortfolioProviding = Portfolio(rpc: Solana(network: .mainnet))
-for await update in await service.updates(for: owner, policy: .ifStale) {
+for await update in await service.updates(for: owner) {
     receive(update)
 }
 ```
 
-An optional same-network `PriceProviding` provider enables prices, including each quote's 24-hour change when the provider supplies one; without one, holdings stay unpriced. An optional `AccountChangeProviding` provider supplies subscriptions, defaulting to the RPC client's capability. An RPC client that implements `LogoProviding`, such as `HeliusRPC`, adds logos to the listed tokens after each balance read; a failed lookup leaves them out until the next read.
+An optional same-network `PriceProviding` provider enables prices, including each quote's 24-hour change when the provider supplies one; without one, holdings stay unpriced. An RPC client that implements `AccountChangeProviding` supplies subscriptions. An RPC client that implements `LogoProviding`, such as `HeliusRPC`, adds logos to the listed tokens; a failed lookup leaves them out until the next read. Each refresh reads balances and looks up logos and prices at the same time.
 
 | Operation | Behavior |
 | --- | --- |
-| `updates(for:policy:)` | Finite stream of cached state and any required refresh. `.ifStale` checks holdings and prices separately against five minutes; `.reload` requests fresh data and connects a disconnected observation again. |
-| `priceUpdates(for:policy:)` | Revalue cached holdings without reading balances again. Requires existing holdings and a price provider. |
+| `updates(for:)` | Finite stream of cached state, then a new read of balances and prices. Connects a disconnected observation again. |
 | `observations(for:)` | Watch the wallet and each listed token account before the initial reload, then read balances again after finalized changes until cancellation. A dropped connection or a temporary server failure (`RPCError.isRecoverable`) reports its error and reconnects after 2 seconds, doubling the wait after each failed attempt up to a minute until a connection reads balances successfully; rate limits and other refusals wait for a reload, a token-list change, or a new consumer. |
 | `removeData(for:)` | Remove the wallet's local cache and token list, and stop its active work. |
 | `providerDidChange()` | After the RPC client switches providers, end every observation and refresh and remove logos from saved snapshots; observe again to use the new provider. |

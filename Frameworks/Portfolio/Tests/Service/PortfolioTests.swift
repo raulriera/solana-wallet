@@ -39,7 +39,8 @@ struct PortfolioTests {
         #expect(result.holdings.map(\.amount) == [Amount(units: 100, decimals: 9),
                                                   Amount(units: 9_007_199_254_740_993, decimals: 6),
                                                   Amount(units: 0, decimals: 6)])
-        #expect(result.unpricedHoldingCount == 3)
+        // Without a price provider, no holding has a value.
+        #expect(result.holdings.allSatisfy { $0.valuation == nil })
         #expect(!updated.isRefreshing)
         #expect(updated.error == nil)
         #expect(fixture.store.snapshot(for: key) == result)
@@ -63,7 +64,7 @@ struct PortfolioTests {
         let service = fixture.portfolio(rpc: http.client)
         let token = ListedToken(mint: try Address(mint), program: .token2022, decimals: 6, symbol: "PYUSD", name: "PayPal USD")
         _ = try await service.addToken(token, for: testWallet)
-        var updates = await service.updates(for: testWallet, policy: .reload).makeAsyncIterator()
+        var updates = await service.updates(for: testWallet).makeAsyncIterator()
         _ = try #require(await updates.next())
 
         let updated = try #require(await updates.next())
@@ -94,7 +95,7 @@ struct PortfolioTests {
             return Ledger(lamports: 100, tokens: [pyusdMint: 42])
         }
         let service = fixture.portfolio(rpc: http.client)
-        var updates = await service.updates(for: testWallet, policy: .reload).makeAsyncIterator()
+        var updates = await service.updates(for: testWallet).makeAsyncIterator()
         _ = try #require(await updates.next())
         var reading = started.makeAsyncIterator()
         _ = try #require(await reading.next())
@@ -219,7 +220,7 @@ struct PortfolioTests {
         #expect(try #require(updated.snapshotRevision) > (initial.snapshotRevision ?? 0))
         #expect(await iterator.next() == nil)
 
-        var retry = await service.updates(for: testWallet, policy: .reload).makeAsyncIterator()
+        var retry = await service.updates(for: testWallet).makeAsyncIterator()
         let retrying = try #require(await retry.next())
         #expect(retrying.revision > updated.revision)
         #expect(retrying.snapshot == cached)
@@ -597,7 +598,7 @@ struct PortfolioTests {
         #expect(otherSaved.holdings.map(\.imageURL) == [nil])
         #expect(otherSaved.holdings.map(\.amount) == other.holdings.map(\.amount))
         host.withLock { $0 = "new.example.com" }
-        var updates = await service.updates(for: testWallet, policy: .reload).makeAsyncIterator()
+        var updates = await service.updates(for: testWallet).makeAsyncIterator()
         let initial = try #require(await updates.next())
         let refreshed = try #require(await updates.next())
         let earlierRevision = try #require(read.snapshotRevision)
@@ -640,7 +641,7 @@ struct PortfolioTests {
             return Ledger()
         }
         let service = fixture.portfolio(rpc: http.client, store: WriteFailingStore(cached: cached))
-        var updates = await service.updates(for: testWallet, policy: .reload).makeAsyncIterator()
+        var updates = await service.updates(for: testWallet).makeAsyncIterator()
         _ = try #require(await updates.next())
         var startedIterator = started.makeAsyncIterator()
         _ = try #require(await startedIterator.next())
@@ -707,7 +708,7 @@ private struct WriteFailingStore: SnapshotStoring {
 /// - Throws: A test prerequisite error if the refresh ends without a state.
 private func reload(_ service: Portfolio) async throws -> Update {
     var last: Update?
-    for await update in await service.updates(for: testWallet, policy: .reload) { last = update }
+    for await update in await service.updates(for: testWallet) { last = update }
     return try #require(last)
 }
 

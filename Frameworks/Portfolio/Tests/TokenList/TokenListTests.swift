@@ -61,10 +61,8 @@ struct TokenListTests {
 
         _ = try await service.removeToken(usdc.mint, for: "wallet")
 
-        // The cache is fresh and no price provider is set, so the new service answers without a request.
-        var updates = await fixture.portfolio().updates(for: "wallet", policy: .ifStale).makeAsyncIterator()
-        let cached = try #require(await updates.next())
-        #expect(cached.snapshot?.holdings.map(\.id) == [.nativeSOL, .asset(DefaultToken.usdt.rawValue)])
+        let saved = fixture.snapshots.snapshot(for: CacheKey(owner: "wallet", network: .mainnet))
+        #expect(saved?.holdings.map(\.id) == [.nativeSOL, .asset(DefaultToken.usdt.rawValue)])
     }
 
     /// Verifies a token that's already listed keeps its place instead of appearing twice.

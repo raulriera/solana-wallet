@@ -1,12 +1,12 @@
 import Foundation
 import RPC
 
-/// Revalues holdings without reading their balances again.
+/// Looks up quotes for a balance read's holdings and values them.
 struct SnapshotPricer: Sendable {
     let provider: any PriceProviding
     private let now: @Sendable () -> Date
 
-    /// Creates a repricer with an independent lookup timestamp.
+    /// Creates a pricer that records when each lookup completes.
     /// - Parameters:
     ///   - provider: The source of normalized quotes for these holdings.
     ///   - now: The clock used to record successful lookup completion.
@@ -22,18 +22,25 @@ struct SnapshotPricer: Sendable {
         guard provider.network == network else { throw PriceError.networkMismatch }
     }
 
-    /// Replaces all valuations with independent quotes while preserving the holdings' retrieval time.
-    /// - Parameter snapshot: The complete holdings to revalue.
-    /// - Returns: The same holdings with new valuations; omitted quotes remain unknown.
-    /// - Throws: A network mismatch, invalid quote, provider, or cancellation error.
+    /// Looks up quotes for holdings, once for each market.
+    /// - Parameter holdings: The holdings to price; native SOL shares Wrapped SOL's market.
+    /// - Returns: Quotes keyed by mint; a mint without a quote has no entry.
+    /// - Throws: A provider or cancellation error.
     @concurrent
-    func snapshot(pricing snapshot: Snapshot) async throws -> Snapshot {
+    func quotes(for holdings: [Holding.Identity]) async throws -> [String: Quote] {
         try Task.checkCancellation()
-        try validate(network: snapshot.network)
         var seen: Set<String> = []
-        let mints = snapshot.holdings.map { mint(for: $0.id) }.filter { seen.insert($0).inserted }
-        let quotes = mints.isEmpty ? [:] : try await provider.prices(for: mints)
-        try Task.checkCancellation()
+        let mints = holdings.map { mint(for: $0) }.filter { seen.insert($0).inserted }
+        return try await provider.prices(for: mints)
+    }
+
+    /// Replaces all valuations with looked-up quotes while preserving the holdings' retrieval time.
+    /// - Parameters:
+    ///   - snapshot: The complete holdings to value.
+    ///   - quotes: The quotes from ``quotes(for:)``, keyed by mint.
+    /// - Returns: The same holdings with new valuations; omitted quotes remain unknown.
+    /// - Throws: `PriceError.invalidQuote` for an invalid price, currency, or retrieval time.
+    func snapshot(pricing snapshot: Snapshot, with quotes: [String: Quote]) throws -> Snapshot {
         let holdings = try snapshot.holdings.map { holding in
             let valuation: Valuation?
             if let quote = quotes[mint(for: holding.id)] {

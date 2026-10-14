@@ -1,69 +1,90 @@
 import Foundation
 import RPC
+import Transactions
 import Testing
 @testable import Portfolio
 
-/// Verifies independent valuation, persistence, and coordination through real provider adapters.
+/// Verifies valuation, persistence, and coordination of prices during refreshes through real provider adapters.
 struct PriceRefreshTests {
-    /// Verifies price-only refreshes preserve balances and names, share SOL's quote, and clear omitted prices.
+    /// Verifies a refresh values the new balances, shares SOL's quote with Wrapped SOL, and drops a cached price
+    /// that has no new quote.
     /// - Throws: A fixture, refresh, or test prerequisite error.
     @Test
-    func `Price-only refresh preserves holdings and never reads balances`() async throws {
+    func `A refresh values new holdings and shares SOL's quote with Wrapped SOL`() async throws {
         let fixture = PricingFixture()
         defer { fixture.removeFiles() }
-        let cached = pricingSnapshot()
-        try fixture.store.save(cached, for: fixture.key)
-        let accounts = AccountResponses { _ in throw URLError(.notConnectedToInternet) }
-        let prices = PriceResponses { _ in
-            Data(#"{"\#(nativeMint)":{"usdPrice":100},"mint":{"usdPrice":0.1},"missing":{"createdAt":"2025-01-01T00:00:00Z","decimals":6}}"#.utf8)
+        let stalePrice = Valuation(pricePerUnit: 20, total: 20, currency: "USD", fetchedAt: .distantPast)
+        try fixture.store.save(Snapshot(owner: testWallet, network: .mainnet, holdings: [
+            Holding(id: .asset(usdtMint), amount: Amount(units: 1, decimals: 6), name: "Tether USD", symbol: "USDT",
+                    imageURL: nil, valuation: stalePrice),
+        ], fetchedAt: .distantPast), for: fixture.key)
+        let accounts = AccountResponses { _ in
+            Ledger(lamports: 1_000_000_000, tokens: [usdcMint: 3_000_000, nativeMint: 2_000_000_000])
         }
-        let service: any PortfolioProviding = fixture.portfolio(rpc: accounts.client, prices: prices.client)
-        var updates = await service.priceUpdates(for: testWallet).makeAsyncIterator()
-        #expect(try #require(await updates.next()).snapshot == cached)
-        let update = try #require(await updates.next())
-        if let error = update.error { throw error }
-        let refreshed = try #require(update.snapshot)
-
-        #expect(refreshed.fetchedAt == cached.fetchedAt)
-        #expect(refreshed.holdings.map(\.id) == cached.holdings.map(\.id))
-        #expect(refreshed.holdings.map(\.amount) == cached.holdings.map(\.amount))
-        #expect(refreshed.holdings.map(\.name) == cached.holdings.map(\.name))
-        #expect(refreshed.holdings.map(\.imageURL) == cached.holdings.map(\.imageURL))
-        #expect(refreshed.holdings.map(\.valuation?.total) == [100, 200, Decimal(string: "0.125"), nil])
-        #expect(refreshed.holdings.prefix(3).allSatisfy { $0.valuation?.fetchedAt != nil && $0.valuation?.currency == "USD" })
-        #expect(refreshed.holdings.last?.valuation == nil)
-        #expect(await prices.requests == [[nativeMint, "mint", "missing"]])
-        #expect(await accounts.requests.isEmpty)
-        #expect(fixture.store.snapshot(for: fixture.key) == refreshed)
-        #expect(await updates.next() == nil)
-    }
-
-    /// Verifies a full refresh values newly read amounts with the selected independent provider.
-    /// - Throws: A fixture, refresh, or test prerequisite error.
-    @Test
-    func `Full portfolio refresh applies independent quotes to the new holdings`() async throws {
-        let fixture = PricingFixture()
-        defer { fixture.removeFiles() }
-        let accounts = AccountResponses { _ in freshLedger }
         let prices = PriceResponses { _ in Data(#"{"\#(nativeMint)":{"usdPrice":100},"\#(usdcMint)":{"usdPrice":4}}"#.utf8) }
         let service = fixture.portfolio(rpc: accounts.client, prices: prices.client)
+        let wrapped = ListedToken(mint: try Address(nativeMint), program: .token, decimals: 9, symbol: "WSOL",
+                                  name: "Wrapped SOL")
+        _ = try await service.addToken(wrapped, for: testWallet)
         var updates = await service.updates(for: testWallet).makeAsyncIterator()
         _ = try #require(await updates.next())
         let update = try #require(await updates.next())
         if let error = update.error { throw error }
         let snapshot = try #require(update.snapshot)
-        #expect(snapshot.holdings.map(\.valuation?.total) == [100, 12, nil])
-        #expect(snapshot.holdings.prefix(2).allSatisfy { $0.valuation?.fetchedAt != nil })
+
+        #expect(snapshot.holdings.map(\.id) == [.nativeSOL, .asset(usdcMint), .asset(usdtMint), .asset(nativeMint)])
+        #expect(snapshot.holdings.map(\.valuation?.total) == [100, 12, nil, 200])
+        #expect(snapshot.holdings.map(\.valuation?.currency) == ["USD", "USD", nil, "USD"])
+        #expect(snapshot.holdings.allSatisfy { $0.valuation == nil || $0.valuation?.fetchedAt != nil })
         #expect(await prices.requests == [[nativeMint, usdcMint, usdtMint]])
         #expect(await accounts.requests.count == 1)
         #expect(fixture.store.snapshot(for: fixture.key) == snapshot)
+        #expect(await updates.next() == nil)
+    }
+
+    /// Verifies a refresh looks up logos and prices while it reads balances, instead of after the read.
+    ///
+    /// The balance read answers only after both lookups have started, so a refresh that waits for balances first
+    /// never finishes.
+    /// - Throws: A fixture, refresh, or test prerequisite error.
+    @Test(.timeLimit(.minutes(1)))
+    func `A refresh looks up logos and prices while it reads balances`() async throws {
+        let fixture = PricingFixture()
+        defer { fixture.removeFiles() }
+        let (lookups, lookupStarted) = AsyncStream<Void>.makeStream()
+        defer { lookupStarted.finish() }
+        let accounts = AccountResponses(logos: { _ in
+            lookupStarted.yield(())
+            return [usdcMint: "https://cdn.example.com/usdc.png"]
+        }) { _ in
+            var started = lookups.makeAsyncIterator()
+            _ = await started.next()
+            _ = await started.next()
+            return freshLedger
+        }
+        let prices = PriceResponses { _ in
+            lookupStarted.yield(())
+            return Data(#"{"\#(usdcMint)":{"usdPrice":4}}"#.utf8)
+        }
+        let service = fixture.portfolio(rpc: accounts.heliusClient, prices: prices.client)
+        var updates = await service.updates(for: testWallet).makeAsyncIterator()
+        _ = try #require(await updates.next())
+        let update = try #require(await updates.next())
+        if let error = update.error { throw error }
+        let snapshot = try #require(update.snapshot)
+
+        #expect(snapshot.holdings.map(\.amount?.units) == [1_000_000_000, 3_000_000, 0])
+        #expect(snapshot.holdings.map(\.imageURL) == [nil, URL(string: "https://cdn.example.com/usdc.png"), nil])
+        #expect(snapshot.holdings.map(\.valuation?.total) == [nil, 12, nil])
+        #expect(await accounts.requests.count == 1)
+        #expect(await accounts.logoRequests.count == 1)
+        #expect(await prices.requests.count == 1)
     }
 
     /// Verifies a failed quote request preserves the preceding complete snapshot without retrying.
-    /// - Parameter fullRefresh: Whether the failure follows a fresh balance read.
     /// - Throws: A fixture or test prerequisite error.
-    @Test(arguments: [false, true])
-    func `Price failures preserve the cached snapshot without retrying`(fullRefresh: Bool) async throws {
+    @Test
+    func `Price failures preserve the cached snapshot without retrying`() async throws {
         let fixture = PricingFixture()
         defer { fixture.removeFiles() }
         let cached = pricingSnapshot()
@@ -71,94 +92,71 @@ struct PriceRefreshTests {
         let accounts = AccountResponses { _ in freshLedger }
         let prices = PriceResponses(status: 429) { _ in Data("{}".utf8) }
         let service = fixture.portfolio(rpc: accounts.client, prices: prices.client)
-        let stream = await (fullRefresh ? service.updates(for: testWallet) : service.priceUpdates(for: testWallet))
-        var updates = stream.makeAsyncIterator()
+        var updates = await service.updates(for: testWallet).makeAsyncIterator()
         _ = try #require(await updates.next())
         let failed = try #require(await updates.next())
         #expect(failed.error as? RPCError == .http(statusCode: 429, retryAfter: "2"))
         #expect(failed.snapshot == cached)
         #expect(fixture.store.snapshot(for: fixture.key) == cached)
         #expect(await prices.requests.count == 1)
-        #expect(await accounts.requests.count == (fullRefresh ? 1 : 0))
+        #expect(await accounts.requests.count == 1)
     }
 
-    /// Verifies absent prerequisites and network mismatches fail before any provider request.
-    /// - Parameters:
-    ///   - error: The missing or incompatible price-refresh prerequisite.
-    ///   - fullRefresh: Whether to verify a full refresh's network validation.
+    /// Verifies a price provider for another network fails the refresh before any request.
     /// - Throws: A fixture or test prerequisite error.
-    @Test(arguments: [
-        (PriceError.providerUnavailable, false), (.holdingsUnavailable, false), (.networkMismatch, false), (.networkMismatch, true),
-    ])
-    func `Price refresh rejects unavailable prerequisites before networking`(error: PriceError, fullRefresh: Bool) async throws {
+    @Test
+    func `A price provider for another network fails before networking`() async throws {
         let fixture = PricingFixture()
         defer { fixture.removeFiles() }
-        if error != .holdingsUnavailable { try fixture.store.save(pricingSnapshot(), for: fixture.key) }
-        let accounts = AccountResponses(network: error == .networkMismatch ? .devnet : .mainnet) { _ in freshLedger }
+        try fixture.store.save(pricingSnapshot(), for: fixture.key)
+        let accounts = AccountResponses(network: .devnet) { _ in freshLedger }
         let prices = PriceResponses { _ in Data("{}".utf8) }
-        let service = fixture.portfolio(rpc: accounts.client, prices: error == .providerUnavailable ? nil : prices.client)
-        let stream = await (fullRefresh ? service.updates(for: testWallet) : service.priceUpdates(for: testWallet))
-        var updates = stream.makeAsyncIterator()
+        let service = fixture.portfolio(rpc: accounts.client, prices: prices.client)
+        var updates = await service.updates(for: testWallet).makeAsyncIterator()
         _ = try #require(await updates.next())
         let failed = try #require(await updates.next())
-        #expect(failed.error as? PriceError == error)
+        #expect(failed.error as? PriceError == .networkMismatch)
         #expect(await accounts.requests.isEmpty)
         #expect(await prices.requests.isEmpty)
     }
 
-    /// Verifies a full refresh supersedes pending prices without allowing stale balances to overwrite new holdings.
-    /// - Parameter pricesFirst: Whether a price refresh or full refresh starts first.
+    /// Verifies concurrent reloads share one balance read and one price lookup, and deliver the same result.
     /// - Throws: A fixture, refresh, or test prerequisite error.
-    @Test(.timeLimit(.minutes(1)), arguments: [false, true])
-    func `Overlapping full and price refreshes finish with the new holdings`(pricesFirst: Bool) async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `Concurrent reloads share one balance read and one price lookup`() async throws {
         let fixture = PricingFixture()
         defer { fixture.removeFiles() }
-        try fixture.store.save(pricingSnapshot(), for: fixture.key)
+        let cached = pricingSnapshot()
+        try fixture.store.save(cached, for: fixture.key)
         let (pending, release) = AsyncStream<Void>.makeStream()
-        let (started, announce) = AsyncStream<Void>.makeStream()
-        defer { release.finish(); announce.finish() }
-        let accounts = AccountResponses { _ in
-            if !pricesFirst {
-                announce.yield(())
-                for await _ in pending {}
-            }
-            return freshLedger
-        }
-        let prices = PriceResponses { mints in
-            if mints.contains("mint") {
-                announce.yield(())
-                for await _ in pending {}
-            }
-            return Data(#"{"\#(nativeMint)":{"usdPrice":100},"\#(usdcMint)":{"usdPrice":4}}"#.utf8)
+        defer { release.finish() }
+        let accounts = AccountResponses { _ in freshLedger }
+        let prices = PriceResponses { _ in
+            for await _ in pending {}
+            return Data("{}".utf8)
         }
         let service = fixture.portfolio(rpc: accounts.client, prices: prices.client)
-        let firstStream = await (pricesFirst ? service.priceUpdates(for: testWallet) : service.updates(for: testWallet))
-        var first = firstStream.makeAsyncIterator()
-        _ = try #require(await first.next())
-        var startedIterator = started.makeAsyncIterator()
-        _ = try #require(await startedIterator.next())
-        let secondStream = await (pricesFirst ? service.updates(for: testWallet) : service.priceUpdates(for: testWallet))
-        var second = secondStream.makeAsyncIterator()
-        _ = try #require(await second.next())
+        var first = await service.updates(for: testWallet).makeAsyncIterator()
+        #expect(try #require(await first.next()).isRefreshing)
+        var second = await service.updates(for: testWallet).makeAsyncIterator()
+        #expect(try #require(await second.next()).snapshot == cached)
         release.finish()
         let firstResult = try #require(await first.next())
         let secondResult = try #require(await second.next())
         #expect(firstResult.error == nil)
-        #expect(secondResult.error == nil)
         #expect(firstResult.snapshot == secondResult.snapshot)
-        #expect(firstResult.holdings.map(\.id) == [.nativeSOL, .asset(usdcMint), .asset(usdtMint)])
-        #expect(firstResult.holdings[1].valuation?.total == 12)
-        #expect(fixture.store.snapshot(for: fixture.key) == firstResult.snapshot)
+        #expect(firstResult.revision == secondResult.revision)
+        #expect(firstResult.snapshotRevision == secondResult.snapshotRevision)
         #expect(await accounts.requests.count == 1)
-        #expect(await prices.requests.count == (pricesFirst ? 2 : 1))
+        #expect(await prices.requests.count == 1)
         #expect(await first.next() == nil)
         #expect(await second.next() == nil)
     }
 
-    /// Verifies removal cancels price work and cannot restore a deleted snapshot.
+    /// Verifies removal cancels a refresh's price lookup and cannot restore a deleted snapshot.
     /// - Throws: A fixture or test prerequisite error.
     @Test(.timeLimit(.minutes(1)))
-    func `Removing a portfolio during price refresh prevents cache restoration`() async throws {
+    func `Removing a portfolio during its price lookup prevents cache restoration`() async throws {
         let fixture = PricingFixture()
         defer { fixture.removeFiles() }
         try fixture.store.save(pricingSnapshot(), for: fixture.key)
@@ -174,7 +172,7 @@ struct PriceRefreshTests {
             return Data("{}".utf8)
         }
         let service = fixture.portfolio(rpc: accounts.client, prices: prices.client)
-        var updates = await service.priceUpdates(for: testWallet).makeAsyncIterator()
+        var updates = await service.updates(for: testWallet).makeAsyncIterator()
         _ = try #require(await updates.next())
         var startedIterator = started.makeAsyncIterator()
         _ = try #require(await startedIterator.next())
@@ -183,18 +181,16 @@ struct PriceRefreshTests {
         _ = try #require(await cancelledIterator.next())
         #expect(await updates.next() == nil)
         #expect(fixture.store.snapshot(for: fixture.key) == nil)
-        #expect(await accounts.requests.isEmpty)
     }
 
-    /// Verifies a provider change ends a price refresh, so it can't save the previous provider's logos again.
+    /// Verifies a provider change ends a refresh during its price lookup, so it can't save the previous provider's
+    /// logos again.
     /// - Throws: A fixture or test prerequisite error.
     @Test(.timeLimit(.minutes(1)))
-    func `A price refresh during a provider change can't save the previous logos`() async throws {
+    func `A refresh during a provider change can't save the previous logos`() async throws {
         let fixture = PricingFixture()
         defer { fixture.removeFiles() }
-        let priced = pricingSnapshot()
-        let cached = Snapshot(owner: priced.owner, network: priced.network, holdings: priced.holdings,
-                              fetchedAt: priced.fetchedAt, pricesFetchedAt: .distantPast)
+        let cached = pricingSnapshot()
         try fixture.store.save(cached, for: fixture.key)
         let (pending, release) = AsyncStream<Void>.makeStream()
         let (started, announce) = AsyncStream<Void>.makeStream()
@@ -208,7 +204,7 @@ struct PriceRefreshTests {
             return Data(#"{"mint":{"usdPrice":0.1}}"#.utf8)
         }
         let service = fixture.portfolio(rpc: accounts.client, prices: prices.client)
-        var updates = await service.priceUpdates(for: testWallet).makeAsyncIterator()
+        var updates = await service.updates(for: testWallet).makeAsyncIterator()
         _ = try #require(await updates.next())
         var startedIterator = started.makeAsyncIterator()
         _ = try #require(await startedIterator.next())
@@ -223,7 +219,6 @@ struct PriceRefreshTests {
         #expect(saved.holdings.map(\.amount) == cached.holdings.map(\.amount))
         #expect(saved.holdings.map(\.valuation) == cached.holdings.map(\.valuation))
         #expect(saved.pricesFetchedAt == cached.pricesFetchedAt)
-        #expect(await accounts.requests.isEmpty)
     }
 }
 
@@ -249,8 +244,8 @@ private struct PricingFixture {
 /// A new balance read: 1 SOL and 3 USDC, with no USDT account.
 private let freshLedger = Ledger(lamports: 1_000_000_000, tokens: [usdcMint: 3_000_000])
 
-/// Creates a snapshot whose identities, names, and retrieval time must survive repricing.
-/// - Returns: SOL, Wrapped SOL, a fungible token, and a previously priced token with no new quote.
+/// Creates a cached snapshot that a refresh replaces only when it completes.
+/// - Returns: SOL, Wrapped SOL, a token with a logo, and a previously priced token.
 private func pricingSnapshot() -> Snapshot {
     let holdings = [
         Holding(id: .nativeSOL, amount: Amount(units: 1_000_000_000, decimals: 9), name: "Solana", symbol: "SOL",

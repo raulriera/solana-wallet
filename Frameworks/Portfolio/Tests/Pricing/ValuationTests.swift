@@ -26,7 +26,7 @@ struct ValuationTests {
         let snapshot = Snapshot(owner: "wallet", network: .devnet, holdings: [
             Holding(id: .asset("mint"), amount: amount, name: "Token", symbol: "TOK", imageURL: nil, valuation: nil),
         ], fetchedAt: .distantPast)
-        let result = try await SnapshotPricer(provider: FixedPrices(quote: quote)).snapshot(pricing: snapshot)
+        let result = try await valued(snapshot, with: FixedPrices(quote: quote))
         let valuation = try #require(result.holdings.first?.valuation)
         #expect(valuation.pricePerUnit == price)
         #expect(valuation.total == total)
@@ -48,7 +48,7 @@ struct ValuationTests {
             Holding(id: .asset("mint"), amount: nil, name: nil, symbol: nil, imageURL: nil, valuation: nil),
         ], fetchedAt: .distantPast)
         await #expect(throws: PriceError.invalidQuote) {
-            try await SnapshotPricer(provider: FixedPrices(quote: quote)).snapshot(pricing: snapshot)
+            try await valued(snapshot, with: FixedPrices(quote: quote))
         }
     }
 
@@ -91,8 +91,19 @@ struct ValuationTests {
             Holding(id: .asset("mint"), amount: Amount(units: 1, decimals: 0), name: nil, symbol: nil, imageURL: nil,
                     valuation: nil),
         ], fetchedAt: .distantPast)
-        let result = try await SnapshotPricer(provider: FixedPrices(quote: quote)).snapshot(pricing: snapshot)
+        let result = try await valued(snapshot, with: FixedPrices(quote: quote))
         return try #require(result.holdings.first?.valuation)
+    }
+
+    /// Prices a snapshot the way a refresh does: one quote lookup for its holdings, then valuation.
+    /// - Parameters:
+    ///   - snapshot: The holdings to value.
+    ///   - provider: The quote source.
+    /// - Returns: The holdings with their valuations.
+    /// - Throws: A pricing error.
+    private func valued(_ snapshot: Snapshot, with provider: any PriceProviding) async throws -> Snapshot {
+        let pricer = SnapshotPricer(provider: provider)
+        return try pricer.snapshot(pricing: snapshot, with: await pricer.quotes(for: snapshot.holdings.map(\.id)))
     }
 }
 

@@ -7,12 +7,13 @@ import Transactions
 /// Verifies read-only mainnet balance reads and caching with a public wallet fixture.
 @Suite(.tags(.network))
 struct PortfolioLiveTests {
-    /// Verifies a live balance read of the default token list, exact native SOL, persistence, and reuse by a new service.
+    /// Verifies a live balance read of the default token list, exact native SOL, persistence, and a new service that
+    /// shows the saved snapshot while it reads balances again.
     ///
     /// Uses a public address and isolated storage without wallet recovery or funding.
     /// - Throws: An RPC, storage, or test prerequisite error.
     @Test(.timeLimit(.minutes(1)))
-    func `Mainnet portfolio persists listed balances and reuses its complete snapshot`() async throws {
+    func `Mainnet portfolio persists listed balances and shows them while reading again`() async throws {
         let transport = LiveResponses<GetMultipleAccounts>()
         let rpc = try LiveClients.client(transport: transport)
         let owner = PublicWallet.address
@@ -43,14 +44,10 @@ struct PortfolioLiveTests {
 
         let recreated: any PortfolioProviding = Portfolio(rpc: rpc, store: FileSnapshotStore(directory: directory),
                                                           tokenLists: tokenLists)
-        var reused = await recreated.updates(for: owner).makeAsyncIterator()
-        let cached = try #require(await reused.next())
-        #expect(!cached.isRefreshing)
+        var reloaded = await recreated.updates(for: owner).makeAsyncIterator()
+        let cached = try #require(await reloaded.next())
+        #expect(cached.isRefreshing)
         #expect(cached.snapshot == snapshot)
-        #expect(await reused.next() == nil)
-
-        var reloaded = await recreated.updates(for: owner, policy: .reload).makeAsyncIterator()
-        #expect(try #require(await reloaded.next()).isRefreshing)
         let refreshed = try #require(await reloaded.next())
         if let error = refreshed.error { throw error }
         #expect(refreshed.snapshot?.owner == owner)
