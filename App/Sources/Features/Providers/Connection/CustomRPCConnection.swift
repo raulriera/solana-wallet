@@ -40,7 +40,7 @@ nonisolated struct CustomRPCConnection: ProviderConnecting {
             _ = try await rpc.send(request)
         } catch {
             try Task.checkCancellation()
-            throw Self.isRateLimited(error) ? CustomRPCError.rateLimited : .unreachable
+            throw (error as? RPCError)?.isRateLimited == true ? CustomRPCError.rateLimited : .unreachable
         }
         do {
             // Both subscribe at once. Each call returns once its subscriptions are acknowledged, and discarding its
@@ -50,7 +50,7 @@ nonisolated struct CustomRPCConnection: ProviderConnecting {
             _ = try await (accounts, watch)
         } catch {
             try Task.checkCancellation()
-            throw Self.isRateLimited(error) ? CustomRPCError.rateLimited : .noLiveUpdates
+            throw (error as? RPCError)?.isRateLimited == true ? CustomRPCError.rateLimited : .noLiveUpdates
         }
         try Task.checkCancellation()
         do {
@@ -64,14 +64,4 @@ nonisolated struct CustomRPCConnection: ProviderConnecting {
     /// A well-formed signature that no transaction carries: sixty-four zero bytes, so the check watches no one's
     /// payment.
     private static var checkedSignature: String { String(repeating: "1", count: 64) }
-
-    /// Identifies an RPC that's limiting requests, over HTTP or in a subscription reply.
-    /// - Parameter error: An error from a request or subscription.
-    /// - Returns: Whether the RPC answered with status or code 429.
-    private static func isRateLimited(_ error: any Error) -> Bool {
-        switch error {
-        case RPCError.http(statusCode: 429, retryAfter: _), RPCError.server(code: 429, message: _): true
-        default: false
-        }
-    }
 }

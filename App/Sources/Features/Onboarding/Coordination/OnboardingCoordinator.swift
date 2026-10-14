@@ -120,7 +120,7 @@ final class OnboardingCoordinator: OnboardingCoordinating {
             throw error
         } catch let error as CancellationError {
             throw error
-        } catch RPCError.http(statusCode: 429, retryAfter: _) {
+        } catch let error as RPCError where error.isRateLimited {
             throw OnboardingCoordinatorError.discoveryRateLimited
         } catch {
             // Arbitrary dependency errors may contain recovery text; only known safe errors escape.

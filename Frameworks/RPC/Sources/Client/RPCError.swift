@@ -45,4 +45,14 @@ public enum RPCError: Error, Sendable, Equatable {
         case .encoding, .decoding, .http, .server, .preflight, .invalidResponse: false
         }
     }
+
+    /// Whether the provider is limiting requests: HTTP status 429, or code 429 in a subscription reply.
+    ///
+    /// The person decides when to try again; a rate limit is never recoverable.
+    public var isRateLimited: Bool {
+        switch self {
+        case .http(statusCode: 429, retryAfter: _), .server(code: 429, message: _): true
+        case .encoding, .decoding, .transport, .http, .server, .preflight, .invalidResponse: false
+        }
+    }
 }

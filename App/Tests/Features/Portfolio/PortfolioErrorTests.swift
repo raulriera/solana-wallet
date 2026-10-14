@@ -8,7 +8,8 @@ import Testing
 /// Checks that portfolio errors are classified by what the person can do about them.
 struct PortfolioErrorTests {
     /// Each error maps to the error the app presents. Only Helius's own key failures ask for a new key;
-    /// an HTTP rejection from another provider, such as prices, counts as unavailable.
+    /// an HTTP rejection from another provider, such as prices, counts as unavailable. A rate limit over HTTP or in a
+    /// subscription reply asks the person to wait.
     /// - Parameters:
     ///   - error: An error a portfolio update can report.
     ///   - expected: The error the app presents.
@@ -18,6 +19,7 @@ struct PortfolioErrorTests {
         (RPCError.http(statusCode: 401, retryAfter: nil), .unavailable),
         (RPCError.http(statusCode: 403, retryAfter: nil), .unavailable),
         (RPCError.http(statusCode: 429, retryAfter: "3"), .rateLimited),
+        (RPCError.server(code: 429, message: "Too many requests"), .rateLimited),
         (RPCError.http(statusCode: 500, retryAfter: nil), .unavailable),
         (RPCError.transport(.notConnectedToInternet), .unavailable),
         (ObservationError.networkMismatch, .unavailable),

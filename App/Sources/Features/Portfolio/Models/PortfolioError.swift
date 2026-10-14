@@ -21,7 +21,7 @@ nonisolated enum PortfolioError: Error, Equatable {
         switch error {
         case ProviderClientError.missingKey: self = .missingKey
         case ProviderClientError.invalidKey: self = .invalidKey
-        case RPCError.http(statusCode: 429, retryAfter: _): self = .rateLimited
+        case let error as RPCError where error.isRateLimited: self = .rateLimited
         case TokenListError.unreadable: self = .listUnreadable
         default: self = .unavailable
         }
