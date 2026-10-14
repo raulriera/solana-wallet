@@ -37,13 +37,29 @@ struct SubscriptionTests {
         var received = observed.makeAsyncIterator()
         socket.notify(slot: 10)
         #expect(await received.next() == 10)
-        socket.notify(slot: 9)
-        socket.notify(slot: 10)
         socket.notify(slot: 12, subscription: 2)
         #expect(await received.next() == 12)
         task.cancel()
         _ = try? await task.value
         #expect(socket.isCancelled)
+    }
+
+    /// Verifies account changes deliver only slots newer than every earlier one, whichever account notifies.
+    ///
+    /// The stream keeps only the newest unread slot, so this checks the filter itself rather than through a stream.
+    /// - Throws: A decoding error.
+    @Test
+    func `Account changes deliver only slots newer than every earlier one`() throws {
+        var changes = AccountChanges(addresses: ["wallet", "token-account"])
+        let notified: [(slot: UInt64, account: Int)] = [(10, 0), (9, 1), (10, 0), (12, 1), (12, 0), (11, 0), (13, 0)]
+
+        let delivered = try notified.map { notification in
+            let request = changes.requests[notification.account]
+            let data = Data(#"{"jsonrpc":"2.0","method":"accountNotification","params":{"subscription":1,"result":{"context":{"slot":\#(notification.slot)},"value":{}}}}"#.utf8)
+            return try changes.event(for: SubscriptionNotification(request: request, data: data))
+        }
+
+        #expect(delivered == [10, nil, nil, 12, nil, nil, 13])
     }
 
     /// Verifies account notifications received before all acknowledgments aren't lost.
