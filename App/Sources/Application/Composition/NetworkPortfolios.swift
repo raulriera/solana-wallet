@@ -33,7 +33,7 @@ final class NetworkPortfolios {
     /// - Parameter network: The network that the window shows.
     /// - Returns: A coordinator for that network, whose observation and refreshes belong to one window.
     func makeCoordinator(for network: Network) -> any PortfolioCoordinating {
-        PortfolioCoordinator(network: network, service: service(for: network))
+        PortfolioCoordinator(service: service(for: network))
     }
 
     /// Returns a network's service, creating it on the first request.

@@ -18,10 +18,15 @@ struct NetworkScreen: View {
             .listRowBackground(palette.surface)
 
             Section {
-                NetworkRow(name: "Mainnet", network: .mainnet, selection: $network)
-                NetworkRow(name: "Devnet", network: .devnet, selection: $network)
+                NetworkRow(name: LocalizedStringResource("Mainnet",
+                                                         comment: "A choice in Settings > Network: Solana's main network, where tokens have real value."),
+                           network: .mainnet, selection: $network)
+                NetworkRow(name: LocalizedStringResource("Devnet",
+                                                         comment: "A choice in Settings > Network: Solana's test network, where tokens have no value."),
+                           network: .devnet, selection: $network)
             } footer: {
-                Text("Only this window changes.")
+                Text("Only this window changes.",
+                     comment: "Footer under the Mainnet and Devnet choices in Settings > Network. Each app window has its own network.")
                     .foregroundStyle(palette.secondaryText)
             }
             .listRowBackground(palette.surface)

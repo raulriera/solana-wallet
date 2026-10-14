@@ -10,8 +10,6 @@ struct PortfolioScene: View {
     @Environment(\.cardStyle) private var cardStyle
     @State private var selection: Holding.Identity?
     @State private var preferredColumn = NavigationSplitViewColumn.sidebar
-    /// What the section showed when another tab took its place, or `nil` while the section is on screen.
-    @State private var hiddenPresentation: PortfolioPresentation?
     @State private var providerSetup: ProviderSetupModel<ProviderConnectionError>?
     @State private var tokenAddition: TokenAdditionModel?
     let coordinator: any PortfolioCoordinating
@@ -20,13 +18,7 @@ struct PortfolioScene: View {
     let removal: TokenRemovalModel
 
     var body: some View {
-        // WORKAROUND for an iOS bug (seen on iOS 27.2, iPad): a NavigationSplitView inserted while its tab is hidden
-        // comes back with its columns under the tab bar. A network or provider change from Settings does exactly that,
-        // so the section freezes what it shows while hidden and updates when it appears.
-        // Recheck on every iOS release and beta: remove `hiddenPresentation` and the ZStack's onAppear/onDisappear,
-        // switch a window's network in Settings, open Portfolio, and look for columns under the tab bar.
-        // Listed in references/ios-workarounds.md.
-        let presentation = hiddenPresentation ?? PortfolioPresentation(coordinator.update)
+        let presentation = PortfolioPresentation(coordinator.update)
 
         // One container, so the lifecycle modifiers below run once instead of once for each presentation.
         ZStack {
@@ -91,8 +83,6 @@ struct PortfolioScene: View {
             selection = nil
             preferredColumn = .sidebar
         }
-        .onAppear { hiddenPresentation = nil }
-        .onDisappear { hiddenPresentation = presentation }
     }
 
     /// Opens the add-token sheet; an added token closes it and appears with the next balances.

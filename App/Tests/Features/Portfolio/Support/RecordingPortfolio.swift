@@ -1,6 +1,5 @@
 import Observation
 import Portfolio
-import RPC
 import Transactions
 @testable import widgets
 
@@ -9,7 +8,6 @@ import Transactions
 @MainActor
 @Observable
 final class RecordingPortfolio: PortfolioCoordinating {
-    let network: Network
     var holdings: [Holding] = []
     var preview: TokenPreview?
     var lookupError: (any Error)?
@@ -36,9 +34,7 @@ final class RecordingPortfolio: PortfolioCoordinating {
     private(set) var isObserving = false
 
     /// Starts with no tokens, previews, observations, or failures.
-    /// - Parameter network: The network whose holdings the portfolio stands in for.
-    init(network: Network = .mainnet) {
-        self.network = network
+    init() {
         (heldLookups, heldLookup) = AsyncStream<Void>.makeStream()
         (heldRemovals, heldRemoval) = AsyncStream<Void>.makeStream()
     }

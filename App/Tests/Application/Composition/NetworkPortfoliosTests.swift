@@ -10,8 +10,7 @@ import Testing
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct NetworkPortfoliosTests {
-    /// Only mainnet's service exists until a window shows devnet; devnet's service is then created once, and every
-    /// window's coordinator reports its own network.
+    /// Only mainnet's service exists until a window shows devnet; devnet's service is then created once.
     @Test
     func `Devnet's service is created for its first window and then reused`() {
         var made: [Network] = []
@@ -22,13 +21,12 @@ struct NetworkPortfoliosTests {
         #expect(made == [.mainnet])
         #expect(portfolios.created.count == 1)
 
-        let first = portfolios.makeCoordinator(for: .devnet)
-        let second = portfolios.makeCoordinator(for: .devnet)
-        let mainnet = portfolios.makeCoordinator(for: .mainnet)
+        _ = portfolios.makeCoordinator(for: .devnet)
+        _ = portfolios.makeCoordinator(for: .devnet)
+        _ = portfolios.makeCoordinator(for: .mainnet)
 
         #expect(made == [.mainnet, .devnet])
         #expect(portfolios.created.count == 2)
-        #expect([first.network, second.network, mainnet.network] == [.devnet, .devnet, .mainnet])
     }
 
     /// Mainnet's service gets the price provider, which quotes mainnet; devnet's service gets none.
@@ -69,7 +67,6 @@ struct NetworkPortfoliosTests {
             if update?.isRefreshing == false, update?.snapshot != nil { break }
         }
 
-        #expect(coordinator.network == .devnet)
         #expect(coordinator.update?.snapshot?.network == .devnet)
         #expect(coordinator.holdings.map(\.symbol) == ["SOL"])
         #expect(coordinator.holdings.allSatisfy { $0.valuation == nil })

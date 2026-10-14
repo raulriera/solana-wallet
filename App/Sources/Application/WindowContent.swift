@@ -1,8 +1,10 @@
 import RPC
 import SwiftUI
 
-/// Shows a window's root destination and runs the window's startup, reset, and network lifecycles.
+/// Shows a window's root destination, keeps the section it shows, runs the window's startup and reset lifecycles, and
+/// gives the window a new portfolio when its network changes.
 struct WindowContent: View {
+    @SceneStorage("window.section") private var section = WalletSection.portfolio
     @State private var startupAttempt = 0
     @Bindable var window: WindowModel
     /// The network that the window shows, kept with the window's scene state.
@@ -21,16 +23,17 @@ struct WindowContent: View {
                                 pasteboard: services.recoveryPasteboard)
                     .onboardingLifecycle()
             case .wallet(let account):
-                WalletScene(network: $network, account: account, portfolio: window.portfolio.coordinator,
-                            tokenRemoval: window.portfolio.tokenRemoval, settings: window.settings,
-                            connection: services.providerConnection, security: window.security,
-                            providers: window.providers, resetRevision: services.resetRevision)
+                WalletScene(section: $section, network: $network, account: account,
+                            portfolio: window.portfolio, tokenRemoval: window.tokenRemoval,
+                            settings: window.settings, connection: services.providerConnection,
+                            security: window.security, providers: window.providers)
             }
         }
         .animation(.default, value: window.router.destination)
-        .windowRestoration(window.startup, router: window.router, attempt: startupAttempt)
+        .windowRestoration(window.startup, router: window.router, attempt: startupAttempt, network: $network,
+                           section: $section)
         .windowReset(services, router: window.router, onboarding: $window.onboarding, security: window.security,
                      providers: window.providers)
-        .windowNetwork($network, portfolio: window.portfolio, resetRevision: services.resetRevision)
+        .onChange(of: network) { window.show(network) }
     }
 }

@@ -3,9 +3,10 @@ import SwiftUI
 
 /// Owns a wallet window's sections behind a tab bar that always stays; each section owns its navigation.
 ///
-/// The window reopens the section it showed when the system ended the app.
+/// The window keeps the section with its scene state, so it reopens the section it showed when the system ended the app.
 struct WalletScene: View {
-    @SceneStorage("wallet.section") private var section = WalletSection.portfolio
+    /// The section that the window shows.
+    @Binding var section: WalletSection
     /// The network that the window shows, which Settings changes.
     @Binding var network: Network
     let account: Account
@@ -15,7 +16,6 @@ struct WalletScene: View {
     let connection: any ProviderConnecting<ProviderConnectionError>
     let security: SecurityCoordinator
     let providers: ProvidersCoordinator
-    let resetRevision: Revision
 
     var body: some View {
         TabView(selection: $section) {
@@ -31,8 +31,6 @@ struct WalletScene: View {
         }
         .tabViewStyle(.tabBarOnly)
         .portfolioObservation(of: account, coordinator: portfolio, providerRevision: providers.revision)
-        // A reset deletes this wallet, so the next wallet opens on its portfolio.
-        .onChange(of: resetRevision.value) { section = .portfolio }
         // Settings work belongs to the window, so switching tabs keeps an import or a saved choice going.
         .onDisappear { settings.cancel() }
     }

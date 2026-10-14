@@ -1,7 +1,6 @@
 import Foundation
 import Observation
 import Portfolio
-import RPC
 import Transactions
 
 /// Owns one presentation's portfolio work and publishes state on the main actor.
@@ -11,8 +10,6 @@ import Transactions
 @MainActor
 @Observable
 final class PortfolioCoordinator: PortfolioCoordinating {
-    let network: Network
-
     private(set) var update: Update? {
         didSet {
             // Sort once per new snapshot, not for every phase change or view update.
@@ -34,12 +31,9 @@ final class PortfolioCoordinator: PortfolioCoordinating {
     @ObservationIgnored private var refreshID: UUID?
     @ObservationIgnored private var reloading: Task<Void, Never>?
 
-    /// Creates presentation coordination around one network's interchangeable portfolio service.
-    /// - Parameters:
-    ///   - network: The network whose holdings to show.
-    ///   - service: The portfolio and token-list provider for that network.
-    init(network: Network, service: any PortfolioProviding & TokenListProviding) {
-        self.network = network
+    /// Creates presentation coordination around an interchangeable portfolio service.
+    /// - Parameter service: The portfolio and token-list provider for one configured network.
+    init(service: any PortfolioProviding & TokenListProviding) {
         self.service = service
     }
 
