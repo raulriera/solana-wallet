@@ -242,7 +242,8 @@ struct PortfolioCoordinatorTests {
         let first = Task { await coordinator.observe(for: "wallet-a", isActive: true) }
         defer { first.cancel() }
         let old = try #require(await requests.next())
-        old.continuation.yield(Update(snapshot: snapshot(owner: "wallet-a", revision: 99), phase: .ready, revision: 12))
+        // Newer than the current session's update, so only the session's end can keep it out.
+        old.continuation.yield(Update(snapshot: snapshot(owner: "wallet-a", revision: 99), phase: .ready, revision: 14))
 
         let second = Task { await coordinator.observe(for: "wallet-a", isActive: true) }
         defer { second.cancel() }
@@ -459,16 +460,12 @@ struct PortfolioCoordinatorTests {
     ///   - expected: The snapshot that must reach presentation state.
     ///   - coordinator: The presentation under test.
     private func waitForSnapshot(_ expected: Snapshot, in coordinator: PortfolioCoordinator) async {
-        for await snapshot in Observations({ coordinator.update?.snapshot }) {
-            if snapshot == expected { return }
-        }
+        for await snapshot in Observations({ coordinator.update?.snapshot }) where snapshot == expected { return }
     }
 
     /// Awaits observable progress before exercising cancellation.
     /// - Parameter coordinator: The presentation under test.
     private func waitForProgress(in coordinator: PortfolioCoordinator) async {
-        for await refreshing in Observations({ coordinator.update?.isRefreshing == true }) {
-            if refreshing { return }
-        }
+        for await refreshing in Observations({ coordinator.update?.isRefreshing == true }) where refreshing { return }
     }
 }
