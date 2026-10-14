@@ -20,10 +20,9 @@ struct SettingsSidebar: View {
                 Label("Security & Privacy", systemImage: "hand.raised.fill")
             }
         }
-        .labelStyle(.titleAndIcon)
+        .labelStyle(.sidebar)
         // Symbols differ in width, so a shared icon column keeps the titles aligned.
         .labelReservedIconWidth(iconWidth)
-        .symbolRenderingMode(.multicolor)
         .listStyle(.sidebar)
         .navigationTitle("Settings")
     }
