@@ -35,7 +35,7 @@ let unsigned = try assembler.simulationTransaction(for: message)
 
 ## Composition and validation
 
-- `Instruction` carries a program address, ordered account permissions, and opaque data. `SystemProgram.transfer`, `MemoProgram.memo`, and `TokenTransfer.instructions(payer:)` produce the same composable values.
+- `Instruction` carries a program address, ordered account permissions, and opaque data. `SystemProgram.transfer`, `MemoProgram.memo`, and `TokenTransfer.instructions()` produce the same composable values.
 - The compiler merges permissions, preserves instruction order and repeated arguments, and supports separate fee payers and authorities. Oversized compositions throw rather than splitting into multiple transactions.
 - [`Configuration`](Sources/Message/Configuration.swift) specifies total priority-fee lamports, compute units, loaded-account bytes, and optional heap size. Limits are validated without clamping.
 - Only V1 envelopes are supported, bounded to 4,096 bytes, 64 accounts, 64 instructions, and 12 signatures.
