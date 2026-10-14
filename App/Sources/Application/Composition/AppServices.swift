@@ -14,7 +14,7 @@ struct AppServices {
     let providerKey: any ValueStoring<String>
     let providerConnection: any ProviderConnecting<ProviderConnectionError>
     let providerRevision = Revision()
-    let portfolio: any PortfolioProviding & TokenListProviding
+    let portfolios: NetworkPortfolios
     let providerSelection: any ProviderSelecting
     let customRPCConnection: any ProviderConnecting<CustomRPCError>
     // One sampler for every window shares its remembered logo colors.
@@ -44,12 +44,13 @@ struct AppServices {
         let providerSettings = KeychainItem(service: providerService, account: "settings", coding: .json(ProviderSettings.self))
         self.providerKey = providerKey
         providerConnection = HeliusConnection(providerKey: providerKey, revision: providerRevision)
-        // One service for every window shares its cache, subscriptions, and price pacing.
-        let portfolio = Portfolio(rpc: ProviderClient(network: .mainnet, settings: providerSettings, providerKey: providerKey),
-                                  prices: Jupiter())
-        self.portfolio = portfolio
+        let portfolios = NetworkPortfolios(prices: Jupiter()) { network, prices in
+            Portfolio(rpc: ProviderClient(network: network, settings: providerSettings, providerKey: providerKey),
+                      prices: prices)
+        }
+        self.portfolios = portfolios
         let providerSelection = ProviderSelection(settings: providerSettings, providerKey: providerKey,
-                                                  portfolio: portfolio, revision: providerRevision)
+                                                  portfolios: { portfolios.created }, revision: providerRevision)
         self.providerSelection = providerSelection
         customRPCConnection = CustomRPCConnection(providers: providerSelection)
         recoveryPasteboard = RecoveryPasteboard()
@@ -76,10 +77,12 @@ struct AppServices {
         WindowStartup(accounts: accounts, cleanup: recoveryCleanup, router: router)
     }
 
-    /// Creates independent portfolio presentation around the shared portfolio service.
-    /// - Returns: A coordinator whose observation and refreshes belong to one window.
-    func makePortfolioCoordinator() -> any PortfolioCoordinating {
-        PortfolioCoordinator(service: portfolio)
+    /// Creates independent portfolio presentation around a network's shared portfolio service.
+    /// - Parameter network: The network that the window shows. Mainnet's service exists from launch; another
+    ///   network's service is created when a window first shows that network.
+    /// - Returns: A coordinator for that network, whose observation and refreshes belong to one window.
+    func makePortfolioCoordinator(for network: Network) -> any PortfolioCoordinating {
+        portfolios.makeCoordinator(for: network)
     }
 
     /// Assembles a fresh onboarding workflow around the app's shared services.

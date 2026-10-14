@@ -17,7 +17,7 @@ struct PortfolioCoordinatorTests {
     @Test
     func `Clock rollback still displays the next complete 500-token portfolio`() async throws {
         let service = PortfolioResponses()
-        let coordinator = PortfolioCoordinator(service: service)
+        let coordinator = PortfolioCoordinator(network: .devnet, service: service)
         var requests = service.requests.makeAsyncIterator()
         let viewing = Task { await coordinator.observe(for: "wallet-a", isActive: true) }
         defer { viewing.cancel() }
@@ -44,7 +44,7 @@ struct PortfolioCoordinatorTests {
     @Test(arguments: [false, true])
     func `Delayed ready state cannot clear a newer refresh error`(hasNewHoldings: Bool) async throws {
         let service = PortfolioResponses()
-        let coordinator = PortfolioCoordinator(service: service)
+        let coordinator = PortfolioCoordinator(network: .devnet, service: service)
         var requests = service.requests.makeAsyncIterator()
         let viewing = Task { await coordinator.observe(for: "wallet-a", isActive: true) }
         defer { viewing.cancel() }
@@ -91,7 +91,7 @@ struct PortfolioCoordinatorTests {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
         let service = filePortfolio(in: directory)
-        let coordinator = PortfolioCoordinator(service: service)
+        let coordinator = PortfolioCoordinator(network: .mainnet, service: service)
         let bonk = ListedToken(mint: try Address(Self.bonk), program: .token, decimals: 5, symbol: "Bonk", name: "Bonk")
 
         await coordinator.observe(for: PublicWallet.address, isActive: false)
@@ -107,7 +107,7 @@ struct PortfolioCoordinatorTests {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
         let service = filePortfolio(in: directory)
-        let coordinator = PortfolioCoordinator(service: service)
+        let coordinator = PortfolioCoordinator(network: .mainnet, service: service)
 
         await coordinator.observe(for: PublicWallet.address, isActive: false)
         try await coordinator.remove(Address(DefaultToken.usdt.rawValue))
@@ -119,7 +119,7 @@ struct PortfolioCoordinatorTests {
     @Test(arguments: [false, true])
     func `Inactive and unselected portfolios do not request data`(isActive: Bool) async {
         let service = PortfolioResponses()
-        let coordinator: any PortfolioCoordinating = PortfolioCoordinator(service: service)
+        let coordinator: any PortfolioCoordinating = PortfolioCoordinator(network: .devnet, service: service)
         await coordinator.observe(for: isActive ? nil : "wallet-a", isActive: isActive)
         await coordinator.refresh()
         #expect(coordinator.update == nil)
@@ -130,7 +130,7 @@ struct PortfolioCoordinatorTests {
     @Test
     func `Background stops work and foreground reopens the selected wallet`() async throws {
         let service = PortfolioResponses()
-        let coordinator = PortfolioCoordinator(service: service)
+        let coordinator = PortfolioCoordinator(network: .devnet, service: service)
         var requests = service.requests.makeAsyncIterator()
         let viewing = Task { await coordinator.observe(for: "wallet-a", isActive: true) }
         defer { viewing.cancel() }
@@ -174,7 +174,7 @@ struct PortfolioCoordinatorTests {
     @Test
     func `Switching wallets clears displayed data and cancels old work`() async throws {
         let service = PortfolioResponses()
-        let coordinator = PortfolioCoordinator(service: service)
+        let coordinator = PortfolioCoordinator(network: .devnet, service: service)
         var requests = service.requests.makeAsyncIterator()
         let first = Task { await coordinator.observe(for: "wallet-a", isActive: true) }
         defer { first.cancel() }
@@ -211,7 +211,7 @@ struct PortfolioCoordinatorTests {
     @Test
     func `Holdings follow the latest snapshot in display order`() async throws {
         let service = PortfolioResponses()
-        let coordinator = PortfolioCoordinator(service: service)
+        let coordinator = PortfolioCoordinator(network: .devnet, service: service)
         var requests = service.requests.makeAsyncIterator()
         let viewing = Task { await coordinator.observe(for: "wallet-a", isActive: true) }
         defer { viewing.cancel() }
@@ -237,7 +237,7 @@ struct PortfolioCoordinatorTests {
     func `Late registration from a cancelled session cannot publish`() async throws {
         let gate = PortfolioResponses.Registration()
         let service = PortfolioResponses(registration: gate)
-        let coordinator = PortfolioCoordinator(service: service)
+        let coordinator = PortfolioCoordinator(network: .devnet, service: service)
         var requests = service.requests.makeAsyncIterator()
         let first = Task { await coordinator.observe(for: "wallet-a", isActive: true) }
         defer { first.cancel() }
@@ -261,7 +261,7 @@ struct PortfolioCoordinatorTests {
     @Test
     func `View cancellation releases observation and presentation state`() async throws {
         let service = PortfolioResponses()
-        var coordinator: PortfolioCoordinator? = PortfolioCoordinator(service: service)
+        var coordinator: PortfolioCoordinator? = PortfolioCoordinator(network: .devnet, service: service)
         weak let released = coordinator
         var requests = service.requests.makeAsyncIterator()
         var viewing: Task<Void, Never>? = Task { [coordinator] in
@@ -280,7 +280,7 @@ struct PortfolioCoordinatorTests {
     @Test
     func `Pull to refresh forces a reload and preserves observation`() async throws {
         let service = PortfolioResponses()
-        let coordinator = PortfolioCoordinator(service: service)
+        let coordinator = PortfolioCoordinator(network: .devnet, service: service)
         var requests = service.requests.makeAsyncIterator()
         let viewing = Task { await coordinator.observe(for: "wallet-a", isActive: true) }
         defer { viewing.cancel() }
@@ -308,7 +308,7 @@ struct PortfolioCoordinatorTests {
     @Test
     func `Cancelling pull to refresh leaves observation active`() async throws {
         let service = PortfolioResponses()
-        let coordinator = PortfolioCoordinator(service: service)
+        let coordinator = PortfolioCoordinator(network: .devnet, service: service)
         var requests = service.requests.makeAsyncIterator()
         let viewing = Task { await coordinator.observe(for: "wallet-a", isActive: true) }
         defer { viewing.cancel() }
@@ -333,7 +333,7 @@ struct PortfolioCoordinatorTests {
     @Test
     func `Overlapping manual refreshes share one request`() async throws {
         let service = PortfolioResponses()
-        let coordinator = PortfolioCoordinator(service: service)
+        let coordinator = PortfolioCoordinator(network: .devnet, service: service)
         var requests = service.requests.makeAsyncIterator()
         let viewing = Task { await coordinator.observe(for: "wallet-a", isActive: true) }
         defer { viewing.cancel() }
@@ -371,7 +371,7 @@ struct PortfolioCoordinatorTests {
     @Test
     func `Subscription failure preserves data and allows manual refresh`() async throws {
         let service = PortfolioResponses()
-        let coordinator = PortfolioCoordinator(service: service)
+        let coordinator = PortfolioCoordinator(network: .devnet, service: service)
         var requests = service.requests.makeAsyncIterator()
         let viewing = Task { await coordinator.observe(for: "wallet-a", isActive: true) }
         defer { viewing.cancel() }
@@ -402,7 +402,7 @@ struct PortfolioCoordinatorTests {
     @Test
     func `Late refresh errors retain the newest observed holdings`() async throws {
         let service = PortfolioResponses()
-        let coordinator = PortfolioCoordinator(service: service)
+        let coordinator = PortfolioCoordinator(network: .devnet, service: service)
         var requests = service.requests.makeAsyncIterator()
         let viewing = Task { await coordinator.observe(for: "wallet-a", isActive: true) }
         defer { viewing.cancel() }

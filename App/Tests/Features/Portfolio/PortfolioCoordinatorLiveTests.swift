@@ -21,7 +21,7 @@ struct PortfolioCoordinatorLiveTests {
         defer { try? FileManager.default.removeItem(at: directory) }
         let service = Portfolio(rpc: rpc, store: FileSnapshotStore(directory: directory),
                                 tokenLists: FileTokenListStore(directory: directory.appendingPathComponent("TokenLists")))
-        let coordinator = PortfolioCoordinator(service: service)
+        let coordinator = PortfolioCoordinator(network: .mainnet, service: service)
         let reloaded = try await withThrowingTaskGroup(of: Void.self) { group in
             group.addTask { await coordinator.observe(for: owner, isActive: true) }
             defer { group.cancelAll() }

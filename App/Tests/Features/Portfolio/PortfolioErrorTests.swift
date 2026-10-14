@@ -65,7 +65,8 @@ struct PortfolioErrorTests {
         let client = HTTPResponses.keyCheck().providerClient(network: network,
                                                               settings: StoredValue(ProviderSettings(selection: provider)),
                                                               providerKey: StoredValue<String>())
-        let coordinator = PortfolioCoordinator(service: Portfolio(rpc: client, store: FileSnapshotStore(directory: directory)))
+        let coordinator = PortfolioCoordinator(network: network,
+                                               service: Portfolio(rpc: client, store: FileSnapshotStore(directory: directory)))
         let viewing = Task { await coordinator.observe(for: PublicWallet.address, isActive: true) }
         defer { viewing.cancel() }
 

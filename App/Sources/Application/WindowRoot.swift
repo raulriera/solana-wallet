@@ -1,3 +1,4 @@
+import RPC
 import SwiftUI
 
 /// Owns one window's feature state and applies its appearance lifecycle.
@@ -21,7 +22,7 @@ struct WindowRoot: View {
         self.router = router
         self.onboarding = services.makeOnboardingCoordinator(router: router)
         self.startup = services.makeWindowStartup(router: router)
-        let portfolio = services.makePortfolioCoordinator()
+        let portfolio = services.makePortfolioCoordinator(for: .mainnet)
         self.portfolio = portfolio
         self.tokenRemoval = TokenRemovalModel(coordinator: portfolio)
         self.settings = services.makeAppearanceSettingsModel()

@@ -1,4 +1,5 @@
 import Foundation
+@testable import RPC
 import Testing
 @testable import widgets
 
@@ -15,7 +16,8 @@ struct ProviderSelectionTests {
         let gate = Suspension()
         let portfolio = ProviderChanges(gate: gate)
         let revision = Revision()
-        let selection = ProviderSelection(settings: settings, providerKey: StoredValue(), portfolio: portfolio, revision: revision)
+        let selection = ProviderSelection(settings: settings, providerKey: StoredValue(),
+                                          portfolios: { [portfolio] }, revision: revision)
 
         let selecting = Task { try await selection.select(.solana) }
         await gate.waitUntilStarted()
@@ -28,6 +30,48 @@ struct ProviderSelectionTests {
         #expect(revision.value == 1)
     }
 
+    /// A new provider ends mainnet's work and creates no devnet portfolio while no window has shown devnet.
+    /// - Throws: A selection failure.
+    @Test
+    func `A new provider ends mainnet's work without creating devnet's portfolio`() async throws {
+        var made: [Network: ProviderChanges] = [:]
+        let portfolios = NetworkPortfolios(prices: Jupiter(transport: HTTPResponses([:]))) { network, _ in
+            let portfolio = ProviderChanges()
+            made[network] = portfolio
+            return portfolio
+        }
+        let selection = ProviderSelection(settings: StoredValue(ProviderSettings(selection: .helius)),
+                                          providerKey: StoredValue(), portfolios: { portfolios.created },
+                                          revision: Revision())
+
+        try await selection.select(.solana)
+
+        #expect(Set(made.keys) == [.mainnet])
+        #expect(await made[.mainnet]?.count == 1)
+    }
+
+    /// A new provider also ends devnet's work once a window has shown devnet.
+    /// - Throws: A selection failure.
+    @Test
+    func `A new provider ends devnet's work once a window has shown devnet`() async throws {
+        var made: [Network: ProviderChanges] = [:]
+        let portfolios = NetworkPortfolios(prices: Jupiter(transport: HTTPResponses([:]))) { network, _ in
+            let portfolio = ProviderChanges()
+            made[network] = portfolio
+            return portfolio
+        }
+        let selection = ProviderSelection(settings: StoredValue(ProviderSettings(selection: .helius)),
+                                          providerKey: StoredValue(), portfolios: { portfolios.created },
+                                          revision: Revision())
+        _ = portfolios.makeCoordinator(for: .devnet)
+
+        try await selection.select(.solana)
+
+        #expect(Set(made.keys) == [.mainnet, .devnet])
+        #expect(await made[.mainnet]?.count == 1)
+        #expect(await made[.devnet]?.count == 1)
+    }
+
     /// Choosing the provider in use, Solana's public RPC before anything is saved, saves nothing, keeps the portfolio's
     /// work, and doesn't restart windows.
     /// - Throws: A selection failure.
@@ -37,7 +81,8 @@ struct ProviderSelectionTests {
         let portfolio = ProviderChanges()
         let revision = Revision()
 
-        try await ProviderSelection(settings: settings, providerKey: StoredValue(), portfolio: portfolio, revision: revision)
+        try await ProviderSelection(settings: settings, providerKey: StoredValue(),
+                                    portfolios: { [portfolio] }, revision: revision)
             .select(.solana)
 
         #expect(await settings.value == nil)
@@ -54,7 +99,8 @@ struct ProviderSelectionTests {
         let revision = Revision()
 
         await #expect(throws: ProviderClientError.missingKey) {
-            try await ProviderSelection(settings: settings, providerKey: StoredValue(), portfolio: portfolio, revision: revision)
+            try await ProviderSelection(settings: settings, providerKey: StoredValue(),
+                                        portfolios: { [portfolio] }, revision: revision)
                 .select(.helius)
         }
 
@@ -67,8 +113,8 @@ struct ProviderSelectionTests {
     @Test
     func `A cancelled choice of Helius isn't reported as a missing key`() async {
         let settings = StoredValue(ProviderSettings(selection: .solana))
-        let selection = ProviderSelection(settings: settings, providerKey: StoredValue(), portfolio: ProviderChanges(),
-                                          revision: Revision())
+        let selection = ProviderSelection(settings: settings, providerKey: StoredValue(),
+                                          portfolios: { [ProviderChanges()] }, revision: Revision())
 
         let selecting = Task { try await selection.select(.helius) }
         selecting.cancel()
@@ -85,8 +131,8 @@ struct ProviderSelectionTests {
         let portfolio = ProviderChanges()
         let revision = Revision()
 
-        try await ProviderSelection(settings: settings, providerKey: StoredValue("fixture-key"), portfolio: portfolio,
-                                    revision: revision).select(.helius)
+        try await ProviderSelection(settings: settings, providerKey: StoredValue("fixture-key"),
+                                    portfolios: { [portfolio] }, revision: revision).select(.helius)
 
         #expect(await settings.value?.selection == .helius)
         #expect(await portfolio.count == 1)
@@ -100,7 +146,8 @@ struct ProviderSelectionTests {
         let custom = try #require(URL(string: "https://rpc.example.com/fixture-token"))
         let settings = StoredValue(ProviderSettings(selection: .helius, customRPCs: [custom]))
 
-        try await ProviderSelection(settings: settings, providerKey: StoredValue(), portfolio: ProviderChanges(), revision: Revision())
+        try await ProviderSelection(settings: settings, providerKey: StoredValue(),
+                                    portfolios: { [ProviderChanges()] }, revision: Revision())
             .select(.solana)
 
         #expect(await settings.value == ProviderSettings(selection: .solana, customRPCs: [custom]))
@@ -115,7 +162,8 @@ struct ProviderSelectionTests {
         let revision = Revision()
 
         await #expect(throws: CocoaError.self) {
-            try await ProviderSelection(settings: settings, providerKey: StoredValue(), portfolio: portfolio, revision: revision)
+            try await ProviderSelection(settings: settings, providerKey: StoredValue(),
+                                        portfolios: { [portfolio] }, revision: revision)
                 .select(.solana)
         }
 
@@ -124,18 +172,22 @@ struct ProviderSelectionTests {
         #expect(revision.value == 0)
     }
 
-    /// Saved logos that can't be removed don't undo a saved change, and windows still observe again.
+    /// Saved logos that one portfolio can't remove don't undo a saved change or keep another portfolio from ending its
+    /// work, and windows still observe again.
     /// - Throws: A selection failure.
     @Test
     func `A change applies when saved logos can't be removed`() async throws {
         let settings = StoredValue(ProviderSettings(selection: .helius))
         let revision = Revision()
+        let failing = ProviderChanges(error: CocoaError(.fileWriteOutOfSpace))
+        let other = ProviderChanges()
         let selection = ProviderSelection(settings: settings, providerKey: StoredValue(),
-                                          portfolio: ProviderChanges(error: CocoaError(.fileWriteOutOfSpace)), revision: revision)
+                                          portfolios: { [failing, other] }, revision: revision)
 
         try await selection.select(.solana)
 
         #expect(await settings.value?.selection == .solana)
+        #expect(await other.count == 1)
         #expect(revision.value == 1)
     }
 
@@ -149,7 +201,8 @@ struct ProviderSelectionTests {
         let portfolio = ProviderChanges()
         let revision = Revision()
 
-        try await ProviderSelection(settings: settings, providerKey: StoredValue(), portfolio: portfolio, revision: revision)
+        try await ProviderSelection(settings: settings, providerKey: StoredValue(),
+                                    portfolios: { [portfolio] }, revision: revision)
             .add(custom)
 
         #expect(await settings.value == ProviderSettings(selection: .custom(custom), customRPCs: [listed, custom]))
@@ -167,7 +220,8 @@ struct ProviderSelectionTests {
         let portfolio = ProviderChanges()
         let revision = Revision()
 
-        try await ProviderSelection(settings: settings, providerKey: StoredValue(), portfolio: portfolio, revision: revision)
+        try await ProviderSelection(settings: settings, providerKey: StoredValue(),
+                                    portfolios: { [portfolio] }, revision: revision)
             .add(custom)
 
         #expect(await settings.value == saved)
@@ -185,7 +239,8 @@ struct ProviderSelectionTests {
         let portfolio = ProviderChanges()
         let revision = Revision()
 
-        try await ProviderSelection(settings: settings, providerKey: StoredValue(), portfolio: portfolio, revision: revision)
+        try await ProviderSelection(settings: settings, providerKey: StoredValue(),
+                                    portfolios: { [portfolio] }, revision: revision)
             .remove(deleted)
 
         #expect(await settings.value == ProviderSettings(selection: .solana, customRPCs: [kept]))
@@ -203,7 +258,8 @@ struct ProviderSelectionTests {
         let portfolio = ProviderChanges()
         let revision = Revision()
 
-        try await ProviderSelection(settings: settings, providerKey: StoredValue(), portfolio: portfolio, revision: revision)
+        try await ProviderSelection(settings: settings, providerKey: StoredValue(),
+                                    portfolios: { [portfolio] }, revision: revision)
             .remove(deleted)
 
         #expect(await settings.value == ProviderSettings(selection: .custom(kept), customRPCs: [kept]))
@@ -220,7 +276,8 @@ struct ProviderSelectionTests {
         let portfolio = ProviderChanges()
         let revision = Revision()
 
-        try await ProviderSelection(settings: settings, providerKey: StoredValue(), portfolio: portfolio, revision: revision)
+        try await ProviderSelection(settings: settings, providerKey: StoredValue(),
+                                    portfolios: { [portfolio] }, revision: revision)
             .remove(unlisted)
 
         #expect(await settings.value == nil)

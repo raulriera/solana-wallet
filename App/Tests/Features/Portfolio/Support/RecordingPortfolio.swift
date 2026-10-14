@@ -1,5 +1,6 @@
 import Observation
 import Portfolio
+import RPC
 import Transactions
 @testable import widgets
 
@@ -34,6 +35,7 @@ final class RecordingPortfolio: PortfolioCoordinating {
         (heldRemovals, heldRemoval) = AsyncStream<Void>.makeStream()
     }
 
+    var network: Network { .mainnet }
     var update: Update? { nil }
     var error: PortfolioError? { nil }
 

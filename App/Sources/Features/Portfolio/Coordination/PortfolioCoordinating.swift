@@ -1,10 +1,13 @@
 import Observation
 import Portfolio
+import RPC
 import Transactions
 
 /// The portfolio presentation's lifetime and explicit refresh boundary.
 @MainActor
 protocol PortfolioCoordinating: AnyObject, Observable {
+    /// The network whose holdings the coordinator shows.
+    var network: Network { get }
     /// The selected wallet's latest state, or `nil` before any data is available.
     var update: Update? { get }
     /// The latest snapshot's holdings in display order, or none without a snapshot.
