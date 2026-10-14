@@ -12,23 +12,15 @@ struct ThemeChoiceRow: View {
 
     var body: some View {
         Button(action: select) {
-            HStack {
-                if let name {
-                    Text(name)
-                } else {
-                    Text("Use App Default")
-                }
-                Spacer()
-                if isSelected {
-                    Image(systemName: "checkmark").foregroundStyle(palette.accent).accessibilityHidden(true)
-                }
+            if let name {
+                Text(name)
+            } else {
+                Text("Use App Default")
             }
-            .foregroundStyle(palette.primaryText)
-            .contentShape(.rect)
         }
+        .buttonStyle(.choice(isSelected: isSelected))
         .listRowBackground(palette.surface)
         .listRowSeparatorTint(palette.separator)
-        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 
     /// Sends the choice through its window's workflow, preserving Original wallet overrides.

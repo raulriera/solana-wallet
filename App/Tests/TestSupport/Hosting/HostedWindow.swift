@@ -6,7 +6,7 @@ import UIKit
 @MainActor
 final class HostedWindow<Content: View> {
     /// The controller hosting the view under test; a test can replace its root view.
-    let host: UIHostingController<Content>
+    let host: Host
     private let window: UIWindow
     private let previousKeyWindow: UIWindow?
 
@@ -18,9 +18,17 @@ final class HostedWindow<Content: View> {
             .first { $0.activationState == .foregroundActive })
         previousKeyWindow = scene.windows.first(where: \.isKeyWindow)
         window = UIWindow(windowScene: scene)
-        host = UIHostingController(rootView: content)
+        host = Host(rootView: content)
         window.rootViewController = host
         window.makeKeyAndVisible()
+    }
+
+    /// Waits for UIKit to finish showing the hosted view, so closing the window can't interrupt its appearance.
+    /// - Parameter limit: How long to wait before giving up.
+    /// - Returns: Whether the hosted view appeared in time.
+    /// - Throws: `CancellationError` when the test is cancelled while waiting.
+    func appears(within limit: Duration = .seconds(5)) async throws -> Bool {
+        try await waits(within: limit) { host.hasAppeared }
     }
 
     /// Waits for the hosted view to present a view controller, such as a system dialog.
@@ -39,10 +47,10 @@ final class HostedWindow<Content: View> {
         try await waits(within: limit) { host.presentedViewController == nil }
     }
 
-    /// Checks UIKit's presentation state, which nothing observes, until it matches or the time runs out.
+    /// Checks UIKit's appearance or presentation state, which nothing observes, until it matches or the time runs out.
     /// - Parameters:
     ///   - limit: How long to wait before giving up.
-    ///   - condition: The presentation state to wait for.
+    ///   - condition: The state to wait for.
     /// - Returns: Whether the condition became true in time.
     /// - Throws: `CancellationError` when the test is cancelled while waiting.
     private func waits(within limit: Duration, until condition: () -> Bool) async throws -> Bool {
@@ -59,5 +67,18 @@ final class HostedWindow<Content: View> {
         window.isHidden = true
         window.rootViewController = nil
         previousKeyWindow?.makeKey()
+    }
+
+    /// Hosts the view under test and records when UIKit finishes showing it, which nothing observes.
+    final class Host: UIHostingController<Content> {
+        /// Whether UIKit finished the host's appearance transition.
+        private(set) var hasAppeared = false
+
+        /// Records that UIKit finished showing the hosted view.
+        /// - Parameter animated: Whether the appearance was animated.
+        override func viewDidAppear(_ animated: Bool) {
+            super.viewDidAppear(animated)
+            hasAppeared = true
+        }
     }
 }

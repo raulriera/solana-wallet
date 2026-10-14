@@ -1,3 +1,4 @@
+import RPC
 import SwiftUI
 
 /// Owns a wallet window's sections behind a tab bar that always stays; each section owns its navigation.
@@ -5,6 +6,8 @@ import SwiftUI
 /// The window reopens the section it showed when the system ended the app.
 struct WalletScene: View {
     @SceneStorage("wallet.section") private var section = WalletSection.portfolio
+    /// The network that the window shows, which Settings changes.
+    @Binding var network: Network
     let account: Account
     let portfolio: any PortfolioCoordinating
     let tokenRemoval: TokenRemovalModel
@@ -21,7 +24,8 @@ struct WalletScene: View {
                     .tokenRemovalLifecycle()
             }
             Tab("Settings", systemImage: "gearshape", value: .settings) {
-                SettingsScene(settings: settings, account: account, security: security, providers: providers)
+                SettingsScene(settings: settings, account: account, network: $network, security: security,
+                              providers: providers)
                     .settingsLifecycle()
             }
         }

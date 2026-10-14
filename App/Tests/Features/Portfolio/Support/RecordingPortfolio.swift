@@ -4,10 +4,12 @@ import RPC
 import Transactions
 @testable import widgets
 
-/// Answers lookups and records added and removed tokens in place of the window's portfolio, without any request.
+/// Answers lookups and records observations and added and removed tokens in place of the window's portfolio, without
+/// any request.
 @MainActor
 @Observable
 final class RecordingPortfolio: PortfolioCoordinating {
+    let network: Network
     var holdings: [Holding] = []
     var preview: TokenPreview?
     var lookupError: (any Error)?
@@ -28,22 +30,35 @@ final class RecordingPortfolio: PortfolioCoordinating {
     private(set) var lookups: [Address] = []
     private(set) var added: [ListedToken] = []
     private(set) var removed: [Address] = []
+    /// The wallets that active scenes observed, in order.
+    private(set) var observedOwners: [String?] = []
+    /// Whether an active scene's task is observing.
+    private(set) var isObserving = false
 
-    /// Starts with no tokens, previews, or failures.
-    init() {
+    /// Starts with no tokens, previews, observations, or failures.
+    /// - Parameter network: The network whose holdings the portfolio stands in for.
+    init(network: Network = .mainnet) {
+        self.network = network
         (heldLookups, heldLookup) = AsyncStream<Void>.makeStream()
         (heldRemovals, heldRemoval) = AsyncStream<Void>.makeStream()
     }
 
-    var network: Network { .mainnet }
     var update: Update? { nil }
     var error: PortfolioError? { nil }
 
-    /// Ignores observation, which token workflows never start.
+    /// Records an active scene's observation, which lasts until the view task is cancelled, as the window's
+    /// portfolio's does.
     /// - Parameters:
     ///   - owner: The selected wallet.
     ///   - isActive: Whether the scene is active.
-    func observe(for owner: String?, isActive: Bool) async {}
+    func observe(for owner: String?, isActive: Bool) async {
+        guard isActive else { return }
+        observedOwners.append(owner)
+        isObserving = true
+        // Nothing resumes the suspension, so observation ends only when the view task is cancelled.
+        await Suspension().suspend()
+        isObserving = false
+    }
 
     /// Ignores refreshes, which token workflows never start.
     func refresh() async {}

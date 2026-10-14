@@ -10,6 +10,9 @@ struct SettingsSidebar: View {
             NavigationLink(value: SettingsDestination.appearance) {
                 Label("Appearance", systemImage: "paintpalette.fill")
             }
+            NavigationLink(value: SettingsDestination.network) {
+                Label("Network", systemImage: "network")
+            }
             NavigationLink(value: SettingsDestination.providers) {
                 Label("Providers", systemImage: "point.3.filled.connected.trianglepath.dotted")
             }
