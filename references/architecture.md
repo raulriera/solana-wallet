@@ -28,7 +28,7 @@ Program helpers produce `Instruction` values; adding an operation must not intro
 
 ## Framework milestones
 
-The agreed wallet, transaction, and initial color-only Themes framework milestones are complete; the portfolio is being rebuilt around a manual token list. The deferred capabilities below remain separate milestones.
+The agreed wallet, transaction, portfolio, and initial color-only Themes framework milestones are complete. The deferred capabilities below remain separate milestones.
 
 | Framework | Status |
 | --- | --- |
@@ -38,4 +38,4 @@ The agreed wallet, transaction, and initial color-only Themes framework mileston
 | Transactions | Further capabilities are parked; current SOL and supported-token flows remain available. The goal is all Token-2022 extensions, reviewed and agreed individually before implementation. |
 | Wallet | Complete for local derivation and SOL-only discovery across twenty addresses in two path families, with one RPC lookup per scan; verified on devnet. See [Wallet](wallet.md). |
 | Vault | Implemented and tested, including real simulator Keychain checks. Keep the specific device-validation caveat in [Wallet](wallet.md) separate from framework test status. |
-| Portfolio | Being rebuilt around a manual token list for each account, read with standard RPC; DAS token discovery is being removed. NFTs and currency conversion remain deferred; see [Portfolio](portfolio.md). |
+| Portfolio | Complete for each account's manual token list, read with standard RPC; DAS only looks up logos. NFTs and currency conversion remain deferred; see [Portfolio](portfolio.md). |
