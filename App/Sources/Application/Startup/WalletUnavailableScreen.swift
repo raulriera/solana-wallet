@@ -9,6 +9,7 @@ struct WalletUnavailableScreen: View {
         ScrollView {
             ContentUnavailableView("Wallets Unavailable", systemImage: "exclamationmark.triangle",
                 description: Text("Your saved wallets could not be loaded. Please try again."))
+                .drawOnAppear()
                 .foregroundStyle(palette.primaryText)
                 .frame(maxWidth: LayoutMetrics.readableWidth)
         }

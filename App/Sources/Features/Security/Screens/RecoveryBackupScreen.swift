@@ -46,7 +46,9 @@ struct RecoveryBackupScreen: View {
                 }
             case .unavailable:
                 ContentUnavailableView {
+                    // Only the label's symbol draws on; the action's symbol stays still.
                     Label("Recovery Phrase Unavailable", systemImage: "key.slash")
+                        .drawOnAppear()
                 } description: {
                     Text("This device no longer has this wallet's recovery phrase. Reset the app and import your written backup.")
                 } actions: {

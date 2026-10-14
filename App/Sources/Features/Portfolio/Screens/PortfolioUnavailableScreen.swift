@@ -9,6 +9,7 @@ struct PortfolioUnavailableScreen: View {
     var body: some View {
         ScrollView {
             ContentUnavailableView(title, systemImage: systemImage, description: Text(message))
+                .drawOnAppear()
                 .foregroundStyle(palette.primaryText)
                 .frame(maxWidth: LayoutMetrics.readableWidth)
         }

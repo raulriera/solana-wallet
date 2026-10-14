@@ -64,6 +64,7 @@ struct PortfolioScene: View {
                     } else {
                         ContentUnavailableView("No Token Selected", systemImage: "wallet.bifold",
                                                description: Text("Select a token to see its balance and value."))
+                            .drawOnAppear()
                             .foregroundStyle(palette.primaryText)
                             .background(palette.background)
                     }

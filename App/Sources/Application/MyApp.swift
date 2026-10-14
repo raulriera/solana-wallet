@@ -16,6 +16,7 @@ import SwiftUI
                 case .failure:
                     ContentUnavailableView("Appearance Unavailable", systemImage: "exclamationmark.triangle",
                                            description: Text("The original theme could not be loaded."))
+                        .drawOnAppear()
                 }
             }
         }
