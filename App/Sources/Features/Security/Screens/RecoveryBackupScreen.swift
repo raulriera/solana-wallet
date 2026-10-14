@@ -44,22 +44,23 @@ struct RecoveryBackupScreen: View {
                     .listRowBackground(palette.surface)
                     .listRowSeparatorTint(palette.separator)
                 }
+                .scrollContentBackground(.hidden)
+                .readableContentWidth()
             case .unavailable:
-                ContentUnavailableView {
-                    // Only the label's symbol draws on; the action's symbol stays still.
-                    Label("Recovery Phrase Unavailable", systemImage: "key.slash")
+                ScrollView {
+                    ContentUnavailableView("Recovery Phrase Unavailable", systemImage: "key.slash",
+                        description: Text("This device no longer has this wallet's recovery phrase. Reset the app and import your written backup."))
                         .drawOnAppear()
-                } description: {
-                    Text("This device no longer has this wallet's recovery phrase. Reset the app and import your written backup.")
-                } actions: {
-                    Button("Reset App", systemImage: "trash", role: .destructive) { coordinator.startReset(.recoveryUnavailable) }
-                        .labelStyle(.warning)
+                        .foregroundStyle(palette.primaryText, palette.secondaryText)
+                        .frame(maxWidth: LayoutMetrics.readableWidth)
                 }
-                .foregroundStyle(palette.primaryText, palette.secondaryText)
+                .defaultScrollAnchor(.center, for: .alignment)
+                .pinnedAction {
+                    Button("Reset App", role: .destructive) { coordinator.startReset(.recoveryUnavailable) }
+                        .buttonStyle(.destructive)
+                }
             }
         }
-        .scrollContentBackground(.hidden)
-        .readableContentWidth()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(palette.background)
         .navigationTitle("Recovery Phrase")
