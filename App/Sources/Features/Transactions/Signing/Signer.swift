@@ -9,7 +9,7 @@ nonisolated struct Signer: TransactionSigning {
     private let validator: any PreparationValidating
     private let store: any RecoveryStoring
     private let wallet: any MessageSigning
-    private let transactionBuilder: any TransactionBuilding
+    private let transactionBuilder: any TransactionBuilding = TransactionBuilder()
 
     /// Creates a signer with protected recovery storage and protocol-based dependencies.
     ///
@@ -17,19 +17,10 @@ nonisolated struct Signer: TransactionSigning {
     ///   - rpc: The provider used to recheck the reviewed fee and original lifetime.
     ///   - store: The recovery store that authenticates access to the selected wallet.
     ///   - wallet: The account-bound message signer. The default is `Wallet`.
-    ///   - messageBuilder: The local encoder used to check the reviewed intent.
-    ///   - transactionBuilder: The assembler that verifies and fills the selected signature slot.
-    init(
-        rpc: any RPC,
-        store: any RecoveryStoring,
-        wallet: any MessageSigning = Wallet(),
-        messageBuilder: any MessageBuilding = MessageBuilder(),
-        transactionBuilder: any TransactionBuilding = TransactionBuilder()
-    ) {
-        validator = PreparationValidator(rpc: rpc, messageBuilder: messageBuilder, transactionBuilder: transactionBuilder)
+    init(rpc: any RPC, store: any RecoveryStoring, wallet: any MessageSigning = Wallet()) {
+        validator = PreparationValidator(rpc: rpc)
         self.store = store
         self.wallet = wallet
-        self.transactionBuilder = transactionBuilder
     }
 
     /// Validates the reviewed bytes before unlocking, then signs them without substitution.

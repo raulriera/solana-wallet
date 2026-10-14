@@ -3,14 +3,10 @@ public import Foundation
 
 /// A stateless assembler that preserves V1 messages and verifies supplied signatures.
 public struct TransactionBuilder: TransactionBuilding {
-    private let decoder: any TransactionDecoding
+    private let decoder: any TransactionDecoding = TransactionDecoder()
 
     /// Creates an assembler with a structural decoder and no wallet or network access.
-    ///
-    /// - Parameter decoder: The decoder used to inspect complete transaction envelopes.
-    public init(decoder: any TransactionDecoding = TransactionDecoder()) {
-        self.decoder = decoder
-    }
+    public init() {}
 
     /// Appends an empty slot for each required signer and validates the complete envelope.
     ///

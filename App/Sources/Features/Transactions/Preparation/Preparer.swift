@@ -5,8 +5,8 @@ import Transactions
 /// A stateless service that evaluates exact V1 bytes through an injected RPC provider.
 nonisolated struct Preparer: TransactionPreparing {
     private let rpc: any RPC
-    private let messageBuilder: any MessageBuilding
-    private let transactionBuilder: any TransactionBuilding
+    private let messageBuilder: any MessageBuilding = MessageBuilder()
+    private let transactionBuilder: any TransactionBuilding = TransactionBuilder()
     private let requirements: [SubmissionRequirements]
 
     /// Creates a service with a provider and local V1 encoders.
@@ -14,17 +14,8 @@ nonisolated struct Preparer: TransactionPreparing {
     /// - Parameters:
     ///   - rpc: The provider supplying the blockhash, fee, and simulation.
     ///   - rpcs: Submission clients whose same-network payment requirements must be reviewed.
-    ///   - messageBuilder: The unsigned message encoder. The default is `MessageBuilder`.
-    ///   - transactionBuilder: The simulation envelope encoder. The default is `TransactionBuilder`.
-    init(
-        rpc: any RPC,
-        rpcs: [any RPC]? = nil,
-        messageBuilder: any MessageBuilding = MessageBuilder(),
-        transactionBuilder: any TransactionBuilding = TransactionBuilder()
-    ) {
+    init(rpc: any RPC, rpcs: [any RPC]? = nil) {
         self.rpc = rpc
-        self.messageBuilder = messageBuilder
-        self.transactionBuilder = transactionBuilder
         requirements = (rpcs ?? [rpc]).filter { $0.network == rpc.network }.compactMap(\.submissionRequirements)
     }
 

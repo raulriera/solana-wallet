@@ -14,17 +14,15 @@ nonisolated struct Submitter: TransactionSubmitting {
     }
 
     private let rpcs: [any RPC]
-    private let transactionBuilder: any TransactionBuilding
+    private let transactionBuilder: any TransactionBuilding = TransactionBuilder()
 
     /// Creates submission through one or more ordinary RPCs.
     ///
     /// - Parameters:
     ///   - rpc: The provider to submit through when `rpcs` is `nil`.
     ///   - rpcs: Every RPC to submit through, or `nil` to use `rpc` alone.
-    ///   - transactionBuilder: The validator for all required transaction signatures.
-    init(rpc: any RPC, rpcs: [any RPC]? = nil, transactionBuilder: any TransactionBuilding = TransactionBuilder()) {
+    init(rpc: any RPC, rpcs: [any RPC]? = nil) {
         self.rpcs = rpcs ?? [rpc]
-        self.transactionBuilder = transactionBuilder
     }
 
     /// Checks a typed signed result against its review locally, then sends it once.
