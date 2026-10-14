@@ -59,7 +59,7 @@ struct PortfolioScene: View {
                     .sidebarColumnWidth()
                 } detail: {
                     if let holding = coordinator.holdings.first(where: { $0.id == selection }) {
-                        TokenDetailScreen(holding: holding, remove: removal.remove)
+                        TokenDetailScreen(holding: holding, removal: removal)
                             // New prices roll into place, as they do in the token list.
                             .animation(.default, value: coordinator.update?.snapshotRevision)
                     } else {

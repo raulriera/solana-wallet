@@ -23,9 +23,9 @@ final class TokenRemovalModel {
     /// Accepts a confirmed removal; the scene's task removes the token.
     ///
     /// Native SOL always stays, so asking to remove it does nothing.
-    /// - Parameter holding: The token to remove.
-    func remove(_ holding: Holding) {
-        guard case .asset(let mint) = holding.id, let address = try? Address(mint) else { return }
+    /// - Parameter token: The token to remove.
+    func remove(_ token: Holding.Identity) {
+        guard case .asset(let mint) = token, let address = try? Address(mint) else { return }
         request = address
         attempt = UUID()
     }

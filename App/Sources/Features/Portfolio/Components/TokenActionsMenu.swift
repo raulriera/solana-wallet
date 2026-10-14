@@ -3,11 +3,14 @@ import SwiftUI
 
 /// The token's More menu in the detail toolbar; it removes the token after the person confirms.
 struct TokenActionsMenu: View {
-    @State private var pending: Holding?
+    @Environment(\.dismiss) private var dismiss
+    @State private var pending: Holding.Identity?
     /// The token the menu acts on.
-    let token: Holding
-    /// Removes the token the person confirmed.
-    let remove: (Holding) -> Void
+    let token: Holding.Identity
+    /// The token's symbol, which the confirmation names.
+    let symbol: String
+    /// The window's token removals, which remove the token the person confirmed.
+    let removal: TokenRemovalModel
 
     var body: some View {
         Menu("More", systemImage: "ellipsis") {
@@ -17,8 +20,12 @@ struct TokenActionsMenu: View {
         }
         // Toolbar buttons keep the system's monochrome look; the theme's tint is for content.
         .tint(.primary)
-        .alert("Remove \(token.displaySymbol)?", item: $pending) { token in
-            Button("Remove", role: .destructive) { remove(token) }
+        .alert("Remove \(symbol)?", item: $pending) { token in
+            Button("Remove", role: .destructive) {
+                removal.remove(token)
+                // The token's details close: compact width goes back to the list; expanded width clears the selection.
+                dismiss()
+            }
             Button("Cancel", role: .cancel) {}
         }
     }

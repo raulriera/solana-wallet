@@ -1,6 +1,8 @@
+import Observation
 import Portfolio
 import RPC
 import SwiftUI
+import Transactions
 
 /// Shows one token's balance and, when known, its value, price, and 24-hour change; removes any token except native SOL.
 ///
@@ -8,10 +10,9 @@ import SwiftUI
 struct TokenDetailScreen: View {
     @Environment(\.palette) private var palette
     @Environment(\.network) private var network
-    @Environment(\.dismiss) private var dismiss
     let holding: Holding
-    /// Removes a confirmed token from the wallet's list; the screen then closes itself.
-    let remove: (Holding) -> Void
+    /// The window's token removals; a confirmed removal closes the screen.
+    let removal: TokenRemovalModel
 
     var body: some View {
         Form {
@@ -71,11 +72,7 @@ struct TokenDetailScreen: View {
             // Native SOL isn't part of the token list, so it always stays.
             if holding.id != .nativeSOL {
                 ToolbarItem(placement: .primaryAction) {
-                    TokenActionsMenu(token: holding) { token in
-                        remove(token)
-                        // Compact width goes back to the list; expanded width clears the selection.
-                        dismiss()
-                    }
+                    TokenActionsMenu(token: holding.id, symbol: holding.displaySymbol, removal: removal)
                 }
             }
         }
@@ -88,6 +85,39 @@ struct TokenDetailScreen: View {
                                            name: "Solana", symbol: "SOL", imageURL: nil,
                                            valuation: Valuation(pricePerUnit: 166, total: 2_075, currency: "USD",
                                                                 dayChange: Decimal(string: "0.0129"))),
-                          remove: { _ in })
+                          removal: TokenRemovalModel(coordinator: PreviewPortfolio()))
     }
+}
+
+/// Keeps the preview local: it has no tokens and never observes, looks up, adds, or removes one.
+@Observable
+private final class PreviewPortfolio: PortfolioCoordinating {
+    var update: Update? { nil }
+    var holdings: [Holding] { [] }
+    var error: PortfolioError? { nil }
+
+    /// Accepts the preview's observation without reading a wallet.
+    /// - Parameters:
+    ///   - owner: The preview's wallet address.
+    ///   - isActive: Whether the preview's scene is active.
+    func observe(for owner: String?, isActive: Bool) async {}
+
+    /// Accepts the preview's refresh without loading anything.
+    func refresh() async {}
+
+    /// Finds no token, because the preview reads no mints.
+    /// - Parameter mint: The preview's pasted mint address.
+    /// - Returns: Never; every lookup fails.
+    /// - Throws: `TokenLookupError.notToken` for every address.
+    func token(at mint: Address) async throws -> TokenPreview {
+        throw TokenLookupError.notToken
+    }
+
+    /// Accepts the preview's addition without saving it.
+    /// - Parameter token: The preview's token.
+    func add(_ token: ListedToken) async throws {}
+
+    /// Accepts the preview's removal without saving it.
+    /// - Parameter mint: The preview's token mint.
+    func remove(_ mint: Address) async throws {}
 }

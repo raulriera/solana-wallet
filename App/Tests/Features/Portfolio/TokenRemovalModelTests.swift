@@ -8,8 +8,7 @@ import Transactions
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct TokenRemovalModelTests {
-    private static let bonk = Holding(id: .asset("DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"), amount: nil,
-                                      name: "Bonk", symbol: "Bonk", imageURL: nil, valuation: nil)
+    private static let bonk = Holding.Identity.asset("DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263")
 
     /// A confirmed token leaves the wallet's list, and nothing needs explaining.
     @Test
@@ -31,8 +30,7 @@ struct TokenRemovalModelTests {
         let portfolio = RecordingPortfolio()
         let removal = TokenRemovalModel(coordinator: portfolio)
 
-        removal.remove(Holding(id: .nativeSOL, amount: nil, name: "Solana", symbol: "SOL", imageURL: nil,
-                               valuation: nil))
+        removal.remove(.nativeSOL)
         await removal.run(removal.attempt)
 
         #expect(removal.attempt == nil)
