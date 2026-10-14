@@ -1,5 +1,5 @@
 /// A token that every new mainnet list holds besides native SOL, identified by its mint address.
-public enum DefaultToken: String, CaseIterable, Sendable {
+public enum DefaultToken: String, Sendable {
     /// USD Coin, issued by Circle.
     case usdc = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
     /// Tether USD.

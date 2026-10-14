@@ -125,7 +125,7 @@ final class PortfolioCoordinator: PortfolioCoordinating {
     /// - Throws: `TokenListError` for a full or unreadable list, or a file-system error if the list can't be saved.
     func add(_ token: ListedToken) async throws {
         guard let owner else { return }
-        _ = try await service.addToken(token, for: owner)
+        try await service.addToken(token, for: owner)
     }
 
     /// Removes a token from the selected wallet's list; the service sends the next snapshot without it.
@@ -133,7 +133,7 @@ final class PortfolioCoordinator: PortfolioCoordinating {
     /// - Throws: `TokenListError.unreadable` for an unreadable list, or a file-system error if the list can't be saved.
     func remove(_ mint: Address) async throws {
         guard let owner else { return }
-        _ = try await service.removeToken(mint, for: owner)
+        try await service.removeToken(mint, for: owner)
     }
 
     /// Publishes only the current session's results, retaining the newest complete data.

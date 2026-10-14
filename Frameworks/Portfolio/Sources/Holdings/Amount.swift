@@ -25,10 +25,9 @@ public struct Amount: Codable, Sendable, Equatable {
     /// For example, 1,250,000,000 units with nine decimal places becomes `1.25`
     /// in the `en_US` locale.
     ///
-    /// - Parameter locale: The locale used to format the quantity. The default
-    ///   is the user's current locale.
+    /// - Parameter locale: The locale used to format the quantity.
     /// - Returns: The exact quantity formatted for display.
-    public func formatted(locale: Locale = .current) -> String {
+    public func formatted(locale: Locale) -> String {
         let digits = String(units)
         let whole = UInt64(digits.dropLast(Int(decimals))) ?? 0
         var fraction = UInt64(digits.suffix(Int(decimals))) ?? 0

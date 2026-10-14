@@ -92,27 +92,15 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
         try await coordinator.providerDidChange()
     }
 
-    /// Returns an account's saved token list, or the network's defaults when the account has none yet.
-    ///
-    /// - Parameter owner: The account's wallet address.
-    /// - Returns: The account's token list.
-    /// - Throws: ``TokenListError/unreadable`` if a saved list exists but can't be read.
-    public func tokenList(for owner: String) async throws -> TokenList {
-        try await tokenLists.list(for: owner)
-    }
-
     /// Adds a token to an account's list and saves the list.
     ///
     /// An observed account then watches the new list and reads its balances once.
     /// - Parameters:
     ///   - token: The token to add; a token that's already listed changes nothing.
     ///   - owner: The account's wallet address.
-    /// - Returns: The saved list.
     /// - Throws: ``TokenListError`` for a full or unreadable list, or a file-system error if saving fails.
-    public func addToken(_ token: ListedToken, for owner: String) async throws -> TokenList {
-        let edit = try await tokenLists.add(token, for: owner)
-        if edit.changed { await listChanged(for: owner) }
-        return edit.list
+    public func addToken(_ token: ListedToken, for owner: String) async throws {
+        if try await tokenLists.add(token, for: owner) { await listChanged(for: owner) }
     }
 
     /// Removes a token from an account's list and saves the list.
@@ -122,16 +110,12 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
     /// - Parameters:
     ///   - mint: The mint address of the token to remove.
     ///   - owner: The account's wallet address.
-    /// - Returns: The saved list.
     /// - Throws: ``TokenListError/unreadable`` if the saved list can't be read, or a file-system error if saving fails.
-    public func removeToken(_ mint: Address, for owner: String) async throws -> TokenList {
-        let edit = try await tokenLists.remove(mint, for: owner)
-        if edit.changed {
-            // The saved list is already correct; cached holdings that can't be saved give way to the next read.
-            try? await coordinator.removeHolding(.asset(mint.value), for: owner)
-            await observer.restart(for: owner)
-        }
-        return edit.list
+    public func removeToken(_ mint: Address, for owner: String) async throws {
+        guard try await tokenLists.remove(mint, for: owner) else { return }
+        // The saved list is already correct; cached holdings that can't be saved give way to the next read.
+        try? await coordinator.removeHolding(.asset(mint.value), for: owner)
+        await observer.restart(for: owner)
     }
 
     /// Looks up a token by its pasted mint address, so a person can check it before adding it.

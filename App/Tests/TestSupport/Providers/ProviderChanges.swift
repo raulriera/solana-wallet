@@ -49,24 +49,13 @@ actor ProviderChanges: PortfolioProviding {
     }
 }
 
-// The app's own TokenList view shares the framework type's name, so the module selector names the list.
 extension ProviderChanges: TokenListProviding {
-    /// Reports a token-list read, because selecting a provider never reads token lists.
-    /// - Parameter owner: The requested wallet.
-    /// - Returns: Nothing; the read always fails.
-    /// - Throws: An unreadable-list error.
-    func tokenList(for owner: String) async throws -> Portfolio::TokenList {
-        Issue.record("Selecting a provider must not read token lists.")
-        throw TokenListError.unreadable
-    }
-
     /// Reports a token-list edit, because selecting a provider never edits token lists.
     /// - Parameters:
     ///   - token: The token to add.
     ///   - owner: The requested wallet.
-    /// - Returns: Nothing; the edit always fails.
     /// - Throws: An unreadable-list error.
-    func addToken(_ token: ListedToken, for owner: String) async throws -> Portfolio::TokenList {
+    func addToken(_ token: ListedToken, for owner: String) async throws {
         Issue.record("Selecting a provider must not edit token lists.")
         throw TokenListError.unreadable
     }
@@ -75,9 +64,8 @@ extension ProviderChanges: TokenListProviding {
     /// - Parameters:
     ///   - mint: The token to remove.
     ///   - owner: The requested wallet.
-    /// - Returns: Nothing; the edit always fails.
     /// - Throws: An unreadable-list error.
-    func removeToken(_ mint: Address, for owner: String) async throws -> Portfolio::TokenList {
+    func removeToken(_ mint: Address, for owner: String) async throws {
         Issue.record("Selecting a provider must not edit token lists.")
         throw TokenListError.unreadable
     }

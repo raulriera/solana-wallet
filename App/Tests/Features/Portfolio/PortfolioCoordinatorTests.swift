@@ -95,7 +95,7 @@ struct PortfolioCoordinatorTests {
         await coordinator.observe(for: PublicWallet.address, isActive: false)
         try await coordinator.add(bonk)
 
-        #expect(try await service.tokenList(for: PublicWallet.address).tokens.last == bonk)
+        #expect(try savedList(in: directory)?.tokens.last == bonk)
     }
 
     /// Verifies a removed token leaves the selected wallet's saved list.
@@ -110,7 +110,7 @@ struct PortfolioCoordinatorTests {
         await coordinator.observe(for: PublicWallet.address, isActive: false)
         try await coordinator.remove(Address(DefaultToken.usdt.rawValue))
 
-        #expect(try await service.tokenList(for: PublicWallet.address).tokens.map(\.mint.value) == [DefaultToken.usdc.rawValue])
+        #expect(try savedList(in: directory)?.tokens.map(\.mint.value) == [DefaultToken.usdc.rawValue])
     }
 
     /// Verifies an inactive scene or missing selection never starts work.
@@ -439,7 +439,22 @@ struct PortfolioCoordinatorTests {
     /// - Returns: A mainnet service that makes no requests for token-list edits.
     private func filePortfolio(in directory: URL) -> Portfolio {
         Portfolio(rpc: Solana(network: .mainnet), store: FileSnapshotStore(directory: directory),
-                  tokenLists: FileTokenListStore(directory: directory.appendingPathComponent("TokenLists")))
+                  tokenLists: tokenLists(in: directory))
+    }
+
+    /// Reads the public wallet's saved token list from a test's directory.
+    /// - Parameter directory: The test's private directory.
+    /// - Returns: The saved list, or `nil` before anything is saved.
+    /// - Throws: ``TokenListError/unreadable`` if the saved list can't be read.
+    private func savedList(in directory: URL) throws -> Portfolio::TokenList? {
+        try tokenLists(in: directory).tokenList(for: CacheKey(owner: PublicWallet.address, network: .mainnet))
+    }
+
+    /// Creates the token-list store in a test's directory.
+    /// - Parameter directory: The test's private directory.
+    /// - Returns: The store that the test's portfolio saves lists in.
+    private func tokenLists(in directory: URL) -> FileTokenListStore {
+        FileTokenListStore(directory: directory.appendingPathComponent("TokenLists"))
     }
 
     /// Creates a priced portfolio whose provider order differs from its display order.

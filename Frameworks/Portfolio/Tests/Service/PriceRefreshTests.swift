@@ -25,7 +25,7 @@ struct PriceRefreshTests {
         let service = fixture.portfolio(rpc: accounts.client, prices: prices.client)
         let wrapped = ListedToken(mint: try Address(nativeMint), program: .token, decimals: 9, symbol: "WSOL",
                                   name: "Wrapped SOL")
-        _ = try await service.addToken(wrapped, for: testWallet)
+        try await service.addToken(wrapped, for: testWallet)
         var updates = await service.updates(for: testWallet).makeAsyncIterator()
         _ = try #require(await updates.next())
         let update = try #require(await updates.next())

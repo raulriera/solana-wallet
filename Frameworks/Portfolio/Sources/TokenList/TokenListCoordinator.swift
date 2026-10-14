@@ -30,14 +30,14 @@ actor TokenListCoordinator {
     /// - Parameters:
     ///   - token: The token to add.
     ///   - owner: The account's wallet address.
-    /// - Returns: The saved list, and whether the token was new to it.
+    /// - Returns: Whether the token was new to the list.
     /// - Throws: ``TokenListError`` for a full or unreadable list, or a file-system error if saving fails.
-    func add(_ token: ListedToken, for owner: String) throws -> (list: TokenList, changed: Bool) {
+    func add(_ token: ListedToken, for owner: String) throws -> Bool {
         let saved = try list(for: owner)
         var list = saved
         try list.add(token)
         try store.save(list, for: key(for: owner))
-        return (list, list != saved)
+        return list != saved
     }
 
     /// Removes a token and saves the list; an unreadable saved list stays in place.
@@ -45,14 +45,14 @@ actor TokenListCoordinator {
     /// - Parameters:
     ///   - mint: The mint address of the token to remove.
     ///   - owner: The account's wallet address.
-    /// - Returns: The saved list, and whether the token was listed.
+    /// - Returns: Whether the token was listed.
     /// - Throws: ``TokenListError/unreadable`` if the saved list can't be read, or a file-system error if saving fails.
-    func remove(_ mint: Address, for owner: String) throws -> (list: TokenList, changed: Bool) {
+    func remove(_ mint: Address, for owner: String) throws -> Bool {
         let saved = try list(for: owner)
         var list = saved
         list.remove(mint)
         try store.save(list, for: key(for: owner))
-        return (list, list != saved)
+        return list != saved
     }
 
     /// Removes an account's saved list.

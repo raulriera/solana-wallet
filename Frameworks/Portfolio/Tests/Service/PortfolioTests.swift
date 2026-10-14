@@ -63,7 +63,7 @@ struct PortfolioTests {
         let http = AccountResponses { _ in Ledger(lamports: 1, tokens: [mint: 42]) }
         let service = fixture.portfolio(rpc: http.client)
         let token = ListedToken(mint: try Address(mint), program: .token2022, decimals: 6, symbol: "PYUSD", name: "PayPal USD")
-        _ = try await service.addToken(token, for: testWallet)
+        try await service.addToken(token, for: testWallet)
         var updates = await service.updates(for: testWallet).makeAsyncIterator()
         _ = try #require(await updates.next())
 
@@ -101,7 +101,7 @@ struct PortfolioTests {
         _ = try #require(await reading.next())
 
         let token = ListedToken(mint: try Address(pyusdMint), program: .token2022, decimals: 6, symbol: "PYUSD", name: "PayPal USD")
-        _ = try await service.addToken(token, for: testWallet)
+        try await service.addToken(token, for: testWallet)
         let updated = try #require(await updates.next())
 
         #expect(updated.error == nil)
@@ -239,10 +239,10 @@ struct PortfolioTests {
         let service = fixture.portfolio(rpc: AccountResponses { _ in Ledger() }.client,
                                         store: WriteFailingStore(cached: cached))
 
-        let list = try await service.removeToken(Address(usdcMint), for: testWallet)
+        try await service.removeToken(Address(usdcMint), for: testWallet)
 
-        #expect(list.tokens.map(\.mint.value) == [DefaultToken.usdt.rawValue])
-        #expect(try await service.tokenList(for: testWallet) == list)
+        let saved = try fixture.tokenLists.tokenList(for: CacheKey(owner: testWallet, network: .mainnet))
+        #expect(saved?.tokens.map(\.mint.value) == [DefaultToken.usdt.rawValue])
     }
 
     /// Verifies that a successful read replaces old balances, and that missing accounts hold nothing.
@@ -653,6 +653,8 @@ struct PortfolioTests {
 private struct Fixture {
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     var store: FileSnapshotStore { FileSnapshotStore(directory: directory) }
+    /// The token-list store in this test's directory.
+    var tokenLists: FileTokenListStore { FileTokenListStore(directory: directory.appendingPathComponent("TokenLists")) }
 
     /// Creates a service that keeps its snapshots and token lists in this test's directory.
     ///
@@ -661,8 +663,7 @@ private struct Fixture {
     ///   - store: A replacement snapshot store, or `nil` for this test's disk store.
     /// - Returns: The service under test.
     func portfolio(rpc: any RPC, store: (any SnapshotStoring)? = nil) -> Portfolio {
-        Portfolio(rpc: rpc, store: store ?? self.store,
-                  tokenLists: FileTokenListStore(directory: directory.appendingPathComponent("TokenLists")))
+        Portfolio(rpc: rpc, store: store ?? self.store, tokenLists: tokenLists)
     }
 
     /// Removes only this test's temporary files.

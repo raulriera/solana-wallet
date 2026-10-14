@@ -19,7 +19,7 @@ public protocol PortfolioProviding: Sendable {
     ///   data removal, or a provider change.
     func observations(for owner: String) async -> AsyncStream<Update>
 
-    /// Returns cached portfolio state and reads balances and prices again.
+    /// Returns cached portfolio state and reads balances, logos, and prices again.
     ///
     /// The consumer is registered before this method returns. Network results arrive through the stream.
     /// The reload also connects the wallet's observation again at once when it is disconnected.
@@ -32,7 +32,7 @@ public protocol PortfolioProviding: Sendable {
     /// Removes locally retained portfolio data and cancels its active refresh.
     ///
     /// - Parameter owner: The wallet whose local data to remove.
-    /// - Throws: A file-system error if the stored snapshot can't be removed.
+    /// - Throws: A file-system error if the stored snapshot or token list can't be removed.
     func removeData(for owner: String) async throws
 
     /// Ends the work that used the previous RPC provider and removes its logos from saved snapshots.

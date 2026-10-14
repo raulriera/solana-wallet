@@ -106,7 +106,7 @@ struct ObservationTests {
         fixture.gate.resume()
         try await nextResult(&updates)
 
-        _ = try await service.removeToken(Address(usdcMint), for: testWallet)
+        try await service.removeToken(Address(usdcMint), for: testWallet)
         await first.waitUntilCancelled()
         let second = try #require(await sockets.next())
         let changed = try await nextResult(&updates)
@@ -326,19 +326,22 @@ struct ObservationTests {
         try await nextResult(&updates)
         let first = try #require(await sockets.next())
 
-        let list = switch change {
+        let expected: [Holding.Identity]
+        switch change {
         case .addition:
             try await service.addToken(ListedToken(mint: Address(pyusdMint), program: .token2022, decimals: 6,
                                                    symbol: "PYUSD", name: "PayPal USD"), for: testWallet)
+            expected = [.nativeSOL, .asset(usdcMint), .asset(usdtMint), .asset(pyusdMint)]
         case .removal:
             try await service.removeToken(Address(usdcMint), for: testWallet)
+            expected = [.nativeSOL, .asset(usdtMint)]
         }
         await first.waitUntilCancelled()
         let second = try #require(await sockets.next())
         let changed = try await nextResult(&updates)
 
         #expect(changed.error == nil)
-        #expect(changed.holdings.map(\.id) == [.nativeSOL] + list.tokens.map { .asset($0.mint.value) })
+        #expect(changed.holdings.map(\.id) == expected)
         let reads = await ledger.reads
         #expect(reads.count == 2)
         #expect(second.subscribedAddresses == reads.last)
@@ -358,7 +361,7 @@ struct ObservationTests {
         let initial = try await nextResult(&updates)
         let first = try #require(await sockets.next())
 
-        _ = try await service.removeToken(Address(usdcMint), for: testWallet)
+        try await service.removeToken(Address(usdcMint), for: testWallet)
         let removed = try #require(await updates.next())
 
         let remaining = initial.holdings.map(\.id).filter { $0 != .asset(usdcMint) }
@@ -398,7 +401,7 @@ struct ObservationTests {
         var startedIterator = started.makeAsyncIterator()
         _ = try #require(await startedIterator.next())
 
-        _ = try await service.removeToken(Address(usdcMint), for: testWallet)
+        try await service.removeToken(Address(usdcMint), for: testWallet)
         let edited = try #require(await reload.next())
         release.finish()
         let result = try await nextResult(&reload)
@@ -422,9 +425,9 @@ struct ObservationTests {
         var updates = await service.observations(for: testWallet).makeAsyncIterator()
         try await nextResult(&updates)
 
-        let usdc = try #require(try await service.tokenList(for: testWallet).tokens.first)
-        _ = try await service.addToken(usdc, for: testWallet)
-        _ = try await service.removeToken(Address(pyusdMint), for: testWallet)
+        let usdc = try #require(try TokenList(defaultsFor: .mainnet).tokens.first)
+        try await service.addToken(usdc, for: testWallet)
+        try await service.removeToken(Address(pyusdMint), for: testWallet)
         await ledger.set(lamports: 200)
         fixture.socket.notify(slot: 101)
         var delays = fixture.gate.delays.makeAsyncIterator()
@@ -656,13 +659,13 @@ struct ObservationTests {
         try await nextResult(&updates)
         _ = try #require(await sockets.next())
 
-        let list = try await service.addToken(ListedToken(mint: Address(pyusdMint), program: .token2022, decimals: 6,
-                                                          symbol: "PYUSD", name: "PayPal USD"), for: testWallet)
+        try await service.addToken(ListedToken(mint: Address(pyusdMint), program: .token2022, decimals: 6,
+                                               symbol: "PYUSD", name: "PayPal USD"), for: testWallet)
         let second = try #require(await sockets.next())
         let changed = try await nextResult(&updates)
 
         #expect(changed.error == nil)
-        #expect(changed.holdings.map(\.id) == [.nativeSOL] + list.tokens.map { .asset($0.mint.value) })
+        #expect(changed.holdings.map(\.id) == [.nativeSOL, .asset(usdcMint), .asset(usdtMint), .asset(pyusdMint)])
         #expect(await ledger.reads == [second.subscribedAddresses])
         try await service.removeData(for: testWallet)
         await second.waitUntilCancelled()

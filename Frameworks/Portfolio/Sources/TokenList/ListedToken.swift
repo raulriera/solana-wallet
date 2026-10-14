@@ -1,7 +1,7 @@
 public import Transactions
 
 /// A token in an account's list, with what the portfolio needs to find and show its balance.
-public struct ListedToken: Codable, Sendable, Equatable, Identifiable {
+public struct ListedToken: Codable, Sendable, Equatable {
     /// The token's mint address, which identifies it in the list.
     public let mint: Address
     /// The program that owns the mint and its token accounts.
@@ -12,9 +12,6 @@ public struct ListedToken: Codable, Sendable, Equatable, Identifiable {
     public let symbol: String?
     /// The display name, if known.
     public let name: String?
-
-    /// The mint address, which identifies the token in the list.
-    public var id: Address { mint }
 
     /// Creates a listed token from its mint and display details.
     ///

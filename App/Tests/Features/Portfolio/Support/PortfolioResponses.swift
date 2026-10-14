@@ -94,24 +94,13 @@ actor PortfolioResponses: PortfolioProviding {
     }
 }
 
-// The app's own TokenList view shares the framework type's name, so the module selector names the list.
 extension PortfolioResponses: TokenListProviding {
-    /// Reports token-list reads, which the lifecycle coordinator never makes.
-    /// - Parameter owner: The requested wallet.
-    /// - Returns: Nothing; the read always fails.
-    /// - Throws: An unreadable-list error.
-    func tokenList(for owner: String) async throws -> Portfolio::TokenList {
-        Issue.record("Lifecycle coordination must not read token lists.")
-        throw TokenListError.unreadable
-    }
-
     /// Reports token-list edits during view lifecycle changes.
     /// - Parameters:
     ///   - token: The token to add.
     ///   - owner: The requested wallet.
-    /// - Returns: Nothing; the edit always fails.
     /// - Throws: An unreadable-list error.
-    func addToken(_ token: ListedToken, for owner: String) async throws -> Portfolio::TokenList {
+    func addToken(_ token: ListedToken, for owner: String) async throws {
         Issue.record("Lifecycle coordination must not edit token lists.")
         throw TokenListError.unreadable
     }
@@ -120,9 +109,8 @@ extension PortfolioResponses: TokenListProviding {
     /// - Parameters:
     ///   - mint: The token to remove.
     ///   - owner: The requested wallet.
-    /// - Returns: Nothing; the edit always fails.
     /// - Throws: An unreadable-list error.
-    func removeToken(_ mint: Address, for owner: String) async throws -> Portfolio::TokenList {
+    func removeToken(_ mint: Address, for owner: String) async throws {
         Issue.record("Lifecycle coordination must not edit token lists.")
         throw TokenListError.unreadable
     }

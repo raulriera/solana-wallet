@@ -19,8 +19,9 @@ struct TokenListTests {
     func `New mainnet lists start with USDC and USDT, and devnet lists start empty`() async throws {
         let fixture = TokenListFixture()
         defer { fixture.removeFiles() }
-        let mainnet = try await fixture.portfolio(network: .mainnet).tokenList(for: "wallet")
-        let devnet = try await fixture.portfolio(network: .devnet).tokenList(for: "wallet")
+        async let mainnetList = fixture.list(for: "wallet", network: .mainnet)
+        async let devnetList = fixture.list(for: "wallet", network: .devnet)
+        let (mainnet, devnet) = try await (mainnetList, devnetList)
         #expect(mainnet.tokens.map(\.mint.value) == ["EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
                                                      "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"])
         #expect(mainnet.tokens.map(\.symbol) == ["USDC", "USDT"])
@@ -31,15 +32,15 @@ struct TokenListTests {
 
     /// Verifies additions and removals are saved in order.
     @Test
-    func `Added and removed tokens survive a new service`() async throws {
+    func `Added and removed tokens are saved in order`() async throws {
         let fixture = TokenListFixture()
         defer { fixture.removeFiles() }
         let service = fixture.portfolio()
         let added = try token(1)
-        _ = try await service.addToken(added, for: "wallet")
-        let usdc = try #require(try await service.tokenList(for: "wallet").tokens.first)
-        _ = try await service.removeToken(usdc.mint, for: "wallet")
-        let restored = try await fixture.portfolio().tokenList(for: "wallet")
+        try await service.addToken(added, for: "wallet")
+        let usdc = try #require(try await fixture.list(for: "wallet").tokens.first)
+        try await service.removeToken(usdc.mint, for: "wallet")
+        let restored = try await fixture.list(for: "wallet")
         #expect(restored.tokens.map(\.symbol) == ["USDT", "T1"])
         #expect(restored.tokens.last == added)
     }
@@ -50,7 +51,7 @@ struct TokenListTests {
         let fixture = TokenListFixture()
         defer { fixture.removeFiles() }
         let service = fixture.portfolio()
-        let tokens = try await service.tokenList(for: "wallet").tokens
+        let tokens = try await fixture.list(for: "wallet").tokens
         let holdings = [Holding(id: .nativeSOL, amount: Amount(units: 1, decimals: 9), name: "Solana", symbol: "SOL",
                                 imageURL: nil, valuation: nil)]
             + tokens.map { Holding(id: .asset($0.mint.value), amount: Amount(units: 1, decimals: $0.decimals),
@@ -59,7 +60,7 @@ struct TokenListTests {
                                    for: CacheKey(owner: "wallet", network: .mainnet))
         let usdc = try #require(tokens.first)
 
-        _ = try await service.removeToken(usdc.mint, for: "wallet")
+        try await service.removeToken(usdc.mint, for: "wallet")
 
         let saved = fixture.snapshots.snapshot(for: CacheKey(owner: "wallet", network: .mainnet))
         #expect(saved?.holdings.map(\.id) == [.nativeSOL, .asset(DefaultToken.usdt.rawValue)])
@@ -71,9 +72,10 @@ struct TokenListTests {
         let fixture = TokenListFixture()
         defer { fixture.removeFiles() }
         let service = fixture.portfolio()
-        let before = try await service.tokenList(for: "wallet")
+        let before = try await fixture.list(for: "wallet")
         let usdc = try #require(before.tokens.first)
-        #expect(try await service.addToken(usdc, for: "wallet") == before)
+        try await service.addToken(usdc, for: "wallet")
+        #expect(try await fixture.list(for: "wallet") == before)
     }
 
     /// Verifies the limit counts added tokens only.
@@ -83,11 +85,11 @@ struct TokenListTests {
         defer { fixture.removeFiles() }
         let service = fixture.portfolio()
         for index in 1...TokenList.addedTokenLimit {
-            _ = try await service.addToken(token(index), for: "wallet")
+            try await service.addToken(token(index), for: "wallet")
         }
         let extra = try token(TokenList.addedTokenLimit + 1)
         await #expect(throws: TokenListError.limitReached) { try await service.addToken(extra, for: "wallet") }
-        let list = try await service.tokenList(for: "wallet")
+        let list = try await fixture.list(for: "wallet")
         #expect(list.tokens.count == TokenList.addedTokenLimit + 2)
     }
 
@@ -97,16 +99,16 @@ struct TokenListTests {
         let fixture = TokenListFixture()
         defer { fixture.removeFiles() }
         let service = fixture.portfolio()
-        let usdc = try #require(try await service.tokenList(for: "wallet").tokens.first)
-        _ = try await service.removeToken(usdc.mint, for: "wallet")
+        let usdc = try #require(try await fixture.list(for: "wallet").tokens.first)
+        try await service.removeToken(usdc.mint, for: "wallet")
         for index in 1...TokenList.addedTokenLimit {
-            _ = try await service.addToken(token(index), for: "wallet")
+            try await service.addToken(token(index), for: "wallet")
         }
-        let list = try await service.addToken(usdc, for: "wallet")
-        #expect(list.tokens.last == usdc)
+        try await service.addToken(usdc, for: "wallet")
+        #expect(try await fixture.list(for: "wallet").tokens.last == usdc)
     }
 
-    /// Verifies a saved list that can't be read stops reads and changes, and its file stays as it was.
+    /// Verifies a saved list that can't be read stops changes, and its file stays as it was.
     ///
     /// - Parameter file: The kind of saved file the account can't use.
     @Test(arguments: UnreadableFile.allCases)
@@ -126,8 +128,8 @@ struct TokenListTests {
         let saved = try files.read(for: key)
         let service = fixture.portfolio()
         let added = try token(1)
-        await #expect(throws: TokenListError.unreadable) { try await service.tokenList(for: "wallet") }
         await #expect(throws: TokenListError.unreadable) { try await service.addToken(added, for: "wallet") }
+        await #expect(throws: TokenListError.unreadable) { try await service.removeToken(added.mint, for: "wallet") }
         #expect(try files.read(for: key) == saved)
     }
 
@@ -137,10 +139,10 @@ struct TokenListTests {
         let fixture = TokenListFixture()
         defer { fixture.removeFiles() }
         let service = fixture.portfolio()
-        _ = try await service.addToken(token(1), for: "wallet")
+        try await service.addToken(token(1), for: "wallet")
         try await service.removeData(for: "wallet")
         #expect(try KeyedFiles(directory: fixture.directory).read(for: CacheKey(owner: "wallet", network: .mainnet)) == nil)
-        #expect(try await service.tokenList(for: "wallet").tokens.map(\.symbol) == ["USDC", "USDT"])
+        #expect(try await fixture.list(for: "wallet").tokens.map(\.symbol) == ["USDC", "USDT"])
     }
 
     /// Verifies simultaneous edits, as from several windows, don't overwrite each other.
@@ -152,11 +154,11 @@ struct TokenListTests {
         let tokens = try (1...20).map(token)
         try await withThrowingTaskGroup(of: Void.self) { group in
             for token in tokens {
-                group.addTask { _ = try await service.addToken(token, for: "wallet") }
+                group.addTask { try await service.addToken(token, for: "wallet") }
             }
             try await group.waitForAll()
         }
-        let saved = try await fixture.portfolio().tokenList(for: "wallet")
+        let saved = try await fixture.list(for: "wallet")
         #expect(Set(saved.tokens.map(\.mint)).isSuperset(of: tokens.map(\.mint)))
         #expect(saved.tokens.count == tokens.count + 2)
     }
@@ -178,6 +180,17 @@ private struct TokenListFixture {
     /// - Returns: A service backed by this test's files.
     func portfolio(network: Network = .mainnet) -> Portfolio {
         Portfolio(rpc: Solana(network: network), store: snapshots, tokenLists: store)
+    }
+
+    /// Reads an account's list as the service does: the saved list, or the network's defaults.
+    ///
+    /// - Parameters:
+    ///   - owner: The account's wallet address.
+    ///   - network: The list's network.
+    /// - Returns: The account's token list.
+    /// - Throws: ``TokenListError/unreadable`` if the saved list can't be read.
+    func list(for owner: String, network: Network = .mainnet) async throws -> TokenList {
+        try await TokenListCoordinator(store: store, network: network).list(for: owner)
     }
 
     /// Removes only this test's files.
