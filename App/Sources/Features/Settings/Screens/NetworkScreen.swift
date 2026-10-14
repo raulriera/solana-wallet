@@ -25,7 +25,7 @@ struct NetworkScreen: View {
                                                          comment: "A choice in Settings > Network: Solana's test network, where tokens have no value."),
                            network: .devnet, selection: $network)
             } footer: {
-                Text("Only this window changes.",
+                Text("Only this window switches. Other windows keep their network, and new windows open on Mainnet.",
                      comment: "Footer under the Mainnet and Devnet choices in Settings > Network. Each app window has its own network.")
                     .foregroundStyle(palette.secondaryText)
             }

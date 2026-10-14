@@ -23,5 +23,6 @@ struct WindowRoot: View {
         }
         .windowAppearance(services: services.appearance)
         .environment(\.artworkColors, services.artworkColors)
+        .environment(\.network, network)
     }
 }
