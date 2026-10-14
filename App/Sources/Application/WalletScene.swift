@@ -30,7 +30,7 @@ struct WalletScene: View {
             }
         }
         .tabViewStyle(.tabBarOnly)
-        .portfolioObservation(of: account, coordinator: portfolio, providerRevision: providers.revision)
+        .portfolioObservation(of: account, coordinator: portfolio, providerRevisions: providers.revisions)
         // Settings work belongs to the window, so switching tabs keeps an import or a saved choice going.
         .onDisappear { settings.cancel() }
     }

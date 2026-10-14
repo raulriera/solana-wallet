@@ -13,7 +13,7 @@ struct AppServices {
     let accounts: any AccountStoring
     let providerKey: any ValueStoring<String>
     let providerConnection: any ProviderConnecting<ProviderConnectionError>
-    let providerRevision = Revision()
+    let providerRevisions = ProviderRevisions()
     let portfolios: NetworkPortfolios
     let providerSelection: any ProviderSelecting
     let customRPCConnection: any ProviderConnecting<CustomRPCError>
@@ -43,14 +43,14 @@ struct AppServices {
         let providerKey = KeychainItem(service: providerService, account: "api-key", coding: .utf8)
         let providerSettings = KeychainItem(service: providerService, account: "settings", coding: .json(ProviderSettings.self))
         self.providerKey = providerKey
-        providerConnection = HeliusConnection(providerKey: providerKey, revision: providerRevision)
+        providerConnection = HeliusConnection(providerKey: providerKey, revisions: providerRevisions)
         let portfolios = NetworkPortfolios(prices: Jupiter()) { network, prices in
             Portfolio(rpc: ProviderClient(network: network, settings: providerSettings, providerKey: providerKey),
                       prices: prices)
         }
         self.portfolios = portfolios
         let providerSelection = ProviderSelection(settings: providerSettings, providerKey: providerKey,
-                                                  portfolios: { portfolios.created }, revision: providerRevision)
+                                                  portfolios: { portfolios.created }, revisions: providerRevisions)
         self.providerSelection = providerSelection
         customRPCConnection = CustomRPCConnection(providers: providerSelection)
         recoveryPasteboard = RecoveryPasteboard()
@@ -102,7 +102,7 @@ struct AppServices {
     /// - Returns: A coordinator whose choices, pushed screens, and key entry belong to one window.
     func makeProvidersCoordinator() -> ProvidersCoordinator {
         ProvidersCoordinator(providers: providerSelection, providerKey: providerKey, connection: providerConnection,
-                             customRPCConnection: customRPCConnection, revision: providerRevision)
+                             customRPCConnection: customRPCConnection, revisions: providerRevisions)
     }
 
     /// Assembles a preference-editing workflow around the app's shared appearance services.

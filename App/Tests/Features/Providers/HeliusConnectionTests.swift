@@ -7,18 +7,19 @@ import Testing
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct HeliusConnectionTests {
-    /// An accepted key is saved, and every window hears about it.
+    /// An accepted key is saved, and every window's provider list and portfolio hear about it.
     /// - Throws: A connection failure.
     @Test
     func `An accepted key is checked and saved`() async throws {
         let responses = HTTPResponses.keyCheck()
         let keys = StoredValue<String>()
-        let revision = Revision()
+        let revisions = ProviderRevisions()
 
-        try await responses.connection(providerKey: keys, revision: revision).connect("fixture-key")
+        try await responses.connection(providerKey: keys, revisions: revisions).connect("fixture-key")
 
         #expect(await keys.value == "fixture-key")
-        #expect(revision.value == 1)
+        #expect(revisions.settings.value == 1)
+        #expect(revisions.connection.value == 1)
         #expect(await responses.requests.count == 1)
         #expect(await responses.requests.first?.url?.query() == "api-key=fixture-key")
     }
@@ -30,7 +31,7 @@ struct HeliusConnectionTests {
         let keys = StoredValue<String>()
 
         await #expect(throws: ProviderConnectionError.invalidKey) {
-            try await responses.connection(providerKey: keys, revision: Revision()).connect("")
+            try await responses.connection(providerKey: keys, revisions: ProviderRevisions()).connect("")
         }
 
         #expect(await responses.requests.isEmpty)
@@ -51,15 +52,16 @@ struct HeliusConnectionTests {
     func `Failed checks report their cause and keep the saved key`(status: Int, expected: ProviderConnectionError) async {
         let responses = HTTPResponses.keyCheck(error: .http(statusCode: status, retryAfter: nil))
         let keys = StoredValue("saved-key")
-        let revision = Revision()
+        let revisions = ProviderRevisions()
 
         await #expect(throws: expected) {
-            try await responses.connection(providerKey: keys, revision: revision).connect("fixture-key")
+            try await responses.connection(providerKey: keys, revisions: revisions).connect("fixture-key")
         }
 
         #expect(await responses.requests.count == 1)
         #expect(await keys.value == "saved-key")
-        #expect(revision.value == 0)
+        #expect(revisions.settings.value == 0)
+        #expect(revisions.connection.value == 0)
     }
 
     /// Refused keys show under the field, and other failures explain their cause in an alert.
@@ -77,14 +79,15 @@ struct HeliusConnectionTests {
     @Test
     func `An accepted key that can't be saved reports a storage failure`() async {
         let responses = HTTPResponses.keyCheck()
-        let revision = Revision()
+        let revisions = ProviderRevisions()
 
         await #expect(throws: ProviderConnectionError.storageFailed) {
-            try await responses.connection(providerKey: StoredValue<String>(failsSaving: true), revision: revision)
+            try await responses.connection(providerKey: StoredValue<String>(failsSaving: true), revisions: revisions)
                 .connect("fixture-key")
         }
 
-        #expect(revision.value == 0)
+        #expect(revisions.settings.value == 0)
+        #expect(revisions.connection.value == 0)
     }
 
     /// Cancelling a check reports cancellation rather than an outage, and nothing is saved.
@@ -93,8 +96,8 @@ struct HeliusConnectionTests {
         let gate = Suspension()
         let responses = HTTPResponses.keyCheck(gate: gate)
         let keys = StoredValue<String>()
-        let revision = Revision()
-        let check = responses.connection(providerKey: keys, revision: revision)
+        let revisions = ProviderRevisions()
+        let check = responses.connection(providerKey: keys, revisions: revisions)
         let operation = Task { try await check.connect("fixture-key") }
         defer { operation.cancel() }
         await gate.waitUntilStarted()
@@ -104,6 +107,7 @@ struct HeliusConnectionTests {
         await #expect(throws: CancellationError.self) { try await operation.value }
         #expect(await responses.wasCancelled)
         #expect(await keys.value == nil)
-        #expect(revision.value == 0)
+        #expect(revisions.settings.value == 0)
+        #expect(revisions.connection.value == 0)
     }
 }

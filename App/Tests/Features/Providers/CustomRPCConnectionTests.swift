@@ -19,13 +19,13 @@ struct CustomRPCConnectionTests {
         let settings = StoredValue<ProviderSettings>()
         let responses = HTTPResponses(["getMultipleAccounts": [Self.accounts]])
         let sockets = SocketSequence()
-        let revision = Revision()
+        let revisions = ProviderRevisions()
 
-        try await makeConnection(settings: settings, responses: responses, sockets: sockets, revision: revision)
+        try await makeConnection(settings: settings, responses: responses, sockets: sockets, revisions: revisions)
             .connect("https://rpc.example.com/fixture-token")
 
         #expect(await settings.value == ProviderSettings(selection: .custom(url), customRPCs: [url]))
-        #expect(revision.value == 1)
+        #expect(revisions.settings.value == 1)
         #expect(await responses.requests.map(\.url) == [url])
         #expect(try await responses.requests.first?.rpcParameters.first as? [String] == [HTTPResponses.keyCheckAsset])
         try #require(sockets.sockets.count == 2)
@@ -157,16 +157,16 @@ struct CustomRPCConnectionTests {
     /// A checked RPC that this device can't store explains it, and every window keeps its provider.
     @Test
     func `A checked RPC that can't be saved explains it`() async {
-        let revision = Revision()
+        let revisions = ProviderRevisions()
 
         await #expect(throws: CustomRPCError.storageFailed) {
             try await makeConnection(settings: StoredValue(failsSaving: true),
                                      responses: HTTPResponses(["getMultipleAccounts": [Self.accounts]]),
-                                     revision: revision)
+                                     revisions: revisions)
                 .connect("https://rpc.example.com")
         }
 
-        #expect(revision.value == 0)
+        #expect(revisions.settings.value == 0)
     }
 
     /// Leaving the screen during the check saves nothing.
@@ -194,13 +194,13 @@ struct CustomRPCConnectionTests {
     ///   - settings: The saved provider choice and custom RPCs.
     ///   - responses: The fixtures that answer standard requests.
     ///   - sockets: The connections that answer subscriptions; by default, each one acknowledges every subscription.
-    ///   - revision: Counts provider changes that every window hears about.
+    ///   - revisions: Count provider changes that every window hears about.
     /// - Returns: A check whose requests never leave the process.
     private func makeConnection(settings: StoredValue<ProviderSettings>, responses: HTTPResponses,
                                 sockets: SocketSequence = SocketSequence(),
-                                revision: Revision = Revision()) -> CustomRPCConnection {
+                                revisions: ProviderRevisions = ProviderRevisions()) -> CustomRPCConnection {
         let providers = ProviderSelection(settings: settings, providerKey: StoredValue(),
-                                          portfolios: { [ProviderChanges()] }, revision: revision)
+                                          portfolios: { [ProviderChanges()] }, revisions: revisions)
         return CustomRPCConnection(providers: providers) { responses.client(for: $0, on: $1, socket: { sockets.connect($0) }) }
     }
 

@@ -16,7 +16,7 @@ struct ProvidersLifecycle: ViewModifier {
     func body(content: Content) -> some View {
         let attempt = coordinator.attempt
         content
-            .task(id: coordinator.revision.value) { await coordinator.reload() }
+            .task(id: coordinator.revisions.settings.value) { await coordinator.reload() }
             .task(id: attempt) { await coordinator.run(attempt) }
             .sheet(item: $coordinator.keyEntry) { ProviderSetupSheet(submission: $0) }
             // The sheet closes itself after a saved key, before its own content could react, so the choice that asked

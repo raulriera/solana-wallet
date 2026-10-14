@@ -8,7 +8,7 @@ struct PortfolioObservationRoot: View {
 
     var body: some View {
         Color.clear
-            .portfolioObservation(of: account, coordinator: shown.coordinator, providerRevision: Revision())
+            .portfolioObservation(of: account, coordinator: shown.coordinator, providerRevisions: ProviderRevisions())
             // A hosted window isn't a SwiftUI scene, so the root reports the active scene that a shown window has.
             .environment(\.scenePhase, .active)
     }

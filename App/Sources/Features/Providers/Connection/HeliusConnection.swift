@@ -6,18 +6,18 @@ nonisolated struct HeliusConnection: ProviderConnecting {
     typealias EntryError = ProviderConnectionError
 
     private let providerKey: any ValueStoring<String>
-    private let revision: Revision
+    private let revisions: ProviderRevisions
     private let client: @Sendable (String) -> any RPC
 
     /// Creates a connection that checks keys against Helius mainnet.
     /// - Parameters:
     ///   - providerKey: Device-only storage for the accepted key.
-    ///   - revision: Tells every window when a saved key applies.
+    ///   - revisions: Tell every window when a saved key applies.
     ///   - client: Creates the Helius client for a candidate key.
-    init(providerKey: any ValueStoring<String>, revision: Revision,
+    init(providerKey: any ValueStoring<String>, revisions: ProviderRevisions,
          client: @escaping @Sendable (String) -> any RPC = { HeliusRPC(apiKey: $0, network: .mainnet) }) {
         self.providerKey = providerKey
-        self.revision = revision
+        self.revisions = revisions
         self.client = client
     }
 
@@ -44,6 +44,10 @@ nonisolated struct HeliusConnection: ProviderConnecting {
             try Task.checkCancellation()
             throw ProviderConnectionError.storageFailed
         }
-        await revision.advance()
+        // Both in one main-actor turn, so no window sees the saved key in its list without the new connection.
+        await MainActor.run {
+            revisions.settings.advance()
+            revisions.connection.advance()
+        }
     }
 }

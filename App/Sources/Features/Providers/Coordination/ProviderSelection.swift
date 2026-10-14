@@ -7,20 +7,20 @@ struct ProviderSelection: ProviderSelecting {
     private let store: any ValueStoring<ProviderSettings>
     private let providerKey: any ValueStoring<String>
     private let portfolios: @MainActor @Sendable () -> [any PortfolioProviding]
-    private let revision: Revision
+    private let revisions: ProviderRevisions
 
     /// Connects the choice to the stores and windows it changes.
     /// - Parameters:
     ///   - settings: Device-only storage for the provider choice and custom RPCs.
     ///   - providerKey: Device-only storage for Helius's accepted key.
     ///   - portfolios: Returns the portfolios created so far, whose clients read the choice before every request.
-    ///   - revision: Tells every window when a provider change applies.
+    ///   - revisions: Tell every window when the settings change, and when portfolios use another provider.
     init(settings: any ValueStoring<ProviderSettings>, providerKey: any ValueStoring<String>,
-         portfolios: @escaping @MainActor @Sendable () -> [any PortfolioProviding], revision: Revision) {
+         portfolios: @escaping @MainActor @Sendable () -> [any PortfolioProviding], revisions: ProviderRevisions) {
         store = settings
         self.providerKey = providerKey
         self.portfolios = portfolios
-        self.revision = revision
+        self.revisions = revisions
     }
 
     /// Reads the saved provider choice and custom RPCs.
@@ -74,8 +74,9 @@ struct ProviderSelection: ProviderSelecting {
         if new.selection != old.selection {
             // Logos that one portfolio can't remove don't keep another from ending its work.
             for portfolio in portfolios() { try? await portfolio.providerDidChange() }
+            revisions.connection.advance()
         }
         // Every window's list can change even when the provider stays.
-        revision.advance()
+        revisions.settings.advance()
     }
 }

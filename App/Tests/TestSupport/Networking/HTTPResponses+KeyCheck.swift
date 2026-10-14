@@ -19,12 +19,12 @@ extension HTTPResponses {
     /// Creates the production connection, answering each checked key with its own fixtures.
     /// - Parameters:
     ///   - providerKey: The test's isolated key storage.
-    ///   - revision: Counts saved keys that every window hears about.
+    ///   - revisions: Count saved keys that every window hears about.
     ///   - responses: The fixtures that answer a given key.
     /// - Returns: A connection whose Helius client never leaves the process.
-    nonisolated static func connection(providerKey: any ValueStoring<String>, revision: Revision,
+    nonisolated static func connection(providerKey: any ValueStoring<String>, revisions: ProviderRevisions,
                                        responding responses: @escaping @Sendable (String) -> HTTPResponses) -> HeliusConnection {
-        HeliusConnection(providerKey: providerKey, revision: revision) {
+        HeliusConnection(providerKey: providerKey, revisions: revisions) {
             HeliusRPC(apiKey: $0, network: .mainnet, transport: responses($0))
         }
     }
@@ -32,10 +32,10 @@ extension HTTPResponses {
     /// Creates the production connection with these fixtures in place of the network.
     /// - Parameters:
     ///   - providerKey: The test's isolated key storage.
-    ///   - revision: Counts saved keys that every window hears about.
+    ///   - revisions: Count saved keys that every window hears about.
     /// - Returns: A connection whose Helius client never leaves the process.
-    nonisolated func connection(providerKey: any ValueStoring<String>, revision: Revision) -> HeliusConnection {
-        Self.connection(providerKey: providerKey, revision: revision) { _ in self }
+    nonisolated func connection(providerKey: any ValueStoring<String>, revisions: ProviderRevisions) -> HeliusConnection {
+        Self.connection(providerKey: providerKey, revisions: revisions) { _ in self }
     }
 
     /// Creates the client that production uses for an endpoint on a Solana network, with these fixtures in place of

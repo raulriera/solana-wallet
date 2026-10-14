@@ -12,16 +12,16 @@ struct ProvidersCoordinatorTests {
     func `Every window checks a new provider after its next read`() async {
         let settings = StoredValue(ProviderSettings(selection: .helius))
         let keys = StoredValue<String>()
-        let revision = Revision()
-        let coordinator = ProvidersCoordinator.inMemory(settings: settings, providerKey: keys, revision: revision)
-        let otherWindow = ProvidersCoordinator.inMemory(settings: settings, providerKey: keys, revision: revision)
+        let revisions = ProviderRevisions()
+        let coordinator = ProvidersCoordinator.inMemory(settings: settings, providerKey: keys, revisions: revisions)
+        let otherWindow = ProvidersCoordinator.inMemory(settings: settings, providerKey: keys, revisions: revisions)
 
         coordinator.select(.solana)
         await coordinator.run(coordinator.attempt)
         await coordinator.reload()
         await otherWindow.reload()
 
-        #expect(revision.value == 1)
+        #expect(revisions.settings.value == 1)
         #expect(coordinator.selection == .solana)
         #expect(otherWindow.selection == .solana)
         #expect(coordinator.attempt == nil)
@@ -31,13 +31,13 @@ struct ProvidersCoordinatorTests {
     /// Helius without a key asks for one without an error, and a saved key continues the choice that asked for it.
     /// - Parameters:
     ///   - saved: The saved choice, or `nil` while Solana is in use by default.
-    ///   - revisions: The provider changes every window hears about: the saved key, then any new choice.
+    ///   - settingsChanges: The setting changes every window hears about: the saved key, then any new choice.
     /// - Throws: A test prerequisite error.
     @Test(arguments: [(nil, 2), (ProviderSettings(selection: .helius), 1)])
-    func `Helius is in use once its key is saved`(saved: ProviderSettings?, revisions: Int) async throws {
-        let revision = Revision()
+    func `Helius is in use once its key is saved`(saved: ProviderSettings?, settingsChanges: Int) async throws {
+        let revisions = ProviderRevisions()
         let coordinator = ProvidersCoordinator.inMemory(settings: StoredValue(saved), providerKey: StoredValue(),
-                                                        revision: revision)
+                                                        revisions: revisions)
         coordinator.select(.helius)
         await coordinator.run(coordinator.attempt)
         let keyEntry = try #require(coordinator.keyEntry)
@@ -49,7 +49,7 @@ struct ProvidersCoordinatorTests {
         await coordinator.reload()
 
         #expect(coordinator.selection == .helius)
-        #expect(revision.value == revisions)
+        #expect(revisions.settings.value == settingsChanges)
         #expect(coordinator.attempt == nil)
         #expect(coordinator.error == nil)
     }
@@ -59,9 +59,9 @@ struct ProvidersCoordinatorTests {
     @Test
     func `A replaced key keeps the provider in use`() async throws {
         let settings = StoredValue(ProviderSettings(selection: .solana))
-        let revision = Revision()
+        let revisions = ProviderRevisions()
         let coordinator = ProvidersCoordinator.inMemory(settings: settings, providerKey: StoredValue(),
-                                                        revision: revision)
+                                                        revisions: revisions)
         coordinator.select(.helius)
         await coordinator.run(coordinator.attempt)
         try #require(coordinator.keyEntry != nil)
@@ -80,7 +80,7 @@ struct ProvidersCoordinatorTests {
         #expect(coordinator.keyEntry == nil)
         #expect(await settings.value?.selection == .solana)
         #expect(coordinator.attempt == nil)
-        #expect(revision.value == 1)
+        #expect(revisions.settings.value == 1)
     }
 
     /// Helius's details open without a key check.
@@ -198,9 +198,9 @@ struct ProvidersCoordinatorTests {
     func `A key changed in another window shows after the next read`() async throws {
         let settings = StoredValue<ProviderSettings>()
         let keys = StoredValue("fixture-key")
-        let revision = Revision()
-        let coordinator = ProvidersCoordinator.inMemory(settings: settings, providerKey: keys, revision: revision)
-        let otherWindow = ProvidersCoordinator.inMemory(settings: settings, providerKey: keys, revision: revision)
+        let revisions = ProviderRevisions()
+        let coordinator = ProvidersCoordinator.inMemory(settings: settings, providerKey: keys, revisions: revisions)
+        let otherWindow = ProvidersCoordinator.inMemory(settings: settings, providerKey: keys, revisions: revisions)
         await coordinator.reload()
         coordinator.showDetails(for: .helius)
 
@@ -209,7 +209,7 @@ struct ProvidersCoordinatorTests {
         let replacement = try #require(otherWindow.newKey)
         replacement.submit("replacement-key")
         await replacement.run(replacement.attempt)
-        try #require(revision.value == 1)
+        try #require(revisions.settings.value == 1)
         await coordinator.reload()
 
         #expect(coordinator.keyPreview == "replacement-key".formatted(.masked))
@@ -426,11 +426,11 @@ struct ProvidersCoordinatorTests {
         let deleted = try #require(URL(string: "https://one.example.com"))
         let kept = try #require(URL(string: "https://two.example.com"))
         let settings = StoredValue(ProviderSettings(selection: .custom(deleted), customRPCs: [deleted, kept]))
-        let revision = Revision()
+        let revisions = ProviderRevisions()
         let coordinator = ProvidersCoordinator.inMemory(settings: settings, providerKey: StoredValue(),
-                                                        revision: revision)
+                                                        revisions: revisions)
         let otherWindow = ProvidersCoordinator.inMemory(settings: settings, providerKey: StoredValue(),
-                                                        revision: revision)
+                                                        revisions: revisions)
         await coordinator.reload()
         try #require(coordinator.customRPCs == [deleted, kept])
 
@@ -442,7 +442,7 @@ struct ProvidersCoordinatorTests {
         #expect(coordinator.customRPCs == [kept])
         #expect(otherWindow.customRPCs == [kept])
         #expect(coordinator.selection == .solana)
-        #expect(revision.value == 1)
+        #expect(revisions.settings.value == 1)
         #expect(coordinator.error == nil)
     }
 

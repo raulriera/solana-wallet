@@ -31,8 +31,9 @@ final class ProvidersCoordinator: ProviderActions {
     var error: ProvidersError?
     /// The change waiting for the screen's task, identified without secrets.
     private(set) var attempt: UUID?
-    /// Tells every window when a provider change applies, including a saved key.
-    let revision: Revision
+    /// Tell every window when the provider settings change, including a saved key, and when portfolios use another
+    /// connection.
+    let revisions: ProviderRevisions
     @ObservationIgnored private var request: Request?
     /// The choice that waits for a key; kept after its key sheet closes, so the sheet's saved key still continues it.
     private var keyChoice: KeyChoice?
@@ -59,15 +60,15 @@ final class ProvidersCoordinator: ProviderActions {
     ///   - providerKey: Device-only storage for Helius's accepted key, read only to show its first characters.
     ///   - connection: Verifies and saves the provider's API key.
     ///   - customRPCConnection: Checks a custom RPC URL, then adds it and chooses it.
-    ///   - revision: Tells every window when a provider change applies.
+    ///   - revisions: Tell every window when the provider settings change, and when portfolios use another connection.
     init(providers: any ProviderSelecting, providerKey: any ValueStoring<String>,
          connection: any ProviderConnecting<ProviderConnectionError>,
-         customRPCConnection: any ProviderConnecting<CustomRPCError>, revision: Revision) {
+         customRPCConnection: any ProviderConnecting<CustomRPCError>, revisions: ProviderRevisions) {
         self.providers = providers
         self.providerKey = providerKey
         self.connection = connection
         self.customRPCConnection = customRPCConnection
-        self.revision = revision
+        self.revisions = revisions
     }
 
     /// Chooses the provider that every window uses, asking for its key first when none is saved.
