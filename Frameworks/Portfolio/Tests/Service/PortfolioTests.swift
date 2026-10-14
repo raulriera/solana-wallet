@@ -553,8 +553,7 @@ struct PortfolioTests {
         let logo = try #require(URL(string: "https://cdn.example.com/usdc.png"))
         let cached = Snapshot(owner: testWallet, network: .mainnet,
                               holdings: [Holding(id: .asset(usdcMint), amount: Amount(units: 1, decimals: 6),
-                                                 name: "USD Coin", symbol: "USDC", imageURL: logo, valuation: nil)],
-                              fetchedAt: Date(timeIntervalSince1970: 1))
+                                                 name: "USD Coin", symbol: "USDC", imageURL: logo, valuation: nil)])
         try fixture.store.save(cached, for: CacheKey(owner: testWallet, network: .mainnet))
         let http = AccountResponses { _ in Ledger() }
 
@@ -583,8 +582,7 @@ struct PortfolioTests {
         let logo = try #require(URL(string: "https://old.example.com/usdc.png"))
         let other = Snapshot(owner: otherWallet, network: .mainnet,
                              holdings: [Holding(id: .asset(usdcMint), amount: Amount(units: 1, decimals: 6),
-                                                name: "USD Coin", symbol: "USDC", imageURL: logo, valuation: nil)],
-                             fetchedAt: Date(timeIntervalSince1970: 1))
+                                                name: "USD Coin", symbol: "USDC", imageURL: logo, valuation: nil)])
         try fixture.store.save(other, for: otherKey)
 
         try await service.providerDidChange()
@@ -594,7 +592,6 @@ struct PortfolioTests {
         let otherSaved = try #require(fixture.store.snapshot(for: otherKey))
         #expect(saved.holdings.allSatisfy { $0.imageURL == nil })
         #expect(saved.holdings.map(\.amount) == original.holdings.map(\.amount))
-        #expect(saved.fetchedAt == original.fetchedAt)
         #expect(otherSaved.holdings.map(\.imageURL) == [nil])
         #expect(otherSaved.holdings.map(\.amount) == other.holdings.map(\.amount))
         host.withLock { $0 = "new.example.com" }
@@ -712,17 +709,16 @@ private func reload(_ service: Portfolio) async throws -> Update {
     return try #require(last)
 }
 
-/// Creates a previously retrieved portfolio fixture.
+/// Creates a previously read portfolio fixture.
 ///
 /// - Parameters:
 ///   - owner: The wallet address.
 ///   - network: The snapshot's network.
 ///   - units: The cached USDC balance.
 ///   - imageURL: The cached USDC logo, if any.
-/// - Returns: An immutable snapshot with an earlier successful retrieval time.
+/// - Returns: An immutable snapshot of the USDC balance.
 private func snapshot(owner: String, network: Network, units: UInt64, imageURL: URL? = nil) -> Snapshot {
     Snapshot(owner: owner, network: network,
              holdings: [Holding(id: .asset(usdcMint), amount: Amount(units: units, decimals: 6),
-                                name: nil, symbol: nil, imageURL: imageURL, valuation: nil)],
-             fetchedAt: Date(timeIntervalSince1970: 1))
+                                name: nil, symbol: nil, imageURL: imageURL, valuation: nil)])
 }

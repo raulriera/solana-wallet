@@ -42,7 +42,6 @@ extension Snapshot {
             return Holding(id: holding.id, amount: holding.amount, name: holding.name, symbol: holding.symbol,
                            imageURL: logos[mint], valuation: holding.valuation)
         }
-        return Snapshot(owner: owner, network: network, holdings: holdings, fetchedAt: fetchedAt,
-                        pricesFetchedAt: pricesFetchedAt)
+        return Snapshot(owner: owner, network: network, holdings: holdings)
     }
 }

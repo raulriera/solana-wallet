@@ -13,11 +13,11 @@ struct PriceRefreshTests {
     func `A refresh values new holdings and shares SOL's quote with Wrapped SOL`() async throws {
         let fixture = PricingFixture()
         defer { fixture.removeFiles() }
-        let stalePrice = Valuation(pricePerUnit: 20, total: 20, currency: "USD", fetchedAt: .distantPast)
+        let stalePrice = Valuation(pricePerUnit: 20, total: 20, currency: "USD")
         try fixture.store.save(Snapshot(owner: testWallet, network: .mainnet, holdings: [
             Holding(id: .asset(usdtMint), amount: Amount(units: 1, decimals: 6), name: "Tether USD", symbol: "USDT",
                     imageURL: nil, valuation: stalePrice),
-        ], fetchedAt: .distantPast), for: fixture.key)
+        ]), for: fixture.key)
         let accounts = AccountResponses { _ in
             Ledger(lamports: 1_000_000_000, tokens: [usdcMint: 3_000_000, nativeMint: 2_000_000_000])
         }
@@ -35,7 +35,6 @@ struct PriceRefreshTests {
         #expect(snapshot.holdings.map(\.id) == [.nativeSOL, .asset(usdcMint), .asset(usdtMint), .asset(nativeMint)])
         #expect(snapshot.holdings.map(\.valuation?.total) == [100, 12, nil, 200])
         #expect(snapshot.holdings.map(\.valuation?.currency) == ["USD", "USD", nil, "USD"])
-        #expect(snapshot.holdings.allSatisfy { $0.valuation == nil || $0.valuation?.fetchedAt != nil })
         #expect(await prices.requests == [[nativeMint, usdcMint, usdtMint]])
         #expect(await accounts.requests.count == 1)
         #expect(fixture.store.snapshot(for: fixture.key) == snapshot)
@@ -218,7 +217,6 @@ struct PriceRefreshTests {
         #expect(saved.holdings.allSatisfy { $0.imageURL == nil })
         #expect(saved.holdings.map(\.amount) == cached.holdings.map(\.amount))
         #expect(saved.holdings.map(\.valuation) == cached.holdings.map(\.valuation))
-        #expect(saved.pricesFetchedAt == cached.pricesFetchedAt)
     }
 }
 
@@ -255,7 +253,7 @@ private func pricingSnapshot() -> Snapshot {
         Holding(id: .asset("mint"), amount: Amount(units: 1_250_000, decimals: 6), name: "Token", symbol: "TOK",
                 imageURL: URL(string: "https://example.com/token.png"), valuation: nil),
         Holding(id: .asset("missing"), amount: Amount(units: 1, decimals: 0), name: nil, symbol: nil, imageURL: nil,
-                valuation: Valuation(pricePerUnit: 20, total: 20, currency: "USDC", fetchedAt: .distantPast)),
+                valuation: Valuation(pricePerUnit: 20, total: 20, currency: "USDC")),
     ]
-    return Snapshot(owner: testWallet, network: .mainnet, holdings: holdings, fetchedAt: .distantPast)
+    return Snapshot(owner: testWallet, network: .mainnet, holdings: holdings)
 }

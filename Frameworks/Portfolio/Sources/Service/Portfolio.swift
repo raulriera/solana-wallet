@@ -29,21 +29,20 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
     ///   - store: The persistent snapshot store.
     ///   - tokenLists: The token-list store; the default saves lists in Application Support.
     ///   - prices: An optional same-network price provider.
-    ///   - now: The current time used to record price refreshes.
     ///   - changes: The optional finalized-change provider, defaulting to the RPC client's capability.
     ///   - pause: Cancellable scheduling for coalescing nearby changes and spacing reconnections.
     init(rpc: any RPC, store: any SnapshotStoring,
          tokenLists: any TokenListStoring = FileTokenListStore(
             directory: .applicationSupportDirectory.appending(path: "Portfolio/TokenLists", directoryHint: .isDirectory)),
          prices: (any PriceProviding)? = nil,
-         now: @escaping @Sendable () -> Date = { Date() }, changes: (any AccountChangeProviding)? = nil,
+         changes: (any AccountChangeProviding)? = nil,
          pause: @escaping ObservationCoordinator.Pause = { try await Task.sleep(for: $0) }) {
         let lists = TokenListCoordinator(store: tokenLists, network: rpc.network)
         let logos = rpc as? any LogoProviding
         self.tokenLists = lists
         lookup = TokenLookup(rpc: rpc, logos: logos)
         coordinator = RefreshCoordinator(source: BalanceReader(rpc: rpc), tokenLists: lists, store: store,
-                                         prices: prices, logos: logos, now: now)
+                                         prices: prices, logos: logos)
         observer = ObservationCoordinator(refresh: coordinator, tokenLists: lists,
                                           changes: changes ?? (rpc as? any AccountChangeProviding),
                                           network: rpc.network, pause: pause)

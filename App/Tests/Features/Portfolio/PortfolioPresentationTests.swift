@@ -50,5 +50,5 @@ struct PortfolioPresentationTests {
     }
 
     /// An empty wallet's complete snapshot.
-    private let snapshot = Snapshot(owner: "wallet", network: .mainnet, holdings: [], fetchedAt: .distantPast)
+    private let snapshot = Snapshot(owner: "wallet", network: .mainnet, holdings: [])
 }

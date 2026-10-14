@@ -59,10 +59,9 @@ public struct Jupiter: PriceProviding, CustomStringConvertible, CustomDebugStrin
             try Task.checkCancellation()
             let batch = Array(unique[start..<min(start + 50, unique.count)])
             let values = try await fetch(batch)
-            let fetchedAt = Date()
             for (mint, value) in values {
                 guard batch.contains(mint) else { throw RPCError.decoding }
-                if let quote = try value?.makeQuote(fetchedAt: fetchedAt) { quotes[mint] = quote }
+                if let quote = try value?.makeQuote() { quotes[mint] = quote }
             }
         }
         try Task.checkCancellation()
@@ -111,14 +110,12 @@ public struct Jupiter: PriceProviding, CustomStringConvertible, CustomDebugStrin
         }
 
         /// Validates the decoded price and converts it to the shared domain value.
-        /// - Parameter fetchedAt: The time this response was retrieved.
         /// - Returns: A normalized quote, or `nil` for a record with an absent or null price.
         /// - Throws: A decoding error if the price is negative or not a number.
-        func makeQuote(fetchedAt: Date) throws -> Quote? {
+        func makeQuote() throws -> Quote? {
             guard let pricePerUnit else { return nil }
             guard !pricePerUnit.isNaN, pricePerUnit >= 0 else { throw RPCError.decoding }
-            return Quote(pricePerUnit: pricePerUnit, currency: "USD", fetchedAt: fetchedAt,
-                         dayChange: percentChange.map { $0 / 100 })
+            return Quote(pricePerUnit: pricePerUnit, currency: "USD", dayChange: percentChange.map { $0 / 100 })
         }
     }
 }

@@ -20,13 +20,12 @@ actor RefreshCoordinator {
     ///   - store: The persistent snapshot store.
     ///   - prices: An optional price provider for the listed tokens.
     ///   - logos: An optional provider of logo copies for the listed tokens.
-    ///   - now: The clock for successful price retrievals.
     init(source: any BalanceReading, tokenLists: TokenListCoordinator, store: any SnapshotStoring,
-         prices: (any PriceProviding)?, logos: (any LogoProviding)?, now: @escaping @Sendable () -> Date) {
+         prices: (any PriceProviding)?, logos: (any LogoProviding)?) {
         self.source = source
         self.tokenLists = tokenLists
         self.store = store
-        pricer = prices.map { SnapshotPricer(provider: $0, now: now) }
+        pricer = prices.map { SnapshotPricer(provider: $0) }
         self.logos = logos.map { LogoReader(provider: $0) }
     }
 
@@ -95,8 +94,7 @@ actor RefreshCoordinator {
         }
         guard let cached = store.snapshot(for: key), cached.holdings.contains(where: { $0.id == id }) else { return }
         let snapshot = Snapshot(owner: cached.owner, network: cached.network,
-                                holdings: cached.holdings.filter { $0.id != id },
-                                fetchedAt: cached.fetchedAt, pricesFetchedAt: cached.pricesFetchedAt)
+                                holdings: cached.holdings.filter { $0.id != id })
         try store.save(snapshot, for: key)
         revision += 1
         snapshotRevisions[key] = revision

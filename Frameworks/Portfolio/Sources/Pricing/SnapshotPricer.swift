@@ -4,16 +4,6 @@ import RPC
 /// Looks up quotes for a balance read's holdings and values them.
 struct SnapshotPricer: Sendable {
     let provider: any PriceProviding
-    private let now: @Sendable () -> Date
-
-    /// Creates a pricer that records when each lookup completes.
-    /// - Parameters:
-    ///   - provider: The source of normalized quotes for these holdings.
-    ///   - now: The clock used to record successful lookup completion.
-    init(provider: any PriceProviding, now: @escaping @Sendable () -> Date = { Date() }) {
-        self.provider = provider
-        self.now = now
-    }
 
     /// Checks that prices describe the same network as the wallet's holdings.
     /// - Parameter network: The network whose holdings are being refreshed.
@@ -34,22 +24,23 @@ struct SnapshotPricer: Sendable {
         return try await provider.prices(for: mints)
     }
 
-    /// Replaces all valuations with looked-up quotes while preserving the holdings' retrieval time.
+    /// Replaces all valuations with looked-up quotes.
     /// - Parameters:
     ///   - snapshot: The complete holdings to value.
     ///   - quotes: The quotes from ``quotes(for:)``, keyed by mint.
     /// - Returns: The same holdings with new valuations; omitted quotes remain unknown.
-    /// - Throws: `PriceError.invalidQuote` for an invalid price, currency, or retrieval time.
+    /// - Throws: `PriceError.invalidQuote` for an invalid price or currency.
     func snapshot(pricing snapshot: Snapshot, with quotes: [String: Quote]) throws -> Snapshot {
         let holdings = try snapshot.holdings.map { holding in
             let valuation: Valuation?
             if let quote = quotes[mint(for: holding.id)] {
                 guard !quote.pricePerUnit.isNaN, quote.pricePerUnit >= 0,
-                      !quote.currency.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                      quote.fetchedAt.timeIntervalSinceReferenceDate.isFinite else { throw PriceError.invalidQuote }
+                      !quote.currency.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                    throw PriceError.invalidQuote
+                }
                 valuation = Valuation(pricePerUnit: quote.pricePerUnit,
                                       total: holding.amount.flatMap { total(for: $0, price: quote.pricePerUnit) },
-                                      currency: quote.currency, fetchedAt: quote.fetchedAt,
+                                      currency: quote.currency,
                                       // A change that isn't a number stays unknown; the price is still valid.
                                       dayChange: quote.dayChange.flatMap { $0.isNaN ? nil : $0 })
             } else {
@@ -58,8 +49,7 @@ struct SnapshotPricer: Sendable {
             return Holding(id: holding.id, amount: holding.amount, name: holding.name, symbol: holding.symbol,
                            imageURL: holding.imageURL, valuation: valuation)
         }
-        return Snapshot(owner: snapshot.owner, network: snapshot.network, holdings: holdings,
-                        fetchedAt: snapshot.fetchedAt, pricesFetchedAt: now())
+        return Snapshot(owner: snapshot.owner, network: snapshot.network, holdings: holdings)
     }
 
     /// Identifies the token market for a holding without merging native SOL and Wrapped SOL balances.

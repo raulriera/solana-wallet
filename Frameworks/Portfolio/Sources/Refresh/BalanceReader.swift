@@ -47,7 +47,7 @@ struct BalanceReader: BalanceReading {
                            name: token.name, symbol: token.symbol, imageURL: nil, valuation: nil)
         }
         try Task.checkCancellation()
-        return Snapshot(owner: owner, network: network, holdings: [native] + tokens, fetchedAt: Date())
+        return Snapshot(owner: owner, network: network, holdings: [native] + tokens)
     }
 
     /// Reads a listed token's balance from its associated token account.

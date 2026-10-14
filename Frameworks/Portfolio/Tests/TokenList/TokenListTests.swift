@@ -55,7 +55,7 @@ struct TokenListTests {
                                 imageURL: nil, valuation: nil)]
             + tokens.map { Holding(id: .asset($0.mint.value), amount: Amount(units: 1, decimals: $0.decimals),
                                    name: $0.name, symbol: $0.symbol, imageURL: nil, valuation: nil) }
-        try fixture.snapshots.save(Snapshot(owner: "wallet", network: .mainnet, holdings: holdings, fetchedAt: Date()),
+        try fixture.snapshots.save(Snapshot(owner: "wallet", network: .mainnet, holdings: holdings),
                                    for: CacheKey(owner: "wallet", network: .mainnet))
         let usdc = try #require(tokens.first)
 

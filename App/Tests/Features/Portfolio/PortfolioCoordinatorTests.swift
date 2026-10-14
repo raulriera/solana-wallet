@@ -22,13 +22,13 @@ struct PortfolioCoordinatorTests {
         let viewing = Task { await coordinator.observe(for: "wallet-a", isActive: true) }
         defer { viewing.cancel() }
         let observation = try #require(await requests.next())
-        let before = largeSnapshot(time: 200, units: 10)
+        let before = largeSnapshot(units: 10)
         observation.continuation.yield(Update(snapshot: before, phase: .ready, revision: 1))
         await waitForSnapshot(before, in: coordinator)
         let refreshing = Task { await coordinator.refresh() }
         defer { refreshing.cancel() }
         let reload = try #require(await requests.next())
-        let after = largeSnapshot(time: 190, units: 20)
+        let after = largeSnapshot(units: 20)
         reload.continuation.yield(Update(snapshot: after, phase: .ready, revision: 2))
         reload.continuation.finish()
         await refreshing.value
@@ -72,16 +72,14 @@ struct PortfolioCoordinatorTests {
         await viewing.value
     }
 
-    /// Builds a large deterministic portfolio with an independently controlled retrieval time.
-    /// - Parameters:
-    ///   - time: The device wall-clock value at retrieval.
-    ///   - units: The amount held for each token.
+    /// Builds a large deterministic portfolio.
+    /// - Parameter units: The amount held for each token.
     /// - Returns: Five hundred fungible holdings.
-    private func largeSnapshot(time: TimeInterval, units: UInt64) -> Snapshot {
+    private func largeSnapshot(units: UInt64) -> Snapshot {
         Snapshot(owner: "wallet-a", network: .devnet, holdings: (0..<500).map {
             Holding(id: .asset("asset-\($0)"), amount: Amount(units: units, decimals: 6),
                     name: "Token \($0)", symbol: "T\($0)", imageURL: nil, valuation: nil)
-        }, fetchedAt: Date(timeIntervalSince1970: time))
+        })
     }
 
     /// Verifies an added token is saved to the selected wallet's list.
@@ -427,10 +425,13 @@ struct PortfolioCoordinatorTests {
     /// Creates distinct complete results without wallet recovery or live addresses.
     /// - Parameters:
     ///   - owner: The test wallet's label.
-    ///   - revision: A deterministic retrieval time.
-    /// - Returns: A valid empty fungible portfolio.
-    private func snapshot(owner: String, revision: TimeInterval) -> Snapshot {
-        Snapshot(owner: owner, network: .devnet, holdings: [], fetchedAt: Date(timeIntervalSince1970: revision))
+    ///   - revision: The SOL balance in lamports, which tells the results apart.
+    /// - Returns: A portfolio that holds only native SOL.
+    private func snapshot(owner: String, revision: UInt64) -> Snapshot {
+        Snapshot(owner: owner, network: .devnet, holdings: [
+            Holding(id: .nativeSOL, amount: Amount(units: revision, decimals: 9), name: "Solana", symbol: "SOL",
+                    imageURL: nil, valuation: nil),
+        ])
     }
 
     /// Creates a portfolio service that keeps its token lists and snapshots in a test's directory.
@@ -451,8 +452,7 @@ struct PortfolioCoordinatorTests {
         }
         let solana = Holding(id: .nativeSOL, amount: Amount(units: 0, decimals: 9), name: "Solana", symbol: "SOL",
                              imageURL: nil, valuation: nil)
-        return Snapshot(owner: "wallet-a", network: .devnet, holdings: tokens + [solana],
-                        fetchedAt: Date(timeIntervalSince1970: 1))
+        return Snapshot(owner: "wallet-a", network: .devnet, holdings: tokens + [solana])
     }
 
     /// Awaits observable snapshot publication without sleeps or polling.

@@ -15,7 +15,6 @@ struct JupiterTests {
                 """#)
         }
         let source: any PriceProviding = Jupiter(apiKey: "fixture-key", transport: transport)
-        let startedAt = Date()
 
         let quotes = try await source.prices(for: ["mint-a", "mint-b", "metadata-only", "null-price", "null-record", "unpriced"])
 
@@ -24,7 +23,6 @@ struct JupiterTests {
         let first = try #require(quotes["mint-a"])
         #expect(first.pricePerUnit == Decimal(string: "0.12345678901234567890123456789012"))
         #expect(first.currency == "USD")
-        #expect(first.fetchedAt >= startedAt && first.fetchedAt <= Date())
         #expect(quotes["mint-b"]?.pricePerUnit == 0)
         #expect(quotes["unpriced"] == nil)
         #expect(quotes["metadata-only"] == nil)
@@ -33,7 +31,7 @@ struct JupiterTests {
 
         let encoded = try JSONEncoder().encode(first)
         let fields = try #require(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
-        #expect(Set(fields.keys) == ["pricePerUnit", "currency", "fetchedAt"])
+        #expect(Set(fields.keys) == ["pricePerUnit", "currency"])
         let request = try #require(await transport.requests.first)
         #expect(request.httpMethod == "GET")
         #expect(request.httpBody == nil)

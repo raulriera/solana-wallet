@@ -21,32 +21,28 @@ struct ValuationTests {
         (nil, Decimal(10), nil),
     ])
     func `Valuation preserves decimal precision and never invents unrepresentable totals`(amount: Amount?, price: Decimal, total: Decimal?) async throws {
-        let retrieved = Date(timeIntervalSince1970: 20)
-        let quote = Quote(pricePerUnit: price, currency: "CAD", fetchedAt: retrieved)
+        let quote = Quote(pricePerUnit: price, currency: "CAD")
         let snapshot = Snapshot(owner: "wallet", network: .devnet, holdings: [
             Holding(id: .asset("mint"), amount: amount, name: "Token", symbol: "TOK", imageURL: nil, valuation: nil),
-        ], fetchedAt: .distantPast)
+        ])
         let result = try await valued(snapshot, with: FixedPrices(quote: quote))
         let valuation = try #require(result.holdings.first?.valuation)
         #expect(valuation.pricePerUnit == price)
         #expect(valuation.total == total)
         #expect(valuation.currency == "CAD")
-        #expect(valuation.fetchedAt == retrieved)
-        #expect(result.fetchedAt == snapshot.fetchedAt)
     }
 
     /// Verifies malformed normalized quotes cannot enter cached portfolio values.
     /// - Parameter quote: A quote violating the provider-neutral value contract.
     @Test(arguments: [
-        Quote(pricePerUnit: -1, currency: "USD", fetchedAt: .now),
-        Quote(pricePerUnit: .nan, currency: "USD", fetchedAt: .now),
-        Quote(pricePerUnit: 1, currency: " ", fetchedAt: .now),
-        Quote(pricePerUnit: 1, currency: "USD", fetchedAt: Date(timeIntervalSince1970: .infinity)),
+        Quote(pricePerUnit: -1, currency: "USD"),
+        Quote(pricePerUnit: .nan, currency: "USD"),
+        Quote(pricePerUnit: 1, currency: " "),
     ])
     func `Invalid independent quotes fail valuation`(quote: Quote) async {
         let snapshot = Snapshot(owner: "wallet", network: .devnet, holdings: [
             Holding(id: .asset("mint"), amount: nil, name: nil, symbol: nil, imageURL: nil, valuation: nil),
-        ], fetchedAt: .distantPast)
+        ])
         await #expect(throws: PriceError.invalidQuote) {
             try await valued(snapshot, with: FixedPrices(quote: quote))
         }
@@ -86,11 +82,11 @@ struct ValuationTests {
     /// - Returns: The token's valuation.
     /// - Throws: A pricing or test prerequisite error.
     private func pricedValuation(dayChange: Decimal?) async throws -> Valuation {
-        let quote = Quote(pricePerUnit: 2, currency: "USD", fetchedAt: .now, dayChange: dayChange)
+        let quote = Quote(pricePerUnit: 2, currency: "USD", dayChange: dayChange)
         let snapshot = Snapshot(owner: "wallet", network: .devnet, holdings: [
             Holding(id: .asset("mint"), amount: Amount(units: 1, decimals: 0), name: nil, symbol: nil, imageURL: nil,
                     valuation: nil),
-        ], fetchedAt: .distantPast)
+        ])
         let result = try await valued(snapshot, with: FixedPrices(quote: quote))
         return try #require(result.holdings.first?.valuation)
     }
