@@ -56,10 +56,7 @@ nonisolated struct Submitter: TransactionSubmitting {
             guard original == current else { throw SubmitterError.transactionMismatch }
         }
         try Task.checkCancellation()
-        let request = SendTransaction(
-            transaction: bytes, minContextSlot: signed.preparation.minimumSlot,
-            skipsPreflight: false, maxRetries: 0
-        )
+        let request = SendTransaction(transaction: bytes, minContextSlot: signed.preparation.minimumSlot)
         let errors = await withTaskGroup(of: Result<Void, any Error>.self) { group in
             for rpc in rpcs {
                 group.addTask {

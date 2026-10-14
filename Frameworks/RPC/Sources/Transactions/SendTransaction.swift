@@ -17,37 +17,19 @@ public struct SendTransaction: RPCRequest {
     /// The earliest slot at which the node may evaluate the request, or `nil` for no minimum.
     public let minContextSlot: UInt64?
 
-    /// Whether the node should bypass signature verification and preflight simulation.
-    public let skipsPreflight: Bool
-
-    /// The node's retry limit, or `nil` to use its retry policy until finalization or expiry.
-    ///
-    /// This option controls the node's forwarding attempts. The HTTP client always
-    /// makes one request and never resubmits automatically.
-    public let maxRetries: UInt64?
-
     /// Creates a request to submit a fully signed V1 transaction.
     ///
     /// Construction and signing belong to the caller. The request encodes the supplied
-    /// bytes as base64 without changing the signatures or blockhash. Preflight runs
-    /// at finalized commitment, the same level ``GetLatestBlockhash`` reads.
+    /// bytes as base64 without changing the signatures or blockhash. Preflight always runs,
+    /// at finalized commitment, the same level ``GetLatestBlockhash`` reads. The node doesn't
+    /// retry forwarding, and the HTTP client makes one request and never resubmits.
     ///
     /// - Parameters:
     ///   - transaction: The complete serialized, signed V1 transaction.
     ///   - minContextSlot: The minimum evaluation slot. The default is `nil`.
-    ///   - skipsPreflight: Whether to bypass preflight checks. The default is `false`.
-    ///   - maxRetries: The node's retry limit. The default is zero; `nil` delegates to
-    ///     the node's retry policy.
-    public init(
-        transaction: Data,
-        minContextSlot: UInt64? = nil,
-        skipsPreflight: Bool = false,
-        maxRetries: UInt64? = 0
-    ) {
+    public init(transaction: Data, minContextSlot: UInt64? = nil) {
         self.transaction = transaction
         self.minContextSlot = minContextSlot
-        self.skipsPreflight = skipsPreflight
-        self.maxRetries = maxRetries
     }
 
     /// Encodes the base64 transaction and submission options as positional RPC parameters.
@@ -57,11 +39,7 @@ public struct SendTransaction: RPCRequest {
     public func encode(to encoder: any Encoder) throws {
         var parameters = encoder.unkeyedContainer()
         try parameters.encode(transaction.base64EncodedString())
-        try parameters.encode(Configuration(
-            minContextSlot: minContextSlot,
-            skipPreflight: skipsPreflight,
-            maxRetries: maxRetries
-        ))
+        try parameters.encode(Configuration(minContextSlot: minContextSlot))
     }
 
     /// The submission options accompanying the signed transaction.
@@ -69,7 +47,7 @@ public struct SendTransaction: RPCRequest {
         let encoding = "base64"
         let preflightCommitment = Commitment.finalized
         let minContextSlot: UInt64?
-        let skipPreflight: Bool
-        let maxRetries: UInt64?
+        let skipPreflight = false
+        let maxRetries: UInt64 = 0
     }
 }

@@ -196,33 +196,17 @@ public struct SimulateTransaction: RPCRequest {
     /// The earliest slot at which the node may evaluate the request, or `nil` for no minimum.
     public let minContextSlot: UInt64?
 
-    /// Whether the node should verify the transaction's signatures before execution.
-    public let verifiesSignatures: Bool
-
-    /// Whether the node should substitute a recent blockhash before execution.
-    public let replacesRecentBlockhash: Bool
-
     /// Creates a simulation request at finalized commitment for a complete serialized transaction.
     ///
-    /// The transaction may contain placeholder signatures unless verification is enabled.
-    /// Signature verification and blockhash replacement can't both be enabled; the server
-    /// validates this combination and the transaction bytes.
+    /// The node evaluates the transaction exactly as given: it doesn't verify signatures, so signature slots may
+    /// hold placeholders, and it keeps the transaction's own blockhash. The server validates the transaction bytes.
     ///
     /// - Parameters:
     ///   - transaction: The complete serialized transaction, including its signature slots.
     ///   - minContextSlot: The minimum evaluation slot. The default is `nil`.
-    ///   - verifiesSignatures: Whether to verify signatures. The default is `false`.
-    ///   - replacesRecentBlockhash: Whether to replace the blockhash. The default is `false`.
-    public init(
-        transaction: Data,
-        minContextSlot: UInt64? = nil,
-        verifiesSignatures: Bool = false,
-        replacesRecentBlockhash: Bool = false
-    ) {
+    public init(transaction: Data, minContextSlot: UInt64? = nil) {
         self.transaction = transaction
         self.minContextSlot = minContextSlot
-        self.verifiesSignatures = verifiesSignatures
-        self.replacesRecentBlockhash = replacesRecentBlockhash
     }
 
     /// Encodes the base64 transaction and simulation configuration as positional RPC parameters.
@@ -232,11 +216,7 @@ public struct SimulateTransaction: RPCRequest {
     public func encode(to encoder: any Encoder) throws {
         var parameters = encoder.unkeyedContainer()
         try parameters.encode(transaction.base64EncodedString())
-        try parameters.encode(Configuration(
-            minContextSlot: minContextSlot,
-            sigVerify: verifiesSignatures,
-            replaceRecentBlockhash: replacesRecentBlockhash
-        ))
+        try parameters.encode(Configuration(minContextSlot: minContextSlot))
     }
 
     /// The simulation options accompanying the serialized transaction.
@@ -244,7 +224,7 @@ public struct SimulateTransaction: RPCRequest {
         let encoding = "base64"
         let commitment = Commitment.finalized
         let minContextSlot: UInt64?
-        let sigVerify: Bool
-        let replaceRecentBlockhash: Bool
+        let sigVerify = false
+        let replaceRecentBlockhash = false
     }
 }

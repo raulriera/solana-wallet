@@ -11,8 +11,7 @@ extension widgets.Confirmation {
     /// - Throws: An RPC error, or a test failure when the provider doesn't report the transaction.
     func executionSlot(through rpc: any RPC) async throws -> UInt64 {
         if let slot { return slot }
-        let response = try await rpc.send(GetSignatureStatuses(signatures: [submission.signature],
-                                                               searchesTransactionHistory: true))
+        let response = try await rpc.send(GetSignatureStatuses(signatures: [submission.signature]))
         return try #require(response.value.first ?? nil, "The provider doesn't report the confirmed transaction").slot
     }
 }

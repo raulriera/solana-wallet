@@ -30,7 +30,3 @@ Connect directly to interchangeable RPC, DAS, and pricing providers; no app-owne
 - Price providers follow the same error policy. Jupiter deduplicates addresses and paces batches of at most fifty at twenty requests/minute without a key or forty with a key. A failed batch throws without retrying or returning partial results. Reuse the provider to share its request budget; refresh scheduling belongs to the consumer.
 - Consumers decide presentation and recovery. Portfolio keeps its cached snapshot and exposes the refresh error; the app may silently ignore the warning.
 - Preserve each provider's submission error. Multi-submit attempts each enabled route once; one provider's rate limit must not cancel the others. Do not automatically resubmit.
-
-## Provider limitations
-
-Helius priority-fee estimation is verified only for account-based mainnet requests. Devnet and transaction-based V1 estimates are not verified as supported capabilities; do not add an automatic fallback. See [Helius's API contract](https://www.helius.dev/docs/api-reference/priority-fee/getpriorityfeeestimate).

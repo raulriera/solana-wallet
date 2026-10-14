@@ -209,8 +209,7 @@ nonisolated struct Confirmer: TransactionConfirming {
     /// - Returns: The response, describing exactly the one signature at or before its context slot.
     /// - Throws: ``ConfirmerError/invalidResponse``, an RPC error, or a cancellation error.
     private func status(of submission: Submission) async throws -> GetSignatureStatuses.Response {
-        let response = try await rpc.send(GetSignatureStatuses(signatures: [submission.signature],
-                                                               searchesTransactionHistory: true))
+        let response = try await rpc.send(GetSignatureStatuses(signatures: [submission.signature]))
         guard response.value.count == 1, (response.value[0]?.slot ?? 0) <= response.context.slot else {
             throw ConfirmerError.invalidResponse
         }

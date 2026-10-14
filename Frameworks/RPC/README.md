@@ -40,4 +40,4 @@ Requests are single-attempt. Ordinary RPC and DAS calls are not throttled; price
 
 The caller owns transaction construction, review, signing, routing, and confirmation. `submissionRequirements` exposes a submission service's tip and minimum priority fee for inclusion before signing. Sending bytes does not establish confirmation.
 
-Method availability depends on the provider. Helius priority-fee estimates are verified only for account-based mainnet requests; devnet and transaction-based V1 estimates remain unverified.
+Method availability depends on the provider.

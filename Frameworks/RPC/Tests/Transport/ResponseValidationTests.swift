@@ -14,7 +14,7 @@ struct ResponseValidationTests {
         let rpc = HeliusRPC(apiKey: "fixture-key", network: .devnet, transport: transport)
 
         await #expect(throws: RPCError.server(code: -32601, message: "Method not found for [redacted]")) {
-            try await rpc.send(GetPriorityFeeEstimate(for: .accounts(["11111111111111111111111111111111"])))
+            try await rpc.send(GetBlockHeight())
         }
         #expect(await transport.requests.count == 1)
     }

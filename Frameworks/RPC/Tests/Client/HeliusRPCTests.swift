@@ -164,19 +164,10 @@ struct HeliusRPCTests {
     ///
     /// The bytes are a transport fixture, not a constructed transaction.
     ///
-    /// - Parameters:
-    ///   - query: The request using default or explicit execution options.
-    ///   - expectedSlot: The minimum evaluation slot, or `nil` when omitted.
-    ///   - expectedVerification: Whether signature verification should be requested.
+    /// - Parameter expectedSlot: The minimum evaluation slot, or `nil` when omitted.
     /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
-    @Test(arguments: [
-        (SimulateTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00])), UInt64?.none, false),
-        (SimulateTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00]), minContextSlot: 12340, verifiesSignatures: true),
-         12340, true),
-    ])
-    func `Simulation returns logs compute usage fee and slot`(
-        query: SimulateTransaction, expectedSlot: UInt64?, expectedVerification: Bool
-    ) async throws {
+    @Test(arguments: [UInt64?.none, 12340])
+    func `Simulation returns logs compute usage fee and slot`(expectedSlot: UInt64?) async throws {
         let transport = StubTransport { request in
             try reply(to: request, payload: #"""
                 "result":{"context":{"slot":12345},"value":{
@@ -187,7 +178,8 @@ struct HeliusRPCTests {
         }
         let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
 
-        let response = try await rpc.send(query)
+        let response = try await rpc.send(SimulateTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00]),
+                                                              minContextSlot: expectedSlot))
 
         #expect(response.context.slot == 12345)
         #expect(response.value.error == nil)
@@ -206,7 +198,7 @@ struct HeliusRPCTests {
         #expect(configuration["encoding"] as? String == "base64")
         #expect(configuration["commitment"] as? String == "finalized")
         #expect(configuration["minContextSlot"] as? UInt64 == expectedSlot)
-        #expect(configuration["sigVerify"] as? Bool == expectedVerification)
+        #expect(configuration["sigVerify"] as? Bool == false)
         #expect(configuration["replaceRecentBlockhash"] as? Bool == false)
         #expect(configuration.count == (expectedSlot == nil ? 4 : 5))
     }
@@ -245,7 +237,7 @@ struct HeliusRPCTests {
         #expect(response.value.replacementBlockhash == nil)
     }
 
-    /// Verifies blockhash replacement options and the returned replacement's expiry height.
+    /// Verifies a replacement blockhash that a node reports anyway is decoded, so the caller can reject it.
     ///
     /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
     @Test
@@ -259,9 +251,7 @@ struct HeliusRPCTests {
         }
         let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
 
-        let response = try await rpc.send(SimulateTransaction(
-            transaction: Data([0x81, 0xFB, 0xFF, 0x00]), replacesRecentBlockhash: true
-        ))
+        let response = try await rpc.send(SimulateTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00])))
 
         let replacement = try #require(response.value.replacementBlockhash)
         #expect(replacement.blockhash == "EkSnNWid2cvwEVnVx9aBqawnmiCNiDgp3gUdkDPTKN1N")
@@ -269,7 +259,7 @@ struct HeliusRPCTests {
         let request = try #require(await transport.requests.first)
         let parameters = try #require(try requestBody(request)["params"] as? [Any])
         let configuration = try #require(parameters.last as? [String: Any])
-        #expect(configuration["replaceRecentBlockhash"] as? Bool == true)
+        #expect(configuration["replaceRecentBlockhash"] as? Bool == false)
         #expect(configuration["sigVerify"] as? Bool == false)
     }
 
@@ -288,20 +278,12 @@ struct HeliusRPCTests {
 
     /// Verifies unchanged transaction bytes, submission options, and the returned signature.
     ///
-    /// - Parameters:
-    ///   - query: The request using default or explicit submission options.
-    ///   - expectedSlot: The minimum evaluation slot, or `nil` when omitted.
-    ///   - expectedSkip: Whether preflight checks should be skipped.
-    ///   - expectedRetries: The node's retry limit, or `nil` when omitted.
+    /// Preflight always runs and the node never retries forwarding.
+    /// - Parameter expectedSlot: The minimum evaluation slot, or `nil` when omitted.
     /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
-    @Test(arguments: [
-        (SendTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00])), UInt64?.none, false, UInt64?(0)),
-        (SendTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00]), minContextSlot: 12340, skipsPreflight: true,
-                         maxRetries: 2), 12340, true, 2),
-        (SendTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00]), maxRetries: nil), nil, false, nil),
-    ])
+    @Test(arguments: [UInt64?.none, 12340])
     func `Send transaction returns the accepted signature and preserves signed bytes`(
-        query: SendTransaction, expectedSlot: UInt64?, expectedSkip: Bool, expectedRetries: UInt64?
+        expectedSlot: UInt64?
     ) async throws {
         let signature = "2id3YC2jK9G5Wo2phDx4gJVAew8DcY5NAojnVuao8rkxwPYPe8cSwE5GzhEgJA2y8fVjDEo6iR6ykBvDxrTQrtpb"
         let transport = StubTransport { request in
@@ -309,7 +291,8 @@ struct HeliusRPCTests {
         }
         let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
 
-        let result = try await rpc.send(query)
+        let result = try await rpc.send(SendTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00]),
+                                                        minContextSlot: expectedSlot))
 
         #expect(result == signature)
         #expect(await transport.requests.count == 1)
@@ -323,9 +306,9 @@ struct HeliusRPCTests {
         #expect(configuration["encoding"] as? String == "base64")
         #expect(configuration["preflightCommitment"] as? String == "finalized")
         #expect(configuration["minContextSlot"] as? UInt64 == expectedSlot)
-        #expect(configuration["skipPreflight"] as? Bool == expectedSkip)
-        #expect(configuration["maxRetries"] as? UInt64 == expectedRetries)
-        #expect(configuration.count == 3 + (expectedSlot == nil ? 0 : 1) + (expectedRetries == nil ? 0 : 1))
+        #expect(configuration["skipPreflight"] as? Bool == false)
+        #expect(configuration["maxRetries"] as? UInt64 == 0)
+        #expect(configuration.count == (expectedSlot == nil ? 4 : 5))
     }
 
     /// Verifies that preflight rejection retains its execution failure and simulation diagnostics.
@@ -378,12 +361,11 @@ struct HeliusRPCTests {
         }
     }
 
-    /// Verifies status order, confirmation levels, and default or explicit history lookup.
+    /// Verifies status order, confirmation levels, and the history lookup beyond the recent status cache.
     ///
-    /// - Parameter searchesHistory: Whether to query beyond the recent status cache.
     /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
-    @Test(arguments: [false, true])
-    func `Get signature statuses returns confirmation levels and processing slots`(searchesHistory: Bool) async throws {
+    @Test
+    func `Get signature statuses returns confirmation levels and processing slots`() async throws {
         let signatures = ["processed-signature", "confirmed-signature", "finalized-signature"]
         let transport = StubTransport { request in
             try reply(to: request, payload: #"""
@@ -395,11 +377,7 @@ struct HeliusRPCTests {
                 """#)
         }
         let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
-        let query = searchesHistory
-            ? GetSignatureStatuses(signatures: signatures, searchesTransactionHistory: true)
-            : GetSignatureStatuses(signatures: signatures)
-
-        let response = try await rpc.send(query)
+        let response = try await rpc.send(GetSignatureStatuses(signatures: signatures))
 
         #expect(response.context.slot == 12345)
         try #require(response.value.count == 3)
@@ -425,7 +403,7 @@ struct HeliusRPCTests {
         #expect(body["method"] as? String == "getSignatureStatuses")
         #expect(parameters.count == 2)
         #expect(parameters.first as? [String] == signatures)
-        #expect(parameters.last as? [String: Bool] == ["searchTransactionHistory": searchesHistory])
+        #expect(parameters.last as? [String: Bool] == ["searchTransactionHistory": true])
     }
 
     /// Verifies that an unknown signature retains its position beside a known transaction.

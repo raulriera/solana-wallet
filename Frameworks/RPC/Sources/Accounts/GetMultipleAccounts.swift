@@ -13,7 +13,7 @@ public struct GetMultipleAccounts: RPCRequest {
         /// Creates an account response with an explicit shared context.
         ///
         /// - Parameters:
-        ///   - context: The evaluation slot and optional API version.
+        ///   - context: The shared slot at which the accounts were evaluated.
         ///   - value: Ordered accounts, including explicit missing entries.
         public init(context: Context, value: [Account?]) {
             self.context = context

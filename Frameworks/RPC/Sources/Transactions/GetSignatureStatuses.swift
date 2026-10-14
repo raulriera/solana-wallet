@@ -76,30 +76,23 @@ public struct GetSignatureStatuses: RPCRequest {
     /// The base-58 encoded transaction signatures to query, in response order.
     public let signatures: [String]
 
-    /// Whether the node should search its ledger history beyond the recent status cache.
-    public let searchesTransactionHistory: Bool
-
-    /// Creates a request for up to 256 transaction statuses.
+    /// Creates a request for up to 256 transaction statuses, searching ledger history beyond the recent status cache.
     ///
     /// Each call performs one lookup. Callers control polling and expiry checks.
     ///
-    /// - Parameters:
-    ///   - signatures: Up to 256 base-58 encoded transaction signatures. The server validates
-    ///     the signatures and their count. Split larger collections into separate requests.
-    ///   - searchesTransactionHistory: Whether to search beyond the recent status cache.
-    ///     The default is `false`.
-    public init(signatures: [String], searchesTransactionHistory: Bool = false) {
+    /// - Parameter signatures: Up to 256 base-58 encoded transaction signatures. The server validates
+    ///   the signatures and their count. Split larger collections into separate requests.
+    public init(signatures: [String]) {
         self.signatures = signatures
-        self.searchesTransactionHistory = searchesTransactionHistory
     }
 
-    /// Encodes the signatures and history search option as positional RPC parameters.
+    /// Encodes the signatures and the history search as positional RPC parameters.
     ///
     /// - Parameter encoder: The encoder that receives the parameter array.
     /// - Throws: An encoding error if the encoder can't represent a parameter.
     public func encode(to encoder: any Encoder) throws {
         var parameters = encoder.unkeyedContainer()
         try parameters.encode(signatures)
-        try parameters.encode(["searchTransactionHistory": searchesTransactionHistory])
+        try parameters.encode(["searchTransactionHistory": true])
     }
 }

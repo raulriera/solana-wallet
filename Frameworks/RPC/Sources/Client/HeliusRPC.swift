@@ -18,19 +18,17 @@ public struct HeliusRPC: RPC, AccountChangeProviding, SignatureEventProviding, L
         self.init(apiKey: apiKey, network: network, transport: URLSessionTransport())
     }
 
-    /// Creates a client with an injected transport and redaction policy.
+    /// Creates a client with an injected transport that redacts the key and endpoints from diagnostics.
     ///
     /// - Parameters:
     ///   - apiKey: The Helius API key to include in the request URL.
     ///   - network: The Solana network to query.
     ///   - transport: The transport that performs HTTP requests.
-    ///   - redactor: The diagnostic redactor, or `nil` to redact the key and endpoint.
     ///   - socket: The factory for an independent wallet subscription connection.
     init(
         apiKey: String,
         network: Network,
         transport: any HTTPTransport,
-        redactor: (any TextRedactor)? = nil,
         socket: @escaping @Sendable (URL) -> any WebSocketConnection = { URLSessionSocket(endpoint: $0) }
     ) {
         let host = switch network {
@@ -41,7 +39,7 @@ public struct HeliusRPC: RPC, AccountChangeProviding, SignatureEventProviding, L
             .appending(queryItems: [URLQueryItem(name: "api-key", value: apiKey)])
         let socketEndpoint = URL(string: "wss://\(host)/")!
             .appending(queryItems: [URLQueryItem(name: "api-key", value: apiKey)])
-        let redactor = redactor ?? SecretRedactor(secrets: [apiKey, endpoint.absoluteString, socketEndpoint.absoluteString])
+        let redactor = SecretRedactor(secrets: [apiKey, endpoint.absoluteString, socketEndpoint.absoluteString])
         self.network = network
         client = HTTPClient(endpoint: endpoint, transport: transport,
                             redactor: redactor)

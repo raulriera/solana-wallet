@@ -66,7 +66,7 @@ nonisolated struct Preparer: TransactionPreparing {
         var context = blockhash.context.slot
         if configuration == nil {
             let estimate = try await rpc.send(SimulateTransaction(transaction: transaction.serializedRepresentation,
-                minContextSlot: context, verifiesSignatures: false, replacesRecentBlockhash: false))
+                minContextSlot: context))
             try Task.checkCancellation()
             guard estimate.context.slot >= context, estimate.value.replacementBlockhash == nil else {
                 throw PreparerError.inconsistentResponse
@@ -134,8 +134,7 @@ nonisolated struct Preparer: TransactionPreparing {
             message: transaction.message, minContextSlot: minimumSlot ?? source.context.slot
         ))
         async let simulation = rpc.send(SimulateTransaction(
-            transaction: transaction.serializedRepresentation, minContextSlot: minimumSlot ?? source.context.slot,
-            verifiesSignatures: false, replacesRecentBlockhash: false
+            transaction: transaction.serializedRepresentation, minContextSlot: minimumSlot ?? source.context.slot
         ))
         let observations = try await (fee, simulation)
         try Task.checkCancellation()
