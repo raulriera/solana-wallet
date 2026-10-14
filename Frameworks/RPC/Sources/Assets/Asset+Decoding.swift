@@ -1,49 +1,20 @@
 import Foundation
 
 extension Asset {
-    /// Decodes DAS fields into our asset and descriptive metadata values.
+    /// Decodes a DAS asset's identity and the provider's HTTPS copy of its image.
     ///
-    /// Malformed descriptive fields are omitted independently. Asset identity remains strictly decoded.
+    /// A malformed file entry is skipped without losing its neighbors. Asset identity remains strictly decoded.
     /// - Parameter decoder: The decoder containing the DAS asset.
     /// - Throws: A decoding error for a malformed identity.
     public init(from decoder: any Decoder) throws {
         let root = try Fields(from: decoder)
-        let content = root.object("content")
-        let details = content?.object("metadata")
-        let links = content?.object("links")
-        let token = root.object("token_info")
-        let media = content?.objects("files")?.map {
-            Metadata.Media(url: $0.url("uri"), cdnURL: $0.url("cdn_uri"), mimeType: $0.value("mime"))
-        }
-        let kind = try root.required(String.self, "interface")
+        let files = root.object("content")?.objects("files") ?? []
         // Only the provider's HTTPS copy: creator-hosted and off-chain links expose the viewer's IP address.
-        let imageFile = media?.first { $0.mimeType?.hasPrefix("image/") == true && $0.cdnURL?.scheme?.lowercased() == "https" }
-        self.init(
-            id: try root.required(String.self, "id"), interface: kind,
-            name: details?.value("name"), symbol: token?.value("symbol") ?? details?.value("symbol"),
-            imageURL: imageFile?.cdnURL,
-            metadata: Metadata(
-                description: details?.value("description"), websiteURL: links?.url("external_url"),
-                metadataURL: content?.url("json_uri"), media: media,
-                attributes: details?.objects("attributes")?.map {
-                    Metadata.Attribute(name: $0.value("trait_type"), value: try? $0.required(Metadata.Value.self, "value"),
-                                       displayType: $0.value("display_type"))
-                },
-                collections: root.objects("grouping")?.compactMap { group in
-                    guard group.value("group_key", as: String.self) == "collection",
-                          let id = group.value("group_value", as: String.self) else { return nil }
-                    let info = group.object("collection_metadata")
-                    return Metadata.Collection(id: id, name: info?.value("name"), symbol: info?.value("symbol"),
-                        imageURL: info?.url("image"), description: info?.value("description"),
-                        websiteURL: info?.url("external_url"), isVerified: group.value("verified"))
-                },
-                creators: root.objects("creators")?.compactMap {
-                    guard let address = $0.value("address", as: String.self) else { return nil }
-                    return Metadata.Creator(address: address, share: $0.value("share"), isVerified: $0.value("verified"))
-                },
-                kind: kind, tokenStandard: details?.value("token_standard"), isMutable: root.value("mutable")
-            )
-        )
+        let image = files.first { file in
+            file.value("mime", as: String.self)?.hasPrefix("image/") == true
+                && file.url("cdn_uri")?.scheme?.lowercased() == "https"
+        }
+        self.init(id: try root.required(String.self, "id"), imageURL: image?.url("cdn_uri"))
     }
 }
 
