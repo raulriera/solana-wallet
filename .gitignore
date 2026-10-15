@@ -3,6 +3,14 @@
 # Xcode user settings.
 xcuserdata/
 
-# Claude docs
-.claude/cleanup
-.claude/research
+# Claude Code: share project configuration; ignore worktrees, local settings, and tool output.
+/.claude/*
+!/.claude/settings.json
+!/.claude/CLAUDE.md
+!/.claude/rules/
+!/.claude/skills/
+!/.claude/agents/
+!/.claude/agent-memory/
+!/.claude/output-styles/
+!/.claude/workflows/
+!/.claude/launch.json
