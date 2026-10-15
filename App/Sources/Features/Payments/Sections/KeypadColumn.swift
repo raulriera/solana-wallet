@@ -15,6 +15,8 @@ struct KeypadColumn: View {
             Keypad(payment: payment)
             if axis == .vertical {
                 SendButton(payment: payment, isReviewing: $isReviewing)
+                    // Send moves to the other region when the layout changes, so it fades between them.
+                    .transition(.opacity.animation(.snappy))
             }
         }
         // At most the keys' widest, three 110 pt keys and two 28 pt gaps, so Send matches the keys.

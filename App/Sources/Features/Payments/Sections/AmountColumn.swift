@@ -28,6 +28,8 @@ struct AmountColumn: View {
                 SendButton(payment: payment, isReviewing: $isReviewing)
                     .fractionalWidth(0.75, maximum: 386)
                     .padding(.vertical)
+                    // Send moves to the other region when the layout changes, so it fades between them.
+                    .transition(.opacity.animation(.snappy))
             }
         }
     }
