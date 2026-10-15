@@ -6,6 +6,7 @@ public protocol MessageSigning: Sendable {
     ///
     /// The caller supplies the exact message bytes and owns transaction validation
     /// and user consent. This operation doesn't authenticate, persist, or broadcast.
+    /// It refuses messages reserved for Solana Rings key derivation.
     ///
     /// - Parameters:
     ///   - message: The complete, unsigned message bytes to sign.
@@ -14,7 +15,8 @@ public protocol MessageSigning: Sendable {
     ///   - passphrase: The original BIP-39 passphrase, including significant whitespace.
     ///   - path: The hardened derivation path of the intended account.
     /// - Returns: A 64-byte Ed25519 signature, without private key material.
-    /// - Throws: ``SigningError/signerMismatch`` if the recovered account differs,
+    /// - Throws: ``SigningError/reservedMessage`` for a key derivation input,
+    ///   ``SigningError/signerMismatch`` if the recovered account differs,
     ///   `CancellationError` if cancelled, or a cryptographic error.
     func signature(
         for message: Data,

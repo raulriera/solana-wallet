@@ -1,4 +1,4 @@
-/// A SLIP-0010 path containing only hardened Ed25519 child indices.
+/// A SLIP-0010 path containing only hardened child indices.
 public struct DerivationPath: Sendable, Equatable, CustomStringConvertible {
     /// The first account at `m/44'/501'/0'/0'`.
     public static let solana = DerivationPath(indices: [44, 501, 0, 0])
@@ -13,7 +13,7 @@ public struct DerivationPath: Sendable, Equatable, CustomStringConvertible {
     private static let hardenedBit: UInt32 = 0x8000_0000
 
     /// The child indices before adding the hardened bit.
-    private let indices: [UInt32]
+    let indices: [UInt32]
 
     /// The child indices with the hardened bit set, as derivation uses them.
     var hardenedIndices: [UInt32] { indices.map { $0 | Self.hardenedBit } }
@@ -45,7 +45,7 @@ public struct DerivationPath: Sendable, Equatable, CustomStringConvertible {
     /// Creates a path from known, unhardened index values.
     ///
     /// - Parameter indices: Valid indices below 2³¹.
-    private init(indices: [UInt32]) {
+    init(indices: [UInt32]) {
         self.indices = indices
     }
 }

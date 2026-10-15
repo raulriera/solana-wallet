@@ -8,7 +8,7 @@ The wallet app owns workflow coordination through internal, protocol-based servi
 | --- | --- |
 | [RPC](../Frameworks/RPC/README.md) | Provider-neutral RPC, DAS, pricing, finalized account subscriptions, and signature watches. |
 | [Transactions](../Frameworks/Transactions/README.md) | Composable instructions, generic V1 compilation, decoding, validation, and signature assembly. |
-| [Wallet](../Frameworks/Wallet/README.md) | Local recovery phrases, account derivation, and cryptographic signing. |
+| [Wallet](../Frameworks/Wallet/README.md) | Local recovery phrases, account derivation, cryptographic signing, and Solana Rings private-balance keys. |
 | [Vault](../Frameworks/Vault/README.md) | Protected recovery storage and authentication for access. |
 | [Portfolio](../Frameworks/Portfolio/README.md) | Each account's manual token list, with its balances, prices, refresh, and finalized changes. |
 | [Encoding](../Frameworks/Encoding/README.md) | Shared codecs. |
@@ -40,6 +40,6 @@ The agreed wallet, transaction, portfolio, and initial color-only Themes framewo
 | Themes | Color-only package service with app-supplied defaults and PNG/JPEG assets. App services manage immutable built-ins, custom installations, app/wallet preferences, deletion fallbacks, and one-time recovery from iOS Settings. Import/export presentation and rendering remain separate; see [UI architecture](ui.md). |
 | RPC | Complete for the agreed transaction, discovery, DAS, pricing, finalized account-subscription, and signature-watch workflows. The manual token list adds a QuickNode client and per-account subscriptions. |
 | Transactions | Further capabilities are parked; current SOL and supported-token flows remain available. The goal is all Token-2022 extensions, reviewed and agreed individually before implementation. |
-| Wallet | Complete for local derivation and SOL-only discovery across twenty addresses in two path families, with one RPC lookup per scan; verified on devnet. See [Wallet](wallet.md). |
+| Wallet | Complete for local derivation and SOL-only discovery across twenty addresses in two path families, with one RPC lookup per scan, verified on devnet; and for Solana Rings private-balance keys. See [Wallet](wallet.md). |
 | Vault | Implemented and tested, including real simulator Keychain checks. Keep the specific device-validation caveat in [Wallet](wallet.md) separate from framework test status. |
 | Portfolio | Complete for each account's manual token list, read with standard RPC; DAS only looks up logos. NFTs and currency conversion remain deferred; see [Portfolio](portfolio.md). |

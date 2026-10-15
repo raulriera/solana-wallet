@@ -1,0 +1,53 @@
+import CryptoKit
+import Testing
+@testable import Wallet
+
+/// Verifies the Solana Rings coin type, account indices, and role paths.
+struct DerivationPathPrivateBalanceTests {
+    /// Verifies the coin type against the rule that defines it: the first four bytes of
+    /// SHA-256(`luminous.TSPP.v1`) as a big-endian integer, without its top bit.
+    @Test
+    func `The coin type is the truncated SHA-256 of its label`() {
+        let digest = Array(SHA256.hash(data: Array("luminous.TSPP.v1".utf8)))
+        let coinType = digest.prefix(4).reduce(UInt32.zero) { $0 << 8 | UInt32($1) } & 0x7fff_ffff
+
+        #expect(DerivationPath.privateBalanceCoinType == coinType)
+    }
+
+    /// Verifies that a Solana account path gives its account index, up to the largest one.
+    ///
+    /// - Parameters:
+    ///   - path: A path `m/44'/501'/i'/0'`.
+    ///   - account: The path's account index i.
+    @Test(arguments: [
+        ("m/44'/501'/0'/0'", 0), ("m/44'/501'/1'/0'", 1), ("m/44'/501'/2147483647'/0'", 2_147_483_647),
+    ])
+    func `Solana account paths give their account index`(path: String, account: UInt32) throws {
+        #expect(try DerivationPath(path).privateBalanceAccount == account)
+    }
+
+    /// Verifies that every other path, including Solana's other discovered family, has no account index.
+    ///
+    /// - Parameter path: A path outside `m/44'/501'/i'/0'`.
+    @Test(arguments: [
+        "m", "m/44'/501'/0'", "m/44'/501'/0'/1'", "m/44'/60'/0'/0'", "m/44'/501'/0'/0'/0'", "m/45'/501'/0'/0'",
+    ])
+    func `Other paths have no account index`(path: String) throws {
+        #expect(try DerivationPath(path).privateBalanceAccount == nil)
+    }
+
+    /// Verifies the nullifier and viewing paths of an account index.
+    ///
+    /// - Parameters:
+    ///   - account: An account index.
+    ///   - nullifier: The expected nullifier secret path.
+    ///   - viewing: The expected viewing key path.
+    @Test(arguments: [
+        (0, "m/44'/1392955331'/0'/1'/0'", "m/44'/1392955331'/0'/2'/0'"),
+        (2_147_483_647, "m/44'/1392955331'/2147483647'/1'/0'", "m/44'/1392955331'/2147483647'/2'/0'"),
+    ])
+    func `Role paths select the account's nullifier and viewing nodes`(account: UInt32, nullifier: String, viewing: String) {
+        #expect(DerivationPath.nullifierSecret(account: account).description == nullifier)
+        #expect(DerivationPath.viewingKey(account: account).description == viewing)
+    }
+}

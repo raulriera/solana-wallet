@@ -51,7 +51,7 @@ struct RecoveryPhraseTests {
     /// Verifies that printing and reflecting a phrase omit the words and their storage.
     @Test
     func `Recovery phrase diagnostics omit recovery words`() throws {
-        let phrase = try RecoveryPhrase(Array(repeating: "abandon", count: 11).joined(separator: " ") + " about")
+        let phrase = try PublicRecovery.phrase()
         var output = ""
         dump(phrase, to: &output)
 

@@ -22,7 +22,7 @@ struct SigningTests {
         let signer: any MessageSigning = Wallet()
         let message = Data("public signing fixture".utf8)
         let signature = try await signer.signature(
-            for: message, using: phrase(), expectedAddress: address,
+            for: message, using: PublicRecovery.phrase(), expectedAddress: address,
             passphrase: passphrase, path: DerivationPath(path)
         )
         let key = try Curve25519.Signing.PublicKey(rawRepresentation: #require(Data(base64Encoded: publicKey)))
@@ -34,12 +34,12 @@ struct SigningTests {
     /// Verifies selecting the wrong recovered account cannot return a signature.
     @Test
     func `Signing rejects recovery material for another sender`() async throws {
-        let recovery = try phrase()
+        let recovery = try PublicRecovery.phrase()
 
         await #expect(throws: SigningError.signerMismatch) {
             try await Wallet().signature(
                 for: Data("public signing fixture".utf8), using: recovery,
-                expectedAddress: "HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk",
+                expectedAddress: PublicRecovery.addresses[0],
                 passphrase: "different account", path: .solana
             )
         }
@@ -48,7 +48,7 @@ struct SigningTests {
     /// Verifies Swift's canonical String equality cannot admit a non-ASCII sender.
     @Test
     func `Signing rejects a Unicode lookalike in the sender address`() async throws {
-        let recovery = try phrase()
+        let recovery = try PublicRecovery.phrase()
         let address = "HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3D\u{212A}pqk"
 
         await #expect(throws: SigningError.signerMismatch) {
@@ -57,29 +57,54 @@ struct SigningTests {
         }
     }
 
+    /// Verifies that signing refuses Solana Rings derivation inputs, even for the correct account.
+    ///
+    /// - Parameter vector: A zolana message that's a derivation input.
+    @Test(arguments: try PrivateBalanceVectors.load().derivationInputGuard.filter(\.isDerivationInput))
+    func `Signing refuses Solana Rings derivation inputs`(_ vector: PrivateBalanceVectors.GuardVector) async throws {
+        let recovery = try PublicRecovery.phrase()
+        let message = Data(try fixtureBytes(vector.message))
+
+        await #expect(throws: SigningError.reservedMessage) {
+            try await Wallet().signature(
+                for: message, using: recovery, expectedAddress: PublicRecovery.addresses[0],
+                passphrase: "", path: .solana
+            )
+        }
+    }
+
+    /// Verifies that messages resembling derivation inputs still sign.
+    ///
+    /// - Parameter vector: A zolana message that isn't a derivation input.
+    @Test(arguments: try PrivateBalanceVectors.load().derivationInputGuard.filter { !$0.isDerivationInput })
+    func `Signing accepts messages that only resemble derivation inputs`(_ vector: PrivateBalanceVectors.GuardVector) async throws {
+        let message = Data(try fixtureBytes(vector.message))
+
+        let signature = try await Wallet().signature(
+            for: message, using: PublicRecovery.phrase(),
+            expectedAddress: PublicRecovery.addresses[0], passphrase: "", path: .solana
+        )
+        let account = try #require(PrivateBalanceVectors.load().accounts.first)
+        let key = try Curve25519.Signing.PublicKey(rawRepresentation: fixtureBytes(account.signingPubkey))
+
+        #expect(key.isValidSignature(signature, for: message))
+    }
+
     /// Verifies cancellation prevents signature delivery without relying on task scheduling.
     @Test
     func `Cancelled signing throws CancellationError`() async throws {
-        let recovery = try phrase()
+        let recovery = try PublicRecovery.phrase()
         let (gate, continuation) = AsyncStream<Void>.makeStream()
         let task = Task { @concurrent in
             for await _ in gate {}
             return try await Wallet().signature(
                 for: Data("public signing fixture".utf8), using: recovery,
-                expectedAddress: "HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk", passphrase: "", path: .solana
+                expectedAddress: PublicRecovery.addresses[0], passphrase: "", path: .solana
             )
         }
         task.cancel()
         continuation.finish()
 
         await #expect(throws: CancellationError.self) { try await task.value }
-    }
-
-    /// Restores the public BIP-39 zero-entropy example used by the independent generator.
-    ///
-    /// - Returns: A public twelve-word fixture that must never hold real funds.
-    /// - Throws: An error if the fixture violates BIP-39.
-    private func phrase() throws -> RecoveryPhrase {
-        try RecoveryPhrase(Array(repeating: "abandon", count: 11).joined(separator: " ") + " about")
     }
 }

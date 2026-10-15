@@ -1,0 +1,55 @@
+{
+  "accounts": [
+    {
+      "account": 0,
+      "signingPubkey": "f036276246a75b9de3349ed42b15e232f6518fc20f5fcd4f1d64e81f9bd258f7",
+      "nullifierSecret": "85e3a0d6bf9d62582e6500ea3245ddddbf65e517dbc985c85982e383e4751e",
+      "viewingSecret": "1694bc1c8a456511d0364e26c71409b4912c5b2ff56bed3fc9c706e066496a54",
+      "viewingPubkey": "03170ee9cf7a6f1ad811bd2019d386f67ce337458e0bf585c3cad7ddac85373e32"
+    },
+    {
+      "account": 1,
+      "signingPubkey": "f8029acf5cbcbdd5ac46ec147f3b78a3df6e5022ef0411db2bab650d329a4cd4",
+      "nullifierSecret": "62351d526f51996740cc2e88978b084117fdee00af7c04df999a22321c9001",
+      "viewingSecret": "60a8c80b23007c79c1dcf1821446dc77e6fcd2bb3e747ddca629784adaf8fa18",
+      "viewingPubkey": "03bb3b5ea4e0a873297d1f80e2ee1ebfabf472129debca75fced4753a95769fe27"
+    }
+  ],
+  "derivation_input_guard": [
+    {
+      "name": "bare_payload",
+      "message": "545350502f6465726976652f7631",
+      "is_derivation_input": true
+    },
+    {
+      "name": "bare_prefix_future_version",
+      "message": "545350502f6465726976652f7632",
+      "is_derivation_input": true
+    },
+    {
+      "name": "offchain_wrapped",
+      "message": "ff736f6c616e61206f6666636861696e001d32a88533af12d35e5ac6fce817a4cb810bcc4115386b14a78e8b2ef09d864c000107070707070707070707070707070707070707070707070707070707070707070e00545350502f6465726976652f7631",
+      "is_derivation_input": true
+    },
+    {
+      "name": "offchain_truncated",
+      "message": "ff736f6c616e61206f6666636861696e001d32a88533af12d35e5ac6fce817a4cb810bcc4115386b14a78e8b2ef09d864c000107070707070707070707070707070707070707070707070707070707070707070e00545350502f6465726976652f76",
+      "is_derivation_input": false
+    },
+    {
+      "name": "offchain_bad_version",
+      "message": "ff736f6c616e61206f6666636861696e011d32a88533af12d35e5ac6fce817a4cb810bcc4115386b14a78e8b2ef09d864c000107070707070707070707070707070707070707070707070707070707070707070e00545350502f6465726976652f7631",
+      "is_derivation_input": false
+    },
+    {
+      "name": "prefix_without_slash",
+      "message": "545350502f646572697665",
+      "is_derivation_input": false
+    },
+    {
+      "name": "plain_message",
+      "message": "68656c6c6f20776f726c64",
+      "is_derivation_input": false
+    }
+  ]
+}

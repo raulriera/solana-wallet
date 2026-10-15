@@ -1,4 +1,3 @@
-import Encoding
 import CryptoKit
 public import Foundation
 
@@ -7,7 +6,8 @@ extension Wallet: MessageSigning {
     ///
     /// The service retains no recovery material or private key after the call.
     /// Swift value lifetimes don't guarantee that secret bytes are erased from memory.
-    /// This method signs the supplied bytes without parsing transaction intent.
+    /// This method signs the supplied bytes without parsing transaction intent, but refuses
+    /// Solana Rings key derivation inputs before deriving a seed.
     ///
     /// - Parameters:
     ///   - message: The exact unsigned message bytes; no signature or envelope is added.
@@ -16,7 +16,8 @@ extension Wallet: MessageSigning {
     ///   - passphrase: The original BIP-39 passphrase.
     ///   - path: The account path.
     /// - Returns: A 64-byte Ed25519 signature. Signatures may vary between calls.
-    /// - Throws: ``SigningError/signerMismatch`` for a different account,
+    /// - Throws: ``SigningError/reservedMessage`` for a key derivation input,
+    ///   ``SigningError/signerMismatch`` for a different account,
     ///   `CancellationError` if cancelled, or a cryptographic error.
     @concurrent
     public func signature(
@@ -27,15 +28,14 @@ extension Wallet: MessageSigning {
         path: DerivationPath
     ) async throws -> Data {
         try Task.checkCancellation()
-        guard let expectedKey = Base58.decode(expectedAddress, byteCount: 32) else {
-            throw SigningError.signerMismatch
+        guard !message.isDerivationInput else { throw SigningError.reservedMessage }
+        let signature = try Self.withVerifiedAccount(
+            phrase, passphrase: passphrase, path: path, expectedAddress: expectedAddress,
+            mismatch: SigningError.signerMismatch
+        ) { key, _ in
+            try Task.checkCancellation()
+            return try key.signature(for: message)
         }
-        let key = try KeyDerivation.signingKey(for: phrase, passphrase: passphrase, path: path)
-        guard Array(key.publicKey.rawRepresentation) == expectedKey else {
-            throw SigningError.signerMismatch
-        }
-        try Task.checkCancellation()
-        let signature = try key.signature(for: message)
         try Task.checkCancellation()
         return signature
     }

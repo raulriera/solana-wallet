@@ -1,4 +1,4 @@
-/// A service that creates recovery phrases, derives addresses, and signs locally without persistence.
+/// A service that creates recovery phrases, derives addresses and private-balance keys, and signs locally without persistence.
 public struct Wallet: WalletProviding {
     private let entropy: any EntropyProviding
 
