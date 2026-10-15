@@ -61,7 +61,7 @@ struct ApprovalTests {
         let coordinator: any TransactionCoordinating = TransactionCoordinator(
             rpc: http.client, configuration: fixture.configuration,
             preparer: Preparer(rpc: (try HTTPResponses.preparation(fixture: fixture.preparation)).client),
-            signer: Signer(rpc: http.client, store: store), submitter: Submitter(rpc: http.client), confirmer: Confirmer(rpc: http.client)
+            signer: Signer(rpc: http.client, store: store), submitter: Submitter(rpcs: [http.client]), confirmer: Confirmer(rpc: http.client)
         )
         let review = try await coordinator.simulate([fixture.transfer],
             using: fixture.account)
@@ -94,7 +94,7 @@ struct ApprovalTests {
         let coordinator: any TransactionCoordinating = TransactionCoordinator(
             rpc: http.client, configuration: fixture.configuration,
             preparer: Preparer(rpc: (try HTTPResponses.preparation(fixture: fixture.preparation)).client),
-            signer: Signer(rpc: http.client, store: store), submitter: Submitter(rpc: http.client, rpcs: []),
+            signer: Signer(rpc: http.client, store: store), submitter: Submitter(rpcs: []),
             confirmer: Confirmer(rpc: http.client)
         )
         let review = try await coordinator.simulate([fixture.transfer],

@@ -16,7 +16,7 @@ struct SubmissionTests {
         let limited = HTTPResponses([:], error: .http(statusCode: 429, retryAfter: "3"))
         let accepted = HTTPResponses(["sendTransaction": [try HTTPResponses.json(ExternalFixture.signature)]])
 
-        let result = try await Submitter(rpc: checks.client, rpcs: [limited.client, accepted.client]).submit(signed)
+        let result = try await Submitter(rpcs: [limited.client, accepted.client]).submit(signed)
 
         #expect(result.signature == ExternalFixture.signature)
         for transport in [limited, accepted] {
@@ -34,7 +34,7 @@ struct SubmissionTests {
         let reads = HTTPResponses([:])
         let accepted = HTTPResponses(["sendTransaction": [try HTTPResponses.json(ExternalFixture.signature)]])
 
-        _ = try await Submitter(rpc: reads.client, rpcs: [accepted.client]).submit(signed)
+        _ = try await Submitter(rpcs: [accepted.client]).submit(signed)
 
         #expect(await reads.requests.isEmpty)
         #expect(try await accepted.requests.map { try $0.rpcMethod } == ["sendTransaction"])
@@ -49,7 +49,7 @@ struct SubmissionTests {
         let mismatched = HTTPResponses(["sendTransaction": [#""another-signature""#]])
 
         await #expect {
-            try await Submitter(rpc: checks.client, rpcs: [limited.client, mismatched.client]).submit(signed)
+            try await Submitter(rpcs: [limited.client, mismatched.client]).submit(signed)
         } throws: { error in
             guard let rejection = error as? Submitter.Rejection else { return false }
             return rejection.signature == ExternalFixture.signature && rejection.network == .devnet
@@ -71,7 +71,7 @@ struct SubmissionTests {
         let signature = try #require(signed.signature)
         let accepted = HTTPResponses(["sendTransaction": [try HTTPResponses.json(signature)]])
 
-        let receipt = try await Submitter(rpc: checks.client, rpcs: [accepted.client]).submit(signed)
+        let receipt = try await Submitter(rpcs: [accepted.client]).submit(signed)
 
         #expect(receipt == Submission(signature: signature, network: .devnet, lastValidBlockHeight: 550))
     }
@@ -86,7 +86,7 @@ struct SubmissionTests {
         let store = SigningRecoveryStore(recovery: try SigningFixture().recovery)
         let coordinator: any TransactionCoordinating = TransactionCoordinator(
             rpc: preparationHTTP.client, preparer: Preparer(rpc: preparationHTTP.client),
-            signer: Signer(rpc: checks.client, store: store), submitter: Submitter(rpc: checks.client, rpcs: [accepted.client]),
+            signer: Signer(rpc: checks.client, store: store), submitter: Submitter(rpcs: [accepted.client]),
             confirmer: Confirmer(rpc: checks.client)
         )
         let simulation = try await coordinator.simulate(expected.transaction, using: SigningFixture().account)
@@ -173,7 +173,7 @@ struct SubmissionTests {
         let rpc = Solana(network: .devnet)
 
         await #expect(throws: SubmitterError.missingSignatures) {
-            try await Submitter(rpc: rpc).submit(signed)
+            try await Submitter(rpcs: [rpc]).submit(signed)
         }
     }
 
@@ -189,7 +189,7 @@ struct SubmissionTests {
         let input = SignedTransaction(preparation: signed.preparation, transaction: altered)
 
         await #expect(throws: SubmitterError.transactionMismatch) {
-            try await Submitter(rpc: Solana(network: .devnet)).submit(input)
+            try await Submitter(rpcs: [Solana(network: .devnet)]).submit(input)
         }
     }
 

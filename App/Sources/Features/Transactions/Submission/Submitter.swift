@@ -18,11 +18,9 @@ nonisolated struct Submitter: TransactionSubmitting {
 
     /// Creates submission through one or more ordinary RPCs.
     ///
-    /// - Parameters:
-    ///   - rpc: The provider to submit through when `rpcs` is `nil`.
-    ///   - rpcs: Every RPC to submit through, or `nil` to use `rpc` alone.
-    init(rpc: any RPC, rpcs: [any RPC]? = nil) {
-        self.rpcs = rpcs ?? [rpc]
+    /// - Parameter rpcs: Every RPC to submit through.
+    init(rpcs: [any RPC]) {
+        self.rpcs = rpcs
     }
 
     /// Checks a typed signed result against its review locally, then sends it once.

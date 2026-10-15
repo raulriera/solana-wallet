@@ -28,7 +28,7 @@ final class WindowModel {
     ///   - services: Shared services that retain no window-specific recovery draft.
     ///   - network: The network that the window shows first.
     init(services: AppServices, network: Network) {
-        let router = services.makeWindowRouter(initialDestination: .restoringWallets)
+        let router = services.makeWindowRouter()
         self.router = router
         onboarding = services.makeOnboardingCoordinator(router: router)
         startup = services.makeWindowStartup(router: router)

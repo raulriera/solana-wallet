@@ -10,7 +10,7 @@ private struct ErrorAlert<Presented: LocalizedError, Actions: View>: ViewModifie
     /// - Returns: The view with error presentation.
     func body(content: Content) -> some View {
         content
-            .alert(isPresented: $error[isPresented: true], error: error, actions: actions) { error in
+            .alert(isPresented: $error.isPresented, error: error, actions: actions) { error in
                 Text(error.recoverySuggestion ?? "")
             }
     }

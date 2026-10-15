@@ -44,17 +44,17 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
     /// Creates the wallet workflow with a shared provider and protected recovery store.
     ///
     /// - Parameters:
-    ///   - rpc: The provider used for prerequisites, simulation, and the real-time watch. Public mainnet is the default.
+    ///   - rpc: The provider used for prerequisites, simulation, and the real-time watch.
     ///   - store: The recovery store that authenticates access to the selected wallet.
     ///   - rpcs: Ordinary RPC candidates for `.none`, or `nil` to use `rpc` alone.
     ///   - strategy: The submission strategy. The default disables Sender.
     ///   - configuration: Explicit V1 requests, or `nil` for automatic resource estimation.
     /// - Throws: ``SubmitterError/noProviders`` if no selected route serves the read client's network.
-    init(rpc: any RPC & SignatureEventProviding = Solana(), store: any RecoveryStoring, rpcs: [any RPC]? = nil,
+    init(rpc: any RPC & SignatureEventProviding, store: any RecoveryStoring, rpcs: [any RPC]? = nil,
          strategy: Strategy = .none, configuration: Configuration? = nil) throws {
         let clients = try strategy.clients(for: rpc.network, from: rpcs ?? [rpc])
         self.init(rpc: rpc, configuration: configuration, preparer: Preparer(rpc: rpc, rpcs: clients), signer: Signer(rpc: rpc, store: store),
-                  submitter: Submitter(rpc: rpc, rpcs: clients), confirmer: Confirmer(rpc: rpc))
+                  submitter: Submitter(rpcs: clients), confirmer: Confirmer(rpc: rpc))
     }
 
     /// Creates a workflow with independently supplied transaction services.

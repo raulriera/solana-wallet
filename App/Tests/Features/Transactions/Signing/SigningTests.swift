@@ -18,7 +18,7 @@ struct SigningTests {
         let wallet = RecordingWallet()
         let coordinator: any TransactionCoordinating = TransactionCoordinator(
             rpc: http.client, configuration: fixture.configuration, preparer: Preparer(rpc: (try HTTPResponses.preparation(fixture: fixture.preparation)).client),
-            signer: Signer(rpc: http.client, store: store, wallet: wallet), submitter: Submitter(rpc: http.client), confirmer: Confirmer(rpc: http.client)
+            signer: Signer(rpc: http.client, store: store, wallet: wallet), submitter: Submitter(rpcs: [http.client]), confirmer: Confirmer(rpc: http.client)
         )
 
         let preparation = try await coordinator.simulate([fixture.transfer], using: fixture.account)

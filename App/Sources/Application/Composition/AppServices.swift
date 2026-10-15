@@ -63,11 +63,10 @@ struct AppServices {
         )
     }
 
-    /// Creates independent root navigation for a window.
-    /// - Parameter initialDestination: The destination chosen by the caller for this window.
+    /// Creates independent root navigation for a window that starts by restoring saved wallets.
     /// - Returns: A new router whose selection is independent of other windows.
-    func makeWindowRouter(initialDestination: WindowDestination) -> any WindowRouting {
-        WindowRouter(initialDestination: initialDestination)
+    func makeWindowRouter() -> any WindowRouting {
+        WindowRouter(initialDestination: .restoringWallets)
     }
 
     /// Assembles startup restoration for one window behind the shared launch cleanup.

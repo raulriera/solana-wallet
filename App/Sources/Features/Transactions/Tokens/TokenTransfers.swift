@@ -28,7 +28,7 @@ nonisolated struct TokenTransfers {
     /// - Throws: An account, token validation, construction, RPC, or cancellation error.
     @concurrent
     func transfer(mint: Address, amount: UInt64, from sender: Address, to recipient: Address,
-                  source: Address? = nil, memo: String? = nil) async throws -> (transfer: TokenTransfer, slot: UInt64, rent: UInt64) {
+                  source: Address?, memo: String? = nil) async throws -> (transfer: TokenTransfer, slot: UInt64, rent: UInt64) {
         try Task.checkCancellation()
         guard amount > 0 else { throw ValidationError.invalidAmount }
         let programs = TokenProgram.allCases

@@ -612,7 +612,7 @@ struct ConfirmationTests {
                              store: SigningRecoveryStore) -> any TransactionCoordinating {
         let rpc = http.client(socket: { sockets.connect($0) })
         return TransactionCoordinator(rpc: rpc, preparer: Preparer(rpc: rpc), signer: Signer(rpc: rpc, store: store),
-                                      submitter: Submitter(rpc: rpc), confirmer: confirmer(http, sockets))
+                                      submitter: Submitter(rpcs: [rpc]), confirmer: confirmer(http, sockets))
     }
 
     /// Creates a clock that tells 30-second stall timers apart from reconnection waits.

@@ -9,11 +9,11 @@ nonisolated struct ThemeCatalog: ThemeCatalogProviding {
 
     /// Creates shared catalog access without loading any packages or image data.
     /// - Parameters:
-    ///   - directory: App-private persistent storage; defaults to Application Support.
+    ///   - directory: App-private persistent storage.
     ///   - builtIns: Immutable bundled themes supplied by app composition.
     ///   - packages: The framework service owning package validation and serialization.
     /// - Throws: A configuration error for duplicate built-in identities or a non-file location.
-    init(directory: URL = URL.applicationSupportDirectory.appendingPathComponent("Themes"),
+    init(directory: URL,
          builtIns: [BundledTheme] = [], packages: any PackServicing = PackService()) throws {
         guard directory.isFileURL else { throw ThemeCatalogError.invalidStorage }
         guard Set(builtIns.map(\.entry.id)).count == builtIns.count else { throw ThemeCatalogError.duplicateBuiltIn }
