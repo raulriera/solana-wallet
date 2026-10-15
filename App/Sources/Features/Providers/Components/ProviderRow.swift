@@ -9,24 +9,9 @@ struct ProviderRow: View {
 
     var body: some View {
         HStack {
-            Button { actions.select(provider) } label: {
-                HStack {
-                    // The checkmark is the label's icon, hidden but keeping its space when unselected, so every name
-                    // starts where the add row's text does.
-                    Label {
-                        Text(provider.name)
-                    } icon: {
-                        Image(systemName: "checkmark")
-                            .foregroundStyle(palette.accent)
-                            .opacity(isSelected ? 1 : 0)
-                            .accessibilityHidden(true)
-                    }
-                    Spacer()
-                }
-                .foregroundStyle(palette.primaryText)
-                .contentShape(.rect)
-            }
-            .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+            // A leading checkmark leaves the trailing edge to the info button.
+            Button(provider.name) { actions.select(provider) }
+                .buttonStyle(.choice(isSelected: isSelected, placement: .leading))
 
             if provider.hasDetails {
                 Button("More Info", systemImage: "info.circle") { actions.showDetails(for: provider) }

@@ -31,7 +31,7 @@ nonisolated struct HeliusConnection: ProviderConnecting {
         } catch {
             try Task.checkCancellation()
             let connectionError: ProviderConnectionError = switch error as? RPCError {
-            case .http(statusCode: 401, retryAfter: _)?, .http(statusCode: 403, retryAfter: _)?: .invalidKey
+            case let error? where error.rejectsKey: .invalidKey
             case let error? where error.isRateLimited: .rateLimited
             default: .unavailable
             }

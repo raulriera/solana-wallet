@@ -5,8 +5,7 @@ nonisolated struct AppearanceStore: AppearanceStoring {
     /// Mutates preferences using the available catalog entries without suspending.
     private typealias Mutation = @Sendable (inout AppearancePreferences, [UUID: ThemeEntry]) throws -> Void
 
-    private let directory: URL
-    private let builtIns: [UUID: ThemeEntry]
+    private let storage: ThemeStorage
 
     /// Configures local preferences without reading storage or any theme packages.
     /// - Parameters:
@@ -15,10 +14,7 @@ nonisolated struct AppearanceStore: AppearanceStoring {
     /// - Throws: An invalid location or duplicate built-in identity error.
     init(directory: URL,
          builtIns: [BundledTheme] = []) throws {
-        guard directory.isFileURL else { throw ThemeCatalogError.invalidStorage }
-        guard Set(builtIns.map(\.entry.id)).count == builtIns.count else { throw ThemeCatalogError.duplicateBuiltIn }
-        self.directory = directory
-        self.builtIns = Dictionary(uniqueKeysWithValues: builtIns.map { ($0.entry.id, $0.entry) })
+        storage = try ThemeStorage(directory: directory, builtIns: builtIns)
     }
 
     /// Loads and reconciles selections without opening a theme package.
@@ -59,13 +55,13 @@ nonisolated struct AppearanceStore: AppearanceStoring {
         _ mutation: @escaping Mutation
     ) async throws -> AppearanceSnapshot {
         try await CatalogIO.perform { checkCancellation in
-            var state = try CatalogFiles.state(in: directory)
-            let entries = try state.entries(including: builtIns)
+            var state = try CatalogFiles.state(in: storage.directory)
+            let entries = try state.entries(including: storage.builtInEntries)
             let previous = state.preferences
             state.preferences.reconcile(available: Set(entries.keys))
             try mutation(&state.preferences, entries)
             if state.preferences != previous {
-                state = try CatalogFiles.commit(state, in: directory, checkCancellation: checkCancellation)
+                state = try CatalogFiles.commit(state, in: storage.directory, checkCancellation: checkCancellation)
             }
             return AppearanceSnapshot(revision: state.revision, preferences: state.preferences, entries: entries)
         }

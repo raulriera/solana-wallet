@@ -75,10 +75,11 @@ struct ImportWalletScreen: View {
         .navigationTitle("Import Wallet")
         .navigationBarTitleDisplayMode(.inline)
         .onChange(of: focusedField?.rawValue ?? 0) { oldValue, newValue in
-            // Replacing the phrase control also resigns its focus; that isn't an editing exit.
+            // Revealing the words replaces the hidden control and resigns its focus; that isn't an editing exit.
+            // Hiding them while editing ends editing, so it checks the words as leaving the field does.
             let oldField = RecoveryEntryModel.Field(rawValue: oldValue)
             let newField = RecoveryEntryModel.Field(rawValue: newValue)
-            if oldField == input.phraseField,
+            if oldField == input.phraseField || oldField == .revealedPhrase,
                newField?.isPhrase != true, input.hasPhrase, canDisplayRecovery {
                 input.validate()
             }

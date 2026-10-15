@@ -15,10 +15,12 @@ struct ThemeRow: View {
                     SwipeDeleteButton(removal: $removal, item: entry)
                 }
             }
-            .confirmationDialog("Delete Theme?", item: $removal) { approved in
+            .alert("Delete Theme?", item: $removal) { approved in
                 Button("Delete", role: .destructive) { actions.remove(approved) }
-            } message: { _ in
-                Text("Are you sure you want to delete this theme?")
+                Button("Cancel", role: .cancel) {}
+            } message: { approved in
+                Text("\(approved.name) will be deleted from this device.",
+                     comment: "The Delete Theme alert's message. The variable is the theme's name.")
             }
     }
 }

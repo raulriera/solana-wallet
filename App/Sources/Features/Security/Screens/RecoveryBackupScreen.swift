@@ -46,23 +46,16 @@ struct RecoveryBackupScreen: View {
                 }
                 .scrollContentBackground(.hidden)
                 .readableContentWidth()
+                .background(palette.background)
             case .unavailable:
-                ScrollView {
-                    ContentUnavailableView("Recovery Phrase Unavailable", systemImage: "key.slash",
-                        description: Text("This device no longer has this wallet's recovery phrase. Reset the app and import your written backup."))
-                        .drawOnAppear()
-                        .foregroundStyle(palette.primaryText, palette.secondaryText)
-                        .frame(maxWidth: LayoutMetrics.readableWidth)
-                }
-                .defaultScrollAnchor(.center, for: .alignment)
-                .pinnedAction {
+                UnavailableScreen(title: "Recovery Phrase Unavailable",
+                                  message: "This device no longer has this wallet's recovery phrase. Reset the app and import your written backup.",
+                                  systemImage: "key.slash") {
                     Button("Reset App", role: .destructive) { coordinator.startReset(.recoveryUnavailable) }
                         .buttonStyle(.destructive)
                 }
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(palette.background)
         .navigationTitle("Recovery Phrase")
         .navigationBarTitleDisplayMode(.inline)
     }

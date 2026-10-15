@@ -2,23 +2,15 @@ import SwiftUI
 
 /// Offers an explicit retry while leaving unreadable wallet storage untouched.
 struct WalletUnavailableScreen: View {
-    @Environment(\.palette) private var palette
     let retry: () -> Void
 
     var body: some View {
-        ScrollView {
-            ContentUnavailableView("Wallets Unavailable", systemImage: "exclamationmark.triangle",
-                description: Text("Your saved wallets could not be loaded. Please try again."))
-                .drawOnAppear()
-                .foregroundStyle(palette.primaryText)
-                .frame(maxWidth: LayoutMetrics.readableWidth)
-        }
-        .defaultScrollAnchor(.center, for: .alignment)
-        .pinnedAction {
+        UnavailableScreen(title: "Wallets Unavailable",
+                          message: "Your saved wallets could not be loaded. Please try again.",
+                          systemImage: "exclamationmark.triangle") {
             Button("Try Again", action: retry)
                 .buttonStyle(.primary)
         }
-        .background(palette.background)
     }
 }
 

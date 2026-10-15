@@ -85,8 +85,8 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, LogoProviding {
         do {
             return try await operation(client)
         } catch {
-            guard case .helius = endpoint, let keyError = Self.keyError(for: error) else { throw error }
-            throw keyError
+            guard case .helius = endpoint, (error as? RPCError)?.rejectsKey == true else { throw error }
+            throw ProviderClientError.invalidKey
         }
     }
 
@@ -118,16 +118,6 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, LogoProviding {
             throw ProviderClientError.missingKey
         }
         return key
-    }
-
-    /// Identifies Helius rejecting the key, so other responses can't be mistaken for it.
-    /// - Parameter error: An error from a Helius request or subscription.
-    /// - Returns: ``ProviderClientError/invalidKey`` for HTTP 401 or 403, otherwise `nil`.
-    private static func keyError(for error: any Error) -> ProviderClientError? {
-        switch error {
-        case RPCError.http(statusCode: 401, retryAfter: _), RPCError.http(statusCode: 403, retryAfter: _): .invalidKey
-        default: nil
-        }
     }
 
     /// Creates the production client for an endpoint on a network.

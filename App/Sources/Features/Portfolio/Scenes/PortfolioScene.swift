@@ -64,9 +64,10 @@ struct PortfolioScene: View {
                             .animation(.default, value: coordinator.update?.snapshotRevision)
                     } else {
                         ContentUnavailableView("No Token Selected", systemImage: "wallet.bifold",
-                                               description: Text("Select a token to see its balance and value."))
+                                               description: Text("Select a token to see its balance and value.")
+                                                .foregroundStyle(palette.secondaryText))
                             .drawOnAppear()
-                            .foregroundStyle(palette.primaryText)
+                            .foregroundStyle(palette.primaryText, palette.secondaryText)
                             .background(palette.background)
                             // Inline like a token's details, so a cleared selection leaves no empty large title.
                             .navigationBarTitleDisplayMode(.inline)
