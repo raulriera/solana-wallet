@@ -14,13 +14,6 @@ struct SecurityLifecycle: ViewModifier {
         let attempt = coordinator.attempt
         content
             .task(id: attempt) { await coordinator.run(attempt) }
-            .errorAlert($coordinator.error) { error in
-                if error == .resetIncomplete {
-                    Button("Try Again", action: coordinator.reset)
-                    Button("Cancel", role: .cancel) {}
-                } else {
-                    Button("OK", role: .cancel) {}
-                }
-            }
+            .errorAlert($coordinator.error, retry: coordinator.reset)
     }
 }

@@ -5,10 +5,6 @@ import Transactions
 nonisolated struct Submitter: TransactionSubmitting {
     /// Every RPC failed to acknowledge a transaction whose delivery may remain unknown.
     struct Rejection: Error, Sendable {
-        /// The locally verified identifier available for subsequent status lookup.
-        let signature: String
-        /// The network on which submission was attempted.
-        let network: Network
         /// The independent errors returned by the RPCs, including rate-limit details.
         let errors: [any Error]
     }
@@ -35,9 +31,26 @@ nonisolated struct Submitter: TransactionSubmitting {
     ///
     /// - Parameter signed: The exact approved result of the signing workflow.
     /// - Returns: A plain receipt with the accepted signature, network, and blockhash expiry.
-    /// - Throws: A prerequisite, signature, RPC, acknowledgment, or cancellation error.
+    /// - Throws: ``SubmitterError/missingSignatures`` without a fee payer signature; otherwise a ``DeliveryError``
+    ///   that retains the receipt and the prerequisite, ``Rejection``, or cancellation error.
     @concurrent
     func submit(_ signed: SignedTransaction) async throws -> Submission {
+        guard let signature = signed.signature else { throw SubmitterError.missingSignatures }
+        let receipt = Submission(signature: signature, preparation: signed.preparation)
+        do {
+            try await send(signed, signature: signature)
+            return receipt
+        } catch {
+            throw DeliveryError(submission: receipt, cause: error)
+        }
+    }
+
+    /// Checks the signed transaction against its review, then sends it through every same-network RPC at once.
+    /// - Parameters:
+    ///   - signed: The exact approved result of the signing workflow.
+    ///   - signature: The transaction's fee payer signature, which every RPC must acknowledge.
+    /// - Throws: A prerequisite, signature, ``Rejection``, or cancellation error.
+    private func send(_ signed: SignedTransaction, signature: String) async throws {
         try Task.checkCancellation()
         let rpcs = rpcs.filter { $0.network == signed.preparation.network }
         guard !rpcs.isEmpty else { throw SubmitterError.noProviders }
@@ -46,7 +59,7 @@ nonisolated struct Submitter: TransactionSubmitting {
         guard transaction == signed.transaction, transaction.message == signed.preparation.message else {
             throw SubmitterError.transactionMismatch
         }
-        guard signed.isFullySigned, let signature = transaction.signature else { throw SubmitterError.missingSignatures }
+        guard signed.isFullySigned else { throw SubmitterError.missingSignatures }
         for (original, current) in zip(signed.preparation.transaction.signatures, transaction.signatures)
             where original.contains(where: { $0 != 0 }) {
             guard original == current else { throw SubmitterError.transactionMismatch }
@@ -76,9 +89,6 @@ nonisolated struct Submitter: TransactionSubmitting {
             return errors
         }
         try Task.checkCancellation()
-        guard errors.count < rpcs.count else {
-            throw Rejection(signature: signature, network: signed.preparation.network, errors: errors)
-        }
-        return Submission(signature: signature, preparation: signed.preparation)
+        guard errors.count < rpcs.count else { throw Rejection(errors: errors) }
     }
 }

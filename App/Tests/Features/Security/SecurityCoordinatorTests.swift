@@ -91,7 +91,7 @@ struct SecurityCoordinatorTests {
         #expect(coordinator.error == nil)
     }
 
-    /// A failed step explains itself and stays on the current screen.
+    /// A failed step explains itself and stays on the current screen; only an incomplete reset can be tried again.
     /// - Parameter step: The step that fails.
     @Test(arguments: Step.allCases)
     func `A failed step explains itself without moving on`(_ step: Step) async throws {
@@ -110,6 +110,7 @@ struct SecurityCoordinatorTests {
 
         #expect(coordinator.path.isEmpty)
         #expect(coordinator.error == [.recovery: .recoveryUnreadable, .owner: .ownerNotConfirmed, .reset: .resetIncomplete][step])
+        #expect(coordinator.error?.canRetry == (step == .reset))
     }
 
     /// Dismissing the system prompt changes nothing.

@@ -48,15 +48,17 @@ struct SubmissionTests {
         let limited = HTTPResponses([:], error: .http(statusCode: 429, retryAfter: "3"))
         let mismatched = HTTPResponses(["sendTransaction": [#""another-signature""#]])
 
-        await #expect {
+        let error = try await #require(throws: DeliveryError.self) {
             try await Submitter(rpcs: [limited.client, mismatched.client]).submit(signed)
-        } throws: { error in
-            guard let rejection = error as? Submitter.Rejection else { return false }
-            return rejection.signature == ExternalFixture.signature && rejection.network == .devnet
-                && rejection.errors.count == 2
-                && rejection.errors.contains { $0 as? RPCError == .http(statusCode: 429, retryAfter: "3") }
-                && rejection.errors.contains { $0 as? SubmitterError == .responseMismatch(expectedSignature: ExternalFixture.signature) }
         }
+        let rejection = try #require(error.cause as? Submitter.Rejection)
+        #expect(error.submission.signature == ExternalFixture.signature)
+        #expect(error.submission.network == .devnet)
+        #expect(rejection.errors.count == 2)
+        #expect(rejection.errors.contains { $0 as? RPCError == .http(statusCode: 429, retryAfter: "3") })
+        #expect(rejection.errors.contains {
+            $0 as? SubmitterError == .responseMismatch(expectedSignature: ExternalFixture.signature)
+        })
         #expect(await limited.requests.count == 1)
         #expect(await mismatched.requests.count == 1)
     }
@@ -188,9 +190,10 @@ struct SubmissionTests {
                                   instructions: original.instructions, signatures: [replacement, original.signatures[1]])
         let input = SignedTransaction(preparation: signed.preparation, transaction: altered)
 
-        await #expect(throws: SubmitterError.transactionMismatch) {
+        let error = try await #require(throws: DeliveryError.self) {
             try await Submitter(rpcs: [Solana(network: .devnet)]).submit(input)
         }
+        #expect(error.cause as? SubmitterError == .transactionMismatch)
     }
 
     /// Creates real clients restricted to devnet using a test-runner credential.

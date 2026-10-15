@@ -114,8 +114,8 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
     ///   - memo: An optional memo immediately before the payment instruction.
     /// - Returns: The exact simulated transaction with applicable token and rent observations.
     /// - Throws: An account, instruction, resource, RPC, or cancellation error.
-    func transfer(_ amount: UInt64, token: Address? = nil, using wallet: Account, to recipient: Address,
-                  source: Address? = nil, memo: String? = nil) async throws -> Simulation {
+    func transfer(_ amount: UInt64, token: Address?, using wallet: Account, to recipient: Address,
+                  source: Address?, memo: String?) async throws -> Simulation {
         if let token {
             let resolved = try await tokens.transfer(mint: token, amount: amount, from: wallet.address,
                 to: recipient, source: source, memo: memo)
@@ -156,14 +156,7 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
             where signature.allSatisfy({ $0 == 0 }) {
             guard local.contains(account.address) else { throw SubmitterError.missingSignatures }
         }
-        let signed = try await signed(simulation)
-        guard let signature = signed.signature else { throw SubmitterError.missingSignatures }
-        let receipt = Submission(signature: signature, preparation: signed.preparation)
-        do {
-            return try await submitter.submit(signed)
-        } catch {
-            throw DeliveryError(submission: receipt, cause: error)
-        }
+        return try await submitter.submit(signed(simulation))
     }
 
     /// Watches a sent transaction without reading recovery or sending it again.

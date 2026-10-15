@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Runs the window's confirmed token removals and explains a failed save.
+/// Runs the window's confirmed token removals, explains a failed save, and offers to try it again.
 ///
 /// It attaches to the portfolio, which stays on screen when a removed token's details close.
 private struct TokenRemovalLifecycle: ViewModifier {
@@ -13,7 +13,7 @@ private struct TokenRemovalLifecycle: ViewModifier {
         let attempt = removal.attempt
         content
             .task(id: attempt) { await removal.run(attempt) }
-            .errorAlert($removal.error)
+            .errorAlert($removal.error, retry: removal.retry)
     }
 }
 

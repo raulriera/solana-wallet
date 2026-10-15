@@ -26,7 +26,7 @@ struct TokenPreparationLiveTests {
         let absent = try Address(source.address)
 
         await #expect(throws: TokenTransfersError.missingAccount(absent)) {
-            try await coordinator.transfer(1, token: mint, using: account, to: account.address, source: absent)
+            try await coordinator.transfer(1, token: mint, using: account, to: account.address, source: absent, memo: nil)
         }
     }
 }

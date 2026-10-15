@@ -26,12 +26,7 @@ private struct TokenAdditionLifecycle: ViewModifier {
                 guard isFound, let preview = addition.preview else { return }
                 AccessibilityNotification.Announcement(String(localized: Self.announcement(for: preview))).post()
             }
-            .errorAlert($addition.error) { error in
-                if error.canRetry {
-                    Button("Try Again", action: addition.retry)
-                }
-                Button(error.canRetry ? "Cancel" : "OK", role: .cancel) {}
-            }
+            .errorAlert($addition.error, retry: addition.retry)
     }
 
     /// Tells VoiceOver which token the address names, without reading out the address itself.

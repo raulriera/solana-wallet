@@ -2,7 +2,7 @@ import Foundation
 import Portfolio
 
 /// Why the add-token sheet couldn't look up or add a token, explained in an alert without the provider's error.
-nonisolated enum TokenAdditionError: LocalizedError, Equatable {
+nonisolated enum TokenAdditionError: RetryableError, Equatable {
     /// A provider is limiting the lookup's requests.
     case rateLimited
     /// The RPC API key is missing or wasn't accepted.

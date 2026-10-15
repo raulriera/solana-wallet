@@ -42,7 +42,15 @@ final class TokenRemovalModel {
         } catch TokenListError.unreadable {
             self.error = .listUnreadable
         } catch {
+            // Trying again removes the same token.
+            request = mint
             self.error = .saveFailed
         }
+    }
+
+    /// Removes the token whose save failed again; the scene's task runs the new attempt.
+    func retry() {
+        guard request != nil else { return }
+        attempt = UUID()
     }
 }

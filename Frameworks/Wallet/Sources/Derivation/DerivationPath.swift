@@ -9,8 +9,14 @@ public struct DerivationPath: Sendable, Equatable, CustomStringConvertible {
         case invalidPath
     }
 
+    /// The bit that marks a child index as hardened; the indices a path names stay below it.
+    private static let hardenedBit: UInt32 = 0x8000_0000
+
     /// The child indices before adding the hardened bit.
-    let indices: [UInt32]
+    private let indices: [UInt32]
+
+    /// The child indices with the hardened bit set, as derivation uses them.
+    var hardenedIndices: [UInt32] { indices.map { $0 | Self.hardenedBit } }
 
     /// The canonical path, with an apostrophe after each hardened child index.
     public var description: String { "m" + indices.map { "/\($0)'" }.joined() }
@@ -29,7 +35,7 @@ public struct DerivationPath: Sendable, Equatable, CustomStringConvertible {
             let digits = component.dropLast()
             guard component.last == "'", !digits.isEmpty,
                   digits.utf8.allSatisfy({ (48...57).contains($0) }),
-                  let index = UInt32(digits), index < 0x8000_0000 else {
+                  let index = UInt32(digits), index < Self.hardenedBit else {
                 throw ValidationError.invalidPath
             }
             return index

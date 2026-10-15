@@ -1,13 +1,16 @@
 import Foundation
 
 /// A secret-free error that Security & Privacy explains in an alert.
-nonisolated enum SecurityError: LocalizedError, Equatable {
+nonisolated enum SecurityError: RetryableError, Equatable {
     /// The recovery couldn't be read.
     case recoveryUnreadable
     /// The device owner didn't authenticate.
     case ownerNotConfirmed
     /// A reset stopped before deleting everything.
     case resetIncomplete
+
+    /// Whether trying again can help; only an incomplete reset repeats from its alert.
+    var canRetry: Bool { self == .resetIncomplete }
 
     /// The alert's title.
     var errorDescription: String? {

@@ -37,15 +37,17 @@ struct TokenRemovalModelTests {
         #expect(portfolio.removed.isEmpty)
     }
 
-    /// A list that can't be read or saved keeps the token and explains why.
+    /// A list that can't be read or saved keeps the token and explains why; only a failed save can be tried again.
     /// - Parameters:
     ///   - error: Why the list couldn't change.
-    ///   - expected: The error the alert explains.
+    ///   - expected: The error the alert explains, and whether trying again can help.
     @Test(arguments: [
-        (TokenListError.unreadable as any Error, TokenRemovalError.listUnreadable),
-        (CocoaError(.fileWriteUnknown), .saveFailed),
+        (TokenListError.unreadable as any Error, (error: TokenRemovalError.listUnreadable, canRetry: false)),
+        (CocoaError(.fileWriteUnknown), (error: .saveFailed, canRetry: true)),
     ])
-    func `A list that can't change explains why`(error: any Error, expected: TokenRemovalError) async {
+    func `A list that can't change explains why`(
+        error: any Error, expected: (error: TokenRemovalError, canRetry: Bool)
+    ) async {
         let portfolio = RecordingPortfolio()
         portfolio.removeError = error
         let removal = TokenRemovalModel(coordinator: portfolio)
@@ -53,7 +55,25 @@ struct TokenRemovalModelTests {
         removal.remove(Self.bonk)
         await removal.run(removal.attempt)
 
-        #expect(removal.error == expected)
+        #expect(removal.error == expected.error)
+        #expect(removal.error?.canRetry == expected.canRetry)
+        #expect(removal.attempt == nil)
+    }
+
+    /// Trying a failed save again removes the same token.
+    @Test
+    func `Trying a failed save again removes the same token`() async {
+        let portfolio = RecordingPortfolio()
+        portfolio.removeError = CocoaError(.fileWriteUnknown)
+        let removal = TokenRemovalModel(coordinator: portfolio)
+        removal.remove(Self.bonk)
+        await removal.run(removal.attempt)
+
+        portfolio.removeError = nil
+        removal.retry()
+        await removal.run(removal.attempt)
+
+        #expect(portfolio.removed.map(\.value) == ["DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"])
         #expect(removal.attempt == nil)
     }
 

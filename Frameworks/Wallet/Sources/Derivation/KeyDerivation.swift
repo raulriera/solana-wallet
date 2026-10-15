@@ -44,9 +44,8 @@ enum KeyDerivation {
             for: seed, using: SymmetricKey(data: Array("ed25519 seed".utf8))
         ))
         defer { node.erase() }
-        for index in path.indices {
+        for child in path.hardenedIndices {
             try Task.checkCancellation()
-            let child = index | 0x8000_0000
             let indexBytes = [24, 16, 8, 0].map { UInt8(truncatingIfNeeded: child >> $0) }
             var data = [0] + Array(node.prefix(32)) + indexBytes
             defer { data.erase() }

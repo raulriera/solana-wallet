@@ -38,8 +38,7 @@ nonisolated struct Preparer: TransactionPreparing {
                  configuration: Configuration? = nil, minimumSlot: UInt64? = nil) async throws -> Preparation {
         try Task.checkCancellation()
         let minimumFee = requirements.map(\.minimumPriorityFeeLamports).max() ?? 0
-        var requests = try configuration ?? Configuration(priorityFeeLamports: minimumFee,
-            computeUnitLimit: 1_400_000, loadedAccountsDataSizeLimit: 67_108_864)
+        var requests = try configuration ?? resourceRequests(priorityFee: minimumFee)
         guard requests.priorityFeeLamports >= minimumFee else {
             throw PreparerError.priorityFeeTooLow(minimumLamports: minimumFee)
         }
@@ -50,10 +49,8 @@ nonisolated struct Preparer: TransactionPreparing {
         let blockhash = try await rpc.send(GetLatestBlockhash(minContextSlot: minimumSlot))
         try Task.checkCancellation()
         guard blockhash.context.slot >= (minimumSlot ?? 0) else { throw PreparerError.inconsistentResponse }
-        var message = try messageBuilder.message(instructions: invocations, payer: payer,
-            recentBlockhash: blockhash.value.blockhash, configuration: requests)
-        var transaction = try transactionBuilder.validateSignatures(in:
-            transactionBuilder.simulationTransaction(for: message), for: signer)
+        var transaction = try simulationTransaction(invocations, payer: payer, blockhash: blockhash.value.blockhash,
+                                                    requests: requests, signer: signer)
         var context = blockhash.context.slot
         if configuration == nil {
             let estimate = try await rpc.send(SimulateTransaction(transaction: transaction.serializedRepresentation,
@@ -64,19 +61,54 @@ nonisolated struct Preparer: TransactionPreparing {
             }
             context = estimate.context.slot
             if estimate.value.error == nil {
-                guard let units = estimate.value.unitsConsumed, let bytes = estimate.value.loadedAccountsDataSize,
-                      units <= 1_400_000, bytes <= 67_108_864 else { throw PreparerError.resourceUsageUnavailable }
-                requests = try Configuration(priorityFeeLamports: minimumFee,
-                    computeUnitLimit: UInt32(min(1_400_000, max(1, units + (units + 9) / 10))),
-                    loadedAccountsDataSizeLimit: UInt32(min(67_108_864, max(1, bytes + (bytes + 9) / 10))))
-                message = try messageBuilder.message(instructions: invocations, payer: payer,
-                    recentBlockhash: blockhash.value.blockhash, configuration: requests)
-                transaction = try transactionBuilder.validateSignatures(in:
-                    transactionBuilder.simulationTransaction(for: message), for: signer)
+                guard let units = estimate.value.unitsConsumed, let bytes = estimate.value.loadedAccountsDataSize else {
+                    throw PreparerError.resourceUsageUnavailable
+                }
+                requests = try resourceRequests(priorityFee: minimumFee, measured: (units, UInt64(bytes)))
+                transaction = try simulationTransaction(invocations, payer: payer, blockhash: blockhash.value.blockhash,
+                                                        requests: requests, signer: signer)
             }
         }
         return try await evaluate(transaction, source: .local(invocations, payer, requests, blockhash),
                                   signer: signer, network: rpc.network, minimumSlot: context, tips: requirements)
+    }
+
+    /// Requests a priority fee and the network's resource limits, or a tenth more than measured usage within them.
+    ///
+    /// The extra tenth absorbs small differences between simulation and execution.
+    /// - Parameters:
+    ///   - priorityFee: The priority fee in lamports.
+    ///   - measured: The simulated compute units and loaded account bytes, or `nil` to request the limits.
+    /// - Returns: The transaction's priority fee and resource requests.
+    /// - Throws: ``PreparerError/resourceUsageUnavailable`` when measured usage exceeds a limit, or a configuration
+    ///   error.
+    private func resourceRequests(priorityFee: UInt64, measured: (units: UInt64, bytes: UInt64)? = nil) throws
+        -> Configuration {
+        let limits: (units: UInt64, bytes: UInt64) = (1_400_000, 67_108_864)
+        guard (measured?.units ?? 0) <= limits.units, (measured?.bytes ?? 0) <= limits.bytes else {
+            throw PreparerError.resourceUsageUnavailable
+        }
+        let units = measured.map { min(limits.units, max(1, $0.units + ($0.units + 9) / 10)) } ?? limits.units
+        let bytes = measured.map { min(limits.bytes, max(1, $0.bytes + ($0.bytes + 9) / 10)) } ?? limits.bytes
+        return try Configuration(priorityFeeLamports: priorityFee, computeUnitLimit: UInt32(units),
+                                 loadedAccountsDataSizeLimit: UInt32(bytes))
+    }
+
+    /// Compiles ordered instructions into a transaction for simulation, with every signature slot still empty.
+    /// - Parameters:
+    ///   - invocations: The ordered instructions, service tips first.
+    ///   - payer: The transaction fee payer.
+    ///   - blockhash: The recent blockhash that sets the transaction's lifetime.
+    ///   - requests: The priority fee and resource requests.
+    ///   - signer: The wallet account whose required signature slot must be empty.
+    /// - Returns: The unsigned transaction.
+    /// - Throws: A composition or validation error.
+    private func simulationTransaction(_ invocations: [Instruction], payer: Address, blockhash: String,
+                                       requests: Configuration, signer: Address) throws -> Transaction {
+        let message = try messageBuilder.message(instructions: invocations, payer: payer, recentBlockhash: blockhash,
+                                                 configuration: requests)
+        return try transactionBuilder.validateSignatures(in: transactionBuilder.simulationTransaction(for: message),
+                                                         for: signer)
     }
 
     /// Validates an imported transaction and its blockhash without accessing protected recovery.
