@@ -11,12 +11,16 @@ struct ProviderRow: View {
         HStack {
             Button { actions.select(provider) } label: {
                 HStack {
-                    // The hidden checkmark keeps its space, so every name starts at the same place.
-                    Image(systemName: "checkmark")
-                        .foregroundStyle(palette.accent)
-                        .opacity(isSelected ? 1 : 0)
-                        .accessibilityHidden(true)
-                    Text(provider.name)
+                    // The checkmark is the label's icon, hidden but keeping its space when unselected, so every name
+                    // starts where the add row's text does.
+                    Label {
+                        Text(provider.name)
+                    } icon: {
+                        Image(systemName: "checkmark")
+                            .foregroundStyle(palette.accent)
+                            .opacity(isSelected ? 1 : 0)
+                            .accessibilityHidden(true)
+                    }
                     Spacer()
                 }
                 .foregroundStyle(palette.primaryText)
