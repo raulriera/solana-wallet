@@ -22,7 +22,7 @@ let restored = try await store.recovery(
 )
 ```
 
-- `save(_:for:)` inserts a new record and rejects an existing wallet ID.
+- `save(_:for:)` inserts a new record and rejects an existing recovery ID.
 - `recovery(for:reason:)` uses a fresh authentication context. Supply a localized, nonsecret reason for the system prompt. Failed reads preserve the stored record.
 - `deleteRecovery(for:)` removes that shared recovery record; a missing record is a no-op.
 - `deleteAllRecovery()` removes every record in the service, including records no wallet uses. Call it only for an explicit app reset.

@@ -2,7 +2,7 @@ import Foundation
 
 /// Theme identities shared across windows, independent of packages and rendered colors.
 nonisolated struct AppearancePreferences: Codable, Sendable, Equatable {
-    /// The application default or an override for one stable wallet identity.
+    /// The application default or an override for one wallet, keyed by its recovery identifier.
     enum Scope: Sendable, Hashable {
         case application
         case wallet(UUID)
@@ -15,10 +15,10 @@ nonisolated struct AppearancePreferences: Codable, Sendable, Equatable {
     init() {}
 
     /// Finds a wallet's override, falling back to the application selection.
-    /// - Parameter walletID: The wallet's stable identity, or `nil` for application appearance.
+    /// - Parameter recoveryID: The wallet's recovery identifier, or `nil` for application appearance.
     /// - Returns: The selected theme identity; `nil` means the original built-in appearance.
-    func themeID(for walletID: UUID?) -> UUID? {
-        walletID.flatMap { walletThemeIDs[$0] } ?? appThemeID
+    func themeID(for recoveryID: UUID?) -> UUID? {
+        recoveryID.flatMap { walletThemeIDs[$0] } ?? appThemeID
     }
 
     /// Changes one selection without overwriting unrelated wallet preferences.

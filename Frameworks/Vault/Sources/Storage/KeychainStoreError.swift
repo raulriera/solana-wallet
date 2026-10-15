@@ -1,7 +1,7 @@
 /// A storage failure that contains no recovery material or underlying error text.
 public enum KeychainStoreError: Error, Sendable, Equatable {
-    /// The wallet identifier already has stored recovery material.
-    case duplicateWallet
+    /// The recovery identifier already has stored recovery material.
+    case duplicateRecovery
     /// No item exists, including items the system deleted when the device passcode was removed.
     case recoveryUnavailable
     /// Authentication didn't authorize access to the item.

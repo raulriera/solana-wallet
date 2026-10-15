@@ -41,10 +41,10 @@ public struct KeychainStore: RecoveryStoring {
     ///
     /// - Parameters:
     ///   - recovery: The shared phrase and original BIP-39 passphrase.
-    ///   - walletID: The caller's local wallet identifier.
+    ///   - recoveryID: The caller's local recovery identifier.
     /// - Throws: ``KeychainStoreError`` if the item can't be protected or already exists,
     ///   or `CancellationError` if canceled.
-    public func save(_ recovery: Recovery, for walletID: UUID) async throws {
+    public func save(_ recovery: Recovery, for recoveryID: UUID) async throws {
         try await perform { context in
             guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: nil) else {
                 throw KeychainStoreError.protectionUnavailable
@@ -53,7 +53,7 @@ public struct KeychainStore: RecoveryStoring {
                 nil, kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly, .userPresence, nil
             ) else { throw KeychainStoreError.protectionUnavailable }
             var payload = try StoredRecovery.encode(recovery)
-            var attributes = identity(for: walletID)
+            var attributes = identity(for: recoveryID)
             attributes[kSecAttrAccessControl as String] = access
             attributes[kSecValueData as String] = payload
             defer {
@@ -71,13 +71,13 @@ public struct KeychainStore: RecoveryStoring {
     /// changes don't affect access. A missing item requires the user's backup.
     ///
     /// - Parameters:
-    ///   - walletID: The local identifier used when saving the wallet.
+    ///   - recoveryID: The local identifier used when saving the recovery.
     ///   - reason: A localized, secret-free explanation shown during authentication.
     /// - Returns: The validated recovery material.
     /// - Throws: ``KeychainStoreError`` if access fails, or `CancellationError` if canceled.
-    public func recovery(for walletID: UUID, reason: String) async throws -> Recovery {
+    public func recovery(for recoveryID: UUID, reason: String) async throws -> Recovery {
         try await perform(reason: reason) { context in
-            var query = identity(for: walletID)
+            var query = identity(for: recoveryID)
             query[kSecMatchLimit as String] = kSecMatchLimitOne
             query[kSecReturnData as String] = true
             query[kSecUseAuthenticationContext as String] = context
@@ -97,11 +97,11 @@ public struct KeychainStore: RecoveryStoring {
     /// also permits removing inaccessible items. Cancellation doesn't roll back
     /// a deletion already performed by the Keychain.
     ///
-    /// - Parameter walletID: The local identifier to remove.
+    /// - Parameter recoveryID: The local identifier to remove.
     /// - Throws: ``KeychainStoreError`` if deletion fails, or `CancellationError` if canceled.
-    public func deleteRecovery(for walletID: UUID) async throws {
+    public func deleteRecovery(for recoveryID: UUID) async throws {
         try await perform { _ in
-            let status = keychain.delete(matching: identity(for: walletID))
+            let status = keychain.delete(matching: identity(for: recoveryID))
             if status != errSecItemNotFound { try Self.check(status) }
         }
     }
@@ -131,10 +131,10 @@ public struct KeychainStore: RecoveryStoring {
     }
 
     /// Identifies one non-synchronizing item within this app's namespace.
-    /// - Parameter walletID: The local identifier used as the Keychain account.
+    /// - Parameter recoveryID: The local identifier used as the Keychain account.
     /// - Returns: The common attributes for add, read, and delete queries.
-    private func identity(for walletID: UUID) -> [String: Any] {
-        namespace.merging([kSecAttrAccount as String: walletID.uuidString]) { $1 }
+    private func identity(for recoveryID: UUID) -> [String: Any] {
+        namespace.merging([kSecAttrAccount as String: recoveryID.uuidString]) { $1 }
     }
 
     /// Runs a blocking Keychain operation outside Swift's cooperative executor.
@@ -173,7 +173,7 @@ public struct KeychainStore: RecoveryStoring {
     private static func check(_ status: OSStatus) throws {
         switch status {
         case errSecSuccess: return
-        case errSecDuplicateItem: throw KeychainStoreError.duplicateWallet
+        case errSecDuplicateItem: throw KeychainStoreError.duplicateRecovery
         case errSecItemNotFound: throw KeychainStoreError.recoveryUnavailable
         case errSecUserCanceled: throw CancellationError()
         case errSecAuthFailed: throw KeychainStoreError.authenticationFailed

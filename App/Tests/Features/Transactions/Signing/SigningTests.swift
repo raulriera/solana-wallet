@@ -37,7 +37,7 @@ struct SigningTests {
         let reads = await store.reads
         #expect(reads.count == 1)
         let read = try #require(reads.first)
-        #expect(read.walletID == fixture.account.recoveryID)
+        #expect(read.recoveryID == fixture.account.recoveryID)
         #expect(read.reason == "Approve transaction")
         let requests = await http.requests
         #expect(requests.count == 3)

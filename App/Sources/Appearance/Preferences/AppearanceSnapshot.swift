@@ -28,9 +28,9 @@ nonisolated struct AppearanceSnapshot: Sendable, Equatable {
     }
 
     /// Looks up the selected revision using only in-memory values.
-    /// - Parameter walletID: The window's wallet identity, or `nil` for application appearance.
+    /// - Parameter recoveryID: The window's wallet recovery identifier, or `nil` for application appearance.
     /// - Returns: The selected entry; `nil` uses the original built-in appearance.
-    func theme(for walletID: UUID?) -> ThemeEntry? {
-        preferences.themeID(for: walletID).flatMap { entries[$0] }
+    func theme(for recoveryID: UUID?) -> ThemeEntry? {
+        preferences.themeID(for: recoveryID).flatMap { entries[$0] }
     }
 }

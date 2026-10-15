@@ -158,7 +158,7 @@ final class OnboardingCoordinator: OnboardingCoordinating {
         do {
             do {
                 try await recoveryStore.save(recovery, for: id)
-            } catch KeychainStoreError.duplicateWallet {
+            } catch KeychainStoreError.duplicateRecovery {
                 let stored = try await recoveryStore.recovery(for: id,
                     reason: String(localized: "Verify recovery before completing wallet setup"))
                 guard stored.phrase.words == recovery.phrase.words, stored.passphrase == recovery.passphrase else {

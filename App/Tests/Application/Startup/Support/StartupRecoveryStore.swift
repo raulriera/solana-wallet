@@ -23,24 +23,24 @@ actor StartupRecoveryStore: RecoveryStoring {
     /// Reports an unexpected write during startup.
     /// - Parameters:
     ///   - recovery: The material the caller attempted to save.
-    ///   - walletID: The destination identifier.
-    func save(_ recovery: Recovery, for walletID: UUID) async throws {
+    ///   - recoveryID: The destination identifier.
+    func save(_ recovery: Recovery, for recoveryID: UUID) async throws {
         Issue.record("Startup must not save recovery material")
     }
 
     /// Reports an unexpected read during startup.
     /// - Parameters:
-    ///   - walletID: The identifier the caller attempted to read.
+    ///   - recoveryID: The identifier the caller attempted to read.
     ///   - reason: The caller's authentication explanation.
     /// - Returns: Never; the test fails first.
-    func recovery(for walletID: UUID, reason: String) async throws -> Recovery {
+    func recovery(for recoveryID: UUID, reason: String) async throws -> Recovery {
         Issue.record("Startup must not read recovery material")
         throw KeychainStoreError.recoveryUnavailable
     }
 
     /// Reports an unexpected single deletion during startup.
-    /// - Parameter walletID: The identifier the caller attempted to delete.
-    func deleteRecovery(for walletID: UUID) async throws {
+    /// - Parameter recoveryID: The identifier the caller attempted to delete.
+    func deleteRecovery(for recoveryID: UUID) async throws {
         Issue.record("Startup must not delete one wallet's recovery")
     }
 }

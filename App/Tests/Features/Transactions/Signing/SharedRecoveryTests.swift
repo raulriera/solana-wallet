@@ -31,7 +31,7 @@ struct SharedRecoveryTests {
             #expect(key.isValidSignature(signed.transaction.signatures[0], for: preparation.message))
         }
 
-        #expect(await store.reads.map(\.walletID) == [recoveryID, recoveryID])
+        #expect(await store.reads.map(\.recoveryID) == [recoveryID, recoveryID])
     }
 
     /// Rejects an unrelated address before access and a wrong path when recovering the signing key.
@@ -69,7 +69,7 @@ struct SharedRecoveryTests {
         let key = try Curve25519.Signing.PublicKey(rawRepresentation:
             Data(#require(Base58.decode(account.address.value, byteCount: 32))))
         #expect(key.isValidSignature(signed.transaction.signatures[0], for: preparation.message))
-        #expect(await store.reads.map(\.walletID) == [account.recoveryID])
+        #expect(await store.reads.map(\.recoveryID) == [account.recoveryID])
     }
 
     /// Builds review bytes for the selected public account.

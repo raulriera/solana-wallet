@@ -29,26 +29,26 @@ actor OnboardingRecoveryStore: RecoveryStoring {
     /// Saves once without replacing an existing identity and can report an ambiguous result.
     /// - Parameters:
     ///   - recovery: Public test recovery to retain.
-    ///   - walletID: The draft's stable recovery identity.
+    ///   - recoveryID: The draft's stable recovery identity.
     /// - Throws: The scripted first failure or a duplicate error.
-    func save(_ recovery: Recovery, for walletID: UUID) async throws {
-        saves.append(walletID)
-        guard records[walletID] == nil else { throw KeychainStoreError.duplicateWallet }
+    func save(_ recovery: Recovery, for recoveryID: UUID) async throws {
+        saves.append(recoveryID)
+        guard records[recoveryID] == nil else { throw KeychainStoreError.duplicateRecovery }
         let error = saves.count == 1 ? firstError : nil
-        if error == nil || commitBeforeError { records[walletID] = replacement ?? recovery }
+        if error == nil || commitBeforeError { records[recoveryID] = replacement ?? recovery }
         if saves.count == 1, let gate { await gate.suspend() }
         if let error { throw error }
     }
 
     /// Returns public fixture recovery while recording each verification read.
     /// - Parameters:
-    ///   - walletID: The saved identity to read.
+    ///   - recoveryID: The saved identity to read.
     ///   - reason: The caller's authentication explanation.
     /// - Returns: The retained fixture.
     /// - Throws: A missing-recovery error when no record exists.
-    func recovery(for walletID: UUID, reason: String) async throws -> Recovery {
-        reads.append(walletID)
-        guard let recovery = records[walletID] else { throw KeychainStoreError.recoveryUnavailable }
+    func recovery(for recoveryID: UUID, reason: String) async throws -> Recovery {
+        reads.append(recoveryID)
+        guard let recovery = records[recoveryID] else { throw KeychainStoreError.recoveryUnavailable }
         return recovery
     }
 
@@ -58,8 +58,8 @@ actor OnboardingRecoveryStore: RecoveryStoring {
     func contains(_ id: UUID) -> Bool { records[id] != nil }
 
     /// Reports any unexpected recovery deletion by onboarding.
-    /// - Parameter walletID: The identity requested for deletion.
-    func deleteRecovery(for walletID: UUID) async throws {
+    /// - Parameter recoveryID: The identity requested for deletion.
+    func deleteRecovery(for recoveryID: UUID) async throws {
         Issue.record("Onboarding must not delete retained recovery.")
     }
 

@@ -49,7 +49,7 @@ struct KeychainStoreTests {
         try await store.save(original, for: id)
         let replacement = Recovery(phrase: original.phrase, passphrase: "different")
 
-        await #expect(throws: KeychainStoreError.duplicateWallet) { try await store.save(replacement, for: id) }
+        await #expect(throws: KeychainStoreError.duplicateRecovery) { try await store.save(replacement, for: id) }
 
         let recovered = try await store.recovery(for: id, reason: "Recover wallet")
         #expect(recovered.passphrase == original.passphrase)

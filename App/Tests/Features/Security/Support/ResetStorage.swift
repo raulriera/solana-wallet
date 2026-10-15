@@ -45,23 +45,23 @@ actor ResetStorage: RecoveryStoring, AccountStoring {
     /// Reports any write, because a reset only deletes.
     /// - Parameters:
     ///   - recovery: The recovery the caller tried to save.
-    ///   - walletID: The identity the caller tried to save under.
-    func save(_ recovery: Recovery, for walletID: UUID) async throws { Issue.record("A reset must not save recovery.") }
+    ///   - recoveryID: The identity the caller tried to save under.
+    func save(_ recovery: Recovery, for recoveryID: UUID) async throws { Issue.record("A reset must not save recovery.") }
 
     /// Reports any read, because a reset never unlocks recovery.
     /// - Parameters:
-    ///   - walletID: The identity the caller tried to read.
+    ///   - recoveryID: The identity the caller tried to read.
     ///   - reason: The caller's authentication explanation.
     /// - Returns: Nothing; the read always fails.
     /// - Throws: A missing-recovery error.
-    func recovery(for walletID: UUID, reason: String) async throws -> Recovery {
+    func recovery(for recoveryID: UUID, reason: String) async throws -> Recovery {
         Issue.record("A reset must not read recovery.")
         throw KeychainStoreError.recoveryUnavailable
     }
 
     /// Reports a single-wallet deletion, because a reset deletes every wallet at once.
-    /// - Parameter walletID: The identity the caller tried to delete.
-    func deleteRecovery(for walletID: UUID) async throws { Issue.record("A reset must delete all recovery at once.") }
+    /// - Parameter recoveryID: The identity the caller tried to delete.
+    func deleteRecovery(for recoveryID: UUID) async throws { Issue.record("A reset must delete all recovery at once.") }
 
     /// Returns no accounts.
     /// - Returns: An empty list.

@@ -7,7 +7,7 @@ actor SigningRecoveryStore: RecoveryStoring {
     private let stored: Recovery
     private let error: KeychainStoreError?
     private let gate: Suspension?
-    private(set) var reads: [(walletID: UUID, reason: String)] = []
+    private(set) var reads: [(recoveryID: UUID, reason: String)] = []
 
     /// Creates a recovery response or authentication failure for one test.
     ///
@@ -27,12 +27,12 @@ actor SigningRecoveryStore: RecoveryStoring {
     /// signing service checks cancellation even if a dependency returns late.
     ///
     /// - Parameters:
-    ///   - walletID: The wallet whose access is requested.
+    ///   - recoveryID: The recovery whose access is requested.
     ///   - reason: The authentication explanation supplied by the caller.
     /// - Returns: The public recovery fixture.
     /// - Throws: The scripted storage failure.
-    func recovery(for walletID: UUID, reason: String) async throws -> Recovery {
-        reads.append((walletID, reason))
+    func recovery(for recoveryID: UUID, reason: String) async throws -> Recovery {
+        reads.append((recoveryID, reason))
         if let error { throw error }
         if let gate { await gate.suspend() }
         return stored
@@ -42,15 +42,15 @@ actor SigningRecoveryStore: RecoveryStoring {
     ///
     /// - Parameters:
     ///   - recovery: The material the caller attempted to save.
-    ///   - walletID: The destination identifier.
-    func save(_ recovery: Recovery, for walletID: UUID) async throws {
+    ///   - recoveryID: The destination identifier.
+    func save(_ recovery: Recovery, for recoveryID: UUID) async throws {
         Issue.record("Signing must not save recovery material.")
     }
 
     /// Reports an unexpected deletion during signing.
     ///
-    /// - Parameter walletID: The identifier the caller attempted to delete.
-    func deleteRecovery(for walletID: UUID) async throws {
+    /// - Parameter recoveryID: The identifier the caller attempted to delete.
+    func deleteRecovery(for recoveryID: UUID) async throws {
         Issue.record("Signing must not delete recovery material.")
     }
 
