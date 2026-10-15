@@ -18,7 +18,7 @@ struct AppearanceCoordinationTests {
         let coordinator: any AppearanceCoordinating = AppearanceCoordinator(store: InterceptedAppearanceStore(base: store) {
             loaded.continuation.finish()
             for await _ in release.stream {}
-        })
+        }, recovery: nil)
         let pending = Task { try await coordinator.reload() }
         defer { pending.cancel() }
         for await _ in loaded.stream {}
@@ -35,7 +35,7 @@ struct AppearanceCoordinationTests {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let store = try AppearanceStore(directory: fixture.directory)
-        let coordinator = AppearanceCoordinator(store: store)
+        let coordinator = AppearanceCoordinator(store: store, recovery: nil)
         try await coordinator.reload()
         let before = coordinator.snapshot
         await #expect(throws: ThemeCatalogError.changed) { try await coordinator.select(UUID(), for: .application) }
@@ -48,7 +48,7 @@ struct AppearanceCoordinationTests {
         defer { fixture.remove() }
         let catalog = try ThemeCatalog(directory: fixture.directory)
         let entry = try await catalog.install(PackService().read(from: fixture.source()))
-        let coordinator = AppearanceCoordinator(store: try AppearanceStore(directory: fixture.directory))
+        let coordinator = AppearanceCoordinator(store: try AppearanceStore(directory: fixture.directory), recovery: nil)
         let wallet = UUID()
         try await coordinator.select(entry.id, for: .wallet(wallet))
         try await catalog.remove(entry)

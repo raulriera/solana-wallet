@@ -21,7 +21,7 @@ struct SharedRecoveryTests {
             Account(id: UUID(), recoveryID: recoveryID, address: fixture.account.address, path: DerivationPath("m/44'/501'/1'/0'")),
         ]
         let store = SigningRecoveryStore(recovery: fixture.recovery)
-        let signer = Signer(rpc: (try HTTPResponses.signing()).client, store: store)
+        let signer = Signer(validator: PreparationValidator(rpc: (try HTTPResponses.signing()).client), store: store)
 
         for account in accounts {
             let preparation = try preparation(for: account.address, fixture: fixture)
@@ -44,7 +44,7 @@ struct SharedRecoveryTests {
             path: field == "path" ? .solana : fixture.account.path)
         let store = SigningRecoveryStore(recovery: fixture.recovery)
         let http = try HTTPResponses.signing()
-        let signer = Signer(rpc: http.client, store: store)
+        let signer = Signer(validator: PreparationValidator(rpc: http.client), store: store)
 
         await #expect(throws: SigningError.signerMismatch) {
             try await signer.sign(fixture.preparation, for: account, reason: "Approve account")
@@ -63,7 +63,7 @@ struct SharedRecoveryTests {
             path: DerivationPath("m/44'/501'/0'"))
         let recovery = Recovery(phrase: fixture.recovery.phrase, passphrase: "")
         let store = SigningRecoveryStore(recovery: recovery)
-        let signer = Signer(rpc: (try HTTPResponses.signing()).client, store: store)
+        let signer = Signer(validator: PreparationValidator(rpc: (try HTTPResponses.signing()).client), store: store)
         let preparation = try preparation(for: account.address, fixture: fixture)
         let signed = try await signer.sign(preparation, for: account, reason: "Approve account")
         let key = try Curve25519.Signing.PublicKey(rawRepresentation:

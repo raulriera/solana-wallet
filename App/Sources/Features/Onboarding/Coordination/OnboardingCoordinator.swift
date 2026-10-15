@@ -143,9 +143,9 @@ final class OnboardingCoordinator: OnboardingCoordinating {
     /// - Returns: The first positive-SOL result in scan order or the default account after an empty scan.
     /// - Throws: A discovery, derivation, or cancellation error, without an automatic retry.
     private func discoveredAccount(_ recovery: Recovery) async throws -> DerivedAccount {
-        let result = try await discovery.discover(for: recovery.phrase, passphrase: recovery.passphrase)
+        let accounts = try await discovery.discover(for: recovery.phrase, passphrase: recovery.passphrase)
         try Task.checkCancellation()
-        if let account = result.accounts.first { return account }
+        if let account = accounts.first { return account }
         return try await firstAccount(recovery)
     }
 

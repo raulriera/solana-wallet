@@ -53,7 +53,7 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
     init(rpc: any RPC & SignatureEventProviding, store: any RecoveryStoring, rpcs: [any RPC]? = nil,
          strategy: Strategy = .none, configuration: Configuration? = nil) throws {
         let clients = try strategy.clients(for: rpc.network, from: rpcs ?? [rpc])
-        self.init(rpc: rpc, configuration: configuration, preparer: Preparer(rpc: rpc, rpcs: clients), signer: Signer(rpc: rpc, store: store),
+        self.init(rpc: rpc, configuration: configuration, preparer: Preparer(rpc: rpc, rpcs: clients), signer: Signer(validator: PreparationValidator(rpc: rpc), store: store),
                   submitter: Submitter(rpcs: clients), confirmer: Confirmer(rpc: rpc))
     }
 

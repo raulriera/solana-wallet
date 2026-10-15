@@ -611,7 +611,7 @@ struct ConfirmationTests {
     private func coordinator(over http: HTTPResponses, sockets: SocketSequence,
                              store: SigningRecoveryStore) -> any TransactionCoordinating {
         let rpc = http.client(socket: { sockets.connect($0) })
-        return TransactionCoordinator(rpc: rpc, preparer: Preparer(rpc: rpc), signer: Signer(rpc: rpc, store: store),
+        return TransactionCoordinator(rpc: rpc, preparer: Preparer(rpc: rpc), signer: Signer(validator: PreparationValidator(rpc: rpc), store: store),
                                       submitter: Submitter(rpcs: [rpc]), confirmer: confirmer(http, sockets))
     }
 

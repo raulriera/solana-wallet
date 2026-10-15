@@ -1,5 +1,4 @@
-/// A scan cannot be completed with the supplied range or provider response.
+/// A scan cannot be completed with the provider's response.
 nonisolated enum AccountDiscoveryError: Error, Equatable {
-    case invalidRange
     case mismatchedAccounts
 }

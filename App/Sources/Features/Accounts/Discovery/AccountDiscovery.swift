@@ -15,7 +15,7 @@ nonisolated struct AccountDiscovery: AccountDiscovering {
         self.wallet = wallet
     }
 
-    /// Scans every requested index, including gaps, without automatically expanding the range.
+    /// Scans indices zero through nine, including gaps, without expanding the range.
     ///
     /// Candidates use `m/44'/501'/i'/0'` and `m/44'/501'/i'`. One combined account
     /// read returns their SOL balances. Zero-SOL and missing accounts are ignored,
@@ -23,15 +23,12 @@ nonisolated struct AccountDiscovery: AccountDiscovering {
     /// - Parameters:
     ///   - phrase: The validated recovery phrase.
     ///   - passphrase: The original BIP-39 passphrase.
-    ///   - indices: One through ten account indices below 2³¹.
-    /// - Returns: SOL-funded accounts in the completed range on the selected network.
-    /// - Throws: A validation, derivation, RPC, or cancellation error; no partial success is returned.
+    /// - Returns: SOL-funded accounts in derivation order on the selected network.
+    /// - Throws: A derivation, RPC, response-validation, or cancellation error; no partial success is returned.
     @concurrent
-    func discover(for phrase: RecoveryPhrase, passphrase: String, indices: Range<UInt32>) async throws -> Discovery {
+    func discover(for phrase: RecoveryPhrase, passphrase: String) async throws -> [DerivedAccount] {
         try Task.checkCancellation()
-        guard !indices.isEmpty, indices.upperBound <= 0x8000_0000,
-              indices.upperBound - indices.lowerBound <= Discovery.indicesPerScan else { throw AccountDiscoveryError.invalidRange }
-        let paths = try indices.flatMap { index in
+        let paths = try (UInt32(0)..<10).flatMap { index in
             try [DerivationPath("m/44'/501'/\(index)'/0'"), DerivationPath("m/44'/501'/\(index)'")]
         }
         let candidates = try await wallet.accounts(for: phrase, passphrase: passphrase, paths: paths)
@@ -44,6 +41,6 @@ nonisolated struct AccountDiscovery: AccountDiscovering {
             (account?.lamports ?? 0) > 0 ? candidate : nil
         }
         try Task.checkCancellation()
-        return Discovery(network: rpc.network, indices: indices, accounts: matches)
+        return matches
     }
 }

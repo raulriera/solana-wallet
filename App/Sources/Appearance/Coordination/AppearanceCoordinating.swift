@@ -20,8 +20,4 @@ import Observation
     ///   - scope: The application default or a stable wallet identity.
     /// - Throws: A selection, storage, or cancellation error without an optimistic UI change.
     func select(_ themeID: UUID?, for scope: AppearancePreferences.Scope) async throws
-
-    /// Clears all selections while retaining installed themes.
-    /// - Throws: A storage or cancellation error, preserving the previous snapshot.
-    func reset() async throws
 }

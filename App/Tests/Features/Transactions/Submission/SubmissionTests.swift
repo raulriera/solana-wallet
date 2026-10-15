@@ -66,7 +66,7 @@ struct SubmissionTests {
     func `A local receipt carries the reviewed last valid block height`() async throws {
         let fixture = try SigningFixture()
         let checks = try HTTPResponses.signing()
-        let signed = try await Signer(rpc: checks.client, store: SigningRecoveryStore(recovery: fixture.recovery))
+        let signed = try await Signer(validator: PreparationValidator(rpc: checks.client), store: SigningRecoveryStore(recovery: fixture.recovery))
             .sign(fixture.preparation, for: fixture.account, reason: "Approve transaction")
         let signature = try #require(signed.signature)
         let accepted = HTTPResponses(["sendTransaction": [try HTTPResponses.json(signature)]])
@@ -86,7 +86,7 @@ struct SubmissionTests {
         let store = SigningRecoveryStore(recovery: try SigningFixture().recovery)
         let coordinator: any TransactionCoordinating = TransactionCoordinator(
             rpc: preparationHTTP.client, preparer: Preparer(rpc: preparationHTTP.client),
-            signer: Signer(rpc: checks.client, store: store), submitter: Submitter(rpcs: [accepted.client]),
+            signer: Signer(validator: PreparationValidator(rpc: checks.client), store: store), submitter: Submitter(rpcs: [accepted.client]),
             confirmer: Confirmer(rpc: checks.client)
         )
         let simulation = try await coordinator.simulate(expected.transaction, using: SigningFixture().account)

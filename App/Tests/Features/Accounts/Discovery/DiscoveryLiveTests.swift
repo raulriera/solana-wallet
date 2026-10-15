@@ -20,7 +20,7 @@ struct DiscoveryLiveTests {
             try [DerivationPath("m/44'/501'/\(index)'/0'"), DerivationPath("m/44'/501'/\(index)'")]
         }
         let candidates = try await Wallet().accounts(for: phrase, passphrase: "", paths: paths)
-        let result = try await AccountDiscovery(rpc: rpc).discover(for: phrase)
+        let accounts = try await AccountDiscovery(rpc: rpc).discover(for: phrase, passphrase: "")
         let responses = await transport.responses
         try #require(responses.count == 1)
         let observed = try #require(responses.first)
@@ -29,9 +29,6 @@ struct DiscoveryLiveTests {
             (account?.lamports ?? 0) > 0 ? candidate : nil
         }
 
-        #expect(result.network == .mainnet)
-        #expect(result.indices == 0..<10)
-        #expect(result.nextIndices == 10..<20)
-        #expect(result.accounts == expected)
+        #expect(accounts == expected)
     }
 }

@@ -16,57 +16,27 @@ struct DiscoveryTests {
         let http = HTTPResponses(["getMultipleAccounts": [accountResponse(native)]])
         let service: any AccountDiscovering = AccountDiscovery(rpc: http.client)
 
-        let result = try await service.discover(for: publicPhrase())
+        let accounts = try await service.discover(for: publicPhrase(), passphrase: "")
 
-        #expect(result.network == .devnet)
-        #expect(result.indices == 0..<10)
-        #expect(result.nextIndices == 10..<20)
-        #expect(result.accounts.map(\.path.description) == ["m/44'/501'/7'/0'", "m/44'/501'/9'"])
+        #expect(accounts.map(\.path.description) == ["m/44'/501'/7'/0'", "m/44'/501'/9'"])
         let requests = await http.requests
         try #require(requests.count == 1)
         let body = try requests[0].jsonBody()
         #expect(body["method"] as? String == "getMultipleAccounts")
         let addresses = try #require(requests[0].rpcParameters.first as? [String])
         try #require(addresses.count == 20)
-        #expect(result.accounts.map(\.address) == [addresses[14], addresses[19]])
+        #expect(accounts.map(\.address) == [addresses[14], addresses[19]])
         let encoded = try #require(requests[0].httpBody)
         #expect(!String(decoding: encoded, as: UTF8.self).contains("abandon"))
     }
 
-    /// Verifies empty explicit scans stop after one request, without token, history, or range fallbacks.
+    /// Verifies an empty scan stops after one request, without token, history, or range fallbacks.
     @Test
-    func `Empty continuation scans stop after one SOL lookup`() async throws {
-        let http = HTTPResponses(["getMultipleAccounts": [accountResponse(Array(repeating: "null", count: 4))]])
-        let result = try await AccountDiscovery(rpc: http.client).discover(
-            for: publicPhrase(), passphrase: "", indices: 10..<12)
-        #expect(result.accounts.isEmpty)
-        #expect(result.indices == 10..<12)
-        #expect(result.nextIndices == 12..<22)
+    func `An empty scan stops after one SOL lookup`() async throws {
+        let http = HTTPResponses(["getMultipleAccounts": [accountResponse(Array(repeating: "null", count: 20))]])
+        let accounts = try await AccountDiscovery(rpc: http.client).discover(for: publicPhrase(), passphrase: "")
+        #expect(accounts.isEmpty)
         #expect(await http.requests.count == 1)
-    }
-
-    /// Verifies invalid bounds fail locally before requesting network observations.
-    /// - Parameter indices: An empty, oversized, or non-hardened range.
-    @Test(arguments: [
-        UInt32(0)..<0, UInt32(0)..<11, UInt32(0x7fff_ffff)..<0x8000_0001,
-    ])
-    func `Discovery rejects invalid ranges before networking`(_ indices: Range<UInt32>) async throws {
-        let http = HTTPResponses([:])
-        let phrase = try publicPhrase()
-        await #expect(throws: AccountDiscoveryError.invalidRange) {
-            try await AccountDiscovery(rpc: http.client).discover(for: phrase, passphrase: "", indices: indices)
-        }
-        #expect(await http.requests.isEmpty)
-    }
-
-    /// Verifies the last valid hardened index has no overflowing continuation.
-    @Test
-    func `The last hardened index ends continuation`() async throws {
-        let http = HTTPResponses(["getMultipleAccounts": [accountResponse(Array(repeating: nativeAccount(lamports: 1), count: 2))]])
-        let result = try await AccountDiscovery(rpc: http.client).discover(
-            for: publicPhrase(), passphrase: "", indices: 0x7fff_ffff..<0x8000_0000)
-        #expect(result.nextIndices == nil)
-        #expect(result.accounts.map(\.path.description) == ["m/44'/501'/2147483647'/0'", "m/44'/501'/2147483647'"])
     }
 
     /// Verifies a truncated positional response cannot masquerade as a completed scan.
@@ -75,7 +45,7 @@ struct DiscoveryTests {
         let http = HTTPResponses(["getMultipleAccounts": [accountResponse([nativeAccount(lamports: 1)])]])
         let phrase = try publicPhrase()
         await #expect(throws: AccountDiscoveryError.mismatchedAccounts) {
-            try await AccountDiscovery(rpc: http.client).discover(for: phrase, passphrase: "", indices: 0..<1)
+            try await AccountDiscovery(rpc: http.client).discover(for: phrase, passphrase: "")
         }
         #expect(await http.requests.count == 1)
     }
@@ -86,7 +56,7 @@ struct DiscoveryTests {
         let error = RPCError.http(statusCode: 429, retryAfter: "3")
         let http = HTTPResponses([:], error: error)
         let phrase = try publicPhrase()
-        await #expect(throws: error) { try await AccountDiscovery(rpc: http.client).discover(for: phrase) }
+        await #expect(throws: error) { try await AccountDiscovery(rpc: http.client).discover(for: phrase, passphrase: "") }
         #expect(await http.requests.count == 1)
     }
 
@@ -98,7 +68,7 @@ struct DiscoveryTests {
         let phrase = try publicPhrase()
         let service = AccountDiscovery(rpc: http.client)
         let operation = Task { @concurrent in
-            try await service.discover(for: phrase)
+            try await service.discover(for: phrase, passphrase: "")
         }
         defer { operation.cancel() }
         await gate.waitUntilStarted()

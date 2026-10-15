@@ -18,7 +18,7 @@ struct SigningTests {
         let wallet = RecordingWallet()
         let coordinator: any TransactionCoordinating = TransactionCoordinator(
             rpc: http.client, configuration: fixture.configuration, preparer: Preparer(rpc: (try HTTPResponses.preparation(fixture: fixture.preparation)).client),
-            signer: Signer(rpc: http.client, store: store, wallet: wallet), submitter: Submitter(rpcs: [http.client]), confirmer: Confirmer(rpc: http.client)
+            signer: Signer(validator: PreparationValidator(rpc: http.client), store: store, wallet: wallet), submitter: Submitter(rpcs: [http.client]), confirmer: Confirmer(rpc: http.client)
         )
 
         let preparation = try await coordinator.simulate([fixture.transfer], using: fixture.account)
@@ -74,7 +74,7 @@ struct SigningTests {
         }
         let http = try HTTPResponses.signing()
         let store = SigningRecoveryStore(recovery: fixture.recovery)
-        let signer = Signer(rpc: http.client, store: store)
+        let signer = Signer(validator: PreparationValidator(rpc: http.client), store: store)
 
         await #expect(throws: PreparationValidatorError.messageMismatch) {
             try await signer.sign(fixture.preparation, for: fixture.account, reason: "Approve transfer")
@@ -116,7 +116,7 @@ struct SigningTests {
         ))
         let http = try HTTPResponses.signing()
         let store = SigningRecoveryStore(recovery: fixture.recovery)
-        let signer = Signer(rpc: http.client, store: store)
+        let signer = Signer(validator: PreparationValidator(rpc: http.client), store: store)
 
         await #expect(throws: expected) {
             try await signer.sign(fixture.preparation, for: fixture.account, reason: "Approve transfer")
@@ -133,7 +133,7 @@ struct SigningTests {
         fixture.network = .mainnet
         let http = try HTTPResponses.signing()
         let store = SigningRecoveryStore(recovery: fixture.recovery)
-        let signer = Signer(rpc: http.client, store: store)
+        let signer = Signer(validator: PreparationValidator(rpc: http.client), store: store)
 
         await #expect(throws: PreparationValidatorError.networkMismatch) {
             try await signer.sign(fixture.preparation, for: fixture.account, reason: "Approve transfer")
@@ -152,7 +152,7 @@ struct SigningTests {
         let http = try HTTPResponses.signing(heights: expiresDuringAuthentication ? [500, 551] : [551])
         let store = SigningRecoveryStore(recovery: fixture.recovery)
         let wallet = RecordingWallet()
-        let signer = Signer(rpc: http.client, store: store, wallet: wallet)
+        let signer = Signer(validator: PreparationValidator(rpc: http.client), store: store, wallet: wallet)
 
         await #expect(throws: PreparationValidatorError.expired) {
             try await signer.sign(fixture.preparation, for: fixture.account, reason: "Approve transfer")
@@ -169,7 +169,7 @@ struct SigningTests {
         let fixture = try SigningFixture()
         let http = try HTTPResponses.signing(heights: [551], fee: 11_000)
         let store = SigningRecoveryStore(recovery: fixture.recovery)
-        let signer = Signer(rpc: http.client, store: store)
+        let signer = Signer(validator: PreparationValidator(rpc: http.client), store: store)
 
         await #expect(throws: PreparationValidatorError.expired) {
             try await signer.sign(fixture.preparation, for: fixture.account, reason: "Approve transfer")
@@ -186,7 +186,7 @@ struct SigningTests {
         let fixture = try SigningFixture()
         let http = try HTTPResponses.signing(fee: fee)
         let store = SigningRecoveryStore(recovery: fixture.recovery)
-        let signer = Signer(rpc: http.client, store: store)
+        let signer = Signer(validator: PreparationValidator(rpc: http.client), store: store)
 
         await #expect(throws: PreparationValidatorError.feeChanged) {
             try await signer.sign(fixture.preparation, for: fixture.account, reason: "Approve transfer")
@@ -202,7 +202,7 @@ struct SigningTests {
         let fixture = try SigningFixture()
         let store = SigningRecoveryStore(recovery: fixture.recovery, error: .authenticationFailed)
         let wallet = RecordingWallet()
-        let signer = Signer(rpc: (try HTTPResponses.signing()).client, store: store, wallet: wallet)
+        let signer = Signer(validator: PreparationValidator(rpc: (try HTTPResponses.signing()).client), store: store, wallet: wallet)
 
         await #expect(throws: KeychainStoreError.authenticationFailed) {
             try await signer.sign(fixture.preparation, for: fixture.account, reason: "Approve transfer")
@@ -218,7 +218,7 @@ struct SigningTests {
         let fixture = try SigningFixture()
         let otherAccount = Recovery(phrase: fixture.recovery.phrase, passphrase: "")
         let store = SigningRecoveryStore(recovery: otherAccount)
-        let signer = Signer(rpc: (try HTTPResponses.signing()).client, store: store)
+        let signer = Signer(validator: PreparationValidator(rpc: (try HTTPResponses.signing()).client), store: store)
 
         await #expect(throws: SigningError.signerMismatch) {
             try await signer.sign(fixture.preparation, for: fixture.account, reason: "Approve transfer")
@@ -232,7 +232,7 @@ struct SigningTests {
         let gate = Suspension()
         let store = SigningRecoveryStore(recovery: fixture.recovery, gate: gate)
         let wallet = RecordingWallet()
-        let signer = Signer(rpc: (try HTTPResponses.signing()).client, store: store, wallet: wallet)
+        let signer = Signer(validator: PreparationValidator(rpc: (try HTTPResponses.signing()).client), store: store, wallet: wallet)
         let operation = Task { @concurrent in
             try await signer.sign(fixture.preparation, for: fixture.account, reason: "Approve transfer")
         }

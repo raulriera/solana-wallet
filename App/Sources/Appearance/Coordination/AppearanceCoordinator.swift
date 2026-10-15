@@ -11,8 +11,8 @@ import Observation
     /// Creates one shared coordinator for windows using the same catalog configuration.
     /// - Parameters:
     ///   - store: Persistent preferences whose I/O runs outside the main actor.
-    ///   - recovery: The Settings request source, omitted by consumers without Settings integration.
-    init(store: any AppearanceStoring, recovery: (any RecoveryRequesting)? = nil) {
+    ///   - recovery: The Settings request source, or `nil` without Settings integration.
+    init(store: any AppearanceStoring, recovery: (any RecoveryRequesting)?) {
         self.store = store
         self.recovery = recovery
     }

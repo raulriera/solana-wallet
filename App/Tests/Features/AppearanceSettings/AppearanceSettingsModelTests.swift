@@ -147,7 +147,7 @@ struct AppearanceSettingsModelTests {
             for await _ in release.stream {}
             try Task.checkCancellation()
         })
-        let settings = AppearanceSettingsModel(appearance: AppearanceCoordinator(store: try AppearanceStore(directory: fixture.directory)),
+        let settings = AppearanceSettingsModel(appearance: AppearanceCoordinator(store: try AppearanceStore(directory: fixture.directory), recovery: nil),
                                                catalog: catalog, packages: PackService())
         settings.importPack(from: try fixture.source())
         for await _ in staged.stream {}
@@ -171,7 +171,7 @@ struct AppearanceSettingsModelTests {
             committed.continuation.finish()
             for await _ in release.stream {}
         }
-        let shared = AppearanceCoordinator(store: try AppearanceStore(directory: fixture.directory))
+        let shared = AppearanceCoordinator(store: try AppearanceStore(directory: fixture.directory), recovery: nil)
         let settings = AppearanceSettingsModel(appearance: shared, catalog: catalog, packages: PackService())
         settings.importPack(from: try fixture.source(name: "Committed"))
         for await _ in committed.stream {}
@@ -189,7 +189,7 @@ struct AppearanceSettingsModelTests {
         let nativeURL = try fixture.source(id: OriginalAppearance.id, name: "Original")
         let bundled = [BundledTheme(id: OriginalAppearance.id, name: "Original", url: nativeURL)]
         let catalog = try ThemeCatalog(directory: fixture.directory, builtIns: bundled)
-        let appearance = AppearanceCoordinator(store: try AppearanceStore(directory: fixture.directory, builtIns: bundled))
+        let appearance = AppearanceCoordinator(store: try AppearanceStore(directory: fixture.directory, builtIns: bundled), recovery: nil)
         let settings = AppearanceSettingsModel(appearance: appearance, catalog: catalog, packages: PackService())
         let entry = try await catalog.install(PackService().read(from: fixture.source()))
         let wallet = UUID()
@@ -292,7 +292,7 @@ struct AppearanceSettingsModelTests {
     /// - Throws: An invalid test storage configuration.
     private func makeSettings(_ fixture: CatalogFixture) throws -> AppearanceSettingsModel {
         AppearanceSettingsModel(
-            appearance: AppearanceCoordinator(store: try AppearanceStore(directory: fixture.directory)),
+            appearance: AppearanceCoordinator(store: try AppearanceStore(directory: fixture.directory), recovery: nil),
             catalog: try ThemeCatalog(directory: fixture.directory), packages: PackService()
         )
     }

@@ -18,7 +18,7 @@ struct ExternalTransactionTests {
         let signingHTTP = try HTTPResponses.signing(fee: 15_000)
         let store = SigningRecoveryStore(recovery: recovery)
         let coordinator: any TransactionCoordinating = TransactionCoordinator(
-            rpc: preparationHTTP.client, preparer: Preparer(rpc: preparationHTTP.client), signer: Signer(rpc: signingHTTP.client, store: store), submitter: Submitter(rpcs: [signingHTTP.client]), confirmer: Confirmer(rpc: signingHTTP.client)
+            rpc: preparationHTTP.client, preparer: Preparer(rpc: preparationHTTP.client), signer: Signer(validator: PreparationValidator(rpc: signingHTTP.client), store: store), submitter: Submitter(rpcs: [signingHTTP.client]), confirmer: Confirmer(rpc: signingHTTP.client)
         )
         var input = expected.bytes
         input.insert(0xff, at: input.startIndex)
@@ -68,7 +68,7 @@ struct ExternalTransactionTests {
         let signingHTTP = try HTTPResponses.signing(fee: 15_000)
         let store = SigningRecoveryStore(recovery: try SigningFixture().recovery)
         let coordinator = TransactionCoordinator(rpc: preparationHTTP.client, preparer: Preparer(rpc: preparationHTTP.client),
-            signer: Signer(rpc: signingHTTP.client, store: store), submitter: Submitter(rpcs: []),
+            signer: Signer(validator: PreparationValidator(rpc: signingHTTP.client), store: store), submitter: Submitter(rpcs: []),
             confirmer: Confirmer(rpc: signingHTTP.client))
 
         let simulation = try await coordinator.simulate(expected.transaction, using: SigningFixture().account)
@@ -153,7 +153,7 @@ struct ExternalTransactionTests {
         let store = SigningRecoveryStore(recovery: try SigningFixture().recovery)
 
         await #expect(throws: PreparationValidatorError.messageMismatch) {
-            try await Signer(rpc: http.client, store: store).sign(preparation, for: SigningFixture().account, reason: "Approve transaction")
+            try await Signer(validator: PreparationValidator(rpc: http.client), store: store).sign(preparation, for: SigningFixture().account, reason: "Approve transaction")
         }
 
         #expect(await http.requests.isEmpty)
@@ -174,7 +174,7 @@ struct ExternalTransactionTests {
         let store = SigningRecoveryStore(recovery: try SigningFixture().recovery)
         let wallet = RecordingWallet()
         let coordinator = TransactionCoordinator(rpc: preparationHTTP.client, preparer: Preparer(rpc: preparationHTTP.client),
-            signer: Signer(rpc: signingHTTP.client, store: store, wallet: wallet), submitter: Submitter(rpcs: [signingHTTP.client]), confirmer: Confirmer(rpc: signingHTTP.client))
+            signer: Signer(validator: PreparationValidator(rpc: signingHTTP.client), store: store, wallet: wallet), submitter: Submitter(rpcs: [signingHTTP.client]), confirmer: Confirmer(rpc: signingHTTP.client))
 
         if stage == "preparation" {
             await #expect(throws: PreparerError.invalidBlockhash) {

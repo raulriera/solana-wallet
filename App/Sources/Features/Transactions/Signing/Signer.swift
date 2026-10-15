@@ -14,11 +14,11 @@ nonisolated struct Signer: TransactionSigning {
     /// Creates a signer with protected recovery storage and protocol-based dependencies.
     ///
     /// - Parameters:
-    ///   - rpc: The provider used to recheck the reviewed fee and original lifetime.
+    ///   - validator: Rechecks the reviewed fee and original lifetime with the network.
     ///   - store: The recovery store that authenticates access to the selected wallet.
     ///   - wallet: The account-bound message signer. The default is `Wallet`.
-    init(rpc: any RPC, store: any RecoveryStoring, wallet: any MessageSigning = Wallet()) {
-        validator = PreparationValidator(rpc: rpc)
+    init(validator: any PreparationValidating, store: any RecoveryStoring, wallet: any MessageSigning = Wallet()) {
+        self.validator = validator
         self.store = store
         self.wallet = wallet
     }
