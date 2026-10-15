@@ -7,7 +7,7 @@ struct SignatureWatch: SubscriptionGroup {
     /// - Parameter signature: The base-58 encoded signature of a sent transaction.
     init(signature: String) {
         requests = [
-            SubscriptionRequest(method: "signatureSubscribe", params: [signature, Configuration()],
+            SubscriptionRequest(method: "signatureSubscribe", params: [signature, LedgerConfiguration()],
                                 notification: "signatureNotification"),
             SubscriptionRequest(method: "rootSubscribe", params: [], notification: "rootNotification"),
         ]
@@ -28,11 +28,6 @@ struct SignatureWatch: SubscriptionGroup {
         if let latestRoot, root <= latestRoot { return nil }
         latestRoot = root
         return .rooted(root)
-    }
-
-    /// Requests the landing at finalized commitment.
-    private struct Configuration: Encodable, Sendable {
-        let commitment = Commitment.finalized
     }
 
     /// The part of a signature notification's result that carries the execution result.

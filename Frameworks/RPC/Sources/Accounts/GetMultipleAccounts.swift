@@ -34,11 +34,6 @@ public struct GetMultipleAccounts: RPCRequest {
     public func encode(to encoder: any Encoder) throws {
         var parameters = encoder.unkeyedContainer()
         try parameters.encode(addresses)
-        var options = parameters.nestedContainer(keyedBy: CodingKeys.self)
-        try options.encode("base64", forKey: .encoding)
-        try options.encode(Commitment.finalized, forKey: .commitment)
-        try options.encodeIfPresent(minContextSlot, forKey: .minContextSlot)
+        try parameters.encode(LedgerConfiguration(minContextSlot: minContextSlot, includesAccountData: true))
     }
-
-    private enum CodingKeys: String, CodingKey { case encoding, commitment, minContextSlot }
 }

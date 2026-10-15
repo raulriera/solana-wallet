@@ -44,7 +44,7 @@ struct HTTPClient: Sendable, CustomStringConvertible, CustomDebugStringConvertib
         do {
             httpRequest.httpBody = try JSONEncoder().encode(JSONRPCRequest(id: id, params: request))
         } catch {
-            try checkCancellation(after: error)
+            if error.isCancellation { throw CancellationError() }
             throw RPCError.encoding
         }
         try Task.checkCancellation()
@@ -55,7 +55,7 @@ struct HTTPClient: Sendable, CustomStringConvertible, CustomDebugStringConvertib
         do {
             reply = try JSONDecoder().decode(JSONRPCResponse<Request.Response>.self, from: data)
         } catch {
-            try checkCancellation(after: error)
+            if error.isCancellation { throw CancellationError() }
             if let error = error as? RPCError { throw error }
             throw RPCError.decoding
         }
@@ -73,16 +73,6 @@ struct HTTPClient: Sendable, CustomStringConvertible, CustomDebugStringConvertib
                 )
             }
             throw RPCError.server(code: error.code, message: redactor.redact(error.message))
-        }
-    }
-
-    /// Preserves cancellation before classifying a request failure.
-    ///
-    /// - Parameter error: The error from encoding, transport, or decoding.
-    /// - Throws: `CancellationError` if the task or underlying operation was cancelled.
-    private func checkCancellation(after error: any Error) throws {
-        if Task.isCancelled || error is CancellationError || (error as? URLError)?.code == .cancelled {
-            throw CancellationError()
         }
     }
 }

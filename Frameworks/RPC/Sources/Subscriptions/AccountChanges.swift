@@ -7,9 +7,9 @@ struct AccountChanges: SubscriptionGroup {
     /// - Parameter addresses: The accounts to watch; a repeated address is watched once.
     init(addresses: [String]) {
         // Providers either reuse one subscription for a repeated account or notify it twice, so send each once.
-        var unique = Set<String>()
-        requests = addresses.filter { unique.insert($0).inserted }.map { address in
-            SubscriptionRequest(method: "accountSubscribe", params: [address, Configuration()],
+        requests = addresses.uniqued().map { address in
+            SubscriptionRequest(method: "accountSubscribe",
+                                params: [address, LedgerConfiguration(includesAccountData: true)],
                                 notification: "accountNotification")
         }
     }
@@ -26,12 +26,6 @@ struct AccountChanges: SubscriptionGroup {
         if let latestSlot, slot <= latestSlot { return nil }
         latestSlot = slot
         return slot
-    }
-
-    /// Requests compact account bytes, since notifications only signal a change.
-    private struct Configuration: Encodable, Sendable {
-        let commitment = Commitment.finalized
-        let encoding = "base64"
     }
 
     /// The part of an account notification's result that carries its slot.

@@ -81,11 +81,10 @@ public struct HeliusRPC: RPC, AccountChangeProviding, SignatureEventProviding, L
     /// - Returns: Logo URLs on Helius's CDN, keyed by mint address.
     /// - Throws: An `RPCError` or `CancellationError`.
     public func logos(for mints: [String]) async throws -> [String: URL] {
-        var requested: Set<String> = []
-        let unique = mints.filter { requested.insert($0).inserted }
+        let unique = mints.uniqued()
+        let requested = Set(unique)
         var logos: [String: URL] = [:]
-        for start in stride(from: 0, to: unique.count, by: 1_000) {
-            let batch = Array(unique[start..<min(start + 1_000, unique.count)])
+        for batch in unique.batches(of: 1_000) {
             for case let asset? in try await send(GetAssetBatch(ids: batch)) where requested.contains(asset.id) {
                 logos[asset.id] = asset.imageURL
             }

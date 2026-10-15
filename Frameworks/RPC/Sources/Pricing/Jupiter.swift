@@ -52,12 +52,9 @@ public struct Jupiter: PriceProviding, CustomStringConvertible, CustomDebugStrin
     @concurrent
     public func prices(for mints: [String]) async throws -> [String: Quote] {
         try Task.checkCancellation()
-        var seen: Set<String> = []
-        let unique = mints.filter { seen.insert($0).inserted }
         var quotes: [String: Quote] = [:]
-        for start in stride(from: 0, to: unique.count, by: 50) {
+        for batch in mints.uniqued().batches(of: 50) {
             try Task.checkCancellation()
-            let batch = Array(unique[start..<min(start + 50, unique.count)])
             let values = try await fetch(batch)
             for (mint, value) in values {
                 guard batch.contains(mint) else { throw RPCError.decoding }

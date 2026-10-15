@@ -23,6 +23,6 @@ public struct GetMinimumBalanceForRentExemption: RPCRequest {
     public func encode(to encoder: any Encoder) throws {
         var parameters = encoder.unkeyedContainer()
         try parameters.encode(dataLength)
-        try parameters.encode(["commitment": Commitment.finalized])
+        try parameters.encode(LedgerConfiguration())
     }
 }

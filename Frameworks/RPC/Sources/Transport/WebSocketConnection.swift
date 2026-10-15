@@ -75,9 +75,8 @@ final class URLSessionSocket: WebSocketConnection {
     /// - Returns: An HTTP status error when available, otherwise the original transport error.
     private func upgradeError(_ error: any Error) -> any Error {
         if let response = task.response as? HTTPURLResponse, response.statusCode != 101,
-           !(200..<300).contains(response.statusCode) {
-            return RPCError.http(statusCode: response.statusCode,
-                                 retryAfter: response.value(forHTTPHeaderField: "Retry-After"))
+           let statusError = RPCError(response: response) {
+            return statusError
         }
         return error
     }

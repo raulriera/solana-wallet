@@ -72,13 +72,13 @@ struct SubscriptionClient: Sendable {
                         try await group.next()
                     }
                     continuation.finish()
-                } catch { continuation.finish(throwing: sanitized(error)) }
+                } catch { continuation.finish(throwing: RPCError.sanitized(error, redactor: redactor)) }
             }
             continuation.onTermination = { @Sendable _ in operation.cancel(); socket.cancel() }
             return stream
         } catch {
             socket.cancel()
-            throw sanitized(error)
+            throw RPCError.sanitized(error, redactor: redactor)
         }
     }
 
@@ -121,23 +121,5 @@ struct SubscriptionClient: Sendable {
             if let event = try state.accept(await socket.receive(), redactor: redactor) { events.append(event) }
         }
         return (state, events)
-    }
-
-    /// Removes authenticated endpoints and provider text from errors before crossing the module boundary.
-    /// - Parameter error: A subscription or transport failure.
-    /// - Returns: Cancellation, a sanitized RPC error, or a transport code without its userInfo.
-    private func sanitized(_ error: any Error) -> any Error {
-        if Task.isCancelled || error is CancellationError || (error as? URLError)?.code == .cancelled {
-            return CancellationError()
-        }
-        if let error = error as? RPCError {
-            switch error {
-            case .server(let code, let message): return RPCError.server(code: code, message: redactor.redact(message))
-            case .http(let status, let retry): return RPCError.http(statusCode: status, retryAfter: retry.map(redactor.redact))
-            default: return error
-            }
-        }
-        if error is DecodingError { return RPCError.decoding }
-        return RPCError.transport((error as? URLError)?.code ?? .unknown)
     }
 }

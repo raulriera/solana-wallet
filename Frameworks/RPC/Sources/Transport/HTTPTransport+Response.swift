@@ -14,22 +14,13 @@ extension HTTPTransport {
         do {
             (data, response) = try await self.data(for: request)
         } catch {
-            if Task.isCancelled || error is CancellationError || (error as? URLError)?.code == .cancelled {
-                throw CancellationError()
-            }
-            // Foundation errors may contain authenticated URLs or headers in userInfo.
-            throw RPCError.transport((error as? URLError)?.code ?? .unknown)
+            throw RPCError.sanitized(error, redactor: redactor)
         }
         try Task.checkCancellation()
         guard let response = response as? HTTPURLResponse else {
             throw RPCError.invalidResponse(.nonHTTPResponse)
         }
-        guard (200..<300).contains(response.statusCode) else {
-            throw RPCError.http(
-                statusCode: response.statusCode,
-                retryAfter: response.value(forHTTPHeaderField: "Retry-After").map { redactor.redact($0) }
-            )
-        }
+        if let error = RPCError(response: response) { throw RPCError.sanitized(error, redactor: redactor) }
         return data
     }
 }
