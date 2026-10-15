@@ -24,10 +24,7 @@ struct PointEncodingTests {
         "ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
     ])
     func `Small-order points and their alternate encodings are recognized`(_ hexadecimal: String) throws {
-        let characters = Array(hexadecimal)
-        let bytes = try stride(from: 0, to: characters.count, by: 2).map { index in
-            try #require(UInt8(String(characters[index...index + 1]), radix: 16))
-        }
+        let bytes = try fixtureBytes(hexadecimal)
 
         #expect(PointEncoding.isSmallOrder(Data(bytes)))
     }

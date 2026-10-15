@@ -74,18 +74,25 @@
             { "path": "README.md" },
           ],
         }, {
-          "kind": "folder",
+          "kind": "group",
           "path": "TestSupport",
-          "target-membership": [
-            "PortfolioTests",
-            "RPCTests",
-            "widgetsTests",
-          ],
-          "membership-exceptions": [
+          "children": [
+            { "kind": "folder", "path": "Fixtures", "target-membership": [ "TransactionsTests", "WalletTests" ] },
             {
-              "target": "widgetsTests",
-              "exclusions": [
-                "Networking/SilentWebSocketServer.swift",
+              "kind": "folder",
+              "path": "Networking",
+              "target-membership": [
+                "PortfolioTests",
+                "RPCTests",
+                "widgetsTests",
+              ],
+              "membership-exceptions": [
+                {
+                  "target": "widgetsTests",
+                  "exclusions": [
+                    "SilentWebSocketServer.swift",
+                  ],
+                },
               ],
             },
           ],
