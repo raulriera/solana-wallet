@@ -8,12 +8,6 @@ nonisolated struct AppearanceStore: AppearanceStoring {
     private let directory: URL
     private let builtIns: [UUID: ThemeEntry]
 
-    /// Uses the application catalog directory with no additional built-in packs.
-    init() {
-        directory = URL.applicationSupportDirectory.appendingPathComponent("Themes")
-        builtIns = [:]
-    }
-
     /// Configures local preferences without reading storage or any theme packages.
     /// - Parameters:
     ///   - directory: The same app-private directory used by the catalog.

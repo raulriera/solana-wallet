@@ -6,7 +6,7 @@ import Vault
 /// The app's typed entry point for simulating and approving arbitrary V1 transactions.
 nonisolated struct TransactionCoordinator: TransactionCoordinating {
     /// The mutually exclusive submission strategy selected in app settings.
-    enum Strategy: Sendable, CaseIterable, Equatable {
+    enum Strategy: Sendable {
         /// Submits through all configured ordinary RPCs without a Sender service tip.
         case none
         /// Submits only through Sender's lower-cost delivery route.
@@ -251,8 +251,6 @@ nonisolated struct Simulation: Sendable {
     let destinationAccountRent: UInt64?
     /// The complete ordered instructions, accounts, resource requests, and signature slots.
     var transaction: Transaction { preparation.transaction }
-    /// The network used for all review observations.
-    var network: Network { preparation.network }
     /// The network fee, including its priority fee; `nil` remains unknown.
     var fee: UInt64? { preparation.fee.value }
     /// The original local block-height expiry, or `nil` for imported recent blockhashes.
