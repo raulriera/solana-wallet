@@ -1,4 +1,3 @@
-import Encoding
 public import Foundation
 
 /// An initialized token account with its exact balance and authority.
@@ -31,8 +30,8 @@ public struct TokenAccount: Sendable {
         guard decoded.bytes[108] == 1 || decoded.bytes[108] == 2 else { throw TokenError.invalidAccount }
         self.address = address
         self.program = program
-        mint = try Address(Base58.encode(Array(decoded.bytes[0..<32])))
-        owner = try Address(Base58.encode(Array(decoded.bytes[32..<64])))
+        mint = try Address(bytes: decoded.bytes[0..<32])
+        owner = try Address(bytes: decoded.bytes[32..<64])
         amount = try TokenData.integer(decoded.bytes, at: 64)
         isFrozen = decoded.bytes[108] == 2
         self.data = decoded
@@ -49,7 +48,7 @@ public struct TokenAccount: Sendable {
     ///   - data: The raw base64-decoded account data.
     /// - Throws: ``TokenError`` for unsupported owners, malformed account data, or a System Program account with data.
     public init?(associatedAt address: Address, programOwner: Address, data: Data) throws {
-        if programOwner.value == "11111111111111111111111111111111" {
+        if programOwner.value == SystemProgram.id {
             guard data.isEmpty else { throw TokenError.invalidAccount }
             return nil
         }

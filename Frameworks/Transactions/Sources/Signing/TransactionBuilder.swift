@@ -61,7 +61,7 @@ public struct TransactionBuilder: TransactionBuilding {
     /// - Returns: A typed transaction that may still lack other required signatures.
     /// - Throws: ``ValidationError`` if the envelope, account, or signatures are invalid.
     public func transaction(byAdding signature: Data, for signer: Address, to transaction: Data) throws -> Transaction {
-        let decoded = try validateSignatures(in: transaction, for: signer)
+        let decoded = try validateSignatures(in: transaction)
         let index = try unsignedIndex(for: signer, in: decoded)
         try verify(signature, publicKey: Data(signer.bytes), message: decoded.message)
         var signatures = decoded.signatures

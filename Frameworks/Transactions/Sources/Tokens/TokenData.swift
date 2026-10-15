@@ -21,18 +21,13 @@ struct TokenData: Sendable {
               bytes[165] == (isMint ? 1 : 2),
               bytes[baseSize..<165].allSatisfy({ $0 == 0 }) else { throw TokenError.invalidAccount }
         var values: [UInt16: [UInt8]] = [:]
-        var offset = 166
-        while offset < bytes.count {
-            if bytes[offset...].allSatisfy({ $0 == 0 }) { break }
-            guard bytes.count - offset >= 4 else { throw TokenError.invalidAccount }
-            let type = UInt16(bytes[offset]) | UInt16(bytes[offset + 1]) << 8
-            let length = Int(bytes[offset + 2]) | Int(bytes[offset + 3]) << 8
-            offset += 4
-            guard type != 0, values[type] == nil, length <= bytes.count - offset else {
-                throw TokenError.invalidAccount
-            }
-            values[type] = Array(bytes[offset..<(offset + length)])
-            offset += length
+        var reader = ByteReader(bytes, at: 166, error: TokenError.invalidAccount)
+        while reader.offset < bytes.count {
+            if bytes[reader.offset...].allSatisfy({ $0 == 0 }) { break }
+            let type: UInt16 = try reader.integer()
+            let length: UInt16 = try reader.integer()
+            guard type != 0, values[type] == nil else { throw TokenError.invalidAccount }
+            values[type] = Array(try reader.read(count: Int(length)))
         }
         extensions = values
     }
@@ -45,13 +40,8 @@ struct TokenData: Sendable {
     /// - Returns: The exact integer without floating-point conversion.
     /// - Throws: ``TokenError/invalidAccount`` if the field is truncated.
     static func integer<Value: FixedWidthInteger & UnsignedInteger>(_ bytes: [UInt8], at offset: Int) throws -> Value {
-        let count = Value.bitWidth / 8
-        guard offset >= 0, offset <= bytes.count, count <= bytes.count - offset else {
-            throw TokenError.invalidAccount
-        }
-        return bytes[offset..<(offset + count)].enumerated().reduce(Value.zero) {
-            $0 | (Value($1.element) << ($1.offset * 8))
-        }
+        var reader = ByteReader(bytes, at: offset, error: TokenError.invalidAccount)
+        return try reader.integer()
     }
 
     /// Checks a Rust COption discriminant while leaving its payload uninterpreted.

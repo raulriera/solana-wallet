@@ -25,8 +25,8 @@ extension SubmissionTests {
         let mintRead = try await rpc.send(GetMultipleAccounts(addresses: [mintAddress.value]))
         let mintAccount = try #require(mintRead.value[0])
         let mint = try TokenMint(address: mintAddress, owner: Address(mintAccount.owner), data: mintAccount.data)
-        let source = try mint.associatedAccount(for: sender.address)
-        let destination = try mint.associatedAccount(for: recipient.address)
+        let source = try mint.program.associatedAccount(owner: sender.address, mint: mint.address)
+        let destination = try mint.program.associatedAccount(owner: recipient.address, mint: mint.address)
         let oldAccounts = try await rpc.send(GetMultipleAccounts(addresses: [source.value, destination.value]))
         // Close the token accounts the previous run left, returning each one's balance to its owner.
         var recoveryInstructions: [Instruction] = []

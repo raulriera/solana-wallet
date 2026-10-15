@@ -15,12 +15,12 @@ extension TokenTransfer {
         var instructions: [Instruction] = []
         if transfer.createsDestination {
             instructions.append(.init(
-                program: try Address("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"),
+                program: try Address(TokenProgram.associatedAccountProgram),
                 accounts: [.init(address: transfer.sender, isSigner: true, isWritable: true),
                            .init(address: transfer.destination, isSigner: false, isWritable: true),
                            .init(address: transfer.recipient, isSigner: false, isWritable: false),
                            .init(address: transfer.mint.address, isSigner: false, isWritable: false),
-                           .init(address: try Address("11111111111111111111111111111111"), isSigner: false, isWritable: false),
+                           .init(address: try Address(SystemProgram.id), isSigner: false, isWritable: false),
                            .init(address: program, isSigner: false, isWritable: false)], data: Data([1]) // CreateIdempotent.
             ))
         }

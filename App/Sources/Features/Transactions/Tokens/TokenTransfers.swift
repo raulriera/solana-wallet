@@ -41,8 +41,10 @@ nonisolated struct TokenTransfers {
         let observed = Dictionary(zip(addresses, snapshot.value)) { first, _ in first }
         guard let mintAccount = observed[mint] ?? nil else { throw TokenTransfersError.missingAccount(mint) }
         let tokenMint = try TokenMint(address: mint, owner: Address(mintAccount.owner), data: mintAccount.data)
-        let sourceAddress = try source ?? tokenMint.associatedAccount(for: sender)
-        let destinationAddress = try tokenMint.associatedAccount(for: recipient)
+        // The mint's program picks which of the associated accounts derived above the transfer uses.
+        guard let index = programs.firstIndex(of: tokenMint.program) else { throw TokenError.unsupportedProgram }
+        let sourceAddress = source ?? sources[index]
+        let destinationAddress = destinations[index]
         guard let sourceAccount = observed[sourceAddress] ?? nil else {
             throw TokenTransfersError.missingAccount(sourceAddress)
         }

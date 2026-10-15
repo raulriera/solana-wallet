@@ -22,8 +22,7 @@ struct ProgramAddressTests {
         #expect(EdwardsPoint.isOnCurve(bytes))
     }
 
-    /// Verifies both programs, off-curve owners, and bump searches extending down to 250,
-    /// from a decoded mint and from a mint address alone.
+    /// Verifies both programs, off-curve owners, and bump searches extending down to 250.
     /// - Parameters:
     ///   - owner: The public wallet address used for derivation.
     ///   - program: The token program owning the fixture mint.
@@ -32,7 +31,6 @@ struct ProgramAddressTests {
     func `Associated accounts match SDK derivation for both token programs`(owner: String, program: String, expected: String) throws {
         let fixture = TokenFixtures.transfers[program == TokenProgram.token.rawValue ? 0 : 2]
         let mint = try fixture.mint()
-        #expect(try mint.associatedAccount(for: Address(owner)).value == expected)
         #expect(try mint.program.associatedAccount(owner: Address(owner), mint: mint.address).value == expected)
     }
 }

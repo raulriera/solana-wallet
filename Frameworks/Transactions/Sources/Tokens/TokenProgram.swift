@@ -7,6 +7,9 @@ public enum TokenProgram: String, Sendable, CaseIterable, Codable {
 }
 
 extension TokenProgram {
+    /// The Associated Token Account program, which creates and derives each wallet's token account for a mint.
+    static let associatedAccountProgram = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+
     /// Derives a wallet's associated token account for a mint that this program owns.
     ///
     /// The address is the same whether or not the account exists yet.
@@ -16,6 +19,8 @@ extension TokenProgram {
     /// - Returns: The canonical associated token account address.
     /// - Throws: ``TokenError/addressDerivationFailed`` if no valid bump exists.
     public func associatedAccount(owner: Address, mint: Address) throws -> Address {
-        try ProgramAddress.associatedAccount(owner: owner, mint: mint, program: self)
+        let program = try Address(rawValue)
+        let associatedProgram = try Address(Self.associatedAccountProgram)
+        return try ProgramAddress.find(seeds: [owner.bytes, program.bytes, mint.bytes], program: associatedProgram)
     }
 }

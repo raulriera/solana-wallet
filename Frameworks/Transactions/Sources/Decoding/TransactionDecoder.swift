@@ -30,7 +30,7 @@ public struct TransactionDecoder: TransactionDecoding {
     ///   structure, duplicate addresses, invalid indices, or an invalid heap request.
     public func decode(_ data: Data) throws -> Transaction {
         guard !data.isEmpty, data.count <= 4_096 else { throw ValidationError.invalidTransaction }
-        var reader = ByteReader(data)
+        var reader = ByteReader(Array(data), error: ValidationError.invalidTransaction)
         let version: UInt8 = try reader.integer()
         guard version == 0x81 else { throw ValidationError.unsupportedVersion }
         let signerCount = Int(try reader.integer() as UInt8)
@@ -49,7 +49,7 @@ public struct TransactionDecoder: TransactionDecoding {
         var accounts: [Transaction.Account] = []
         var addresses: Set<Address> = []
         for index in 0..<accountCount {
-            let address = try Address(Base58.encode(Array(reader.read(count: 32))))
+            let address = try Address(bytes: reader.read(count: 32))
             guard addresses.insert(address).inserted else { throw ValidationError.invalidTransaction }
             let isSigner = index < signerCount
             let isWritable = isSigner ? index < signerCount - readonlySigners : index < accountCount - readonlyOthers

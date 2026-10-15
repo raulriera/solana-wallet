@@ -63,15 +63,6 @@ public struct TokenMint: Sendable {
         self.data = decoded
     }
 
-    /// Derives the wallet's associated token account using this mint's program.
-    ///
-    /// - Parameter owner: The receiving wallet, including program-derived wallets.
-    /// - Returns: The canonical associated account to query or create.
-    /// - Throws: ``TokenError/addressDerivationFailed`` if no valid bump exists.
-    public func associatedAccount(for owner: Address) throws -> Address {
-        try program.associatedAccount(owner: owner, mint: address)
-    }
-
     /// Validates supported transfer extensions and selects an explicit fee by epoch.
     ///
     /// - Parameters:

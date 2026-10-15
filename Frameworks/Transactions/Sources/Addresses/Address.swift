@@ -18,6 +18,16 @@ public struct Address: Sendable, Hashable {
         self.bytes = bytes
     }
 
+    /// Creates an address from its bytes, such as a derived address or one read from account data.
+    ///
+    /// - Parameter bytes: The address's 32 bytes.
+    /// - Throws: ``ValidationError/invalidAddress`` unless there are exactly 32 bytes.
+    init(bytes: some Collection<UInt8>) throws {
+        guard bytes.count == 32 else { throw ValidationError.invalidAddress }
+        self.bytes = Array(bytes)
+        value = Base58.encode(self.bytes)
+    }
+
     /// Whether the address bytes decode to a point on the Ed25519 curve.
     ///
     /// `false` means no private key exists for the address, as with program-derived addresses.

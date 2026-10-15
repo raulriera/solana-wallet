@@ -57,16 +57,13 @@ public struct TokenMetadata: Sendable, Equatable {
     ///   - offset: The position of the name's length.
     /// - Throws: ``TokenError/invalidAccount`` if a string runs past the end of the bytes.
     private init(fields bytes: [UInt8], at offset: Int) throws {
-        var offset = offset
+        var reader = ByteReader(bytes, at: offset, error: TokenError.invalidAccount)
         /// Reads the string at the current position and moves past it.
         /// - Returns: The trimmed text, or `nil` when it's empty or isn't UTF-8.
         /// - Throws: ``TokenError/invalidAccount`` if the string runs past the end of the bytes.
         func text() throws -> String? {
-            let length: UInt32 = try TokenData.integer(bytes, at: offset)
-            offset += 4
-            guard Int(length) <= bytes.count - offset else { throw TokenError.invalidAccount }
-            defer { offset += Int(length) }
-            let text = String(validating: bytes[offset..<(offset + Int(length))], as: UTF8.self)?
+            let length: UInt32 = try reader.integer()
+            let text = String(validating: try reader.read(count: Int(length)), as: UTF8.self)?
                 .trimmingCharacters(in: CharacterSet(charactersIn: "\0").union(.whitespacesAndNewlines))
             return text?.isEmpty == false ? text : nil
         }

@@ -39,7 +39,7 @@ public struct TokenTransfer: Sendable {
     public init(sender: Address, recipient: Address, mint: TokenMint, source: TokenAccount,
                 destination: TokenAccount?, amount: UInt64, epoch: UInt64? = nil, memo: String? = nil) throws {
         guard amount > 0 else { throw ValidationError.invalidAmount }
-        let target = try destination?.address ?? mint.associatedAccount(for: recipient)
+        let target = try destination?.address ?? mint.program.associatedAccount(owner: recipient, mint: mint.address)
         guard source.program == mint.program, source.mint == mint.address, source.owner == sender,
               source.address != sender, mint.address != sender, recipient != mint.address, target != sender,
               source.address != mint.address, target != mint.address else { throw TokenError.accountMismatch }
