@@ -23,6 +23,12 @@ struct WalletScene: View {
                 PortfolioScene(coordinator: portfolio, connection: connection, removal: tokenRemoval)
                     .tokenRemovalLifecycle()
             }
+            #if DEBUG
+            // The payment keypad with sample tokens, until contacts and sending are wired.
+            Tab("Contacts", systemImage: "person.crop.circle", value: .contacts) {
+                PaymentScene()
+            }
+            #endif
             Tab("Settings", systemImage: "gearshape", value: .settings) {
                 SettingsScene(settings: settings, account: account, network: $network, security: security,
                               providers: providers)
