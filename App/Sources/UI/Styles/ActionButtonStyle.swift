@@ -35,20 +35,27 @@ struct ActionButtonStyle<Base: PrimitiveButtonStyle>: PrimitiveButtonStyle {
 
 extension PrimitiveButtonStyle where Self == ActionButtonStyle<BorderedProminentButtonStyle> {
     /// A prominent action with the window's contrasting background color for its label.
-    static var primary: Self { Self(base: .borderedProminent, tint: .palette(\.primaryText), foreground: .palette(\.background)) }
+    static var primary: Self { Self(base: .borderedProminent, tint: .palette(.primaryText), foreground: .palette(.background)) }
 
     /// A prominent destructive action in the system's red, which no theme replaces.
     static var destructive: Self { Self(base: .borderedProminent, tint: .fixed(.red), foreground: .fixed(.white)) }
 }
 
+extension PrimitiveButtonStyle where Self == ActionButtonStyle<GlassProminentButtonStyle> {
+    /// A prominent glass action in the window's accent color, like the Phone keypad's call button.
+    static var glassPrimary: Self {
+        Self(base: .glassProminent, tint: .palette(.accent), foreground: .palette(.onAccent))
+    }
+}
+
 extension PrimitiveButtonStyle where Self == ActionButtonStyle<BorderedButtonStyle> {
     /// A secondary action with the window's primary text color for its label.
-    static var secondary: Self { Self(base: .bordered, tint: .palette(\.primaryText), foreground: .palette(\.primaryText)) }
+    static var secondary: Self { Self(base: .bordered, tint: .palette(.primaryText), foreground: .palette(.primaryText)) }
 }
 
 /// A color an action takes from the window's palette, or a fixed system color that no theme replaces.
 fileprivate enum ActionColor {
-    case palette(KeyPath<RenderedPalette, Color>)
+    case palette(PaletteRole)
     case fixed(Color)
 
     /// Resolves the color for the current window.
@@ -56,7 +63,7 @@ fileprivate enum ActionColor {
     /// - Returns: The palette's color for this role, or the fixed color.
     func resolved(in palette: RenderedPalette) -> Color {
         switch self {
-        case .palette(let role): palette[keyPath: role]
+        case .palette(let role): role.color(in: palette)
         case .fixed(let color): color
         }
     }
