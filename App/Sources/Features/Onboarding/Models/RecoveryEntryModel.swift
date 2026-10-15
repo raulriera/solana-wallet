@@ -19,6 +19,8 @@ final class RecoveryEntryModel {
     private(set) var hasPhrase = false
     /// Why the words can't be used, or `nil` while they haven't been checked or are valid.
     private(set) var rejection: RecoveryPhrase.ValidationError?
+    /// Counts rejected checks, so each rejection signals again while the same rejection stays on screen.
+    private(set) var rejectionCount = 0
 
     /// Native focus identity contains no recovery material and has constant-time equality.
     enum Field: UInt8, Hashable {
@@ -38,7 +40,7 @@ final class RecoveryEntryModel {
     /// The focus identity of the passphrase control currently shown.
     var passphraseField: Field { showsPassphrase ? .revealedPassphrase : .passphrase }
 
-    /// Checks local BIP-39 validity, including when editing ends without submitting.
+    /// Checks local BIP-39 validity, including when editing ends without submitting, and counts each rejection.
     /// - Returns: Whether word count, English words, and checksum are valid.
     @discardableResult
     func validate() -> Bool {
@@ -52,6 +54,7 @@ final class RecoveryEntryModel {
             // Unknown failures cross the recovery boundary without retaining their contents.
             rejection = .invalidEntropy
         }
+        rejectionCount += 1
         return false
     }
 

@@ -15,6 +15,28 @@ struct RecoveryEntryModelTests {
         #expect(input.rejection == .invalidWordCount)
     }
 
+    /// Each rejected check counts, so the screen signals again while the same rejection stays on screen.
+    @Test
+    func `A repeated rejection counts again`() {
+        let input = entry("public invalid fixture")
+
+        input.validate()
+        input.validate()
+
+        #expect(input.rejection == .invalidWordCount)
+        #expect(input.rejectionCount == 2)
+    }
+
+    /// Valid words pass without a rejection to show or signal.
+    @Test
+    func `Valid recovery words pass without a rejection`() {
+        let input = entry(OnboardingCoordinatorTests.phrase)
+
+        #expect(input.validate())
+        #expect(input.rejection == nil)
+        #expect(input.rejectionCount == 0)
+    }
+
     /// Editing clears the previous inline failure immediately without observing the phrase as a key.
     @Test
     func `Editing recovery clears validation while preserving the exact passphrase`() {
