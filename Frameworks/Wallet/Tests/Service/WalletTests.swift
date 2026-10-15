@@ -5,7 +5,9 @@ import Wallet
 struct WalletTests {
     /// Verifies recovery across paths and significant or Unicode-normalized passphrases.
     ///
-    /// Expected addresses were derived independently with Python hashlib/HMAC and OpenSSL Ed25519.
+    /// The last three passphrases need NFKD to reorder combining marks after decomposition.
+    /// Expected addresses were derived independently with Python hashlib/HMAC and OpenSSL Ed25519;
+    /// the reordering rows use Python's NFKD and RFC 8032 Ed25519, checked against CryptoKit.
     ///
     /// - Parameters:
     ///   - path: The explicit Solana account path.
@@ -19,6 +21,9 @@ struct WalletTests {
         ("m/44'/501'/0'/0'", "café", "56u4aAiTCjGEcS4ksrFcqS3nxsRSmzkE3MiFHzY85ngF"),
         ("m/44'/501'/0'/0'", "cafe\u{301}", "56u4aAiTCjGEcS4ksrFcqS3nxsRSmzkE3MiFHzY85ngF"),
         ("m/44'/501'/0'/0'", " TREZOR ", "SbBZ94nCjPnE1w7BYq86Dn7cjHar2z6RC7Ni39t2aK4"),
+        ("m/44'/501'/0'/0'", "e\u{301}\u{FF9E}", "CsudTpooGzAXxo7ndUc6K8EvQmQT7vNs4zXTADUspNpF"),
+        ("m/44'/501'/0'/0'", "\u{1FFD}\u{316}", "A8itvwcr8twSY46T95djD6AwQzhYZufYb2Jd4BNWRZad"),
+        ("m/44'/501'/0'/0'", "e\u{301}\u{F73}", "6n5ypUditR13kFk4cxvwe2z5qpsXK4wG5AfPUsEJMddv"),
     ])
     func `Imported recovery phrases derive expected Solana addresses`(path: String, passphrase: String, expected: String) async throws {
         let wallet: any WalletProviding = Wallet()

@@ -16,9 +16,10 @@ enum SeedDerivation {
     /// - Throws: `CancellationError` if cancelled.
     static func seed(for phrase: RecoveryPhrase, passphrase: String) throws -> [UInt8] {
         try Task.checkCancellation()
-        let password = phrase.words.joined(separator: " ").decomposedStringWithCompatibilityMapping
+        // Foundation's compatibility mapping can leave combining marks out of NFKD order; the canonical pass fixes it.
+        let password = phrase.words.joined(separator: " ").decomposedStringWithCompatibilityMapping.decomposedStringWithCanonicalMapping
         let key = SymmetricKey(data: Array(password.utf8))
-        let salt = "mnemonic" + passphrase.decomposedStringWithCompatibilityMapping
+        let salt = "mnemonic" + passphrase.decomposedStringWithCompatibilityMapping.decomposedStringWithCanonicalMapping
         // The 64-byte output fits one SHA-512 block; PBKDF2 numbers blocks from one.
         var block = Array(HMAC<SHA512>.authenticationCode(for: Array(salt.utf8) + [0, 0, 0, 1], using: key))
         defer { block.erase() }
