@@ -37,7 +37,8 @@ final class TokenAdditionUITests: XCTestCase {
         try flow.waitForAbsence(paste)
 
         try flow.tap(token)
-        try flow.tap(flow.app.navigationBars.buttons["More"])
+        // The iPhone Duo shows the details' toolbar in a vertical bar outside the navigation bar.
+        try flow.tap(flow.app.buttons["More"])
         try flow.tap(flow.app.buttons["Remove Token"])
         let confirmation = flow.app.alerts["Remove Bonk?"]
         try flow.waitFor(confirmation)

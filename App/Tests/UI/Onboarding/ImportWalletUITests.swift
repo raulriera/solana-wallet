@@ -63,7 +63,8 @@ final class ImportWalletUITests: XCTestCase {
         try flow.tap(reveal)
         try flow.waitFor(flow.app.buttons["Hide words"])
 
-        XCUIDevice.shared.press(.home)
+        // The Home button leaves the app open on the iPhone Duo's inner display; opening SpringBoard works on every device.
+        XCUIApplication(bundleIdentifier: "com.apple.springboard").activate()
         guard flow.app.wait(for: .runningBackground, timeout: 10) else {
             XCTFail("The app did not enter the background")
             return
