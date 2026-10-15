@@ -4,10 +4,10 @@ public import Foundation
 public struct HeliusRPC: RPC, AccountChangeProviding, SignatureEventProviding, LogoProviding,
                          CustomStringConvertible, CustomDebugStringConvertible {
     /// The Solana network that receives the client's requests.
-    public let network: Network
+    public var network: Network { rpc.network }
 
-    private let client: HTTPClient
-    private let subscriptions: SubscriptionClient
+    /// Standard Solana RPC at the Helius endpoints, which also answer DAS requests.
+    private let rpc: Solana
 
     /// Creates a client with an ephemeral URL session on the selected network.
     ///
@@ -39,11 +39,8 @@ public struct HeliusRPC: RPC, AccountChangeProviding, SignatureEventProviding, L
             .appending(queryItems: [URLQueryItem(name: "api-key", value: apiKey)])
         let socketEndpoint = URL(string: "wss://\(host)/")!
             .appending(queryItems: [URLQueryItem(name: "api-key", value: apiKey)])
-        let redactor = SecretRedactor(secrets: [apiKey, endpoint.absoluteString, socketEndpoint.absoluteString])
-        self.network = network
-        client = HTTPClient(endpoint: endpoint, transport: transport,
-                            redactor: redactor)
-        subscriptions = SubscriptionClient(endpoint: socketEndpoint, connect: socket, redactor: redactor)
+        rpc = Solana(network: network, endpoint: endpoint, socketEndpoint: socketEndpoint,
+                     redactor: SecretRedactor(urls: [endpoint, socketEndpoint]), transport: transport, socket: socket)
     }
 
     /// A textual representation that identifies the network and omits credentials.
@@ -58,7 +55,7 @@ public struct HeliusRPC: RPC, AccountChangeProviding, SignatureEventProviding, L
     /// - Returns: The validated and decoded response.
     /// - Throws: An `RPCError` or `CancellationError`.
     public func send<Request: RPCRequest>(_ request: Request) async throws -> Request.Response {
-        try await client.send(request)
+        try await rpc.send(request)
     }
 
     /// Observes finalized changes to each account through standard Solana subscriptions on one connection.
@@ -66,7 +63,7 @@ public struct HeliusRPC: RPC, AccountChangeProviding, SignatureEventProviding, L
     /// - Returns: Increasing finalized change slots after all subscriptions are acknowledged.
     /// - Throws: A sanitized subscription, transport, timeout, or cancellation error.
     public func changedSlots(for addresses: [String]) async throws -> AsyncThrowingStream<UInt64, any Error> {
-        try await subscriptions.changedSlots(for: addresses)
+        try await rpc.changedSlots(for: addresses)
     }
 
     /// Watches a signature at finalized commitment and new roots with standard Solana subscriptions on one connection.
@@ -74,7 +71,7 @@ public struct HeliusRPC: RPC, AccountChangeProviding, SignatureEventProviding, L
     /// - Returns: The transaction's landing and increasing roots after both subscriptions are acknowledged.
     /// - Throws: A sanitized subscription, transport, timeout, or cancellation error.
     public func events(for signature: String) async throws -> AsyncThrowingStream<SignatureEvent, any Error> {
-        try await subscriptions.events(for: signature)
+        try await rpc.events(for: signature)
     }
 
     /// Looks up Helius's HTTPS copies of token logos with DAS batch requests of at most 1,000 mints.

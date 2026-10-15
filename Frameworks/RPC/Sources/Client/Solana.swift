@@ -60,12 +60,8 @@ public struct Solana: RPC, AccountChangeProviding, SignatureEventProviding, Cust
               var components = URLComponents(url: endpoint, resolvingAgainstBaseURL: false) else { return nil }
         components.scheme = "wss"
         guard let socketEndpoint = components.url else { return nil }
-        // A query item without a value, such as `?key`, holds the key in its name.
-        let parts = [endpoint.user(), endpoint.password()] + (components.queryItems ?? []).map { $0.value ?? $0.name }
-        let secrets = [endpoint.absoluteString, socketEndpoint.absoluteString]
-            + endpoint.pathComponents.filter { $0 != "/" } + parts.compactMap(\.self)
         self.init(network: network, endpoint: endpoint, socketEndpoint: socketEndpoint,
-                  redactor: SecretRedactor(secrets: secrets), transport: transport, socket: socket)
+                  redactor: SecretRedactor(urls: [endpoint, socketEndpoint]), transport: transport, socket: socket)
     }
 
     /// Creates a client for an HTTP endpoint and the WebSocket endpoint that serves its subscriptions.
@@ -77,8 +73,8 @@ public struct Solana: RPC, AccountChangeProviding, SignatureEventProviding, Cust
     ///   - redactor: The diagnostic redaction policy for both endpoints.
     ///   - transport: The operation that performs each request.
     ///   - socket: The factory for an independent wallet subscription connection.
-    private init(network: Network, endpoint: URL, socketEndpoint: URL, redactor: SecretRedactor,
-                 transport: any HTTPTransport, socket: @escaping @Sendable (URL) -> any WebSocketConnection) {
+    init(network: Network, endpoint: URL, socketEndpoint: URL, redactor: SecretRedactor,
+         transport: any HTTPTransport, socket: @escaping @Sendable (URL) -> any WebSocketConnection) {
         self.network = network
         client = HTTPClient(endpoint: endpoint, transport: transport, redactor: redactor)
         subscriptions = SubscriptionClient(endpoint: socketEndpoint, connect: socket, redactor: redactor)
