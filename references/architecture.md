@@ -13,6 +13,7 @@ The wallet app owns workflow coordination through internal, protocol-based servi
 | [Portfolio](../Frameworks/Portfolio/README.md) | Each account's manual token list, with its balances, prices, refresh, and finalized changes. |
 | [Encoding](../Frameworks/Encoding/README.md) | Shared codecs. |
 | [ModularArithmetic](../Frameworks/ModularArithmetic/README.md) | Prime-field arithmetic in Montgomery form for the BN254 and P-256 scalar fields. |
+| [Privacy](../Frameworks/Privacy/README.md) | Solana Rings private-balance cryptography: Poseidon over BN254. |
 | [Themes](../Frameworks/Themes/README.md) | Color tokens, package reading/writing, validation, and resolution against app-provided defaults. |
 | Internal app services/coordinators | Own portfolio presentation lifetimes and compose review, explicit approval, authentication, signing, and optional submission/confirmation. |
 
@@ -35,6 +36,7 @@ The agreed wallet, transaction, portfolio, and initial color-only Themes framewo
 | --- | --- |
 | Encoding | Complete for the current scope. |
 | ModularArithmetic | Complete for the current scope: the BN254 and P-256 scalar fields. |
+| Privacy | Poseidon is complete; notes, encryption, and instruction helpers are separate milestones. |
 | Themes | Color-only package service with app-supplied defaults and PNG/JPEG assets. App services manage immutable built-ins, custom installations, app/wallet preferences, deletion fallbacks, and one-time recovery from iOS Settings. Import/export presentation and rendering remain separate; see [UI architecture](ui.md). |
 | RPC | Complete for the agreed transaction, discovery, DAS, pricing, finalized account-subscription, and signature-watch workflows. The manual token list adds a QuickNode client and per-account subscriptions. |
 | Transactions | Further capabilities are parked; current SOL and supported-token flows remain available. The goal is all Token-2022 extensions, reviewed and agreed individually before implementation. |

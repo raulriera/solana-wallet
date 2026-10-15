@@ -75,6 +75,14 @@
           ],
         }, {
           "kind": "group",
+          "path": "Privacy",
+          "children": [
+            { "kind": "folder", "path": "Sources", "target-membership": [ "Privacy" ] },
+            { "kind": "folder", "path": "Tests", "target-membership": [ "PrivacyTests" ] },
+            { "path": "README.md" },
+          ],
+        }, {
+          "kind": "group",
           "path": "RPC",
           "children": [
             { "kind": "folder", "path": "Sources", "target-membership": [ "RPC" ] },
@@ -85,7 +93,7 @@
           "kind": "group",
           "path": "TestSupport",
           "children": [
-            { "kind": "folder", "path": "Fixtures", "target-membership": [ "ModularArithmeticTests", "TransactionsTests", "WalletTests" ] },
+            { "kind": "folder", "path": "Fixtures", "target-membership": [ "ModularArithmeticTests", "PrivacyTests", "TransactionsTests", "WalletTests" ] },
             {
               "kind": "folder",
               "path": "Networking",
@@ -215,7 +223,18 @@
           "target-membership": [
             "widgets/frameworks",
             { "build-phase": "widgets/copy/Embed Frameworks", "code-sign-on-copy": true, "header-preservation": "remove-on-copy" },
+            "Privacy/frameworks",
             "ModularArithmeticTests/frameworks",
+            "PrivacyTests/frameworks",
+          ],
+        }, {
+          "path": "<PRODUCTS>/Privacy.framework",
+          "id": "AB0000000000000000000001",
+          "type": "wrapper.framework",
+          "target-membership": [
+            "widgets/frameworks",
+            { "build-phase": "widgets/copy/Embed Frameworks", "code-sign-on-copy": true, "header-preservation": "remove-on-copy" },
+            "PrivacyTests/frameworks",
           ],
         }, {
           "path": "<PRODUCTS>/Themes.framework",
@@ -245,6 +264,7 @@
         { "path": "<PRODUCTS>/TransactionsTests.xctest", "id": "A50000000000000000000002", "type": "wrapper.cfbundle" },
         { "path": "<PRODUCTS>/EncodingTests.xctest", "id": "A60000000000000000000002", "type": "wrapper.cfbundle" },
         { "path": "<PRODUCTS>/ModularArithmeticTests.xctest", "id": "A80000000000000000000002", "type": "wrapper.cfbundle" },
+        { "path": "<PRODUCTS>/PrivacyTests.xctest", "id": "AB0000000000000000000002", "type": "wrapper.cfbundle" },
         { "path": "<PRODUCTS>/ThemesTests.xctest", "id": "A90000000000000000000002", "type": "wrapper.cfbundle" },
         { "path": "<PRODUCTS>/VaultTests.xctest", "id": "A40000000000000000000002", "type": "wrapper.cfbundle" },
       ],
@@ -263,6 +283,7 @@
       "dependencies": [
         "Encoding",
         "ModularArithmetic",
+        "Privacy",
         "Themes",
         "RPC",
         "Portfolio",
@@ -468,6 +489,34 @@
         "GENERATE_INFOPLIST_FILE": "YES",
         "INSTALL_PATH": "$(LOCAL_LIBRARY_DIR)/Frameworks",
         "PRODUCT_BUNDLE_IDENTIFIER": "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).ModularArithmetic",
+        "PRODUCT_NAME": "$(TARGET_NAME)",
+        "SDKROOT": "iphoneos",
+        "SKIP_INSTALL": "YES",
+        "SUPPORTED_PLATFORMS": "iphoneos iphonesimulator",
+        "SWIFT_COMPILATION_MODE": "wholemodule",
+        "SWIFT_OPTIMIZATION_LEVEL": "-O",
+        "TARGETED_DEVICE_FAMILY": "1,2",
+      },
+    }, {
+      "name": "Privacy",
+      "id": "AB0000000000000000000014",
+      "product": "Products/Privacy.framework",
+      "product-type": "framework",
+      "dependencies": [
+        "ModularArithmetic",
+      ],
+      "build-phases": [
+        "compile-sources",
+        "frameworks",
+        "resources",
+      ],
+      "build-settings": {
+        "CODE_SIGN_STYLE": "Automatic",
+        "DEFINES_MODULE": "YES",
+        "DEVELOPMENT_TEAM": "R64MTWS872",
+        "GENERATE_INFOPLIST_FILE": "YES",
+        "INSTALL_PATH": "$(LOCAL_LIBRARY_DIR)/Frameworks",
+        "PRODUCT_BUNDLE_IDENTIFIER": "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).Privacy",
         "PRODUCT_NAME": "$(TARGET_NAME)",
         "SDKROOT": "iphoneos",
         "SKIP_INSTALL": "YES",
@@ -769,6 +818,38 @@
           "@loader_path/Frameworks",
         ],
         "PRODUCT_BUNDLE_IDENTIFIER": "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).ModularArithmeticTests",
+        "PRODUCT_NAME": "$(TARGET_NAME)",
+        "SDKROOT": "iphoneos",
+        "SKIP_INSTALL": "YES",
+        "SUPPORTED_PLATFORMS": "iphoneos iphonesimulator",
+        "TARGETED_DEVICE_FAMILY": "1,2",
+        "TEST_HOST": "",
+      },
+    }, {
+      "name": "PrivacyTests",
+      "id": "AB0000000000000000000015",
+      "product": "Products/PrivacyTests.xctest",
+      "product-type": "bundle.unit-test",
+      "dependencies": [
+        "ModularArithmetic",
+        "Privacy",
+      ],
+      "build-phases": [
+        "compile-sources",
+        "frameworks",
+        "resources",
+      ],
+      "build-settings": {
+        "BUNDLE_LOADER": "",
+        "CODE_SIGN_STYLE": "Automatic",
+        "DEVELOPMENT_TEAM": "R64MTWS872",
+        "GENERATE_INFOPLIST_FILE": "YES",
+        "LD_RUNPATH_SEARCH_PATHS": [
+          "$(inherited)",
+          "@executable_path/Frameworks",
+          "@loader_path/Frameworks",
+        ],
+        "PRODUCT_BUNDLE_IDENTIFIER": "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).PrivacyTests",
         "PRODUCT_NAME": "$(TARGET_NAME)",
         "SDKROOT": "iphoneos",
         "SKIP_INSTALL": "YES",
