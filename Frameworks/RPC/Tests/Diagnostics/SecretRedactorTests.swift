@@ -1,5 +1,9 @@
+import Foundation
 import Testing
 @testable import RPC
+
+/// A custom endpoint whose credentials, path, and query can each hold a key.
+private let customEndpoint = "https://fixture-user:fixture-pass@rpc.example.com/path-token?api-key=query-key&bare-key"
 
 /// Tests diagnostic text redaction independently of RPC requests.
 struct SecretRedactorTests {
@@ -23,5 +27,16 @@ struct SecretRedactorTests {
         let message = redactor.redact("Retry after five seconds.")
 
         #expect(message == "Retry after five seconds.")
+    }
+
+    /// Verifies that endpoint redaction replaces the URL and each part of it that can hold a key.
+    /// - Parameter part: The whole URL, or its user, password, path component, query value, or bare query name.
+    @Test(arguments: [customEndpoint, "fixture-user", "fixture-pass", "path-token", "query-key", "bare-key"])
+    func `Endpoint redaction replaces the URL and each part that can hold a key`(part: String) throws {
+        let redactor = SecretRedactor(urls: [try #require(URL(string: customEndpoint))])
+
+        let message = redactor.redact("Request failed for \(part).")
+
+        #expect(message == "Request failed for [redacted].")
     }
 }
