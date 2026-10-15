@@ -5,10 +5,10 @@ public import Foundation
 public struct Pack: Sendable, Equatable {
     public var id: UUID { manifest.id }
     public var name: String { manifest.name }
-    public let assets: [String: Asset]
+    let assets: [String: Asset]
     let manifest: Manifest
 
-    /// Creates a snapshot after validating the manifest and declared assets.
+    /// Creates a snapshot from a validated manifest and its declared assets.
     /// - Parameters:
     ///   - manifest: The validated manifest.
     ///   - assets: Independently owned image bytes keyed by declaration name.
@@ -19,9 +19,9 @@ public struct Pack: Sendable, Equatable {
 }
 
 /// Validated image data that remains accessible after the imported URL's access ends.
-public struct Asset: Sendable, Equatable {
-    public let data: Data
-    public let path: String
+struct Asset: Sendable, Equatable {
+    let data: Data
+    let path: String
 
     /// Retains supported image data and its validated package-relative path.
     /// - Parameters:

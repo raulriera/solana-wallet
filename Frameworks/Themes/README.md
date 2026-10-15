@@ -60,9 +60,7 @@ Use a new UUID for each new theme.
 ## Import and export
 
 - Author packs externally and import through Files. Installed packs stay local.
-- Omit settings to use defaults. Explicit `null`, unknown settings, incorrect types, unsupported values or versions, and invalid assets cause import errors. Field errors identify the affected path.
-- Failed imports leave installed themes and preferences unchanged. Replacing a custom theme with the same ID requires confirmation.
-- Built-in themes cannot be edited, replaced, or removed by users. Custom/imported themes can be removed.
+- Omit settings to use defaults. Explicit `null`, unknown settings, incorrect types, unsupported values or versions, and invalid assets cause import errors.
 - Validation checks structure and safe asset loading, not aesthetics or HIG conformance.
 - Default-template exports contain all defaults and a new UUID. System color references remain symbolic. Imported themes are not re-exported.
 
@@ -84,4 +82,4 @@ Use `save(_:to:)` for an installed copy that preserves identity, assets, and omi
 
 Resolve colors when the selected pack or defaults change. Resolved palettes contain stored values; accessing a color performs no I/O or decoding.
 
-The app owns Files presentation, destination/replacement approval, installation, preferences, and rendering. `ValidationError` provides a `path` and `reason`; file-access and cancellation errors propagate to the caller.
+The app owns Files presentation, destination/replacement approval, installation, preferences, and rendering. Invalid packages throw `ValidationError`; file-access and cancellation errors propagate to the caller.

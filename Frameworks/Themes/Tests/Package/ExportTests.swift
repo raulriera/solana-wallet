@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-import Themes
+@testable import Themes
 
 struct ExportTests {
     /// Installation keeps omission-based inheritance and owned image bytes after the source disappears.

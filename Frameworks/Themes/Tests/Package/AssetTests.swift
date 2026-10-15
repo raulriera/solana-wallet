@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-import Themes
+@testable import Themes
 import Darwin
 
 struct AssetTests {

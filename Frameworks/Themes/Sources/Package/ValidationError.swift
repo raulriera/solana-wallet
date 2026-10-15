@@ -1,10 +1,7 @@
-public import Foundation
-
-/// A structural package error with an author-facing location and explanation.
-public struct ValidationError: Error, Sendable, Equatable, LocalizedError {
-    public let path: String
-    public let reason: String
-    public var errorDescription: String? { "\(path): \(reason)" }
+/// A structural package error at a manifest field or package file.
+public struct ValidationError: Error, Sendable, Equatable {
+    let path: String
+    let reason: String
 
     /// Describes a failed package requirement.
     /// - Parameters:
