@@ -101,24 +101,6 @@ struct PriceRefreshTests {
         #expect(await accounts.requests.count == 1)
     }
 
-    /// Verifies a price provider for another network fails the refresh before any request.
-    /// - Throws: A fixture or test prerequisite error.
-    @Test
-    func `A price provider for another network fails before networking`() async throws {
-        let fixture = PricingFixture()
-        defer { fixture.removeFiles() }
-        try fixture.store.save(pricingSnapshot(), for: fixture.key)
-        let accounts = AccountResponses(network: .devnet) { _ in freshLedger }
-        let prices = PriceResponses { _ in Data("{}".utf8) }
-        let service = fixture.portfolio(rpc: accounts.client, prices: prices.client)
-        var updates = await service.updates(for: testWallet).makeAsyncIterator()
-        _ = try #require(await updates.next())
-        let failed = try #require(await updates.next())
-        #expect(failed.error as? PriceError == .networkMismatch)
-        #expect(await accounts.requests.isEmpty)
-        #expect(await prices.requests.isEmpty)
-    }
-
     /// Verifies concurrent reloads share one balance read and one price lookup, and deliver the same result.
     /// - Throws: A fixture, refresh, or test prerequisite error.
     @Test(.timeLimit(.minutes(1)))

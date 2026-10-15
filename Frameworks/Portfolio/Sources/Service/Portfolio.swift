@@ -17,6 +17,7 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
     ///     A client that also hosts logo copies, such as Helius, adds logos to the listed tokens.
     ///     A client that also provides account subscriptions watches the accounts for finalized changes.
     ///   - prices: A same-network price provider; `nil` leaves holdings unpriced.
+    /// - Precondition: `prices` serves the RPC client's network.
     public init(rpc: any RPC, prices: (any PriceProviding)? = nil) {
         self.init(rpc: rpc, store: FileSnapshotStore(directory: .cachesDirectory.appendingPathComponent("Portfolio")),
                   prices: prices)
@@ -31,21 +32,25 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
     ///   - prices: An optional same-network price provider.
     ///   - changes: The optional finalized-change provider, defaulting to the RPC client's capability.
     ///   - pause: Cancellable scheduling for coalescing nearby changes and spacing reconnections.
+    /// - Precondition: `prices` and `changes` serve the RPC client's network.
     init(rpc: any RPC, store: any SnapshotStoring,
          tokenLists: any TokenListStoring = FileTokenListStore(
             directory: .applicationSupportDirectory.appending(path: "Portfolio/TokenLists", directoryHint: .isDirectory)),
          prices: (any PriceProviding)? = nil,
          changes: (any AccountChangeProviding)? = nil,
          pause: @escaping ObservationCoordinator.Pause = { try await Task.sleep(for: $0) }) {
+        let changes = changes ?? (rpc as? any AccountChangeProviding)
+        // Quotes and changes describe one network's accounts, so a provider for another network is a wiring mistake.
+        precondition(prices.map { $0.network == rpc.network } ?? true, "Prices must describe the RPC client's network.")
+        precondition(changes.map { $0.network == rpc.network } ?? true,
+                     "Account changes must describe the RPC client's network.")
         let lists = TokenListCoordinator(store: tokenLists, network: rpc.network)
         let logos = rpc as? any LogoProviding
         self.tokenLists = lists
         lookup = TokenLookup(rpc: rpc, logos: logos)
         coordinator = RefreshCoordinator(source: BalanceReader(rpc: rpc), tokenLists: lists, store: store,
                                          prices: prices, logos: logos)
-        observer = ObservationCoordinator(refresh: coordinator, tokenLists: lists,
-                                          changes: changes ?? (rpc as? any AccountChangeProviding),
-                                          network: rpc.network, pause: pause)
+        observer = ObservationCoordinator(refresh: coordinator, tokenLists: lists, changes: changes, pause: pause)
     }
 
     /// Returns cached state, then reads balances, logos, and prices again.

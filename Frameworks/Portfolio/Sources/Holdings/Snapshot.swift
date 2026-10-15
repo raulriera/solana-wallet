@@ -7,7 +7,7 @@ public struct Snapshot: Codable, Sendable, Equatable {
     /// The network to which these holdings belong.
     public let network: Network
     /// Native SOL followed by the wallet's listed tokens.
-    public let holdings: [Holding]
+    public internal(set) var holdings: [Holding]
 
     /// Creates a portfolio snapshot for a wallet and network.
     ///

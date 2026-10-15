@@ -19,7 +19,6 @@ actor ObservationCoordinator {
     private let refresh: RefreshCoordinator
     private let tokenLists: TokenListCoordinator
     private let changes: (any AccountChangeProviding)?
-    private let network: Network
     private let pause: Pause
     private var watches: [String: Watch] = [:]
 
@@ -27,15 +26,13 @@ actor ObservationCoordinator {
     /// - Parameters:
     ///   - refresh: The owner of cache and in-flight refreshes.
     ///   - tokenLists: The token lists whose accounts each wallet's subscription watches.
-    ///   - changes: The optional provider of finalized account-change slots.
-    ///   - network: The network whose portfolio is observed.
+    ///   - changes: The optional provider of finalized account-change slots on the observed network.
     ///   - pause: Cancellable scheduling for coalescing nearby changes and spacing reconnections.
     init(refresh: RefreshCoordinator, tokenLists: TokenListCoordinator, changes: (any AccountChangeProviding)?,
-         network: Network, pause: @escaping Pause) {
+         pause: @escaping Pause) {
         self.refresh = refresh
         self.tokenLists = tokenLists
         self.changes = changes
-        self.network = network
         self.pause = pause
     }
 
@@ -45,17 +42,13 @@ actor ObservationCoordinator {
     /// - Parameter owner: The wallet whose holdings to observe.
     /// - Returns: Cached state, initial reload, and subsequent finalized-change refresh results.
     func observations(for owner: String) -> AsyncStream<Update> {
-        let (stream, continuation) = AsyncStream<Update>.makeStream(bufferingPolicy: .bufferingNewest(2))
-        guard !Task.isCancelled else { continuation.finish(); return stream }
-        let id = UUID()
-        continuation.onTermination = { @Sendable _ in
-            Task { @concurrent in await self.unsubscribe(owner: owner, id: id) }
-        }
+        guard !Task.isCancelled else { return AsyncStream { $0.finish() } }
+        let unsubscribe: @Sendable (UUID) async -> Void = { id in await self.unsubscribe(owner: owner, id: id) }
         if var watch = watches[owner] {
-            watch.consumers[id] = continuation
-            if let latest = watch.latest, latest.isRefreshing {
-                continuation.yield(latest)
-            } else if watch.state == .connected {
+            // A refresh in progress reaches the new consumer at once; otherwise a live watch reads balances for it.
+            let refreshing = watch.latest.flatMap { $0.isRefreshing ? $0 : nil }
+            let stream = watch.consumers.add(first: refreshing, onEnd: unsubscribe)
+            if refreshing == nil, watch.state == .connected {
                 watch.reloadRequested = true
             }
             watches[owner] = watch
@@ -64,9 +57,11 @@ actor ObservationCoordinator {
             } else if watch.reloadRequested {
                 schedule(owner: owner, generation: watch.generation, delayed: false)
             }
-        } else {
-            connect(owner: owner, consumers: [id: continuation])
+            return stream
         }
+        var consumers = UpdateConsumers()
+        let stream = consumers.add(onEnd: unsubscribe)
+        connect(owner: owner, consumers: consumers)
         return stream
     }
 
@@ -96,7 +91,7 @@ actor ObservationCoordinator {
         guard let watch = watches.removeValue(forKey: owner) else { return }
         watch.connection?.cancel()
         watch.reconciliation?.cancel()
-        for consumer in watch.consumers.values { consumer.finish() }
+        watch.consumers.finish()
     }
 
     /// Cancels every wallet's observation and ends its consumers' streams.
@@ -110,7 +105,7 @@ actor ObservationCoordinator {
     ///   - consumers: The streams that receive the wallet's updates.
     ///   - latest: The newest update those consumers already received, if any.
     ///   - minContextSlot: The newest finalized change already observed, if any.
-    private func connect(owner: String, consumers: [UUID: AsyncStream<Update>.Continuation], latest: Update? = nil,
+    private func connect(owner: String, consumers: UpdateConsumers, latest: Update? = nil,
                          minContextSlot: UInt64? = nil) {
         let generation = UUID()
         watches[owner] = Watch(generation: generation, minContextSlot: minContextSlot, consumers: consumers, latest: latest)
@@ -153,7 +148,6 @@ actor ObservationCoordinator {
     /// - Throws: Why the subscriptions couldn't start or ended; a stream that ends counts as a lost connection.
     private func watchChanges(owner: String, generation: UUID) async throws {
         guard let changes else { throw ObservationError.providerUnavailable }
-        guard changes.network == network else { throw ObservationError.networkMismatch }
         let accounts = try await tokenLists.list(for: owner).accounts(of: Address(owner))
         let slots = try await changes.changedSlots(for: accounts.map(\.value))
         try Task.checkCancellation()
@@ -255,7 +249,7 @@ actor ObservationCoordinator {
         guard watches[owner]?.generation == generation else { return }
         guard watches[owner]?.latest.map({ update.revision > $0.revision }) ?? true else { return }
         watches[owner]?.latest = update
-        for consumer in watches[owner]?.consumers.values ?? [:].values { consumer.yield(update) }
+        watches[owner]?.consumers.send(update)
     }
 
     /// Releases the connection and active refresh when the final consumer leaves.
@@ -263,7 +257,7 @@ actor ObservationCoordinator {
     ///   - owner: The observed wallet.
     ///   - id: The departing consumer.
     private func unsubscribe(owner: String, id: UUID) {
-        watches[owner]?.consumers.removeValue(forKey: id)
+        watches[owner]?.consumers.remove(id)
         if watches[owner]?.consumers.isEmpty == true { stop(for: owner) }
     }
 
@@ -285,7 +279,7 @@ actor ObservationCoordinator {
         var reloadRequested = false
         var revision = UUID()
         var minContextSlot: UInt64?
-        var consumers: [UUID: AsyncStream<Update>.Continuation]
+        var consumers: UpdateConsumers
         var latest: Update?
         var connection: Task<Void, Never>?
         var reconciliation: Task<Void, Never>?

@@ -19,9 +19,9 @@ public struct Holding: Codable, Sendable, Equatable, Identifiable {
     /// The ticker symbol, if known.
     public let symbol: String?
     /// The image URL, if the provider supplies one.
-    public let imageURL: URL?
+    public internal(set) var imageURL: URL?
     /// The available market valuation.
-    public let valuation: Valuation?
+    public internal(set) var valuation: Valuation?
 
     /// Creates a holding from its identity and available portfolio data.
     ///

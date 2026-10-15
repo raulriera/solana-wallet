@@ -36,19 +36,11 @@ actor RefreshCoordinator {
     ///   - minContextSlot: The earliest acceptable observation for a scheduled balance read, or `nil`.
     /// - Returns: A registered stream, or a finished stream if the calling task is cancelled.
     func updates(for owner: String, minContextSlot: UInt64? = nil) -> AsyncStream<Update> {
-        let (stream, continuation) = AsyncStream<Update>.makeStream(bufferingPolicy: .bufferingNewest(2))
-        guard !Task.isCancelled else {
-            continuation.finish()
-            return stream
-        }
+        guard !Task.isCancelled else { return AsyncStream { $0.finish() } }
         let key = CacheKey(owner: owner, network: source.network)
-        let id = UUID()
-        continuation.onTermination = { @Sendable _ in
-            Task { @concurrent in await self.unsubscribe(key: key, id: id) }
-        }
+        let unsubscribe: @Sendable (UUID) async -> Void = { id in await self.unsubscribe(key: key, id: id) }
         if var flight = flights[key] {
-            flight.consumers[id] = continuation
-            if let initial = flight.initial { continuation.yield(initial) }
+            let stream = flight.consumers.add(first: flight.initial, onEnd: unsubscribe)
             if (minContextSlot ?? 0) > (flight.minContextSlot ?? 0) {
                 // Keep every consumer, but replace work that cannot satisfy the newer balance request.
                 flight.minContextSlot = minContextSlot
@@ -58,7 +50,9 @@ actor RefreshCoordinator {
             return stream
         }
         let generation = UUID()
-        flights[key] = Flight(generation: generation, minContextSlot: minContextSlot, consumers: [id: continuation])
+        var consumers = UpdateConsumers()
+        let stream = consumers.add(onEnd: unsubscribe)
+        flights[key] = Flight(generation: generation, minContextSlot: minContextSlot, consumers: consumers)
         flights[key]?.task = Task { await refresh(key: key, generation: generation) }
         return stream
     }
@@ -92,9 +86,10 @@ actor RefreshCoordinator {
                 flights[key] = flight
             }
         }
-        guard let cached = store.snapshot(for: key), cached.holdings.contains(where: { $0.id == id }) else { return }
-        let snapshot = Snapshot(owner: cached.owner, network: cached.network,
-                                holdings: cached.holdings.filter { $0.id != id })
+        guard var snapshot = store.snapshot(for: key), snapshot.holdings.contains(where: { $0.id == id }) else {
+            return
+        }
+        snapshot.holdings.removeAll { $0.id == id }
         try store.save(snapshot, for: key)
         revision += 1
         snapshotRevisions[key] = revision
@@ -129,7 +124,7 @@ actor RefreshCoordinator {
     ///   - id: The departing consumer's identifier.
     private func unsubscribe(key: CacheKey, id: UUID) {
         guard var flight = flights[key] else { return }
-        flight.consumers.removeValue(forKey: id)
+        flight.consumers.remove(id)
         if flight.consumers.isEmpty {
             flights.removeValue(forKey: key)
             flight.task?.cancel()
@@ -171,7 +166,7 @@ actor RefreshCoordinator {
     private func endRefresh(for key: CacheKey) {
         guard let flight = flights.removeValue(forKey: key) else { return }
         flight.task?.cancel()
-        for continuation in flight.consumers.values { continuation.finish() }
+        flight.consumers.finish()
     }
 
     /// Emits existing state, reads all balances with their logos and prices, and commits one complete update.
@@ -185,13 +180,12 @@ actor RefreshCoordinator {
         if flight.initial == nil {
             let initial = makeUpdate(snapshot: cached, phase: .refreshing, snapshotRevision: snapshotRevisions[key] ?? 0)
             flights[key]?.initial = initial
-            for continuation in flights[key]?.consumers.values ?? [:].values { continuation.yield(initial) }
+            flights[key]?.consumers.send(initial)
         }
 
         var available = cached
         var availableRevision = snapshotRevisions[key] ?? 0
         do {
-            try pricer?.validate(network: source.network)
             let list = try await tokenLists.list(for: key.owner)
             let holdings = list.holdingIDs
             // Logos and prices need only the listed tokens, so they're looked up while balances are read.
@@ -240,17 +234,15 @@ actor RefreshCoordinator {
     private func finish(key: CacheKey, generation: UUID, update: Update?) {
         guard let flight = flights[key], flight.generation == generation else { return }
         flights.removeValue(forKey: key)
-        for continuation in flight.consumers.values {
-            if let update { continuation.yield(update) }
-            continuation.finish()
-        }
+        if let update { flight.consumers.send(update) }
+        flight.consumers.finish()
     }
 
     /// The consumers and task owned by one refresh generation.
     private struct Flight {
         var generation: UUID
         var minContextSlot: UInt64?
-        var consumers: [UUID: AsyncStream<Update>.Continuation]
+        var consumers: UpdateConsumers
         var initial: Update?
         var task: Task<Void, Never>?
     }

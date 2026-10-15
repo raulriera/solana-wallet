@@ -110,8 +110,8 @@ private struct FixedPrices: PriceProviding {
 
     /// Supplies a deterministic quote for pure valuation checks, without RPC communication.
     /// - Parameter mints: The requested token markets.
-    /// - Returns: The normalized quote for each requested mint.
+    /// - Returns: The normalized quote for each requested mint; a repeated mint has one entry.
     func prices(for mints: [String]) async throws -> [String: Quote] {
-        Dictionary(uniqueKeysWithValues: mints.map { ($0, quote) })
+        Dictionary(mints.map { ($0, quote) }) { first, _ in first }
     }
 }

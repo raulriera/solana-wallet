@@ -37,11 +37,11 @@ extension Snapshot {
     /// - Parameter logos: Logo URLs keyed by mint; a token without an entry has no logo.
     /// - Returns: A snapshot that differs only in its listed tokens' logos.
     func replacingLogos(with logos: [String: URL]) -> Snapshot {
-        let holdings = self.holdings.map { holding in
-            guard case .asset(let mint) = holding.id else { return holding }
-            return Holding(id: holding.id, amount: holding.amount, name: holding.name, symbol: holding.symbol,
-                           imageURL: logos[mint], valuation: holding.valuation)
+        var snapshot = self
+        for index in snapshot.holdings.indices {
+            guard case .asset(let mint) = snapshot.holdings[index].id else { continue }
+            snapshot.holdings[index].imageURL = logos[mint]
         }
-        return Snapshot(owner: owner, network: network, holdings: holdings)
+        return snapshot
     }
 }

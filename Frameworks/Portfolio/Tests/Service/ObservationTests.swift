@@ -722,22 +722,6 @@ struct ObservationTests {
         try await service.removeData(for: testWallet)
         await second.waitUntilCancelled()
     }
-
-    /// Verifies subscriptions cannot invalidate holdings on another network.
-    @Test
-    func `Observation rejects mismatched networks before connecting`() async throws {
-        let fixture = ObservationFixture()
-        defer { fixture.cleanUp() }
-        let accounts = AccountResponses { _ in throw URLError(.notConnectedToInternet) }
-        let changes = Solana(network: .devnet, transport: accounts, socket: { _ in fixture.socket })
-        let service = Portfolio(rpc: accounts.client, store: fixture.store, tokenLists: isolatedTokenLists(),
-                                changes: changes)
-        var updates = await service.observations(for: testWallet).makeAsyncIterator()
-        let failed = try await nextResult(&updates)
-        #expect(failed.error as? ObservationError == .networkMismatch)
-        #expect(fixture.socket.requests.isEmpty)
-        #expect(await accounts.requests.isEmpty)
-    }
 }
 
 /// Holds the SOL balance that the next successful balance read reports, and records each read's accounts.

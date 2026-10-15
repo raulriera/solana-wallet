@@ -23,7 +23,6 @@ struct PortfolioErrorTests {
         (RPCError.server(code: 429, message: "Too many requests"), .rateLimited),
         (RPCError.http(statusCode: 500, retryAfter: nil), .unavailable),
         (RPCError.transport(.notConnectedToInternet), .unavailable),
-        (ObservationError.networkMismatch, .unavailable),
         (KeychainItemError.unreadable, .unavailable),
         (TokenListError.unreadable, .listUnreadable),
     ])

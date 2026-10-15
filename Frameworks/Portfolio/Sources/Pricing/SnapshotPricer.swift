@@ -5,23 +5,14 @@ import RPC
 struct SnapshotPricer: Sendable {
     let provider: any PriceProviding
 
-    /// Checks that prices describe the same network as the wallet's holdings.
-    /// - Parameter network: The network whose holdings are being refreshed.
-    /// - Throws: `PriceError.networkMismatch` for a different price-provider network.
-    func validate(network: Network) throws {
-        guard provider.network == network else { throw PriceError.networkMismatch }
-    }
-
-    /// Looks up quotes for holdings, once for each market.
+    /// Looks up quotes for holdings; the provider looks up a market that two holdings share once.
     /// - Parameter holdings: The holdings to price; native SOL shares Wrapped SOL's market.
     /// - Returns: Quotes keyed by mint; a mint without a quote has no entry.
     /// - Throws: A provider or cancellation error.
     @concurrent
     func quotes(for holdings: [Holding.Identity]) async throws -> [String: Quote] {
         try Task.checkCancellation()
-        var seen: Set<String> = []
-        let mints = holdings.map { mint(for: $0) }.filter { seen.insert($0).inserted }
-        return try await provider.prices(for: mints)
+        return try await provider.prices(for: holdings.map { mint(for: $0) })
     }
 
     /// Replaces all valuations with looked-up quotes.
@@ -31,25 +22,25 @@ struct SnapshotPricer: Sendable {
     /// - Returns: The same holdings with new valuations; omitted quotes remain unknown.
     /// - Throws: `PriceError.invalidQuote` for an invalid price or currency.
     func snapshot(pricing snapshot: Snapshot, with quotes: [String: Quote]) throws -> Snapshot {
-        let holdings = try snapshot.holdings.map { holding in
-            let valuation: Valuation?
-            if let quote = quotes[mint(for: holding.id)] {
-                guard !quote.pricePerUnit.isNaN, quote.pricePerUnit >= 0,
-                      !quote.currency.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                    throw PriceError.invalidQuote
-                }
-                valuation = Valuation(pricePerUnit: quote.pricePerUnit,
-                                      total: holding.amount.flatMap { total(for: $0, price: quote.pricePerUnit) },
-                                      currency: quote.currency,
-                                      // A change that isn't a number stays unknown; the price is still valid.
-                                      dayChange: quote.dayChange.flatMap { $0.isNaN ? nil : $0 })
-            } else {
-                valuation = nil
+        var priced = snapshot
+        for index in priced.holdings.indices {
+            let holding = priced.holdings[index]
+            guard let quote = quotes[mint(for: holding.id)] else {
+                priced.holdings[index].valuation = nil
+                continue
             }
-            return Holding(id: holding.id, amount: holding.amount, name: holding.name, symbol: holding.symbol,
-                           imageURL: holding.imageURL, valuation: valuation)
+            guard !quote.pricePerUnit.isNaN, quote.pricePerUnit >= 0,
+                  !quote.currency.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                throw PriceError.invalidQuote
+            }
+            priced.holdings[index].valuation = Valuation(
+                pricePerUnit: quote.pricePerUnit,
+                total: holding.amount.flatMap { total(for: $0, price: quote.pricePerUnit) },
+                currency: quote.currency,
+                // A change that isn't a number stays unknown; the price is still valid.
+                dayChange: quote.dayChange.flatMap { $0.isNaN ? nil : $0 })
         }
-        return Snapshot(owner: snapshot.owner, network: snapshot.network, holdings: holdings)
+        return priced
     }
 
     /// Identifies the token market for a holding without merging native SOL and Wrapped SOL balances.
