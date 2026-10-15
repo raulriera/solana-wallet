@@ -15,7 +15,8 @@ struct ProviderSelectionSection: View {
         Section {
             ProviderRow(provider: .solana, isSelected: selection == .solana, actions: actions)
             ProviderRow(provider: .helius, isSelected: selection == .helius, actions: actions)
-            // Duplicates are rejected, so each URL identifies its row.
+            // Duplicates are rejected and URLs are never edited, so each URL identifies its row.
+            // swiftfairy:disable:next list-identity-costly-to-compare
             ForEach(customRPCs, id: \.self) { url in
                 CustomRPCRow(url: url, isSelected: selection == .custom(url), removal: $removal, actions: actions)
             }

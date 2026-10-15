@@ -10,6 +10,8 @@ struct KeypadRow: View {
 
     var body: some View {
         GridRow {
+            // Each key appears once in its row and never changes, so it identifies itself.
+            // swiftfairy:disable:next list-identity-costly-to-compare
             ForEach(keys, id: \.self) { key in
                 switch key {
                 case .digit(let digit):
