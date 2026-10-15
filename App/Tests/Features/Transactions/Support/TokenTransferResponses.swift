@@ -11,6 +11,8 @@ struct TokenTransferResponses {
         case unsupportedOwner
         case nonemptySystem
         case executable
+        /// A token account of the mint that another wallet, the sender, controls.
+        case otherOwner
     }
 
     /// The account at the address entered as the recipient.
@@ -64,6 +66,7 @@ struct TokenTransferResponses {
         case .unsupportedOwner: account(owner: "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL")
         case .nonemptySystem: account(owner: Self.systemProgram, data: "AA==")
         case .executable: account(owner: Self.systemProgram, executable: true)
+        case .otherOwner: account(owner: program.rawValue, data: Self.sourceData)
         }
         let recipientAccount: Any = switch recipient {
         case .wallet: account(owner: Self.systemProgram)

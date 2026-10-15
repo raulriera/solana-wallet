@@ -161,6 +161,20 @@ struct TokenTransfersTests {
         #expect(await http.requests.count == 1)
     }
 
+    /// A wallet whose token account another address controls can't receive tokens; they'd belong to that address.
+    /// - Parameter program: The mint's token program.
+    /// - Throws: A fixture setup error.
+    @Test(arguments: TokenProgram.allCases)
+    func `A recipient whose token account another address controls is rejected`(program: TokenProgram) async throws {
+        let fixture = try TokenTransferResponses(program: program)
+        let http = try fixture.http(destination: .otherOwner)
+
+        await #expect(throws: TokenError.accountMismatch) {
+            try await TokenTransfers(rpc: http.client).transfer(
+                mint: fixture.mint, amount: 1, from: fixture.sender, to: fixture.recipient, source: fixture.source)
+        }
+    }
+
     /// An unallocated prefunded address still uses the mint's rules for newly initialized accounts.
     @Test
     func `Prefunding cannot bypass a Token-2022 default frozen account state`() async throws {
