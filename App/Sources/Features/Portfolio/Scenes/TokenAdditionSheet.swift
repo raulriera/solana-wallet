@@ -12,13 +12,7 @@ struct TokenAdditionSheet: View {
             TokenAdditionScreen(addition: addition)
                 .tokenAdditionLifecycle()
                 .onChange(of: addition.isAdded) { dismiss() }
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        // Toolbar buttons keep the system's monochrome look; the theme's tint is for content.
-                        Button("Cancel", role: .cancel) { dismiss() }
-                            .tint(.primary)
-                    }
-                }
+                .cancellationAction()
         }
     }
 }
