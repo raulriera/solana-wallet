@@ -59,6 +59,14 @@
           ],
         }, {
           "kind": "group",
+          "path": "ModularArithmetic",
+          "children": [
+            { "kind": "folder", "path": "Sources", "target-membership": [ "ModularArithmetic" ] },
+            { "kind": "folder", "path": "Tests", "target-membership": [ "ModularArithmeticTests" ] },
+            { "path": "README.md" },
+          ],
+        }, {
+          "kind": "group",
           "path": "Portfolio",
           "children": [
             { "kind": "folder", "path": "Sources", "target-membership": [ "Portfolio" ] },
@@ -77,7 +85,7 @@
           "kind": "group",
           "path": "TestSupport",
           "children": [
-            { "kind": "folder", "path": "Fixtures", "target-membership": [ "TransactionsTests", "WalletTests" ] },
+            { "kind": "folder", "path": "Fixtures", "target-membership": [ "ModularArithmeticTests", "TransactionsTests", "WalletTests" ] },
             {
               "kind": "folder",
               "path": "Networking",
@@ -201,6 +209,15 @@
             "EncodingTests/frameworks",
           ],
         }, {
+          "path": "<PRODUCTS>/ModularArithmetic.framework",
+          "id": "A80000000000000000000001",
+          "type": "wrapper.framework",
+          "target-membership": [
+            "widgets/frameworks",
+            { "build-phase": "widgets/copy/Embed Frameworks", "code-sign-on-copy": true, "header-preservation": "remove-on-copy" },
+            "ModularArithmeticTests/frameworks",
+          ],
+        }, {
           "path": "<PRODUCTS>/Themes.framework",
           "id": "A90000000000000000000001",
           "type": "wrapper.framework",
@@ -227,6 +244,7 @@
         { "path": "<PRODUCTS>/WalletTests.xctest", "id": "A30000000000000000000002", "type": "wrapper.cfbundle" },
         { "path": "<PRODUCTS>/TransactionsTests.xctest", "id": "A50000000000000000000002", "type": "wrapper.cfbundle" },
         { "path": "<PRODUCTS>/EncodingTests.xctest", "id": "A60000000000000000000002", "type": "wrapper.cfbundle" },
+        { "path": "<PRODUCTS>/ModularArithmeticTests.xctest", "id": "A80000000000000000000002", "type": "wrapper.cfbundle" },
         { "path": "<PRODUCTS>/ThemesTests.xctest", "id": "A90000000000000000000002", "type": "wrapper.cfbundle" },
         { "path": "<PRODUCTS>/VaultTests.xctest", "id": "A40000000000000000000002", "type": "wrapper.cfbundle" },
       ],
@@ -244,6 +262,7 @@
       ],
       "dependencies": [
         "Encoding",
+        "ModularArithmetic",
         "Themes",
         "RPC",
         "Portfolio",
@@ -430,6 +449,31 @@
         "SDKROOT": "iphoneos",
         "SKIP_INSTALL": "YES",
         "SUPPORTED_PLATFORMS": "iphoneos iphonesimulator",
+        "TARGETED_DEVICE_FAMILY": "1,2",
+      },
+    }, {
+      "name": "ModularArithmetic",
+      "id": "A80000000000000000000014",
+      "product": "Products/ModularArithmetic.framework",
+      "product-type": "framework",
+      "build-phases": [
+        "compile-sources",
+        "frameworks",
+        "resources",
+      ],
+      "build-settings": {
+        "CODE_SIGN_STYLE": "Automatic",
+        "DEFINES_MODULE": "YES",
+        "DEVELOPMENT_TEAM": "R64MTWS872",
+        "GENERATE_INFOPLIST_FILE": "YES",
+        "INSTALL_PATH": "$(LOCAL_LIBRARY_DIR)/Frameworks",
+        "PRODUCT_BUNDLE_IDENTIFIER": "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).ModularArithmetic",
+        "PRODUCT_NAME": "$(TARGET_NAME)",
+        "SDKROOT": "iphoneos",
+        "SKIP_INSTALL": "YES",
+        "SUPPORTED_PLATFORMS": "iphoneos iphonesimulator",
+        "SWIFT_COMPILATION_MODE": "wholemodule",
+        "SWIFT_OPTIMIZATION_LEVEL": "-O",
         "TARGETED_DEVICE_FAMILY": "1,2",
       },
     }, {
@@ -694,6 +738,37 @@
           "@loader_path/Frameworks",
         ],
         "PRODUCT_BUNDLE_IDENTIFIER": "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).EncodingTests",
+        "PRODUCT_NAME": "$(TARGET_NAME)",
+        "SDKROOT": "iphoneos",
+        "SKIP_INSTALL": "YES",
+        "SUPPORTED_PLATFORMS": "iphoneos iphonesimulator",
+        "TARGETED_DEVICE_FAMILY": "1,2",
+        "TEST_HOST": "",
+      },
+    }, {
+      "name": "ModularArithmeticTests",
+      "id": "A80000000000000000000015",
+      "product": "Products/ModularArithmeticTests.xctest",
+      "product-type": "bundle.unit-test",
+      "dependencies": [
+        "ModularArithmetic",
+      ],
+      "build-phases": [
+        "compile-sources",
+        "frameworks",
+        "resources",
+      ],
+      "build-settings": {
+        "BUNDLE_LOADER": "",
+        "CODE_SIGN_STYLE": "Automatic",
+        "DEVELOPMENT_TEAM": "R64MTWS872",
+        "GENERATE_INFOPLIST_FILE": "YES",
+        "LD_RUNPATH_SEARCH_PATHS": [
+          "$(inherited)",
+          "@executable_path/Frameworks",
+          "@loader_path/Frameworks",
+        ],
+        "PRODUCT_BUNDLE_IDENTIFIER": "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).ModularArithmeticTests",
         "PRODUCT_NAME": "$(TARGET_NAME)",
         "SDKROOT": "iphoneos",
         "SKIP_INSTALL": "YES",
