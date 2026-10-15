@@ -3,8 +3,7 @@ public import Foundation
 /// A provider-neutral market price for one whole, decimal-adjusted token.
 ///
 /// Providers map their responses into this value before returning it to consumers.
-/// Its Codable representation uses our field names independently of any provider.
-public struct Quote: Codable, Sendable, Equatable {
+public struct Quote: Sendable, Equatable {
     /// The quoted price of one whole token, without binary floating-point conversion.
     public let pricePerUnit: Decimal
     /// The currency supplied by the price source, such as `USD`.
@@ -18,7 +17,7 @@ public struct Quote: Codable, Sendable, Equatable {
     ///   - pricePerUnit: The nonnegative price of one whole token.
     ///   - currency: The quote currency.
     ///   - dayChange: The 24-hour price change as a fraction, or `nil` when unknown.
-    public init(pricePerUnit: Decimal, currency: String, dayChange: Decimal? = nil) {
+    public init(pricePerUnit: Decimal, currency: String, dayChange: Decimal?) {
         self.pricePerUnit = pricePerUnit
         self.currency = currency
         self.dayChange = dayChange

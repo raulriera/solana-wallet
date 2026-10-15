@@ -21,9 +21,9 @@ public struct Solana: RPC, AccountChangeProviding, SignatureEventProviding, Cust
     /// Subscriptions use the same URL over WSS. The client doesn't check which network the endpoint serves.
     /// - Parameters:
     ///   - endpoint: An HTTPS URL with a host; its port, path, and query are kept.
-    ///   - network: The network that the endpoint serves. The default is `mainnet`.
+    ///   - network: The network that the endpoint serves.
     /// - Returns: `nil` unless the endpoint uses HTTPS and has a host.
-    public init?(endpoint: URL, network: Network = .mainnet) {
+    public init?(endpoint: URL, network: Network) {
         self.init(endpoint: endpoint, network: network, transport: URLSessionTransport())
     }
 

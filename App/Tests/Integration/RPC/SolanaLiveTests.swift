@@ -8,7 +8,7 @@ struct SolanaLiveTests {
     /// Reads the native mint and watches it through the same URL, without reading wallets or submitting transactions.
     @Test
     func `A custom endpoint reads accounts and acknowledges subscriptions`() async throws {
-        let rpc = try #require(Solana(endpoint: URL(string: "https://api.mainnet.solana.com")!))
+        let rpc = try #require(Solana(endpoint: URL(string: "https://api.mainnet.solana.com")!, network: .mainnet))
         let nativeMint = "So11111111111111111111111111111111111111112"
 
         let response = try await rpc.send(GetMultipleAccounts(addresses: [nativeMint]))

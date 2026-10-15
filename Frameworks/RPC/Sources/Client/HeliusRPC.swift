@@ -13,8 +13,8 @@ public struct HeliusRPC: RPC, AccountChangeProviding, SignatureEventProviding, L
     ///
     /// - Parameters:
     ///   - apiKey: The caller's Helius API key. The client doesn't persist it.
-    ///   - network: The Solana network to query. The default is `mainnet`.
-    public init(apiKey: String, network: Network = .mainnet) {
+    ///   - network: The Solana network to query.
+    public init(apiKey: String, network: Network) {
         self.init(apiKey: apiKey, network: network, transport: URLSessionTransport())
     }
 

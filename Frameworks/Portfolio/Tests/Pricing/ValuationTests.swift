@@ -21,7 +21,7 @@ struct ValuationTests {
         (nil, Decimal(10), nil),
     ])
     func `Valuation preserves decimal precision and never invents unrepresentable totals`(amount: Amount?, price: Decimal, total: Decimal?) async throws {
-        let quote = Quote(pricePerUnit: price, currency: "CAD")
+        let quote = Quote(pricePerUnit: price, currency: "CAD", dayChange: nil)
         let snapshot = Snapshot(owner: "wallet", network: .devnet, holdings: [
             Holding(id: .asset("mint"), amount: amount, name: "Token", symbol: "TOK", imageURL: nil, valuation: nil),
         ])
@@ -35,9 +35,9 @@ struct ValuationTests {
     /// Verifies malformed normalized quotes cannot enter cached portfolio values.
     /// - Parameter quote: A quote violating the provider-neutral value contract.
     @Test(arguments: [
-        Quote(pricePerUnit: -1, currency: "USD"),
-        Quote(pricePerUnit: .nan, currency: "USD"),
-        Quote(pricePerUnit: 1, currency: " "),
+        Quote(pricePerUnit: -1, currency: "USD", dayChange: nil),
+        Quote(pricePerUnit: .nan, currency: "USD", dayChange: nil),
+        Quote(pricePerUnit: 1, currency: " ", dayChange: nil),
     ])
     func `Invalid independent quotes fail valuation`(quote: Quote) async {
         let snapshot = Snapshot(owner: "wallet", network: .devnet, holdings: [

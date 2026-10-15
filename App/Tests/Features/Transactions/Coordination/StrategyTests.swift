@@ -12,7 +12,7 @@ struct StrategyTests {
     @Test
     func `None selects all ordinary RPCs on the transaction network`() throws {
         let clients = try TransactionCoordinator.Strategy.none.clients(for: .mainnet, from: [
-            Solana(), HeliusRPC(apiKey: "test-key"), Solana(network: .devnet), Sender(tier: .premium),
+            Solana(), HeliusRPC(apiKey: "test-key", network: .mainnet), Solana(network: .devnet), Sender(tier: .premium),
         ])
 
         try #require(clients.count == 2)
@@ -32,7 +32,7 @@ struct StrategyTests {
     ])
     func `Sender strategies replace ordinary RPCs with one selected tier`(strategy: TransactionCoordinator.Strategy, tier: Sender.Tier) throws {
         let clients = try strategy.clients(for: .mainnet, from: [
-            Solana(), HeliusRPC(apiKey: "test-key"), Sender(tier: .premium),
+            Solana(), HeliusRPC(apiKey: "test-key", network: .mainnet), Sender(tier: .premium),
         ])
 
         try #require(clients.count == 1)

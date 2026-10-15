@@ -9,16 +9,6 @@ public struct GetMultipleAccounts: RPCRequest {
         public let context: Context
         /// Account values corresponding to the requested addresses in order.
         public let value: [Account?]
-
-        /// Creates an account response with an explicit shared context.
-        ///
-        /// - Parameters:
-        ///   - context: The shared slot at which the accounts were evaluated.
-        ///   - value: Ordered accounts, including explicit missing entries.
-        public init(context: Context, value: [Account?]) {
-            self.context = context
-            self.value = value
-        }
     }
 
     /// The addresses to retrieve in the same order as the response values.

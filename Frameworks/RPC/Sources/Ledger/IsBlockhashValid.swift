@@ -9,16 +9,6 @@ public struct IsBlockhashValid: RPCRequest {
         public let context: Context
         /// Whether the hash is in the node's recent-blockhash queue.
         public let value: Bool
-
-        /// Creates a blockhash validity observation.
-        ///
-        /// - Parameters:
-        ///   - context: The ledger context of the observation.
-        ///   - value: Whether the supplied recent blockhash remains valid.
-        public init(context: Context, value: Bool) {
-            self.context = context
-            self.value = value
-        }
     }
 
     /// The Base58 recent blockhash whose validity to check.

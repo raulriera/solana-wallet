@@ -2,9 +2,6 @@ public import Foundation
 
 /// A provider that hosts copies of token logos on its own HTTPS image server.
 public protocol LogoProviding: Sendable {
-    /// The network whose mint addresses identify the logos.
-    var network: Network { get }
-
     /// Looks up the provider's copies of token logos.
     ///
     /// Returns only HTTPS URLs on the provider's own image server, never creator-hosted or off-chain

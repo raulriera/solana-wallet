@@ -28,10 +28,6 @@ struct JupiterTests {
         #expect(quotes["metadata-only"] == nil)
         #expect(quotes["null-price"] == nil)
         #expect(quotes["null-record"] == nil)
-
-        let encoded = try JSONEncoder().encode(first)
-        let fields = try #require(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
-        #expect(Set(fields.keys) == ["pricePerUnit", "currency"])
         let request = try #require(await transport.requests.first)
         #expect(request.httpMethod == "GET")
         #expect(request.httpBody == nil)

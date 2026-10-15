@@ -63,7 +63,7 @@ struct SolanaTests {
     func `Custom endpoints require HTTPS and a host`(url: String) throws {
         let endpoint = try #require(URL(string: url))
 
-        #expect(Solana(endpoint: endpoint) == nil)
+        #expect(Solana(endpoint: endpoint, network: .mainnet) == nil)
     }
 
     /// Verifies server errors and descriptions omit a custom endpoint and each part that can hold its key.

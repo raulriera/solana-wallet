@@ -6,7 +6,7 @@ import Foundation
 /// preparation and confirmation continue through an ordinary RPC client.
 public struct Sender: RPC {
     /// The Sender routing tier selected by the app's settings.
-    public enum Tier: Sendable, CaseIterable, Equatable {
+    public enum Tier: Sendable {
         /// Lower-cost delivery through Helius's stake-weighted routing.
         case standard
         /// Broader delivery through all Helius Sender routes, with a higher tip.
