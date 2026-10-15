@@ -5,7 +5,7 @@ import Wallet
 @MainActor
 @Observable
 final class RecoveryEntryModel {
-    var phrase: String {
+    var phrase = "" {
         didSet {
             // Switching between the hidden and shown fields writes the same words back; only an edit clears the check.
             guard phrase != oldValue else { return }
@@ -16,7 +16,7 @@ final class RecoveryEntryModel {
     var passphrase = ""
     var showsWords = false
     var showsPassphrase = false
-    private(set) var hasPhrase: Bool
+    private(set) var hasPhrase = false
     /// Why the words can't be used, or `nil` while they haven't been checked or are valid.
     private(set) var rejection: RecoveryPhrase.ValidationError?
 
@@ -37,14 +37,6 @@ final class RecoveryEntryModel {
 
     /// The focus identity of the passphrase control currently shown.
     var passphraseField: Field { showsPassphrase ? .revealedPassphrase : .passphrase }
-
-    /// Seeds optional public-fixture preview input once without replacing subsequent edits.
-    /// - Parameter phrase: Empty for normal imports; public fixture words in previews.
-    init(phrase: String = "") {
-        self.phrase = phrase
-        // Initialize derived state directly; the phrase's observer doesn't run during construction.
-        hasPhrase = phrase.contains { !$0.isWhitespace }
-    }
 
     /// Checks local BIP-39 validity, including when editing ends without submitting.
     /// - Returns: Whether word count, English words, and checksum are valid.

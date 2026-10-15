@@ -4,18 +4,10 @@ import SwiftUI
 struct ImportWalletScreen: View {
     @Environment(\.palette) private var palette
     @Environment(\.canDisplayRecovery) private var canDisplayRecovery
-    @State private var input: RecoveryEntryModel
+    @State private var input = RecoveryEntryModel()
     @FocusState private var focusedField: RecoveryEntryModel.Field?
-    private let submission: any ImportSubmitting
-
-    /// Creates an entry screen with an optional one-time seed for public-fixture previews.
-    /// - Parameters:
-    ///   - initialPhrase: Initial input, empty for normal wallet imports; later values never replace edits.
-    ///   - submission: Receives locally validated input after explicit approval; owns subsequent work.
-    init(initialPhrase: String = "", submission: any ImportSubmitting) {
-        input = RecoveryEntryModel(phrase: initialPhrase)
-        self.submission = submission
-    }
+    /// Receives locally validated input after explicit approval; owns subsequent work.
+    let submission: any ImportSubmitting
 
     var body: some View {
         Form {
@@ -113,17 +105,14 @@ struct ImportWalletScreen: View {
     }
 }
 
-#Preview("Public import fixture") {
+#Preview {
     NavigationStack {
-        ImportWalletScreen(
-            initialPhrase: "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
-            submission: PreviewImportSubmission()
-        )
+        ImportWalletScreen(submission: PreviewImportSubmission())
     }
     .tint(RenderedPalette(OriginalAppearance.palette).accent)
 }
 
-/// Keeps public-fixture previews local without persistence or task side effects.
+/// Keeps previews local without persistence or task side effects.
 private struct PreviewImportSubmission: ImportSubmitting {
     var isPending: Bool { false }
 
