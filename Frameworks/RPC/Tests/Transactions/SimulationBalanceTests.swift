@@ -28,10 +28,10 @@ struct SimulationBalanceTests {
         #expect(value.postBalances == [994_999, 1, 1])
         #expect(value.preTokenBalances == [SimulateTransaction.TokenBalance(
             accountIndex: 1, mint: Self.mint, owner: "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM",
-            program: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", amount: .max, decimals: 6
+            amount: .max, decimals: 6
         )])
         #expect(value.postTokenBalances == [SimulateTransaction.TokenBalance(
-            accountIndex: 1, mint: Self.mint, owner: nil, program: nil, amount: 0, decimals: 6
+            accountIndex: 1, mint: Self.mint, owner: nil, amount: 0, decimals: 6
         )])
     }
 

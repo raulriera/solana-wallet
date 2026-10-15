@@ -25,7 +25,7 @@ public struct Jupiter: PriceProviding, CustomStringConvertible, CustomDebugStrin
     /// - Parameters:
     ///   - apiKey: An optional key sent only in the authentication header.
     ///   - transport: The transport performing real requests or supplying HTTP test fixtures.
-    ///   - pacer: Shared request admission control, or `nil` for conservative free-tier pacing.
+    ///   - pacer: Shared request admission control, or `nil` to space requests for keyed or keyless access.
     init(apiKey: String? = nil, transport: any HTTPTransport, pacer: (any RequestPacing)? = nil) {
         self.apiKey = apiKey
         self.transport = transport

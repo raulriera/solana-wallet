@@ -5,7 +5,7 @@ import Foundation
 /// Use this client as the selected submission route. It serves submission methods;
 /// preparation and confirmation continue through an ordinary RPC client.
 public struct Sender: RPC {
-    /// The Sender routing tier selected by the app's settings.
+    /// A Sender routing tier.
     public enum Tier: Sendable {
         /// Lower-cost delivery through Helius's stake-weighted routing.
         case standard

@@ -170,7 +170,7 @@ actor HTTPResponses: HTTPTransport {
     /// - Returns: The JSON object, with null attribution fields when unrecorded.
     private static func tokenBalance(_ balance: SimulateTransaction.TokenBalance) -> [String: Any] {
         ["accountIndex": balance.accountIndex, "mint": balance.mint,
-         "owner": balance.owner as Any? ?? NSNull(), "programId": balance.program as Any? ?? NSNull(),
+         "owner": balance.owner as Any? ?? NSNull(), "programId": NSNull(),
          "uiTokenAmount": ["amount": String(balance.amount), "decimals": balance.decimals,
                            "uiAmount": NSNull(), "uiAmountString": String(balance.amount)] as [String: Any]]
     }

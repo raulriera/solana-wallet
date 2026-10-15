@@ -130,6 +130,6 @@ struct BalanceChangeTests {
     ///   - amount: The balance in raw units.
     /// - Returns: The observation with six decimals.
     private static func balance(index: Int, owner: String?, mint: String = mint, amount: UInt64) -> SimulateTransaction.TokenBalance {
-        SimulateTransaction.TokenBalance(accountIndex: index, mint: mint, owner: owner, program: nil, amount: amount, decimals: 6)
+        SimulateTransaction.TokenBalance(accountIndex: index, mint: mint, owner: owner, amount: amount, decimals: 6)
     }
 }

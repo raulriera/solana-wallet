@@ -38,8 +38,7 @@ struct SimulationRedactionTests {
     private func balance(amount: UInt64) -> SimulateTransaction.TokenBalance {
         SimulateTransaction.TokenBalance(
             accountIndex: 1, mint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-            owner: "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM", program: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-            amount: amount, decimals: 6
+            owner: "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM", amount: amount, decimals: 6
         )
     }
 }

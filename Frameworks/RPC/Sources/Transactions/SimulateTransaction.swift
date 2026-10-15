@@ -133,9 +133,6 @@ public struct SimulateTransaction: RPCRequest {
         /// The token account's owner, or `nil` if the node didn't record it.
         public let owner: String?
 
-        /// The token program owning the account, or `nil` if the node didn't record it.
-        public let program: String?
-
         /// The balance in raw units, ignoring decimals.
         public let amount: UInt64
 
@@ -148,14 +145,12 @@ public struct SimulateTransaction: RPCRequest {
         ///   - accountIndex: The token account's index in the transaction's account list.
         ///   - mint: The mint's Base58 address.
         ///   - owner: The token account's owner, or `nil` if unrecorded.
-        ///   - program: The owning token program, or `nil` if unrecorded.
         ///   - amount: The balance in raw units.
         ///   - decimals: The mint's decimal places.
-        public init(accountIndex: Int, mint: String, owner: String?, program: String?, amount: UInt64, decimals: UInt8) {
+        public init(accountIndex: Int, mint: String, owner: String?, amount: UInt64, decimals: UInt8) {
             self.accountIndex = accountIndex
             self.mint = mint
             self.owner = owner
-            self.program = program
             self.amount = amount
             self.decimals = decimals
         }
@@ -169,7 +164,6 @@ public struct SimulateTransaction: RPCRequest {
             accountIndex = try container.decode(Int.self, forKey: .accountIndex)
             mint = try container.decode(String.self, forKey: .mint)
             owner = try container.decodeIfPresent(String.self, forKey: .owner)
-            program = try container.decodeIfPresent(String.self, forKey: .programId)
             let tokenAmount = try container.nestedContainer(keyedBy: TokenAmountKeys.self, forKey: .uiTokenAmount)
             let raw = try tokenAmount.decode(String.self, forKey: .amount)
             guard let amount = UInt64(raw) else {
@@ -181,7 +175,7 @@ public struct SimulateTransaction: RPCRequest {
 
         /// The field names in a token balance.
         private enum CodingKeys: String, CodingKey {
-            case accountIndex, mint, owner, programId, uiTokenAmount
+            case accountIndex, mint, owner, uiTokenAmount
         }
 
         /// The field names in the node's token amount representation.
