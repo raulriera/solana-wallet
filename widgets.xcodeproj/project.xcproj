@@ -188,6 +188,7 @@
           "target-membership": [
             "widgets/frameworks",
             { "build-phase": "widgets/copy/Embed Frameworks", "code-sign-on-copy": true, "header-preservation": "remove-on-copy" },
+            "Portfolio/frameworks",
             "Wallet/frameworks",
             "Transactions/frameworks",
             "EncodingTests/frameworks",
@@ -321,6 +322,7 @@
       "product": "Products/Portfolio.framework",
       "product-type": "framework",
       "dependencies": [
+        "Encoding",
         "RPC",
         "Transactions",
       ],
