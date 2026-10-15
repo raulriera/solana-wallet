@@ -24,38 +24,24 @@ struct WalletTests {
         let wallet: any WalletProviding = Wallet()
         let phrase = try RecoveryPhrase("  " + Array(repeating: "ABANDON", count: 11).joined(separator: " \n\t") + " ABOUT  ")
 
-        let address = try await wallet.address(for: phrase, passphrase: passphrase, path: DerivationPath(path))
+        let accounts = try await wallet.accounts(for: phrase, passphrase: passphrase, paths: [DerivationPath(path)])
 
-        #expect(address == expected)
+        #expect(accounts.map(\.address) == [expected])
     }
 
     /// Verifies that a newly generated twelve-word wallet restores the same default account.
     @Test
     func `New twelve-word wallets restore their address`() async throws {
         let wallet = Wallet()
-        let phrase = try wallet.recoveryPhrase()
+        let phrase = try wallet.recoveryPhrase(wordCount: .twelve)
         #expect(phrase.words.count == 12)
         let restored = try RecoveryPhrase(phrase.words.joined(separator: " "))
+        let path = try DerivationPath("m/44'/501'/0'/0'")
 
-        let originalAddress = try await wallet.address(for: phrase)
-        let restoredAddress = try await wallet.address(for: restored, passphrase: "", path: DerivationPath("m/44'/501'/0'/0'"))
+        async let original = wallet.accounts(for: phrase, passphrase: "", paths: [.solana])
+        async let restoredAccounts = wallet.accounts(for: restored, passphrase: "", paths: [path])
+        let (originalAddresses, restoredAddresses) = try await (original.map(\.address), restoredAccounts.map(\.address))
 
-        #expect(originalAddress == restoredAddress)
-    }
-
-    /// Verifies cancellation before derivation without scheduling assumptions or sleeps.
-    @Test
-    func `Cancelled address derivation throws CancellationError`() async throws {
-        let wallet = Wallet()
-        let phrase = try RecoveryPhrase(Array(repeating: "abandon", count: 11).joined(separator: " ") + " about")
-        let (gate, continuation) = AsyncStream<Void>.makeStream()
-        let task = Task { @concurrent in
-            for await _ in gate {}
-            return try await wallet.address(for: phrase)
-        }
-        task.cancel()
-        continuation.finish()
-
-        await #expect(throws: CancellationError.self) { try await task.value }
+        #expect(originalAddresses == restoredAddresses)
     }
 }

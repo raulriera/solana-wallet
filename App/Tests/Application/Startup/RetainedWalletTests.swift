@@ -16,9 +16,9 @@ struct RetainedWalletTests {
         for account in accounts {
             let recovery = try await store.recovery(for: account.recoveryID,
                 reason: "Verify saved wallet after installing an update")
-            let address = try await Wallet().address(for: recovery.phrase,
-                passphrase: recovery.passphrase, path: account.path)
-            let matchesSavedAddress = address == account.address.value
+            let derived = try await Wallet().accounts(for: recovery.phrase,
+                passphrase: recovery.passphrase, paths: [account.path])
+            let matchesSavedAddress = derived.map(\.address) == [account.address.value]
             #expect(matchesSavedAddress)
         }
     }

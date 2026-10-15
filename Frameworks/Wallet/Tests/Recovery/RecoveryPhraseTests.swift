@@ -67,7 +67,7 @@ struct RecoveryPhraseTests {
     func `Unavailable secure randomness prevents phrase creation`() {
         let wallet = Wallet(entropy: UnavailableEntropy())
         #expect(throws: UnavailableEntropyError.unavailable) {
-            try wallet.recoveryPhrase()
+            try wallet.recoveryPhrase(wordCount: .twelve)
         }
     }
 }

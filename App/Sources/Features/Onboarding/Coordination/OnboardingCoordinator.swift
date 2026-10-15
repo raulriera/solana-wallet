@@ -133,8 +133,9 @@ final class OnboardingCoordinator: OnboardingCoordinating {
     /// - Returns: The default address paired with its exact path.
     /// - Throws: A derivation or cancellation error.
     private func firstAccount(_ recovery: Recovery) async throws -> DerivedAccount {
-        let address = try await wallet.address(for: recovery.phrase, passphrase: recovery.passphrase, path: .solana)
-        return DerivedAccount(address: address, path: .solana)
+        let accounts = try await wallet.accounts(for: recovery.phrase, passphrase: recovery.passphrase, paths: [.solana])
+        guard let account = accounts.first else { throw OnboardingCoordinatorError.preparationFailed }
+        return account
     }
 
     /// Checks the existing twenty-address scan once; failures never become empty success.

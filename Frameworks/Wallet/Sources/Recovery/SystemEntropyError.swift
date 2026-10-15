@@ -1,5 +1,5 @@
 /// A failure reported by the system's secure random number generator.
-enum SystemEntropyError: Error, Equatable {
+enum SystemEntropyError: Error {
     /// The system couldn't generate random bytes.
-    case unavailable(status: Int32)
+    case unavailable
 }

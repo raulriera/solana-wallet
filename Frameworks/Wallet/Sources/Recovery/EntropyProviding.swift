@@ -16,11 +16,11 @@ struct SystemEntropy: EntropyProviding {
     ///
     /// - Parameter count: The number of bytes to generate.
     /// - Returns: Exactly `count` random bytes.
-    /// - Throws: ``SystemEntropyError/unavailable(status:)`` if the system reports a failure.
+    /// - Throws: ``SystemEntropyError/unavailable`` if the system reports a failure.
     func bytes(count: Int) throws -> [UInt8] {
         var bytes = [UInt8](repeating: 0, count: count)
         let status = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
-        guard status == errSecSuccess else { throw SystemEntropyError.unavailable(status: status) }
+        guard status == errSecSuccess else { throw SystemEntropyError.unavailable }
         return bytes
     }
 }

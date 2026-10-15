@@ -21,8 +21,9 @@ struct TokenPreparationLiveTests {
                                                : "9pan9bMn5HatX4EJdBwg9VgCa7Uz5HL8N1m5D3NdXejP")
         let coordinator = try TransactionCoordinator(rpc: rpc,
             store: KeychainStore(service: "widgetsTests.TokenPreparation"))
-        let absent = try Address(await Wallet().address(for: RecoveryPhrase(PublicWallet.words),
-                                                       passphrase: "missing-token-source"))
+        let source = try #require(try await Wallet().accounts(for: RecoveryPhrase(PublicWallet.words),
+                                                              passphrase: "missing-token-source", paths: [.solana]).first)
+        let absent = try Address(source.address)
 
         await #expect(throws: TokenTransfersError.missingAccount(absent)) {
             try await coordinator.transfer(1, token: mint, using: account, to: account.address, source: absent)

@@ -21,7 +21,7 @@ let accounts = try await service.accounts(
 ```
 
 - `recoveryPhrase(wordCount:)` generates 12, 15, 18, 21, or 24 words. `RecoveryPhrase` validates imported words and their checksum.
-- `address(for:passphrase:path:)` derives one address. `accounts(for:passphrase:paths:)` derives a batch using one temporary seed, preserving the requested order and duplicates.
+- `accounts(for:passphrase:paths:)` derives addresses using one temporary seed, preserving the requested order and duplicates.
 - `DerivationPath.solana` is `m/44'/501'/0'/0'`. Other hardened SLIP-0010 paths can be parsed with `DerivationPath(_:)`.
 - `signature(for:using:expectedAddress:passphrase:path:)` signs exact message bytes after checking that the recovered account matches the expected address. It returns a 64-byte signature or throws; it does not interpret the message.
 

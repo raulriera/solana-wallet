@@ -41,7 +41,8 @@ struct DevnetWallets {
     /// - Returns: The account with its derived public address.
     /// - Throws: A derivation or address validation error.
     private static func account(_ id: UUID, at path: DerivationPath, from recovery: Recovery) async throws -> Account {
-        let address = try await Wallet().address(for: recovery.phrase, passphrase: recovery.passphrase, path: path)
-        return Account(id: id, recoveryID: recoveryID, address: try Address(address), path: path)
+        let derived = try #require(try await Wallet().accounts(for: recovery.phrase, passphrase: recovery.passphrase,
+                                                               paths: [path]).first)
+        return Account(id: id, recoveryID: recoveryID, address: try Address(derived.address), path: path)
     }
 }

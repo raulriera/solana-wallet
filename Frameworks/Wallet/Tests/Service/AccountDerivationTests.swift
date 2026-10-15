@@ -27,7 +27,7 @@ struct AccountDerivationTests {
         let phrase = try RecoveryPhrase(Array(repeating: "abandon", count: 11).joined(separator: " ") + " about")
         let accounts = try await Wallet().accounts(for: phrase, passphrase: "TREZOR", paths: [.solana])
         #expect(accounts.first?.address == "7zSmbu6gKkb6HB7UDPtHYjwCWuBHU1D4TpNZFm4sndQe")
-        #expect(try await Wallet().accounts(for: phrase, paths: []).isEmpty)
+        #expect(try await Wallet().accounts(for: phrase, passphrase: "", paths: []).isEmpty)
     }
 
     /// Verifies a cancelled operation cannot return a successful batch.
@@ -37,7 +37,7 @@ struct AccountDerivationTests {
         let (gate, continuation) = AsyncStream<Void>.makeStream()
         let task = Task { @concurrent in
             for await _ in gate {}
-            return try await Wallet().accounts(for: phrase, paths: [.solana])
+            return try await Wallet().accounts(for: phrase, passphrase: "", paths: [.solana])
         }
         task.cancel()
         continuation.finish()

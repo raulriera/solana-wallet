@@ -40,7 +40,7 @@ struct SigningTests {
             try await Wallet().signature(
                 for: Data("public signing fixture".utf8), using: recovery,
                 expectedAddress: "HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk",
-                passphrase: "different account"
+                passphrase: "different account", path: .solana
             )
         }
     }
@@ -53,7 +53,7 @@ struct SigningTests {
 
         await #expect(throws: SigningError.signerMismatch) {
             try await Wallet().signature(for: Data("public signing fixture".utf8),
-                                         using: recovery, expectedAddress: address)
+                                         using: recovery, expectedAddress: address, passphrase: "", path: .solana)
         }
     }
 
@@ -66,7 +66,7 @@ struct SigningTests {
             for await _ in gate {}
             return try await Wallet().signature(
                 for: Data("public signing fixture".utf8), using: recovery,
-                expectedAddress: "HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk"
+                expectedAddress: "HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk", passphrase: "", path: .solana
             )
         }
         task.cancel()

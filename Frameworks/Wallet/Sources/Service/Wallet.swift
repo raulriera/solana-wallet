@@ -1,6 +1,3 @@
-import Encoding
-import CryptoKit
-
 /// A service that creates recovery phrases, derives addresses, and signs locally without persistence.
 public struct Wallet: WalletProviding {
     private let entropy: any EntropyProviding
@@ -19,39 +16,14 @@ public struct Wallet: WalletProviding {
 
     /// Generates a recovery phrase from cryptographically secure randomness.
     ///
-    /// - Parameter wordCount: The number of words to generate. The default is twelve.
+    /// - Parameter wordCount: The number of words to generate.
     /// - Returns: An English BIP-39 recovery phrase for the caller to back up.
     /// - Throws: An error if the entropy source fails or returns an invalid byte count.
-    public func recoveryPhrase(wordCount: RecoveryPhrase.WordCount = .twelve) throws -> RecoveryPhrase {
+    public func recoveryPhrase(wordCount: RecoveryPhrase.WordCount) throws -> RecoveryPhrase {
         let bytes = try entropy.bytes(count: wordCount.entropyByteCount)
         guard bytes.count == wordCount.entropyByteCount else {
             throw RecoveryPhrase.ValidationError.invalidEntropy
         }
         return try RecoveryPhrase(entropy: bytes)
-    }
-
-    /// Derives a Solana address on the concurrent executor.
-    ///
-    /// The service doesn't retain the phrase, passphrase, or derived private key.
-    /// Importing an existing account requires its original passphrase and path;
-    /// this operation doesn't discover accounts or check their network activity.
-    ///
-    /// - Parameters:
-    ///   - phrase: The validated recovery phrase.
-    ///   - passphrase: The optional BIP-39 passphrase. Whitespace and case are significant.
-    ///   - path: The hardened path. The default is `m/44'/501'/0'/0'`.
-    /// - Returns: The Base58-encoded public address, shared across Solana networks.
-    /// - Throws: `CancellationError` if cancelled, or a cryptographic error.
-    @concurrent
-    public func address(
-        for phrase: RecoveryPhrase,
-        passphrase: String = "",
-        path: DerivationPath = .solana
-    ) async throws -> String {
-        try Task.checkCancellation()
-        let key = try KeyDerivation.signingKey(for: phrase, passphrase: passphrase, path: path)
-        let address = Base58.encode(Array(key.publicKey.rawRepresentation))
-        try Task.checkCancellation()
-        return address
     }
 }

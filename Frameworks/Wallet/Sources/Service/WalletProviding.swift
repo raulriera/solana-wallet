@@ -7,16 +7,6 @@ public protocol WalletProviding: Sendable {
     /// - Throws: An error if secure randomness is unavailable.
     func recoveryPhrase(wordCount: RecoveryPhrase.WordCount) throws -> RecoveryPhrase
 
-    /// Derives a Solana address from a validated recovery phrase.
-    ///
-    /// - Parameters:
-    ///   - phrase: The recovery phrase used to derive the address.
-    ///   - passphrase: The optional BIP-39 passphrase. An empty string means none.
-    ///   - path: The hardened account path. Different paths produce different addresses.
-    /// - Returns: The Base58-encoded Ed25519 public key.
-    /// - Throws: `CancellationError` if cancelled, or a cryptographic error.
-    func address(for phrase: RecoveryPhrase, passphrase: String, path: DerivationPath) async throws -> String
-
     /// Derives an ordered batch of accounts without checking network activity.
     /// - Parameters:
     ///   - phrase: The validated recovery phrase.

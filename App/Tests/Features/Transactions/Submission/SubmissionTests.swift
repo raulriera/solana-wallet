@@ -143,14 +143,16 @@ struct SubmissionTests {
     func `Devnet RPCs reject a signed transaction from an unfunded wallet`() async throws {
         let rpcs = try devnetRPCs()
         let wallet = Wallet()
-        let phrase = try wallet.recoveryPhrase()
-        let address = try Address(await wallet.address(for: phrase))
+        let phrase = try wallet.recoveryPhrase(wordCount: .twelve)
+        let account = try #require(try await wallet.accounts(for: phrase, passphrase: "", paths: [.solana]).first)
+        let address = try Address(account.address)
         let blockhash = try await rpcs[0].send(GetLatestBlockhash())
         let message = try MessageBuilder().message(
             instructions: [SystemProgram.transfer(from: address, to: address, lamports: 1)], payer: address,
             recentBlockhash: blockhash.value.blockhash, configuration: configuration()
         )
-        let signature = try await wallet.signature(for: message, using: phrase, expectedAddress: address.value)
+        let signature = try await wallet.signature(for: message, using: phrase, expectedAddress: address.value,
+                                                   passphrase: "", path: .solana)
         let bytes = try TransactionBuilder().transaction(byAdding: signature, for: address,
             to: TransactionBuilder().simulationTransaction(for: message)).serializedRepresentation
 

@@ -13,7 +13,7 @@ extension Wallet {
     /// - Returns: The corresponding public addresses and exact paths.
     /// - Throws: A cryptographic error or `CancellationError`.
     @concurrent
-    public func accounts(for phrase: RecoveryPhrase, passphrase: String = "",
+    public func accounts(for phrase: RecoveryPhrase, passphrase: String,
                          paths: [DerivationPath]) async throws -> [DerivedAccount] {
         try Task.checkCancellation()
         guard !paths.isEmpty else { return [] }
