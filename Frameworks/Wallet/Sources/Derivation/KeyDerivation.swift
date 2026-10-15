@@ -15,6 +15,17 @@ enum KeyDerivation {
     ) throws -> Curve25519.Signing.PrivateKey {
         var seed = try SeedDerivation.seed(for: phrase, passphrase: passphrase)
         defer { seed.erase() }
+        return try signingKey(seed: seed, path: path)
+    }
+
+    /// Recovers a CryptoKit signing key from a seed that the caller already derived.
+    ///
+    /// - Parameters:
+    ///   - seed: The BIP-39 seed bytes.
+    ///   - path: The hardened account path.
+    /// - Returns: An Ed25519 key for use only within the current operation.
+    /// - Throws: `CancellationError` if cancelled, or a cryptographic error.
+    static func signingKey(seed: [UInt8], path: DerivationPath) throws -> Curve25519.Signing.PrivateKey {
         var bytes = try privateKey(seed: seed, path: path)
         defer { bytes.erase() }
         return try Curve25519.Signing.PrivateKey(rawRepresentation: bytes)

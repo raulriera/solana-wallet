@@ -20,9 +20,7 @@ extension Wallet {
         var seed = try SeedDerivation.seed(for: phrase, passphrase: passphrase)
         defer { seed.erase() }
         let accounts = try paths.map { path in
-            var bytes = try KeyDerivation.privateKey(seed: seed, path: path)
-            defer { bytes.erase() }
-            let key = try Curve25519.Signing.PrivateKey(rawRepresentation: bytes)
+            let key = try KeyDerivation.signingKey(seed: seed, path: path)
             return DerivedAccount(address: Base58.encode(Array(key.publicKey.rawRepresentation)), path: path)
         }
         try Task.checkCancellation()
