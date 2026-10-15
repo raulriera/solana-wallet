@@ -59,7 +59,7 @@ nonisolated struct Signer: TransactionSigning {
     /// - Parameters:
     ///   - preparation: The already validated review data.
     ///   - recoveryID: The shared recovery identifier.
-    ///   - path: The path constructed from the selected account's index.
+    ///   - path: The selected account's derivation path.
     ///   - reason: The localized authentication explanation.
     /// - Returns: The signature from the recovered account matching the selected required signer.
     /// - Throws: A storage, expiry, signing, or cancellation error.

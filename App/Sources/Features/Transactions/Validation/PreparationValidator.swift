@@ -16,7 +16,7 @@ nonisolated protocol PreparationValidating: Sendable {
     func validateLifetime(_ preparation: Preparation) async throws
 }
 
-/// Shared validation used before signing and before submission.
+/// Validation the signer runs before signing, and the lifetime check it repeats after signing.
 nonisolated struct PreparationValidator: PreparationValidating {
     private let rpc: any RPC
     private let messageBuilder: any MessageBuilding = MessageBuilder()
@@ -49,7 +49,7 @@ nonisolated struct PreparationValidator: PreparationValidating {
 
     /// Checks that review metadata agrees with exact message bytes and any local instruction composition.
     ///
-    /// - Parameter preparation: The review data to validate before signing or submission.
+    /// - Parameter preparation: The review data to validate before signing.
     /// - Throws: ``PreparationValidatorError`` for inconsistent or unsuccessful review data, or an encoding error.
     private func validateReview(_ preparation: Preparation) throws {
         guard preparation.network == rpc.network else { throw PreparationValidatorError.networkMismatch }

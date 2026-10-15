@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// Marks a label with a red symbol and keeps its text in the window's primary text color.
+/// Marks a label with a red symbol and red text.
 struct WarningLabelStyle: LabelStyle {
-    /// Colors the symbol red and the title with the window's primary text color.
+    /// Colors the symbol and the title red.
     /// - Parameter configuration: The label's title and symbol.
     /// - Returns: A native label with the warning colors.
     func makeBody(configuration: Configuration) -> some View {
@@ -17,6 +17,6 @@ struct WarningLabelStyle: LabelStyle {
 }
 
 extension LabelStyle where Self == WarningLabelStyle {
-    /// A label with a red symbol and text in the window's primary text color, for errors and destructive actions.
+    /// A label with a red symbol and red text, for errors and destructive actions.
     static var warning: Self { Self() }
 }

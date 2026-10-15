@@ -1,7 +1,7 @@
 import Foundation
 import RPC
 
-/// Connects the app to Helius, its only DAS provider, with a user-supplied mainnet key.
+/// Connects the app to Helius, its only DAS provider, with a user-supplied key.
 nonisolated struct HeliusConnection: ProviderConnecting {
     typealias EntryError = ProviderConnectionError
 

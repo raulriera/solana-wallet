@@ -4,7 +4,7 @@ import Foundation
 nonisolated struct ProviderSettings: Codable, Equatable, Sendable {
     /// An RPC provider.
     nonisolated enum Provider: Codable, Hashable, Sendable {
-        /// Solana's public mainnet RPC, which needs no key.
+        /// Solana's public RPC, which needs no key.
         case solana
         /// Helius, with the API key saved on this device.
         case helius

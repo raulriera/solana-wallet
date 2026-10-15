@@ -5,7 +5,7 @@ import Vault
 
 /// The app's typed entry point for simulating and approving arbitrary V1 transactions.
 nonisolated struct TransactionCoordinator: TransactionCoordinating {
-    /// The mutually exclusive submission strategy selected in app settings.
+    /// The mutually exclusive submission strategy.
     enum Strategy: Sendable {
         /// Submits through all configured ordinary RPCs without a Sender service tip.
         case none
