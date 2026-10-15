@@ -27,6 +27,8 @@ struct Ledger: Sendable {
     var tokens: [String: UInt64] = [:]
     /// Mints whose token accounts hold bytes that aren't a token account.
     var corrupt: Set<String> = []
+    /// Mints whose token accounts another address controls, keyed to that address.
+    var otherOwners: [String: String] = [:]
     /// Mints whose associated addresses received SOL before their token accounts were created.
     var prefunded: Set<String> = []
 }
@@ -128,8 +130,9 @@ actor AccountResponses: HTTPTransport {
         for (mint, units) in ledger.tokens {
             let token = try Address(mint)
             for program in TokenProgram.allCases where try program.associatedAccount(owner: wallet, mint: token).value == address {
+                let holder = try ledger.otherOwners[mint].map(Address.init) ?? wallet
                 let data = ledger.corrupt.contains(mint) ? Data([1, 2, 3])
-                    : tokenAccountData(mint: token, owner: wallet, units: units, program: program)
+                    : tokenAccountData(mint: token, owner: holder, units: units, program: program)
                 return ["owner": program.rawValue, "lamports": 2_039_280, "executable": false,
                         "data": [data.base64EncodedString(), "base64"]] as [String: Any]
             }

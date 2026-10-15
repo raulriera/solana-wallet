@@ -3,8 +3,9 @@ import SwiftUI
 
 /// One token as a card: its logo, symbol, and name, with its value and 24-hour change on the trailing side.
 ///
-/// The balance takes the value's place when the value is unknown. The card takes its color from the token's logo;
-/// until the color loads, or when the logo has none, it takes the placeholder gray.
+/// The balance takes the value's place when the value is unknown; a token without a known balance shows neither.
+/// The card takes its color from the token's logo; until the color loads, or when the logo has none, it takes
+/// the placeholder gray.
 struct TokenCard: View {
     @Environment(\.cardStyle) private var style
     @Environment(\.artworkColors) private var artworkColors
@@ -56,7 +57,7 @@ struct TokenCard: View {
                             .font(.caption.weight(.medium))
                             .foregroundStyle(secondary)
                     }
-                } else {
+                } else if let amount {
                     TokenBalance(amount: amount, abbreviates: true)
                         .font(.title3.weight(.semibold))
                 }

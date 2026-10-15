@@ -6,6 +6,7 @@
 - Include native SOL and fungible SPL Token and Token-2022 tokens only. Non-fungible tokens (NFTs) will be included in a separate future milestone.
 - Read balances with standard RPC, so every provider supports the portfolio. DAS does not supply balances or discover tokens.
 - Keep balances exact and native SOL distinct from Wrapped SOL.
+- When another address controls a token's associated account, show no balance, value, or price for that token. Its detail screen shows the start and end of the owner address, and people can copy the whole address.
 - Show logos only over HTTPS from the selected provider's CDN; today only Helius has one, through DAS lookups of the listed mints. SOL, USDC, and USDT use bundled logos; other tokens show their first letter. A failed lookup leaves the letter until the next balance read. Switching providers removes saved logos; the new provider's logos arrive with the next balance read.
 - Fetch market prices through RPC's interchangeable `PriceProviding` contract. Jupiter is one implementation; its private response is transformed into `Quote`, keyed by mint, with a decimal unit price, currency, and optional 24-hour change. Missing quotes mean unknown value, and a missing change means an unknown change; neither is zero.
 - Price providers identify their network. Jupiter supplies mainnet USD quotes; devnet shows amounts without value. Currency conversion remains deferred.

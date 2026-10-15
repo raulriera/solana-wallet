@@ -1,13 +1,14 @@
 import Foundation
 import RPC
 import Testing
+import Transactions
 @testable import Portfolio
 
 /// Checks provider-neutral decimal valuation independently of HTTP response formats.
 struct ValuationTests {
     /// Verifies exact totals and explicit unknowns at Decimal's representational limits.
     /// - Parameters:
-    ///   - amount: The known or unavailable token quantity.
+    ///   - amount: The token quantity.
     ///   - price: The price of one whole token in the provider's currency.
     ///   - total: The expected total, or `nil` when it cannot be represented exactly.
     /// - Throws: A pricing or test prerequisite error.
@@ -18,9 +19,8 @@ struct ValuationTests {
         (Amount(units: 1, decimals: .max), Decimal(0), Decimal(0)),
         (Amount(units: 1, decimals: .max), Decimal(10), nil),
         (Amount(units: .max, decimals: 0), Decimal.greatestFiniteMagnitude, nil),
-        (nil, Decimal(10), nil),
     ])
-    func `Valuation preserves decimal precision and never invents unrepresentable totals`(amount: Amount?, price: Decimal, total: Decimal?) async throws {
+    func `Valuation preserves decimal precision and never invents unrepresentable totals`(amount: Amount, price: Decimal, total: Decimal?) async throws {
         let quote = Quote(pricePerUnit: price, currency: "CAD", dayChange: nil)
         let snapshot = Snapshot(owner: "wallet", network: .devnet, holdings: [
             Holding(id: .asset("mint"), amount: amount, name: "Token", symbol: "TOK", imageURL: nil, valuation: nil),
@@ -41,11 +41,27 @@ struct ValuationTests {
     ])
     func `Invalid independent quotes fail valuation`(quote: Quote) async {
         let snapshot = Snapshot(owner: "wallet", network: .devnet, holdings: [
-            Holding(id: .asset("mint"), amount: nil, name: nil, symbol: nil, imageURL: nil, valuation: nil),
+            Holding(id: .asset("mint"), amount: Amount(units: 1, decimals: 0), name: nil, symbol: nil, imageURL: nil,
+                    valuation: nil),
         ])
         await #expect(throws: PriceError.invalidQuote) {
             try await valued(snapshot, with: FixedPrices(quote: quote))
         }
+    }
+
+    /// Verifies that a holding without a balance gets no valuation, even when its token has a quote.
+    /// - Throws: A pricing error.
+    @Test
+    func `A holding without a balance has no valuation`() async throws {
+        let quote = Quote(pricePerUnit: 1, currency: "USD", dayChange: Decimal(string: "0.01"))
+        let snapshot = Snapshot(owner: "wallet", network: .devnet, holdings: [
+            Holding(id: .asset("mint"), amount: nil, otherOwner: try Address(otherWallet), name: nil, symbol: nil,
+                    imageURL: nil, valuation: Valuation(pricePerUnit: 1, total: nil, currency: "USD")),
+        ])
+
+        let result = try await valued(snapshot, with: FixedPrices(quote: quote))
+
+        #expect(result.holdings.first?.valuation == nil)
     }
 
     /// Verifies a valuation keeps the quote's 24-hour change, including an unknown one.

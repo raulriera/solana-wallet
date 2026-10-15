@@ -7,6 +7,7 @@ import Transactions
 /// Shows one token's balance and, when known, its value, price, and 24-hour change; removes any token except native SOL.
 ///
 /// Devnet has no prices, so its tokens show only their balance and a note that they have no monetary value.
+/// A token whose account another address controls shows that address instead of a balance, value, or price.
 struct TokenDetailScreen: View {
     @Environment(\.palette) private var palette
     @Environment(\.network) private var network
@@ -22,9 +23,22 @@ struct TokenDetailScreen: View {
             .listRowBackground(palette.surface)
 
             Section {
-                LabeledContent("Balance") {
-                    TokenBalance(amount: holding.amount, symbol: holding.displaySymbol)
-                        .textSelection(.enabled)
+                if let amount = holding.amount {
+                    LabeledContent("Balance") {
+                        TokenBalance(amount: amount, symbol: holding.displaySymbol)
+                            .textSelection(.enabled)
+                    }
+                }
+                if let otherOwner = holding.otherOwner {
+                    LabeledContent("Owner") {
+                        // A narrow address keeps the row on one line and shows only the address's start and end;
+                        // copying takes it whole.
+                        Text(otherOwner.value)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                            .textSelection(.enabled)
+                            .frame(maxWidth: 130, alignment: .trailing)
+                    }
                 }
                 if let value = holding.knownValue {
                     LabeledContent("Value") {
@@ -49,7 +63,15 @@ struct TokenDetailScreen: View {
                 Text("Holdings")
             } footer: {
                 Group {
-                    if network == .devnet {
+                    if holding.otherOwner != nil {
+                        Label {
+                            Text("You don’t own this account. Funds sent here will be lost.",
+                                 comment: "Warning under a token whose account at the person's address another address controls.")
+                        } icon: {
+                            Image(systemName: "exclamationmark.circle.fill")
+                        }
+                        .labelStyle(.warning)
+                    } else if network == .devnet {
                         Text("Devnet tokens are for testing and have no monetary value.",
                              comment: "Footer under a token's balance in a window on Devnet, Solana's test network.")
                     } else if let currency = holding.knownValue?.currency {
@@ -85,6 +107,15 @@ struct TokenDetailScreen: View {
                                            name: "Solana", symbol: "SOL", imageURL: nil,
                                            valuation: Valuation(pricePerUnit: 166, total: 2_075, currency: "USD",
                                                                 dayChange: Decimal(string: "0.0129"))),
+                          removal: TokenRemovalModel(coordinator: PreviewPortfolio()))
+    }
+}
+
+#Preview("Other owner") {
+    NavigationStack {
+        TokenDetailScreen(holding: Holding(id: .asset("Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"), amount: nil,
+                                           otherOwner: try? Address("4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T"),
+                                           name: "Tether USD", symbol: "USDT", imageURL: nil, valuation: nil),
                           removal: TokenRemovalModel(coordinator: PreviewPortfolio()))
     }
 }

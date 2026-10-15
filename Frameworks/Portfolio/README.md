@@ -1,6 +1,6 @@
 # Portfolio
 
-Native SOL and each account's listed tokens, with persistent caching, prices, and new balance reads after finalized changes. One standard `getMultipleAccounts` request reads the wallet and every listed token's associated token account, so any RPC provider works.
+Native SOL and each account's listed tokens, with persistent caching, prices, and new balance reads after finalized changes. One standard `getMultipleAccounts` request reads the wallet and every listed token's associated token account, so any RPC provider works. When another address controls an associated token account, that holding has no amount or valuation, and `Holding.otherOwner` names the address.
 
 ## Example Usage
 

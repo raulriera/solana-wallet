@@ -42,8 +42,8 @@ struct BalanceReader: BalanceReading {
                              name: "Solana", symbol: "SOL", imageURL: nil, valuation: nil)
         let tokens = list.tokens.indices.map { index in
             let token = list.tokens[index]
-            return Holding(id: .asset(token.mint.value),
-                           amount: amount(of: token, at: accounts[index + 1], in: contents[index + 1], owner: wallet),
+            let account = balance(of: token, at: accounts[index + 1], in: contents[index + 1], owner: wallet)
+            return Holding(id: .asset(token.mint.value), amount: account.amount, otherOwner: account.otherOwner,
                            name: token.name, symbol: token.symbol, imageURL: nil, valuation: nil)
         }
         try Task.checkCancellation()
@@ -58,8 +58,10 @@ struct BalanceReader: BalanceReading {
     ///   - tokenAccount: The account's contents, or `nil` if it doesn't exist.
     ///   - owner: The wallet that must own the token account.
     /// - Returns: The exact balance, zero when the token account doesn't exist yet, even at an address that holds SOL,
-    ///   or `nil` when the account can't be read or holds something other than the owner's tokens.
-    private func amount(of token: ListedToken, at address: Address, in tokenAccount: Account?, owner: Address) -> Amount? {
+    ///   or no amount when the account can't be read or holds another mint. An account that another address
+    ///   controls has no amount and returns that address.
+    private func balance(of token: ListedToken, at address: Address, in tokenAccount: Account?,
+                         owner: Address) -> (amount: Amount?, otherOwner: Address?) {
         let decoded: TokenAccount?
         do {
             decoded = try tokenAccount.flatMap {
@@ -67,12 +69,14 @@ struct BalanceReader: BalanceReading {
             }
         } catch {
             // One unreadable token account leaves that balance unknown instead of failing every other balance.
-            return nil
+            return (nil, nil)
         }
         // A token account that doesn't exist yet holds nothing.
-        guard let decoded else { return Amount(units: 0, decimals: token.decimals) }
-        guard decoded.mint == token.mint, decoded.owner == owner else { return nil }
-        return Amount(units: decoded.amount, decimals: token.decimals)
+        guard let decoded else { return (Amount(units: 0, decimals: token.decimals), nil) }
+        guard decoded.mint == token.mint else { return (nil, nil) }
+        // The wallet's owner can sign its associated account over to another address, which then owns the tokens.
+        guard decoded.owner == owner else { return (nil, decoded.owner) }
+        return (Amount(units: decoded.amount, decimals: token.decimals), nil)
     }
 }
 

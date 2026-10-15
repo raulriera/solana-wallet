@@ -3,7 +3,7 @@ import SwiftUI
 
 /// One token in the portfolio list: its symbol and name, with its value and 24-hour change on the trailing side.
 ///
-/// The balance takes the value's place when the value is unknown.
+/// The balance takes the value's place when the value is unknown; a token without a known balance shows neither.
 struct TokenRow: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     let symbol: String
@@ -46,7 +46,7 @@ struct TokenRow: View {
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
-                } else {
+                } else if let amount {
                     TokenBalance(amount: amount, abbreviates: true)
                         .font(.headline)
                 }

@@ -19,13 +19,14 @@ struct SnapshotPricer: Sendable {
     /// - Parameters:
     ///   - snapshot: The complete holdings to value.
     ///   - quotes: The quotes from ``quotes(for:)``, keyed by mint.
-    /// - Returns: The same holdings with new valuations; omitted quotes remain unknown.
+    /// - Returns: The same holdings with new valuations; omitted quotes and holdings without an amount remain unknown.
     /// - Throws: `PriceError.invalidQuote` for an invalid price or currency.
     func snapshot(pricing snapshot: Snapshot, with quotes: [String: Quote]) throws -> Snapshot {
         var priced = snapshot
         for index in priced.holdings.indices {
             let holding = priced.holdings[index]
-            guard let quote = quotes[mint(for: holding.id)] else {
+            // A price values a balance, so a holding without one has no valuation.
+            guard let amount = holding.amount, let quote = quotes[mint(for: holding.id)] else {
                 priced.holdings[index].valuation = nil
                 continue
             }
@@ -35,7 +36,7 @@ struct SnapshotPricer: Sendable {
             }
             priced.holdings[index].valuation = Valuation(
                 pricePerUnit: quote.pricePerUnit,
-                total: holding.amount.flatMap { total(for: $0, price: quote.pricePerUnit) },
+                total: total(for: amount, price: quote.pricePerUnit),
                 currency: quote.currency,
                 // A change that isn't a number stays unknown; the price is still valid.
                 dayChange: quote.dayChange.flatMap { $0.isNaN ? nil : $0 })

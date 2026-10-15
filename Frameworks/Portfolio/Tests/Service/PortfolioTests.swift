@@ -127,6 +127,28 @@ struct PortfolioTests {
 
         #expect(updated.error == nil)
         #expect(updated.holdings.map(\.amount) == [Amount(units: 100, decimals: 9), nil, Amount(units: 7, decimals: 6)])
+        #expect(updated.holdings.allSatisfy { $0.otherOwner == nil })
+    }
+
+    /// Verifies a token account that another address controls names that address instead of a balance.
+    ///
+    /// - Throws: A fixture setup error or failed prerequisite.
+    @Test
+    func `A token account that another address controls names that address instead of a balance`() async throws {
+        let fixture = Fixture()
+        defer { fixture.removeFiles() }
+        let http = AccountResponses { _ in
+            Ledger(lamports: 100, tokens: [usdcMint: 5, usdtMint: 7], otherOwners: [usdtMint: otherWallet])
+        }
+        let service = fixture.portfolio(rpc: http.client)
+        var updates = await service.updates(for: testWallet).makeAsyncIterator()
+        _ = try #require(await updates.next())
+
+        let updated = try #require(await updates.next())
+
+        #expect(updated.error == nil)
+        #expect(updated.holdings.map(\.amount) == [Amount(units: 100, decimals: 9), Amount(units: 5, decimals: 6), nil])
+        #expect(updated.holdings.map(\.otherOwner) == [nil, nil, try Address(otherWallet)])
     }
 
     /// Verifies an address that received SOL before its token account exists holds none of the token.
