@@ -4,8 +4,10 @@ import Security
 
 /// Clears the app's real persistent state only for an explicitly requested simulator UI-test launch.
 enum UITestReset {
-    /// Resets wallet recovery, the provider key and choice, account metadata, and appearance before services are constructed.
-    /// - Parameter keychainServices: The same Keychain services used by production wallet and provider storage.
+    /// Resets wallet recovery, private-balance keys and notes, the provider key and choice, account metadata, and
+    /// appearance before services are constructed.
+    /// - Parameter keychainServices: The same Keychain services used by production wallet, private-balance, and
+    ///   provider storage.
     /// - Throws: A Keychain, filesystem, or app-configuration error if reset cannot complete.
     static func runIfRequested(keychainServices: [String]) throws {
         guard ProcessInfo.processInfo.environment["UI_TEST_RESET"] == "1" else { return }

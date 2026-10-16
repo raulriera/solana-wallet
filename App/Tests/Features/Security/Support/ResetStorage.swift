@@ -5,8 +5,8 @@ import Vault
 
 /// Records the order of reset deletions across every sensitive store, optionally failing one step once.
 actor ResetStorage: RecoveryStoring, AccountStoring {
-    /// A store that a reset empties.
-    enum Step: String, Sendable { case recovery, wallets, key, settings }
+    /// A store that a reset empties; the cases are in the order a reset empties them.
+    nonisolated enum Step: String, Sendable, CaseIterable { case recovery, privateBalances, wallets, key, settings }
 
     private var failing: Step?
     private(set) var deletions: [Step] = []
@@ -24,6 +24,9 @@ actor ResetStorage: RecoveryStoring, AccountStoring {
     /// Deletes every wallet, unless this step fails.
     /// - Throws: A scripted failure.
     func removeAll() async throws { try delete(.wallets) }
+
+    /// Each account's private-balance keys and notes, whose deletion this storage records.
+    nonisolated var privateBalances: ResetPrivateBalances { ResetPrivateBalances(storage: self) }
 
     /// The provider's API key, whose deletion this storage records.
     nonisolated var key: ResetValue<String> { ResetValue(storage: self, step: .key) }
@@ -73,5 +76,16 @@ actor ResetStorage: RecoveryStoring, AccountStoring {
     func add(_ account: widgets.Account) async throws -> [widgets.Account] {
         Issue.record("A reset must not add accounts.")
         return []
+    }
+}
+
+extension AppReset {
+    /// Creates a reset whose every store records its deletion in one shared storage.
+    /// - Parameters:
+    ///   - storage: The storage that records every reset step.
+    ///   - revision: Tells every window when the reset finishes.
+    init(storage: ResetStorage, revision: Revision) {
+        self.init(recovery: storage, privateBalances: storage.privateBalances, accounts: storage, providerKey: storage.key,
+                  providerSettings: storage.settings, revision: revision)
     }
 }

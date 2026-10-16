@@ -7,8 +7,9 @@ import RPC
 /// window applies to the next request. Solana's public RPC and Helius serve each network at its own host; Helius
 /// uses the same key on each network. A custom RPC serves mainnet only; on another network it fails instead of
 /// using another provider. A capability the selected provider lacks gives its empty result: only Helius has logo
-/// copies. The client for the latest provider is kept to reuse its connections.
-nonisolated struct ProviderClient: RPC, AccountChangeProviding, LogoProviding {
+/// copies. Only Helius reads private notes; another provider's private-note reads throw
+/// ``ProviderClientError/privateNotesUnavailable``. The client for the latest provider is kept to reuse its connections.
+nonisolated struct ProviderClient: RPC, AccountChangeProviding, LogoProviding, PrivateNoteProviding {
     /// Where requests go, with what the provider needs to accept them.
     nonisolated enum Endpoint: Hashable, Sendable {
         /// Solana's public RPC.
@@ -70,6 +71,43 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, LogoProviding {
         try await perform { client in
             guard let client = client as? any LogoProviding else { return [:] }
             return try await client.logos(for: mints)
+        }
+    }
+
+    /// Reads the selected provider's private-note transactions tagged with any of the view tags, after a position.
+    /// - Parameters:
+    ///   - tags: 32-byte view tags, such as an account's Ed25519 public key.
+    ///   - position: The position from an earlier read of the same tags, or `nil` to read from the start.
+    /// - Returns: The provider's transactions, tree, and next position.
+    /// - Throws: ``ProviderClientError/privateNotesUnavailable`` when the selected provider doesn't read private notes,
+    ///   another ``ProviderClientError``, a storage error, a `PrivateNoteError`, any other `RPCError`, or
+    ///   `CancellationError`.
+    func shieldedTransactions(taggedWith tags: [[UInt8]], after position: NoteSyncPosition?) async throws
+        -> ShieldedTransactionBatch {
+        try await performPrivateNotes { try await $0.shieldedTransactions(taggedWith: tags, after: position) }
+    }
+
+    /// Reads the selected provider's transactions that spent any of the nullifiers.
+    /// - Parameter nullifiers: 32-byte nullifiers.
+    /// - Returns: Each spending transaction once, in slot and signature order.
+    /// - Throws: ``ProviderClientError/privateNotesUnavailable`` when the selected provider doesn't read private notes,
+    ///   another ``ProviderClientError``, a storage error, a `PrivateNoteError`, any other `RPCError`, or
+    ///   `CancellationError`.
+    func shieldedTransactions(spending nullifiers: [[UInt8]]) async throws -> [ShieldedTransaction] {
+        try await performPrivateNotes { try await $0.shieldedTransactions(spending: nullifiers) }
+    }
+
+    /// Runs a private-note read on the selected provider's client.
+    /// - Parameter operation: The read to send to the provider.
+    /// - Returns: The read's result.
+    /// - Throws: ``ProviderClientError/privateNotesUnavailable`` when the selected provider doesn't read private notes,
+    ///   or the error of ``perform(_:)``.
+    private func performPrivateNotes<Value: Sendable>(
+        _ operation: (any PrivateNoteProviding) async throws -> Value
+    ) async throws -> Value {
+        try await perform { client in
+            guard let client = client as? any PrivateNoteProviding else { throw ProviderClientError.privateNotesUnavailable }
+            return try await operation(client)
         }
     }
 

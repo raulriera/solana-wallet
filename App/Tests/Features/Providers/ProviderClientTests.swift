@@ -144,6 +144,76 @@ struct ProviderClientTests {
         #expect(await responses.requests.count == lookups)
     }
 
+    /// Private-note reads go to Helius's indexer on the client's network.
+    @Test
+    func `Helius reads private notes`() async throws {
+        let responses = HTTPResponses.privateNotes()
+        let client = responses.providerClient(network: .devnet, settings: StoredValue(ProviderSettings(selection: .helius)),
+                                              providerKey: StoredValue("fixture-key"))
+        let tag = [UInt8](repeating: 7, count: 32)
+
+        let batch = try await client.shieldedTransactions(taggedWith: [tag], after: nil)
+        let spends = try await client.shieldedTransactions(spending: [tag])
+
+        #expect(batch.transactions.isEmpty)
+        #expect(spends.isEmpty)
+        #expect(try await responses.requests.map { try $0.rpcMethod }.sorted() == [
+            GetEncryptedUtxosByTags.method, GetShieldedTransactionsByNullifiers.method, GetShieldedTransactionsByTags.method,
+        ])
+        #expect(await responses.requests.allSatisfy { $0.url?.host() == "devnet.helius-rpc.com" })
+    }
+
+    /// A provider that doesn't read private notes fails each read before sending anything.
+    @Test
+    func `Other providers fail private-note reads before sending anything`() async {
+        let responses = HTTPResponses.privateNotes()
+        let client = responses.providerClient(network: .devnet, settings: StoredValue(ProviderSettings(selection: .solana)),
+                                              providerKey: StoredValue<String>())
+        let tag = [UInt8](repeating: 7, count: 32)
+
+        await #expect(throws: ProviderClientError.privateNotesUnavailable) {
+            _ = try await client.shieldedTransactions(taggedWith: [tag], after: nil)
+        }
+        await #expect(throws: ProviderClientError.privateNotesUnavailable) {
+            _ = try await client.shieldedTransactions(spending: [tag])
+        }
+        #expect(await responses.requests.isEmpty)
+    }
+
+    /// A custom RPC fails private-note reads before sending anything: off mainnet because it serves only mainnet, and
+    /// on mainnet because it doesn't read private notes.
+    /// - Parameters:
+    ///   - network: The client's network.
+    ///   - error: The error that each read throws.
+    @Test(arguments: [(Network.devnet, ProviderClientError.unsupportedNetwork), (.mainnet, .privateNotesUnavailable)])
+    func `A custom RPC fails private-note reads before sending anything`(network: Network,
+                                                                         error: ProviderClientError) async throws {
+        let responses = HTTPResponses.privateNotes()
+        let custom = try #require(URL(string: "https://rpc.example.com"))
+        let client = responses.providerClient(network: network, settings: StoredValue(ProviderSettings(selection: .custom(custom))),
+                                              providerKey: StoredValue<String>())
+        let tag = [UInt8](repeating: 7, count: 32)
+
+        await #expect(throws: error) { _ = try await client.shieldedTransactions(taggedWith: [tag], after: nil) }
+        await #expect(throws: error) { _ = try await client.shieldedTransactions(spending: [tag]) }
+        #expect(await responses.requests.isEmpty)
+    }
+
+    /// Helius rejecting the saved key on a private-note read is reported as a key error.
+    /// - Parameter status: The HTTP status Helius returns.
+    @Test(arguments: [401, 403])
+    func `A rejected Helius key on a private-note read is reported as a key error`(status: Int) async {
+        let responses = HTTPResponses.privateNotes(error: .http(statusCode: status, retryAfter: nil))
+        let client = responses.providerClient(network: .devnet, settings: StoredValue(ProviderSettings(selection: .helius)),
+                                              providerKey: StoredValue("rejected-key"))
+        let tag = [UInt8](repeating: 7, count: 32)
+
+        await #expect(throws: ProviderClientError.invalidKey) {
+            _ = try await client.shieldedTransactions(taggedWith: [tag], after: nil)
+        }
+        await #expect(throws: ProviderClientError.invalidKey) { _ = try await client.shieldedTransactions(spending: [tag]) }
+    }
+
     /// Each endpoint gets its production client for the network, and a custom URL that isn't HTTPS gets none.
     /// - Parameters:
     ///   - endpoint: A saved endpoint.

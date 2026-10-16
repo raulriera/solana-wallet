@@ -86,7 +86,7 @@ struct SecurityCoordinatorTests {
         await coordinator.run(coordinator.attempt)
 
         #expect(coordinator.path == [.resetConfirmation])
-        #expect(await storage.deletions == [.recovery, .wallets, .key, .settings])
+        #expect(await storage.deletions == ResetStorage.Step.allCases)
         #expect(revision.value == 1)
         #expect(coordinator.error == nil)
     }
@@ -144,8 +144,7 @@ struct SecurityCoordinatorTests {
         SecurityCoordinator(services: SecurityServices(
             recovery: RecoveryReveal(store: recovery),
             owner: owner,
-            reset: AppReset(recovery: storage, accounts: storage, providerKey: storage.key, providerSettings: storage.settings,
-                            revision: revision),
+            reset: AppReset(storage: storage, revision: revision),
             pasteboard: NoPasteboard()
         ))
     }

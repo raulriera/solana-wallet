@@ -1,5 +1,6 @@
 import Foundation
 import Portfolio
+import Privacy
 import RPC
 import Vault
 import Wallet
@@ -21,6 +22,7 @@ struct AppServices {
     let artworkColors: any ArtworkColorProviding = ArtworkColors()
     let recoveryPasteboard: any RecoveryCopying
     let recoveryCleanup: any RecoveryCleaning
+    let privateBalances: any PrivateBalancing
     let resetRevision = Revision()
     let security: SecurityServices
 
@@ -29,17 +31,22 @@ struct AppServices {
     init() throws {
         let recoveryService = "com.raulriera.widgets.recovery"
         let providerService = "com.raulriera.widgets.provider"
+        let privateBalanceService = "com.raulriera.widgets.private-balance"
         #if DEBUG && targetEnvironment(simulator)
-        try UITestReset.runIfRequested(keychainServices: [recoveryService, providerService])
+        try UITestReset.runIfRequested(keychainServices: [recoveryService, providerService, privateBalanceService])
         #endif
         // Exclusion is guidance to the system; a failure must not block the app, and the next launch tries again.
         try? BackupExclusion.apply(to: .applicationSupportDirectory)
         appearance = try AppearanceServices()
-        wallet = Wallet()
+        let wallet = Wallet()
+        self.wallet = wallet
         discovery = AccountDiscovery(rpc: Solana(network: .mainnet), wallet: wallet)
         recovery = KeychainStore(service: recoveryService)
         accounts = try AccountStore()
-        recoveryCleanup = RecoveryCleanup(accounts: accounts, recovery: recovery)
+        let privateBalanceKeys = KeychainItem(service: privateBalanceService, account: "keys",
+                                              coding: .json(PrivateBalances.Keys.self))
+        let privateBalanceNotes = KeychainItem(service: privateBalanceService, account: "notes",
+                                               coding: .json(PrivateBalances.Notes.self))
         let providerKey = KeychainItem(service: providerService, account: "api-key", coding: .utf8)
         let providerSettings = KeychainItem(service: providerService, account: "settings", coding: .json(ProviderSettings.self))
         self.providerKey = providerKey
@@ -49,6 +56,13 @@ struct AppServices {
                       prices: prices)
         }
         self.portfolios = portfolios
+        // Private balances keep their own client per network, apart from the portfolios' token reads.
+        let privateBalances = PrivateBalances(recovery: recovery, wallet: wallet, keys: privateBalanceKeys,
+                                              notes: privateBalanceNotes) { network in
+            ProviderClient(network: network, settings: providerSettings, providerKey: providerKey)
+        }
+        self.privateBalances = privateBalances
+        recoveryCleanup = RecoveryCleanup(accounts: accounts, recovery: recovery, privateBalances: privateBalances)
         let providerSelection = ProviderSelection(settings: providerSettings, providerKey: providerKey,
                                                   portfolios: { portfolios.created }, revisions: providerRevisions)
         self.providerSelection = providerSelection
@@ -57,8 +71,8 @@ struct AppServices {
         security = SecurityServices(
             recovery: RecoveryReveal(store: recovery),
             owner: DeviceOwnerAuthentication(),
-            reset: AppReset(recovery: recovery, accounts: accounts, providerKey: providerKey,
-                            providerSettings: providerSettings, revision: resetRevision),
+            reset: AppReset(recovery: recovery, privateBalances: privateBalances, accounts: accounts,
+                            providerKey: providerKey, providerSettings: providerSettings, revision: resetRevision),
             pasteboard: recoveryPasteboard
         )
     }

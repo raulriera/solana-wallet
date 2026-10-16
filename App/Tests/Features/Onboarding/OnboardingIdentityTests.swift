@@ -46,7 +46,9 @@ struct OnboardingIdentityTests {
             try #require(await http.requests.count == 1)
 
             let revision = Revision()
-            try await AppReset(recovery: recovery, accounts: accounts, providerKey: keys,
+            let privateBalances = PrivateBalances.inMemory(keys: StoredValue(), notes: StoredValue(), recovery: recovery,
+                                                           responses: HTTPResponses([:]))
+            try await AppReset(recovery: recovery, privateBalances: privateBalances, accounts: accounts, providerKey: keys,
                                providerSettings: StoredValue<ProviderSettings>(), revision: revision).reset()
             try #require(revision.value == 1)
             try #require(try await accounts.load().isEmpty)

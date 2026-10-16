@@ -8,26 +8,24 @@ import Testing
 struct AppResetTests {
     /// Secrets go first, and every window hears about the reset only once everything is deleted.
     @Test
-    func `Reset deletes recovery first, then wallets, then the API key, then the provider settings`() async throws {
+    func `Reset deletes recovery first, then private balances, then wallets, then the API key, then the provider settings`() async throws {
         let storage = ResetStorage()
         let revision = Revision()
 
-        try await AppReset(recovery: storage, accounts: storage, providerKey: storage.key, providerSettings: storage.settings,
-                           revision: revision).reset()
+        try await AppReset(storage: storage, revision: revision).reset()
 
-        #expect(await storage.deletions == [.recovery, .wallets, .key, .settings])
+        #expect(await storage.deletions == ResetStorage.Step.allCases)
         #expect(revision.value == 1)
     }
 
     /// A failed step stops the reset and keeps windows where they are; trying again finishes it.
     /// - Parameter step: The store whose first deletion fails.
-    @Test(arguments: [ResetStorage.Step.recovery, .wallets, .key, .settings])
+    @Test(arguments: ResetStorage.Step.allCases)
     func `Retrying after a failed step finishes the reset`(_ step: ResetStorage.Step) async throws {
         let storage = ResetStorage(failingOnce: step)
         let revision = Revision()
-        let reset = AppReset(recovery: storage, accounts: storage, providerKey: storage.key, providerSettings: storage.settings,
-                             revision: revision)
-        let order: [ResetStorage.Step] = [.recovery, .wallets, .key, .settings]
+        let reset = AppReset(storage: storage, revision: revision)
+        let order = ResetStorage.Step.allCases
 
         await #expect(throws: CocoaError.self) { try await reset.reset() }
         #expect(await storage.deletions == Array(order.prefix { $0 != step }))
