@@ -93,6 +93,7 @@
           "kind": "group",
           "path": "TestSupport",
           "children": [
+            { "kind": "folder", "path": "Fields", "target-membership": [ "ModularArithmeticTests", "PrivacyTests" ] },
             { "kind": "folder", "path": "Fixtures", "target-membership": [ "ModularArithmeticTests", "PrivacyTests", "TransactionsTests", "WalletTests" ] },
             {
               "kind": "folder",

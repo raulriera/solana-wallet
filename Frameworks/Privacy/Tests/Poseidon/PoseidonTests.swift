@@ -12,7 +12,7 @@ struct PoseidonTests {
     /// - Parameter vector: Published canonical inputs and their hash.
     @Test(arguments: try PoseidonParity.load().vectors)
     func `Hashes match the published vectors`(_ vector: PoseidonParity.Vector) throws {
-        let inputs = try vector.inputsBytes.map { try #require(Poseidon.Element(bigEndianBytes: fixtureBytes($0))) }
+        let inputs = try vector.inputsBytes.map(Poseidon.Element.init(hex:))
 
         #expect(try Poseidon.hash(inputs).bigEndianBytes == fixtureBytes(vector.expectedBytes))
     }
