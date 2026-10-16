@@ -1,6 +1,8 @@
+import CryptoKit
 import ModularArithmetic
 @testable import Privacy
 import Testing
+import Transactions
 
 /// zolana's byte-literal fixtures of two default-ring SOL transfers.
 ///
@@ -9,8 +11,12 @@ import Testing
 /// and tree IDs that its fixtures pass. `CommitmentVectors-LICENSE.txt` records the source and its
 /// digest. The sender is the Ed25519 rail of `key_derivation.json`, whose signing secret is 32
 /// bytes of 7. Every UTXO holds SOL and carries no data. Case A spends one UTXO from tree 0 into
-/// tree 0; case B spends UTXOs from trees 3 and 1 into tree 2. Output slot 0 belongs to a
-/// recipient whose keys the fixtures don't publish, so its commitments are left out.
+/// tree 0; case B spends UTXOs from trees 3 and 1 into tree 2. Output slot 0 belongs to the
+/// recipient, the Ed25519 rail of signing secret 32 bytes of 9, whose keys zolana doesn't publish;
+/// a separate Python implementation of RFC 8032 signing and zolana's rail derivation supplies them,
+/// and they reproduce both published slot-0 commitments. Both cases seal every output's note with
+/// the salt of 16 bytes of 0x5a; case A's fee payer is the sender and case B's is the relayed payer
+/// of 32 bytes of 3.
 enum TransferVectors {
     /// An input slot: a UTXO that the sender spends, or an empty UTXO that pads the slot.
     struct Input: Sendable, CustomTestStringConvertible {
@@ -61,6 +67,35 @@ enum TransferVectors {
             let outputBlindingSeed = TransactBlinding.outputBlindingSeed(firstNullifier: nullifier, blindingSeed: TransferVectors.blindingSeed)
             return TransactBlinding.outputBlinding(firstNullifier: nullifier, outputBlindingSeed: outputBlindingSeed, index: index)
         }
+    }
+
+    /// One whole transfer: its slots and the hashes that `hash_vectors.rs` publishes for it.
+    struct Transfer: Sendable, CustomTestStringConvertible {
+        /// The transfer's name in `hash_vectors.rs`.
+        let name: String
+        /// The nullifier of input slot 0.
+        let firstNullifier: String
+        /// The ID of the output tree.
+        let outputTreeID: UInt16
+        /// The spent inputs, in slot order before the padding.
+        let spentInputs: [Input]
+        /// The padding inputs, which hash as zero.
+        let paddingInputs: [Input]
+        /// The recipient's amount in output slot 0.
+        let recipientAmount: UInt64
+        /// The recipient's UTXO hash in output slot 0.
+        let recipientCommitment: String
+        /// The sender's outputs in slots 1 to 3.
+        let senderOutputs: [Output]
+        /// The fee payer's address.
+        let payer: String
+        /// The external data hash.
+        let externalDataHash: String
+        /// The private transaction hash.
+        let privateTransactionHash: String
+
+        /// The transfer's name, in test results.
+        var testDescription: String { name }
     }
 
     /// A proof's first nullifier and its private transaction blinding.
@@ -164,6 +199,73 @@ enum TransferVectors {
             privateTransactionBlinding: "08f38264c4c4f791b841d55fa6a48ce981609c141e223939e46d14e1774f0078"
         ),
     ]
+
+    /// The salt of both transfers' notes, `SALT`.
+    static let salt = [UInt8](repeating: 0x5a, count: 16)
+
+    /// The recipient's Ed25519 signing address, the public key of signing secret 32 bytes of 9.
+    static let recipientSigningAddress = "J2xccRtuG43drESLYznHhLhQkLTdfepcKYbiQ9BsJVaf"
+
+    /// The recipient's nullifier public key, independently derived.
+    static let recipientNullifierPublicKey = "07f313f2ef546c5ac079f4591e978eaaa944e2ffee4dd5c5fa2156ff39e84856"
+
+    /// The recipient's 32-byte P-256 viewing secret, independently derived.
+    static let recipientViewingSecret = "e1eba2fc69ef567562725af78342749ef7af2a63251ae2343c7e789522dccfa2"
+
+    /// The sender's Ed25519 signing address, the Ed25519 rail's `signer_pubkey`.
+    static let senderSigningAddress = "GmaDrppBC7P5ARKV8g3djiwP89vz1jLK23V2GBjuAEGB"
+
+    /// Both transfers, with the values that `hash_vectors.rs` publishes for them.
+    static let transfers = [
+        Transfer(
+            name: "CASE_A", firstNullifier: caseAFirstNullifier, outputTreeID: 0,
+            spentInputs: [spentInputs[0]], paddingInputs: [paddingInputs[0]], recipientAmount: 4,
+            recipientCommitment: "2e594a80158648b6dab780fd6e3cb9562df793ba52fcae62da52bcfd71db4360",
+            senderOutputs: Array(outputs[0..<3]), payer: senderSigningAddress,
+            externalDataHash: "00dbaa00ad37765ac297258d4c5ee6ed81efea1beea765f593835efb20755e1f",
+            privateTransactionHash: "2fc2151ff99263248e517ea9b1c64907b45cae11ceea497833051a7ab6582174"
+        ),
+        Transfer(
+            name: "CASE_B", firstNullifier: caseBFirstNullifier, outputTreeID: 2,
+            spentInputs: Array(spentInputs[1...2]), paddingInputs: Array(paddingInputs[1...2]), recipientAmount: 4,
+            recipientCommitment: "1923c73dd6386bc75c4a72a75ca31185928a174f0206d9fc71b0af597b8f7219",
+            senderOutputs: Array(outputs[3..<6]), payer: "CktRuQ2mttgRGkXJtyksdKHjUdc2C4TgDzyB98oEzy8",
+            externalDataHash: "00eaf658e5b067715f37535419f0de68b3438045ee9943c6fcff06437b2404d2",
+            privateTransactionHash: "09237d093e2622323e34fb3cd86e1ae0f26e20078c0d82a82be86b6c607c854a"
+        ),
+    ]
+
+    /// Creates the recipient's viewing key from its independently derived secret.
+    ///
+    /// - Returns: The viewing key.
+    /// - Throws: A test failure if the secret is malformed, or a CryptoKit error if it isn't a
+    ///   P-256 private key.
+    static func recipientViewingKey() throws -> P256.KeyAgreement.PrivateKey {
+        try P256.KeyAgreement.PrivateKey(rawRepresentation: fixtureBytes(recipientViewingSecret))
+    }
+
+    /// Creates the recipient of output slot 0 from its independently derived keys.
+    ///
+    /// - Returns: The recipient.
+    /// - Throws: A test failure if a key is malformed, or an error if a key isn't valid.
+    static func recipient() throws -> Recipient {
+        try Recipient(
+            signingAddress: Address(recipientSigningAddress), nullifierPublicKey: Poseidon.Element(hex: recipientNullifierPublicKey),
+            viewingPublicKey: recipientViewingKey().publicKey
+        )
+    }
+
+    /// Creates the sender, zolana's Ed25519 rail, from its published keys.
+    ///
+    /// - Returns: The sender.
+    /// - Throws: A test failure if the fixture is missing or malformed, or an error if a key isn't
+    ///   valid.
+    static func sender() throws -> TransactPlan.Sender {
+        let rail = try CommitmentVectors.load().ed25519Rail
+        return try TransactPlan.Sender(
+            signingAddress: Address(senderSigningAddress), nullifierKey: rail.nullifierKey(), viewingKey: rail.viewingKey()
+        )
+    }
 
     /// Returns a fixture blinding: a zero byte followed by 31 copies of one byte, as the
     /// `blinding` function of `hash_vectors.rs` builds it.

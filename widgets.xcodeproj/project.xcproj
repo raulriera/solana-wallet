@@ -201,9 +201,11 @@
             "widgets/frameworks",
             { "build-phase": "widgets/copy/Embed Frameworks", "code-sign-on-copy": true, "header-preservation": "remove-on-copy" },
             "Portfolio/frameworks",
+            "Privacy/frameworks",
             "PortfolioTests/frameworks",
             "widgetsTests/frameworks",
             "TransactionsTests/frameworks",
+            "PrivacyTests/frameworks",
           ],
         }, {
           "path": "<PRODUCTS>/Encoding.framework",
@@ -507,6 +509,7 @@
       "product-type": "framework",
       "dependencies": [
         "ModularArithmetic",
+        "Transactions",
       ],
       "build-phases": [
         "compile-sources",
@@ -836,6 +839,7 @@
       "dependencies": [
         "ModularArithmetic",
         "Privacy",
+        "Transactions",
       ],
       "build-phases": [
         "compile-sources",

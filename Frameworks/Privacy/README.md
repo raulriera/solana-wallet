@@ -1,6 +1,6 @@
 # Privacy
 
-Cryptography for Solana Rings private balances. It provides the Poseidon hash over the BN254 scalar field, built on [ModularArithmetic](../ModularArithmetic/README.md), the commitments of default-ring transfers, and the encryption of their SOL notes. Its API is internal to the module.
+Cryptography and instructions for Solana Rings private balances. It provides the Poseidon hash over the BN254 scalar field, built on [ModularArithmetic](../ModularArithmetic/README.md), the commitments of default-ring transfers, the encryption of their SOL notes, and the shielded pool's deposit and transact instructions, as [Transactions](../Transactions/README.md) `Instruction` values. Its API is internal to the module.
 
 ## Poseidon
 
@@ -40,6 +40,20 @@ The notes of confidential outputs in peer-to-peer default-ring transfers between
 - The 58-byte transfer sender bundle in zolana's `spec.md` is stale; the module follows zolana's TypeScript and Rust code.
 - Tests check zolana's `tx_viewing` and `hpke_utxo` vectors. Other values, including the payload of a published transfer's output, come from an independent implementation.
 
+## Shielded pool
+
+Instructions for zolana's shielded-pool program: a proofless deposit, and a transact that carries its proof. Both are SOL only, in the default ring, between Ed25519 owners. The program ID is zolana's development deployment. Instruction data is a one-byte tag followed by zolana's wincode encoding, which [`WincodeWriter`](Sources/ShieldedPool/WincodeWriter.swift) writes.
+
+- [`ShieldedPool`](Sources/ShieldedPool/ShieldedPool.swift): the program, the SOL interface, `["sol_interface", [0]]`, each tree, `["tree", ID as little-endian u16]`, and each nullifier account, `["nullifier", tree, nullifier]`.
+- [`Recipient`](Sources/ShieldedPool/Recipient.swift): a shielded address's signing address, which is also its view tag, nullifier public key, and viewing public key, and its owner hash. Off-curve signing addresses are rejected, because no key could spend their UTXOs.
+- [`ShieldedPool+Deposit`](Sources/ShieldedPool/ShieldedPool+Deposit.swift): `deposit`, tag 15, of public SOL into one recipient's UTXO. The program derives the UTXO's blinding.
+- [`TransactPlan`](Sources/Transact/TransactPlan.swift): a SOL transact before its proof, after zolana's `ConfidentialTransaction` with random padding. It spends at most 40 of the sender's UTXOs, zolana's wallet limit, from at most two trees, into a transfer, a withdrawal, or both, and change; picks the cheapest of the 38 supported [`Shape`](Sources/Transact/Shape.swift)s; pads inputs and outputs with empty UTXOs; derives the output blindings; and seals each real output's note. Randomness comes from an injected `RandomNumberGenerator`.
+- [`ExternalData`](Sources/Transact/ExternalData.swift): the instruction's prefix that the proof commits to, with no expiry, and its hash: SHA-256 of the tag 16, the prefix, the withdrawal's SOL interface and recipient, and the payer once for each output that refers to it, with the first byte set to zero. [`TransactOutput`](Sources/Transact/TransactOutput.swift) writes each output with its view tag inline or as a reference to the payer.
+- [`PrivateTransactionHash`](Sources/Transact/PrivateTransactionHash.swift): `Poseidon(chain(inputs), chain(outputs), 0, blinding)` with zolana's nonzero hash chain; padding slots enter as zero, and no addresses are created.
+- [`TransactPlan.instruction(proof:treeContexts:)`](Sources/Transact/TransactPlan+Instruction.swift): `transact`, tag 16, with the [`TransactProof`](Sources/Transact/TransactProof.swift) and one [`TreeContext`](Sources/Transact/TreeContext.swift) per input tree. The sender pays the fee and signs; the proof binds the payer, not the blockhash.
+- The prover, the indexer, policy rings, tokens, merges, and compact padding aren't supported.
+- Tests check zolana's nullifier account vector, the nonzero hash chain and private transaction hash vectors, and the external data and private transaction hashes of the two transfers in `hash_vectors.rs`, with every output's note. The transfers' recipient keys, the tree addresses, and whole deposit and transact instructions, which zolana doesn't publish, come from an independent implementation.
+
 ## Side channels
 
 The rounds depend only on the number of inputs. Field arithmetic follows ModularArithmetic's [side-channel note](../ModularArithmetic/README.md#side-channels). The scalar reduction branches only to reject a zero scalar. Encryption zeroes the buffers that it fills with key material, scalars, and counter blocks; CryptoKit and CommonCrypto hold the other copies of keys and shared secrets; the view root and the field elements of the scalar reduction aren't erased.
@@ -53,7 +67,9 @@ The rounds depend only on the number of inputs. Field arithmetic follows Modular
 | zolana's TypeScript [keypair](https://github.com/helius-labs/zolana/tree/v0.4.0-alpha/sdk-libs/ts/src/keypair) and [transaction](https://github.com/helius-labs/zolana/tree/v0.4.0-alpha/sdk-libs/ts/src/transaction) sources, and Rust [keypair tests](https://github.com/helius-labs/zolana/tree/v0.4.0-alpha/sdk-libs/keypair/tests) | v0.4.0-alpha | Reference for the commitments and the encryption; read, never run |
 | zolana's [test vectors](https://github.com/helius-labs/zolana/tree/v0.4.0-alpha/test-vectors) `hash_bytes.json`, `transact_derivation.json`, and `key_derivation.json` (Apache-2.0) | v0.4.0-alpha | Commitment and encryption test vectors; sections copied unchanged |
 | zolana's TypeScript tests [`seed-based-keypair.test.ts`](https://github.com/helius-labs/zolana/blob/v0.4.0-alpha/sdk-libs/ts/test/seed-based-keypair.test.ts) and [`ring-policy.test.ts`](https://github.com/helius-labs/zolana/blob/v0.4.0-alpha/sdk-libs/ts/test/ring-policy.test.ts) (Apache-2.0) | v0.4.0-alpha | Owner-hash and nullifier test values, copied unchanged |
-| zolana's Rust test [`hash_vectors.rs`](https://github.com/helius-labs/zolana/blob/v0.4.0-alpha/sdk-libs/transaction/tests/hash_vectors.rs) (Apache-2.0) | v0.4.0-alpha | UTXO-hash, nullifier, and blinding test values of two transfers, copied unchanged |
+| zolana's Rust test [`hash_vectors.rs`](https://github.com/helius-labs/zolana/blob/v0.4.0-alpha/sdk-libs/transaction/tests/hash_vectors.rs) (Apache-2.0) | v0.4.0-alpha | UTXO-hash, nullifier, blinding, external data hash, and private transaction hash test values of two transfers, copied unchanged |
+| zolana's [interface](https://github.com/helius-labs/zolana/tree/v0.4.0-alpha/program-libs/interface/src), [shielded-pool accounts](https://github.com/helius-labs/zolana/tree/v0.4.0-alpha/programs/shielded-pool/src/instructions), and Rust [transact builder](https://github.com/helius-labs/zolana/tree/v0.4.0-alpha/sdk-libs/transaction/src/instructions/transact) | v0.4.0-alpha | Reference for the instructions, their accounts, and the transact plan; read, never run |
+| zolana's [test vectors](https://github.com/helius-labs/zolana/tree/v0.4.0-alpha/test-vectors) `private_tx_hash.json` and `nonzero_hash_chain.json`, and the nullifier account vector of `program-libs/interface/tests/pda.rs` (Apache-2.0) | v0.4.0-alpha | Hash and address test vectors, copied unchanged |
 | zolana's [Poseidon parity fixture](https://github.com/helius-labs/zolana/blob/v0.4.0-alpha/sdk-libs/ts/vectors/poseidon-parity-v1.json) (Apache-2.0) | v0.4.0-alpha | Test digests and vectors, copied unchanged |
 | [light-poseidon](https://github.com/Lightprotocol/light-poseidon/tree/v0.4.0) | 0.4.0 | Round structure and partial-round counts |
 | hadeshash's [`generate_parameters_grain.sage`](https://extgit.isec.tugraz.at/krypto/hadeshash) | — | Grain LFSR method for the constants and matrices |

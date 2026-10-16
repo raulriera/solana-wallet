@@ -17,6 +17,9 @@ SHA-256: 2d3413474c2f250ed7dced5391a33028a10fad4a52edea86c759a4e20e9cbafd
 TransferVectors.swift: the default-ring SOL transfer values in
 https://github.com/helius-labs/zolana/blob/v0.4.0-alpha/sdk-libs/transaction/tests/hash_vectors.rs
 SHA-256: b6b7a86e96072a77c7230f691c5f6e554e30486db4de13810f7ebbc5c1338550
+ShieldedPoolTests.swift: the nullifier account of nullifier_pda_matches_typescript_vector in
+https://github.com/helius-labs/zolana/blob/v0.4.0-alpha/program-libs/interface/tests/pda.rs
+SHA-256: f500898eb7413e10aafbbc7c4eaef650f895e903cded34086e3513fdfe13a441
 Tag: v0.4.0-alpha
 Commit: 0fde5f1
 License: https://github.com/helius-labs/zolana/blob/v0.4.0-alpha/LICENSE
