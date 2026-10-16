@@ -31,6 +31,9 @@ final class ProvidersCoordinator: ProviderActions {
     var error: ProvidersError?
     /// The change waiting for the screen's task, identified without secrets.
     private(set) var attempt: UUID?
+    /// The provider chosen once the key it asked for was saved, until another change begins; a choice made without
+    /// key entry never sets it.
+    private(set) var completedKeyChoice: ProviderSettings.Provider?
     /// Tell every window when the provider settings change, including a saved key, and when portfolios use another
     /// connection.
     let revisions: ProviderRevisions
@@ -44,7 +47,8 @@ final class ProvidersCoordinator: ProviderActions {
 
     /// A change that waits for storage.
     private enum Request {
-        case select(ProviderSettings.Provider)
+        /// Chooses a provider; `afterKeyEntry` marks the choice that continues once its key sheet saved the key.
+        case select(ProviderSettings.Provider, afterKeyEntry: Bool)
         case remove(URL)
     }
 
@@ -76,7 +80,7 @@ final class ProvidersCoordinator: ProviderActions {
     /// Taps while another change waits are ignored.
     /// - Parameter provider: The provider to use.
     func select(_ provider: ProviderSettings.Provider) {
-        begin(.select(provider))
+        begin(.select(provider, afterKeyEntry: false))
     }
 
     /// Pushes a provider's details: Helius's saved key or a custom RPC's URL.
@@ -120,15 +124,14 @@ final class ProvidersCoordinator: ProviderActions {
         begin(.remove(url))
     }
 
-    /// Whether the key sheet that a waiting choice opened has saved its key, so the choice can continue.
-    var isKeyChoiceSaved: Bool { keyChoice?.entry.isSaved ?? false }
-
     /// Continues the choice that asked for a key, once its key sheet has saved the key; a sheet that closed without a
     /// saved key continues nothing.
+    ///
+    /// Once the choice is saved, ``completedKeyChoice`` names its provider.
     func keySaved() {
-        guard isKeyChoiceSaved, let provider = keyChoice?.provider else { return }
-        keyChoice = nil
-        select(provider)
+        guard let keyChoice, keyChoice.entry.isSaved else { return }
+        self.keyChoice = nil
+        begin(.select(keyChoice.provider, afterKeyEntry: true))
     }
 
     /// Reads the saved choice, custom RPCs, and key again; unreadable settings keep the last ones read and explain
@@ -176,6 +179,7 @@ final class ProvidersCoordinator: ProviderActions {
         removal = nil
         attempt = nil
         request = nil
+        completedKeyChoice = nil
         error = nil
         selection = nil
         customRPCs = []
@@ -190,20 +194,23 @@ final class ProvidersCoordinator: ProviderActions {
         defer { if self.attempt == attempt { self.attempt = nil } }
         do {
             switch request {
-            case .select(let provider): try await providers.select(provider)
-            case .remove(let url): try await providers.remove(url)
+            case .select(let provider, let afterKeyEntry):
+                try await providers.select(provider)
+                if afterKeyEntry { completedKeyChoice = provider }
+            case .remove(let url):
+                try await providers.remove(url)
             }
         } catch is CancellationError {
             // The screen left before the change was saved.
         } catch ProviderClientError.missingKey {
-            guard !Task.isCancelled, self.attempt == attempt, case .select(let provider) = request else { return }
+            guard !Task.isCancelled, self.attempt == attempt, case .select(let provider, _) = request else { return }
             let keyEntry = ProviderSetupModel(connection: connection)
             keyChoice = KeyChoice(provider: provider, entry: keyEntry)
             self.keyEntry = keyEntry
         } catch {
             guard !Task.isCancelled, self.attempt == attempt else { return }
             switch request {
-            case .select(let provider) where provider == selection:
+            case .select(let provider, _) where provider == selection:
                 // Choosing the provider in use changes nothing, even when its key can't be read.
                 break
             case .select: self.error = .selectionUnsaved
@@ -217,6 +224,7 @@ final class ProvidersCoordinator: ProviderActions {
     private func begin(_ request: Request) {
         guard attempt == nil else { return }
         error = nil
+        completedKeyChoice = nil
         self.request = request
         attempt = UUID()
     }

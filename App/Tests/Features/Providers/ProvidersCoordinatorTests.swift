@@ -49,9 +49,51 @@ struct ProvidersCoordinatorTests {
         await coordinator.reload()
 
         #expect(coordinator.selection == .helius)
+        #expect(coordinator.completedKeyChoice == .helius)
         #expect(revisions.settings.value == settingsChanges)
         #expect(coordinator.attempt == nil)
         #expect(coordinator.error == nil)
+    }
+
+    /// Only a choice that waited for its key reports that it's complete, until the next change begins.
+    /// - Throws: A test prerequisite error.
+    @Test
+    func `Only a choice that waited for its key completes it`() async throws {
+        let settings = StoredValue<ProviderSettings>()
+        let coordinator = ProvidersCoordinator.inMemory(settings: settings, providerKey: StoredValue())
+        coordinator.select(.helius)
+        await coordinator.run(coordinator.attempt)
+        try await saveKey(in: try #require(coordinator.keyEntry), for: coordinator)
+        await coordinator.run(coordinator.attempt)
+        try #require(coordinator.completedKeyChoice == .helius)
+
+        coordinator.select(.solana)
+        #expect(coordinator.completedKeyChoice == nil)
+        await coordinator.run(coordinator.attempt)
+        // The key is saved now, so Helius is chosen without key entry.
+        coordinator.select(.helius)
+        await coordinator.run(coordinator.attempt)
+
+        #expect(coordinator.completedKeyChoice == nil)
+        #expect(coordinator.keyEntry == nil)
+        #expect(await settings.value?.selection == .helius)
+    }
+
+    /// A choice that can't be saved after its key is saved explains it and doesn't complete.
+    /// - Throws: A test prerequisite error.
+    @Test
+    func `A key choice that can't be saved doesn't complete`() async throws {
+        let coordinator = ProvidersCoordinator.inMemory(settings: StoredValue(failsSaving: true),
+                                                        providerKey: StoredValue())
+        coordinator.select(.helius)
+        await coordinator.run(coordinator.attempt)
+        try await saveKey(in: try #require(coordinator.keyEntry), for: coordinator)
+
+        await coordinator.run(coordinator.attempt)
+
+        #expect(coordinator.error == .selectionUnsaved)
+        #expect(coordinator.completedKeyChoice == nil)
+        #expect(coordinator.attempt == nil)
     }
 
     /// A replaced key never changes the provider, even after key entry for a choice of Helius closes without a key.
@@ -76,7 +118,6 @@ struct ProvidersCoordinatorTests {
         try #require(replacement.isSaved)
         coordinator.keySaved()
 
-        #expect(!coordinator.isKeyChoiceSaved)
         #expect(coordinator.keyEntry == nil)
         #expect(await settings.value?.selection == .solana)
         #expect(coordinator.attempt == nil)
@@ -375,7 +416,6 @@ struct ProvidersCoordinatorTests {
         try #require(keyEntry.isSaved)
         coordinator.keySaved()
 
-        #expect(!coordinator.isKeyChoiceSaved)
         #expect(coordinator.keyEntry == nil)
         #expect(coordinator.attempt == nil)
         #expect(coordinator.selection == nil)
@@ -469,14 +509,14 @@ struct ProvidersCoordinatorTests {
     /// - Parameters:
     ///   - keyEntry: The coordinator's open key entry.
     ///   - coordinator: The coordinator that owns key entry.
-    /// - Throws: A test prerequisite error when the key isn't saved.
+    /// - Throws: A test prerequisite error when the key isn't saved or the choice doesn't continue.
     private func saveKey(in keyEntry: ProviderSetupModel<ProviderConnectionError>,
                          for coordinator: ProvidersCoordinator) async throws {
         keyEntry.submit("fixture-key")
         await keyEntry.run(keyEntry.attempt)
         try #require(keyEntry.isSaved)
         coordinator.keyEntry = nil
-        try #require(coordinator.isKeyChoiceSaved)
         coordinator.keySaved()
+        try #require(coordinator.attempt != nil)
     }
 }

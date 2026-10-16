@@ -18,10 +18,9 @@ struct ProvidersLifecycle: ViewModifier {
         content
             .task(id: coordinator.revisions.settings.value) { await coordinator.reload() }
             .task(id: attempt) { await coordinator.run(attempt) }
-            .sheet(item: $coordinator.keyEntry) { ProviderSetupSheet(submission: $0) }
             // The sheet closes itself after a saved key, before its own content could react, so the choice that asked
-            // for the key continues from here.
-            .onChange(of: coordinator.isKeyChoiceSaved) { coordinator.keySaved() }
+            // for the key continues from here, once the sheet has finished closing.
+            .sheet(item: $coordinator.keyEntry, onDismiss: coordinator.keySaved) { ProviderSetupSheet(submission: $0) }
             .alert("Delete RPC?", item: $coordinator.removal) { url in
                 Button("Delete", role: .destructive) { coordinator.remove(url) }
                 Button("Cancel", role: .cancel) {}

@@ -141,19 +141,28 @@ struct OnboardingApp {
     }
 
     /// Opens the saved wallet with the provider in use, waits for it, and shows its portfolio.
-    ///
-    /// The window can restore the tab it showed before the reset that started the test, so the portfolio is selected.
     /// - Parameters:
     ///   - file: The calling test's source file for failure reporting.
     ///   - line: The calling test's line for failure reporting.
     /// - Throws: A missing or unavailable control, or an explicit wallet setup failure.
     func openWallet(file: StaticString = #filePath, line: UInt = #line) throws {
         try tap(app.buttons["Continue"], file: file, line: line)
+        try showPortfolio(file: file, line: line)
+    }
+
+    /// Waits for the saved wallet and shows its portfolio.
+    ///
+    /// The window can restore the tab it showed before the reset that started the test, so the portfolio is selected.
+    /// - Parameters:
+    ///   - file: The calling test's source file for failure reporting.
+    ///   - line: The calling test's line for failure reporting.
+    /// - Throws: A missing or unavailable control, or an explicit wallet setup failure.
+    private func showPortfolio(file: StaticString, line: UInt) throws {
         try expectWallet(file: file, line: line)
         try tap(portfolioTab, file: file, line: line)
     }
 
-    /// Chooses Helius with the key from ignored local configuration, then opens the wallet.
+    /// Chooses Helius with the key from ignored local configuration, which opens the wallet once Helius is chosen.
     /// - Parameters:
     ///   - file: The calling test's source file for failure reporting.
     ///   - line: The calling test's line for failure reporting.
@@ -166,12 +175,9 @@ struct OnboardingApp {
         }
         try chooseHelius(file: file, line: line)
         try submitProviderKey(key)
-        // The sheet closes once the key is saved, and Helius is chosen after it; a check or save that fails shows an
-        // alert, which ends the wait at once.
-        let chosen = NSPredicate(format: "label == %@ AND selected == true", "Helius")
-        try expectOutcome(app.buttons["Helius"], matching: chosen, unless: Self.setupErrorTitles, file: file, line: line)
-        try waitForAbsence(keySheet, file: file, line: line)
-        try openWallet(file: file, line: line)
+        // The sheet closes once the key is saved, Helius is chosen after it, and the wallet opens; a check or save that
+        // fails shows an alert, which ends the wait at once.
+        try showPortfolio(file: file, line: line)
     }
 
     /// Checks the production creation screen as the first step and its twelve numbered words without expecting a fixed phrase.
