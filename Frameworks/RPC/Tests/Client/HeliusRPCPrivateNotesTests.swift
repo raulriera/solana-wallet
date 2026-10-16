@@ -273,14 +273,21 @@ struct HeliusRPCPrivateNotesTests {
     }
 
     /// Verifies a failing stream fails the read without waiting for the other stream to finish.
+    ///
+    /// The failing stream answers only after the other stream's request reaches the transport, so the
+    /// cancellation always interrupts a request in flight.
     @Test(.timeLimit(.minutes(1)))
     func `A failing stream cancels the other`() async {
+        let (inFlight, continuation) = AsyncStream.makeStream(of: Void.self)
         let transport = StubTransport { request in
             let (route, _) = try Fixture.call(request)
             guard route == GetShieldedTransactionsByTags.method else {
+                continuation.yield()
                 try await Task.sleep(for: .seconds(3_600))
                 return try reply(to: request, payload: Fixture.page(in: "matches"))
             }
+            var signals = inFlight.makeAsyncIterator()
+            await signals.next()
             return try reply(to: request, payload: Fixture.page(), status: 429)
         }
         let rpc = HeliusRPC(apiKey: "fixture-key", network: .devnet, transport: transport)
