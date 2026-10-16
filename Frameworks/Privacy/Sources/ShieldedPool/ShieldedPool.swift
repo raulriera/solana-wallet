@@ -1,4 +1,5 @@
 import ModularArithmetic
+public import RPC
 import Transactions
 
 /// Solana Rings' shielded-pool program and the accounts that its instructions use.
@@ -8,7 +9,11 @@ import Transactions
 /// and `[0]`; each UTXO tree, from `tree` and the tree ID as a little-endian 16-bit integer; and
 /// each spent nullifier, from `nullifier`, the tree's address, and the nullifier's 32 big-endian
 /// bytes. Instructions start with a one-byte tag and continue in ``WincodeWriter``'s encoding.
-enum ShieldedPool {
+public enum ShieldedPool {
+    /// The networks where the shielded-pool and user-registry programs are deployed: only devnet,
+    /// where zolana's development program IDs exist.
+    public static let networks: Set<Network> = [.devnet]
+
     /// The program's development address.
     private static let programID = "sppU489D7A4U1exNo1oeMGZtLEofq3a6o2fR7UeoWB6"
 

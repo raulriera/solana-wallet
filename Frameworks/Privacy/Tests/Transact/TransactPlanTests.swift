@@ -269,7 +269,10 @@ struct TransactPlanTests {
     @Test
     func `Off-curve senders are rejected`() throws {
         let rail = try CommitmentVectors.load().ed25519Rail
-        let sender = TransactPlan.Sender(signingAddress: try ShieldedPool.solInterface, nullifierKey: try rail.nullifierKey(), viewingKey: try rail.viewingKey())
+        let sender = try ShieldedAccount(
+            signingAddress: ShieldedPool.solInterface, nullifierSecret: rail.nullifierSecretKey(),
+            viewingKey: rail.viewingKey()
+        )
 
         #expect(throws: Recipient.ValidationError.offCurveSigningAddress) {
             try TransactPlan(

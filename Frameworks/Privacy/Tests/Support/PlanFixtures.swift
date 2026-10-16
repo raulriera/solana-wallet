@@ -1,5 +1,7 @@
+import CryptoKit
 import ModularArithmetic
 @testable import Privacy
+import RPC
 import Testing
 import Transactions
 
@@ -63,6 +65,42 @@ enum PlanFixtures {
             transfer: try transferLamports.map { TransactPlan.Transfer(recipient: try TransferVectors.recipient(), lamports: $0) },
             withdrawal: withdrawal, outputTreeID: outputTreeID,
             randomness: randomness(paddingInputs: paddingInputs, paddingOutputs: paddingOutputs)
+        )
+    }
+
+    /// Creates the indexer's view of a plan's transact, with output i at leaf `firstLeaf` + i.
+    ///
+    /// - Parameters:
+    ///   - plan: The plan.
+    ///   - salt: The salt that the transaction publishes.
+    ///   - signature: The transaction's signature.
+    ///   - slot: The transaction's slot.
+    ///   - firstLeaf: The position of the first output in the output tree.
+    /// - Returns: The transaction.
+    /// - Throws: A test failure if the plan has no inputs, or an error if the transaction viewing key
+    ///   can't be derived.
+    static func transaction(
+        of plan: TransactPlan,
+        salt: [UInt8] = TransferVectors.salt,
+        signature: String = "transact",
+        slot: UInt64 = 9,
+        firstLeaf: UInt64 = 40
+    ) throws -> ShieldedTransaction {
+        let firstNullifier = try #require(plan.nullifiers.first)
+        let viewingKey = try TransactionViewingKey.derive(viewingKey: TransferVectors.sender().viewingKey, firstNullifier: firstNullifier)
+        let outputs = plan.outputs.enumerated().map { index, output in
+            let viewTag = switch output.published.ownerTag {
+            case .inline(let tag): tag
+            case .payer: plan.payer.bytes
+            }
+            return ShieldedOutput(
+                viewTag: viewTag, utxoHash: output.published.utxoHash.bigEndianBytes, treeID: plan.outputTreeID,
+                leafIndex: firstLeaf + UInt64(index), payload: output.published.data
+            )
+        }
+        return ShieldedTransaction(
+            signature: signature, slot: slot, eventIndex: 0, transactionViewingKey: Array(viewingKey.publicKey.compressedRepresentation),
+            salt: salt, outputs: outputs, nullifiers: plan.nullifiers.map(\.bigEndianBytes), isProofless: false
         )
     }
 

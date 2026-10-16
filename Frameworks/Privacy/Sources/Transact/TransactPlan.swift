@@ -58,16 +58,6 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
         case publicInputHashMismatch
     }
 
-    /// The account that spends the inputs and pays the transaction fee.
-    struct Sender: Sendable {
-        /// The sender's Ed25519 signing address, the fee payer.
-        let signingAddress: Address
-        /// The sender's nullifier key.
-        let nullifierKey: NullifierKey
-        /// The sender's viewing key, which derives the transaction viewing key.
-        let viewingKey: P256.KeyAgreement.PrivateKey
-    }
-
     /// A transfer of SOL to another owner's shielded address.
     ///
     /// Descriptions and reflection omit the amount.
@@ -224,13 +214,10 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
         /// - Throws: A ``ValidationError`` if the plan can't be built,
         ///   ``Transactions/ValidationError/invalidAmount`` for a zero-lamport transfer or withdrawal,
         ///   or a ``Recipient/ValidationError`` if no key can sign for the sender's signing address.
-        init(utxos: [UTXO], sender: Sender, transfer: Transfer?, withdrawal: ExternalData.Withdrawal?) throws {
+        init(utxos: [UTXO], sender: ShieldedAccount, transfer: Transfer?, withdrawal: ExternalData.Withdrawal?) throws {
             guard !utxos.isEmpty else { throw ValidationError.noInputs }
             guard utxos.count <= TransactPlan.maximumInputs else { throw ValidationError.tooManyInputs }
-            let senderOwner = try Recipient(
-                signingAddress: sender.signingAddress, nullifierPublicKey: sender.nullifierKey.publicKey,
-                viewingPublicKey: sender.viewingKey.publicKey
-            )
+            let senderOwner = try sender.recipient
             var inputTreeIDs = [UInt16]()
             for utxo in utxos {
                 guard utxo.owner == senderOwner.owner else { throw ValidationError.foreignInput }
@@ -346,7 +333,7 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
     ///   error from sealing the notes or deriving the accounts.
     init(
         spending utxos: [UTXO],
-        sender: Sender,
+        sender: ShieldedAccount,
         transfer: Transfer?,
         withdrawal: ExternalData.Withdrawal?,
         outputTreeID: UInt16,
@@ -377,7 +364,7 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
     ///   a 16-byte salt.
     init(
         spending utxos: [UTXO],
-        sender: Sender,
+        sender: ShieldedAccount,
         transfer: Transfer?,
         withdrawal: ExternalData.Withdrawal?,
         outputTreeID: UInt16,
@@ -399,7 +386,7 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
     /// - Precondition: `randomness` holds as many padding values as the layout has padding slots.
     private init(
         layout: Layout,
-        sender: Sender,
+        sender: ShieldedAccount,
         withdrawal: ExternalData.Withdrawal?,
         outputTreeID: UInt16,
         randomness: Randomness

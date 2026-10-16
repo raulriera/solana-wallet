@@ -6,19 +6,11 @@ import Transactions
 
 /// Verifies Solana Rings registry records and deposits of real devnet owners with read-only requests.
 ///
-/// The owners are the public devnet addresses of ``PrivateNoteLiveTests``: each holds a user-registry
-/// record and paid for a proofless deposit to its own view tag. Registry records come from the public
+/// The owners are ``ShieldedPoolOwners``: each holds a user-registry record and paid for a proofless
+/// deposit to its own view tag. Registry records come from the public
 /// devnet RPC, which serves every wallet; deposits come from Helius's indexer.
 @Suite(.tags(.network), .timeLimit(.minutes(1)))
 struct PrivateBalanceLiveTests {
-    /// Devnet owners with registry records and deposits.
-    private static let owners = [
-        "FVzg3KzZGudAbj9S7DuvXsryACrL6XSF5gb5FTPpBTZW",
-        "7bACPtzxZANLtm8M6E5ovGrftXvcdia9qokkUwWSWBaW",
-        "3VtwQ5NpmfWfMusP2P1qENpFyYYFaUyXkbjDyuaiHXva",
-        "AHUWkkufV4h1fPNyWAxwrzvTBYUeaGfpa8ygjz8X6vTQ",
-    ]
-
     /// An address without a registry record: the System Program.
     private static let unregistered = "11111111111111111111111111111111"
 
@@ -27,11 +19,11 @@ struct PrivateBalanceLiveTests {
     /// - Throws: A provider, validation, or test prerequisite error.
     @Test
     func `Registry lookups decode every owner's record`() async throws {
-        let addresses = try (Self.owners + [Self.unregistered]).map(Address.init)
+        let addresses = try (ShieldedPoolOwners.devnet + [Self.unregistered]).map(Address.init)
 
         let recipients = try await UserRegistry.recipients(of: addresses, using: Solana(network: .devnet))
 
-        #expect(recipients.map { $0?.signingAddress.value } == Self.owners + [nil])
+        #expect(recipients.map { $0?.signingAddress.value } == ShieldedPoolOwners.devnet + [nil])
     }
 
     /// Checks each proofless deposit tagged with an owner against the owner's registry record: the
@@ -40,7 +32,7 @@ struct PrivateBalanceLiveTests {
     ///
     /// - Parameter owner: The owner's base-58 address, whose bytes are its view tag.
     /// - Throws: A credential, provider, validation, or test prerequisite error.
-    @Test(arguments: owners)
+    @Test(arguments: ShieldedPoolOwners.devnet)
     func `Deposits rebuild with the registry's owner hash`(owner: String) async throws {
         let address = try Address(owner)
         let records = try await UserRegistry.recipients(of: [address], using: Solana(network: .devnet))

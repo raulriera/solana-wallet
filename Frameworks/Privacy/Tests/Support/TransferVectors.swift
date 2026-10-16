@@ -260,10 +260,11 @@ enum TransferVectors {
     /// - Returns: The sender.
     /// - Throws: A test failure if the fixture is missing or malformed, or an error if a key isn't
     ///   valid.
-    static func sender() throws -> TransactPlan.Sender {
+    static func sender() throws -> ShieldedAccount {
         let rail = try CommitmentVectors.load().ed25519Rail
-        return try TransactPlan.Sender(
-            signingAddress: Address(senderSigningAddress), nullifierKey: rail.nullifierKey(), viewingKey: rail.viewingKey()
+        return try ShieldedAccount(
+            signingAddress: Address(senderSigningAddress), nullifierSecret: rail.nullifierSecretKey(),
+            viewingKey: rail.viewingKey()
         )
     }
 

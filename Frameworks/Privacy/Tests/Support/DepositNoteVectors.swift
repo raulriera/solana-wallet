@@ -1,4 +1,6 @@
+import RPC
 import Testing
+import Transactions
 
 /// Proofless deposit outputs computed by an independent Python implementation written from zolana
 /// v0.4.0-alpha's sources.
@@ -34,6 +36,26 @@ struct DepositNoteVectors: Decodable, Sendable {
 
         /// The vector's name, in test results.
         var testDescription: String { name }
+
+        /// Creates the indexer's view of the deposit: a proofless transaction with its one output,
+        /// tagged with the sender.
+        ///
+        /// - Parameters:
+        ///   - leafIndex: The position that the indexer reports, or `nil` for the deposit's own.
+        ///   - signature: The transaction's signature.
+        ///   - slot: The transaction's slot.
+        /// - Returns: The transaction.
+        /// - Throws: A test failure if the vector is malformed.
+        func transaction(leafIndex: UInt64? = nil, signature: String = "deposit", slot: UInt64 = 3) throws -> ShieldedTransaction {
+            let output = ShieldedOutput(
+                viewTag: try Address(TransferVectors.senderSigningAddress).bytes, utxoHash: try fixtureBytes(utxoHash), treeID: treeID,
+                leafIndex: leafIndex ?? self.leafIndex, payload: try fixtureBytes(payload)
+            )
+            return ShieldedTransaction(
+                signature: signature, slot: slot, eventIndex: 0, transactionViewingKey: nil, salt: nil, outputs: [output],
+                nullifiers: [], isProofless: true
+            )
+        }
     }
 
     /// Reads the fixture from the test bundle.

@@ -144,12 +144,20 @@ struct CommitmentVectors: Decodable, Sendable {
         /// The rail's nullifier public key, in test results.
         var testDescription: String { "Nullifier public key \(nullifierPubkey)" }
 
+        /// Creates the rail's published nullifier secret.
+        ///
+        /// - Returns: The secret.
+        /// - Throws: A test failure if the secret is malformed.
+        func nullifierSecretKey() throws -> SymmetricKey {
+            SymmetricKey(data: try fixtureBytes(nullifierSecret))
+        }
+
         /// Creates the rail's nullifier key from its published secret.
         ///
         /// - Returns: The nullifier key.
         /// - Throws: A test failure if the secret is malformed, or an error if it isn't 31 bytes.
         func nullifierKey() throws -> NullifierKey {
-            try NullifierKey(secret: SymmetricKey(data: fixtureBytes(nullifierSecret)))
+            try NullifierKey(secret: nullifierSecretKey())
         }
 
         /// Creates the rail's viewing key from its published secret.
