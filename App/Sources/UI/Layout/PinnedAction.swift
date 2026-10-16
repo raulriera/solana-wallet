@@ -4,7 +4,7 @@ import SwiftUI
 private struct PinnedAction<Action: View>: ViewModifier {
     let action: Action?
 
-    /// Places the action in a bottom bar with the system's horizontal padding, no wider than readable content.
+    /// Places the action in a bottom bar within its container's horizontal margins, no wider than readable content.
     /// - Parameter content: The scroll container the bar insets.
     /// - Returns: The container with the action pinned below it, or without a bar when there's no action.
     func body(content: Content) -> some View {
@@ -15,7 +15,7 @@ private struct PinnedAction<Action: View>: ViewModifier {
                 if let action {
                     action
                         .frame(maxWidth: LayoutMetrics.readableWidth)
-                        .padding(.horizontal)
+                        .contentMargins(for: .container, edges: .horizontal)
                         .padding(.vertical, LayoutMetrics.actionBarVerticalPadding)
                 }
             }

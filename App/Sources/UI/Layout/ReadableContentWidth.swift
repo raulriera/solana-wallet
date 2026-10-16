@@ -14,8 +14,9 @@ private struct ReadableContentWidth: ViewModifier {
             .contentMargins(.trailing, margins?.trailing, for: .scrollContent)
             .onGeometryChange(for: EdgeInsets?.self) { geometry in
                 let inset = (geometry.size.width - LayoutMetrics.readableWidth) / 2
-                // Forms use 20 pt margins at these widths, so wider insets take over without a jump.
-                guard inset > 20 else { return nil }
+                // Only insets wider than the system's margins take over, so the form doesn't jump.
+                let system = geometry.contentMargins(for: .container, edges: .horizontal)
+                guard inset > max(system.leading, system.trailing) else { return nil }
                 // A form measures margins from the edges of the safe area it extends into.
                 return EdgeInsets(top: 0, leading: inset + geometry.safeAreaInsets.leading,
                                   bottom: 0, trailing: inset + geometry.safeAreaInsets.trailing)

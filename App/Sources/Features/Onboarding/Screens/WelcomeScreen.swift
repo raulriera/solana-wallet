@@ -10,13 +10,15 @@ struct WelcomeScreen: View {
         ArrangementView {
             ScrollView {
                 WelcomeIntroduction()
-                    .padding(24)
+                    .contentMargins(for: .container, edges: .horizontal)
+                    .padding(.vertical, 24)
             }
             .defaultScrollAnchor(.center, for: .alignment)
         } secondary: {
             ScrollView {
                 WelcomeActions(createWallet: createWallet, importWallet: importWallet)
-                    .padding(24)
+                    .contentMargins(for: .container, edges: .horizontal)
+                    .padding(.vertical, 24)
             }
             .defaultScrollAnchor(.center, for: .alignment)
         }
