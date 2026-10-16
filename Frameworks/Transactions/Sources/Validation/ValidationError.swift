@@ -2,6 +2,10 @@
 public enum ValidationError: Error, Sendable, Equatable {
     /// The account address isn't ASCII Base58 encoding exactly 32 bytes.
     case invalidAddress
+    /// The program-derived address seeds exceed Solana's count or length limits.
+    case invalidSeeds
+    /// No bump produced a program-derived address off the Ed25519 curve.
+    case addressDerivationFailed
     /// The recent blockhash isn't ASCII Base58 encoding exactly 32 bytes.
     case invalidBlockhash
     /// The transfer amount is zero.

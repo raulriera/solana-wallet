@@ -17,10 +17,10 @@ extension TokenProgram {
     ///   - owner: The wallet that owns the token account, including an off-curve owner.
     ///   - mint: The mint whose tokens the account holds.
     /// - Returns: The canonical associated token account address.
-    /// - Throws: ``TokenError/addressDerivationFailed`` if no valid bump exists.
+    /// - Throws: ``ValidationError/addressDerivationFailed`` if no valid bump exists.
     public func associatedAccount(owner: Address, mint: Address) throws -> Address {
         let program = try Address(rawValue)
         let associatedProgram = try Address(Self.associatedAccountProgram)
-        return try ProgramAddress.find(seeds: [owner.bytes, program.bytes, mint.bytes], program: associatedProgram)
+        return try ProgramAddress.find(seeds: [owner.bytes, program.bytes, mint.bytes], program: associatedProgram).address
     }
 }

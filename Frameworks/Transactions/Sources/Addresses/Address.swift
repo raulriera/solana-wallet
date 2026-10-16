@@ -3,7 +3,8 @@ import Encoding
 public struct Address: Sendable, Hashable {
     /// The original, case-sensitive ASCII Base58 representation.
     public let value: String
-    let bytes: [UInt8]
+    /// The address's 32 bytes, as instructions and program-derived address seeds use them.
+    public let bytes: [UInt8]
 
     /// Creates an address without trimming, normalizing, or replacing characters.
     ///

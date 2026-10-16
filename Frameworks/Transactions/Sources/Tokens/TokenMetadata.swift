@@ -16,10 +16,10 @@ public struct TokenMetadata: Sendable, Equatable {
     ///
     /// - Parameter mint: The token's mint address.
     /// - Returns: The metadata account address to read.
-    /// - Throws: ``TokenError/addressDerivationFailed`` if no valid bump exists.
+    /// - Throws: ``ValidationError/addressDerivationFailed`` if no valid bump exists.
     public static func metaplexAccount(for mint: Address) throws -> Address {
         let program = try Address(metaplexProgram)
-        return try ProgramAddress.find(seeds: [Array("metadata".utf8), program.bytes, mint.bytes], program: program)
+        return try ProgramAddress.find(seeds: [Array("metadata".utf8), program.bytes, mint.bytes], program: program).address
     }
 
     /// Reads the name and symbol from a mint's Metaplex metadata account.

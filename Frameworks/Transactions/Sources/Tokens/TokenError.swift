@@ -20,6 +20,4 @@ public enum TokenError: Error, Sendable, Equatable {
     case memoRequired
     /// The memo cannot fit within the maximum V1 transaction size.
     case invalidMemo
-    /// No bump produced an off-curve associated token account address.
-    case addressDerivationFailed
 }
