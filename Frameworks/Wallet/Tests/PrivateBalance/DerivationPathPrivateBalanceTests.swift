@@ -2,7 +2,7 @@ import CryptoKit
 import Testing
 @testable import Wallet
 
-/// Verifies the Solana Rings coin type, account indices, and role paths.
+/// Verifies the Solana Rings coin type, account indices, which paths have keys, and role paths.
 struct DerivationPathPrivateBalanceTests {
     /// Verifies the coin type against the rule that defines it: the first four bytes of
     /// SHA-256(`luminous.TSPP.v1`) as a big-endian integer, without its top bit.
@@ -34,6 +34,19 @@ struct DerivationPathPrivateBalanceTests {
     ])
     func `Other paths have no account index`(path: String) throws {
         #expect(try DerivationPath(path).privateBalanceAccount == nil)
+    }
+
+    /// Verifies that only Solana account paths report private-balance keys.
+    ///
+    /// - Parameters:
+    ///   - path: A derivation path.
+    ///   - hasKeys: Whether the path is `m/44'/501'/i'/0'`.
+    @Test(arguments: [
+        ("m/44'/501'/0'/0'", true), ("m/44'/501'/2147483647'/0'", true), ("m/44'/501'/0'", false),
+        ("m/44'/501'/0'/1'", false), ("m/44'/60'/0'/0'", false), ("m", false),
+    ])
+    func `Only Solana account paths have private-balance keys`(path: String, hasKeys: Bool) throws {
+        #expect(try DerivationPath(path).hasPrivateBalanceKeys == hasKeys)
     }
 
     /// Verifies the nullifier and viewing paths of an account index.

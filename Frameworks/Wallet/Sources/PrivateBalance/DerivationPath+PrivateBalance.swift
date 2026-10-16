@@ -5,6 +5,12 @@ extension DerivationPath {
     /// its top bit.
     static let privateBalanceCoinType: UInt32 = 1_392_955_331
 
+    /// Whether the path has private-balance keys: only Solana account paths `m/44'/501'/i'/0'` do.
+    ///
+    /// Check it before reading recovery; `privateBalanceKeys(using:expectedAddress:passphrase:path:)` throws
+    /// ``PrivateBalanceError/unsupportedPath`` for any other path.
+    public var hasPrivateBalanceKeys: Bool { privateBalanceAccount != nil }
+
     /// The account index i of a Solana account path `m/44'/501'/i'/0'`, or `nil` for any other path.
     var privateBalanceAccount: UInt32? {
         guard indices.count == 4, indices[0] == 44, indices[1] == 501, indices[3] == 0 else { return nil }
