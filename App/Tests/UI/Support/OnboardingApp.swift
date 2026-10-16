@@ -157,7 +157,7 @@ struct OnboardingApp {
     ///   - file: The calling test's source file for failure reporting.
     ///   - line: The calling test's line for failure reporting.
     /// - Throws: A missing or unavailable control, or an explicit wallet setup failure.
-    private func showPortfolio(file: StaticString, line: UInt) throws {
+    func showPortfolio(file: StaticString = #filePath, line: UInt = #line) throws {
         try expectWallet(file: file, line: line)
         try tap(portfolioTab, file: file, line: line)
     }

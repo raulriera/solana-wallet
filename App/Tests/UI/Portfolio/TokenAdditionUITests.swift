@@ -48,7 +48,7 @@ final class TokenAdditionUITests: XCTestCase {
 
         // A relaunch shows the saved list and cached balances, which no longer hold the token.
         flow.relaunch()
-        try flow.expectWallet()
+        try flow.showPortfolio()
         try flow.waitFor(flow.holding("SOL"))
         XCTAssertFalse(token.exists, "The removed token came back after a relaunch.")
     }
