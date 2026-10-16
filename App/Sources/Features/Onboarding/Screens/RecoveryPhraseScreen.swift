@@ -51,16 +51,15 @@ struct RecoveryPhraseScreen: View {
                 .foregroundStyle(palette.secondaryText)
             }
             .listRowBackground(palette.surface)
+
+            Section {
+                Button("Continue") { isConfirmingBackup = true }
+                    .foregroundStyle(palette.accent)
+            }
+            .listRowBackground(palette.surface)
         }
         .scrollContentBackground(.hidden)
         .readableContentWidth()
-        .pinnedAction {
-            Button("Continue") {
-                isConfirmingBackup = true
-            }
-            .buttonStyle(.primary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(palette.background)
         .navigationTitle("Recovery Phrase")
         .navigationBarTitleDisplayMode(.inline)

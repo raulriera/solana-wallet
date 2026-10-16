@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Explains why a screen's content is unavailable and pins the one action that can fix it, if any.
+/// Explains why a screen's content is unavailable and offers the one action that can fix it, if any.
 struct UnavailableScreen<Action: View>: View {
     @Environment(\.palette) private var palette
     private let title: LocalizedStringResource
@@ -8,7 +8,7 @@ struct UnavailableScreen<Action: View>: View {
     private let systemImage: String
     private let action: Action?
 
-    /// Creates an explanation with an optional pinned action.
+    /// Creates an explanation with an optional action.
     /// - Parameters:
     ///   - title: What is unavailable.
     ///   - message: Why it's unavailable and what the action does.
@@ -24,15 +24,22 @@ struct UnavailableScreen<Action: View>: View {
 
     var body: some View {
         ScrollView {
-            // The view draws its message in the first style, so the message takes the secondary color itself.
-            ContentUnavailableView(title, systemImage: systemImage,
-                                   description: Text(message).foregroundStyle(palette.secondaryText))
-                .drawOnAppear()
-                .foregroundStyle(palette.primaryText, palette.secondaryText)
-                .frame(maxWidth: LayoutMetrics.readableWidth)
+            ContentUnavailableView {
+                Label(title, systemImage: systemImage)
+            } description: {
+                // The view draws its message in the first style, so the message takes the secondary color itself.
+                Text(message)
+                    .foregroundStyle(palette.secondaryText)
+            } actions: {
+                // The action keeps its label's width instead of spanning the readable width.
+                action
+                    .fixedSize()
+            }
+            .drawOnAppear()
+            .foregroundStyle(palette.primaryText, palette.secondaryText)
+            .frame(maxWidth: LayoutMetrics.readableWidth)
         }
         .defaultScrollAnchor(.center, for: .alignment)
-        .pinnedAction { action }
         // A screen pushed beside a sidebar leaves side margins that the background must still cover.
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(palette.background)

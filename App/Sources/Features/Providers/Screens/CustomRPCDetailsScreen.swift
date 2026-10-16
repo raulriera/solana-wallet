@@ -23,15 +23,16 @@ struct CustomRPCDetailsScreen: View {
                     .foregroundStyle(palette.secondaryText)
             }
             .listRowBackground(palette.surface)
+
+            Section {
+                Button("Delete RPC", systemImage: "trash", role: .destructive) { removal = url }
+                    .labelStyle(.warning)
+            }
+            .listRowBackground(palette.surface)
         }
         .foregroundStyle(palette.primaryText, palette.secondaryText)
         .scrollContentBackground(.hidden)
         .readableContentWidth()
-        .pinnedAction {
-            Button("Delete RPC", role: .destructive) { removal = url }
-                .buttonStyle(.destructive)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(palette.background)
         .navigationTitle(Text(ProviderSettings.Provider.custom(url).name))
         .navigationBarTitleDisplayMode(.inline)

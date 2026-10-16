@@ -34,14 +34,15 @@ struct ResetAppScreen: View {
                 }
                 .listRowBackground(palette.surface)
             }
+
+            Section {
+                Button("Continue") { coordinator.confirmReset() }
+                    .foregroundStyle(palette.accent)
+            }
+            .listRowBackground(palette.surface)
         }
         .scrollContentBackground(.hidden)
         .readableContentWidth()
-        .pinnedAction {
-            Button("Continue") { coordinator.confirmReset() }
-                .buttonStyle(.primary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(palette.background)
         .navigationTitle("Reset App")
         .navigationBarTitleDisplayMode(.inline)

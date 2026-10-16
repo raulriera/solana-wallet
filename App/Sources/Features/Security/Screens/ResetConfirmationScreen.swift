@@ -8,18 +8,17 @@ struct ResetConfirmationScreen: View {
 
     var body: some View {
         Form {
-            Section {} footer: {
+            Section {
+                Button("Reset App", systemImage: "trash", role: .destructive) { isConfirming = true }
+                    .labelStyle(.warning)
+            } footer: {
                 Text("This can't be undone. Every wallet, recovery phrase, your RPC API key, and custom RPCs will be deleted from this device. Every window will return to Welcome.")
                     .foregroundStyle(palette.secondaryText)
             }
+            .listRowBackground(palette.surface)
         }
         .scrollContentBackground(.hidden)
         .readableContentWidth()
-        .pinnedAction {
-            Button("Reset App", role: .destructive) { isConfirming = true }
-                .buttonStyle(.destructive)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(palette.background)
         .navigationTitle("Reset App")
         .navigationBarTitleDisplayMode(.inline)

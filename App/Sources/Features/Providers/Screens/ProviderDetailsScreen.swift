@@ -29,16 +29,17 @@ struct ProviderDetailsScreen: View {
                     .foregroundStyle(palette.secondaryText)
             }
             .listRowBackground(palette.surface)
+
+            Section {
+                // The button names the screen it opens.
+                Button(ProviderEntryPurpose(keyPreview: keyPreview).title, action: actions.changeKey)
+                    .foregroundStyle(palette.accent)
+            }
+            .listRowBackground(palette.surface)
         }
         .foregroundStyle(palette.primaryText, palette.secondaryText)
         .scrollContentBackground(.hidden)
         .readableContentWidth()
-        .pinnedAction {
-            // The button names the screen it opens.
-            Button(ProviderEntryPurpose(keyPreview: keyPreview).title, action: actions.changeKey)
-                .buttonStyle(.primary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(palette.background)
         .navigationTitle(Text(ProviderSettings.Provider.helius.name))
         .navigationBarTitleDisplayMode(.inline)
