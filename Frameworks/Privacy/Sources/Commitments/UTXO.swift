@@ -10,10 +10,10 @@ import ModularArithmetic
 /// received UTXO takes from its decrypted note.
 struct UTXO: Sendable, Equatable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
     /// The domain of a UTXO's hash.
-    private static let hashDomain: UInt64 = 3
+    static let hashDomain: UInt64 = 3
 
     /// The domain of an empty UTXO's hash.
-    private static let dummyHashDomain: UInt64 = 1
+    static let dummyHashDomain: UInt64 = 1
 
     /// The ring hash of a UTXO without ring data or a ring program, `Poseidon(0, 0)`.
     private static let emptyRingHash = Poseidon.hash(.zero, .zero)

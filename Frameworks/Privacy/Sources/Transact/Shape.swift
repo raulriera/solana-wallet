@@ -3,12 +3,16 @@
 /// The prover has keys for 38 shapes, which zolana's `SPP_SUPPORTED_SHAPES` lists in order of
 /// proving cost. A transact uses the first shape that holds its inputs and outputs and pads the
 /// remaining slots.
-struct Shape: Sendable, Equatable {
+struct Shape: Sendable, Hashable {
     /// The number of input slots.
     let inputs: Int
 
     /// The number of output slots.
     let outputs: Int
+
+    /// The number of signer identities that the shape's proof publishes, `Shape::signer_width`: the
+    /// fee payer and up to `min(inputs, 60 - inputs)` other input owners.
+    var signerWidth: Int { min(inputs, 60 - inputs) + 1 }
 
     /// Every shape that the prover supports, cheapest first.
     static let supported = [

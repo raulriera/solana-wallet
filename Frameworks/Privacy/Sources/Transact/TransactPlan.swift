@@ -22,7 +22,7 @@ import Transactions
 ///   output's note is sealed with the transaction viewing key and the salt. Outputs that the sender
 ///   owns refer to the fee payer, the sender, for their view tag.
 ///
-/// Descriptions and reflection omit the amounts and the blindings.
+/// Descriptions and reflection omit the amounts, the blindings, and the blinding seed.
 struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
     /// A transact that the plan can't build.
     enum ValidationError: Error, Equatable {
@@ -44,6 +44,18 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
         case amountOverflow
         /// The tree contexts don't match the declared input trees one for one.
         case invalidTreeContextCount
+        /// The nullifier key doesn't derive the spent inputs' nullifiers, so it isn't the sender's.
+        case foreignNullifierKey
+        /// The prover made the proof with a key other than the plan's shape's.
+        case unexpectedProvingKey
+        /// The prover resolved other trees than the plan declares, or in another order.
+        case unexpectedTrees
+        /// A resolved root's position is outside its tree's root history.
+        case rootIndexOutOfRange
+        /// A resolved root isn't a canonical field element.
+        case invalidRoot
+        /// The resolved roots don't reproduce the prover's public input hash.
+        case publicInputHashMismatch
     }
 
     /// The account that spends the inputs and pays the transaction fee.
@@ -147,14 +159,16 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
         let hash: Poseidon.Element
         /// The nullifier that the transact publishes for the slot.
         let nullifier: Poseidon.Element
+        /// The slot's blinding: the spent UTXO's, or the padding's random blinding.
+        let blinding: Poseidon.Element
 
-        /// A description that omits the UTXO.
+        /// A description that omits the UTXO and the blinding.
         var description: String { "TransactPlan.Input" }
 
-        /// A debugging description that omits the UTXO.
+        /// A debugging description that omits the UTXO and the blinding.
         var debugDescription: String { description }
 
-        /// A reflection view that omits the UTXO.
+        /// A reflection view that omits the UTXO and the blinding.
         var customMirror: Mirror { Mirror(self, children: [:]) }
     }
 
@@ -164,14 +178,18 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
         let utxo: UTXO?
         /// The slot as the instruction publishes it.
         let published: TransactOutput
+        /// The slot's blinding, which derives from the first nullifier and the blinding seed.
+        let blinding: Poseidon.Element
+        /// The owner of the new UTXO, or `nil` for padding.
+        let owner: Recipient?
 
-        /// A description that omits the UTXO.
+        /// A description that omits the UTXO, the blinding, and the owner.
         var description: String { "TransactPlan.Output" }
 
-        /// A debugging description that omits the UTXO.
+        /// A debugging description that omits the UTXO, the blinding, and the owner.
         var debugDescription: String { description }
 
-        /// A reflection view that omits the UTXO.
+        /// A reflection view that omits the UTXO, the blinding, and the owner.
         var customMirror: Mirror { Mirror(self, children: [:]) }
     }
 
@@ -272,6 +290,10 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
 
     /// The ID of the tree that receives the outputs.
     let outputTreeID: UInt16
+
+    /// The proof's private blinding seed, which the prover needs to derive the output blindings
+    /// and the private transaction blinding.
+    let blindingSeed: Poseidon.Element
 
     /// The input slots, padding last.
     let inputs: [Input]
@@ -390,14 +412,14 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
             let hash = utxo.hash
             return Input(
                 utxo: utxo, treeIndex: Self.index(of: utxo.treeID, in: layout.inputTreeIDs), hash: hash,
-                nullifier: sender.nullifierKey.nullifier(utxoHash: hash, blinding: utxo.blinding)
+                nullifier: sender.nullifierKey.nullifier(utxoHash: hash, blinding: utxo.blinding), blinding: utxo.blinding
             )
         }
         let padding = randomness.paddingInputBlindings.map { blinding in
             let hash = UTXO.dummyHash(treeID: paddingTreeID, blinding: blinding)
             return Input(
                 utxo: nil, treeIndex: Self.index(of: paddingTreeID, in: layout.inputTreeIDs), hash: hash,
-                nullifier: paddingNullifierKey.nullifier(utxoHash: hash, blinding: blinding)
+                nullifier: paddingNullifierKey.nullifier(utxoHash: hash, blinding: blinding), blinding: blinding
             )
         }
         let inputs = spent + padding
@@ -412,7 +434,7 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
                 return Output(utxo: nil, published: TransactOutput(
                     utxoHash: UTXO.dummyHash(treeID: outputTreeID, blinding: blinding), ownerTag: .inline(layout.paddingViewTag),
                     data: randomness.paddingOutputData[slot - layout.outputs.count]
-                ))
+                ), blinding: blinding, owner: nil)
             }
             let (owner, lamports) = layout.outputs[slot]
             let utxo = UTXO(
@@ -425,11 +447,12 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
             let ownerTag: TransactOutput.OwnerTag = owner.viewTag == layout.senderOwner.viewTag ? .payer : .inline(owner.viewTag)
             return Output(utxo: utxo, published: TransactOutput(
                 utxoHash: utxo.hash, ownerTag: ownerTag, data: note.encoded
-            ))
+            ), blinding: blinding, owner: owner)
         }
         shape = layout.shape
         inputTreeIDs = layout.inputTreeIDs
         self.outputTreeID = outputTreeID
+        blindingSeed = randomness.blindingSeed
         self.inputs = inputs
         self.outputs = outputs
         self.withdrawal = withdrawal

@@ -112,6 +112,23 @@ struct TransactPlanTests {
         #expect(padding.nullifier == zeroKey.nullifier(utxoHash: padding.hash, blinding: TransferVectors.blinding(0xd0)))
     }
 
+    /// Verifies that a plan keeps the values that its proof's witness needs: the blinding seed, each
+    /// slot's blinding, and each output's owner.
+    @Test
+    func `Plans keep the witness values`() throws {
+        let utxos = try (0..<7).map { try PlanFixtures.utxo(lamports: 1, blindingByte: 0xb0 + UInt8($0)) }
+        let plan = try PlanFixtures.plan(spending: utxos, transferLamports: 7, paddingInputs: 1, paddingOutputs: 1)
+        let firstNullifier = try #require(plan.nullifiers.first)
+        let seed = TransactBlinding.outputBlindingSeed(firstNullifier: firstNullifier, blindingSeed: TransferVectors.blindingSeed)
+
+        #expect(plan.blindingSeed == TransferVectors.blindingSeed)
+        #expect(plan.inputs.map(\.blinding) == (0..<7).map { TransferVectors.blinding(0xb0 + UInt8($0)) } + [TransferVectors.blinding(0xd0)])
+        #expect(plan.outputs.map(\.blinding) == (0..<2).map {
+            TransactBlinding.outputBlinding(firstNullifier: firstNullifier, outputBlindingSeed: seed, index: $0)
+        })
+        #expect(plan.outputs.map { $0.owner?.signingAddress } == [try TransferVectors.recipient().signingAddress, nil])
+    }
+
     /// Verifies that spent inputs publish the sender's nullifiers in the caller's order.
     @Test
     func `Spent inputs publish the sender's nullifiers in order`() throws {

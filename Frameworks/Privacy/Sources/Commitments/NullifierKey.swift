@@ -45,6 +45,14 @@ struct NullifierKey: Sendable, CustomStringConvertible, CustomDebugStringConvert
         publicKey = Poseidon.hash(PackedBytes.field(of: secret))
     }
 
+    /// The secret as a field element, right-aligned, as a proof's witness carries it.
+    ///
+    /// The prover needs the secret to prove the spent UTXOs' nullifiers. The returned element and
+    /// any bytes made from it aren't erased.
+    var secretElement: Poseidon.Element {
+        PackedBytes.field(of: secret)
+    }
+
     /// Derives the nullifier that spending a UTXO publishes.
     ///
     /// - Parameters:
@@ -52,6 +60,6 @@ struct NullifierKey: Sendable, CustomStringConvertible, CustomDebugStringConvert
     ///   - blinding: The UTXO's blinding.
     /// - Returns: `Poseidon(utxoHash, blinding, secret)`.
     func nullifier(utxoHash: Poseidon.Element, blinding: Poseidon.Element) -> Poseidon.Element {
-        Poseidon.hash(utxoHash, blinding, PackedBytes.field(of: secret))
+        Poseidon.hash(utxoHash, blinding, secretElement)
     }
 }

@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import ModularArithmetic
 import Transactions
@@ -8,6 +9,9 @@ extension ShieldedPool {
 
     /// The kind of a native-SOL settlement group, `DepositAssetKind::Sol`.
     private static let solAssetKind: UInt8 = 0
+
+    /// The domain of a deposit's blinding, ASCII `Deposit`.
+    private static let depositBlindingDomain = Array("Deposit".utf8)
 
     /// Creates a proofless deposit of public SOL into one recipient's default-ring UTXO.
     ///
@@ -46,5 +50,23 @@ extension ShieldedPool {
             .init(address: try systemProgram, isSigner: false, isWritable: false),
             .init(address: try solInterface, isSigner: false, isWritable: true),
         ], data: Data(writer.bytes))
+    }
+
+    /// Derives the blinding that the program gives a deposited UTXO, `deposit_blinding`.
+    ///
+    /// The blinding is SHA-256 of `Deposit`, the tree's address, and the UTXO's leaf index as a
+    /// big-endian 64-bit integer, with its first byte set to zero so it's a field element. A tree
+    /// position holds one UTXO, so no two deposits share a blinding. The deposit's payload also
+    /// publishes the blinding; a recipient recomputes it to check the payload.
+    ///
+    /// - Parameters:
+    ///   - tree: The account of the tree that holds the UTXO.
+    ///   - leafIndex: The UTXO's position in the tree.
+    /// - Returns: The blinding.
+    static func depositBlinding(tree: Address, leafIndex: UInt64) -> Poseidon.Element {
+        let preimage = depositBlindingDomain + tree.bytes + Swift.withUnsafeBytes(of: leafIndex.bigEndian, Array.init)
+        var digest = Array(SHA256.hash(data: preimage))
+        digest[0] = 0
+        return Poseidon.Element(reducing: digest)
     }
 }

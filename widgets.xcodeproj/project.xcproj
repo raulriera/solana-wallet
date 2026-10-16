@@ -100,6 +100,7 @@
               "path": "Networking",
               "target-membership": [
                 "PortfolioTests",
+                "PrivacyTests",
                 "RPCTests",
                 "widgetsTests",
               ],
@@ -168,9 +169,11 @@
             "widgets/frameworks",
             { "build-phase": "widgets/copy/Embed Frameworks", "code-sign-on-copy": true, "header-preservation": "remove-on-copy" },
             "Portfolio/frameworks",
+            "Privacy/frameworks",
             "RPCTests/frameworks",
             "PortfolioTests/frameworks",
             "widgetsTests/frameworks",
+            "PrivacyTests/frameworks",
           ],
         }, {
           "path": "<PRODUCTS>/Portfolio.framework",
@@ -514,6 +517,7 @@
       "product-type": "framework",
       "dependencies": [
         "ModularArithmetic",
+        "RPC",
         "Transactions",
       ],
       "build-phases": [
@@ -844,6 +848,7 @@
       "dependencies": [
         "ModularArithmetic",
         "Privacy",
+        "RPC",
         "Transactions",
       ],
       "build-phases": [

@@ -1,0 +1,25 @@
+{
+  "program": "regyS5rkAcw2YzDJCmTwCTHs2s246FXxbmuRZ42u2PD",
+  "records": [
+    {
+      "name": "sender",
+      "owner": "GmaDrppBC7P5ARKV8g3djiwP89vz1jLK23V2GBjuAEGB",
+      "record": "9fGCNhnEDJ6wyfJ8Sc4mjnDgg7sMFsiX52a69app74km",
+      "bump": 255,
+      "data": "01ea4a6c63e29c520abef5507b132ec5f9954776aebebe7b92421eea691446d22cff000ce02d7711322665f107415edd1ce95cc2aa12378f6cd56d6e0544b800c448d10299cff79e0e9e5a109e998f3868a1c358eb82e30ee4737ce8271c1e3a473ea0f600000000000000000000000000000000000000000000000000000000000000000000",
+      "nullifierPublicKey": "0ce02d7711322665f107415edd1ce95cc2aa12378f6cd56d6e0544b800c448d1",
+      "viewingPublicKey": "0299cff79e0e9e5a109e998f3868a1c358eb82e30ee4737ce8271c1e3a473ea0f6",
+      "ownerHash": "02839e08db2c3169e2b74b0e355f80cdc427fa9722fcf1a0c57e12fabd46dede"
+    },
+    {
+      "name": "recipient",
+      "owner": "J2xccRtuG43drESLYznHhLhQkLTdfepcKYbiQ9BsJVaf",
+      "record": "DX49kMDS3CikqTbjZmDEJFU1uLsrLyQfNdX9QqTYhjA5",
+      "bump": 254,
+      "data": "01fd1724385aa0c75b64fb78cd602fa1d991fdebf76b13c58ed702eac835e9f618fe0007f313f2ef546c5ac079f4591e978eaaa944e2ffee4dd5c5fa2156ff39e848560210982b83d5bf7d5f08599fbddc77d1cb7f72e02adae8017ec2118f40c46a3a9b01000000000000000000000000000000000000000000000000000000000000000000",
+      "nullifierPublicKey": "07f313f2ef546c5ac079f4591e978eaaa944e2ffee4dd5c5fa2156ff39e84856",
+      "viewingPublicKey": "0210982b83d5bf7d5f08599fbddc77d1cb7f72e02adae8017ec2118f40c46a3a9b",
+      "ownerHash": "05595740c5ce566ae7c1d9f685f5d1c966f7879088c5604b08f9c3cfbcf55a9b"
+    }
+  ]
+}
