@@ -11,7 +11,7 @@ struct AmountColumn: View {
         VStack(spacing: 16) {
             ScrollView {
                 AmountSummary(payment: payment)
-                    .contentMargins(for: .container, edges: .horizontal)
+                    .padding(.horizontal)
                     .padding(.vertical, 8)
                     .frame(maxWidth: .infinity)
             }

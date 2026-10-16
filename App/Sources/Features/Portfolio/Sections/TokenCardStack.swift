@@ -19,7 +19,6 @@ struct TokenCardStack: View {
                                   value: holding.knownValue, change: holding.valuation?.dayChange,
                                   imageURL: holding.logoURL)
                     }
-                    .contentMargins(for: .container, edges: .horizontal)
                 }
             }
             // The cards end at the pocket's lip below the last card, so the sidebar shows through the pocket.
@@ -33,7 +32,5 @@ struct TokenCardStack: View {
             .listRowSeparator(.hidden)
         }
         .listStyle(.sidebar)
-        // Each card takes its container's margins once; the list's margins would inset it twice.
-        .contentMargins(.horizontal, 0, for: .scrollContent)
     }
 }
