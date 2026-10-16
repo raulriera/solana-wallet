@@ -6,8 +6,9 @@ import ModularArithmetic
 /// the data hash is zero and the ring hash is `Poseidon(0, 0)`. The UTXO's hash is
 /// `Poseidon(3, tree ID, hash_bytes_32(mint), amount, 0, Poseidon(0, 0), Poseidon(owner, blinding))`,
 /// with the domain 3, the tree ID, and the amount as integers. The UTXO tree appends the hash
-/// when the UTXO is created.
-struct UTXO: Sendable, Equatable {
+/// when the UTXO is created. Descriptions and reflection omit the amount and the blinding, which a
+/// received UTXO takes from its decrypted note.
+struct UTXO: Sendable, Equatable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
     /// The domain of a UTXO's hash.
     private static let hashDomain: UInt64 = 3
 
@@ -32,6 +33,15 @@ struct UTXO: Sendable, Equatable {
 
     /// The ID of the tree that holds the UTXO.
     let treeID: UInt16
+
+    /// A description that omits the amount and the blinding.
+    var description: String { "UTXO" }
+
+    /// A debugging description that omits the amount and the blinding.
+    var debugDescription: String { description }
+
+    /// A reflection view that omits the amount and the blinding.
+    var customMirror: Mirror { Mirror(self, children: [:]) }
 
     /// The commitment that the UTXO tree holds.
     ///

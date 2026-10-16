@@ -50,6 +50,17 @@ enum TransferVectors {
 
         /// The output's name, in test results.
         var testDescription: String { name }
+
+        /// Derives the output's blinding from its proof's first nullifier and the published
+        /// blinding seed, through the output blinding seed.
+        ///
+        /// - Returns: The output's blinding.
+        /// - Throws: A test failure if the first nullifier is malformed or not canonical.
+        func blinding() throws -> Poseidon.Element {
+            let nullifier = try Poseidon.Element(hex: firstNullifier)
+            let outputBlindingSeed = TransactBlinding.outputBlindingSeed(firstNullifier: nullifier, blindingSeed: TransferVectors.blindingSeed)
+            return TransactBlinding.outputBlinding(firstNullifier: nullifier, outputBlindingSeed: outputBlindingSeed, index: index)
+        }
     }
 
     /// A proof's first nullifier and its private transaction blinding.

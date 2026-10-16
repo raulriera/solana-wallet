@@ -1,3 +1,6 @@
+import CryptoKit
+import ModularArithmetic
+@testable import Privacy
 import Testing
 
 /// zolana's Solana Rings commitment vectors.
@@ -115,7 +118,8 @@ struct CommitmentVectors: Decodable, Sendable {
         }
     }
 
-    /// The parts of one derivation rail that cover its signing public key and nullifier key.
+    /// The parts of one derivation rail that cover its signing public key, nullifier key, and
+    /// viewing key.
     struct Rail: Decodable, Sendable, CustomTestStringConvertible {
         /// The 32-byte Ed25519 signing public key; the P-256 rail has none.
         let signerPubkey: String?
@@ -123,16 +127,50 @@ struct CommitmentVectors: Decodable, Sendable {
         let nullifierSecret: String
         /// The nullifier public key, `Poseidon(nullifier secret)`.
         let nullifierPubkey: String
+        /// The 32-byte P-256 viewing secret.
+        let viewingSecret: String
+        /// The viewing key's SEC1 compressed public key.
+        let viewingPubkey: String
 
         /// The fixture's JSON keys.
         private enum CodingKeys: String, CodingKey {
             case signerPubkey = "signer_pubkey"
             case nullifierSecret = "nullifier_secret"
             case nullifierPubkey = "nullifier_pubkey"
+            case viewingSecret = "viewing_secret"
+            case viewingPubkey = "viewing_pubkey"
         }
 
         /// The rail's nullifier public key, in test results.
         var testDescription: String { "Nullifier public key \(nullifierPubkey)" }
+
+        /// Creates the rail's nullifier key from its published secret.
+        ///
+        /// - Returns: The nullifier key.
+        /// - Throws: A test failure if the secret is malformed, or an error if it isn't 31 bytes.
+        func nullifierKey() throws -> NullifierKey {
+            try NullifierKey(secret: SymmetricKey(data: fixtureBytes(nullifierSecret)))
+        }
+
+        /// Creates the rail's viewing key from its published secret.
+        ///
+        /// - Returns: The viewing key.
+        /// - Throws: A test failure if the secret is malformed, or a CryptoKit error if it isn't a
+        ///   P-256 private key.
+        func viewingKey() throws -> P256.KeyAgreement.PrivateKey {
+            try P256.KeyAgreement.PrivateKey(rawRepresentation: fixtureBytes(viewingSecret))
+        }
+
+        /// Derives the rail's owner hash from its published signing public key and nullifier secret.
+        ///
+        /// - Returns: The owner hash.
+        /// - Throws: A test failure if the rail has no signing public key, as the P-256 rail has none,
+        ///   or if a value is malformed, or an error if the nullifier secret isn't 31 bytes.
+        func ownerHash() throws -> Poseidon.Element {
+            OwnerIdentity.ownerHash(
+                signingPublicKey: try fixtureBytes(#require(signerPubkey)), nullifierPublicKey: try nullifierKey().publicKey
+            )
+        }
     }
 
     /// The Ed25519 and P-256 rails.

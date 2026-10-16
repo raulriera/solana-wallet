@@ -1,9 +1,8 @@
-import CryptoKit
 import ModularArithmetic
 @testable import Privacy
 import Testing
 
-/// Verifies UTXO hashes, empty-UTXO hashes, and UTXO nullifiers.
+/// Verifies UTXO hashes, empty-UTXO hashes, UTXO nullifiers, and redacted UTXO diagnostics.
 ///
 /// zolana publishes the empty-UTXO hash of its blinding-seed vectors and, in `hash_vectors.rs`, the
 /// hashes of the owned SOL UTXOs and padding inputs of two transfers. The edge cases that zolana
@@ -27,10 +26,8 @@ struct UTXOTests {
     ///   read or decoded.
     init() throws {
         let vectors = try CommitmentVectors.load()
-        let rail = vectors.ed25519Rail
-        let signingPublicKey = try fixtureBytes(#require(rail.signerPubkey))
-        nullifierKey = try NullifierKey(secret: SymmetricKey(data: fixtureBytes(rail.nullifierSecret)))
-        owner = OwnerIdentity.ownerHash(signingPublicKey: signingPublicKey, nullifierPublicKey: nullifierKey.publicKey)
+        nullifierKey = try vectors.ed25519Rail.nullifierKey()
+        owner = try vectors.ed25519Rail.ownerHash()
         blinding = try Poseidon.Element(hex: vectors.blindingSeed.derivedOutputBlinding)
     }
 
@@ -59,15 +56,8 @@ struct UTXOTests {
     /// - Parameter output: A published output and its commitment.
     @Test(arguments: TransferVectors.outputs)
     func `Output commitments match the published transfers`(_ output: TransferVectors.Output) throws {
-        let firstNullifier = try Poseidon.Element(hex: output.firstNullifier)
-        let outputBlindingSeed = TransactBlinding.outputBlindingSeed(
-            firstNullifier: firstNullifier, blindingSeed: TransferVectors.blindingSeed
-        )
         let utxo = UTXO(
-            owner: owner, mint: Array(repeating: 0, count: 32), amount: output.amount,
-            blinding: TransactBlinding.outputBlinding(
-                firstNullifier: firstNullifier, outputBlindingSeed: outputBlindingSeed, index: output.index
-            ),
+            owner: owner, mint: Array(repeating: 0, count: 32), amount: output.amount, blinding: try output.blinding(),
             treeID: output.treeID
         )
 
@@ -152,6 +142,20 @@ struct UTXOTests {
         let utxo = UTXO(owner: owner, mint: Array(repeating: 0, count: 32), amount: 1, blinding: blinding, treeID: 0)
 
         #expect(utxo.nullifier(using: nullifierKey).bigEndianBytes == (try fixtureBytes("0cd4871b07798e5135b2556f8c8ca0becca860a35ca286ab5b3a2215d920ee8f")))
+    }
+
+    /// Verifies that printing, dumping, and reflecting a UTXO omit its amount and blinding.
+    @Test
+    func `UTXO diagnostics omit the amount and blinding`() {
+        let utxo = UTXO(owner: owner, mint: Array(repeating: 0, count: 32), amount: 6, blinding: blinding, treeID: 0)
+        var output = ""
+        dump(utxo, to: &output)
+
+        #expect(utxo.description == "UTXO")
+        #expect(utxo.debugDescription == "UTXO")
+        #expect(String(reflecting: utxo) == "UTXO")
+        #expect(output == "- UTXO\n")
+        #expect(Mirror(reflecting: utxo).children.isEmpty)
     }
 
     /// Gathers the empty-UTXO cases: the published blinding-seed vector, the published padding

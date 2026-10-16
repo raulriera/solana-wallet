@@ -12,7 +12,7 @@ struct NullifierKeyTests {
     /// - Parameter rail: A published 31-byte nullifier secret and its public key.
     @Test(arguments: try CommitmentVectors.load().rails)
     func `Public keys match the published nullifier public keys`(_ rail: CommitmentVectors.Rail) throws {
-        let key = try NullifierKey(secret: SymmetricKey(data: fixtureBytes(rail.nullifierSecret)))
+        let key = try rail.nullifierKey()
 
         #expect(key.publicKey.bigEndianBytes == (try fixtureBytes(rail.nullifierPubkey)))
     }
@@ -53,8 +53,7 @@ struct NullifierKeyTests {
     /// - Parameter input: A published spent UTXO and its nullifier.
     @Test(arguments: TransferVectors.spentInputs)
     func `Nullifiers of the rail secret match the published transfers`(_ input: TransferVectors.Input) throws {
-        let rail = try CommitmentVectors.load().ed25519Rail
-        let key = try NullifierKey(secret: SymmetricKey(data: fixtureBytes(rail.nullifierSecret)))
+        let key = try CommitmentVectors.load().ed25519Rail.nullifierKey()
 
         let derived = key.nullifier(utxoHash: try Poseidon.Element(hex: input.hash), blinding: TransferVectors.blinding(input.blindingByte))
 

@@ -59,24 +59,9 @@ enum PackedBytes {
     /// - Returns: The bytes as a field element.
     /// - Precondition: `bytes` contains at most 31 bytes.
     static func field(of bytes: some ContiguousBytes) -> Poseidon.Element {
-        var value = [UInt8](repeating: 0, count: 32)
-        defer { value.erase() }
         bytes.withUnsafeBytes { source in
             precondition(source.count <= chunkLength, "A field element holds at most 31 bytes.")
-            value.withUnsafeMutableBytes { target in
-                UnsafeMutableRawBufferPointer(rebasing: target[(target.count - source.count)...]).copyMemory(from: source)
-            }
+            return Poseidon.Element(reducingRightAligned: source)
         }
-        return Poseidon.Element(reducing: value)
-    }
-}
-
-private extension [UInt8] {
-    /// Overwrites every byte with zero before the buffer is released.
-    ///
-    /// This reduces secret residue in memory on a best-effort basis. Swift may have copied the
-    /// bytes elsewhere, and those copies are not affected.
-    mutating func erase() {
-        withUnsafeMutableBufferPointer { $0.update(repeating: 0) }
     }
 }
