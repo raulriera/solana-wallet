@@ -45,7 +45,7 @@ struct FieldFixture: Sendable, CustomTestStringConvertible {
 
 extension FieldFixture {
     /// Every field the module provides.
-    static let all: [Self] = [bn254, p256]
+    static let all: [Self] = [bn254, bn254Base, p256]
 
     /// Zero.
     static let zero = "0000000000000000000000000000000000000000000000000000000000000000"
@@ -73,7 +73,7 @@ extension FieldFixture {
     /// 2^0, 2^64, 2^128, and 2^192: the lowest bit of each limb.
     static let limbBoundaries = [one, twoToThe64, twoToThe128, twoToThe192]
 
-    /// 0, 2, 2^64 - 1, 2^128 - 1, 2^192 - 1, and the limb boundaries, which are below both moduli.
+    /// 0, 2, 2^64 - 1, 2^128 - 1, 2^192 - 1, and the limb boundaries, which are below every modulus.
     static let sharedEdgeValues = [
         zero,
         two,
@@ -84,7 +84,7 @@ extension FieldFixture {
 
     /// Encodes an integer below 2^128 as 32 big-endian bytes.
     ///
-    /// Every such integer is below both moduli, so these are also its canonical bytes in either field.
+    /// Every such integer is below every modulus, so these are also its canonical bytes in either field.
     ///
     /// - Parameter value: The integer to encode.
     /// - Returns: 16 zero bytes, then the value's 16 big-endian bytes.
@@ -109,6 +109,26 @@ extension FieldFixture {
         // 2^256 - 1 - 5r, the complement of 5r = 0xf1f5…b0000005.
         maximumRemainder: "0e0a77c19a07df2f666ea36f7879462e36fc76959f60cd29ac96341c4ffffffa",
         // r's top limb minus one, above three all-ones limbs.
+        fieldEdgeValues: ["30644e72e131a028ffffffffffffffffffffffffffffffffffffffffffffffff"]
+    )
+
+    /// The BN254 base field, whose modulus p is below 2^254.
+    static let bn254Base = Self(
+        field: BN254BaseField.self,
+        testDescription: "BN254 base field",
+        modulus: "30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47",
+        modulusMinusOne: "30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd46",
+        modulusMinusTwo: "30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd45",
+        modulusPlusOne: "30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd48",
+        half: "183227397098d014dc2822db40c0ac2ecbc0b548b438e5469e10460b6c3e7ea4",
+        // 5p by long multiplication, plus 7. 6p exceeds 2^256, so 5p is the largest multiple below it.
+        multiple: Reduction(
+            value: "f1f5883e65f820d099915c908786b9d3f58714d70a38f4c22ca2bc723a70f26a",
+            remainder: "0000000000000000000000000000000000000000000000000000000000000007"
+        ),
+        // 2^256 - 1 - 5p, the complement of 5p = 0xf1f5…3a70f263.
+        maximumRemainder: "0e0a77c19a07df2f666ea36f7879462c0a78eb28f5c70b3dd35d438dc58f0d9c",
+        // p's top limb minus one, above three all-ones limbs.
         fieldEdgeValues: ["30644e72e131a028ffffffffffffffffffffffffffffffffffffffffffffffff"]
     )
 

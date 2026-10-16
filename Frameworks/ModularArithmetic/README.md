@@ -7,6 +7,7 @@ Arithmetic in prime fields with moduli between 2^64 and 2^256. Elements are four
 | Field | Modulus | Source |
 | --- | --- | --- |
 | [`BN254ScalarField`](Sources/Fields/BN254ScalarField.swift) | r = `0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001` | [EIP-197](https://eips.ethereum.org/EIPS/eip-197) |
+| [`BN254BaseField`](Sources/Fields/BN254BaseField.swift) | p = `0x30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47` | [EIP-196](https://eips.ethereum.org/EIPS/eip-196) |
 | [`P256ScalarField`](Sources/Fields/P256ScalarField.swift) | n = `0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551` | [SEC 2](https://www.secg.org/sec2-v2.pdf), FIPS 186-5 |
 
 The list is closed: only this module can create a [`Modulus`](Sources/Montgomery/Modulus.swift), so each field is tested here.

@@ -12,7 +12,7 @@ The wallet app owns workflow coordination through internal, protocol-based servi
 | [Vault](../Frameworks/Vault/README.md) | Protected recovery storage and authentication for access. |
 | [Portfolio](../Frameworks/Portfolio/README.md) | Each account's manual token list, with its balances, prices, refresh, and finalized changes. |
 | [Encoding](../Frameworks/Encoding/README.md) | Shared codecs. |
-| [ModularArithmetic](../Frameworks/ModularArithmetic/README.md) | Prime-field arithmetic in Montgomery form for the BN254 and P-256 scalar fields. |
+| [ModularArithmetic](../Frameworks/ModularArithmetic/README.md) | Prime-field arithmetic in Montgomery form for the BN254 scalar and base fields and the P-256 scalar field. |
 | [Privacy](../Frameworks/Privacy/README.md) | Solana Rings private balances: Poseidon over BN254, the commitments of default-ring transfers, SOL note encryption, and shielded-pool deposit and transact instructions. |
 | [Themes](../Frameworks/Themes/README.md) | Color tokens, package reading/writing, validation, and resolution against app-provided defaults. |
 | Internal app services/coordinators | Own portfolio presentation lifetimes and compose review, explicit approval, authentication, signing, and optional submission/confirmation. |
@@ -35,7 +35,7 @@ The agreed wallet, transaction, portfolio, and initial color-only Themes framewo
 | Framework | Status |
 | --- | --- |
 | Encoding | Complete for the current scope. |
-| ModularArithmetic | Complete for the current scope: the BN254 and P-256 scalar fields. |
+| ModularArithmetic | Complete for the current scope: the BN254 scalar and base fields and the P-256 scalar field. |
 | Privacy | Poseidon, the commitments of default-ring transfers between Ed25519 owners, the encryption of their SOL notes, and SOL deposit and transact instructions before their proof are complete; the prover and indexer, token notes, and policy rings are separate milestones. |
 | Themes | Color-only package service with app-supplied defaults and PNG/JPEG assets. App services manage immutable built-ins, custom installations, app/wallet preferences, deletion fallbacks, and one-time recovery from iOS Settings. Import/export presentation and rendering remain separate; see [UI architecture](ui.md). |
 | RPC | Complete for the agreed transaction, discovery, DAS, pricing, finalized account-subscription, and signature-watch workflows. The manual token list adds a QuickNode client and per-account subscriptions. Helius also serves the Solana Rings indexer and prover. |

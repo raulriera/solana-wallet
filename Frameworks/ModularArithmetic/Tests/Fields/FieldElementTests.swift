@@ -75,7 +75,7 @@ struct FieldElementTests {
     /// Verifies that reduction leaves each value's remainder modulo m.
     ///
     /// m and m + 1 leave 0 and 1. A known multiple of m plus a remainder leaves that remainder:
-    /// 5r + 7 for BN254 and n + 2^64 - 1 for P-256. 2^256 - 1 leaves the complement of the
+    /// 5r + 7 for BN254, 5p + 7 for its base field, and n + 2^64 - 1 for P-256. 2^256 - 1 leaves the complement of the
     /// largest multiple of m below 2^256. A canonical value, m - 1, is unchanged.
     ///
     /// - Parameters:

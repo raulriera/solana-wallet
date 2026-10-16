@@ -135,9 +135,10 @@ struct LimbsTests {
 
     /// Verifies that reduction leaves each value below twice the modulus at its remainder.
     ///
-    /// For both moduli m, m - 1 stays, m leaves 0, and m + 1 leaves 1. The other values come from
+    /// For every modulus m, m - 1 stays, m leaves 0, and m + 1 leaves 1. The other values come from
     /// each modulus, as ``FieldFixture`` documents:
     /// - BN254: 2r - 1 = 0x60c8…e0000001, r doubled digit by digit less one, leaves r - 1.
+    /// - BN254 base field: 2p - 1 = 0x60c8…b0f9fa8d, p doubled digit by digit less one, leaves p - 1.
     /// - P-256, whose n exceeds 2^255, so values below 2n can carry above 2^256:
     ///   - 2^256 - 1, without a carry, leaves 2^256 - 1 - n, the complement of n.
     ///   - 2^256, a carry above zero limbs, leaves 2^256 - n, the complement of n plus one. Without
@@ -157,6 +158,13 @@ struct LimbsTests {
         (
             FieldFixture.bn254, 0, "60c89ce5c263405370a08b6d0302b0ba5067d090f372e12287c3eb27e0000001",
             FieldFixture.bn254.modulusMinusOne
+        ),
+        (FieldFixture.bn254Base, 0, FieldFixture.bn254Base.modulusMinusOne, FieldFixture.bn254Base.modulusMinusOne),
+        (FieldFixture.bn254Base, 0, FieldFixture.bn254Base.modulus, FieldFixture.zero),
+        (FieldFixture.bn254Base, 0, FieldFixture.bn254Base.modulusPlusOne, FieldFixture.one),
+        (
+            FieldFixture.bn254Base, 0, "60c89ce5c263405370a08b6d0302b0bb2f02d522d0e3951a7841182db0f9fa8d",
+            FieldFixture.bn254Base.modulusMinusOne
         ),
         (FieldFixture.p256, 0, FieldFixture.p256.modulusMinusOne, FieldFixture.p256.modulusMinusOne),
         (FieldFixture.p256, 0, FieldFixture.p256.modulus, FieldFixture.zero),
