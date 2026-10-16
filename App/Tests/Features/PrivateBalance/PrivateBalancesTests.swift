@@ -207,9 +207,7 @@ struct PrivateBalancesTests {
         #expect(saved?.lamports == 1_000_000)
         #expect(await notes.value?[id] == saved)
         #expect(try await Self.methods(of: responses).filter { $0 == GetMultipleAccounts.method }.count == 1)
-        let tagReads = try await responses.requests.filter { try $0.rpcMethod == GetShieldedTransactionsByTags.method }
-        let cursors = try tagReads.map { try #require($0.jsonBody()["params"] as? [String: Any])["cursor"] as? String }
-        #expect(cursors == [nil, HTTPResponses.indexerPosition])
+        #expect(try await Self.tagCursors(of: responses) == [nil, HTTPResponses.indexerPosition])
     }
 
     /// An unregistered account reads no notes and saves no notes entry.
@@ -424,10 +422,147 @@ struct PrivateBalancesTests {
         #expect(try await sync.value == .lamports(0))
     }
 
+    /// An unreadable notes item is deleted once, and each account checks registration and syncs from the start again.
+    @Test
+    func `An unreadable notes item is deleted and every account syncs from the start`() async throws {
+        async let registeredFirst = Self.registeredAccount(index: 0, lamports: 1_000)
+        async let registeredSecond = Self.registeredAccount(index: 1, lamports: 2_000)
+        let (first, second) = try await (registeredFirst, registeredSecond)
+        let responses = HTTPResponses.privateNotes(registry: [first.registry, second.registry],
+                                                   deposits: [first.deposit, second.deposit])
+        let firstID = PrivateBalances.noteID(of: first.account, on: .devnet)
+        let secondID = PrivateBalances.noteID(of: second.account, on: .devnet)
+        let notes = StoredValue<PrivateBalances.Notes>([firstID: NoteSyncState(), secondID: NoteSyncState()],
+                                                       unreadable: true)
+        let keys = StoredValue([first.account.address.value: first.keys, second.account.address.value: second.keys])
+        let balances = try Self.balances(responses, keys: keys, notes: notes)
+
+        // The refreshes run in turn, so each registry read returns its own account's record.
+        let firstStatus = try await balances.refresh(first.account, on: .devnet)
+        let secondStatus = try await balances.refresh(second.account, on: .devnet)
+
+        #expect(firstStatus == .lamports(1_000))
+        #expect(secondStatus == .lamports(2_000))
+        #expect(await notes.deletions == 1)
+        #expect(await notes.value?[firstID]?.lamports == 1_000)
+        #expect(await notes.value?[secondID]?.lamports == 2_000)
+        #expect(try await Self.methods(of: responses).filter { $0 == GetMultipleAccounts.method }.count == 2)
+        #expect(try await Self.tagCursors(of: responses) == [nil, nil])
+    }
+
+    /// An unreadable keys item is deleted, and private balances are off until the person turns them on again.
+    @Test
+    func `An unreadable keys item is deleted and private balances are off`() async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let responses = HTTPResponses.privateNotes()
+        let keys = StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)],
+                               unreadable: true)
+
+        #expect(try await Self.balances(responses, keys: keys).refresh(account, on: .devnet) == .off)
+        #expect(await keys.deletions == 1)
+        #expect(await keys.value == nil)
+        #expect(await responses.requests.isEmpty)
+    }
+
+    /// Turning private balances on over an unreadable keys item deletes the item and keeps the account's keys.
+    @Test
+    func `Enabling over an unreadable keys item deletes it and keeps the keys`() async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let responses = HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered])
+        let keys = StoredValue<PrivateBalances.Keys>(unreadable: true)
+
+        try await Self.balances(responses, keys: keys).enable(account, on: .devnet)
+
+        #expect(await keys.deletions == 1)
+        #expect(await keys.value == [account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
+    }
+
+    /// An item that is unreadable again after its deletion this launch fails the refresh and isn't deleted again.
+    @Test
+    func `An item unreadable again in the same launch fails the refresh without another deletion`() async throws {
+        let registered = try await Self.registeredAccount(index: 0, lamports: 1_000)
+        let responses = HTTPResponses.privateNotes(registry: [registered.registry], deposits: [registered.deposit])
+        let keys = StoredValue([registered.account.address.value: registered.keys])
+        let notes = StoredValue<PrivateBalances.Notes>(unreadable: true)
+        let balances = try Self.balances(responses, keys: keys, notes: notes)
+        try #require(try await balances.refresh(registered.account, on: .devnet) == .lamports(1_000))
+        let rebuilt = await notes.value
+
+        await notes.makeUnreadable()
+
+        await #expect(throws: KeychainItemError.unreadable) {
+            try await balances.refresh(registered.account, on: .devnet)
+        }
+        #expect(await notes.deletions == 1)
+        #expect(await notes.value == rebuilt)
+    }
+
+    /// A reset while a refresh holds its unreadable read cancels the refresh, which deletes and saves nothing.
+    @Test
+    func `A reset during an unreadable read cancels the rebuild`() async throws {
+        let registered = try await Self.registeredAccount(index: 0, lamports: 1_000)
+        let responses = HTTPResponses.privateNotes(registry: [registered.registry], deposits: [registered.deposit])
+        let gate = Suspension()
+        let keys = StoredValue([registered.account.address.value: registered.keys])
+        let notes = StoredValue<PrivateBalances.Notes>(unreadable: true, readGate: gate)
+        let balances = try Self.balances(responses, keys: keys, notes: notes)
+
+        let held = await Self.startRefresh(of: registered.account, in: balances)
+        await gate.waitUntilStarted()
+        try await balances.removeAll()
+        gate.resume()
+
+        await #expect(throws: CancellationError.self) { try await held.value }
+        #expect(await notes.deletions == 1)
+        #expect(await notes.value == nil)
+        #expect(await keys.value == nil)
+    }
+
+    /// A deletion that fails throws its error, and the next refresh deletes the item and syncs from the start.
+    @Test
+    func `A failed deletion is tried again by the next refresh`() async throws {
+        let registered = try await Self.registeredAccount(index: 0, lamports: 1_000)
+        let responses = HTTPResponses.privateNotes(registry: [registered.registry], deposits: [registered.deposit])
+        let keys = StoredValue([registered.account.address.value: registered.keys])
+        let notes = StoredValue<PrivateBalances.Notes>(failsFirstDeletion: true, unreadable: true)
+        let balances = try Self.balances(responses, keys: keys, notes: notes)
+
+        await #expect(throws: CocoaError.self) { try await balances.refresh(registered.account, on: .devnet) }
+        let retried = try await balances.refresh(registered.account, on: .devnet)
+
+        #expect(retried == .lamports(1_000))
+        #expect(await notes.deletions == 1)
+    }
+
+    /// Two refreshes that each read the unreadable notes item before its deletion share one deletion, and both sync.
+    @Test
+    func `Concurrent refreshes that read an unreadable item delete it once`() async throws {
+        async let registeredFirst = Self.registeredAccount(index: 0, lamports: 1_000)
+        async let registeredSecond = Self.registeredAccount(index: 1, lamports: 2_000)
+        let (first, second) = try await (registeredFirst, registeredSecond)
+        // The second account checks registration first, while the first account's unreadable read is held.
+        let responses = HTTPResponses.privateNotes(registry: [second.registry, first.registry],
+                                                   deposits: [first.deposit, second.deposit])
+        let gate = Suspension()
+        let notes = StoredValue<PrivateBalances.Notes>(
+            [PrivateBalances.noteID(of: first.account, on: .devnet): NoteSyncState(),
+             PrivateBalances.noteID(of: second.account, on: .devnet): NoteSyncState()],
+            unreadable: true, readGate: gate
+        )
+        let keys = StoredValue([first.account.address.value: first.keys, second.account.address.value: second.keys])
+        let balances = try Self.balances(responses, keys: keys, notes: notes)
+
+        let held = await Self.startRefresh(of: first.account, in: balances)
+        await gate.waitUntilStarted()
+        let secondStatus = try await balances.refresh(second.account, on: .devnet)
+        gate.resume()
+
+        #expect(secondStatus == .lamports(2_000))
+        #expect(try await held.value == .lamports(1_000))
+        #expect(await notes.deletions == 1)
+    }
+
     /// Creates private balances around local responses and in-memory storage.
-    ///
-    /// Storage defaults to `nil` instead of new storage: an actor initializer in a default argument fails the test
-    /// module's emit-module job.
     /// - Parameters:
     ///   - responses: The local responses that every network's provider client sends requests to.
     ///   - provider: The selected provider; Helius by default.
@@ -438,10 +573,10 @@ struct PrivateBalancesTests {
     /// - Throws: A validation error, which doesn't happen.
     private static func balances(
         _ responses: HTTPResponses, provider: ProviderSettings.Provider = .helius,
-        recovery: SecurityRecoveryStore? = nil, keys: StoredValue<PrivateBalances.Keys>? = nil,
-        notes: StoredValue<PrivateBalances.Notes>? = nil
+        recovery: SecurityRecoveryStore? = nil, keys: StoredValue<PrivateBalances.Keys> = StoredValue(),
+        notes: StoredValue<PrivateBalances.Notes> = StoredValue()
     ) throws -> PrivateBalances {
-        PrivateBalances.inMemory(keys: keys ?? StoredValue(), notes: notes ?? StoredValue(),
+        PrivateBalances.inMemory(keys: keys, notes: notes,
                                  recovery: try recovery ?? PrivateBalanceFixtures.recoveryStore(), responses: responses,
                                  provider: provider)
     }
@@ -451,6 +586,30 @@ struct PrivateBalancesTests {
     /// - Throws: A test prerequisite error, which doesn't happen.
     private static func customRPC() throws -> ProviderSettings.Provider {
         .custom(try #require(URL(string: "https://rpc.example.com")))
+    }
+
+    /// Derives a fixture account registered with its own keys, and a deposit to it.
+    /// - Parameters:
+    ///   - index: The account index.
+    ///   - lamports: The deposit's amount.
+    /// - Returns: The account, its keys, the registry read that finds them, and the deposit's tag-read row.
+    /// - Throws: A derivation error.
+    private static func registeredAccount(index: UInt32, lamports: UInt64) async throws
+        -> (account: widgets.Account, keys: PrivateBalanceKeyRecord, registry: String, deposit: String) {
+        let account = try await PrivateBalanceFixtures.account(index: index)
+        let keys = try await PrivateBalanceFixtures.keys(for: account)
+        let shielded = try keys.shieldedAccount(for: account.address)
+        return (account, keys, try PrivateBalanceFixtures.registry(publishing: shielded),
+                try PrivateBalanceFixtures.deposit(lamports, to: shielded, leafIndex: UInt64(index) + 1))
+    }
+
+    /// Lists the cursor of each tag read sent so far.
+    /// - Parameter responses: The local responses that recorded the requests.
+    /// - Returns: Each tag read's cursor, or `nil` for a read from the start, in arrival order.
+    /// - Throws: A test prerequisite error for a request without a method or parameters.
+    private static func tagCursors(of responses: HTTPResponses) async throws -> [String?] {
+        try await responses.requests.filter { try $0.rpcMethod == GetShieldedTransactionsByTags.method }
+            .map { try #require($0.jsonBody()["params"] as? [String: Any])["cursor"] as? String }
     }
 
     /// Lists the RPC methods of the requests sent so far.

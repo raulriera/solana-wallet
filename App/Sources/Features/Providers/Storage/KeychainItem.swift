@@ -37,6 +37,7 @@ nonisolated struct KeychainItem<Coding: ValueCoding>: ValueStoring {
 
     /// Saves a value, replacing any value already saved.
     ///
+    /// A value whose bytes don't decode back to an equal value isn't saved, so a save never writes bytes that this coding can't read back.
     /// Cancellation doesn't roll back a save that has already reached the Keychain.
     /// - Parameter value: The new value.
     /// - Throws: ``KeychainItemError``, an encoding error, or `CancellationError`.
@@ -53,7 +54,8 @@ nonisolated struct KeychainItem<Coding: ValueCoding>: ValueStoring {
     /// Reads, changes, and saves the value in one Keychain step, so changes made at the same time don't overwrite
     /// each other.
     ///
-    /// Cancellation doesn't roll back a change that has already reached the Keychain.
+    /// A changed value whose bytes don't decode back to an equal value isn't saved. Cancellation doesn't roll back a
+    /// change that has already reached the Keychain.
     /// - Parameter change: Changes the saved value, or `nil` before one is saved; setting `nil` deletes the value,
     ///   and an unchanged value isn't saved again.
     /// - Returns: The change's result.
@@ -87,11 +89,14 @@ nonisolated struct KeychainItem<Coding: ValueCoding>: ValueStoring {
         return value
     }
 
-    /// Saves a value on the Keychain queue, replacing any value already saved.
+    /// Saves a value on the Keychain queue, replacing any value already saved, once its bytes decode back to it.
     /// - Parameter value: The new value.
-    /// - Throws: ``KeychainItemError`` or an encoding error.
+    /// - Throws: ``KeychainItemError/unencodable`` before writing bytes that don't decode back to the value,
+    ///   another ``KeychainItemError``, or an encoding error.
     private func write(_ value: Coding.Value) throws {
-        let value = [kSecValueData as String: try coding.encode(value)]
+        let data = try coding.encode(value)
+        guard coding.decode(data) == value else { throw KeychainItemError.unencodable }
+        let value = [kSecValueData as String: data]
         switch SecItemUpdate(identity as CFDictionary, value as CFDictionary) {
         case errSecItemNotFound:
             var attributes = identity.merging(value) { $1 }

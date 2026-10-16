@@ -58,6 +58,33 @@ struct KeychainItemTests {
         }
     }
 
+    /// A value whose bytes don't decode back isn't saved, so the saved value stays readable.
+    /// - Throws: A Keychain failure.
+    @Test
+    func `A value that doesn't decode back is never saved`() async throws {
+        let service = Self.isolatedService()
+        defer { Self.removeItems(for: service) }
+        try await Self.text(in: service).save("fixture-key")
+        let item = KeychainItem(service: service, account: "value", coding: UndecodableCoding())
+
+        await #expect(throws: KeychainItemError.unencodable) { try await item.save("replacement") }
+
+        #expect(try await Self.text(in: service).load() == "fixture-key")
+    }
+
+    /// A change to a value whose bytes don't decode back isn't saved, so no item is created.
+    /// - Throws: A Keychain failure.
+    @Test
+    func `A change to a value that doesn't decode back is never saved`() async throws {
+        let service = Self.isolatedService()
+        defer { Self.removeItems(for: service) }
+        let item = KeychainItem(service: service, account: "value", coding: UndecodableCoding())
+
+        await #expect(throws: KeychainItemError.unencodable) { try await item.update { $0 = "fixture-key" } }
+
+        #expect(try await Self.text(in: service).load() == nil)
+    }
+
     /// Items with different accounts share a namespace without touching each other.
     /// - Throws: A Keychain failure.
     @Test
@@ -179,5 +206,22 @@ struct KeychainItemTests {
     private static func removeItems(for service: String) {
         let status = SecItemDelete(items(for: service) as CFDictionary)
         #expect(status == errSecSuccess || status == errSecItemNotFound)
+    }
+}
+
+/// Keeps text as UTF-8 bytes that never decode back, as a faulty coding would.
+nonisolated private struct UndecodableCoding: ValueCoding {
+    /// Converts text to its UTF-8 bytes.
+    /// - Parameter value: The text to save.
+    /// - Returns: The text's UTF-8 bytes.
+    func encode(_ value: String) -> Data {
+        Data(value.utf8)
+    }
+
+    /// Reads no value from any bytes.
+    /// - Parameter data: The kept bytes.
+    /// - Returns: `nil`.
+    func decode(_ data: Data) -> String? {
+        nil
     }
 }
