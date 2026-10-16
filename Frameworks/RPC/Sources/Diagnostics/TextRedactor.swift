@@ -10,7 +10,7 @@ protocol TextRedactor: Sendable {
 }
 
 /// A redactor that replaces configured secrets with a placeholder.
-struct SecretRedactor: TextRedactor, CustomStringConvertible, CustomDebugStringConvertible {
+struct SecretRedactor: TextRedactor, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
     private let secrets: [String]
 
     /// Creates a redactor for a collection of sensitive values.
@@ -42,6 +42,9 @@ struct SecretRedactor: TextRedactor, CustomStringConvertible, CustomDebugStringC
 
     /// A debugging representation that omits the configured secrets.
     var debugDescription: String { description }
+
+    /// A reflection without children, so dumps can't reveal the configured secrets.
+    var customMirror: Mirror { Mirror(self, children: [:]) }
 
     /// Replaces occurrences of the configured secrets with `[redacted]`.
     ///

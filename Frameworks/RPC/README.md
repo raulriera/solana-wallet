@@ -18,7 +18,7 @@ let blockhash = response.value.blockhash
 | --- | --- |
 | `Solana(network:)` | Public mainnet or devnet RPC, finalized account subscriptions, and signature watches. No DAS. |
 | `Solana(endpoint:network:)` | RPC at a custom HTTPS URL, with finalized account subscriptions and signature watches at the same URL over WSS. No DAS. |
-| `HeliusRPC(apiKey:network:)` | Mainnet or devnet RPC, DAS, logo copies, finalized account subscriptions, and signature watches. |
+| `HeliusRPC(apiKey:network:)` | Mainnet or devnet RPC, DAS, logo copies, finalized account subscriptions, signature watches, and the Solana Rings indexer and prover. |
 | `Sender(tier:)` | Optional mainnet transaction submission with `standard` or `premium` routing. Preparation and confirmation use ordinary RPC. |
 | `Jupiter(apiKey:)` | Mainnet prices through `PriceProviding`; independent of RPC and DAS. |
 
@@ -33,6 +33,14 @@ Typed requests cover account and rent reads, blockhash lifetime, epochs, fees, s
 [`AccountChangeProviding`](Sources/Subscriptions/AccountChangeProviding.swift) observes finalized changes to a list of accounts on one connection, including accounts that don't exist yet. `changedSlots(for:)` returns after subscriptions are acknowledged and emits increasing change slots. These signal a need to reconcile balances; they are not balance updates. Cancel the consuming task to close its connection.
 
 [`SignatureEventProviding`](Sources/Subscriptions/SignatureEventProviding.swift) watches a sent transaction with `signatureSubscribe` at finalized and `rootSubscribe` on one connection. `events(for:)` returns after both subscriptions are acknowledged and keeps every event: `.landed(error:)` with the execution error, or `nil` after success, and increasing `.rooted` slots. A landing has no slot, because a notification's context slot isn't guaranteed to be the execution slot. Cancel the consuming task to close its connection.
+
+## Private notes and proofs
+
+[`PrivateNoteProviding`](Sources/PrivateNotes/PrivateNoteProviding.swift) reads Solana Rings' default-ring indexer. `shieldedTransactions(taggedWith:after:)` reads the confidential-transaction and encrypted-output streams for 32-byte view tags to their ends, concurrently, keeping proofless deposits only from the second; it returns the transactions, the newest unpaused output tree, and a storable `NoteSyncPosition` that is valid only for the same tags. `shieldedTransactions(spending:)` returns the transactions that spent any of the nullifiers. Requests carry at most 1,000 tags or nullifiers.
+
+[`ProofProviding`](Sources/Proofs/ProofProviding.swift) proves a default-ring confidential transfer on the prover's indexed route, so the prover reads the Merkle data and reports the roots it used. `TransferProofRequest` checks lengths and counts on creation and omits its witness, which includes the nullifier secret, from descriptions. `TransferProof` returns the points as received, the proving key's digest, and the resolution; the caller checks them and converts the points.
+
+`HeliusRPC` implements both through its gateway, `https://{host}/v1/zolana/{method or route}?api-key=…`: indexer methods as JSON-RPC, and proofs as plain JSON with `X-Sync: true`. Other providers don't implement them.
 
 ## Errors and submission
 

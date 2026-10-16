@@ -1,0 +1,41 @@
+import Foundation
+import Testing
+@testable import RPC
+
+/// Verifies the parameters of indexer requests.
+struct IndexerRequestsTests {
+    /// Verifies each request names its values and sends a cursor only when it has one, never a limit.
+    ///
+    /// - Parameters:
+    ///   - request: The request to encode.
+    ///   - expected: Its parameters as JSON with sorted keys.
+    /// - Throws: An encoding error.
+    @Test(arguments: [
+        (GetShieldedTransactionsByTags(tags: ["a"], cursor: nil) as any RPCRequest, #"{"tags":["a"]}"#),
+        (GetShieldedTransactionsByTags(tags: ["a"], cursor: "AQ=="), #"{"cursor":"AQ==","tags":["a"]}"#),
+        (GetEncryptedUtxosByTags(tags: ["a", "b"], cursor: nil), #"{"tags":["a","b"]}"#),
+        (GetEncryptedUtxosByTags(tags: ["a"], cursor: "AQ=="), #"{"cursor":"AQ==","tags":["a"]}"#),
+        (GetShieldedTransactionsByNullifiers(nullifiers: ["n"], cursor: nil), #"{"nullifiers":["n"]}"#),
+        (GetShieldedTransactionsByNullifiers(nullifiers: ["n"], cursor: "AQ=="), #"{"cursor":"AQ==","nullifiers":["n"]}"#),
+    ])
+    func `Requests send their values and an optional cursor`(request: any RPCRequest, expected: String) throws {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
+
+        #expect(String(decoding: try encoder.encode(request), as: UTF8.self) == expected)
+    }
+
+    /// Verifies each request's method name, which is also its route below the gateway.
+    ///
+    /// - Parameters:
+    ///   - method: The request type's method.
+    ///   - expected: The indexer's method name.
+    @Test(arguments: [
+        (GetShieldedTransactionsByTags.method, "getShieldedTransactionsByTags"),
+        (GetEncryptedUtxosByTags.method, "getEncryptedUtxosByTags"),
+        (GetShieldedTransactionsByNullifiers.method, "getShieldedTransactionsByNullifiers"),
+    ])
+    func `Requests name their indexer methods`(method: String, expected: String) {
+        #expect(method == expected)
+    }
+}

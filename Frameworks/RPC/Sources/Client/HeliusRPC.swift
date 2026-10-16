@@ -1,6 +1,9 @@
 public import Foundation
 
 /// A client that sends typed JSON-RPC requests to Helius on a selected Solana network.
+///
+/// It also reads Helius's Solana Rings indexer and prover through ``PrivateNoteProviding`` and
+/// ``ProofProviding``.
 public struct HeliusRPC: RPC, AccountChangeProviding, SignatureEventProviding, LogoProviding,
                          CustomStringConvertible, CustomDebugStringConvertible {
     /// The Solana network that receives the client's requests.
@@ -8,6 +11,10 @@ public struct HeliusRPC: RPC, AccountChangeProviding, SignatureEventProviding, L
 
     /// Standard Solana RPC at the Helius endpoints, which also answer DAS requests.
     private let rpc: Solana
+
+    /// The Solana Rings gateway, `https://{host}/v1/zolana`, whose indexer methods and prover routes
+    /// are paths below it with the same key.
+    let gateway: HTTPClient
 
     /// Creates a client with an ephemeral URL session on the selected network.
     ///
@@ -39,8 +46,13 @@ public struct HeliusRPC: RPC, AccountChangeProviding, SignatureEventProviding, L
             .appending(queryItems: [URLQueryItem(name: "api-key", value: apiKey)])
         let socketEndpoint = URL(string: "wss://\(host)/")!
             .appending(queryItems: [URLQueryItem(name: "api-key", value: apiKey)])
+        let gatewayEndpoint = URL(string: "https://\(host)/v1/zolana")!
+            .appending(queryItems: [URLQueryItem(name: "api-key", value: apiKey)])
+        // The key, a query value of both endpoints, is redacted wherever it appears, including gateway URLs.
+        let redactor = SecretRedactor(urls: [endpoint, socketEndpoint])
         rpc = Solana(network: network, endpoint: endpoint, socketEndpoint: socketEndpoint,
-                     redactor: SecretRedactor(urls: [endpoint, socketEndpoint]), transport: transport, socket: socket)
+                     redactor: redactor, transport: transport, socket: socket)
+        gateway = HTTPClient(endpoint: gatewayEndpoint, transport: transport, redactor: redactor)
     }
 
     /// A textual representation that identifies the network and omits credentials.
@@ -85,6 +97,7 @@ public struct HeliusRPC: RPC, AccountChangeProviding, SignatureEventProviding, L
         let requested = Set(unique)
         var logos: [String: URL] = [:]
         for batch in unique.batches(of: 1_000) {
+            try Task.checkCancellation()
             for case let asset? in try await send(GetAssetBatch(ids: batch)) where requested.contains(asset.id) {
                 logos[asset.id] = asset.imageURL
             }

@@ -1,7 +1,7 @@
 import Foundation
 
 /// Owns the standard Solana subscription wire protocol for interchangeable providers.
-struct SubscriptionClient: Sendable {
+struct SubscriptionClient: Sendable, CustomReflectable {
     let endpoint: URL
     let connect: @Sendable (URL) -> any WebSocketConnection
     let redactor: any TextRedactor
@@ -9,6 +9,9 @@ struct SubscriptionClient: Sendable {
     var pingInterval: Duration = .seconds(30)
     /// How long each keep-alive ping waits for its pong before the connection counts as lost.
     var pongTimeout: Duration = .seconds(10)
+
+    /// A reflection without children, so dumps can't reveal the endpoint or its key.
+    var customMirror: Mirror { Mirror(self, children: [:]) }
 
     /// Opens one finalized subscription per account on one connection, then streams their increasing change slots.
     /// - Parameter addresses: The accounts to watch; a repeated address is watched once.

@@ -32,6 +32,8 @@ public enum RPCError: Error, Sendable, Equatable {
         case mismatchedID
         /// The response contained both `result` and `error`, or neither field.
         case invalidEnvelope
+        /// A paged response repeated a cursor, or returned one on a page without rows, so it can't advance.
+        case invalidCursor
     }
 
     /// Whether the failure can clear without a person's action, so the caller may connect or read again later.

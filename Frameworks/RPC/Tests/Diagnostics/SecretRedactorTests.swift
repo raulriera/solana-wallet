@@ -39,4 +39,19 @@ struct SecretRedactorTests {
 
         #expect(message == "Request failed for [redacted].")
     }
+
+    /// Verifies dumping a client, which reflects its stored properties, reveals no key or endpoint.
+    ///
+    /// - Throws: A failed test prerequisite.
+    @Test
+    func `Dumps of clients reveal no key`() throws {
+        let endpoint = try #require(URL(string: "https://rpc.example.com/fixture-key"))
+        let custom = try #require(Solana(endpoint: endpoint, network: .mainnet))
+        var text = ""
+        dump(HeliusRPC(apiKey: "fixture-key", network: .devnet), to: &text)
+        dump(custom, to: &text)
+
+        #expect(!text.contains("fixture-key"))
+        #expect(!text.contains("example.com") && !text.contains("helius-rpc.com"))
+    }
 }

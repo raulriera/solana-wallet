@@ -217,6 +217,8 @@
             "Portfolio/frameworks",
             "Wallet/frameworks",
             "Transactions/frameworks",
+            "RPC/frameworks",
+            "RPCTests/frameworks",
             "EncodingTests/frameworks",
           ],
         }, {
@@ -347,6 +349,9 @@
       "id": "A10000000000000000000014",
       "product": "Products/RPC.framework",
       "product-type": "framework",
+      "dependencies": [
+        "Encoding",
+      ],
       "build-phases": [
         "compile-sources",
         "frameworks",
