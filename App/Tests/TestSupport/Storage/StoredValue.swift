@@ -3,7 +3,7 @@ import Foundation
 
 /// Keeps one value in memory in place of device storage, optionally failing each read or save or the first deletion,
 /// keeping unreadable bytes, or suspending a save or an unreadable read.
-actor StoredValue<Value: Equatable & Sendable>: ValueStoring {
+actor StoredValue<Value: Equatable & Sendable> {
     private(set) var value: Value?
     /// How many times the value was deleted.
     private(set) var deletions = 0
@@ -99,3 +99,7 @@ actor StoredValue<Value: Equatable & Sendable>: ValueStoring {
         return result
     }
 }
+
+/// The conformance sits in an extension so the compiler doesn't infer isolation for the actor from the protocol, which
+/// fails some builds with a misleading "'nonisolated' modifier cannot be applied" error on this actor.
+extension StoredValue: ValueStoring {}
