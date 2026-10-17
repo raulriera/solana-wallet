@@ -34,8 +34,8 @@ struct PublicInputsTests {
         #expect(names == ["compact_5x4_without_owner_chain"])
     }
 
-    /// Verifies zolana's proof request fixture: the prover inserts two trees' slots at index 2 of
-    /// 15 public inputs.
+    /// Verifies zolana's indexed proof fixture: the hash inserts two trees' slots at index 2 of 15
+    /// public inputs.
     @Test
     func `Hashes match the published proof request`() throws {
         let vector = try PublicInputVectors.load().indexedProof

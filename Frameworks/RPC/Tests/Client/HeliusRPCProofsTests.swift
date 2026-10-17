@@ -6,14 +6,14 @@ import Testing
 struct HeliusRPCProofsTests {
     private typealias Fixture = ProofFixtures
 
-    /// Verifies the request posts the body to the shape's indexed route with the key and `X-Sync`.
+    /// Verifies the request posts the body to the gateway's complete route with the key and `X-Sync`.
     ///
     /// - Parameters:
     ///   - network: The selected network.
     ///   - host: The Helius host that serves it.
     /// - Throws: An RPC, encoding, or parsing error, or a failed test prerequisite.
     @Test(arguments: [(Network.mainnet, "mainnet.helius-rpc.com"), (.devnet, "devnet.helius-rpc.com")])
-    func `Proofs post to the shape's indexed route`(network: Network, host: String) async throws {
+    func `Proofs post to the complete route`(network: Network, host: String) async throws {
         let transport = StubTransport { request in
             let url = try #require(request.url)
             return (Data(Fixture.response().utf8), try #require(HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil,
@@ -26,21 +26,21 @@ struct HeliusRPCProofsTests {
 
         #expect(proof.provingKeyDigest == Array(repeating: 0x7e, count: 32))
         let sent = try #require(await transport.requests.first)
-        #expect(sent.url?.absoluteString
-            == "https://\(host)/v1/zolana/prove/transfer_confidential_1_2/indexed?api-key=fixture-key")
+        #expect(sent.url?.absoluteString == "https://\(host)/v1/zolana/prove?api-key=fixture-key")
         #expect(sent.httpMethod == "POST")
         #expect(sent.timeoutInterval == 30)
         #expect(sent.value(forHTTPHeaderField: "X-Sync") == "true")
         #expect(sent.value(forHTTPHeaderField: "Content-Type") == "application/json")
         // TransferProofBodyTests pins the body's fields.
-        #expect(try requestBody(sent)["circuitType"] as? String == "transfer-confidential")
+        #expect(try requestBody(sent)["publicInputHash"] as? String == "0x99")
     }
 
     /// Verifies refusals surface as HTTP errors whatever their body, with the key redacted from the retry delay.
     ///
-    /// - Parameter status: A refusal: a missing key, a proof timeout, or a busy prover.
+    /// - Parameter status: A refusal: a witness that the circuit rejects, a missing key, a proof timeout, or a busy
+    ///   prover.
     /// - Throws: A failed test prerequisite.
-    @Test(arguments: [401, 408, 429])
+    @Test(arguments: [400, 401, 408, 429])
     func `Prover refusals surface as HTTP errors without the key`(status: Int) async throws {
         let transport = StubTransport { request in
             let url = try #require(request.url)
@@ -56,14 +56,14 @@ struct HeliusRPCProofsTests {
         }
     }
 
-    /// Verifies a successful body that isn't a proof fails with a decoding error.
+    /// Verifies a successful body that isn't a proof, such as one without its digest, fails with a decoding error.
     ///
     /// - Throws: A failed test prerequisite.
     @Test
-    func `A body without a resolution fails to decode`() async throws {
+    func `A body without a digest fails to decode`() async throws {
         let transport = StubTransport { request in
             let url = try #require(request.url)
-            return (Data(Fixture.response(resolution: false).utf8),
+            return (Data(Fixture.response(digest: nil).utf8),
                     try #require(HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)))
         }
         let provider = HeliusRPC(apiKey: "fixture-key", network: .devnet, transport: transport)

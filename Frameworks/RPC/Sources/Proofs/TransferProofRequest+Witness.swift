@@ -66,7 +66,7 @@ extension TransferProofRequest {
         public let utxo: UTXO
         /// Whether the slot is padding.
         public let isDummy: Bool
-        /// The position of the input's tree in ``TransferProofRequest/trees``.
+        /// The position of the input's tree in ``TransferProofRequest/treeSlots``.
         public let treeSlot: UInt8
         /// The published nullifier.
         public let nullifier: [UInt8]
@@ -74,6 +74,11 @@ extension TransferProofRequest {
         public let ownerPublicKeyHash: [UInt8]
         /// The owner's nullifier secret, right-aligned in 32 big-endian bytes, or zero for padding.
         public let nullifierSecret: [UInt8]
+        /// The spent UTXO's inclusion proof under its tree slot's UTXO root, or `nil` for padding or a cached input,
+        /// whose path is zero.
+        public let inclusionProof: MerkleProof?
+        /// The nullifier's non-inclusion proof under its tree slot's nullifier root; every slot has one.
+        public let nonInclusionProof: NonInclusionProof
 
         /// Creates an input slot.
         ///
@@ -84,9 +89,11 @@ extension TransferProofRequest {
         ///   - nullifier: The published nullifier.
         ///   - ownerPublicKeyHash: The owner's Solana identity, or zero.
         ///   - nullifierSecret: The right-aligned nullifier secret, or zero.
+        ///   - inclusionProof: The spent UTXO's inclusion proof, or `nil`.
+        ///   - nonInclusionProof: The nullifier's non-inclusion proof.
         /// - Throws: ``ValidationError/invalidLength`` if a value isn't 32 bytes.
         public init(utxo: UTXO, isDummy: Bool, treeSlot: UInt8, nullifier: [UInt8], ownerPublicKeyHash: [UInt8],
-                    nullifierSecret: [UInt8]) throws {
+                    nullifierSecret: [UInt8], inclusionProof: MerkleProof?, nonInclusionProof: NonInclusionProof) throws {
             try TransferProofRequest.validateFields([nullifier, ownerPublicKeyHash, nullifierSecret])
             self.utxo = utxo
             self.isDummy = isDummy
@@ -94,6 +101,8 @@ extension TransferProofRequest {
             self.nullifier = nullifier
             self.ownerPublicKeyHash = ownerPublicKeyHash
             self.nullifierSecret = nullifierSecret
+            self.inclusionProof = inclusionProof
+            self.nonInclusionProof = nonInclusionProof
         }
 
         /// A representation that omits the values.
@@ -151,8 +160,7 @@ extension TransferProofRequest {
         public var customMirror: Mirror { Mirror(self, children: [:]) }
     }
 
-    /// The circuit's witness on the indexed route: every value except Merkle paths, tree slots, and the
-    /// public input hash.
+    /// The circuit's witness: every value except the tree slots and the public input hash.
     ///
     /// Descriptions and reflection omit the values, which include the blinding seed.
     public struct Witness: Sendable, Equatable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {

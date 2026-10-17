@@ -1,19 +1,15 @@
 extension HeliusRPC: ProofProviding {
-    /// Proves a transfer with Helius's Solana Rings prover on its indexed route, waiting for the proof.
+    /// Proves a transfer with Helius's Solana Rings prover on its complete route, waiting for the proof.
     ///
-    /// The request posts JSON to `prove/transfer_confidential_{inputs}_{outputs}/indexed` below the gateway,
-    /// with `X-Sync: true`, so the response carries the proof; it isn't queued or polled.
-    /// - Parameter request: The transfer's lookups, public inputs, and witness.
-    /// - Returns: The decoded proof and resolution, unchecked.
-    /// - Throws: `RPCError.http(statusCode:retryAfter:)` for a refusal, such as a rate limit or a proof
-    ///   timeout, another `RPCError`, or `CancellationError`.
+    /// The request posts the whole witness as JSON to `prove` below the gateway, the only proving route that the
+    /// gateway serves, with `X-Sync: true`, so the response carries the proof; it isn't queued or polled.
+    /// - Parameter request: The transfer's tree slots, public input hash, and witness.
+    /// - Returns: The decoded proof, unchecked.
+    /// - Throws: `RPCError.http(statusCode:retryAfter:)` for a refusal, such as a rate limit, a proof timeout, or a
+    ///   witness that the circuit rejects, another `RPCError`, or `CancellationError`.
     @concurrent
     public func proveTransfer(_ request: TransferProofRequest) async throws -> TransferProof {
-        try await gateway.post(
-            TransferProofBody(request),
-            at: "prove/transfer_confidential_\(request.inputCount)_\(request.outputCount)/indexed",
-            headers: ["X-Sync": "true"],
-            decoding: TransferProofResponse.self
-        ).proof
+        try await gateway.post(TransferProofBody(request), at: "prove", headers: ["X-Sync": "true"],
+                               decoding: TransferProofResponse.self).proof
     }
 }

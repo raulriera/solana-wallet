@@ -19,8 +19,9 @@ import Transactions
 ///   with random payloads as long as a note, tagged with the sender's view tag, or the recipient's
 ///   if the sender has no output.
 /// - Every output slot's blinding derives from the first nullifier and the blinding seed. Each real
-///   output's note is sealed with the transaction viewing key and the salt. Outputs that the sender
-///   owns refer to the fee payer, the sender, for their view tag.
+///   output's note is sealed with the transaction viewing key and the salt. Outputs with the
+///   sender's view tag, padding included, refer to the fee payer, the sender, for it, as in zolana's
+///   fix #432.
 ///
 /// Descriptions and reflection omit the amounts, the blindings, and the blinding seed.
 struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
@@ -48,14 +49,14 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
         case foreignNullifierKey
         /// The prover made the proof with a key other than the plan's shape's.
         case unexpectedProvingKey
-        /// The prover resolved other trees than the plan declares, or in another order.
-        case unexpectedTrees
-        /// A resolved root's position is outside its tree's root history.
+        /// A tree's proofs are missing, don't match its inputs, or disagree on their root or its position.
+        case inconsistentProofs
+        /// A root's position is outside its tree's root history.
         case rootIndexOutOfRange
-        /// A resolved root isn't a canonical field element.
+        /// A root isn't a canonical field element.
         case invalidRoot
-        /// The resolved roots don't reproduce the prover's public input hash.
-        case publicInputHashMismatch
+        /// A non-inclusion proof's low and high elements don't enclose its nullifier.
+        case invalidNonInclusionProof
     }
 
     /// A transfer of SOL to another owner's shielded address.
@@ -251,6 +252,18 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
             self.shape = shape
         }
 
+        /// Encodes an output's view tag as the sender's outputs do: a reference to the payer, the sender, for the
+        /// sender's view tag, else the tag inline.
+        ///
+        /// Padding borrows a participant's view tag with the same encoding, so it can't be told apart from that
+        /// participant's output.
+        ///
+        /// - Parameter viewTag: The output's view tag.
+        /// - Returns: The output's owner tag.
+        func ownerTag(for viewTag: [UInt8]) -> TransactOutput.OwnerTag {
+            viewTag == senderOwner.viewTag ? .payer : .inline(viewTag)
+        }
+
         /// Adds amounts without overflow.
         ///
         /// - Parameter amounts: The amounts, in lamports.
@@ -419,7 +432,7 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
             )
             guard slot < layout.outputs.count else {
                 return Output(utxo: nil, published: TransactOutput(
-                    utxoHash: UTXO.dummyHash(treeID: outputTreeID, blinding: blinding), ownerTag: .inline(layout.paddingViewTag),
+                    utxoHash: UTXO.dummyHash(treeID: outputTreeID, blinding: blinding), ownerTag: layout.ownerTag(for: layout.paddingViewTag),
                     data: randomness.paddingOutputData[slot - layout.outputs.count]
                 ), blinding: blinding, owner: nil)
             }
@@ -431,9 +444,8 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
                 ConfidentialPlaintext(asset: .sol, amount: lamports, blinding: blinding), for: owner.viewingPublicKey,
                 transactionViewingKey: transactionViewingKey, salt: randomness.salt, slot: UInt32(slot)
             )
-            let ownerTag: TransactOutput.OwnerTag = owner.viewTag == layout.senderOwner.viewTag ? .payer : .inline(owner.viewTag)
             return Output(utxo: utxo, published: TransactOutput(
-                utxoHash: utxo.hash, ownerTag: ownerTag, data: note.encoded
+                utxoHash: utxo.hash, ownerTag: layout.ownerTag(for: owner.viewTag), data: note.encoded
             ), blinding: blinding, owner: owner)
         }
         shape = layout.shape

@@ -1,7 +1,9 @@
 import Foundation
+@testable import Privacy
 @testable import RPC
 import Synchronization
 import Testing
+import Transactions
 @testable import widgets
 
 /// Checks that requests go to the provider and key saved when they're sent, through the real clients and local HTTP fixtures.
@@ -177,6 +179,73 @@ struct ProviderClientTests {
         await #expect(throws: ProviderClientError.privateNotesUnavailable) {
             _ = try await client.shieldedTransactions(spending: [tag])
         }
+        await #expect(throws: ProviderClientError.privateNotesUnavailable) {
+            _ = try await client.merkleProofs(for: [tag], inTree: ShieldedPool.tree(id: 1).value)
+        }
+        await #expect(throws: ProviderClientError.privateNotesUnavailable) {
+            _ = try await client.nonInclusionProofs(for: [tag], inTree: ShieldedPool.tree(id: 1).value)
+        }
+        #expect(await responses.requests.isEmpty)
+    }
+
+    /// Tree proof reads go to Helius's indexer on the client's network.
+    @Test
+    func `Helius reads tree proofs`() async throws {
+        let responses = HTTPResponses.privateNotes(prove: PrivateBalanceFixtures.proof(answering:))
+        let client = responses.providerClient(network: .devnet, settings: StoredValue(ProviderSettings(selection: .helius)),
+                                              providerKey: StoredValue("fixture-key"))
+        let tree = try ShieldedPool.tree(id: 1).value
+        let leaf = [UInt8](repeating: 7, count: 32)
+
+        async let included = client.merkleProofs(for: [leaf], inTree: tree)
+        async let excluded = client.nonInclusionProofs(for: [leaf], inTree: tree)
+        let (inclusionProofs, nonInclusionProofs) = try await (included, excluded)
+
+        #expect(inclusionProofs.map(\.leaf) == [leaf])
+        #expect(nonInclusionProofs.map(\.nullifier) == [leaf])
+        #expect(try await responses.requests.map { try $0.rpcMethod }.sorted() == [GetMerkleProofs.method, GetNonInclusionProofs.method])
+        #expect(await responses.requests.allSatisfy { $0.url?.host() == "devnet.helius-rpc.com" })
+    }
+
+    /// Proof requests go to Helius's prover route on the client's network.
+    @Test
+    func `Helius proves private transfers`() async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let shielded = try await PrivateBalanceFixtures.keys(for: account).shieldedAccount(for: account.address)
+        let responses = HTTPResponses.privateNotes(prove: PrivateBalanceFixtures.proof(answering:))
+        let client = responses.providerClient(network: .devnet, settings: StoredValue(ProviderSettings(selection: .helius)),
+                                              providerKey: StoredValue("fixture-key"))
+        let request = try PrivateBalanceFixtures.proofRequest(spending: shielded)
+
+        let proof = try await client.proveTransfer(request)
+
+        let sent = try #require(await responses.requests.first)
+        let body = try sent.jsonBody()
+        let shape = Shape(inputs: try #require(body["nInputs"] as? Int), outputs: try #require(body["nOutputs"] as? Int))
+        #expect(shape == Shape(inputs: 1, outputs: 2))
+        #expect(proof.provingKeyDigest == shape.provingKeyDigest)
+        #expect(await responses.requests.count == 1)
+        #expect(sent.url?.host() == "devnet.helius-rpc.com")
+        #expect(sent.url?.path() == "/v1/zolana/prove")
+    }
+
+    /// A provider that doesn't prove private transfers, or a custom RPC off mainnet, fails a proof request before
+    /// sending anything.
+    /// - Parameters:
+    ///   - isCustom: Whether a custom RPC is selected instead of Solana's public RPC.
+    ///   - error: The error that the proof request throws.
+    @Test(arguments: [(false, .privateNotesUnavailable), (true, .unsupportedNetwork)] as [(Bool, ProviderClientError)])
+    func `Other providers fail proofs before sending anything`(isCustom: Bool, error: ProviderClientError) async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let shielded = try await PrivateBalanceFixtures.keys(for: account).shieldedAccount(for: account.address)
+        let responses = HTTPResponses.privateNotes()
+        let custom = try #require(URL(string: "https://rpc.example.com"))
+        let provider: ProviderSettings.Provider = isCustom ? .custom(custom) : .solana
+        let client = responses.providerClient(network: .devnet, settings: StoredValue(ProviderSettings(selection: provider)),
+                                              providerKey: StoredValue<String>())
+        let request = try PrivateBalanceFixtures.proofRequest(spending: shielded)
+
+        await #expect(throws: error) { _ = try await client.proveTransfer(request) }
         #expect(await responses.requests.isEmpty)
     }
 

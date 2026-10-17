@@ -20,10 +20,7 @@ struct ShieldedPoolDepositTests {
     @Test(arguments: try InstructionVectors.load().deposits)
     func `Deposits match the independent reference`(_ vector: InstructionVectors.Deposit) throws {
         let sender = try TransferVectors.sender()
-        let owner = vector.toSender ? try Recipient(
-            signingAddress: sender.signingAddress, nullifierPublicKey: sender.nullifierKey.publicKey,
-            viewingPublicKey: sender.viewingKey.publicKey
-        ) : try TransferVectors.recipient()
+        let owner = vector.toSender ? try sender.recipient : try TransferVectors.recipient()
         let lamports = try #require(UInt64(vector.lamports))
 
         let instruction = try ShieldedPool.deposit(lamports: lamports, from: Address(vector.depositor), to: owner, treeID: vector.treeID)

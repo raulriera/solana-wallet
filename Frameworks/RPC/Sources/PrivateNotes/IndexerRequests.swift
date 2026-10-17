@@ -27,6 +27,30 @@ struct GetEncryptedUtxosByTags: RPCRequest {
     let cursor: String?
 }
 
+/// An indexer read of the inclusion proofs of UTXO hashes in one tree, all against one root.
+struct GetMerkleProofs: RPCRequest {
+    /// The indexer method, which is also the route below the gateway.
+    static let method = "getMerkleProofs"
+    /// One proof per leaf, in request order.
+    typealias Response = MerkleProofList
+    /// The tree account's base-58 address.
+    let treeAccount: String
+    /// One to 1,000 base-58 UTXO hashes.
+    let leaves: [String]
+}
+
+/// An indexer read of the non-inclusion proofs of nullifiers in one tree, all against one root.
+struct GetNonInclusionProofs: RPCRequest {
+    /// The indexer method, which is also the route below the gateway.
+    static let method = "getNonInclusionProofs"
+    /// One proof per nullifier, in request order.
+    typealias Response = NonInclusionProofList
+    /// The tree account's base-58 address.
+    let treeAccount: String
+    /// One to 1,000 base-58 nullifiers.
+    let leaves: [String]
+}
+
 /// An indexer read of the transactions that spent any of the nullifiers.
 ///
 /// The request omits `limit`, so the indexer's default page size of 1,000 applies.

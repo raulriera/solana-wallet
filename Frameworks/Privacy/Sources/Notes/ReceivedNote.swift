@@ -8,8 +8,9 @@ import Transactions
 ///
 /// An account finds its notes in the shielded transactions that the indexer returns for its tags:
 ///
-/// - In a confidential transaction, each output whose view tag is the account's signing address is
-///   opened with the account's viewing key and the transaction's viewing key and salt, at the
+/// - In a confidential transaction, each output whose view tag is one of the account's view tags,
+///   its signing address or its viewing public key's x-coordinate, is opened with the account's
+///   viewing key and the transaction's viewing key and salt, at the
 ///   output's position. The UTXO is the account's only if the note decodes and its rebuilt hash is
 ///   the published one.
 /// - In a proofless deposit, the output publishes the UTXO in the clear. The UTXO is the account's
@@ -148,7 +149,7 @@ public struct ReceivedNote: Sendable, Equatable, Codable, CustomStringConvertibl
         }
     }
 
-    /// Opens the confidential outputs tagged with the account's signing address.
+    /// Opens the confidential outputs tagged with one of the account's view tags.
     ///
     /// - Parameters:
     ///   - transaction: A confidential transaction.
@@ -166,8 +167,9 @@ public struct ReceivedNote: Sendable, Equatable, Codable, CustomStringConvertibl
               let transactionViewingPublicKey = try? P256.KeyAgreement.PublicKey(compressedRepresentation: viewingKeyBytes) else {
             return []
         }
+        let viewTags = account.viewTags
         return try transaction.outputs.enumerated().compactMap { index, output in
-            guard output.viewTag == account.signingAddress.bytes,
+            guard viewTags.contains(output.viewTag),
                   let payload = try? ConfidentialOutput(decoding: output.payload),
                   let utxoHash = Poseidon.Element(bigEndianBytes: output.utxoHash),
                   let utxo = try payload.receive(

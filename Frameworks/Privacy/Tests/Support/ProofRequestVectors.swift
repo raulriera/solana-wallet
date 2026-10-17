@@ -3,13 +3,13 @@ import ModularArithmetic
 import Testing
 
 /// The proofs of transact plans, computed by an independent Python implementation written from
-/// zolana v0.4.0-alpha's sources.
+/// zolana v0.4.0-alpha's sources, with the padding owner tags of zolana's main branch (#432).
 ///
 /// The plans are those of ``InstructionVectors`` and six seeded random plans, with one or two
 /// trees, transfers, withdrawals, both, and padding, all built with ``PlanFixtures``. Each plan has
-/// random roots and root positions, the request body that the prover receives, and a response with
-/// random curve points, alternately with and without zero padding, which reproduces the plan's
-/// public input hash. Field elements are 32-byte big-endian hexadecimal.
+/// random roots, root positions, and indexer proofs per declared tree, the complete-route request
+/// body that the prover receives, and a response with random curve points, alternately with and
+/// without zero padding. Field elements are 32-byte big-endian hexadecimal.
 struct ProofRequestVectors: Decodable, Sendable {
     /// The transacts.
     let transacts: [Transact]
@@ -36,7 +36,12 @@ struct ProofRequestVectors: Decodable, Sendable {
         let publicInputs: [String]
         /// The public input hash with the tree slots.
         let publicInputHash: String
-        /// The request body on the prover's indexed route.
+        /// Each declared tree's `getMerkleProofs` result proofs, for its spent UTXOs in slot order.
+        let merkleProofs: [[JSONValue]]
+        /// Each declared tree's `getNonInclusionProofs` result proofs, for its input slots' nullifiers,
+        /// padding included, in slot order.
+        let nonInclusionProofs: [[JSONValue]]
+        /// The request body on the prover's complete route.
         let request: JSONValue
         /// The prover's response.
         let response: JSONValue

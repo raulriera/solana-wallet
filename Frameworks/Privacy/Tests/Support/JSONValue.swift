@@ -62,6 +62,15 @@ indirect enum JSONValue: Codable, Sendable, Equatable {
         try JSONDecoder().decode(Self.self, from: data)
     }
 
+    /// Returns an object's member.
+    ///
+    /// - Parameter key: The member's name.
+    /// - Returns: The member's value, or `nil` if the value isn't an object or has no such member.
+    func member(_ key: String) -> JSONValue? {
+        guard case .object(let members) = self else { return nil }
+        return members[key]
+    }
+
     /// The value's JSON data.
     ///
     /// - Throws: An encoding error.

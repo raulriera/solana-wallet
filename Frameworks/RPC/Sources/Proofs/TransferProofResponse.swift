@@ -1,9 +1,7 @@
-import Encoding
-
-/// The strict decoding of a prover's JSON proof on the indexed route.
+/// The strict decoding of a prover's JSON proof on the complete route.
 ///
-/// The body is gnark's proof, `{ar, bs, krs}`, with `provingKeySha256` and `resolution`, which this route
-/// requires, and without the commitment that only P-256 proofs carry. Coordinates and roots are `0x` hexadecimal with or without leading zeros.
+/// The body is gnark's proof, `{ar, bs, krs}`, with `provingKeySha256`, which is required, and without the
+/// commitment that only P-256 proofs carry. Coordinates are `0x` hexadecimal with or without leading zeros.
 struct TransferProofResponse: Decodable, Sendable {
     /// The decoded proof.
     let proof: TransferProof
@@ -12,7 +10,7 @@ struct TransferProofResponse: Decodable, Sendable {
     ///
     /// - Parameter decoder: The decoder containing the response body.
     /// - Throws: A decoding error for a missing field, a wrong count, a value of more than 32 bytes, a digest
-    ///   that isn't 64 lowercase hexadecimal digits, or a tree address that isn't 32 bytes of base 58.
+    ///   that isn't 64 lowercase hexadecimal digits, or a commitment.
     init(from decoder: any Decoder) throws {
         let body = try decoder.container(keyedBy: CodingKeys.self)
         guard !body.contains(.proofCommitment), !body.contains(.proofCommitmentPok) else {
@@ -29,53 +27,17 @@ struct TransferProofResponse: Decodable, Sendable {
         guard digest.utf8.count == 64, digest == digest.lowercased(), let digestBytes = FieldHex.decode("0x" + digest) else {
             throw DecodingError.dataCorruptedError(forKey: .provingKeySha256, in: body, debugDescription: "Invalid digest.")
         }
-        let resolution = try body.nestedContainer(keyedBy: CodingKeys.self, forKey: .resolution)
         proof = TransferProof(
             a: TransferProof.G1Point(x: a[0], y: a[1]),
             b: b.flatMap { $0.flatMap(\.self) },
             c: TransferProof.G1Point(x: c[0], y: c[1]),
-            provingKeyDigest: digestBytes,
-            resolution: TransferProof.Resolution(
-                trees: try resolution.decode([ResolvedTreeBody].self, forKey: .trees).map(\.value),
-                publicInputHash: try resolution.decode(HexWord.self, forKey: .publicInputHash).bytes
-            )
+            provingKeyDigest: digestBytes
         )
     }
 
-    /// The fields of a proof and its resolution.
+    /// The fields of a proof.
     private enum CodingKeys: String, CodingKey {
-        case ar, bs, krs, provingKeySha256, resolution, trees, publicInputHash, proofCommitment, proofCommitmentPok
-    }
-}
-
-/// The strict decoding of one resolved tree.
-private struct ResolvedTreeBody: Decodable {
-    /// The decoded tree.
-    let value: TransferProof.ResolvedTree
-
-    /// Decodes a tree.
-    ///
-    /// - Parameter decoder: The decoder containing one tree.
-    /// - Throws: A decoding error for a missing field, an invalid address, or an invalid root.
-    init(from decoder: any Decoder) throws {
-        let tree = try decoder.container(keyedBy: CodingKeys.self)
-        let address = try tree.decode(String.self, forKey: .tree)
-        guard Base58.decode(address, byteCount: 32) != nil else {
-            throw DecodingError.dataCorruptedError(forKey: .tree, in: tree, debugDescription: "Invalid address.")
-        }
-        value = TransferProof.ResolvedTree(
-            address: address,
-            id: try tree.decode(UInt16.self, forKey: .id),
-            utxoRoot: try tree.decode(HexWord.self, forKey: .utxoRoot).bytes,
-            nullifierRoot: try tree.decode(HexWord.self, forKey: .nullifierRoot).bytes,
-            utxoRootIndex: try tree.decode(UInt16.self, forKey: .utxoRootIndex),
-            nullifierRootIndex: try tree.decode(UInt16.self, forKey: .nullifierRootIndex)
-        )
-    }
-
-    /// The fields of a resolved tree.
-    private enum CodingKeys: String, CodingKey {
-        case tree, id, utxoRoot, nullifierRoot, utxoRootIndex, nullifierRootIndex
+        case ar, bs, krs, provingKeySha256, proofCommitment, proofCommitmentPok
     }
 }
 

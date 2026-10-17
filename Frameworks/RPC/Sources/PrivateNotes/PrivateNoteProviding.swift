@@ -1,8 +1,8 @@
-/// A provider that indexes Solana Rings' shielded transactions.
+/// A provider that indexes Solana Rings' shielded transactions and the proofs of their trees.
 ///
 /// Reads by view tag return only the default ring's confidential transactions. Reads by nullifier return
-/// every spend, whatever its ring. Requests are single-attempt and read every page; an empty input sends
-/// no request.
+/// every spend, whatever its ring. Proof reads return the Merkle data that a transfer proof needs. Requests
+/// are single-attempt and read every page; an empty input sends no request.
 public protocol PrivateNoteProviding: Sendable {
     /// Reads the transactions with an output for any of the view tags, after a position.
     ///
@@ -25,4 +25,24 @@ public protocol PrivateNoteProviding: Sendable {
     /// - Throws: ``PrivateNoteError/invalidNullifier`` for a nullifier that isn't 32 bytes, or a request,
     ///   transport, response, or cancellation error.
     func shieldedTransactions(spending nullifiers: [[UInt8]]) async throws -> [ShieldedTransaction]
+
+    /// Reads the inclusion proofs of UTXO hashes in one tree, from one consistent view of it.
+    ///
+    /// - Parameters:
+    ///   - leaves: At most 1,000 32-byte UTXO hashes.
+    ///   - tree: The tree account's base-58 address.
+    /// - Returns: One proof per leaf, in order, for that leaf and tree.
+    /// - Throws: ``PrivateNoteError`` for an invalid leaf or tree or too many leaves, or a request, transport,
+    ///   response, or cancellation error, such as a server error for a leaf that the indexer doesn't hold yet.
+    func merkleProofs(for leaves: [[UInt8]], inTree tree: String) async throws -> [MerkleProof]
+
+    /// Reads the non-inclusion proofs of nullifiers in one tree, from one consistent view of it.
+    ///
+    /// - Parameters:
+    ///   - nullifiers: At most 1,000 32-byte nullifiers.
+    ///   - tree: The tree account's base-58 address.
+    /// - Returns: One proof per nullifier, in order, for that nullifier and tree.
+    /// - Throws: ``PrivateNoteError`` for an invalid nullifier or tree or too many nullifiers, or a request,
+    ///   transport, response, or cancellation error, such as a server error for a nullifier that is already used.
+    func nonInclusionProofs(for nullifiers: [[UInt8]], inTree tree: String) async throws -> [NonInclusionProof]
 }

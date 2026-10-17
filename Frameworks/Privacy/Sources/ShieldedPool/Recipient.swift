@@ -1,6 +1,7 @@
 import CryptoKit
 import ModularArithmetic
-import Transactions
+public import RPC
+public import Transactions
 
 /// A default-ring owner that can receive SOL: the public half of a shielded address.
 ///
@@ -9,16 +10,19 @@ import Transactions
 /// owner hash, which every UTXO of the owner commits to, is
 /// `Poseidon(hash_bytes_33(0x53 ‖ signing address), nullifier public key)`. The viewing public key
 /// receives the notes of the owner's outputs.
-struct Recipient: Sendable {
+///
+/// A recipient comes from ``lookup(_:using:)`` or ``ShieldedAccount/recipient``; its keys stay inside
+/// the module.
+public struct Recipient: Sendable {
     /// Keys that can't own a default-ring UTXO.
-    enum ValidationError: Error, Equatable {
+    public enum ValidationError: Error, Equatable {
         /// The signing address isn't an Ed25519 point, such as a program-derived address, so no
         /// key could spend the owner's UTXOs.
         case offCurveSigningAddress
     }
 
     /// The owner's Ed25519 signing address.
-    let signingAddress: Address
+    public let signingAddress: Address
 
     /// The public key of the owner's ``NullifierKey``.
     let nullifierPublicKey: Poseidon.Element
@@ -46,5 +50,25 @@ struct Recipient: Sendable {
         self.nullifierPublicKey = nullifierPublicKey
         self.viewingPublicKey = viewingPublicKey
         owner = OwnerIdentity.ownerHash(signingPublicKey: signingAddress.bytes, nullifierPublicKey: nullifierPublicKey)
+    }
+
+    /// Looks up owners' shielded addresses in the user registry with one finalized
+    /// `getMultipleAccounts` read, which any provider serves.
+    ///
+    /// A registry record is permanent: the program has no instruction that removes it. Its viewing
+    /// public key can change through the registry's update instruction, so read the recipient again
+    /// before each send.
+    ///
+    /// - Parameters:
+    ///   - owners: One to 100 owners' signing addresses.
+    ///   - rpc: The client of the network whose registry to read.
+    /// - Returns: Each owner as a recipient, or `nil` if the owner hasn't registered, in the owners'
+    ///   order.
+    /// - Throws: ``RPC/GetMultipleAccountsError/invalidAddressCount`` for no owners or more than
+    ///   100, an RPC error, or a validation error if the provider returns another number of accounts
+    ///   or an account at a record's address isn't a valid record of its owner.
+    @concurrent
+    public static func lookup(_ owners: [Address], using rpc: some RPC) async throws -> [Recipient?] {
+        try await UserRegistry.recipients(of: owners, using: rpc)
     }
 }

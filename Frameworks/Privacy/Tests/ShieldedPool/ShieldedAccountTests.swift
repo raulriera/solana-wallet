@@ -18,6 +18,16 @@ struct ShieldedAccountTests {
         #expect(recipient.owner == (try rail.ownerHash()))
     }
 
+    /// Verifies that the sender's view tags are its signing address and the x-coordinate of its
+    /// viewing public key from its independent registry record.
+    @Test
+    func `Accounts read their signing and viewing key tags`() throws {
+        let record = try #require(try RegistryVectors.load().records.first { $0.owner == TransferVectors.senderSigningAddress })
+        let sender = try TransferVectors.sender()
+
+        #expect(sender.viewTags == [sender.signingAddress.bytes, Array(try fixtureBytes(record.viewingPublicKey).dropFirst())])
+    }
+
     /// Verifies that a nullifier secret of another length is rejected.
     ///
     /// - Parameter length: The secret's number of bytes.

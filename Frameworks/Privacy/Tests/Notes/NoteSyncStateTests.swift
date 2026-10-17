@@ -7,7 +7,8 @@ import Testing
 import Transactions
 
 /// Verifies note syncs through the real Helius client with local indexer responses: the notes that
-/// they find and drop, the reads that they send, and the states' encoding.
+/// they find and drop, the reads that they send, the transactions that they record, and the states'
+/// encoding.
 ///
 /// The sender's notes come from deposit vectors and from the change of a transact plan.
 struct NoteSyncStateTests {
@@ -21,6 +22,8 @@ struct NoteSyncStateTests {
         var spends: [ShieldedTransaction] = []
         /// The position that every page reports.
         var scanned = "AQ=="
+        /// The output tree that every tag page reports, if any.
+        var outputTreeID: UInt16?
 
         /// Answers an indexer request from the contents.
         ///
@@ -30,9 +33,14 @@ struct NoteSyncStateTests {
         func respond(to request: URLRequest) throws -> (Data, URLResponse) {
             switch try #require(request.url?.lastPathComponent) {
             case GetShieldedTransactionsByTags.method:
-                return try reply(to: request, payload: IndexerResponses.page(transactions.map(IndexerResponses.row), in: "transactions", scanned: scanned))
+                return try reply(
+                    to: request,
+                    payload: IndexerResponses.page(transactions.map(IndexerResponses.row), in: "transactions", scanned: scanned, outputTreeID: outputTreeID)
+                )
             case GetEncryptedUtxosByTags.method:
-                return try reply(to: request, payload: IndexerResponses.page(deposits.map(IndexerResponses.match), in: "matches", scanned: scanned))
+                return try reply(
+                    to: request, payload: IndexerResponses.page(deposits.map(IndexerResponses.match), in: "matches", scanned: scanned, outputTreeID: outputTreeID)
+                )
             default:
                 let requested = Set(try NoteSyncStateTests.nullifiers(of: request))
                 let spending = spends.filter { $0.nullifiers.contains { requested.contains(Base58.encode($0)) } }
@@ -81,7 +89,7 @@ struct NoteSyncStateTests {
 
         #expect(state.notes == (try notes(in: deposit) + notes(in: transfer)))
         #expect(state.lamports == 1_000_006)
-        #expect(state.position == NoteSyncPosition(tags: [sender.signingAddress.bytes], transactionCursors: ["AQ=="], outputCursors: ["AQ=="]))
+        #expect(state.position == NoteSyncPosition(tags: sender.viewTags, transactionCursors: ["AQ=="], outputCursors: ["AQ=="]))
     }
 
     /// Verifies that a later sync reads both streams after the stored position and keeps the earlier
@@ -96,7 +104,7 @@ struct NoteSyncStateTests {
             .map { try #require(try requestBody($0)["params"] as? [String: Any])["cursor"] as? String }
         #expect(cursors == ["AQ==", "AQ=="])
         #expect(state.notes == (try notes(in: deposit) + notes(in: laterDeposit)))
-        #expect(state.position == NoteSyncPosition(tags: [sender.signingAddress.bytes], transactionCursors: ["Ag=="], outputCursors: ["Ag=="]))
+        #expect(state.position == NoteSyncPosition(tags: sender.viewTags, transactionCursors: ["Ag=="], outputCursors: ["Ag=="]))
     }
 
     /// Verifies that a stored note drops once the nullifier read returns its spend.
@@ -259,6 +267,176 @@ struct NoteSyncStateTests {
         #expect(await transport.observedCancellation)
     }
 
+    /// Verifies that both tag reads request the signing address and the viewing public key's
+    /// x-coordinate, from the sender's independent registry record.
+    @Test
+    func `Syncs read the signing and viewing key tags`() async throws {
+        let record = try #require(try RegistryVectors.load().records.first { $0.owner == TransferVectors.senderSigningAddress })
+        let viewingTag = Array(try fixtureBytes(record.viewingPublicKey).dropFirst())
+
+        let (_, transport) = try await sync(NoteSyncState(), with: Indexer())
+
+        let tags = try await transport.requests.filter { $0.url?.lastPathComponent != GetShieldedTransactionsByNullifiers.method }
+            .map { try #require(try requestBody($0)["params"] as? [String: Any])["tags"] as? [String] }
+        let expected = [Base58.encode(sender.signingAddress.bytes), Base58.encode(viewingTag)]
+        #expect(tags == [expected, expected])
+    }
+
+    /// Verifies that a sync keeps the output tree of its batch, and none when the indexer reports
+    /// none.
+    @Test
+    func `Syncs keep the batch's output tree`() async throws {
+        let (first, _) = try await sync(NoteSyncState(), with: Indexer(outputTreeID: 3))
+
+        let (state, _) = try await sync(first, with: Indexer())
+
+        #expect(first.outputTreeID == 3)
+        #expect(state.outputTreeID == nil)
+    }
+
+    /// Verifies that a recorded spend removes its notes at once and keeps its change pending.
+    @Test
+    func `Recorded spends remove their notes at once`() async throws {
+        let (first, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit, laterDeposit]))
+
+        let state = try first.recording(privateSpend(of: notes(in: deposit), receiving: 5), signature: IndexerResponses.signature(8))
+
+        #expect(state.notes == (try notes(in: laterDeposit)))
+        #expect(state.pendingLamports == 5)
+        #expect(state.lamports == 47)
+    }
+
+    /// Verifies that a recorded spend's note stays hidden while the indexer returns it again
+    /// without its spend, and stops being tracked once the indexer reports the spend.
+    @Test
+    func `Recorded spends stay hidden until the indexer reports them`() async throws {
+        let (first, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit]))
+        let recorded = try first.recording(privateSpend(of: first.notes, receiving: 0), signature: IndexerResponses.signature(8))
+
+        let (unreported, _) = try await sync(recorded, with: Indexer(deposits: [deposit]))
+        let (reported, _) = try await sync(unreported, with: Indexer(transactions: [spend(of: first.notes)], deposits: [deposit]))
+
+        #expect(unreported.notes.isEmpty)
+        #expect(unreported.localSpends == Set(first.notes.map(\.nullifier.bigEndianBytes)))
+        #expect(reported.notes.isEmpty)
+        #expect(reported.localSpends.isEmpty)
+    }
+
+    /// Verifies that a recorded spend stops being tracked when the batch doesn't return its note.
+    @Test
+    func `Recorded spends end when the batch omits their notes`() async throws {
+        let (first, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit]))
+        let recorded = try first.recording(privateSpend(of: first.notes, receiving: 0), signature: IndexerResponses.signature(8))
+
+        let (state, _) = try await sync(recorded, with: Indexer())
+
+        #expect(state.notes.isEmpty)
+        #expect(state.localSpends.isEmpty)
+    }
+
+    /// Verifies that a recorded deposit stays pending, counted but not a note, until the batch
+    /// returns its transaction, whose note then counts instead.
+    @Test
+    func `Pending amounts end when the batch returns their transaction`() async throws {
+        let recorded = try NoteSyncState().recording(depositOf: 1_000_000, signature: deposit.signature)
+
+        let (unreported, _) = try await sync(recorded, with: Indexer())
+        let (reported, _) = try await sync(unreported, with: Indexer(deposits: [deposit]))
+
+        #expect(recorded.notes.isEmpty)
+        #expect(recorded.lamports == 1_000_000)
+        #expect(unreported.pendingLamports == 1_000_000)
+        #expect(reported.pendingLamports == 0)
+        #expect(reported.notes == (try notes(in: deposit)))
+        #expect(reported.lamports == 1_000_000)
+    }
+
+    /// Verifies that a deposit that a sync already returned, or that's recorded twice, is counted
+    /// once.
+    @Test
+    func `Recorded deposits are counted once`() async throws {
+        let (synced, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit]))
+
+        let afterSync = try synced.recording(depositOf: 1_000_000, signature: deposit.signature)
+        let twice = try NoteSyncState().recording(depositOf: 1_000_000, signature: deposit.signature)
+            .recording(depositOf: 1_000_000, signature: deposit.signature)
+
+        #expect(afterSync.pendingLamports == 0)
+        #expect(afterSync.lamports == 1_000_000)
+        #expect(twice.pendingLamports == 1_000_000)
+        #expect(twice.lamports == 1_000_000)
+    }
+
+    /// Verifies that a spend whose change a sync already returned, or that's recorded twice, counts
+    /// its change once.
+    @Test
+    func `Recorded spends count their change once`() async throws {
+        let (synced, _) = try await sync(NoteSyncState(), with: Indexer(transactions: [transfer], deposits: [deposit]))
+        let spend = try privateSpend(of: notes(in: deposit), receiving: 6)
+
+        let afterSync = try synced.recording(spend, signature: transfer.signature)
+        let twice = try synced.recording(privateSpend(of: notes(in: deposit), receiving: 5), signature: IndexerResponses.signature(8))
+            .recording(privateSpend(of: notes(in: deposit), receiving: 5), signature: IndexerResponses.signature(8))
+
+        #expect(afterSync.pendingLamports == 0)
+        #expect(afterSync.lamports == 6)
+        #expect(twice.pendingLamports == 5)
+        #expect(twice.lamports == 11)
+    }
+
+    /// Verifies that a spend recorded after a sync saw its transaction and its change was spent
+    /// elsewhere adds nothing pending, since none of its spent notes is still held.
+    @Test
+    func `Spends recorded after their notes are gone add nothing pending`() async throws {
+        let (synced, _) = try await sync(NoteSyncState(), with: Indexer(transactions: [transfer]))
+        let (respent, _) = try await sync(synced, with: Indexer(transactions: [transfer], spends: [spend(of: synced.notes)]))
+        let spent = try transfer.nullifiers.prefix(1).map { try #require(Poseidon.Element(bigEndianBytes: $0)) }
+        let spend = PrivateSpend(
+            instruction: Instruction(program: try ShieldedPool.program), lamports: 4, receivedLamports: 6, nullifiers: spent
+        )
+
+        let state = try respent.recording(spend, signature: transfer.signature)
+
+        #expect(synced.lamports == 6)
+        #expect(respent.notes.isEmpty)
+        #expect(state.pendingLamports == 0)
+        #expect(state.lamports == 0)
+    }
+
+    /// Verifies that a pending amount ends once a kept note comes from its transaction, even when the
+    /// batch doesn't return the transaction again.
+    @Test
+    func `Pending amounts end when a kept note comes from their transaction`() async throws {
+        let (synced, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit]))
+        let pending = try NoteSyncState(
+            position: synced.position, notes: synced.notes, outputTreeID: nil,
+            pending: [PendingAmount(signature: deposit.signature, lamports: 1_000_000)], localSpends: []
+        )
+
+        let (state, _) = try await sync(pending, with: Indexer())
+
+        #expect(state.pendingLamports == 0)
+        #expect(state.lamports == 1_000_000)
+    }
+
+    /// Verifies that a zero-lamport deposit can't be recorded.
+    @Test
+    func `Zero-lamport deposits can't be recorded`() {
+        #expect(throws: ValidationError.invalidAmount) {
+            try NoteSyncState().recording(depositOf: 0, signature: IndexerResponses.signature(8))
+        }
+    }
+
+    /// Verifies that a record whose total would exceed a 64-bit integer is rejected.
+    @Test
+    func `Records beyond 64 bits are rejected`() async throws {
+        let (largest, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [largestDeposit]))
+
+        #expect(throws: NoteSyncState.ValidationError.amountOverflow) {
+            try largest.recording(depositOf: 1_000_000, signature: IndexerResponses.signature(8))
+        }
+    }
+
     /// Verifies that a state with notes and a position decodes to itself.
     @Test
     func `States survive encoding`() async throws {
@@ -267,6 +445,59 @@ struct NoteSyncStateTests {
         let decoded = try JSONDecoder().decode(NoteSyncState.self, from: JSONEncoder().encode(state))
 
         #expect(decoded == state)
+    }
+
+    /// Verifies that a state with an output tree, a pending amount, and a recorded spend decodes to
+    /// itself.
+    @Test
+    func `Recorded states survive encoding`() async throws {
+        let (first, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit, laterDeposit], outputTreeID: 2))
+        let state = try first.recording(privateSpend(of: notes(in: deposit), receiving: 5), signature: IndexerResponses.signature(8))
+
+        let decoded = try JSONDecoder().decode(NoteSyncState.self, from: JSONEncoder().encode(state))
+
+        #expect(decoded == state)
+        #expect(decoded.outputTreeID == 2)
+        #expect(decoded.pendingLamports == 5)
+        #expect(!decoded.localSpends.isEmpty)
+    }
+
+    /// Verifies that an encoded state without one of its fields is rejected.
+    ///
+    /// - Parameter key: The removed field.
+    @Test(arguments: ["notes", "outputTreeID", "pending", "localSpends"])
+    func `Encoded states without a field are rejected`(key: String) async throws {
+        var fields = try #require(try JSONSerialization.jsonObject(with: JSONEncoder().encode(NoteSyncState())) as? [String: Any])
+        fields[key] = nil
+        let encoded = try JSONSerialization.data(withJSONObject: fields)
+
+        let error = #expect(throws: DecodingError.self) {
+            try JSONDecoder().decode(NoteSyncState.self, from: encoded)
+        }
+
+        guard case .keyNotFound(let missing, _) = error else {
+            Issue.record("Expected a missing key, not \(String(describing: error)).")
+            return
+        }
+        #expect(missing.stringValue == key)
+    }
+
+    /// Verifies that an encoded recorded spend whose nullifier isn't 32 bytes is rejected.
+    @Test
+    func `Encoded nullifiers of another length are rejected`() throws {
+        var fields = try #require(try JSONSerialization.jsonObject(with: JSONEncoder().encode(NoteSyncState())) as? [String: Any])
+        fields["localSpends"] = [Data(repeating: 1, count: 31).base64EncodedString()]
+        let encoded = try JSONSerialization.data(withJSONObject: fields)
+
+        let error = #expect(throws: DecodingError.self) {
+            try JSONDecoder().decode(NoteSyncState.self, from: encoded)
+        }
+
+        guard case .dataCorrupted(let context) = error else {
+            Issue.record("Expected corrupted data, not \(String(describing: error)).")
+            return
+        }
+        #expect(context.codingPath.map(\.stringValue) == ["localSpends"])
     }
 
     /// Verifies that an encoded state whose notes' total exceeds a 64-bit integer is rejected as
@@ -334,6 +565,20 @@ struct NoteSyncStateTests {
         ShieldedTransaction(
             signature: IndexerResponses.signature(7), slot: 20, eventIndex: 0, transactionViewingKey: nil, salt: nil, outputs: [],
             nullifiers: notes.map(\.nullifier.bigEndianBytes), isProofless: false
+        )
+    }
+
+    /// Creates a spend of notes whose transaction succeeded, without its proof.
+    ///
+    /// - Parameters:
+    ///   - notes: The spent notes.
+    ///   - lamports: The lamports of the outputs that the sender owns.
+    /// - Returns: The spend.
+    /// - Throws: An error if the program's address doesn't decode, which doesn't happen.
+    private func privateSpend(of notes: [ReceivedNote], receiving lamports: UInt64) throws -> PrivateSpend {
+        PrivateSpend(
+            instruction: Instruction(program: try ShieldedPool.program), lamports: 1, receivedLamports: lamports,
+            nullifiers: notes.map(\.nullifier)
         )
     }
 

@@ -1,13 +1,89 @@
 import Encoding
 import Foundation
 import RPC
+import Testing
 
-/// Indexer JSON for shielded transactions, as Helius's Solana Rings indexer encodes them.
+/// Indexer JSON for shielded transactions and tree proofs, as Helius's Solana Rings indexer encodes
+/// them.
 ///
 /// Confidential transactions are rows of the transaction streams; proofless deposits are rows of
 /// the encrypted-output stream. Hashes, tags, nullifiers, and addresses are base 58; keys, salts,
 /// and payloads are base 64.
 enum IndexerResponses {
+    /// The UTXO root position of every fixed proof that ``proofs(answering:)`` returns.
+    static let utxoRootIndex: UInt16 = 31
+
+    /// The nullifier root position of every fixed proof that ``proofs(answering:)`` returns.
+    static let nullifierRootIndex: UInt16 = 87
+
+    /// Answers a `getMerkleProofs` or `getNonInclusionProofs` request with one fixed proof per
+    /// requested leaf, in order, in the requested tree.
+    ///
+    /// Paths are zero; the UTXO root is 1 at ``utxoRootIndex``, and the nullifier root is 2 at
+    /// ``nullifierRootIndex``, with each nullifier between the low element 0 and the high element
+    /// r - 1.
+    ///
+    /// - Parameter request: The indexer request.
+    /// - Returns: The JSON-RPC response and its HTTP metadata.
+    /// - Throws: A test failure if the request isn't a proof read.
+    static func proofs(answering request: URLRequest) throws -> (Data, URLResponse) {
+        let (method, tree, leaves) = try proofRead(request)
+        let zero = Base58.encode([UInt8](repeating: 0, count: 32))
+        let highest = Base58.encode(try fixtureBytes("30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000000"))
+        let root = { (value: UInt8) in Base58.encode([UInt8](repeating: 0, count: 31) + [value]) }
+        let context = #""merkleContext":{"treeType":\#(method == "getMerkleProofs" ? 1 : 2),"tree":"\#(tree)"}"#
+        let proofs = leaves.map { leaf in
+            method == "getMerkleProofs"
+                ? #"{"leaf":"\#(leaf)",\#(context),"path":[\#(paths(zero, count: 32))],"leafIndex":0,"#
+                    + #""root":"\#(root(1))","rootSeq":1,"rootIndex":\#(utxoRootIndex)}"#
+                : #"{"leaf":"\#(leaf)",\#(context),"path":[\#(paths(zero, count: 40))],"lowElement":"\#(zero)","#
+                    + #""lowElementIndex":0,"highElement":"\#(highest)","highElementIndex":1,"root":"\#(root(2))","#
+                    + #""rootSeq":1,"rootIndex":\#(nullifierRootIndex)}"#
+        }
+        return try reply(to: request, payload: #""result":{"context":{"slot":1},"proofs":[\#(proofs.joined(separator: ","))]}"#)
+    }
+
+    /// Answers a proof read with the proofs of the requested tree from a vector's results, after
+    /// checking that the request asks for exactly their leaves, in order.
+    ///
+    /// - Parameters:
+    ///   - results: Each tree's proofs, which name their tree.
+    ///   - request: The indexer request.
+    /// - Returns: The JSON-RPC response and its HTTP metadata.
+    /// - Throws: A test failure if no result names the tree, or the leaves differ.
+    static func proofs(from results: [[JSONValue]], answering request: URLRequest) throws -> (Data, URLResponse) {
+        let (_, tree, leaves) = try proofRead(request)
+        let proofs = try #require(results.first { proofs in
+            proofs.contains { $0.member("merkleContext")?.member("tree") == .string(tree) }
+        })
+        try #require(proofs.map { $0.member("leaf") } == leaves.map { .string($0) })
+        let text = String(decoding: try JSONValue.object(["context": .object(["slot": .number(1)]), "proofs": .array(proofs)]).data,
+                          as: UTF8.self)
+        return try reply(to: request, payload: #""result":\#(text)"#)
+    }
+
+    /// Reads a proof request's method, tree account, and leaves.
+    ///
+    /// - Parameter request: The indexer request.
+    /// - Returns: The method, the tree account, and the base-58 leaves.
+    /// - Throws: A test failure if the request isn't a proof read.
+    private static func proofRead(_ request: URLRequest) throws -> (method: String, tree: String, leaves: [String]) {
+        let body = try requestBody(request)
+        let params = try #require(body["params"] as? [String: Any])
+        return (try #require(body["method"] as? String), try #require(params["treeAccount"] as? String),
+                try #require(params["leaves"] as? [String]))
+    }
+
+    /// Repeats a quoted base-58 hash as a path.
+    ///
+    /// - Parameters:
+    ///   - hash: The base-58 hash.
+    ///   - count: The number of siblings.
+    /// - Returns: The quoted hashes, joined by commas.
+    private static func paths(_ hash: String, count: Int) -> String {
+        Array(repeating: "\"\(hash)\"", count: count).joined(separator: ",")
+    }
+
     /// The base-58 text of a 64-byte signature whose bytes all equal `byte`.
     ///
     /// - Parameter byte: The repeated byte.
@@ -45,9 +121,12 @@ enum IndexerResponses {
     ///   - rows: The rows' JSON objects.
     ///   - field: The `transactions` or `matches` field name.
     ///   - scanned: The position that the scan reached.
+    ///   - outputTreeID: The newest tree that isn't paused, or `nil` to report none.
     /// - Returns: The member, for ``reply(to:payload:status:headers:id:)``.
-    static func page(_ rows: [String], in field: String, scanned: String) -> String {
-        #""result":{"context":{"slot":2},"\#(field)":[\#(rows.joined(separator: ","))],"nextCursor":null,"scannedThrough":"\#(scanned)"}"#
+    static func page(_ rows: [String], in field: String, scanned: String, outputTreeID: UInt16? = nil) -> String {
+        let tree = outputTreeID.map { #","outputTreeId":\#($0)"# } ?? ""
+        return #""result":{"context":{"slot":2},"\#(field)":[\#(rows.joined(separator: ","))],"nextCursor":null,"#
+            + #""scannedThrough":"\#(scanned)"\#(tree)}"#
     }
 
     /// An output slot with its context.

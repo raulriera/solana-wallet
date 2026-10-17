@@ -48,6 +48,25 @@ struct ReceivedNoteTests {
         #expect(notes == [ReceivedNote(utxo: change, leafIndex: 41, signature: "transact", slot: 9, nullifier: change.nullifier(using: sender.nullifierKey))])
     }
 
+    /// Verifies that the sender's change, tagged with the x-coordinate of the viewing public key from
+    /// its independent registry record, is received.
+    @Test
+    func `Outputs tagged with the viewing key are received`() throws {
+        let record = try #require(try RegistryVectors.load().records.first { $0.owner == TransferVectors.senderSigningAddress })
+
+        let (plan, notes) = try Self.change(taggedWith: Array(try fixtureBytes(record.viewingPublicKey).dropFirst()))
+
+        #expect(notes.map(\.utxo) == [plan.outputs[1].utxo])
+    }
+
+    /// Verifies that the sender's change under another account's tag isn't received.
+    @Test
+    func `Outputs tagged for another account aren't received`() throws {
+        let (_, notes) = try Self.change(taggedWith: try Address(TransferVectors.recipientSigningAddress).bytes)
+
+        #expect(notes.isEmpty)
+    }
+
     /// Verifies that a padding output tagged with the sender's view tag isn't received, while the
     /// sender's zero-amount output is.
     @Test
@@ -132,5 +151,24 @@ struct ReceivedNoteTests {
             return
         }
         #expect(context.codingPath.map(\.stringValue) == [key])
+    }
+
+    /// Plans a transfer with change, tags every output with one view tag, and opens it as the sender.
+    ///
+    /// - Parameter tag: The view tag of every output.
+    /// - Returns: The plan, whose second output is the sender's change, and the sender's notes.
+    /// - Throws: A test failure if a fixture is malformed.
+    private static func change(taggedWith tag: [UInt8]) throws -> (plan: TransactPlan, notes: [ReceivedNote]) {
+        let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(lamports: 10)], transferLamports: 4)
+        let transaction = try PlanFixtures.transaction(of: plan)
+        let retagged = ShieldedTransaction(
+            signature: transaction.signature, slot: transaction.slot, eventIndex: transaction.eventIndex,
+            transactionViewingKey: transaction.transactionViewingKey, salt: transaction.salt,
+            outputs: transaction.outputs.map {
+                ShieldedOutput(viewTag: tag, utxoHash: $0.utxoHash, treeID: $0.treeID, leafIndex: $0.leafIndex, payload: $0.payload)
+            },
+            nullifiers: transaction.nullifiers, isProofless: false
+        )
+        return (plan, try ReceivedNote.notes(in: retagged, of: TransferVectors.sender()))
     }
 }

@@ -5,7 +5,12 @@ import Testing
 
 /// HTTP fixtures exercised through the real client's encoding, validation, and decoding.
 actor HTTPResponses: HTTPTransport {
+    /// Produces the raw JSON body of a request that isn't JSON-RPC, such as a proof request on the prover's route, or
+    /// the result value of a JSON-RPC method without fixtures, such as an indexer proof read.
+    typealias Responder = @Sendable (URLRequest) throws -> String
+
     private var responses: [String: [String]]
+    private let respond: Responder?
     private let error: RPCError?
     private let failingMethod: String?
     private let gate: Suspension?
@@ -25,9 +30,12 @@ actor HTTPResponses: HTTPTransport {
     ///   - failingMethod: The method to fail, or `nil` to fail every request.
     ///   - gate: An optional suspension for cancellation checks.
     ///   - heldMethod: The method to suspend, or `nil` to suspend every request.
+    ///   - respond: Answers requests without a JSON-RPC method, keyed by their URL path, and JSON-RPC methods without
+    ///     fixtures, or `nil` so that such a request fails the test.
     init(_ responses: [String: [String]], error: RPCError? = nil, failingMethod: String? = nil,
-         gate: Suspension? = nil, heldMethod: String? = nil) {
+         gate: Suspension? = nil, heldMethod: String? = nil, respond: Responder? = nil) {
         self.responses = responses
+        self.respond = respond
         self.error = error
         self.failingMethod = failingMethod
         self.gate = gate
@@ -42,13 +50,17 @@ actor HTTPResponses: HTTPTransport {
     }
 
     /// Records an actual HTTP request and wraps its fixture in a matching JSON-RPC envelope.
+    ///
+    /// A request without a JSON-RPC method is keyed by its URL path and answered by the responder, without an envelope;
+    /// a JSON-RPC method without fixtures gets the responder's result value in an envelope.
     /// - Parameter request: The request encoded by the real client.
     /// - Returns: The response body and HTTP status.
     /// - Throws: A transport, cancellation, or fixture error.
     func data(for request: URLRequest) async throws -> (Data, URLResponse) {
         requests.append(request)
         let body = try request.jsonBody()
-        let method = try #require(body["method"] as? String)
+        let rpcMethod = body["method"] as? String
+        let method = try rpcMethod ?? #require(request.url?.path())
         if let gate, heldMethod == nil || heldMethod == method { await gate.suspend() }
         wasCancelled = Task.isCancelled
         try Task.checkCancellation()
@@ -60,11 +72,24 @@ actor HTTPResponses: HTTPTransport {
             status = code
             headers = retryAfter.map { ["Retry-After": $0] } ?? [:]
         } else { status = 200; headers = [:] }
-        let value = status == 200 ? try #require(responses[method]?.first, "Unexpected HTTP request: \(method)") : "null"
+        let url = try #require(request.url)
+        guard rpcMethod != nil else {
+            let respond = try #require(respond, "Unexpected HTTP request: \(method)")
+            let response = try #require(HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: headers))
+            return (Data(try respond(request).utf8), response)
+        }
+        let value: String
+        if status != 200 {
+            value = "null"
+        } else if let fixture = responses[method]?.first {
+            value = fixture
+        } else {
+            let respond = try #require(respond, "Unexpected HTTP request: \(method)")
+            value = try respond(request)
+        }
         if (responses[method]?.count ?? 0) > 1 { responses[method]?.removeFirst() }
         let id = try #require(body["id"] as? String)
         let data = Data(#"{"jsonrpc":"2.0","id":"\#(id)","result":\#(value)}"#.utf8)
-        let url = try #require(request.url)
         let response = try #require(HTTPURLResponse(url: url, statusCode: status,
                                                     httpVersion: nil, headerFields: headers))
         return (data, response)

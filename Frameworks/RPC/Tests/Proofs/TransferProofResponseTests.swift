@@ -2,42 +2,38 @@ import Foundation
 import Testing
 @testable import RPC
 
-/// Verifies the strict decoding of a prover's proof and resolution.
+/// Verifies the strict decoding of a prover's proof on the complete route.
 struct TransferProofResponseTests {
     private typealias Fixture = ProofFixtures
 
-    /// Verifies coordinates, `b`'s word order, the digest, and the resolution, from padded and unpadded text.
+    /// Verifies coordinates, `b`'s word order, and the digest, from padded and unpadded text.
     ///
     /// - Throws: A decoding error, or a failed test prerequisite.
     @Test
-    func `Proofs decode their points digest and resolution`() throws {
-        let proof = try decode(Fixture.response()).proof
+    func `Proofs decode their points and digest`() throws {
+        let unpadded = Fixture.response().replacingOccurrences(of: Fixture.word(8), with: #""0x8""#)
+
+        let proof = try decode(unpadded).proof
 
         #expect(proof == TransferProof(
             a: .init(x: Fixture.field(1), y: Fixture.field(2)),
             b: Fixture.field(3) + Fixture.field(4) + Fixture.field(5) + Fixture.field(6),
             c: .init(x: Fixture.field(7), y: Fixture.field(8)),
-            provingKeyDigest: Array(repeating: 0x7e, count: 32),
-            resolution: .init(trees: [.init(address: Fixture.tree, id: 0, utxoRoot: Fixture.field(10),
-                                            nullifierRoot: Fixture.field(11), utxoRootIndex: 499, nullifierRootIndex: 7)],
-                              publicInputHash: Array(repeating: 0, count: 30) + [0x01, 0x23])
+            provingKeyDigest: Array(repeating: 0x7e, count: 32)
         ))
     }
 
-    /// Verifies a proof without its digest or resolution, which this route requires, fails to decode.
+    /// Verifies a proof without a valid digest fails to decode: missing, uppercase, short, or not hexadecimal.
     ///
-    /// - Parameters:
-    ///   - digest: The digest member, or `nil` to omit it.
-    ///   - resolution: Whether to include the resolution.
+    /// - Parameter digest: The digest member, or `nil` to omit it.
     @Test(arguments: [
-        (String?.none, true),
-        (String(repeating: "7E", count: 32), true),
-        (String(repeating: "7e", count: 31), true),
-        (String(repeating: "7g", count: 32), true),
-        (String(repeating: "7e", count: 32), false),
+        String?.none,
+        String(repeating: "7E", count: 32),
+        String(repeating: "7e", count: 31),
+        String(repeating: "7g", count: 32),
     ])
-    func `Proofs without a valid digest or resolution fail`(digest: String?, resolution: Bool) {
-        #expect(throws: DecodingError.self) { try decode(Fixture.response(digest: digest, resolution: resolution)) }
+    func `Proofs without a valid digest fail`(digest: String?) {
+        #expect(throws: DecodingError.self) { try decode(Fixture.response(digest: digest)) }
     }
 
     /// Verifies a proof with a commitment, which only P-256 proofs carry, fails to decode.
@@ -52,7 +48,7 @@ struct TransferProofResponseTests {
         #expect(throws: DecodingError.self) { try decode(json) }
     }
 
-    /// Verifies malformed points and trees fail to decode.
+    /// Verifies malformed points fail to decode: a word over 32 bytes, a word without `0x`, and a missing word.
     ///
     /// - Parameters:
     ///   - field: The JSON text to replace.
@@ -62,10 +58,8 @@ struct TransferProofResponseTests {
         (ProofFixtures.word(1), "\"0x1" + String(repeating: "0", count: 64) + "\""),
         (ProofFixtures.word(8), #""8""#),
         (ProofFixtures.word(5) + ",", ""),
-        (#""tree":"33KVhbT4QtdQDrrrGwwThqD47Dh4Q6tA443t9jMNcWFN""#, #""tree":"3QJmV3qfvL9SuYo34YihAf3sRCW3qSinyC""#),
-        (#""utxoRootIndex":499"#, #""utxoRootIndex":65536"#),
     ] as [(String, String)])
-    func `Malformed points and trees fail`(field: String, replacement: String) throws {
+    func `Malformed points fail`(field: String, replacement: String) throws {
         let valid = Fixture.response()
         try #require(valid.contains(field))
 

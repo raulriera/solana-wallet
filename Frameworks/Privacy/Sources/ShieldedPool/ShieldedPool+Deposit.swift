@@ -1,7 +1,7 @@
 import CryptoKit
 import Foundation
 import ModularArithmetic
-import Transactions
+public import Transactions
 
 extension ShieldedPool {
     /// The tag of the proofless `deposit` instruction.
@@ -20,17 +20,20 @@ extension ShieldedPool {
     /// integer, and no memo. The program derives the UTXO's blinding from the tree and the leaf
     /// index, so the depositor commits to nothing else. The accounts are the tree, the depositor as
     /// a writable signer, the shielded-pool program, the System Program, and the writable SOL
-    /// interface.
+    /// interface. The depositor signs; the program doesn't read the registry, so the deposit can
+    /// share a transaction with the recipient's registration.
     ///
     /// - Parameters:
     ///   - lamports: The positive amount to deposit, excluding fees.
     ///   - depositor: The wallet that pays the lamports and signs.
-    ///   - recipient: The owner of the new UTXO, which may be the depositor's own shielded address.
-    ///   - treeID: The ID of the tree that receives the UTXO.
+    ///   - recipient: The owner of the new UTXO, from ``Recipient/lookup(_:using:)``, or
+    ///     ``ShieldedAccount/recipient`` for the depositor's own private balance.
+    ///   - treeID: The ID of the tree that receives the UTXO, such as
+    ///     ``NoteSyncState/outputTreeID``.
     /// - Returns: The instruction, which can be composed with other program invocations.
-    /// - Throws: ``ValidationError/invalidAmount`` for zero lamports, or another
-    ///   ``ValidationError`` if an account's derivation fails, which doesn't happen.
-    static func deposit(lamports: UInt64, from depositor: Address, to recipient: Recipient, treeID: UInt16) throws -> Instruction {
+    /// - Throws: ``Transactions/ValidationError/invalidAmount`` for zero lamports, or another
+    ///   ``Transactions/ValidationError`` if an account's derivation fails, which doesn't happen.
+    public static func deposit(lamports: UInt64, from depositor: Address, to recipient: Recipient, treeID: UInt16) throws -> Instruction {
         guard lamports > 0 else { throw ValidationError.invalidAmount }
         var writer = WincodeWriter()
         writer.append(depositTag)

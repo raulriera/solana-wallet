@@ -7,9 +7,10 @@ import RPC
 /// window applies to the next request. Solana's public RPC and Helius serve each network at its own host; Helius
 /// uses the same key on each network. A custom RPC serves mainnet only; on another network it fails instead of
 /// using another provider. A capability the selected provider lacks gives its empty result: only Helius has logo
-/// copies. Only Helius reads private notes; another provider's private-note reads throw
-/// ``ProviderClientError/privateNotesUnavailable``. The client for the latest provider is kept to reuse its connections.
-nonisolated struct ProviderClient: RPC, AccountChangeProviding, LogoProviding, PrivateNoteProviding {
+/// copies. Only Helius reads private notes and proves private transfers; another provider's private-note reads and
+/// proofs throw ``ProviderClientError/privateNotesUnavailable``. The client for the latest provider is kept to reuse its
+/// connections.
+nonisolated struct ProviderClient: RPC, AccountChangeProviding, LogoProviding, PrivateNoteProviding, ProofProviding {
     /// Where requests go, with what the provider needs to accept them.
     nonisolated enum Endpoint: Hashable, Sendable {
         /// Solana's public RPC.
@@ -97,16 +98,51 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, LogoProviding, P
         try await performPrivateNotes { try await $0.shieldedTransactions(spending: nullifiers) }
     }
 
-    /// Runs a private-note read on the selected provider's client.
-    /// - Parameter operation: The read to send to the provider.
-    /// - Returns: The read's result.
+    /// Reads the selected provider's inclusion proofs of UTXO hashes in one tree.
+    /// - Parameters:
+    ///   - leaves: At most 1,000 32-byte UTXO hashes.
+    ///   - tree: The tree account's base-58 address.
+    /// - Returns: One proof per leaf, in order.
     /// - Throws: ``ProviderClientError/privateNotesUnavailable`` when the selected provider doesn't read private notes,
-    ///   or the error of ``perform(_:)``.
+    ///   another ``ProviderClientError``, a storage error, a `PrivateNoteError`, any other `RPCError`, or
+    ///   `CancellationError`.
+    func merkleProofs(for leaves: [[UInt8]], inTree tree: String) async throws -> [MerkleProof] {
+        try await performPrivateNotes { try await $0.merkleProofs(for: leaves, inTree: tree) }
+    }
+
+    /// Reads the selected provider's non-inclusion proofs of nullifiers in one tree.
+    /// - Parameters:
+    ///   - nullifiers: At most 1,000 32-byte nullifiers.
+    ///   - tree: The tree account's base-58 address.
+    /// - Returns: One proof per nullifier, in order.
+    /// - Throws: ``ProviderClientError/privateNotesUnavailable`` when the selected provider doesn't read private notes,
+    ///   another ``ProviderClientError``, a storage error, a `PrivateNoteError`, any other `RPCError`, or
+    ///   `CancellationError`.
+    func nonInclusionProofs(for nullifiers: [[UInt8]], inTree tree: String) async throws -> [NonInclusionProof] {
+        try await performPrivateNotes { try await $0.nonInclusionProofs(for: nullifiers, inTree: tree) }
+    }
+
+    /// Proves a private transfer through the selected provider.
+    /// - Parameter request: The transfer's tree slots, public input hash, and witness.
+    /// - Returns: The proof and the proving key's digest.
+    /// - Throws: ``ProviderClientError/privateNotesUnavailable`` when the selected provider doesn't prove private
+    ///   transfers, another ``ProviderClientError``, a storage error, any other `RPCError`, or `CancellationError`.
+    func proveTransfer(_ request: TransferProofRequest) async throws -> TransferProof {
+        try await performPrivateNotes { try await $0.proveTransfer(request) }
+    }
+
+    /// Runs a private-note read or proof on the selected provider's client.
+    /// - Parameter operation: The request to send to the provider.
+    /// - Returns: The request's result.
+    /// - Throws: ``ProviderClientError/privateNotesUnavailable`` when the selected provider doesn't read private notes
+    ///   and prove private transfers, or the error of ``perform(_:)``.
     private func performPrivateNotes<Value: Sendable>(
-        _ operation: (any PrivateNoteProviding) async throws -> Value
+        _ operation: (any PrivateNoteProviding & ProofProviding) async throws -> Value
     ) async throws -> Value {
         try await perform { client in
-            guard let client = client as? any PrivateNoteProviding else { throw ProviderClientError.privateNotesUnavailable }
+            guard let client = client as? any PrivateNoteProviding & ProofProviding else {
+                throw ProviderClientError.privateNotesUnavailable
+            }
             return try await operation(client)
         }
     }

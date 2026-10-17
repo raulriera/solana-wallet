@@ -26,11 +26,18 @@ public struct ShieldedAccount: Sendable, CustomStringConvertible, CustomDebugStr
     /// A reflection view that omits the values.
     public var customMirror: Mirror { Mirror(self, children: [:]) }
 
-    /// The account's shielded address, the public half of its keys.
+    /// The view tags that the indexer reads for the account: its signing address, then the
+    /// x-coordinate of its viewing public key, which zolana's command-line deposits tag.
+    var viewTags: [[UInt8]] {
+        [signingAddress.bytes, Array(viewingKey.publicKey.compressedRepresentation.dropFirst())]
+    }
+
+    /// The account's shielded address, the public half of its keys, such as the recipient of a
+    /// deposit to the account's own private balance.
     ///
     /// - Throws: ``Recipient/ValidationError/offCurveSigningAddress`` if the signing address isn't an
     ///   Ed25519 point.
-    var recipient: Recipient {
+    public var recipient: Recipient {
         get throws {
             try Recipient(
                 signingAddress: signingAddress, nullifierPublicKey: nullifierKey.publicKey, viewingPublicKey: viewingKey.publicKey

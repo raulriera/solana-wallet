@@ -4,7 +4,8 @@ import Testing
 
 /// Verifies the parameters of indexer requests.
 struct IndexerRequestsTests {
-    /// Verifies each request names its values and sends a cursor only when it has one, never a limit.
+    /// Verifies each request names its values and sends a cursor only when it has one, never a limit; proof
+    /// reads send only the tree account and the leaves.
     ///
     /// - Parameters:
     ///   - request: The request to encode.
@@ -17,6 +18,8 @@ struct IndexerRequestsTests {
         (GetEncryptedUtxosByTags(tags: ["a"], cursor: "AQ=="), #"{"cursor":"AQ==","tags":["a"]}"#),
         (GetShieldedTransactionsByNullifiers(nullifiers: ["n"], cursor: nil), #"{"nullifiers":["n"]}"#),
         (GetShieldedTransactionsByNullifiers(nullifiers: ["n"], cursor: "AQ=="), #"{"cursor":"AQ==","nullifiers":["n"]}"#),
+        (GetMerkleProofs(treeAccount: "t", leaves: ["a", "b"]), #"{"leaves":["a","b"],"treeAccount":"t"}"#),
+        (GetNonInclusionProofs(treeAccount: "t", leaves: ["n"]), #"{"leaves":["n"],"treeAccount":"t"}"#),
     ])
     func `Requests send their values and an optional cursor`(request: any RPCRequest, expected: String) throws {
         let encoder = JSONEncoder()
@@ -34,6 +37,8 @@ struct IndexerRequestsTests {
         (GetShieldedTransactionsByTags.method, "getShieldedTransactionsByTags"),
         (GetEncryptedUtxosByTags.method, "getEncryptedUtxosByTags"),
         (GetShieldedTransactionsByNullifiers.method, "getShieldedTransactionsByNullifiers"),
+        (GetMerkleProofs.method, "getMerkleProofs"),
+        (GetNonInclusionProofs.method, "getNonInclusionProofs"),
     ])
     func `Requests name their indexer methods`(method: String, expected: String) {
         #expect(method == expected)

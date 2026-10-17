@@ -1,27 +1,22 @@
-import Encoding
-
-/// A request for the Groth16 proof of a default-ring confidential transfer on the prover's indexed route.
+/// A request for the Groth16 proof of a default-ring confidential transfer on the prover's complete route.
 ///
-/// On this route the prover reads each real input's Merkle proof, each input's nullifier non-inclusion
-/// proof, and the trees' roots itself, and reports them in the proof's ``TransferProof/Resolution``. Field
-/// elements are 32 big-endian bytes. The witness holds secrets, such as the owner's nullifier secret, the
-/// blinding seed, amounts, and blindings; the request's descriptions and reflection omit every value.
+/// The request carries the whole witness: each input's Merkle and non-inclusion proofs, which the caller reads
+/// from an indexer, the declared trees' roots, and the full public input hash. Field elements are 32 big-endian
+/// bytes. The witness holds secrets, such as the owner's nullifier secret, the blinding seed, amounts, and
+/// blindings; the request's descriptions and reflection omit every value.
 public struct TransferProofRequest: Sendable, Equatable, CustomStringConvertible, CustomDebugStringConvertible,
                                     CustomReflectable {
     /// A value that can't form a request.
     public enum ValidationError: Error, Sendable, Equatable {
-        /// A field element, commitment, or nullifier isn't 32 bytes.
+        /// A field element or root isn't 32 bytes.
         case invalidLength
-        /// A tree address isn't 32 bytes of base 58.
-        case invalidAddress
-        /// A list doesn't have its count: one or two trees, 17 public inputs, three public slots, one
-        /// lookup per witness input, one published owner hash per output, or at least one input and output.
+        /// A list doesn't have its count: one or two tree slots, three public slots, one published owner hash
+        /// per output, or at least one input and output.
         case invalidCount
-        /// An input names a tree that the request doesn't list, or its lookup and witness name different trees.
+        /// An input names a tree slot that the request doesn't declare.
         case invalidTreeSlot
-        /// A lookup disagrees with its witness input: only a real input that isn't cached has a commitment,
-        /// and only compact padding, a padding input whose witness nullifier is zero, has a nullifier.
-        case invalidLookup
+        /// An input's inclusion proof doesn't match it: only a real input that isn't cached has one.
+        case invalidInclusionProof
         /// The read cache breaks zolana's rules: each list has no entry or one per input, each read index
         /// names an input, each cached input reads a nonzero hash, and the tree ID fits 16 bits and is zero
         /// without reads.
@@ -30,94 +25,59 @@ public struct TransferProofRequest: Sendable, Equatable, CustomStringConvertible
         case zeroBlindingSeed
     }
 
-    /// A tree that the transfer's inputs come from, in the order that real inputs first use them.
-    public struct Tree: Sendable, Equatable {
-        /// The tree account's base-58 address.
-        public let address: String
+    /// A declared input tree and the roots that its inputs are proven against.
+    public struct TreeSlot: Sendable, Equatable {
         /// The tree's ID.
         public let id: UInt16
+        /// The 32-byte UTXO tree root.
+        public let utxoRoot: [UInt8]
+        /// The 32-byte nullifier tree root.
+        public let nullifierRoot: [UInt8]
 
-        /// Creates a tree.
+        /// Creates a tree slot.
         ///
         /// - Parameters:
-        ///   - address: The tree account's base-58 address.
         ///   - id: The tree's ID.
-        /// - Throws: ``ValidationError/invalidAddress`` unless the address is 32 bytes of base 58.
-        public init(address: String, id: UInt16) throws {
-            guard Base58.decode(address, byteCount: 32) != nil else { throw ValidationError.invalidAddress }
-            self.address = address
+        ///   - utxoRoot: The 32-byte UTXO tree root.
+        ///   - nullifierRoot: The 32-byte nullifier tree root.
+        /// - Throws: ``ValidationError/invalidLength`` if a root isn't 32 bytes.
+        public init(id: UInt16, utxoRoot: [UInt8], nullifierRoot: [UInt8]) throws {
+            try TransferProofRequest.validateFields([utxoRoot, nullifierRoot])
             self.id = id
+            self.utxoRoot = utxoRoot
+            self.nullifierRoot = nullifierRoot
         }
     }
 
-    /// What the prover looks up for one input slot.
-    public struct Input: Sendable, Equatable {
-        /// The position of the input's tree in ``TransferProofRequest/trees``.
-        public let treeSlot: UInt8
-        /// The 32-byte UTXO hash of a real input, whose Merkle proof the prover reads, or `nil` for padding.
-        public let commitment: [UInt8]?
-        /// The 32-byte nullifier of compact padding, which the witness doesn't name, or `nil`.
-        public let nullifier: [UInt8]?
+    /// The number of tree slots that every transfer proof publishes; unused slots are zero.
+    static let treeSlotCount = 5
 
-        /// Creates an input lookup.
-        ///
-        /// - Parameters:
-        ///   - treeSlot: The position of the input's tree.
-        ///   - commitment: A real input's 32-byte UTXO hash, or `nil`.
-        ///   - nullifier: Compact padding's 32-byte nullifier, or `nil`.
-        /// - Throws: ``ValidationError/invalidLength`` if a value isn't 32 bytes.
-        public init(treeSlot: UInt8, commitment: [UInt8]?, nullifier: [UInt8]?) throws {
-            try TransferProofRequest.validateFields(commitment.map { [$0] } ?? [], nullifier.map { [$0] } ?? [])
-            self.treeSlot = treeSlot
-            self.commitment = commitment
-            self.nullifier = nullifier
-        }
-    }
-
-    /// The trees of the inputs, one or two.
-    public let trees: [Tree]
-    /// One lookup per input slot, in slot order.
-    public let inputs: [Input]
-    /// The 17 public inputs: the transfer's public statement without the tree-slot chain, which the prover inserts.
-    public let publicInputs: [[UInt8]]
-    /// The earliest slot of the prover's indexer reads, or `nil` for no minimum.
-    public let minContextSlot: UInt64?
-    /// The circuit's witness without Merkle paths and roots.
+    /// The declared input trees' slots, one or two, in the order that real inputs first use them.
+    public let treeSlots: [TreeSlot]
+    /// The 32-byte public input hash of the transfer's statement with the tree slots.
+    public let publicInputHash: [UInt8]
+    /// The circuit's witness.
     public let witness: Witness
-
-    /// The number of input slots, which selects the circuit with ``outputCount``.
-    public var inputCount: Int { witness.inputs.count }
-
-    /// The number of output slots.
-    public var outputCount: Int { witness.outputs.count }
 
     /// Creates a request after checking that its parts agree.
     ///
     /// - Parameters:
-    ///   - trees: One or two input trees in first-use order.
-    ///   - inputs: One lookup per witness input.
-    ///   - publicInputs: The 17 public inputs.
-    ///   - minContextSlot: The earliest slot of the prover's reads, or `nil`.
+    ///   - treeSlots: One or two declared trees in first-use order.
+    ///   - publicInputHash: The 32-byte public input hash.
     ///   - witness: The circuit's witness.
-    /// - Throws: A ``ValidationError`` if a count, length, tree slot, or lookup is invalid.
-    public init(trees: [Tree], inputs: [Input], publicInputs: [[UInt8]], minContextSlot: UInt64?, witness: Witness) throws {
-        guard (1...2).contains(trees.count), inputs.count == witness.inputs.count, publicInputs.count == 17 else {
-            throw ValidationError.invalidCount
-        }
-        try Self.validateFields(publicInputs)
-        guard zip(inputs, witness.inputs).allSatisfy({ $0.treeSlot == $1.treeSlot && Int($0.treeSlot) < trees.count })
-        else { throw ValidationError.invalidTreeSlot }
-        for (index, (lookup, input)) in zip(inputs, witness.inputs).enumerated() {
+    /// - Throws: A ``ValidationError`` if a count, length, tree slot, or inclusion proof is invalid.
+    public init(treeSlots: [TreeSlot], publicInputHash: [UInt8], witness: Witness) throws {
+        guard (1...2).contains(treeSlots.count) else { throw ValidationError.invalidCount }
+        try Self.validateFields([publicInputHash])
+        guard witness.inputs.allSatisfy({ Int($0.treeSlot) < treeSlots.count }) else { throw ValidationError.invalidTreeSlot }
+        for (index, input) in witness.inputs.enumerated() {
             let isCached = witness.cacheIsCached.isEmpty ? false : witness.cacheIsCached[index]
-            let isCompact = input.isDummy && input.nullifier.allSatisfy { $0 == 0 }
-            guard (lookup.commitment == nil) == (input.isDummy || isCached), (lookup.nullifier != nil) == isCompact else {
-                throw ValidationError.invalidLookup
+            guard (input.inclusionProof == nil) == (input.isDummy || isCached) else {
+                throw ValidationError.invalidInclusionProof
             }
         }
-        self.trees = trees
-        self.inputs = inputs
-        self.publicInputs = publicInputs
-        self.minContextSlot = minContextSlot
+        self.treeSlots = treeSlots
+        self.publicInputHash = publicInputHash
         self.witness = witness
     }
 

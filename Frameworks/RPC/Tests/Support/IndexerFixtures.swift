@@ -87,6 +87,52 @@ enum IndexerFixtures {
         return #""result":{\#(fields.joined(separator: ","))}"#
     }
 
+    /// An inclusion proof in the shape of a `getMerkleProofs` result entry.
+    /// - Parameters:
+    ///   - leaf: The leaf's repeated byte.
+    ///   - tree: The tree account that the context names.
+    ///   - treeType: The context's tree type; 1 is a UTXO tree.
+    ///   - pathCount: The number of siblings, each of bytes `0x10` plus its level.
+    ///   - leafIndex: The leaf's position.
+    /// - Returns: The proof's JSON object, with root `0xbb` at position 499.
+    static func merkleProof(leaf: UInt8, tree: String = hash(9), treeType: Int = 1, pathCount: Int = 32,
+                            leafIndex: Int = 6) -> String {
+        """
+        {"leaf":"\(hash(leaf))","merkleContext":{"treeType":\(treeType),"tree":"\(tree)"},\
+        "path":[\(path(count: pathCount))],"leafIndex":\(leafIndex),"root":"\(hash(0xbb))","rootSeq":1234,"rootIndex":499}
+        """
+    }
+
+    /// A non-inclusion proof in the shape of a `getNonInclusionProofs` result entry.
+    /// - Parameters:
+    ///   - leaf: The nullifier's repeated byte.
+    ///   - tree: The tree account that the context names.
+    ///   - treeType: The context's tree type; 2 is a nullifier tree.
+    ///   - pathCount: The number of siblings, each of bytes `0x10` plus its level.
+    /// - Returns: The proof's JSON object, between `0x01` at position 3 and `0xfe` at position 4, with root `0xcc`
+    ///   at position 99.
+    static func nonInclusionProof(leaf: UInt8, tree: String = hash(9), treeType: Int = 2, pathCount: Int = 40) -> String {
+        """
+        {"leaf":"\(hash(leaf))","merkleContext":{"treeType":\(treeType),"tree":"\(tree)"},\
+        "path":[\(path(count: pathCount))],"lowElement":"\(hash(1))","lowElementIndex":3,"highElement":"\(hash(0xfe))",\
+        "highElementIndex":4,"root":"\(hash(0xcc))","rootSeq":2,"rootIndex":99}
+        """
+    }
+
+    /// The siblings of a fixture path.
+    /// - Parameter count: The number of siblings.
+    /// - Returns: The quoted base-58 hashes of bytes `0x10` plus each level, joined by commas.
+    static func path(count: Int) -> String {
+        (0..<count).map { "\"\(hash(0x10 + UInt8($0)))\"" }.joined(separator: ",")
+    }
+
+    /// A JSON-RPC result member holding proofs.
+    /// - Parameter proofs: The proofs' JSON objects.
+    /// - Returns: The member, for ``reply(to:payload:status:headers:id:)``.
+    static func proofs(_ proofs: [String]) -> String {
+        #""result":{"context":{"blockTime":1,"slot":2},"proofs":[\#(proofs.joined(separator: ","))]}"#
+    }
+
     /// Reads the method route and the JSON-RPC parameters of an indexer request.
     /// - Parameter request: The outgoing request.
     /// - Returns: The last path component and the parameters object.

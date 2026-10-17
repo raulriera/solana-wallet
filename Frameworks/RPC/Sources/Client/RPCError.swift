@@ -34,6 +34,8 @@ public enum RPCError: Error, Sendable, Equatable {
         case invalidEnvelope
         /// A paged response repeated a cursor, or returned one on a page without rows, so it can't advance.
         case invalidCursor
+        /// An indexer's proofs don't answer the request: one proof per requested leaf, in order, in the requested tree.
+        case mismatchedProofs
     }
 
     /// Whether the failure can clear without a person's action, so the caller may connect or read again later.

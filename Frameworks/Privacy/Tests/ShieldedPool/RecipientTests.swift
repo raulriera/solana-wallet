@@ -1,10 +1,13 @@
 import CryptoKit
+import Foundation
 import ModularArithmetic
 @testable import Privacy
+@testable import RPC
 import Testing
 import Transactions
 
-/// Verifies recipients: their owner hashes, their view tags, and their signing-address checks.
+/// Verifies recipients: their owner hashes, their view tags, their signing-address checks, and their
+/// lookup in the registry.
 struct RecipientTests {
     /// Verifies that the Ed25519 rail as a recipient has the owner hash that its published keys
     /// derive and its signing address as its view tag.
@@ -47,5 +50,27 @@ struct RecipientTests {
         #expect(throws: Recipient.ValidationError.offCurveSigningAddress) {
             try Recipient(signingAddress: ShieldedPool.solInterface, nullifierPublicKey: .one, viewingPublicKey: viewingKey.publicKey)
         }
+    }
+
+    /// Verifies that a lookup reads both owners' records with one request and returns the registered
+    /// owner's keys and `nil` for the unregistered owner, in the owners' order.
+    @Test
+    func `Lookups return registered owners in order`() async throws {
+        let vectors = try RegistryVectors.load().records
+        let owners = try [vectors[1].owner, vectors[0].owner].map(Address.init)
+        let record = #"{"owner":"regyS5rkAcw2YzDJCmTwCTHs2s246FXxbmuRZ42u2PD","lamports":1,"executable":false,"#
+            + #""data":["\#(Data(try fixtureBytes(vectors[1].data)).base64EncodedString())","base64"]}"#
+        let transport = StubTransport { request in
+            try reply(to: request, payload: #""result":{"context":{"slot":7},"value":[\#(record),null]}"#)
+        }
+
+        let recipients = try await Recipient.lookup(owners, using: Solana(network: .devnet, transport: transport))
+
+        let recipient = try #require(recipients.first ?? nil)
+        #expect(await transport.requests.count == 1)
+        #expect(recipients.count == 2)
+        #expect(recipients[1] == nil)
+        #expect(recipient.signingAddress == owners[0])
+        #expect(recipient.owner.bigEndianBytes == (try fixtureBytes(vectors[1].ownerHash)))
     }
 }

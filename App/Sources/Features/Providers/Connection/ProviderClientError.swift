@@ -10,6 +10,6 @@ nonisolated enum ProviderClientError: Error, Equatable {
     case unusableEndpoint
     /// The selected custom RPC doesn't serve the requested network; custom RPCs serve mainnet.
     case unsupportedNetwork
-    /// The selected provider doesn't read private notes; only Helius does.
+    /// The selected provider doesn't read private notes or prove private transfers; only Helius does.
     case privateNotesUnavailable
 }

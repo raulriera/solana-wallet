@@ -13,9 +13,9 @@ import ModularArithmetic
 /// 6. the ring program, the right chain of the signer identities, and the input flags,
 /// 7. the right chain of the output owner identities, and the cache's tree and read chain.
 ///
-/// The hash is the left chain (``HashChain/left4(_:)``) of these elements. The prover resolves the
-/// tree slots' roots, so a proof request carries the other 17 elements, ``elements``, and the
-/// prover inserts the tree slots' chain at index 2.
+/// The hash is the left chain (``HashChain/left4(_:)``) of these elements. The tree slots' roots come
+/// from the indexer's proofs, so the statement holds the other 17 elements, ``elements``, and the hash
+/// inserts the tree slots' chain at index 2.
 struct PublicInputs: Sendable, Equatable {
     /// One of a proof's tree slots: a declared input tree and the roots that its inputs are proven
     /// against.
@@ -83,8 +83,7 @@ struct PublicInputs: Sendable, Equatable {
     /// The chain of the cache reads, ``HashChain/zeroSuffix(groups:)`` without a cache.
     let cacheReadHashChain: Poseidon.Element
 
-    /// The 17 elements of the statement without the tree slots, in order, as a proof request sends
-    /// them.
+    /// The 17 elements of the statement without the tree slots, in order.
     ///
     /// - Precondition: There are 3 public assets and amounts, and one owner identity per output.
     var elements: [Poseidon.Element] {
@@ -115,7 +114,7 @@ struct PublicInputs: Sendable, Equatable {
         Self.hash(elements: elements, treeSlots: treeSlots)
     }
 
-    /// Hashes a statement's elements with the roots of its input trees, as the prover does.
+    /// Hashes a statement's elements with the roots of its input trees.
     ///
     /// - Parameters:
     ///   - elements: The elements without the tree slots, such as ``elements``.

@@ -2,7 +2,7 @@ import Testing
 import Transactions
 
 /// Deposit and transact instructions computed by an independent Python implementation written from
-/// zolana v0.4.0-alpha's sources.
+/// zolana v0.4.0-alpha's sources, with the padding owner tags of zolana's main branch (#432).
 ///
 /// The deposits come from the sender of zolana's published transfers, or from their relayed payer,
 /// to the published transfers' recipient or to the sender. The transacts use ``PlanFixtures``: its

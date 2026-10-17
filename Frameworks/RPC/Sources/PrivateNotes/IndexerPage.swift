@@ -197,7 +197,7 @@ private struct IndexedOutput: Decodable {
 }
 
 /// A 32-byte hash that an indexer encodes in base 58.
-private struct IndexedHash: Decodable {
+struct IndexedHash: Decodable, Sendable {
     /// The hash's bytes.
     let bytes: [UInt8]
 

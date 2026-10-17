@@ -2,7 +2,8 @@ import ModularArithmetic
 import Transactions
 
 extension TransactPlan {
-    /// The statement that the plan's proof commits to, before the prover resolves the tree roots.
+    /// The statement that the plan's proof commits to, without the tree roots, which come from the
+    /// indexer's proofs.
     ///
     /// The sender owns every input and pays the fee, so the signer identities are the payer's,
     /// then zeros up to the shape's signer width. A withdrawal fills public slot 0 with SOL's asset

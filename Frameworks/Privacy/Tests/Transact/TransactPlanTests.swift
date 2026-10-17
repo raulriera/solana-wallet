@@ -1,4 +1,5 @@
 import CryptoKit
+import Encoding
 import ModularArithmetic
 @testable import Privacy
 import Testing
@@ -78,17 +79,17 @@ struct TransactPlanTests {
     }
 
     /// Verifies a withdrawal of every lamport: no transfer and no change, so the sender gets a
-    /// zero-amount output and the padding output carries the sender's view tag.
+    /// zero-amount output, and the padding output borrows the sender's view tag and, like the
+    /// sender's output, refers to the payer for it.
     @Test
     func `Withdrawals of every lamport give the sender a zero-amount output`() throws {
         let plan = try PlanFixtures.plan(
             spending: [PlanFixtures.utxo(lamports: 10)], transferLamports: nil, withdrawal: PlanFixtures.withdrawal(lamports: 10), paddingOutputs: 1
         )
-        let sender = try TransferVectors.sender()
 
         #expect(plan.shape == Shape(inputs: 1, outputs: 2))
         #expect(plan.outputs.map { $0.utxo?.amount } == [0, nil])
-        #expect(plan.outputs.map(\.published.ownerTag) == [.payer, .inline(sender.signingAddress.bytes)])
+        #expect(plan.outputs.map(\.published.ownerTag) == [.payer, .payer])
         #expect(plan.withdrawal == (try PlanFixtures.withdrawal(lamports: 10)))
     }
 
@@ -280,5 +281,65 @@ struct TransactPlanTests {
                 randomness: PlanFixtures.randomness(paddingInputs: 0, paddingOutputs: 1)
             )
         }
+    }
+}
+
+/// Verifies how outputs encode their view tags: participants as zolana's padding owner tag vectors
+/// expect, and padding with the sender's view tag as a reference to the payer, like the sender's
+/// own outputs, so an observer can't tell that padding from the sender's output.
+struct TransactPlanOwnerTagTests {
+    /// Verifies each self-paid case's participant encoding: the output whose view tag the vector's
+    /// padding borrows uses the case's encoding. Plans always have the sender pay, so the sponsored
+    /// case doesn't apply. Plans take the cheapest shape, not the vector's 8 output slots, so this
+    /// test checks only the participant; the next test covers padding with the sender's view tag.
+    ///
+    /// - Parameter vector: A transfer and the encoding of the view tag that its padding borrows.
+    /// - Throws: A test failure if the fixture is malformed, or an error if the plan can't be built.
+    @Test(arguments: try DummyOwnerTagVectors.load().selfPaidCases)
+    func `Participants use the vectors' encodings`(_ vector: DummyOwnerTagVectors.Case) throws {
+        let vectors = try DummyOwnerTagVectors.load()
+        let sender = try Self.account(seed: vectors.senderSeed)
+        let recipient = try Self.account(seed: vectors.recipientSeed).recipient
+        let utxo = UTXO(owner: try sender.recipient.owner, mint: Array(repeating: 0, count: 32), amount: vectors.inputAmount,
+                        blinding: TransferVectors.blinding(0xa1), treeID: 0)
+        let resolved = try fixtureBytes(vector.resolved)
+        let expected: TransactOutput.OwnerTag = vector.ownerTagKind == "account" ? .payer : .inline(resolved)
+        var generator = SeededGenerator(seed: 432)
+
+        let plan = try TransactPlan(
+            spending: [utxo], sender: sender, transfer: TransactPlan.Transfer(recipient: recipient, lamports: vector.sendAmount),
+            withdrawal: nil, outputTreeID: 0, using: &generator
+        )
+
+        let participant = try #require(plan.outputs.first { $0.owner?.viewTag == resolved })
+        #expect(participant.published.ownerTag == expected)
+    }
+
+    /// Verifies a withdrawal with change, whose padding borrows the sender's view tag, refers to the
+    /// payer for it, as the sender's change does.
+    ///
+    /// - Throws: A test failure if a fixture is malformed, or an error if the plan can't be built.
+    @Test
+    func `Padding with the sender's view tag refers to the payer`() throws {
+        let plan = try PlanFixtures.plan(
+            spending: [PlanFixtures.utxo(lamports: 10)], transferLamports: nil, withdrawal: PlanFixtures.withdrawal(lamports: 4), paddingOutputs: 1
+        )
+
+        #expect(plan.outputs.map { $0.utxo?.amount } == [6, nil])
+        #expect(plan.outputs.map(\.published.ownerTag) == [.payer, .payer])
+    }
+
+    /// Creates an account whose Ed25519 secret's 32 bytes all equal a seed, as zolana's vectors do.
+    ///
+    /// - Parameter seed: The repeated byte.
+    /// - Returns: The account, with a nullifier secret and viewing key derived from the same seed.
+    /// - Throws: An error if a key can't be created.
+    private static func account(seed: UInt8) throws -> ShieldedAccount {
+        let signing = try Curve25519.Signing.PrivateKey(rawRepresentation: [UInt8](repeating: seed, count: 32))
+        return try ShieldedAccount(
+            signingAddress: Address(Base58.encode(Array(signing.publicKey.rawRepresentation))),
+            nullifierSecret: SymmetricKey(data: [UInt8](repeating: seed, count: 31)),
+            viewingKey: P256.KeyAgreement.PrivateKey(rawRepresentation: [UInt8](repeating: seed, count: 32))
+        )
     }
 }

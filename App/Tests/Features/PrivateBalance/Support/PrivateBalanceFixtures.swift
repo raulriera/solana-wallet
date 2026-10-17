@@ -3,6 +3,7 @@ import Encoding
 import Foundation
 import ModularArithmetic
 @testable import Privacy
+@testable import RPC
 import Testing
 import Transactions
 import Vault
@@ -110,6 +111,92 @@ enum PrivateBalanceFixtures {
         let signature = Base58.encode([UInt8](repeating: UInt8(truncatingIfNeeded: leafIndex + 1), count: 64))
         return #"{"slot":3,"txSignature":"\#(signature)","outputSlot":\#(output),"txViewingPk":null,"salt":null}"#
     }
+
+    /// The UTXO root position of every fixed inclusion proof.
+    static let utxoRootIndex: UInt16 = 3
+
+    /// The nullifier root position of every fixed non-inclusion proof.
+    static let nullifierRootIndex: UInt16 = 4
+
+    /// Answers a proof's requests: the indexer's proof reads with fixed proofs, by result value, and the prover's
+    /// complete route with fixed curve points and the shape's proving key, by body.
+    ///
+    /// Proofs have zero paths, the UTXO root 1, and the nullifier root 2, with each nullifier between 0 and r - 1. The
+    /// points aren't a valid proof, which only a validator's pairing check would notice.
+    /// - Parameter request: A `getMerkleProofs` or `getNonInclusionProofs` request, or a request on `prove`.
+    /// - Returns: The JSON-RPC result value, or the prover's response body.
+    /// - Throws: A test prerequisite error for a malformed request.
+    static func proof(answering request: URLRequest) throws -> String {
+        let body = try request.jsonBody()
+        guard let method = body["method"] as? String else {
+            let shape = Shape(inputs: try #require(body["nInputs"] as? Int), outputs: try #require(body["nOutputs"] as? Int))
+            let point = ["0x1", "0x2"]
+            return try HTTPResponses.json([
+                "ar": point, "bs": [point, point], "krs": point,
+                "provingKeySha256": shape.provingKeyDigest.map { String(format: "%02x", $0) }.joined(),
+            ] as [String: Any])
+        }
+        let params = try #require(body["params"] as? [String: Any])
+        let tree = try #require(params["treeAccount"] as? String)
+        let leaves = try #require(params["leaves"] as? [String]).map { try #require(Base58.decode($0, byteCount: 32)) }
+        let proofs: [[String: Any]] = try leaves.map { leaf in
+            let context: [String: Any] = ["treeType": method == GetMerkleProofs.method ? 1 : 2, "tree": tree]
+            if method == GetMerkleProofs.method {
+                let proof = try inclusionProof(of: leaf)
+                return ["leaf": Base58.encode(proof.leaf), "merkleContext": context, "path": proof.path.map(Base58.encode),
+                        "leafIndex": proof.leafIndex, "root": Base58.encode(proof.root), "rootSeq": 1, "rootIndex": proof.rootIndex]
+            }
+            let proof = try nonInclusionProof(of: leaf)
+            return ["leaf": Base58.encode(proof.nullifier), "merkleContext": context, "path": proof.path.map(Base58.encode),
+                    "lowElement": Base58.encode(proof.lowElement), "lowElementIndex": proof.lowElementIndex,
+                    "highElement": Base58.encode(proof.highElement), "highElementIndex": 1, "root": Base58.encode(proof.root),
+                    "rootSeq": 1, "rootIndex": proof.rootIndex]
+        }
+        return try HTTPResponses.json(["context": ["slot": 1], "proofs": proofs] as [String: Any])
+    }
+
+    /// Creates the proof request of a withdrawal that spends one of an account's UTXOs in tree 1, with the fixed proofs.
+    /// - Parameter account: The spending account.
+    /// - Returns: The request that the account's client sends to the prover.
+    /// - Throws: A planning error, which doesn't happen.
+    static func proofRequest(spending account: ShieldedAccount) throws -> TransferProofRequest {
+        var generator = SystemRandomNumberGenerator()
+        let utxo = UTXO(owner: try account.recipient.owner, mint: [UInt8](repeating: 0, count: 32), amount: 10,
+                        blinding: Poseidon.Element(UInt64(7)), treeID: 1)
+        let plan = try TransactPlan(spending: [utxo], sender: account, transfer: nil,
+                                    withdrawal: ExternalData.Withdrawal(recipient: account.signingAddress, lamports: 10),
+                                    outputTreeID: 1, using: &generator)
+        let tree = try TransactPlan.TreeWitness(
+            treeID: 1, inclusionProofs: plan.inputs.filter { $0.utxo != nil }.map { try inclusionProof(of: $0.hash.bigEndianBytes) },
+            nonInclusionProofs: plan.inputs.map { try nonInclusionProof(of: $0.nullifier.bigEndianBytes) }
+        )
+        return try plan.proofRequest(nullifierKey: account.nullifierKey, trees: [tree])
+    }
+
+    /// Creates the fixed inclusion proof of a UTXO hash.
+    /// - Parameter leaf: The 32-byte UTXO hash.
+    /// - Returns: The proof at leaf 0 with a zero path, under root 1 at ``utxoRootIndex``.
+    /// - Throws: A validation error for a leaf of another length.
+    private static func inclusionProof(of leaf: [UInt8]) throws -> MerkleProof {
+        try MerkleProof(leaf: leaf, path: Array(repeating: field(0), count: MerkleProof.height), leafIndex: 0, root: field(1),
+                        rootIndex: utxoRootIndex)
+    }
+
+    /// Creates the fixed non-inclusion proof of a nullifier.
+    /// - Parameter nullifier: The 32-byte nullifier.
+    /// - Returns: The proof between 0 at position 0 and r - 1, with a zero path, under root 2 at ``nullifierRootIndex``.
+    /// - Throws: A validation error for a nullifier of another length.
+    private static func nonInclusionProof(of nullifier: [UInt8]) throws -> NonInclusionProof {
+        let highest = try #require(FieldHex.decode("0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000000"))
+        return try NonInclusionProof(nullifier: nullifier, lowElement: field(0), lowElementIndex: 0, highElement: highest,
+                                     path: Array(repeating: field(0), count: NonInclusionProof.height), root: field(2),
+                                     rootIndex: nullifierRootIndex)
+    }
+
+    /// A 32-byte big-endian field element of a small value.
+    /// - Parameter value: The value's last byte.
+    /// - Returns: Thirty-one zero bytes followed by `value`.
+    private static func field(_ value: UInt8) -> [UInt8] { Array(repeating: 0, count: 31) + [value] }
 
     /// Encodes an integer's little-endian bytes.
     /// - Parameter value: The integer.
