@@ -25,6 +25,30 @@ struct ResetPrivateBalances: PrivateBalancing {
         return .off
     }
 
+    /// Reports any preparation, because a reset only deletes.
+    /// - Parameters:
+    ///   - request: The transaction the caller asked for.
+    ///   - account: The account the caller named.
+    ///   - network: The network the caller named.
+    /// - Returns: Never; it throws.
+    /// - Throws: `CancellationError` after reporting the issue.
+    func prepare(_ request: PrivateTransactionRequest, from account: widgets.Account, on network: Network) async throws
+        -> PreparedPrivateTransaction {
+        Issue.record("A reset must not prepare private transactions.")
+        throw CancellationError()
+    }
+
+    /// Reports any completion, because a reset only deletes.
+    /// - Parameters:
+    ///   - transaction: The transaction the caller completed.
+    ///   - confirmation: Its outcome.
+    /// - Returns: ``PrivateBalanceStatus/off``.
+    func complete(_ transaction: PreparedPrivateTransaction, with confirmation: widgets.Confirmation) async throws
+        -> PrivateBalanceStatus {
+        Issue.record("A reset must not record private transactions.")
+        return .off
+    }
+
     /// Records the deletion, unless this step fails.
     /// - Throws: A scripted failure.
     func removeAll() async throws { try await storage.delete(.privateBalances) }

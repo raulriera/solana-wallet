@@ -5,12 +5,14 @@ import Transactions
 import Vault
 import Wallet
 
-/// Keeps accounts' private-balance keys and notes on this device and syncs each account's notes with its network's
-/// provider, for every window.
+/// Keeps accounts' private-balance keys and notes on this device, syncs each account's notes with its network's
+/// provider, and prepares and records its private transactions, for every window.
 ///
 /// Keys are kept by address, and notes by network and address. A notes entry exists only once the account's keys are
 /// registered on that network; registration records are permanent and the keys never change, so registration is
-/// checked once. Concurrent refreshes of one account on one network share a sync; other accounts sync in parallel.
+/// checked once. Concurrent refreshes and preparations of one account on one network share a sync; other accounts sync
+/// in parallel. Recording a transaction's outcome waits for a running sync of the account's notes, and a sync that
+/// starts while an outcome is being recorded waits for it, so neither overwrites the other.
 /// Every save runs on this actor and is dropped once ``removeAll()`` has run, so an enable or sync that finishes after
 /// a reset never brings keys or notes back.
 ///
@@ -20,8 +22,9 @@ import Wallet
 /// ``KeychainItemError/unreadable`` and deletes nothing more. A deletion that fails throws its error and is tried again
 /// by the next enable or refresh.
 actor PrivateBalances: PrivateBalancing {
-    /// A network's client, which reads registry records and private notes through the selected provider.
-    typealias Client = any RPC & PrivateNoteProviding
+    /// A network's client, which reads registry records and private notes and proves transfers through the selected
+    /// provider.
+    typealias Client = any RPC & PrivateNoteProviding & ProofProviding
 
     /// Each account's keys, by base-58 address.
     typealias Keys = [String: PrivateBalanceKeyRecord]
@@ -37,13 +40,28 @@ actor PrivateBalances: PrivateBalancing {
         case notes
     }
 
+    /// What a shared sync found for an account on a network.
+    nonisolated private enum SyncOutcome: Sendable {
+        /// This device has no keys for the account.
+        case off
+        /// The selected provider doesn't read private notes on the network.
+        case unavailable
+        /// The account hasn't registered its keys on the network.
+        case unregistered(ShieldedAccount)
+        /// The account's notes after the sync, which is saved.
+        case synced(ShieldedAccount, NoteSyncState)
+    }
+
     private let recovery: any RecoveryStoring
     private let wallet: any PrivateBalanceKeyDeriving
     private let keys: any ValueStoring<Keys>
     private let notes: any ValueStoring<Notes>
     private let makeClient: @Sendable (Network) -> Client
     private var clients: [Network: Client] = [:]
-    private var syncs: [String: Task<PrivateBalanceStatus, any Error>] = [:]
+    private var syncs: [String: Task<SyncOutcome, any Error>] = [:]
+    /// The latest outcome that each notes entry is recording, which runs after the entry's earlier recordings and which
+    /// a sync of that entry waits for before it loads.
+    private var completions: [String: Task<PrivateBalanceStatus, any Error>] = [:]
     /// The deletion of each item found unreadable during this launch, which every later operation that finds the item
     /// unreadable waits for instead of deleting it again.
     private var deletions: [Item: Task<Void, any Error>] = [:]
@@ -116,12 +134,108 @@ actor PrivateBalances: PrivateBalancing {
     ///   is unreadable again after its deletion this launch, or a storage or provider error.
     func refresh(_ account: Account, on network: Network) async throws -> PrivateBalanceStatus {
         guard ShieldedPool.networks.contains(network) else { return .unavailable }
-        let id = Self.noteID(of: account, on: network)
-        let sync = syncs[id] ?? Task { try await status(of: account, id: id, client: client(for: network)) }
-        syncs[id] = sync
-        let result = await sync.result
-        if syncs[id] == sync { syncs[id] = nil }
-        try Task.checkCancellation()
+        return switch try await sharedSync(of: account, on: network) {
+        case .off: .off
+        case .unavailable: .unavailable
+        case .unregistered: .unregistered
+        case .synced(_, let state): .lamports(state.lamports)
+        }
+    }
+
+    /// Builds a private-balance transaction for review after the shared sync of the account's notes.
+    ///
+    /// Keys are read without authentication. An unregistered account's deposit registers its keys in the same
+    /// transaction; its notes sync from the start without being saved, only to learn the output tree. A send reads the
+    /// recipient's registry record while the notes sync.
+    /// - Parameters:
+    ///   - request: The deposit, send, or withdrawal.
+    ///   - account: The account that signs and pays.
+    ///   - network: The network to run on.
+    /// - Returns: The transaction's instructions and the change it makes once it succeeds.
+    /// - Throws: ``PrivateBalanceError/unavailable`` on a network or with a provider without private balances, or
+    ///   without an output tree; ``PrivateBalanceError/turnedOff`` without keys;
+    ///   ``PrivateBalanceError/recipientUnregistered`` for a send to an unregistered account;
+    ///   ``PrivateBalanceError/insufficientBalance`` for an unregistered account's send or withdrawal, or notes that
+    ///   don't cover the amount; ``PrivateBalanceError/tooManyNotes`` if covering it takes more than 40 notes;
+    ///   ``PrivateBalanceError/registeredWithOtherKeys``; a validation error for a zero amount; `CancellationError`;
+    ///   or a storage, provider, or proof error.
+    func prepare(_ request: PrivateTransactionRequest, from account: Account, on network: Network) async throws
+        -> PreparedPrivateTransaction {
+        guard ShieldedPool.networks.contains(network) else { throw PrivateBalanceError.unavailable }
+        let client = client(for: network)
+        do {
+            let outcome: SyncOutcome
+            var recipient: Recipient?
+            if case .send(_, let destination) = request {
+                async let synced = sharedSync(of: account, on: network)
+                async let recipients = Recipient.lookup([destination], using: client)
+                let found: [Recipient?]
+                (outcome, found) = try await (synced, recipients)
+                recipient = found.first ?? nil
+            } else {
+                outcome = try await sharedSync(of: account, on: network)
+            }
+            let (shielded, state, registers) = try await notes(after: outcome, for: request, client: client)
+            let instructions: [Instruction]
+            let effect: PreparedPrivateTransaction.Effect
+            switch request {
+            case .deposit(let lamports):
+                guard let treeID = state.outputTreeID else { throw PrivateBalanceError.unavailable }
+                let deposit = try ShieldedPool.deposit(lamports: lamports, from: account.address, to: shielded.recipient,
+                                                       treeID: treeID)
+                instructions = (registers ? [try shielded.register(paidBy: account.address)] : []) + [deposit]
+                effect = .deposit(lamports)
+            case .send(let lamports, _):
+                guard let recipient else { throw PrivateBalanceError.recipientUnregistered }
+                let spend = try await state.spend(lamports, to: .transfer(recipient), from: shielded, provider: client)
+                (instructions, effect) = ([spend.instruction], .spend(spend))
+            case .withdraw(let lamports, let destination):
+                let spend = try await state.spend(lamports, to: .withdrawal(destination), from: shielded, provider: client)
+                (instructions, effect) = ([spend.instruction], .spend(spend))
+            }
+            return PreparedPrivateTransaction(instructions: instructions, account: account, network: network,
+                                              effect: effect, registers: registers)
+        } catch ProviderClientError.unsupportedNetwork, ProviderClientError.privateNotesUnavailable {
+            throw PrivateBalanceError.unavailable
+        } catch PrivateSpend.ValidationError.insufficientFunds {
+            throw PrivateBalanceError.insufficientBalance
+        } catch PrivateSpend.ValidationError.tooManyNotes {
+            throw PrivateBalanceError.tooManyNotes
+        } catch PrivateSpend.ValidationError.noOutputTree {
+            throw PrivateBalanceError.unavailable
+        }
+    }
+
+    /// Records a prepared transaction's settled outcome in the account's notes entry.
+    ///
+    /// The recording waits for a running sync of the entry and for the entry's earlier recordings, one at a time, and a
+    /// sync that starts meanwhile waits for every recording. A succeeded transaction creates the entry if it's missing, such as after the account's first deposit
+    /// registered it. Waiting isn't cancellable: once it starts, the recording finishes and saves.
+    /// - Parameters:
+    ///   - transaction: The transaction from ``prepare(_:from:on:)``.
+    ///   - confirmation: The transaction's settled outcome on the same network.
+    /// - Returns: The balance after a succeeded transaction; after a failed or dropped one, the saved balance,
+    ///   ``PrivateBalanceStatus/unregistered`` without a notes entry, or ``PrivateBalanceStatus/off`` without keys.
+    /// - Throws: ``Transactions/ValidationError/invalidTransaction`` for a confirmation from another network,
+    ///   `CancellationError` if ``removeAll()`` ran first, ``KeychainItemError/unreadable`` if an item is unreadable
+    ///   again after its deletion this launch, or a storage error.
+    func complete(_ transaction: PreparedPrivateTransaction, with confirmation: Confirmation) async throws
+        -> PrivateBalanceStatus {
+        guard confirmation.submission.network == transaction.network else {
+            throw Transactions.ValidationError.invalidTransaction
+        }
+        let generation = generation
+        let id = Self.noteID(of: transaction.account, on: transaction.network)
+        await settle { syncs[id] }
+        let previous = completions[id]
+        let completion = Task {
+            _ = await previous?.result
+            return try await record(transaction, outcome: confirmation.outcome,
+                                    signature: confirmation.submission.signature, id: id, from: generation)
+        }
+        completions[id] = completion
+        let result = await completion.result
+        if completions[id] == completion { completions[id] = nil }
         return try result.get()
     }
 
@@ -163,20 +277,107 @@ actor PrivateBalances: PrivateBalancing {
         }
     }
 
+    /// Joins or starts the shared sync of an account's notes on a network.
+    ///
+    /// Waiting for a running sync isn't cancellable; a cancelled caller gets `CancellationError` once it finishes, and
+    /// the shared sync still saves.
+    /// - Parameters:
+    ///   - account: The account whose notes to sync.
+    ///   - network: A network with private balances.
+    /// - Returns: What the sync found.
+    /// - Throws: `CancellationError` if cancelled, or the sync's error.
+    private func sharedSync(of account: Account, on network: Network) async throws -> SyncOutcome {
+        let id = Self.noteID(of: account, on: network)
+        let sync = syncs[id] ?? Task { try await synced(account, id: id, client: client(for: network)) }
+        syncs[id] = sync
+        let result = await sync.result
+        if syncs[id] == sync { syncs[id] = nil }
+        try Task.checkCancellation()
+        return try result.get()
+    }
+
+    /// Returns the keys, notes, and registration step of a transaction after the shared sync.
+    /// - Parameters:
+    ///   - outcome: What the shared sync found.
+    ///   - request: The transaction.
+    ///   - client: The network's client.
+    /// - Returns: The account's keys, its notes, and whether the transaction registers the keys first.
+    /// - Throws: ``PrivateBalanceError/turnedOff`` without keys, ``PrivateBalanceError/unavailable`` with a provider
+    ///   that doesn't read private notes, ``PrivateBalanceError/insufficientBalance`` for an unregistered account's
+    ///   send or withdrawal, or a provider error from an unregistered account's unsaved sync.
+    private func notes(after outcome: SyncOutcome, for request: PrivateTransactionRequest,
+                       client: Client) async throws -> (account: ShieldedAccount, state: NoteSyncState, registers: Bool) {
+        switch outcome {
+        case .off:
+            throw PrivateBalanceError.turnedOff
+        case .unavailable:
+            throw PrivateBalanceError.unavailable
+        case .unregistered(let shielded):
+            guard case .deposit = request else { throw PrivateBalanceError.insufficientBalance }
+            return (shielded, try await NoteSyncState().synced(for: shielded, using: client), true)
+        case .synced(let shielded, let state):
+            return (shielded, state, false)
+        }
+    }
+
+    /// Records a settled outcome in an account's notes entry, unless ``removeAll()`` ran after `generation`.
+    /// - Parameters:
+    ///   - transaction: The prepared transaction.
+    ///   - outcome: Whether it succeeded, failed, or was dropped.
+    ///   - signature: The transaction's signature.
+    ///   - id: The account's notes entry on the network.
+    ///   - generation: The ``generation`` when the completion started.
+    /// - Returns: The balance afterward, or why it has none.
+    /// - Throws: `CancellationError` if ``removeAll()`` ran after `generation`, or a storage error.
+    private func record(_ transaction: PreparedPrivateTransaction, outcome: Confirmation.Outcome, signature: String,
+                        id: String, from generation: Int) async throws -> PrivateBalanceStatus {
+        guard generation == self.generation else { throw CancellationError() }
+        guard outcome == .succeeded else {
+            async let savedKeys = rebuilding(keys, .keys, from: generation) { try await $0.load() }
+            async let savedNotes = rebuilding(notes, .notes, from: generation) { try await $0.load() }
+            let (keyRecords, entries) = try await (savedKeys, savedNotes)
+            guard keyRecords?[transaction.account.address.value] != nil else { return .off }
+            return entries?[id].map { .lamports($0.lamports) } ?? .unregistered
+        }
+        let effect = transaction.effect
+        let recorded = try await update(notes, .notes, from: generation) { entries in
+            let saved = entries[id] ?? NoteSyncState()
+            let state = switch effect {
+            case .deposit(let lamports): try saved.recording(depositOf: lamports, signature: signature)
+            case .spend(let spend): try saved.recording(spend, signature: signature)
+            }
+            entries[id] = state
+            return state
+        }
+        return .lamports(recorded.lamports)
+    }
+
+    /// Waits until no task that `running` returns is still running, waiting for each task once.
+    /// - Parameter running: Returns the task currently running, if any, such as a notes entry's sync.
+    private func settle<Success: Sendable>(_ running: () -> Task<Success, any Error>?) async {
+        var settled: Task<Success, any Error>?
+        while let task = running(), task != settled {
+            settled = task
+            _ = await task.result
+        }
+    }
+
     /// Syncs an account's notes and saves them, after checking registration if they've never synced.
     ///
-    /// A registered account's empty notes entry is saved before its first sync, so registration is checked once
-    /// even if that sync fails. A deleted unreadable notes item has no entries, so every account syncs from the start.
+    /// The sync waits for an outcome that the notes entry is recording before it loads. A registered account's empty
+    /// notes entry is saved before its first sync, so registration is checked once even if that sync fails. A deleted
+    /// unreadable notes item has no entries, so every account syncs from the start.
     /// - Parameters:
     ///   - account: The account whose notes to sync.
     ///   - id: The account's notes entry on the network.
     ///   - client: The network's client.
-    /// - Returns: The account's balance, or why it has none.
+    /// - Returns: The account's keys and notes, or why it has none.
     /// - Throws: ``PrivateBalanceError/registeredWithOtherKeys`` if the account registered other keys,
     ///   `CancellationError` if ``removeAll()`` ran first, ``KeychainItemError/unreadable`` if an item is unreadable
     ///   again after its deletion this launch, or a storage or provider error.
-    private func status(of account: Account, id: String, client: Client) async throws -> PrivateBalanceStatus {
+    private func synced(_ account: Account, id: String, client: Client) async throws -> SyncOutcome {
         let generation = generation
+        await settle { completions[id] }
         async let savedKeys = rebuilding(keys, .keys, from: generation) { try await $0.load() }
         async let savedNotes = rebuilding(notes, .notes, from: generation) { try await $0.load() }
         guard let record = try await savedKeys?[account.address.value] else { return .off }
@@ -185,7 +386,7 @@ actor PrivateBalances: PrivateBalancing {
             let saved = try await savedNotes?[id]
             if saved == nil {
                 switch try await shielded.registration(using: client) {
-                case .unregistered: return .unregistered
+                case .unregistered: return .unregistered(shielded)
                 case .registeredWithOtherKeys: throw PrivateBalanceError.registeredWithOtherKeys
                 case .registered:
                     try await update(notes, .notes, from: generation) { $0[id] = $0[id] ?? NoteSyncState() }
@@ -193,7 +394,7 @@ actor PrivateBalances: PrivateBalancing {
             }
             let synced = try await (saved ?? NoteSyncState()).synced(for: shielded, using: client)
             try await update(notes, .notes, from: generation) { $0[id] = synced }
-            return .lamports(synced.lamports)
+            return .synced(shielded, synced)
         } catch ProviderClientError.unsupportedNetwork, ProviderClientError.privateNotesUnavailable {
             return .unavailable
         }
@@ -207,20 +408,23 @@ actor PrivateBalances: PrivateBalancing {
     ///   - store: The keys or notes storage.
     ///   - item: The item that `store` keeps.
     ///   - generation: The ``generation`` when the operation started.
-    ///   - change: Changes the saved entries, which are empty before any is saved.
+    ///   - change: Changes the saved entries, which are empty before any is saved; if it throws, nothing is saved.
+    /// - Returns: The change's result.
     /// - Throws: `CancellationError` if ``removeAll()`` ran after the operation started,
-    ///   ``KeychainItemError/unreadable`` if the item is unreadable again after its deletion this launch, or a
-    ///   storage error.
-    private func update<Entry: Equatable & Sendable>(
+    ///   ``KeychainItemError/unreadable`` if the item is unreadable again after its deletion this launch, the change's
+    ///   error, or a storage error.
+    @discardableResult
+    private func update<Entry: Equatable & Sendable, Result: Sendable>(
         _ store: any ValueStoring<[String: Entry]>, _ item: Item, from generation: Int,
-        _ change: @escaping @Sendable (inout [String: Entry]) -> Void
-    ) async throws {
+        _ change: @escaping @Sendable (inout [String: Entry]) throws -> Result
+    ) async throws -> Result {
         guard generation == self.generation else { throw CancellationError() }
-        try await rebuilding(store, item, from: generation) { store in
+        return try await rebuilding(store, item, from: generation) { store in
             try await store.update { saved in
                 var entries = saved ?? [:]
-                change(&entries)
+                let result = try change(&entries)
                 saved = entries
+                return result
             }
         }
     }

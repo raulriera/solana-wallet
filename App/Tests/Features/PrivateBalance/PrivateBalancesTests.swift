@@ -562,6 +562,389 @@ struct PrivateBalancesTests {
         #expect(await notes.deletions == 1)
     }
 
+    /// A registered account's deposit goes into its own private balance in the indexer's output tree, without a
+    /// registry read.
+    @Test
+    func `Preparing a registered account's deposit deposits into its own balance`() async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let record = try await PrivateBalanceFixtures.keys(for: account)
+        let shielded = try record.shieldedAccount(for: account.address)
+        let responses = HTTPResponses.privateNotes(outputTreeID: 1)
+        let notes = StoredValue<PrivateBalances.Notes>([PrivateBalances.noteID(of: account, on: .devnet): NoteSyncState()])
+        let balances = try Self.balances(responses, keys: StoredValue([account.address.value: record]), notes: notes)
+
+        let prepared = try await balances.prepare(.deposit(5_000), from: account, on: .devnet)
+
+        #expect(prepared.instructions == [try ShieldedPool.deposit(lamports: 5_000, from: account.address, to: shielded.recipient,
+                                                                   treeID: 1)])
+        #expect(!prepared.registers)
+        #expect(prepared.network == .devnet)
+        #expect(try await !Self.methods(of: responses).contains(GetMultipleAccounts.method))
+    }
+
+    /// An unregistered account's first deposit registers its keys in the same transaction, and its notes, read from
+    /// the start only to learn the output tree, aren't saved.
+    @Test
+    func `Preparing an unregistered account's first deposit registers it without saving notes`() async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let record = try await PrivateBalanceFixtures.keys(for: account)
+        let shielded = try record.shieldedAccount(for: account.address)
+        let responses = HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered], outputTreeID: 1)
+        let notes = StoredValue<PrivateBalances.Notes>()
+        let balances = try Self.balances(responses, keys: StoredValue([account.address.value: record]), notes: notes)
+
+        let prepared = try await balances.prepare(.deposit(5_000), from: account, on: .devnet)
+
+        #expect(prepared.instructions == [
+            try shielded.register(paidBy: account.address),
+            try ShieldedPool.deposit(lamports: 5_000, from: account.address, to: shielded.recipient, treeID: 1),
+        ])
+        #expect(prepared.registers)
+        #expect(await notes.value == nil)
+    }
+
+    /// A deposit needs the indexer's output tree; without one, private balances are unavailable.
+    @Test
+    func `Preparing a deposit without an output tree is unavailable`() async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let responses = HTTPResponses.privateNotes()
+        let notes = StoredValue<PrivateBalances.Notes>([PrivateBalances.noteID(of: account, on: .devnet): NoteSyncState()])
+        let keys = StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
+
+        await #expect(throws: PrivateBalanceError.unavailable) {
+            try await Self.balances(responses, keys: keys, notes: notes).prepare(.deposit(5_000), from: account, on: .devnet)
+        }
+    }
+
+    /// A spend needs the indexer's output tree for its outputs; without one, private balances are unavailable and
+    /// nothing is proved.
+    @Test
+    func `Preparing a withdrawal without an output tree is unavailable`() async throws {
+        let sender = try await Self.fundedAccount(lamports: 1_000_000)
+        let responses = HTTPResponses.privateNotes(deposits: [sender.deposit], prove: PrivateBalanceFixtures.proof(answering:))
+
+        await #expect(throws: PrivateBalanceError.unavailable) {
+            try await Self.balances(responses, keys: sender.keys, notes: sender.notes)
+                .prepare(.withdraw(400_000, to: sender.account.address), from: sender.account, on: .devnet)
+        }
+        #expect(await Self.proofRequests(of: responses) == 0)
+    }
+
+    /// A custom RPC serves only mainnet, so the recipient lookup of a devnet send can't run and private balances are
+    /// unavailable.
+    @Test
+    func `Preparing a send with a custom RPC off mainnet is unavailable`() async throws {
+        async let funded = Self.fundedAccount(lamports: 1_000_000)
+        async let derivedRecipient = PrivateBalanceFixtures.account(index: 1)
+        let (sender, recipient) = try await (funded, derivedRecipient)
+
+        await #expect(throws: PrivateBalanceError.unavailable) {
+            try await Self.balances(HTTPResponses.privateNotes(), provider: try Self.customRPC(), keys: sender.keys,
+                                    notes: sender.notes)
+                .prepare(.send(400_000, to: recipient.address), from: sender.account, on: .devnet)
+        }
+    }
+
+    /// Without keys, private balances are off; off devnet, or with a provider that doesn't read private notes, they're
+    /// unavailable.
+    /// - Parameters:
+    ///   - network: The network to prepare on.
+    ///   - provider: The selected provider.
+    ///   - hasKeys: Whether the account's keys are kept.
+    ///   - error: The expected rejection.
+    @Test(arguments: [
+        (Network.devnet, ProviderSettings.Provider.helius, false, widgets.PrivateBalanceError.turnedOff),
+        (.mainnet, .helius, true, .unavailable),
+        (.devnet, .solana, true, .unavailable),
+    ])
+    func `Preparing without private balances is rejected`(network: Network, provider: ProviderSettings.Provider, hasKeys: Bool,
+                                                          error: widgets.PrivateBalanceError) async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let id = PrivateBalances.noteID(of: account, on: network)
+        let saved: PrivateBalances.Keys? = hasKeys ? [account.address.value: try await PrivateBalanceFixtures.keys(for: account)] : nil
+        let balances = try Self.balances(HTTPResponses.privateNotes(outputTreeID: 1), provider: provider, keys: StoredValue(saved),
+                                         notes: StoredValue([id: NoteSyncState()]))
+
+        await #expect(throws: error) { try await balances.prepare(.deposit(5_000), from: account, on: network) }
+    }
+
+    /// A send to an account without private balances is rejected so that the caller can offer a regular payment.
+    @Test
+    func `Preparing a send to an unregistered recipient offers a regular payment`() async throws {
+        async let funded = Self.fundedAccount(lamports: 1_000_000)
+        async let derivedRecipient = PrivateBalanceFixtures.account(index: 1)
+        let (sender, recipient) = try await (funded, derivedRecipient)
+        let responses = HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered], deposits: [sender.deposit],
+                                                   outputTreeID: 1, prove: PrivateBalanceFixtures.proof(answering:))
+
+        await #expect(throws: PrivateBalanceError.recipientUnregistered) {
+            try await Self.balances(responses, keys: sender.keys, notes: sender.notes)
+                .prepare(.send(400_000, to: recipient.address), from: sender.account, on: .devnet)
+        }
+        #expect(await Self.proofRequests(of: responses) == 0)
+    }
+
+    /// A send to a registered recipient proves a transfer of the sender's note and returns the change.
+    @Test
+    func `Preparing a send proves a private transfer`() async throws {
+        async let funded = Self.fundedAccount(lamports: 1_000_000)
+        async let derivedRecipient = PrivateBalanceFixtures.account(index: 1)
+        let (sender, recipient) = try await (funded, derivedRecipient)
+        let recipientKeys = try await PrivateBalanceFixtures.keys(for: recipient)
+        let registry = try PrivateBalanceFixtures.registry(publishing: recipientKeys.shieldedAccount(for: recipient.address))
+        let responses = HTTPResponses.privateNotes(registry: [registry], deposits: [sender.deposit], outputTreeID: 1,
+                                                   prove: PrivateBalanceFixtures.proof(answering:))
+        let balances = try Self.balances(responses, keys: sender.keys, notes: sender.notes)
+
+        let prepared = try await balances.prepare(.send(400_000, to: recipient.address), from: sender.account, on: .devnet)
+
+        guard case .spend(let spend) = prepared.effect else {
+            Issue.record("Expected a spend.")
+            return
+        }
+        #expect(prepared.instructions == [spend.instruction])
+        #expect(spend.lamports == 400_000)
+        #expect(spend.receivedLamports == 600_000)
+        #expect(await Self.proofRequests(of: responses) == 1)
+        #expect(try await balances.complete(prepared, with: Self.confirmation(.succeeded)) == .lamports(600_000))
+        #expect(await sender.notes.value?[sender.id]?.notes.isEmpty == true)
+    }
+
+    /// A withdrawal of the whole note proves a public withdrawal that returns nothing to the private balance.
+    @Test
+    func `Preparing a withdrawal proves a public withdrawal`() async throws {
+        async let funded = Self.fundedAccount(lamports: 1_000_000)
+        async let derivedDestination = PrivateBalanceFixtures.account(index: 1)
+        let (sender, destination) = try await (funded, derivedDestination)
+        let responses = HTTPResponses.privateNotes(deposits: [sender.deposit], outputTreeID: 1,
+                                                   prove: PrivateBalanceFixtures.proof(answering:))
+
+        let prepared = try await Self.balances(responses, keys: sender.keys, notes: sender.notes)
+            .prepare(.withdraw(1_000_000, to: destination.address), from: sender.account, on: .devnet)
+
+        guard case .spend(let spend) = prepared.effect else {
+            Issue.record("Expected a spend.")
+            return
+        }
+        #expect(spend.lamports == 1_000_000)
+        #expect(spend.receivedLamports == 0)
+        #expect(spend.instruction.accounts.last?.address == destination.address)
+    }
+
+    /// A spend beyond the spendable notes, or from an account that never registered, is an insufficient balance.
+    /// - Parameter isRegistered: Whether the account has a notes entry and a note, or never registered.
+    @Test(arguments: [true, false])
+    func `Spends beyond the spendable notes are insufficient`(isRegistered: Bool) async throws {
+        let sender = try await Self.fundedAccount(lamports: 1_000_000)
+        let responses = HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered],
+                                                   deposits: isRegistered ? [sender.deposit] : [], outputTreeID: 1,
+                                                   prove: PrivateBalanceFixtures.proof(answering:))
+        let notes = isRegistered ? sender.notes : StoredValue<PrivateBalances.Notes>()
+
+        await #expect(throws: PrivateBalanceError.insufficientBalance) {
+            try await Self.balances(responses, keys: sender.keys, notes: notes)
+                .prepare(.withdraw(2_000_000, to: sender.account.address), from: sender.account, on: .devnet)
+        }
+        #expect(await Self.proofRequests(of: responses) == 0)
+    }
+
+    /// A succeeded deposit stays pending in the saved notes, and counts in the returned balance.
+    @Test
+    func `Completing a succeeded deposit keeps it pending`() async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let id = PrivateBalances.noteID(of: account, on: .devnet)
+        let notes = StoredValue<PrivateBalances.Notes>([id: NoteSyncState()])
+        let balances = try Self.balances(HTTPResponses.privateNotes(), notes: notes)
+
+        let status = try await balances.complete(Self.deposit(5_000, from: account), with: Self.confirmation(.succeeded))
+
+        #expect(status == .lamports(5_000))
+        #expect(await notes.value?[id]?.pendingLamports == 5_000)
+    }
+
+    /// An account's first deposit, which registered it, creates its notes entry once it succeeds.
+    @Test
+    func `Completing a first deposit creates the notes entry`() async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let record = try await PrivateBalanceFixtures.keys(for: account)
+        let responses = HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered], outputTreeID: 1)
+        let notes = StoredValue<PrivateBalances.Notes>()
+        let balances = try Self.balances(responses, keys: StoredValue([account.address.value: record]), notes: notes)
+        let prepared = try await balances.prepare(.deposit(5_000), from: account, on: .devnet)
+
+        let status = try await balances.complete(prepared, with: Self.confirmation(.succeeded))
+
+        #expect(status == .lamports(5_000))
+        #expect(await notes.value?[PrivateBalances.noteID(of: account, on: .devnet)]?.pendingLamports == 5_000)
+    }
+
+    /// A failed or dropped transaction changes nothing and returns the saved balance.
+    /// - Parameter outcome: The transaction's outcome.
+    @Test(arguments: [widgets.Confirmation.Outcome.failed(TransactionError(name: "InsufficientFundsForFee", details: nil)), .dropped])
+    func `Failed or dropped transactions change nothing`(outcome: widgets.Confirmation.Outcome) async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let id = PrivateBalances.noteID(of: account, on: .devnet)
+        let notes = StoredValue<PrivateBalances.Notes>([id: NoteSyncState()])
+        let keys = StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
+        let balances = try Self.balances(HTTPResponses.privateNotes(), keys: keys, notes: notes)
+
+        let status = try await balances.complete(Self.deposit(5_000, from: account), with: Self.confirmation(outcome))
+
+        #expect(status == .lamports(0))
+        #expect(await notes.value == [id: NoteSyncState()])
+    }
+
+    /// A confirmation from another network than the transaction's is rejected without a change.
+    @Test
+    func `Completing with another network's confirmation is rejected`() async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let id = PrivateBalances.noteID(of: account, on: .devnet)
+        let notes = StoredValue<PrivateBalances.Notes>([id: NoteSyncState()])
+        let confirmation = widgets.Confirmation(submission: Submission(signature: "mainnet", network: .mainnet, lastValidBlockHeight: 1),
+                                        slot: 5, outcome: .succeeded)
+
+        await #expect(throws: Transactions.ValidationError.invalidTransaction) {
+            try await Self.balances(HTTPResponses.privateNotes(), notes: notes)
+                .complete(Self.deposit(5_000, from: account), with: confirmation)
+        }
+        #expect(await notes.value == [id: NoteSyncState()])
+    }
+
+    /// Recording an outcome waits for a running sync of the account's notes, so the sync's save doesn't drop the
+    /// recorded deposit.
+    @Test
+    func `Completing waits for a running sync`() async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let id = PrivateBalances.noteID(of: account, on: .devnet)
+        let gate = Suspension()
+        let responses = HTTPResponses.privateNotes(gate: gate, heldMethod: GetShieldedTransactionsByTags.method)
+        let notes = StoredValue<PrivateBalances.Notes>([id: NoteSyncState()])
+        let keys = StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
+        let balances = try Self.balances(responses, keys: keys, notes: notes)
+
+        let refresh = await Self.startRefresh(of: account, in: balances)
+        await gate.waitUntilStarted()
+        let completion = await Self.startCompletion(of: Self.deposit(5_000, from: account), in: balances)
+        gate.resume()
+
+        #expect(try await refresh.value == .lamports(0))
+        #expect(try await completion.value == .lamports(5_000))
+        #expect(await notes.value?[id]?.pendingLamports == 5_000)
+    }
+
+    /// A sync that starts while an outcome is being recorded waits for it, so it loads and keeps the recorded deposit.
+    @Test
+    func `A sync waits for a running completion`() async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let id = PrivateBalances.noteID(of: account, on: .devnet)
+        let gate = Suspension()
+        let notes = StoredValue<PrivateBalances.Notes>([id: NoteSyncState()], gate: gate)
+        let keys = StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
+        let balances = try Self.balances(HTTPResponses.privateNotes(), keys: keys, notes: notes)
+
+        let completion = await Self.startCompletion(of: Self.deposit(5_000, from: account), in: balances)
+        await gate.waitUntilStarted()
+        let refresh = await Self.startRefresh(of: account, in: balances)
+        gate.resume()
+
+        #expect(try await completion.value == .lamports(5_000))
+        #expect(try await refresh.value == .lamports(5_000))
+        #expect(await notes.value?[id]?.pendingLamports == 5_000)
+    }
+
+    /// A reset while a recording waits for a sync cancels the recording, whatever its outcome, and saves nothing.
+    /// - Parameter outcome: The transaction's outcome.
+    @Test(arguments: [widgets.Confirmation.Outcome.succeeded, .dropped])
+    func `A reset during a completion cancels it`(outcome: widgets.Confirmation.Outcome) async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let id = PrivateBalances.noteID(of: account, on: .devnet)
+        let gate = Suspension()
+        let responses = HTTPResponses.privateNotes(gate: gate, heldMethod: GetShieldedTransactionsByTags.method)
+        let notes = StoredValue<PrivateBalances.Notes>([id: NoteSyncState()])
+        let keys = StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
+        let balances = try Self.balances(responses, keys: keys, notes: notes)
+
+        let refresh = await Self.startRefresh(of: account, in: balances)
+        await gate.waitUntilStarted()
+        let completion = await Self.startCompletion(of: Self.deposit(5_000, from: account), outcome: outcome, in: balances)
+        try await balances.removeAll()
+        gate.resume()
+
+        await #expect(throws: CancellationError.self) { try await refresh.value }
+        await #expect(throws: CancellationError.self) { try await completion.value }
+        #expect(await notes.value == nil)
+    }
+
+    /// Two overlapping recordings for one account run one at a time, and a refresh that starts meanwhile waits for both.
+    @Test
+    func `Overlapping completions run one at a time`() async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let id = PrivateBalances.noteID(of: account, on: .devnet)
+        let gate = Suspension()
+        let notes = StoredValue<PrivateBalances.Notes>([id: NoteSyncState()], gate: gate)
+        let keys = StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
+        let balances = try Self.balances(HTTPResponses.privateNotes(), keys: keys, notes: notes)
+
+        let first = await Self.startCompletion(of: Self.deposit(5_000, from: account), signature: "first", in: balances)
+        await gate.waitUntilStarted()
+        let second = await Self.startCompletion(of: Self.deposit(7_000, from: account), signature: "second", in: balances)
+        let refresh = await Self.startRefresh(of: account, in: balances)
+        gate.resume()
+
+        #expect(try await first.value == .lamports(5_000))
+        #expect(try await second.value == .lamports(12_000))
+        #expect(try await refresh.value == .lamports(12_000))
+        #expect(await notes.value?[id]?.pendingLamports == 12_000)
+    }
+
+    /// A spend that needs more than 40 notes is rejected as too many notes.
+    @Test
+    func `Preparing a spend of too many notes is rejected`() async throws {
+        let sender = try await Self.fundedAccount(lamports: 1)
+        let shielded = try await PrivateBalanceFixtures.keys(for: sender.account).shieldedAccount(for: sender.account.address)
+        let deposits = try (1...41).map { try PrivateBalanceFixtures.deposit(1, to: shielded, leafIndex: UInt64($0)) }
+        let responses = HTTPResponses.privateNotes(deposits: deposits, outputTreeID: 1, prove: PrivateBalanceFixtures.proof(answering:))
+
+        await #expect(throws: PrivateBalanceError.tooManyNotes) {
+            try await Self.balances(responses, keys: sender.keys, notes: sender.notes)
+                .prepare(.withdraw(41, to: sender.account.address), from: sender.account, on: .devnet)
+        }
+        #expect(await Self.proofRequests(of: responses) == 0)
+    }
+
+    /// An account that registered other keys can't prepare a transaction, and nothing is saved.
+    @Test
+    func `Preparing for an account registered with other keys fails`() async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let other = try PrivateBalanceFixtures.otherKeys(for: account.address)
+        let responses = HTTPResponses.privateNotes(registry: [try PrivateBalanceFixtures.registry(publishing: other)], outputTreeID: 1)
+        let notes = StoredValue<PrivateBalances.Notes>()
+        let keys = StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
+
+        await #expect(throws: PrivateBalanceError.registeredWithOtherKeys) {
+            try await Self.balances(responses, keys: keys, notes: notes).prepare(.deposit(5_000), from: account, on: .devnet)
+        }
+        #expect(await notes.value == nil)
+    }
+
+    /// A registered account without a notes entry saves one while preparing, and its deposit doesn't register again.
+    @Test
+    func `Preparing for a registered account without notes saves its entry`() async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let record = try await PrivateBalanceFixtures.keys(for: account)
+        let shielded = try record.shieldedAccount(for: account.address)
+        let responses = HTTPResponses.privateNotes(registry: [try PrivateBalanceFixtures.registry(publishing: shielded)], outputTreeID: 1)
+        let notes = StoredValue<PrivateBalances.Notes>()
+        let balances = try Self.balances(responses, keys: StoredValue([account.address.value: record]), notes: notes)
+
+        let prepared = try await balances.prepare(.deposit(5_000), from: account, on: .devnet)
+
+        #expect(prepared.instructions == [try ShieldedPool.deposit(lamports: 5_000, from: account.address, to: shielded.recipient,
+                                                                   treeID: 1)])
+        #expect(!prepared.registers)
+        #expect(await notes.value?[PrivateBalances.noteID(of: account, on: .devnet)] != nil)
+    }
+
     /// Creates private balances around local responses and in-memory storage.
     /// - Parameters:
     ///   - responses: The local responses that every network's provider client sends requests to.
@@ -603,6 +986,46 @@ struct PrivateBalancesTests {
                 try PrivateBalanceFixtures.deposit(lamports, to: shielded, leafIndex: UInt64(index) + 1))
     }
 
+    /// Derives a fixture account registered with its own keys, with a notes entry and a deposit to it in tree 1.
+    /// - Parameter lamports: The deposit's amount.
+    /// - Returns: The account, its kept keys, its notes storage, its notes entry, and the deposit's tag-read row.
+    /// - Throws: A derivation error.
+    private static func fundedAccount(lamports: UInt64) async throws -> (account: widgets.Account,
+        keys: StoredValue<PrivateBalances.Keys>, notes: StoredValue<PrivateBalances.Notes>, id: String, deposit: String) {
+        let registered = try await registeredAccount(index: 0, lamports: lamports)
+        let id = PrivateBalances.noteID(of: registered.account, on: .devnet)
+        return (registered.account, StoredValue([registered.account.address.value: registered.keys]),
+                StoredValue([id: NoteSyncState()]), id, registered.deposit)
+    }
+
+    /// Creates a prepared deposit on devnet without instructions, for recording outcomes.
+    /// - Parameters:
+    ///   - lamports: The deposited amount.
+    ///   - account: The depositing account.
+    /// - Returns: The prepared deposit.
+    private static func deposit(_ lamports: UInt64, from account: widgets.Account) -> PreparedPrivateTransaction {
+        PreparedPrivateTransaction(instructions: [], account: account, network: .devnet, effect: .deposit(lamports),
+                                   registers: false)
+    }
+
+    /// Creates a devnet transaction's settled outcome.
+    /// - Parameters:
+    ///   - outcome: Whether it succeeded, failed, or was dropped.
+    ///   - signature: The transaction's signature.
+    /// - Returns: The confirmation.
+    private static func confirmation(_ outcome: widgets.Confirmation.Outcome,
+                                     signature: String = "private") -> widgets.Confirmation {
+        widgets.Confirmation(submission: Submission(signature: signature, network: .devnet, lastValidBlockHeight: 1), slot: 5,
+                             outcome: outcome)
+    }
+
+    /// Counts the proof requests sent so far.
+    /// - Parameter responses: The local responses that recorded the requests.
+    /// - Returns: The number of requests on the prover's route.
+    private static func proofRequests(of responses: HTTPResponses) async -> Int {
+        await responses.requests.count { $0.url?.path().hasSuffix("/prove") == true }
+    }
+
     /// Lists the cursor of each tag read sent so far.
     /// - Parameter responses: The local responses that recorded the requests.
     /// - Returns: Each tag read's cursor, or `nil` for a read from the start, in arrival order.
@@ -618,6 +1041,20 @@ struct PrivateBalancesTests {
     /// - Throws: A test prerequisite error for a request without a method.
     private static func methods(of responses: HTTPResponses) async throws -> [String] {
         try await responses.requests.map { try $0.rpcMethod }
+    }
+
+    /// Starts recording an outcome that registers its recording, or reaches its wait for a running sync, before this
+    /// call returns.
+    /// - Parameters:
+    ///   - transaction: The prepared transaction, whose outcome succeeded.
+    ///   - signature: The transaction's signature.
+    ///   - outcome: The transaction's outcome.
+    ///   - balances: The private balances, whose isolation this call runs in.
+    /// - Returns: The completion's task.
+    private static func startCompletion(of transaction: PreparedPrivateTransaction, signature: String = "private",
+                                        outcome: widgets.Confirmation.Outcome = .succeeded,
+                                        in balances: isolated PrivateBalances) -> Task<PrivateBalanceStatus, any Error> {
+        Task.immediate { try await balances.complete(transaction, with: confirmation(outcome, signature: signature)) }
     }
 
     /// Starts a refresh that reaches the shared sync before this call returns.
