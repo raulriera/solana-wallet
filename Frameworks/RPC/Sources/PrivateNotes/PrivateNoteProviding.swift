@@ -45,4 +45,16 @@ public protocol PrivateNoteProviding: Sendable {
     /// - Throws: ``PrivateNoteError`` for an invalid nullifier or tree or too many nullifiers, or a request,
     ///   transport, response, or cancellation error, such as a server error for a nullifier that is already used.
     func nonInclusionProofs(for nullifiers: [[UInt8]], inTree tree: String) async throws -> [NonInclusionProof]
+
+    /// Whether the provider reads private notes and proves private transfers now, without sending a request.
+    ///
+    /// A provider that forwards to another, such as one that follows a saved choice, answers for the provider
+    /// that receives its next request. The default is `true`.
+    /// - Throws: An error that keeps the provider from answering, such as a missing key or a cancellation.
+    var readsPrivateNotes: Bool { get async throws }
+}
+
+public extension PrivateNoteProviding {
+    /// Answers that the provider reads private notes and proves private transfers.
+    var readsPrivateNotes: Bool { true }
 }

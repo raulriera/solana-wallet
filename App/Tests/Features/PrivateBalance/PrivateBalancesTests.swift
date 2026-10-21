@@ -172,6 +172,19 @@ struct PrivateBalancesTests {
         #expect(await responses.requests.isEmpty)
     }
 
+    /// Without keys and with a provider that doesn't read private notes, private balances are unavailable instead of
+    /// off, so turning them on isn't offered, and nothing is requested.
+    /// - Parameter isCustom: Whether a custom RPC is selected, which serves only mainnet, instead of Solana's public RPC.
+    @Test(arguments: [false, true])
+    func `An account without keys is unavailable with a provider that doesn't read private notes`(isCustom: Bool) async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let responses = HTTPResponses.privateNotes()
+        let provider = isCustom ? try Self.customRPC() : .solana
+
+        #expect(try await Self.balances(responses, provider: provider).refresh(account, on: .devnet) == .unavailable)
+        #expect(await responses.requests.isEmpty)
+    }
+
     /// Off a network with private balances, a refresh is unavailable, and nothing is read.
     @Test
     func `Refreshing off devnet is unavailable`() async throws {
@@ -202,8 +215,8 @@ struct PrivateBalancesTests {
         let saved = await notes.value?[id]
         let later = try await balances.refresh(account, on: .devnet)
 
-        #expect(first == .lamports(1_000_000))
-        #expect(later == .lamports(1_000_000))
+        #expect(first == .balance(available: 1_000_000, pending: 0))
+        #expect(later == .balance(available: 1_000_000, pending: 0))
         #expect(saved?.lamports == 1_000_000)
         #expect(await notes.value?[id] == saved)
         #expect(try await Self.methods(of: responses).filter { $0 == GetMultipleAccounts.method }.count == 1)
@@ -323,8 +336,8 @@ struct PrivateBalancesTests {
         let second = await Self.startRefresh(of: account, in: balances)
         gate.resume()
 
-        #expect(try await first.value == .lamports(42))
-        #expect(try await second.value == .lamports(42))
+        #expect(try await first.value == .balance(available: 42, pending: 0))
+        #expect(try await second.value == .balance(available: 42, pending: 0))
         #expect(try await Self.methods(of: responses).filter { $0 == GetShieldedTransactionsByTags.method }.count == 1)
     }
 
@@ -346,7 +359,7 @@ struct PrivateBalancesTests {
         await #expect(throws: RPCError.self) { try await balances.refresh(account, on: .devnet) }
         #expect(await notes.value == [id: NoteSyncState()])
 
-        #expect(try await balances.refresh(account, on: .devnet) == .lamports(42))
+        #expect(try await balances.refresh(account, on: .devnet) == .balance(available: 42, pending: 0))
         #expect(await notes.value?[id]?.lamports == 42)
         #expect(try await Self.methods(of: responses).filter { $0 == GetShieldedTransactionsByTags.method }.count == 2)
     }
@@ -419,7 +432,7 @@ struct PrivateBalancesTests {
         gate.resume()
 
         #expect(otherStatus == .unregistered)
-        #expect(try await sync.value == .lamports(0))
+        #expect(try await sync.value == .balance(available: 0, pending: 0))
     }
 
     /// An unreadable notes item is deleted once, and each account checks registration and syncs from the start again.
@@ -441,8 +454,8 @@ struct PrivateBalancesTests {
         let firstStatus = try await balances.refresh(first.account, on: .devnet)
         let secondStatus = try await balances.refresh(second.account, on: .devnet)
 
-        #expect(firstStatus == .lamports(1_000))
-        #expect(secondStatus == .lamports(2_000))
+        #expect(firstStatus == .balance(available: 1_000, pending: 0))
+        #expect(secondStatus == .balance(available: 2_000, pending: 0))
         #expect(await notes.deletions == 1)
         #expect(await notes.value?[firstID]?.lamports == 1_000)
         #expect(await notes.value?[secondID]?.lamports == 2_000)
@@ -485,7 +498,7 @@ struct PrivateBalancesTests {
         let keys = StoredValue([registered.account.address.value: registered.keys])
         let notes = StoredValue<PrivateBalances.Notes>(unreadable: true)
         let balances = try Self.balances(responses, keys: keys, notes: notes)
-        try #require(try await balances.refresh(registered.account, on: .devnet) == .lamports(1_000))
+        try #require(try await balances.refresh(registered.account, on: .devnet) == .balance(available: 1_000, pending: 0))
         let rebuilt = await notes.value
 
         await notes.makeUnreadable()
@@ -530,7 +543,7 @@ struct PrivateBalancesTests {
         await #expect(throws: CocoaError.self) { try await balances.refresh(registered.account, on: .devnet) }
         let retried = try await balances.refresh(registered.account, on: .devnet)
 
-        #expect(retried == .lamports(1_000))
+        #expect(retried == .balance(available: 1_000, pending: 0))
         #expect(await notes.deletions == 1)
     }
 
@@ -557,8 +570,8 @@ struct PrivateBalancesTests {
         let secondStatus = try await balances.refresh(second.account, on: .devnet)
         gate.resume()
 
-        #expect(secondStatus == .lamports(2_000))
-        #expect(try await held.value == .lamports(1_000))
+        #expect(secondStatus == .balance(available: 2_000, pending: 0))
+        #expect(try await held.value == .balance(available: 1_000, pending: 0))
         #expect(await notes.deletions == 1)
     }
 
@@ -706,7 +719,7 @@ struct PrivateBalancesTests {
         #expect(spend.lamports == 400_000)
         #expect(spend.receivedLamports == 600_000)
         #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 1)
-        #expect(try await balances.complete(prepared, with: PrivateBalanceFixtures.confirmation(.succeeded)) == .lamports(600_000))
+        #expect(try await balances.complete(prepared, with: PrivateBalanceFixtures.confirmation(.succeeded)) == .balance(available: 0, pending: 600_000))
         #expect(await sender.notes.value?[sender.id]?.notes.isEmpty == true)
     }
 
@@ -758,7 +771,7 @@ struct PrivateBalancesTests {
 
         let status = try await balances.complete(Self.deposit(5_000, from: account), with: PrivateBalanceFixtures.confirmation(.succeeded))
 
-        #expect(status == .lamports(5_000))
+        #expect(status == .balance(available: 0, pending: 5_000))
         #expect(await notes.value?[id]?.pendingLamports == 5_000)
     }
 
@@ -774,7 +787,7 @@ struct PrivateBalancesTests {
 
         let status = try await balances.complete(prepared, with: PrivateBalanceFixtures.confirmation(.succeeded))
 
-        #expect(status == .lamports(5_000))
+        #expect(status == .balance(available: 0, pending: 5_000))
         #expect(await notes.value?[PrivateBalances.noteID(of: account, on: .devnet)]?.pendingLamports == 5_000)
     }
 
@@ -790,7 +803,7 @@ struct PrivateBalancesTests {
 
         let status = try await balances.complete(Self.deposit(5_000, from: account), with: PrivateBalanceFixtures.confirmation(outcome))
 
-        #expect(status == .lamports(0))
+        #expect(status == .balance(available: 0, pending: 0))
         #expect(await notes.value == [id: NoteSyncState()])
     }
 
@@ -827,8 +840,8 @@ struct PrivateBalancesTests {
         let completion = await Self.startCompletion(of: Self.deposit(5_000, from: account), in: balances)
         gate.resume()
 
-        #expect(try await refresh.value == .lamports(0))
-        #expect(try await completion.value == .lamports(5_000))
+        #expect(try await refresh.value == .balance(available: 0, pending: 0))
+        #expect(try await completion.value == .balance(available: 0, pending: 5_000))
         #expect(await notes.value?[id]?.pendingLamports == 5_000)
     }
 
@@ -847,8 +860,8 @@ struct PrivateBalancesTests {
         let refresh = await Self.startRefresh(of: account, in: balances)
         gate.resume()
 
-        #expect(try await completion.value == .lamports(5_000))
-        #expect(try await refresh.value == .lamports(5_000))
+        #expect(try await completion.value == .balance(available: 0, pending: 5_000))
+        #expect(try await refresh.value == .balance(available: 0, pending: 5_000))
         #expect(await notes.value?[id]?.pendingLamports == 5_000)
     }
 
@@ -891,9 +904,9 @@ struct PrivateBalancesTests {
         let refresh = await Self.startRefresh(of: account, in: balances)
         gate.resume()
 
-        #expect(try await first.value == .lamports(5_000))
-        #expect(try await second.value == .lamports(12_000))
-        #expect(try await refresh.value == .lamports(12_000))
+        #expect(try await first.value == .balance(available: 0, pending: 5_000))
+        #expect(try await second.value == .balance(available: 0, pending: 12_000))
+        #expect(try await refresh.value == .balance(available: 0, pending: 12_000))
         #expect(await notes.value?[id]?.pendingLamports == 12_000)
     }
 

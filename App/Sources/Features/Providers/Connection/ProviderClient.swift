@@ -122,6 +122,22 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, LogoProviding, P
         try await performPrivateNotes { try await $0.nonInclusionProofs(for: nullifiers, inTree: tree) }
     }
 
+    /// Whether the selected provider reads private notes and proves private transfers on this network, without sending
+    /// a request.
+    ///
+    /// Only Helius does; a custom RPC off mainnet serves nothing.
+    /// - Throws: ``ProviderClientError`` for a missing Helius key or an unusable endpoint, or a storage or cancellation
+    ///   error.
+    var readsPrivateNotes: Bool {
+        get async throws {
+            do {
+                return try await perform { $0 is any PrivateNoteProviding & ProofProviding }
+            } catch ProviderClientError.unsupportedNetwork {
+                return false
+            }
+        }
+    }
+
     /// Proves a private transfer through the selected provider.
     /// - Parameter request: The transfer's tree slots, public input hash, and witness.
     /// - Returns: The proof and the proving key's digest.

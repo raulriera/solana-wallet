@@ -19,6 +19,7 @@ struct ProviderClientTests {
         await #expect(throws: ProviderClientError.missingKey) { _ = try await client.send(GetAsset(id: HTTPResponses.keyCheckAsset)) }
         await #expect(throws: ProviderClientError.missingKey) { _ = try await client.changedSlots(for: [PublicWallet.address]) }
         await #expect(throws: ProviderClientError.missingKey) { _ = try await client.logos(for: [HTTPResponses.keyCheckAsset]) }
+        await #expect(throws: ProviderClientError.missingKey) { _ = try await client.readsPrivateNotes }
         #expect(await responses.requests.isEmpty)
     }
 
@@ -163,6 +164,26 @@ struct ProviderClientTests {
             GetEncryptedUtxosByTags.method, GetShieldedTransactionsByNullifiers.method, GetShieldedTransactionsByTags.method,
         ])
         #expect(await responses.requests.allSatisfy { $0.url?.host() == "devnet.helius-rpc.com" })
+    }
+
+    /// Only Helius reads private notes, and a custom RPC reads nothing off mainnet; the answer sends no request.
+    /// - Parameters:
+    ///   - provider: The selected provider.
+    ///   - network: The client's network.
+    ///   - reads: Whether the provider reads private notes there.
+    @Test(arguments: [
+        (ProviderSettings.Provider.helius, Network.devnet, true), (.helius, .mainnet, true), (.solana, .devnet, false),
+        (.custom(URL(string: "https://rpc.example.com")!), .devnet, false),
+        (.custom(URL(string: "https://rpc.example.com")!), .mainnet, false),
+    ])
+    func `Only Helius reads private notes`(provider: ProviderSettings.Provider, network: Network,
+                                           reads: Bool) async throws {
+        let responses = HTTPResponses.privateNotes()
+        let client = responses.providerClient(network: network, settings: StoredValue(ProviderSettings(selection: provider)),
+                                              providerKey: StoredValue("fixture-key"))
+
+        #expect(try await client.readsPrivateNotes == reads)
+        #expect(await responses.requests.isEmpty)
     }
 
     /// A provider that doesn't read private notes fails each read before sending anything.

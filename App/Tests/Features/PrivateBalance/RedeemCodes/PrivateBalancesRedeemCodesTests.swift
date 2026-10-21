@@ -177,7 +177,7 @@ struct PrivateBalancesRedeemCodesTests {
         let status = try await balances.complete(charged, with: PrivateBalanceFixtures.confirmation(.succeeded))
 
         let deposited = 1_000_000 + RedeemCodeFixtures.reserve - RedeemCodeFixtures.treeFee - 5_000
-        #expect(status == .lamports(deposited))
+        #expect(status == .balance(available: 0, pending: deposited))
         #expect(await recipient.notes.value?[recipient.id]?.pendingLamports == deposited)
     }
 
@@ -201,7 +201,7 @@ struct PrivateBalancesRedeemCodesTests {
         #expect(prepared.instructions.first == (try recipient.shielded.register(paidBy: Address(oneTime.address))))
         #expect(prepared.instructions.count == 3)
         #expect(charged.instructions == Array(prepared.instructions.prefix(2)))
-        #expect(try await balances.complete(charged, with: PrivateBalanceFixtures.confirmation(.succeeded)) == .lamports(1_000_000))
+        #expect(try await balances.complete(charged, with: PrivateBalanceFixtures.confirmation(.succeeded)) == .balance(available: 0, pending: 1_000_000))
         #expect(await recipient.notes.value?[recipient.id]?.pendingLamports == 1_000_000)
     }
 

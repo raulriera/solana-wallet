@@ -80,23 +80,25 @@ struct PrivateTransferLiveTests {
         try await balances.enable(recipient, on: .devnet)
 
         // 2. Account 0 deposits into its own private balance when it's low.
-        var privateLamports = try await Self.settledBalance(of: sender, in: balances, notes: notes)
+        var privateLamports = try await Self.settledBalance(of: sender, in: balances)
         if privateLamports < Self.minimumPrivateLamports {
             let deposit = try await balances.prepare(.deposit(Self.depositLamports), from: sender, on: .devnet)
             let rent = deposit.registers ? Self.registrationLamports : 0
             try await Self.requireFunds(Self.depositLamports + rent + Self.feeLamports, in: sender, using: rpc)
             let confirmation = try await Self.run(deposit.instructions, signedBy: [sender], through: coordinator)
             try #require(confirmation.outcome == .succeeded)
-            #expect(try await balances.complete(deposit, with: confirmation) == .lamports(privateLamports + Self.depositLamports))
-            privateLamports = try await Self.settledBalance(of: sender, in: balances, notes: notes)
+            #expect(try await balances.complete(deposit, with: confirmation) == .balance(available: privateLamports, pending: Self.depositLamports))
+            privateLamports = try await Self.settledBalance(of: sender, in: balances)
         }
 
         // 3. Account 0 sends privately to account 1.
         let send = try await balances.prepare(.send(Self.transferLamports, to: recipient.address), from: sender, on: .devnet)
         let sent = try await Self.run(send.instructions, signedBy: [sender], through: coordinator)
         try #require(sent.outcome == .succeeded)
-        #expect(try await balances.complete(send, with: sent) == .lamports(privateLamports - Self.transferLamports))
-        privateLamports = try await Self.settledBalance(of: sender, in: balances, notes: notes)
+        let sentChange = Self.change(of: send)
+        #expect(try await balances.complete(send, with: sent)
+            == .balance(available: privateLamports - Self.transferLamports - sentChange, pending: sentChange))
+        privateLamports = try await Self.settledBalance(of: sender, in: balances)
 
         // 4. Account 0 withdraws to account 1's public address.
         let before = try await rpc.send(GetMultipleAccounts(addresses: [recipient.address.value]))
@@ -105,7 +107,9 @@ struct PrivateTransferLiveTests {
                                                     on: .devnet)
         let withdrawn = try await Self.run(withdrawal.instructions, signedBy: [sender], through: coordinator)
         try #require(withdrawn.outcome == .succeeded)
-        #expect(try await balances.complete(withdrawal, with: withdrawn) == .lamports(privateLamports - Self.transferLamports))
+        let withdrawnChange = Self.change(of: withdrawal)
+        #expect(try await balances.complete(withdrawal, with: withdrawn)
+            == .balance(available: privateLamports - Self.transferLamports - withdrawnChange, pending: withdrawnChange))
         let slot = try await withdrawn.executionSlot(through: rpc)
         let after = try await rpc.send(GetMultipleAccounts(addresses: [recipient.address.value], minContextSlot: slot))
         #expect((after.value.first ?? nil)?.lamports == publicLamports + Self.transferLamports)
@@ -163,21 +167,26 @@ struct PrivateTransferLiveTests {
         return try await coordinator.confirm(coordinator.submit(simulation))
     }
 
+    /// Reads the change that a spend returns to the private balance, which stays pending until the indexer reports it.
+    /// - Parameter transaction: A prepared send or withdrawal.
+    /// - Returns: The spend's change, or zero for another transaction.
+    private static func change(of transaction: PreparedPrivateTransaction) -> UInt64 {
+        guard case .spend(let spend) = transaction.effect else { return 0 }
+        return spend.receivedLamports
+    }
+
     /// Refreshes an account's private balance until the indexer reports every recorded transaction, so that all of it
     /// can be spent.
     /// - Parameters:
     ///   - account: The account.
     ///   - balances: The private balances.
-    ///   - notes: The notes storage that `balances` saves to.
     /// - Returns: The settled balance, zero before the account registers.
     /// - Throws: A provider error, or a test prerequisite error if the indexer doesn't catch up within a minute.
-    private static func settledBalance(of account: widgets.Account, in balances: PrivateBalances,
-                                       notes: StoredValue<PrivateBalances.Notes>) async throws -> UInt64 {
-        let id = PrivateBalances.noteID(of: account, on: .devnet)
+    private static func settledBalance(of account: widgets.Account, in balances: PrivateBalances) async throws -> UInt64 {
         for _ in 0..<30 {
             let status = try await balances.refresh(account, on: .devnet)
             if case .unregistered = status { return 0 }
-            if case .lamports(let lamports) = status, await notes.value?[id]?.pendingLamports == 0 { return lamports }
+            if case .balance(let available, pending: 0) = status { return available }
             try await Task.sleep(for: .seconds(2))
         }
         return try #require(nil as UInt64?, "The indexer didn't report the recorded transactions within a minute.")

@@ -137,9 +137,9 @@ actor PrivateBalances: PrivateBalancing {
     /// - Parameters:
     ///   - account: The account whose balance to refresh.
     ///   - network: The network to read.
-    /// - Returns: ``PrivateBalanceStatus/off`` without keys; ``PrivateBalanceStatus/unavailable`` on a network
-    ///   without private balances, or with a provider that doesn't read them there; ``PrivateBalanceStatus/unregistered``
-    ///   before the keys are registered; else the balance.
+    /// - Returns: ``PrivateBalanceStatus/unavailable`` on a network without private balances, or with a provider that
+    ///   doesn't read them there; else ``PrivateBalanceStatus/off`` without keys, ``PrivateBalanceStatus/unregistered``
+    ///   before the keys are registered, or the balance, with its pending amounts.
     /// - Throws: ``PrivateBalanceError/registeredWithOtherKeys`` if the account registered other keys,
     ///   `CancellationError` if cancelled or if ``removeAll()`` ran first, ``KeychainItemError/unreadable`` if an item
     ///   is unreadable again after its deletion this launch, or a storage or provider error.
@@ -149,7 +149,7 @@ actor PrivateBalances: PrivateBalancing {
         case .off: .off
         case .unavailable: .unavailable
         case .unregistered: .unregistered
-        case .synced(_, let state): .lamports(state.lamports)
+        case .synced(_, let state): .balance(of: state)
         }
     }
 
@@ -389,7 +389,7 @@ actor PrivateBalances: PrivateBalancing {
                                                       id: id, from: generation)
             let (keyRecords, entries, _) = try await (savedKeys, savedNotes, releasedCode)
             guard keyRecords?[transaction.account.address.value] != nil else { return .off }
-            return entries?[id].map { .lamports($0.lamports) } ?? .unregistered
+            return entries?[id].map(PrivateBalanceStatus.balance(of:)) ?? .unregistered
         }
         let effect = transaction.effect
         async let recordedNotes = update(notes, .notes, from: generation) { entries in
@@ -405,7 +405,7 @@ actor PrivateBalances: PrivateBalancing {
         async let recordedCodes: Void = recordCode(of: effect, outcome: outcome, signature: signature, id: id,
                                                    from: generation)
         let (recorded, _) = try await (recordedNotes, recordedCodes)
-        return .lamports(recorded.lamports)
+        return .balance(of: recorded)
     }
 
     /// Waits until no task that `running` returns is still running, waiting for each task once.
@@ -436,7 +436,10 @@ actor PrivateBalances: PrivateBalancing {
         await settle { completions[id] }
         async let savedKeys = rebuilding(keys, .keys, from: generation) { try await $0.load() }
         async let savedNotes = rebuilding(notes, .notes, from: generation) { try await $0.load() }
-        guard let record = try await savedKeys?[account.address.value] else { return .off }
+        // Without keys, private balances are off only where the selected provider reads them.
+        guard let record = try await savedKeys?[account.address.value] else {
+            return try await client.readsPrivateNotes ? .off : .unavailable
+        }
         let shielded = try record.shieldedAccount(for: account.address)
         do {
             let saved = try await savedNotes?[id]

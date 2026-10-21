@@ -70,7 +70,7 @@ struct RedeemCodeLiveTests {
         var log: [String] = []
 
         // 1. Account 0 deposits into its own private balance when it's low.
-        if try await Self.settledBalance(of: sender, in: balances, notes: notes) < Self.minimumPrivateLamports {
+        if try await Self.settledBalance(of: sender, in: balances) < Self.minimumPrivateLamports {
             let deposit = try await balances.prepare(.deposit(Self.depositLamports), from: sender, on: .devnet)
             try #require(!deposit.registers, "Run PrivateTransferLiveTests first so that account 0 is registered.")
             try await Self.requireFunds(Self.depositLamports + Self.feeLamports, in: sender, using: rpc)
@@ -82,11 +82,11 @@ struct RedeemCodeLiveTests {
         // 2. Account 0 creates a code, and account 1 redeems it.
         let redeemed = try await Self.createCode(of: Self.redeemedLamports, from: sender, in: balances, through: coordinator,
                                                  log: &log)
-        let recipientLamports = try await Self.settledBalance(of: recipient, in: balances, notes: notes)
+        let recipientLamports = try await Self.settledBalance(of: recipient, in: balances)
         let redemption = try await Self.preparedWhenIndexed(.redeem(redeemed.code), into: recipient, in: balances)
         let (redeemedConfirmation, charged) = try await Self.run(redemption, through: coordinator)
         let swept = try #require(Self.redemption(in: charged))
-        #expect(try await balances.complete(charged, with: redeemedConfirmation) == .lamports(recipientLamports + swept.lamports))
+        #expect(try await balances.complete(charged, with: redeemedConfirmation) == .balance(available: recipientLamports, pending: swept.lamports))
         let redeemedFinal = try await Self.lamports(of: redeemed.code, after: redeemedConfirmation, using: rpc)
         log.append("redeem \(redeemedConfirmation.submission.signature) one-time final lamports \(redeemedFinal)")
         #expect(redeemedFinal == 0)
@@ -214,16 +214,12 @@ struct RedeemCodeLiveTests {
     /// - Parameters:
     ///   - account: The account.
     ///   - balances: The private balances.
-    ///   - notes: The notes storage that `balances` saves to.
     /// - Returns: The settled balance.
     /// - Throws: A provider error, or a test prerequisite error if the indexer doesn't catch up within a minute.
-    private static func settledBalance(of account: widgets.Account, in balances: PrivateBalances,
-                                       notes: StoredValue<PrivateBalances.Notes>) async throws -> UInt64 {
-        let id = PrivateBalances.noteID(of: account, on: .devnet)
+    private static func settledBalance(of account: widgets.Account, in balances: PrivateBalances) async throws -> UInt64 {
         for _ in 0..<30 {
-            if case .lamports(let lamports) = try await balances.refresh(account, on: .devnet),
-               await notes.value?[id]?.pendingLamports == 0 {
-                return lamports
+            if case .balance(let available, pending: 0) = try await balances.refresh(account, on: .devnet) {
+                return available
             }
             try await Task.sleep(for: .seconds(2))
         }
