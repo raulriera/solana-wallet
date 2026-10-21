@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import RPC
+import Transactions
 @testable import widgets
 
 /// HTTP fixtures exercised through the real client's encoding, validation, and decoding.
@@ -138,6 +139,16 @@ actor HTTPResponses: HTTPTransport {
             "isBlockhashValid": try validities.map { try json(["context": ["slot": validitySlot], "value": $0]) },
             "getFeeForMessage": [try json(["context": ["slot": 403], "value": fee as Any? ?? NSNull()])],
         ])
+    }
+
+    /// Accepts every sent transaction and acknowledges it with its own signature, as a provider does.
+    /// - Returns: HTTP responses for submission.
+    static func sending() -> HTTPResponses {
+        HTTPResponses([:]) { request in
+            let encoded = try #require(try request.rpcParameters.first as? String)
+            let transaction = try TransactionDecoder().decode(try #require(Data(base64Encoded: encoded)))
+            return try json(try #require(transaction.signature))
+        }
     }
 
     /// Creates positional signature-status and finalized epoch responses through real JSON decoding.

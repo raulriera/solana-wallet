@@ -16,6 +16,10 @@ nonisolated enum PrivateBalanceError: LocalizedError, Equatable, CaseIterable {
     case insufficientBalance
     /// The amount needs more of the account's private notes than one transaction spends.
     case tooManyNotes
+    /// The account's public SOL doesn't cover the amount and the fees, as the simulation found.
+    case insufficientPublicBalance
+    /// The transaction couldn't be prepared or simulated for another reason, such as a provider error.
+    case preparationFailed
     /// The text isn't a redeem code, or it's damaged or incomplete.
     case invalidCode
     /// The redeem code holds SOL on another network than the selected one.
@@ -36,6 +40,10 @@ nonisolated enum PrivateBalanceError: LocalizedError, Equatable, CaseIterable {
             String(localized: "Private Balance Unavailable")
         case .recipientUnregistered, .insufficientBalance, .tooManyNotes:
             String(localized: "Can't Complete Transaction")
+        case .insufficientPublicBalance:
+            String(localized: "Not Enough SOL")
+        case .preparationFailed:
+            String(localized: "Can't Prepare Transaction")
         case .invalidCode, .codeForOtherNetwork, .codeRedeemed, .codeUnderfunded, .codeNotReady:
             String(localized: "Can't Use Code")
         case .turnOnFailed:
@@ -60,6 +68,10 @@ nonisolated enum PrivateBalanceError: LocalizedError, Equatable, CaseIterable {
             String(localized: "Your private balance doesn't cover this amount. Recently received funds can take a moment to become available.")
         case .tooManyNotes:
             String(localized: "This amount combines too many private payments for one transaction. Try a smaller amount.")
+        case .insufficientPublicBalance:
+            String(localized: "Your public balance doesn't cover this amount and the fees. Try a smaller amount.")
+        case .preparationFailed:
+            String(localized: "The selected provider couldn't prepare this transaction. Try again.")
         case .invalidCode:
             String(localized: "This isn't a valid code. Check that you have the whole code.")
         case .codeForOtherNetwork:

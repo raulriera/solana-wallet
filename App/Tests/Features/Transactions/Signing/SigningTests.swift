@@ -200,7 +200,7 @@ struct SigningTests {
     @Test
     func `Denied wallet authentication prevents message signing`() async throws {
         let fixture = try SigningFixture()
-        let store = SigningRecoveryStore(recovery: fixture.recovery, error: .authenticationFailed)
+        let store = SigningRecoveryStore(recovery: fixture.recovery, error: KeychainStoreError.authenticationFailed)
         let wallet = RecordingWallet()
         let signer = Signer(validator: PreparationValidator(rpc: (try HTTPResponses.signing()).client), store: store, wallet: wallet)
 
