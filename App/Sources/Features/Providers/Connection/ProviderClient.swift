@@ -10,7 +10,8 @@ import RPC
 /// copies. Only Helius reads private notes and proves private transfers; another provider's private-note reads and
 /// proofs throw ``ProviderClientError/privateNotesUnavailable``. The client for the latest provider is kept to reuse its
 /// connections.
-nonisolated struct ProviderClient: RPC, AccountChangeProviding, LogoProviding, PrivateNoteProviding, ProofProviding {
+nonisolated struct ProviderClient: RPC, AccountChangeProviding, SignatureEventProviding, LogoProviding,
+    PrivateNoteProviding, ProofProviding {
     /// Where requests go, with what the provider needs to accept them.
     nonisolated enum Endpoint: Hashable, Sendable {
         /// Solana's public RPC.
@@ -21,8 +22,8 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, LogoProviding, P
         case custom(URL)
     }
 
-    /// The client for an endpoint on a network, or `nil` when the endpoint can't be used.
-    typealias ClientFactory = @Sendable (Endpoint, Network) -> (any RPC & AccountChangeProviding & SignatureEventProviding)?
+    /// A provider's client for requests, account changes, and signature watches.
+    typealias Client = any RPC & AccountChangeProviding & SignatureEventProviding
 
     /// The network that receives every request and subscription.
     let network: Network
@@ -37,7 +38,7 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, LogoProviding, P
     ///   - providerKey: Device-only storage for Helius's accepted key.
     ///   - client: Creates the client for an endpoint on a network.
     init(network: Network, settings: any ValueStoring<ProviderSettings>, providerKey: any ValueStoring<String>,
-         client: @escaping ClientFactory = Self.client(for:on:)) {
+         client: @escaping @Sendable (Endpoint, Network) -> Client? = Self.client(for:on:)) {
         self.network = network
         self.settings = settings
         self.providerKey = providerKey
@@ -60,6 +61,15 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, LogoProviding, P
     ///   a storage error, or another sanitized subscription, transport, timeout, or cancellation error.
     func changedSlots(for addresses: [String]) async throws -> AsyncThrowingStream<UInt64, any Error> {
         try await perform { try await $0.changedSlots(for: addresses) }
+    }
+
+    /// Watches a sent transaction's landing and new roots through the selected provider.
+    /// - Parameter signature: The base-58 encoded signature of a sent transaction.
+    /// - Returns: The transaction's landing and new roots, after both subscriptions are acknowledged.
+    /// - Throws: ``ProviderClientError`` for a missing or rejected Helius key or a custom RPC on another network,
+    ///   a storage error, or another sanitized subscription, transport, timeout, or cancellation error.
+    func events(for signature: String) async throws -> AsyncThrowingStream<SignatureEvent, any Error> {
+        try await perform { try await $0.events(for: signature) }
     }
 
     /// Looks up the selected provider's copies of token logos.
@@ -168,7 +178,7 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, LogoProviding, P
     /// - Returns: The operation's result.
     /// - Throws: The operation's error, with Helius's key rejections as ``ProviderClientError/invalidKey``.
     private func perform<Value: Sendable>(
-        _ operation: (any RPC & AccountChangeProviding) async throws -> Value
+        _ operation: (Client) async throws -> Value
     ) async throws -> Value {
         let endpoint = try await endpoint()
         let client = try await clients.client(for: endpoint)
@@ -216,7 +226,7 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, LogoProviding, P
     ///   - network: The network that receives the client's requests; a custom URL must serve it.
     /// - Returns: The provider's client, or `nil` for a custom URL that isn't HTTPS with a host.
     static func client(for endpoint: Endpoint,
-                       on network: Network) -> (any RPC & AccountChangeProviding & SignatureEventProviding)? {
+                       on network: Network) -> Client? {
         switch endpoint {
         case .solana: Solana(network: network)
         case .helius(let key): HeliusRPC(apiKey: key, network: network)
@@ -227,14 +237,14 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, LogoProviding, P
     /// Keeps the client for the most recent endpoint and replaces it when the endpoint changes.
     private actor Clients {
         private let network: Network
-        private let make: ClientFactory
-        private var current: (endpoint: Endpoint, client: any RPC & AccountChangeProviding)?
+        private let make: @Sendable (Endpoint, Network) -> Client?
+        private var current: (endpoint: Endpoint, client: Client)?
 
         /// Creates an empty cache.
         /// - Parameters:
         ///   - network: The network that every created client serves.
         ///   - make: Creates the client for an endpoint on a network.
-        init(network: Network, make: @escaping ClientFactory) {
+        init(network: Network, make: @escaping @Sendable (Endpoint, Network) -> Client?) {
             self.network = network
             self.make = make
         }
@@ -243,7 +253,7 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, LogoProviding, P
         /// - Parameter endpoint: The endpoint read from storage for this request.
         /// - Returns: A client that sends requests to this endpoint.
         /// - Throws: ``ProviderClientError/unusableEndpoint`` for a saved endpoint that can't be used.
-        func client(for endpoint: Endpoint) throws -> any RPC & AccountChangeProviding {
+        func client(for endpoint: Endpoint) throws -> Client {
             if let current, current.endpoint == endpoint { return current.client }
             guard let client = make(endpoint, network) else { throw ProviderClientError.unusableEndpoint }
             current = (endpoint, client)

@@ -6,14 +6,15 @@ nonisolated struct CustomRPCConnection: ProviderConnecting {
     typealias EntryError = CustomRPCError
 
     private let providers: any ProviderSelecting
-    private let client: ProviderClient.ClientFactory
+    private let client: @Sendable (ProviderClient.Endpoint, Network) -> ProviderClient.Client?
 
     /// Creates a check that adds accepted RPCs to the shared provider settings.
     /// - Parameters:
     ///   - providers: Reads the custom RPCs, and saves and chooses an accepted one.
     ///   - client: Creates the client for a candidate URL on mainnet, the network that custom RPCs serve.
     init(providers: any ProviderSelecting,
-         client: @escaping ProviderClient.ClientFactory = ProviderClient.client(for:on:)) {
+         client: @escaping @Sendable (ProviderClient.Endpoint, Network) -> ProviderClient.Client?
+             = ProviderClient.client(for:on:)) {
         self.providers = providers
         self.client = client
     }

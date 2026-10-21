@@ -16,6 +16,7 @@ struct AppServices {
     let providerConnection: any ProviderConnecting<ProviderConnectionError>
     let providerRevisions = ProviderRevisions()
     let portfolios: NetworkPortfolios
+    let transactions: NetworkTransactions
     let providerSelection: any ProviderSelecting
     let customRPCConnection: any ProviderConnecting<CustomRPCError>
     // One sampler for every window shares its remembered logo colors.
@@ -59,6 +60,11 @@ struct AppServices {
                       prices: prices)
         }
         self.portfolios = portfolios
+        // Approved transactions go to the selected provider and to Solana's public RPC on the same network.
+        transactions = NetworkTransactions { [recovery] network in
+            let provider = ProviderClient(network: network, settings: providerSettings, providerKey: providerKey)
+            return try TransactionCoordinator(rpc: provider, store: recovery, rpcs: [provider, Solana(network: network)])
+        }
         // Private balances keep their own client per network, apart from the portfolios' token reads.
         let privateBalances = PrivateBalances(recovery: recovery, wallet: wallet, keys: privateBalanceKeys,
                                               notes: privateBalanceNotes, codes: privateBalanceCodes) { network in

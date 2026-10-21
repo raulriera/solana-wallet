@@ -9,7 +9,8 @@ import Transactions
 /// Checks that requests go to the provider and key saved when they're sent, through the real clients and local HTTP fixtures.
 @Suite(.timeLimit(.minutes(1)))
 struct ProviderClientTests {
-    /// Without a saved key, Helius requests, subscriptions, and logo lookups fail before anything reaches Helius.
+    /// Without a saved key, Helius requests, subscriptions, signature watches, and logo lookups fail before anything
+    /// reaches Helius.
     @Test
     func `A missing Helius key fails before contacting Helius`() async {
         let responses = HTTPResponses.keyCheck()
@@ -18,6 +19,7 @@ struct ProviderClientTests {
 
         await #expect(throws: ProviderClientError.missingKey) { _ = try await client.send(GetAsset(id: HTTPResponses.keyCheckAsset)) }
         await #expect(throws: ProviderClientError.missingKey) { _ = try await client.changedSlots(for: [PublicWallet.address]) }
+        await #expect(throws: ProviderClientError.missingKey) { _ = try await client.events(for: ExternalFixture.signature) }
         await #expect(throws: ProviderClientError.missingKey) { _ = try await client.logos(for: [HTTPResponses.keyCheckAsset]) }
         await #expect(throws: ProviderClientError.missingKey) { _ = try await client.readsPrivateNotes }
         #expect(await responses.requests.isEmpty)
@@ -103,6 +105,40 @@ struct ProviderClientTests {
         #expect(query.first(where: { $0.name == "api-key" })?.value == key)
     }
 
+    /// A signature watch subscribes at the selected provider's devnet host, with Helius's saved key.
+    /// - Parameters:
+    ///   - provider: The selected provider.
+    ///   - host: The provider's devnet host.
+    ///   - key: The API key that the connection carries, or `nil` for a provider without one.
+    /// - Throws: A test prerequisite error.
+    @Test(arguments: [
+        (ProviderSettings.Provider.solana, "api.devnet.solana.com", nil),
+        (.helius, "devnet.helius-rpc.com", "fixture-key"),
+    ] as [(ProviderSettings.Provider, String, String?)])
+    func `Signature watches go to the selected provider's devnet host`(provider: ProviderSettings.Provider,
+                                                                      host: String, key: String?) async throws {
+        let responses = HTTPResponses.keyCheck()
+        let sockets = SocketSequence()
+        let opened = Mutex<[URL]>([])
+        let client = ProviderClient(network: .devnet, settings: StoredValue(ProviderSettings(selection: provider)),
+                                    providerKey: StoredValue("fixture-key")) { endpoint, network in
+            responses.client(for: endpoint, on: network) { url in
+                opened.withLock { $0.append(url) }
+                return sockets.connect(url)
+            }
+        }
+
+        defer { for socket in sockets.sockets { socket.cancel() } }
+
+        _ = try await client.events(for: ExternalFixture.signature)
+
+        let url = try #require(opened.withLock(\.self).first)
+        let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        #expect(url.host() == host)
+        #expect(query.first(where: { $0.name == "api-key" })?.value == key)
+        #expect(sockets.sockets.count == 1)
+    }
+
     /// On devnet, a selected custom RPC fails before anything is sent, instead of using another provider, because
     /// custom RPCs serve mainnet.
     /// - Throws: A test prerequisite error.
@@ -116,6 +152,7 @@ struct ProviderClientTests {
 
         await #expect(throws: ProviderClientError.unsupportedNetwork) { _ = try await client.send(GetAsset(id: asset)) }
         await #expect(throws: ProviderClientError.unsupportedNetwork) { _ = try await client.changedSlots(for: [PublicWallet.address]) }
+        await #expect(throws: ProviderClientError.unsupportedNetwork) { _ = try await client.events(for: ExternalFixture.signature) }
         await #expect(throws: ProviderClientError.unsupportedNetwork) { _ = try await client.logos(for: [asset]) }
         #expect(await responses.requests.isEmpty)
     }
