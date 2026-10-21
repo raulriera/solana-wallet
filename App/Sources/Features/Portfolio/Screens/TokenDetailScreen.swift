@@ -34,8 +34,9 @@ struct TokenDetailScreen: View {
                 }
                 if let otherOwner = holding.otherOwner {
                     LabeledContent("Owner") {
-                        // A narrow address keeps the row on one line and shows only the address's start and end;
-                        // copying takes it whole.
+                        // Middle truncation hides characters only on screen, so copying takes the whole address.
+                        // Don't use the short address format here: it changes the text itself, so a copy would take
+                        // only its first and last four characters.
                         Text(otherOwner.value)
                             .lineLimit(1)
                             .truncationMode(.middle)

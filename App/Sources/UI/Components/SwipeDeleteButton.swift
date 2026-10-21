@@ -11,8 +11,6 @@ struct SwipeDeleteButton<Item>: View {
 
     var body: some View {
         Button("Delete", systemImage: "trash") { removal = item }
-            .labelStyle(.iconOnly)
-            .foregroundStyle(.white)
-            .tint(.red)
+            .swipeActionTint(.red)
     }
 }

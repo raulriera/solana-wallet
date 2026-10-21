@@ -26,9 +26,11 @@ struct WalletScene: View {
                     .tokenRemovalLifecycle()
             }
             #if DEBUG
-            // The payment keypad with sample tokens, until contacts and sending are wired.
+            // Contacts and the payment keypad, which still uses sample tokens until sending is wired.
             Tab("Contacts", systemImage: "person.crop.circle", value: .contacts) {
-                PaymentScene()
+                ContactsScene(account: account)
+                    // Another account has other contacts, so it starts a new list.
+                    .id(account.id)
             }
             #endif
             Tab("Settings", systemImage: "gearshape", value: .settings) {
