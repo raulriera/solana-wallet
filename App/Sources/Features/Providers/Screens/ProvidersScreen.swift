@@ -26,8 +26,10 @@ struct ProvidersScreen<Actions: View>: View {
             }
             .listRowBackground(palette.surface)
 
-            ProviderSelectionSection(selection: coordinator.selection, customRPCs: coordinator.customRPCs,
-                                     removal: $coordinator.removal, actions: coordinator)
+            ProviderSelectionSection(selection: coordinator.selection,
+                                     customRPCs: coordinator.customRPCs,
+                                     removal: $coordinator.removal,
+                                     actions: coordinator)
 
             actions
         }

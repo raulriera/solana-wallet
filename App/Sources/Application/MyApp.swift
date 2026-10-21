@@ -12,8 +12,10 @@ import SwiftUI
                 EmptyView()
             } else {
                 switch services {
-                case .success(let services): WindowRoot(services: services)
+                case .success(let services):
+                    WindowRoot(services: services)
                 case .failure:
+                    #warning("Incorrect message, this also needs either a recoverable step or description of the failure")
                     ContentUnavailableView("Appearance Unavailable", systemImage: "exclamationmark.triangle",
                                            description: Text("The original theme could not be loaded."))
                         .drawOnAppear()

@@ -30,7 +30,7 @@ nonisolated enum ThemeError: LocalizedError, Equatable {
     /// The alert's explanation.
     var recoverySuggestion: String? {
         switch self {
-        case .themeUnreadable: String(localized: "Your theme couldn't be loaded, so the original colors are shown.")
+        case .themeUnreadable: String(localized: "Your theme couldn't be loaded, reverting to the default theme.")
         case .settingsUnreadable: String(localized: "Your appearance settings couldn't be loaded.")
         case .importFailed: String(localized: "This file isn't a valid theme.")
         case .exportFailed: String(localized: "The theme template couldn't be exported.")

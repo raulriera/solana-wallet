@@ -1,6 +1,7 @@
 import SwiftUI
 
 /// Places an input screen's committing action at the trailing edge of the top toolbar as a prominent checkmark.
+#warning("This doesn't belong in 'Layout'")
 private struct ConfirmationAction: ViewModifier {
     let title: LocalizedStringResource
     let isEnabled: Bool

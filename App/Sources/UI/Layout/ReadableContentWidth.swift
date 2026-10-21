@@ -1,6 +1,7 @@
 import SwiftUI
 
 /// Centers a form's rows at a readable width in wide containers, as Settings does on iPad.
+#warning("This doesn't belong in 'Layout'")
 private struct ReadableContentWidth: ViewModifier {
     @State private var margins: EdgeInsets?
 

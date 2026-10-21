@@ -21,10 +21,9 @@ private struct WindowAppearance: ViewModifier {
             .environment(\.palette, palette)
             .tint(palette.accent)
             .task(id: scenePhase) {
-                if scenePhase == .active {
-                    do { try await services.appearance.activate() }
-                    catch { report(error, as: .settingsUnreadable) }
-                }
+                guard scenePhase == .active else { return }
+                do { try await services.appearance.activate() }
+                catch { report(error, as: .settingsUnreadable) }
             }
             .task(id: selectedTheme?.revision) { await loadSelectedTheme() }
             .errorAlert($error)

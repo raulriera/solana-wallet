@@ -23,6 +23,7 @@ struct AmountDisplay: View {
             .foregroundStyle(fill)
             // Key presses animate the change, so the digits roll into place.
             .contentTransition(.numericText())
+            .environment(\.contentTransitionAddsDrawingGroup, true)
             .keyframeAnimator(initialValue: 0.0, trigger: rejectionCount) { content, offset in
                 content.offset(x: offset)
             } keyframes: { _ in

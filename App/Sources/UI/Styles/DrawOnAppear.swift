@@ -1,6 +1,7 @@
 import SwiftUI
 
 /// Draws a view's symbols on when it appears and replaces them when they change.
+#warning("This doesn't belong in 'Styles'")
 private struct DrawOnAppear: ViewModifier {
     @State private var isDrawn = false
 

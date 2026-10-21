@@ -27,13 +27,9 @@ struct UnavailableScreen<Action: View>: View {
             ContentUnavailableView {
                 Label(title, systemImage: systemImage)
             } description: {
-                // The view draws its message in the first style, so the message takes the secondary color itself.
                 Text(message)
-                    .foregroundStyle(palette.secondaryText)
             } actions: {
-                // The action keeps its label's width instead of spanning the readable width.
                 action
-                    .fixedSize()
             }
             .drawOnAppear()
             .foregroundStyle(palette.primaryText, palette.secondaryText)

@@ -37,6 +37,7 @@ struct AppServices {
         #endif
         // Exclusion is guidance to the system; a failure must not block the app, and the next launch tries again.
         try? BackupExclusion.apply(to: .applicationSupportDirectory)
+        #warning("AppearanceServices shouldn't stop AppServices, failure should continue with the default appearance")
         appearance = try AppearanceServices()
         let wallet = Wallet()
         self.wallet = wallet

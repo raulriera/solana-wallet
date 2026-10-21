@@ -1,6 +1,7 @@
 import SwiftUI
 
 /// Places a presented screen's cancel action at the leading edge of the top toolbar as a close symbol.
+#warning("This doesn't belong in 'Layout'")
 private struct CancellationAction: ViewModifier {
     @Environment(\.dismiss) private var dismiss
 
