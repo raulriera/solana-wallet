@@ -47,6 +47,9 @@ public struct ReceivedNote: Sendable, Equatable, Codable, CustomStringConvertibl
     /// The note's amount, in lamports.
     public var lamports: UInt64 { utxo.amount }
 
+    /// The ID of the tree that holds the note, whose fee per nullifier a spend of the note pays.
+    public var treeID: UInt16 { utxo.treeID }
+
     /// A description that omits the values.
     public var description: String { "ReceivedNote" }
 

@@ -13,9 +13,9 @@ import Transactions
 /// no P-256 owner, so the fields shift and zeros fill the rest. A missing account, or one that the
 /// registry program doesn't own, means that the owner hasn't registered; a lookup needs only
 /// standard RPC.
-enum UserRegistry {
-    /// A registry account that isn't a valid record of the requested owner.
-    enum ValidationError: Error, Equatable {
+public enum UserRegistry {
+    /// A registry read that didn't return a valid record of the requested owner.
+    public enum ValidationError: Error, Equatable {
         /// The account doesn't have a record's 134 bytes.
         case invalidLength
         /// The account's first byte isn't a record's discriminator.
@@ -45,7 +45,7 @@ enum UserRegistry {
     private static let recordSeed = Array("zolana/registry/v0".utf8)
 
     /// The length of a record's account.
-    private static let recordLength = 134
+    static let recordLength = 134
 
     /// The discriminator of a record.
     private static let discriminator: UInt8 = 1

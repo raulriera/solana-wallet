@@ -24,6 +24,7 @@ struct ReceivedNoteTests {
         #expect(notes.map(\.utxo.amount) == (vector.ownedBySender ? [try #require(UInt64(vector.lamports))] : []))
         #expect(notes.map(\.leafIndex) == (vector.ownedBySender ? [vector.leafIndex] : []))
         #expect(notes.map(\.signature) == (vector.ownedBySender ? ["deposit"] : []))
+        #expect(notes.map(\.treeID) == (vector.ownedBySender ? [vector.treeID] : []))
     }
 
     /// Verifies that a deposit reported at another leaf isn't received, because its blinding isn't

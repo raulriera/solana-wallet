@@ -65,8 +65,9 @@ public struct Recipient: Sendable {
     /// - Returns: Each owner as a recipient, or `nil` if the owner hasn't registered, in the owners'
     ///   order.
     /// - Throws: ``RPC/GetMultipleAccountsError/invalidAddressCount`` for no owners or more than
-    ///   100, an RPC error, or a validation error if the provider returns another number of accounts
-    ///   or an account at a record's address isn't a valid record of its owner.
+    ///   100, an RPC error, ``UserRegistry/ValidationError/mismatchedResponse`` if the provider
+    ///   returns another number of accounts, or another ``UserRegistry/ValidationError`` if an account
+    ///   at a record's address isn't a valid record of its owner.
     @concurrent
     public static func lookup(_ owners: [Address], using rpc: some RPC) async throws -> [Recipient?] {
         try await UserRegistry.recipients(of: owners, using: rpc)

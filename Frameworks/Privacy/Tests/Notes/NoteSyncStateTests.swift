@@ -392,7 +392,8 @@ struct NoteSyncStateTests {
         let (respent, _) = try await sync(synced, with: Indexer(transactions: [transfer], spends: [spend(of: synced.notes)]))
         let spent = try transfer.nullifiers.prefix(1).map { try #require(Poseidon.Element(bigEndianBytes: $0)) }
         let spend = PrivateSpend(
-            instruction: Instruction(program: try ShieldedPool.program), lamports: 4, receivedLamports: 6, nullifiers: spent
+            instruction: Instruction(program: try ShieldedPool.program), lamports: 4, receivedLamports: 6, nullifierCount: spent.count,
+            inputTreeID: 0, nullifiers: spent
         )
 
         let state = try respent.recording(spend, signature: transfer.signature)
@@ -578,7 +579,7 @@ struct NoteSyncStateTests {
     private func privateSpend(of notes: [ReceivedNote], receiving lamports: UInt64) throws -> PrivateSpend {
         PrivateSpend(
             instruction: Instruction(program: try ShieldedPool.program), lamports: 1, receivedLamports: lamports,
-            nullifiers: notes.map(\.nullifier)
+            nullifierCount: notes.count, inputTreeID: 0, nullifiers: notes.map(\.nullifier)
         )
     }
 
