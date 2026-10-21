@@ -1,7 +1,6 @@
 import SwiftUI
 
 /// Gives every split view's sidebar the same preferred width, so sidebars match when people switch tabs.
-#warning("This doesn't belong in 'Layout'")
 struct SidebarColumnWidth: ViewModifier {
     /// Applies the shared sidebar width.
     /// - Parameter content: The content of a split view's sidebar column.
