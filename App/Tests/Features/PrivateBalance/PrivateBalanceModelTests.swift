@@ -171,6 +171,80 @@ struct PrivateBalanceModelTests {
         #expect(await recovery.reads.isEmpty)
     }
 
+    /// A poll reads the balance again only while private balances are on; off, it reads nothing.
+    /// - Parameter isOn: Whether the account has private-balance keys.
+    @Test(arguments: [true, false])
+    func `Polls read only while private balances are on`(isOn: Bool) async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let keys: PrivateBalances.Keys? = isOn ? [account.address.value: try await PrivateBalanceFixtures.keys(for: account)] : nil
+        let responses = HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered])
+        let model = try PrivateBalanceModel.fixture(responses, keys: StoredValue(keys))
+        await model.refresh(for: account)
+        let refreshRequests = await responses.requests.count
+
+        await model.poll()
+
+        let polled = await responses.requests.count > refreshRequests
+        #expect(polled == isOn)
+    }
+
+    /// A missing key pauses polling, so polls send nothing even once the key is back, until a refresh succeeds.
+    @Test
+    func `Paused polling waits for a refresh that succeeds`() async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let record = try await PrivateBalanceFixtures.keys(for: account)
+        let responses = HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered])
+        let providerKey = StoredValue("fixture-key")
+        let balances = PrivateBalances(recovery: try PrivateBalanceFixtures.recoveryStore(), wallet: Wallet(),
+                                       keys: StoredValue([account.address.value: record]), notes: StoredValue(),
+                                       codes: StoredValue()) { network in
+            responses.providerClient(network: network, settings: StoredValue(ProviderSettings(selection: .helius)),
+                                     providerKey: providerKey)
+        }
+        let model = PrivateBalanceModel(balances: balances, network: .devnet)
+        await model.refresh(for: account)
+
+        try await providerKey.delete()
+        await model.poll()
+        let isPaused = model.isPollingPaused
+        try await providerKey.save("fixture-key")
+        let pausedRequests = await responses.requests.count
+        await model.poll()
+        let pausedPollRequests = await responses.requests.count - pausedRequests
+        await model.refresh()
+
+        #expect(isPaused)
+        #expect(pausedPollRequests == 0)
+        #expect(!model.isPollingPaused)
+        #expect(model.status == .unregistered)
+    }
+
+    /// A failure that can clear by itself, such as a server error, keeps polling.
+    @Test
+    func `A failure that can clear by itself keeps polling`() async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let keys = StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
+        let model = try PrivateBalanceModel.fixture(HTTPResponses.privateNotes(error: .http(statusCode: 503, retryAfter: nil)),
+                                                    keys: keys)
+
+        await model.refresh(for: account)
+
+        #expect(!model.isPollingPaused)
+    }
+
+    /// A rate limit pauses polling.
+    @Test
+    func `A rate limit pauses polling`() async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let keys = StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
+        let model = try PrivateBalanceModel.fixture(HTTPResponses.privateNotes(error: .http(statusCode: 429, retryAfter: nil)),
+                                                    keys: keys)
+
+        await model.refresh(for: account)
+
+        #expect(model.isPollingPaused)
+    }
+
     /// The fixture account's address at a path without private-balance keys.
     /// - Returns: The account.
     /// - Throws: A derivation or test prerequisite error.

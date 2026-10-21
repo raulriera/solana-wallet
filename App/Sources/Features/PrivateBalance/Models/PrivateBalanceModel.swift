@@ -6,7 +6,9 @@ import Wallet
 /// One window's private balance of its account on its network, and turning private balances on for that account.
 ///
 /// A refresh shows the account's last read balance, or why it has none; a failed refresh keeps what was read before.
-/// Accounts whose path has no private-balance keys show nothing. Turning private balances on runs once per attempt in
+/// While private balances are on, a poll reads the balance again; a failure that reading again can't fix, such as a
+/// rate limit, pauses polling until a refresh that the person or the window starts succeeds. Accounts whose path has
+/// no private-balance keys show nothing. Turning private balances on runs once per attempt in
 /// the scene's task and reports a typed error, except when the person cancels authentication.
 @MainActor
 @Observable
@@ -25,6 +27,9 @@ final class PrivateBalanceModel {
     private(set) var attempt: UUID?
     /// Whether the last attempt turned private balances on for the account.
     private(set) var isTurnedOn = false
+    /// Whether polls wait for a refresh that the person or the window starts, after a failure that reading again
+    /// can't fix.
+    private(set) var isPollingPaused = false
     private var account: Account?
     private let balances: any PrivateBalancing
     private let network: Network
@@ -50,15 +55,37 @@ final class PrivateBalanceModel {
             error = nil
             attempt = nil
             isTurnedOn = false
+            isPollingPaused = false
         }
         await refresh()
     }
 
     /// Reads the current account's private balance again; a failed read keeps the balance read before.
+    ///
+    /// A failure that reading again can't fix, such as a rate limit or a rejected key, pauses polling; a read that
+    /// succeeds resumes it.
     func refresh() async {
         guard let account, account.path.hasPrivateBalanceKeys else { return }
-        guard let status = try? await balances.refresh(account, on: network), self.account == account else { return }
-        self.status = status
+        do {
+            let status = try await balances.refresh(account, on: network)
+            guard self.account == account else { return }
+            self.status = status
+            isPollingPaused = false
+        } catch {
+            guard self.account == account else { return }
+            isPollingPaused = !(error is CancellationError || (error as? RPCError)?.isRecoverable == true)
+        }
+    }
+
+    /// Reads the balance again while private balances are on for the account and polling isn't paused.
+    func poll() async {
+        switch status {
+        case .unregistered?, .balance?:
+            guard !isPollingPaused else { return }
+            await refresh()
+        case .off?, .unavailable?, nil:
+            return
+        }
     }
 
     /// Asks to turn private balances on for the current account, unless an attempt is already waiting or running.
