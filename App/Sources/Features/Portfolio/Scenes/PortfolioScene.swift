@@ -16,6 +16,9 @@ struct PortfolioScene: View {
     let connection: any ProviderConnecting<ProviderConnectionError>
     /// The window's token removals, which the parent runs with ``tokenRemovalLifecycle()``.
     let removal: TokenRemovalModel
+    /// The window's private balance, which the parent reads with ``privateBalanceObservation(of:model:providerRevisions:)``
+    /// and SOL's details turn on.
+    let privateBalance: PrivateBalanceModel
 
     var body: some View {
         let presentation = PortfolioPresentation(coordinator.update)
@@ -39,9 +42,11 @@ struct PortfolioScene: View {
                         switch cardStyle.layout {
                         case .cards:
                             TokenCardStack(selection: $selection, preferredColumn: $preferredColumn,
-                                           holdings: coordinator.holdings)
+                                           holdings: coordinator.holdings,
+                                           hasPrivateBalance: privateBalance.hasBalance)
                         case .rows:
-                            TokenList(selection: $selection, holdings: coordinator.holdings)
+                            TokenList(selection: $selection, holdings: coordinator.holdings,
+                                      hasPrivateBalance: privateBalance.hasBalance)
                         }
                     }
                     // A new snapshot is the only change to the tokens, so its revision keys their motion.
@@ -59,9 +64,11 @@ struct PortfolioScene: View {
                     .sidebarColumnWidth()
                 } detail: {
                     if let holding = coordinator.holdings.first(where: { $0.id == selection }) {
-                        TokenDetailScreen(holding: holding, removal: removal)
+                        TokenDetailScreen(holding: holding, removal: removal, privateBalance: privateBalance)
+                            .privateBalanceLifecycle()
                             // New prices roll into place, as they do in the token list.
                             .animation(.default, value: coordinator.update?.snapshotRevision)
+                            .refreshable { await refreshDetail(of: holding) }
                     } else {
                         ContentUnavailableView("No Token Selected", systemImage: "wallet.bifold",
                                                description: Text("Select a token to see its balance and value.")
@@ -94,6 +101,15 @@ struct PortfolioScene: View {
     /// Opens provider setup; a saved key closes it, and every window observes again with that key.
     private func setUpProvider() {
         providerSetup = ProviderSetupModel(connection: connection)
+    }
+
+    /// Reads a token's details again: the portfolio, and for SOL its private balance too.
+    /// - Parameter holding: The token whose details show.
+    private func refreshDetail(of holding: Holding) async {
+        guard holding.id == .nativeSOL else { return await coordinator.refresh() }
+        async let privateRefresh: Void = privateBalance.refresh()
+        await coordinator.refresh()
+        await privateRefresh
     }
 
     /// Loads the portfolio again after a failed first load; the loading state shows until the result arrives.

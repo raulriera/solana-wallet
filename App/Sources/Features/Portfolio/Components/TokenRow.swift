@@ -14,6 +14,8 @@ struct TokenRow: View {
     /// The price's 24-hour change as a fraction, or `nil` when unknown.
     let change: Decimal?
     let imageURL: URL?
+    /// Whether the account also holds private SOL, which shows as a sign before the balance.
+    var hasPrivateBalance = false
 
     var body: some View {
         let isStacked = typeSize.isAccessibilitySize
@@ -38,17 +40,22 @@ struct TokenRow: View {
 
             // Large values and balances shorten, as in 10.2K, so the symbol and name keep their room.
             VStack(alignment: isStacked ? .leading : .trailing, spacing: 2) {
-                if let value {
-                    TokenValue(total: value.total, currency: value.currency, abbreviates: true)
-                        .font(.headline)
-                    if let change {
-                        DayChangeLabel(change: change)
-                            .font(.subheadline)
+                HStack(spacing: 6) {
+                    if hasPrivateBalance {
+                        PrivateBalanceSign()
                             .foregroundStyle(.secondary)
                     }
-                } else if let amount {
-                    TokenBalance(amount: amount, abbreviates: true)
-                        .font(.headline)
+                    if let value {
+                        TokenValue(total: value.total, currency: value.currency, abbreviates: true)
+                    } else if let amount {
+                        TokenBalance(amount: amount, abbreviates: true)
+                    }
+                }
+                .font(.headline)
+                if value != nil, let change {
+                    DayChangeLabel(change: change)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                 }
             }
             .monospacedDigit()

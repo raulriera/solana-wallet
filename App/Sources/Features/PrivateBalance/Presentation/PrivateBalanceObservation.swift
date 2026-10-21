@@ -1,0 +1,43 @@
+import SwiftUI
+
+/// Reads the private balance of a window's account while the window is active.
+///
+/// The balance is read again when the window becomes active, the account or network changes, or portfolios read
+/// through another provider.
+private struct PrivateBalanceObservation: ViewModifier {
+    @Environment(\.scenePhase) private var scenePhase
+    let account: Account
+    let model: PrivateBalanceModel
+    let providerRevisions: ProviderRevisions
+
+    func body(content: Content) -> some View {
+        let session = Session(accountID: account.id, model: ObjectIdentifier(model), isActive: scenePhase == .active,
+                              providerConnection: providerRevisions.connection.value)
+        content
+            .task(id: session) {
+                guard session.isActive else { return }
+                await model.refresh(for: account)
+            }
+    }
+
+    /// What starts a new read of the balance.
+    private struct Session: Equatable {
+        let accountID: UUID
+        let model: ObjectIdentifier
+        let isActive: Bool
+        let providerConnection: Int
+    }
+}
+
+extension View {
+    /// Reads the private balance of the window's account while the window is active.
+    /// - Parameters:
+    ///   - account: The window's account.
+    ///   - model: The window's private balance.
+    ///   - providerRevisions: The app-wide provider changes, which read the balance again.
+    /// - Returns: The window's content, reading its private balance.
+    func privateBalanceObservation(of account: Account, model: PrivateBalanceModel,
+                                   providerRevisions: ProviderRevisions) -> some View {
+        modifier(PrivateBalanceObservation(account: account, model: model, providerRevisions: providerRevisions))
+    }
+}

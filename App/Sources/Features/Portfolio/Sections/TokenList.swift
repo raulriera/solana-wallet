@@ -5,11 +5,14 @@ import SwiftUI
 struct TokenList: View {
     @Binding var selection: Holding.Identity?
     let holdings: [Holding]
+    /// Whether the account also holds private SOL, which SOL's row shows with a sign.
+    let hasPrivateBalance: Bool
 
     var body: some View {
         List(holdings, selection: $selection) { holding in
             TokenRow(symbol: holding.displaySymbol, name: holding.displayName, amount: holding.amount,
-                     value: holding.knownValue, change: holding.valuation?.dayChange, imageURL: holding.logoURL)
+                     value: holding.knownValue, change: holding.valuation?.dayChange, imageURL: holding.logoURL,
+                     hasPrivateBalance: hasPrivateBalance && holding.id == .nativeSOL)
         }
         .listStyle(.sidebar)
     }

@@ -15,6 +15,8 @@ final class WindowModel {
     private(set) var portfolio: any PortfolioCoordinating
     /// The token removals that edit that portfolio's token lists.
     private(set) var tokenRemoval: TokenRemovalModel
+    /// The private balance of the window's account on that network.
+    private(set) var privateBalance: PrivateBalanceModel
     /// The window's appearance editing.
     let settings: AppearanceSettingsModel
     /// The window's Security & Privacy navigation and steps.
@@ -35,17 +37,19 @@ final class WindowModel {
         let portfolio = services.makePortfolioCoordinator(for: network)
         self.portfolio = portfolio
         tokenRemoval = TokenRemovalModel(coordinator: portfolio)
+        privateBalance = PrivateBalanceModel(balances: services.privateBalances, network: network)
         settings = services.makeAppearanceSettingsModel()
         security = services.makeSecurityCoordinator()
         providers = services.makeProvidersCoordinator()
         self.services = services
     }
 
-    /// Replaces the portfolio and its token removals with ones for the window's new network, so the previous
-    /// network's observation and refreshes never reach them.
+    /// Replaces the portfolio, its token removals, and the private balance with ones for the window's new network, so
+    /// the previous network's observation and refreshes never reach them.
     /// - Parameter network: The network that the window shows now.
     func show(_ network: Network) {
         portfolio = services.makePortfolioCoordinator(for: network)
         tokenRemoval = TokenRemovalModel(coordinator: portfolio)
+        privateBalance = PrivateBalanceModel(balances: services.privateBalances, network: network)
     }
 }

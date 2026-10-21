@@ -12,6 +12,7 @@ struct WalletScene: View {
     let account: Account
     let portfolio: any PortfolioCoordinating
     let tokenRemoval: TokenRemovalModel
+    let privateBalance: PrivateBalanceModel
     let settings: AppearanceSettingsModel
     let connection: any ProviderConnecting<ProviderConnectionError>
     let security: SecurityCoordinator
@@ -20,7 +21,8 @@ struct WalletScene: View {
     var body: some View {
         TabView(selection: $section) {
             Tab("Portfolio", systemImage: "wallet.bifold", value: .portfolio) {
-                PortfolioScene(coordinator: portfolio, connection: connection, removal: tokenRemoval)
+                PortfolioScene(coordinator: portfolio, connection: connection, removal: tokenRemoval,
+                               privateBalance: privateBalance)
                     .tokenRemovalLifecycle()
             }
             #if DEBUG
@@ -37,6 +39,7 @@ struct WalletScene: View {
         }
         .tabViewStyle(.tabBarOnly)
         .portfolioObservation(of: account, coordinator: portfolio, providerRevisions: providers.revisions)
+        .privateBalanceObservation(of: account, model: privateBalance, providerRevisions: providers.revisions)
         // Settings work belongs to the window, so switching tabs keeps an import or a saved choice going.
         .onDisappear { settings.cancel() }
     }

@@ -8,6 +8,8 @@ struct TokenCardStack: View {
     @Binding var selection: Holding.Identity?
     @Binding var preferredColumn: NavigationSplitViewColumn
     let holdings: [Holding]
+    /// Whether the account also holds private SOL, which SOL's card shows with a sign.
+    let hasPrivateBalance: Bool
 
     var body: some View {
         List {
@@ -17,7 +19,8 @@ struct TokenCardStack: View {
                     TokenCardOption(selection: $selection, preferredColumn: $preferredColumn, id: holding.id) {
                         TokenCard(symbol: holding.displaySymbol, name: holding.displayName, amount: holding.amount,
                                   value: holding.knownValue, change: holding.valuation?.dayChange,
-                                  imageURL: holding.logoURL)
+                                  imageURL: holding.logoURL,
+                                  hasPrivateBalance: hasPrivateBalance && holding.id == .nativeSOL)
                     }
                 }
             }

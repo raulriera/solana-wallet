@@ -26,6 +26,8 @@ nonisolated enum PrivateBalanceError: LocalizedError, Equatable, CaseIterable {
     case codeUnderfunded
     /// The redeem code's private SOL isn't readable yet, such as just after the code was created.
     case codeNotReady
+    /// Turning private balances on failed for another reason, such as a provider or storage error.
+    case turnOnFailed
 
     /// The alert's title.
     var errorDescription: String? {
@@ -36,6 +38,8 @@ nonisolated enum PrivateBalanceError: LocalizedError, Equatable, CaseIterable {
             String(localized: "Can't Complete Transaction")
         case .invalidCode, .codeForOtherNetwork, .codeRedeemed, .codeUnderfunded, .codeNotReady:
             String(localized: "Can't Use Code")
+        case .turnOnFailed:
+            String(localized: "Couldn't Turn On Private Balance")
         }
     }
 
@@ -66,6 +70,8 @@ nonisolated enum PrivateBalanceError: LocalizedError, Equatable, CaseIterable {
             String(localized: "This code doesn't hold enough SOL to pay the network fees for using it.")
         case .codeNotReady:
             String(localized: "This code was created moments ago. Try again in a minute.")
+        case .turnOnFailed:
+            String(localized: "Private balances couldn't be turned on for this account. Try again.")
         }
     }
 }

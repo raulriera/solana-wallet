@@ -6,6 +6,7 @@ import Transactions
 
 /// Shows one token's balance and, when known, its value, price, and 24-hour change; removes any token except native SOL.
 ///
+/// Native SOL also shows the account's private balance, read again each time the screen appears.
 /// Devnet has no prices, so its tokens show only their balance and a note that they have no monetary value.
 /// A token whose account another address controls shows that address instead of a balance, value, or price.
 struct TokenDetailScreen: View {
@@ -14,6 +15,8 @@ struct TokenDetailScreen: View {
     let holding: Holding
     /// The window's token removals; a confirmed removal closes the screen.
     let removal: TokenRemovalModel
+    /// The window's private balance, which native SOL's details show and turn on with ``privateBalanceLifecycle()``.
+    let privateBalance: PrivateBalanceModel
 
     var body: some View {
         Form {
@@ -82,6 +85,14 @@ struct TokenDetailScreen: View {
                 .foregroundStyle(palette.secondaryText)
             }
             .listRowBackground(palette.surface)
+
+            if holding.id == .nativeSOL {
+                PrivateBalanceSections(model: privateBalance, symbol: holding.displaySymbol)
+            }
+        }
+        .animation(.default, value: privateBalance.status)
+        .task(id: holding.id) {
+            if holding.id == .nativeSOL { await privateBalance.refresh() }
         }
         .monospacedDigit()
         .foregroundStyle(palette.primaryText, palette.secondaryText)
@@ -107,7 +118,8 @@ struct TokenDetailScreen: View {
                                            name: "Solana", symbol: "SOL", imageURL: nil,
                                            valuation: Valuation(pricePerUnit: 166, total: 2_075, currency: "USD",
                                                                 dayChange: Decimal(string: "0.0129"))),
-                          removal: TokenRemovalModel(coordinator: PreviewPortfolio()))
+                          removal: TokenRemovalModel(coordinator: PreviewPortfolio()),
+                          privateBalance: PrivateBalanceModel(balances: PreviewPrivateBalances(), network: .devnet))
     }
 }
 
@@ -116,11 +128,32 @@ struct TokenDetailScreen: View {
         TokenDetailScreen(holding: Holding(id: .asset("Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"), amount: nil,
                                            otherOwner: try? Address("4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T"),
                                            name: "Tether USD", symbol: "USDT", imageURL: nil, valuation: nil),
-                          removal: TokenRemovalModel(coordinator: PreviewPortfolio()))
+                          removal: TokenRemovalModel(coordinator: PreviewPortfolio()),
+                          privateBalance: PrivateBalanceModel(balances: PreviewPrivateBalances(), network: .devnet))
     }
 }
 
 /// Keeps the preview local: it has no tokens and never observes, looks up, adds, or removes one.
+private struct PreviewPrivateBalances: PrivateBalancing {
+    func enable(_ account: Account, on network: Network) async throws {}
+
+    func refresh(_ account: Account, on network: Network) async throws -> PrivateBalanceStatus { .off }
+
+    func prepare(_ request: PrivateTransactionRequest, from account: Account, on network: Network) async throws
+        -> PreparedPrivateTransaction {
+        throw PrivateBalanceError.unavailable
+    }
+
+    func complete(_ transaction: PreparedPrivateTransaction, with confirmation: Confirmation) async throws
+        -> PrivateBalanceStatus {
+        .off
+    }
+
+    func outstandingCodes(of account: Account, on network: Network) async throws -> [OutstandingRedeemCode] { [] }
+
+    func removeAll() async throws {}
+}
+
 @Observable
 private final class PreviewPortfolio: PortfolioCoordinating {
     var update: Update? { nil }
