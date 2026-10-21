@@ -237,6 +237,20 @@ nonisolated struct PreferencesTests {
         #expect(try Data(contentsOf: metadata) == data)
     }
 
+    /// Unreadable metadata returns to the original appearance, and a later reset still succeeds.
+    @Test func `Unreadable metadata resets selections`() async throws {
+        let fixture = try CatalogFixture()
+        defer { fixture.remove() }
+        let catalog = ThemeCatalog(directory: fixture.directory)
+        let entry = try await catalog.install(PackService().read(from: fixture.source()))
+        let store = AppearanceStore(directory: fixture.directory)
+        _ = try await store.select(entry.id, for: .application)
+        try Data("invalid".utf8).write(to: fixture.directory.appendingPathComponent(CatalogFiles.metadataName))
+
+        #expect(try await store.load().preferences == AppearancePreferences())
+        #expect(try await store.reset().preferences == AppearancePreferences())
+    }
+
     /// Removing a configured built-in drops its stale selections once, including wallet overrides.
     @Test func `Missing built-in selections reconcile to original appearance`() async throws {
         let fixture = try CatalogFixture()

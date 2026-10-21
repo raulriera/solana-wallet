@@ -7,19 +7,25 @@ nonisolated enum CatalogFiles {
     static let metadataName = "state.json"
 
     /// Reads catalog metadata and preferences without touching manifests or assets.
+    ///
+    /// Metadata that can't be decoded or doesn't match itself can't be repaired, so it is deleted with the
+    /// installed packages, and the catalog starts over with the original appearance instead of failing forever.
     /// - Parameter directory: The private catalog root.
-    /// - Returns: Current committed state, or an empty state before the first mutation.
-    /// - Throws: A storage error, including corrupt or mismatched metadata.
+    /// - Returns: Current committed state, or an empty state before the first mutation or after unreadable metadata.
+    /// - Throws: A storage error from reading the metadata or deleting unreadable metadata.
     static func state(in directory: URL) throws -> CatalogState {
         let url = directory.appendingPathComponent(metadataName)
         do {
             let values = try url.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey])
             guard values.isRegularFile == true, values.isSymbolicLink != true else { throw ThemeCatalogError.invalidStorage }
         } catch CocoaError.fileReadNoSuchFile { return CatalogState() }
-        let state = try JSONDecoder().decode(CatalogState.self, from: Data(contentsOf: url))
-        guard state.customEntries.allSatisfy({ $0.key == $0.value.id && $0.value.origin == .custom }),
+        let data = try Data(contentsOf: url)
+        guard let state = try? JSONDecoder().decode(CatalogState.self, from: data),
+              state.customEntries.allSatisfy({ $0.key == $0.value.id && $0.value.origin == .custom }),
               Set(state.customEntries.values.map(\.revision)).count == state.customEntries.count else {
-            throw ThemeCatalogError.invalidStorage
+            try discard(packagesIn: directory)
+            try FileManager.default.removeItem(at: url)
+            return CatalogState()
         }
         return state
     }
@@ -71,13 +77,29 @@ nonisolated enum CatalogFiles {
         return committed
     }
 
+    /// Deletes every installed package; a missing folder is already deleted.
+    /// - Parameter directory: The private catalog root.
+    /// - Throws: A filesystem error.
+    private static func discard(packagesIn directory: URL) throws {
+        do {
+            try FileManager.default.removeItem(at: packages(in: directory))
+        } catch CocoaError.fileNoSuchFile {}
+    }
+
     /// Locates immutable package bytes for one installed revision.
     /// - Parameters:
     ///   - entry: A custom catalog entry.
     ///   - directory: The private catalog root.
     /// - Returns: The generation-specific package directory.
     static func package(for entry: ThemeEntry, in directory: URL) -> URL {
-        directory.appendingPathComponent("Packages").appendingPathComponent(entry.revision.uuidString + ".xtheme")
+        packages(in: directory).appendingPathComponent(entry.revision.uuidString + ".xtheme")
+    }
+
+    /// Locates the folder that holds every installed package.
+    /// - Parameter directory: The private catalog root.
+    /// - Returns: The packages folder, which may not exist yet.
+    private static func packages(in directory: URL) -> URL {
+        directory.appendingPathComponent("Packages")
     }
 
     /// Commits a complete directory in one same-volume rename operation.

@@ -90,16 +90,20 @@ nonisolated struct CatalogTests {
         await #expect(throws: (any Error).self) { try await catalog.pack(for: entry) }
     }
 
-    /// Broken metadata fails explicitly rather than presenting an incomplete installed collection.
-    @Test func `Corrupt metadata does not produce a partial catalog`() async throws {
+    /// Metadata that can't be repaired starts an empty catalog, without its packages, that accepts new imports.
+    /// - Parameter corruption: How the metadata is broken.
+    @Test(arguments: Corruption.allCases)
+    func `Unreadable metadata starts an empty catalog`(corruption: Corruption) async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let catalog = ThemeCatalog(directory: fixture.directory)
-        _ = try await catalog.install(PackService().read(from: fixture.source()))
-        _ = try await catalog.install(PackService().read(from: fixture.source()))
-        let metadata = fixture.directory.appendingPathComponent(CatalogFiles.metadataName)
-        try Data("invalid".utf8).write(to: metadata)
-        await #expect(throws: DecodingError.self) { try await catalog.entries() }
+        let pack = try await PackService().read(from: fixture.source())
+        let entry = try await catalog.install(pack)
+        try corruption.metadata().write(to: fixture.directory.appendingPathComponent(CatalogFiles.metadataName))
+
+        #expect(try await catalog.entries().isEmpty)
+        #expect(!FileManager.default.fileExists(atPath: CatalogFiles.package(for: entry, in: fixture.directory).path))
+        #expect(try await catalog.install(pack).id == pack.id)
     }
 
     /// Concurrent inserts of one identity cannot silently overwrite each other.
@@ -214,5 +218,27 @@ nonisolated struct CatalogTests {
         release.signal()
         #expect(try await operation.value)
         #expect(try Data(contentsOf: marker) == Data("complete".utf8))
+    }
+
+    /// Metadata that the catalog can't repair.
+    enum Corruption: CaseIterable {
+        /// Bytes that aren't catalog metadata.
+        case undecodable
+        /// Metadata whose entry is stored under another identity.
+        case mismatched
+
+        /// Creates the broken metadata.
+        /// - Returns: The bytes to write in place of the catalog's metadata.
+        /// - Throws: An encoding error.
+        func metadata() throws -> Data {
+            switch self {
+            case .undecodable:
+                return Data("invalid".utf8)
+            case .mismatched:
+                var state = CatalogState()
+                state.customEntries = [UUID(): ThemeEntry(id: UUID(), name: "Example", origin: .custom)]
+                return try JSONEncoder().encode(state)
+            }
+        }
     }
 }
