@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import RPC
 import Transactions
@@ -9,6 +10,7 @@ import Wallet
 struct SigningFixture {
     let recovery: Recovery
     let account: widgets.Account
+    let oneTime: OneTimeAccount
     var transfer: Instruction
     var configuration: Configuration
     var network: Network
@@ -27,7 +29,8 @@ struct SigningFixture {
                     network: network, fee: fee, simulation: simulation)
     }
 
-    /// Creates a preparation for a published phrase with a nondefault passphrase and path.
+    /// Creates a preparation for a published phrase with a nondefault passphrase and path, and a one-time
+    /// account from a fixed public secret.
     ///
     /// - Throws: An error if the public fixture or its message can't be constructed.
     init() throws {
@@ -39,6 +42,7 @@ struct SigningFixture {
         )
         transfer = try SystemProgram.transfer(from: Address("8CW93AFYFKj2rKZRq3YjLesb4XbgtAiq8k2FgfruVZL5"), to: source.instruction.accounts[1].address, lamports: 1)
         account = Account(id: UUID(), recoveryID: UUID(), address: transfer.accounts[0].address, path: try DerivationPath("m/44'/501'/1'/0'"))
+        oneTime = try OneTimeAccount(secret: SymmetricKey(data: Data(repeating: 7, count: 32)))
         configuration = source.configuration
         network = base.network
         blockhash = source.blockhash
@@ -47,5 +51,19 @@ struct SigningFixture {
         message = try MessageBuilder().message(instructions: [transfer], payer: transfer.accounts[0].address, recentBlockhash: blockhash.value.blockhash,
                                                configuration: configuration)
         inspection = try TransactionDecoder().decode(message + Data(repeating: 0, count: 64))
+    }
+
+    /// Builds review bytes for a one-lamport transfer that another public account signs and pays for.
+    ///
+    /// - Parameter address: The account required to sign the transfer.
+    /// - Returns: The account-bound preparation with this fixture's observations.
+    /// - Throws: An instruction, compilation, or decoding error.
+    func preparation(for address: Address) throws -> Preparation {
+        let instruction = try SystemProgram.transfer(from: address, to: transfer.accounts[1].address, lamports: 1)
+        let message = try MessageBuilder().message(instructions: [instruction], payer: address,
+            recentBlockhash: blockhash.value.blockhash, configuration: configuration)
+        let transaction = try TransactionDecoder().decode(TransactionBuilder().simulationTransaction(for: message))
+        return Preparation(source: .local([instruction], address, configuration, blockhash),
+            signer: address, transaction: transaction, network: network, fee: fee, simulation: simulation)
     }
 }

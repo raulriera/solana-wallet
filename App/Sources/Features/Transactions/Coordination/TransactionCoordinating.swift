@@ -5,13 +5,13 @@ import Transactions
 /// Submit an approved review, then observe its receipt with ``TransactionConfirming/confirm(_:)``.
 /// Errors after signing are ``DeliveryError`` values that retain the receipt.
 nonisolated protocol TransactionCoordinating: TransactionConfirming {
-    /// Simulates ordered instructions with the first selected wallet paying fees.
+    /// Simulates ordered instructions with the first selected authority paying fees.
     /// - Parameters:
     ///   - instructions: The program invocations composing one transaction.
-    ///   - wallets: The local authorities selected to sign after approval.
+    ///   - authorities: The saved and one-time accounts selected to sign after approval, in signing order.
     /// - Returns: An immutable review with no signatures added.
     /// - Throws: A preparation or cancellation error.
-    func simulate(_ instructions: [Instruction], using wallets: [Account]) async throws -> Simulation
+    func simulate(_ instructions: [Instruction], using authorities: [Authority]) async throws -> Simulation
 
     /// Simulates imported bytes while preserving existing signatures.
     /// - Parameters:
@@ -60,6 +60,16 @@ extension TransactionCoordinating {
     func transfer(_ amount: UInt64, token: Address? = nil, using wallet: Account,
                   to recipient: Address) async throws -> Simulation {
         try await transfer(amount, token: token, using: wallet, to: recipient, source: nil, memo: nil)
+    }
+
+    /// Simulates ordered instructions with the first selected wallet paying fees.
+    /// - Parameters:
+    ///   - instructions: The program invocations composing one transaction.
+    ///   - wallets: The saved accounts selected to sign after approval.
+    /// - Returns: An immutable review with no signatures added.
+    /// - Throws: A preparation or cancellation error.
+    func simulate(_ instructions: [Instruction], using wallets: [Account]) async throws -> Simulation {
+        try await simulate(instructions, using: wallets.map(Authority.account))
     }
 
     /// Simulates instructions for one local wallet.

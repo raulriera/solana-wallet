@@ -76,18 +76,18 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
         self.confirmer = confirmer
     }
 
-    /// Simulates ordered instructions using the first wallet as fee payer.
+    /// Simulates ordered instructions using the first authority as fee payer.
     ///
     /// - Parameters:
     ///   - instructions: The invocations composing one atomic transaction.
-    ///   - wallets: The selected local signers; the first account pays fees.
-    /// - Returns: An immutable review bound to these wallets and this coordinator.
+    ///   - authorities: The selected local signers in signing order; the first pays fees.
+    /// - Returns: An immutable review bound to these authorities and this coordinator.
     /// - Throws: A validation, preparation, RPC, or cancellation error.
-    func simulate(_ instructions: [Instruction], using wallets: [Account]) async throws -> Simulation {
-        let wallet = try selectedWallet(in: wallets)
-        let preparation = try await preparer.prepare(instructions, payer: wallet.address, signer: wallet.address,
+    func simulate(_ instructions: [Instruction], using authorities: [Authority]) async throws -> Simulation {
+        let payer = try payer(in: authorities)
+        let preparation = try await preparer.prepare(instructions, payer: payer, signer: payer,
             configuration: configuration, minimumSlot: nil)
-        return try review(preparation, wallets: wallets)
+        return try review(preparation, authorities: authorities)
     }
 
     /// Simulates an imported transaction without replacing its message or cosignatures.
@@ -98,9 +98,9 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
     /// - Returns: The unchanged transaction and its review observations.
     /// - Throws: A structural, signature, RPC, or cancellation error.
     func simulate(_ transaction: Transaction, using wallets: [Account]) async throws -> Simulation {
-        let wallet = try selectedWallet(in: wallets)
-        let preparation = try await preparer.prepare(transaction, for: wallet.address)
-        return try review(preparation, wallets: wallets)
+        let authorities = wallets.map(Authority.account)
+        let preparation = try await preparer.prepare(transaction, for: payer(in: authorities))
+        return try review(preparation, authorities: authorities)
     }
 
     /// Resolves a payment into instructions and uses the shared simulation workflow.
@@ -121,13 +121,13 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
                 to: recipient, source: source, memo: memo)
             let preparation = try await preparer.prepare(resolved.transfer.instructions(), payer: wallet.address,
                 signer: wallet.address, configuration: configuration, minimumSlot: resolved.slot)
-            return try review(preparation, wallets: [wallet], token: resolved.transfer, rent: resolved.rent)
+            return try review(preparation, authorities: [.account(wallet)], token: resolved.transfer, rent: resolved.rent)
         }
         guard source == nil else { throw ValidationError.invalidMessage }
         var instructions: [Instruction] = []
         if let memo { instructions.append(try MemoProgram.memo(memo, signers: [wallet.address])) }
         instructions.append(try SystemProgram.transfer(from: wallet.address, to: recipient, lamports: amount))
-        return try await simulate(instructions, using: [wallet])
+        return try await simulate(instructions, using: [.account(wallet)])
     }
 
     /// Signs the approved review without broadcasting, including partial-signing requests.
@@ -151,7 +151,7 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
     ///   ``DeliveryError`` that retains the receipt and the delivery or cancellation error.
     func submit(_ simulation: Simulation) async throws -> Submission {
         try validateOrigin(simulation)
-        let local = Set(simulation.wallets.map(\.address))
+        let local = Set(try simulation.authorities.map { try $0.address })
         for (account, signature) in zip(simulation.transaction.accounts, simulation.transaction.signatures)
             where signature.allSatisfy({ $0 == 0 }) {
             guard local.contains(account.address) else { throw SubmitterError.missingSignatures }
@@ -173,7 +173,7 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
         }
     }
 
-    /// Adds local signatures while retaining the original review and all occupied slots.
+    /// Adds local signatures in the review's authority order while retaining the original review and all occupied slots.
     /// - Parameter simulation: The approved review bound to this coordinator.
     /// - Returns: A validated signed result for internal submission.
     /// - Throws: A review, authentication, signature, or cancellation error.
@@ -181,44 +181,46 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
         try validateOrigin(simulation)
         try await simulation.approval.consume()
         var transaction = simulation.transaction
-        for wallet in simulation.wallets {
+        for authority in simulation.authorities {
             let original = simulation.preparation
-            let preparation = Preparation(source: original.source, signer: wallet.address, transaction: transaction,
+            let preparation = Preparation(source: original.source, signer: try authority.address, transaction: transaction,
                 network: original.network, fee: original.fee, simulation: original.simulation, tips: original.tips)
-            transaction = try await signer.sign(preparation, for: wallet,
+            transaction = try await signer.sign(preparation, for: authority,
                 reason: String(localized: "Approve transaction")).transaction
         }
         return SignedTransaction(preparation: simulation.preparation, transaction: transaction)
     }
 
-    /// Binds review observations to selected local accounts without accessing their recovery.
+    /// Binds review observations to selected local authorities without accessing their recovery.
     /// - Parameters:
     ///   - preparation: The exact compiled or imported transaction and RPC observations.
-    ///   - wallets: The local accounts whose empty required slots will be filled.
+    ///   - authorities: The local authorities whose empty required slots will be filled.
     ///   - token: Optional token-specific review details resolved before composition.
     ///   - rent: The observed account deposit, or `nil` when unestimated.
     /// - Returns: An immutable review with private authorization context.
     /// - Throws: A signer-selection error for duplicate, unrelated, or occupied slots.
-    private func review(_ preparation: Preparation, wallets: [Account], token: TokenTransfer? = nil,
+    private func review(_ preparation: Preparation, authorities: [Authority], token: TokenTransfer? = nil,
                         rent: UInt64? = nil) throws -> Simulation {
-        for wallet in wallets {
-            guard let index = preparation.transaction.accounts.firstIndex(where: { $0.address == wallet.address && $0.isSigner }) else {
+        for authority in authorities {
+            let address = try authority.address
+            guard let index = preparation.transaction.accounts.firstIndex(where: { $0.address == address && $0.isSigner }) else {
                 throw ValidationError.signerNotRequired
             }
             guard preparation.transaction.signatures[index].allSatisfy({ $0 == 0 }) else {
                 throw ValidationError.signatureAlreadyPresent
             }
         }
-        return Simulation(preparation: preparation, wallets: wallets, coordinator: id,
+        return Simulation(preparation: preparation, authorities: authorities, coordinator: id,
                           tokenTransfer: token, destinationAccountRent: rent)
     }
 
     /// Checks selected signers before beginning network work.
-    /// - Parameter wallets: The local accounts supplied by the caller.
-    /// - Returns: The first account, used as fee payer for local composition.
+    /// - Parameter authorities: The local authorities supplied by the caller.
+    /// - Returns: The first authority's address, used as fee payer for local composition.
     /// - Throws: A validation error for an empty or duplicate selection.
-    private func selectedWallet(in wallets: [Account]) throws -> Account {
-        guard let first = wallets.first, Set(wallets.map(\.address)).count == wallets.count else {
+    private func payer(in authorities: [Authority]) throws -> Address {
+        let addresses = try authorities.map { try $0.address }
+        guard let first = addresses.first, Set(addresses).count == addresses.count else {
             throw ValidationError.invalidMessage
         }
         return first
@@ -235,7 +237,7 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
 /// The exact transaction and observations to present before requesting approval.
 nonisolated struct Simulation: Sendable {
     fileprivate let preparation: Preparation
-    fileprivate let wallets: [Account]
+    fileprivate let authorities: [Authority]
     fileprivate let coordinator: UUID
     fileprivate let approval = Approval()
     /// The locally resolved token debit, fee, and destination, when applicable.
@@ -263,14 +265,14 @@ nonisolated struct Simulation: Sendable {
     /// Creates a review only through the coordinator that will later authorize it.
     /// - Parameters:
     ///   - preparation: The exact transaction and its observations.
-    ///   - wallets: The selected local signers.
+    ///   - authorities: The selected local signers in signing order.
     ///   - coordinator: The identity of the originating workflow.
     ///   - tokenTransfer: Optional token-specific observations.
     ///   - destinationAccountRent: The optional account deposit estimate.
-    fileprivate init(preparation: Preparation, wallets: [Account], coordinator: UUID,
+    fileprivate init(preparation: Preparation, authorities: [Authority], coordinator: UUID,
                      tokenTransfer: TokenTransfer?, destinationAccountRent: UInt64?) {
         self.preparation = preparation
-        self.wallets = wallets
+        self.authorities = authorities
         self.coordinator = coordinator
         self.tokenTransfer = tokenTransfer
         self.destinationAccountRent = destinationAccountRent

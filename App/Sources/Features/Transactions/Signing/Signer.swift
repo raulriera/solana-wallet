@@ -28,21 +28,23 @@ nonisolated struct Signer: TransactionSigning {
     /// Expiry is checked before authentication and again after signing, so a message
     /// that expired during authentication never yields a usable signature. The original
     /// blockhash, amount, recipient, and fee configuration are never refreshed automatically.
-    /// Recovery material stays local to this operation and isn't returned or cached.
+    /// Recovery material stays local to this operation and isn't returned or cached. A one-time
+    /// account signs with its in-memory key, without reading the recovery store or authenticating.
     ///
     /// - Parameters:
     ///   - preparation: The preparation whose details the user has approved.
-    ///   - account: The selected account and its shared recovery identity.
+    ///   - authority: The selected saved or one-time account.
     ///   - reason: The localized explanation shown by the recovery store during authentication.
     /// - Returns: The typed signed transaction and the unchanged review data.
     /// - Throws: A prerequisite, dependency, or cancellation error.
     @concurrent
-    func sign(_ preparation: Preparation, for account: Account, reason: String) async throws -> SignedTransaction {
+    func sign(_ preparation: Preparation, for authority: Authority, reason: String) async throws -> SignedTransaction {
         try Task.checkCancellation()
-        guard account.address == preparation.signer else { throw SigningError.signerMismatch }
-        let path = account.path
+        guard try authority.address == preparation.signer else { throw SigningError.signerMismatch }
         try await validator.validate(preparation)
-        let signature = try await signature(for: preparation, recoveryID: account.recoveryID, path: path, reason: reason)
+        let signature = try await signature(for: preparation, by: authority, reason: reason)
+        try Task.checkCancellation()
+        try await validator.validateLifetime(preparation)
         try Task.checkCancellation()
         let transaction = try transactionBuilder.transaction(
             byAdding: signature, for: preparation.signer, to: preparation.bytes
@@ -51,24 +53,22 @@ nonisolated struct Signer: TransactionSigning {
         return SignedTransaction(preparation: preparation, transaction: transaction)
     }
 
-    /// Limits recovery material's lifetime to authentication and local signing.
-    ///
-    /// Recovery is released as soon as the signature exists; the lifetime recheck that
-    /// follows runs without it and discards the signature if the message expired.
+    /// Produces the signature for one authority; a saved account's recovery lives only for this call.
     ///
     /// - Parameters:
     ///   - preparation: The already validated review data.
-    ///   - recoveryID: The shared recovery identifier.
-    ///   - path: The selected account's derivation path.
+    ///   - authority: The selected saved or one-time account.
     ///   - reason: The localized authentication explanation.
-    /// - Returns: The signature from the recovered account matching the selected required signer.
-    /// - Throws: A storage, expiry, signing, or cancellation error.
-    private func signature(for preparation: Preparation, recoveryID: UUID, path: DerivationPath, reason: String) async throws -> Data {
-        let signature = try await signature(for: preparation, using: store.recovery(for: recoveryID, reason: reason), path: path)
-        try Task.checkCancellation()
-        try await validator.validateLifetime(preparation)
-        try Task.checkCancellation()
-        return signature
+    /// - Returns: The signature from the account matching the selected required signer.
+    /// - Throws: A storage, signing, or cancellation error.
+    private func signature(for preparation: Preparation, by authority: Authority, reason: String) async throws -> Data {
+        switch authority {
+        case .account(let account):
+            try await signature(for: preparation, using: store.recovery(for: account.recoveryID, reason: reason),
+                                path: account.path)
+        case .oneTime(let account):
+            try account.signature(for: preparation.message)
+        }
     }
 
     /// Signs with recovery material whose lifetime ends when this call returns.

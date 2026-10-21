@@ -77,7 +77,7 @@ struct SigningTests {
         let signer = Signer(validator: PreparationValidator(rpc: http.client), store: store)
 
         await #expect(throws: PreparationValidatorError.messageMismatch) {
-            try await signer.sign(fixture.preparation, for: fixture.account, reason: "Approve transfer")
+            try await signer.sign(fixture.preparation, for: .account(fixture.account), reason: "Approve transfer")
         }
 
         #expect(await store.reads.isEmpty)
@@ -119,7 +119,7 @@ struct SigningTests {
         let signer = Signer(validator: PreparationValidator(rpc: http.client), store: store)
 
         await #expect(throws: expected) {
-            try await signer.sign(fixture.preparation, for: fixture.account, reason: "Approve transfer")
+            try await signer.sign(fixture.preparation, for: .account(fixture.account), reason: "Approve transfer")
         }
 
         #expect(await store.reads.isEmpty)
@@ -136,7 +136,7 @@ struct SigningTests {
         let signer = Signer(validator: PreparationValidator(rpc: http.client), store: store)
 
         await #expect(throws: PreparationValidatorError.networkMismatch) {
-            try await signer.sign(fixture.preparation, for: fixture.account, reason: "Approve transfer")
+            try await signer.sign(fixture.preparation, for: .account(fixture.account), reason: "Approve transfer")
         }
 
         #expect(await store.reads.isEmpty)
@@ -155,7 +155,7 @@ struct SigningTests {
         let signer = Signer(validator: PreparationValidator(rpc: http.client), store: store, wallet: wallet)
 
         await #expect(throws: PreparationValidatorError.expired) {
-            try await signer.sign(fixture.preparation, for: fixture.account, reason: "Approve transfer")
+            try await signer.sign(fixture.preparation, for: .account(fixture.account), reason: "Approve transfer")
         }
 
         #expect(await store.reads.count == (expiresDuringAuthentication ? 1 : 0))
@@ -172,7 +172,7 @@ struct SigningTests {
         let signer = Signer(validator: PreparationValidator(rpc: http.client), store: store)
 
         await #expect(throws: PreparationValidatorError.expired) {
-            try await signer.sign(fixture.preparation, for: fixture.account, reason: "Approve transfer")
+            try await signer.sign(fixture.preparation, for: .account(fixture.account), reason: "Approve transfer")
         }
 
         #expect(await store.reads.isEmpty)
@@ -189,7 +189,7 @@ struct SigningTests {
         let signer = Signer(validator: PreparationValidator(rpc: http.client), store: store)
 
         await #expect(throws: PreparationValidatorError.feeChanged) {
-            try await signer.sign(fixture.preparation, for: fixture.account, reason: "Approve transfer")
+            try await signer.sign(fixture.preparation, for: .account(fixture.account), reason: "Approve transfer")
         }
 
         #expect(await store.reads.isEmpty)
@@ -205,7 +205,7 @@ struct SigningTests {
         let signer = Signer(validator: PreparationValidator(rpc: (try HTTPResponses.signing()).client), store: store, wallet: wallet)
 
         await #expect(throws: KeychainStoreError.authenticationFailed) {
-            try await signer.sign(fixture.preparation, for: fixture.account, reason: "Approve transfer")
+            try await signer.sign(fixture.preparation, for: .account(fixture.account), reason: "Approve transfer")
         }
 
         #expect(await store.reads.count == 1)
@@ -221,7 +221,7 @@ struct SigningTests {
         let signer = Signer(validator: PreparationValidator(rpc: (try HTTPResponses.signing()).client), store: store)
 
         await #expect(throws: SigningError.signerMismatch) {
-            try await signer.sign(fixture.preparation, for: fixture.account, reason: "Approve transfer")
+            try await signer.sign(fixture.preparation, for: .account(fixture.account), reason: "Approve transfer")
         }
     }
 
@@ -234,7 +234,7 @@ struct SigningTests {
         let wallet = RecordingWallet()
         let signer = Signer(validator: PreparationValidator(rpc: (try HTTPResponses.signing()).client), store: store, wallet: wallet)
         let operation = Task { @concurrent in
-            try await signer.sign(fixture.preparation, for: fixture.account, reason: "Approve transfer")
+            try await signer.sign(fixture.preparation, for: .account(fixture.account), reason: "Approve transfer")
         }
         defer { operation.cancel() }
         await gate.waitUntilStarted()

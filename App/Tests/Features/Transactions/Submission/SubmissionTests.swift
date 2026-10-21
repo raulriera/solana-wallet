@@ -69,7 +69,7 @@ struct SubmissionTests {
         let fixture = try SigningFixture()
         let checks = try HTTPResponses.signing()
         let signed = try await Signer(validator: PreparationValidator(rpc: checks.client), store: SigningRecoveryStore(recovery: fixture.recovery))
-            .sign(fixture.preparation, for: fixture.account, reason: "Approve transaction")
+            .sign(fixture.preparation, for: .account(fixture.account), reason: "Approve transaction")
         let signature = try #require(signed.signature)
         let accepted = HTTPResponses(["sendTransaction": [try HTTPResponses.json(signature)]])
 

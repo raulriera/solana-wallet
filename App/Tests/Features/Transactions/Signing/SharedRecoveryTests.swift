@@ -24,8 +24,8 @@ struct SharedRecoveryTests {
         let signer = Signer(validator: PreparationValidator(rpc: (try HTTPResponses.signing()).client), store: store)
 
         for account in accounts {
-            let preparation = try preparation(for: account.address, fixture: fixture)
-            let signed = try await signer.sign(preparation, for: account, reason: "Approve account")
+            let preparation = try fixture.preparation(for: account.address)
+            let signed = try await signer.sign(preparation, for: .account(account), reason: "Approve account")
             let key = try Curve25519.Signing.PublicKey(rawRepresentation:
                 Data(#require(Base58.decode(account.address.value, byteCount: 32))))
             #expect(key.isValidSignature(signed.transaction.signatures[0], for: preparation.message))
@@ -47,7 +47,7 @@ struct SharedRecoveryTests {
         let signer = Signer(validator: PreparationValidator(rpc: http.client), store: store)
 
         await #expect(throws: SigningError.signerMismatch) {
-            try await signer.sign(fixture.preparation, for: account, reason: "Approve account")
+            try await signer.sign(fixture.preparation, for: .account(account), reason: "Approve account")
         }
 
         #expect(await store.reads.count == (field == "address" ? 0 : 1))
@@ -64,27 +64,11 @@ struct SharedRecoveryTests {
         let recovery = Recovery(phrase: fixture.recovery.phrase, passphrase: "")
         let store = SigningRecoveryStore(recovery: recovery)
         let signer = Signer(validator: PreparationValidator(rpc: (try HTTPResponses.signing()).client), store: store)
-        let preparation = try preparation(for: account.address, fixture: fixture)
-        let signed = try await signer.sign(preparation, for: account, reason: "Approve account")
+        let preparation = try fixture.preparation(for: account.address)
+        let signed = try await signer.sign(preparation, for: .account(account), reason: "Approve account")
         let key = try Curve25519.Signing.PublicKey(rawRepresentation:
             Data(#require(Base58.decode(account.address.value, byteCount: 32))))
         #expect(key.isValidSignature(signed.transaction.signatures[0], for: preparation.message))
         #expect(await store.reads.map(\.recoveryID) == [account.recoveryID])
-    }
-
-    /// Builds review bytes for the selected public account.
-    /// - Parameters:
-    ///   - address: The account required to sign the transfer.
-    ///   - fixture: Shared fee, blockhash, and simulation observations.
-    /// - Returns: The account-bound preparation.
-    /// - Throws: An instruction, compilation, or decoding error.
-    private func preparation(for address: Address, fixture: SigningFixture) throws -> Preparation {
-        let instruction = try SystemProgram.transfer(from: address, to: fixture.transfer.accounts[1].address, lamports: 1)
-        let message = try MessageBuilder().message(instructions: [instruction], payer: address,
-            recentBlockhash: fixture.blockhash.value.blockhash, configuration: fixture.configuration)
-        let transaction = try TransactionDecoder().decode(TransactionBuilder().simulationTransaction(for: message))
-        return Preparation(source: .local([instruction], address, fixture.configuration, fixture.blockhash),
-            signer: address, transaction: transaction, network: fixture.network,
-            fee: fixture.fee, simulation: fixture.simulation)
     }
 }

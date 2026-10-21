@@ -153,7 +153,7 @@ struct ExternalTransactionTests {
         let store = SigningRecoveryStore(recovery: try SigningFixture().recovery)
 
         await #expect(throws: PreparationValidatorError.messageMismatch) {
-            try await Signer(validator: PreparationValidator(rpc: http.client), store: store).sign(preparation, for: SigningFixture().account, reason: "Approve transaction")
+            try await Signer(validator: PreparationValidator(rpc: http.client), store: store).sign(preparation, for: .account(SigningFixture().account), reason: "Approve transaction")
         }
 
         #expect(await http.requests.isEmpty)
