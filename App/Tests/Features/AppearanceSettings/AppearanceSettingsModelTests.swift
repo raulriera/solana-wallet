@@ -12,7 +12,7 @@ struct AppearanceSettingsModelTests {
     @Test func `Selection rejects overlapping operations`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
-        let settings = try makeSettings(fixture)
+        let settings = makeSettings(fixture)
         settings.importPack(from: try fixture.source())
         await settings.waitForOperation()
         let entry = try #require(settings.entries.first)
@@ -33,7 +33,7 @@ struct AppearanceSettingsModelTests {
     @Test func `Import installs without selecting`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
-        let settings = try makeSettings(fixture)
+        let settings = makeSettings(fixture)
         try await settings.appearance.activate()
         settings.importPack(from: try fixture.source(name: "Imported"))
         await settings.waitForOperation()
@@ -46,7 +46,7 @@ struct AppearanceSettingsModelTests {
     @Test func `Invalid import preserves selection`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
-        let settings = try makeSettings(fixture)
+        let settings = makeSettings(fixture)
         settings.importPack(from: try fixture.source())
         await settings.waitForOperation()
         let entry = try #require(settings.entries.first)
@@ -65,7 +65,7 @@ struct AppearanceSettingsModelTests {
     @Test func `Replacement uses exact approved revision`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
-        let settings = try makeSettings(fixture)
+        let settings = makeSettings(fixture)
         let id = UUID()
         settings.importPack(from: try fixture.source(id: id, name: "First"))
         await settings.waitForOperation()
@@ -86,7 +86,7 @@ struct AppearanceSettingsModelTests {
     @Test func `Removal updates selections`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
-        let settings = try makeSettings(fixture)
+        let settings = makeSettings(fixture)
         settings.importPack(from: try fixture.source())
         await settings.waitForOperation()
         let entry = try #require(settings.entries.first)
@@ -104,7 +104,7 @@ struct AppearanceSettingsModelTests {
     @Test func `Exports complete default template`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
-        let settings = try makeSettings(fixture)
+        let settings = makeSettings(fixture)
         defer { settings.finishExport() }
         settings.prepareExport()
         await settings.waitForOperation()
@@ -123,7 +123,7 @@ struct AppearanceSettingsModelTests {
     @Test func `Theme Packs opens an export staged before it appeared`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
-        let settings = try makeSettings(fixture)
+        let settings = makeSettings(fixture)
         defer { settings.finishExport() }
         settings.prepareExport()
         await settings.waitForOperation()
@@ -142,12 +142,12 @@ struct AppearanceSettingsModelTests {
         let staged = AsyncStream<Void>.makeStream()
         let release = AsyncStream<Void>.makeStream()
         defer { release.continuation.finish() }
-        let catalog = try ThemeCatalog(directory: fixture.directory, packages: InterceptedPackages {
+        let catalog = ThemeCatalog(directory: fixture.directory, packages: InterceptedPackages {
             staged.continuation.finish()
             for await _ in release.stream {}
             try Task.checkCancellation()
         })
-        let settings = AppearanceSettingsModel(appearance: AppearanceCoordinator(store: try AppearanceStore(directory: fixture.directory), recovery: nil),
+        let settings = AppearanceSettingsModel(appearance: AppearanceCoordinator(store: AppearanceStore(directory: fixture.directory), recovery: nil),
                                                catalog: catalog, packages: PackService())
         settings.importPack(from: try fixture.source())
         for await _ in staged.stream {}
@@ -167,11 +167,11 @@ struct AppearanceSettingsModelTests {
         let committed = AsyncStream<Void>.makeStream()
         let release = AsyncStream<Void>.makeStream()
         defer { release.continuation.finish() }
-        let catalog = CommittedImportCatalog(base: try ThemeCatalog(directory: fixture.directory)) {
+        let catalog = CommittedImportCatalog(base: ThemeCatalog(directory: fixture.directory)) {
             committed.continuation.finish()
             for await _ in release.stream {}
         }
-        let shared = AppearanceCoordinator(store: try AppearanceStore(directory: fixture.directory), recovery: nil)
+        let shared = AppearanceCoordinator(store: AppearanceStore(directory: fixture.directory), recovery: nil)
         let settings = AppearanceSettingsModel(appearance: shared, catalog: catalog, packages: PackService())
         settings.importPack(from: try fixture.source(name: "Committed"))
         for await _ in committed.stream {}
@@ -188,8 +188,8 @@ struct AppearanceSettingsModelTests {
         defer { fixture.remove() }
         let nativeURL = try fixture.source(id: OriginalAppearance.id, name: "Original")
         let bundled = [BundledTheme(id: OriginalAppearance.id, name: "Original", url: nativeURL)]
-        let catalog = try ThemeCatalog(directory: fixture.directory, builtIns: bundled)
-        let appearance = AppearanceCoordinator(store: try AppearanceStore(directory: fixture.directory, builtIns: bundled), recovery: nil)
+        let catalog = ThemeCatalog(directory: fixture.directory, builtIns: bundled)
+        let appearance = AppearanceCoordinator(store: AppearanceStore(directory: fixture.directory, builtIns: bundled), recovery: nil)
         let settings = AppearanceSettingsModel(appearance: appearance, catalog: catalog, packages: PackService())
         let entry = try await catalog.install(PackService().read(from: fixture.source()))
         let wallet = UUID()
@@ -211,7 +211,7 @@ struct AppearanceSettingsModelTests {
     func `Cancellation only notifies when replacement changes`(hasPendingReplacement: Bool) async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
-        let settings = try makeSettings(fixture)
+        let settings = makeSettings(fixture)
         if hasPendingReplacement {
             let pack = try await PackService().read(from: fixture.source())
             settings.replacement = AppearanceSettingsModel.Replacement(
@@ -239,7 +239,7 @@ struct AppearanceSettingsModelTests {
     func `Replacement notification follows imported contents`(changesColors: Bool) async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
-        let settings = try makeSettings(fixture)
+        let settings = makeSettings(fixture)
         let source = try fixture.source()
         let first = try await PackService().read(from: source)
         let existing = ThemeEntry(id: first.id, name: first.name, origin: .custom)
@@ -279,7 +279,7 @@ struct AppearanceSettingsModelTests {
     func `Failures map to the alert's explanation`(error: any Error, expected: ThemeError?) throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
-        let settings = try makeSettings(fixture)
+        let settings = makeSettings(fixture)
 
         settings.report(error, defaultingTo: .exportFailed)
 
@@ -289,11 +289,10 @@ struct AppearanceSettingsModelTests {
     /// Creates real services against one test's isolated storage.
     /// - Parameter fixture: The owner of this test's temporary directories.
     /// - Returns: An appearance settings model with its own window state.
-    /// - Throws: An invalid test storage configuration.
-    private func makeSettings(_ fixture: CatalogFixture) throws -> AppearanceSettingsModel {
+    private func makeSettings(_ fixture: CatalogFixture) -> AppearanceSettingsModel {
         AppearanceSettingsModel(
-            appearance: AppearanceCoordinator(store: try AppearanceStore(directory: fixture.directory), recovery: nil),
-            catalog: try ThemeCatalog(directory: fixture.directory), packages: PackService()
+            appearance: AppearanceCoordinator(store: AppearanceStore(directory: fixture.directory), recovery: nil),
+            catalog: ThemeCatalog(directory: fixture.directory), packages: PackService()
         )
     }
 }

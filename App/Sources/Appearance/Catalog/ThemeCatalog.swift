@@ -11,10 +11,9 @@ nonisolated struct ThemeCatalog: ThemeCatalogProviding {
     ///   - directory: App-private persistent storage.
     ///   - builtIns: Immutable bundled themes supplied by app composition.
     ///   - packages: The framework service owning package validation and serialization.
-    /// - Throws: A configuration error for duplicate built-in identities or a non-file location.
     init(directory: URL,
-         builtIns: [BundledTheme] = [], packages: any PackServicing = PackService()) throws {
-        storage = try ThemeStorage(directory: directory, builtIns: builtIns)
+         builtIns: [BundledTheme] = [], packages: any PackServicing = PackService()) {
+        storage = ThemeStorage(directory: directory, builtIns: builtIns)
         self.packages = packages
     }
 

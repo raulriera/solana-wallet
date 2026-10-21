@@ -21,9 +21,9 @@ struct AppearanceRecoveryTests {
         let files = try CatalogFixture()
         let preferences = RecoveryFixture()
         defer { files.remove(); preferences.remove() }
-        let catalog = try ThemeCatalog(directory: files.directory)
+        let catalog = ThemeCatalog(directory: files.directory)
         let entry = try await catalog.install(PackService().read(from: files.source()))
-        let store = try AppearanceStore(directory: files.directory)
+        let store = AppearanceStore(directory: files.directory)
         let before = try await store.select(entry.id, for: .application)
         let request = SettingsRecoveryRequest(suiteName: preferences.suiteName)
         let coordinator = AppearanceCoordinator(store: store, recovery: request)
@@ -37,9 +37,9 @@ struct AppearanceRecoveryTests {
         let files = try CatalogFixture()
         let preferences = RecoveryFixture()
         defer { files.remove(); preferences.remove() }
-        let catalog = try ThemeCatalog(directory: files.directory)
+        let catalog = ThemeCatalog(directory: files.directory)
         let entry = try await catalog.install(PackService().read(from: files.source()))
-        let store = try AppearanceStore(directory: files.directory)
+        let store = AppearanceStore(directory: files.directory)
         _ = try await store.select(entry.id, for: .application)
         _ = try await store.select(entry.id, for: .wallet(UUID()))
         // Recovery must not depend on decoding a damaged selected package.
@@ -70,9 +70,9 @@ struct AppearanceRecoveryTests {
         let files = try CatalogFixture()
         let preferences = RecoveryFixture()
         defer { files.remove(); preferences.remove() }
-        let catalog = try ThemeCatalog(directory: files.directory)
+        let catalog = ThemeCatalog(directory: files.directory)
         let entry = try await catalog.install(PackService().read(from: files.source()))
-        let store = try AppearanceStore(directory: files.directory)
+        let store = AppearanceStore(directory: files.directory)
         let before = try await store.select(entry.id, for: .application)
         let request = SettingsRecoveryRequest(suiteName: preferences.suiteName)
         let coordinator = AppearanceCoordinator(store: store, recovery: request)
@@ -107,7 +107,7 @@ struct AppearanceRecoveryTests {
             entered.continuation.finish()
             for await _ in release.stream {}
         }
-        let coordinator = AppearanceCoordinator(store: try AppearanceStore(directory: files.directory), recovery: intercepted)
+        let coordinator = AppearanceCoordinator(store: AppearanceStore(directory: files.directory), recovery: intercepted)
         let first = Task { try await coordinator.activate() }
         defer { first.cancel() }
         for await _ in entered.stream {}
@@ -131,9 +131,9 @@ struct AppearanceRecoveryTests {
         let files = try CatalogFixture()
         let preferences = RecoveryFixture()
         defer { files.remove(); preferences.remove() }
-        let catalog = try ThemeCatalog(directory: files.directory)
+        let catalog = ThemeCatalog(directory: files.directory)
         let entry = try await catalog.install(PackService().read(from: files.source()))
-        let store = try AppearanceStore(directory: files.directory)
+        let store = AppearanceStore(directory: files.directory)
         try preferences.defaults().set(true, forKey: SettingsRecoveryRequest.key)
         let entered = AsyncStream<Void>.makeStream()
         let release = AsyncStream<Void>.makeStream()

@@ -7,8 +7,8 @@ import Testing
 struct WindowModelTests {
     /// A switch to devnet creates devnet's shared service and gives the window a new coordinator and token removals.
     @Test
-    func `Switching to devnet replaces the portfolio and its token removals`() throws {
-        let services = try AppServices()
+    func `Switching to devnet replaces the portfolio and its token removals`() {
+        let services = AppServices()
         let window = WindowModel(services: services, network: .mainnet)
         let mainnet = window.portfolio
         let mainnetRemoval = window.tokenRemoval

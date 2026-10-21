@@ -4,5 +4,4 @@ nonisolated enum ThemeCatalogError: Error, Sendable, Equatable {
     case replacementRequired(ThemeEntry)
     case changed
     case invalidStorage
-    case duplicateBuiltIn
 }

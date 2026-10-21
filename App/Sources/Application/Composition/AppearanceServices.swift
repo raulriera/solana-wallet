@@ -8,17 +8,14 @@ struct AppearanceServices {
     let packages: any PackServicing
 
     /// Configures production services without opening installed packages.
-    /// - Throws: An invalid bundled resource or catalog configuration error.
-    init() throws {
-        guard let url = Bundle.main.url(forResource: "Original", withExtension: "xtheme", subdirectory: "Themes.bundle") else {
-            throw CocoaError(.fileNoSuchFile)
-        }
+    init() {
+        guard let url = OriginalAppearance.packageURL else { preconditionFailure("The app bundle is missing the original theme.") }
         let builtIns = [BundledTheme(id: OriginalAppearance.id, name: "Original", url: url)]
         let directory = URL.applicationSupportDirectory.appendingPathComponent("Themes")
         packages = PackService()
-        catalog = try ThemeCatalog(directory: directory, builtIns: builtIns, packages: packages)
+        catalog = ThemeCatalog(directory: directory, builtIns: builtIns, packages: packages)
         appearance = AppearanceCoordinator(
-            store: try AppearanceStore(directory: directory, builtIns: builtIns),
+            store: AppearanceStore(directory: directory, builtIns: builtIns),
             recovery: SettingsRecoveryRequest()
         )
     }

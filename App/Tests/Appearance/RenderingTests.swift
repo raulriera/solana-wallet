@@ -20,7 +20,7 @@ struct AppearanceRenderingTests {
             "darkIncreasedContrast": ["accent": ["srgb": "#FFFFFF"]]
         ]]
         try JSONSerialization.data(withJSONObject: manifest).write(to: manifestURL)
-        let catalog = try ThemeCatalog(directory: fixture.directory)
+        let catalog = ThemeCatalog(directory: fixture.directory)
         let entry = try await catalog.install(PackService().read(from: source))
         let rendered = RenderedAppearance()
         try await rendered.load(entry, catalog: catalog, packages: PackService())
@@ -38,7 +38,7 @@ struct AppearanceRenderingTests {
     @Test func `Unreadable theme falls back to original`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
-        let catalog = try ThemeCatalog(directory: fixture.directory)
+        let catalog = ThemeCatalog(directory: fixture.directory)
         let id = UUID()
         let source = try fixture.source(id: id)
         let json: [String: Any] = ["version": 1, "id": id.uuidString, "name": "Custom",

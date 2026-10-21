@@ -9,9 +9,9 @@ struct AppearanceCoordinationTests {
     @Test func `Older load cannot roll back new selection`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
-        let catalog = try ThemeCatalog(directory: fixture.directory)
+        let catalog = ThemeCatalog(directory: fixture.directory)
         let entry = try await catalog.install(PackService().read(from: fixture.source()))
-        let store = try AppearanceStore(directory: fixture.directory)
+        let store = AppearanceStore(directory: fixture.directory)
         let loaded = AsyncStream<Void>.makeStream()
         let release = AsyncStream<Void>.makeStream()
         defer { release.continuation.finish() }
@@ -34,7 +34,7 @@ struct AppearanceCoordinationTests {
     @Test func `Failed selection preserves cached state`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
-        let store = try AppearanceStore(directory: fixture.directory)
+        let store = AppearanceStore(directory: fixture.directory)
         let coordinator = AppearanceCoordinator(store: store, recovery: nil)
         try await coordinator.reload()
         let before = coordinator.snapshot
@@ -46,9 +46,9 @@ struct AppearanceCoordinationTests {
     @Test func `Cached selection needs no filesystem access`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
-        let catalog = try ThemeCatalog(directory: fixture.directory)
+        let catalog = ThemeCatalog(directory: fixture.directory)
         let entry = try await catalog.install(PackService().read(from: fixture.source()))
-        let coordinator = AppearanceCoordinator(store: try AppearanceStore(directory: fixture.directory), recovery: nil)
+        let coordinator = AppearanceCoordinator(store: AppearanceStore(directory: fixture.directory), recovery: nil)
         let wallet = UUID()
         try await coordinator.select(entry.id, for: .wallet(wallet))
         try await catalog.remove(entry)

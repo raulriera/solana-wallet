@@ -3,7 +3,7 @@ import SwiftUI
 /// Owns shared services for the lifetime of the app's windows.
 @main struct MyApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @State private var services = Result { try AppServices() }
+    @State private var services = AppServices()
 
     var body: some Scene {
         WindowGroup {
@@ -11,15 +11,7 @@ import SwiftUI
                 // The widgets scheme's Test action sets this; unit tests build their own services.
                 EmptyView()
             } else {
-                switch services {
-                case .success(let services):
-                    WindowRoot(services: services)
-                case .failure:
-                    #warning("Incorrect message, this also needs either a recoverable step or description of the failure")
-                    ContentUnavailableView("Appearance Unavailable", systemImage: "exclamationmark.triangle",
-                                           description: Text("The original theme could not be loaded."))
-                        .drawOnAppear()
-                }
+                WindowRoot(services: services)
             }
         }
     }

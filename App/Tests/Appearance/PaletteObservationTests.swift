@@ -17,7 +17,7 @@ struct PaletteObservationTests {
     func `Reloading identical colors does not notify`(scheme: ColorScheme, contrast: ColorSchemeContrast) async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
-        let catalog = try ThemeCatalog(directory: fixture.directory)
+        let catalog = ThemeCatalog(directory: fixture.directory)
         let rendered = RenderedAppearance()
         let palettes: any PaletteProviding = rendered
         let changed = Mutex(false)
@@ -48,7 +48,7 @@ struct PaletteObservationTests {
         var manifest = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: manifestURL)) as? [String: Any])
         manifest["tokens"] = ["colors": ["darkIncreasedContrast": [role: ["srgb": "#123456"]]]]
         try JSONSerialization.data(withJSONObject: manifest).write(to: manifestURL)
-        let catalog = try ThemeCatalog(directory: fixture.directory)
+        let catalog = ThemeCatalog(directory: fixture.directory)
         let entry = try await catalog.install(PackService().read(from: source))
         let rendered = RenderedAppearance()
         let palettes: any PaletteProviding = rendered

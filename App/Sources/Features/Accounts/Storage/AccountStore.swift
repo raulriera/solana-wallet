@@ -14,9 +14,7 @@ nonisolated struct AccountStore: AccountStoring {
 
     /// Configures local storage without creating directories or reading account data.
     /// - Parameter directory: The app-private directory containing account metadata.
-    /// - Throws: ``AccountStoreError/invalidStorage`` if the directory isn't a file URL.
-    init(directory: URL = URL.applicationSupportDirectory.appendingPathComponent("Accounts", isDirectory: true)) throws {
-        guard directory.isFileURL else { throw AccountStoreError.invalidStorage }
+    init(directory: URL = URL.applicationSupportDirectory.appendingPathComponent("Accounts", isDirectory: true)) {
         self.directory = directory
     }
 

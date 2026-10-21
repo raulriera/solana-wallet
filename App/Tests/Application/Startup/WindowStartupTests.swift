@@ -13,7 +13,7 @@ struct WindowStartupTests {
         defer { try? FileManager.default.removeItem(at: directory) }
         let first = try Account.fixture(index: 0)
         let second = try Account.fixture(index: 1)
-        let store = try AccountStore(directory: directory)
+        let store = AccountStore(directory: directory)
         _ = try await store.add(first)
         _ = try await store.add(second)
         let file = directory.appendingPathComponent("accounts.json")
@@ -22,7 +22,7 @@ struct WindowStartupTests {
         let secondWindow = WindowRouter(initialDestination: .restoringWallets)
 
         for router in [firstWindow, secondWindow] {
-            let reopened = try AccountStore(directory: directory)
+            let reopened = AccountStore(directory: directory)
             await WindowStartup(accounts: reopened, cleanup: StartupRecoveryCleanup(), router: router).restore(preferring: nil)
             #expect(router.destination == .wallet(first))
         }
@@ -55,10 +55,10 @@ struct WindowStartupTests {
 
     /// An empty installation opens onboarding without creating storage.
     @Test
-    func `An empty account store opens onboarding without writing files`() async throws {
+    func `An empty account store opens onboarding without writing files`() async {
         let directory = URL.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let router = WindowRouter(initialDestination: .restoringWallets)
-        await WindowStartup(accounts: try AccountStore(directory: directory), cleanup: StartupRecoveryCleanup(), router: router).restore(preferring: nil)
+        await WindowStartup(accounts: AccountStore(directory: directory), cleanup: StartupRecoveryCleanup(), router: router).restore(preferring: nil)
 
         #expect(router.destination == .onboarding)
         #expect(!FileManager.default.fileExists(atPath: directory.path))
@@ -90,7 +90,7 @@ struct WindowStartupTests {
         try original.write(to: file)
         let router = WindowRouter(initialDestination: .restoringWallets)
 
-        await WindowStartup(accounts: try AccountStore(directory: directory), cleanup: StartupRecoveryCleanup(), router: router).restore(preferring: nil)
+        await WindowStartup(accounts: AccountStore(directory: directory), cleanup: StartupRecoveryCleanup(), router: router).restore(preferring: nil)
 
         #expect(router.destination == .walletRestorationFailed)
         #expect(try Data(contentsOf: file) == original)
@@ -102,7 +102,7 @@ struct WindowStartupTests {
         let directory = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
         let saved = try Account.fixture(index: 0)
-        let store = try AccountStore(directory: directory)
+        let store = AccountStore(directory: directory)
         _ = try await store.add(saved)
         let file = directory.appendingPathComponent("accounts.json")
         let original = try Data(contentsOf: file)

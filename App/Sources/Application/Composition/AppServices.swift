@@ -27,23 +27,23 @@ struct AppServices {
     let security: SecurityServices
 
     /// Creates production services after any explicit simulator UI-test reset.
-    /// - Throws: An error if the bundled appearance or a storage configuration is invalid.
-    init() throws {
+    init() {
         let recoveryService = "com.raulriera.widgets.recovery"
         let providerService = "com.raulriera.widgets.provider"
         let privateBalanceService = "com.raulriera.widgets.private-balance"
         #if DEBUG && targetEnvironment(simulator)
-        try UITestReset.runIfRequested(keychainServices: [recoveryService, providerService, privateBalanceService])
+        // A UI test must not run against saved data that it couldn't clear.
+        do { try UITestReset.runIfRequested(keychainServices: [recoveryService, providerService, privateBalanceService]) }
+        catch { preconditionFailure("The UI-test reset couldn't clear the app's saved data.") }
         #endif
         // Exclusion is guidance to the system; a failure must not block the app, and the next launch tries again.
         try? BackupExclusion.apply(to: .applicationSupportDirectory)
-        #warning("AppearanceServices shouldn't stop AppServices, failure should continue with the default appearance")
-        appearance = try AppearanceServices()
+        appearance = AppearanceServices()
         let wallet = Wallet()
         self.wallet = wallet
         discovery = AccountDiscovery(rpc: Solana(network: .mainnet), wallet: wallet)
         recovery = KeychainStore(service: recoveryService)
-        accounts = try AccountStore()
+        accounts = AccountStore()
         let privateBalanceKeys = KeychainItem(service: privateBalanceService, account: "keys",
                                               coding: .json(PrivateBalances.Keys.self))
         let privateBalanceNotes = KeychainItem(service: privateBalanceService, account: "notes",

@@ -11,10 +11,9 @@ nonisolated struct AppearanceStore: AppearanceStoring {
     /// - Parameters:
     ///   - directory: The same app-private directory used by the catalog.
     ///   - builtIns: The same immutable bundled themes supplied to the catalog.
-    /// - Throws: An invalid location or duplicate built-in identity error.
     init(directory: URL,
-         builtIns: [BundledTheme] = []) throws {
-        storage = try ThemeStorage(directory: directory, builtIns: builtIns)
+         builtIns: [BundledTheme] = []) {
+        storage = ThemeStorage(directory: directory, builtIns: builtIns)
     }
 
     /// Loads and reconciles selections without opening a theme package.

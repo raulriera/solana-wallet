@@ -14,7 +14,7 @@ struct OnboardingIdentityTests {
     func `Replacing a reset onboarding coordinator cancels its pending import`() async throws {
         let directory = URL.temporaryDirectory.appending(path: UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
-        let accounts = try AccountStore(directory: directory)
+        let accounts = AccountStore(directory: directory)
         let recovery = ResetRecoveryStore()
         let keys = StoredValue<String>()
         let gate = Suspension()

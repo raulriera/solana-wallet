@@ -11,10 +11,10 @@ nonisolated struct CatalogTests {
         defer { fixture.remove() }
         let source = try fixture.source()
         let pack = try await PackService().read(from: source)
-        let catalog: any ThemeCatalogProviding = try ThemeCatalog(directory: fixture.directory)
+        let catalog: any ThemeCatalogProviding = ThemeCatalog(directory: fixture.directory)
         let entry = try await catalog.install(pack)
         try FileManager.default.removeItem(at: source)
-        let reopened = try ThemeCatalog(directory: fixture.directory)
+        let reopened = ThemeCatalog(directory: fixture.directory)
         #expect(try await reopened.entries() == [entry])
         #expect(try await reopened.pack(for: entry).id == pack.id)
     }
@@ -23,7 +23,7 @@ nonisolated struct CatalogTests {
     @Test func `Matching names with different identities coexist`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
-        let catalog = try ThemeCatalog(directory: fixture.directory)
+        let catalog = ThemeCatalog(directory: fixture.directory)
         let first = try await PackService().read(from: fixture.source())
         let second = try await PackService().read(from: fixture.source())
         _ = try await catalog.install(first)
@@ -35,7 +35,7 @@ nonisolated struct CatalogTests {
     @Test func `Replacement requires the current entry`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
-        let catalog = try ThemeCatalog(directory: fixture.directory)
+        let catalog = ThemeCatalog(directory: fixture.directory)
         let first = try await PackService().read(from: fixture.source())
         let old = try await catalog.install(first)
         let second = try await PackService().read(from: fixture.source(id: first.id, name: "Updated"))
@@ -57,7 +57,7 @@ nonisolated struct CatalogTests {
         let source = try fixture.source()
         let pack = try await PackService().read(from: source)
         let bundled = BundledTheme(id: pack.id, name: pack.name, url: source)
-        let catalog = try ThemeCatalog(directory: fixture.directory, builtIns: [bundled])
+        let catalog = ThemeCatalog(directory: fixture.directory, builtIns: [bundled])
         #expect(try await catalog.entries() == [bundled.entry])
         await #expect(throws: ThemeCatalogError.builtInTheme) { try await catalog.install(pack) }
         await #expect(throws: ThemeCatalogError.builtInTheme) { try await catalog.remove(bundled.entry) }
@@ -69,7 +69,7 @@ nonisolated struct CatalogTests {
     @Test func `Removing custom theme preserves other entries`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
-        let catalog = try ThemeCatalog(directory: fixture.directory)
+        let catalog = ThemeCatalog(directory: fixture.directory)
         let a = try await catalog.install(PackService().read(from: fixture.source()))
         let b = try await catalog.install(PackService().read(from: fixture.source()))
         try await catalog.remove(a)
@@ -82,7 +82,7 @@ nonisolated struct CatalogTests {
     @Test func `Listing does not read packages`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
-        let catalog = try ThemeCatalog(directory: fixture.directory)
+        let catalog = ThemeCatalog(directory: fixture.directory)
         let entry = try await catalog.install(PackService().read(from: fixture.source()))
         let package = CatalogFiles.package(for: entry, in: fixture.directory)
         try FileManager.default.removeItem(at: package)
@@ -94,7 +94,7 @@ nonisolated struct CatalogTests {
     @Test func `Corrupt metadata does not produce a partial catalog`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
-        let catalog = try ThemeCatalog(directory: fixture.directory)
+        let catalog = ThemeCatalog(directory: fixture.directory)
         _ = try await catalog.install(PackService().read(from: fixture.source()))
         _ = try await catalog.install(PackService().read(from: fixture.source()))
         let metadata = fixture.directory.appendingPathComponent(CatalogFiles.metadataName)
@@ -107,7 +107,7 @@ nonisolated struct CatalogTests {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let pack = try await PackService().read(from: fixture.source())
-        let catalog = try ThemeCatalog(directory: fixture.directory)
+        let catalog = ThemeCatalog(directory: fixture.directory)
         let successes = await withTaskGroup(of: Bool.self) { group in
             for _ in 0..<8 {
                 group.addTask {
@@ -130,12 +130,12 @@ nonisolated struct CatalogTests {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let pack = try await PackService().read(from: fixture.source())
-        let catalog = try ThemeCatalog(directory: fixture.directory)
+        let catalog = ThemeCatalog(directory: fixture.directory)
         let original = replacing ? try await catalog.install(pack) : nil
         let staged = AsyncStream<Void>.makeStream()
         let release = AsyncStream<Void>.makeStream()
         defer { release.continuation.finish() }
-        let paused = try ThemeCatalog(directory: fixture.directory, packages: InterceptedPackages {
+        let paused = ThemeCatalog(directory: fixture.directory, packages: InterceptedPackages {
             staged.continuation.finish()
             for await _ in release.stream {}
         })
@@ -156,9 +156,9 @@ nonisolated struct CatalogTests {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let pack = try await PackService().read(from: fixture.source())
-        let catalog = try ThemeCatalog(directory: fixture.directory)
+        let catalog = ThemeCatalog(directory: fixture.directory)
         let entry = try await catalog.install(pack)
-        let failing = try ThemeCatalog(directory: fixture.directory, packages: InterceptedPackages { throw InjectedError.injected })
+        let failing = ThemeCatalog(directory: fixture.directory, packages: InterceptedPackages { throw InjectedError.injected })
         await #expect(throws: InjectedError.self) { try await failing.install(pack, replacing: entry) }
         #expect(try await catalog.entries() == [entry])
         #expect(try await catalog.pack(for: entry).id == pack.id)
@@ -169,10 +169,10 @@ nonisolated struct CatalogTests {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let pack = try await PackService().read(from: fixture.source())
-        let catalog = try ThemeCatalog(directory: fixture.directory)
+        let catalog = ThemeCatalog(directory: fixture.directory)
         let entry = try await catalog.install(pack)
         let suspension = Suspension()
-        let paused = try ThemeCatalog(directory: fixture.directory, packages: InterceptedPackages { await suspension.suspend() })
+        let paused = ThemeCatalog(directory: fixture.directory, packages: InterceptedPackages { await suspension.suspend() })
         let importing = Task { @concurrent in try await paused.install(pack, replacing: entry) }
         defer { importing.cancel() }
         await suspension.waitUntilStarted()

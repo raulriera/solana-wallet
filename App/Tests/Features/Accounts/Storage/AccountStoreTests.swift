@@ -12,7 +12,7 @@ struct AccountStoreTests {
     @Test
     func `Missing account storage loads an empty list without creating files`() async throws {
         let directory = URL.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        let store: any AccountStoring = try AccountStore(directory: directory)
+        let store: any AccountStoring = AccountStore(directory: directory)
         #expect(try await store.load().isEmpty)
         #expect(!FileManager.default.fileExists(atPath: directory.path))
     }
@@ -22,7 +22,7 @@ struct AccountStoreTests {
     func `Saved account metadata survives reopening`() async throws {
         let directory = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
-        let store: any AccountStoring = try AccountStore(directory: directory)
+        let store: any AccountStoring = AccountStore(directory: directory)
         let first = try account(index: 0)
         let second = try account(index: 1, recoveryID: first.recoveryID)
         _ = try await store.add(first)
@@ -62,7 +62,7 @@ struct AccountStoreTests {
     func `Duplicate account identities are rejected without changing storage`(_ field: String) async throws {
         let directory = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
-        let store = try AccountStore(directory: directory)
+        let store = AccountStore(directory: directory)
         let first = try account(index: 0)
         let other = try account(index: 1, recoveryID: first.recoveryID)
         _ = try await store.add(first)
@@ -94,7 +94,7 @@ struct AccountStoreTests {
             : JSONSerialization.data(withJSONObject: corruption == "duplicate" ? [record, record] : [record])
         let file = directory.appendingPathComponent("accounts.json")
         try bytes.write(to: file)
-        let store = try AccountStore(directory: directory)
+        let store = AccountStore(directory: directory)
         let next = try account(index: 1)
         let matchesError: @Sendable (any Error) -> Bool = { error in
             switch corruption {
@@ -130,7 +130,7 @@ struct AccountStoreTests {
         } else {
             try FileManager.default.createDirectory(at: file, withIntermediateDirectories: false)
         }
-        let store = try AccountStore(directory: directory)
+        let store = AccountStore(directory: directory)
         await #expect(throws: AccountStoreError.invalidStorage) { try await store.load() }
         await #expect(throws: AccountStoreError.invalidStorage) { try await store.add(account(index: 0)) }
         #expect(try Data(contentsOf: target) == bytes)
@@ -146,7 +146,7 @@ struct AccountStoreTests {
         let obstruction = directory.appendingPathComponent("obstruction")
         let bytes = Data("existing file".utf8)
         try bytes.write(to: obstruction)
-        let store = try AccountStore(directory: obstruction)
+        let store = AccountStore(directory: obstruction)
         let next = try account(index: 0)
         await #expect(throws: CocoaError.self) { try await store.add(next) }
         #expect(try Data(contentsOf: obstruction) == bytes)
@@ -160,7 +160,7 @@ struct AccountStoreTests {
             try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
             try? FileManager.default.removeItem(at: directory)
         }
-        let store = try AccountStore(directory: directory)
+        let store = AccountStore(directory: directory)
         let first = try account(index: 0)
         let next = try account(index: 1, recoveryID: first.recoveryID)
         _ = try await store.add(first)
@@ -187,7 +187,7 @@ struct AccountStoreTests {
     func `Already cancelled additions preserve existing account storage`() async throws {
         let directory = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
-        let store = try AccountStore(directory: directory)
+        let store = AccountStore(directory: directory)
         _ = try await store.add(account(index: 0))
         let file = directory.appendingPathComponent("accounts.json")
         let original = try Data(contentsOf: file)
@@ -208,7 +208,7 @@ struct AccountStoreTests {
     func `Removing all accounts leaves empty storage`() async throws {
         let directory = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
-        let store = try AccountStore(directory: directory)
+        let store = AccountStore(directory: directory)
         let first = try account(index: 0)
         _ = try await store.add(first)
         _ = try await store.add(try account(index: 1, recoveryID: first.recoveryID))
@@ -225,7 +225,7 @@ struct AccountStoreTests {
     func `Both discovery path families survive reopening and subsequent additions`() async throws {
         let directory = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
-        let store = try AccountStore(directory: directory)
+        let store = AccountStore(directory: directory)
         let first = try account(index: 0)
         let otherAddress = try account(index: 1)
         let second = try Account(id: UUID(), recoveryID: first.recoveryID,
