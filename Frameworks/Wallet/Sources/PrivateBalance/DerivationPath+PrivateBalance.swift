@@ -32,4 +32,14 @@ extension DerivationPath {
     static func viewingKey(account: UInt32) -> Self {
         Self(indices: [44, privateBalanceCoinType, account, 2, 0])
     }
+
+    /// The Ed25519 path of an account's code root, `m/44'/1392955331'/i'/3'`.
+    ///
+    /// zolana uses roles 0' to 2'; role 3' is free for the wallet's one-time accounts.
+    ///
+    /// - Parameter account: The account index i, below 2³¹.
+    /// - Returns: The path of the node whose key is the code root.
+    static func codeRoot(account: UInt32) -> Self {
+        Self(indices: [44, privateBalanceCoinType, account, 3])
+    }
 }

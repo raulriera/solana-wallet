@@ -49,18 +49,23 @@ struct DerivationPathPrivateBalanceTests {
         #expect(try DerivationPath(path).hasPrivateBalanceKeys == hasKeys)
     }
 
-    /// Verifies the nullifier and viewing paths of an account index.
+    /// Verifies the nullifier, viewing, and code root paths of an account index.
     ///
     /// - Parameters:
     ///   - account: An account index.
     ///   - nullifier: The expected nullifier secret path.
     ///   - viewing: The expected viewing key path.
+    ///   - codeRoot: The expected code root path.
     @Test(arguments: [
-        (0, "m/44'/1392955331'/0'/1'/0'", "m/44'/1392955331'/0'/2'/0'"),
-        (2_147_483_647, "m/44'/1392955331'/2147483647'/1'/0'", "m/44'/1392955331'/2147483647'/2'/0'"),
+        (0, "m/44'/1392955331'/0'/1'/0'", "m/44'/1392955331'/0'/2'/0'", "m/44'/1392955331'/0'/3'"),
+        (2_147_483_647, "m/44'/1392955331'/2147483647'/1'/0'", "m/44'/1392955331'/2147483647'/2'/0'",
+         "m/44'/1392955331'/2147483647'/3'"),
     ])
-    func `Role paths select the account's nullifier and viewing nodes`(account: UInt32, nullifier: String, viewing: String) {
+    func `Role paths select the account's nullifier, viewing, and code root nodes`(
+        account: UInt32, nullifier: String, viewing: String, codeRoot: String
+    ) {
         #expect(DerivationPath.nullifierSecret(account: account).description == nullifier)
         #expect(DerivationPath.viewingKey(account: account).description == viewing)
+        #expect(DerivationPath.codeRoot(account: account).description == codeRoot)
     }
 }

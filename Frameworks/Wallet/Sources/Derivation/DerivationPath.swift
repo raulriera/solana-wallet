@@ -10,7 +10,7 @@ public struct DerivationPath: Sendable, Equatable, CustomStringConvertible {
     }
 
     /// The bit that marks a child index as hardened; the indices a path names stay below it.
-    private static let hardenedBit: UInt32 = 0x8000_0000
+    static let hardenedBit: UInt32 = 0x8000_0000
 
     /// The child indices before adding the hardened bit.
     let indices: [UInt32]

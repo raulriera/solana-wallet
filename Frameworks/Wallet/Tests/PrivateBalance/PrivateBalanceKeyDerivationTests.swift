@@ -22,6 +22,28 @@ struct PrivateBalanceKeyDerivationTests {
         #expect(Array(keys.viewingKey.publicKey.compressedRepresentation) == (try fixtureBytes(vector.viewingPubkey)))
     }
 
+    /// Verifies each account's code root, the Ed25519 node key at `m/44'/1392955331'/i'/3'`.
+    ///
+    /// zolana publishes no code roots. The expected keys were derived independently with Python's
+    /// `hashlib` and `hmac`, by a SLIP-0010 reference that first reproduces the golden accounts'
+    /// addresses, nullifier secrets, and viewing public keys.
+    ///
+    /// - Parameters:
+    ///   - account: The account index i of `m/44'/501'/i'/0'`.
+    ///   - codeRoot: The expected 32-byte code root.
+    @Test(arguments: [
+        (0, "85ab5e0262c48a29205f6beb1e222665aff6bab7a7d0505fe06745b613860a8c"),
+        (1, "589f28bfe6d251368c6dec380694e3fb871f76fbe07271729db0fc88be85344d"),
+    ])
+    func `Accounts derive their code root`(account: UInt32, codeRoot: String) async throws {
+        let keys = try await Wallet().privateBalanceKeys(
+            using: PublicRecovery.phrase(), expectedAddress: PublicRecovery.addresses[Int(account)],
+            passphrase: "", path: DerivationPath("m/44'/501'/\(account)'/0'")
+        )
+
+        #expect(keys.codeRoot.withUnsafeBytes { Array($0) } == (try fixtureBytes(codeRoot)))
+    }
+
     /// Verifies that keys are derived only for the account at the expected address.
     ///
     /// The cases are a different passphrase, another account's address, a Kelvin sign in place of
