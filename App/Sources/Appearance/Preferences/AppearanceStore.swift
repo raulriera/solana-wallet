@@ -38,6 +38,15 @@ nonisolated struct AppearanceStore: AppearanceStoring {
         }
     }
 
+    /// Clears every selection of one theme while retaining the installed catalog.
+    /// - Parameter themeID: The theme that the application and every wallet stop using.
+    /// - Returns: The committed snapshot.
+    /// - Throws: A storage or cancellation error.
+    @concurrent
+    func forget(_ themeID: UUID) async throws -> AppearanceSnapshot {
+        try await update { preferences, _ in preferences.forget(themeID) }
+    }
+
     /// Clears all selections while retaining the installed catalog.
     /// - Returns: The committed snapshot using the original built-in appearance.
     /// - Throws: A storage or cancellation error.

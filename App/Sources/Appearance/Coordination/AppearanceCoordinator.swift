@@ -51,6 +51,14 @@ import Observation
         publish(try await store.select(themeID, for: scope))
     }
 
+    /// Commits that no scope uses a theme before making it observable.
+    /// - Parameter themeID: The theme that the application and every wallet stop using.
+    /// - Throws: A storage or cancellation error.
+    func forget(_ themeID: UUID) async throws {
+        if let activation { try await activation.value }
+        publish(try await store.forget(themeID))
+    }
+
     /// Restores the original appearance everywhere after persistence succeeds.
     /// - Throws: A storage or cancellation error.
     func reset() async throws {

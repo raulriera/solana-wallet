@@ -30,6 +30,20 @@ struct AppearanceCoordinationTests {
         #expect(coordinator.snapshot?.theme(for: nil) == entry)
     }
 
+    /// Forgetting a theme publishes the cleared selection to every window.
+    @Test func `Forgetting a theme publishes its cleared selection`() async throws {
+        let fixture = try CatalogFixture()
+        defer { fixture.remove() }
+        let catalog = ThemeCatalog(directory: fixture.directory)
+        let entry = try await catalog.install(PackService().read(from: fixture.source()))
+        let coordinator = AppearanceCoordinator(store: AppearanceStore(directory: fixture.directory), recovery: nil)
+        try await coordinator.select(entry.id, for: .application)
+
+        try await coordinator.forget(entry.id)
+
+        #expect(coordinator.snapshot?.theme(for: nil) == nil)
+    }
+
     /// Failed persistence leaves all windows displaying the last committed selection.
     @Test func `Failed selection preserves cached state`() async throws {
         let fixture = try CatalogFixture()

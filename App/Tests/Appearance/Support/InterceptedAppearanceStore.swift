@@ -37,6 +37,14 @@ nonisolated struct InterceptedAppearanceStore: AppearanceStoring {
         try await base.select(themeID, for: scope)
     }
 
+    /// Forwards a cleared theme without delaying its committed result.
+    /// - Parameter themeID: The theme that no scope uses afterward.
+    /// - Returns: The real store's committed snapshot.
+    /// - Throws: The underlying store error.
+    func forget(_ themeID: UUID) async throws -> AppearanceSnapshot {
+        try await base.forget(themeID)
+    }
+
     /// Forwards recovery without changing its storage semantics.
     /// - Returns: The real store's reset snapshot.
     /// - Throws: The underlying store error.

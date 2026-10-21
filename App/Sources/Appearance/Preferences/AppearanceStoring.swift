@@ -15,6 +15,12 @@ nonisolated protocol AppearanceStoring: Sendable {
     /// - Throws: An unavailable-theme, storage, or pre-commit cancellation error.
     func select(_ themeID: UUID?, for scope: AppearancePreferences.Scope) async throws -> AppearanceSnapshot
 
+    /// Clears every selection of one theme, which stays installed.
+    /// - Parameter themeID: The theme that the application and every wallet stop using.
+    /// - Returns: The committed snapshot.
+    /// - Throws: A storage or pre-commit cancellation error.
+    func forget(_ themeID: UUID) async throws -> AppearanceSnapshot
+
     /// Restores the original built-in appearance and removes every wallet override.
     /// - Returns: The committed snapshot, preserving installed packages.
     /// - Throws: A storage or pre-commit cancellation error.

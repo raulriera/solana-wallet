@@ -31,8 +31,14 @@ private struct WindowAppearance: ViewModifier {
 
     /// Refreshes this window's colors without exposing package loading to feature scenes.
     private func loadSelectedTheme() async {
-        do { try await rendered.load(selectedTheme, catalog: services.catalog, packages: services.packages) }
-        catch { report(error, as: .themeUnreadable) }
+        let theme = selectedTheme
+        do { try await rendered.load(theme, catalog: services.catalog, packages: services.packages) }
+        catch {
+            report(error, as: .themeUnreadable)
+            // A theme that can't be loaded fails again at every launch, so no window keeps it selected.
+            // A failed write keeps the selection, and the next launch tries again.
+            if let theme, !Task.isCancelled { try? await services.appearance.forget(theme.id) }
+        }
     }
 
     /// Presents appearance failures only while this window's task is still active, without the underlying error.

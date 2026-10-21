@@ -154,6 +154,28 @@ nonisolated struct PreferencesTests {
         #expect(loaded.orderedEntryIDs == selected.orderedEntryIDs)
     }
 
+    /// Forgetting a theme clears every scope that uses it, keeps other selections, and keeps the theme installed.
+    @Test func `Forgetting a theme clears only its selections`() async throws {
+        let fixture = try CatalogFixture()
+        defer { fixture.remove() }
+        let catalog = ThemeCatalog(directory: fixture.directory)
+        let forgotten = try await catalog.install(PackService().read(from: fixture.source()))
+        let kept = try await catalog.install(PackService().read(from: fixture.source()))
+        let store = AppearanceStore(directory: fixture.directory)
+        let (wallet, other) = (UUID(), UUID())
+        _ = try await store.select(forgotten.id, for: .application)
+        _ = try await store.select(forgotten.id, for: .wallet(wallet))
+        _ = try await store.select(kept.id, for: .wallet(other))
+
+        let snapshot = try await store.forget(forgotten.id)
+
+        #expect(snapshot.theme(for: nil) == nil)
+        #expect(snapshot.theme(for: wallet) == nil)
+        #expect(snapshot.theme(for: other) == kept)
+        #expect(snapshot.entries[forgotten.id] == forgotten)
+        #expect(try await store.load() == snapshot)
+    }
+
     /// Preferences can select built-ins without reading their files; reset retains every pack.
     @Test func `Reset clears every selection and preserves installed themes`() async throws {
         let fixture = try CatalogFixture()
