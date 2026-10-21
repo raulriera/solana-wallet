@@ -17,9 +17,11 @@ struct PaymentScene: View {
                 .navigationTitle("Contacts")
                 .sidebarColumnWidth()
         } detail: {
-            PaymentAmountScreen(payment: payment, isReviewing: $isReviewing)
-                // Collapsed, the empty sidebar has no way back to the keypad, so it isn't offered.
-                .navigationBarBackButtonHidden()
+            PaymentAmountScreen(payment: payment, title: "Send") {
+                SendButton(payment: payment, isReviewing: $isReviewing)
+            }
+            // Collapsed, the empty sidebar has no way back to the keypad, so it isn't offered.
+            .navigationBarBackButtonHidden()
         }
         .navigationSplitViewStyle(.tabSection)
         .sheet(isPresented: $isReviewing) {

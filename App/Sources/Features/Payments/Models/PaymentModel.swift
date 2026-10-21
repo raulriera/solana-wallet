@@ -13,10 +13,62 @@ final class PaymentModel {
         case token
     }
 
+    /// Which of the account's balances the payment spends, which the line under the amount names.
+    nonisolated enum Source: Hashable, Sendable {
+        /// The account's tokens, without naming a balance.
+        case account
+        /// The account's public balance, apart from its private balance.
+        case publicBalance
+
+        /// The line under the amount when the person has nothing to choose: the balance that the payment spends.
+        /// - Parameters:
+        ///   - quantity: The balance.
+        ///   - token: The token that the balance counts.
+        /// - Returns: The balance with its name, such as "Public balance: 1.2 SOL".
+        func balance(_ quantity: Decimal, of token: PaymentToken) -> LocalizedStringResource {
+            switch self {
+            case .account:
+                LocalizedStringResource("Balance: \(quantity, format: .quantity(of: token))",
+                                        comment: "Line under a payment's amount. The variable is the balance with its symbol, such as 1.2 SOL.")
+            case .publicBalance:
+                LocalizedStringResource("Public balance: \(quantity, format: .quantity(of: token))",
+                                        comment: "Line under the amount added to a private balance. The variable is the public balance with its symbol, such as 1.2 SOL.")
+            }
+        }
+
+        /// The warning that replaces the line under the amount when the amount is more than the balance.
+        var warning: LocalizedStringResource {
+            switch self {
+            case .account:
+                LocalizedStringResource("More than your balance",
+                                        comment: "Warning under a payment's amount when it's more than the balance.")
+            case .publicBalance:
+                LocalizedStringResource("More than your public balance",
+                                        comment: "Warning under the amount added to a private balance when it's more than the public balance.")
+            }
+        }
+
+        /// Tells VoiceOver the amount after a key press, and that it's more than the balance.
+        /// - Parameter amount: The formatted amount.
+        /// - Returns: The amount with the warning.
+        func overBalance(_ amount: String) -> LocalizedStringResource {
+            switch self {
+            case .account:
+                LocalizedStringResource("\(amount), more than your balance",
+                                        comment: "VoiceOver announcement after a key press when the amount is more than the balance. The variable is the formatted amount.")
+            case .publicBalance:
+                LocalizedStringResource("\(amount), more than your public balance",
+                                        comment: "VoiceOver announcement after a key press when the amount added to a private balance is more than the public balance. The variable is the formatted amount.")
+            }
+        }
+    }
+
     /// The tokens the account can pay with.
     let tokens: [PaymentToken]
     /// The ISO code of the person's currency.
     let currencyCode: String
+    /// Which of the account's balances the payment spends.
+    let source: Source
     /// The token the payment moves.
     private(set) var token: PaymentToken
     /// What the keypad types in; tokens without a price are always typed as tokens.
@@ -35,11 +87,13 @@ final class PaymentModel {
     /// - Parameters:
     ///   - tokens: The tokens the account can pay with; the first one is selected.
     ///   - currencyCode: The ISO code of the person's currency.
-    init(tokens: [PaymentToken], currencyCode: String) {
+    ///   - source: Which of the account's balances the payment spends.
+    init(tokens: [PaymentToken], currencyCode: String, source: Source = .account) {
         let token = tokens[0]
         let unit = token.price == nil ? Unit.token : .currency
         self.tokens = tokens
         self.currencyCode = currencyCode
+        self.source = source
         self.token = token
         self.unit = unit
         entry = AmountEntry(maximumFractionDigits: Self.fractionDigits(of: unit, token: token, currencyCode: currencyCode))
@@ -74,6 +128,9 @@ final class PaymentModel {
 
     /// Whether the amount can be sent: more than zero and no more than the balance.
     var canSend: Bool { quantity > 0 && !exceedsBalance }
+
+    /// Whether the person can pay with another token or type the amount in another unit.
+    var offersChoices: Bool { tokens.count > 1 || token.price != nil }
 
     /// The token to pay with, as a picker edits it.
     ///

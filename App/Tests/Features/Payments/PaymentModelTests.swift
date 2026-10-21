@@ -169,4 +169,18 @@ struct PaymentModelTests {
         #expect(payment.rejectionCount == 1)
         #expect(payment.rejection == .conversion)
     }
+
+    /// The person chooses a token among several, or a unit for a token with a price; one token without a price
+    /// leaves nothing to choose.
+    /// - Parameters:
+    ///   - tokens: The tokens the account can pay with.
+    ///   - offersChoices: Whether the payment offers a choice.
+    @Test(arguments: [
+        ([Self.sol, Self.unpriced], true),
+        ([Self.sol], true),
+        ([Self.unpriced], false),
+    ])
+    func `Only a payment with another token or unit offers choices`(tokens: [PaymentToken], offersChoices: Bool) {
+        #expect(PaymentModel(tokens: tokens, currencyCode: "USD").offersChoices == offersChoices)
+    }
 }

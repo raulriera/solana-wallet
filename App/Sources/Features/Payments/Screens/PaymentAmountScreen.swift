@@ -1,35 +1,48 @@
 import SwiftUI
 
-/// Types a payment's amount on an always-visible keypad, then opens its review.
+/// Types a payment's amount on an always-visible keypad, then commits it with the caller's button, such as Send.
 ///
 /// The amount sits beside the keypad in space wider than tall, such as iPhone in landscape, and over it otherwise.
-/// Send stays under the keys, or under the amount beside them, at the keys' width. A fold across the screen splits
-/// them, so the keys stay on the flat half of iPhone Duo in a table pose.
-struct PaymentAmountScreen: View {
+/// The button stays under the keys, or under the amount beside them, at the keys' width. A fold across the screen
+/// splits them, so the keys stay on the flat half of iPhone Duo in a table pose.
+struct PaymentAmountScreen<Action: View>: View {
     @Environment(\.palette) private var palette
     @Environment(\.locale) private var locale
     let payment: PaymentModel
-    /// Whether the payment's review is open.
-    @Binding var isReviewing: Bool
+    /// The screen's title, such as Send.
+    let title: LocalizedStringResource
+    /// The button that commits the amount, under the keys.
+    let action: Action
+
+    /// Creates the keypad screen for a payment.
+    /// - Parameters:
+    ///   - payment: The payment whose amount the keys type.
+    ///   - title: The screen's title, such as Send.
+    ///   - action: The button that commits the amount, which reads whether the amount can be committed itself.
+    init(payment: PaymentModel, title: LocalizedStringResource, @ViewBuilder action: () -> Action) {
+        self.payment = payment
+        self.title = title
+        self.action = action()
+    }
 
     var body: some View {
         ArrangementView {
             AmountColumn(payment: payment)
         } secondary: {
             Keypad(payment: payment)
-                // The keys keep the system's spacing from the amount above them and from Send below them.
+                // The keys keep the system's spacing from the amount above them and from the button below them.
                 .padding(.vertical)
-            SendButton(payment: payment, isReviewing: $isReviewing)
+            action
         }
         .arrangementViewStyle(.adaptive)
         .contentMargins(for: .container)
-        // Send keeps the system's spacing from the tab bar below it.
+        // The button keeps the system's spacing from the tab bar below it.
         .scenePadding(.bottom)
         .background(palette.background)
         // Like a system keypad, the screen stops growing at the largest standard text size, so the keys keep their
         // layout; the keys show the large content viewer instead.
         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-        .navigationTitle("Send")
+        .navigationTitle(Text(title))
         .navigationBarTitleDisplayMode(.inline)
         // A hardware keyboard types on the keypad while the amount or any key has focus; held keys repeat.
         .onKeyPress(phases: [.down, .repeat], action: type)
@@ -54,17 +67,32 @@ struct PaymentAmountScreen: View {
 
 #if DEBUG
 #Preview("Glass keys") {
+    let payment = PaymentModel(tokens: PaymentToken.samples, currencyCode: "USD")
     NavigationStack {
-        PaymentAmountScreen(payment: PaymentModel(tokens: PaymentToken.samples, currencyCode: "USD"),
-                            isReviewing: .constant(false))
+        PaymentAmountScreen(payment: payment, title: "Send") {
+            SendButton(payment: payment, isReviewing: .constant(false))
+        }
     }
 }
 
 #Preview("Plain keys") {
+    let payment = PaymentModel(tokens: PaymentToken.samples, currencyCode: "USD")
     NavigationStack {
-        PaymentAmountScreen(payment: PaymentModel(tokens: PaymentToken.samples, currencyCode: "USD"),
-                            isReviewing: .constant(false))
-            .keypadStyle(KeypadStyle(keyBackground: .none, amountLook: .plain))
+        PaymentAmountScreen(payment: payment, title: "Send") {
+            SendButton(payment: payment, isReviewing: .constant(false))
+        }
+        .keypadStyle(KeypadStyle(keyBackground: .none, amountLook: .plain))
+    }
+}
+
+#Preview("One balance") {
+    let payment = PaymentModel(tokens: [PaymentToken(symbol: "SOL", balance: Decimal(string: "1.2")!, price: nil,
+                                                     decimals: 9)],
+                               currencyCode: "USD", source: .publicBalance)
+    NavigationStack {
+        PaymentAmountScreen(payment: payment, title: "Add to Private Balance") {
+            SendButton(payment: payment, isReviewing: .constant(false))
+        }
     }
 }
 #endif
