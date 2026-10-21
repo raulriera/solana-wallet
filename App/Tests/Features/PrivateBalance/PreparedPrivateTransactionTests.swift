@@ -9,7 +9,8 @@ struct PreparedPrivateTransactionTests {
     func `Prepared transaction diagnostics omit the values`() async throws {
         let account = try await PrivateBalanceFixtures.account()
         let transaction = PreparedPrivateTransaction(instructions: [], account: account, network: .devnet,
-                                                     effect: .deposit(5_000), registers: true)
+                                                     effect: .deposit(5_000), registers: true,
+                                                     authorities: [.account(account)])
         var dumped = ""
         dump(transaction, to: &dumped)
 

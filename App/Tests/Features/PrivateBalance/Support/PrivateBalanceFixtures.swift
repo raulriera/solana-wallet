@@ -10,8 +10,8 @@ import Vault
 import Wallet
 @testable import widgets
 
-/// Public-fixture accounts with their private-balance keys, and the registry records and deposits that a local
-/// provider returns for them.
+/// Public-fixture accounts with their private-balance keys, the registry records and deposits that a local provider
+/// returns for them, and their transactions' outcomes and proof requests.
 ///
 /// Records and deposits are built from the account's keys as the user-registry and shielded-pool programs write them.
 enum PrivateBalanceFixtures {
@@ -68,22 +68,47 @@ enum PrivateBalanceFixtures {
                             viewingKey: P256.KeyAgreement.PrivateKey())
     }
 
+    /// Creates a devnet transaction's settled outcome.
+    /// - Parameters:
+    ///   - outcome: Whether it succeeded, failed, or was dropped.
+    ///   - signature: The transaction's signature.
+    /// - Returns: The confirmation.
+    static func confirmation(_ outcome: widgets.Confirmation.Outcome,
+                             signature: String = "private") -> widgets.Confirmation {
+        widgets.Confirmation(submission: Submission(signature: signature, network: .devnet, lastValidBlockHeight: 1), slot: 5,
+                             outcome: outcome)
+    }
+
+    /// Counts the proof requests sent so far.
+    /// - Parameter responses: The local responses that recorded the requests.
+    /// - Returns: The number of requests on the prover's route.
+    static func proofRequests(of responses: HTTPResponses) async -> Int {
+        await responses.requests.count { $0.url?.path().hasSuffix("/prove") == true }
+    }
+
     /// A registry read that finds the record publishing an account's keys.
-    ///
-    /// The record holds the discriminator 1, the owner, the canonical bump, no P-256 owner, the nullifier public key,
-    /// the compressed viewing public key, and no merging, padded with zeros to 134 bytes.
     /// - Parameter account: The keys that the record publishes.
     /// - Returns: The `getMultipleAccounts` result.
     /// - Throws: A derivation error, which doesn't happen.
     static func registry(publishing account: ShieldedAccount) throws -> String {
+        #"{"context":{"slot":7},"value":[\#(try registryRecord(publishing: account))]}"#
+    }
+
+    /// The account of the registry record that publishes an account's keys.
+    ///
+    /// The record holds the discriminator 1, the owner, the canonical bump, no P-256 owner, the nullifier public key,
+    /// the compressed viewing public key, and no merging, padded with zeros to 134 bytes, with 1,823,520 lamports.
+    /// - Parameter account: The keys that the record publishes.
+    /// - Returns: The account's JSON object.
+    /// - Throws: A derivation error, which doesn't happen.
+    static func registryRecord(publishing account: ShieldedAccount) throws -> String {
         let owner = account.signingAddress.bytes
         var data = [1] + owner + [try UserRegistry.record(of: account.signingAddress).bump, 0]
         data += account.nullifierKey.publicKey.bigEndianBytes
         data += Array(account.viewingKey.publicKey.compressedRepresentation) + [0]
         data += [UInt8](repeating: 0, count: 134 - data.count)
-        let record = #"{"owner":"\#(try UserRegistry.program.value)","lamports":1823520,"executable":false,"#
+        return #"{"owner":"\#(try UserRegistry.program.value)","lamports":1823520,"executable":false,"#
             + #""data":["\#(Data(data).base64EncodedString())","base64"]}"#
-        return #"{"context":{"slot":7},"value":[\#(record)]}"#
     }
 
     /// A proofless deposit of SOL to an account, as an encrypted-output row of a tag read.

@@ -48,6 +48,8 @@ struct AppServices {
                                               coding: .json(PrivateBalances.Keys.self))
         let privateBalanceNotes = KeychainItem(service: privateBalanceService, account: "notes",
                                                coding: .json(PrivateBalances.Notes.self))
+        let privateBalanceCodes = KeychainItem(service: privateBalanceService, account: "codes",
+                                               coding: .json(PrivateBalances.Codes.self))
         let providerKey = KeychainItem(service: providerService, account: "api-key", coding: .utf8)
         let providerSettings = KeychainItem(service: providerService, account: "settings", coding: .json(ProviderSettings.self))
         self.providerKey = providerKey
@@ -59,7 +61,7 @@ struct AppServices {
         self.portfolios = portfolios
         // Private balances keep their own client per network, apart from the portfolios' token reads.
         let privateBalances = PrivateBalances(recovery: recovery, wallet: wallet, keys: privateBalanceKeys,
-                                              notes: privateBalanceNotes) { network in
+                                              notes: privateBalanceNotes, codes: privateBalanceCodes) { network in
             ProviderClient(network: network, settings: providerSettings, providerKey: providerKey)
         }
         self.privateBalances = privateBalances

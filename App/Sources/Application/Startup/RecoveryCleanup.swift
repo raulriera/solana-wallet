@@ -1,7 +1,7 @@
 import Vault
 
-/// Deletes every recovery item and every private-balance key and note when no wallet is saved, so a reinstall or an
-/// abandoned import leaves no secret behind.
+/// Deletes every recovery item and every private-balance key, note, and redeem code when no wallet is saved, so a
+/// reinstall or an abandoned import leaves no secret behind.
 ///
 /// Keychain items outlive the app's files. After a reinstall, or after an import that saved recovery but never
 /// saved its account, a phrase can remain on the device with nothing referencing it. Saved wallets are never touched.
@@ -15,7 +15,7 @@ actor RecoveryCleanup: RecoveryCleaning {
     /// - Parameters:
     ///   - accounts: The public wallet metadata that decides whether any recovery is still referenced.
     ///   - recovery: The protected storage whose unreferenced items are deleted.
-    ///   - privateBalances: Each account's private-balance keys and notes, deleted with the recovery.
+    ///   - privateBalances: Each account's private-balance keys, notes, and redeem codes, deleted with the recovery.
     init(accounts: any AccountStoring, recovery: any RecoveryStoring, privateBalances: any PrivateBalancing) {
         self.accounts = accounts
         self.recovery = recovery

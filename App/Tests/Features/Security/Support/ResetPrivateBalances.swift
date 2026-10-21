@@ -49,6 +49,16 @@ struct ResetPrivateBalances: PrivateBalancing {
         return .off
     }
 
+    /// Reports any listing of redeem codes, because a reset only deletes.
+    /// - Parameters:
+    ///   - account: The account the caller named.
+    ///   - network: The network the caller named.
+    /// - Returns: No codes.
+    func outstandingCodes(of account: widgets.Account, on network: Network) async throws -> [OutstandingRedeemCode] {
+        Issue.record("A reset must not list redeem codes.")
+        return []
+    }
+
     /// Records the deletion, unless this step fails.
     /// - Throws: A scripted failure.
     func removeAll() async throws { try await storage.delete(.privateBalances) }

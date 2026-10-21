@@ -8,6 +8,7 @@ extension HTTPResponses {
     /// - Parameters:
     ///   - registry: The `getMultipleAccounts` results in arrival order, or none, so that a registry read fails the test.
     ///   - deposits: The encrypted-output rows of every tag read, such as proofless deposits.
+    ///   - spends: The transaction rows of every spend read; none by default.
     ///   - error: An optional transport or HTTP failure.
     ///   - failingMethod: The method to fail, or `nil` to fail every request.
     ///   - gate: An optional suspension for overlap and cancellation checks.
@@ -15,14 +16,15 @@ extension HTTPResponses {
     ///   - outputTreeID: The output tree that every tag read reports, or `nil` for none.
     ///   - prove: Answers a proof's indexer reads and its request on the prover's route, or `nil` so that they fail the
     ///     test.
-    /// - Returns: A request-recording transport whose spend reads find no spends.
-    static func privateNotes(registry: [String] = [], deposits: [String] = [], error: RPCError? = nil,
+    /// - Returns: A request-recording transport whose spend reads find `spends`.
+    static func privateNotes(registry: [String] = [], deposits: [String] = [], spends: [String] = [],
+                             error: RPCError? = nil,
                              failingMethod: String? = nil, gate: Suspension? = nil, heldMethod: String? = nil,
                              outputTreeID: UInt16? = nil, prove: Responder? = nil) -> HTTPResponses {
         var responses = [
             GetShieldedTransactionsByTags.method: [indexerPage([], in: "transactions", outputTreeID: outputTreeID)],
             GetEncryptedUtxosByTags.method: [indexerPage(deposits, in: "matches", outputTreeID: outputTreeID)],
-            GetShieldedTransactionsByNullifiers.method: [indexerPage([], in: "transactions")],
+            GetShieldedTransactionsByNullifiers.method: [indexerPage(spends, in: "transactions")],
         ]
         if !registry.isEmpty { responses[GetMultipleAccounts.method] = registry }
         return HTTPResponses(responses, error: error, failingMethod: failingMethod, gate: gate, heldMethod: heldMethod,

@@ -627,7 +627,7 @@ struct PrivateBalancesTests {
             try await Self.balances(responses, keys: sender.keys, notes: sender.notes)
                 .prepare(.withdraw(400_000, to: sender.account.address), from: sender.account, on: .devnet)
         }
-        #expect(await Self.proofRequests(of: responses) == 0)
+        #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 0)
     }
 
     /// A custom RPC serves only mainnet, so the recipient lookup of a devnet send can't run and private balances are
@@ -681,7 +681,7 @@ struct PrivateBalancesTests {
             try await Self.balances(responses, keys: sender.keys, notes: sender.notes)
                 .prepare(.send(400_000, to: recipient.address), from: sender.account, on: .devnet)
         }
-        #expect(await Self.proofRequests(of: responses) == 0)
+        #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 0)
     }
 
     /// A send to a registered recipient proves a transfer of the sender's note and returns the change.
@@ -705,8 +705,8 @@ struct PrivateBalancesTests {
         #expect(prepared.instructions == [spend.instruction])
         #expect(spend.lamports == 400_000)
         #expect(spend.receivedLamports == 600_000)
-        #expect(await Self.proofRequests(of: responses) == 1)
-        #expect(try await balances.complete(prepared, with: Self.confirmation(.succeeded)) == .lamports(600_000))
+        #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 1)
+        #expect(try await balances.complete(prepared, with: PrivateBalanceFixtures.confirmation(.succeeded)) == .lamports(600_000))
         #expect(await sender.notes.value?[sender.id]?.notes.isEmpty == true)
     }
 
@@ -745,7 +745,7 @@ struct PrivateBalancesTests {
             try await Self.balances(responses, keys: sender.keys, notes: notes)
                 .prepare(.withdraw(2_000_000, to: sender.account.address), from: sender.account, on: .devnet)
         }
-        #expect(await Self.proofRequests(of: responses) == 0)
+        #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 0)
     }
 
     /// A succeeded deposit stays pending in the saved notes, and counts in the returned balance.
@@ -756,7 +756,7 @@ struct PrivateBalancesTests {
         let notes = StoredValue<PrivateBalances.Notes>([id: NoteSyncState()])
         let balances = try Self.balances(HTTPResponses.privateNotes(), notes: notes)
 
-        let status = try await balances.complete(Self.deposit(5_000, from: account), with: Self.confirmation(.succeeded))
+        let status = try await balances.complete(Self.deposit(5_000, from: account), with: PrivateBalanceFixtures.confirmation(.succeeded))
 
         #expect(status == .lamports(5_000))
         #expect(await notes.value?[id]?.pendingLamports == 5_000)
@@ -772,7 +772,7 @@ struct PrivateBalancesTests {
         let balances = try Self.balances(responses, keys: StoredValue([account.address.value: record]), notes: notes)
         let prepared = try await balances.prepare(.deposit(5_000), from: account, on: .devnet)
 
-        let status = try await balances.complete(prepared, with: Self.confirmation(.succeeded))
+        let status = try await balances.complete(prepared, with: PrivateBalanceFixtures.confirmation(.succeeded))
 
         #expect(status == .lamports(5_000))
         #expect(await notes.value?[PrivateBalances.noteID(of: account, on: .devnet)]?.pendingLamports == 5_000)
@@ -788,7 +788,7 @@ struct PrivateBalancesTests {
         let keys = StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
         let balances = try Self.balances(HTTPResponses.privateNotes(), keys: keys, notes: notes)
 
-        let status = try await balances.complete(Self.deposit(5_000, from: account), with: Self.confirmation(outcome))
+        let status = try await balances.complete(Self.deposit(5_000, from: account), with: PrivateBalanceFixtures.confirmation(outcome))
 
         #expect(status == .lamports(0))
         #expect(await notes.value == [id: NoteSyncState()])
@@ -909,7 +909,7 @@ struct PrivateBalancesTests {
             try await Self.balances(responses, keys: sender.keys, notes: sender.notes)
                 .prepare(.withdraw(41, to: sender.account.address), from: sender.account, on: .devnet)
         }
-        #expect(await Self.proofRequests(of: responses) == 0)
+        #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 0)
     }
 
     /// An account that registered other keys can't prepare a transaction, and nothing is saved.
@@ -1005,25 +1005,7 @@ struct PrivateBalancesTests {
     /// - Returns: The prepared deposit.
     private static func deposit(_ lamports: UInt64, from account: widgets.Account) -> PreparedPrivateTransaction {
         PreparedPrivateTransaction(instructions: [], account: account, network: .devnet, effect: .deposit(lamports),
-                                   registers: false)
-    }
-
-    /// Creates a devnet transaction's settled outcome.
-    /// - Parameters:
-    ///   - outcome: Whether it succeeded, failed, or was dropped.
-    ///   - signature: The transaction's signature.
-    /// - Returns: The confirmation.
-    private static func confirmation(_ outcome: widgets.Confirmation.Outcome,
-                                     signature: String = "private") -> widgets.Confirmation {
-        widgets.Confirmation(submission: Submission(signature: signature, network: .devnet, lastValidBlockHeight: 1), slot: 5,
-                             outcome: outcome)
-    }
-
-    /// Counts the proof requests sent so far.
-    /// - Parameter responses: The local responses that recorded the requests.
-    /// - Returns: The number of requests on the prover's route.
-    private static func proofRequests(of responses: HTTPResponses) async -> Int {
-        await responses.requests.count { $0.url?.path().hasSuffix("/prove") == true }
+                                   registers: false, authorities: [.account(account)])
     }
 
     /// Lists the cursor of each tag read sent so far.
@@ -1054,7 +1036,7 @@ struct PrivateBalancesTests {
     private static func startCompletion(of transaction: PreparedPrivateTransaction, signature: String = "private",
                                         outcome: widgets.Confirmation.Outcome = .succeeded,
                                         in balances: isolated PrivateBalances) -> Task<PrivateBalanceStatus, any Error> {
-        Task.immediate { try await balances.complete(transaction, with: confirmation(outcome, signature: signature)) }
+        Task.immediate { try await balances.complete(transaction, with: PrivateBalanceFixtures.confirmation(outcome, signature: signature)) }
     }
 
     /// Starts a refresh that reaches the shared sync before this call returns.

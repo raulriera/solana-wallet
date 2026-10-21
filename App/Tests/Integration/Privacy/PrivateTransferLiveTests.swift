@@ -56,7 +56,7 @@ struct PrivateTransferLiveTests {
         let providerKey = StoredValue(apiKey)
         let balances = PrivateBalances(
             recovery: SecurityRecoveryStore(records: [sender.recoveryID: wallets.recovery]), wallet: Wallet(),
-            keys: StoredValue(), notes: notes
+            keys: StoredValue(), notes: notes, codes: StoredValue()
         ) { network in
             ProviderClient(network: network, settings: settings, providerKey: providerKey)
         }

@@ -7,8 +7,10 @@ actor StoredValue<Value: Equatable & Sendable> {
     private(set) var value: Value?
     /// How many times the value was deleted.
     private(set) var deletions = 0
+    /// How many times the value was read, including the reads of updates.
+    private(set) var loads = 0
     private var failsLoading: Bool
-    private let failsSaving: Bool
+    private var failsSaving: Bool
     private var failsDeleting: Bool
     private var isUnreadable: Bool
     private let gate: Suspension?
@@ -40,6 +42,7 @@ actor StoredValue<Value: Equatable & Sendable> {
     /// - Throws: A read error when `failsLoading` is set, or ``KeychainItemError/unreadable`` for unreadable bytes,
     ///   even if they're replaced while the first unreadable read is suspended.
     func load() async throws -> Value? {
+        loads += 1
         if failsLoading { throw CocoaError(.fileReadUnknown) }
         if isUnreadable {
             if let readGate {
@@ -54,6 +57,11 @@ actor StoredValue<Value: Equatable & Sendable> {
     /// Makes later reads throw, as storage that becomes unreadable does.
     func failLoading() {
         failsLoading = true
+    }
+
+    /// Makes later saves throw, as storage that stops accepting writes does.
+    func failSaving() {
+        failsSaving = true
     }
 
     /// Makes the kept bytes unreadable, as a damaged Keychain item's are, until a save or deletion replaces them.

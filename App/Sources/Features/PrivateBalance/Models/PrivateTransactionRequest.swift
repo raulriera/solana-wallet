@@ -8,4 +8,12 @@ nonisolated enum PrivateTransactionRequest: Equatable, Sendable {
     case send(UInt64, to: Address)
     /// Moves SOL from the account's private balance to a public address, in lamports.
     case withdraw(UInt64, to: Address)
+    /// Moves SOL from the account's private balance into a new redeem code, in lamports, plus the public SOL that
+    /// redeeming the code costs.
+    case createCode(UInt64)
+    /// Sweeps a redeem code's SOL into the account's private balance.
+    case redeem(RedeemCode)
+    /// Sweeps the SOL of one of the account's own redeem codes, at an index of its code root, back into its private
+    /// balance.
+    case takeBack(index: UInt32)
 }
