@@ -6,6 +6,8 @@ import Transactions
 struct RecipientList: View {
     /// The selected address; every row that lists it is highlighted.
     @Binding var selection: Address?
+    /// The window's recipient sheet, which saves a recent address as a contact.
+    @Binding var entry: RecipientEntryModel?
     /// The contact waiting for the person to confirm its deletion.
     @Binding var removal: Contact?
     let contacts: ContactsModel
@@ -61,6 +63,10 @@ struct RecipientList: View {
                     ForEach(contacts.recents) { payment in
                         RecipientRow(name: nil, address: payment.address, date: payment.date, systemImage: "clock")
                             .tag(payment.address)
+                            .swipeActions(edge: .leading) {
+                                AddContactButton(address: payment.address, contacts: contacts, entry: $entry)
+                                    .swipeActionTint(.blue)
+                            }
                     }
                 }
             }

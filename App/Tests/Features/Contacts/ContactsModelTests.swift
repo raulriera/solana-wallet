@@ -3,7 +3,8 @@ import Testing
 import Transactions
 @testable import widgets
 
-/// Checks how the contacts list sorts and groups addresses, and how it favorites and deletes.
+/// Checks how the contacts list sorts and groups addresses, which addresses rules check against, and how it saves,
+/// favorites, and deletes.
 @MainActor
 struct ContactsModelTests {
     /// The account payments leave from is never offered as a recipient.
@@ -29,6 +30,37 @@ struct ContactsModelTests {
     /// Payments are kept newest first.
     @Test func `Payments are newest first`() {
         #expect(ContactsFixtures.model().payments.map(\.address) == [ContactsFixtures.alice, ContactsFixtures.recent])
+    }
+
+    /// Rules check a recipient against every address the person used: accounts, contacts, and paid addresses.
+    @Test func `The recipient context lists every address the person used`() {
+        let known = Set(ContactsFixtures.model().recipientContext.knownAddresses)
+        #expect(known == [ContactsFixtures.sending, ContactsFixtures.savings, ContactsFixtures.alice,
+                          ContactsFixtures.bruno, ContactsFixtures.recent])
+    }
+
+    /// A saved address is found under its name; an unsaved one isn't.
+    @Test func `Saved addresses are found`() {
+        let contacts = ContactsFixtures.model()
+        #expect(contacts.saved(at: ContactsFixtures.alice)?.name == "Alice")
+        #expect(contacts.saved(at: ContactsFixtures.savings)?.name == "Savings")
+        #expect(contacts.saved(at: ContactsFixtures.recent) == nil)
+    }
+
+    /// A new contact joins the list in name order.
+    @Test func `Saving a new contact keeps the list sorted`() {
+        let contacts = ContactsFixtures.model()
+        contacts.save(Contact(name: "Aaron", address: ContactsFixtures.stranger))
+        #expect(contacts.contacts.map(\.name) == ["Aaron", "Alice", "bruno"])
+    }
+
+    /// Saving a contact with an existing identity replaces it instead of adding another.
+    @Test func `Saving an edited contact replaces it`() throws {
+        let contacts = ContactsFixtures.model()
+        var bruno = try #require(contacts.saved(at: ContactsFixtures.bruno))
+        bruno.name = "Zed"
+        contacts.save(bruno)
+        #expect(contacts.contacts.map(\.name) == ["Alice", "Zed"])
     }
 
     /// Deleting a contact who was paid lists their address under Recents again.

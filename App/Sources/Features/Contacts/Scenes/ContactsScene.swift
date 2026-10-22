@@ -2,8 +2,8 @@
 import SwiftUI
 import Transactions
 
-/// Owns the contacts tab: the addresses the window's account can pay in the sidebar, and the keypad as the detail
-/// of the selected one.
+/// Owns the contacts tab: the addresses the window's account can pay in the sidebar, the keypad as the detail of the
+/// selected one, and the sheet that enters a new recipient.
 ///
 /// Contacts and recent payments start empty until they're stored; the keypad still uses sample tokens.
 struct ContactsScene: View {
@@ -17,6 +17,8 @@ struct ContactsScene: View {
     @State private var isReviewing = false
     /// Matches the Send button with the review, which grows out of it.
     @Namespace private var review
+    /// The sheet that enters a new payment's recipient or saves a recent address as a contact.
+    @State private var entry: RecipientEntryModel?
     /// The contact waiting for the person to confirm its deletion.
     @State private var removal: Contact?
 
@@ -32,13 +34,23 @@ struct ContactsScene: View {
             Group {
                 if contacts.isEmpty {
                     UnavailableScreen(title: "No Contacts",
-                                      message: "People you save and pay appear here.",
-                                      systemImage: "person.crop.circle") {}
+                                      message: "Paste an address to make your first payment. Name it to save it as a contact.",
+                                      systemImage: "person.crop.circle") {
+                        Button("New Payment", action: startPayment)
+                            .buttonStyle(.primary)
+                    }
                 } else {
-                    RecipientList(selection: $selection, removal: $removal, contacts: contacts)
+                    RecipientList(selection: $selection, entry: $entry, removal: $removal, contacts: contacts)
                 }
             }
             .navigationTitle("Contacts")
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    // Toolbar buttons keep the system's monochrome look; the theme's tint is for content.
+                    Button("New Payment", systemImage: "plus", action: startPayment)
+                        .tint(.primary)
+                }
+            }
             .sidebarColumnWidth()
         } detail: {
             if selection != nil {
@@ -47,8 +59,12 @@ struct ContactsScene: View {
                         .matchedTransitionSource(id: ObjectIdentifier(payment), in: review)
                 }
             } else {
-                UnavailableScreen(title: "No Recipient Selected", message: "Choose who to pay.",
-                                  systemImage: "person.crop.circle") {}
+                UnavailableScreen(title: "No Recipient Selected",
+                                  message: "Choose who to pay, or paste an address for a new payment.",
+                                  systemImage: "person.crop.circle") {
+                    Button("New Payment", action: startPayment)
+                        .buttonStyle(.primary)
+                }
                 // Inline like the keypad, so a cleared selection leaves no empty large title.
                 .navigationBarTitleDisplayMode(.inline)
             }
@@ -59,6 +75,13 @@ struct ContactsScene: View {
                 // The review grows out of the Send button, and shrinks back into it when canceled.
                 .navigationTransition(.zoom(sourceID: ObjectIdentifier(payment), in: review))
         }
+        .sheet(item: $entry) { RecipientEntrySheet(entry: $0) }
+        // A new payment's recipient opens the keypad; a saved contact keeps whatever is selected.
+        .onChange(of: entry?.confirmation) { _, confirmation in
+            guard let confirmation, confirmation.purpose == .payment else { return }
+            selection = confirmation.address
+            preferredColumn = .detail
+        }
         .confirmationDialog("Delete Contact?", item: $removal) { contact in
             Button("Delete Contact", role: .destructive) {
                 withAnimation { contacts.delete(contact) }
@@ -67,6 +90,11 @@ struct ContactsScene: View {
             Text("\(contact.name) will be removed from your contacts.",
                  comment: "Message when deleting a contact. The variable is the contact's name.")
         }
+    }
+
+    /// Opens the sheet that enters a new payment's recipient.
+    private func startPayment() {
+        entry = RecipientEntryModel(contacts: contacts)
     }
 }
 #endif

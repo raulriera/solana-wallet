@@ -44,8 +44,23 @@ final class ContactsModel {
     /// The account or contact saved at an address.
     /// - Parameter address: The address to look up.
     /// - Returns: The saved account or contact, or `nil` when the address isn't saved.
-    private func saved(at address: Address) -> Contact? {
+    func saved(at address: Address) -> Contact? {
         accounts.first { $0.address == address } ?? contacts.first { $0.address == address }
+    }
+
+    /// The person's own history, which rules check a recipient against.
+    var recipientContext: RecipientContext {
+        RecipientContext(knownAddresses: [sendingAccount] + accounts.map(\.address) + contacts.map(\.address)
+                            + payments.map(\.address))
+    }
+
+    /// Saves a new contact, or replaces the saved contact with the same identity.
+    /// - Parameter contact: The contact to save.
+    func save(_ contact: Contact) {
+        // One assignment, so the lists update once.
+        var updated = contacts.filter { $0.id != contact.id }
+        updated.append(contact)
+        contacts = updated.sorted(by: Self.byName)
     }
 
     /// Deletes a saved contact; payments to its address move back to Recents.
