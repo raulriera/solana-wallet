@@ -5,7 +5,6 @@ import SwiftUI
 ///
 /// The balance takes the value's place when the value is unknown; a token without a known balance shows neither.
 struct TokenRow: View {
-    @Environment(\.dynamicTypeSize) private var typeSize
     let symbol: String
     let name: String
     let amount: Amount?
@@ -18,51 +17,21 @@ struct TokenRow: View {
     var hasPrivateBalance = false
 
     var body: some View {
-        let isStacked = typeSize.isAccessibilitySize
-        let layout = isStacked ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
-            : AnyLayout(HStackLayout(spacing: 12))
-
-        layout {
+        // The figures sit beside the name when both fit in full, and under it otherwise, as at large text sizes.
+        ViewThatFits(in: .horizontal) {
             HStack(spacing: 12) {
-                TokenIcon(symbol: symbol, imageURL: imageURL)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(symbol)
-                        .font(.headline)
-                        .truncationMode(.middle)
-                    Text(name)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                .lineLimit(isStacked ? nil : 1)
-                .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
+                TokenRowIdentity(symbol: symbol, name: name, imageURL: imageURL)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                TokenRowFigures(amount: amount, value: value, change: change, hasPrivateBalance: hasPrivateBalance,
+                                alignment: .trailing)
+                    .layoutPriority(1)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            // Large values and balances shorten, as in 10.2K, so the symbol and name keep their room.
-            VStack(alignment: isStacked ? .leading : .trailing, spacing: 2) {
-                HStack(spacing: 6) {
-                    if hasPrivateBalance {
-                        PrivateBalanceSign()
-                            .foregroundStyle(.secondary)
-                    }
-                    if let value {
-                        TokenValue(total: value.total, currency: value.currency, abbreviates: true)
-                    } else if let amount {
-                        TokenBalance(amount: amount, abbreviates: true)
-                    }
-                }
-                .font(.headline)
-                if value != nil, let change {
-                    DayChangeLabel(change: change)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
+            VStack(alignment: .leading, spacing: 8) {
+                TokenRowIdentity(symbol: symbol, name: name, imageURL: imageURL)
+                TokenRowFigures(amount: amount, value: value, change: change, hasPrivateBalance: hasPrivateBalance,
+                                alignment: .leading)
             }
-            .monospacedDigit()
-            .multilineTextAlignment(isStacked ? .leading : .trailing)
-            .layoutPriority(1)
         }
-        .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
     }
 }

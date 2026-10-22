@@ -9,7 +9,6 @@ import SwiftUI
 struct TokenCard: View {
     @Environment(\.cardStyle) private var style
     @Environment(\.artworkColors) private var artworkColors
-    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var logoColor: ArtworkColor?
     let symbol: String
     let name: String
@@ -24,54 +23,23 @@ struct TokenCard: View {
 
     var body: some View {
         let tint = CardTint(logo: logoColor ?? .placeholder, colors: style.colors)
-        let isStacked = typeSize.isAccessibilitySize
-        let layout = isStacked ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
-            : AnyLayout(HStackLayout(spacing: 12))
         let shape = RoundedRectangle(cornerRadius: style.cornerRadius, style: .continuous)
         let secondary: ReadableSecondary = .readableSecondary(tint.text, on: tint.textBackground)
 
-        layout {
+        // The figures sit beside the name when both fit in full, and under it otherwise, as at large text sizes.
+        ViewThatFits(in: .horizontal) {
             HStack(spacing: 12) {
-                TokenIcon(symbol: symbol, imageURL: imageURL)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(symbol)
-                        .font(.title3.bold())
-                        .truncationMode(.middle)
-                    // Provider names aren't localized strings, so they're uppercased for the person's locale;
-                    // VoiceOver reads them as written, not letter by letter.
-                    Text(name.localizedUppercase)
-                        .font(.caption2.weight(.semibold))
-                        .tracking(1.2)
-                        .foregroundStyle(secondary)
-                        .accessibilityLabel(name)
-                }
-                .lineLimit(isStacked ? nil : 1)
+                TokenCardIdentity(symbol: symbol, name: name, imageURL: imageURL, secondary: secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                TokenCardFigures(amount: amount, value: value, change: change, hasPrivateBalance: hasPrivateBalance,
+                                 secondary: secondary, alignment: .trailing)
+                    .layoutPriority(1)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            // Large values and balances shorten, as in 10.2K, so the symbol and name keep their room.
-            VStack(alignment: isStacked ? .leading : .trailing, spacing: 2) {
-                HStack(spacing: 6) {
-                    if hasPrivateBalance {
-                        PrivateBalanceSign()
-                            .foregroundStyle(secondary)
-                    }
-                    if let value {
-                        TokenValue(total: value.total, currency: value.currency, abbreviates: true)
-                    } else if let amount {
-                        TokenBalance(amount: amount, abbreviates: true)
-                    }
-                }
-                .font(.title3.weight(.semibold))
-                if value != nil, let change {
-                    DayChangeLabel(change: change)
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(secondary)
-                }
+            VStack(alignment: .leading, spacing: 8) {
+                TokenCardIdentity(symbol: symbol, name: name, imageURL: imageURL, secondary: secondary)
+                TokenCardFigures(amount: amount, value: value, change: change, hasPrivateBalance: hasPrivateBalance,
+                                 secondary: secondary, alignment: .leading)
             }
-            .monospacedDigit()
-            .multilineTextAlignment(isStacked ? .leading : .trailing)
-            .layoutPriority(1)
         }
         .fontDesign(style.fontDesign)
         .foregroundStyle(tint.text)

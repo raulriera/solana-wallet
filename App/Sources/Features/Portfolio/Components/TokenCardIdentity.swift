@@ -1,0 +1,28 @@
+import SwiftUI
+
+/// A token card's logo, symbol, and name.
+struct TokenCardIdentity: View {
+    let symbol: String
+    let name: String
+    let imageURL: URL?
+    /// The card's color for supporting text.
+    let secondary: ReadableSecondary
+
+    var body: some View {
+        HStack(spacing: 12) {
+            TokenIcon(symbol: symbol, imageURL: imageURL)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(symbol)
+                    .font(.title3.bold())
+                    .truncationMode(.middle)
+                // Provider names aren't localized strings, so they're uppercased for the person's locale;
+                // VoiceOver reads them as written, not letter by letter.
+                Text(name.localizedUppercase)
+                    .font(.caption2.weight(.semibold))
+                    .tracking(1.2)
+                    .foregroundStyle(secondary)
+                    .accessibilityLabel(name)
+            }
+        }
+    }
+}
