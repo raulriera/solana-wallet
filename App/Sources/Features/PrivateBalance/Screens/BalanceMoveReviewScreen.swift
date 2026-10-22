@@ -19,10 +19,16 @@ struct BalanceMoveReviewScreen: View {
 
             Section {
                 LabeledContent("From") {
-                    Text("Public Balance")
+                    switch move.direction {
+                    case .toPrivate: Text("Public Balance")
+                    case .toPublic: Text("Private Balance")
+                    }
                 }
                 LabeledContent("To") {
-                    Text("Private Balance")
+                    switch move.direction {
+                    case .toPrivate: Text("Private Balance")
+                    case .toPublic: Text("Public Balance")
+                    }
                 }
                 LabeledContent("Network Fee") {
                     TokenBalance(amount: Self.sol(review.networkFee), symbol: move.payment.token.symbol)
@@ -32,10 +38,20 @@ struct BalanceMoveReviewScreen: View {
                         TokenBalance(amount: Self.sol(registrationFee), symbol: move.payment.token.symbol)
                     }
                 }
+                if let privacyFee = review.privacyFee {
+                    LabeledContent("Privacy Fee") {
+                        TokenBalance(amount: Self.sol(privacyFee), symbol: move.payment.token.symbol)
+                    }
+                }
             } footer: {
                 if review.registrationFee != nil {
                     Text("A one-time fee registers this account for private balances.",
                          comment: "Footer under the registration fee of an account's first deposit into its private balance.")
+                        .foregroundStyle(palette.secondaryText)
+                } else if review.privacyFee != nil {
+                    // A fee that the person didn't expect says where it goes, so it doesn't read as a scam.
+                    Text("The network fee pays Solana to process this transaction. The privacy fee goes to the private balance pool, which uses it to record spent SOL so it can't be spent twice. This app takes no fee.",
+                         comment: "Footer under the fees of moving private SOL to the public balance, when the private balance pool charges a privacy fee.")
                         .foregroundStyle(palette.secondaryText)
                 }
             }
@@ -48,9 +64,9 @@ struct BalanceMoveReviewScreen: View {
         .background(palette.background)
         .navigationTitle("Review")
         .navigationBarTitleDisplayMode(.inline)
-        // The symbol matches Add to Private Balance on SOL's details.
-        .confirmationAction("Add to Private Balance", systemImage: "eye.slash", isEnabled: move.canApprove,
-                            isPending: move.isWorking, action: move.approve)
+        // The symbol matches the task's row on SOL's details.
+        .confirmationAction(move.direction.title, systemImage: move.direction == .toPrivate ? "eye.slash" : "eye",
+                            isEnabled: move.canApprove, isPending: move.isWorking, action: move.approve)
         // A review expires after about a minute, so it's simulated again while it shows.
         .task {
             while (try? await Task.sleep(for: .seconds(30))) != nil {

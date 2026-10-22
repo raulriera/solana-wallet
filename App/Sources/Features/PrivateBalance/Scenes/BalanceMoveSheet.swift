@@ -12,7 +12,7 @@ struct BalanceMoveSheet: View {
 
     var body: some View {
         NavigationStack {
-            PaymentAmountScreen(payment: move.payment, title: "Add to Private Balance") {
+            PaymentAmountScreen(payment: move.payment, title: move.direction.title) {
                 BalanceMoveReviewButton(move: move)
                     .matchedTransitionSource(id: move.id, in: review)
             }

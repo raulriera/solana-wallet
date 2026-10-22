@@ -47,31 +47,50 @@ struct BalanceMoveResultScreen: View {
         .scrollContentBackground(.hidden)
         .readableContentWidth()
         .background(palette.background)
-        .navigationTitle("Add to Private Balance")
+        .navigationTitle(Text(move.direction.title))
         .navigationBarTitleDisplayMode(.inline)
         // The result replaces the review in place, and checking again can change it, so VoiceOver moves to it.
         .onChange(of: outcome, initial: true) { isFocused = true }
     }
 
-    /// The result's symbol, title, and explanation.
+    /// The result's symbol, title, and explanation, for the move's direction.
     private var card: (title: LocalizedStringResource, message: LocalizedStringResource, systemImage: String) {
-        switch outcome {
-        case .succeeded:
-            ("Added to Private Balance",
-             LocalizedStringResource("\(move.payment.quantity, format: .quantity(of: move.payment.token)) is pending. It becomes available when the network reports it, usually within a minute.",
-                                     comment: "Message after a deposit into the private balance succeeded. The variable is the amount with its symbol, such as 0.5 SOL."),
-             // The symbol matches the private-balance sign on SOL's card.
-             "eye.slash.circle.fill")
-        case .failed:
-            ("Transaction Failed",
-             "The network rejected this transaction. Its network fee was paid. Nothing was added to your private balance.",
-             "exclamationmark.triangle.fill")
-        case .dropped:
-            ("Not Added", "Nothing left your public balance.", "xmark.circle.fill")
-        case .unconfirmed:
-            ("Couldn't Check Transaction",
-             "The transaction was sent, but the selected provider stopped answering. Check it again, or view it in Explorer.",
-             "exclamationmark.circle.fill")
+        let amount = move.payment.quantity
+        let token = move.payment.token
+        switch (move.direction, outcome) {
+        case (.toPrivate, .succeeded):
+            return ("SOL Is Private",
+                    LocalizedStringResource("\(amount, format: .quantity(of: token)) is pending. It becomes available when the network reports it, usually within a minute.",
+                                            comment: "Message after a deposit into the private balance succeeded. The variable is the amount with its symbol, such as 0.5 SOL."),
+                    // The symbol matches the private-balance sign on SOL's card.
+                    "eye.slash.circle.fill")
+        case (.toPublic, .succeeded):
+            // A spent note's change returns to the private balance, pending until the network reports it.
+            let message: LocalizedStringResource = if case .balance(_, let pending)? = move.status, pending > 0 {
+                LocalizedStringResource("\(amount, format: .quantity(of: token)) is in your public balance. The rest of your private balance becomes available within a minute.",
+                                        comment: "Message after private SOL moved to the public balance, when the rest of the private balance is pending. The variable is the amount with its symbol, such as 0.5 SOL.")
+            } else {
+                LocalizedStringResource("\(amount, format: .quantity(of: token)) is in your public balance.",
+                                        comment: "Message after private SOL moved to the public balance. The variable is the amount with its symbol, such as 0.5 SOL.")
+            }
+            // The symbol matches Make SOL Public on SOL's details.
+            return ("SOL Is Public", message, "eye.circle.fill")
+        case (.toPrivate, .failed):
+            return ("Transaction Failed",
+                    "The network rejected this transaction. Its network fee was paid. Nothing was added to your private balance.",
+                    "exclamationmark.triangle.fill")
+        case (.toPublic, .failed):
+            return ("Transaction Failed",
+                    "The network rejected this transaction. Its network fee was paid. Nothing left your private balance.",
+                    "exclamationmark.triangle.fill")
+        case (.toPrivate, .dropped):
+            return ("Not Sent", "Nothing left your public balance.", "xmark.circle.fill")
+        case (.toPublic, .dropped):
+            return ("Not Sent", "Nothing left your private balance.", "xmark.circle.fill")
+        case (_, .unconfirmed):
+            return ("Couldn't Check Transaction",
+                    "The transaction was sent, but the selected provider stopped answering. Check it again, or view it in Explorer.",
+                    "exclamationmark.circle.fill")
         }
     }
 }

@@ -129,10 +129,16 @@ final class PrivateBalanceModel {
         open(.toPrivate, spendableLamports: publicLamports)
     }
 
+    /// The account's available private SOL, in lamports, or `nil` while it has none to move.
+    var availableLamports: UInt64? {
+        guard case .balance(let available, _)? = status, available > 0 else { return nil }
+        return available
+    }
+
     /// Opens a withdrawal of the account's available private SOL to its own public address, while it has some.
     func moveToPublicBalance() {
-        guard case .balance(let available, _)? = status, available > 0 else { return }
-        open(.toPublic, spendableLamports: available)
+        guard let availableLamports else { return }
+        open(.toPublic, spendableLamports: availableLamports)
     }
 
     /// Opens a move of the account's SOL between its balances, while private balances are on.

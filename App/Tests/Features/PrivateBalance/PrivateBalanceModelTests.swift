@@ -120,6 +120,7 @@ struct PrivateBalanceModelTests {
         model.moveToPublicBalance()
 
         let opens = status == .balance(available: 1_000_000, pending: 0)
+        #expect(model.availableLamports == (opens ? 1_000_000 : nil))
         #expect(model.move?.direction == (opens ? .toPublic : nil))
         #expect(model.move?.payment.source == (opens ? .privateBalance : nil))
         #expect(model.move?.payment.token.balance == (opens ? Decimal(string: "0.001") : nil))

@@ -20,6 +20,14 @@ final class BalanceMoveModel: Identifiable {
         case toPrivate
         /// From the account's available private balance to its own public address.
         case toPublic
+
+        /// The task's name, which titles its keypad, its result, and its approval.
+        var title: LocalizedStringResource {
+            switch self {
+            case .toPrivate: "Make SOL Private"
+            case .toPublic: "Make SOL Public"
+            }
+        }
     }
 
     /// What an attempt does.

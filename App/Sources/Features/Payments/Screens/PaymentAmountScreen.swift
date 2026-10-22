@@ -90,7 +90,7 @@ struct PaymentAmountScreen<Action: View>: View {
                                                      decimals: 9)],
                                currencyCode: "USD", source: .publicBalance)
     NavigationStack {
-        PaymentAmountScreen(payment: payment, title: "Add to Private Balance") {
+        PaymentAmountScreen(payment: payment, title: "Make SOL Private") {
             SendButton(payment: payment, isReviewing: .constant(false))
         }
     }
