@@ -1,12 +1,12 @@
 import SwiftUI
 
-/// Shows how a sent deposit settled, with a link to its page on Solana Explorer, which also shows its signature, and
-/// offers what can follow: trying a dropped deposit again, or checking one whose watch stopped.
-struct DepositResultScreen: View {
+/// Shows how a sent move settled, with a link to its page on Solana Explorer, which also shows its signature, and
+/// offers what can follow: trying a dropped move again, or checking one whose watch stopped.
+struct BalanceMoveResultScreen: View {
     @Environment(\.palette) private var palette
     @AccessibilityFocusState private var isFocused: Bool
-    let deposit: DepositModel
-    let outcome: DepositModel.Outcome
+    let move: BalanceMoveModel
+    let outcome: BalanceMoveModel.Outcome
 
     var body: some View {
         let card = card
@@ -21,22 +21,22 @@ struct DepositResultScreen: View {
             Section {
                 switch outcome {
                 case .dropped:
-                    Button("Try Again", action: deposit.tryAgain)
+                    Button("Try Again", action: move.tryAgain)
                 case .unconfirmed:
-                    Button(action: deposit.checkAgain) {
+                    Button(action: move.checkAgain) {
                         HStack {
                             Text("Check Again")
                             Spacer()
-                            if deposit.isChecking {
+                            if move.isChecking {
                                 ProgressView()
                             }
                         }
                     }
-                    .disabled(deposit.isChecking)
+                    .disabled(move.isChecking)
                 case .succeeded, .failed:
                     EmptyView()
                 }
-                if let submission = deposit.submission, outcome != .dropped {
+                if let submission = move.submission, outcome != .dropped {
                     Link("View in Explorer", destination: submission.explorerURL)
                 }
             }
@@ -58,7 +58,7 @@ struct DepositResultScreen: View {
         switch outcome {
         case .succeeded:
             ("Added to Private Balance",
-             LocalizedStringResource("\(deposit.payment.quantity, format: .quantity(of: deposit.payment.token)) is pending. It becomes available when the network reports it, usually within a minute.",
+             LocalizedStringResource("\(move.payment.quantity, format: .quantity(of: move.payment.token)) is pending. It becomes available when the network reports it, usually within a minute.",
                                      comment: "Message after a deposit into the private balance succeeded. The variable is the amount with its symbol, such as 0.5 SOL."),
              // The symbol matches the private-balance sign on SOL's card.
              "eye.slash.circle.fill")

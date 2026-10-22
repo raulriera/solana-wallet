@@ -83,8 +83,8 @@ struct PrivateBalanceModelTests {
         #expect(!unfunded.hasBalance)
     }
 
-    /// While private balances are on, adding opens a deposit of the account's public SOL; while they're off, nothing
-    /// opens.
+    /// While private balances are on, adding opens a move of the account's public SOL into its private balance; while
+    /// they're off, nothing opens.
     /// - Parameter isOn: Whether the account turned private balances on.
     @Test(arguments: [true, false])
     func `Adding opens a deposit only while private balances are on`(isOn: Bool) async throws {
@@ -96,8 +96,10 @@ struct PrivateBalanceModelTests {
 
         model.addToPrivateBalance(publicLamports: 2_000_000_000)
 
-        #expect((model.deposit != nil) == isOn)
-        #expect(model.deposit?.payment.token.balance == (isOn ? 2 : nil))
+        #expect((model.move != nil) == isOn)
+        #expect(model.move?.direction == (isOn ? .toPrivate : nil))
+        #expect(model.move?.payment.source == (isOn ? .publicBalance : nil))
+        #expect(model.move?.payment.token.balance == (isOn ? 2 : nil))
         #expect(model.error == nil)
     }
 
@@ -115,7 +117,7 @@ struct PrivateBalanceModelTests {
 
         model.addToPrivateBalance(publicLamports: 2_000_000_000)
 
-        #expect(model.deposit == nil)
+        #expect(model.move == nil)
         #expect(model.error == .preparationFailed)
     }
 

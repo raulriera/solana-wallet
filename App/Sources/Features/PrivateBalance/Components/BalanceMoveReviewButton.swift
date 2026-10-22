@@ -1,19 +1,19 @@
 import SwiftUI
 
 /// Reviews the typed amount once it can be added, also with Return on a hardware keyboard; it shows a spinner and
-/// stays disabled while the deposit is prepared.
+/// stays disabled while the move is prepared.
 ///
-/// It reads the deposit itself, so key presses update only this button.
-struct DepositReviewButton: View {
-    let deposit: DepositModel
+/// It reads the move itself, so key presses update only this button.
+struct BalanceMoveReviewButton: View {
+    let move: BalanceMoveModel
 
     var body: some View {
-        Button(action: deposit.prepareReview) {
+        Button(action: move.prepareReview) {
             // The title keeps its place under the spinner, so the button never changes size.
             Text("Review")
-                .opacity(deposit.isWorking ? 0 : 1)
+                .opacity(move.isWorking ? 0 : 1)
                 .overlay {
-                    if deposit.isWorking {
+                    if move.isWorking {
                         // The button is gray while it works, so the spinner is gray too, at the size of the text.
                         ProgressView()
                             .controlSize(.regular)
@@ -23,6 +23,6 @@ struct DepositReviewButton: View {
         }
         .buttonStyle(.glassPrimary)
         .keyboardShortcut(.defaultAction)
-        .disabled(!deposit.payment.canSend || deposit.isWorking)
+        .disabled(!move.payment.canSend || move.isWorking)
     }
 }

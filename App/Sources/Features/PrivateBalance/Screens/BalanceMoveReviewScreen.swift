@@ -1,19 +1,19 @@
 import Portfolio
 import SwiftUI
 
-/// Shows how much SOL a deposit moves from the public balance into the private balance and what it costs, before the
+/// Shows how much SOL a move takes from one of the account's balances to the other and what it costs, before the
 /// person approves it from the top bar.
 ///
-/// While the person reads it, the deposit is simulated again before its review expires.
-struct DepositReviewScreen: View {
+/// While the person reads it, the move is simulated again before its review expires.
+struct BalanceMoveReviewScreen: View {
     @Environment(\.palette) private var palette
-    let deposit: DepositModel
-    let review: DepositModel.Review
+    let move: BalanceMoveModel
+    let review: BalanceMoveModel.Review
 
     var body: some View {
         Form {
             Section {
-                ReviewAmount(payment: deposit.payment)
+                ReviewAmount(payment: move.payment)
             }
             .listRowBackground(Color.clear)
 
@@ -25,11 +25,11 @@ struct DepositReviewScreen: View {
                     Text("Private Balance")
                 }
                 LabeledContent("Network Fee") {
-                    TokenBalance(amount: Self.sol(review.networkFee), symbol: deposit.payment.token.symbol)
+                    TokenBalance(amount: Self.sol(review.networkFee), symbol: move.payment.token.symbol)
                 }
                 if let registrationFee = review.registrationFee {
                     LabeledContent("Registration") {
-                        TokenBalance(amount: Self.sol(registrationFee), symbol: deposit.payment.token.symbol)
+                        TokenBalance(amount: Self.sol(registrationFee), symbol: move.payment.token.symbol)
                     }
                 }
             } footer: {
@@ -49,12 +49,12 @@ struct DepositReviewScreen: View {
         .navigationTitle("Review")
         .navigationBarTitleDisplayMode(.inline)
         // The symbol matches Add to Private Balance on SOL's details.
-        .confirmationAction("Add to Private Balance", systemImage: "eye.slash", isEnabled: deposit.canApprove,
-                            isPending: deposit.isWorking, action: deposit.approve)
+        .confirmationAction("Add to Private Balance", systemImage: "eye.slash", isEnabled: move.canApprove,
+                            isPending: move.isWorking, action: move.approve)
         // A review expires after about a minute, so it's simulated again while it shows.
         .task {
             while (try? await Task.sleep(for: .seconds(30))) != nil {
-                await deposit.refreshReview()
+                await move.refreshReview()
             }
         }
     }

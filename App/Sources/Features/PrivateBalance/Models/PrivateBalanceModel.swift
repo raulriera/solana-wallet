@@ -4,7 +4,7 @@ import RPC
 import Wallet
 
 /// One window's private balance of its account on its network, turning private balances on for that account, and
-/// opening deposits into it.
+/// opening moves of SOL between the account's balances.
 ///
 /// A refresh shows the account's last read balance, or why it has none; a failed refresh keeps what was read before.
 /// While private balances are on, a poll reads the balance again; a failure that reading again can't fix, such as a
@@ -23,7 +23,7 @@ final class PrivateBalanceModel {
     /// Whether the account holds any private SOL, available or pending; kept apart from ``status`` so the token list
     /// changes only when this does.
     private(set) var hasBalance = false
-    /// The error of the last attempt to turn private balances on, or to open a deposit.
+    /// The error of the last attempt to turn private balances on, or to open a move.
     var error: PrivateBalanceError?
     /// The attempt to turn private balances on that's waiting for the scene's task, or running.
     private(set) var attempt: UUID?
@@ -32,8 +32,8 @@ final class PrivateBalanceModel {
     /// Whether polls wait for a refresh that the person or the window starts, after a failure that reading again
     /// can't fix.
     private(set) var isPollingPaused = false
-    /// The open deposit of the account's public SOL into its private balance.
-    var deposit: DepositModel?
+    /// The open move of the account's SOL between its public and private balances.
+    var move: BalanceMoveModel?
     /// Counts settled transactions that left pending SOL; each one starts the window's reads again.
     private(set) var followUp = 0
     /// The quick reads left until the pending SOL of a settled transaction turns available.
@@ -73,7 +73,7 @@ final class PrivateBalanceModel {
             attempt = nil
             isTurnedOn = false
             isPollingPaused = false
-            deposit = nil
+            move = nil
             followUpReadsLeft = 0
         }
         await refresh()
@@ -126,12 +126,21 @@ final class PrivateBalanceModel {
     /// Opens a deposit of the account's public SOL into its private balance, while private balances are on.
     /// - Parameter publicLamports: The account's public SOL, in lamports.
     func addToPrivateBalance(publicLamports: UInt64) {
-        guard let account, deposit == nil else { return }
+        open(.toPrivate, spendableLamports: publicLamports)
+    }
+
+    /// Opens a move of the account's SOL between its balances, while private balances are on.
+    /// - Parameters:
+    ///   - direction: Which balance the SOL leaves, and which one it reaches.
+    ///   - spendableLamports: The SOL that the move can take from the balance that it leaves, in lamports.
+    private func open(_ direction: BalanceMoveModel.Direction, spendableLamports: UInt64) {
+        guard let account, move == nil else { return }
         switch status {
         case .unregistered?, .balance?:
             do {
-                deposit = DepositModel(account: account, network: network, publicLamports: publicLamports,
-                                       balances: balances, transactions: try transactions.coordinator(for: network))
+                move = BalanceMoveModel(direction: direction, account: account, network: network,
+                                        spendableLamports: spendableLamports, balances: balances,
+                                        transactions: try transactions.coordinator(for: network))
             } catch {
                 self.error = .preparationFailed
             }

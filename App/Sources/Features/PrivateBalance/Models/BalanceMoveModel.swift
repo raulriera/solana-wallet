@@ -2,23 +2,30 @@ import Foundation
 import Observation
 import RPC
 
-/// One deposit of an account's public SOL into its own private balance: the amount, its review, and how it settled.
+/// One move of an account's SOL between its public balance and its own private balance: the direction, the amount, its
+/// review, and how it settled.
 ///
-/// Each step runs once per attempt in the scene's task. Reviewing prepares and simulates the deposit; sending signs
+/// Each step runs once per attempt in the scene's task. Reviewing prepares and simulates the move; sending signs
 /// it, which asks the person to authenticate, sends it, and watches it until it settles; checking watches a sent
-/// deposit again after its watch stopped. A review can be used once, so a cancelled authentication replaces it with a
-/// new simulation of the same deposit. Errors before anything is sent are typed; after sending, the outcome keeps the
+/// move again after its watch stopped. A review can be used once, so a cancelled authentication replaces it with a
+/// new simulation of the same move. Errors before anything is sent are typed; after sending, the outcome keeps the
 /// signature, even when the watch stopped.
 @MainActor
 @Observable
-final class DepositModel: Identifiable {
+final class BalanceMoveModel: Identifiable {
+    /// Which balance the SOL leaves, and which one it reaches.
+    nonisolated enum Direction: Hashable, Sendable {
+        /// From the account's public balance into its private balance.
+        case toPrivate
+    }
+
     /// What an attempt does.
     nonisolated enum Work: Hashable, Sendable {
-        /// Prepares and simulates the deposit for review.
+        /// Prepares and simulates the move for review.
         case review
-        /// Signs and sends the reviewed deposit, then watches it until it settles.
+        /// Signs and sends the reviewed move, then watches it until it settles.
         case send
-        /// Watches a sent deposit again after its watch stopped.
+        /// Watches a sent move again after its watch stopped.
         case check
     }
 
@@ -32,35 +39,37 @@ final class DepositModel: Identifiable {
 
     /// What the person approves: the SOL that moves and what it costs.
     nonisolated struct Review: Equatable, Sendable {
-        /// The SOL that moves into the private balance, in lamports.
+        /// The SOL that moves, in lamports.
         let lamports: UInt64
         /// The network fee, in lamports.
         let networkFee: UInt64
-        /// The one-time fee that registers the account with its first deposit, in lamports, or `nil` after it.
+        /// The one-time fee that registers the account with its first move, in lamports, or `nil` after it.
         let registrationFee: UInt64?
     }
 
-    /// How a sent deposit settled.
+    /// How a sent move settled.
     nonisolated enum Outcome: Equatable, Sendable {
-        /// The deposit landed; its SOL is pending until the indexer reports it.
+        /// The move landed; the SOL that the private balance receives is pending until the indexer reports it.
         case succeeded
-        /// The deposit landed and failed; it paid its network fee and moved nothing.
+        /// The move landed and failed; it paid its network fee and moved nothing.
         case failed
-        /// The deposit can never land, so nothing left the public balance.
+        /// The move can never land, so no SOL moved.
         case dropped
-        /// The watch stopped before the deposit settled, such as after a rate limit; it can be checked again.
+        /// The watch stopped before the move settled, such as after a rate limit; it can be checked again.
         case unconfirmed
     }
 
-    /// The amount typed on the keypad, in SOL from the account's public balance.
+    /// Which balance the SOL leaves, and which one it reaches.
+    let direction: Direction
+    /// The amount typed on the keypad, in SOL from the balance that it leaves.
     let payment: PaymentModel
-    /// The review that the person approves, once the deposit is simulated.
+    /// The review that the person approves, once the move is simulated.
     private(set) var review: Review?
-    /// The sent deposit's signature and network.
+    /// The sent move's signature and network.
     private(set) var submission: Submission?
-    /// How the sent deposit settled.
+    /// How the sent move settled.
     private(set) var outcome: Outcome?
-    /// The account's private balance after the deposit settled, with the deposit pending when it succeeded.
+    /// The account's private balance after the move settled, with the SOL that it receives pending when it succeeded.
     private(set) var status: PrivateBalanceStatus?
     /// The error of the last attempt.
     var error: PrivateBalanceError?
@@ -75,10 +84,10 @@ final class DepositModel: Identifiable {
     /// Whether a step is waiting or running.
     var isWorking: Bool { attempt != nil }
 
-    /// Whether the deposit is being signed and sent, and watched until it settles.
+    /// Whether the move is being signed and sent, and watched until it settles.
     var isSending: Bool { attempt?.work == .send }
 
-    /// Whether a sent deposit is being watched again.
+    /// Whether a sent move is being watched again.
     var isChecking: Bool { attempt?.work == .check }
 
     /// Whether the person can approve the review: it's simulated, unused, and no step is waiting or running.
@@ -95,19 +104,24 @@ final class DepositModel: Identifiable {
         }
     }
 
-    /// Starts an empty amount of SOL from the account's public balance.
+    /// Starts an empty amount of SOL from the balance that the SOL leaves.
     /// - Parameters:
-    ///   - account: The account whose public SOL moves into its private balance.
+    ///   - direction: Which balance the SOL leaves, and which one it reaches.
+    ///   - account: The account whose SOL moves between its balances.
     ///   - network: The window's network.
-    ///   - publicLamports: The account's public SOL, in lamports.
+    ///   - spendableLamports: The SOL that the amount can take from the balance that it leaves, in lamports.
     ///   - balances: The private balances of every account.
     ///   - transactions: The network's transaction coordinator.
-    init(account: Account, network: Network, publicLamports: UInt64, balances: any PrivateBalancing,
-         transactions: any TransactionCoordinating) {
-        let sol = PaymentToken(symbol: "SOL", balance: Decimal(publicLamports) / Self.lamportsPerSOL, price: nil,
+    init(direction: Direction, account: Account, network: Network, spendableLamports: UInt64,
+         balances: any PrivateBalancing, transactions: any TransactionCoordinating) {
+        let sol = PaymentToken(symbol: "SOL", balance: Decimal(spendableLamports) / Self.lamportsPerSOL, price: nil,
                                decimals: 9)
+        let source: PaymentModel.Source = switch direction {
+        case .toPrivate: .publicBalance
+        }
         // Without a price, the keypad types SOL and never shows the currency.
-        payment = PaymentModel(tokens: [sol], currencyCode: "USD", source: .publicBalance)
+        payment = PaymentModel(tokens: [sol], currencyCode: "USD", source: source)
+        self.direction = direction
         self.account = account
         self.network = network
         self.balances = balances
@@ -120,13 +134,13 @@ final class DepositModel: Identifiable {
         start(.review)
     }
 
-    /// Asks to sign and send the reviewed deposit, unless it can't be approved.
+    /// Asks to sign and send the reviewed move, unless it can't be approved.
     func approve() {
         guard canApprove else { return }
         start(.send)
     }
 
-    /// Asks to review the same amount again after the deposit was dropped; the last review shows until the new one
+    /// Asks to review the same amount again after the move was dropped; the last review shows until the new one
     /// replaces it, and can't be approved meanwhile.
     func tryAgain() {
         guard attempt == nil, outcome == .dropped else { return }
@@ -136,7 +150,7 @@ final class DepositModel: Identifiable {
         start(.review)
     }
 
-    /// Asks to watch the sent deposit again after its watch stopped.
+    /// Asks to watch the sent move again after its watch stopped.
     func checkAgain() {
         guard attempt == nil, outcome == .unconfirmed else { return }
         start(.check)
@@ -154,9 +168,9 @@ final class DepositModel: Identifiable {
         }
     }
 
-    /// Simulates the reviewed deposit again, so its review never expires while the person reads it.
+    /// Simulates the reviewed move again, so its review never expires while the person reads it.
     ///
-    /// Nothing changes on screen unless the fees do. Steps that are waiting or running, and settled deposits, skip it.
+    /// Nothing changes on screen unless the fees do. Steps that are waiting or running, and settled moves, skip it.
     func refreshReview() async {
         guard attempt == nil, submission == nil, let reviewed else { return }
         do {
@@ -182,7 +196,10 @@ final class DepositModel: Identifiable {
     private func prepare() async {
         do {
             let lamports = NSDecimalNumber(decimal: payment.quantity * Self.lamportsPerSOL).uint64Value
-            let prepared = try await balances.prepare(.deposit(lamports), from: account, on: network)
+            let request: PrivateTransactionRequest = switch direction {
+            case .toPrivate: .deposit(lamports)
+            }
+            let prepared = try await balances.prepare(request, from: account, on: network)
             show(try await simulate(prepared))
         } catch is CancellationError {
             // The sheet closed.
@@ -191,9 +208,9 @@ final class DepositModel: Identifiable {
         }
     }
 
-    /// Signs and sends the reviewed deposit, then watches it until it settles.
+    /// Signs and sends the reviewed move, then watches it until it settles.
     ///
-    /// A cancelled authentication uses up the review, so a new simulation of the same deposit replaces it.
+    /// A cancelled authentication uses up the review, so a new simulation of the same move replaces it.
     private func send() async {
         guard let reviewed else { return }
         let submission: Submission
@@ -215,16 +232,16 @@ final class DepositModel: Identifiable {
         await settle(submission, of: reviewed.transaction)
     }
 
-    /// Watches the sent deposit again.
+    /// Watches the sent move again.
     private func check() async {
         guard let submission, let reviewed else { return }
         await settle(submission, of: reviewed.transaction)
     }
 
-    /// Watches a sent deposit until it settles, records the outcome, and shows the private balance afterward.
+    /// Watches a sent move until it settles, records the outcome, and shows the private balance afterward.
     /// - Parameters:
-    ///   - submission: The sent deposit's signature and network.
-    ///   - transaction: The prepared deposit, which records the outcome.
+    ///   - submission: The sent move's signature and network.
+    ///   - transaction: The prepared move, which records the outcome.
     private func settle(_ submission: Submission, of transaction: PreparedPrivateTransaction) async {
         let confirmation: Confirmation
         do {
@@ -234,7 +251,7 @@ final class DepositModel: Identifiable {
             outcome = .unconfirmed
             return
         }
-        // The deposit settled either way; without a record, the next read of the indexer still finds it.
+        // The move settled either way; without a record, the next read of the indexer still finds it.
         status = try? await balances.complete(transaction, with: confirmation)
         outcome = switch confirmation.outcome {
         case .succeeded: .succeeded
@@ -243,8 +260,8 @@ final class DepositModel: Identifiable {
         }
     }
 
-    /// Replaces a used review with a new simulation of the same deposit.
-    /// - Parameter transaction: The prepared deposit.
+    /// Replaces a used review with a new simulation of the same move.
+    /// - Parameter transaction: The prepared move.
     private func replaceReview(of transaction: PreparedPrivateTransaction) async {
         do {
             show(try await simulate(transaction))
@@ -285,7 +302,7 @@ final class DepositModel: Identifiable {
                                                 registrationFee: registrationFee))
     }
 
-    /// Keeps a simulated deposit for approval and shows its review.
+    /// Keeps a simulated move for approval and shows its review.
     /// - Parameter simulated: The simulation, the transaction to record, and the review.
     private func show(_ simulated: (simulation: Simulation, transaction: PreparedPrivateTransaction, review: Review)) {
         reviewed = (simulated.simulation, simulated.transaction)

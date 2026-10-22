@@ -5,13 +5,13 @@ import Testing
 import Transactions
 @testable import widgets
 
-/// Verifies a deposit's review, sending, and watch through the real private balances and transaction coordinator, with
-/// local responses and sockets.
+/// Verifies a move of public SOL into the private balance, a deposit: its review, sending, and watch through the real
+/// private balances and transaction coordinator, with local responses and sockets.
 ///
 /// Each model types 1 SOL from a public balance of 2 SOL; every simulation reports a 10,000-lamport network fee.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
-struct DepositModelTests {
+struct BalanceMoveModelTests {
     /// The account's public SOL, in lamports.
     private static let publicLamports: UInt64 = 2_000_000_000
     /// The typed deposit, in lamports.
@@ -26,7 +26,7 @@ struct DepositModelTests {
     /// The local responses and connections behind a model.
     private struct Deposit {
         /// The model under test, with 1 SOL typed.
-        let model: DepositModel
+        let model: BalanceMoveModel
         /// The responses that answer the coordinator's preparation reads and simulations.
         let preparation: HTTPResponses
         /// The connections of the coordinator's watch.
@@ -42,7 +42,7 @@ struct DepositModelTests {
         model.prepareReview()
         await model.run(model.attempt)
 
-        #expect(model.review == DepositModel.Review(lamports: Self.lamports, networkFee: Self.networkFee,
+        #expect(model.review == BalanceMoveModel.Review(lamports: Self.lamports, networkFee: Self.networkFee,
                                                     registrationFee: nil))
         #expect(model.error == nil)
         #expect(model.attempt == nil)
@@ -57,7 +57,7 @@ struct DepositModelTests {
         model.prepareReview()
         await model.run(model.attempt)
 
-        #expect(model.review == DepositModel.Review(lamports: Self.lamports, networkFee: Self.networkFee,
+        #expect(model.review == BalanceMoveModel.Review(lamports: Self.lamports, networkFee: Self.networkFee,
                                                     registrationFee: Self.registrationRent))
         #expect(model.error == nil)
     }
@@ -140,7 +140,7 @@ struct DepositModelTests {
         await model.run(attempt)
 
         #expect(attempt.work == .review)
-        #expect(model.review == DepositModel.Review(lamports: Self.lamports, networkFee: Self.networkFee,
+        #expect(model.review == BalanceMoveModel.Review(lamports: Self.lamports, networkFee: Self.networkFee,
                                                     registrationFee: nil))
         #expect(model.outcome == nil)
         #expect(model.submission == nil)
@@ -182,7 +182,7 @@ struct DepositModelTests {
         model.approve()
         await model.run(model.attempt)
 
-        #expect(model.review == DepositModel.Review(lamports: Self.lamports, networkFee: Self.networkFee,
+        #expect(model.review == BalanceMoveModel.Review(lamports: Self.lamports, networkFee: Self.networkFee,
                                                     registrationFee: nil))
         #expect(model.error == nil)
         #expect(model.submission == nil)
@@ -324,8 +324,8 @@ struct DepositModelTests {
             submitter: Submitter(rpcs: [HTTPResponses.sending().client]),
             confirmer: Confirmer(rpc: confirmation.client(socket: { sockets.connect($0) }))
         )
-        let model = DepositModel(account: account, network: .devnet, publicLamports: publicLamports, balances: balances,
-                                 transactions: transactions)
+        let model = BalanceMoveModel(direction: .toPrivate, account: account, network: .devnet,
+                                     spendableLamports: publicLamports, balances: balances, transactions: transactions)
         model.payment.press(.digit(1))
         return Deposit(model: model, preparation: preparation, sockets: sockets)
     }
@@ -378,7 +378,7 @@ struct DepositModelTests {
     /// Reviews the typed amount, as the scene does before the person approves it.
     /// - Parameter model: The model.
     /// - Throws: A test failure when no review shows.
-    private static func review(_ model: DepositModel) async throws {
+    private static func review(_ model: BalanceMoveModel) async throws {
         model.prepareReview()
         await model.run(model.attempt)
         try #require(model.review != nil)

@@ -1,18 +1,18 @@
 import SwiftUI
 
-/// Presents a deposit's review over its keypad, as tall as its content, and replaces it with the result once the
-/// deposit is sent.
+/// Presents a move's review over its keypad, as tall as its content, and replaces it with the result once the move
+/// is sent.
 ///
-/// Cancel returns to the keypad with the amount as typed, except while the deposit is sent; the result can't be
+/// Cancel returns to the keypad with the amount as typed, except while the move is sent; the result can't be
 /// swiped away, and Close closes the keypad too.
-struct DepositReviewSheet: View {
-    @Bindable var deposit: DepositModel
+struct BalanceMoveReviewSheet: View {
+    @Bindable var move: BalanceMoveModel
     /// Closes the keypad's sheet, and this one with it.
     let close: DismissAction
-    /// The outcome that shows, which follows the deposit's in an animated change.
-    @State private var shownOutcome: DepositModel.Outcome?
-    /// The review that shows, which stays while the sheet closes after the deposit drops it.
-    @State private var shownReview: DepositModel.Review?
+    /// The outcome that shows, which follows the move's in an animated change.
+    @State private var shownOutcome: BalanceMoveModel.Outcome?
+    /// The review that shows, which stays while the sheet closes after the move drops it.
+    @State private var shownReview: BalanceMoveModel.Review?
 
     var body: some View {
         NavigationStack {
@@ -20,14 +20,14 @@ struct DepositReviewSheet: View {
                 // The review and its result hold little, so the sheet is as tall as each; each measures itself, so
                 // the sheet resizes when the result replaces the review.
                 if let outcome = shownOutcome {
-                    DepositResultScreen(deposit: deposit, outcome: outcome)
+                    BalanceMoveResultScreen(move: move, outcome: outcome)
                         .contentHeightDetent()
                         .closeAction { close() }
                 } else if let review = shownReview {
-                    DepositReviewScreen(deposit: deposit, review: review)
+                    BalanceMoveReviewScreen(move: move, review: review)
                         .contentHeightDetent()
                         .cancellationAction()
-                        .disabled(deposit.isSending)
+                        .disabled(move.isSending)
                 }
             }
             // The result blurs in over the review. The sheet jumps to the result's height: a sheet doesn't animate a
@@ -35,16 +35,16 @@ struct DepositReviewSheet: View {
             .transition(.blurReplace)
         }
         // `animation(_:value:)` doesn't animate this swap, as a probe showed, so the change itself is animated.
-        .onChange(of: deposit.outcome, initial: true) { _, outcome in
+        .onChange(of: move.outcome, initial: true) { _, outcome in
             withAnimation { shownOutcome = outcome }
         }
         // Canceling drops the review before the sheet leaves; without its content, the closing sheet would lose its
         // height and go blank.
-        .onChange(of: deposit.review, initial: true) { _, review in
+        .onChange(of: move.review, initial: true) { _, review in
             if let review { shownReview = review }
         }
-        .interactiveDismissDisabled(deposit.isWorking || deposit.submission != nil)
+        .interactiveDismissDisabled(move.isWorking || move.submission != nil)
         // Alerts show from the topmost presentation, so errors while the review shows appear here.
-        .errorAlert($deposit.error)
+        .errorAlert($move.error)
     }
 }
