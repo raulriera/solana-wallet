@@ -1,3 +1,4 @@
+import Foundation
 import Portfolio
 import SwiftUI
 
@@ -11,12 +12,16 @@ struct TokenBalance: View {
     var abbreviates = false
 
     var body: some View {
-        if let symbol {
-            Text("\(amount, format: .amount) \(symbol)")
-        } else {
-            Text(amount, format: abbreviates ? .abbreviatedAmount : .amount)
-                .accessibilityLabel(Text(amount, format: .amount))
+        Group {
+            if let symbol {
+                Text("\(amount, format: .amount) \(symbol)")
+            } else {
+                Text(amount, format: abbreviates ? .abbreviatedAmount : .amount)
+                    .accessibilityLabel(Text(amount, format: .amount))
+            }
         }
+        // A new balance rolls its digits into place, up or down, as values and prices do.
+        .contentTransition(.numericText(value: Double(amount.units) / pow(10, Double(amount.decimals))))
     }
 }
 
