@@ -23,6 +23,8 @@ struct PaymentAmountScreen: View {
         }
         .arrangementViewStyle(.adaptive)
         .contentMargins(for: .container)
+        // Send keeps the system's spacing from the tab bar below it.
+        .scenePadding(.bottom)
         .background(palette.background)
         // Like a system keypad, the screen stops growing at the largest standard text size, so the keys keep their
         // layout; the keys show the large content viewer instead.

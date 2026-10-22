@@ -11,16 +11,20 @@ struct WelcomeScreen: View {
             ScrollView {
                 WelcomeIntroduction()
                     .padding(24)
+                    // Wide regions keep the content at the shared readable width, centered.
+                    .frame(maxWidth: LayoutMetrics.readableWidth)
+                    .frame(maxWidth: .infinity)
             }
             .defaultScrollAnchor(.center, for: .alignment)
-            .readableContentWidth()
         } secondary: {
             ScrollView {
                 WelcomeActions(createWallet: createWallet, importWallet: importWallet)
                     .padding(24)
+                    // Wide regions keep the content at the shared readable width, centered.
+                    .frame(maxWidth: LayoutMetrics.readableWidth)
+                    .frame(maxWidth: .infinity)
             }
             .defaultScrollAnchor(.center, for: .alignment)
-            .readableContentWidth()
         }
         .arrangementViewStyle(.adaptive)
         .background(palette.background)
