@@ -129,6 +129,12 @@ final class PrivateBalanceModel {
         open(.toPrivate, spendableLamports: publicLamports)
     }
 
+    /// Opens a withdrawal of the account's available private SOL to its own public address, while it has some.
+    func moveToPublicBalance() {
+        guard case .balance(let available, _)? = status, available > 0 else { return }
+        open(.toPublic, spendableLamports: available)
+    }
+
     /// Opens a move of the account's SOL between its balances, while private balances are on.
     /// - Parameters:
     ///   - direction: Which balance the SOL leaves, and which one it reaches.

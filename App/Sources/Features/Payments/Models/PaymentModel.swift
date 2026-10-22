@@ -19,6 +19,8 @@ final class PaymentModel {
         case account
         /// The account's public balance, apart from its private balance.
         case publicBalance
+        /// The account's available private balance, apart from its public balance.
+        case privateBalance
 
         /// The line under the amount when the person has nothing to choose: the balance that the payment spends.
         /// - Parameters:
@@ -33,6 +35,9 @@ final class PaymentModel {
             case .publicBalance:
                 LocalizedStringResource("Public balance: \(quantity, format: .quantity(of: token))",
                                         comment: "Line under the amount added to a private balance. The variable is the public balance with its symbol, such as 1.2 SOL.")
+            case .privateBalance:
+                LocalizedStringResource("Private balance: \(quantity, format: .quantity(of: token))",
+                                        comment: "Line under the amount moved to the public balance. The variable is the available private balance with its symbol, such as 1.2 SOL.")
             }
         }
 
@@ -45,6 +50,9 @@ final class PaymentModel {
             case .publicBalance:
                 LocalizedStringResource("More than your public balance",
                                         comment: "Warning under the amount added to a private balance when it's more than the public balance.")
+            case .privateBalance:
+                LocalizedStringResource("More than your private balance",
+                                        comment: "Warning under the amount moved to the public balance when it's more than the available private balance.")
             }
         }
 
@@ -59,6 +67,9 @@ final class PaymentModel {
             case .publicBalance:
                 LocalizedStringResource("\(amount), more than your public balance",
                                         comment: "VoiceOver announcement after a key press when the amount added to a private balance is more than the public balance. The variable is the formatted amount.")
+            case .privateBalance:
+                LocalizedStringResource("\(amount), more than your private balance",
+                                        comment: "VoiceOver announcement after a key press when the amount moved to the public balance is more than the available private balance. The variable is the formatted amount.")
             }
         }
     }

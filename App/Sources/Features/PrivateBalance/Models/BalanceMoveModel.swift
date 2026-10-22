@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import Privacy
 import RPC
 
 /// One move of an account's SOL between its public balance and its own private balance: the direction, the amount, its
@@ -17,6 +18,8 @@ final class BalanceMoveModel: Identifiable {
     nonisolated enum Direction: Hashable, Sendable {
         /// From the account's public balance into its private balance.
         case toPrivate
+        /// From the account's available private balance to its own public address.
+        case toPublic
     }
 
     /// What an attempt does.
@@ -43,8 +46,12 @@ final class BalanceMoveModel: Identifiable {
         let lamports: UInt64
         /// The network fee, in lamports.
         let networkFee: UInt64
-        /// The one-time fee that registers the account with its first move, in lamports, or `nil` after it.
+        /// The one-time fee that registers the account with its first move into the private balance, in lamports, or
+        /// `nil` after it.
         let registrationFee: UInt64?
+        /// The pool's fee for the notes that a move to the public balance spends, in lamports, or `nil` when there's
+        /// none.
+        let privacyFee: UInt64?
     }
 
     /// How a sent move settled.
@@ -118,6 +125,7 @@ final class BalanceMoveModel: Identifiable {
                                decimals: 9)
         let source: PaymentModel.Source = switch direction {
         case .toPrivate: .publicBalance
+        case .toPublic: .privateBalance
         }
         // Without a price, the keypad types SOL and never shows the currency.
         payment = PaymentModel(tokens: [sol], currencyCode: "USD", source: source)
@@ -198,6 +206,7 @@ final class BalanceMoveModel: Identifiable {
             let lamports = NSDecimalNumber(decimal: payment.quantity * Self.lamportsPerSOL).uint64Value
             let request: PrivateTransactionRequest = switch direction {
             case .toPrivate: .deposit(lamports)
+            case .toPublic: .withdraw(lamports, to: account.address)
             }
             let prepared = try await balances.prepare(request, from: account, on: network)
             show(try await simulate(prepared))
@@ -272,34 +281,72 @@ final class BalanceMoveModel: Identifiable {
         }
     }
 
-    /// Simulates a prepared deposit and reads what it costs.
-    /// - Parameter prepared: The prepared deposit.
+    /// Simulates a prepared move and reads what it costs.
+    ///
+    /// The account's public SOL pays every fee: a deposit's network fee and first registration, and a withdrawal's
+    /// network fee and privacy fee.
+    /// - Parameter prepared: The prepared deposit or withdrawal.
     /// - Returns: The simulation to approve, the transaction to record, and the review to show.
-    /// - Throws: ``PrivateBalanceError/insufficientPublicBalance`` if the public SOL doesn't cover the deposit and its
-    ///   fees, ``PrivateBalanceError/preparationFailed`` if the simulation fails otherwise or doesn't report the fees,
-    ///   or the simulation's error.
+    /// - Throws: ``PrivateBalanceError/insufficientPublicBalance`` if the public SOL doesn't cover a deposit and its
+    ///   fees, ``PrivateBalanceError/insufficientPublicBalanceForFees`` if it doesn't cover a withdrawal's fees,
+    ///   ``PrivateBalanceError/preparationFailed`` if the simulation fails otherwise or doesn't report the fees, or the
+    ///   simulation's error.
     private func simulate(_ prepared: PreparedPrivateTransaction) async throws
         -> (simulation: Simulation, transaction: PreparedPrivateTransaction, review: Review) {
-        guard case .deposit(let lamports) = prepared.effect else { throw PrivateBalanceError.preparationFailed }
+        let lamports = switch prepared.effect {
+        case .deposit(let lamports): lamports
+        case .spend(let spend): spend.lamports
+        case .createCode, .redeem: throw PrivateBalanceError.preparationFailed
+        }
         let (simulation, transaction) = try await transactions.simulate(prepared)
         let execution = simulation.diagnostics.value
         guard execution.error == nil else {
-            throw execution.lacksFunds ? PrivateBalanceError.insufficientPublicBalance
-                                       : PrivateBalanceError.preparationFailed
+            guard execution.lacksFunds else { throw PrivateBalanceError.preparationFailed }
+            throw switch direction {
+            case .toPrivate: PrivateBalanceError.insufficientPublicBalance
+            case .toPublic: PrivateBalanceError.insufficientPublicBalanceForFees
+            }
         }
         guard let fee = simulation.fee else { throw PrivateBalanceError.preparationFailed }
         let networkFee = simulation.tips.reduce(fee) { $0 + $1.tipLamports }
-        var registrationFee: UInt64?
-        if prepared.registers {
-            // The payer's SOL pays the deposit, the network fee, and the registration's rent.
-            guard let change = simulation.balanceChanges?.first(where: { $0.owner == account.address && $0.asset == .sol }),
-                  change.before >= change.after, change.before - change.after >= lamports + networkFee else {
-                throw PrivateBalanceError.preparationFailed
-            }
-            registrationFee = change.before - change.after - lamports - networkFee
+        let review: Review
+        switch direction {
+        case .toPrivate:
+            // Only a first deposit pays more: the registration's rent.
+            let registrationFee = prepared.registers
+                ? try otherFee(of: simulation, paying: lamports, networkFee: networkFee) : nil
+            review = Review(lamports: lamports, networkFee: networkFee, registrationFee: registrationFee,
+                            privacyFee: nil)
+        case .toPublic:
+            let privacyFee = try otherFee(of: simulation, receiving: lamports, networkFee: networkFee)
+            review = Review(lamports: lamports, networkFee: networkFee, registrationFee: nil,
+                            privacyFee: privacyFee > 0 ? privacyFee : nil)
         }
-        return (simulation, transaction, Review(lamports: lamports, networkFee: networkFee,
-                                                registrationFee: registrationFee))
+        return (simulation, transaction, review)
+    }
+
+    /// Reads what the account's public SOL pays in a simulation beyond the SOL that moves and the network fee, such as
+    /// a registration's rent or a withdrawal's privacy fee.
+    /// - Parameters:
+    ///   - simulation: The simulated move.
+    ///   - paid: The SOL that the public balance pays into the private balance, in lamports.
+    ///   - received: The SOL that the public balance receives from the private balance, in lamports.
+    ///   - networkFee: The network fee and service tips, in lamports.
+    /// - Returns: The other fees, in lamports.
+    /// - Throws: ``PrivateBalanceError/preparationFailed`` if the simulation doesn't report the account's SOL, or
+    ///   reports less than the SOL that moves and the network fee.
+    private func otherFee(of simulation: Simulation, paying paid: UInt64 = 0, receiving received: UInt64 = 0,
+                          networkFee: UInt64) throws -> UInt64 {
+        guard let change = simulation.balanceChanges?.first(where: { $0.owner == account.address && $0.asset == .sol })
+        else { throw PrivateBalanceError.preparationFailed }
+        // What the account had and received equals what it keeps and pays.
+        let (incoming, incomingOverflow) = change.before.addingReportingOverflow(received)
+        let (kept, keptOverflow) = change.after.addingReportingOverflow(paid)
+        let (outgoing, outgoingOverflow) = kept.addingReportingOverflow(networkFee)
+        guard !incomingOverflow, !keptOverflow, !outgoingOverflow, incoming >= outgoing else {
+            throw PrivateBalanceError.preparationFailed
+        }
+        return incoming - outgoing
     }
 
     /// Keeps a simulated move for approval and shows its review.

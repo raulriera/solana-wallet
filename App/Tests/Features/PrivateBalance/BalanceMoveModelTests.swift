@@ -5,16 +5,19 @@ import Testing
 import Transactions
 @testable import widgets
 
-/// Verifies a move of public SOL into the private balance, a deposit: its review, sending, and watch through the real
-/// private balances and transaction coordinator, with local responses and sockets.
+/// Verifies moves of SOL between an account's balances, deposits and withdrawals: their reviews, sending, and watch
+/// through the real private balances and transaction coordinator, with local responses and sockets.
 ///
-/// Each model types 1 SOL from a public balance of 2 SOL; every simulation reports a 10,000-lamport network fee.
+/// Each model types 1 SOL: a deposit from a public balance of 2 SOL, a withdrawal from a private note of 2 SOL to the
+/// same public balance. Every simulation reports a 10,000-lamport network fee.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct BalanceMoveModelTests {
     /// The account's public SOL, in lamports.
     private static let publicLamports: UInt64 = 2_000_000_000
-    /// The typed deposit, in lamports.
+    /// The account's private SOL, one note, in lamports.
+    private static let privateLamports: UInt64 = 2_000_000_000
+    /// The typed amount, in lamports.
     private static let lamports: UInt64 = 1_000_000_000
     /// The network fee of every simulation, in lamports.
     private static let networkFee: UInt64 = 10_000
@@ -24,7 +27,7 @@ struct BalanceMoveModelTests {
     private static let rateLimit = RPCError.http(statusCode: 429, retryAfter: "3")
 
     /// The local responses and connections behind a model.
-    private struct Deposit {
+    private struct Move {
         /// The model under test, with 1 SOL typed.
         let model: BalanceMoveModel
         /// The responses that answer the coordinator's preparation reads and simulations.
@@ -43,7 +46,7 @@ struct BalanceMoveModelTests {
         await model.run(model.attempt)
 
         #expect(model.review == BalanceMoveModel.Review(lamports: Self.lamports, networkFee: Self.networkFee,
-                                                    registrationFee: nil))
+                                                        registrationFee: nil, privacyFee: nil))
         #expect(model.error == nil)
         #expect(model.attempt == nil)
     }
@@ -58,7 +61,7 @@ struct BalanceMoveModelTests {
         await model.run(model.attempt)
 
         #expect(model.review == BalanceMoveModel.Review(lamports: Self.lamports, networkFee: Self.networkFee,
-                                                    registrationFee: Self.registrationRent))
+                                                        registrationFee: Self.registrationRent, privacyFee: nil))
         #expect(model.error == nil)
     }
 
@@ -141,7 +144,7 @@ struct BalanceMoveModelTests {
 
         #expect(attempt.work == .review)
         #expect(model.review == BalanceMoveModel.Review(lamports: Self.lamports, networkFee: Self.networkFee,
-                                                    registrationFee: nil))
+                                                        registrationFee: nil, privacyFee: nil))
         #expect(model.outcome == nil)
         #expect(model.submission == nil)
         #expect(try await Self.simulations(of: deposit.preparation) == 2)
@@ -183,7 +186,7 @@ struct BalanceMoveModelTests {
         await model.run(model.attempt)
 
         #expect(model.review == BalanceMoveModel.Review(lamports: Self.lamports, networkFee: Self.networkFee,
-                                                    registrationFee: nil))
+                                                        registrationFee: nil, privacyFee: nil))
         #expect(model.error == nil)
         #expect(model.submission == nil)
         #expect(model.outcome == nil)
@@ -274,6 +277,54 @@ struct BalanceMoveModelTests {
         #expect(model.attempt == nil)
     }
 
+    /// A withdrawal types from the available private balance, and its review shows the amount and network fee, with
+    /// the privacy fee only when the simulation charges one.
+    /// - Parameter privacyFee: The pool's fee that the simulation charges the payer, in lamports.
+    @Test(arguments: [UInt64(0), 3_000])
+    func `Reviewing a withdrawal shows a privacy fee only when it has one`(privacyFee: UInt64) async throws {
+        let model = try await Self.withdrawal(privacyFee: privacyFee).model
+
+        model.prepareReview()
+        await model.run(model.attempt)
+
+        #expect(model.payment.source == .privateBalance)
+        #expect(model.payment.token.balance == 2)
+        #expect(model.review == BalanceMoveModel.Review(lamports: Self.lamports, networkFee: Self.networkFee,
+                                                        registrationFee: nil,
+                                                        privacyFee: privacyFee > 0 ? privacyFee : nil))
+        #expect(model.error == nil)
+    }
+
+    /// A withdrawal's simulation that runs out of SOL means the public balance can't pay the fees, and no review shows.
+    @Test
+    func `A withdrawal that the public balance can't pay for shows the fees error`() async throws {
+        let failure = Self.execution(error: TransactionError(name: "InsufficientFundsForFee", details: nil), logs: [])
+        let model = try await Self.withdrawal(simulation: failure).model
+
+        model.prepareReview()
+        await model.run(model.attempt)
+
+        #expect(model.error == .insufficientPublicBalanceForFees)
+        #expect(model.review == nil)
+    }
+
+    /// Approving signs and sends the reviewed withdrawal and watches it until it succeeds, which leaves the spent
+    /// note's change pending in the private balance.
+    @Test
+    func `Approving sends the withdrawal and keeps its change pending`() async throws {
+        let withdrawal = try await Self.withdrawal(statuses: [Self.status(.finalized)])
+        let model = withdrawal.model
+        try await Self.review(model)
+
+        model.approve()
+        await model.run(model.attempt)
+
+        #expect(model.outcome == .succeeded)
+        #expect(model.status == .balance(available: 0, pending: Self.privateLamports - Self.lamports))
+        #expect(model.error == nil)
+        await withdrawal.sockets.waitUntilClosed()
+    }
+
     /// Creates a fixture account's deposit model on devnet, with 1 SOL typed, over private balances and a transaction
     /// coordinator that answer from local responses and sockets.
     /// - Parameters:
@@ -289,7 +340,7 @@ struct BalanceMoveModelTests {
     private static func deposit(registered: Bool = true, simulation: SimulateTransaction.Value? = nil,
                                 provider: ProviderSettings.Provider = .helius, store: SigningRecoveryStore? = nil,
                                 statuses: [GetSignatureStatuses.Response] = [], height: UInt64 = 500,
-                                sockets: SocketSequence = SocketSequence()) async throws -> Deposit {
+                                sockets: SocketSequence = SocketSequence()) async throws -> Move {
         let account = try await PrivateBalanceFixtures.account()
         let record = try await PrivateBalanceFixtures.keys(for: account)
         let shielded = try record.shieldedAccount(for: account.address)
@@ -303,15 +354,77 @@ struct BalanceMoveModelTests {
                                                   outputTreeID: 1),
             provider: provider
         )
-        var fixture = try SigningFixture()
+        let fixture = try SigningFixture()
         var instructions = [try ShieldedPool.deposit(lamports: lamports, from: account.address, to: shielded.recipient,
                                                      treeID: 1)]
         if !registered { instructions.insert(try shielded.register(paidBy: account.address), at: 0) }
-        fixture.simulation = SimulateTransaction.Response(
-            context: Context(slot: 402),
-            value: try simulation ?? success(of: instructions, paidBy: account.address, fixture: fixture,
-                                             registers: !registered)
-        )
+        // The payer's SOL pays the deposit, the network fee, and a first deposit's registration.
+        let spent = lamports + networkFee + (registered ? 0 : registrationRent)
+        return try move(.toPrivate, of: account, spendableLamports: publicLamports, balances: balances,
+                        simulation: try simulation ?? success(of: instructions, paidBy: account.address,
+                                                              leaving: publicLamports - spent, fixture: fixture),
+                        fixture: fixture, store: store, statuses: statuses, height: height, sockets: sockets)
+    }
+
+    /// Creates a fixture account's withdrawal model on devnet, with 1 SOL typed from a 2-SOL private note to the
+    /// account's own public address, over private balances and a transaction coordinator that answer from local
+    /// responses and sockets.
+    /// - Parameters:
+    ///   - privacyFee: The pool's fee that the successful simulation charges the payer, in lamports.
+    ///   - simulation: The simulated execution of every withdrawal, or `nil` for a success that reports the payer's SOL.
+    ///   - statuses: The watch's status reads, in arrival order.
+    ///   - sockets: The watch's connections.
+    /// - Returns: The model and the local responses and connections behind it.
+    /// - Throws: A fixture or preparation error.
+    private static func withdrawal(privacyFee: UInt64 = 0, simulation: SimulateTransaction.Value? = nil,
+                                   statuses: [GetSignatureStatuses.Response] = [],
+                                   sockets: SocketSequence = SocketSequence()) async throws -> Move {
+        let account = try await PrivateBalanceFixtures.account()
+        let record = try await PrivateBalanceFixtures.keys(for: account)
+        let note = try PrivateBalanceFixtures.deposit(privateLamports, to: record.shieldedAccount(for: account.address),
+                                                      leafIndex: 1)
+        let balances = {
+            PrivateBalances.inMemory(
+                keys: StoredValue([account.address.value: record]),
+                notes: StoredValue([PrivateBalances.noteID(of: account, on: .devnet): NoteSyncState()]),
+                recovery: try PrivateBalanceFixtures.recoveryStore(),
+                responses: HTTPResponses.privateNotes(deposits: [note], outputTreeID: 1,
+                                                      prove: PrivateBalanceFixtures.proof(answering:))
+            )
+        }
+        let fixture = try SigningFixture()
+        // A separate preparation finds the withdrawal's accounts, whose balances the simulation reports.
+        let instructions = try await balances().prepare(.withdraw(lamports, to: account.address), from: account,
+                                                        on: .devnet).instructions
+        // The payer's SOL receives the withdrawal and pays the network fee and the privacy fee.
+        let kept = publicLamports + lamports - networkFee - privacyFee
+        return try move(.toPublic, of: account, spendableLamports: privateLamports, balances: try balances(),
+                        simulation: try simulation ?? success(of: instructions, paidBy: account.address, leaving: kept,
+                                                              fixture: fixture),
+                        fixture: fixture, statuses: statuses, sockets: sockets)
+    }
+
+    /// Creates a model with 1 SOL typed, over a transaction coordinator that answers from local responses and sockets.
+    /// - Parameters:
+    ///   - direction: Which balance the SOL leaves, and which one it reaches.
+    ///   - account: The account whose SOL moves.
+    ///   - spendableLamports: The SOL of the balance that the SOL leaves, in lamports.
+    ///   - balances: The private balances.
+    ///   - simulation: The simulated execution of every move.
+    ///   - fixture: The blockhash and resource requests that the transaction compiles with.
+    ///   - store: The recovery storage that signing reads, or `nil` for the fixture recovery.
+    ///   - statuses: The watch's status reads, in arrival order.
+    ///   - height: The finalized block height of the watch's epoch reads.
+    ///   - sockets: The watch's connections.
+    /// - Returns: The model and the local responses and connections behind it.
+    /// - Throws: A fixture error.
+    private static func move(_ direction: BalanceMoveModel.Direction, of account: widgets.Account,
+                             spendableLamports: UInt64, balances: PrivateBalances,
+                             simulation: SimulateTransaction.Value, fixture: SigningFixture,
+                             store: SigningRecoveryStore? = nil, statuses: [GetSignatureStatuses.Response],
+                             height: UInt64 = 500, sockets: SocketSequence) throws -> Move {
+        var fixture = fixture
+        fixture.simulation = SimulateTransaction.Response(context: Context(slot: 402), value: simulation)
         let preparation = try HTTPResponses.preparation(fixture: fixture.preparation)
         let confirmation = try HTTPResponses.confirmation(
             statuses: statuses, epochs: [GetEpochInfo.Response(epoch: 1, absoluteSlot: 1_000, blockHeight: height)]
@@ -324,33 +437,31 @@ struct BalanceMoveModelTests {
             submitter: Submitter(rpcs: [HTTPResponses.sending().client]),
             confirmer: Confirmer(rpc: confirmation.client(socket: { sockets.connect($0) }))
         )
-        let model = BalanceMoveModel(direction: .toPrivate, account: account, network: .devnet,
-                                     spendableLamports: publicLamports, balances: balances, transactions: transactions)
+        let model = BalanceMoveModel(direction: direction, account: account, network: .devnet,
+                                     spendableLamports: spendableLamports, balances: balances,
+                                     transactions: transactions)
         model.payment.press(.digit(1))
-        return Deposit(model: model, preparation: preparation, sockets: sockets)
+        return Move(model: model, preparation: preparation, sockets: sockets)
     }
 
-    /// Creates a successful simulation of a deposit, whose payer pays the deposit, the network fee, and the rent of a
-    /// registration.
+    /// Creates a successful simulation of a move, whose payer starts with the public balance.
     /// - Parameters:
-    ///   - instructions: The deposit's instructions.
+    ///   - instructions: The move's instructions.
     ///   - payer: The account that pays.
+    ///   - kept: The payer's SOL after the move, in lamports.
     ///   - fixture: The blockhash and resource requests that the transaction compiles with.
-    ///   - registers: Whether the deposit registers the account's keys.
     /// - Returns: The execution, with balances for every account of the compiled transaction.
     /// - Throws: A compilation error, which doesn't happen.
-    private static func success(of instructions: [Instruction], paidBy payer: Address, fixture: SigningFixture,
-                                registers: Bool) throws -> SimulateTransaction.Value {
+    private static func success(of instructions: [Instruction], paidBy payer: Address, leaving kept: UInt64,
+                                fixture: SigningFixture) throws -> SimulateTransaction.Value {
         let message = try MessageBuilder().message(instructions: instructions, payer: payer,
                                                    recentBlockhash: fixture.blockhash.value.blockhash,
                                                    configuration: fixture.configuration)
         let others = try TransactionDecoder().decode(TransactionBuilder().simulationTransaction(for: message))
             .accounts.dropFirst().map { _ in UInt64(0) }
-        let spent = lamports + networkFee + (registers ? registrationRent : 0)
         return SimulateTransaction.Value(error: nil, logs: ["Program completed"], unitsConsumed: 150,
                                          loadedAccountsDataSize: 256, fee: networkFee, replacementBlockhash: nil,
-                                         preBalances: [publicLamports] + others,
-                                         postBalances: [publicLamports - spent] + others,
+                                         preBalances: [publicLamports] + others, postBalances: [kept] + others,
                                          preTokenBalances: [], postTokenBalances: [])
     }
 

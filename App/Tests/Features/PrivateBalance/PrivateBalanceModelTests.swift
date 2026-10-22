@@ -103,6 +103,29 @@ struct PrivateBalanceModelTests {
         #expect(model.error == nil)
     }
 
+    /// Moving to the public balance opens a withdrawal of the available private SOL only while there's some; pending
+    /// SOL alone, or an unregistered account, opens nothing.
+    /// - Parameter status: The account's private balance.
+    @Test(arguments: [PrivateBalanceStatus.balance(available: 1_000_000, pending: 0),
+                      .balance(available: 0, pending: 1_000_000), .unregistered])
+    func `Moving to the public balance opens a withdrawal only with available SOL`(status: PrivateBalanceStatus) async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let model = try PrivateBalanceModel.fixture(
+            HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered]),
+            keys: StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
+        )
+        await model.refresh(for: account)
+        model.show(status)
+
+        model.moveToPublicBalance()
+
+        let opens = status == .balance(available: 1_000_000, pending: 0)
+        #expect(model.move?.direction == (opens ? .toPublic : nil))
+        #expect(model.move?.payment.source == (opens ? .privateBalance : nil))
+        #expect(model.move?.payment.token.balance == (opens ? Decimal(string: "0.001") : nil))
+        #expect(model.error == nil)
+    }
+
     /// A network without a transaction coordinator opens no deposit and explains that the transaction can't be
     /// prepared.
     @Test
