@@ -162,14 +162,28 @@ struct PrivateBalancesTests {
         #expect(await responses.requests.isEmpty)
     }
 
-    /// Without keys, private balances are off, and nothing is requested.
-    @Test
-    func `Refreshing an account without keys is off`() async throws {
+    /// Without keys, private balances are off, and only the account's registry record is read: an account that turned
+    /// them on before, such as before its wallet was imported again, shows as registered.
+    /// - Parameter isRegistered: Whether the registry publishes the account's keys.
+    @Test(arguments: [false, true])
+    func `Refreshing an account without keys is off and reads its registration`(isRegistered: Bool) async throws {
         let account = try await PrivateBalanceFixtures.account()
-        let responses = HTTPResponses.privateNotes()
+        let shielded = try await PrivateBalanceFixtures.keys(for: account).shieldedAccount(for: account.address)
+        let registry = isRegistered ? try PrivateBalanceFixtures.registry(publishing: shielded)
+                                    : PrivateBalanceFixtures.unregistered
+        let responses = HTTPResponses.privateNotes(registry: [registry])
 
-        #expect(try await Self.balances(responses).refresh(account, on: .devnet) == .off)
-        #expect(await responses.requests.isEmpty)
+        #expect(try await Self.balances(responses).refresh(account, on: .devnet) == .off(isRegistered: isRegistered))
+        #expect(try await Self.methods(of: responses) == [GetMultipleAccounts.method])
+    }
+
+    /// A registry that can't be read leaves private balances off, as for an account that never turned them on.
+    @Test
+    func `An unread registry shows private balances off`() async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let responses = HTTPResponses.privateNotes(error: .http(statusCode: 429, retryAfter: "3"))
+
+        #expect(try await Self.balances(responses).refresh(account, on: .devnet) == .off(isRegistered: false))
     }
 
     /// Without keys and with a provider that doesn't read private notes, private balances are unavailable instead of
@@ -467,14 +481,14 @@ struct PrivateBalancesTests {
     @Test
     func `An unreadable keys item is deleted and private balances are off`() async throws {
         let account = try await PrivateBalanceFixtures.account()
-        let responses = HTTPResponses.privateNotes()
+        let responses = HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered])
         let keys = StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)],
                                unreadable: true)
 
-        #expect(try await Self.balances(responses, keys: keys).refresh(account, on: .devnet) == .off)
+        #expect(try await Self.balances(responses, keys: keys).refresh(account, on: .devnet) == .off(isRegistered: false))
         #expect(await keys.deletions == 1)
         #expect(await keys.value == nil)
-        #expect(await responses.requests.isEmpty)
+        #expect(try await Self.methods(of: responses) == [GetMultipleAccounts.method])
     }
 
     /// Turning private balances on over an unreadable keys item deletes the item and keeps the account's keys.

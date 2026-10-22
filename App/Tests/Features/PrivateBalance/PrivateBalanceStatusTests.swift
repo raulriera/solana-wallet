@@ -9,7 +9,8 @@ struct PrivateBalanceStatusTests {
     @Test
     func `Statuses are equal only with the same case and balance`() {
         let statuses: [PrivateBalanceStatus] = [
-            .off, .unavailable, .unregistered, .balance(available: 0, pending: 0), .balance(available: 1, pending: 0),
+            .off(isRegistered: false), .off(isRegistered: true), .unavailable, .unregistered,
+            .balance(available: 0, pending: 0), .balance(available: 1, pending: 0),
             .balance(available: 0, pending: 1),
         ]
 

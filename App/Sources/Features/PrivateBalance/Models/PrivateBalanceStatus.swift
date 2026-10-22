@@ -4,7 +4,10 @@ import Privacy
 nonisolated enum PrivateBalanceStatus: Equatable, Sendable {
     /// Private balances aren't turned on for the account: this device has no keys for it, and the selected provider
     /// reads them.
-    case off
+    ///
+    /// `isRegistered` is whether the network's registry shows that the account turned private balances on before, such
+    /// as before the wallet was imported again; it's `false` when the registry couldn't be read.
+    case off(isRegistered: Bool)
     /// The network has no private balances, or the selected provider doesn't read them.
     case unavailable
     /// The account has keys, but hasn't registered them on the network.
