@@ -29,8 +29,8 @@ struct KeypadKeyButtonStyle: ButtonStyle {
             .background(background == .filled ? style.keyFill.color(in: palette) : .clear, in: .circle)
             .contentShape(.circle)
             .glassEffect(background == .glass ? .regular.interactive() : .identity, in: .circle)
-            // Keys stop growing at a large circle, so wide spaces don't stretch them.
-            .frame(maxWidth: 110, maxHeight: 110)
+            // Keys stop growing at a circle a little larger than the Phone keypad's, so wide spaces don't stretch them.
+            .frame(maxWidth: 94, maxHeight: 94)
             .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
     }
 }
