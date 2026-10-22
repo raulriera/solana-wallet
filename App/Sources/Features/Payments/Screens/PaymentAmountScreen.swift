@@ -2,8 +2,9 @@ import SwiftUI
 
 /// Types a payment's amount on an always-visible keypad, then opens its review.
 ///
-/// The amount sits over the keypad, or beside it in short or clearly wide space, such as iPhone in landscape. A fold
-/// across the screen splits them, so the keys stay on the flat half of iPhone Duo in a table pose.
+/// The amount sits beside the keypad in space wider than tall, such as iPhone in landscape, and over it otherwise.
+/// Send stays under the keys, or under the amount beside them, at the keys' width. A fold across the screen splits
+/// them, so the keys stay on the flat half of iPhone Duo in a table pose.
 struct PaymentAmountScreen: View {
     @Environment(\.palette) private var palette
     @Environment(\.locale) private var locale
@@ -13,15 +14,15 @@ struct PaymentAmountScreen: View {
 
     var body: some View {
         ArrangementView {
-            AmountColumn(payment: payment, isReviewing: $isReviewing)
+            AmountColumn(payment: payment)
         } secondary: {
-            KeypadColumn(payment: payment, isReviewing: $isReviewing)
+            Keypad(payment: payment)
+                // The keys keep the system's spacing from the amount above them and from Send below them.
+                .padding(.vertical)
+            SendButton(payment: payment, isReviewing: $isReviewing)
         }
-        // Stacked, the keypad takes the height its keys use and the amount the rest. Below 720 pt the keys can't
-        // reach their full size, so in clearly wide space the amount moves beside them; below 520 pt, any space wider
-        // than tall does.
-        .arrangementViewStyle(.adaptive(sideBySideAspectRatio: 1.25, fullStackedHeight: 720,
-                                        minimumStackedHeight: 520))
+        .arrangementViewStyle(.adaptive)
+        .contentMargins(for: .container)
         .background(palette.background)
         // Like a system keypad, the screen stops growing at the largest standard text size, so the keys keep their
         // layout; the keys show the large content viewer instead.

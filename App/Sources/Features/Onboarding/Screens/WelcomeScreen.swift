@@ -13,12 +13,14 @@ struct WelcomeScreen: View {
                     .padding(24)
             }
             .defaultScrollAnchor(.center, for: .alignment)
+            .readableContentWidth()
         } secondary: {
             ScrollView {
                 WelcomeActions(createWallet: createWallet, importWallet: importWallet)
                     .padding(24)
             }
             .defaultScrollAnchor(.center, for: .alignment)
+            .readableContentWidth()
         }
         .arrangementViewStyle(.adaptive)
         .background(palette.background)
