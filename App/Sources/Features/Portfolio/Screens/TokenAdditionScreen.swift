@@ -56,7 +56,6 @@ struct TokenAdditionScreen: View {
         .scrollContentBackground(.hidden)
         .readableContentWidth()
         .confirmationAction("Add Token", isEnabled: addition.preview != nil, action: addition.add)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(palette.background)
         .navigationTitle("Add Token")
         .navigationBarTitleDisplayMode(.inline)

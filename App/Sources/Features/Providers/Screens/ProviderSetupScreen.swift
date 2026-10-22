@@ -67,7 +67,6 @@ struct ProviderSetupScreen<Submission: ProviderSubmitting>: View {
         .readableContentWidth()
         .confirmationAction(purpose.action, isEnabled: input.hasText, isPending: submission.isPending,
                             action: submitEntry)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(palette.background)
         .navigationTitle(Text(purpose.title))
         .navigationBarTitleDisplayMode(.inline)

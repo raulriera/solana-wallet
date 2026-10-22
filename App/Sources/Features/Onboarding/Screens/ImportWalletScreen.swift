@@ -70,7 +70,6 @@ struct ImportWalletScreen: View {
         .scrollDismissesKeyboard(.interactively)
         .confirmationAction("Import Wallet", isEnabled: input.hasPhrase && canDisplayRecovery,
                             isPending: submission.isPending, action: submit)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(palette.background)
         .navigationTitle("Import Wallet")
         .navigationBarTitleDisplayMode(.inline)

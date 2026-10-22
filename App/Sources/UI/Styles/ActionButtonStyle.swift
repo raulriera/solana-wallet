@@ -24,8 +24,8 @@ struct ActionButtonStyle<Base: PrimitiveButtonStyle>: PrimitiveButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         Button(role: configuration.role, action: configuration.trigger) {
             configuration.label
-                .frame(maxWidth: .infinity)
         }
+        .buttonSizing(.flexible)
         .buttonStyle(base)
         .controlSize(.large)
         .tint(tint.resolved(in: palette))
