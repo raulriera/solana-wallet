@@ -8,7 +8,8 @@ import Wallet
 ///
 /// A refresh shows the account's last read balance, or why it has none; a failed refresh keeps what was read before.
 /// While private balances are on, a poll reads the balance again; a failure that reading again can't fix, such as a
-/// rate limit, pauses polling until a refresh that the person or the window starts succeeds. Accounts whose path has
+/// rate limit, pauses polling until a refresh that the person or the window starts succeeds. After a transaction settles
+/// with pending SOL, the next few polls follow up quickly until the indexer reports it. Accounts whose path has
 /// no private-balance keys show nothing. Turning private balances on runs once per attempt in
 /// the scene's task and reports a typed error, except when the person cancels authentication.
 @MainActor
@@ -33,6 +34,10 @@ final class PrivateBalanceModel {
     private(set) var isPollingPaused = false
     /// The open deposit of the account's public SOL into its private balance.
     var deposit: DepositModel?
+    /// Counts settled transactions that left pending SOL; each one starts the window's reads again.
+    private(set) var followUp = 0
+    /// The quick reads left until the pending SOL of a settled transaction turns available.
+    private(set) var followUpReadsLeft = 0
     private var account: Account?
     private let balances: any PrivateBalancing
     private let transactions: NetworkTransactions
@@ -40,6 +45,12 @@ final class PrivateBalanceModel {
 
     /// Whether an attempt to turn private balances on is waiting or running.
     var isTurningOn: Bool { attempt != nil }
+
+    /// Whether polls follow up quickly on pending SOL from a settled transaction.
+    var isFollowingUp: Bool { followUpReadsLeft > 0 }
+
+    /// The quick reads that follow a settled transaction with pending SOL, at most.
+    static let followUpReads = 10
 
     /// Creates a model that shows nothing until its first refresh.
     /// - Parameters:
@@ -63,6 +74,7 @@ final class PrivateBalanceModel {
             isTurnedOn = false
             isPollingPaused = false
             deposit = nil
+            followUpReadsLeft = 0
         }
         await refresh()
     }
@@ -70,7 +82,7 @@ final class PrivateBalanceModel {
     /// Reads the current account's private balance again; a failed read keeps the balance read before.
     ///
     /// A failure that reading again can't fix, such as a rate limit or a rejected key, pauses polling; a read that
-    /// succeeds resumes it.
+    /// succeeds resumes it, and ends a follow-up once nothing is pending.
     func refresh() async {
         guard let account, account.path.hasPrivateBalanceKeys else { return }
         do {
@@ -78,17 +90,33 @@ final class PrivateBalanceModel {
             guard self.account == account else { return }
             self.status = status
             isPollingPaused = false
+            // Nothing left to turn available, so polls slow down again.
+            if case .balance(_, let pending) = status, pending > 0 { return }
+            followUpReadsLeft = 0
         } catch {
             guard self.account == account else { return }
             isPollingPaused = !(error is CancellationError || (error as? RPCError)?.isRecoverable == true)
         }
     }
 
-    /// Reads the balance again while private balances are on for the account and polling isn't paused.
+    /// Shows the balance that a settled transaction returned, such as a deposit's pending SOL, and follows up quickly
+    /// until the indexer reports it.
+    /// - Parameter status: The account's balance after the transaction settled.
+    func show(_ status: PrivateBalanceStatus) {
+        guard account != nil else { return }
+        self.status = status
+        guard case .balance(_, let pending) = status, pending > 0 else { return }
+        followUpReadsLeft = Self.followUpReads
+        followUp += 1
+    }
+
+    /// Reads the balance again while private balances are on for the account and polling isn't paused; each poll uses
+    /// one quick read of a follow-up.
     func poll() async {
         switch status {
         case .unregistered?, .balance?:
             guard !isPollingPaused else { return }
+            if followUpReadsLeft > 0 { followUpReadsLeft -= 1 }
             await refresh()
         case .off?, .unavailable?, nil:
             return

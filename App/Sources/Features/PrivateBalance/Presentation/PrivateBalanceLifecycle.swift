@@ -11,6 +11,10 @@ private struct PrivateBalanceLifecycle: ViewModifier {
             .task(id: attempt) { await model.run(attempt) }
             .errorAlert($model.error)
             .sheet(item: $model.deposit) { DepositSheet(deposit: $0).depositLifecycle() }
+            // A settled deposit shows its pending SOL at once, before the next read.
+            .onChange(of: model.deposit?.status) { _, status in
+                if let status { model.show(status) }
+            }
             .sensoryFeedback(.success, trigger: model.isTurnedOn) { _, isTurnedOn in isTurnedOn }
             .onChange(of: model.isTurnedOn) { _, isTurnedOn in
                 guard isTurnedOn else { return }

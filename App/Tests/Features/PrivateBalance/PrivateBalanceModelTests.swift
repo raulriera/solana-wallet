@@ -119,6 +119,52 @@ struct PrivateBalanceModelTests {
         #expect(model.error == .preparationFailed)
     }
 
+    /// A settled transaction's balance shows at once; pending SOL starts a follow-up of at most ten quick reads, and
+    /// nothing pending starts none.
+    /// - Parameters:
+    ///   - pending: The settled balance's pending lamports.
+    ///   - followsUp: Whether the model follows up.
+    @Test(arguments: [(UInt64(1_000_000), true), (0, false)])
+    func `A settled balance with pending SOL starts a follow-up`(pending: UInt64, followsUp: Bool) async throws {
+        let model = try PrivateBalanceModel.fixture(HTTPResponses.privateNotes())
+        await model.refresh(for: try await PrivateBalanceFixtures.account())
+
+        model.show(.balance(available: 0, pending: pending))
+
+        #expect(model.status == .balance(available: 0, pending: pending))
+        #expect(model.isFollowingUp == followsUp)
+        #expect(model.followUpReadsLeft == (followsUp ? PrivateBalanceModel.followUpReads : 0))
+        #expect(model.followUp == (followsUp ? 1 : 0))
+    }
+
+    /// Each follow-up poll uses one quick read, and a read that finds nothing pending ends the follow-up.
+    @Test
+    func `A follow-up ends once nothing is pending`() async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let record = try await PrivateBalanceFixtures.keys(for: account)
+        let registry = try PrivateBalanceFixtures.registry(publishing: record.shieldedAccount(for: account.address))
+        let model = try PrivateBalanceModel.fixture(HTTPResponses.privateNotes(registry: [registry]),
+                                                    keys: StoredValue([account.address.value: record]))
+        await model.refresh(for: account)
+        model.show(.balance(available: 0, pending: 1_000_000))
+
+        await model.poll()
+
+        #expect(model.status == .balance(available: 0, pending: 0))
+        #expect(!model.isFollowingUp)
+    }
+
+    /// Without an account, a settled balance has nothing to show.
+    @Test
+    func `A settled balance without an account shows nothing`() throws {
+        let model = try PrivateBalanceModel.fixture(HTTPResponses.privateNotes())
+
+        model.show(.balance(available: 0, pending: 1_000_000))
+
+        #expect(model.status == nil)
+        #expect(!model.isFollowingUp)
+    }
+
     /// Turning on keeps the account's keys, then shows its balance and reports that it's on.
     @Test
     func `Turning on keeps the keys and shows the balance`() async throws {

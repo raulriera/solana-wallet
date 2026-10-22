@@ -44,6 +44,31 @@ struct PrivateBalanceObservationTests {
         #expect(model.status == .balance(available: 0, pending: 0))
     }
 
+    /// A settled transaction's pending SOL starts the reads again at once and follows up quickly, so it turns available
+    /// without waiting for the next poll.
+    /// - Throws: A fixture or test prerequisite error.
+    @Test
+    func `Pending SOL from a settled transaction is read again quickly`() async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let record = try await PrivateBalanceFixtures.keys(for: account)
+        let registry = try PrivateBalanceFixtures.registry(publishing: record.shieldedAccount(for: account.address))
+        let model = try PrivateBalanceModel.fixture(HTTPResponses.privateNotes(registry: [registry]),
+                                                    keys: StoredValue([account.address.value: record]))
+        // Ordinary polls never come within the suite's time limit, so only a follow-up reads the balance again.
+        let hosted = try HostedWindow(PrivateBalanceObservationRoot(model: model, account: account, scenePhase: .active,
+                                                                    pollInterval: .seconds(3_600),
+                                                                    followUpInterval: .milliseconds(10)))
+        defer { hosted.close() }
+        try #require(try await hosted.appears())
+        for await status in Observations({ model.status }) where status != nil { break }
+
+        model.show(.balance(available: 0, pending: 1_000_000))
+
+        // The suite's time limit ends the wait if no follow-up reads the balance.
+        for await status in Observations({ model.status }) where status == .balance(available: 0, pending: 0) { break }
+        #expect(!model.isFollowingUp)
+    }
+
     /// A window in the background reads nothing.
     /// - Throws: A fixture or test prerequisite error.
     @Test
