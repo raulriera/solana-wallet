@@ -1,13 +1,16 @@
 import Portfolio
 import SwiftUI
 
-/// The private balance of SOL's details: Turn On while private balances are off, then the available and pending SOL.
+/// The private balance of SOL's details: Turn On while private balances are off, then the available and pending SOL,
+/// with the actions as rows under them.
 ///
 /// Nothing shows before the first read, or where private balances aren't available, so the sections animate in.
 struct PrivateBalanceSections: View {
     @Environment(\.palette) private var palette
     let model: PrivateBalanceModel
     let symbol: String
+    /// The account's public SOL, in lamports, which a deposit can add.
+    let publicLamports: UInt64
 
     var body: some View {
         switch model.status {
@@ -37,6 +40,7 @@ struct PrivateBalanceSections: View {
                 LabeledContent("Available") {
                     TokenBalance(amount: Self.amount(0), symbol: symbol)
                 }
+                PrivateBalanceActions(model: model, publicLamports: publicLamports)
             }
             .listRowBackground(palette.surface)
         case .balance(let available, let pending)?:
@@ -51,6 +55,7 @@ struct PrivateBalanceSections: View {
                             .foregroundStyle(palette.secondaryText)
                     }
                 }
+                PrivateBalanceActions(model: model, publicLamports: publicLamports)
             } header: {
                 Text("Private Balance")
             } footer: {

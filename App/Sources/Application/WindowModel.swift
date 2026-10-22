@@ -37,7 +37,8 @@ final class WindowModel {
         let portfolio = services.makePortfolioCoordinator(for: network)
         self.portfolio = portfolio
         tokenRemoval = TokenRemovalModel(coordinator: portfolio)
-        privateBalance = PrivateBalanceModel(balances: services.privateBalances, network: network)
+        privateBalance = PrivateBalanceModel(balances: services.privateBalances, transactions: services.transactions,
+                                             network: network)
         settings = services.makeAppearanceSettingsModel()
         security = services.makeSecurityCoordinator()
         providers = services.makeProvidersCoordinator()
@@ -50,6 +51,7 @@ final class WindowModel {
     func show(_ network: Network) {
         portfolio = services.makePortfolioCoordinator(for: network)
         tokenRemoval = TokenRemovalModel(coordinator: portfolio)
-        privateBalance = PrivateBalanceModel(balances: services.privateBalances, network: network)
+        privateBalance = PrivateBalanceModel(balances: services.privateBalances, transactions: services.transactions,
+                                             network: network)
     }
 }

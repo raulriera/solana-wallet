@@ -11,7 +11,7 @@ import RPC
 /// signature, even when the watch stopped.
 @MainActor
 @Observable
-final class DepositModel {
+final class DepositModel: Identifiable {
     /// What an attempt does.
     nonisolated enum Work: Hashable, Sendable {
         /// Prepares and simulates the deposit for review.
@@ -75,6 +75,26 @@ final class DepositModel {
     /// Whether a step is waiting or running.
     var isWorking: Bool { attempt != nil }
 
+    /// Whether the deposit is being signed and sent, and watched until it settles.
+    var isSending: Bool { attempt?.work == .send }
+
+    /// Whether a sent deposit is being watched again.
+    var isChecking: Bool { attempt?.work == .check }
+
+    /// Whether the person can approve the review: it's simulated, unused, and no step is waiting or running.
+    var canApprove: Bool { attempt == nil && reviewed != nil && submission == nil }
+
+    /// Whether the review shows; turning it off before anything is sent returns to the amount, whose next review
+    /// simulates again.
+    var isReviewing: Bool {
+        get { review != nil }
+        set {
+            guard !newValue, attempt == nil, submission == nil else { return }
+            review = nil
+            reviewed = nil
+        }
+    }
+
     /// Starts an empty amount of SOL from the account's public balance.
     /// - Parameters:
     ///   - account: The account whose public SOL moves into its private balance.
@@ -100,16 +120,16 @@ final class DepositModel {
         start(.review)
     }
 
-    /// Asks to sign and send the reviewed deposit, unless a step is waiting or running.
+    /// Asks to sign and send the reviewed deposit, unless it can't be approved.
     func approve() {
-        guard attempt == nil, review != nil, submission == nil else { return }
+        guard canApprove else { return }
         start(.send)
     }
 
-    /// Asks to review the same amount again after the deposit was dropped.
+    /// Asks to review the same amount again after the deposit was dropped; the last review shows until the new one
+    /// replaces it, and can't be approved meanwhile.
     func tryAgain() {
         guard attempt == nil, outcome == .dropped else { return }
-        review = nil
         reviewed = nil
         submission = nil
         outcome = nil
@@ -141,7 +161,8 @@ final class DepositModel {
         guard attempt == nil, submission == nil, let reviewed else { return }
         do {
             let simulated = try await simulate(reviewed.transaction)
-            guard attempt == nil, submission == nil else { return }
+            // The person may have left the review, or approved it, meanwhile.
+            guard attempt == nil, submission == nil, review != nil else { return }
             show(simulated)
         } catch is CancellationError {
             // The review closed.

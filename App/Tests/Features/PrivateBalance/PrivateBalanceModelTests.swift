@@ -83,6 +83,42 @@ struct PrivateBalanceModelTests {
         #expect(!unfunded.hasBalance)
     }
 
+    /// While private balances are on, adding opens a deposit of the account's public SOL; while they're off, nothing
+    /// opens.
+    /// - Parameter isOn: Whether the account turned private balances on.
+    @Test(arguments: [true, false])
+    func `Adding opens a deposit only while private balances are on`(isOn: Bool) async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let keys: PrivateBalances.Keys = isOn ? [account.address.value: try await PrivateBalanceFixtures.keys(for: account)] : [:]
+        let model = try PrivateBalanceModel.fixture(HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered]),
+                                                    keys: StoredValue(keys))
+        await model.refresh(for: account)
+
+        model.addToPrivateBalance(publicLamports: 2_000_000_000)
+
+        #expect((model.deposit != nil) == isOn)
+        #expect(model.deposit?.payment.token.balance == (isOn ? 2 : nil))
+        #expect(model.error == nil)
+    }
+
+    /// A network without a transaction coordinator opens no deposit and explains that the transaction can't be
+    /// prepared.
+    @Test
+    func `Adding without a transaction coordinator fails`() async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let model = try PrivateBalanceModel.fixture(
+            HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered]),
+            keys: StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)]),
+            transactions: NetworkTransactions { _ in throw SubmitterError.noProviders }
+        )
+        await model.refresh(for: account)
+
+        model.addToPrivateBalance(publicLamports: 2_000_000_000)
+
+        #expect(model.deposit == nil)
+        #expect(model.error == .preparationFailed)
+    }
+
     /// Turning on keeps the account's keys, then shows its balance and reports that it's on.
     @Test
     func `Turning on keeps the keys and shows the balance`() async throws {
@@ -201,7 +237,7 @@ struct PrivateBalanceModelTests {
             responses.providerClient(network: network, settings: StoredValue(ProviderSettings(selection: .helius)),
                                      providerKey: providerKey)
         }
-        let model = PrivateBalanceModel(balances: balances, network: .devnet)
+        let model = PrivateBalanceModel(balances: balances, transactions: .unused, network: .devnet)
         await model.refresh(for: account)
 
         try await providerKey.delete()

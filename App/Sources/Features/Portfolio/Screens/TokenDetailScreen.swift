@@ -87,7 +87,8 @@ struct TokenDetailScreen: View {
             .listRowBackground(palette.surface)
 
             if holding.id == .nativeSOL {
-                PrivateBalanceSections(model: privateBalance, symbol: holding.displaySymbol)
+                PrivateBalanceSections(model: privateBalance, symbol: holding.displaySymbol,
+                                       publicLamports: holding.amount?.units ?? 0)
             }
         }
         .animation(.default, value: privateBalance.status)
@@ -119,7 +120,8 @@ struct TokenDetailScreen: View {
                                            valuation: Valuation(pricePerUnit: 166, total: 2_075, currency: "USD",
                                                                 dayChange: Decimal(string: "0.0129"))),
                           removal: TokenRemovalModel(coordinator: PreviewPortfolio()),
-                          privateBalance: PrivateBalanceModel(balances: PreviewPrivateBalances(), network: .devnet))
+                          privateBalance: PrivateBalanceModel(balances: PreviewPrivateBalances(),
+                                                              transactions: .preview, network: .devnet))
     }
 }
 
@@ -129,8 +131,14 @@ struct TokenDetailScreen: View {
                                            otherOwner: try? Address("4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T"),
                                            name: "Tether USD", symbol: "USDT", imageURL: nil, valuation: nil),
                           removal: TokenRemovalModel(coordinator: PreviewPortfolio()),
-                          privateBalance: PrivateBalanceModel(balances: PreviewPrivateBalances(), network: .devnet))
+                          privateBalance: PrivateBalanceModel(balances: PreviewPrivateBalances(),
+                                                              transactions: .preview, network: .devnet))
     }
+}
+
+private extension NetworkTransactions {
+    /// Keeps the preview local: no network has a coordinator, so a deposit never opens.
+    static var preview: NetworkTransactions { NetworkTransactions { _ in throw SubmitterError.noProviders } }
 }
 
 /// Keeps the preview local: it has no tokens and never observes, looks up, adds, or removes one.

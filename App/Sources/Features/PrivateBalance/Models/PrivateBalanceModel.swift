@@ -3,7 +3,8 @@ import Observation
 import RPC
 import Wallet
 
-/// One window's private balance of its account on its network, and turning private balances on for that account.
+/// One window's private balance of its account on its network, turning private balances on for that account, and
+/// opening deposits into it.
 ///
 /// A refresh shows the account's last read balance, or why it has none; a failed refresh keeps what was read before.
 /// While private balances are on, a poll reads the balance again; a failure that reading again can't fix, such as a
@@ -21,7 +22,7 @@ final class PrivateBalanceModel {
     /// Whether the account holds any private SOL, available or pending; kept apart from ``status`` so the token list
     /// changes only when this does.
     private(set) var hasBalance = false
-    /// The error of the last attempt to turn private balances on.
+    /// The error of the last attempt to turn private balances on, or to open a deposit.
     var error: PrivateBalanceError?
     /// The attempt to turn private balances on that's waiting for the scene's task, or running.
     private(set) var attempt: UUID?
@@ -30,8 +31,11 @@ final class PrivateBalanceModel {
     /// Whether polls wait for a refresh that the person or the window starts, after a failure that reading again
     /// can't fix.
     private(set) var isPollingPaused = false
+    /// The open deposit of the account's public SOL into its private balance.
+    var deposit: DepositModel?
     private var account: Account?
     private let balances: any PrivateBalancing
+    private let transactions: NetworkTransactions
     private let network: Network
 
     /// Whether an attempt to turn private balances on is waiting or running.
@@ -40,9 +44,11 @@ final class PrivateBalanceModel {
     /// Creates a model that shows nothing until its first refresh.
     /// - Parameters:
     ///   - balances: The private balances of every account.
+    ///   - transactions: The transaction coordinators of every network.
     ///   - network: The window's network.
-    init(balances: any PrivateBalancing, network: Network) {
+    init(balances: any PrivateBalancing, transactions: NetworkTransactions, network: Network) {
         self.balances = balances
+        self.transactions = transactions
         self.network = network
     }
 
@@ -56,6 +62,7 @@ final class PrivateBalanceModel {
             attempt = nil
             isTurnedOn = false
             isPollingPaused = false
+            deposit = nil
         }
         await refresh()
     }
@@ -83,6 +90,23 @@ final class PrivateBalanceModel {
         case .unregistered?, .balance?:
             guard !isPollingPaused else { return }
             await refresh()
+        case .off?, .unavailable?, nil:
+            return
+        }
+    }
+
+    /// Opens a deposit of the account's public SOL into its private balance, while private balances are on.
+    /// - Parameter publicLamports: The account's public SOL, in lamports.
+    func addToPrivateBalance(publicLamports: UInt64) {
+        guard let account, deposit == nil else { return }
+        switch status {
+        case .unregistered?, .balance?:
+            do {
+                deposit = DepositModel(account: account, network: network, publicLamports: publicLamports,
+                                       balances: balances, transactions: try transactions.coordinator(for: network))
+            } catch {
+                self.error = .preparationFailed
+            }
         case .off?, .unavailable?, nil:
             return
         }

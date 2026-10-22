@@ -134,6 +134,9 @@ struct DepositModelTests {
 
         model.tryAgain()
         let attempt = try #require(model.attempt)
+        // The last review shows until the new one replaces it, and can't be approved meanwhile.
+        #expect(model.isReviewing)
+        #expect(!model.canApprove)
         await model.run(attempt)
 
         #expect(attempt.work == .review)
@@ -216,6 +219,37 @@ struct DepositModelTests {
         await model.refreshReview()
 
         #expect(try await Self.simulations(of: deposit.preparation) == 1)
+    }
+
+    /// Leaving the review before sending returns to the amount, and the next review simulates the deposit again.
+    @Test
+    func `Leaving the review returns to the amount`() async throws {
+        let deposit = try await Self.deposit()
+        let model = deposit.model
+        try await Self.review(model)
+
+        model.isReviewing = false
+
+        #expect(model.review == nil)
+        #expect(!model.canApprove)
+        try await Self.review(model)
+        #expect(try await Self.simulations(of: deposit.preparation) == 2)
+    }
+
+    /// A sent deposit's result stays: leaving it doesn't clear the review.
+    @Test
+    func `A sent deposit keeps its review`() async throws {
+        let deposit = try await Self.deposit(statuses: [Self.status(.finalized)])
+        let model = deposit.model
+        try await Self.review(model)
+        model.approve()
+        await model.run(model.attempt)
+
+        model.isReviewing = false
+
+        #expect(model.isReviewing)
+        #expect(!model.canApprove)
+        await deposit.sockets.waitUntilClosed()
     }
 
     /// Asking to review while a review waits for the scene's task keeps the waiting attempt.

@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Turns private balances on from SOL's details: one attempt at a time, with a haptic and a VoiceOver announcement
-/// when it succeeds, and an alert when it fails.
+/// when it succeeds, and an alert when it fails; and presents deposits into the private balance.
 private struct PrivateBalanceLifecycle: ViewModifier {
     @Bindable var model: PrivateBalanceModel
 
@@ -10,6 +10,7 @@ private struct PrivateBalanceLifecycle: ViewModifier {
         content
             .task(id: attempt) { await model.run(attempt) }
             .errorAlert($model.error)
+            .sheet(item: $model.deposit) { DepositSheet(deposit: $0).depositLifecycle() }
             .sensoryFeedback(.success, trigger: model.isTurnedOn) { _, isTurnedOn in isTurnedOn }
             .onChange(of: model.isTurnedOn) { _, isTurnedOn in
                 guard isTurnedOn else { return }
