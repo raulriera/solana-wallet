@@ -14,7 +14,8 @@ struct PortfolioScene: View {
     @State private var tokenAddition: TokenAdditionModel?
     let coordinator: any PortfolioCoordinating
     let connection: any ProviderConnecting<ProviderConnectionError>
-    /// The window's token removals, which the parent runs with ``tokenRemovalLifecycle()``.
+    /// The window's token removals, which the parent runs with ``tokenRemovalLifecycle()`` and token details start
+    /// with ``TokenRemovalAction``.
     let removal: TokenRemovalModel
     /// The window's private balance, which the parent reads with ``privateBalanceObservation(of:model:providerRevisions:)``
     /// and SOL's details turn on.
@@ -64,7 +65,7 @@ struct PortfolioScene: View {
                     .sidebarColumnWidth()
                 } detail: {
                     if let holding = coordinator.holdings.first(where: { $0.id == selection }) {
-                        TokenDetailScreen(holding: holding, removal: removal, privateBalance: privateBalance)
+                        TokenDetailScreen(holding: holding, privateBalance: privateBalance)
                             .privateBalanceLifecycle()
                             // New prices roll into place, as they do in the token list.
                             .animation(.default, value: coordinator.update?.snapshotRevision)
@@ -84,6 +85,8 @@ struct PortfolioScene: View {
             }
         }
         .animation(.default, value: presentation)
+        // The token's details remove it without holding the window's removals.
+        .environment(\.removeToken, TokenRemovalAction(removal: removal))
         .sheet(item: $providerSetup) { ProviderSetupSheet(submission: $0) }
         .sheet(item: $tokenAddition) { TokenAdditionSheet(addition: $0) }
         // Another network's portfolio has its own tokens, so the window starts again on the token list.

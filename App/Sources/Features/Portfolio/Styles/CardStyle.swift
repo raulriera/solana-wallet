@@ -27,8 +27,3 @@ nonisolated struct CardStyle: Equatable, Sendable {
     /// The corner radius of a card.
     var cornerRadius: CGFloat = 22
 }
-
-extension EnvironmentValues {
-    /// The window's token presentation options.
-    @Entry var cardStyle = CardStyle()
-}

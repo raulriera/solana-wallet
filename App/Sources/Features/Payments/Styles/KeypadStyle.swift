@@ -30,11 +30,6 @@ nonisolated struct KeypadStyle: Equatable, Sendable {
     var amountLook = AmountLook.chrome
 }
 
-extension EnvironmentValues {
-    /// The window's payment keypad options.
-    @Entry var keypadStyle = KeypadStyle()
-}
-
 extension View {
     /// Draws the payment keypads in this view with the given options.
     /// - Parameter style: How the keys and the typed amount look.

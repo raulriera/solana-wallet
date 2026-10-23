@@ -17,7 +17,6 @@ struct PrivateBalanceLifecycleTests {
         await model.refresh(for: account)
         let details = TokenDetailScreen(holding: Holding(id: .nativeSOL, amount: Amount(units: 0, decimals: 9),
                                                          name: "Solana", symbol: "SOL", imageURL: nil, valuation: nil),
-                                        removal: TokenRemovalModel(coordinator: RecordingPortfolio()),
                                         privateBalance: model)
         let hosted = try HostedWindow(NavigationStack { details.privateBalanceLifecycle() })
         defer { hosted.close() }
