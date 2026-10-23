@@ -5,6 +5,8 @@ import Transactions
 nonisolated struct RecipientContext: Sendable {
     /// Addresses the person used: their accounts, contacts, and addresses they paid.
     let knownAddresses: [Address]
+    /// Addresses the person paid.
+    let paidAddresses: Set<Address>
 }
 
 /// One thing to check about a recipient before paying them.

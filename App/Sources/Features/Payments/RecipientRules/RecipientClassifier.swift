@@ -15,3 +15,10 @@ nonisolated struct RecipientClassifier: Sendable {
         rules.compactMap { $0.warning(for: address, in: context) }
     }
 }
+
+nonisolated extension RecipientClassifier {
+    /// The checks shown while a recipient is entered: whether the payment could go somewhere unintended.
+    static let entry = RecipientClassifier(rules: [.lookAlike, .programAddress])
+    /// The checks shown on a payment's review: the entry's, and whether the person paid the address before.
+    static let review = RecipientClassifier(rules: [.lookAlike, .programAddress, .firstPayment])
+}

@@ -51,7 +51,15 @@ final class ContactsModel {
     /// The person's own history, which rules check a recipient against.
     var recipientContext: RecipientContext {
         RecipientContext(knownAddresses: [sendingAccount] + accounts.map(\.address) + contacts.map(\.address)
-                            + payments.map(\.address))
+                            + payments.map(\.address),
+                         paidAddresses: Set(payments.map(\.address)))
+    }
+
+    /// Who an address pays, with the name it's saved under.
+    /// - Parameter address: The address to pay.
+    /// - Returns: The recipient, named when the address is saved.
+    func recipient(for address: Address) -> PaymentRecipient {
+        PaymentRecipient(address: address, name: saved(at: address)?.name)
     }
 
     /// Saves a new contact, or replaces the saved contact with the same identity.

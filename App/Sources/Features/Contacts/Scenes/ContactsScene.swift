@@ -30,50 +30,66 @@ struct ContactsScene: View {
     }
 
     var body: some View {
-        NavigationSplitView(preferredCompactColumn: $preferredColumn) {
-            Group {
-                if contacts.isEmpty {
-                    UnavailableScreen(title: "No Contacts",
-                                      message: "Paste an address to make your first payment. Name it to save it as a contact.",
-                                      systemImage: "person.crop.circle") {
-                        Button("New Payment", action: startPayment)
-                            .buttonStyle(.primary)
-                    }
-                } else {
-                    RecipientList(selection: $selection, entry: $entry, removal: $removal, contacts: contacts)
-                }
-            }
-            .navigationTitle("Contacts")
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    // Toolbar buttons keep the system's monochrome look; the theme's tint is for content.
-                    Button("New Payment", systemImage: "plus", action: startPayment)
-                        .tint(.primary)
-                }
-            }
-            .sidebarColumnWidth()
-        } detail: {
-            if selection != nil {
-                PaymentAmountScreen(payment: payment, title: "Send") {
-                    SendButton(payment: payment, isReviewing: $isReviewing)
-                        .matchedTransitionSource(id: ObjectIdentifier(payment), in: review)
-                }
-            } else {
-                UnavailableScreen(title: "No Recipient Selected",
-                                  message: "Choose who to pay, or paste an address for a new payment.",
+        let isEmpty = contacts.isEmpty && selection == nil
+        // One container, so the presentations and changes below attach once instead of to each branch.
+        ZStack {
+            if isEmpty {
+                // With no one to list or pay, one screen spans the tab instead of an empty state in each column.
+                UnavailableScreen(title: "No Contacts",
+                                  message: "Paste an address to make your first payment. Name it to save it as a contact.",
                                   systemImage: "person.crop.circle") {
                     Button("New Payment", action: startPayment)
                         .buttonStyle(.primary)
                 }
-                // Inline like the keypad, so a cleared selection leaves no empty large title.
-                .navigationBarTitleDisplayMode(.inline)
+            } else {
+                NavigationSplitView(preferredCompactColumn: $preferredColumn) {
+                    Group {
+                        if contacts.isEmpty {
+                            // The keypad beside it already pays someone, and New Payment is in the top bar.
+                            UnavailableScreen(title: "No Contacts",
+                                              message: "People you name or pay appear here.",
+                                              systemImage: "person.crop.circle") {}
+                        } else {
+                            RecipientList(selection: $selection, entry: $entry, removal: $removal, contacts: contacts)
+                        }
+                    }
+                    .navigationTitle("Contacts")
+                    .toolbar {
+                        ToolbarItem(placement: .primaryAction) {
+                            // Toolbar buttons keep the system's monochrome look; the theme's tint is for content.
+                            Button("New Payment", systemImage: "plus", action: startPayment)
+                                .tint(.primary)
+                        }
+                    }
+                    .sidebarColumnWidth()
+                } detail: {
+                    if let selection {
+                        PaymentAmountScreen(payment: payment, recipient: contacts.recipient(for: selection)) {
+                            SendButton(payment: payment, isReviewing: $isReviewing)
+                                .matchedTransitionSource(id: ObjectIdentifier(payment), in: review)
+                        }
+                    } else {
+                        UnavailableScreen(title: "No Recipient Selected",
+                                          message: "Choose who to pay, or paste an address for a new payment.",
+                                          systemImage: "person.crop.circle") {
+                            Button("New Payment", action: startPayment)
+                                .buttonStyle(.primary)
+                        }
+                        // Inline like the keypad, so a cleared selection leaves no empty large title.
+                        .navigationBarTitleDisplayMode(.inline)
+                    }
+                }
+                .navigationSplitViewStyle(.tabSection)
             }
         }
-        .navigationSplitViewStyle(.tabSection)
+        .animation(.default, value: isEmpty)
         .sheet(isPresented: $isReviewing) {
-            PaymentReviewSheet(payment: payment)
-                // The review grows out of the Send button, and shrinks back into it when canceled.
-                .navigationTransition(.zoom(sourceID: ObjectIdentifier(payment), in: review))
+            if let selection {
+                PaymentReviewSheet(payment: payment, recipient: contacts.recipient(for: selection),
+                                   context: contacts.recipientContext)
+                    // The review grows out of the Send button, and shrinks back into it when canceled.
+                    .navigationTransition(.zoom(sourceID: ObjectIdentifier(payment), in: review))
+            }
         }
         .sheet(item: $entry) { RecipientEntrySheet(entry: $0) }
         // A new payment's recipient opens the keypad; a saved contact keeps whatever is selected.

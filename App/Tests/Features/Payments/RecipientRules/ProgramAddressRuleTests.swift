@@ -13,7 +13,7 @@ struct ProgramAddressRuleTests {
         ("6d8tEyrqPqVbEr6Jpuc7BEyYekeMUTyzHEwdmcAYEmtK", nil),
     ])
     func `Only addresses without a key are flagged`(text: String, warning: RecipientWarning?) throws {
-        let context = RecipientContext(knownAddresses: [])
+        let context = RecipientContext(knownAddresses: [], paidAddresses: [])
         #expect(ProgramAddressRule().warning(for: try Address(text), in: context) == warning)
     }
 }

@@ -39,6 +39,18 @@ struct ContactsModelTests {
                           ContactsFixtures.bruno, ContactsFixtures.recent])
     }
 
+    /// The first-payment rule sees only the addresses the person paid.
+    @Test func `The recipient context lists the paid addresses`() {
+        #expect(ContactsFixtures.model().recipientContext.paidAddresses == [ContactsFixtures.alice, ContactsFixtures.recent])
+    }
+
+    /// A saved address is paid under its name; an unsaved one has none.
+    @Test func `Recipients are named only when saved`() {
+        let contacts = ContactsFixtures.model()
+        #expect(contacts.recipient(for: ContactsFixtures.alice) == PaymentRecipient(address: ContactsFixtures.alice, name: "Alice"))
+        #expect(contacts.recipient(for: ContactsFixtures.recent).name == nil)
+    }
+
     /// A saved address is found under its name; an unsaved one isn't.
     @Test func `Saved addresses are found`() {
         let contacts = ContactsFixtures.model()

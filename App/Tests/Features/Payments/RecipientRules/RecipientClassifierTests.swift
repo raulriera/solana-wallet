@@ -6,7 +6,7 @@ import Transactions
 struct RecipientClassifierTests {
     /// Off the curve and shortening like a known address, so both rules flag it.
     private static let flagged = try! Address("EXKmNaFvM61XU4RHuh8moR67QArXabU4NzW5yyPfyBK9")
-    private static let context = RecipientContext(knownAddresses: [try! Address("EXKmNaFvM61XU4RHuh8moR67QArXabUBNzW5yyPfyBK9")])
+    private static let context = RecipientContext(knownAddresses: [try! Address("EXKmNaFvM61XU4RHuh8moR67QArXabUBNzW5yyPfyBK9")], paidAddresses: [])
 
     /// Warnings come back in the order the screen lists its rules.
     @Test func `Warnings follow the rule order`() {
@@ -20,5 +20,13 @@ struct RecipientClassifierTests {
     @Test func `Passing rules add no warnings`() throws {
         let person = try Address("6d8tEyrqPqVbEr6Jpuc7BEyYekeMUTyzHEwdmcAYEmtK")
         #expect(RecipientClassifier(rules: [.lookAlike, .programAddress]).warnings(for: person, in: Self.context) == [])
+    }
+
+    /// The review adds the first-payment note to the checks shown while a recipient is entered.
+    @Test func `The review adds the first-payment note to the entry's checks`() throws {
+        let unpaid = try Address("6d8tEyrqPqVbEr6Jpuc7BEyYekeMUTyzHEwdmcAYEmtK")
+        let context = RecipientContext(knownAddresses: [], paidAddresses: [])
+        #expect(RecipientClassifier.entry.warnings(for: unpaid, in: context) == [])
+        #expect(RecipientClassifier.review.warnings(for: unpaid, in: context) == [.firstPayment])
     }
 }

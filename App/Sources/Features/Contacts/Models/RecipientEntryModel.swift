@@ -65,8 +65,6 @@ final class RecipientEntryModel: Identifiable {
     /// What the person confirmed; the sheet closes itself when it's set.
     private(set) var confirmation: Confirmation?
     private let contacts: ContactsModel
-    /// The checks this sheet shows; the review adds its own.
-    private let classifier = RecipientClassifier(rules: [.lookAlike, .programAddress])
 
     /// Starts an empty sheet for a new payment.
     /// - Parameter contacts: The window's contacts, which check the address and save a named one.
@@ -121,7 +119,7 @@ final class RecipientEntryModel: Identifiable {
         saved = address.flatMap(contacts.saved(at:))
         rejection = rejection(of: text)
         warnings = rejection == nil
-            ? address.map { classifier.warnings(for: $0, in: contacts.recipientContext) } ?? []
+            ? address.map { RecipientClassifier.entry.warnings(for: $0, in: contacts.recipientContext) } ?? []
             : []
     }
 

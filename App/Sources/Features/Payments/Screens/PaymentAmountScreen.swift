@@ -1,4 +1,5 @@
 import SwiftUI
+import Transactions
 
 /// Types a payment's amount on an always-visible keypad, then commits it with the caller's button, such as Send.
 ///
@@ -9,8 +10,10 @@ struct PaymentAmountScreen<Action: View>: View {
     @Environment(\.palette) private var palette
     @Environment(\.locale) private var locale
     let payment: PaymentModel
-    /// The screen's title, such as Send.
-    let title: LocalizedStringResource
+    /// The screen's title, such as Send or the recipient's name.
+    let title: Text
+    /// The line under the title, such as a named recipient's short address, or empty for none.
+    let subtitle: Text
     /// The button that commits the amount, under the keys.
     let action: Action
 
@@ -21,7 +24,20 @@ struct PaymentAmountScreen<Action: View>: View {
     ///   - action: The button that commits the amount, which reads whether the amount can be committed itself.
     init(payment: PaymentModel, title: LocalizedStringResource, @ViewBuilder action: () -> Action) {
         self.payment = payment
-        self.title = title
+        self.title = Text(title)
+        subtitle = Text(verbatim: "")
+        self.action = action()
+    }
+
+    /// Creates the keypad screen for a payment to a recipient, titled with their name or short address.
+    /// - Parameters:
+    ///   - payment: The payment whose amount the keys type.
+    ///   - recipient: Who the payment goes to; a named recipient shows their short address under the name.
+    ///   - action: The button that commits the amount, which reads whether the amount can be committed itself.
+    init(payment: PaymentModel, recipient: PaymentRecipient, @ViewBuilder action: () -> Action) {
+        self.payment = payment
+        title = Text(verbatim: recipient.title)
+        subtitle = Text(verbatim: recipient.name == nil ? "" : recipient.address.formatted(.shortAddress))
         self.action = action()
     }
 
@@ -42,7 +58,8 @@ struct PaymentAmountScreen<Action: View>: View {
         // Like a system keypad, the screen stops growing at the largest standard text size, so the keys keep their
         // layout; the keys show the large content viewer instead.
         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-        .navigationTitle(Text(title))
+        .navigationTitle(title)
+        .navigationSubtitle(subtitle)
         .navigationBarTitleDisplayMode(.inline)
         // A hardware keyboard types on the keypad while the amount or any key has focus; held keys repeat.
         .onKeyPress(phases: [.down, .repeat], action: type)
