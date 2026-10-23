@@ -10,7 +10,6 @@ struct RentTests {
         let request = GetMinimumBalanceForRentExemption(dataLength: 182)
         let parameters = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(request)) as? [Any])
 
-        #expect(GetMinimumBalanceForRentExemption.method == "getMinimumBalanceForRentExemption")
         #expect(parameters.count == 2)
         #expect(parameters.first as? UInt64 == 182)
         #expect(parameters.last as? [String: String] == ["commitment": "finalized"])

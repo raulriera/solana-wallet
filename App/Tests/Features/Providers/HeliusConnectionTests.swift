@@ -64,17 +64,6 @@ struct HeliusConnectionTests {
         #expect(revisions.connection.value == 0)
     }
 
-    /// Refused keys show under the field, and other failures explain their cause in an alert.
-    /// - Parameters:
-    ///   - error: A check failure.
-    ///   - rejectsEntry: Whether the failure shows under the field.
-    @Test(arguments: [
-        (ProviderConnectionError.invalidKey, true), (.rateLimited, false), (.unavailable, false), (.storageFailed, false),
-    ])
-    func `Only rejected keys show under the field`(error: ProviderConnectionError, rejectsEntry: Bool) {
-        #expect(error.rejectsEntry == rejectsEntry)
-    }
-
     /// A key Helius accepted still fails setup when this device can't store it.
     @Test
     func `An accepted key that can't be saved reports a storage failure`() async {

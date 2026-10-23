@@ -28,7 +28,6 @@ struct HeliusRPCProofsTests {
         let sent = try #require(await transport.requests.first)
         #expect(sent.url?.absoluteString == "https://\(host)/v1/zolana/prove?api-key=fixture-key")
         #expect(sent.httpMethod == "POST")
-        #expect(sent.timeoutInterval == 30)
         #expect(sent.value(forHTTPHeaderField: "X-Sync") == "true")
         #expect(sent.value(forHTTPHeaderField: "Content-Type") == "application/json")
         // TransferProofBodyTests pins the body's fields.

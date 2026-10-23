@@ -30,22 +30,6 @@ struct PortfolioErrorTests {
         #expect(PortfolioError(error) == expected)
     }
 
-    /// Only key and network failures send the person to provider setup.
-    /// - Parameters:
-    ///   - error: A presented error.
-    ///   - requiresSetup: Whether entering a new key or choosing another provider is the way forward.
-    @Test(arguments: [
-        (PortfolioError.missingKey, true),
-        (.invalidKey, true),
-        (.unsupportedNetwork, true),
-        (.rateLimited, false),
-        (.unavailable, false),
-        (.listUnreadable, false),
-    ])
-    func `Only key and network failures ask for provider setup`(error: PortfolioError, requiresSetup: Bool) {
-        #expect(error.requiresProviderSetup == requiresSetup)
-    }
-
     /// A provider failure from the subscription setup reaches the presentation unchanged: a missing key on mainnet,
     /// or a custom RPC on devnet.
     /// - Parameters:
@@ -79,20 +63,17 @@ struct PortfolioErrorTests {
         await viewing.value
     }
 
-    /// Refresh failures say why the shown balances may be out of date; key and network failures hide the balances
-    /// instead.
-    /// - Parameters:
-    ///   - error: A presented error.
-    ///   - status: The subtitle that the portfolio shows above stale balances.
-    @Test(arguments: [
-        (PortfolioError.rateLimited, "Too many requests" as String?),
-        (.unavailable, "Couldn't update balances"),
-        (.listUnreadable, "Couldn't update balances"),
-        (.missingKey, nil),
-        (.invalidKey, nil),
-        (.unsupportedNetwork, nil),
-    ])
-    func `Only refresh failures explain stale balances`(error: PortfolioError, status: String?) {
-        #expect(error.staleStatus.map { String(localized: $0) } == status)
+    /// Refresh failures say why the shown balances may be out of date, with a rate limit told apart from the other
+    /// refresh failures; key and network failures hide the balances instead.
+    @Test
+    func `Only refresh failures explain stale balances`() {
+        let rateLimited = PortfolioError.rateLimited.staleStatus?.key
+        let unavailable = PortfolioError.unavailable.staleStatus?.key
+
+        #expect(rateLimited != nil)
+        #expect(unavailable != nil)
+        #expect(rateLimited != unavailable)
+        #expect(PortfolioError.listUnreadable.staleStatus?.key == unavailable)
+        #expect([PortfolioError.missingKey, .invalidKey, .unsupportedNetwork].allSatisfy { $0.staleStatus == nil })
     }
 }

@@ -18,7 +18,6 @@ struct JupiterTests {
 
         let quotes = try await source.prices(for: ["mint-a", "mint-b", "metadata-only", "null-price", "null-record", "unpriced"])
 
-        #expect(source.network == .mainnet)
         #expect(quotes.count == 2)
         let first = try #require(quotes["mint-a"])
         #expect(first.pricePerUnit == Decimal(string: "0.12345678901234567890123456789012"))

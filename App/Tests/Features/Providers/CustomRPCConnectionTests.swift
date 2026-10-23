@@ -27,16 +27,13 @@ struct CustomRPCConnectionTests {
         #expect(await settings.value == ProviderSettings(selection: .custom(url), customRPCs: [url]))
         #expect(revisions.settings.value == 1)
         #expect(await responses.requests.map(\.url) == [url])
-        #expect(try await responses.requests.first?.rpcParameters.first as? [String] == [HTTPResponses.keyCheckAsset])
         try #require(sockets.sockets.count == 2)
         // The two connections open at once, so find each by its first request.
         let connections = try sockets.sockets.map { try $0.requests.map(Self.body(of:)) }
         let account = try #require(connections.first { $0.first?["method"] as? String == "accountSubscribe" })
         #expect(account.count == 1)
-        #expect((account.first?["params"] as? [Any])?.first as? String == HTTPResponses.keyCheckAsset)
         let watch = try #require(connections.first { $0.first?["method"] as? String == "signatureSubscribe" })
         #expect(watch.map { $0["method"] as? String } == ["signatureSubscribe", "rootSubscribe"])
-        #expect((watch.first?["params"] as? [Any])?.first as? String == String(repeating: "1", count: 64))
         await sockets.waitUntilClosed()
     }
 

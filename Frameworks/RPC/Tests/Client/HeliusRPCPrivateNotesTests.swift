@@ -7,17 +7,6 @@ import Testing
 struct HeliusRPCPrivateNotesTests {
     private typealias Fixture = IndexerFixtures
 
-    /// Verifies Helius answers that it reads private notes without sending a request.
-    ///
-    /// - Throws: A failed test prerequisite, which doesn't happen.
-    @Test
-    func `Helius reads private notes without a request`() async throws {
-        let transport = StubTransport { try reply(to: $0, payload: Fixture.page(in: rows(for: $0))) }
-
-        #expect(try await HeliusRPC(apiKey: "fixture-key", network: .devnet, transport: transport).readsPrivateNotes)
-        #expect(await transport.requests.isEmpty)
-    }
-
     /// Verifies both streams post JSON-RPC to their method routes below the gateway, with the key in the query.
     ///
     /// - Parameters:

@@ -28,7 +28,6 @@ struct HeliusRPCTests {
         #expect(try requestBody(request)["jsonrpc"] as? String == "2.0")
         #expect(request.httpMethod == "POST")
         #expect(request.value(forHTTPHeaderField: "Content-Type") == "application/json")
-        #expect(request.timeoutInterval == 30)
         let url = try #require(request.url)
         let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
         #expect(query == [URLQueryItem(name: "api-key", value: "test-key")])

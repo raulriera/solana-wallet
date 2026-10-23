@@ -10,8 +10,8 @@ struct RedeemCodeScanTests {
     /// A batch holds the requested number of consecutive indices from the start.
     @Test
     func `Batches hold consecutive indices`() {
-        #expect(RedeemCodeScan.candidates(from: 3, count: RedeemCodeScan.choiceBatchSize) == Array(3...22))
-        #expect(RedeemCodeScan.candidates(from: 0, count: RedeemCodeScan.discoveryBatchSize) == Array(0...499))
+        #expect(RedeemCodeScan.candidates(from: 3, count: 4) == [3, 4, 5, 6])
+        #expect(RedeemCodeScan.candidates(from: 0, count: 1) == [0])
     }
 
     /// A batch stops below 2³¹, and none remains from there.

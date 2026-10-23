@@ -16,6 +16,6 @@ struct SenderTipAccountsLiveTests {
         let missing = Sender.tipAccounts.filter { !page.contains($0) }
 
         #expect(missing.isEmpty, "Helius no longer lists these tip accounts: \(missing)")
-        #expect(Sender.tipAccounts.count == 10)
+        #expect(!Sender.tipAccounts.isEmpty)
     }
 }

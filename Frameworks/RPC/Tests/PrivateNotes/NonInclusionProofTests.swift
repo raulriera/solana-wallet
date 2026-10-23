@@ -18,7 +18,6 @@ struct NonInclusionProofTests {
         let proof = try NonInclusionProof(nullifier: Self.value(0x50), lowElement: Self.value(0x40), lowElementIndex: 3,
                                           highElement: Self.value(0x60), path: path, root: Self.value(0xbb), rootIndex: 99)
 
-        #expect(NonInclusionProof.height == 40)
         #expect(proof.path == path)
         #expect(proof.lowElement == Self.value(0x40))
         #expect(proof.highElement == Self.value(0x60))

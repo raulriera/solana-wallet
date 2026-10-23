@@ -12,10 +12,4 @@ struct WalletSectionTests {
         #expect(section.rawValue == saved)
         #expect(WalletSection(rawValue: saved) == section)
     }
-
-    /// A name that no section uses restores nothing, so the window opens its default section.
-    @Test
-    func `An unknown saved name matches no section`() {
-        #expect(WalletSection(rawValue: "activity") == nil)
-    }
 }

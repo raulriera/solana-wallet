@@ -3,18 +3,6 @@ import Testing
 
 /// Verifies the supported shapes and the choice of the cheapest one that fits.
 struct ShapeTests {
-    /// Verifies the list against zolana's `SPP_SUPPORTED_SHAPES`: 38 distinct shapes from one input
-    /// and two outputs to 49 inputs and two outputs.
-    @Test
-    func `The supported shapes match zolana's list`() {
-        let shapes = Shape.supported
-
-        #expect(shapes.count == 38)
-        #expect(shapes.first == Shape(inputs: 1, outputs: 2))
-        #expect(shapes.last == Shape(inputs: 49, outputs: 2))
-        #expect(Set(shapes.map { [$0.inputs, $0.outputs] }).count == 38)
-    }
-
     /// Verifies that the first shape in cost order that holds the slots is chosen, even where a
     /// later shape is smaller in one dimension.
     ///

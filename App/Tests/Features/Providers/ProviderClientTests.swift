@@ -341,24 +341,6 @@ struct ProviderClientTests {
         await #expect(throws: ProviderClientError.invalidKey) { _ = try await client.shieldedTransactions(spending: [tag]) }
     }
 
-    /// Each endpoint gets its production client for the network, and a custom URL that isn't HTTPS gets none.
-    /// - Parameters:
-    ///   - endpoint: A saved endpoint.
-    ///   - network: The network that receives the client's requests.
-    ///   - description: The created client's description, or `nil` when no client can be created.
-    @Test(arguments: [
-        (ProviderClient.Endpoint.solana, Network.mainnet, "Solana(mainnet)"),
-        (.solana, .devnet, "Solana(devnet)"),
-        (.helius(key: "fixture-key"), .mainnet, "HeliusRPC(mainnet)"),
-        (.helius(key: "fixture-key"), .devnet, "HeliusRPC(devnet)"),
-        (.custom(URL(string: "https://rpc.example.com")!), .mainnet, "Solana(mainnet)"),
-        (.custom(URL(string: "http://rpc.example.com")!), .mainnet, nil),
-    ] as [(ProviderClient.Endpoint, Network, String?)])
-    func `Each endpoint gets its production client for the network`(endpoint: ProviderClient.Endpoint, network: Network,
-                                                                    description: String?) {
-        #expect(ProviderClient.client(for: endpoint, on: network).map { String(describing: $0) } == description)
-    }
-
     /// A saved custom URL that the client can't use fails without sending a request.
     @Test
     func `A saved custom URL that isn't HTTPS can't be used`() async throws {

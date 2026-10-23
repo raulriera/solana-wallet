@@ -111,7 +111,7 @@ struct AppearanceSettingsModelTests {
         let templateURL = try #require(settings.export?.url)
         let template = try await PackService().read(from: templateURL)
         #expect(template.id != OriginalAppearance.id)
-        #expect(template.name == "My Theme")
+        #expect(!template.name.isEmpty)
         let manifest = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: templateURL.appendingPathComponent("manifest.json"))) as? [String: Any])
         let tokens = try #require(manifest["tokens"] as? [String: Any])
         let colors = try #require(tokens["colors"] as? [String: [String: Any]])

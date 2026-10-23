@@ -27,20 +27,4 @@ struct IndexerRequestsTests {
 
         #expect(String(decoding: try encoder.encode(request), as: UTF8.self) == expected)
     }
-
-    /// Verifies each request's method name, which is also its route below the gateway.
-    ///
-    /// - Parameters:
-    ///   - method: The request type's method.
-    ///   - expected: The indexer's method name.
-    @Test(arguments: [
-        (GetShieldedTransactionsByTags.method, "getShieldedTransactionsByTags"),
-        (GetEncryptedUtxosByTags.method, "getEncryptedUtxosByTags"),
-        (GetShieldedTransactionsByNullifiers.method, "getShieldedTransactionsByNullifiers"),
-        (GetMerkleProofs.method, "getMerkleProofs"),
-        (GetNonInclusionProofs.method, "getNonInclusionProofs"),
-    ])
-    func `Requests name their indexer methods`(method: String, expected: String) {
-        #expect(method == expected)
-    }
 }

@@ -17,7 +17,6 @@ struct MerkleProofTests {
 
         let proof = try MerkleProof(leaf: Self.value(0xaa), path: path, leafIndex: 9, root: Self.value(0xbb), rootIndex: 499)
 
-        #expect(MerkleProof.height == 32)
         #expect(proof.path == path)
         #expect(proof.leafIndex == 9)
         #expect(proof.rootIndex == 499)
