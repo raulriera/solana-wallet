@@ -89,15 +89,20 @@ final class ContactsUITests: XCTestCase {
         try flow.waitFor(flow.app.navigationBars[name ?? Self.shortAddress])
     }
 
-    /// Goes back from the keypad to the sidebar when the split view shows one column, as on iPhone.
+    /// Goes back from the keypad to the sidebar when the split view shows one column, as on iPhone, and otherwise
+    /// shows the sidebar that a new payment hides.
     /// - Parameter flow: The app's flow, showing the keypad.
-    /// - Returns: `true` when it went back; `false` when the sidebar is already beside the keypad.
-    /// - Throws: A back button that can't be tapped.
+    /// - Returns: `true` when it went back; `false` when the sidebar shows beside or over the keypad.
+    /// - Throws: A back or sidebar button that can't be tapped.
     @discardableResult
     private func showSidebar(in flow: OnboardingApp) throws -> Bool {
         let back = flow.app.navigationBars.buttons["BackButton"]
-        guard back.exists else { return false }
-        try flow.tap(back)
-        return true
+        if back.exists {
+            try flow.tap(back)
+            return true
+        }
+        let showSidebar = flow.app.buttons["Show Sidebar"]
+        if showSidebar.exists { try flow.tap(showSidebar) }
+        return false
     }
 }
