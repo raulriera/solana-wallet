@@ -47,7 +47,7 @@
 
 ## UI automation
 
-- Follow XCUITest Resilience. Only the user runs the `UI` test plan, on request. Reuse approved
+- Follow the [XCUITest Best Practices](plugin://skills@raulriera) skill (`xcuitest-best-practices`). Only the user runs the `UI` test plan, on request. Reuse approved
   simulators and disable parallel execution.
 - Make each test self-contained: automatically prepare prerequisites and reset disposable state
   before constructing services. Restrict destructive reset hooks to explicit Debug simulator
