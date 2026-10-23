@@ -1,19 +1,27 @@
 import SwiftUI
 import Transactions
 
-/// Lists the addresses a window can pay as native sidebar rows: the wallet's other accounts, favorites, contacts,
-/// and recent payments to unsaved addresses.
+/// Lists the addresses a window can pay as native sidebar rows: the wallet's other accounts, favorites, contacts, and
+/// recent payments to unsaved addresses. A new payment's address that none of them lists gets its own row while it's
+/// selected, like Messages' New Message row, so every selection has a row.
 struct RecipientList: View {
     /// The selected address; every row that lists it is highlighted.
     @Binding var selection: Address?
     /// The window's recipient sheet, which saves a recent address as a contact.
     @Binding var entry: RecipientEntryModel?
     /// The contact waiting for the person to confirm its deletion.
-    @Binding var removal: Contact?
+    @State private var removal: Contact?
     let contacts: ContactsModel
 
     var body: some View {
         List(selection: $selection) {
+            if let newPayment = selection, !contacts.lists(newPayment) {
+                Section("New Payment") {
+                    RecipientRow(name: nil, address: newPayment, date: nil, systemImage: "square.and.pencil")
+                        .tag(newPayment)
+                }
+            }
+
             if !contacts.accounts.isEmpty {
                 Section("My Accounts") {
                     ForEach(contacts.accounts) { account in
@@ -72,5 +80,6 @@ struct RecipientList: View {
             }
         }
         .listStyle(.sidebar)
+        .contactDeletion($removal, from: contacts, selection: $selection)
     }
 }

@@ -21,6 +21,7 @@ Import completion requires a successful network scan, including when no funded a
 Completion tests open the wallet on Solana's public RPC without a key. The token test chooses Helius with
 `HELIUS_API_KEY` from ignored local configuration; the rejection test uses a dummy key.
 The token test pastes BONK's public mint address into a new wallet's portfolio, then removes the token; it leaves the address on the simulator clipboard, which can sync to the Mac.
+The contacts tests paste a public address into a new wallet's Contacts tab, which keeps contacts in memory only; they also leave the address on the clipboard.
 The network test switches a new wallet's window to Devnet, which reads Solana's public devnet RPC.
 
 Follow the shared [testing rules](../../../references/testing.md).

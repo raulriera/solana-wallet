@@ -95,4 +95,32 @@ struct RecipientEntryModelTests {
         #expect(entry.rejection == .alreadySaved)
         #expect(!entry.canConfirm)
     }
+
+    /// Editing a contact keeps its identity and favorite, and its own address isn't counted as already saved.
+    @Test func `Editing keeps the contact's identity`() throws {
+        let contacts = ContactsFixtures.model()
+        let alice = try #require(contacts.saved(at: ContactsFixtures.alice))
+        let entry = RecipientEntryModel(editing: alice, contacts: contacts)
+        #expect(entry.rejection == nil)
+        #expect(entry.canConfirm)
+        entry.name = "Alicia"
+        entry.paste(ContactsFixtures.stranger.value)
+        entry.confirm()
+        let edited = try #require(contacts.saved(at: ContactsFixtures.stranger))
+        #expect(edited.id == alice.id)
+        #expect(edited.name == "Alicia")
+        #expect(edited.isFavorite)
+        #expect(contacts.saved(at: ContactsFixtures.alice) == nil)
+        #expect(entry.confirmation == .init(purpose: .edit(alice), address: ContactsFixtures.stranger))
+    }
+
+    /// An edit can't move a contact onto an address another contact or account already has.
+    @Test func `An edit can't take another saved address`() throws {
+        let contacts = ContactsFixtures.model()
+        let alice = try #require(contacts.saved(at: ContactsFixtures.alice))
+        let entry = RecipientEntryModel(editing: alice, contacts: contacts)
+        entry.paste(ContactsFixtures.bruno.value)
+        #expect(entry.rejection == .alreadySaved)
+        #expect(!entry.canConfirm)
+    }
 }

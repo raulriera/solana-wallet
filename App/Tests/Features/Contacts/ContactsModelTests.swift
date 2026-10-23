@@ -59,6 +59,14 @@ struct ContactsModelTests {
         #expect(contacts.saved(at: ContactsFixtures.recent) == nil)
     }
 
+    /// Accounts, contacts, and unsaved recents have rows; the sending account and unpaid strangers don't.
+    @Test func `Only listed addresses have rows`() {
+        let contacts = ContactsFixtures.model()
+        #expect([ContactsFixtures.savings, ContactsFixtures.alice, ContactsFixtures.recent].allSatisfy(contacts.lists))
+        #expect(!contacts.lists(ContactsFixtures.sending))
+        #expect(!contacts.lists(ContactsFixtures.stranger))
+    }
+
     /// A new contact joins the list in name order.
     @Test func `Saving a new contact keeps the list sorted`() {
         let contacts = ContactsFixtures.model()

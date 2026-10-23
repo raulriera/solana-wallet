@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import XCTest
 
 /// Drives production onboarding, resetting real app state once per scenario and retaining it across relaunches.
@@ -114,6 +115,20 @@ struct OnboardingApp {
     func frontButton(_ label: String, file: StaticString = #filePath, line: UInt = #line) throws -> XCUIElement {
         try XCTUnwrap(app.buttons.matching(identifier: label).allElementsBoundByIndex.first(where: \.isHittable),
                       "No tappable \(label) button", file: file, line: line)
+    }
+
+    /// Puts text on the clipboard and pastes it with the screen's Paste button, then waits for the system's
+    /// "pasted from" banner to leave, since on iPhone it covers the top bar's buttons and takes their taps.
+    /// - Parameter text: Public test input, which stays on the clipboard.
+    /// - Throws: A missing or unavailable Paste button, or a banner that stays.
+    func paste(_ text: String) throws {
+        UIPasteboard.general.string = text
+        try tap(app.buttons["Paste"])
+        let banner = XCUIApplication(bundleIdentifier: "com.apple.springboard").descendants(matching: .any)
+            .matching(NSPredicate(format: "label CONTAINS %@", "pasted from")).firstMatch
+        // The banner appears a moment after the paste, so wait for it before waiting for it to leave.
+        _ = banner.waitForExistence(timeout: 2)
+        try waitForAbsence(banner)
     }
 
     /// Matches a portfolio holding's button by the start of its label, such as the token's symbol.

@@ -1,4 +1,3 @@
-import UIKit
 import XCTest
 
 /// Adds a public token to a disposable wallet's portfolio by pasting its mint address, then removes it.
@@ -21,10 +20,8 @@ final class TokenAdditionUITests: XCTestCase {
         try flow.createWallet()
         try flow.connectProvider()
 
-        UIPasteboard.general.string = Self.bonk
         try flow.tap(flow.app.navigationBars.buttons["Add Token"])
-        let paste = flow.app.buttons["Paste"]
-        try flow.tap(paste)
+        try flow.paste(Self.bonk)
         let preview = NSPredicate(format: "label == %@", "Bonk · Solana")
         try flow.expectOutcome(flow.app.staticTexts["Bonk · Solana"], matching: preview,
                                unless: [Self.additionErrorTitle])
@@ -34,7 +31,7 @@ final class TokenAdditionUITests: XCTestCase {
         let listed = OnboardingApp.holdingLabel(beginningWith: "Bonk")
         let token = flow.holding("Bonk")
         try flow.expectOutcome(token, matching: listed, unless: [Self.additionErrorTitle])
-        try flow.waitForAbsence(paste)
+        try flow.waitForAbsence(flow.app.buttons["Paste"])
 
         try flow.tap(token)
         // The iPhone Duo shows the details' toolbar in a vertical bar outside the navigation bar.

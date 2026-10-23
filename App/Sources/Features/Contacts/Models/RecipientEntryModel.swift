@@ -2,7 +2,7 @@ import Foundation
 import Observation
 import Transactions
 
-/// Owns one recipient sheet: a pasted address and an optional name, for a new payment or a new contact.
+/// Owns one recipient sheet: a pasted address and an optional name, for a new payment, a new contact, or an edit.
 @MainActor
 @Observable
 final class RecipientEntryModel: Identifiable {
@@ -12,12 +12,15 @@ final class RecipientEntryModel: Identifiable {
         case payment
         /// Saves the address as a contact under a name.
         case addContact
+        /// Saves a contact's new name or address.
+        case edit(Contact)
 
         /// The sheet's title.
         var title: LocalizedStringResource {
             switch self {
             case .payment: "New Payment"
             case .addContact: "Add Contact"
+            case .edit: "Edit Contact"
             }
         }
 
@@ -25,7 +28,7 @@ final class RecipientEntryModel: Identifiable {
         var confirmationTitle: LocalizedStringResource {
             switch self {
             case .payment: "Continue"
-            case .addContact: "Save Contact"
+            case .addContact, .edit: "Save Contact"
             }
         }
 
@@ -33,7 +36,7 @@ final class RecipientEntryModel: Identifiable {
         var namePlaceholder: LocalizedStringResource {
             switch self {
             case .payment: "Name (Optional)"
-            case .addContact: "Name"
+            case .addContact, .edit: "Name"
             }
         }
     }
@@ -52,7 +55,7 @@ final class RecipientEntryModel: Identifiable {
     private(set) var text = ""
     /// The pasted address, or `nil` when the pasted text isn't one.
     private(set) var address: Address?
-    /// The account or contact already saved at the pasted address.
+    /// The account or contact already saved at the pasted address, other than the contact being edited.
     private(set) var saved: Contact?
     /// Why the pasted text can't be used, or `nil` while there's nothing to explain.
     private(set) var rejection: RecipientRejection?
@@ -85,8 +88,19 @@ final class RecipientEntryModel: Identifiable {
         check(address.value)
     }
 
+    /// Starts a sheet that edits a contact's name and address.
+    /// - Parameters:
+    ///   - contact: The contact to edit.
+    ///   - contacts: The window's contacts, which save the change.
+    init(editing contact: Contact, contacts: ContactsModel) {
+        purpose = .edit(contact)
+        name = contact.name
+        self.contacts = contacts
+        check(contact.address.value)
+    }
+
     /// Whether the sheet needs a name: contacts do, payments don't.
-    var requiresName: Bool { purpose == .addContact }
+    var requiresName: Bool { purpose != .payment }
 
     /// Whether the sheet can be confirmed: a usable address, and a name when one is required.
     var canConfirm: Bool {
@@ -101,11 +115,15 @@ final class RecipientEntryModel: Identifiable {
         if rejection != nil { rejectionCount += 1 }
     }
 
-    /// Saves a named address as a contact, then sets ``confirmation``; a payment to an unsaved address with no name,
-    /// or to a saved one, saves nothing.
+    /// Saves what the purpose asks for, then sets ``confirmation``; a payment to an unsaved address with no name, or
+    /// to a saved one, saves nothing.
     func confirm() {
         guard canConfirm, let address else { return }
-        if saved == nil, !trimmedName.isEmpty {
+        if case .edit(var contact) = purpose {
+            contact.name = trimmedName
+            contact.address = address
+            contacts.save(contact)
+        } else if saved == nil, !trimmedName.isEmpty {
             contacts.save(Contact(name: trimmedName, address: address))
         }
         confirmation = Confirmation(purpose: purpose, address: address)
@@ -116,7 +134,7 @@ final class RecipientEntryModel: Identifiable {
     private func check(_ text: String) {
         self.text = text
         address = try? Address(text)
-        saved = address.flatMap(contacts.saved(at:))
+        saved = address.flatMap(contacts.saved(at:)).flatMap { isEdited($0) ? nil : $0 }
         rejection = rejection(of: text)
         warnings = rejection == nil
             ? address.map { RecipientClassifier.entry.warnings(for: $0, in: contacts.recipientContext) } ?? []
@@ -130,8 +148,15 @@ final class RecipientEntryModel: Identifiable {
         guard !text.isEmpty else { return nil }
         guard let address else { return .notAddress }
         if address == contacts.sendingAccount { return .sendingAccount }
-        if purpose == .addContact, saved != nil { return .alreadySaved }
+        if purpose != .payment, saved != nil { return .alreadySaved }
         return nil
+    }
+
+    /// Whether a saved contact is the one this sheet edits, so its own address isn't counted as already saved.
+    /// - Parameter contact: A saved account or contact.
+    /// - Returns: `true` when the sheet edits that contact.
+    private func isEdited(_ contact: Contact) -> Bool {
+        if case .edit(let edited) = purpose { edited.id == contact.id } else { false }
     }
 
     /// The typed name without the spaces and line breaks around it.

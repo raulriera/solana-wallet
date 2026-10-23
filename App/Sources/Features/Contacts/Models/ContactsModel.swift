@@ -48,6 +48,13 @@ final class ContactsModel {
         accounts.first { $0.address == address } ?? contacts.first { $0.address == address }
     }
 
+    /// Whether a row lists an address: an account, a contact, or a recent payment to an unsaved address.
+    /// - Parameter address: The address to look up.
+    /// - Returns: `true` when the address has a row.
+    func lists(_ address: Address) -> Bool {
+        saved(at: address) != nil || recents.contains { $0.address == address }
+    }
+
     /// The person's own history, which rules check a recipient against.
     var recipientContext: RecipientContext {
         RecipientContext(knownAddresses: [sendingAccount] + accounts.map(\.address) + contacts.map(\.address)

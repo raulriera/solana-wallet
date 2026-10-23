@@ -14,13 +14,8 @@ struct ContactsScene: View {
     @State private var preferredColumn = NavigationSplitViewColumn.sidebar
     /// The payment being typed; it stays when the person picks another recipient.
     @State private var payment = PaymentModel(tokens: PaymentToken.samples, currencyCode: "USD")
-    @State private var isReviewing = false
-    /// Matches the Send button with the review, which grows out of it.
-    @Namespace private var review
     /// The sheet that enters a new payment's recipient or saves a recent address as a contact.
     @State private var entry: RecipientEntryModel?
-    /// The contact waiting for the person to confirm its deletion.
-    @State private var removal: Contact?
 
     /// Lists the addresses an account can pay, created once for the scene; the owner gives another account a new
     /// scene.
@@ -43,16 +38,7 @@ struct ContactsScene: View {
                 }
             } else {
                 NavigationSplitView(preferredCompactColumn: $preferredColumn) {
-                    Group {
-                        if contacts.isEmpty {
-                            // The keypad beside it already pays someone, and New Payment is in the top bar.
-                            UnavailableScreen(title: "No Contacts",
-                                              message: "People you name or pay appear here.",
-                                              systemImage: "person.crop.circle") {}
-                        } else {
-                            RecipientList(selection: $selection, entry: $entry, removal: $removal, contacts: contacts)
-                        }
-                    }
+                    RecipientList(selection: $selection, entry: $entry, contacts: contacts)
                     .navigationTitle("Contacts")
                     .toolbar {
                         ToolbarItem(placement: .primaryAction) {
@@ -64,10 +50,10 @@ struct ContactsScene: View {
                     .sidebarColumnWidth()
                 } detail: {
                     if let selection {
-                        PaymentAmountScreen(payment: payment, recipient: contacts.recipient(for: selection)) {
-                            SendButton(payment: payment, isReviewing: $isReviewing)
-                                .matchedTransitionSource(id: ObjectIdentifier(payment), in: review)
-                        }
+                        RecipientPaymentStack(recipient: contacts.recipient(for: selection), payment: payment,
+                                              contacts: contacts, selection: $selection, entry: $entry)
+                            // Another recipient starts on the keypad, not on the previous one's details.
+                            .id(selection)
                     } else {
                         UnavailableScreen(title: "No Recipient Selected",
                                           message: "Choose who to pay, or paste an address for a new payment.",
@@ -83,28 +69,21 @@ struct ContactsScene: View {
             }
         }
         .animation(.default, value: isEmpty)
-        .sheet(isPresented: $isReviewing) {
-            if let selection {
-                PaymentReviewSheet(payment: payment, recipient: contacts.recipient(for: selection),
-                                   context: contacts.recipientContext)
-                    // The review grows out of the Send button, and shrinks back into it when canceled.
-                    .navigationTransition(.zoom(sourceID: ObjectIdentifier(payment), in: review))
-            }
-        }
         .sheet(item: $entry) { RecipientEntrySheet(entry: $0) }
-        // A new payment's recipient opens the keypad; a saved contact keeps whatever is selected.
+        // A new payment's recipient opens the keypad, and an edited address keeps paying the same contact; a new
+        // contact keeps whatever is selected.
         .onChange(of: entry?.confirmation) { _, confirmation in
-            guard let confirmation, confirmation.purpose == .payment else { return }
-            selection = confirmation.address
-            preferredColumn = .detail
-        }
-        .confirmationDialog("Delete Contact?", item: $removal) { contact in
-            Button("Delete Contact", role: .destructive) {
-                withAnimation { contacts.delete(contact) }
+            guard let confirmation else { return }
+            switch confirmation.purpose {
+            case .payment:
+                // An address that no row lists gets a New Payment row, which animates in.
+                withAnimation { selection = confirmation.address }
+                preferredColumn = .detail
+            case .addContact:
+                break
+            case .edit(let contact):
+                if selection == contact.address { selection = confirmation.address }
             }
-        } message: { contact in
-            Text("\(contact.name) will be removed from your contacts.",
-                 comment: "Message when deleting a contact. The variable is the contact's name.")
         }
     }
 
