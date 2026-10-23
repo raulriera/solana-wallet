@@ -4,9 +4,9 @@ import RPC
 
 /// Why the portfolio couldn't load or refresh, classified by what the person can do about it.
 nonisolated enum PortfolioError: Error, Equatable {
-    /// No Helius API key is saved on this device.
+    /// The selected provider needs an API key, and none is saved on this device.
     case missingKey
-    /// Helius rejected the saved key.
+    /// The selected provider rejected the saved key.
     case invalidKey
     /// The selected custom RPC doesn't serve the portfolio's network.
     case unsupportedNetwork
