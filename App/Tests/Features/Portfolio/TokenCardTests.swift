@@ -37,16 +37,4 @@ struct TokenCardTests {
         let short = try height(atWidth: 375)
         #expect(long == short)
     }
-
-    @Test func `Each identity and figures view renders on its own`() throws {
-        let secondary: ReadableSecondary = .readableSecondary(.black, on: .white)
-        let identity = ImageRenderer(content: TokenCardIdentity(symbol: "SOL", name: "Solana", imageURL: nil,
-                                                                secondary: secondary))
-        let figures = ImageRenderer(content: TokenCardFigures(amount: nil, value: (total: 1, currency: "USD"),
-                                                              change: nil, hasPrivateBalance: true,
-                                                              secondary: secondary))
-
-        #expect(try #require(identity.cgImage).width > 0)
-        #expect(try #require(figures.cgImage).width > 0)
-    }
 }

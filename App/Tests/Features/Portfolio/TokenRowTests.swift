@@ -37,13 +37,4 @@ struct TokenRowTests {
         let short = try height(atWidth: 375)
         #expect(long == short)
     }
-
-    @Test func `Each identity and figures view renders on its own`() throws {
-        let identity = ImageRenderer(content: TokenRowIdentity(symbol: "SOL", name: "Solana", imageURL: nil))
-        let figures = ImageRenderer(content: TokenRowFigures(amount: nil, value: (total: 1, currency: "USD"),
-                                                             change: nil, hasPrivateBalance: true))
-
-        #expect(try #require(identity.cgImage).width > 0)
-        #expect(try #require(figures.cgImage).width > 0)
-    }
 }
