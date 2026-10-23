@@ -10,12 +10,13 @@ extension Holding {
                   symbol: preview.token.symbol, imageURL: preview.logo, valuation: nil)
     }
 
-    /// Metadata's symbol, or the asset's identity when metadata has none.
+    /// Metadata's symbol, or the asset's identity when metadata has none: a token shows its short mint address,
+    /// as in 4zMM…ncDU.
     nonisolated var displaySymbol: String {
         if let symbol, !symbol.isEmpty { return symbol }
         switch id {
         case .nativeSOL: return "SOL"
-        case .asset(let address): return address
+        case .asset(let mint): return (try? Address(mint))?.formatted(.shortAddress) ?? mint
         }
     }
 

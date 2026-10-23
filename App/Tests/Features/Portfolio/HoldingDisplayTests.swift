@@ -6,8 +6,10 @@ import Testing
 /// Checks what the portfolio shows when metadata or prices are missing.
 struct HoldingDisplayTests {
     private static let providerLogo = URL(string: "https://cdn.example.com/logo.png")!
+    /// A mint address, which a token without metadata shows in short form.
+    private static let mint = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU"
 
-    /// Metadata wins; without it, native SOL keeps its own name and tokens show their mint address.
+    /// Metadata wins; without it, native SOL keeps its own name and tokens show their short mint address.
     /// - Parameters:
     ///   - id: The holding's identity.
     ///   - symbol: Metadata's symbol, if any.
@@ -16,7 +18,8 @@ struct HoldingDisplayTests {
     ///   - shownName: The name the portfolio shows.
     @Test(arguments: [
         (Holding.Identity.nativeSOL, nil as String?, nil as String?, "SOL", "Solana"),
-        (.asset("mint"), "", "", "mint", "mint"),
+        (.asset(mint), "", "", "4zMM…ncDU", "4zMM…ncDU"),
+        (.asset(mint), nil, nil, "4zMM…ncDU", "4zMM…ncDU"),
         (.asset("mint"), "JUP", nil, "JUP", "JUP"),
         (.asset("mint"), "JUP", "Jupiter", "JUP", "Jupiter"),
     ])
