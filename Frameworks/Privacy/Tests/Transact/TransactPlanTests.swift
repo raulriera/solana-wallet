@@ -61,20 +61,15 @@ struct TransactPlanTests {
     }
 
     /// Verifies a transfer of every lamport: no change, so the padding output carries the
-    /// recipient's view tag, an empty-UTXO commitment, and the given payload.
+    /// recipient's view tag and the given payload. The independent references pin its commitment.
     @Test
     func `Transfers without change pad with the recipient's view tag`() throws {
         let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(lamports: 10)], transferLamports: 10, outputTreeID: 5, paddingOutputs: 1)
         let recipient = try TransferVectors.recipient()
-        let firstNullifier = try #require(plan.nullifiers.first)
-        let seed = TransactBlinding.outputBlindingSeed(firstNullifier: firstNullifier, blindingSeed: TransferVectors.blindingSeed)
         let padding = try #require(plan.outputs.last)
 
         #expect(padding.utxo == nil)
         #expect(padding.published.ownerTag == .inline(recipient.viewTag))
-        #expect(padding.published.utxoHash == UTXO.dummyHash(
-            treeID: 5, blinding: TransactBlinding.outputBlinding(firstNullifier: firstNullifier, outputBlindingSeed: seed, index: 1)
-        ))
         #expect(padding.published.data == [UInt8](repeating: 0xe0, count: ConfidentialOutput.payloadLength))
     }
 
@@ -94,7 +89,7 @@ struct TransactPlanTests {
     }
 
     /// Verifies inputs from two trees: trees in first-use order, and padding inputs in the last
-    /// declared tree with empty-UTXO hashes and nullifiers under the zero nullifier secret.
+    /// declared tree. The independent references pin the padding inputs' hashes and nullifiers.
     @Test
     func `Padding inputs join the last declared tree`() throws {
         let utxos = try [3, 1, 3, 1, 3, 1, 1].enumerated().map { index, tree in
@@ -102,31 +97,23 @@ struct TransactPlanTests {
         }
         let plan = try PlanFixtures.plan(spending: utxos, transferLamports: 7, outputTreeID: 2, paddingInputs: 1, paddingOutputs: 1)
         let padding = try #require(plan.inputs.last)
-        let zeroKey = try NullifierKey(secret: SymmetricKey(data: [UInt8](repeating: 0, count: 31)))
 
         #expect(plan.shape == Shape(inputs: 8, outputs: 2))
         #expect(plan.inputTreeIDs == [3, 1])
         #expect(plan.inputs.map(\.treeIndex) == [0, 1, 0, 1, 0, 1, 1, 1])
         #expect(padding.utxo == nil)
         #expect(plan.inputTreeIDs[Int(padding.treeIndex)] == 1)
-        #expect(padding.hash == UTXO.dummyHash(treeID: 1, blinding: TransferVectors.blinding(0xd0)))
-        #expect(padding.nullifier == zeroKey.nullifier(utxoHash: padding.hash, blinding: TransferVectors.blinding(0xd0)))
     }
 
     /// Verifies that a plan keeps the values that its proof's witness needs: the blinding seed, each
-    /// slot's blinding, and each output's owner.
+    /// input's blinding, and each output's owner. The independent references pin the outputs' blindings.
     @Test
     func `Plans keep the witness values`() throws {
         let utxos = try (0..<7).map { try PlanFixtures.utxo(lamports: 1, blindingByte: 0xb0 + UInt8($0)) }
         let plan = try PlanFixtures.plan(spending: utxos, transferLamports: 7, paddingInputs: 1, paddingOutputs: 1)
-        let firstNullifier = try #require(plan.nullifiers.first)
-        let seed = TransactBlinding.outputBlindingSeed(firstNullifier: firstNullifier, blindingSeed: TransferVectors.blindingSeed)
 
         #expect(plan.blindingSeed == TransferVectors.blindingSeed)
         #expect(plan.inputs.map(\.blinding) == (0..<7).map { TransferVectors.blinding(0xb0 + UInt8($0)) } + [TransferVectors.blinding(0xd0)])
-        #expect(plan.outputs.map(\.blinding) == (0..<2).map {
-            TransactBlinding.outputBlinding(firstNullifier: firstNullifier, outputBlindingSeed: seed, index: $0)
-        })
         #expect(plan.outputs.map { $0.owner?.signingAddress } == [try TransferVectors.recipient().signingAddress, nil])
     }
 

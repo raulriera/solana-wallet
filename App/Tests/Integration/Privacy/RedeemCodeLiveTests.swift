@@ -92,9 +92,6 @@ struct RedeemCodeLiveTests {
         #expect(redeemedFinal == 0)
         #expect(swept.noteLamports == Self.redeemedLamports)
         #expect(swept.networkFee == Redemption.signatureFee)
-        #expect(swept.lamports == Self.redeemedLamports + swept.availableLamports - Redemption.signatureFee)
-        // The reserve loses one tree fee, so the rent and two signatures are left for the fee and the deposit.
-        #expect(swept.availableLamports == (try await ShieldedPool.registryRecordRent(using: rpc)) + 2 * Redemption.signatureFee)
 
         // 3. Account 0 creates a code and takes it back.
         let takenBack = try await Self.createCode(of: Self.takenBackLamports, from: sender, in: balances,

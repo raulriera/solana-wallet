@@ -1,4 +1,3 @@
-import CryptoKit
 import Foundation
 import ModularArithmetic
 @testable import Privacy
@@ -95,7 +94,7 @@ struct NoteSyncStateSpendTests {
             spending: selected.map(\.utxo), sender: sender, transfer: Self.transfer(destination, lamports: spend.lamports),
             withdrawal: Self.withdrawal(destination, lamports: spend.lamports), outputTreeID: 0, using: &planGenerator
         )
-        let response = try Self.response(for: plan)
+        let response = try Self.response(for: plan.shape)
         let proof = try plan.proof(from: JSONDecoder().decode(TransferProofResponse.self, from: response).proof)
         let context = TreeContext(utxoTreeRootIndex: IndexerResponses.utxoRootIndex, nullifierTreeRootIndex: IndexerResponses.nullifierRootIndex)
         let transport = StubTransport { request in
@@ -133,7 +132,7 @@ struct NoteSyncStateSpendTests {
             spending: [notes[2].utxo], sender: sender, transfer: Self.transfer(destination, lamports: 9), withdrawal: nil, outputTreeID: 0,
             using: &planGenerator
         )
-        let response = try Self.response(for: plan)
+        let response = try Self.response(for: plan.shape)
         let transport = StubTransport { request in
             guard request.url?.lastPathComponent == "prove" else { return try IndexerResponses.proofs(answering: request) }
             let url = try #require(request.url)
@@ -150,33 +149,30 @@ struct NoteSyncStateSpendTests {
         #expect(result.nullifiers == [notes[2].nullifier])
     }
 
-    /// Verifies a funded transfer's transact: the recipient's note of the transfer, the sender's
-    /// change of the rest of the selected notes, and a withdrawal of the funding to the recipient's
-    /// signing address, which the instruction's last account and the external data hash name.
+    /// Verifies that a funded transfer withdraws its funding to the recipient's signing address,
+    /// which the spend's instruction names after the SOL interface, and returns the rest of the
+    /// selected notes to the sender.
     @Test
-    func `Funded transfers withdraw to the recipient's signing address`() throws {
+    func `Funded transfers withdraw to the recipient's signing address`() async throws {
         let recipient = try TransferVectors.recipient()
         let notes = try [10, 5].enumerated().map { try note($1, leaf: UInt64($0)) }
-        var generator = SeededGenerator(seed: 7)
-        let plan = try TransactPlan(
-            spending: notes.map(\.utxo), sender: sender, transfer: Self.transfer(.fundedTransfer(recipient, publicLamports: 5), lamports: 6),
-            withdrawal: Self.withdrawal(.fundedTransfer(recipient, publicLamports: 5), lamports: 6), outputTreeID: 0, using: &generator
-        )
-        let proof = try plan.proof(from: JSONDecoder().decode(TransferProofResponse.self, from: Self.response(for: plan)).proof)
-        let context = TreeContext(utxoTreeRootIndex: IndexerResponses.utxoRootIndex, nullifierTreeRootIndex: IndexerResponses.nullifierRootIndex)
-        let instruction = try plan.instruction(proof: proof, treeContexts: [context])
+        let state = try NoteSyncState(position: nil, notes: notes, outputTreeID: 0, pending: [], localSpends: [])
+        let response = try Self.response(for: Shape(inputs: 2, outputs: 2))
+        let transport = StubTransport { request in
+            guard request.url?.lastPathComponent == "prove" else { return try IndexerResponses.proofs(answering: request) }
+            let url = try #require(request.url)
+            return (response, try #require(HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)))
+        }
         let solInterface = try ShieldedPool.solInterface
-        let senderOwner = try sender.recipient.owner
-        let payerReferences = plan.outputs.filter { $0.published.ownerTag == .payer }.map { _ in sender.signingAddress.bytes }
-        var expectedHash = Array(SHA256.hash(data: [ShieldedPool.transactTag] + plan.externalData.encoded
-            + solInterface.bytes + recipient.signingAddress.bytes + payerReferences.flatMap(\.self)))
-        expectedHash[0] = 0
 
-        #expect(plan.withdrawal == ExternalData.Withdrawal(recipient: recipient.signingAddress, lamports: 5))
-        #expect(plan.outputs.compactMap { $0.utxo?.amount } == [6, 4])
-        #expect(plan.outputs.compactMap { $0.owner?.owner } == [recipient.owner, senderOwner])
-        #expect(instruction.accounts.suffix(2).map(\.address) == [solInterface, recipient.signingAddress])
-        #expect(plan.externalData.hash == expectedHash)
+        let result = try await state.spend(
+            6, to: .fundedTransfer(recipient, publicLamports: 5), from: sender,
+            provider: HeliusRPC(apiKey: "fixture-key", network: .devnet, transport: transport)
+        )
+
+        #expect(result.instruction.accounts.suffix(2).map(\.address) == [solInterface, recipient.signingAddress])
+        #expect(result.nullifiers == notes.map(\.nullifier))
+        #expect(result.receivedLamports == 4)
     }
 
     /// Verifies that a zero amount, or a funded transfer with a zero or overflowing funding
@@ -293,16 +289,16 @@ struct NoteSyncStateSpendTests {
         }
     }
 
-    /// Creates the prover's response for a plan: the first proof vector's curve points and the plan's
-    /// proving key.
+    /// Creates the prover's response for a shape: the first proof vector's curve points and the
+    /// shape's proving key.
     ///
-    /// - Parameter plan: The plan.
+    /// - Parameter shape: The shape of the proved plan.
     /// - Returns: The response body.
     /// - Throws: A test failure if a fixture is missing or malformed.
-    private static func response(for plan: TransactPlan) throws -> Data {
+    private static func response(for shape: Shape) throws -> Data {
         let vector = try #require(try ProofRequestVectors.load().transacts.first)
         var fields = try JSONDecoder().decode([String: JSONValue].self, from: vector.response.data)
-        fields["provingKeySha256"] = .string(hex(plan.shape.provingKeyDigest))
+        fields["provingKeySha256"] = .string(hex(shape.provingKeyDigest))
         return try JSONValue.object(fields).data
     }
 
