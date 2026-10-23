@@ -17,5 +17,6 @@ struct PaymentReviewSheet: View {
                 .cancellationAction()
                 .confirmationAction("Send", isEnabled: payment.canSend) { dismiss() }
         }
+        .limitedTextSize()
     }
 }

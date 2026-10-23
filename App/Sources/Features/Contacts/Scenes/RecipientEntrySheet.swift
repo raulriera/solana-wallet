@@ -13,5 +13,6 @@ struct RecipientEntrySheet: View {
                 .onChange(of: entry.confirmation) { dismiss() }
                 .cancellationAction()
         }
+        .limitedTextSize()
     }
 }

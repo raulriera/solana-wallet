@@ -10,5 +10,6 @@ struct ProviderSetupSheet: View {
                 .providerSetupLifecycle()
                 .cancellationAction()
         }
+        .limitedTextSize()
     }
 }

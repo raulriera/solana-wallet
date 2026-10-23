@@ -55,9 +55,6 @@ struct PaymentAmountScreen<Action: View>: View {
         // The button keeps the system's spacing from the tab bar below it.
         .scenePadding(.bottom)
         .background(palette.background)
-        // Like a system keypad, the screen stops growing at the largest standard text size, so the keys keep their
-        // layout; the keys show the large content viewer instead.
-        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
         .navigationTitle(title)
         .navigationSubtitle(subtitle)
         .navigationBarTitleDisplayMode(.inline)

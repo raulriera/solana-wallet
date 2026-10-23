@@ -20,6 +20,7 @@ struct BalanceMoveSheet: View {
             .disabled(move.isWorking)
             .cancellationAction()
         }
+        .limitedTextSize()
         .sheet(isPresented: $move.isReviewing) {
             BalanceMoveReviewSheet(move: move, close: dismiss)
                 // The review grows out of the Review button, and shrinks back into it when canceled.

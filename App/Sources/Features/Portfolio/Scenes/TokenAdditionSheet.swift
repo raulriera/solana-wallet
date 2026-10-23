@@ -14,5 +14,6 @@ struct TokenAdditionSheet: View {
                 .onChange(of: addition.isAdded) { dismiss() }
                 .cancellationAction()
         }
+        .limitedTextSize()
     }
 }
