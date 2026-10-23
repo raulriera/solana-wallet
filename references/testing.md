@@ -11,6 +11,18 @@
   Prefer ordinary imports for framework APIs; use existing internal transport or storage
   seams when setup requires them, without widening the production API.
 - Check workflow models through their typed state, such as a rejection case, not message text.
+- Call the code under test and derive expected values independently: published specs, SDK or
+  reference-implementation fixtures, or hand-worked examples. Never compute them with the
+  production formula, a copy of it, or the function under test. Assertions on fixtures alone
+  only guard that filtering leaves vectors covered.
+- Don't restate source: skip assertions that a constant, method name, raw value, or one-line
+  predicate's truth table equals the literals the source declares; test the behavior that uses
+  it. Literals with outside authority, such as program IDs, wire encodings, provider endpoints,
+  and persisted names, are valid expectations.
+- Test values headlessly through models, formatters, and plans; don't render views to read them
+  back. Don't assert SwiftUI or UIKit behavior the app can't change, such as rendered sizes, font
+  metrics, presentation timing, or system expiry. Move logic out of views until it runs without a
+  window, and verify layout in the simulator.
 - Use local fixtures for decoding, cryptography, and validation. Check instruction compilation
   against independent SDK fixtures with mixed programs and multiple signers; exercise the app
   consumer through simulation, explicit submission, and confirmation.
