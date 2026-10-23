@@ -11,6 +11,7 @@ struct ContactsScene: View {
     /// The selected address; every row that lists it is highlighted, so it stays highlighted when it moves to
     /// another section, such as a favorite that's removed.
     @State private var selection: Address?
+    @State private var columnVisibility = NavigationSplitViewVisibility.automatic
     @State private var preferredColumn = NavigationSplitViewColumn.sidebar
     /// The payment being typed; it stays when the person picks another recipient.
     @State private var payment = PaymentModel(tokens: PaymentToken.samples, currencyCode: "USD")
@@ -37,7 +38,7 @@ struct ContactsScene: View {
                         .buttonStyle(.primary)
                 }
             } else {
-                NavigationSplitView(preferredCompactColumn: $preferredColumn) {
+                NavigationSplitView(columnVisibility: $columnVisibility, preferredCompactColumn: $preferredColumn) {
                     RecipientList(selection: $selection, entry: $entry, contacts: contacts)
                     .navigationTitle("Contacts")
                     .toolbar {
@@ -55,12 +56,10 @@ struct ContactsScene: View {
                             // Another recipient starts on the keypad, not on the previous one's details.
                             .id(selection)
                     } else {
+                        // The sidebar's New Payment button starts a payment, so this screen has no action of its own.
                         UnavailableScreen(title: "No Recipient Selected",
                                           message: "Choose who to pay, or paste an address for a new payment.",
-                                          systemImage: "person.crop.circle") {
-                            Button("New Payment", action: startPayment)
-                                .buttonStyle(.primary)
-                        }
+                                          systemImage: "person.crop.circle") {}
                         // Inline like the keypad, so a cleared selection leaves no empty large title.
                         .navigationBarTitleDisplayMode(.inline)
                     }
@@ -78,6 +77,9 @@ struct ContactsScene: View {
             case .payment:
                 // An address that no row lists gets a New Payment row, which animates in.
                 withAnimation { selection = confirmation.address }
+                // A selection made in code doesn't close a sidebar that covers the keypad, so the keypad shows alone;
+                // in wide windows this also hides the sidebar beside it until the person shows it again.
+                columnVisibility = .detailOnly
                 preferredColumn = .detail
             case .addContact:
                 break
