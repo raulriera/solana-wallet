@@ -17,20 +17,12 @@ struct TokenRow: View {
     var hasPrivateBalance = false
 
     var body: some View {
-        // The figures sit beside the name when both fit in full, and under it otherwise, as at large text sizes.
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 12) {
-                TokenRowIdentity(symbol: symbol, name: name, imageURL: imageURL)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                TokenRowFigures(amount: amount, value: value, change: change, hasPrivateBalance: hasPrivateBalance,
-                                alignment: .trailing)
-                    .layoutPriority(1)
-            }
-            VStack(alignment: .leading, spacing: 8) {
-                TokenRowIdentity(symbol: symbol, name: name, imageURL: imageURL)
-                TokenRowFigures(amount: amount, value: value, change: change, hasPrivateBalance: hasPrivateBalance,
-                                alignment: .leading)
-            }
+        // The figures always sit beside the name and keep their room; the symbol and name truncate instead.
+        HStack(spacing: 12) {
+            TokenRowIdentity(symbol: symbol, name: name, imageURL: imageURL)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            TokenRowFigures(amount: amount, value: value, change: change, hasPrivateBalance: hasPrivateBalance)
+                .fixedSize()
         }
         .accessibilityElement(children: .combine)
     }

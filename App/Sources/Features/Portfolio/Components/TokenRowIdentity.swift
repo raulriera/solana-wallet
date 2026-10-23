@@ -12,10 +12,12 @@ struct TokenRowIdentity: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(symbol)
                     .font(.headline)
+                    .lineLimit(1)
                     .truncationMode(.middle)
                 Text(name)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
             .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
         }

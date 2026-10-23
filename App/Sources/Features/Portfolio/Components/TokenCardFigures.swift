@@ -14,11 +14,9 @@ struct TokenCardFigures: View {
     let hasPrivateBalance: Bool
     /// The card's color for supporting text.
     let secondary: ReadableSecondary
-    /// The edge the figures line up on: trailing beside the name, leading under it.
-    let alignment: TextAlignment
 
     var body: some View {
-        VStack(alignment: alignment == .leading ? .leading : .trailing, spacing: 2) {
+        VStack(alignment: .trailing, spacing: 2) {
             HStack(spacing: 6) {
                 if hasPrivateBalance {
                     PrivateBalanceSign()
@@ -38,6 +36,5 @@ struct TokenCardFigures: View {
             }
         }
         .monospacedDigit()
-        .multilineTextAlignment(alignment)
     }
 }

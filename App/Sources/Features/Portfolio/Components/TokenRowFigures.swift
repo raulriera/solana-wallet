@@ -12,11 +12,9 @@ struct TokenRowFigures: View {
     let change: Decimal?
     /// Whether the account also holds private SOL, which shows as a sign before the balance.
     let hasPrivateBalance: Bool
-    /// The edge the figures line up on: trailing beside the name, leading under it.
-    let alignment: TextAlignment
 
     var body: some View {
-        VStack(alignment: alignment == .leading ? .leading : .trailing, spacing: 2) {
+        VStack(alignment: .trailing, spacing: 2) {
             HStack(spacing: 6) {
                 if hasPrivateBalance {
                     PrivateBalanceSign()
@@ -36,6 +34,5 @@ struct TokenRowFigures: View {
             }
         }
         .monospacedDigit()
-        .multilineTextAlignment(alignment)
     }
 }

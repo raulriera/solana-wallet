@@ -26,20 +26,13 @@ struct TokenCard: View {
         let shape = RoundedRectangle(cornerRadius: style.cornerRadius, style: .continuous)
         let secondary: ReadableSecondary = .readableSecondary(tint.text, on: tint.textBackground)
 
-        // The figures sit beside the name when both fit in full, and under it otherwise, as at large text sizes.
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 12) {
-                TokenCardIdentity(symbol: symbol, name: name, imageURL: imageURL, secondary: secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                TokenCardFigures(amount: amount, value: value, change: change, hasPrivateBalance: hasPrivateBalance,
-                                 secondary: secondary, alignment: .trailing)
-                    .layoutPriority(1)
-            }
-            VStack(alignment: .leading, spacing: 8) {
-                TokenCardIdentity(symbol: symbol, name: name, imageURL: imageURL, secondary: secondary)
-                TokenCardFigures(amount: amount, value: value, change: change, hasPrivateBalance: hasPrivateBalance,
-                                 secondary: secondary, alignment: .leading)
-            }
+        // The figures always sit beside the name and keep their room; the symbol and name truncate instead.
+        HStack(spacing: 12) {
+            TokenCardIdentity(symbol: symbol, name: name, imageURL: imageURL, secondary: secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            TokenCardFigures(amount: amount, value: value, change: change, hasPrivateBalance: hasPrivateBalance,
+                             secondary: secondary)
+                .fixedSize()
         }
         .fontDesign(style.fontDesign)
         .foregroundStyle(tint.text)
