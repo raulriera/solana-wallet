@@ -14,6 +14,11 @@ import Observation
     /// - Throws: A storage or cancellation error, preserving the previous snapshot.
     func reload() async throws
 
+    /// Forgets the cached selections and loads them again after the app deletes its saved data, which starts the
+    /// stored revision over.
+    /// - Throws: A storage or cancellation error, leaving the original appearance.
+    func restart() async throws
+
     /// Persists a selection and publishes the committed state to all consuming windows.
     /// - Parameters:
     ///   - themeID: The selected identity, or `nil` to restore inheritance/original appearance.

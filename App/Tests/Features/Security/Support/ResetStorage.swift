@@ -3,13 +3,18 @@ import Testing
 import Vault
 @testable import widgets
 
-/// Records the order of reset deletions across every sensitive store, optionally failing one step once.
-actor ResetStorage: RecoveryStoring, AccountStoring {
+/// Records the order of reset deletions across every sensitive store, and whether the test's directory still existed
+/// at each one, optionally failing one step once.
+actor ResetStorage: RecoveryStoring {
     /// A store that a reset empties; the cases are in the order a reset empties them.
-    nonisolated enum Step: String, Sendable, CaseIterable { case recovery, privateBalances, wallets, key, settings }
+    nonisolated enum Step: String, Sendable, CaseIterable { case recovery, privateBalances, appearance, key, settings }
 
+    /// The test's own directory, which stands in for the app's kept and cached files.
+    nonisolated let directory = URL.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
     private var failing: Step?
     private(set) var deletions: [Step] = []
+    /// Whether ``directory`` existed at each recorded deletion, in the same order.
+    private(set) var directoryExisted: [Bool] = []
 
     /// Configures one test's stores.
     /// - Parameter failingOnce: The step whose first deletion throws, if any.
@@ -21,12 +26,11 @@ actor ResetStorage: RecoveryStoring, AccountStoring {
     /// - Throws: A scripted failure.
     func deleteAllRecovery() async throws { try delete(.recovery) }
 
-    /// Deletes every wallet, unless this step fails.
-    /// - Throws: A scripted failure.
-    func removeAll() async throws { try delete(.wallets) }
-
     /// Each account's private-balance keys and notes, whose deletion this storage records.
     nonisolated var privateBalances: ResetPrivateBalances { ResetPrivateBalances(storage: self) }
+
+    /// The shared appearance, whose restart this storage records.
+    @MainActor var appearance: ResetAppearance { ResetAppearance(storage: self) }
 
     /// The provider's API key, whose deletion this storage records.
     nonisolated var key: ResetValue<String> { ResetValue(storage: self, step: .key) }
@@ -43,6 +47,7 @@ actor ResetStorage: RecoveryStoring, AccountStoring {
             throw CocoaError(.fileWriteUnknown)
         }
         deletions.append(step)
+        directoryExisted.append(FileManager.default.fileExists(atPath: directory.path))
     }
 
     /// Reports any write, because a reset only deletes.
@@ -65,18 +70,6 @@ actor ResetStorage: RecoveryStoring, AccountStoring {
     /// Reports a single-wallet deletion, because a reset deletes every wallet at once.
     /// - Parameter recoveryID: The identity the caller tried to delete.
     func deleteRecovery(for recoveryID: UUID) async throws { Issue.record("A reset must delete all recovery at once.") }
-
-    /// Returns no accounts.
-    /// - Returns: An empty list.
-    func load() async throws -> [widgets.Account] { [] }
-
-    /// Reports any addition, because a reset only deletes.
-    /// - Parameter account: The account the caller tried to add.
-    /// - Returns: An empty list.
-    func add(_ account: widgets.Account) async throws -> [widgets.Account] {
-        Issue.record("A reset must not add accounts.")
-        return []
-    }
 }
 
 extension AppReset {
@@ -85,7 +78,8 @@ extension AppReset {
     ///   - storage: The storage that records every reset step.
     ///   - revision: Tells every window when the reset finishes.
     init(storage: ResetStorage, revision: Revision) {
-        self.init(recovery: storage, privateBalances: storage.privateBalances, accounts: storage, providerKey: storage.key,
-                  providerSettings: storage.settings, revision: revision)
+        self.init(recovery: storage, privateBalances: storage.privateBalances, directories: [storage.directory],
+                  appearance: storage.appearance, providerKey: storage.key, providerSettings: storage.settings,
+                  revision: revision)
     }
 }

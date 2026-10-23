@@ -1,3 +1,4 @@
+import Foundation
 import Portfolio
 import RPC
 import Testing
@@ -11,7 +12,9 @@ struct TokenLookupLiveTests {
     /// - Throws: An RPC, validation, or lookup error.
     @Test(.timeLimit(.minutes(1)))
     func `Live lookups read on-chain names for both token programs`() async throws {
-        let portfolio = Portfolio(rpc: Solana(network: .mainnet))
+        // Lookups save and cache nothing.
+        let portfolio = Portfolio(rpc: Solana(network: .mainnet), tokenListDirectory: .temporaryDirectory,
+                                  cacheDirectory: .temporaryDirectory)
 
         let bonk = try await portfolio.token(at: Address("DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"))
         let pyusd = try await portfolio.token(at: Address("2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo"))

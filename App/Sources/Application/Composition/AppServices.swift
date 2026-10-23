@@ -32,9 +32,11 @@ struct AppServices {
         let recoveryService = "com.raulriera.widgets.recovery"
         let providerService = "com.raulriera.widgets.provider"
         let privateBalanceService = "com.raulriera.widgets.private-balance"
+        let directories: [URL] = [.persistentDirectory, .ephemeralDirectory]
         #if DEBUG && targetEnvironment(simulator)
         // A UI test must not run against saved data that it couldn't clear.
-        do { try UITestReset.runIfRequested(keychainServices: [recoveryService, providerService, privateBalanceService]) }
+        do { try UITestReset.runIfRequested(keychainServices: [recoveryService, providerService, privateBalanceService],
+                                            directories: directories) }
         catch { preconditionFailure("The UI-test reset couldn't clear the app's saved data.") }
         #endif
         // Exclusion is guidance to the system; a failure must not block the app, and the next launch tries again.
@@ -57,7 +59,9 @@ struct AppServices {
         providerConnection = HeliusConnection(providerKey: providerKey, revisions: providerRevisions)
         let portfolios = NetworkPortfolios(prices: Jupiter()) { network, prices in
             Portfolio(rpc: ProviderClient(network: network, settings: providerSettings, providerKey: providerKey),
-                      prices: prices)
+                      prices: prices,
+                      tokenListDirectory: .persistentDirectory.appending(path: "TokenLists", directoryHint: .isDirectory),
+                      cacheDirectory: .ephemeralDirectory.appending(path: "Portfolio", directoryHint: .isDirectory))
         }
         self.portfolios = portfolios
         // Approved transactions go to the selected provider and to Solana's public RPC on the same network.
@@ -80,7 +84,8 @@ struct AppServices {
         security = SecurityServices(
             recovery: RecoveryReveal(store: recovery),
             owner: DeviceOwnerAuthentication(),
-            reset: AppReset(recovery: recovery, privateBalances: privateBalances, accounts: accounts,
+            reset: AppReset(recovery: recovery, privateBalances: privateBalances,
+                            directories: directories, appearance: appearance.appearance,
                             providerKey: providerKey, providerSettings: providerSettings, revision: resetRevision),
             pasteboard: recoveryPasteboard
         )

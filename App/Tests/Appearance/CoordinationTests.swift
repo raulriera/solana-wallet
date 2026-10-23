@@ -44,6 +44,24 @@ struct AppearanceCoordinationTests {
         #expect(coordinator.snapshot?.theme(for: nil) == nil)
     }
 
+    /// After a reset deletes the theme folder, the new state replaces the cached selection despite its lower revision.
+    @Test func `Restarting after the folder is deleted drops the cached selection`() async throws {
+        let fixture = try CatalogFixture()
+        defer { fixture.remove() }
+        let catalog = ThemeCatalog(directory: fixture.directory)
+        let entry = try await catalog.install(PackService().read(from: fixture.source()))
+        let coordinator = AppearanceCoordinator(store: AppearanceStore(directory: fixture.directory), recovery: nil)
+        try await coordinator.select(entry.id, for: .application)
+        try FileManager.default.removeItem(at: fixture.directory)
+
+        try await coordinator.reload()
+        #expect(coordinator.snapshot?.theme(for: nil) == entry)
+        try await coordinator.restart()
+
+        #expect(coordinator.snapshot?.theme(for: nil) == nil)
+        #expect(coordinator.snapshot?.entries.isEmpty == true)
+    }
+
     /// Failed persistence leaves all windows displaying the last committed selection.
     @Test func `Failed selection preserves cached state`() async throws {
         let fixture = try CatalogFixture()

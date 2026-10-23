@@ -203,23 +203,6 @@ struct AccountStoreTests {
         #expect(try Data(contentsOf: file) == original)
     }
 
-    /// Resetting deletes every saved account, and repeating it on empty storage still succeeds.
-    @Test
-    func `Removing all accounts leaves empty storage`() async throws {
-        let directory = try temporaryDirectory()
-        defer { try? FileManager.default.removeItem(at: directory) }
-        let store = AccountStore(directory: directory)
-        let first = try account(index: 0)
-        _ = try await store.add(first)
-        _ = try await store.add(try account(index: 1, recoveryID: first.recoveryID))
-
-        try await store.removeAll()
-        try await store.removeAll()
-
-        #expect(try await AccountStore(directory: directory).load().isEmpty)
-        #expect(!FileManager.default.fileExists(atPath: directory.appendingPathComponent("accounts.json").path))
-    }
-
     /// The same recovery can retain two discovery families at the same account index.
     @Test
     func `Both discovery path families survive reopening and subsequent additions`() async throws {

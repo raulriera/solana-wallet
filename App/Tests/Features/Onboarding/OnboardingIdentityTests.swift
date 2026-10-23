@@ -48,7 +48,10 @@ struct OnboardingIdentityTests {
             let revision = Revision()
             let privateBalances = PrivateBalances.inMemory(keys: StoredValue(), notes: StoredValue(), recovery: recovery,
                                                            responses: HTTPResponses([:]))
-            try await AppReset(recovery: recovery, privateBalances: privateBalances, accounts: accounts, providerKey: keys,
+            let appearance = AppearanceCoordinator(store: AppearanceStore(directory: directory.appending(path: "Themes")),
+                                                   recovery: nil)
+            try await AppReset(recovery: recovery, privateBalances: privateBalances,
+                               directories: [directory], appearance: appearance, providerKey: keys,
                                providerSettings: StoredValue<ProviderSettings>(), revision: revision).reset()
             try #require(revision.value == 1)
             try #require(try await accounts.load().isEmpty)

@@ -14,7 +14,7 @@ nonisolated struct AccountStore: AccountStoring {
 
     /// Configures local storage without creating directories or reading account data.
     /// - Parameter directory: The app-private directory containing account metadata.
-    init(directory: URL = URL.applicationSupportDirectory.appendingPathComponent("Accounts", isDirectory: true)) {
+    init(directory: URL = .persistentDirectory.appending(path: "Accounts", directoryHint: .isDirectory)) {
         self.directory = directory
     }
 
@@ -43,17 +43,6 @@ nonisolated struct AccountStore: AccountStoring {
             // Addresses stay unreadable while the device is locked; the app only writes in the foreground.
             try data.write(to: file, options: [.atomic, .completeFileProtection])
             return accounts
-        }
-    }
-
-    /// Deletes the account file on the shared I/O queue; a missing file is already deleted.
-    /// - Throws: A filesystem or pre-commit cancellation error.
-    func removeAll() async throws {
-        try await perform { checkCancellation in
-            try checkCancellation()
-            do {
-                try FileManager.default.removeItem(at: file)
-            } catch CocoaError.fileNoSuchFile {}
         }
     }
 

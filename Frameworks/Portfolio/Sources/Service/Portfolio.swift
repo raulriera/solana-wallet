@@ -1,4 +1,4 @@
-import Foundation
+public import Foundation
 public import RPC
 public import Transactions
 
@@ -9,18 +9,19 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
     private let tokenLists: TokenListCoordinator
     private let lookup: TokenLookup
 
-    /// Creates a portfolio service that caches holdings in the app's cache directory
-    /// and saves token lists in its Application Support directory.
+    /// Creates a portfolio service that saves token lists and caches holdings in the given directories.
     ///
     /// - Parameters:
     ///   - rpc: The RPC client that reads balances; every provider supports the request it uses.
     ///     A client that also hosts logo copies, such as Helius, adds logos to the listed tokens.
     ///     A client that also provides account subscriptions watches the accounts for finalized changes.
     ///   - prices: A same-network price provider; `nil` leaves holdings unpriced.
+    ///   - tokenListDirectory: The directory that keeps each account's token list until the app deletes it.
+    ///   - cacheDirectory: The directory that caches holdings, which the app or the system may delete.
     /// - Precondition: `prices` serves the RPC client's network.
-    public init(rpc: any RPC, prices: (any PriceProviding)? = nil) {
-        self.init(rpc: rpc, store: FileSnapshotStore(directory: .cachesDirectory.appendingPathComponent("Portfolio")),
-                  prices: prices)
+    public init(rpc: any RPC, prices: (any PriceProviding)? = nil, tokenListDirectory: URL, cacheDirectory: URL) {
+        self.init(rpc: rpc, store: FileSnapshotStore(directory: cacheDirectory),
+                  tokenLists: FileTokenListStore(directory: tokenListDirectory), prices: prices)
     }
 
     /// Creates a service with injected stores.
@@ -28,14 +29,13 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
     /// - Parameters:
     ///   - rpc: The RPC client that reads balances, and adds logos when it hosts logo copies.
     ///   - store: The persistent snapshot store.
-    ///   - tokenLists: The token-list store; the default saves lists in Application Support.
+    ///   - tokenLists: The token-list store.
     ///   - prices: An optional same-network price provider.
     ///   - changes: The optional finalized-change provider, defaulting to the RPC client's capability.
     ///   - pause: Cancellable scheduling for coalescing nearby changes and spacing reconnections.
     /// - Precondition: `prices` and `changes` serve the RPC client's network.
     init(rpc: any RPC, store: any SnapshotStoring,
-         tokenLists: any TokenListStoring = FileTokenListStore(
-            directory: .applicationSupportDirectory.appending(path: "Portfolio/TokenLists", directoryHint: .isDirectory)),
+         tokenLists: any TokenListStoring,
          prices: (any PriceProviding)? = nil,
          changes: (any AccountChangeProviding)? = nil,
          pause: @escaping ObservationCoordinator.Pause = { try await Task.sleep(for: $0) }) {

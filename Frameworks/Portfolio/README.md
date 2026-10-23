@@ -10,7 +10,11 @@ Inject [`PortfolioProviding`](Sources/Service/PortfolioProviding.swift), impleme
 import Portfolio
 import RPC
 
-let service: any PortfolioProviding = Portfolio(rpc: Solana(network: .mainnet))
+let service: any PortfolioProviding = Portfolio(
+    rpc: Solana(network: .mainnet),
+    tokenListDirectory: .applicationSupportDirectory.appending(path: "TokenLists"),
+    cacheDirectory: .cachesDirectory.appending(path: "Portfolio")
+)
 for await update in await service.updates(for: owner) {
     receive(update)
 }
@@ -27,7 +31,7 @@ An optional same-network `PriceProviding` provider enables prices, including eac
 
 ## Token Lists
 
-Each account keeps a list of the tokens it shows besides native SOL. `Portfolio` also implements [`TokenListProviding`](Sources/TokenList/TokenListProviding.swift): new mainnet lists hold USDC and USDT, whose mint addresses `DefaultToken` names, devnet lists start empty, and people can add up to 50 tokens. Lists are saved per account and network in Application Support. A saved list that can't be read throws `TokenListError.unreadable` instead of returning the defaults. After a change, an observed account watches its new list and reads balances once; otherwise the next reload reads the new list. Share one `Portfolio` per network so that edits from several windows stay serialized.
+Each account keeps a list of the tokens it shows besides native SOL. `Portfolio` also implements [`TokenListProviding`](Sources/TokenList/TokenListProviding.swift): new mainnet lists hold USDC and USDT, whose mint addresses `DefaultToken` names, devnet lists start empty, and people can add up to 50 tokens. Lists are saved per account and network in the token-list directory; holdings are cached in the cache directory. A saved list that can't be read throws `TokenListError.unreadable` instead of returning the defaults. After a change, an observed account watches its new list and reads balances once; otherwise the next reload reads the new list. Share one `Portfolio` per network so that edits from several windows stay serialized.
 
 | Operation | Behavior |
 | --- | --- |

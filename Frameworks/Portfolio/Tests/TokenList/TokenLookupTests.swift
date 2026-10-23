@@ -29,7 +29,7 @@ struct TokenLookupTests {
                                            data: metaplexData(mint: mint, name: "USD Coin", symbol: "USDC")),
         ])
 
-        let preview = try await Portfolio(rpc: http.client).token(at: mint)
+        let preview = try await lookupPortfolio(http.client).token(at: mint)
 
         #expect(preview == TokenPreview(token: ListedToken(mint: mint, program: .token, decimals: 6,
                                                            symbol: "USDC", name: "USD Coin"), logo: nil))
@@ -42,7 +42,7 @@ struct TokenLookupTests {
         let mint = try Address(usdcMint)
         let http = LookupResponses(accounts: [usdcMint: mintAccount(decimals: 6, supply: 1_000)])
 
-        let preview = try await Portfolio(rpc: http.client).token(at: mint)
+        let preview = try await lookupPortfolio(http.client).token(at: mint)
 
         #expect(preview.token == ListedToken(mint: mint, program: .token, decimals: 6, symbol: nil, name: nil))
     }
@@ -68,7 +68,7 @@ struct TokenLookupTests {
         let rpc: any RPC = helius ? http.heliusClient : http.client
 
         await #expect(throws: refusal == .nft ? TokenLookupError.nonFungible : .notToken) {
-            try await Portfolio(rpc: rpc).token(at: mint)
+            try await lookupPortfolio(rpc).token(at: mint)
         }
     }
 
@@ -82,7 +82,7 @@ struct TokenLookupTests {
             return [usdcMint: "https://cdn.example.com/usdc.png"]
         }
 
-        let preview = try await Portfolio(rpc: http.heliusClient).token(at: mint)
+        let preview = try await lookupPortfolio(http.heliusClient).token(at: mint)
 
         #expect(preview.logo == (logoFails ? nil : URL(string: "https://cdn.example.com/usdc.png")))
         #expect(preview.token.decimals == 6)
@@ -92,6 +92,13 @@ struct TokenLookupTests {
 
 /// The Metaplex Token Metadata program, which owns metadata accounts.
 private let metaplexProgram = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
+
+/// Creates a service for mint lookups, which save and cache nothing.
+/// - Parameter rpc: The client that reads the mint.
+/// - Returns: A service whose directories stay empty.
+private func lookupPortfolio(_ rpc: any RPC) -> Portfolio {
+    Portfolio(rpc: rpc, tokenListDirectory: .temporaryDirectory, cacheDirectory: .temporaryDirectory)
+}
 
 /// Creates an initialized SPL Token mint account without mint or freeze authorities.
 /// - Parameters:

@@ -10,8 +10,4 @@ nonisolated protocol AccountStoring: Sendable {
     /// - Returns: The complete list after the addition commits.
     /// - Throws: A duplicate, storage, validation, or pre-commit cancellation error.
     func add(_ account: Account) async throws -> [Account]
-
-    /// Deletes every saved account when the user resets the app.
-    /// - Throws: A storage or pre-commit cancellation error. Empty storage is already deleted.
-    func removeAll() async throws
 }

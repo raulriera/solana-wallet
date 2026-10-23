@@ -41,6 +41,13 @@ import Observation
         publish(try await store.load())
     }
 
+    /// Forgets the cached selections, so the first snapshot after a reset replaces them despite its lower revision.
+    /// - Throws: A storage or cancellation error, leaving the original appearance.
+    func restart() async throws {
+        snapshot = nil
+        try await reload()
+    }
+
     /// Commits a selection before making it observable.
     /// - Parameters:
     ///   - themeID: The selected identity, or `nil` to clear this scope's selection.
