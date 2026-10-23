@@ -6,9 +6,9 @@ import RPC
 /// Each request and subscription reads the saved choice, and Helius's saved key, so a change made in any
 /// window applies to the next request. Solana's public RPC and Helius serve each network at its own host; Helius
 /// uses the same key on each network. A custom RPC serves mainnet only; on another network it fails instead of
-/// using another provider. A capability the selected provider lacks gives its empty result: only Helius has logo
-/// copies. Only Helius reads private notes and proves private transfers; another provider's private-note reads and
-/// proofs throw ``ProviderClientError/privateNotesUnavailable``. The client for the latest provider is kept to reuse its
+/// using another provider. Optional capabilities follow the provider's client conformances: without ``LogoProviding``,
+/// logo lookups return nothing; without ``PrivateNoteProviding`` and ``ProofProviding``, private-note reads and proofs
+/// throw ``ProviderClientError/privateNotesUnavailable``. The client for the latest provider is kept to reuse its
 /// connections.
 nonisolated struct ProviderClient: RPC, AccountChangeProviding, SignatureEventProviding, LogoProviding,
     PrivateNoteProviding, ProofProviding {
@@ -48,7 +48,7 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, SignatureEventPr
     /// Sends one request to the selected provider, without retrying it.
     /// - Parameter request: The RPC method and its parameters.
     /// - Returns: The validated and decoded response.
-    /// - Throws: ``ProviderClientError`` for a missing or rejected Helius key or a custom RPC on another network,
+    /// - Throws: ``ProviderClientError`` for a missing or rejected API key or a custom RPC on another network,
     ///   a storage error, any other `RPCError`, or `CancellationError`.
     func send<Request: RPCRequest>(_ request: Request) async throws -> Request.Response {
         try await perform { try await $0.send(request) }
@@ -57,7 +57,7 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, SignatureEventPr
     /// Observes finalized changes to each account through the selected provider.
     /// - Parameter addresses: The accounts to watch; a repeated address is watched once.
     /// - Returns: Increasing finalized change slots after all subscriptions are acknowledged.
-    /// - Throws: ``ProviderClientError`` for a missing or rejected Helius key or a custom RPC on another network,
+    /// - Throws: ``ProviderClientError`` for a missing or rejected API key or a custom RPC on another network,
     ///   a storage error, or another sanitized subscription, transport, timeout, or cancellation error.
     func changedSlots(for addresses: [String]) async throws -> AsyncThrowingStream<UInt64, any Error> {
         try await perform { try await $0.changedSlots(for: addresses) }
@@ -66,7 +66,7 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, SignatureEventPr
     /// Watches a sent transaction's landing and new roots through the selected provider.
     /// - Parameter signature: The base-58 encoded signature of a sent transaction.
     /// - Returns: The transaction's landing and new roots, after both subscriptions are acknowledged.
-    /// - Throws: ``ProviderClientError`` for a missing or rejected Helius key or a custom RPC on another network,
+    /// - Throws: ``ProviderClientError`` for a missing or rejected API key or a custom RPC on another network,
     ///   a storage error, or another sanitized subscription, transport, timeout, or cancellation error.
     func events(for signature: String) async throws -> AsyncThrowingStream<SignatureEvent, any Error> {
         try await perform { try await $0.events(for: signature) }
@@ -76,7 +76,7 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, SignatureEventPr
     /// - Parameter mints: Mint addresses; duplicates are ignored.
     /// - Returns: Logo URLs on the provider's CDN, keyed by mint address, or none, without a request,
     ///   when the provider has no logo copies.
-    /// - Throws: ``ProviderClientError`` for a missing or rejected Helius key or a custom RPC on another network,
+    /// - Throws: ``ProviderClientError`` for a missing or rejected API key or a custom RPC on another network,
     ///   a storage error, any other `RPCError`, or `CancellationError`.
     func logos(for mints: [String]) async throws -> [String: URL] {
         try await perform { client in
@@ -135,8 +135,9 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, SignatureEventPr
     /// Whether the selected provider reads private notes and proves private transfers on this network, without sending
     /// a request.
     ///
-    /// Only Helius does; a custom RPC off mainnet serves nothing.
-    /// - Throws: ``ProviderClientError`` for a missing Helius key or an unusable endpoint, or a storage or cancellation
+    /// A provider does when its client conforms to ``PrivateNoteProviding`` and ``ProofProviding``; a custom RPC off
+    /// mainnet serves nothing.
+    /// - Throws: ``ProviderClientError`` for a missing API key or an unusable endpoint, or a storage or cancellation
     ///   error.
     var readsPrivateNotes: Bool {
         get async throws {

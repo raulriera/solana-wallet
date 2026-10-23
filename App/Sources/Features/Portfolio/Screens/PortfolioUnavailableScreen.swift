@@ -29,8 +29,8 @@ struct PortfolioUnavailableScreen: View {
     /// Explains why balances aren't shown and what the action does.
     private var message: LocalizedStringResource {
         switch error {
-        case .missingKey: "This wallet needs your Helius API key to load your balances."
-        case .invalidKey: "Helius didn't accept your saved API key. Enter a new key to load your balances."
+        case .missingKey: "Your provider needs an API key to load your balances."
+        case .invalidKey: "Your provider didn't accept your saved API key. Enter a new key to load your balances."
         case .unsupportedNetwork: "Choose another provider or switch this window to Mainnet in Settings."
         case .rateLimited: "Your provider is limiting requests. Wait a moment, then try again."
         case .unavailable: "Your balances couldn't be loaded. Check your connection, then try again."
