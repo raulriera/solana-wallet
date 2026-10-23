@@ -138,7 +138,8 @@ actor PrivateBalances: PrivateBalancing {
     ///   - account: The account whose balance to refresh.
     ///   - network: The network to read.
     /// - Returns: ``PrivateBalanceStatus/unavailable`` on a network without private balances, or with a provider that
-    ///   doesn't read them there; else ``PrivateBalanceStatus/off`` without keys, ``PrivateBalanceStatus/unregistered``
+    ///   doesn't read them there; else ``PrivateBalanceStatus/off(isRegistered:)`` without keys, with whether the
+    ///   registry holds the account, ``PrivateBalanceStatus/unregistered``
     ///   before the keys are registered, or the balance, with its pending amounts.
     /// - Throws: ``PrivateBalanceError/registeredWithOtherKeys`` if the account registered other keys,
     ///   `CancellationError` if cancelled or if ``removeAll()`` ran first, ``KeychainItemError/unreadable`` if an item
@@ -146,10 +147,31 @@ actor PrivateBalances: PrivateBalancing {
     func refresh(_ account: Account, on network: Network) async throws -> PrivateBalanceStatus {
         guard ShieldedPool.networks.contains(network) else { return .unavailable }
         return switch try await sharedSync(of: account, on: network) {
-        case .off: .off
+        case .off: .off(isRegistered: try await isRegistered(account, on: network))
         case .unavailable: .unavailable
         case .unregistered: .unregistered
         case .synced(_, let state): .balance(of: state)
+        }
+    }
+
+    /// Reads whether an account without keys on this device turned private balances on before, such as before its
+    /// wallet was imported again.
+    ///
+    /// The registry reads by address alone, without keys or authentication. An unread registry counts as unregistered,
+    /// so private balances show as off, as for an account that never turned them on.
+    /// - Parameters:
+    ///   - account: The account.
+    ///   - network: A network with private balances.
+    /// - Returns: Whether the registry holds the account's record.
+    /// - Throws: `CancellationError` if cancelled.
+    private func isRegistered(_ account: Account, on network: Network) async throws -> Bool {
+        do {
+            let recipients = try await Recipient.lookup([account.address], using: client(for: network))
+            return (recipients.first ?? nil) != nil
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            return false
         }
     }
 
@@ -388,7 +410,8 @@ actor PrivateBalances: PrivateBalancing {
             async let releasedCode: Void = recordCode(of: transaction.effect, outcome: outcome, signature: signature,
                                                       id: id, from: generation)
             let (keyRecords, entries, _) = try await (savedKeys, savedNotes, releasedCode)
-            guard keyRecords?[transaction.account.address.value] != nil else { return .off }
+            // Keys deleted meanwhile, such as by a reset, leave the registry unread.
+            guard keyRecords?[transaction.account.address.value] != nil else { return .off(isRegistered: false) }
             return entries?[id].map(PrivateBalanceStatus.balance(of:)) ?? .unregistered
         }
         let effect = transaction.effect

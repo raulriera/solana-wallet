@@ -13,12 +13,12 @@ struct PrivateBalanceModelTests {
     @Test
     func `A refresh shows the account's status`() async throws {
         let account = try await PrivateBalanceFixtures.account()
-        let model = try PrivateBalanceModel.fixture(HTTPResponses.privateNotes())
+        let model = try PrivateBalanceModel.fixture(HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered]))
         #expect(model.status == nil)
 
         await model.refresh(for: account)
 
-        #expect(model.status == .off)
+        #expect(model.status == .off(isRegistered: false))
     }
 
     /// An account at a path without private-balance keys shows nothing and reads nothing.
@@ -45,14 +45,14 @@ struct PrivateBalanceModelTests {
 
         await model.refresh()
 
-        #expect(model.status == .off)
+        #expect(model.status == .off(isRegistered: false))
     }
 
     /// Another account starts over: its status replaces the last account's, so nothing shows for an account without
     /// private-balance keys.
     @Test
     func `Another account starts over`() async throws {
-        let model = try PrivateBalanceModel.fixture(HTTPResponses.privateNotes())
+        let model = try PrivateBalanceModel.fixture(HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered]))
         await model.refresh(for: try await PrivateBalanceFixtures.account())
 
         await model.refresh(for: try await Self.otherPathAccount())
@@ -152,7 +152,7 @@ struct PrivateBalanceModelTests {
     ///   - followsUp: Whether the model follows up.
     @Test(arguments: [(UInt64(1_000_000), true), (0, false)])
     func `A settled balance with pending SOL starts a follow-up`(pending: UInt64, followsUp: Bool) async throws {
-        let model = try PrivateBalanceModel.fixture(HTTPResponses.privateNotes())
+        let model = try PrivateBalanceModel.fixture(HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered]))
         await model.refresh(for: try await PrivateBalanceFixtures.account())
 
         model.show(.balance(available: 0, pending: pending))
@@ -223,7 +223,7 @@ struct PrivateBalanceModelTests {
         await model.run(model.attempt)
 
         #expect(model.error == .registeredWithOtherKeys)
-        #expect(model.status == .off)
+        #expect(model.status == .off(isRegistered: true))
         #expect(!model.isTurnedOn)
         #expect(!model.isTurningOn)
     }
@@ -232,7 +232,7 @@ struct PrivateBalanceModelTests {
     @Test
     func `Cancelled authentication shows no error`() async throws {
         let account = try await PrivateBalanceFixtures.account()
-        let model = try PrivateBalanceModel.fixture(HTTPResponses.privateNotes(),
+        let model = try PrivateBalanceModel.fixture(HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered]),
                                    recovery: SecurityRecoveryStore(readError: CancellationError()))
         await model.refresh(for: account)
 
@@ -240,7 +240,7 @@ struct PrivateBalanceModelTests {
         await model.run(model.attempt)
 
         #expect(model.error == nil)
-        #expect(model.status == .off)
+        #expect(model.status == .off(isRegistered: false))
         #expect(!model.isTurnedOn)
         #expect(!model.isTurningOn)
     }

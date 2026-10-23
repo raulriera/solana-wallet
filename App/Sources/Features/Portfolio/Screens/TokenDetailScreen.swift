@@ -145,7 +145,7 @@ private extension NetworkTransactions {
 private struct PreviewPrivateBalances: PrivateBalancing {
     func enable(_ account: Account, on network: Network) async throws {}
 
-    func refresh(_ account: Account, on network: Network) async throws -> PrivateBalanceStatus { .off }
+    func refresh(_ account: Account, on network: Network) async throws -> PrivateBalanceStatus { .off(isRegistered: false) }
 
     func prepare(_ request: PrivateTransactionRequest, from account: Account, on network: Network) async throws
         -> PreparedPrivateTransaction {
@@ -154,7 +154,7 @@ private struct PreviewPrivateBalances: PrivateBalancing {
 
     func complete(_ transaction: PreparedPrivateTransaction, with confirmation: Confirmation) async throws
         -> PrivateBalanceStatus {
-        .off
+        .off(isRegistered: false)
     }
 
     func outstandingCodes(of account: Account, on network: Network) async throws -> [OutstandingRedeemCode] { [] }

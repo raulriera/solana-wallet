@@ -13,7 +13,7 @@ struct PrivateBalanceObservationTests {
     @Test
     func `An active window reads the private balance`() async throws {
         let account = try await PrivateBalanceFixtures.account()
-        let model = try PrivateBalanceModel.fixture(HTTPResponses.privateNotes())
+        let model = try PrivateBalanceModel.fixture(HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered]))
         let hosted = try HostedWindow(PrivateBalanceObservationRoot(model: model, account: account, scenePhase: .active))
         defer { hosted.close() }
         // Closing the window before it finishes appearing would interrupt UIKit's appearance transition.
@@ -21,7 +21,7 @@ struct PrivateBalanceObservationTests {
 
         // The suite's time limit ends the wait if the window never reads the balance.
         for await status in Observations({ model.status }) where status != nil { break }
-        #expect(model.status == .off)
+        #expect(model.status == .off(isRegistered: false))
     }
 
     /// While private balances are on, an active window polls the balance, so a later change shows without a refresh.

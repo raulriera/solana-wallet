@@ -22,7 +22,7 @@ struct ResetPrivateBalances: PrivateBalancing {
     /// - Returns: ``PrivateBalanceStatus/off``.
     func refresh(_ account: widgets.Account, on network: Network) async throws -> PrivateBalanceStatus {
         Issue.record("A reset must not refresh private balances.")
-        return .off
+        return .off(isRegistered: false)
     }
 
     /// Reports any preparation, because a reset only deletes.
@@ -46,7 +46,7 @@ struct ResetPrivateBalances: PrivateBalancing {
     func complete(_ transaction: PreparedPrivateTransaction, with confirmation: widgets.Confirmation) async throws
         -> PrivateBalanceStatus {
         Issue.record("A reset must not record private transactions.")
-        return .off
+        return .off(isRegistered: false)
     }
 
     /// Reports any listing of redeem codes, because a reset only deletes.
