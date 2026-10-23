@@ -1,10 +1,9 @@
 import SwiftUI
 
 /// The payment keypad: digits, the locale's decimal separator, and delete, laid out like the Phone keypad.
+///
+/// The keys type into the payment that the screen's ``KeypadPressAction`` names.
 struct Keypad: View {
-    /// The payment the keys type into.
-    let payment: PaymentModel
-
     /// The keys, row by row.
     private static let rows: [[KeypadKey]] = [
         [.digit(1), .digit(2), .digit(3)],
@@ -18,7 +17,7 @@ struct Keypad: View {
         GlassEffectContainer(spacing: 16) {
             Grid(horizontalSpacing: 28, verticalSpacing: 16) {
                 ForEach(Self.rows, id: \.self) { keys in
-                    KeypadRow(keys: keys, payment: payment)
+                    KeypadRow(keys: keys)
                 }
             }
         }

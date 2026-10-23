@@ -9,11 +9,15 @@ struct AmountSummary: View {
     let payment: PaymentModel
 
     var body: some View {
+        @Bindable var payment = payment
         let amount = payment.entry.formatted(.entry(in: payment.entryUnit).locale(locale))
         VStack(spacing: 12) {
             AmountDisplay(text: amount, rejectionCount: payment.rejectionCount)
             if payment.offersChoices {
-                AmountUnitMenu(payment: payment)
+                AmountUnitMenu(token: $payment.tokenChoice, unit: $payment.unitChoice, tokens: payment.tokens,
+                               currencyCode: payment.currencyCode) {
+                    AmountCaption(payment: payment)
+                }
             } else {
                 AmountCaption(payment: payment)
             }

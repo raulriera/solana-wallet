@@ -45,9 +45,10 @@ struct PaymentAmountScreen<Action: View>: View {
         ArrangementView {
             AmountColumn(payment: payment)
         } secondary: {
-            Keypad(payment: payment)
+            Keypad()
                 // The keys keep the system's spacing from the amount above them and from the button below them.
                 .padding(.vertical)
+                .environment(\.pressKey, KeypadPressAction(payment: payment))
             action
         }
         .arrangementViewStyle(.adaptive)

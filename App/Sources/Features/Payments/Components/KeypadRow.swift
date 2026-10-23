@@ -3,10 +3,9 @@ import SwiftUI
 /// One row of the payment keypad.
 struct KeypadRow: View {
     @Environment(\.locale) private var locale
+    @Environment(\.pressKey) private var pressKey
     /// The row's keys, from leading to trailing.
     let keys: [KeypadKey]
-    /// The payment the keys type into.
-    let payment: PaymentModel
 
     var body: some View {
         GridRow {
@@ -43,6 +42,6 @@ struct KeypadRow: View {
     /// Types a key, rolling the amount's digits into place.
     /// - Parameter key: The pressed key.
     private func press(_ key: KeypadKey) {
-        withAnimation(.snappy) { payment.press(key) }
+        withAnimation(.snappy) { pressKey?(key) }
     }
 }
