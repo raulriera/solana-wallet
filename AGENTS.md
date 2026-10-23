@@ -21,6 +21,7 @@
 - Give every framework a concise, factual `README.md` for third-party readers; omit project history, progress reports, and agent-only guidance.
 - Prioritize simplicity, readability, and ease of extension throughout the app and tests; follow Don't Repeat Yourself and Single Concern.
 - Prioritize developer experience: express intent with typed APIs and encapsulate serialization and transport details inside services.
+- Learn how Apple solves a problem and mirror its API shape and naming before inventing your own: extend the Apple type as Apple would, such as `URL.persistentDirectory` beside `URL.cachesDirectory`, instead of adding a wrapper type.
 - Use protocol-oriented programming throughout: depend on protocols and inject concrete implementations.
 - Compose wallet workflows in internal app services/coordinators, outside views; keep frameworks focused on reusable concerns. Follow [references/architecture.md](references/architecture.md).
 - Expose only contracts and values needed across module boundaries; keep implementation helpers internal or private.
@@ -72,6 +73,7 @@
 - Load token artwork only over HTTPS from the selected provider's CDN; never request creator-hosted or off-chain URLs, which expose the user's IP address.
 - Keep wallet recovery material device-only, excluded from iCloud sync and backups; follow [references/wallet.md](references/wallet.md).
 - Never drop saved wallets during launch, app updates, or validation. Preserve stored metadata and recovery; treat loading errors as failures, not an empty wallet.
+- Save files the person would lose under `URL.persistentDirectory`, which only Reset App deletes, and files the app can create again, such as balances, under `URL.ephemeralDirectory`. Give each store its own subfolder; Reset deletes both directories, so a new store needs no reset change.
 - Discover accounts with one SOL-only lookup for twenty addresses; intentionally ignore zero-SOL accounts. Follow [references/wallet.md](references/wallet.md).
 - Agree on architecture before implementation; work on one concern at a time.
 - Resolve unapproved UI design and behavior with the user before implementing it; do not infer production approval from disposable mockups. Follow [references/ui.md](references/ui.md).
