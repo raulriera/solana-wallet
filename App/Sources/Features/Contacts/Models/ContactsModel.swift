@@ -84,13 +84,20 @@ final class ContactsModel {
         contacts.removeAll { $0.id == contact.id }
     }
 
-    /// Adds an account or contact to Favorites, or removes it.
+    /// Whether an account or contact is a favorite; setting it adds the account or contact to Favorites or removes it.
     /// - Parameter contact: The account or contact.
-    func toggleFavorite(_ contact: Contact) {
-        if let index = accounts.firstIndex(where: { $0.id == contact.id }) {
-            accounts[index].isFavorite.toggle()
-        } else if let index = contacts.firstIndex(where: { $0.id == contact.id }) {
-            contacts[index].isFavorite.toggle()
+    subscript(isFavorite contact: Contact) -> Bool {
+        get {
+            accounts.first { $0.id == contact.id }?.isFavorite
+                ?? contacts.first { $0.id == contact.id }?.isFavorite
+                ?? false
+        }
+        set {
+            if let index = accounts.firstIndex(where: { $0.id == contact.id }) {
+                accounts[index].isFavorite = newValue
+            } else if let index = contacts.firstIndex(where: { $0.id == contact.id }) {
+                contacts[index].isFavorite = newValue
+            }
         }
     }
 

@@ -39,7 +39,7 @@ struct ContactsScene: View {
                 }
             } else {
                 NavigationSplitView(columnVisibility: $columnVisibility, preferredCompactColumn: $preferredColumn) {
-                    RecipientList(selection: $selection, entry: $entry, contacts: contacts)
+                    RecipientList(selection: $selection, contacts: contacts)
                     .navigationTitle("Contacts")
                     .toolbar {
                         ToolbarItem(placement: .primaryAction) {
@@ -52,8 +52,10 @@ struct ContactsScene: View {
                 } detail: {
                     if let selection {
                         RecipientPaymentStack(recipient: contacts.recipient(for: selection), payment: payment,
-                                              contacts: contacts, selection: $selection, entry: $entry)
-                            // Another recipient starts on the keypad, not on the previous one's details.
+                                              context: contacts.recipientContext) {
+                            RecipientScreen(address: selection, contacts: contacts, selection: $selection)
+                        }
+                        // Another recipient starts on the keypad, not on the previous one's details.
                             .id(selection)
                     } else {
                         // The sidebar's New Payment button starts a payment, so this screen has no action of its own.
@@ -68,6 +70,8 @@ struct ContactsScene: View {
             }
         }
         .animation(.default, value: isEmpty)
+        // Rows and details open the sheet to save or edit a contact without holding it.
+        .environment(\.contactEntry, ContactEntryAction(contacts: contacts, entry: $entry))
         .sheet(item: $entry) { RecipientEntrySheet(entry: $0) }
         // A new payment's recipient opens the keypad, and an edited address keeps paying the same contact; a new
         // contact keeps whatever is selected.

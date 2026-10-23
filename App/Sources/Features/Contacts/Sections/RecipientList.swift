@@ -7,13 +7,12 @@ import Transactions
 struct RecipientList: View {
     /// The selected address; every row that lists it is highlighted.
     @Binding var selection: Address?
-    /// The window's recipient sheet, which saves a recent address as a contact.
-    @Binding var entry: RecipientEntryModel?
     /// The contact waiting for the person to confirm its deletion.
     @State private var removal: Contact?
     let contacts: ContactsModel
 
     var body: some View {
+        @Bindable var contacts = contacts
         List(selection: $selection) {
             if let newPayment = selection, !contacts.lists(newPayment) {
                 Section("New Payment") {
@@ -29,7 +28,7 @@ struct RecipientList: View {
                                      systemImage: "wallet.bifold")
                             .tag(account.address)
                             .swipeActions(edge: .leading) {
-                                FavoriteButton(contact: account, contacts: contacts)
+                                FavoriteButton(isFavorite: $contacts[isFavorite: account])
                                     .swipeActionTint(.yellow)
                             }
                     }
@@ -42,7 +41,7 @@ struct RecipientList: View {
                         RecipientRow(name: favorite.name, address: favorite.address, date: nil, systemImage: "star")
                             .tag(favorite.address)
                             .swipeActions(edge: .leading) {
-                                FavoriteButton(contact: favorite, contacts: contacts)
+                                FavoriteButton(isFavorite: $contacts[isFavorite: favorite])
                                     .swipeActionTint(.yellow)
                             }
                     }
@@ -56,7 +55,7 @@ struct RecipientList: View {
                                      systemImage: "person.crop.circle")
                             .tag(contact.address)
                             .swipeActions(edge: .leading) {
-                                FavoriteButton(contact: contact, contacts: contacts)
+                                FavoriteButton(isFavorite: $contacts[isFavorite: contact])
                                     .swipeActionTint(.yellow)
                             }
                             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
@@ -72,7 +71,7 @@ struct RecipientList: View {
                         RecipientRow(name: nil, address: payment.address, date: payment.date, systemImage: "clock")
                             .tag(payment.address)
                             .swipeActions(edge: .leading) {
-                                AddContactButton(address: payment.address, contacts: contacts, entry: $entry)
+                                AddContactButton(address: payment.address)
                                     .swipeActionTint(.blue)
                             }
                     }

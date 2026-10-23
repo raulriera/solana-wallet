@@ -94,8 +94,12 @@ struct ContactsModelTests {
     /// Accounts and contacts both join and leave Favorites.
     @Test func `Favorites toggle for accounts and contacts`() throws {
         let contacts = ContactsFixtures.model()
-        contacts.toggleFavorite(try #require(contacts.accounts.first { $0.address == ContactsFixtures.savings }))
-        contacts.toggleFavorite(try #require(contacts.contacts.first { $0.address == ContactsFixtures.bruno }))
+        let savings = try #require(contacts.accounts.first { $0.address == ContactsFixtures.savings })
+        let bruno = try #require(contacts.contacts.first { $0.address == ContactsFixtures.bruno })
+        contacts[isFavorite: savings].toggle()
+        contacts[isFavorite: bruno].toggle()
+        #expect(!contacts[isFavorite: savings])
+        #expect(contacts[isFavorite: bruno])
         #expect(contacts.favorites.map(\.name) == ["Alice", "bruno"])
     }
 

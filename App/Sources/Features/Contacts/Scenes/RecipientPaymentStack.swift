@@ -3,19 +3,32 @@ import Transactions
 
 /// Pays one recipient on the keypad in its own navigation container, with their details a push away and the
 /// payment's review growing out of the Send button.
-struct RecipientPaymentStack: View {
+struct RecipientPaymentStack<Details: View>: View {
     let recipient: PaymentRecipient
     /// The payment being typed; it stays when the person picks another recipient.
     let payment: PaymentModel
-    let contacts: ContactsModel
-    /// The window's selected address, which deleting the recipient's contact from their details clears.
-    @Binding var selection: Address?
-    /// The window's recipient sheet, which the details open to save or edit the contact.
-    @Binding var entry: RecipientEntryModel?
+    /// The person's own history, which the review's checks compare the recipient with.
+    let context: RecipientContext
+    /// The recipient's details, which the keypad's Details button pushes.
+    let details: Details
     @State private var isReviewing = false
     @State private var showsDetails = false
     /// Matches the Send button with the review, which grows out of it.
     @Namespace private var review
+
+    /// Creates the keypad for a recipient.
+    /// - Parameters:
+    ///   - recipient: Who the payment goes to.
+    ///   - payment: The payment being typed.
+    ///   - context: The person's own history, which the review's checks compare the recipient with.
+    ///   - details: The recipient's details, which the keypad's Details button pushes.
+    init(recipient: PaymentRecipient, payment: PaymentModel, context: RecipientContext,
+         @ViewBuilder details: () -> Details) {
+        self.recipient = recipient
+        self.payment = payment
+        self.context = context
+        self.details = details()
+    }
 
     var body: some View {
         NavigationStack {
@@ -30,12 +43,10 @@ struct RecipientPaymentStack: View {
                         .tint(.primary)
                 }
             }
-            .navigationDestination(isPresented: $showsDetails) {
-                RecipientScreen(address: recipient.address, contacts: contacts, selection: $selection, entry: $entry)
-            }
+            .navigationDestination(isPresented: $showsDetails) { details }
         }
         .sheet(isPresented: $isReviewing) {
-            PaymentReviewSheet(payment: payment, recipient: recipient, context: contacts.recipientContext)
+            PaymentReviewSheet(payment: payment, recipient: recipient, context: context)
                 // The review grows out of the Send button, and shrinks back into it when canceled.
                 .navigationTransition(.zoom(sourceID: ObjectIdentifier(payment), in: review))
         }
