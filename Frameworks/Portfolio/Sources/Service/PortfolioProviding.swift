@@ -44,4 +44,11 @@ public protocol PortfolioProviding: Sendable {
     /// The next balance read doesn't require an earlier finalized slot and looks up logos from the new provider.
     /// - Throws: A file-system error if a saved snapshot's logos can't be removed; the work ends regardless.
     func providerDidChange() async throws
+
+    /// Reads every observed wallet's balances and prices again after the prices change, such as to another currency.
+    ///
+    /// Call this after the price provider starts to return the new prices. Consumers keep their streams and
+    /// receive the new read; a read in progress starts again, so it can't deliver the previous prices. Cached
+    /// snapshots keep their values, each in its own currency, until the new read replaces them.
+    func pricesDidChange() async
 }

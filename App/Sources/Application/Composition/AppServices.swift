@@ -19,6 +19,7 @@ struct AppServices {
     let transactions: NetworkTransactions
     let providerSelection: any ProviderSelecting
     let customRPCConnection: any ProviderConnecting<CustomRPCError>
+    let currency: CurrencySelection
     // One sampler for every window shares its remembered logo colors.
     let artworkColors: any ArtworkColorProviding = ArtworkColors()
     let recoveryPasteboard: any RecoveryCopying
@@ -59,13 +60,18 @@ struct AppServices {
         let providerSettings = KeychainItem(service: providerService, account: "settings", coding: .json(ProviderSettings.self))
         self.providerKey = providerKey
         providerConnection = HeliusConnection(providerKey: providerKey, revisions: providerRevisions)
-        let portfolios = NetworkPortfolios(prices: Jupiter()) { network, prices in
+        let currencySettings = FileItem(url: .persistentDirectory.appending(path: "Currency/settings.json"),
+                                        coding: .json(CurrencySettings.self))
+        // Prices come in US dollars and convert to the person's currency before any portfolio values a holding.
+        let prices = CurrencyPrices(prices: Jupiter(), settings: currencySettings)
+        let portfolios = NetworkPortfolios(prices: prices) { network, prices in
             Portfolio(rpc: ProviderClient(network: network, settings: providerSettings, providerKey: providerKey),
                       prices: prices,
                       tokenListDirectory: .persistentDirectory.appending(path: "TokenLists", directoryHint: .isDirectory),
                       cacheDirectory: .ephemeralDirectory.appending(path: "Portfolio", directoryHint: .isDirectory))
         }
         self.portfolios = portfolios
+        currency = CurrencySelection(settings: currencySettings, portfolios: { portfolios.created })
         // Approved transactions go to the selected provider and to Solana's public RPC on the same network.
         transactions = NetworkTransactions { [recovery] network in
             let provider = ProviderClient(network: network, settings: providerSettings, providerKey: providerKey)

@@ -68,6 +68,13 @@ actor RefreshCoordinator {
         flights[key] = flight
     }
 
+    /// Starts every balance read in progress again, so that none delivers prices that changed while it ran.
+    ///
+    /// Their consumers keep waiting and receive only the new reads' results.
+    func restartBalanceReads() {
+        for key in flights.keys { restartBalanceRead(for: key.owner) }
+    }
+
     /// Takes a removed token out of the saved snapshot, so no consumer or later launch shows it before the next read.
     ///
     /// The snapshot gets a new revision, so consumers that receive it replace their older copy. A refresh in progress

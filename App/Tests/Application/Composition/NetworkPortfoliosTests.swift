@@ -16,7 +16,7 @@ struct NetworkPortfoliosTests {
         var made: [Network] = []
         let portfolios = NetworkPortfolios(prices: Jupiter(transport: HTTPResponses([:]))) { network, _ in
             made.append(network)
-            return ProviderChanges()
+            return PortfolioChanges()
         }
         #expect(made == [.mainnet])
         #expect(portfolios.created.count == 1)
@@ -35,7 +35,7 @@ struct NetworkPortfoliosTests {
         var priced: [Network: Bool] = [:]
         let portfolios = NetworkPortfolios(prices: Jupiter(transport: HTTPResponses([:]))) { network, prices in
             priced[network] = prices is Jupiter
-            return ProviderChanges()
+            return PortfolioChanges()
         }
 
         _ = portfolios.makeCoordinator(for: .devnet)

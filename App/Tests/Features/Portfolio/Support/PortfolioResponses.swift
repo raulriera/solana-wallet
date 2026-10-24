@@ -58,6 +58,11 @@ actor PortfolioResponses: PortfolioProviding {
         Issue.record("Lifecycle coordination must not change providers.")
     }
 
+    /// Reports an unexpected price change during view lifecycle changes.
+    func pricesDidChange() async {
+        Issue.record("Lifecycle coordination must not change prices.")
+    }
+
     /// Captures an operation and reports when cancellation releases its stream.
     /// - Parameters:
     ///   - owner: The requested wallet.

@@ -85,6 +85,69 @@ struct ObservationTests {
         await fixture.socket.waitUntilCancelled()
     }
 
+    /// A price change reads an observed wallet's prices again and delivers them on the same stream.
+    @Test(.timeLimit(.minutes(1)))
+    func `A price change reads an observed wallet's prices again`() async throws {
+        let fixture = ObservationFixture()
+        defer { fixture.cleanUp() }
+        let ledger = ObservedLedger()
+        let price = SOLPrice(dollars: 100)
+        let prices = PriceResponses { _ in price.lookUp().body }
+        let connections = Connections()
+        let service = fixture.service(http: AccountResponses { try await ledger.response(for: $0) },
+                                      prices: prices.client) { connections.connect(to: $0) }
+        var sockets = connections.opened.makeAsyncIterator()
+        var updates = await service.observations(for: testWallet).makeAsyncIterator()
+        let initial = try await nextResult(&updates)
+        let first = try #require(await sockets.next())
+        #expect(initial.holdings.first?.valuation?.pricePerUnit == 100)
+
+        price.set(dollars: 200)
+        await service.pricesDidChange()
+
+        let repriced = try await nextResult(&updates)
+        #expect(repriced.error == nil)
+        #expect(repriced.holdings.first?.valuation?.pricePerUnit == 200)
+        #expect(await ledger.readCount == 2)
+        await first.waitUntilCancelled()
+        let second = try #require(await sockets.next())
+        try await service.removeData(for: testWallet)
+        await second.waitUntilCancelled()
+    }
+
+    /// A price change starts a read in progress again, so its consumers never receive the previous prices.
+    @Test(.timeLimit(.minutes(1)))
+    func `A price change restarts a read in progress`() async throws {
+        let fixture = ObservationFixture()
+        defer { fixture.cleanUp() }
+        let (pending, release) = AsyncStream<Void>.makeStream()
+        let (started, announce) = AsyncStream<Void>.makeStream()
+        defer { release.finish(); announce.finish() }
+        let price = SOLPrice(dollars: 100)
+        let prices = PriceResponses { _ in
+            let lookup = price.lookUp()
+            if lookup.count == 1 {
+                announce.yield(())
+                for await _ in pending {}
+            }
+            return lookup.body
+        }
+        let connections = Connections()
+        let service = fixture.service(http: AccountResponses { _ in Ledger(slot: 100, lamports: 100) },
+                                      prices: prices.client) { connections.connect(to: $0) }
+        var updates = await service.observations(for: testWallet).makeAsyncIterator()
+        var startedIterator = started.makeAsyncIterator()
+        _ = try #require(await startedIterator.next())
+
+        price.set(dollars: 200)
+        await service.pricesDidChange()
+
+        let repriced = try await nextResult(&updates)
+        #expect(repriced.error == nil)
+        #expect(repriced.holdings.first?.valuation?.pricePerUnit == 200)
+        try await service.removeData(for: testWallet)
+    }
+
     /// Verifies restarting subscriptions and receiving an older notification cannot lower the required slot.
     @Test(.timeLimit(.minutes(1)))
     func `Token list changes preserve the newest finalized slot across connections`() async throws {
@@ -809,11 +872,14 @@ private struct ObservationFixture: Sendable {
     /// Composes the real client with a transport whose request options the test can inspect.
     /// - Parameters:
     ///   - http: The scripted account response transport.
+    ///   - prices: The price provider, or `nil` for none.
     ///   - connect: Opens each subscription connection; `nil` reuses the fixture's socket.
     /// - Returns: The portfolio service whose observation behavior is exercised.
-    func service(http: AccountResponses, connect: (@Sendable (URL) -> any WebSocketConnection)? = nil) -> Portfolio {
+    func service(http: AccountResponses, prices: (any PriceProviding)? = nil,
+                 connect: (@Sendable (URL) -> any WebSocketConnection)? = nil) -> Portfolio {
         let rpc = Solana(network: .mainnet, transport: http, socket: connect ?? { _ in socket })
-        return Portfolio(rpc: rpc, store: store, tokenLists: isolatedTokenLists(), pause: { try await gate.pause($0) })
+        return Portfolio(rpc: rpc, store: store, tokenLists: isolatedTokenLists(), prices: prices,
+                         pause: { try await gate.pause($0) })
     }
 
     /// Composes a service whose balance reads report the given ledger.
@@ -827,6 +893,33 @@ private struct ObservationFixture: Sendable {
 
     /// Ends fixture networking and removes only this test's cache files.
     func cleanUp() { socket.cancel(); gate.finish(); try? FileManager.default.removeItem(at: directory) }
+}
+
+/// Answers price lookups with SOL's current dollar price, which a test changes between lookups.
+private final class SOLPrice: Sendable {
+    private let state: Mutex<(dollars: Int, lookups: Int)>
+
+    /// Starts at a price before any lookup.
+    /// - Parameter dollars: SOL's price in dollars.
+    init(dollars: Int) {
+        state = Mutex((dollars, 0))
+    }
+
+    /// Changes the price that later lookups report.
+    /// - Parameter dollars: SOL's new price in dollars.
+    func set(dollars: Int) {
+        state.withLock { $0.dollars = dollars }
+    }
+
+    /// Counts a lookup and answers it with the price at the moment it starts.
+    /// - Returns: The price provider's response body, and how many lookups there have been, including this one.
+    func lookUp() -> (body: Data, count: Int) {
+        let (dollars, count) = state.withLock { state in
+            state.lookups += 1
+            return (state.dollars, state.lookups)
+        }
+        return (Data(#"{"\#(nativeMint)":{"usdPrice":\#(dollars)}}"#.utf8), count)
+    }
 }
 
 /// Gives each subscription connection a new socket and hands it to the test, so tests can follow reconnections.

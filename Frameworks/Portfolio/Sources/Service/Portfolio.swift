@@ -97,6 +97,12 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
         try await coordinator.providerDidChange()
     }
 
+    /// Reads every observed wallet's balances and prices again after the prices change.
+    public func pricesDidChange() async {
+        await coordinator.restartBalanceReads()
+        await observer.restartAll()
+    }
+
     /// Adds a token to an account's list and saves the list.
     ///
     /// An observed account then watches the new list and reads its balances once.

@@ -94,6 +94,13 @@ actor ObservationCoordinator {
         watch.consumers.finish()
     }
 
+    /// Watches every observed wallet's accounts again, then reads their balances once, as after a price change.
+    ///
+    /// Consumers keep their streams.
+    func restartAll() {
+        for owner in watches.keys { restart(for: owner) }
+    }
+
     /// Cancels every wallet's observation and ends its consumers' streams.
     func stopAll() {
         for owner in watches.keys { stop(for: owner) }

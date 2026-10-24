@@ -28,6 +28,7 @@ An optional same-network `PriceProviding` provider enables prices, including eac
 | `observations(for:)` | Watch the wallet and each listed token account before the initial reload, then read balances again after finalized changes until cancellation. A dropped connection or a temporary server failure (`RPCError.isRecoverable`) reports its error and reconnects after 2 seconds, doubling the wait after each failed attempt up to a minute until a connection reads balances successfully; rate limits and other refusals wait for a reload, a token-list change, or a new consumer. |
 | `removeData(for:)` | Remove the wallet's local cache and token list, and stop its active work. |
 | `providerDidChange()` | After the RPC client switches providers, end every observation and refresh and remove logos from saved snapshots; observe again to use the new provider. |
+| `pricesDidChange()` | After the price provider's prices change, such as to another currency, read every observed wallet's balances and prices again; consumers keep their streams. |
 
 ## Token Lists
 

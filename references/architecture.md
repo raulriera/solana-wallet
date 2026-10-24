@@ -29,4 +29,4 @@ Program helpers produce `Instruction` values; adding an operation must not intro
 
 ## Limitations
 
-Each topic owns its pending and deferred scope: [RPC scope](rpc-scope.md) (QuickNode), [Portfolio](portfolio.md) (NFTs, currency conversion), [Transactions](transactions.md) (durable nonces, Token-2022 extensions), [simulation explanations](transaction-simulation.md), [theme packs](ui.md#theme-packs) (typography and component tokens), and [Privacy](../Frameworks/Privacy/README.md) (token notes, policy rings).
+Each topic owns its pending and deferred scope: [RPC scope](rpc-scope.md) (QuickNode), [Portfolio](portfolio.md) (NFTs), [Transactions](transactions.md) (durable nonces, Token-2022 extensions), [simulation explanations](transaction-simulation.md), [theme packs](ui.md#theme-packs) (typography and component tokens), and [Privacy](../Frameworks/Privacy/README.md) (token notes, policy rings).

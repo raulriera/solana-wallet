@@ -12,7 +12,7 @@ extension ProvidersCoordinator {
     static func inMemory(settings: StoredValue<ProviderSettings>, providerKey: StoredValue<String>,
                          revisions: ProviderRevisions = ProviderRevisions()) -> ProvidersCoordinator {
         let providers = ProviderSelection(settings: settings, providerKey: providerKey,
-                                          portfolios: { [ProviderChanges()] }, revisions: revisions)
+                                          portfolios: { [PortfolioChanges()] }, revisions: revisions)
         let connection = HTTPResponses.keyCheck().connection(providerKey: providerKey, revisions: revisions)
         // Unplanned requests fail instead of reaching the network.
         let customRPCConnection = CustomRPCConnection(providers: providers) { HTTPResponses([:]).client(for: $0, on: $1) }

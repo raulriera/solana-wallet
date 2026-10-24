@@ -197,7 +197,7 @@ struct CustomRPCConnectionTests {
                                 sockets: SocketSequence = SocketSequence(),
                                 revisions: ProviderRevisions = ProviderRevisions()) -> CustomRPCConnection {
         let providers = ProviderSelection(settings: settings, providerKey: StoredValue(),
-                                          portfolios: { [ProviderChanges()] }, revisions: revisions)
+                                          portfolios: { [PortfolioChanges()] }, revisions: revisions)
         return CustomRPCConnection(providers: providers) { responses.client(for: $0, on: $1, socket: { sockets.connect($0) }) }
     }
 

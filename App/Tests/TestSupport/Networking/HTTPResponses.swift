@@ -59,8 +59,8 @@ actor HTTPResponses: HTTPTransport {
     /// - Throws: A transport, cancellation, or fixture error.
     func data(for request: URLRequest) async throws -> (Data, URLResponse) {
         requests.append(request)
-        let body = try request.jsonBody()
-        let rpcMethod = body["method"] as? String
+        // A GET, such as a price or exchange-rate lookup, has no body and is keyed by its URL path.
+        let rpcMethod = try request.httpBody.map { _ in try request.jsonBody()["method"] as? String } ?? nil
         let method = try rpcMethod ?? #require(request.url?.path())
         if let gate, heldMethod == nil || heldMethod == method { await gate.suspend() }
         wasCancelled = Task.isCancelled
@@ -89,7 +89,7 @@ actor HTTPResponses: HTTPTransport {
             value = try respond(request)
         }
         if (responses[method]?.count ?? 0) > 1 { responses[method]?.removeFirst() }
-        let id = try #require(body["id"] as? String)
+        let id = try #require(request.jsonBody()["id"] as? String)
         let data = Data(#"{"jsonrpc":"2.0","id":"\#(id)","result":\#(value)}"#.utf8)
         let response = try #require(HTTPURLResponse(url: url, statusCode: status,
                                                     httpVersion: nil, headerFields: headers))
