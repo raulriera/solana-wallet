@@ -1,4 +1,3 @@
-#if DEBUG
 import RPC
 import SwiftUI
 import Transactions
@@ -122,4 +121,3 @@ struct ContactsScene: View {
         entry = RecipientEntryModel(contacts: contacts)
     }
 }
-#endif

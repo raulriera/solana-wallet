@@ -1,4 +1,3 @@
-#if DEBUG
 import Foundation
 
 extension PaymentToken {
@@ -9,4 +8,3 @@ extension PaymentToken {
         PaymentToken(symbol: "BONK", balance: 1_200_000, price: nil, decimals: 5),
     ]
 }
-#endif

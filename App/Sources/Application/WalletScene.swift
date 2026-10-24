@@ -26,7 +26,6 @@ struct WalletScene: View {
                                privateBalance: privateBalance)
                     .tokenRemovalLifecycle()
             }
-            #if DEBUG
             // Contacts and the payment keypad, which still uses sample tokens until sending is wired.
             Tab("Contacts", systemImage: "person.crop.circle", value: .contacts) {
                 ContactsScene(account: account, network: network, services: contacts)
@@ -34,7 +33,6 @@ struct WalletScene: View {
                     .id(account.id)
                     .id(network)
             }
-            #endif
             Tab("Settings", systemImage: "gearshape", value: .settings) {
                 SettingsScene(settings: settings, account: account, network: $network, security: security,
                               providers: providers)

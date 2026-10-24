@@ -80,7 +80,6 @@ struct PaymentAmountScreen<Action: View>: View {
     }
 }
 
-#if DEBUG
 #Preview("Glass keys") {
     let payment = PaymentModel(tokens: PaymentToken.samples, currencyCode: "USD")
     NavigationStack {
@@ -110,4 +109,3 @@ struct PaymentAmountScreen<Action: View>: View {
         }
     }
 }
-#endif
