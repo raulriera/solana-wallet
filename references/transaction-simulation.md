@@ -29,4 +29,4 @@ Sources: [Program-specific errors](https://www.anchor-lang.com/docs/features/err
 
 ## Prompt evaluation
 
-The [working candidate](transaction-simulation-prompt.md) remains experimental. Success explanations must not link signature verification to future confirmation. Facts and amounts require manual preparation; automatic interpretation is not implemented. Follow Apple's [evaluation guidance](https://developer.apple.com/documentation/foundationmodels/evaluating-prompts-to-measure-performance-and-improve-model-responses.md).
+No explanation prompt is approved. Success explanations must not link signature verification to future confirmation. Facts and amounts require manual preparation; automatic interpretation is not implemented. Follow Apple's [evaluation guidance](https://developer.apple.com/documentation/foundationmodels/evaluating-prompts-to-measure-performance-and-improve-model-responses.md).

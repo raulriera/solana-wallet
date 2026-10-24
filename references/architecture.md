@@ -1,6 +1,6 @@
 # Architecture
 
-App source and tests live in `App/Sources` and `App/Tests`. Each framework lives in `Frameworks/<Module>` with `Sources`, `Tests`, and a `README.md`. Xcode mirrors these folders; target and module names are independent of the folder names. Test helpers shared by frameworks, and by app tests of framework clients, live in `Frameworks/TestSupport`.
+Xcode mirrors the folder layout in [AGENTS.md](../AGENTS.md); target and module names are independent of the folder names. App tests of framework clients also use the shared helpers in `Frameworks/TestSupport`.
 
 The wallet app owns workflow coordination through internal, protocol-based services. Construct shared services in app composition and presentation coordinators within each window's feature lifetime; callers use the workflow they need without assembling every helper. Views present state and capture approval. Follow the [UI architecture](ui.md) for navigation, window ownership, and themes.
 
@@ -18,7 +18,6 @@ The wallet app owns workflow coordination through internal, protocol-based servi
 | Internal app services/coordinators | Own portfolio presentation lifetimes, private-balance keys and note sync, and compose review, explicit approval, authentication, signing, and optional submission/confirmation. |
 
 - Prioritize DX at the call site: callers compose instructions, review `Simulation`, explicitly submit it, then confirm the receipt. Import adapters decode external representations; services own serialization and RPC details.
-- Export only cross-module contracts and values; helpers and protocols used only within a module remain internal or private. Protocol-oriented design doesn't require public visibility.
 - Keep signing independent of submission: an external requester may need signed transaction bytes without broadcasting. Locally composed instructions and imported V1 transactions share the review/signing workflow.
 - Bind review and signing to the exact message, selected account, and network. Authentication grants wallet access; the app separately obtains transaction approval. Preserve existing signatures and identify instructions whose meaning is unknown; simulation success isn't proof of safety.
 
@@ -38,7 +37,7 @@ The agreed wallet, transaction, portfolio, and initial color-only Themes framewo
 | ModularArithmetic | Complete for the current scope: the BN254 scalar and base fields and the P-256 scalar field. |
 | Privacy | Poseidon, the commitments of default-ring transfers between Ed25519 owners, the encryption of their SOL notes, SOL deposit and transact instructions with their proofs from the indexer's tree proofs and the prover's complete route, registry lookups, registration status, received notes, and note sync are complete. The app keeps keys and syncs notes without UI; the registration transaction, private-balance UI, token notes, and policy rings are separate milestones. |
 | Themes | Color-only package service with app-supplied defaults and PNG/JPEG assets. App services manage immutable built-ins, custom installations, app/wallet preferences, deletion fallbacks, and one-time recovery from iOS Settings. Import/export presentation and rendering remain separate; see [UI architecture](ui.md). |
-| RPC | Complete for the agreed transaction, discovery, DAS, pricing, finalized account-subscription, and signature-watch workflows. The manual token list adds a QuickNode client and per-account subscriptions. Helius also serves the Solana Rings indexer and prover. |
+| RPC | Complete for the agreed transaction, discovery, DAS, pricing, finalized account-subscription, and signature-watch workflows. The manual token list adds per-account subscriptions; a QuickNode client is planned. Helius also serves the Solana Rings indexer and prover. |
 | Transactions | Further capabilities are parked; current SOL and supported-token flows remain available. The goal is all Token-2022 extensions, reviewed and agreed individually before implementation. |
 | Wallet | Complete for local derivation and SOL-only discovery across twenty addresses in two path families, with one RPC lookup per scan, verified on devnet; and for Solana Rings private-balance keys. See [Wallet](wallet.md). |
 | Vault | Implemented and tested, including real simulator Keychain checks. Keep the specific device-validation caveat in [Wallet](wallet.md) separate from framework test status. |
