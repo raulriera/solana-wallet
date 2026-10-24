@@ -15,6 +15,7 @@ struct BalanceMoveSheet: View {
             PaymentAmountScreen(payment: move.payment, title: move.direction.title) {
                 BalanceMoveReviewButton(move: move)
                     .matchedTransitionSource(id: move.id, in: review)
+                    .environment(\.reviewMove, BalanceMoveReviewAction(move: move))
             }
             // The keys stay as typed while the move is prepared.
             .disabled(move.isWorking)

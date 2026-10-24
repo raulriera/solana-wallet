@@ -5,10 +5,14 @@ import SwiftUI
 ///
 /// It reads the move itself, so key presses update only this button.
 struct BalanceMoveReviewButton: View {
+    @Environment(\.reviewMove) private var reviewMove
+    /// The move whose progress and typed amount the button shows; ``BalanceMoveReviewAction`` starts its review.
     let move: BalanceMoveModel
 
     var body: some View {
-        Button(action: move.prepareReview) {
+        Button {
+            reviewMove?()
+        } label: {
             // The title keeps its place under the spinner, so the button never changes size.
             Text("Review")
                 .opacity(move.isWorking ? 0 : 1)

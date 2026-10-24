@@ -85,8 +85,11 @@ struct TokenDetailScreen: View {
             .listRowBackground(palette.surface)
 
             if holding.id == .nativeSOL {
-                PrivateBalanceSections(model: privateBalance, symbol: holding.displaySymbol,
-                                       publicLamports: holding.amount?.units ?? 0)
+                PrivateBalanceSections(model: privateBalance, symbol: holding.displaySymbol)
+                    // The rows open moves with the account's public SOL without holding the private balance.
+                    .environment(\.moveBalance,
+                                 PrivateBalanceMoveAction(model: privateBalance,
+                                                          publicLamports: holding.amount?.units ?? 0))
             }
         }
         .animation(.default, value: privateBalance.status)

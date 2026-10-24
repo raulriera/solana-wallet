@@ -9,8 +9,6 @@ struct PrivateBalanceSections: View {
     @Environment(\.palette) private var palette
     let model: PrivateBalanceModel
     let symbol: String
-    /// The account's public SOL, in lamports, which a deposit can add.
-    let publicLamports: UInt64
 
     var body: some View {
         switch model.status {
@@ -48,7 +46,7 @@ struct PrivateBalanceSections: View {
                 LabeledContent("Available") {
                     TokenBalance(amount: Self.amount(0), symbol: symbol)
                 }
-                PrivateBalanceActions(model: model, publicLamports: publicLamports)
+                PrivateBalanceActions(canMakePublic: model.availableLamports != nil)
             }
             .listRowBackground(palette.surface)
         case .balance(let available, let pending)?:
@@ -63,7 +61,7 @@ struct PrivateBalanceSections: View {
                             .foregroundStyle(palette.secondaryText)
                     }
                 }
-                PrivateBalanceActions(model: model, publicLamports: publicLamports)
+                PrivateBalanceActions(canMakePublic: model.availableLamports != nil)
             } header: {
                 Text("Private Balance")
             } footer: {

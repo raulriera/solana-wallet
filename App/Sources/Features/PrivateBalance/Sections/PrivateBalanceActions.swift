@@ -4,19 +4,17 @@ import SwiftUI
 /// what the private balance can do. Make SOL Public shows only while some SOL is available.
 struct PrivateBalanceActions: View {
     @Environment(\.palette) private var palette
-    let model: PrivateBalanceModel
-    /// The account's public SOL, in lamports, which a deposit can add.
-    let publicLamports: UInt64
+    @Environment(\.moveBalance) private var moveBalance
+    /// Whether some private SOL is available to make public.
+    let canMakePublic: Bool
 
     var body: some View {
         Group {
             // The symbol matches the private-balance sign on SOL's card.
-            Button("Make SOL Private", systemImage: "eye.slash") {
-                model.addToPrivateBalance(publicLamports: publicLamports)
-            }
+            Button("Make SOL Private", systemImage: "eye.slash") { moveBalance?(.toPrivate) }
             // Only available SOL can be made public; pending SOL waits until the network reports it.
-            if model.availableLamports != nil {
-                Button("Make SOL Public", systemImage: "eye", action: model.moveToPublicBalance)
+            if canMakePublic {
+                Button("Make SOL Public", systemImage: "eye") { moveBalance?(.toPublic) }
             }
         }
         .foregroundStyle(palette.accent)
