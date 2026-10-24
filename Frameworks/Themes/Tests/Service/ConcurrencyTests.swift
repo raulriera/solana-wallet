@@ -106,8 +106,10 @@ struct ConcurrencyTests {
             default: try await service.exportTemplate(named: "Cancelled", defaults: Fixture.defaults, to: fixture.source)
             }
         }
-        // The callback is the synchronization point; this watchdog only prevents a broken
-        // implementation from hanging the test runner indefinitely.
+        // The callback is the synchronization point; the time limit bounds the wait for it.
+        for await _ in presenter.requested.stream {}
+        // From here, the watchdog only prevents a cancellation that waits for the presenter
+        // from hanging the test runner indefinitely.
         let timedOut = Mutex(false)
         let watchdog = DispatchWorkItem {
             timedOut.withLock { $0 = true }
@@ -115,7 +117,6 @@ struct ConcurrencyTests {
         }
         DispatchQueue.global().asyncAfter(deadline: .now() + 15, execute: watchdog)
         defer { watchdog.cancel() }
-        for await _ in presenter.requested.stream {}
         task.cancel()
         await #expect(throws: CancellationError.self) { try await task.value }
         #expect(!timedOut.withLock { $0 })
