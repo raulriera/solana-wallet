@@ -221,6 +221,7 @@
             "Portfolio/frameworks",
             "Wallet/frameworks",
             "Transactions/frameworks",
+            "Privacy/frameworks",
             "RPCTests/frameworks",
             "EncodingTests/frameworks",
           ],
@@ -541,6 +542,7 @@
       "product": "Products/Privacy.framework",
       "product-type": "framework",
       "dependencies": [
+        "Encoding",
         "ModularArithmetic",
         "RPC",
         "Transactions",
