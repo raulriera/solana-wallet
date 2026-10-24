@@ -3,9 +3,10 @@
 - Keep this file lean: user-approved restrictions and clarifications only.
 - Keep skills machine-independent: discover local devices and paths instead of hardcoding them.
 - Use only three simulators for development and verification: one regular iPhone, one iPad, and one iPhone Duo. Test resizing in Device Hub's resize mode on the regular iPhone. Reuse existing devices; do not create additional simulators or expand this matrix without explicit user approval.
-- Use Conventional Commits format for every commit.
-- Author commits with the user's git identity, never an agent identity. Add no AI attribution lines to commits or PR descriptions.
-- Name branches `<type>/<topic>` with a Conventional Commits type, such as `refactor/provider-wording`; never use agent prefixes like `claude/`. Ask before creating, renaming, or deleting branches and before opening PRs.
+- Treat `main` as sacred: change it only when the user asks, and never rewrite its history.
+- Never lose work: land committed work where the user wants it before deleting or archiving its branch or worktree.
+- Use Conventional Commits format for every commit, and name branches `<type>/<topic>` with a Conventional Commits type, such as `refactor/provider-wording`; never use agent prefixes like `claude/`. Rename a wrongly named branch to a correct name.
+- Author commits with the user's git identity, never an agent identity. Add no AI attribution lines to commits or PR descriptions. Ask before opening PRs.
 - Commit or explicitly discard each milestone before starting the next; keep completed milestones in separate commits.
 - Do not add module-name prefixes to types; rely on the module namespace.
 - Keep project files grouped by concern in real folders that Xcode mirrors; organize UI features into focused subfolders for scenes, screens, sections, components, and models as needed. Group related tests accordingly.
