@@ -3,6 +3,7 @@ import Foundation
 @testable import Privacy
 import RPC
 import Testing
+import Transactions
 
 /// Indexer JSON for shielded transactions and tree proofs, as Helius's Solana Rings indexer encodes
 /// them.
