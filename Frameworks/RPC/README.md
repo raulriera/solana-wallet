@@ -21,12 +21,16 @@ let blockhash = response.value.blockhash
 | `HeliusRPC(apiKey:network:)` | Mainnet or devnet RPC, DAS, logo copies, finalized account subscriptions, signature watches, and the Solana Rings indexer and prover. |
 | `Sender(tier:)` | Optional mainnet transaction submission with `standard` or `premium` routing. Preparation and confirmation use ordinary RPC. |
 | `Jupiter(apiKey:)` | Mainnet prices through `PriceProviding`; independent of RPC and DAS. |
+| `EuropeanCentralBank()` | Daily euro reference rates for about 30 currencies through `ExchangeRateProviding`; no key. |
+| `Coinbase()` | Rates for about 150 ISO currencies, updated through the day, through `ExchangeRateProviding`; no key. |
 
 Typed requests cover account and rent reads, blockhash lifetime, epochs, fees, simulation, submission, signature status, and DAS asset lookups. Requests that send a commitment always send `finalized`. See [supported request scope](../../references/rpc-scope.md).
 
 ## Prices, logos, and subscriptions
 
 [`PriceProviding`](Sources/Pricing/PriceProviding.swift) returns quotes keyed by mint. Missing entries mean unavailable prices, not zero. A quote may include its 24-hour change as a fraction; a missing change is unknown, not zero. Providers own deduplication, batching, and pacing. Reuse a provider instance to share its request budget; refresh scheduling belongs to the caller.
+
+[`ExchangeRateProviding`](Sources/Pricing/ExchangeRateProviding.swift) returns how much of each currency one unit of a currency buys, keyed by ISO code, with the requested currency at 1. Missing entries mean unavailable rates, not zero; a currency the provider doesn't serve returns no rates. Each call is one request.
 
 [`LogoProviding`](Sources/Assets/LogoProviding.swift) returns a provider's HTTPS copies of token logos, keyed by mint, never creator-hosted links. `HeliusRPC` implements it with DAS batch lookups; a missing entry means no logo.
 

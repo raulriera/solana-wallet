@@ -8,7 +8,7 @@ struct JupiterTests {
     @Test
     func `Prices preserve decimal precision and keep unavailable quotes absent`() async throws {
         let transport = StubTransport { request in
-            try priceReply(to: request, body: #"""
+            try httpReply(to: request, body: #"""
                 {"mint-a":{"usdPrice":0.12345678901234567890123456789012,"blockId":9007199254740993,"decimals":9},
                  "mint-b":{"usdPrice":0},"metadata-only":{"createdAt":"2025-01-01T00:00:00Z","liquidity":0.12,"decimals":6},
                  "null-price":{"usdPrice":null},"null-record":null}
@@ -41,7 +41,7 @@ struct JupiterTests {
     @Test
     func `Quotes carry the 24-hour change as a fraction and leave a bad one unknown`() async throws {
         let transport = StubTransport { request in
-            try priceReply(to: request, body: #"""
+            try httpReply(to: request, body: #"""
                 {"rising":{"usdPrice":2,"priceChange24h":1.29},"falling":{"usdPrice":3,"priceChange24h":-3.47},
                  "missing":{"usdPrice":4},"malformed":{"usdPrice":5,"priceChange24h":"soon"}}
                 """#)
@@ -64,7 +64,7 @@ struct JupiterTests {
     func `Price batches respect the keyless and free-key budgets`(authenticated: Bool) async throws {
         let transport = StubTransport { request in
             let values = try requestedMints(request).map { #""\#($0)":{"usdPrice":1}"# }
-            return try priceReply(to: request, body: "{" + values.joined(separator: ",") + "}")
+            return try httpReply(to: request, body: "{" + values.joined(separator: ",") + "}")
         }
         let mints = (0..<51).map { "mint-\($0)" }
         let startedAt = ContinuousClock.now
@@ -87,7 +87,7 @@ struct JupiterTests {
     func `Provider copies share the price budget across calls and batches`() async throws {
         let clock = ManualClock()
         let startedAt = clock.now
-        let transport = StubTransport { try priceReply(to: $0, body: "{}") }
+        let transport = StubTransport { try httpReply(to: $0, body: "{}") }
         let source = Jupiter(transport: transport, pacer: RequestPacer(interval: .seconds(3), clock: clock))
         _ = try await source.prices(for: ["initial"])
         let copy = source
@@ -111,7 +111,7 @@ struct JupiterTests {
     @Test(.timeLimit(.minutes(1)))
     func `Cancelling a waiting batch stops without consuming a price request`() async throws {
         let clock = ManualClock()
-        let transport = StubTransport { try priceReply(to: $0, body: "{}") }
+        let transport = StubTransport { try httpReply(to: $0, body: "{}") }
         let source = Jupiter(transport: transport, pacer: RequestPacer(interval: .seconds(3), clock: clock))
         let operation = Task { try await source.prices(for: (0..<51).map { "mint-\($0)" }) }
         defer { operation.cancel() }
@@ -134,7 +134,7 @@ struct JupiterTests {
     /// Verifies an empty set doesn't consume provider requests.
     @Test
     func `Empty price requests do not access the network`() async throws {
-        let transport = StubTransport { try priceReply(to: $0, body: "{}") }
+        let transport = StubTransport { try httpReply(to: $0, body: "{}") }
         #expect(try await Jupiter(transport: transport).prices(for: []).isEmpty)
         #expect(await transport.requests.isEmpty)
     }
@@ -144,10 +144,10 @@ struct JupiterTests {
     func `Rate limits fail the price lookup without retries or partial success`() async throws {
         let transport = StubTransport { request in
             if try requestedMints(request).first == "mint-50" {
-                return try priceReply(to: request, body: "{}", status: 429,
+                return try httpReply(to: request, body: "{}", status: 429,
                                       headers: ["Retry-After": "5 fixture-key"])
             }
-            return try priceReply(to: request, body: #"{"mint-0":{"usdPrice":2}}"#)
+            return try httpReply(to: request, body: #"{"mint-0":{"usdPrice":2}}"#)
         }
         let source = Jupiter(apiKey: "fixture-key", transport: transport)
 
@@ -172,7 +172,7 @@ struct JupiterTests {
         #"[]"#,
     ])
     func `Invalid price responses fail without inventing a quote`(_ body: String) async {
-        let transport = StubTransport { try priceReply(to: $0, body: body) }
+        let transport = StubTransport { try httpReply(to: $0, body: body) }
         await #expect(throws: RPCError.decoding) {
             try await Jupiter(transport: transport).prices(for: ["mint"])
         }
@@ -188,7 +188,7 @@ struct JupiterTests {
             startedContinuation.yield(())
             for await _ in pending {}
             try Task.checkCancellation()
-            return try priceReply(to: request, body: "{}")
+            return try httpReply(to: request, body: "{}")
         }
         let source = Jupiter(transport: transport)
         let operation = Task {
@@ -215,21 +215,6 @@ struct JupiterTests {
             try await Jupiter(apiKey: "fixture-key", transport: transport).prices(for: ["mint"])
         }
     }
-}
-
-/// Creates an ordinary HTTP response without a JSON-RPC envelope.
-/// - Parameters:
-///   - request: The request supplying the response URL.
-///   - body: The provider response body.
-///   - status: The HTTP status code.
-///   - headers: Additional HTTP response headers.
-/// - Returns: The encoded body and HTTP metadata.
-/// - Throws: A test prerequisite error if the response can't be created.
-private func priceReply(to request: URLRequest, body: String, status: Int = 200,
-                        headers: [String: String] = [:]) throws -> (Data, URLResponse) {
-    let url = try #require(request.url)
-    let response = try #require(HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: headers))
-    return (Data(body.utf8), response)
 }
 
 /// Reads the requested mint addresses from Jupiter's encoded query.

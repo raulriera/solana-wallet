@@ -69,3 +69,18 @@ func reply(
     let data = Data(#"{"jsonrpc":"2.0","id":"\#(id ?? requestID)",\#(payload)}"#.utf8)
     return (data, response)
 }
+
+/// Creates an ordinary HTTP response without a JSON-RPC envelope.
+/// - Parameters:
+///   - request: The request supplying the response URL.
+///   - body: The response body.
+///   - status: The HTTP status code.
+///   - headers: Additional HTTP response headers.
+/// - Returns: The encoded body and HTTP metadata.
+/// - Throws: A test prerequisite error if the response can't be created.
+func httpReply(to request: URLRequest, body: String, status: Int = 200,
+               headers: [String: String] = [:]) throws -> (Data, URLResponse) {
+    let url = try #require(request.url)
+    let response = try #require(HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: headers))
+    return (Data(body.utf8), response)
+}
