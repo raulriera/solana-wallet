@@ -1,7 +1,7 @@
 import Foundation
 import Synchronization
 
-/// Bridges coordinated file work onto one background queue, outside Swift's shared executor.
+/// Bridges coordinated file work onto one serial queue, outside the main thread and Swift's shared executor.
 final class FileAccess: Sendable {
     /// Synchronous work that receives a coordinated URL and access to cancellation checks.
     typealias Operation<Value: Sendable> = @Sendable (URL, FileAccess) throws -> Value
@@ -9,7 +9,8 @@ final class FileAccess: Sendable {
     private static let queue: OperationQueue = {
         let queue = OperationQueue()
         queue.name = "Themes.FileAccess"
-        queue.qualityOfService = .background
+        // A person waits for every import and export, so the work runs at user-initiated priority.
+        queue.qualityOfService = .userInitiated
         queue.maxConcurrentOperationCount = 1
         return queue
     }()
@@ -29,7 +30,7 @@ final class FileAccess: Sendable {
     /// Creates cancellation state for one coordinated operation.
     private init() {}
 
-    /// Suspends the caller while coordinated work runs at background priority.
+    /// Suspends the caller while coordinated work runs at user-initiated priority.
     /// - Parameters:
     ///   - url: The local or security-scoped package location.
     ///   - writing: Whether access replaces the destination rather than reading it.

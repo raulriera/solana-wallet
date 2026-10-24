@@ -76,7 +76,7 @@ try await service.save(pack, to: installedURL)
 try await service.exportTemplate(named: "My Theme", defaults: defaults, to: templateURL)
 ```
 
-Reads retain independent asset bytes. File access waits asynchronously; loading, validation, serialization, and writing run serially on a shared background queue outside the main actor and Swift's shared executor. Cancellation interrupts pending coordination and is checked during loading and before committing an atomic export; a write already underway finishes normally.
+Reads retain independent asset bytes. File access waits asynchronously; loading, validation, serialization, and writing run serially at user-initiated priority on a shared queue outside the main actor and Swift's shared executor. Cancellation interrupts pending coordination and is checked during loading and before committing an atomic export; a write already underway finishes normally.
 
 Use `save(_:to:)` for an installed copy that preserves identity, assets, and omitted settings. Saving an installation does not freeze its inherited defaults.
 
