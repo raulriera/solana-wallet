@@ -26,6 +26,8 @@ struct AppServices {
     let privateBalances: any PrivateBalancing
     let resetRevision = Revision()
     let security: SecurityServices
+    let contacts = ContactsServices(directory: .persistentDirectory.appending(path: "Contacts",
+                                                                             directoryHint: .isDirectory))
 
     /// Creates production services after any explicit simulator UI-test reset.
     init() {

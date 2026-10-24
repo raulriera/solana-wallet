@@ -12,9 +12,9 @@ struct ContactEntryActionTests {
     }
 
     /// Saving an address opens a sheet that saves that address as a contact.
-    @Test func `Saving an address opens the add contact sheet`() throws {
+    @Test func `Saving an address opens the add contact sheet`() async throws {
         let sheet = Sheet()
-        let action = ContactEntryAction(contacts: ContactsFixtures.model(),
+        let action = ContactEntryAction(contacts: await ContactsFixtures.model(),
                                         entry: Binding { sheet.entry } set: { sheet.entry = $0 })
         action(savingContactAt: ContactsFixtures.stranger)
         let entry = try #require(sheet.entry)
@@ -23,9 +23,9 @@ struct ContactEntryActionTests {
     }
 
     /// Editing a contact opens a sheet that edits that contact, starting from its name.
-    @Test func `Editing a contact opens the edit sheet with its name`() throws {
+    @Test func `Editing a contact opens the edit sheet with its name`() async throws {
         let sheet = Sheet()
-        let contacts = ContactsFixtures.model()
+        let contacts = await ContactsFixtures.model()
         let bruno = try #require(contacts.contacts.first { $0.address == ContactsFixtures.bruno })
         let action = ContactEntryAction(contacts: contacts, entry: Binding { sheet.entry } set: { sheet.entry = $0 })
         action(editing: bruno)

@@ -17,6 +17,7 @@ struct WalletScene: View {
     let connection: any ProviderConnecting<ProviderConnectionError>
     let security: SecurityCoordinator
     let providers: ProvidersCoordinator
+    let contacts: ContactsServices
 
     var body: some View {
         TabView(selection: $section) {
@@ -28,9 +29,10 @@ struct WalletScene: View {
             #if DEBUG
             // Contacts and the payment keypad, which still uses sample tokens until sending is wired.
             Tab("Contacts", systemImage: "person.crop.circle", value: .contacts) {
-                ContactsScene(account: account)
-                    // Another account has other contacts, so it starts a new list.
+                ContactsScene(account: account, network: network, services: contacts)
+                    // Another account or network has other recent payments, so it starts a new list.
                     .id(account.id)
+                    .id(network)
             }
             #endif
             Tab("Settings", systemImage: "gearshape", value: .settings) {

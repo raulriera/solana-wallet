@@ -1,8 +1,12 @@
 import Foundation
 import Observation
+import RPC
 import Transactions
 
 /// Owns the addresses a window can pay: the wallet's other accounts, saved contacts, and recent payments.
+///
+/// Changes show at once and save in the order they're made; a change that can't be saved sets ``error``, and the list
+/// returns to what's saved.
 @MainActor
 @Observable
 final class ContactsModel {
@@ -26,19 +30,70 @@ final class ContactsModel {
     private(set) var recents: [RecentPayment] = []
     /// Whether there's no one to list yet.
     private(set) var isEmpty = true
+    /// Whether the saved contacts and payments were read, so an empty list means there's no one to list.
+    private(set) var isLoaded = false
+    /// Whether the saved contacts or payments can't be read; nothing saved is deleted or replaced.
+    private(set) var isUnreadable = false
+    /// Why the latest change couldn't be saved, or `nil` while there's nothing to explain.
+    var error: ContactsError?
+    /// How many of the latest payments each wallet keeps on each network.
+    nonisolated static let recentLimit = 10
+    private let services: ContactsServices
+    /// Names the wallet's recent payments on the window's network.
+    private let recentsKey: String
+    /// The latest change being saved, which runs after the changes made before it.
+    @ObservationIgnored private var saving: Task<Void, Never>?
 
-    /// Starts with the wallet's accounts, saved contacts, and recent payments.
+    /// Starts with the wallet's accounts; ``load()`` reads the saved contacts and recent payments.
     /// - Parameters:
     ///   - sendingAccount: The account payments leave from; it's left out of `accounts`.
+    ///   - wallet: The recovery identifier of the wallet whose recent payments to list.
+    ///   - network: The network whose recent payments to list.
     ///   - accounts: The wallet's accounts, in wallet order.
-    ///   - contacts: Saved contacts, in any order.
-    ///   - payments: The latest landed payment to each address, in any order.
-    init(sendingAccount: Address, accounts: [Contact] = [], contacts: [Contact] = [], payments: [RecentPayment] = []) {
+    ///   - services: The saved contacts and recent payments that every window shares.
+    init(sendingAccount: Address, wallet: UUID, network: Network, accounts: [Contact] = [],
+         services: ContactsServices) {
         self.sendingAccount = sendingAccount
         self.accounts = accounts.filter { $0.address != sendingAccount }
-        self.contacts = contacts.sorted(by: Self.byName)
-        self.payments = payments.sorted { $0.date > $1.date }
+        contacts = []
+        payments = []
+        self.services = services
+        recentsKey = Self.recentsKey(wallet: wallet, network: network)
         updateLists()
+    }
+
+    /// Names a wallet's recent payments on a network.
+    /// - Parameters:
+    ///   - wallet: The wallet's recovery identifier.
+    ///   - network: The network.
+    /// - Returns: The network's name and the wallet's identifier.
+    nonisolated static func recentsKey(wallet: UUID, network: Network) -> String {
+        "\(network.rawValue)/\(wallet.uuidString)"
+    }
+
+    /// Reads the saved contacts, favorites, and recent payments once the changes being saved finish; a read that
+    /// fails keeps the list as it was and sets ``isUnreadable``.
+    func load() async {
+        await saving?.value
+        do {
+            async let book = services.addressBook.load()
+            async let recents = services.recents.load()
+            let (savedBook, savedRecents) = try await (book, recents)
+            let addressBook = savedBook ?? AddressBook()
+            accounts = accounts.map { account in
+                var account = account
+                account.isFavorite = addressBook.favoriteAccounts.contains(account.address)
+                return account
+            }
+            contacts = addressBook.contacts.sorted(by: Self.byName)
+            payments = (savedRecents?[recentsKey] ?? []).sorted { $0.date > $1.date }
+            isUnreadable = false
+            isLoaded = true
+        } catch is CancellationError {
+            // A window that went away doesn't need the list.
+        } catch {
+            isUnreadable = true
+        }
     }
 
     /// The account or contact saved at an address.
@@ -76,12 +131,24 @@ final class ContactsModel {
         var updated = contacts.filter { $0.id != contact.id }
         updated.append(contact)
         contacts = updated.sorted(by: Self.byName)
+        persist(services.addressBook, from: AddressBook()) { $0.save(contact) }
     }
 
     /// Deletes a saved contact; payments to its address move back to Recents.
     /// - Parameter contact: The contact to delete.
     func delete(_ contact: Contact) {
         contacts.removeAll { $0.id == contact.id }
+        persist(services.addressBook, from: AddressBook()) { $0.delete(contact) }
+    }
+
+    /// Lists a payment that landed as the latest to its address, keeping the wallet's latest ``recentLimit``
+    /// payments on the window's network.
+    /// - Parameter payment: The payment that landed.
+    func record(_ payment: RecentPayment) {
+        payments = Self.recent(payments, adding: payment)
+        persist(services.recents, from: [:]) { [recentsKey] recents in
+            recents[recentsKey] = Self.recent(recents[recentsKey] ?? [], adding: payment)
+        }
     }
 
     /// Whether an account or contact is a favorite; setting it adds the account or contact to Favorites or removes it.
@@ -95,10 +162,49 @@ final class ContactsModel {
         set {
             if let index = accounts.firstIndex(where: { $0.id == contact.id }) {
                 accounts[index].isFavorite = newValue
+                persist(services.addressBook, from: AddressBook()) {
+                    $0.setFavorite(newValue, forAccountAt: contact.address)
+                }
             } else if let index = contacts.firstIndex(where: { $0.id == contact.id }) {
                 contacts[index].isFavorite = newValue
+                persist(services.addressBook, from: AddressBook()) { $0.setFavorite(newValue, for: contact) }
             }
         }
+    }
+
+    /// Saves a change after the changes made before it, then tells every window to read what's saved, which also
+    /// undoes a change that couldn't be saved here.
+    /// - Parameters:
+    ///   - store: The storage that keeps the changed value.
+    ///   - empty: The value to change before one is saved.
+    ///   - change: Changes the saved value.
+    private func persist<Value: Equatable & Sendable>(
+        _ store: any ValueStoring<Value>, from empty: Value, _ change: @escaping @Sendable (inout Value) -> Void
+    ) {
+        let previous = saving
+        saving = Task {
+            await previous?.value
+            do {
+                try await store.update { saved in
+                    var value = saved ?? empty
+                    change(&value)
+                    saved = value
+                }
+            } catch {
+                self.error = .unsaved
+            }
+            services.revision.advance()
+        }
+    }
+
+    /// Adds a payment as the latest to its address, keeping the latest ``recentLimit`` payments.
+    /// - Parameters:
+    ///   - payments: Payments, newest first.
+    ///   - payment: The payment that landed last.
+    /// - Returns: The payments, newest first.
+    nonisolated private static func recent(_ payments: [RecentPayment],
+                                           adding payment: RecentPayment) -> [RecentPayment] {
+        Array(([payment] + payments.filter { $0.address != payment.address }).prefix(recentLimit))
     }
 
     /// Lists favorites and unsaved recents again, and whether anyone is listed, after the accounts, contacts, or

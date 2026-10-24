@@ -1,13 +1,16 @@
 #if DEBUG
+import RPC
 import SwiftUI
 import Transactions
 
 /// Owns the contacts tab: the addresses the window's account can pay in the sidebar, the keypad as the detail of the
 /// selected one, and the sheet that enters a new recipient.
 ///
-/// Contacts and recent payments start empty until they're stored; the keypad still uses sample tokens.
+/// The keypad still uses sample tokens.
 struct ContactsScene: View {
     @State private var contacts: ContactsModel
+    /// Counts Try Again taps after the saved contacts couldn't be read.
+    @State private var loadAttempt = 0
     /// The selected address; every row that lists it is highlighted, so it stays highlighted when it moves to
     /// another section, such as a favorite that's removed.
     @State private var selection: Address?
@@ -18,18 +21,36 @@ struct ContactsScene: View {
     /// The sheet that enters a new payment's recipient or saves a recent address as a contact.
     @State private var entry: RecipientEntryModel?
 
-    /// Lists the addresses an account can pay, created once for the scene; the owner gives another account a new
-    /// scene.
-    /// - Parameter account: The window's account, which payments leave from.
-    init(account: Account) {
-        contacts = ContactsModel(sendingAccount: account.address)
+    private let services: ContactsServices
+
+    /// Lists the addresses an account can pay, created once for the scene; the owner gives another account or
+    /// network a new scene.
+    /// - Parameters:
+    ///   - account: The window's account, which payments leave from.
+    ///   - network: The window's network, whose recent payments are listed.
+    ///   - services: The saved contacts and recent payments that every window shares.
+    init(account: Account, network: Network, services: ContactsServices) {
+        contacts = ContactsModel(sendingAccount: account.address, wallet: account.recoveryID, network: network,
+                                 services: services)
+        self.services = services
     }
 
     var body: some View {
         let isEmpty = contacts.isEmpty && selection == nil
         // One container, so the presentations and changes below attach once instead of to each branch.
         ZStack {
-            if isEmpty {
+            if contacts.isUnreadable {
+                // Nothing saved is replaced, so the person can try again without losing contacts.
+                UnavailableScreen(title: "Contacts Unavailable",
+                                  message: "Your saved contacts couldn't be loaded. Try again.",
+                                  systemImage: "exclamationmark.triangle") {
+                    Button("Try Again") { loadAttempt += 1 }
+                        .buttonStyle(.primary)
+                }
+            } else if !contacts.isLoaded {
+                // A local read is quick, so nothing shows until it finishes instead of a flashing empty state.
+                Color.clear
+            } else if isEmpty {
                 // With no one to list or pay, one screen spans the tab instead of an empty state in each column.
                 UnavailableScreen(title: "No Contacts",
                                   message: "Paste an address to make your first payment. Name it to save it as a contact.",
@@ -70,6 +91,9 @@ struct ContactsScene: View {
             }
         }
         .animation(.default, value: isEmpty)
+        // Reads again after any window saves a change, or fails to, so every window shows what's saved.
+        .task(id: [services.revision.value, loadAttempt]) { await contacts.load() }
+        .errorAlert($contacts.error)
         // Rows and details open the sheet to save or edit a contact without holding it.
         .environment(\.contactEntry, ContactEntryAction(contacts: contacts, entry: $entry))
         .sheet(item: $entry) { RecipientEntrySheet(entry: $0) }

@@ -1,4 +1,5 @@
 import Foundation
+import RPC
 import Transactions
 @testable import widgets
 
@@ -21,18 +22,50 @@ nonisolated enum ContactsFixtures {
     /// An unsaved address that was paid.
     static let recent = try! Address("44korouVTkSZ4u3SAT4BCg5S2AqJTV7osjVGVkjs3vtV")
 
-    /// A list with the sending account, a favorite other account, two contacts, and payments to Alice and an
-    /// unsaved address.
-    /// - Returns: The contacts model.
+    /// The wallet whose recent payments are listed.
+    static let wallet = UUID(uuidString: "0B6D2F4A-6C1E-4E8B-9A3D-5F7C1B2E8D90")!
+
+    /// Saved contacts Alice, a favorite, and bruno, with the Savings account as a favorite.
+    static let addressBook: AddressBook = {
+        var book = AddressBook()
+        book.save(Contact(name: "bruno", address: bruno))
+        book.save(Contact(name: "Alice", address: alice, isFavorite: true))
+        book.setFavorite(true, forAccountAt: savings)
+        return book
+    }()
+
+    /// The wallet's payments on mainnet to Alice and an unsaved address.
+    static var recents: [String: [RecentPayment]] {
+        [ContactsModel.recentsKey(wallet: wallet, network: .mainnet): [
+            RecentPayment(address: recent, date: Date(timeIntervalSince1970: 1_000)),
+            RecentPayment(address: alice, date: Date(timeIntervalSince1970: 2_000)),
+        ]]
+    }
+
+    /// Storage that keeps values in memory, starting with ``addressBook`` and ``recents``.
+    /// - Parameters:
+    ///   - addressBook: The saved contacts and favorites.
+    ///   - recents: The saved recent payments.
+    /// - Returns: Contacts services over that storage.
     @MainActor
-    static func model() -> ContactsModel {
-        ContactsModel(
-            sendingAccount: sending,
-            accounts: [Contact(name: "Main", address: sending), Contact(name: "Savings", address: savings,
-                                                                         isFavorite: true)],
-            contacts: [Contact(name: "bruno", address: bruno), Contact(name: "Alice", address: alice,
-                                                                         isFavorite: true)],
-            payments: [RecentPayment(address: recent, date: Date(timeIntervalSince1970: 1_000)),
-                       RecentPayment(address: alice, date: Date(timeIntervalSince1970: 2_000))])
+    static func services(addressBook: StoredValue<AddressBook> = StoredValue(addressBook),
+                         recents: StoredValue<[String: [RecentPayment]]> = StoredValue(recents)) -> ContactsServices {
+        ContactsServices(addressBook: addressBook, recents: recents)
+    }
+
+    /// A list with the sending account, a favorite other account, two contacts, and payments to Alice and an
+    /// unsaved address, read from storage.
+    /// - Parameters:
+    ///   - services: The storage to read, ``services(addressBook:recents:)`` by default.
+    ///   - network: The network whose recent payments are listed.
+    /// - Returns: The loaded contacts model.
+    @MainActor
+    static func model(services: ContactsServices? = nil, network: Network = .mainnet) async -> ContactsModel {
+        let model = ContactsModel(sendingAccount: sending, wallet: wallet, network: network,
+                                  accounts: [Contact(name: "Main", address: sending),
+                                             Contact(name: "Savings", address: savings)],
+                                  services: services ?? self.services())
+        await model.load()
+        return model
     }
 }

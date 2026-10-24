@@ -2,7 +2,7 @@ import Foundation
 import Transactions
 
 /// An address saved under a name: a contact, or one of the wallet's own accounts.
-nonisolated struct Contact: Identifiable, Hashable, Sendable {
+nonisolated struct Contact: Identifiable, Hashable, Codable, Sendable {
     let id: UUID
     /// The name that labels the address.
     var name: String

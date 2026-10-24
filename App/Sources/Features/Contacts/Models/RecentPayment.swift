@@ -2,7 +2,7 @@ import Foundation
 import Transactions
 
 /// The latest landed payment to an address.
-nonisolated struct RecentPayment: Identifiable, Hashable, Sendable {
+nonisolated struct RecentPayment: Identifiable, Hashable, Codable, Sendable {
     /// The address the payment went to.
     let address: Address
     /// When the payment landed.
