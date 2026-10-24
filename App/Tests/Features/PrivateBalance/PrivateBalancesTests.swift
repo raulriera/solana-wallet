@@ -711,7 +711,8 @@ struct PrivateBalancesTests {
         #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 0)
     }
 
-    /// A send to a registered recipient proves a transfer of the sender's note and returns the change.
+    /// A send to a registered recipient proves a transfer of the sender's note, which no transact has queued, and
+    /// returns the change.
     @Test
     func `Preparing a send proves a private transfer`() async throws {
         async let funded = Self.fundedAccount(lamports: 1_000_000)
@@ -719,7 +720,8 @@ struct PrivateBalancesTests {
         let (sender, recipient) = try await (funded, derivedRecipient)
         let recipientKeys = try await PrivateBalanceFixtures.keys(for: recipient)
         let registry = try PrivateBalanceFixtures.registry(publishing: recipientKeys.shieldedAccount(for: recipient.address))
-        let responses = HTTPResponses.privateNotes(registry: [registry], deposits: [sender.deposit], outputTreeID: 1,
+        let responses = HTTPResponses.privateNotes(registry: [registry, PrivateBalanceFixtures.unregistered],
+                                                   deposits: [sender.deposit], outputTreeID: 1,
                                                    prove: PrivateBalanceFixtures.proof(answering:))
         let balances = try Self.balances(responses, keys: sender.keys, notes: sender.notes)
 
@@ -737,13 +739,15 @@ struct PrivateBalancesTests {
         #expect(await sender.notes.value?[sender.id]?.notes.isEmpty == true)
     }
 
-    /// A withdrawal of the whole note proves a public withdrawal that returns nothing to the private balance.
+    /// A withdrawal of the whole note, which no transact has queued, proves a public withdrawal that returns nothing to
+    /// the private balance.
     @Test
     func `Preparing a withdrawal proves a public withdrawal`() async throws {
         async let funded = Self.fundedAccount(lamports: 1_000_000)
         async let derivedDestination = PrivateBalanceFixtures.account(index: 1)
         let (sender, destination) = try await (funded, derivedDestination)
-        let responses = HTTPResponses.privateNotes(deposits: [sender.deposit], outputTreeID: 1,
+        let responses = HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered], deposits: [sender.deposit],
+                                                   outputTreeID: 1,
                                                    prove: PrivateBalanceFixtures.proof(answering:))
 
         let prepared = try await Self.balances(responses, keys: sender.keys, notes: sender.notes)

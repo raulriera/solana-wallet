@@ -388,8 +388,9 @@ struct BalanceMoveModelTests {
                 keys: StoredValue([account.address.value: record]),
                 notes: StoredValue([PrivateBalances.noteID(of: account, on: .devnet): NoteSyncState()]),
                 recovery: try PrivateBalanceFixtures.recoveryStore(),
-                responses: HTTPResponses.privateNotes(deposits: [note], outputTreeID: 1,
-                                                      prove: PrivateBalanceFixtures.proof(answering:))
+                // The note's nullifier account doesn't exist, so no transact has queued it.
+                responses: HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered], deposits: [note],
+                                                      outputTreeID: 1, prove: PrivateBalanceFixtures.proof(answering:))
             )
         }
         let fixture = try SigningFixture()

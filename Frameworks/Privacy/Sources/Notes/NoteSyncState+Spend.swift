@@ -1,3 +1,4 @@
+import ModularArithmetic
 public import RPC
 import Transactions
 
@@ -5,7 +6,9 @@ extension NoteSyncState {
     /// Spends the account's notes into a private transfer, a public withdrawal, or both, and proves
     /// the transact.
     ///
-    /// The notes come from one tree, largest first, at most 40; pending amounts can't be spent. A
+    /// The notes come from one tree, largest first, at most 40; pending amounts can't be spent, and
+    /// neither can notes whose nullifiers the program already queued, such as another device's
+    /// spends that the indexer hasn't reported. A
     /// ``PrivateSpend/Destination/fundedTransfer(_:publicLamports:)`` spends notes that cover the
     /// transfer and the withdrawal together. The outputs go to ``outputTreeID``: the recipient's
     /// transfer, if any, and the account's change.
@@ -18,20 +21,21 @@ extension NoteSyncState {
     ///   - destination: The recipient's shielded address, the public account, or the recipient and
     ///     the positive amount to withdraw to its signing address.
     ///   - account: The account of this state, which signs as the fee payer.
-    ///   - provider: The indexer and prover of the account's network.
+    ///   - provider: The client, indexer, and prover of the account's network.
     /// - Returns: The proved spend.
     /// - Throws: ``PrivateSpend/ValidationError/noOutputTree`` before a sync that reports a tree,
     ///   ``Transactions/ValidationError/invalidAmount`` for zero lamports, a zero-lamport funding
     ///   withdrawal, or a transfer and withdrawal whose sum exceeds a 64-bit integer,
     ///   ``PrivateSpend/ValidationError/insufficientFunds`` or
-    ///   ``PrivateSpend/ValidationError/tooManyNotes`` if the notes can't cover the amount, or an
-    ///   error from planning, the provider, or the checks of its proofs.
+    ///   ``PrivateSpend/ValidationError/tooManyNotes`` if the unqueued notes can't cover the amount,
+    ///   an error from ``ShieldedPool/queuedNullifiers(of:using:)``, or an error from planning, the
+    ///   provider, or the checks of its proofs.
     @concurrent
     public func spend(
         _ lamports: UInt64,
         to destination: PrivateSpend.Destination,
         from account: ShieldedAccount,
-        provider: some PrivateNoteProviding & ProofProviding
+        provider: some RPC & PrivateNoteProviding & ProofProviding
     ) async throws -> PrivateSpend {
         var generator = SystemRandomNumberGenerator()
         return try await spend(lamports, to: destination, from: account, provider: provider, using: &generator)
@@ -47,7 +51,7 @@ extension NoteSyncState {
     ///   - destination: The recipient's shielded address, the public account, or the recipient and
     ///     the positive amount to withdraw to its signing address.
     ///   - account: The account of this state, which signs as the fee payer.
-    ///   - provider: The indexer and prover of the account's network.
+    ///   - provider: The client, indexer, and prover of the account's network.
     ///   - generator: The source of the padding, blindings, and salt.
     /// - Returns: The proved spend.
     /// - Throws: An error as ``spend(_:to:from:provider:)`` describes.
@@ -55,7 +59,7 @@ extension NoteSyncState {
         _ lamports: UInt64,
         to destination: PrivateSpend.Destination,
         from account: ShieldedAccount,
-        provider: some PrivateNoteProviding & ProofProviding,
+        provider: some RPC & PrivateNoteProviding & ProofProviding,
         using generator: inout some RandomNumberGenerator
     ) async throws -> PrivateSpend {
         guard let outputTreeID else { throw PrivateSpend.ValidationError.noOutputTree }
@@ -71,7 +75,7 @@ extension NoteSyncState {
         guard withdrawal?.lamports != 0 else { throw Transactions.ValidationError.invalidAmount }
         let (covered, overflow) = (transfer?.lamports ?? 0).addingReportingOverflow(withdrawal?.lamports ?? 0)
         guard !overflow else { throw Transactions.ValidationError.invalidAmount }
-        let selected = try NoteSelection.notes(covering: covered, from: notes)
+        let selected = try await unqueuedNotes(covering: covered, using: provider)
         let plan = try TransactPlan(
             spending: selected.map(\.utxo), sender: account, transfer: transfer, withdrawal: withdrawal, outputTreeID: outputTreeID,
             using: &generator
@@ -83,5 +87,27 @@ extension NoteSyncState {
             receivedLamports: receivedLamports, nullifierCount: plan.inputs.count, inputTreeID: selected[0].treeID,
             nullifiers: selected.map(\.nullifier)
         )
+    }
+
+    /// Selects notes that cover an amount as ``NoteSelection`` does, leaving out notes whose
+    /// nullifiers the program already queued.
+    ///
+    /// Each read that finds queued nullifiers selects again without their notes, so the reads stop
+    /// at the first selection without any, usually the first.
+    ///
+    /// - Parameters:
+    ///   - lamports: The amount to cover.
+    ///   - rpc: The client of the notes' network.
+    /// - Returns: The selected notes, whose nullifiers aren't queued.
+    /// - Throws: An error from ``NoteSelection/notes(covering:from:)`` if the unqueued notes can't
+    ///   cover the amount, or from ``ShieldedPool/queuedNullifiers(of:using:)``.
+    private func unqueuedNotes(covering lamports: UInt64, using rpc: some RPC) async throws -> [ReceivedNote] {
+        var available = notes
+        while true {
+            let selected = try NoteSelection.notes(covering: lamports, from: available)
+            let queued = try await ShieldedPool.queuedNullifiers(of: selected, using: rpc)
+            guard !queued.isEmpty else { return selected }
+            available.removeAll { queued.contains($0.nullifier.bigEndianBytes) }
+        }
     }
 }

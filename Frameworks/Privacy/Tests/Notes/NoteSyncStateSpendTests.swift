@@ -78,8 +78,8 @@ struct NoteSyncStateSpendTests {
         sender = try TransferVectors.sender()
     }
 
-    /// Verifies that a spend selects the expected notes, reads the tree's proofs, sends one proof
-    /// request, and returns the instruction of a plan of those notes with the same randomness, with
+    /// Verifies that a spend selects the expected notes, reads their nullifier accounts once on the
+    /// RPC endpoint and the tree's proofs, sends one proof request, and returns the instruction of a plan of those notes with the same randomness, with
     /// a nullifier count of every input slot of the plan's shape.
     ///
     /// - Parameter spend: A spend and its expected outcome.
@@ -98,7 +98,7 @@ struct NoteSyncStateSpendTests {
         let proof = try plan.proof(from: JSONDecoder().decode(TransferProofResponse.self, from: response).proof)
         let context = TreeContext(utxoTreeRootIndex: IndexerResponses.utxoRootIndex, nullifierTreeRootIndex: IndexerResponses.nullifierRootIndex)
         let transport = StubTransport { request in
-            guard request.url?.lastPathComponent == "prove" else { return try IndexerResponses.proofs(answering: request) }
+            guard request.url?.lastPathComponent == "prove" else { return try IndexerResponses.spendReads(answering: request) }
             let url = try #require(request.url)
             return (response, try #require(HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)))
         }
@@ -110,7 +110,7 @@ struct NoteSyncStateSpendTests {
         )
 
         let routes = await transport.requests.compactMap { $0.url?.lastPathComponent }
-        #expect(routes.sorted() == [GetMerkleProofs.method, GetNonInclusionProofs.method, "prove"])
+        #expect(routes.sorted() == ["/", GetMerkleProofs.method, GetNonInclusionProofs.method, "prove"])
         #expect(result.instruction == (try plan.instruction(proof: proof, treeContexts: [context])))
         #expect(result.nullifiers == selected.map(\.nullifier))
         #expect(result.lamports == spend.lamports)
@@ -134,7 +134,7 @@ struct NoteSyncStateSpendTests {
         )
         let response = try Self.response(for: plan.shape)
         let transport = StubTransport { request in
-            guard request.url?.lastPathComponent == "prove" else { return try IndexerResponses.proofs(answering: request) }
+            guard request.url?.lastPathComponent == "prove" else { return try IndexerResponses.spendReads(answering: request) }
             let url = try #require(request.url)
             return (response, try #require(HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)))
         }
@@ -159,7 +159,7 @@ struct NoteSyncStateSpendTests {
         let state = try NoteSyncState(position: nil, notes: notes, outputTreeID: 0, pending: [], localSpends: [])
         let response = try Self.response(for: Shape(inputs: 2, outputs: 2))
         let transport = StubTransport { request in
-            guard request.url?.lastPathComponent == "prove" else { return try IndexerResponses.proofs(answering: request) }
+            guard request.url?.lastPathComponent == "prove" else { return try IndexerResponses.spendReads(answering: request) }
             let url = try #require(request.url)
             return (response, try #require(HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)))
         }
@@ -173,6 +173,48 @@ struct NoteSyncStateSpendTests {
         #expect(result.instruction.accounts.suffix(2).map(\.address) == [solInterface, recipient.signingAddress])
         #expect(result.nullifiers == notes.map(\.nullifier))
         #expect(result.receivedLamports == 4)
+    }
+
+    /// Verifies that a spend leaves out a note whose nullifier the program already queued, such as
+    /// another device's spend that the indexer hasn't reported, and spends the next note instead.
+    @Test
+    func `Spends leave out notes whose nullifiers are already queued`() async throws {
+        let recipient = try TransferVectors.recipient()
+        let notes = try [10, 5].enumerated().map { try note($1, leaf: UInt64($0)) }
+        let state = try NoteSyncState(position: nil, notes: notes, outputTreeID: 0, pending: [], localSpends: [])
+        let queued = try ShieldedPool.nullifierAccount(tree: ShieldedPool.tree(id: 0), nullifier: notes[0].nullifier).value
+        let response = try Self.response(for: Shape(inputs: 1, outputs: 2))
+        let transport = StubTransport { request in
+            guard request.url?.lastPathComponent == "prove" else {
+                return try IndexerResponses.spendReads(answering: request, queued: [queued])
+            }
+            let url = try #require(request.url)
+            return (response, try #require(HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)))
+        }
+
+        let result = try await state.spend(
+            4, to: .transfer(recipient), from: sender, provider: HeliusRPC(apiKey: "fixture-key", network: .devnet, transport: transport)
+        )
+
+        #expect(result.nullifiers == [notes[1].nullifier])
+        #expect(result.receivedLamports == 1)
+    }
+
+    /// Verifies that notes whose nullifiers are all queued can't cover a spend, which then sends no
+    /// proof request.
+    @Test
+    func `Spends of only queued notes are insufficient`() async throws {
+        let recipient = try TransferVectors.recipient()
+        let notes = [try note(10, leaf: 0)]
+        let state = try NoteSyncState(position: nil, notes: notes, outputTreeID: 0, pending: [], localSpends: [])
+        let queued = try ShieldedPool.nullifierAccount(tree: ShieldedPool.tree(id: 0), nullifier: notes[0].nullifier).value
+        let transport = StubTransport { request in try IndexerResponses.spendReads(answering: request, queued: [queued]) }
+        let provider = HeliusRPC(apiKey: "fixture-key", network: .devnet, transport: transport)
+
+        await #expect(throws: PrivateSpend.ValidationError.insufficientFunds) {
+            try await state.spend(4, to: .transfer(recipient), from: sender, provider: provider)
+        }
+        #expect(await transport.requests.compactMap { $0.url?.lastPathComponent } == ["/"])
     }
 
     /// Verifies that a zero amount, or a funded transfer with a zero or overflowing funding

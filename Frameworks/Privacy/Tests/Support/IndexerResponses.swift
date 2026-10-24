@@ -1,5 +1,6 @@
 import Encoding
 import Foundation
+@testable import Privacy
 import RPC
 import Testing
 
@@ -15,6 +16,25 @@ enum IndexerResponses {
 
     /// The nullifier root position of every fixed proof that ``proofs(answering:)`` returns.
     static let nullifierRootIndex: UInt16 = 87
+
+    /// Answers a spend's reads before its proof: a nullifier-account read finds the program's
+    /// accounts at the given addresses and no account elsewhere, and a proof read gets
+    /// ``proofs(answering:)``.
+    ///
+    /// - Parameters:
+    ///   - request: The RPC or indexer request.
+    ///   - queued: The nullifier accounts that the program already created.
+    /// - Returns: The JSON-RPC response and its HTTP metadata.
+    /// - Throws: A test failure if the request is neither read.
+    static func spendReads(answering request: URLRequest, queued: Set<String> = []) throws -> (Data, URLResponse) {
+        let body = try requestBody(request)
+        guard body["method"] as? String == GetMultipleAccounts.method else { return try proofs(answering: request) }
+        let addresses = try #require((body["params"] as? [Any])?.first as? [String])
+        let owner = try ShieldedPool.program.value
+        let account = #"{"owner":"\#(owner)","lamports":1,"executable":false,"data":["AAAAAAAAAAA=","base64"]}"#
+        let accounts = addresses.map { queued.contains($0) ? account : "null" }.joined(separator: ",")
+        return try reply(to: request, payload: #""result":{"context":{"slot":1},"value":[\#(accounts)]}"#)
+    }
 
     /// Answers a `getMerkleProofs` or `getNonInclusionProofs` request with one fixed proof per
     /// requested leaf, in order, in the requested tree.
