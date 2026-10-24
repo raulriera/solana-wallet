@@ -53,7 +53,7 @@ struct RecipientScreen: View {
                     Button("Delete Contact", systemImage: "trash", role: .destructive) { removal = contact }
                         .labelStyle(.warning)
                         .lineLimit(1)
-                        .contactDeletion($removal, from: contacts, selection: $selection)
+                        .contactDeletion(of: contact, removal: $removal, from: contacts, selection: $selection)
                 }
                 .listRowBackground(palette.surface)
             }

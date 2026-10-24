@@ -61,6 +61,8 @@ struct RecipientList: View {
                             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                 SwipeDeleteButton(removal: $removal, item: contact)
                             }
+                            // The confirmation points at the swiped row.
+                            .contactDeletion(of: contact, removal: $removal, from: contacts, selection: $selection)
                     }
                 }
             }
@@ -79,6 +81,5 @@ struct RecipientList: View {
             }
         }
         .listStyle(.sidebar)
-        .contactDeletion($removal, from: contacts, selection: $selection)
     }
 }

@@ -5,6 +5,8 @@ import Transactions
 private struct ContactDeletion: ViewModifier {
     /// The contact waiting for the person to confirm its deletion.
     @Binding var removal: Contact?
+    /// The contact this view deletes; the confirmation shows only while it's the one waiting.
+    let contact: Contact
     let contacts: ContactsModel
     /// The window's selected address, which the deletion clears when it leaves the address without a row.
     @Binding var selection: Address?
@@ -14,7 +16,8 @@ private struct ContactDeletion: ViewModifier {
     /// - Returns: The view with the deletion's confirmation.
     func body(content: Content) -> some View {
         content
-            .confirmationDialog("Delete Contact?", item: $removal) { contact in
+            .confirmationDialog("Delete Contact?", isPresented: $removal[isRemoving: contact],
+                                presenting: contact) { contact in
                 Button("Delete Contact", role: .destructive) {
                     withAnimation {
                         contacts.delete(contact)
@@ -29,16 +32,27 @@ private struct ContactDeletion: ViewModifier {
     }
 }
 
+private extension Optional where Wrapped == Contact {
+    /// Whether a contact is the one waiting for confirmation; dismissing its confirmation stops the wait.
+    /// - Parameter contact: The contact a view deletes.
+    subscript(isRemoving contact: Contact) -> Bool {
+        get { self?.id == contact.id }
+        set { if !newValue, self?.id == contact.id { self = nil } }
+    }
+}
+
 extension View {
-    /// Asks before deleting a contact, from this view.
+    /// Asks before deleting a contact, from this view, such as the contact's row or Delete button.
     /// - Parameters:
-    ///   - removal: The contact waiting for the person to confirm its deletion.
+    ///   - contact: The contact this view deletes.
+    ///   - removal: The contact waiting for the person to confirm its deletion; the confirmation shows here only while
+    ///     it's `contact`.
     ///   - contacts: The window's contacts, which delete it.
     ///   - selection: The window's selected address, which the deletion clears when it leaves the address without a
     ///     row.
     /// - Returns: The view with the deletion's confirmation.
-    func contactDeletion(_ removal: Binding<Contact?>, from contacts: ContactsModel,
+    func contactDeletion(of contact: Contact, removal: Binding<Contact?>, from contacts: ContactsModel,
                          selection: Binding<Address?>) -> some View {
-        modifier(ContactDeletion(removal: removal, contacts: contacts, selection: selection))
+        modifier(ContactDeletion(removal: removal, contact: contact, contacts: contacts, selection: selection))
     }
 }
