@@ -15,6 +15,7 @@ struct KeypadKeyTests {
         (".", "en_US", .decimalSeparator),
         (",", "de_DE", .decimalSeparator),
         (".", "de_DE", .decimalSeparator),
+        (",", "fr_FR", .decimalSeparator),
         (",", "en_US", nil),
         ("a", "en_US", nil),
         ("12", "en_US", nil),

@@ -88,7 +88,8 @@ struct AmountEntryTests {
         #expect(converted == keys.map { Self.type($0, fractionDigits: fractionDigits).entry })
     }
 
-    /// The amount shows as typed, including a trailing separator, wherever the locale puts the currency.
+    /// The amount shows as typed with the locale's separator, including a trailing one, wherever the locale puts the
+    /// currency, also when the currency isn't the locale's own.
     /// - Parameters:
     ///   - keys: The keys to press.
     ///   - unit: The amount's unit.
@@ -102,6 +103,12 @@ struct AmountEntryTests {
         ([.digit(1), .digit(2), .decimalSeparator], .currency(code: "USD"), "en_US", "$12."),
         ([.digit(1), .digit(2), .decimalSeparator, .digit(5), .digit(0)], .currency(code: "USD"), "en_US", "$12.50"),
         ([.digit(1), .digit(2), .decimalSeparator], .currency(code: "EUR"), "de_DE", "12,\u{00A0}€"),
+        ([.digit(1), .digit(2), .decimalSeparator, .digit(5), .digit(0)], .currency(code: "EUR"), "de_DE",
+         "12,50\u{00A0}€"),
+        ([.digit(1), .digit(2), .decimalSeparator, .digit(5), .digit(0)], .currency(code: "USD"), "de_DE",
+         "12,50\u{00A0}$"),
+        ([.digit(1), .digit(2), .digit(3), .digit(4), .decimalSeparator, .digit(5)], .currency(code: "EUR"), "fr_FR",
+         "1\u{202F}234,5\u{00A0}€"),
         ([.digit(1), .decimalSeparator, .digit(5)], .token(symbol: "SOL"), "en_US", "1.5 SOL"),
         ([.digit(1), .digit(2), .digit(3), .digit(4), .decimalSeparator, .digit(5)], .token(symbol: "SOL"), "de_DE",
          "1.234,5 SOL"),
