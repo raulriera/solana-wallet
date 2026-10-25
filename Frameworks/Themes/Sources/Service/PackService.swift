@@ -2,7 +2,7 @@ public import Foundation
 
 /// A stateless package service with operation-local serialization and file coordination.
 public struct PackService: PackServicing {
-    /// Creates a service without persistent state or app-owned defaults.
+    /// Creates a pack service.
     public init() {}
 
     /// Reads a package under coordinated, security-scoped access.
