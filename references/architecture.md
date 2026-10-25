@@ -29,9 +29,4 @@ Program helpers produce `Instruction` values; adding an operation must not intro
 
 ## Limitations
 
-- Public Solana RPC and Helius are the built-in providers; QuickNode is planned as the third. See [RPC scope](rpc-scope.md).
-- Portfolios show native SOL and fungible tokens only; NFTs and currency conversion are deferred. See [Portfolio](portfolio.md).
-- Durable nonces and program-aware transaction explanations are pending; see [simulation explanations](transaction-simulation.md).
-- Token-2022 extensions are added one at a time, each agreed with the user first; unsupported extensions fail explicitly. See [Transactions](transactions.md).
-- Theme packs support color tokens and bundled images; typography and other component tokens are deferred. See [UI architecture](ui.md#theme-packs).
-- Private balances support SOL notes in the default ring; token notes and policy rings aren't supported. See [Privacy](../Frameworks/Privacy/README.md).
+Each topic owns its pending and deferred scope: [RPC scope](rpc-scope.md) (QuickNode), [Portfolio](portfolio.md) (NFTs, currency conversion), [Transactions](transactions.md) (durable nonces, Token-2022 extensions), [simulation explanations](transaction-simulation.md), [theme packs](ui.md#theme-packs) (typography and component tokens), and [Privacy](../Frameworks/Privacy/README.md) (token notes, policy rings).

@@ -1,7 +1,7 @@
 # UI tests
 
-The `widgets` scheme's `UI` test plan runs these tests. Follow the shared
-[testing rules](../../../references/testing.md) for when and how they run.
+The `widgets` scheme's `UI` test plan runs these tests; see the shared
+[testing rules](../../../references/testing.md) for how and when to run it.
 
 ## Setup and reset
 
@@ -18,10 +18,10 @@ The `widgets` scheme's `UI` test plan runs these tests. Follow the shared
 ## Fixtures
 
 - Import tests use a public BIP-39 fixture; the Security test imports it, then opens its backup in
-  Settings. Create tests generate disposable, unfunded wallets whose words may appear in test artifacts.
-- Onboarding uses the app's mainnet discovery client and submits no transactions; import completion requires a successful scan,
-  even when it finds no funded account. Completion tests open the wallet on Solana's public RPC
-  without a key; the provider rejection test uses a dummy Helius key.
+  Settings. Create tests generate disposable, unfunded wallets.
+- Onboarding uses the app's mainnet discovery client and submits no transactions; import completion
+  requires a successful scan, even when it finds no funded account. Completion tests open the wallet
+  on Solana's public RPC without a key; the provider rejection test uses a dummy Helius key.
 - The token test chooses Helius with `HELIUS_API_KEY` from ignored local configuration, pastes BONK's
   public mint address into a new wallet's portfolio, then removes the token.
 - The contacts tests paste a public address into a new wallet's Contacts tab.
