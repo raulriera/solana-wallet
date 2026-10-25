@@ -15,6 +15,8 @@ struct ContactsScene: View {
     /// The window's portfolio, whose tokens with a balance the keypad pays with.
     let portfolio: any PortfolioCoordinating
     @State private var contacts: ContactsModel?
+    /// What ``contacts`` belong to, so the tab keeps them when it appears again for the same account and network.
+    @State private var owner: Owner?
 
     var body: some View {
         // One container, so the change below attaches once instead of to each branch.
@@ -29,7 +31,11 @@ struct ContactsScene: View {
                 Color.clear
             }
         }
+        // The action also runs each time the tab appears again, so it creates contacts only for a new owner; new
+        // contacts would start the split view over and lose its selection.
         .onChange(of: Owner(account: account, network: network), initial: true) { _, owner in
+            guard owner != self.owner else { return }
+            self.owner = owner
             contacts = ContactsModel(sendingAccount: owner.account.address, wallet: owner.account.recoveryID,
                                      network: owner.network, services: services)
         }
