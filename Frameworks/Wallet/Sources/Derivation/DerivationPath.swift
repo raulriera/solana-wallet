@@ -3,6 +3,15 @@ public struct DerivationPath: Sendable, Equatable, CustomStringConvertible {
     /// The first account at `m/44'/501'/0'/0'`.
     public static let solana = DerivationPath(indices: [44, 501, 0, 0])
 
+    /// The account at `m/44'/501'/i'/0'`, the default Solana account family.
+    ///
+    /// - Parameter account: The account index i, below 2³¹.
+    /// - Returns: The account's path, whose ``accountIndex`` is `account`.
+    public static func solana(account: UInt32) -> Self {
+        precondition(account < hardenedBit, "An account index must be below 2³¹.")
+        return Self(indices: [44, 501, account, 0])
+    }
+
     /// A malformed path or an index outside the hardened derivation range.
     public enum ValidationError: Error, Equatable {
         /// The path isn't `m` followed by slash-separated hardened indices below 2³¹.

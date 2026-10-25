@@ -140,6 +140,23 @@ struct DerivationTests {
         #expect(try DerivationPath(path).accountIndex == index)
     }
 
+    /// Verifies that an account in the default Solana family has the path that parsing gives.
+    ///
+    /// - Parameter index: The account index i.
+    @Test(arguments: [0, 1, 2_147_483_647] as [UInt32])
+    func `Default Solana accounts have their path`(index: UInt32) throws {
+        let path = DerivationPath.solana(account: index)
+
+        #expect(path == (try DerivationPath("m/44'/501'/\(index)'/0'")))
+        #expect(path.accountIndex == index)
+    }
+
+    /// Verifies that the first default Solana account is the default path.
+    @Test
+    func `The first default Solana account is the default path`() {
+        #expect(DerivationPath.solana(account: 0) == .solana)
+    }
+
     /// Verifies that paths outside both Solana account families have no account index.
     ///
     /// - Parameter path: Another hardened path.
