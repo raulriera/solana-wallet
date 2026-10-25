@@ -13,7 +13,7 @@ struct BalanceMoveReviewScreen: View {
     var body: some View {
         Form {
             Section {
-                ReviewAmount(payment: move.payment)
+                ReviewAmount(amount: move.payment.amount)
             }
             .listRowBackground(Color.clear)
 
@@ -31,16 +31,16 @@ struct BalanceMoveReviewScreen: View {
                     }
                 }
                 LabeledContent("Network Fee") {
-                    TokenBalance(amount: Self.sol(review.networkFee), symbol: move.payment.token.symbol)
+                    TokenBalance(amount: Amount(lamports: review.networkFee), symbol: move.payment.token.symbol)
                 }
                 if let registrationFee = review.registrationFee {
                     LabeledContent("Registration") {
-                        TokenBalance(amount: Self.sol(registrationFee), symbol: move.payment.token.symbol)
+                        TokenBalance(amount: Amount(lamports: registrationFee), symbol: move.payment.token.symbol)
                     }
                 }
                 if let privacyFee = review.privacyFee {
                     LabeledContent("Privacy Fee") {
-                        TokenBalance(amount: Self.sol(privacyFee), symbol: move.payment.token.symbol)
+                        TokenBalance(amount: Amount(lamports: privacyFee), symbol: move.payment.token.symbol)
                     }
                 }
             } footer: {
@@ -73,12 +73,5 @@ struct BalanceMoveReviewScreen: View {
                 await move.refreshReview()
             }
         }
-    }
-
-    /// Shows lamports as SOL.
-    /// - Parameter lamports: The lamports.
-    /// - Returns: The amount in SOL's nine decimals.
-    private static func sol(_ lamports: UInt64) -> Amount {
-        Amount(units: lamports, decimals: 9)
     }
 }

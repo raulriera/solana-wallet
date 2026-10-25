@@ -129,8 +129,8 @@ final class BalanceMoveModel: Identifiable {
     ///   - transactions: The network's transaction coordinator.
     init(direction: Direction, account: Account, network: Network, spendableLamports: UInt64,
          balances: any PrivateBalancing, transactions: any TransactionCoordinating) {
-        let sol = PaymentToken(symbol: "SOL", balance: Decimal(spendableLamports) / Self.lamportsPerSOL, price: nil,
-                               decimals: 9)
+        let sol = PaymentToken(mint: nil, symbol: "SOL", balance: Decimal(spendableLamports) / Self.lamportsPerSOL,
+                               price: nil, decimals: 9)
         let source: PaymentModel.Source = switch direction {
         case .toPrivate: .publicBalance
         case .toPublic: .privateBalance
@@ -211,7 +211,7 @@ final class BalanceMoveModel: Identifiable {
     /// Prepares and simulates the typed amount, then shows its review.
     private func prepare() async {
         do {
-            let lamports = NSDecimalNumber(decimal: payment.quantity * Self.lamportsPerSOL).uint64Value
+            let lamports = payment.amount.units
             let request: PrivateTransactionRequest = switch direction {
             case .toPrivate: .deposit(lamports)
             case .toPublic: .withdraw(lamports, to: account.address)
@@ -315,8 +315,7 @@ final class BalanceMoveModel: Identifiable {
             case .toPublic: PrivateBalanceError.insufficientPublicBalanceForFees
             }
         }
-        guard let fee = simulation.fee else { throw PrivateBalanceError.preparationFailed }
-        let networkFee = simulation.tips.reduce(fee) { $0 + $1.tipLamports }
+        guard let networkFee = simulation.networkFee else { throw PrivateBalanceError.preparationFailed }
         let review: Review
         switch direction {
         case .toPrivate:

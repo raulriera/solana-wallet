@@ -10,4 +10,7 @@ nonisolated struct PaymentRecipient: Hashable, Sendable {
 
     /// The name, or the shortened address when the address isn't saved.
     var title: String { name ?? address.formatted(.shortAddress) }
+
+    /// The shortened address under a name, or empty when the title already shows it.
+    var subtitle: String { name == nil ? "" : address.formatted(.shortAddress) }
 }

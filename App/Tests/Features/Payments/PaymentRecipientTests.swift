@@ -17,4 +17,16 @@ struct PaymentRecipientTests {
                                          name: nil)
         #expect(recipient.title == "6d8t…EmtK")
     }
+
+    /// A saved recipient shows its short address under its name; an unsaved one shows nothing more, since its title
+    /// is already the short address.
+    /// - Parameters:
+    ///   - name: The name the address is saved under, if any.
+    ///   - subtitle: The line under the title.
+    @Test(arguments: [("Alice" as String?, "6d8t…EmtK"), (nil, "")])
+    func `Only a saved recipient shows its address under the name`(name: String?, subtitle: String) throws {
+        let recipient = PaymentRecipient(address: try Address("6d8tEyrqPqVbEr6Jpuc7BEyYekeMUTyzHEwdmcAYEmtK"),
+                                         name: name)
+        #expect(recipient.subtitle == subtitle)
+    }
 }

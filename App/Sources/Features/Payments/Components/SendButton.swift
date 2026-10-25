@@ -5,11 +5,11 @@ import SwiftUI
 /// It reads whether the amount can be sent itself, so key presses update only this button.
 struct SendButton: View {
     let payment: PaymentModel
-    /// Whether the review sheet is open.
-    @Binding var isReviewing: Bool
+    /// Opens the review of the typed amount.
+    let send: SendPaymentAction
 
     var body: some View {
-        Button("Send") { isReviewing = true }
+        Button("Send") { send() }
             .buttonStyle(.glassPrimary)
             .keyboardShortcut(.defaultAction)
             .disabled(!payment.canSend)

@@ -44,7 +44,7 @@ struct PrivateBalanceSections: View {
         case .unregistered?:
             Section("Private Balance") {
                 LabeledContent("Available") {
-                    TokenBalance(amount: Self.amount(0), symbol: symbol)
+                    TokenBalance(amount: Amount(lamports: 0), symbol: symbol)
                 }
                 PrivateBalanceActions(canMakePublic: model.availableLamports != nil)
             }
@@ -52,12 +52,12 @@ struct PrivateBalanceSections: View {
         case .balance(let available, let pending)?:
             Section {
                 LabeledContent("Available") {
-                    TokenBalance(amount: Self.amount(available), symbol: symbol)
+                    TokenBalance(amount: Amount(lamports: available), symbol: symbol)
                         .textSelection(.enabled)
                 }
                 if pending > 0 {
                     LabeledContent("Pending") {
-                        TokenBalance(amount: Self.amount(pending), symbol: symbol)
+                        TokenBalance(amount: Amount(lamports: pending), symbol: symbol)
                             .foregroundStyle(palette.secondaryText)
                     }
                 }
@@ -75,12 +75,5 @@ struct PrivateBalanceSections: View {
         case .unavailable?, nil:
             EmptyView()
         }
-    }
-
-    /// Shows lamports as SOL.
-    /// - Parameter lamports: The lamports.
-    /// - Returns: The amount in SOL's nine decimals.
-    private static func amount(_ lamports: UInt64) -> Amount {
-        Amount(units: lamports, decimals: 9)
     }
 }

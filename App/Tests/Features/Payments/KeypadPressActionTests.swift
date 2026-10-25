@@ -6,7 +6,8 @@ import Testing
 @MainActor
 struct KeypadPressActionTests {
     /// A dollar stablecoin, so the amount is typed in tokens without conversion.
-    private static let usdc = PaymentToken(symbol: "USDC", balance: 40, price: 1, decimals: 6)
+    private static let usdc = PaymentToken(mint: PaymentFixtures.usdc, symbol: "USDC", balance: 40, price: 1,
+                                           decimals: 6)
 
     /// Pressing digits types them into the amount.
     @Test func `Pressing keys types the amount`() {
