@@ -35,7 +35,7 @@ struct BalanceMoveReviewSheet: View {
             .transition(.blurReplace)
         }
         .limitedTextSize()
-        // `animation(_:value:)` doesn't animate this swap, as a probe showed, so the change itself is animated.
+        // `animation(_:value:)` doesn't animate this swap, so the change is animated explicitly.
         .onChange(of: move.outcome, initial: true) { _, outcome in
             withAnimation { shownOutcome = outcome }
         }

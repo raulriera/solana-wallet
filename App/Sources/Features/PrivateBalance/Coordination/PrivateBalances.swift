@@ -14,7 +14,7 @@ import Wallet
 /// in parallel. Recording a transaction's outcome waits for a running sync of the account's notes, and a sync that
 /// starts while an outcome is being recorded waits for it, so neither overwrites the other.
 /// Every save runs on this actor and is dropped once ``removeAll()`` has run, so an enable or sync that finishes after
-/// a reset never brings keys, notes, or codes back. Redeem codes are in `PrivateBalances+RedeemCodes.swift`.
+/// a reset never brings keys, notes, or codes back.
 ///
 /// An unreadable keys, notes, or codes item is deleted at most once per launch, during the operation that reads it:
 /// without notes, each account syncs again from the start; without codes, each account finds its codes on chain again;
@@ -179,8 +179,7 @@ actor PrivateBalances: PrivateBalancing {
     ///
     /// Keys are read without authentication. An unregistered account's deposit registers its keys in the same
     /// transaction; its notes sync from the start without being saved, only to learn the output tree. A send reads the
-    /// recipient's registry record while the notes sync. Redeem codes are prepared as
-    /// `PrivateBalances+RedeemCodes.swift` describes.
+    /// recipient's registry record while the notes sync.
     /// - Parameters:
     ///   - request: The deposit, send, withdrawal, code creation, redeem, or take-back.
     ///   - account: The account whose private balance changes; it signs and pays, except for a redeem or take-back,

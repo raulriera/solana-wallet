@@ -14,17 +14,17 @@ import Wallet
 /// whose notes are all spent was redeemed or taken back, whatever its one-time account's public lamports.
 ///
 /// Each account's codes entry keeps its codes, the indices of prepared codes whose fundings aren't recorded, and its
-/// next index. A new code takes the first index above the highest one that the indexer shows used in a batch of 20
-/// from the next index; the entry keeps the index pending before the preparation returns, so no later code reuses it,
-/// even after the app quits before the funding's outcome is recorded. Choices of one entry run one at a time.
+/// next index. A new code takes the first index above the highest one that the indexer shows used in a batch of
+/// ``RedeemCodeScan/choiceBatchSize`` from the next index; the entry keeps the index pending before the preparation
+/// returns, so no later code reuses it, even after the app quits before the funding's outcome is recorded. Choices of one entry run one at a time.
 extension PrivateBalances {
     /// Lists the account's redeem codes that the indexer doesn't show as spent, dropping codes that were redeemed or
     /// taken back.
     ///
     /// The keys and the codes entry are read together. Without a codes entry, or with one that this device started
-    /// without a scan, such as after a restore, the account's one-time accounts are scanned in batches of 500 from index
-    /// 0 until a batch has none used; the codes with unspent notes join the entry, each with its notes' amount and its
-    /// one-time account's lamports as the reserve. Then each code's and pending index's one-time account syncs from the
+    /// without a scan, such as after a restore, the account's one-time accounts are scanned in batches of
+    /// ``RedeemCodeScan/discoveryBatchSize`` from index 0 until a batch has none used; the codes with unspent notes
+    /// join the entry, each with its notes' amount and its one-time account's lamports as the reserve. Then each code's and pending index's one-time account syncs from the
     /// start, concurrently, while the pending indices' one-time accounts' lamports are read: a code with unspent notes
     /// is outstanding with their amount; a code whose funding the indexer doesn't report yet stays outstanding; a code
     /// whose notes are all spent leaves. A pending index with unspent notes becomes a code, such as one whose app quit
@@ -300,7 +300,7 @@ extension PrivateBalances {
 
     /// Scans the account's one-time accounts from index 0 for codes with unspent notes.
     ///
-    /// The scan reads batches of 500 indices, deriving only their addresses, until a batch has none used, so gaps
+    /// The scan reads batches of ``RedeemCodeScan/discoveryBatchSize`` indices, deriving only their addresses, until a batch has none used, so gaps
     /// that abandoned preparations leave are skipped. The used one-time accounts then sync from the start, concurrently, while their lamports are read.
     /// - Parameters:
     ///   - keys: The account's kept keys.

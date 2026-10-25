@@ -124,11 +124,8 @@ nonisolated struct Redemption: Sendable {
     /// Computes the public lamports that a new code's one-time account receives to pay for redeeming it into any
     /// account: a registration record's rent, two signatures, and the tree fee of its one note.
     ///
-    /// The reserve covers only the base fees, as private balances run on devnet alone, where transactions are sent
-    /// without Sender. It doesn't cover Sender tips or priority fees: add the selected strategy's maximum tip and
-    /// priority fee before private balances reach mainnet, or a redeem into an unregistered account is underfunded.
-    /// One note per code is the design: every code gets an index that no earlier code used, so no second funding
-    /// reaches its one-time account and a redeem spends one input.
+    /// Covers base fees only, not Sender tips or priority fees. A code holds one note, so a redeem spends one input.
+    ///
     /// - Parameters:
     ///   - rent: The rent of a registration record.
     ///   - treeFee: The fee per nullifier of the tree that receives the code's note.
