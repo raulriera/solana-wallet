@@ -4,7 +4,7 @@ import Testing
 /// The parts of zolana's Poseidon parity fixture that these tests use.
 ///
 /// `PoseidonParity.json` is an unchanged copy of `sdk-libs/ts/vectors/poseidon-parity-v1.json` at
-/// tag v0.4.0-alpha (Apache-2.0); `PoseidonParity-LICENSE.txt` records its source and digest.
+/// tag v0.4.0-alpha (Apache-2.0); `NOTICE.txt` records its source and digest.
 /// Every value is 64 big-endian hexadecimal digits.
 struct PoseidonParity: Decodable, Sendable {
     /// The published parameters.

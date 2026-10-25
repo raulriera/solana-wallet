@@ -8,7 +8,7 @@ import Transactions
 ///
 /// The values are the literals of `sdk-libs/transaction/tests/hash_vectors.rs` at tag
 /// v0.4.0-alpha (Apache-2.0), copied unchanged as hexadecimal, with the amounts, blinding bytes,
-/// and tree IDs that its fixtures pass. `CommitmentVectors-LICENSE.txt` records the source and its
+/// and tree IDs that its fixtures pass. `NOTICE.txt` records the source and its
 /// digest. The sender is the Ed25519 rail of `key_derivation.json`, whose signing secret is 32
 /// bytes of 7. Every UTXO holds SOL and carries no data. Case A spends one UTXO from tree 0 into
 /// tree 0; case B spends UTXOs from trees 3 and 1 into tree 2. Output slot 0 belongs to the
