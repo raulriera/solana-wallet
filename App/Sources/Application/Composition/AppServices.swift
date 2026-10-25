@@ -62,8 +62,10 @@ struct AppServices {
         providerConnection = HeliusConnection(providerKey: providerKey, revisions: providerRevisions)
         let currencySettings = FileItem(url: .persistentDirectory.appending(path: "Currency/settings.json"),
                                         coding: .json(CurrencySettings.self))
+        let rates: [CurrencySettings.RateSource: any ExchangeRateProviding] = [.europeanCentralBank: EuropeanCentralBank(),
+                                                                                 .coinbase: Coinbase()]
         // Prices come in US dollars and convert to the person's currency before any portfolio values a holding.
-        let prices = CurrencyPrices(prices: Jupiter(), settings: currencySettings)
+        let prices = CurrencyPrices(prices: Jupiter(), settings: currencySettings, rates: rates)
         let portfolios = NetworkPortfolios(prices: prices) { network, prices in
             Portfolio(rpc: ProviderClient(network: network, settings: providerSettings, providerKey: providerKey),
                       prices: prices,
@@ -71,7 +73,7 @@ struct AppServices {
                       cacheDirectory: .ephemeralDirectory.appending(path: "Portfolio", directoryHint: .isDirectory))
         }
         self.portfolios = portfolios
-        currency = CurrencySelection(settings: currencySettings, portfolios: { portfolios.created })
+        currency = CurrencySelection(settings: currencySettings, rates: rates, portfolios: { portfolios.created })
         // Approved transactions go to the selected provider and to Solana's public RPC on the same network.
         transactions = NetworkTransactions { [recovery] network in
             let provider = ProviderClient(network: network, settings: providerSettings, providerKey: providerKey)

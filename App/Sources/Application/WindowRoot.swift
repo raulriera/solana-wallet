@@ -24,6 +24,7 @@ struct WindowRoot: View {
         .windowAppearance(services: services.appearance)
         .limitedTextSize()
         .environment(\.artworkColors, services.artworkColors)
+        .environment(\.currencySelection, services.currency)
         .environment(\.network, network)
     }
 }

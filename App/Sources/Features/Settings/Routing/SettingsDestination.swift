@@ -3,5 +3,6 @@ enum SettingsDestination: Hashable {
     case appearance
     case network
     case providers
+    case currency
     case security
 }

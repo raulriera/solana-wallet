@@ -8,6 +8,16 @@ nonisolated struct CurrencySettings: Codable, Equatable, Sendable {
         case europeanCentralBank
         /// Coinbase's rates, updated through the day.
         case coinbase
+
+        /// The source's name as people see it.
+        var name: LocalizedStringResource {
+            switch self {
+            case .europeanCentralBank:
+                LocalizedStringResource("European Central Bank", comment: "A source of exchange rates in Settings > Currency.")
+            case .coinbase:
+                LocalizedStringResource("Coinbase", comment: "A source of exchange rates in Settings > Currency.")
+            }
+        }
     }
 
     /// Where exchange rates come from, or `nil` to show values in US dollars, as the prices come, without rates.

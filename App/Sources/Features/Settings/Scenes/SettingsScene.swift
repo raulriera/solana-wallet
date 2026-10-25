@@ -12,8 +12,8 @@ struct SettingsScene: View {
     let security: SecurityCoordinator
     let providers: ProvidersCoordinator
 
-    /// Presents the window's preference-editing workflow, its network, its RPC provider choices, and its wallet's
-    /// security choices.
+    /// Presents the window's preference-editing workflow, its network, its RPC provider choices, its currency, and its
+    /// wallet's security choices.
     ///
     /// Appearance loading and rendering belong to the owning window's root.
     /// - Parameters:
@@ -51,6 +51,8 @@ struct SettingsScene: View {
                 }
             case .providers:
                 ProvidersScene(coordinator: providers)
+            case .currency:
+                CurrencyScene()
             case .security:
                 SecurityScene(coordinator: security, account: account)
             }

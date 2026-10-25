@@ -23,8 +23,7 @@ nonisolated struct CurrencyPrices: PriceProviding {
     ///   - rates: The exchange-rate provider for each rate source; a source without one has no rates.
     ///   - locale: The locale whose region's currency an automatic choice follows.
     init(prices: any PriceProviding, settings: any ValueStoring<CurrencySettings>,
-         rates: [CurrencySettings.RateSource: any ExchangeRateProviding] = [.europeanCentralBank: EuropeanCentralBank(),
-                                                                            .coinbase: Coinbase()],
+         rates: [CurrencySettings.RateSource: any ExchangeRateProviding],
          locale: Locale = .autoupdatingCurrent) {
         self.prices = prices
         self.settings = settings
