@@ -25,7 +25,7 @@ public enum Base58 {
         return String(decoding: encoded, as: UTF8.self)
     }
 
-    /// Decodes a fixed-width byte sequence without modifying its text representation.
+    /// Decodes Base58 text into exactly `byteCount` bytes.
     ///
     /// Leading `1` characters represent zero bytes. Only the ASCII alphabet is
     /// accepted; whitespace, Unicode lookalikes, and normalization are rejected.
