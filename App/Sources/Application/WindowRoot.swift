@@ -25,6 +25,7 @@ struct WindowRoot: View {
         .limitedTextSize()
         .environment(\.artworkColors, services.artworkColors)
         .environment(\.currencySelection, services.currency)
+        .environment(services.contactStore)
         .environment(\.network, network)
     }
 }

@@ -1,5 +1,6 @@
 import Foundation
 import RPC
+import Storage
 import Transactions
 @testable import widgets
 
@@ -42,29 +43,36 @@ nonisolated enum ContactsFixtures {
         ]]
     }
 
-    /// Storage that keeps values in memory, starting with ``addressBook`` and ``recents``.
-    /// - Parameters:
-    ///   - addressBook: The saved contacts and favorites.
-    ///   - recents: The saved recent payments.
-    /// - Returns: Contacts services over that storage.
+    /// A contact store over storage that keeps the address book in memory, starting with ``addressBook``.
+    /// - Parameter addressBook: The saved contacts and favorites.
+    /// - Returns: A contact store that hasn't read the storage yet.
     @MainActor
-    static func services(addressBook: StoredValue<AddressBook> = StoredValue(addressBook),
-                         recents: StoredValue<[String: [RecentPayment]]> = StoredValue(recents)) -> ContactsServices {
-        ContactsServices(addressBook: addressBook, recents: recents)
+    static func store(_ addressBook: StoredValue<AddressBook> = StoredValue(addressBook)) -> ContactStore {
+        ContactStore(storage: addressBook)
+    }
+
+    /// Contacts services over storage that keeps recent payments in memory, starting with ``recents``.
+    /// - Parameter recents: The saved recent payments.
+    /// - Returns: Contacts services that haven't read the storage yet.
+    @MainActor
+    static func services(recents: StoredValue<[String: [RecentPayment]]> = StoredValue(recents)) -> ContactsServices {
+        ContactsServices(storage: recents)
     }
 
     /// A list with the sending account, a favorite other account, two contacts, and payments to Alice and an
     /// unsaved address, read from storage.
     /// - Parameters:
-    ///   - services: The storage to read, ``services(addressBook:recents:)`` by default.
+    ///   - store: The contacts to read, ``store(_:)`` by default.
+    ///   - services: The recent payments to read, ``services(recents:)`` by default.
     ///   - network: The network whose recent payments are listed.
     /// - Returns: The loaded contacts model.
     @MainActor
-    static func model(services: ContactsServices? = nil, network: Network = .mainnet) async -> ContactsModel {
+    static func model(store: ContactStore? = nil, services: ContactsServices? = nil,
+                      network: Network = .mainnet) async -> ContactsModel {
         let model = ContactsModel(sendingAccount: sending, wallet: wallet, network: network,
                                   accounts: [Contact(name: "Main", address: sending),
                                              Contact(name: "Savings", address: savings)],
-                                  services: services ?? self.services())
+                                  store: store ?? self.store(), services: services ?? self.services())
         await model.load()
         return model
     }

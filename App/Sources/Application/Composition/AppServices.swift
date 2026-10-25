@@ -28,8 +28,9 @@ struct AppServices {
     let privateBalances: any PrivateBalancing
     let resetRevision = Revision()
     let security: SecurityServices
-    let contacts = ContactsServices(directory: .persistentDirectory.appending(path: "Contacts",
-                                                                             directoryHint: .isDirectory))
+    let contacts: ContactsServices
+    /// The saved contacts and favorites, which every window shares; nothing is read until a window's Contacts loads.
+    let contactStore: ContactStore
 
     /// Creates production services after any explicit simulator UI-test reset.
     init() {
@@ -46,6 +47,9 @@ struct AppServices {
         // Exclusion is guidance to the system; a failure must not block the app, and the next launch tries again.
         try? BackupExclusion.apply(to: .applicationSupportDirectory)
         appearance = AppearanceServices()
+        let contactsDirectory = URL.persistentDirectory.appending(path: "Contacts", directoryHint: .isDirectory)
+        contacts = ContactsServices(directory: contactsDirectory)
+        contactStore = ContactStore(directory: contactsDirectory)
         let wallet = Wallet()
         self.wallet = wallet
         discovery = AccountDiscovery(rpc: Solana(network: .mainnet), wallet: wallet)
@@ -96,7 +100,7 @@ struct AppServices {
             recovery: RecoveryReveal(store: recovery),
             owner: DeviceOwnerAuthentication(),
             reset: AppReset(recovery: recovery, privateBalances: privateBalances,
-                            directories: directories, appearance: appearance.appearance,
+                            directories: directories, appearance: appearance.appearance, contacts: contactStore,
                             providerKey: providerKey, providerSettings: providerSettings, revision: resetRevision),
             pasteboard: recoveryPasteboard
         )

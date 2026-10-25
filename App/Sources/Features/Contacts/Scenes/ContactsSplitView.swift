@@ -8,8 +8,6 @@ import Transactions
 struct ContactsSplitView: View {
     /// The addresses the window's account can pay, which ``ContactsScene`` owns.
     @Bindable var contacts: ContactsModel
-    /// The saved contacts and recent payments that every window shares.
-    let services: ContactsServices
     /// The window's portfolio, whose tokens with a balance the keypad pays with.
     let portfolio: any PortfolioCoordinating
     /// The window's account, network, and transactions, which send payments.
@@ -86,8 +84,8 @@ struct ContactsSplitView: View {
         }
         .animation(.default, value: isEmpty)
         .keypadPayment(from: portfolio, into: $payment)
-        // Reads again after any window saves a change, or fails to, so every window shows what's saved.
-        .task(id: [services.revision.value, loadAttempt]) { await contacts.load() }
+        // Reads what's saved when the tab first appears and after Try Again; every window shares what's read.
+        .task(id: loadAttempt) { await contacts.load() }
         .errorAlert($contacts.error)
         // Rows and details open the sheet to save or edit a contact without holding it.
         .environment(\.contactEntry, ContactEntryAction(contacts: contacts, entry: $entry))

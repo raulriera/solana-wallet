@@ -51,7 +51,8 @@ struct OnboardingIdentityTests {
             let appearance = AppearanceCoordinator(store: AppearanceStore(directory: directory.appending(path: "Themes")),
                                                    recovery: nil)
             try await AppReset(recovery: recovery, privateBalances: privateBalances,
-                               directories: [directory], appearance: appearance, providerKey: keys,
+                               directories: [directory], appearance: appearance,
+                               contacts: ContactsFixtures.store(StoredValue()), providerKey: keys,
                                providerSettings: StoredValue<ProviderSettings>(), revision: revision).reset()
             try #require(revision.value == 1)
             try #require(try await accounts.load().isEmpty)

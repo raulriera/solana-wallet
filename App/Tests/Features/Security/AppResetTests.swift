@@ -9,7 +9,7 @@ struct AppResetTests {
     /// Secrets go first, the directories before appearance forgets them, and every window hears about the reset only once
     /// everything is deleted.
     @Test
-    func `Reset deletes recovery, private balances, the directories, appearance, the API key, then the provider settings`() async throws {
+    func `Reset deletes recovery, private balances, the directories, appearance, contacts, the API key, then the provider settings`() async throws {
         let storage = ResetStorage()
         defer { try? FileManager.default.removeItem(at: storage.directory) }
         try createFile(in: storage.directory)
@@ -18,7 +18,7 @@ struct AppResetTests {
         try await AppReset(storage: storage, revision: revision).reset()
 
         #expect(await storage.deletions == ResetStorage.Step.allCases)
-        #expect(await storage.directoryExisted == [true, true, false, false, false])
+        #expect(await storage.directoryExisted == [true, true, false, false, false, false])
         #expect(revision.value == 1)
     }
 
@@ -59,6 +59,20 @@ struct AppResetTests {
         try await reset.reset()
         #expect(!FileManager.default.fileExists(atPath: storage.directory.path))
         #expect(revision.value == 1)
+    }
+
+    /// Windows that show the shared contacts forget them once the reset finishes.
+    @Test
+    func `Reset empties the contacts that windows show`() async throws {
+        let storage = ResetStorage()
+        let addressBook = StoredValue(ContactsFixtures.addressBook)
+        let contacts = ContactsFixtures.store(addressBook)
+        await contacts.load()
+
+        try await AppReset(storage: storage, contacts: contacts, revision: Revision()).reset()
+
+        #expect(contacts.addressBook == AddressBook())
+        #expect(await addressBook.value == nil)
     }
 
     /// Saves one file in a directory, creating the directory.

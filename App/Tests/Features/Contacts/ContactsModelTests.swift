@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 import RPC
 import Testing
 @testable import Transactions
@@ -7,6 +8,7 @@ import Testing
 /// Checks how the contacts list sorts and groups addresses, which addresses rules check against, and how it saves,
 /// favorites, and deletes.
 @MainActor
+@Suite(.timeLimit(.minutes(1)))
 struct ContactsModelTests {
     /// The account payments leave from is never offered as a recipient.
     @Test func `The sending account isn't listed`() async {
@@ -106,11 +108,11 @@ struct ContactsModelTests {
 
     /// A wallet with only its sending account and no contacts or payments has no one to list.
     @Test func `A list without anyone else is empty`() async {
-        let services = ContactsFixtures.services(addressBook: StoredValue(), recents: StoredValue())
         let contacts = ContactsModel(sendingAccount: ContactsFixtures.sending, wallet: ContactsFixtures.wallet,
                                      network: .mainnet,
                                      accounts: [Contact(name: "Main", address: ContactsFixtures.sending)],
-                                     services: services)
+                                     store: ContactsFixtures.store(StoredValue()),
+                                     services: ContactsFixtures.services(recents: StoredValue()))
 
         await contacts.load()
 
@@ -119,10 +121,10 @@ struct ContactsModelTests {
     }
 
     /// New, edited, deleted, and favorite contacts and favorite accounts are read back by the next list, as after a
-    /// relaunch, and every window hears about each change.
+    /// relaunch.
     @Test func `Changes are saved for the next list`() async throws {
-        let services = ContactsFixtures.services()
-        let contacts = await ContactsFixtures.model(services: services)
+        let addressBook = StoredValue(ContactsFixtures.addressBook)
+        let contacts = await ContactsFixtures.model(store: ContactsFixtures.store(addressBook))
         var bruno = try #require(contacts.saved(at: ContactsFixtures.bruno))
         let alice = try #require(contacts.saved(at: ContactsFixtures.alice))
         let savings = try #require(contacts.saved(at: ContactsFixtures.savings))
@@ -135,30 +137,48 @@ struct ContactsModelTests {
         contacts[isFavorite: savings] = false
         await contacts.load()
 
-        let relaunched = await ContactsFixtures.model(services: services)
+        let relaunched = await ContactsFixtures.model(store: ContactsFixtures.store(addressBook))
         #expect(relaunched.contacts.map(\.name) == ["Aaron", "Zed"])
         #expect(relaunched.favorites.map(\.name) == ["Zed"])
-        #expect(services.revision.value == 5)
+    }
+
+    /// Windows share one store, so a change in one window shows in another at once, before it's saved.
+    @Test func `Changes show in every window at once`() async throws {
+        let store = ContactsFixtures.store()
+        let services = ContactsFixtures.services()
+        let window = await ContactsFixtures.model(store: store, services: services)
+        let other = await ContactsFixtures.model(store: store, services: services)
+        let alice = try #require(window.saved(at: ContactsFixtures.alice))
+
+        window.save(Contact(name: "Aaron", address: ContactsFixtures.stranger))
+        window.delete(alice)
+        window.record(RecentPayment(address: ContactsFixtures.stranger, date: Date(timeIntervalSince1970: 3_000)))
+
+        #expect(other.contacts.map(\.name) == ["Aaron", "bruno"])
+        #expect(other.payments.map(\.address) == [ContactsFixtures.stranger, ContactsFixtures.alice,
+                                                  ContactsFixtures.recent])
+        await window.load()
     }
 
     /// A landed payment is listed first, an address keeps only its latest payment, and each wallet keeps its own
     /// payments on each network.
     @Test func `Recent payments are kept per network`() async throws {
-        let services = ContactsFixtures.services()
+        let recents = StoredValue(ContactsFixtures.recents)
+        let services = ContactsFixtures.services(recents: recents)
         let mainnet = await ContactsFixtures.model(services: services)
 
         mainnet.record(RecentPayment(address: ContactsFixtures.recent, date: Date(timeIntervalSince1970: 3_000)))
         await mainnet.load()
 
-        let relaunched = await ContactsFixtures.model(services: services)
+        let relaunched = await ContactsFixtures.model(services: ContactsFixtures.services(recents: recents))
         #expect(relaunched.payments.map(\.address) == [ContactsFixtures.recent, ContactsFixtures.alice])
         #expect(await ContactsFixtures.model(services: services, network: .devnet).payments.isEmpty)
     }
 
     /// Only the latest payments are kept, so Recents stays short.
     @Test func `Only the latest ten payments are kept`() async throws {
-        let services = ContactsFixtures.services(recents: StoredValue())
-        let contacts = await ContactsFixtures.model(services: services)
+        let recents = StoredValue<[String: [RecentPayment]]>()
+        let contacts = await ContactsFixtures.model(services: ContactsFixtures.services(recents: recents))
         let addresses = try (1...12).map { try Address(bytes: [UInt8](repeating: UInt8($0), count: 32)) }
 
         for (index, address) in addresses.enumerated() {
@@ -168,29 +188,73 @@ struct ContactsModelTests {
 
         let expected = Array(addresses.reversed().prefix(ContactsModel.recentLimit))
         #expect(contacts.payments.map(\.address) == expected)
-        #expect(await ContactsFixtures.model(services: services).payments.map(\.address) == expected)
+        let relaunched = await ContactsFixtures.model(services: ContactsFixtures.services(recents: recents))
+        #expect(relaunched.payments.map(\.address) == expected)
     }
 
     /// Storage that can't be read is reported instead of showing an empty list, and nothing replaces it.
     @Test func `Unreadable contacts are reported, not emptied`() async {
         let addressBook = StoredValue(ContactsFixtures.addressBook, unreadable: true)
-        let contacts = await ContactsFixtures.model(services: ContactsFixtures.services(addressBook: addressBook))
+        let contacts = await ContactsFixtures.model(store: ContactsFixtures.store(addressBook))
 
         #expect(contacts.isUnreadable)
         #expect(!contacts.isLoaded)
         #expect(await addressBook.value == ContactsFixtures.addressBook)
     }
 
+    /// Recent payments that can't be read are reported, as unreadable contacts are.
+    @Test func `Unreadable payments are reported`() async {
+        let recents = StoredValue(ContactsFixtures.recents, unreadable: true)
+        let contacts = await ContactsFixtures.model(services: ContactsFixtures.services(recents: recents))
+
+        #expect(contacts.isUnreadable)
+        #expect(!contacts.isLoaded)
+    }
+
+    /// Loading again after the contacts couldn't be read shows them once they can be.
+    @Test func `Trying again reads unreadable contacts`() async throws {
+        let addressBook = StoredValue(ContactsFixtures.addressBook, unreadable: true)
+        let contacts = await ContactsFixtures.model(store: ContactsFixtures.store(addressBook))
+        try #require(contacts.isUnreadable)
+        // A save replaces the unreadable bytes, as a repaired file would.
+        try await addressBook.save(ContactsFixtures.addressBook)
+
+        await contacts.load()
+
+        #expect(contacts.isLoaded)
+        #expect(contacts.contacts.map(\.name) == ["Alice", "bruno"])
+    }
+
     /// A change that can't be saved shows an error, and the list returns to what's saved.
     @Test func `A change that can't be saved is undone`() async {
         let addressBook = StoredValue(ContactsFixtures.addressBook, failsSaving: true)
-        let contacts = await ContactsFixtures.model(services: ContactsFixtures.services(addressBook: addressBook))
+        let contacts = await ContactsFixtures.model(store: ContactsFixtures.store(addressBook))
 
         contacts.save(Contact(name: "Aaron", address: ContactsFixtures.stranger))
         #expect(contacts.contacts.map(\.name) == ["Aaron", "Alice", "bruno"])
         await contacts.load()
 
-        #expect(contacts.error == .unsaved)
+        #expect(await firstError(of: contacts) == .unsaved)
         #expect(contacts.contacts.map(\.name) == ["Alice", "bruno"])
+    }
+
+    /// A payment that can't be saved shows an error, and Recents returns to what's saved.
+    @Test func `A payment that can't be saved is undone`() async {
+        let recents = StoredValue(ContactsFixtures.recents, failsSaving: true)
+        let contacts = await ContactsFixtures.model(services: ContactsFixtures.services(recents: recents))
+
+        contacts.record(RecentPayment(address: ContactsFixtures.stranger, date: Date(timeIntervalSince1970: 3_000)))
+        await contacts.load()
+
+        #expect(await firstError(of: contacts) == .unsaved)
+        #expect(contacts.payments.map(\.address) == [ContactsFixtures.alice, ContactsFixtures.recent])
+    }
+
+    /// Waits until a change that couldn't be saved sets the model's error.
+    /// - Parameter contacts: The model that made the change.
+    /// - Returns: The error, or `nil` if the test ends first.
+    private func firstError(of contacts: ContactsModel) async -> ContactsError? {
+        for await error in Observations({ contacts.error }) where error != nil { return error }
+        return nil
     }
 }
