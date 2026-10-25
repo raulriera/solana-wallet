@@ -29,17 +29,12 @@ extension TransactionCoordinating {
         return (simulation, charged)
     }
 
-    /// Adds a review's network fee and its service tips.
+    /// Reads a review's network fee with its service tips.
     /// - Parameter simulation: The review.
     /// - Returns: The lamports that the payer pays besides the instructions.
-    /// - Throws: ``Redemption/FeeError/unknown`` without a fee, or ``Transactions/ValidationError/invalidAmount`` if
-    ///   the total exceeds a 64-bit integer.
+    /// - Throws: ``Redemption/FeeError/unknown`` without a fee, or when the total exceeds a 64-bit integer.
     private static func networkFee(of simulation: Simulation) throws -> UInt64 {
-        guard let fee = simulation.fee else { throw Redemption.FeeError.unknown }
-        return try simulation.tips.reduce(fee) { total, tip in
-            let (sum, overflow) = total.addingReportingOverflow(tip.tipLamports)
-            guard !overflow else { throw Transactions.ValidationError.invalidAmount }
-            return sum
-        }
+        guard let fee = simulation.networkFee else { throw Redemption.FeeError.unknown }
+        return fee
     }
 }

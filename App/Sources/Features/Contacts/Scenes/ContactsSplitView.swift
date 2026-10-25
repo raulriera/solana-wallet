@@ -21,12 +21,8 @@ struct ContactsSplitView: View {
     @State private var selection: Address?
     @State private var columnVisibility = NavigationSplitViewVisibility.automatic
     @State private var preferredColumn = NavigationSplitViewColumn.sidebar
-    /// The account's tokens with a balance and their prices' currency, or `nil` before its portfolio has anything to
-    /// show.
-    @State private var tokens: PayableTokens?
-    /// The payment being typed, or `nil` while there's nothing to pay with; it stays when the person picks another
-    /// recipient.
-    @State private var payment: PaymentModel?
+    /// What the keypad pays with; the payment being typed stays when the person picks another recipient.
+    @State private var payment = KeypadPayment.loading
     /// The sheet that enters a new payment's recipient or saves a recent address as a contact.
     @State private var entry: RecipientEntryModel?
 
@@ -66,8 +62,8 @@ struct ContactsSplitView: View {
                     }
                     .sidebarColumnWidth()
                 } detail: {
-                    if let selection, tokens != nil {
-                        RecipientPaymentStack(recipient: contacts.recipient(for: selection), payment: payment,
+                    if let selection, !payment.isLoading {
+                        RecipientPaymentStack(recipient: contacts.recipient(for: selection), payment: payment.model,
                                               context: contacts.recipientContext, sender: sender) {
                             RecipientScreen(address: selection, contacts: contacts, selection: $selection)
                         }
@@ -89,8 +85,7 @@ struct ContactsSplitView: View {
             }
         }
         .animation(.default, value: isEmpty)
-        .payableTokens(from: portfolio, into: $tokens)
-        .onChange(of: tokens) { _, tokens in pay(with: tokens) }
+        .keypadPayment(from: portfolio, into: $payment)
         // Reads again after any window saves a change, or fails to, so every window shows what's saved.
         .task(id: [services.revision.value, loadAttempt]) { await contacts.load() }
         .errorAlert($contacts.error)
@@ -115,23 +110,6 @@ struct ContactsSplitView: View {
                 if selection == contact.address { selection = confirmation.address }
             }
         }
-    }
-
-    /// Keeps the payment's tokens with the account's balances and prices, keeping the amount as typed while its token
-    /// and currency remain.
-    /// - Parameter tokens: The account's tokens with a balance and their prices' currency, or `nil` before its
-    ///   portfolio has anything to show.
-    private func pay(with tokens: PayableTokens?) {
-        guard let tokens, !tokens.tokens.isEmpty else {
-            payment = nil
-            return
-        }
-        guard let payment else {
-            payment = PaymentModel(tokens: tokens.tokens, currencyCode: tokens.currencyCode)
-            return
-        }
-        // Balances and values that change animate in place.
-        withAnimation { payment.update(tokens.tokens, currencyCode: tokens.currencyCode) }
     }
 
     /// Opens the sheet that enters a new payment's recipient.

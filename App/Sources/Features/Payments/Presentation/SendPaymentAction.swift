@@ -9,6 +9,8 @@ struct SendPaymentAction {
     let payment: PaymentModel
     /// Who the payment goes to.
     let recipient: PaymentRecipient
+    /// The person's own history, which the review's checks compare the recipient with.
+    let context: RecipientContext
     /// The payment whose review shows.
     let send: Binding<SendModel?>
     /// Why a payment couldn't start.
@@ -18,7 +20,7 @@ struct SendPaymentAction {
     func callAsFunction() {
         guard send.wrappedValue == nil, payment.canSend else { return }
         do {
-            let model = try sender.send(payment, to: recipient)
+            let model = try sender.send(payment, to: recipient, in: context)
             model.prepareReview()
             send.wrappedValue = model
         } catch {

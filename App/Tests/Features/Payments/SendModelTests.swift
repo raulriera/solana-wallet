@@ -285,6 +285,7 @@ struct SendModelTests {
         let portfolio = RecordingPortfolio()
         let model = SendModel(payment: keypad,
                               recipient: PaymentRecipient(address: fixture.transfer.accounts[1].address, name: "Bruno"),
+                              warnings: [],
                               account: fixture.account, transactions: transactions, portfolio: portfolio)
         return Payment(model: model, keypad: keypad, portfolio: portfolio, preparation: preparation, sockets: sockets)
     }

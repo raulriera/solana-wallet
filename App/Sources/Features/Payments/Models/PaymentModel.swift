@@ -178,7 +178,7 @@ final class PaymentModel {
 
     /// Clears the amount after it was sent, keeping the token and the unit it's typed in.
     func clear() {
-        entry = AmountEntry(maximumFractionDigits: Self.fractionDigits(of: unit, token: token, currencyCode: currencyCode))
+        entry = emptyEntry
         rejection = nil
     }
 
@@ -231,7 +231,7 @@ final class PaymentModel {
     private func restart(in token: PaymentToken) {
         self.token = token
         unit = token.price == nil ? .token : unit
-        entry = AmountEntry(maximumFractionDigits: Self.fractionDigits(of: unit, token: token, currencyCode: currencyCode))
+        entry = emptyEntry
     }
 
     /// Types the amount in another unit, converting what's already typed, or refuses a conversion too large to type.
@@ -258,6 +258,11 @@ final class PaymentModel {
         }
         self.unit = unit
         entry = converted
+    }
+
+    /// An empty amount in the selected token and unit.
+    private var emptyEntry: AmountEntry {
+        AmountEntry(maximumFractionDigits: Self.fractionDigits(of: unit, token: token, currencyCode: currencyCode))
     }
 
     /// The token quantity a value in the person's currency buys, rounded down to the token's decimals.

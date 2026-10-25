@@ -13,14 +13,17 @@ struct PaymentSender {
     /// The window's portfolio, on the window's network.
     let portfolio: any PortfolioCoordinating
 
-    /// Starts a payment of the amount typed now.
+    /// Starts a payment of the amount typed now, with what its review asks the person to check about the recipient.
     /// - Parameters:
     ///   - payment: The keypad's payment.
     ///   - recipient: Who the payment goes to.
+    ///   - context: The person's own history, which the review's checks compare the recipient with.
     /// - Returns: The payment, before its review is simulated.
     /// - Throws: The error of creating the network's transaction coordinator.
-    func send(_ payment: PaymentModel, to recipient: PaymentRecipient) throws -> SendModel {
-        SendModel(payment: payment, recipient: recipient, account: account,
+    func send(_ payment: PaymentModel, to recipient: PaymentRecipient, in context: RecipientContext) throws
+        -> SendModel {
+        SendModel(payment: payment, recipient: recipient,
+                  warnings: RecipientClassifier.review.warnings(for: recipient.address, in: context), account: account,
                   transactions: try transactions.coordinator(for: network), portfolio: portfolio)
     }
 }

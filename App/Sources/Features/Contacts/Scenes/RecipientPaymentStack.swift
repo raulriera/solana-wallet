@@ -47,11 +47,11 @@ struct RecipientPaymentStack<Details: View>: View {
                     PaymentAmountScreen(payment: payment, recipient: recipient) {
                         SendButton(payment: payment,
                                    send: SendPaymentAction(sender: sender, payment: payment, recipient: recipient,
-                                                           send: $send, error: $sendError))
+                                                           context: context, send: $send, error: $sendError))
                             .matchedTransitionSource(id: ObjectIdentifier(payment), in: review)
                     }
                     .sheet(item: $send) { send in
-                        PaymentReviewSheet(send: send, context: context)
+                        PaymentReviewSheet(send: send)
                             .sendLifecycle()
                             // The review grows out of the Send button, and shrinks back into it when canceled.
                             .navigationTransition(.zoom(sourceID: ObjectIdentifier(payment), in: review))

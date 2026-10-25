@@ -53,6 +53,8 @@ final class SendModel: Identifiable {
     let amount: PaymentAmount
     /// Who the payment goes to.
     let recipient: PaymentRecipient
+    /// What to check about the recipient, most serious first.
+    let warnings: [RecipientWarning]
     /// What the payment costs, once it's simulated.
     private(set) var review: Review?
     /// The sent payment's signature and network.
@@ -73,9 +75,6 @@ final class SendModel: Identifiable {
     /// Whether the payment is being signed, sent, and watched until it settles.
     var isSending: Bool { attempt?.work == .send }
 
-    /// Whether a sent payment is being watched again.
-    var isChecking: Bool { attempt?.work == .check }
-
     /// Whether the person can approve the review: it's simulated, unused, and no step is waiting or running.
     var canApprove: Bool { attempt == nil && simulation != nil && submission == nil }
 
@@ -83,13 +82,15 @@ final class SendModel: Identifiable {
     /// - Parameters:
     ///   - payment: The keypad's payment, which a successful payment clears.
     ///   - recipient: Who the payment goes to.
+    ///   - warnings: What to check about the recipient, most serious first.
     ///   - account: The window's account, which pays the amount and the fees.
     ///   - transactions: The window's network's transaction coordinator.
     ///   - portfolio: The window's portfolio, which reads the balances again after the payment lands.
-    init(payment: PaymentModel, recipient: PaymentRecipient, account: Account,
+    init(payment: PaymentModel, recipient: PaymentRecipient, warnings: [RecipientWarning], account: Account,
          transactions: any TransactionCoordinating, portfolio: any PortfolioCoordinating) {
         amount = payment.amount
         self.recipient = recipient
+        self.warnings = warnings
         self.payment = payment
         self.account = account
         self.transactions = transactions
@@ -144,11 +145,11 @@ final class SendModel: Identifiable {
     ///
     /// Nothing changes on screen unless the fees do. Steps that are waiting or running, and sent payments, skip it.
     func refreshReview() async {
-        guard attempt == nil, submission == nil, simulation != nil else { return }
+        guard canApprove else { return }
         do {
             let simulated = try await simulate()
             // The person may have approved the review meanwhile.
-            guard attempt == nil, submission == nil else { return }
+            guard canApprove else { return }
             show(simulated)
         } catch is CancellationError {
             // The review closed.
@@ -186,10 +187,7 @@ final class SendModel: Identifiable {
             submission = try await transactions.submit(simulation)
         } catch let error as DeliveryError {
             // The payment was signed, and its delivery is unknown; the watch finds out whether it lands.
-            self.submission = error.submission
-            guard !Task.isCancelled else { return }
-            await settle(error.submission)
-            return
+            submission = error.submission
         } catch is CancellationError {
             guard !Task.isCancelled else { return }
             await prepare()
@@ -200,6 +198,7 @@ final class SendModel: Identifiable {
             return
         }
         self.submission = submission
+        guard !Task.isCancelled else { return }
         await settle(submission)
     }
 
@@ -246,8 +245,7 @@ final class SendModel: Identifiable {
         guard execution.error == nil else {
             throw execution.lacksFunds ? SendError.notEnoughSOL : SendError.preparationFailed
         }
-        guard let fee = simulation.fee else { throw SendError.preparationFailed }
-        let networkFee = simulation.tips.reduce(fee) { $0 + $1.tipLamports }
+        guard let networkFee = simulation.networkFee else { throw SendError.preparationFailed }
         let accountDeposit = simulation.destinationAccountRent.flatMap { $0 > 0 ? $0 : nil }
         return (simulation, Review(networkFee: networkFee, accountDeposit: accountDeposit))
     }

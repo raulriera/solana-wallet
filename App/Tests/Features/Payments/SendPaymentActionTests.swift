@@ -32,6 +32,22 @@ struct SendPaymentActionTests {
         #expect(presented.error == nil)
     }
 
+    /// The review asks the person to check a recipient they haven't paid, and only then.
+    /// - Parameter paid: Whether the person paid the recipient before.
+    /// - Throws: A fixture error.
+    @Test(arguments: [false, true])
+    func `The review checks the recipient against the person's history`(paid: Bool) throws {
+        let presented = Presented()
+        let payment = PaymentModel(tokens: [Self.sol], currencyCode: "USD")
+        payment.press(.digit(1))
+        let recipient = try SigningFixture().transfer.accounts[1].address
+        let context = RecipientContext(knownAddresses: paid ? [recipient] : [], paidAddresses: paid ? [recipient] : [])
+
+        try Self.action(payment: payment, presented: presented, context: context)()
+
+        #expect(try #require(presented.send).warnings == (paid ? [] : [.firstPayment]))
+    }
+
     /// An empty amount opens nothing.
     /// - Throws: A fixture error.
     @Test func `An empty amount opens nothing`() throws {
@@ -60,10 +76,12 @@ struct SendPaymentActionTests {
     /// - Parameters:
     ///   - payment: The keypad's payment.
     ///   - presented: Receives what the action opens.
+    ///   - context: The person's own history, which the review's checks compare the recipient with.
     ///   - transactions: Every network's transaction coordinator, or `nil` for one that answers from local responses.
     /// - Returns: The action.
     /// - Throws: A fixture error.
     private static func action(payment: PaymentModel, presented: Presented,
+                               context: RecipientContext = RecipientContext(knownAddresses: [], paidAddresses: []),
                                transactions: NetworkTransactions? = nil) throws -> SendPaymentAction {
         let fixture = try SigningFixture()
         let preparation = try HTTPResponses.preparation(fixture: fixture.preparation)
@@ -74,6 +92,7 @@ struct SendPaymentActionTests {
                                    portfolio: RecordingPortfolio())
         return SendPaymentAction(sender: sender, payment: payment,
                                  recipient: PaymentRecipient(address: fixture.transfer.accounts[1].address, name: nil),
+                                 context: context,
                                  send: Binding { presented.send } set: { presented.send = $0 },
                                  error: Binding { presented.error } set: { presented.error = $0 })
     }

@@ -9,8 +9,6 @@ import Transactions
 struct PaymentReviewScreen: View {
     @Environment(\.palette) private var palette
     let send: SendModel
-    /// What to check about the recipient, most serious first.
-    let warnings: [RecipientWarning]
 
     var body: some View {
         let review = send.review
@@ -26,7 +24,7 @@ struct PaymentReviewScreen: View {
                 }
                 // The whole address, so people can check every character before sending.
                 FullAddress(text: send.recipient.address.value)
-                ForEach(warnings, id: \.self) { warning in
+                ForEach(send.warnings, id: \.self) { warning in
                     RecipientWarningLabel(warning: warning)
                 }
             } header: {

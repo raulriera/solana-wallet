@@ -20,7 +20,7 @@ extension PaymentToken {
         }
         let price = holding.knownPrice.flatMap { $0.currency == currencyCode ? $0.price : nil }
         self.init(mint: mint, symbol: holding.displaySymbol,
-                  balance: Decimal(sign: .plus, exponent: -Int(amount.decimals), significand: Decimal(amount.units)),
+                  balance: Decimal(amount),
                   price: price, decimals: Int(amount.decimals))
     }
 }

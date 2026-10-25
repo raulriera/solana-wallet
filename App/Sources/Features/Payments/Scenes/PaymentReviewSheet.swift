@@ -8,8 +8,6 @@ import SwiftUI
 struct PaymentReviewSheet: View {
     @Environment(\.dismiss) private var dismiss
     let send: SendModel
-    /// The person's own history, which the review's checks compare the recipient with.
-    let context: RecipientContext
     /// The outcome that shows, which follows the payment's in an animated change.
     @State private var shownOutcome: SendModel.Outcome?
 
@@ -23,12 +21,10 @@ struct PaymentReviewSheet: View {
                         .contentHeightDetent()
                         .closeAction { dismiss() }
                 } else {
-                    PaymentReviewScreen(send: send, warnings: RecipientClassifier.review.warnings(
-                        for: send.recipient.address, in: context
-                    ))
-                    .contentHeightDetent()
-                    .cancellationAction()
-                    .disabled(send.isSending)
+                    PaymentReviewScreen(send: send)
+                        .contentHeightDetent()
+                        .cancellationAction()
+                        .disabled(send.isSending)
                 }
             }
             // The result blurs in over the review.

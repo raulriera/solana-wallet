@@ -13,7 +13,7 @@ nonisolated struct AmountFormatStyle: FormatStyle {
     /// - Parameter value: The exact token quantity.
     /// - Returns: A localized quantity without a token symbol.
     func format(_ value: Amount) -> String {
-        let quantity = Decimal(sign: .plus, exponent: -Int(value.decimals), significand: Decimal(value.units))
+        let quantity = Decimal(value)
         guard abbreviates, quantity >= .abbreviationThreshold else { return value.formatted(locale: locale) }
         return quantity.formatted(.number.notation(.compactName).precision(.fractionLength(0...1)).locale(locale))
     }
