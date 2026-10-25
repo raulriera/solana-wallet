@@ -14,11 +14,8 @@ private struct ContentHeightDetent: ViewModifier {
         content
             // The sheet already reserves the home indicator, so the bottom inset isn't added again.
             //
-            // Known issue, to revisit: when one screen replaces another in the same sheet, such as a result replacing
-            // a review, one layout pass reports no top inset under the bar, so the height reads too small. A sheet
-            // that is already presented takes that height and then ignores the correct one that follows, so its
-            // content is cut off. Why the sheet ignores the later height is unknown; a probe outside the app
-            // couldn't reproduce it. Until the cause is understood, measurements without the bar's inset are skipped.
+            // Skip passes that report no top-bar inset: when one screen replaces another in a presented sheet, one
+            // pass under-measures, and the sheet keeps that height.
             .onScrollGeometryChange(for: CGFloat?.self) { geometry in
                 guard geometry.contentInsets.top > 0 else { return nil }
                 return geometry.contentSize.height + geometry.contentInsets.top

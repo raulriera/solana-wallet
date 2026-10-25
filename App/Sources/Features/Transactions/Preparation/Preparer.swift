@@ -9,7 +9,7 @@ nonisolated struct Preparer: TransactionPreparing {
     private let transactionBuilder: any TransactionBuilding = TransactionBuilder()
     private let requirements: [SubmissionRequirements]
 
-    /// Creates a service with a provider and local V1 encoders.
+    /// Creates a preparer that reads through `rpc`.
     ///
     /// - Parameters:
     ///   - rpc: The provider supplying the blockhash, fee, and simulation.

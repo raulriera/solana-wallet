@@ -4,7 +4,7 @@ import Testing
 
 /// Real clients shared by independent live integration checks.
 enum LiveClients {
-    /// Creates an ordinary RPC and subscription client without accessing wallet recovery.
+    /// Creates an ordinary RPC and subscription client.
     /// - Parameters:
     ///   - helius: Whether to use the configured Helius provider or public Solana.
     ///   - network: Mainnet for read-only checks; devnet for tests that fund wallets or pay fees, and for read-only checks of behavior that only devnet runs yet.

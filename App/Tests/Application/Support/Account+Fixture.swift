@@ -5,7 +5,7 @@ import Wallet
 @testable import widgets
 
 extension widgets.Account {
-    /// Creates public account metadata without generating or accessing recovery material.
+    /// Creates public account metadata.
     /// - Parameter index: A small index used to generate a distinct public address and path.
     /// - Returns: A public test account.
     /// - Throws: An address or derivation-path validation error.

@@ -22,7 +22,7 @@ nonisolated struct PreparationValidator: PreparationValidating {
     private let messageBuilder: any MessageBuilding = MessageBuilder()
     private let transactionBuilder: any TransactionBuilding = TransactionBuilder()
 
-    /// Creates prerequisite checks with a provider and reusable transaction validators.
+    /// Creates a validator that reads through `rpc`.
     ///
     /// - Parameter rpc: The provider used for current fee and lifetime observations.
     init(rpc: any RPC) {

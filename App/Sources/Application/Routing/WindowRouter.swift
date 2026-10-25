@@ -15,9 +15,7 @@ final class WindowRouter: WindowRouting {
 
     /// Replaces this window's root destination.
     ///
-    /// Presentation and animation belong to the owning view. Routing performs no
-    /// persistence, opens no windows, and retains no onboarding history or recovery.
-    /// - Parameter destination: The new root, referencing an already-persisted account when showing a wallet.
+    /// - Parameter destination: The new root.
     func route(to destination: WindowDestination) {
         self.destination = destination
     }

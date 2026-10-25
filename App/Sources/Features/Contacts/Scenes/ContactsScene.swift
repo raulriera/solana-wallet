@@ -5,7 +5,7 @@ import Transactions
 /// Owns the contacts tab: the addresses the window's account can pay in the sidebar, the keypad as the detail of the
 /// selected one, and the sheet that enters a new recipient.
 ///
-/// The keypad still uses sample tokens.
+/// The keypad shows sample tokens.
 struct ContactsScene: View {
     @State private var contacts: ContactsModel
     /// Counts Try Again taps after the saved contacts couldn't be read.

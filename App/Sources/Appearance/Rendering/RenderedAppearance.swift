@@ -12,7 +12,7 @@ struct RenderedPalette: Equatable {
     let accent: SwiftUI.Color
     let onAccent: SwiftUI.Color
 
-    /// Converts the seven complete roles without disk access or decoding.
+    /// Converts a resolved framework palette to SwiftUI colors.
     /// - Parameter palette: A resolved framework palette.
     init(_ palette: Palette) {
         background = Self.color(palette.background)

@@ -232,7 +232,7 @@ struct AccountStoreTests {
         return directory
     }
 
-    /// Creates public-only metadata for a small test index without generating recovery material.
+    /// Creates public-only metadata for a small test index.
     /// - Parameters:
     ///   - index: A test index below 256, also used to construct a distinct valid address.
     ///   - recoveryID: The shared recovery identity to record.

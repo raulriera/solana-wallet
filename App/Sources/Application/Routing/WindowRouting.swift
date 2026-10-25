@@ -8,8 +8,8 @@ protocol WindowRouting: AnyObject, Observable {
 
     /// Replaces this window's root destination.
     ///
-    /// Before routing to a wallet, the caller saves its recovery and public metadata.
-    /// The router performs no storage operations and never receives recovery material.
+    /// Callers save the account before routing to it.
+    ///
     /// - Parameter destination: The root to present in this window.
     func route(to destination: WindowDestination)
 }

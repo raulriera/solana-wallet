@@ -38,7 +38,7 @@ enum ExternalFixture {
         try signed(hasPayerSignature: hasPayerSignature).dropLast(64) + Data(repeating: 0, count: 64)
     }
 
-    /// Creates external review observations without performing network or wallet access.
+    /// Creates external review observations.
     ///
     /// The blockhash was valid at slot 400, where the finalized block height was 500.
     ///

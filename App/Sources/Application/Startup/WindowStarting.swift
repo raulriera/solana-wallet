@@ -1,6 +1,6 @@
 import Foundation
 
-/// Restores one window from saved public account metadata; only recovery that no saved wallet references is removed.
+/// Chooses one window's first destination from saved public account metadata.
 @MainActor
 protocol WindowStarting {
     /// Resolves startup or retries a failed read, preserving any existing destination.

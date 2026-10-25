@@ -11,7 +11,7 @@ nonisolated struct Signer: TransactionSigning {
     private let wallet: any MessageSigning
     private let transactionBuilder: any TransactionBuilding = TransactionBuilder()
 
-    /// Creates a signer with protected recovery storage and protocol-based dependencies.
+    /// Creates a signer.
     ///
     /// - Parameters:
     ///   - validator: Rechecks the reviewed fee and original lifetime with the network.
