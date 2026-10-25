@@ -84,13 +84,13 @@ struct OnboardingApp {
         try waitForAbsence(app.staticTexts[Self.recoveryGuidance])
     }
 
-    /// Confirms that Helius rejected the entered key, failing immediately if the app reports another error.
+    /// Confirms that the provider rejected the entered key, failing immediately if the app reports another error.
     /// - Parameters:
     ///   - file: The calling test's source file for failure reporting.
     ///   - line: The calling test's line for failure reporting.
     /// - Throws: A missing rejection message or an explicit wallet setup failure.
     func expectKeyRejected(file: StaticString = #filePath, line: UInt = #line) throws {
-        let message = "Helius didn't accept this API key. Check it and try again."
+        let message = "Your provider didn't accept this API key. Check it and try again."
         try expectSetupOutcome(app.staticTexts[message], label: message, file: file, line: line)
     }
 
