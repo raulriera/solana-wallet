@@ -28,6 +28,114 @@
         "identifier" : "A70000000000000000000015",
         "name" : "widgetsTests"
       }
+    },
+    {
+      "skippedTags" : {
+        "tags" : [
+          ".network"
+        ]
+      },
+      "target" : {
+        "containerPath" : "container:widgets.xcodeproj",
+        "identifier" : "A60000000000000000000015",
+        "name" : "EncodingTests"
+      }
+    },
+    {
+      "skippedTags" : {
+        "tags" : [
+          ".network"
+        ]
+      },
+      "target" : {
+        "containerPath" : "container:widgets.xcodeproj",
+        "identifier" : "A80000000000000000000015",
+        "name" : "ModularArithmeticTests"
+      }
+    },
+    {
+      "skippedTags" : {
+        "tags" : [
+          ".network"
+        ]
+      },
+      "target" : {
+        "containerPath" : "container:widgets.xcodeproj",
+        "identifier" : "A20000000000000000000015",
+        "name" : "PortfolioTests"
+      }
+    },
+    {
+      "skippedTags" : {
+        "tags" : [
+          ".network"
+        ]
+      },
+      "target" : {
+        "containerPath" : "container:widgets.xcodeproj",
+        "identifier" : "AB0000000000000000000015",
+        "name" : "PrivacyTests"
+      }
+    },
+    {
+      "skippedTags" : {
+        "tags" : [
+          ".network"
+        ]
+      },
+      "target" : {
+        "containerPath" : "container:widgets.xcodeproj",
+        "identifier" : "A10000000000000000000015",
+        "name" : "RPCTests"
+      }
+    },
+    {
+      "skippedTags" : {
+        "tags" : [
+          ".network"
+        ]
+      },
+      "target" : {
+        "containerPath" : "container:widgets.xcodeproj",
+        "identifier" : "A90000000000000000000015",
+        "name" : "ThemesTests"
+      }
+    },
+    {
+      "skippedTags" : {
+        "tags" : [
+          ".network"
+        ]
+      },
+      "target" : {
+        "containerPath" : "container:widgets.xcodeproj",
+        "identifier" : "A50000000000000000000015",
+        "name" : "TransactionsTests"
+      }
+    },
+    {
+      "skippedTags" : {
+        "tags" : [
+          ".network"
+        ]
+      },
+      "target" : {
+        "containerPath" : "container:widgets.xcodeproj",
+        "identifier" : "A40000000000000000000015",
+        "name" : "VaultTests"
+      }
+    },
+    {
+      "skippedTags" : {
+        "tags" : [
+          ".network"
+        ]
+      },
+      "target" : {
+        "containerPath" : "container:widgets.xcodeproj",
+        "identifier" : "A30000000000000000000015",
+        "name" : "WalletTests"
+      }
     }
   ],
   "version" : 1
