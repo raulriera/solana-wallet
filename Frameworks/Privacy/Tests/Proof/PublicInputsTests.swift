@@ -8,7 +8,7 @@ import Testing
 /// The assembly tests use the byte literals of `sdk-libs/client/tests/assembly_vectors.rs` at tag
 /// v0.4.0-alpha (Apache-2.0), copied unchanged as hexadecimal: a two-input, four-output transfer in
 /// tree 3 from the Ed25519 key with secret 32 bytes of 0x11 to the one with 32 bytes of 0x22, whose
-/// tree slot has the roots `00 ‖ 0x54 × 31` and `00 ‖ 0x59 × 31`. `PublicInputVectors-LICENSE.txt`
+/// tree slot has the roots `00 ‖ 0x54 × 31` and `00 ‖ 0x59 × 31`. `NOTICE.txt`
 /// records the source and its digest.
 struct PublicInputsTests {
     /// Verifies the published transfer hashes that carry output owner identities, with full and

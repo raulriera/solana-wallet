@@ -3,7 +3,7 @@ import Testing
 /// zolana's lock file of the prover's proving keys.
 ///
 /// `ProvingKeyVectors.json` copies `prover/server/prover/provingkeys/proving-keys.lock` unchanged at
-/// tag v0.4.0-alpha (Apache-2.0). `ProvingKeyVectors-LICENSE.txt` records the source and its
+/// tag v0.4.0-alpha (Apache-2.0). `NOTICE.txt` records the source and its
 /// digest. Each key file's entry gives its SHA-256 digest as lowercase hexadecimal.
 struct ProvingKeyVectors: Decodable, Sendable {
     /// Each key file's entry, by file name.

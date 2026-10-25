@@ -4,7 +4,7 @@ import Testing
 ///
 /// `DummyOwnerTagVectors.json` copies `test-vectors/dummy_owner_tags.json` unchanged from zolana's
 /// main branch at commit f163d0f (Apache-2.0), which adds the rule after v0.4.0-alpha.
-/// `DummyOwnerTagVectors-LICENSE.txt` records the source and its digest. Keys are Ed25519 keys whose
+/// `NOTICE.txt` records the source and its digest. Keys are Ed25519 keys whose
 /// 32 secret bytes all equal a seed; the resolved tag is a hexadecimal Ed25519 public key.
 struct DummyOwnerTagVectors: Decodable, Sendable {
     /// The seed of the sender, who owns the one input.

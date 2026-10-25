@@ -4,7 +4,7 @@ import Testing
 ///
 /// `EncryptionVectors.json` copies, unchanged at tag v0.4.0-alpha (Apache-2.0), the `tx_viewing`
 /// and `hpke_utxo` sections of `test-vectors/key_derivation.json`.
-/// `EncryptionVectors-LICENSE.txt` records the source and its digest. Byte strings are hexadecimal;
+/// `NOTICE.txt` records the source and its digest. Byte strings are hexadecimal;
 /// the slot is a JSON number.
 struct EncryptionVectors: Decodable, Sendable {
     /// The transaction viewing key of one account and first nullifier.

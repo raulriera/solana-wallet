@@ -8,7 +8,7 @@ import Testing
 /// `CommitmentVectors.json` copies, unchanged at tag v0.4.0-alpha (Apache-2.0), the whole array of
 /// `test-vectors/hash_bytes.json`; the `owner_identity`, `blinding_seed`, and `dummy_utxo_hash`
 /// sections of `test-vectors/transact_derivation.json`; and the `ed25519_rail` and `p256_rail`
-/// sections of `test-vectors/key_derivation.json`. `CommitmentVectors-LICENSE.txt` records the
+/// sections of `test-vectors/key_derivation.json`. `NOTICE.txt` records the
 /// sources and their digests. Byte strings are hexadecimal; small integers are JSON numbers, which
 /// the vectors hash as right-aligned big-endian field elements.
 struct CommitmentVectors: Decodable, Sendable {

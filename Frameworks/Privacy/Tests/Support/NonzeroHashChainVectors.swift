@@ -3,7 +3,7 @@ import Testing
 /// zolana's nonzero hash chain vectors.
 ///
 /// `NonzeroHashChainVectors.json` copies `test-vectors/nonzero_hash_chain.json` unchanged at tag
-/// v0.4.0-alpha (Apache-2.0). `NonzeroHashChainVectors-LICENSE.txt` records the source and its
+/// v0.4.0-alpha (Apache-2.0). `NOTICE.txt` records the source and its
 /// digest. Elements and chains are 32-byte big-endian hexadecimal field elements.
 struct NonzeroHashChainVectors: Decodable, Sendable {
     /// The chains, from empty lists to 36 elements, with zeros in several positions.

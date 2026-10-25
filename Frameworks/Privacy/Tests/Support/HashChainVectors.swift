@@ -5,7 +5,7 @@ import Testing
 /// `HashChainVectors.json` copies, unchanged at tag v0.4.0-alpha (Apache-2.0), the vectors arrays
 /// of `test-vectors/hash_chain_4.json` and `test-vectors/right_hash_chain_4.json`, and the
 /// `tree_slots` section of `test-vectors/transact_derivation.json`.
-/// `HashChainVectors-LICENSE.txt` records the sources and their digests. Elements and chains are
+/// `NOTICE.txt` records the sources and their digests. Elements and chains are
 /// 32-byte big-endian hexadecimal field elements; small integers are JSON numbers.
 struct HashChainVectors: Decodable, Sendable {
     /// Left chains of 0 to 54 elements, and one with a zero in the middle.

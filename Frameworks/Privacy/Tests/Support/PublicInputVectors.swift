@@ -6,7 +6,7 @@ import Testing
 ///
 /// `PublicInputVectors.json` copies, unchanged at tag v0.4.0-alpha (Apache-2.0), the vectors array
 /// of `test-vectors/input_flags.json`, the transfers array of `test-vectors/public_input_hash.json`,
-/// and the whole of `sdk-libs/fixtures/indexed-proof.json`. `PublicInputVectors-LICENSE.txt`
+/// and the whole of `sdk-libs/fixtures/indexed-proof.json`. `NOTICE.txt`
 /// records the sources and their digests. Field elements are 32-byte big-endian hexadecimal, and
 /// the indexed proof's are `0x`-prefixed hexadecimal without padding.
 struct PublicInputVectors: Decodable, Sendable {

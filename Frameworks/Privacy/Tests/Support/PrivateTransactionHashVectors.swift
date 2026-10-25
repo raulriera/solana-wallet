@@ -3,7 +3,7 @@ import Testing
 /// zolana's private transaction hash vectors.
 ///
 /// `PrivateTransactionHashVectors.json` copies `test-vectors/private_tx_hash.json` unchanged at tag
-/// v0.4.0-alpha (Apache-2.0). `PrivateTransactionHashVectors-LICENSE.txt` records the source and its
+/// v0.4.0-alpha (Apache-2.0). `NOTICE.txt` records the source and its
 /// digest. Every value is a 32-byte big-endian hexadecimal field element. The fixture also publishes
 /// each vector's message hash, which only P-256 owners sign, so the decoding leaves it out.
 struct PrivateTransactionHashVectors: Decodable, Sendable {

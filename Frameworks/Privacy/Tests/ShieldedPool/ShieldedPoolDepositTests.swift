@@ -10,7 +10,7 @@ import Transactions
 ///
 /// zolana pins one blinding in `deposit_blinding_is_pinned` of
 /// `program-libs/interface/src/instruction/instruction_data/deposit.rs` at tag v0.4.0-alpha
-/// (Apache-2.0), copied unchanged; `PublicInputVectors-LICENSE.txt` records the source and its
+/// (Apache-2.0), copied unchanged; `NOTICE.txt` records the source and its
 /// digest. The blinding in tree 0 comes from an independent Python implementation.
 struct ShieldedPoolDepositTests {
     /// Verifies deposits against an independent implementation: one lamport, the largest amount to
