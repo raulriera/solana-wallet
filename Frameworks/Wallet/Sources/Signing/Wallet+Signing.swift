@@ -2,12 +2,8 @@ import CryptoKit
 public import Foundation
 
 extension Wallet: MessageSigning {
-    /// Signs a message on the concurrent executor using the intended recovered account.
-    ///
-    /// The service retains no recovery material or private key after the call.
-    /// Swift value lifetimes don't guarantee that secret bytes are erased from memory.
-    /// This method signs the supplied bytes without parsing transaction intent, but refuses
-    /// Solana Rings key derivation inputs before deriving a seed.
+    /// Signs `message` on the concurrent executor with the recovered account; refuses Solana Rings
+    /// key-derivation inputs before deriving a seed.
     ///
     /// - Parameters:
     ///   - message: The exact unsigned message bytes; no signature or envelope is added.

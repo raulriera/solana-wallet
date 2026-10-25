@@ -1,12 +1,6 @@
 extension Wallet: PrivateBalanceKeyDeriving {
-    /// Derives an account's Solana Rings private-balance keys on the concurrent executor.
-    ///
-    /// One temporary BIP-39 seed derives the account's Ed25519 key, which must match the expected
-    /// address before the role keys are derived. The nullifier secret is the Ed25519 node key at
-    /// `m/44'/1392955331'/i'/1'/0'` without its first byte; the viewing key is the P-256 node key at
-    /// `m/44'/1392955331'/i'/2'/0'`; the code root is the Ed25519 node key at `m/44'/1392955331'/i'/3'`.
-    /// The service retains no recovery material or keys after the call; intermediate bytes are erased
-    /// on a best-effort basis.
+    /// Derives an account's Solana Rings private-balance keys on the concurrent executor after checking the
+    /// recovered account against `expectedAddress`. The service retains no recovery material.
     ///
     /// - Parameters:
     ///   - phrase: The validated recovery phrase.
