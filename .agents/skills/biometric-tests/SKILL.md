@@ -30,4 +30,3 @@ Require the selected test to execute and pass; the opposite mode is skipped.
 Missing enrollment is not unsupported hardware. Simulator Keychain reads can
 succeed without prompting, so these checks do not prove hardware enforcement.
 Keep the process handle and inspect its log before retrying after a tool timeout.
-Funded tests follow [testing.md](../../../references/testing.md).

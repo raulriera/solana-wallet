@@ -1,6 +1,6 @@
 # RPC scope
 
-Build for the agreed Simplified and Advanced wallet experiences. A test or hypothetical future use alone doesn't justify an RPC method.
+Build for agreed wallet features. A test or hypothetical future use alone doesn't justify an RPC method.
 
 Connect directly to interchangeable RPC, DAS, and pricing providers; no app-owned backend or proxy. `HeliusRPC` and `Solana`, at a public or custom endpoint, share one internal HTTP client. Keep provider-specific endpoints, authentication, batching, and response transformations inside RPC; consumers depend on provider-neutral protocols and values. DAS serves only CDN logo lookups; see [portfolio](portfolio.md). App workflow coordination follows [architecture](architecture.md).
 
@@ -21,7 +21,6 @@ Connect directly to interchangeable RPC, DAS, and pricing providers; no app-owne
 
 - Confidential transfers remain conditional; agree on feasibility and the concrete flow before adding support.
 - Account and rent reads serve token-transfer prerequisites and the agreed SOL-only account-discovery flow; general account exploration and node-version queries remain outside the current scope. Token ownership and address-history methods have no current agreed consumer and are not exposed.
-- RPC completion means the agreed flows have the communication they need. Human-readable simulation explanations remain a separate milestone; AI exploration is parked. UI remains last.
 - Public Solana (`https://api.mainnet.solana.com`, devnet `https://api.devnet.solana.com`), Helius (`mainnet.helius-rpc.com`, devnet `devnet.helius-rpc.com` with the same key) are the built-in providers, with QuickNode planned; people can add custom HTTPS RPC URLs. A custom RPC serves one network, mainnet; with one selected, devnet requests fail with a typed error instead of using another provider. Submission chooses ordinary RPC broadcast or one Helius Sender tier, never both; see [submission policy](transaction-workflow.md#submission-and-observation).
 - The app reads, simulates, and subscribes at `finalized`, because Alpenglow makes `confirmed` and `finalized` equivalent ([Alpenglow](https://solana.com/upgrades/alpenglow), [commitments](https://docs.anza.xyz/consensus/commitments)).
 - Preserve sanitized server errors with null response IDs. Successful results and attributed errors require matching IDs; missing or malformed ID fields are rejected.

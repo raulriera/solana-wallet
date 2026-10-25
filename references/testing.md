@@ -30,13 +30,18 @@
 
 ## Test plans
 
-- `Unit`, the `widgets` scheme's default plan, runs `widgetsTests` offline. Run it for every change:
+Pass the existing regular iPhone simulator to every command, such as `-destination 'platform=iOS Simulator,id=<UUID>'`.
+
+- `Unit`, the `widgets` scheme's default plan, runs the app's `widgetsTests` bundle offline. Run it for every change:
   `xcodebuild test -scheme widgets`.
+- Each framework's scheme runs its own offline test bundle; the `Portfolio` scheme also runs `RPCTests`. Run it when a change
+  touches that framework: `xcodebuild test -scheme <Framework>`, such as `-scheme Transactions`.
 - `Integration` runs only tests tagged `.network`:
   `xcodebuild test -scheme widgets -testPlan Integration -parallel-testing-enabled NO`.
   Run it only when a change touches the RPC, Transactions, or Portfolio frameworks, or the app's
   provider, account discovery, portfolio, or transaction workflows, or when the user asks.
-- `UI` runs `widgetsUITests`. Only the user runs it, on request.
+- `UI` runs `widgetsUITests` without parallel clones:
+  `xcodebuild test -scheme widgets -testPlan UI -parallel-testing-enabled NO`. Only the user runs it, on request.
 - Tag every test that sends a request to a real provider with `.network`: on its suite, or on the test
   in a suite that mixes local and live tests. Framework test bundles stay offline; put their live
   checks in `App/Tests/Integration/<Framework>`.
@@ -59,7 +64,7 @@
 
 ## UI automation
 
-- Follow the [XCUITest Best Practices](plugin://skills@raulriera) skill (`xcuitest-best-practices`). Only the user runs the `UI` test plan, on request. Reuse approved
+- Follow the [XCUITest Best Practices](plugin://skills@raulriera) skill (`xcuitest-best-practices`). Reuse approved
   simulators and disable parallel execution.
 - Make each test self-contained: automatically prepare prerequisites and reset disposable state
   before constructing services. Restrict destructive reset hooks to explicit Debug simulator

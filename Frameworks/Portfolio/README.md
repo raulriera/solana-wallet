@@ -12,8 +12,8 @@ import RPC
 
 let service: any PortfolioProviding = Portfolio(
     rpc: Solana(network: .mainnet),
-    tokenListDirectory: .applicationSupportDirectory.appending(path: "TokenLists"),
-    cacheDirectory: .cachesDirectory.appending(path: "Portfolio")
+    tokenListDirectory: .applicationSupportDirectory.appending(path: "Persistent/TokenLists", directoryHint: .isDirectory),
+    cacheDirectory: .cachesDirectory.appending(path: "Ephemeral/Portfolio", directoryHint: .isDirectory)
 )
 for await update in await service.updates(for: owner) {
     receive(update)
