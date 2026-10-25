@@ -22,12 +22,11 @@ actor RecoveryCleanup: RecoveryCleaning {
         self.privateBalances = privateBalances
     }
 
-    /// Runs the cleanup once per launch; concurrent windows wait for the same run, and a failed run can be retried.
+    /// Runs the cleanup once per launch.
     ///
-    /// The run is an unstructured task so every window can await the same work. Nothing in it
-    /// needs this actor, so it starts on the concurrent executor. The recovery and private-balance deletions run
-    /// concurrently. Waiting on it is not cancellable; callers check cancellation after it returns.
-    /// - Throws: A storage error from reading wallets or deleting recovery, keys, or notes.
+    /// Concurrent callers share the run, a failed run can be retried, and waiting isn't cancellable.
+    ///
+    /// - Throws: A storage error from reading wallets or deleting recovery or private balances.
     func complete() async throws {
         let run = self.run ?? Task { @concurrent [accounts, recovery, privateBalances] in
             guard try await accounts.load().isEmpty else { return }

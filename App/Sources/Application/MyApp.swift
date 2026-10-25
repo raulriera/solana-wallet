@@ -8,7 +8,7 @@ import SwiftUI
     var body: some Scene {
         WindowGroup {
             if ProcessInfo.processInfo.environment["IS_UNIT_TESTING"] == "1" {
-                // The widgets scheme's Test action sets this; unit tests build their own services.
+                // The Unit and Integration test plans set this, so the test host shows no window; services are still created.
                 EmptyView()
             } else {
                 WindowRoot(services: services)

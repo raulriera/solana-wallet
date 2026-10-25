@@ -8,7 +8,7 @@ if [[ -n "${TEST_RUNNER_BIOMETRIC_TEST_STATE:-}" ]]; then
 fi
 
 if [[ "${PLATFORM_NAME:-}" != iphonesimulator ]]; then
-    echo "Onboarding UI tests require an iOS Simulator destination." >&2
+    echo "Tests require an iOS Simulator destination." >&2
     exit 1
 fi
 

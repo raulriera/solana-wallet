@@ -13,9 +13,9 @@ struct PortfolioCoordinatorTests {
     /// BONK's mainnet mint address, a public token.
     private static let bonk = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"
 
-    /// Verifies a clock correction cannot reject newer balances for a large portfolio.
+    /// Verifies a newer revision replaces every holding of a 500-token snapshot.
     @Test
-    func `Clock rollback still displays the next complete 500-token portfolio`() async throws {
+    func `A refresh replaces a large portfolio's snapshot`() async throws {
         let service = PortfolioResponses()
         let coordinator = PortfolioCoordinator(service: service)
         var requests = service.requests.makeAsyncIterator()
@@ -422,7 +422,7 @@ struct PortfolioCoordinatorTests {
         await viewing.value
     }
 
-    /// Creates distinct complete results without wallet recovery or live addresses.
+    /// Creates distinct complete results.
     /// - Parameters:
     ///   - owner: The test wallet's label.
     ///   - revision: The SOL balance in lamports, which tells the results apart.
