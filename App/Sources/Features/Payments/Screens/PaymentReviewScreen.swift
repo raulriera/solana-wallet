@@ -19,16 +19,19 @@ struct PaymentReviewScreen: View {
             .listRowBackground(Color.clear)
 
             Section {
-                if let name = send.recipient.name {
-                    Text(name)
-                }
                 // The whole address, so people can check every character before sending.
                 FullAddress(text: send.recipient.address.value)
                 ForEach(send.warnings, id: \.self) { warning in
                     RecipientWarningLabel(warning: warning)
                 }
             } header: {
-                Text("To")
+                // A named recipient is named in the header, so named and unnamed addresses share one layout.
+                if let name = send.recipient.name {
+                    Text("To \(name)",
+                         comment: "Header above the address a payment goes to. The variable is the recipient's name.")
+                } else {
+                    Text("To")
+                }
             }
             .listRowBackground(palette.surface)
 
