@@ -10,8 +10,6 @@ Arithmetic in prime fields with moduli between 2^64 and 2^256. Elements are four
 | [`BN254BaseField`](Sources/Fields/BN254BaseField.swift) | p = `0x30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47` | [EIP-196](https://eips.ethereum.org/EIPS/eip-196) |
 | [`P256ScalarField`](Sources/Fields/P256ScalarField.swift) | n = `0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551` | [SEC 2](https://www.secg.org/sec2-v2.pdf), FIPS 186-5 |
 
-The list is closed: only this module can create a [`Modulus`](Sources/Montgomery/Modulus.swift), so each field is tested here.
-
 ## Usage
 
 ```swift

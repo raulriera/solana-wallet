@@ -1,8 +1,8 @@
 /// A 256-bit value as four little-endian 64-bit limbs.
 ///
 /// Carries and borrows come from 128-bit arithmetic and choices from masks, so no branch or
-/// memory index depends on a value. The arithmetic helpers are always inlined, and the target
-/// uses whole-module optimization, so each multiplication compiles to one straight-line sequence.
+/// memory index depends on a value. The arithmetic helpers are `@inline(always)`; Swift doesn't
+/// guarantee the generated instructions.
 struct Limbs: Sendable, Equatable {
     /// Bits 0 to 63.
     let limb0: UInt64
