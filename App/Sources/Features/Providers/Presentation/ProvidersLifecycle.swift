@@ -3,9 +3,7 @@ import SwiftUI
 /// Keeps Providers' choice, custom RPCs, and key preview current while Settings or onboarding is on screen, runs each
 /// change, and presents key entry, deletion confirmations, and failures.
 ///
-/// It attaches to the container that stays on screen while Providers pushes screens: the settings split view, which
-/// merges those pushes into its own stack on compact displays, or onboarding's navigation stack. So a failure to read
-/// the settings can alert on any screen of that container.
+/// Attach it to the container that stays on screen while Providers pushes screens.
 struct ProvidersLifecycle: ViewModifier {
     @Bindable var coordinator: ProvidersCoordinator
 

@@ -37,7 +37,7 @@ nonisolated struct KeychainItem<Coding: ValueCoding>: ValueStoring {
 
     /// Saves a value, replacing any value already saved.
     ///
-    /// A value whose bytes don't decode back to an equal value isn't saved, so a save never writes bytes that this coding can't read back.
+    /// A value whose bytes don't decode back to an equal value isn't saved.
     /// Cancellation doesn't roll back a save that has already reached the Keychain.
     /// - Parameter value: The new value.
     /// - Throws: ``KeychainItemError``, an encoding error, or `CancellationError`.

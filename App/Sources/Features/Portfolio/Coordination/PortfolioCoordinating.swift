@@ -14,7 +14,7 @@ protocol PortfolioCoordinating: AnyObject, Observable {
 
     /// Observes the selected wallet for the lifetime of the calling view task.
     ///
-    /// Use the wallet and scene activity as the view task's identity. Cancellation,
+    /// Restart it whenever the wallet, scene activity, or provider connection changes. Cancellation,
     /// an inactive scene, or a replacement wallet stops observation and manual refreshes.
     /// - Parameters:
     ///   - owner: The selected public address, or `nil` when no wallet is selected.

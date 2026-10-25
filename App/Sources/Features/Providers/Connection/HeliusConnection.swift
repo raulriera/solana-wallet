@@ -1,7 +1,7 @@
 import Foundation
 import RPC
 
-/// Connects the app to Helius, its only DAS provider, with a user-supplied key.
+/// Checks a Helius API key and saves it once Helius accepts it.
 nonisolated struct HeliusConnection: ProviderConnecting {
     typealias EntryError = ProviderConnectionError
 

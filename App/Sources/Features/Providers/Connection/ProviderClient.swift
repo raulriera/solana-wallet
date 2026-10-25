@@ -1,15 +1,11 @@
 import Foundation
 import RPC
 
-/// Sends one network's requests through the RPC provider selected on this device.
+/// Sends one network's requests through the provider saved on this device, reading the choice and Helius's key before
+/// each request.
 ///
-/// Each request and subscription reads the saved choice, and Helius's saved key, so a change made in any
-/// window applies to the next request. Solana's public RPC and Helius serve each network at its own host; Helius
-/// uses the same key on each network. A custom RPC serves mainnet only; on another network it fails instead of
-/// using another provider. Optional capabilities follow the provider's client conformances: without ``LogoProviding``,
-/// logo lookups return nothing; without ``PrivateNoteProviding`` and ``ProofProviding``, private-note reads and proofs
-/// throw ``ProviderClientError/privateNotesUnavailable``. The client for the latest provider is kept to reuse its
-/// connections.
+/// A custom RPC serves only mainnet. Without logo or private-note support, logo lookups return nothing and private-note
+/// calls throw ``ProviderClientError/privateNotesUnavailable``.
 nonisolated struct ProviderClient: RPC, AccountChangeProviding, SignatureEventProviding, LogoProviding,
     PrivateNoteProviding, ProofProviding {
     /// Where requests go, with what the provider needs to accept them.
