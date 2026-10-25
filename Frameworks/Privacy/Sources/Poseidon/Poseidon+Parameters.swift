@@ -4,11 +4,7 @@ import Synchronization
 extension Poseidon {
     /// The round constants and MDS matrix of one state width.
     ///
-    /// The constants come from the Grain LFSR method of the `generate_parameters_grain.sage` script in
-    /// [hadeshash](https://extgit.isec.tugraz.at/krypto/hadeshash), with which light-poseidon generated
-    /// its tables for each width.
-    /// The hadeshash authors have deprecated that script. It is used because Solana Rings fixes
-    /// circom's BN254 x⁵ parameters, which light-poseidon's tables hold.
+    /// Generated with hadeshash's Grain LFSR method, as light-poseidon generates its tables.
     struct Parameters: Sendable {
         /// The full rounds of every width: half before the partial rounds and half after them.
         static let fullRounds = 8

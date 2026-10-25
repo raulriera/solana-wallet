@@ -20,8 +20,8 @@ import Transactions
 ///   if the sender has no output.
 /// - Every output slot's blinding derives from the first nullifier and the blinding seed. Each real
 ///   output's note is sealed with the transaction viewing key and the salt. Outputs with the
-///   sender's view tag, padding included, refer to the fee payer, the sender, for it, as in zolana's
-///   fix #432.
+///   sender's view tag, padding included, refer to the fee payer, the sender, for it, as zolana's
+///   padding owner-tag rule requires.
 ///
 /// Descriptions and reflection omit the amounts, the blindings, and the blinding seed.
 struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
