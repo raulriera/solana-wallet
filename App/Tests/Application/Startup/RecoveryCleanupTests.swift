@@ -1,5 +1,6 @@
 import Foundation
 import Privacy
+import Storage
 import Testing
 import Vault
 @testable import widgets
@@ -15,7 +16,7 @@ struct RecoveryCleanupTests {
         let recovery = StartupRecoveryStore()
         let keys = Self.savedKeys()
         let notes = Self.savedNotes()
-        let cleanup = RecoveryCleanup(accounts: StartupAccountStore { [] }, recovery: recovery,
+        let cleanup = RecoveryCleanup(accounts: StoredValue<[Account]>(), recovery: recovery,
                                       privateBalances: Self.privateBalances(keys: keys, notes: notes, recovery: recovery))
 
         try await withThrowingTaskGroup(of: Void.self) { group in
@@ -36,7 +37,7 @@ struct RecoveryCleanupTests {
         let keys = Self.savedKeys()
         let notes = Self.savedNotes()
         let saved = try [Account.fixture(index: 0)]
-        let cleanup = RecoveryCleanup(accounts: StartupAccountStore { saved }, recovery: recovery,
+        let cleanup = RecoveryCleanup(accounts: StoredValue(saved), recovery: recovery,
                                       privateBalances: Self.privateBalances(keys: keys, notes: notes, recovery: recovery))
 
         try await cleanup.complete()
@@ -53,17 +54,17 @@ struct RecoveryCleanupTests {
         let recovery = StartupRecoveryStore()
         let keys = Self.savedKeys()
         let notes = Self.savedNotes()
-        let reads = Counter()
-        let cleanup = RecoveryCleanup(accounts: StartupAccountStore {
-            guard await reads.next() > 1 else { throw CocoaError(.fileReadNoPermission) }
-            return []
-        }, recovery: recovery, privateBalances: Self.privateBalances(keys: keys, notes: notes, recovery: recovery))
+        let accounts = StoredValue<[Account]>(unreadable: true)
+        let cleanup = RecoveryCleanup(accounts: accounts, recovery: recovery,
+                                      privateBalances: Self.privateBalances(keys: keys, notes: notes, recovery: recovery))
 
-        await #expect(throws: CocoaError.self) { try await cleanup.complete() }
+        await #expect(throws: KeychainItemError.unreadable) { try await cleanup.complete() }
         #expect(await recovery.deletions == 0)
         #expect(await keys.value == [:])
         #expect(await notes.value == Self.notesEntry)
 
+        // Only the test empties the unreadable list, as a person who removed the damaged file would.
+        try await accounts.delete()
         try await cleanup.complete()
         #expect(await recovery.deletions == 1)
         #expect(await keys.value == nil)
@@ -74,7 +75,7 @@ struct RecoveryCleanupTests {
     @Test
     func `A failed deletion is retried`() async throws {
         let recovery = StartupRecoveryStore(error: KeychainStoreError.keychain(status: -1))
-        let cleanup = RecoveryCleanup(accounts: StartupAccountStore { [] }, recovery: recovery,
+        let cleanup = RecoveryCleanup(accounts: StoredValue<[Account]>(), recovery: recovery,
                                       privateBalances: Self.privateBalances(keys: Self.savedKeys(), notes: Self.savedNotes(),
                                                                             recovery: recovery))
 
@@ -111,14 +112,3 @@ struct RecoveryCleanupTests {
     }
 }
 
-/// Counts calls across concurrent tasks.
-private actor Counter {
-    private var value = 0
-
-    /// Increments and returns the new count.
-    /// - Returns: The number of calls so far, including this one.
-    func next() -> Int {
-        value += 1
-        return value
-    }
-}

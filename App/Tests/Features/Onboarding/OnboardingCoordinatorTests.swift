@@ -16,7 +16,7 @@ struct OnboardingCoordinatorTests {
     func `Creating a wallet prepares twelve words without persisting recovery or accounts`() async throws {
         let http = HTTPResponses.discovery()
         let recovery = OnboardingRecoveryStore()
-        let accounts = OnboardingAccountStore(recovery: recovery)
+        let accounts = AccountStore.inMemory()
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator: any OnboardingCoordinating = OnboardingCoordinator(discovery: AccountDiscovery(rpc: http.client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
         try await coordinator.create()
@@ -26,7 +26,7 @@ struct OnboardingCoordinatorTests {
         #expect(router.destination == .onboarding)
         #expect(!coordinator.isWorking)
         #expect(await recovery.saves.isEmpty)
-        #expect(await accounts.additions.isEmpty)
+        #expect(accounts.accounts.isEmpty)
         #expect(await http.requests.isEmpty)
         try coordinator.discard()
         #expect(coordinator.recovery == nil)
@@ -36,7 +36,7 @@ struct OnboardingCoordinatorTests {
     @Test
     func `Explicit completion saves imported recovery before its first account and clears the draft`() async throws {
         let recovery = OnboardingRecoveryStore()
-        let accounts = OnboardingAccountStore(recovery: recovery)
+        let accounts = AccountStore.inMemory()
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
         try await coordinator.importRecovery(Self.phrase, passphrase: "TREZOR")
@@ -49,14 +49,14 @@ struct OnboardingCoordinatorTests {
         #expect(coordinator.recovery == nil)
         #expect(try await coordinator.complete().id == account.id)
         #expect(await recovery.saves == [account.recoveryID])
-        #expect(await accounts.additions.map(\.id) == [account.id])
+        #expect(accounts.accounts.map(\.id) == [account.id])
     }
 
     /// Provider setup follows completion, so the window opens the account only when onboarding finishes.
     @Test
     func `Finishing opens the saved account even after its draft is released`() async throws {
         let recovery = OnboardingRecoveryStore()
-        let accounts = OnboardingAccountStore(recovery: recovery)
+        let accounts = AccountStore.inMemory()
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
         try await coordinator.importRecovery(Self.phrase, passphrase: "TREZOR")
@@ -73,7 +73,7 @@ struct OnboardingCoordinatorTests {
     @Test
     func `Finishing before completion is rejected and keeps the window in onboarding`() async throws {
         let recovery = OnboardingRecoveryStore()
-        let accounts = OnboardingAccountStore(recovery: recovery)
+        let accounts = AccountStore.inMemory()
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
         try await coordinator.importRecovery(Self.phrase, passphrase: "TREZOR")
@@ -88,7 +88,7 @@ struct OnboardingCoordinatorTests {
     @Test
     func `Window drafts preserve passphrase whitespace and cannot clear another window`() async throws {
         let recovery = OnboardingRecoveryStore()
-        let accounts = OnboardingAccountStore(recovery: recovery)
+        let accounts = AccountStore.inMemory()
         let firstRouter = WindowRouter(initialDestination: .onboarding)
         let secondRouter = WindowRouter(initialDestination: .onboarding)
         let first = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: firstRouter)
@@ -107,7 +107,7 @@ struct OnboardingCoordinatorTests {
     func `Invalid recovery reports validation without storing supplied text`() async throws {
         let http = HTTPResponses.discovery()
         let recovery = OnboardingRecoveryStore()
-        let accounts = OnboardingAccountStore(recovery: recovery)
+        let accounts = AccountStore.inMemory()
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: http.client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
         await #expect(throws: RecoveryPhrase.ValidationError.invalidWordCount) {
@@ -117,7 +117,7 @@ struct OnboardingCoordinatorTests {
         #expect(coordinator.account == nil)
         #expect(router.destination == .onboarding)
         #expect(await recovery.saves.isEmpty)
-        #expect(await accounts.additions.isEmpty)
+        #expect(accounts.accounts.isEmpty)
         #expect(await http.requests.isEmpty)
     }
 
@@ -125,7 +125,7 @@ struct OnboardingCoordinatorTests {
     @Test
     func `Completion requires a draft and preparing again cannot replace one`() async throws {
         let recovery = OnboardingRecoveryStore()
-        let accounts = OnboardingAccountStore(recovery: recovery)
+        let accounts = AccountStore.inMemory()
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
         await #expect(throws: OnboardingCoordinatorError.draftRequired) { try await coordinator.complete() }
@@ -139,7 +139,7 @@ struct OnboardingCoordinatorTests {
     @Test
     func `Preparation errors do not expose underlying secret text`() async throws {
         let recovery = OnboardingRecoveryStore()
-        let accounts = OnboardingAccountStore(recovery: recovery)
+        let accounts = AccountStore.inMemory()
         let error = NSError(domain: "private-recovery-marker", code: 1)
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: OnboardingWallet(error: error), recovery: recovery, accounts: accounts, router: router)
@@ -155,7 +155,7 @@ struct OnboardingCoordinatorTests {
     func `Cancelling preparation rejects a late derived address without publishing recovery`() async throws {
         let gate = Suspension()
         let recovery = OnboardingRecoveryStore()
-        let accounts = OnboardingAccountStore(recovery: recovery)
+        let accounts = AccountStore.inMemory()
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: OnboardingWallet(gate: gate), recovery: recovery, accounts: accounts, router: router)
         let operation = Task { try await coordinator.importRecovery(Self.phrase, passphrase: "") }
@@ -169,6 +169,6 @@ struct OnboardingCoordinatorTests {
         #expect(coordinator.recovery == nil)
         #expect(!coordinator.isWorking)
         #expect(await recovery.saves.isEmpty)
-        #expect(await accounts.additions.isEmpty)
+        #expect(accounts.accounts.isEmpty)
     }
 }

@@ -13,7 +13,7 @@ struct OnboardingNavigationTests {
     func `Back from phrase entry ends an in-flight import before task cancellation`() async throws {
         let gate = Suspension()
         let recovery = OnboardingRecoveryStore()
-        let accounts = OnboardingAccountStore(recovery: recovery)
+        let accounts = AccountStore.inMemory()
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery(gate: gate).client),
                                                 wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
@@ -35,7 +35,7 @@ struct OnboardingNavigationTests {
         #expect(coordinator.recovery == nil)
         #expect(coordinator.account == nil)
         #expect(await recovery.saves.isEmpty)
-        #expect(await accounts.additions.isEmpty)
+        #expect(accounts.accounts.isEmpty)
     }
 
     /// The provider choice's pushed screens show above onboarding's steps, and Back from them leaves those steps.
@@ -68,7 +68,7 @@ struct OnboardingNavigationTests {
         let recovery = OnboardingRecoveryStore()
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client),
                                                 wallet: Wallet(), recovery: recovery,
-                                                accounts: OnboardingAccountStore(recovery: recovery),
+                                                accounts: AccountStore.inMemory(),
                                                 router: WindowRouter(initialDestination: .onboarding))
         return ImportWalletModel(coordinator: coordinator)
     }

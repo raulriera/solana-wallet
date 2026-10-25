@@ -25,4 +25,19 @@ nonisolated struct Account: Sendable, Equatable {
         self.address = address
         self.path = path
     }
+
+    /// The account's name, numbered from 1 by its account index as Phantom does, such as Account 2 for
+    /// `m/44'/501'/1'/0'`, or its path when the path is outside the Solana account families.
+    var name: String {
+        guard let index = path.accountIndex else { return path.description }
+        return String(localized: "Account \(Int(index) + 1)", comment: "A wallet account's name, numbered from 1.")
+    }
+
+    /// Whether another account can't be saved beside this one: it has the same identity or address, or the same
+    /// recovery and path.
+    /// - Parameter other: Another account.
+    /// - Returns: `true` when the accounts share an identity, an address, or a recovery and path.
+    func isDuplicate(of other: Account) -> Bool {
+        id == other.id || address == other.address || (recoveryID == other.recoveryID && path == other.path)
+    }
 }

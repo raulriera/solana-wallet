@@ -19,7 +19,7 @@ struct ProviderChoiceScreenTests {
         let providers = ProvidersCoordinator.inMemory(settings: settings, providerKey: StoredValue())
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client),
                                                 wallet: Wallet(), recovery: recovery,
-                                                accounts: OnboardingAccountStore(recovery: recovery), router: router)
+                                                accounts: AccountStore.inMemory(), router: router)
         let scene = OnboardingScene(coordinator: coordinator, providers: providers, pasteboard: NoPasteboard())
         let hosted = try HostedWindow(scene.onboardingLifecycle())
         defer { hosted.close() }

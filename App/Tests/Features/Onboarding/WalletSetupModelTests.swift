@@ -109,7 +109,7 @@ struct WalletSetupModelTests {
     /// A save that fails keeps the words for another try, and confirming again saves the wallet.
     @Test
     func `A failed save keeps the words for another try`() async {
-        let fixture = Fixture(accountError: OnboardingCoordinatorError.accountStorageFailed)
+        let fixture = Fixture(accounts: StoredValue(failsSaving: true))
         let setup = fixture.setup
         setup.create()
         await setup.prepare(setup.creation)
@@ -120,6 +120,7 @@ struct WalletSetupModelTests {
         #expect(fixture.coordinator.recovery != nil)
         #expect(fixture.coordinator.account == nil)
 
+        await fixture.accounts.failSaving(false)
         setup.save()
         #expect(setup.error == nil)
         await setup.complete(setup.completion)
@@ -206,6 +207,7 @@ struct WalletSetupModelTests {
     @MainActor
     private struct Fixture {
         let recovery: OnboardingRecoveryStore
+        let accounts: StoredValue<[widgets.Account]>
         let router: WindowRouter
         let providers: ProvidersCoordinator
         let coordinator: OnboardingCoordinator
@@ -215,15 +217,16 @@ struct WalletSetupModelTests {
         /// - Parameters:
         ///   - wallet: Generates and derives the new wallet.
         ///   - recoveryGate: A pause during the first recovery save, which returns once its task is cancelled.
-        ///   - accountError: The first account save's scripted error.
-        init(wallet: any WalletProviding = Wallet(), recoveryGate: Suspension? = nil, accountError: (any Error)? = nil) {
+        ///   - accounts: The saved accounts' storage.
+        init(wallet: any WalletProviding = Wallet(), recoveryGate: Suspension? = nil,
+             accounts: StoredValue<[widgets.Account]> = StoredValue()) {
             recovery = OnboardingRecoveryStore(gate: recoveryGate)
+            self.accounts = accounts
             router = WindowRouter(initialDestination: .onboarding)
             providers = ProvidersCoordinator.inMemory(settings: StoredValue(), providerKey: StoredValue())
             coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client),
                                                 wallet: wallet, recovery: recovery,
-                                                accounts: OnboardingAccountStore(recovery: recovery,
-                                                                                 firstError: accountError),
+                                                accounts: .inMemory(accounts),
                                                 router: router)
             setup = WalletSetupModel(coordinator: coordinator, providers: providers)
         }

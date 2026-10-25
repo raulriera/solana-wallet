@@ -1,4 +1,5 @@
 import Foundation
+import Storage
 import Testing
 @testable import widgets
 
@@ -9,7 +10,7 @@ struct AppResetTests {
     /// Secrets go first, the directories before appearance forgets them, and every window hears about the reset only once
     /// everything is deleted.
     @Test
-    func `Reset deletes recovery, private balances, the directories, appearance, contacts, the API key, then the provider settings`() async throws {
+    func `Reset deletes recovery, private balances, the directories, appearance, contacts, accounts, the API key, then the provider settings`() async throws {
         let storage = ResetStorage()
         defer { try? FileManager.default.removeItem(at: storage.directory) }
         try createFile(in: storage.directory)
@@ -18,7 +19,7 @@ struct AppResetTests {
         try await AppReset(storage: storage, revision: revision).reset()
 
         #expect(await storage.deletions == ResetStorage.Step.allCases)
-        #expect(await storage.directoryExisted == [true, true, false, false, false, false])
+        #expect(await storage.directoryExisted == [true, true, false, false, false, false, false])
         #expect(revision.value == 1)
     }
 
@@ -73,6 +74,20 @@ struct AppResetTests {
 
         #expect(contacts.addressBook == AddressBook())
         #expect(await addressBook.value == nil)
+    }
+
+    /// Windows that show the shared accounts forget them once the reset finishes.
+    @Test
+    func `Reset empties the accounts that windows show`() async throws {
+        let saved = StoredValue([try Account.fixture(index: 0)])
+        let accounts = AccountStore.inMemory(saved)
+        await accounts.load()
+
+        try await AppReset(storage: ResetStorage(), accounts: accounts, revision: Revision()).reset()
+
+        #expect(accounts.accounts.isEmpty)
+        #expect(accounts.phase == .loaded)
+        #expect(await saved.value == nil)
     }
 
     /// Saves one file in a directory, creating the directory.

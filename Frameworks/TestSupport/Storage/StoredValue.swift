@@ -59,9 +59,10 @@ actor StoredValue<Value: Equatable & Sendable> {
         failsLoading = true
     }
 
-    /// Makes later saves throw, as storage that stops accepting writes does.
-    func failSaving() {
-        failsSaving = true
+    /// Makes later saves throw, as storage that stops accepting writes does, or succeed again.
+    /// - Parameter fails: Whether later saves throw.
+    func failSaving(_ fails: Bool = true) {
+        failsSaving = fails
     }
 
     /// Makes the kept bytes unreadable, as a damaged Keychain item's are, until a save or deletion replaces them.

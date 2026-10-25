@@ -9,7 +9,7 @@ extension ImportWalletModelTests {
     @Test
     func `Late disappearance from a previous presentation cannot cancel the next import`() async throws {
         let recovery = OnboardingRecoveryStore()
-        let accounts = OnboardingAccountStore(recovery: recovery)
+        let accounts = AccountStore.inMemory()
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
         let submission = ImportWalletModel(coordinator: coordinator)
@@ -35,7 +35,7 @@ extension ImportWalletModelTests {
         let gate = Suspension()
         let http = HTTPResponses.discovery(gate: gate)
         let recovery = OnboardingRecoveryStore()
-        let accounts = OnboardingAccountStore(recovery: recovery)
+        let accounts = AccountStore.inMemory()
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: http.client), wallet: Wallet(), recovery: recovery,
                                                 accounts: accounts, router: router)
@@ -70,7 +70,7 @@ extension ImportWalletModelTests {
     func `Back during recovery persistence preserves its write and releases only the draft`() async throws {
         let gate = Suspension()
         let recovery = OnboardingRecoveryStore(gate: gate)
-        let accounts = OnboardingAccountStore(recovery: recovery)
+        let accounts = AccountStore.inMemory()
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
         let submission = ImportWalletModel(coordinator: coordinator)
@@ -87,7 +87,7 @@ extension ImportWalletModelTests {
         await operation.value
 
         #expect(await recovery.contains(retainedID))
-        #expect(await accounts.additions.isEmpty)
+        #expect(accounts.accounts.isEmpty)
         #expect(coordinator.recovery == nil)
         #expect(submission.error == nil)
         #expect(router.destination == .onboarding)
@@ -97,7 +97,7 @@ extension ImportWalletModelTests {
     @Test
     func `Cancelled authentication retains the prepared import for an explicit retry`() async throws {
         let recovery = OnboardingRecoveryStore(firstError: CancellationError(), commitBeforeError: true)
-        let accounts = OnboardingAccountStore(recovery: recovery)
+        let accounts = AccountStore.inMemory()
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
         let submission = ImportWalletModel(coordinator: coordinator)
@@ -113,7 +113,7 @@ extension ImportWalletModelTests {
 
         #expect(coordinator.account?.recoveryID == retainedID)
         #expect(await recovery.reads == [retainedID])
-        #expect(await accounts.records.count == 1)
+        #expect(accounts.accounts.count == 1)
     }
 
     /// Leaving after commit cannot turn saved onboarding into a failure, lose its account, or affect another window.
@@ -121,7 +121,7 @@ extension ImportWalletModelTests {
     func `Late cancellation keeps the saved account and another windows prepared draft`() async throws {
         let gate = Suspension()
         let recovery = OnboardingRecoveryStore()
-        let accounts = OnboardingAccountStore(recovery: recovery, gate: gate)
+        let accounts = AccountStore.inMemory(StoredValue(gate: gate))
         let router = WindowRouter(initialDestination: .onboarding)
         let otherRouter = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
@@ -137,9 +137,11 @@ extension ImportWalletModelTests {
 
         submission.isPresented = false
         operation.cancel()
+        // Cancellation doesn't stop a save that started, so the saved account waits only for the storage.
+        gate.resume()
         await operation.value
 
-        let account = try #require(await accounts.records.first)
+        let account = try #require(accounts.accounts.first)
         #expect(coordinator.account?.id == account.id)
         #expect(await recovery.contains(account.recoveryID))
         #expect(submission.error == nil)

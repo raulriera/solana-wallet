@@ -7,7 +7,7 @@ import Vault
 /// at each one, optionally failing one step once.
 actor ResetStorage: RecoveryStoring {
     /// A store that a reset empties; the cases are in the order a reset empties them.
-    nonisolated enum Step: String, Sendable, CaseIterable { case recovery, privateBalances, appearance, contacts, key, settings }
+    nonisolated enum Step: String, Sendable, CaseIterable { case recovery, privateBalances, appearance, contacts, accounts, key, settings }
 
     /// The test's own directory, which stands in for the app's kept and cached files.
     nonisolated let directory = URL.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
@@ -34,6 +34,11 @@ actor ResetStorage: RecoveryStoring {
 
     /// The shared contacts, whose erasure this storage records.
     @MainActor var contacts: ContactStore { ContactStore(storage: ResetValue<AddressBook>(storage: self, step: .contacts)) }
+
+    /// The shared accounts, whose erasure this storage records.
+    @MainActor var accounts: AccountStore {
+        AccountStore(storage: ResetValue<[Account]>(storage: self, step: .accounts), cleanup: StartupRecoveryCleanup())
+    }
 
     /// The provider's API key, whose deletion this storage records.
     nonisolated var key: ResetValue<String> { ResetValue(storage: self, step: .key) }
@@ -80,10 +85,12 @@ extension AppReset {
     /// - Parameters:
     ///   - storage: The storage that records every reset step.
     ///   - contacts: The shared contacts, or `nil` for contacts whose erasure the storage records.
+    ///   - accounts: The shared accounts, or `nil` for accounts whose erasure the storage records.
     ///   - revision: Tells every window when the reset finishes.
-    init(storage: ResetStorage, contacts: ContactStore? = nil, revision: Revision) {
+    init(storage: ResetStorage, contacts: ContactStore? = nil, accounts: AccountStore? = nil, revision: Revision) {
         self.init(recovery: storage, privateBalances: storage.privateBalances, directories: [storage.directory],
-                  appearance: storage.appearance, contacts: contacts ?? storage.contacts, providerKey: storage.key, providerSettings: storage.settings,
+                  appearance: storage.appearance, contacts: contacts ?? storage.contacts,
+                  accounts: accounts ?? storage.accounts, providerKey: storage.key, providerSettings: storage.settings,
                   revision: revision)
     }
 }

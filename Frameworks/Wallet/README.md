@@ -22,7 +22,7 @@ let accounts = try await service.accounts(
 
 - `recoveryPhrase(wordCount:)` generates 12, 15, 18, 21, or 24 words. `RecoveryPhrase` validates imported words and their checksum.
 - `accounts(for:passphrase:paths:)` derives addresses using one temporary seed, preserving the requested order and duplicates.
-- `DerivationPath.solana` is `m/44'/501'/0'/0'`. Other hardened SLIP-0010 paths can be parsed with `DerivationPath(_:)`.
+- `DerivationPath.solana` is `m/44'/501'/0'/0'`. Other hardened SLIP-0010 paths can be parsed with `DerivationPath(_:)`. `accountIndex` gives the account index i of a path in either Solana family, `m/44'/501'/i'/0'` or `m/44'/501'/i'`.
 - `signature(for:using:expectedAddress:passphrase:path:)` signs exact message bytes after checking that the recovered account matches the expected address. It returns a 64-byte signature or throws; it does not interpret the message, but refuses Solana Rings key derivation inputs with `SigningError.reservedMessage`: messages that start with `TSPP/derive/`, bare or as the payload of a Solana off-chain message version 0.
 
 ## Private-balance keys

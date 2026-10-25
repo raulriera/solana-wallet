@@ -23,4 +23,10 @@ nonisolated struct Contact: Identifiable, Hashable, Codable, Sendable {
         self.address = address
         self.isFavorite = isFavorite
     }
+
+    /// Saves one of the wallet's accounts under its name, keeping the account's identity.
+    /// - Parameter account: The account.
+    init(_ account: Account) {
+        self.init(id: account.id, name: account.name, address: account.address)
+    }
 }

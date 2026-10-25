@@ -1,126 +1,107 @@
 import Foundation
-import Synchronization
-import Transactions
-import Wallet
+import Observation
+import Storage
 
-/// Serializes local account metadata reads and atomic writes across app windows.
-nonisolated struct AccountStore: AccountStoring {
-    /// Filesystem work that can check cancellation before committing a write.
-    private typealias Operation<Value: Sendable> = @Sendable (_ checkCancellation: () throws -> Void) throws -> Value
+/// The saved accounts that every window shares, so an account saved in one window shows in the others at once.
+///
+/// The store reads nothing until ``load()``, whose read first finishes the launch cleanup of recovery that no saved
+/// account references. Each addition shows at once and saves after the additions made before it; an addition that can't
+/// be saved is undone and throws.
+@MainActor
+@Observable
+final class AccountStore {
+    private let list: PersistentValue<[Account]>
 
-    private let directory: URL
-    private var file: URL { directory.appendingPathComponent("accounts.json") }
-    private static let queue = DispatchQueue(label: "AccountStore.IO", qos: .utility)
-
-    /// Configures local storage without creating directories or reading account data.
-    /// - Parameter directory: The app-private directory containing account metadata.
-    init(directory: URL = .persistentDirectory.appending(path: "Accounts", directoryHint: .isDirectory)) {
-        self.directory = directory
+    /// Connects to the storage that keeps the accounts, without reading it or running the cleanup.
+    /// - Parameters:
+    ///   - storage: The storage that keeps the accounts.
+    ///   - cleanup: The launch cleanup, which reads the same storage before it deletes unreferenced recovery.
+    init(storage: any ValueStoring<[Account]>, cleanup: any RecoveryCleaning) {
+        list = PersistentValue(storage: CleanedUpStorage(storage: storage, cleanup: cleanup), empty: [])
     }
 
-    /// Loads validated public metadata without accessing Vault.
-    /// - Returns: The saved accounts, or an empty list when the file doesn't exist.
-    /// - Throws: A storage, decoding, validation, or cancellation error.
-    func load() async throws -> [Account] {
-        try await perform { checkCancellation in
-            let accounts = try read()
-            try checkCancellation()
-            return accounts
+    /// The file that keeps the accounts in a directory.
+    /// - Parameter directory: The directory that keeps the Accounts files.
+    /// - Returns: The accounts file, which isn't created or read yet.
+    nonisolated static func file(in directory: URL) -> FileItem<AccountsCoding> {
+        FileItem(url: directory.appending(path: "accounts.json"), coding: .accounts)
+    }
+
+    /// The saved accounts with every addition made so far, in the order they were added, or an empty list before
+    /// they're read.
+    var accounts: [Account] { list.value }
+
+    /// Whether the saved accounts were read; a failed launch cleanup also leaves them unreadable, so no window opens
+    /// onboarding over recovery that wasn't deleted.
+    var phase: PersistentValuePhase { list.phase }
+
+    /// Finishes the launch cleanup and reads the saved accounts, unless they were already read, and returns once the
+    /// additions made before this call are saved or undone.
+    ///
+    /// A failed cleanup or read sets ``phase`` to ``PersistentValuePhase/unreadable``; nothing saved is deleted or
+    /// replaced, so calling this method again tries again.
+    func load() async {
+        await list.load()
+    }
+
+    /// Saves an account after the saved ones.
+    /// - Parameter account: The account, whose recovery is already saved.
+    /// - Throws: ``AccountStoreError/duplicateAccount`` when an account with the same identity, address, or recovery
+    ///   and path is saved, or a storage error after undoing the addition.
+    func add(_ account: Account) async throws {
+        guard !accounts.contains(where: { $0.isDuplicate(of: account) }) else {
+            throw AccountStoreError.duplicateAccount
         }
+        try await list.update { $0.append(account) }
     }
 
-    /// Reads the latest list and commits one addition on the shared I/O queue.
-    /// - Parameter account: Public metadata with a retained recovery identifier.
-    /// - Returns: The committed list, including when cancellation follows the write.
-    /// - Throws: A duplicate, storage, validation, or pre-commit cancellation error.
-    func add(_ account: Account) async throws -> [Account] {
-        try await perform { checkCancellation in
-            let accounts = try read() + [account]
-            try Self.validate(accounts)
-            let data = try JSONEncoder().encode(accounts.map(Record.init))
-            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            try checkCancellation()
-            // Addresses stay unreadable while the device is locked; the app only writes in the foreground.
-            try data.write(to: file, options: [.atomic, .completeFileProtection])
-            return accounts
-        }
+    /// The saved accounts of a wallet.
+    /// - Parameter recoveryID: The wallet's recovery identifier.
+    /// - Returns: The wallet's accounts, in the order they were added.
+    func accounts(inWallet recoveryID: UUID) -> [Account] {
+        accounts.filter { $0.recoveryID == recoveryID }
     }
 
-    /// Reads one complete file; malformed data and nonregular files are never reset.
-    /// - Returns: The decoded and validated accounts.
-    /// - Throws: A filesystem, decoding, or account validation error.
-    private func read() throws -> [Account] {
-        do {
-            let values = try file.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey])
-            guard values.isRegularFile == true, values.isSymbolicLink != true else { throw AccountStoreError.invalidStorage }
-        } catch CocoaError.fileReadNoSuchFile { return [] }
-        let accounts = try JSONDecoder().decode([Record].self, from: Data(contentsOf: file)).map { try $0.account() }
-        try Self.validate(accounts)
-        return accounts
+    /// Deletes the saved accounts after the additions made before it, so every window forgets them.
+    /// - Throws: A storage error, which keeps the accounts.
+    func erase() async throws {
+        try await list.erase()
     }
 
-    /// Checks unique identities before accepting a complete list.
-    /// - Parameter accounts: The full loaded or proposed list.
-    /// - Throws: ``AccountStoreError/duplicateAccount``.
-    private static func validate(_ accounts: [Account]) throws {
-        var ids: Set<UUID> = []
-        var addresses: Set<Address> = []
-        var paths: [UUID: Set<String>] = [:]
-        for account in accounts {
-            guard ids.insert(account.id).inserted,
-                  addresses.insert(account.address).inserted,
-                  paths[account.recoveryID, default: []].insert(account.path.description).inserted else {
-                throw AccountStoreError.duplicateAccount
-            }
-        }
-    }
+    /// The accounts' storage, whose reads wait for the launch cleanup, so the cleanup counts as part of reading.
+    nonisolated private struct CleanedUpStorage: ValueStoring {
+        let storage: any ValueStoring<[Account]>
+        let cleanup: any RecoveryCleaning
 
-    /// Suspends while the serial queue performs a complete filesystem operation.
-    /// - Parameter operation: Synchronous work that checks cancellation before committing.
-    /// - Returns: The operation's result without discarding an already committed write.
-    /// - Throws: The operation's error or cancellation before its commit point.
-    private func perform<Value: Sendable>(
-        _ operation: @escaping Operation<Value>
-    ) async throws -> Value {
-        let cancelled = Mutex(false)
-        return try await withTaskCancellationHandler {
-            try Task.checkCancellation()
-            return try await withCheckedThrowingContinuation { continuation in
-                Self.queue.async {
-                    let result = autoreleasepool {
-                        Result {
-                            let check = { if cancelled.withLock({ $0 }) { throw CancellationError() } }
-                            try check()
-                            return try operation(check)
-                        }
-                    }
-                    continuation.resume(with: result)
-                }
-            }
-        } onCancel: { cancelled.withLock { $0 = true } }
-    }
-
-    /// The public metadata fields written to disk; recovery secrets have no representation here.
-    private struct Record: Codable {
-        let id: UUID
-        let recoveryID: UUID
-        let address: String
-        let path: String
-
-        /// Copies public account metadata into its storage representation.
-        /// - Parameter account: The validated account to encode.
-        init(_ account: Account) {
-            id = account.id
-            recoveryID = account.recoveryID
-            address = account.address.value
-            path = account.path.description
+        /// Finishes the launch cleanup, then reads the saved accounts.
+        /// - Returns: The accounts, or `nil` before any are saved.
+        /// - Throws: A cleanup, storage, or cancellation error.
+        func load() async throws -> [Account]? {
+            try await cleanup.complete()
+            return try await storage.load()
         }
 
-        /// Reconstructs an account through the address validation boundary.
-        /// - Returns: Typed account metadata for subsequent list validation.
-        /// - Throws: An address or derivation-path validation error.
-        func account() throws -> Account {
-            Account(id: id, recoveryID: recoveryID, address: try Address(address), path: try DerivationPath(path))
+        /// Saves the accounts, replacing the saved ones.
+        /// - Parameter value: The accounts.
+        /// - Throws: A storage or cancellation error.
+        func save(_ value: [Account]) async throws {
+            try await storage.save(value)
+        }
+
+        /// Deletes the saved accounts.
+        /// - Throws: A storage or cancellation error.
+        func delete() async throws {
+            try await storage.delete()
+        }
+
+        /// Reads, changes, and saves the accounts in one step.
+        /// - Parameter change: Changes the saved accounts.
+        /// - Returns: The change's result.
+        /// - Throws: The change's error, or a storage or cancellation error.
+        func update<Result: Sendable>(
+            _ change: @escaping @Sendable (inout [Account]?) throws -> Result
+        ) async throws -> Result {
+            try await storage.update(change)
         }
     }
 }

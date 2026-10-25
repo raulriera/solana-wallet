@@ -15,8 +15,7 @@ struct WindowRestorationTests {
     func `A window that finds no saved wallet starts over on Mainnet and its portfolio`() async throws {
         let choices = WindowChoices(network: .devnet, section: .settings)
         let router = WindowRouter(initialDestination: .restoringWallets)
-        let startup = WindowStartup(accounts: StartupAccountStore { [] }, cleanup: StartupRecoveryCleanup(),
-                                    router: router)
+        let startup = WindowStartup(accounts: .inMemory(), router: router)
         let hosted = try HostedWindow(WindowRestorationRoot(choices: choices, startup: startup, router: router))
         defer { hosted.close() }
         // Closing the window before it finishes appearing would interrupt UIKit's appearance transition.
@@ -37,8 +36,7 @@ struct WindowRestorationTests {
         let choices = WindowChoices(network: .devnet, section: .settings)
         // A window that already shows a wallet keeps it, so startup changes nothing before the reset.
         let router = WindowRouter(initialDestination: .wallet(account))
-        let startup = WindowStartup(accounts: StartupAccountStore { [account] }, cleanup: StartupRecoveryCleanup(),
-                                    router: router)
+        let startup = WindowStartup(accounts: .inMemory(StoredValue([account])), router: router)
         let hosted = try HostedWindow(WindowRestorationRoot(choices: choices, startup: startup, router: router))
         defer { hosted.close() }
         try #require(try await hosted.appears())

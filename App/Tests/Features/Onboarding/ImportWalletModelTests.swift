@@ -16,7 +16,7 @@ struct ImportWalletModelTests {
     @Test
     func `Repeated submission and task evaluation complete one accepted import`() async throws {
         let recovery = OnboardingRecoveryStore()
-        let accounts = OnboardingAccountStore(recovery: recovery)
+        let accounts = AccountStore.inMemory()
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
         let submission = ImportWalletModel(coordinator: coordinator)
@@ -39,7 +39,7 @@ struct ImportWalletModelTests {
         #expect(saved.passphrase == " TrEzOr ")
         #expect(router.destination == .onboarding)
         #expect(await recovery.saves.count == 1)
-        #expect(await accounts.additions.count == 1)
+        #expect(accounts.accounts.count == 1)
         #expect(!screen.isPending)
         #expect(submission.error == nil)
     }
@@ -49,26 +49,27 @@ struct ImportWalletModelTests {
     func `Persistence retry keeps the draft identity and skips committed recovery`() async throws {
         let http = HTTPResponses.discovery(fundedOffsets: [1])
         let recovery = OnboardingRecoveryStore()
-        let accounts = OnboardingAccountStore(recovery: recovery, firstError: OnboardingCoordinatorError.accountStorageFailed)
+        let storage = StoredValue<[widgets.Account]>(failsSaving: true)
         let router = WindowRouter(initialDestination: .onboarding)
-        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: http.client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: http.client), wallet: Wallet(), recovery: recovery, accounts: .inMemory(storage), router: router)
         let submission = ImportWalletModel(coordinator: coordinator)
         submission.present()
         submission.submit(Self.phrase, passphrase: "TREZOR")
         await submission.run(submission.attempt)
         #expect(submission.error == .saveFailed)
         #expect(router.destination == .onboarding)
-        let firstAccount = try #require(await accounts.additions.first)
+        let recoveryID = try #require(await recovery.saves.first)
 
+        await storage.failSaving(false)
         submission.submit("  " + Self.phrase.replacingOccurrences(of: " ", with: "\n") + "  ", passphrase: "TREZOR")
         #expect(submission.error == nil)
         await submission.run(submission.attempt)
 
-        #expect(coordinator.account?.id == firstAccount.id)
-        #expect(await recovery.saves == [firstAccount.recoveryID])
-        #expect(await accounts.records.count == 1)
-        #expect(coordinator.account?.path == firstAccount.path)
-        #expect(firstAccount.path.description == "m/44'/501'/0'")
+        let account = try #require(coordinator.account)
+        #expect(account.recoveryID == recoveryID)
+        #expect(await recovery.saves == [recoveryID])
+        #expect(await storage.value == [account])
+        #expect(account.path.description == "m/44'/501'/0'")
         #expect(await http.requests.count == 1)
     }
 
@@ -77,22 +78,22 @@ struct ImportWalletModelTests {
     @Test(arguments: ["trezor", " TREZOR "])
     func `Changed input starts a new import while retaining previously saved recovery`(passphrase: String) async throws {
         let recovery = OnboardingRecoveryStore()
-        let accounts = OnboardingAccountStore(recovery: recovery, firstError: OnboardingCoordinatorError.accountStorageFailed)
+        let storage = StoredValue<[widgets.Account]>(failsSaving: true)
         let router = WindowRouter(initialDestination: .onboarding)
-        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: .inMemory(storage), router: router)
         let submission = ImportWalletModel(coordinator: coordinator)
         submission.present()
         submission.submit(Self.phrase, passphrase: "TREZOR")
         await submission.run(submission.attempt)
-        let original = try #require(await accounts.additions.first)
+        let original = try #require(await recovery.saves.first)
 
+        await storage.failSaving(false)
         submission.submit(Self.phrase, passphrase: passphrase)
         await submission.run(submission.attempt)
 
         let imported = try #require(coordinator.account)
-        #expect(imported.id != original.id)
-        #expect(imported.recoveryID != original.recoveryID)
-        #expect(await recovery.contains(original.recoveryID))
+        #expect(imported.recoveryID != original)
+        #expect(await recovery.contains(original))
         #expect(await recovery.contains(imported.recoveryID))
         let saved = try await recovery.recovery(for: imported.recoveryID, reason: "Read public test fixture")
         #expect(saved.passphrase == passphrase)
@@ -102,7 +103,7 @@ struct ImportWalletModelTests {
     @Test
     func `Preparation failure permits another explicit attempt without saving anything`() async throws {
         let recovery = OnboardingRecoveryStore()
-        let accounts = OnboardingAccountStore(recovery: recovery)
+        let accounts = AccountStore.inMemory()
         let router = WindowRouter(initialDestination: .onboarding)
         let wallet = OnboardingWallet(error: NSError(domain: "private-marker", code: 1))
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: wallet, recovery: recovery, accounts: accounts, router: router)
@@ -121,7 +122,7 @@ struct ImportWalletModelTests {
         #expect(submission.error == nil)
         await submission.run(submission.attempt)
         #expect(await recovery.saves.isEmpty)
-        #expect(await accounts.additions.isEmpty)
+        #expect(accounts.accounts.isEmpty)
     }
 
     /// A rate-limited account lookup says so, so the person waits before trying again.
@@ -129,7 +130,7 @@ struct ImportWalletModelTests {
     func `A rate-limited account lookup explains the limit`() async {
         let http = HTTPResponses.discovery(error: .http(statusCode: 429, retryAfter: "3"))
         let recovery = OnboardingRecoveryStore()
-        let accounts = OnboardingAccountStore(recovery: recovery)
+        let accounts = AccountStore.inMemory()
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: http.client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
         let submission = ImportWalletModel(coordinator: coordinator)
@@ -147,7 +148,7 @@ struct ImportWalletModelTests {
     @Test
     func `Back before the task starts prevents preparation and allows a fresh presentation`() async throws {
         let recovery = OnboardingRecoveryStore()
-        let accounts = OnboardingAccountStore(recovery: recovery)
+        let accounts = AccountStore.inMemory()
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
         let submission = ImportWalletModel(coordinator: coordinator)

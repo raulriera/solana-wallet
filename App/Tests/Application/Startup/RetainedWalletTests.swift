@@ -1,4 +1,5 @@
 import Foundation
+import Storage
 import Testing
 import Transactions
 import Vault
@@ -10,7 +11,8 @@ struct RetainedWalletTests {
     /// Existing recovery must still derive every saved account without generating replacement material.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["VERIFY_RETAINED_WALLET"] == "1"))
     func `Saved wallets remain recoverable after an app update`() async throws {
-        let accounts = try await AccountStore().load()
+        let file = AccountStore.file(in: .persistentDirectory.appending(path: "Accounts", directoryHint: .isDirectory))
+        let accounts = try await file.load() ?? []
         try #require(!accounts.isEmpty, "This check requires a retained wallet")
         let store = KeychainStore(service: "com.raulriera.widgets.recovery")
         for account in accounts {

@@ -2,6 +2,7 @@ import Foundation
 import Observation
 import RPC
 import Testing
+import Wallet
 @testable import Transactions
 @testable import widgets
 
@@ -104,6 +105,36 @@ struct ContactsModelTests {
         #expect(!contacts[isFavorite: savings])
         #expect(contacts[isFavorite: bruno])
         #expect(contacts.favorites.map(\.name) == ["Alice", "bruno"])
+    }
+
+    /// The wallet's other saved accounts are listed under their names, without other wallets' accounts, and one can be
+    /// a favorite.
+    @Test func `The wallet's other saved accounts are listed`() async throws {
+        let main = widgets.Account(id: UUID(), recoveryID: ContactsFixtures.wallet, address: ContactsFixtures.sending,
+                                   path: .solana)
+        let savings = widgets.Account(id: UUID(), recoveryID: ContactsFixtures.wallet, address: ContactsFixtures.savings,
+                                      path: try DerivationPath("m/44'/501'/1'/0'"))
+        let otherWallet = widgets.Account(id: UUID(), recoveryID: UUID(), address: ContactsFixtures.bruno, path: .solana)
+        let accounts = AccountStore.inMemory(StoredValue([main, otherWallet, savings]))
+        await accounts.load()
+        let addressBook = StoredValue<AddressBook>()
+        let contacts = ContactsModel(sendingAccount: main.address, wallet: ContactsFixtures.wallet, network: .mainnet,
+                                     accounts: accounts.accounts(inWallet: ContactsFixtures.wallet).map(Contact.init),
+                                     store: ContactsFixtures.store(addressBook),
+                                     services: ContactsFixtures.services(recents: StoredValue()))
+        await contacts.load()
+
+        let listed = try #require(contacts.accounts.first)
+        #expect(contacts.accounts.count == 1)
+        #expect(listed.id == savings.id)
+        #expect(listed.address == ContactsFixtures.savings)
+        #expect(listed.name == "Account 2")
+
+        contacts[isFavorite: listed] = true
+        await contacts.load()
+
+        #expect(contacts.favorites.map(\.address) == [ContactsFixtures.savings])
+        #expect(await addressBook.value?.favoriteAccounts == [ContactsFixtures.savings])
     }
 
     /// A wallet with only its sending account and no contacts or payments has no one to list.

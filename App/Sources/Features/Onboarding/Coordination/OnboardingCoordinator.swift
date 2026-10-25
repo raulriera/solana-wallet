@@ -16,7 +16,7 @@ final class OnboardingCoordinator: OnboardingCoordinating {
     private let wallet: any WalletProviding
     private let discovery: any AccountDiscovering
     private let recoveryStore: any RecoveryStoring
-    private let accountStore: any AccountStoring
+    private let accountStore: AccountStore
     private let router: any WindowRouting
     @ObservationIgnored private var preparedAccount: Account?
     @ObservationIgnored private var recoverySaved = false
@@ -26,10 +26,10 @@ final class OnboardingCoordinator: OnboardingCoordinating {
     ///   - discovery: One bounded SOL-only scan on the configured network for imports.
     ///   - wallet: Local phrase generation and address derivation.
     ///   - recovery: Protected recovery persistence.
-    ///   - accounts: Public account metadata persistence.
+    ///   - accounts: The saved accounts that every window shares.
     ///   - router: The owning window's root navigation.
     init(discovery: any AccountDiscovering, wallet: any WalletProviding,
-         recovery: any RecoveryStoring, accounts: any AccountStoring,
+         recovery: any RecoveryStoring, accounts: AccountStore,
          router: any WindowRouting) {
         self.wallet = wallet
         self.discovery = discovery
@@ -178,27 +178,17 @@ final class OnboardingCoordinator: OnboardingCoordinating {
         }
     }
 
-    /// Accepts a retry only when the existing record exactly matches this prepared account.
+    /// Saves the prepared account, which an addition either saves or undoes, so a failed save can be tried again.
     /// - Parameter account: The stable public identity retained by the draft.
-    /// - Throws: Cancellation or a secret-free account-storage error.
+    /// - Throws: A secret-free account-storage error.
     private func saveAccount(_ account: Account) async throws {
         do {
-            do {
-                _ = try await accountStore.add(account)
-            } catch AccountStoreError.duplicateAccount {
-                let stored = try await accountStore.load()
-                guard stored.contains(where: {
-                    $0.id == account.id && $0.recoveryID == account.recoveryID
-                        && $0.address == account.address && $0.path == account.path
-                }) else { throw OnboardingCoordinatorError.accountStorageFailed }
-            }
-        } catch let error as CancellationError {
-            throw error
+            try await accountStore.add(account)
         } catch let error as AccountStoreError {
             // These closed, payload-free cases are safe to preserve for the caller.
             throw error
         } catch {
-            // Injected stores may attach secret-bearing context to otherwise ordinary errors.
+            // Injected storage may attach secret-bearing context to otherwise ordinary errors.
             throw OnboardingCoordinatorError.accountStorageFailed
         }
     }

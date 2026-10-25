@@ -17,6 +17,7 @@ struct ContactsScene: View {
     /// Every network's transaction coordinator, which windows share and payments are sent with.
     let transactions: NetworkTransactions
     @Environment(ContactStore.self) private var store
+    @Environment(AccountStore.self) private var accounts
     @State private var contacts: ContactsModel?
     /// What ``contacts`` belong to, so the tab keeps them when it appears again for the same account and network.
     @State private var owner: Owner?
@@ -42,7 +43,9 @@ struct ContactsScene: View {
             guard owner != self.owner else { return }
             self.owner = owner
             contacts = ContactsModel(sendingAccount: owner.account.address, wallet: owner.account.recoveryID,
-                                     network: owner.network, store: store, services: services)
+                                     network: owner.network,
+                                     accounts: accounts.accounts(inWallet: owner.account.recoveryID).map(Contact.init),
+                                     store: store, services: services)
         }
     }
 

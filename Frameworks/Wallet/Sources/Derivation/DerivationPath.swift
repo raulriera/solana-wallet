@@ -18,6 +18,15 @@ public struct DerivationPath: Sendable, Equatable, CustomStringConvertible {
     /// The child indices with the hardened bit set, as derivation uses them.
     var hardenedIndices: [UInt32] { indices.map { $0 | Self.hardenedBit } }
 
+    /// The account index i of a path in either Solana account family, `m/44'/501'/i'/0'` or `m/44'/501'/i'`, or `nil`
+    /// for any other path.
+    public var accountIndex: UInt32? {
+        guard indices.count == 3 || indices.count == 4 && indices[3] == 0, indices[0] == 44, indices[1] == 501 else {
+            return nil
+        }
+        return indices[2]
+    }
+
     /// The canonical path, with an apostrophe after each hardened child index.
     public var description: String { "m" + indices.map { "/\($0)'" }.joined() }
 

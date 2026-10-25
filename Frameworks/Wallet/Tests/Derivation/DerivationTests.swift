@@ -127,4 +127,24 @@ struct DerivationTests {
     func `Derivation paths reject malformed or non-hardened indices`(path: String) {
         #expect(throws: DerivationPath.ValidationError.invalidPath) { try DerivationPath(path) }
     }
+
+    /// Verifies that both Solana account families give their account index.
+    ///
+    /// - Parameters:
+    ///   - path: A path `m/44'/501'/i'/0'` or `m/44'/501'/i'`.
+    ///   - index: The path's account index i.
+    @Test(arguments: [
+        ("m/44'/501'/0'/0'", 0), ("m/44'/501'/1'", 1), ("m/44'/501'/2147483647'/0'", 2_147_483_647),
+    ])
+    func `Solana account paths give their account index`(path: String, index: UInt32) throws {
+        #expect(try DerivationPath(path).accountIndex == index)
+    }
+
+    /// Verifies that paths outside both Solana account families have no account index.
+    ///
+    /// - Parameter path: Another hardened path.
+    @Test(arguments: ["m", "m/44'/501'", "m/44'/501'/0'/1'", "m/44'/60'/0'/0'", "m/44'/501'/0'/0'/0'", "m/45'/501'/0'"])
+    func `Other paths have no account index`(path: String) throws {
+        #expect(try DerivationPath(path).accountIndex == nil)
+    }
 }

@@ -14,7 +14,7 @@ struct OnboardingDiscoveryTests {
     func `Import retains the first funded accounts exact path`() async throws {
         let http = HTTPResponses.discovery(fundedOffsets: [1, 14])
         let recovery = OnboardingRecoveryStore()
-        let accounts = OnboardingAccountStore(recovery: recovery)
+        let accounts = AccountStore.inMemory()
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: http.client), wallet: Wallet(),
             recovery: recovery, accounts: accounts, router: router)
@@ -26,7 +26,7 @@ struct OnboardingDiscoveryTests {
         #expect(account.address.value == "GjJyeC1r2RgkuoCWMyPYkCWSGSGLcz266EaAkLA27AhL")
         #expect(account.path.description == "m/44'/501'/0'")
         #expect(await http.requests.count == 1)
-        #expect(await accounts.records.first?.path == account.path)
+        #expect(accounts.accounts.first?.path == account.path)
         #expect(coordinator.account?.id == account.id)
     }
 
@@ -35,7 +35,7 @@ struct OnboardingDiscoveryTests {
     func `An empty scan selects the default account with the original passphrase`() async throws {
         let http = HTTPResponses.discovery()
         let recovery = OnboardingRecoveryStore()
-        let accounts = OnboardingAccountStore(recovery: recovery)
+        let accounts = AccountStore.inMemory()
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: http.client), wallet: Wallet(),
             recovery: recovery, accounts: accounts, router: router)
@@ -62,7 +62,7 @@ struct OnboardingDiscoveryTests {
     ) async throws {
         let http = HTTPResponses.discovery(error: error)
         let recovery = OnboardingRecoveryStore()
-        let accounts = OnboardingAccountStore(recovery: recovery)
+        let accounts = AccountStore.inMemory()
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: http.client), wallet: Wallet(),
             recovery: recovery, accounts: accounts, router: router)
@@ -76,7 +76,7 @@ struct OnboardingDiscoveryTests {
         #expect(!coordinator.isWorking)
         #expect(router.destination == .onboarding)
         #expect(await recovery.saves.isEmpty)
-        #expect(await accounts.additions.isEmpty)
+        #expect(accounts.accounts.isEmpty)
 
         await #expect(throws: expected) {
             try await coordinator.importRecovery(OnboardingCoordinatorTests.phrase, passphrase: "")
@@ -88,7 +88,7 @@ struct OnboardingDiscoveryTests {
     @Test(.tags(.network))
     func `A real mainnet lookup prepares an import without persisting it`() async throws {
         let recovery = OnboardingRecoveryStore()
-        let accounts = OnboardingAccountStore(recovery: recovery)
+        let accounts = AccountStore.inMemory()
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: Solana(network: .mainnet)),
             wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
@@ -99,7 +99,7 @@ struct OnboardingDiscoveryTests {
         #expect(coordinator.account == nil)
         #expect(router.destination == .onboarding)
         #expect(await recovery.saves.isEmpty)
-        #expect(await accounts.additions.isEmpty)
+        #expect(accounts.accounts.isEmpty)
         try coordinator.discard()
     }
 }

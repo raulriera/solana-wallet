@@ -13,8 +13,7 @@ extension DerivationPath {
 
     /// The account index i of a Solana account path `m/44'/501'/i'/0'`, or `nil` for any other path.
     var privateBalanceAccount: UInt32? {
-        guard indices.count == 4, indices[0] == 44, indices[1] == 501, indices[3] == 0 else { return nil }
-        return indices[2]
+        indices.count == 4 ? accountIndex : nil
     }
 
     /// The Ed25519 path of an account's nullifier secret, `m/44'/1392955331'/i'/1'/0'`.

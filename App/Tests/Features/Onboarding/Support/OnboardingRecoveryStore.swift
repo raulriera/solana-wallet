@@ -52,8 +52,8 @@ actor OnboardingRecoveryStore: RecoveryStoring {
         return recovery
     }
 
-    /// Checks ordering without exposing fixture recovery to the account store.
-    /// - Parameter id: The recovery identity required by the account.
+    /// Checks whether recovery was saved without reading the fixture recovery.
+    /// - Parameter id: The recovery identity.
     /// - Returns: Whether recovery was already committed.
     func contains(_ id: UUID) -> Bool { records[id] != nil }
 

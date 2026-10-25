@@ -12,7 +12,6 @@ struct AppServices {
     let wallet: any WalletProviding
     let discovery: any AccountDiscovering
     let recovery: any RecoveryStoring
-    let accounts: any AccountStoring
     let providerKey: any ValueStoring<String>
     let providerConnection: any ProviderConnecting<ProviderConnectionError>
     let providerRevisions = ProviderRevisions()
@@ -24,13 +23,14 @@ struct AppServices {
     // One sampler for every window shares its remembered logo colors.
     let artworkColors: any ArtworkColorProviding = ArtworkColors()
     let recoveryPasteboard: any RecoveryCopying
-    let recoveryCleanup: any RecoveryCleaning
     let privateBalances: any PrivateBalancing
     let resetRevision = Revision()
     let security: SecurityServices
     let contacts: ContactsServices
     /// The saved contacts and favorites, which every window shares; nothing is read until a window's Contacts loads.
     let contactStore: ContactStore
+    /// The saved accounts, which every window shares; nothing is read until a window's startup loads them.
+    let accountStore: AccountStore
 
     /// Creates production services after any explicit simulator UI-test reset.
     init() {
@@ -54,7 +54,6 @@ struct AppServices {
         self.wallet = wallet
         discovery = AccountDiscovery(rpc: Solana(network: .mainnet), wallet: wallet)
         recovery = KeychainStore(service: recoveryService)
-        accounts = AccountStore()
         let privateBalanceKeys = KeychainItem(service: privateBalanceService, account: "keys",
                                               coding: .json(PrivateBalances.Keys.self))
         let privateBalanceNotes = KeychainItem(service: privateBalanceService, account: "notes",
@@ -90,7 +89,9 @@ struct AppServices {
             ProviderClient(network: network, settings: providerSettings, providerKey: providerKey)
         }
         self.privateBalances = privateBalances
-        recoveryCleanup = RecoveryCleanup(accounts: accounts, recovery: recovery, privateBalances: privateBalances)
+        let accounts = AccountStore.file(in: .persistentDirectory.appending(path: "Accounts", directoryHint: .isDirectory))
+        accountStore = AccountStore(storage: accounts, cleanup: RecoveryCleanup(accounts: accounts, recovery: recovery,
+                                                                                privateBalances: privateBalances))
         let providerSelection = ProviderSelection(settings: providerSettings, providerKey: providerKey,
                                                   portfolios: { portfolios.created }, revisions: providerRevisions)
         self.providerSelection = providerSelection
@@ -101,7 +102,8 @@ struct AppServices {
             owner: DeviceOwnerAuthentication(),
             reset: AppReset(recovery: recovery, privateBalances: privateBalances,
                             directories: directories, appearance: appearance.appearance, contacts: contactStore,
-                            providerKey: providerKey, providerSettings: providerSettings, revision: resetRevision),
+                            accounts: accountStore, providerKey: providerKey, providerSettings: providerSettings,
+                            revision: resetRevision),
             pasteboard: recoveryPasteboard
         )
     }
@@ -112,11 +114,11 @@ struct AppServices {
         WindowRouter(initialDestination: .restoringWallets)
     }
 
-    /// Assembles startup restoration for one window behind the shared launch cleanup.
+    /// Assembles startup restoration for one window from the shared accounts.
     /// - Parameter router: The owning window's navigation.
     /// - Returns: A workflow that opens saved accounts without reading recovery material.
     func makeWindowStartup(router: any WindowRouting) -> any WindowStarting {
-        WindowStartup(accounts: accounts, cleanup: recoveryCleanup, router: router)
+        WindowStartup(accounts: accountStore, router: router)
     }
 
     /// Creates independent portfolio presentation around a network's shared portfolio service.
@@ -131,7 +133,8 @@ struct AppServices {
     /// - Parameter router: The owning window's root navigation.
     /// - Returns: Independent draft state for the window that retains this coordinator.
     func makeOnboardingCoordinator(router: any WindowRouting) -> any OnboardingCoordinating {
-        OnboardingCoordinator(discovery: discovery, wallet: wallet, recovery: recovery, accounts: accounts, router: router)
+        OnboardingCoordinator(discovery: discovery, wallet: wallet, recovery: recovery, accounts: accountStore,
+                              router: router)
     }
 
     /// Creates independent Security & Privacy navigation and steps around the shared security services.

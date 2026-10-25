@@ -14,7 +14,8 @@ struct OnboardingIdentityTests {
     func `Replacing a reset onboarding coordinator cancels its pending import`() async throws {
         let directory = URL.temporaryDirectory.appending(path: UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
-        let accounts = AccountStore(directory: directory)
+        let storage = StoredValue<[widgets.Account]>()
+        let accounts = AccountStore.inMemory(storage)
         let recovery = ResetRecoveryStore()
         let keys = StoredValue<String>()
         let gate = Suspension()
@@ -52,10 +53,10 @@ struct OnboardingIdentityTests {
                                                    recovery: nil)
             try await AppReset(recovery: recovery, privateBalances: privateBalances,
                                directories: [directory], appearance: appearance,
-                               contacts: ContactsFixtures.store(StoredValue()), providerKey: keys,
+                               contacts: ContactsFixtures.store(StoredValue()), accounts: accounts, providerKey: keys,
                                providerSettings: StoredValue<ProviderSettings>(), revision: revision).reset()
             try #require(revision.value == 1)
-            try #require(try await accounts.load().isEmpty)
+            try #require(accounts.accounts.isEmpty)
             try #require(await recovery.count == 0)
 
             // WindowReset replaces the coordinator while an already-onboarding window keeps the same destination.
@@ -70,7 +71,8 @@ struct OnboardingIdentityTests {
             await waitForCompletion(submission)
 
             #expect(await http.wasCancelled)
-            #expect(try await accounts.load().isEmpty)
+            #expect(accounts.accounts.isEmpty)
+            #expect(await storage.value == nil)
             #expect(await recovery.count == 0)
             #expect(coordinator.account == nil)
             #expect(coordinator.recovery == nil)
