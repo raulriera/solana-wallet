@@ -3,9 +3,10 @@ import SwiftUI
 /// Reads the private balance of a window's account while the window is active, then polls it.
 ///
 /// The balance is read again when the window becomes active, the account or network changes, portfolios read through
-/// another provider, or one of the account's transactions on the network settles. Private notes have no account of the
-/// person's own to watch, so while the window stays active the balance is polled, quickly while the model follows up on
-/// pending SOL; the model skips polls while private balances are off or polling is paused.
+/// another provider, or one of the account's private moves on the network settles; payments never change the private
+/// balance, so they read nothing. Private notes have no account of the person's own to watch, so while the window stays
+/// active the balance is polled, quickly while the model follows up on pending SOL; the model skips polls while private
+/// balances are off or polling is paused.
 private struct PrivateBalanceObservation: ViewModifier {
     @Environment(\.scenePhase) private var scenePhase
     let account: Account
@@ -17,7 +18,7 @@ private struct PrivateBalanceObservation: ViewModifier {
     func body(content: Content) -> some View {
         let session = Session(accountID: account.id, model: ObjectIdentifier(model), isActive: scenePhase == .active,
                               providerConnection: providerRevisions.connection.value,
-                              settledCount: model.settledCount(for: account))
+                              settledMove: model.lastSettledMove(for: account)?.id)
         content
             .task(id: session) {
                 guard session.isActive else { return }
@@ -35,7 +36,7 @@ private struct PrivateBalanceObservation: ViewModifier {
         let model: ObjectIdentifier
         let isActive: Bool
         let providerConnection: Int
-        let settledCount: Int
+        let settledMove: TransactionRecord.ID?
     }
 }
 

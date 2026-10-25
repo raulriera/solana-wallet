@@ -46,13 +46,13 @@ struct PrivateBalanceObservationTests {
         #expect(model.status == .balance(available: 0, pending: 0))
     }
 
-    /// A settled transaction starts the reads again at once, and pending SOL then follows up quickly, so it turns
+    /// A settled private move starts the reads again at once, and pending SOL then follows up quickly, so it turns
     /// available without waiting for the next poll.
     /// - Throws: A fixture or test prerequisite error.
     @Test
-    func `Pending SOL after a settled transaction is read again quickly`() async throws {
+    func `Pending SOL after a settled private move is read again quickly`() async throws {
         let account = try await PrivateBalanceFixtures.account()
-        let sent = try PendingPayment(from: account.id)
+        let sent = try PendingMove(from: account.id)
         let (model, notes) = try await PrivateBalanceFixtures.pendingDeposit(of: account,
                                                                              transactions: sent.transactions)
         // Ordinary polls never come within the suite's time limit, so only a follow-up reads the balance again.

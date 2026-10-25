@@ -142,17 +142,74 @@ struct PrivateBalanceModelTests {
         #expect(model.error == .preparationFailed)
     }
 
-    /// The first read after one of the account's transactions settles follows up quickly on pending SOL, with at most
-    /// ten quick reads; pending SOL without a settled transaction, or a settled one without pending SOL, starts none.
+    /// A settled private deposit or withdrawal becomes the account's last settled move, which reads the balance again.
+    /// - Parameter kind: The private move.
+    @Test(arguments: [TransactionRecord.Kind.privateDeposit(lamports: 1_000_000),
+                      .privateWithdrawal(lamports: 1_000_000)])
+    func `A settled private move reads the private balance again`(kind: TransactionRecord.Kind) async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let sent = try PendingMove(kind, from: account.id)
+        let model = try await PrivateBalanceFixtures.model(holding: .pending, of: account,
+                                                           transactions: sent.transactions)
+        await model.refresh(for: account)
+        #expect(model.lastSettledMove(for: account) == nil)
+
+        #expect(try await sent.settle() == .succeeded)
+
+        #expect(model.lastSettledMove(for: account)?.id == sent.record.id)
+    }
+
+    /// A payment never changes the private balance, so a settled one doesn't read it again or follow up on pending SOL.
+    @Test
+    func `A settled payment doesn't read the private balance again`() async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let sent = try PendingPayment(from: account.id)
+        let model = try await PrivateBalanceFixtures.model(holding: .pending, of: account,
+                                                           transactions: sent.transactions)
+        await model.refresh(for: account)
+
+        #expect(try await sent.settle() == .succeeded)
+        await model.refresh()
+
+        #expect(model.lastSettledMove(for: account) == nil)
+        #expect(!model.isFollowingUp)
+    }
+
+    /// A refresh reads the account's records, and the last settled move is the deposit or withdrawal that settled
+    /// last, whatever order the moves were sent in; payments and pending moves don't count.
+    @Test
+    func `The last settled move is the private move that settled last`() async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let key = TransactionRecord.Key(account: account.id, network: .devnet)
+        // Newest first, as the store keeps them.
+        let records: [TransactionRecord] = [
+            .fixture(.privateDeposit(lamports: 1), signature: "pending deposit", account: account.id, created: 40),
+            .fixture(.payment(recipient: account.address, mint: nil, units: 1), signature: "payment",
+                     account: account.id, status: .succeeded, created: 30, settled: 35),
+            .fixture(.privateWithdrawal(lamports: 1), signature: "withdrawal", account: account.id,
+                     status: .failed, created: 20, settled: 25),
+            .fixture(.privateDeposit(lamports: 1), signature: "deposit", account: account.id, status: .succeeded,
+                     created: 10, settled: 28),
+        ]
+        let model = try await PrivateBalanceFixtures.model(holding: .available, of: account,
+                                                           transactions: .inMemory([key: StoredValue(records)]))
+
+        await model.refresh(for: account)
+
+        #expect(model.lastSettledMove(for: account)?.id == "deposit")
+    }
+
+    /// The first read after one of the account's private moves settles follows up quickly on pending SOL, with at most
+    /// ten quick reads; pending SOL without a settled move, or a settled one without pending SOL, starts none.
     /// - Parameters:
     ///   - balance: The account's private balance.
-    ///   - followsUp: Whether the model follows up after the transaction settles.
+    ///   - followsUp: Whether the model follows up after the move settles.
     @Test(arguments: [(PrivateBalanceFixtures.Balance.pending, true), (.available, false)])
-    func `A read after a settled transaction with pending SOL starts a follow-up`(
+    func `A read after a settled private move with pending SOL starts a follow-up`(
         balance: PrivateBalanceFixtures.Balance, followsUp: Bool
     ) async throws {
         let account = try await PrivateBalanceFixtures.account()
-        let sent = try PendingPayment(from: account.id)
+        let sent = try PendingMove(from: account.id)
         let model = try await PrivateBalanceFixtures.model(holding: balance, of: account, transactions: sent.transactions)
         await model.refresh(for: account)
         #expect(!model.isFollowingUp)
@@ -168,7 +225,7 @@ struct PrivateBalanceModelTests {
     @Test
     func `A follow-up ends once nothing is pending`() async throws {
         let account = try await PrivateBalanceFixtures.account()
-        let sent = try PendingPayment(from: account.id)
+        let sent = try PendingMove(from: account.id)
         let (model, notes) = try await PrivateBalanceFixtures.pendingDeposit(of: account,
                                                                              transactions: sent.transactions)
         await model.refresh(for: account)
