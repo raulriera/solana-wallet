@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Isolates original-passphrase typing without applying text normalization, with a control to check it exactly.
+/// The BIP-39 passphrase field, with a button that shows or hides it.
 struct RecoveryPassphraseEntry: View {
     @Bindable var input: RecoveryEntryModel
     @FocusState.Binding var focusedField: RecoveryEntryModel.Field?

@@ -1,6 +1,6 @@
 import Wallet
 
-/// Coordinates local derivation and provider-neutral observations during phrase import.
+/// Finds a recovery phrase's SOL-funded accounts.
 nonisolated protocol AccountDiscovering: Sendable {
     /// Checks twenty addresses: indices zero through nine in both approved hardened Solana path families.
     ///

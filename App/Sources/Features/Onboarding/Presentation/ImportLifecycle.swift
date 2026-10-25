@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Binds accepted imports to the phrase destination's lifetime without retaining task handles.
+/// Runs accepted imports while phrase entry is on screen.
 private struct ImportLifecycle: ViewModifier {
     @Bindable var submission: ImportWalletModel
     let presentationID: UUID

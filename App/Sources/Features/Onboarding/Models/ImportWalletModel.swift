@@ -3,7 +3,7 @@ import Observation
 import Vault
 import Wallet
 
-/// Owns one window's explicit import attempts while the existing coordinator owns its draft.
+/// One window's import attempts; the coordinator holds the draft.
 @MainActor
 @Observable
 final class ImportWalletModel: ImportSubmitting {
@@ -20,7 +20,7 @@ final class ImportWalletModel: ImportSubmitting {
     @ObservationIgnored private var pendingInput: Input?
     private let coordinator: any OnboardingCoordinating
 
-    /// Transient input, deliberately excluded from task and navigation identity.
+    /// The submitted words and passphrase, held until the attempt runs.
     private struct Input {
         let phrase: String
         let passphrase: String
@@ -28,7 +28,7 @@ final class ImportWalletModel: ImportSubmitting {
 
     var isPending: Bool { attempt != nil || isRunning }
 
-    /// Retains the window's existing workflow without creating another persistence service.
+    /// Creates the model around the window's onboarding coordinator.
     /// - Parameter coordinator: The sole owner of recovery preparation, persistence, and routing.
     init(coordinator: any OnboardingCoordinating) {
         self.coordinator = coordinator

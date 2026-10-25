@@ -21,7 +21,7 @@ final class OnboardingCoordinator: OnboardingCoordinating {
     @ObservationIgnored private var preparedAccount: Account?
     @ObservationIgnored private var recoverySaved = false
 
-    /// Creates independent presentation state around shared, interchangeable services.
+    /// Creates one window's onboarding coordinator.
     /// - Parameters:
     ///   - discovery: One bounded SOL-only scan on the configured network for imports.
     ///   - wallet: Local phrase generation and address derivation.

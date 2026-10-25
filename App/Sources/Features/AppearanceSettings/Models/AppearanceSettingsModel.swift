@@ -2,7 +2,7 @@ import Foundation
 import Observation
 import Themes
 
-/// One window's package workflow; committed selections are shared through the coordinator.
+/// One window's theme selection, import, export, and removal.
 @MainActor @Observable final class AppearanceSettingsModel: ThemeActions {
     /// Runs one window's service calls and presentation updates on the main actor.
     private typealias Action = @MainActor () async throws -> Void

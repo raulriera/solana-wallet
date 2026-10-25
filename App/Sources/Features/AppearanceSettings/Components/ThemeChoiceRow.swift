@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// One accessible theme choice with an independent SwiftUI update boundary.
+/// A button that selects one theme.
 struct ThemeChoiceRow: View {
     @Environment(\.palette) private var palette
     let themeID: UUID?

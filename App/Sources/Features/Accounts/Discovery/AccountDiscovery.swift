@@ -6,7 +6,7 @@ nonisolated struct AccountDiscovery: AccountDiscovering {
     private let wallet: any WalletProviding
     private let rpc: any RPC
 
-    /// Creates a discovery coordinator using the selected network's ordinary RPC client.
+    /// Creates a discovery that reads through `rpc`.
     /// - Parameters:
     ///   - rpc: The provider whose network defines the scan.
     ///   - wallet: The service performing local derivation.
@@ -15,11 +15,8 @@ nonisolated struct AccountDiscovery: AccountDiscovering {
         self.wallet = wallet
     }
 
-    /// Scans indices zero through nine, including gaps, without expanding the range.
+    /// Reads the twenty candidates' SOL balances in one combined account read; only public addresses reach RPC.
     ///
-    /// Candidates use `m/44'/501'/i'/0'` and `m/44'/501'/i'`. One combined account
-    /// read returns their SOL balances. Zero-SOL and missing accounts are ignored,
-    /// including accounts with tokens or previous activity. Only public addresses reach RPC.
     /// - Parameters:
     ///   - phrase: The validated recovery phrase.
     ///   - passphrase: The original BIP-39 passphrase.

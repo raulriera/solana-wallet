@@ -17,7 +17,7 @@ final class WalletSetupModel {
     private let coordinator: any OnboardingCoordinating
     private let providers: ProvidersCoordinator
 
-    /// Retains the window's existing workflows without creating another persistence service.
+    /// Creates the model around the window's onboarding coordinator and provider choice.
     /// - Parameters:
     ///   - coordinator: The sole owner of recovery preparation, persistence, and routing.
     ///   - providers: The window's provider choice, whose waiting change keeps the saved wallet from opening.

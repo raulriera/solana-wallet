@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Composes appearance settings from independently updating sections.
+/// Settings > Appearance.
 struct AppearanceView: View {
     @Environment(\.palette) private var palette
     let settings: AppearanceSettingsModel

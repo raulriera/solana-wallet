@@ -10,7 +10,7 @@ struct OnboardingScene: View {
     let providers: ProvidersCoordinator
     let pasteboard: any RecoveryCopying
 
-    /// Seeds presentation once; the parent retains these services for the window's lifetime.
+    /// Creates onboarding for one window.
     /// - Parameters:
     ///   - coordinator: The owning window's preparation, persistence, and routing workflow.
     ///   - providers: The window's RPC provider choice, shown after the wallet is saved; `onboardingLifecycle()` runs

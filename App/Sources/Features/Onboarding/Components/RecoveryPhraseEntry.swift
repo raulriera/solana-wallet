@@ -1,8 +1,7 @@
 import Accessibility
 import SwiftUI
 
-/// Isolates recovery typing from the form's unrelated appearance and layout work, with a control to check the words
-/// and feedback for each rejected check.
+/// The recovery words field, with a show/hide button and feedback for each rejection.
 struct RecoveryPhraseEntry: View {
     @Bindable var input: RecoveryEntryModel
     @FocusState.Binding var focusedField: RecoveryEntryModel.Field?
