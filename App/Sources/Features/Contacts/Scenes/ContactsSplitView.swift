@@ -12,6 +12,8 @@ struct ContactsSplitView: View {
     let services: ContactsServices
     /// The window's portfolio, whose tokens with a balance the keypad pays with.
     let portfolio: any PortfolioCoordinating
+    /// The window's account, network, and transactions, which send payments.
+    let sender: PaymentSender
     /// Counts Try Again taps after the saved contacts couldn't be read.
     @State private var loadAttempt = 0
     /// The selected address; every row that lists it is highlighted, so it stays highlighted when it moves to
@@ -66,7 +68,7 @@ struct ContactsSplitView: View {
                 } detail: {
                     if let selection, tokens != nil {
                         RecipientPaymentStack(recipient: contacts.recipient(for: selection), payment: payment,
-                                              context: contacts.recipientContext) {
+                                              context: contacts.recipientContext, sender: sender) {
                             RecipientScreen(address: selection, contacts: contacts, selection: $selection)
                         }
                         // Another recipient starts on the keypad, not on the previous one's details.

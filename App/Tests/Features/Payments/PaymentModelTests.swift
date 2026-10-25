@@ -285,4 +285,16 @@ struct PaymentModelTests {
         #expect(payment.quantity == 1)
         #expect(payment.value == 120)
     }
+
+    /// Clearing a sent amount empties it and keeps the token and the unit it's typed in.
+    @Test func `Clearing keeps the token and unit`() {
+        let payment = Self.payment(in: Self.usdc)
+        Self.type([.digit(1), .digit(2)], into: payment)
+
+        payment.clear()
+
+        #expect(payment.entry.value == 0)
+        #expect(payment.token == Self.usdc)
+        #expect(payment.unit == .currency)
+    }
 }

@@ -86,7 +86,8 @@ struct PaymentAmountScreen<Action: View>: View {
                                currencyCode: "USD")
     NavigationStack {
         PaymentAmountScreen(payment: payment, title: "Send") {
-            SendButton(payment: payment, isReviewing: .constant(false))
+            Button("Send") {}
+                .buttonStyle(.glassPrimary)
         }
     }
 }
@@ -97,7 +98,8 @@ struct PaymentAmountScreen<Action: View>: View {
                                currencyCode: "USD")
     NavigationStack {
         PaymentAmountScreen(payment: payment, title: "Send") {
-            SendButton(payment: payment, isReviewing: .constant(false))
+            Button("Send") {}
+                .buttonStyle(.glassPrimary)
         }
         .keypadStyle(KeypadStyle(keyBackground: .none, amountLook: .plain))
     }
@@ -109,7 +111,8 @@ struct PaymentAmountScreen<Action: View>: View {
                                currencyCode: "USD", source: .publicBalance)
     NavigationStack {
         PaymentAmountScreen(payment: payment, title: "Make SOL Private") {
-            SendButton(payment: payment, isReviewing: .constant(false))
+            Button("Send") {}
+                .buttonStyle(.glassPrimary)
         }
     }
 }

@@ -14,6 +14,8 @@ struct ContactsScene: View {
     let services: ContactsServices
     /// The window's portfolio, whose tokens with a balance the keypad pays with.
     let portfolio: any PortfolioCoordinating
+    /// Every network's transaction coordinator, which windows share and payments are sent with.
+    let transactions: NetworkTransactions
     @State private var contacts: ContactsModel?
     /// What ``contacts`` belong to, so the tab keeps them when it appears again for the same account and network.
     @State private var owner: Owner?
@@ -22,7 +24,9 @@ struct ContactsScene: View {
         // One container, so the change below attaches once instead of to each branch.
         ZStack {
             if let contacts {
-                ContactsSplitView(contacts: contacts, services: services, portfolio: portfolio)
+                ContactsSplitView(contacts: contacts, services: services, portfolio: portfolio,
+                                  sender: PaymentSender(account: account, network: network, transactions: transactions,
+                                                        portfolio: portfolio))
                     // New contacts start the selection and the payment over.
                     .id(ObjectIdentifier(contacts))
             } else {

@@ -12,9 +12,14 @@ struct RecipientPaymentStack<Details: View>: View {
     let payment: PaymentModel?
     /// The person's own history, which the review's checks compare the recipient with.
     let context: RecipientContext
+    /// The window's account, network, and transactions, which send the payment.
+    let sender: PaymentSender
     /// The recipient's details, which the keypad's Details button pushes.
     let details: Details
-    @State private var isReviewing = false
+    /// The payment whose review shows.
+    @State private var send: SendModel?
+    /// Why a payment couldn't start.
+    @State private var sendError: SendError?
     @State private var showsDetails = false
     /// Matches the Send button with the review, which grows out of it.
     @Namespace private var review
@@ -24,12 +29,14 @@ struct RecipientPaymentStack<Details: View>: View {
     ///   - recipient: Who the payment goes to.
     ///   - payment: The payment being typed, or `nil` when the account has no token with a balance.
     ///   - context: The person's own history, which the review's checks compare the recipient with.
+    ///   - sender: The window's account, network, and transactions, which send the payment.
     ///   - details: The recipient's details, which the keypad's Details button pushes.
-    init(recipient: PaymentRecipient, payment: PaymentModel?, context: RecipientContext,
+    init(recipient: PaymentRecipient, payment: PaymentModel?, context: RecipientContext, sender: PaymentSender,
          @ViewBuilder details: () -> Details) {
         self.recipient = recipient
         self.payment = payment
         self.context = context
+        self.sender = sender
         self.details = details()
     }
 
@@ -38,14 +45,18 @@ struct RecipientPaymentStack<Details: View>: View {
             Group {
                 if let payment {
                     PaymentAmountScreen(payment: payment, recipient: recipient) {
-                        SendButton(payment: payment, isReviewing: $isReviewing)
+                        SendButton(payment: payment,
+                                   send: SendPaymentAction(sender: sender, payment: payment, recipient: recipient,
+                                                           send: $send, error: $sendError))
                             .matchedTransitionSource(id: ObjectIdentifier(payment), in: review)
                     }
-                    .sheet(isPresented: $isReviewing) {
-                        PaymentReviewSheet(payment: payment, recipient: recipient, context: context)
+                    .sheet(item: $send) { send in
+                        PaymentReviewSheet(send: send, context: context)
+                            .sendLifecycle()
                             // The review grows out of the Send button, and shrinks back into it when canceled.
                             .navigationTransition(.zoom(sourceID: ObjectIdentifier(payment), in: review))
                     }
+                    .errorAlert($sendError)
                 } else {
                     UnavailableScreen(title: "Nothing to Send",
                                       message: "This account has no tokens with a balance on this network.",

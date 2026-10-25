@@ -32,6 +32,8 @@ final class RecordingPortfolio: PortfolioCoordinating {
     private(set) var observedOwners: [String?] = []
     /// Whether an active scene's task is observing.
     private(set) var isObserving = false
+    /// How many times a workflow asked to read the balances again.
+    private(set) var refreshes = 0
 
     /// Starts with no tokens, previews, observations, or failures.
     init() {
@@ -56,8 +58,10 @@ final class RecordingPortfolio: PortfolioCoordinating {
         isObserving = false
     }
 
-    /// Ignores refreshes, which token workflows never start.
-    func refresh() async {}
+    /// Counts refreshes, such as the one after a payment lands.
+    func refresh() async {
+        refreshes += 1
+    }
 
     /// Answers a lookup with the configured preview or error, once released when lookups are held.
     /// - Parameter mint: The pasted mint address.

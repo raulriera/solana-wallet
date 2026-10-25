@@ -126,6 +126,11 @@ final class PaymentModel {
         }
     }
 
+    /// The amount as it is now, which a review keeps while the balances and prices change.
+    var amount: PaymentAmount {
+        PaymentAmount(token: token, quantity: quantity, value: value, currencyCode: currencyCode)
+    }
+
     /// What the typed amount counts, for showing it.
     var entryUnit: AmountEntryFormatStyle.Unit {
         switch unit {
@@ -169,6 +174,12 @@ final class PaymentModel {
             reject(.key)
         }
         pressCount += 1
+    }
+
+    /// Clears the amount after it was sent, keeping the token and the unit it's typed in.
+    func clear() {
+        entry = AmountEntry(maximumFractionDigits: Self.fractionDigits(of: unit, token: token, currencyCode: currencyCode))
+        rejection = nil
     }
 
     /// Follows the account's latest balances, prices, and currency, keeping the selected token and the amount as typed.

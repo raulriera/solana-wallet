@@ -4,21 +4,21 @@ import SwiftUI
 /// alone when the token has no price.
 struct ReviewAmount: View {
     @Environment(\.palette) private var palette
-    let payment: PaymentModel
+    let amount: PaymentAmount
 
     var body: some View {
-        let token = payment.token
+        let token = amount.token
         VStack(spacing: 8) {
             Group {
-                if let value = payment.value {
-                    Text(value, format: .value(code: payment.currencyCode))
+                if let value = amount.value {
+                    Text(value, format: .value(code: amount.currencyCode))
                 } else {
-                    Text(payment.quantity, format: .quantity(of: token))
+                    Text(amount.quantity, format: .quantity(of: token))
                 }
             }
             .font(.system(.largeTitle, design: .rounded, weight: .bold))
-            if payment.value != nil {
-                Text(payment.quantity, format: .quantity(of: token))
+            if amount.value != nil {
+                Text(amount.quantity, format: .quantity(of: token))
                     .foregroundStyle(palette.secondaryText)
             }
         }
