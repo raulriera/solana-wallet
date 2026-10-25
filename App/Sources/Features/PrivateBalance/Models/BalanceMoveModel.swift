@@ -129,8 +129,8 @@ final class BalanceMoveModel: Identifiable {
     ///   - transactions: The network's transaction coordinator.
     init(direction: Direction, account: Account, network: Network, spendableLamports: UInt64,
          balances: any PrivateBalancing, transactions: any TransactionCoordinating) {
-        let sol = PaymentToken(symbol: "SOL", balance: Decimal(spendableLamports) / Self.lamportsPerSOL, price: nil,
-                               decimals: 9)
+        let sol = PaymentToken(mint: nil, symbol: "SOL", balance: Decimal(spendableLamports) / Self.lamportsPerSOL,
+                               price: nil, decimals: 9)
         let source: PaymentModel.Source = switch direction {
         case .toPrivate: .publicBalance
         case .toPublic: .privateBalance

@@ -40,7 +40,7 @@ final class RecordingPortfolio: PortfolioCoordinating {
     }
 
     var update: Update? { nil }
-    var error: PortfolioError? { nil }
+    var error: PortfolioError?
 
     /// Records an active scene's observation, which lasts until the view task is cancelled, as the window's
     /// portfolio's does.

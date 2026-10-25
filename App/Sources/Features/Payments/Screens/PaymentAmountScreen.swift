@@ -37,7 +37,7 @@ struct PaymentAmountScreen<Action: View>: View {
     init(payment: PaymentModel, recipient: PaymentRecipient, @ViewBuilder action: () -> Action) {
         self.payment = payment
         title = Text(verbatim: recipient.title)
-        subtitle = Text(verbatim: recipient.name == nil ? "" : recipient.address.formatted(.shortAddress))
+        subtitle = Text(verbatim: recipient.subtitle)
         self.action = action()
     }
 
@@ -81,7 +81,9 @@ struct PaymentAmountScreen<Action: View>: View {
 }
 
 #Preview("Glass keys") {
-    let payment = PaymentModel(tokens: PaymentToken.samples, currencyCode: "USD")
+    let payment = PaymentModel(tokens: [PaymentToken(mint: nil, symbol: "SOL", balance: Decimal(string: "1.2")!,
+                                                     price: 150, decimals: 9)],
+                               currencyCode: "USD")
     NavigationStack {
         PaymentAmountScreen(payment: payment, title: "Send") {
             SendButton(payment: payment, isReviewing: .constant(false))
@@ -90,7 +92,9 @@ struct PaymentAmountScreen<Action: View>: View {
 }
 
 #Preview("Plain keys") {
-    let payment = PaymentModel(tokens: PaymentToken.samples, currencyCode: "USD")
+    let payment = PaymentModel(tokens: [PaymentToken(mint: nil, symbol: "SOL", balance: Decimal(string: "1.2")!,
+                                                     price: 150, decimals: 9)],
+                               currencyCode: "USD")
     NavigationStack {
         PaymentAmountScreen(payment: payment, title: "Send") {
             SendButton(payment: payment, isReviewing: .constant(false))
@@ -100,8 +104,8 @@ struct PaymentAmountScreen<Action: View>: View {
 }
 
 #Preview("One balance") {
-    let payment = PaymentModel(tokens: [PaymentToken(symbol: "SOL", balance: Decimal(string: "1.2")!, price: nil,
-                                                     decimals: 9)],
+    let payment = PaymentModel(tokens: [PaymentToken(mint: nil, symbol: "SOL", balance: Decimal(string: "1.2")!,
+                                                     price: nil, decimals: 9)],
                                currencyCode: "USD", source: .publicBalance)
     NavigationStack {
         PaymentAmountScreen(payment: payment, title: "Make SOL Private") {

@@ -1,4 +1,6 @@
 import Foundation
+import Observation
+import Synchronization
 import Testing
 @testable import widgets
 
@@ -6,15 +8,18 @@ import Testing
 @MainActor
 struct PaymentModelTests {
     /// SOL at $143.87 with 1.23 held, so the whole balance is worth $176.9601.
-    nonisolated private static let sol = PaymentToken(symbol: "SOL", balance: Decimal(string: "1.23")!,
-                                          price: Decimal(string: "143.87"), decimals: 9)
+    nonisolated private static let sol = PaymentToken(mint: nil, symbol: "SOL", balance: Decimal(string: "1.23")!,
+                                                      price: Decimal(string: "143.87"), decimals: 9)
     /// A dollar stablecoin.
-    nonisolated private static let usdc = PaymentToken(symbol: "USDC", balance: 40, price: 1, decimals: 6)
+    nonisolated private static let usdc = PaymentToken(mint: PaymentFixtures.usdc, symbol: "USDC", balance: 40,
+                                                       price: 1, decimals: 6)
     /// A token without a known price.
-    nonisolated private static let unpriced = PaymentToken(symbol: "NOPRICE", balance: 1_000, price: nil, decimals: 5)
+    nonisolated private static let unpriced = PaymentToken(mint: PaymentFixtures.unpriced, symbol: "NOPRICE",
+                                                           balance: 1_000, price: nil, decimals: 5)
     /// A token worth a tiny fraction of a cent.
-    nonisolated private static let tiny = PaymentToken(symbol: "TINY", balance: 10_000_000_000, price: Decimal(string: "0.00002"),
-                                           decimals: 5)
+    nonisolated private static let tiny = PaymentToken(mint: PaymentFixtures.tiny, symbol: "TINY",
+                                                       balance: 10_000_000_000, price: Decimal(string: "0.00002"),
+                                                       decimals: 5)
 
     /// An empty payment typed in a currency, starting in a token.
     /// - Parameters:
@@ -49,7 +54,8 @@ struct PaymentModelTests {
 
     /// A currency amount worth less than the token's smallest unit comes to no tokens, so it can't be sent.
     @Test func `An amount below the token's smallest unit can't be sent`() {
-        let coarse = PaymentToken(symbol: "COARSE", balance: 10, price: 100_000, decimals: 2)
+        let coarse = PaymentToken(mint: PaymentFixtures.coarse, symbol: "COARSE", balance: 10, price: 100_000,
+                                  decimals: 2)
         let payment = Self.payment(in: coarse)
         Self.type([.decimalSeparator, .digit(5), .digit(0)], into: payment)
         #expect(payment.value == Decimal(string: "0.5"))
@@ -144,7 +150,8 @@ struct PaymentModelTests {
     ///   - keys: The token amount's keys.
     @Test(arguments: [
         (tiny, [KeypadKey.digit(2), .digit(5), .digit(0)]),
-        (PaymentToken(symbol: "HALF", balance: Decimal(string: "1.23")!, price: Decimal(string: "143.875"),
+        (PaymentToken(mint: PaymentFixtures.half, symbol: "HALF", balance: Decimal(string: "1.23")!,
+                      price: Decimal(string: "143.875"),
                       decimals: 9),
          [.digit(1), .decimalSeparator, .digit(2), .digit(3)]),
     ])
@@ -182,5 +189,100 @@ struct PaymentModelTests {
     ])
     func `Only a payment with another token or unit offers choices`(tokens: [PaymentToken], offersChoices: Bool) {
         #expect(PaymentModel(tokens: tokens, currencyCode: "USD").offersChoices == offersChoices)
+    }
+
+    /// A new balance for the selected token keeps the token, the unit, and the amount as typed.
+    @Test func `New balances keep the selected token and amount`() {
+        let payment = Self.payment(in: Self.usdc)
+        Self.type([.digit(1), .digit(2)], into: payment)
+        let richer = PaymentToken(mint: PaymentFixtures.usdc, symbol: "USDC", balance: 100, price: 1, decimals: 6)
+
+        payment.update([Self.sol, richer], currencyCode: "USD")
+
+        #expect(payment.token == richer)
+        #expect(payment.tokens == [Self.sol, richer])
+        #expect(payment.unit == .currency)
+        #expect(payment.entry.value == 12)
+    }
+
+    /// Tokens that share a symbol stay apart: the update follows the selected token's mint.
+    @Test func `Updates follow the selected token's mint, not its symbol`() {
+        let payment = Self.payment(in: Self.usdc)
+        let lookAlike = PaymentToken(mint: PaymentFixtures.lookAlike, symbol: "USDC", balance: 5, price: 1, decimals: 6)
+
+        payment.update([lookAlike, Self.usdc], currencyCode: "USD")
+
+        #expect(payment.token == Self.usdc)
+    }
+
+    /// A selected token that's gone, such as one whose whole balance was sent, selects the first token and starts the
+    /// amount again.
+    @Test func `A token that's gone selects the first token`() {
+        let payment = Self.payment(in: Self.usdc)
+        Self.type([.digit(1), .digit(2)], into: payment)
+
+        payment.update([Self.unpriced, Self.sol], currencyCode: "USD")
+
+        #expect(payment.token == Self.unpriced)
+        #expect(payment.unit == .token)
+        #expect(payment.entry.value == 0)
+    }
+
+    /// A token that loses its price while typed in dollars is typed in tokens, converted at its last price and
+    /// rounded down, so the payment never grows.
+    @Test func `A token that loses its price keeps the quantity in tokens`() {
+        let payment = Self.payment()
+        Self.type([.digit(1), .digit(2)], into: payment)
+        let typed = payment.quantity
+        let unpricedSOL = PaymentToken(mint: nil, symbol: "SOL", balance: Decimal(string: "1.23")!, price: nil,
+                                       decimals: 9)
+
+        payment.update([unpricedSOL], currencyCode: "USD")
+
+        #expect(payment.unit == .token)
+        #expect(payment.quantity == typed)
+        #expect(payment.value == nil)
+    }
+
+    /// The same tokens change nothing, so an unchanged portfolio update doesn't notify the keypad.
+    @Test func `The same tokens change nothing`() {
+        let tokens = [Self.sol, Self.usdc]
+        let payment = PaymentModel(tokens: tokens, currencyCode: "USD")
+        let changed = Mutex(false)
+        withObservationTracking { _ = payment.tokens } onChange: { changed.withLock { $0 = true } }
+
+        payment.update(tokens, currencyCode: "USD")
+
+        let notified = changed.withLock(\.self)
+        #expect(!notified)
+    }
+
+    /// Dollars mean nothing in euros, so an amount typed in the previous currency starts again in the new one, keeping
+    /// the token.
+    @Test func `A currency change starts a currency amount again`() {
+        let payment = Self.payment()
+        Self.type([.digit(1), .digit(2)], into: payment)
+        let euroSOL = PaymentToken(mint: nil, symbol: "SOL", balance: Decimal(string: "1.23")!, price: 120, decimals: 9)
+
+        payment.update([euroSOL, Self.usdc], currencyCode: "EUR")
+
+        #expect(payment.currencyCode == "EUR")
+        #expect(payment.token == euroSOL)
+        #expect(payment.unit == .currency)
+        #expect(payment.entry.value == 0)
+    }
+
+    /// An amount typed in tokens stays as typed in another currency; only its worth follows the new price.
+    @Test func `A currency change keeps a token amount`() {
+        let payment = Self.payment()
+        payment.unitChoice = .token
+        Self.type([.digit(1)], into: payment)
+        let euroSOL = PaymentToken(mint: nil, symbol: "SOL", balance: Decimal(string: "1.23")!, price: 120, decimals: 9)
+
+        payment.update([euroSOL, Self.usdc], currencyCode: "EUR")
+
+        #expect(payment.unit == .token)
+        #expect(payment.quantity == 1)
+        #expect(payment.value == 120)
     }
 }

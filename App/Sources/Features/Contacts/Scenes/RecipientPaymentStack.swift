@@ -3,10 +3,13 @@ import Transactions
 
 /// Pays one recipient on the keypad in its own navigation container, with their details a push away and the
 /// payment's review growing out of the Send button.
+///
+/// Without a token to pay with, the keypad's place explains that there's nothing to send; the details stay a push away.
 struct RecipientPaymentStack<Details: View>: View {
     let recipient: PaymentRecipient
-    /// The payment being typed; it stays when the person picks another recipient.
-    let payment: PaymentModel
+    /// The payment being typed, or `nil` when the account has no token with a balance; it stays when the person picks
+    /// another recipient.
+    let payment: PaymentModel?
     /// The person's own history, which the review's checks compare the recipient with.
     let context: RecipientContext
     /// The recipient's details, which the keypad's Details button pushes.
@@ -19,10 +22,10 @@ struct RecipientPaymentStack<Details: View>: View {
     /// Creates the keypad for a recipient.
     /// - Parameters:
     ///   - recipient: Who the payment goes to.
-    ///   - payment: The payment being typed.
+    ///   - payment: The payment being typed, or `nil` when the account has no token with a balance.
     ///   - context: The person's own history, which the review's checks compare the recipient with.
     ///   - details: The recipient's details, which the keypad's Details button pushes.
-    init(recipient: PaymentRecipient, payment: PaymentModel, context: RecipientContext,
+    init(recipient: PaymentRecipient, payment: PaymentModel?, context: RecipientContext,
          @ViewBuilder details: () -> Details) {
         self.recipient = recipient
         self.payment = payment
@@ -32,9 +35,26 @@ struct RecipientPaymentStack<Details: View>: View {
 
     var body: some View {
         NavigationStack {
-            PaymentAmountScreen(payment: payment, recipient: recipient) {
-                SendButton(payment: payment, isReviewing: $isReviewing)
-                    .matchedTransitionSource(id: ObjectIdentifier(payment), in: review)
+            Group {
+                if let payment {
+                    PaymentAmountScreen(payment: payment, recipient: recipient) {
+                        SendButton(payment: payment, isReviewing: $isReviewing)
+                            .matchedTransitionSource(id: ObjectIdentifier(payment), in: review)
+                    }
+                    .sheet(isPresented: $isReviewing) {
+                        PaymentReviewSheet(payment: payment, recipient: recipient, context: context)
+                            // The review grows out of the Send button, and shrinks back into it when canceled.
+                            .navigationTransition(.zoom(sourceID: ObjectIdentifier(payment), in: review))
+                    }
+                } else {
+                    UnavailableScreen(title: "Nothing to Send",
+                                      message: "This account has no tokens with a balance on this network.",
+                                      systemImage: "wallet.bifold") {}
+                        // Titled like the keypad, so the recipient stays named.
+                        .navigationTitle(Text(verbatim: recipient.title))
+                        .navigationSubtitle(Text(verbatim: recipient.subtitle))
+                        .navigationBarTitleDisplayMode(.inline)
+                }
             }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -44,11 +64,6 @@ struct RecipientPaymentStack<Details: View>: View {
                 }
             }
             .navigationDestination(isPresented: $showsDetails) { details }
-        }
-        .sheet(isPresented: $isReviewing) {
-            PaymentReviewSheet(payment: payment, recipient: recipient, context: context)
-                // The review grows out of the Send button, and shrinks back into it when canceled.
-                .navigationTransition(.zoom(sourceID: ObjectIdentifier(payment), in: review))
         }
     }
 }

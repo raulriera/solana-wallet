@@ -74,10 +74,10 @@ final class PaymentModel {
         }
     }
 
-    /// The tokens the account can pay with.
-    let tokens: [PaymentToken]
-    /// The ISO code of the person's currency.
-    let currencyCode: String
+    /// The tokens the account can pay with, which follow its balances and prices.
+    private(set) var tokens: [PaymentToken]
+    /// The ISO code of the person's currency, which follows their choice.
+    private(set) var currencyCode: String
     /// Which of the account's balances the payment spends.
     let source: Source
     /// The token the payment moves.
@@ -171,13 +171,54 @@ final class PaymentModel {
         pressCount += 1
     }
 
+    /// Follows the account's latest balances, prices, and currency, keeping the selected token and the amount as typed.
+    ///
+    /// A token that loses its price is typed in tokens, converted at its last price. An amount typed in the previous
+    /// currency starts again in the new one, and when the selected token is gone, the first one is selected and the
+    /// amount starts again.
+    /// - Precondition: `tokens` isn't empty.
+    /// - Parameters:
+    ///   - tokens: The tokens the account can pay with now.
+    ///   - currencyCode: The ISO code of the currency that their prices are in.
+    func update(_ tokens: [PaymentToken], currencyCode: String) {
+        guard tokens != self.tokens || currencyCode != self.currencyCode else { return }
+        let changesCurrency = currencyCode != self.currencyCode
+        self.tokens = tokens
+        self.currencyCode = currencyCode
+        guard let updated = tokens.first(where: { $0.id == token.id }) else {
+            restart(in: tokens[0])
+            return
+        }
+        guard !changesCurrency || unit == .token else {
+            // An amount in the previous currency means nothing in the new one.
+            restart(in: updated)
+            return
+        }
+        guard updated != token else { return }
+        if unit == .currency, updated.price == nil {
+            // Converted before the price goes, so the payment keeps its quantity; it rounds down, so it never grows.
+            let typed = AmountEntry(quantity, maximumFractionDigits: updated.decimals)
+            unit = .token
+            entry = typed ?? AmountEntry(maximumFractionDigits: updated.decimals)
+        }
+        token = updated
+    }
+
     /// Pays with another token, keeping a currency amount when the new token has a price.
     /// - Parameter token: The token to pay with.
     private func select(_ token: PaymentToken) {
         guard token != self.token else { return }
-        let keepsAmount = unit == .currency && token.price != nil
+        guard unit == .currency, token.price != nil else {
+            restart(in: token)
+            return
+        }
         self.token = token
-        guard !keepsAmount else { return }
+    }
+
+    /// Selects a token with an empty amount, typed in tokens when the token has no price.
+    /// - Parameter token: The token to pay with.
+    private func restart(in token: PaymentToken) {
+        self.token = token
         unit = token.price == nil ? .token : unit
         entry = AmountEntry(maximumFractionDigits: Self.fractionDigits(of: unit, token: token, currencyCode: currencyCode))
     }

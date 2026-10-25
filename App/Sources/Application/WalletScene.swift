@@ -26,12 +26,8 @@ struct WalletScene: View {
                                privateBalance: privateBalance)
                     .tokenRemovalLifecycle()
             }
-            // Contacts and the payment keypad, which still uses sample tokens until sending is wired.
             Tab("Contacts", systemImage: "person.crop.circle", value: .contacts) {
-                ContactsScene(account: account, network: network, services: contacts)
-                    // Another account or network has other recent payments, so it starts a new list.
-                    .id(account.id)
-                    .id(network)
+                ContactsScene(account: account, network: network, services: contacts, portfolio: portfolio)
             }
             Tab("Settings", systemImage: "gearshape", value: .settings) {
                 SettingsScene(settings: settings, account: account, network: $network, security: security,
