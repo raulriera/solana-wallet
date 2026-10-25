@@ -32,6 +32,8 @@
 
 - `Unit`, the `widgets` scheme's default plan, runs the app's `widgetsTests` bundle offline; framework test bundles aren't in it. Run it for every change:
   `xcodebuild test -scheme widgets`.
+- Each framework's scheme runs its own offline test bundle. Run it when a change touches that framework:
+  `xcodebuild test -scheme <Framework>`, such as `-scheme Transactions`.
 - `Integration` runs only tests tagged `.network`:
   `xcodebuild test -scheme widgets -testPlan Integration -parallel-testing-enabled NO`.
   Run it only when a change touches the RPC, Transactions, or Portfolio frameworks, or the app's

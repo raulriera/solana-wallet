@@ -2,7 +2,7 @@
 
 - Current scope: RPC simulation returns execution errors, logs, and diagnostics without broadcasting a transaction.
 - AI explanations are optional. When disabled, make no inference requests. Unavailability, refusals, or failures must leave the simulation result usable.
-- Parked at the user's request. The proposed next prototype remains `SimulationExplaining.explanation(for:)` for existing `SimulateTransaction.Value` results.
+- AI explanations aren't implemented, and no explanation API is approved.
 - Keep model selection and fallback inside the framework: PCC first when available, then on-device; retain a basic explanation when AI is unavailable and preserve the original result.
 - The initial value experiment requires real PCC inference with on-device fallback disabled. Local-model output and test doubles don't validate the cloud experience.
 
