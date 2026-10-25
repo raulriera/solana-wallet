@@ -30,7 +30,7 @@
 
 ## Test plans
 
-- `Unit`, the `widgets` scheme's default plan, runs `widgetsTests` offline. Run it for every change:
+- `Unit`, the `widgets` scheme's default plan, runs the app's `widgetsTests` bundle offline; framework test bundles aren't in it. Run it for every change:
   `xcodebuild test -scheme widgets`.
 - `Integration` runs only tests tagged `.network`:
   `xcodebuild test -scheme widgets -testPlan Integration -parallel-testing-enabled NO`.
@@ -59,7 +59,7 @@
 
 ## UI automation
 
-- Follow the [XCUITest Best Practices](plugin://skills@raulriera) skill (`xcuitest-best-practices`). Only the user runs the `UI` test plan, on request. Reuse approved
+- Follow the [XCUITest Best Practices](plugin://skills@raulriera) skill (`xcuitest-best-practices`). Reuse approved
   simulators and disable parallel execution.
 - Make each test self-contained: automatically prepare prerequisites and reset disposable state
   before constructing services. Restrict destructive reset hooks to explicit Debug simulator
