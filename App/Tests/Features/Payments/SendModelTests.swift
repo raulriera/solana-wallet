@@ -29,6 +29,8 @@ struct SendModelTests {
         let keypad: PaymentModel
         /// The window's portfolio, which counts refreshes.
         let portfolio: RecordingPortfolio
+        /// The shared transactions' in-memory records.
+        let records: StoredValue<[TransactionRecord]>
         /// The responses that answer the coordinator's preparation reads and simulations.
         let preparation: HTTPResponses
         /// The connections of the coordinator's watch.
@@ -73,12 +75,12 @@ struct SendModelTests {
         #expect(!model.canApprove)
     }
 
-    /// Approving signs and sends the reviewed payment and watches it until it lands, which clears the keypad's amount
-    /// and reads the balances again.
+    /// Approving signs and sends the reviewed payment and watches it until it lands, which records it, clears the
+    /// keypad's amount, and reads the balances again.
     /// - Throws: A fixture error.
     @Test
     func `A landed payment clears the amount and reads the balances again`() async throws {
-        let payment = try Self.payment(statuses: [Self.status(.finalized)])
+        let payment = try Self.payment(statuses: [.status(.finalized)])
         let model = payment.model
         try await Self.review(model)
 
@@ -87,6 +89,10 @@ struct SendModelTests {
 
         #expect(model.outcome == .succeeded)
         #expect(try #require(model.submission).network == .devnet)
+        let record = try #require(await payment.records.value?.first)
+        #expect(record.id == model.record?.id)
+        #expect(record.kind == .payment(recipient: model.recipient.address, mint: nil, units: 1_000_000_000))
+        #expect(record.status == .succeeded)
         #expect(payment.keypad.quantity == 0)
         #expect(payment.portfolio.refreshes == 1)
         #expect(model.amount.quantity == 1)
@@ -101,7 +107,7 @@ struct SendModelTests {
     func `A failed payment keeps the amount and reads the balances again`() async throws {
         let failure = TransactionError(name: "InstructionError",
                                        details: .array([.integer(0), .object(["Custom": .integer(1)])]))
-        let payment = try Self.payment(statuses: [Self.status(.finalized, error: failure)])
+        let payment = try Self.payment(statuses: [.status(.finalized, error: failure)])
         let model = payment.model
         try await Self.review(model)
 
@@ -121,7 +127,7 @@ struct SendModelTests {
     @Test
     func `Trying a dropped payment again reviews the same amount`() async throws {
         // The epoch's block height is past the blockhash's last valid block height, 550, and no status exists.
-        let payment = try Self.payment(statuses: [Self.status(nil)], height: 600)
+        let payment = try Self.payment(statuses: [.status(nil)], height: 600)
         let model = payment.model
         try await Self.review(model)
         model.approve()
@@ -150,7 +156,7 @@ struct SendModelTests {
     func `Retrying a stopped watch checks the same payment again`() async throws {
         let refusal = Self.rateLimit
         let sockets = SocketSequence { $0 == 0 ? SocketSequence.failing(with: refusal) : SocketSequence.watch() }
-        let payment = try Self.payment(statuses: [Self.status(.finalized)], sockets: sockets)
+        let payment = try Self.payment(statuses: [.status(.finalized)], sockets: sockets)
         let model = payment.model
         try await Self.review(model)
         model.approve()
@@ -268,26 +274,19 @@ struct SendModelTests {
                                 sockets: SocketSequence = SocketSequence()) throws -> Payment {
         var fixture = try SigningFixture()
         fixture.simulation = SimulateTransaction.Response(context: Context(slot: 402), value: simulation)
-        let preparation = try HTTPResponses.preparation(fixture: fixture.preparation)
-        let confirmation = try HTTPResponses.confirmation(
-            statuses: statuses, epochs: [GetEpochInfo.Response(epoch: 1, absoluteSlot: 1_000, blockHeight: height)]
-        )
-        let signing = try HTTPResponses.signing()
-        let transactions = TransactionCoordinator(
-            rpc: preparation.client, configuration: fixture.configuration, preparer: Preparer(rpc: preparation.client),
-            signer: Signer(validator: PreparationValidator(rpc: signing.client),
-                           store: store ?? SigningRecoveryStore(recovery: fixture.recovery)),
-            submitter: Submitter(rpcs: [HTTPResponses.sending().client]),
-            confirmer: Confirmer(rpc: confirmation.client(socket: { sockets.connect($0) }))
-        )
+        let local = try LocalTransactions(fixture: fixture, recovery: store, statuses: statuses, height: height,
+                                          sockets: sockets)
+        let transactions = local.coordinator
         let keypad = PaymentModel(tokens: [sol], currencyCode: "USD")
         keypad.press(.digit(1))
         let portfolio = RecordingPortfolio()
+        let records = StoredValue<[TransactionRecord]>()
         let model = SendModel(payment: keypad,
                               recipient: PaymentRecipient(address: fixture.transfer.accounts[1].address, name: "Bruno"),
-                              warnings: [],
-                              account: fixture.account, transactions: transactions, portfolio: portfolio)
-        return Payment(model: model, keypad: keypad, portfolio: portfolio, preparation: preparation, sockets: sockets)
+                              warnings: [], account: fixture.account, coordinator: transactions,
+                              transactions: .inMemory(records) { _ in transactions }, portfolio: portfolio)
+        return Payment(model: model, keypad: keypad, portfolio: portfolio, records: records,
+                       preparation: local.preparation, sockets: sockets)
     }
 
     /// A successful simulation without balances.
@@ -303,19 +302,6 @@ struct SendModelTests {
         SimulateTransaction.Value(error: error, logs: [], unitsConsumed: 150, loadedAccountsDataSize: 256,
                                   fee: networkFee, replacementBlockhash: nil, preBalances: nil, postBalances: nil,
                                   preTokenBalances: nil, postTokenBalances: nil)
-    }
-
-    /// Wraps the payment's status in a status read at slot 2,000.
-    /// - Parameters:
-    ///   - commitment: The status's commitment at slot 405, or `nil` when the provider has no status.
-    ///   - error: The landed payment's execution error, or `nil` when it succeeded.
-    /// - Returns: A one-signature status read.
-    private static func status(_ commitment: Commitment?, error: TransactionError? = nil)
-        -> GetSignatureStatuses.Response {
-        let status = commitment.map {
-            GetSignatureStatuses.Status(slot: 405, confirmations: nil, error: error, confirmationStatus: $0)
-        }
-        return GetSignatureStatuses.Response(context: Context(slot: 2_000), value: [status])
     }
 
     /// Reviews the payment, as the sheet does when it opens.

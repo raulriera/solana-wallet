@@ -7,9 +7,10 @@ import Transactions
 ///
 /// Each step runs once per attempt in the sheet's task. Reviewing simulates the payment, which also builds the exact
 /// transaction that the person approves; the review simulates it again while it shows, so it never expires. Sending
-/// signs that transaction, which asks the person to authenticate, sends it, and watches it until it settles. A review
-/// can be used once, so a cancelled authentication replaces it with a new simulation of the same payment. Errors before
-/// anything is sent are typed; after sending, the payment keeps its signature, even when the watch stops.
+/// hands that transaction to the shared transactions, which ask the person to authenticate, send it, record it, and
+/// watch it until it settles, even after the sheet closes. A review can be used once, so a cancelled authentication
+/// replaces it with a new simulation of the same payment. Errors before anything is sent are typed; after sending, the
+/// payment keeps its record, even when the watch stops.
 @MainActor
 @Observable
 final class SendModel: Identifiable {
@@ -57,8 +58,8 @@ final class SendModel: Identifiable {
     let warnings: [RecipientWarning]
     /// What the payment costs, once it's simulated.
     private(set) var review: Review?
-    /// The sent payment's signature and network.
-    private(set) var submission: Submission?
+    /// The sent payment's record, as it was saved when the payment was sent.
+    private(set) var record: TransactionRecord?
     /// How the sent payment settled.
     private(set) var outcome: Outcome?
     /// The error of the last attempt.
@@ -69,14 +70,18 @@ final class SendModel: Identifiable {
     private var simulation: Simulation?
     private let payment: PaymentModel
     private let account: Account
-    private let transactions: any TransactionCoordinating
+    private let coordinator: any TransactionCoordinating
+    private let transactions: TransactionStore
     private let portfolio: any PortfolioCoordinating
+
+    /// The sent payment's signature and network.
+    var submission: Submission? { record?.submission }
 
     /// Whether the payment is being signed, sent, and watched until it settles.
     var isSending: Bool { attempt?.work == .send }
 
     /// Whether the person can approve the review: it's simulated, unused, and no step is waiting or running.
-    var canApprove: Bool { attempt == nil && simulation != nil && submission == nil }
+    var canApprove: Bool { attempt == nil && simulation != nil && record == nil }
 
     /// Starts a payment of the amount typed now; ``prepareReview()`` simulates it.
     /// - Parameters:
@@ -84,22 +89,25 @@ final class SendModel: Identifiable {
     ///   - recipient: Who the payment goes to.
     ///   - warnings: What to check about the recipient, most serious first.
     ///   - account: The window's account, which pays the amount and the fees.
-    ///   - transactions: The window's network's transaction coordinator.
+    ///   - coordinator: The window's network's transaction coordinator, which simulates the payment.
+    ///   - transactions: The shared transactions, which send, record, and watch the payment.
     ///   - portfolio: The window's portfolio, which reads the balances again after the payment lands.
     init(payment: PaymentModel, recipient: PaymentRecipient, warnings: [RecipientWarning], account: Account,
-         transactions: any TransactionCoordinating, portfolio: any PortfolioCoordinating) {
+         coordinator: any TransactionCoordinating, transactions: TransactionStore,
+         portfolio: any PortfolioCoordinating) {
         amount = payment.amount
         self.recipient = recipient
         self.warnings = warnings
         self.payment = payment
         self.account = account
+        self.coordinator = coordinator
         self.transactions = transactions
         self.portfolio = portfolio
     }
 
     /// Asks to simulate the payment for review, unless a step is waiting or running or it was sent.
     func prepareReview() {
-        guard attempt == nil, submission == nil else { return }
+        guard attempt == nil, record == nil else { return }
         start(.review)
     }
 
@@ -113,7 +121,7 @@ final class SendModel: Identifiable {
     /// it, and can't be approved meanwhile.
     func tryAgain() {
         guard attempt == nil, outcome == .dropped else { return }
-        submission = nil
+        record = nil
         outcome = nil
         start(.review)
     }
@@ -121,7 +129,7 @@ final class SendModel: Identifiable {
     /// Repeats the step that failed: watches a sent payment again, or simulates the payment again.
     func retry() {
         guard attempt == nil else { return }
-        if submission != nil {
+        if record != nil {
             guard outcome == nil else { return }
             start(.check)
         } else {
@@ -177,17 +185,17 @@ final class SendModel: Identifiable {
         }
     }
 
-    /// Signs and sends the reviewed payment, then watches it until it settles.
+    /// Sends the reviewed payment, then waits until it settles.
     ///
-    /// A cancelled authentication uses up the review, so a new simulation of the same payment replaces it.
+    /// A payment whose delivery is unknown is still recorded and watched, since it may land. A cancelled
+    /// authentication uses up the review, so a new simulation of the same payment replaces it.
     private func send() async {
         guard let simulation else { return }
-        let submission: Submission
+        let record: TransactionRecord
         do {
-            submission = try await transactions.submit(simulation)
-        } catch let error as DeliveryError {
-            // The payment was signed, and its delivery is unknown; the watch finds out whether it lands.
-            submission = error.submission
+            record = try await transactions.send(
+                simulation, as: .payment(recipient: recipient.address, mint: amount.token.mint, units: amount.units),
+                from: account)
         } catch is CancellationError {
             guard !Task.isCancelled else { return }
             await prepare()
@@ -197,29 +205,29 @@ final class SendModel: Identifiable {
             self.error = .notSent
             return
         }
-        self.submission = submission
+        self.record = record
         guard !Task.isCancelled else { return }
-        await settle(submission)
+        await settle(record)
     }
 
-    /// Watches the sent payment again.
+    /// Waits again for the sent payment to settle.
     private func check() async {
-        guard let submission else { return }
-        await settle(submission)
+        guard let record else { return }
+        await settle(record)
     }
 
-    /// Watches a sent payment until it settles, records the outcome, and reads the balances again once it landed.
-    /// - Parameter submission: The sent payment's signature and network.
-    private func settle(_ submission: Submission) async {
-        let confirmation: Confirmation
+    /// Waits until a sent payment settles, shows the outcome, and reads the balances again once it landed.
+    /// - Parameter record: The sent payment's record.
+    private func settle(_ record: TransactionRecord) async {
+        let status: TransactionRecord.Status
         do {
-            confirmation = try await transactions.confirm(submission)
+            status = try await transactions.watch(record.id, for: record.key)
         } catch {
             guard !Task.isCancelled else { return }
             self.error = .watchStopped
             return
         }
-        switch confirmation.outcome {
+        switch status {
         case .succeeded:
             outcome = .succeeded
             payment.clear()
@@ -227,6 +235,9 @@ final class SendModel: Identifiable {
             outcome = .failed
         case .dropped:
             outcome = .dropped
+            return
+        case .pending:
+            // A watch returns only once the payment settled.
             return
         }
         // A landed payment changed the balances, failed or not, since it paid its fee.
@@ -239,7 +250,7 @@ final class SendModel: Identifiable {
     ///   ``SendError/preparationFailed`` if the simulation fails otherwise or doesn't report the fee, or the
     ///   simulation's error.
     private func simulate() async throws -> (simulation: Simulation, review: Review) {
-        let simulation = try await transactions.transfer(amount.units, token: amount.token.mint, using: account,
+        let simulation = try await coordinator.transfer(amount.units, token: amount.token.mint, using: account,
                                                          to: recipient.address)
         let execution = simulation.diagnostics.value
         guard execution.error == nil else {

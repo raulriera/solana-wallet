@@ -16,7 +16,6 @@ struct AppServices {
     let providerConnection: any ProviderConnecting<ProviderConnectionError>
     let providerRevisions = ProviderRevisions()
     let portfolios: NetworkPortfolios
-    let transactions: NetworkTransactions
     let providerSelection: any ProviderSelecting
     let customRPCConnection: any ProviderConnecting<CustomRPCError>
     let currency: CurrencySelection
@@ -33,6 +32,9 @@ struct AppServices {
     let accountStore: AccountStore
     /// Creates new accounts in saved wallets from their recovery.
     let accountCreation: AccountCreation
+    /// The sent transactions and their records, which every window shares; nothing is read or created until a window
+    /// first uses a network or an account's records.
+    let transactionStore: TransactionStore
 
     /// Creates production services after any explicit simulator UI-test reset.
     init() {
@@ -82,10 +84,14 @@ struct AppServices {
         self.portfolios = portfolios
         currency = CurrencySelection(settings: currencySettings, rates: rates, portfolios: { portfolios.created })
         // Approved transactions go to the selected provider and to Solana's public RPC on the same network.
-        transactions = NetworkTransactions { [recovery] network in
+        let transactionStore = TransactionStore(
+            storage: TransactionStore.files(in: .persistentDirectory.appending(path: "Transactions",
+                                                                               directoryHint: .isDirectory))
+        ) { [recovery] network in
             let provider = ProviderClient(network: network, settings: providerSettings, providerKey: providerKey)
             return try TransactionCoordinator(rpc: provider, store: recovery, rpcs: [provider, Solana(network: network)])
         }
+        self.transactionStore = transactionStore
         // Private balances keep their own client per network, apart from the portfolios' token reads.
         let privateBalances = PrivateBalances(recovery: recovery, wallet: wallet, keys: privateBalanceKeys,
                                               notes: privateBalanceNotes, codes: privateBalanceCodes) { network in
@@ -105,8 +111,8 @@ struct AppServices {
             owner: DeviceOwnerAuthentication(),
             reset: AppReset(recovery: recovery, privateBalances: privateBalances,
                             directories: directories, appearance: appearance.appearance, contacts: contactStore,
-                            accounts: accountStore, providerKey: providerKey, providerSettings: providerSettings,
-                            revision: resetRevision),
+                            accounts: accountStore, transactions: transactionStore, providerKey: providerKey,
+                            providerSettings: providerSettings, revision: resetRevision),
             pasteboard: recoveryPasteboard
         )
     }

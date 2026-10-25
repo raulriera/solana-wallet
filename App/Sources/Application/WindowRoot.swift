@@ -28,6 +28,7 @@ struct WindowRoot: View {
         .environment(services.contactStore)
         .environment(services.accountStore)
         .environment(\.accountCreation, services.accountCreation)
+        .environment(services.transactionStore)
         .environment(\.network, network)
     }
 }

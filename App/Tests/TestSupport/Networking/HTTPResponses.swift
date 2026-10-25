@@ -142,9 +142,10 @@ actor HTTPResponses: HTTPTransport {
     }
 
     /// Accepts every sent transaction and acknowledges it with its own signature, as a provider does.
+    /// - Parameter gate: An optional suspension of each send, for cancellation checks.
     /// - Returns: HTTP responses for submission.
-    static func sending() -> HTTPResponses {
-        HTTPResponses([:]) { request in
+    static func sending(gate: Suspension? = nil) -> HTTPResponses {
+        HTTPResponses([:], gate: gate) { request in
             let encoded = try #require(try request.rpcParameters.first as? String)
             let transaction = try TransactionDecoder().decode(try #require(Data(base64Encoded: encoded)))
             return try json(try #require(transaction.signature))

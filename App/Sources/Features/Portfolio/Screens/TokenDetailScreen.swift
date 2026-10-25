@@ -135,9 +135,11 @@ struct TokenDetailScreen: View {
     }
 }
 
-private extension NetworkTransactions {
-    /// Keeps the preview local: no network has a coordinator, so a deposit never opens.
-    static var preview: NetworkTransactions { NetworkTransactions { _ in throw SubmitterError.noProviders } }
+private extension TransactionStore {
+    /// Keeps the preview local: no network has a coordinator, so a deposit never opens, and no records are read.
+    static var preview: TransactionStore {
+        TransactionStore(storage: files(in: .temporaryDirectory)) { _ in throw SubmitterError.noProviders }
+    }
 }
 
 /// Keeps the preview local: it has no tokens and never observes, looks up, adds, or removes one.

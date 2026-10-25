@@ -1,4 +1,5 @@
 import Foundation
+import RPC
 import Testing
 import Vault
 @testable import widgets
@@ -7,7 +8,7 @@ import Vault
 /// at each one, optionally failing one step once.
 actor ResetStorage: RecoveryStoring {
     /// A store that a reset empties; the cases are in the order a reset empties them.
-    nonisolated enum Step: String, Sendable, CaseIterable { case recovery, privateBalances, appearance, contacts, accounts, key, settings }
+    nonisolated enum Step: String, Sendable, CaseIterable { case recovery, privateBalances, appearance, contacts, accounts, transactions, key, settings }
 
     /// The test's own directory, which stands in for the app's kept and cached files.
     nonisolated let directory = URL.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
@@ -37,7 +38,16 @@ actor ResetStorage: RecoveryStoring {
 
     /// The shared accounts, whose erasure this storage records.
     @MainActor var accounts: AccountStore {
-        AccountStore(storage: ResetValue<[Account]>(storage: self, step: .accounts), cleanup: StartupRecoveryCleanup())
+        AccountStore(storage: ResetValue<[widgets.Account]>(storage: self, step: .accounts), cleanup: StartupRecoveryCleanup())
+    }
+
+    /// The shared transactions after one window read an account's records, whose erasure this storage records.
+    @MainActor var transactions: TransactionStore {
+        let store = TransactionStore(storage: { _ in ResetValue(storage: self, step: .transactions) }) { _ in
+            throw SubmitterError.noProviders
+        }
+        _ = store.records(for: TransactionRecord.Key(account: UUID(), network: .devnet))
+        return store
     }
 
     /// The provider's API key, whose deletion this storage records.
@@ -86,11 +96,13 @@ extension AppReset {
     ///   - storage: The storage that records every reset step.
     ///   - contacts: The shared contacts, or `nil` for contacts whose erasure the storage records.
     ///   - accounts: The shared accounts, or `nil` for accounts whose erasure the storage records.
+    ///   - transactions: The shared transactions, or `nil` for transactions whose erasure the storage records.
     ///   - revision: Tells every window when the reset finishes.
-    init(storage: ResetStorage, contacts: ContactStore? = nil, accounts: AccountStore? = nil, revision: Revision) {
+    init(storage: ResetStorage, contacts: ContactStore? = nil, accounts: AccountStore? = nil,
+         transactions: TransactionStore? = nil, revision: Revision) {
         self.init(recovery: storage, privateBalances: storage.privateBalances, directories: [storage.directory],
                   appearance: storage.appearance, contacts: contacts ?? storage.contacts,
-                  accounts: accounts ?? storage.accounts, providerKey: storage.key, providerSettings: storage.settings,
-                  revision: revision)
+                  accounts: accounts ?? storage.accounts, transactions: transactions ?? storage.transactions,
+                  providerKey: storage.key, providerSettings: storage.settings, revision: revision)
     }
 }

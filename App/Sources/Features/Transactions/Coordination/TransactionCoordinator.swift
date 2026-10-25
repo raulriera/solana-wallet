@@ -246,6 +246,8 @@ nonisolated struct Simulation: Sendable {
     let destinationAccountRent: UInt64?
     /// The complete ordered instructions, accounts, resource requests, and signature slots.
     var transaction: Transaction { preparation.transaction }
+    /// The network that the transaction was simulated on, and that it's sent on.
+    var network: Network { preparation.network }
     /// The network fee, including its priority fee; `nil` remains unknown.
     var fee: UInt64? { preparation.fee.value }
     /// The original local block-height expiry, or `nil` for imported recent blockhashes.

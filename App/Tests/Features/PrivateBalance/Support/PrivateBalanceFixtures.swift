@@ -75,6 +75,16 @@ enum PrivateBalanceFixtures {
                              outcome: outcome)
     }
 
+    /// Creates a prepared deposit on devnet without instructions, for recording outcomes.
+    /// - Parameters:
+    ///   - lamports: The deposited amount.
+    ///   - account: The depositing account.
+    /// - Returns: The prepared deposit.
+    static func preparedDeposit(_ lamports: UInt64, from account: widgets.Account) -> PreparedPrivateTransaction {
+        PreparedPrivateTransaction(instructions: [], account: account, network: .devnet, effect: .deposit(lamports),
+                                   registers: false, authorities: [.account(account)])
+    }
+
     /// Counts the proof requests sent so far.
     /// - Parameter responses: The local responses that recorded the requests.
     /// - Returns: The number of requests on the prover's route.

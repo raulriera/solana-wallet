@@ -40,7 +40,7 @@ final class PrivateBalanceModel {
     private(set) var followUpReadsLeft = 0
     private var account: Account?
     private let balances: any PrivateBalancing
-    private let transactions: NetworkTransactions
+    private let transactions: TransactionStore
     private let network: Network
 
     /// Whether an attempt to turn private balances on is waiting or running.
@@ -55,9 +55,9 @@ final class PrivateBalanceModel {
     /// Creates a model that shows nothing until its first refresh.
     /// - Parameters:
     ///   - balances: The private balances of every account.
-    ///   - transactions: The transaction coordinators of every network.
+    ///   - transactions: The transactions that every window sends, watches, and records.
     ///   - network: The window's network.
-    init(balances: any PrivateBalancing, transactions: NetworkTransactions, network: Network) {
+    init(balances: any PrivateBalancing, transactions: TransactionStore, network: Network) {
         self.balances = balances
         self.transactions = transactions
         self.network = network
@@ -152,7 +152,8 @@ final class PrivateBalanceModel {
             do {
                 move = BalanceMoveModel(direction: direction, account: account, network: network,
                                         spendableLamports: spendableLamports, balances: balances,
-                                        transactions: try transactions.coordinator(for: network))
+                                        coordinator: try transactions.coordinator(for: network),
+                                        transactions: transactions)
             } catch {
                 self.error = .preparationFailed
             }

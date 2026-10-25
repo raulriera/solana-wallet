@@ -27,8 +27,7 @@ struct WindowContent: View {
                             portfolio: window.portfolio, tokenRemoval: window.tokenRemoval,
                             privateBalance: window.privateBalance,
                             settings: window.settings, connection: services.providerConnection,
-                            security: window.security, providers: window.providers, contacts: services.contacts,
-                            transactions: services.transactions)
+                            security: window.security, providers: window.providers, contacts: services.contacts)
             }
         }
         .animation(.default, value: window.router.destination)

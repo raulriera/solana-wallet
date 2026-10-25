@@ -788,7 +788,7 @@ struct PrivateBalancesTests {
         let notes = StoredValue<PrivateBalances.Notes>([id: NoteSyncState()])
         let balances = try Self.balances(HTTPResponses.privateNotes(), notes: notes)
 
-        let status = try await balances.complete(Self.deposit(5_000, from: account), with: PrivateBalanceFixtures.confirmation(.succeeded))
+        let status = try await balances.complete(PrivateBalanceFixtures.preparedDeposit(5_000, from: account), with: PrivateBalanceFixtures.confirmation(.succeeded))
 
         #expect(status == .balance(available: 0, pending: 5_000))
         #expect(await notes.value?[id]?.pendingLamports == 5_000)
@@ -820,7 +820,7 @@ struct PrivateBalancesTests {
         let keys = StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
         let balances = try Self.balances(HTTPResponses.privateNotes(), keys: keys, notes: notes)
 
-        let status = try await balances.complete(Self.deposit(5_000, from: account), with: PrivateBalanceFixtures.confirmation(outcome))
+        let status = try await balances.complete(PrivateBalanceFixtures.preparedDeposit(5_000, from: account), with: PrivateBalanceFixtures.confirmation(outcome))
 
         #expect(status == .balance(available: 0, pending: 0))
         #expect(await notes.value == [id: NoteSyncState()])
@@ -837,7 +837,7 @@ struct PrivateBalancesTests {
 
         await #expect(throws: Transactions.ValidationError.invalidTransaction) {
             try await Self.balances(HTTPResponses.privateNotes(), notes: notes)
-                .complete(Self.deposit(5_000, from: account), with: confirmation)
+                .complete(PrivateBalanceFixtures.preparedDeposit(5_000, from: account), with: confirmation)
         }
         #expect(await notes.value == [id: NoteSyncState()])
     }
@@ -856,7 +856,7 @@ struct PrivateBalancesTests {
 
         let refresh = await Self.startRefresh(of: account, in: balances)
         await gate.waitUntilStarted()
-        let completion = await Self.startCompletion(of: Self.deposit(5_000, from: account), in: balances)
+        let completion = await Self.startCompletion(of: PrivateBalanceFixtures.preparedDeposit(5_000, from: account), in: balances)
         gate.resume()
 
         #expect(try await refresh.value == .balance(available: 0, pending: 0))
@@ -874,7 +874,7 @@ struct PrivateBalancesTests {
         let keys = StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
         let balances = try Self.balances(HTTPResponses.privateNotes(), keys: keys, notes: notes)
 
-        let completion = await Self.startCompletion(of: Self.deposit(5_000, from: account), in: balances)
+        let completion = await Self.startCompletion(of: PrivateBalanceFixtures.preparedDeposit(5_000, from: account), in: balances)
         await gate.waitUntilStarted()
         let refresh = await Self.startRefresh(of: account, in: balances)
         gate.resume()
@@ -898,7 +898,7 @@ struct PrivateBalancesTests {
 
         let refresh = await Self.startRefresh(of: account, in: balances)
         await gate.waitUntilStarted()
-        let completion = await Self.startCompletion(of: Self.deposit(5_000, from: account), outcome: outcome, in: balances)
+        let completion = await Self.startCompletion(of: PrivateBalanceFixtures.preparedDeposit(5_000, from: account), outcome: outcome, in: balances)
         try await balances.removeAll()
         gate.resume()
 
@@ -917,9 +917,9 @@ struct PrivateBalancesTests {
         let keys = StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
         let balances = try Self.balances(HTTPResponses.privateNotes(), keys: keys, notes: notes)
 
-        let first = await Self.startCompletion(of: Self.deposit(5_000, from: account), signature: "first", in: balances)
+        let first = await Self.startCompletion(of: PrivateBalanceFixtures.preparedDeposit(5_000, from: account), signature: "first", in: balances)
         await gate.waitUntilStarted()
-        let second = await Self.startCompletion(of: Self.deposit(7_000, from: account), signature: "second", in: balances)
+        let second = await Self.startCompletion(of: PrivateBalanceFixtures.preparedDeposit(7_000, from: account), signature: "second", in: balances)
         let refresh = await Self.startRefresh(of: account, in: balances)
         gate.resume()
 
@@ -1028,16 +1028,6 @@ struct PrivateBalancesTests {
         let id = PrivateBalances.noteID(of: registered.account, on: .devnet)
         return (registered.account, StoredValue([registered.account.address.value: registered.keys]),
                 StoredValue([id: NoteSyncState()]), id, registered.deposit)
-    }
-
-    /// Creates a prepared deposit on devnet without instructions, for recording outcomes.
-    /// - Parameters:
-    ///   - lamports: The deposited amount.
-    ///   - account: The depositing account.
-    /// - Returns: The prepared deposit.
-    private static func deposit(_ lamports: UInt64, from account: widgets.Account) -> PreparedPrivateTransaction {
-        PreparedPrivateTransaction(instructions: [], account: account, network: .devnet, effect: .deposit(lamports),
-                                   registers: false, authorities: [.account(account)])
     }
 
     /// Lists the cursor of each tag read sent so far.

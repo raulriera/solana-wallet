@@ -108,7 +108,7 @@ struct BalanceMoveModelTests {
     /// private balance.
     @Test
     func `Approving sends the deposit and shows it pending`() async throws {
-        let deposit = try await Self.deposit(statuses: [Self.status(.finalized)])
+        let deposit = try await Self.deposit(statuses: [.status(.finalized)])
         let model = deposit.model
         try await Self.review(model)
 
@@ -127,7 +127,7 @@ struct BalanceMoveModelTests {
     @Test
     func `Trying a dropped deposit again reviews the same amount`() async throws {
         // The epoch's block height is past the blockhash's last valid block height, 550, and no status exists.
-        let deposit = try await Self.deposit(statuses: [Self.status(nil)], height: 600)
+        let deposit = try await Self.deposit(statuses: [.status(nil)], height: 600)
         let model = deposit.model
         try await Self.review(model)
         model.approve()
@@ -155,7 +155,7 @@ struct BalanceMoveModelTests {
     func `Checking an unconfirmed deposit again settles it`() async throws {
         let refusal = Self.rateLimit
         let sockets = SocketSequence { $0 == 0 ? SocketSequence.failing(with: refusal) : SocketSequence.watch() }
-        let deposit = try await Self.deposit(statuses: [Self.status(.finalized)], sockets: sockets)
+        let deposit = try await Self.deposit(statuses: [.status(.finalized)], sockets: sockets)
         let model = deposit.model
         try await Self.review(model)
         model.approve()
@@ -242,7 +242,7 @@ struct BalanceMoveModelTests {
     /// A sent deposit's result stays: leaving it doesn't clear the review.
     @Test
     func `A sent deposit keeps its review`() async throws {
-        let deposit = try await Self.deposit(statuses: [Self.status(.finalized)])
+        let deposit = try await Self.deposit(statuses: [.status(.finalized)])
         let model = deposit.model
         try await Self.review(model)
         model.approve()
@@ -312,7 +312,7 @@ struct BalanceMoveModelTests {
     /// note's change pending in the private balance.
     @Test
     func `Approving sends the withdrawal and keeps its change pending`() async throws {
-        let withdrawal = try await Self.withdrawal(statuses: [Self.status(.finalized)])
+        let withdrawal = try await Self.withdrawal(statuses: [.status(.finalized)])
         let model = withdrawal.model
         try await Self.review(model)
 
@@ -426,23 +426,15 @@ struct BalanceMoveModelTests {
                              height: UInt64 = 500, sockets: SocketSequence) throws -> Move {
         var fixture = fixture
         fixture.simulation = SimulateTransaction.Response(context: Context(slot: 402), value: simulation)
-        let preparation = try HTTPResponses.preparation(fixture: fixture.preparation)
-        let confirmation = try HTTPResponses.confirmation(
-            statuses: statuses, epochs: [GetEpochInfo.Response(epoch: 1, absoluteSlot: 1_000, blockHeight: height)]
-        )
-        let signing = try HTTPResponses.signing()
-        let transactions = TransactionCoordinator(
-            rpc: preparation.client, configuration: fixture.configuration, preparer: Preparer(rpc: preparation.client),
-            signer: Signer(validator: PreparationValidator(rpc: signing.client),
-                           store: try store ?? SigningRecoveryStore(recovery: PrivateBalanceFixtures.recovery())),
-            submitter: Submitter(rpcs: [HTTPResponses.sending().client]),
-            confirmer: Confirmer(rpc: confirmation.client(socket: { sockets.connect($0) }))
-        )
+        let recovery = try store ?? SigningRecoveryStore(recovery: PrivateBalanceFixtures.recovery())
+        let local = try LocalTransactions(fixture: fixture, recovery: recovery, statuses: statuses, height: height,
+                                          sockets: sockets)
+        let transactions = local.coordinator
         let model = BalanceMoveModel(direction: direction, account: account, network: .devnet,
                                      spendableLamports: spendableLamports, balances: balances,
-                                     transactions: transactions)
+                                     coordinator: transactions, transactions: .inMemory { _ in transactions })
         model.payment.press(.digit(1))
-        return Move(model: model, preparation: preparation, sockets: sockets)
+        return Move(model: model, preparation: local.preparation, sockets: sockets)
     }
 
     /// Creates a successful simulation of a move, whose payer starts with the public balance.
@@ -475,16 +467,6 @@ struct BalanceMoveModelTests {
         SimulateTransaction.Value(error: error, logs: logs, unitsConsumed: 150, loadedAccountsDataSize: 256,
                                   fee: networkFee, replacementBlockhash: nil, preBalances: nil, postBalances: nil,
                                   preTokenBalances: nil, postTokenBalances: nil)
-    }
-
-    /// Wraps the deposit's status in a status read at slot 2,000.
-    /// - Parameter commitment: The status's commitment at slot 405, or `nil` when the provider has no status.
-    /// - Returns: A one-signature status read.
-    private static func status(_ commitment: Commitment?) -> GetSignatureStatuses.Response {
-        let status = commitment.map {
-            GetSignatureStatuses.Status(slot: 405, confirmations: nil, error: nil, confirmationStatus: $0)
-        }
-        return GetSignatureStatuses.Response(context: Context(slot: 2_000), value: [status])
     }
 
     /// Reviews the typed amount, as the scene does before the person approves it.

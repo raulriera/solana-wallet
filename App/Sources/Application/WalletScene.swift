@@ -18,8 +18,6 @@ struct WalletScene: View {
     let security: SecurityCoordinator
     let providers: ProvidersCoordinator
     let contacts: ContactsServices
-    /// Every network's transaction coordinator, which windows share.
-    let transactions: NetworkTransactions
 
     var body: some View {
         TabView(selection: $section) {
@@ -29,8 +27,7 @@ struct WalletScene: View {
                     .tokenRemovalLifecycle()
             }
             Tab("Contacts", systemImage: "person.crop.circle", value: .contacts) {
-                ContactsScene(account: account, network: network, services: contacts, portfolio: portfolio,
-                              transactions: transactions)
+                ContactsScene(account: account, network: network, services: contacts, portfolio: portfolio)
             }
             Tab("Settings", systemImage: "gearshape", value: .settings) {
                 SettingsScene(settings: settings, account: account, network: $network, security: security,

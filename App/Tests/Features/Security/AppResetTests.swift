@@ -1,4 +1,5 @@
 import Foundation
+import RPC
 import Storage
 import Testing
 @testable import widgets
@@ -10,7 +11,7 @@ struct AppResetTests {
     /// Secrets go first, the directories before appearance forgets them, and every window hears about the reset only once
     /// everything is deleted.
     @Test
-    func `Reset deletes recovery, private balances, the directories, appearance, contacts, accounts, the API key, then the provider settings`() async throws {
+    func `Reset deletes recovery, private balances, the directories, appearance, contacts, accounts, transactions, the API key, then the provider settings`() async throws {
         let storage = ResetStorage()
         defer { try? FileManager.default.removeItem(at: storage.directory) }
         try createFile(in: storage.directory)
@@ -19,7 +20,7 @@ struct AppResetTests {
         try await AppReset(storage: storage, revision: revision).reset()
 
         #expect(await storage.deletions == ResetStorage.Step.allCases)
-        #expect(await storage.directoryExisted == [true, true, false, false, false, false, false])
+        #expect(await storage.directoryExisted == [true, true, false, false, false, false, false, false])
         #expect(revision.value == 1)
     }
 
@@ -79,7 +80,7 @@ struct AppResetTests {
     /// Windows that show the shared accounts forget them once the reset finishes.
     @Test
     func `Reset empties the accounts that windows show`() async throws {
-        let saved = StoredValue([try Account.fixture(index: 0)])
+        let saved = StoredValue([try widgets.Account.fixture(index: 0)])
         let accounts = AccountStore.inMemory(saved)
         await accounts.load()
 
@@ -87,6 +88,21 @@ struct AppResetTests {
 
         #expect(accounts.accounts.isEmpty)
         #expect(accounts.phase == .loaded)
+        #expect(await saved.value == nil)
+    }
+
+    /// Windows that show the shared transactions forget their records once the reset finishes.
+    @Test
+    func `Reset empties the transactions that windows show`() async throws {
+        let account = UUID()
+        let key = TransactionRecord.Key(account: account, network: .devnet)
+        let saved = StoredValue([TransactionRecord.fixture(.privateDeposit(lamports: 1), account: account)])
+        let transactions = TransactionStore.inMemory(saved) { _ in throw SubmitterError.noProviders }
+        await transactions.load(key)
+
+        try await AppReset(storage: ResetStorage(), transactions: transactions, revision: Revision()).reset()
+
+        #expect(transactions.records(for: key).isEmpty)
         #expect(await saved.value == nil)
     }
 

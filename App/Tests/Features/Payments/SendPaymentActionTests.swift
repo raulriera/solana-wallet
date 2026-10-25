@@ -66,7 +66,7 @@ struct SendPaymentActionTests {
         payment.press(.digit(1))
 
         try Self.action(payment: payment, presented: presented,
-                        transactions: NetworkTransactions { _ in throw SubmitterError.noProviders })()
+                        transactions: .inMemory { _ in throw SubmitterError.noProviders })()
 
         #expect(presented.send == nil)
         #expect(presented.error == .preparationFailed)
@@ -77,15 +77,15 @@ struct SendPaymentActionTests {
     ///   - payment: The keypad's payment.
     ///   - presented: Receives what the action opens.
     ///   - context: The person's own history, which the review's checks compare the recipient with.
-    ///   - transactions: Every network's transaction coordinator, or `nil` for one that answers from local responses.
+    ///   - transactions: The shared transactions, or `nil` for ones whose coordinator answers from local responses.
     /// - Returns: The action.
     /// - Throws: A fixture error.
     private static func action(payment: PaymentModel, presented: Presented,
                                context: RecipientContext = RecipientContext(knownAddresses: [], paidAddresses: []),
-                               transactions: NetworkTransactions? = nil) throws -> SendPaymentAction {
+                               transactions: TransactionStore? = nil) throws -> SendPaymentAction {
         let fixture = try SigningFixture()
         let preparation = try HTTPResponses.preparation(fixture: fixture.preparation)
-        let local = NetworkTransactions { _ in
+        let local = TransactionStore.inMemory { _ in
             try TransactionCoordinator(rpc: preparation.client, store: SigningRecoveryStore(recovery: fixture.recovery))
         }
         let sender = PaymentSender(account: fixture.account, network: .devnet, transactions: transactions ?? local,

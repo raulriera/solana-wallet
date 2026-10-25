@@ -11,6 +11,7 @@ struct AppReset: AppResetting {
     private let appearance: any AppearanceCoordinating
     private let contacts: ContactStore
     private let accounts: AccountStore
+    private let transactions: TransactionStore
     private let providerKey: any ValueStoring<String>
     private let providerSettings: any ValueStoring<ProviderSettings>
     private let revision: Revision
@@ -23,26 +24,30 @@ struct AppReset: AppResetting {
     ///   - appearance: The shared appearance, which forgets its cached selections once the directories are gone.
     ///   - contacts: The shared contacts, which every window forgets once the directories are gone.
     ///   - accounts: The shared accounts, which every window forgets once the directories are gone.
+    ///   - transactions: The shared transactions, whose watches stop and whose records every window forgets once the
+    ///     directories are gone.
     ///   - providerKey: The provider's API key storage.
     ///   - providerSettings: The provider choice and custom RPC storage.
     ///   - revision: Tells every window when the reset finishes.
     init(recovery: any RecoveryStoring, privateBalances: any PrivateBalancing, directories: [URL],
          appearance: any AppearanceCoordinating, contacts: ContactStore, accounts: AccountStore,
-         providerKey: any ValueStoring<String>, providerSettings: any ValueStoring<ProviderSettings>, revision: Revision) {
+         transactions: TransactionStore, providerKey: any ValueStoring<String>,
+         providerSettings: any ValueStoring<ProviderSettings>, revision: Revision) {
         self.recovery = recovery
         self.privateBalances = privateBalances
         self.directories = directories
         self.appearance = appearance
         self.contacts = contacts
         self.accounts = accounts
+        self.transactions = transactions
         self.providerKey = providerKey
         self.providerSettings = providerSettings
         self.revision = revision
     }
 
     /// Deletes every recovery phrase, then the private-balance keys, notes, and redeem codes, then the directories,
-    /// restarts appearance, erases the contacts and the accounts, then deletes the provider API key, then the provider
-    /// choice and custom RPCs, and returns every window to onboarding.
+    /// restarts appearance, erases the contacts, the accounts, and the transactions, then deletes the provider API key,
+    /// then the provider choice and custom RPCs, and returns every window to onboarding.
     /// - Throws: A storage or cancellation error from the first step that fails.
     func reset() async throws {
         try await recovery.deleteAllRecovery()
@@ -51,6 +56,7 @@ struct AppReset: AppResetting {
         try await appearance.restart()
         try await contacts.erase()
         try await accounts.erase()
+        try await transactions.erase()
         try await providerKey.delete()
         try await providerSettings.delete()
         revision.advance()

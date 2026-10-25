@@ -135,7 +135,7 @@ struct PrivateBalanceModelTests {
         let model = try PrivateBalanceModel.fixture(
             HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered]),
             keys: StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)]),
-            transactions: NetworkTransactions { _ in throw SubmitterError.noProviders }
+            transactions: .inMemory { _ in throw SubmitterError.noProviders }
         )
         await model.refresh(for: account)
 

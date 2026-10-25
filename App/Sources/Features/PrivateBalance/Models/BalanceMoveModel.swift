@@ -6,11 +6,11 @@ import RPC
 /// One move of an account's SOL between its public balance and its own private balance: the direction, the amount, its
 /// review, and how it settled.
 ///
-/// Each step runs once per attempt in the scene's task. Reviewing prepares and simulates the move; sending signs
-/// it, which asks the person to authenticate, sends it, and watches it until it settles; checking watches a sent
-/// move again after its watch stopped. A review can be used once, so a cancelled authentication replaces it with a
-/// new simulation of the same move. Errors before anything is sent are typed; after sending, the outcome keeps the
-/// signature, even when the watch stopped.
+/// Each step runs once per attempt in the scene's task. Reviewing prepares and simulates the move; sending hands it to
+/// the shared transactions, which ask the person to authenticate, send it, record it, and watch it until it settles,
+/// even after the sheet closes; checking waits again for a sent move after its watch stopped. A review can be used
+/// once, so a cancelled authentication replaces it with a new simulation of the same move. Errors before anything is
+/// sent are typed; after sending, the move keeps its record, even when the watch stopped.
 @MainActor
 @Observable
 final class BalanceMoveModel: Identifiable {
@@ -80,8 +80,8 @@ final class BalanceMoveModel: Identifiable {
     let payment: PaymentModel
     /// The review that the person approves, once the move is simulated.
     private(set) var review: Review?
-    /// The sent move's signature and network.
-    private(set) var submission: Submission?
+    /// The sent move's record, as it was saved when the move was sent.
+    private(set) var record: TransactionRecord?
     /// How the sent move settled.
     private(set) var outcome: Outcome?
     /// The account's private balance after the move settled, with the SOL that it receives pending when it succeeded.
@@ -94,7 +94,11 @@ final class BalanceMoveModel: Identifiable {
     private let account: Account
     private let network: Network
     private let balances: any PrivateBalancing
-    private let transactions: any TransactionCoordinating
+    private let coordinator: any TransactionCoordinating
+    private let transactions: TransactionStore
+
+    /// The sent move's signature and network.
+    var submission: Submission? { record?.submission }
 
     /// Whether a step is waiting or running.
     var isWorking: Bool { attempt != nil }
@@ -106,14 +110,14 @@ final class BalanceMoveModel: Identifiable {
     var isChecking: Bool { attempt?.work == .check }
 
     /// Whether the person can approve the review: it's simulated, unused, and no step is waiting or running.
-    var canApprove: Bool { attempt == nil && reviewed != nil && submission == nil }
+    var canApprove: Bool { attempt == nil && reviewed != nil && record == nil }
 
     /// Whether the review shows; turning it off before anything is sent returns to the amount, whose next review
     /// simulates again.
     var isReviewing: Bool {
         get { review != nil }
         set {
-            guard !newValue, attempt == nil, submission == nil else { return }
+            guard !newValue, attempt == nil, record == nil else { return }
             review = nil
             reviewed = nil
         }
@@ -126,9 +130,10 @@ final class BalanceMoveModel: Identifiable {
     ///   - network: The window's network.
     ///   - spendableLamports: The SOL that the amount can take from the balance that it leaves, in lamports.
     ///   - balances: The private balances of every account.
-    ///   - transactions: The network's transaction coordinator.
+    ///   - coordinator: The network's transaction coordinator, which simulates the move.
+    ///   - transactions: The shared transactions, which send, record, and watch the move.
     init(direction: Direction, account: Account, network: Network, spendableLamports: UInt64,
-         balances: any PrivateBalancing, transactions: any TransactionCoordinating) {
+         balances: any PrivateBalancing, coordinator: any TransactionCoordinating, transactions: TransactionStore) {
         let sol = PaymentToken(mint: nil, symbol: "SOL", balance: Decimal(spendableLamports) / Self.lamportsPerSOL,
                                price: nil, decimals: 9)
         let source: PaymentModel.Source = switch direction {
@@ -141,6 +146,7 @@ final class BalanceMoveModel: Identifiable {
         self.account = account
         self.network = network
         self.balances = balances
+        self.coordinator = coordinator
         self.transactions = transactions
     }
 
@@ -161,7 +167,7 @@ final class BalanceMoveModel: Identifiable {
     func tryAgain() {
         guard attempt == nil, outcome == .dropped else { return }
         reviewed = nil
-        submission = nil
+        record = nil
         outcome = nil
         start(.review)
     }
@@ -188,11 +194,11 @@ final class BalanceMoveModel: Identifiable {
     ///
     /// Nothing changes on screen unless the fees do. Steps that are waiting or running, and settled moves, skip it.
     func refreshReview() async {
-        guard attempt == nil, submission == nil, let reviewed else { return }
+        guard attempt == nil, record == nil, let reviewed else { return }
         do {
             let simulated = try await simulate(reviewed.transaction)
             // The person may have left the review, or approved it, meanwhile.
-            guard attempt == nil, submission == nil, review != nil else { return }
+            guard attempt == nil, record == nil, review != nil else { return }
             show(simulated)
         } catch is CancellationError {
             // The review closed.
@@ -225,18 +231,22 @@ final class BalanceMoveModel: Identifiable {
         }
     }
 
-    /// Signs and sends the reviewed move, then watches it until it settles.
+    /// Sends the reviewed move, then waits until it settles.
     ///
-    /// A cancelled authentication uses up the review, so a new simulation of the same move replaces it.
+    /// The move's outcome completes the private balance once it settles. A move whose delivery is unknown is still
+    /// recorded and watched, since it may land. A cancelled authentication uses up the review, so a new simulation of
+    /// the same move replaces it.
     private func send() async {
-        guard let reviewed else { return }
-        let submission: Submission
+        guard let reviewed, let review else { return }
+        let kind: TransactionRecord.Kind = switch direction {
+        case .toPrivate: .privateDeposit(lamports: review.lamports)
+        case .toPublic: .privateWithdrawal(lamports: review.lamports)
+        }
+        let record: TransactionRecord
         do {
-            submission = try await transactions.submit(reviewed.simulation)
-        } catch let error as DeliveryError {
-            self.submission = error.submission
-            outcome = .unconfirmed
-            return
+            record = try await transactions.send(
+                reviewed.simulation, as: kind, from: account,
+                settling: PrivateBalanceSettlement(balances: balances, transaction: reviewed.transaction))
         } catch is CancellationError {
             guard !Task.isCancelled else { return }
             await replaceReview(of: reviewed.transaction)
@@ -245,35 +255,39 @@ final class BalanceMoveModel: Identifiable {
             self.error = Self.error(for: error)
             return
         }
-        self.submission = submission
-        await settle(submission, of: reviewed.transaction)
+        self.record = record
+        await settle(record)
     }
 
-    /// Watches the sent move again.
+    /// Waits again for the sent move to settle.
     private func check() async {
-        guard let submission, let reviewed else { return }
-        await settle(submission, of: reviewed.transaction)
+        guard let record else { return }
+        await settle(record)
     }
 
-    /// Watches a sent move until it settles, records the outcome, and shows the private balance afterward.
-    /// - Parameters:
-    ///   - submission: The sent move's signature and network.
-    ///   - transaction: The prepared move, which records the outcome.
-    private func settle(_ submission: Submission, of transaction: PreparedPrivateTransaction) async {
-        let confirmation: Confirmation
+    /// Waits until a sent move settles, reads the private balance after a move that succeeded, and shows the outcome.
+    /// - Parameter record: The sent move's record.
+    private func settle(_ record: TransactionRecord) async {
+        let settled: TransactionRecord.Status
         do {
-            confirmation = try await transactions.confirm(submission)
+            settled = try await transactions.watch(record.id, for: record.key)
         } catch {
             guard !Task.isCancelled else { return }
             outcome = .unconfirmed
             return
         }
-        // The move settled either way; without a record, the next read of the indexer still finds it.
-        status = try? await balances.complete(transaction, with: confirmation)
-        outcome = switch confirmation.outcome {
-        case .succeeded: .succeeded
-        case .failed: .failed
-        case .dropped: .dropped
+        switch settled {
+        case .succeeded:
+            // The settlement recorded the move, so the balance shows the SOL that it left pending.
+            status = try? await balances.refresh(account, on: network)
+            outcome = .succeeded
+        case .failed:
+            outcome = .failed
+        case .dropped:
+            outcome = .dropped
+        case .pending:
+            // A watch returns only once the move settled.
+            return
         }
     }
 
@@ -306,7 +320,7 @@ final class BalanceMoveModel: Identifiable {
         case .spend(let spend): spend.lamports
         case .createCode, .redeem: throw PrivateBalanceError.preparationFailed
         }
-        let (simulation, transaction) = try await transactions.simulate(prepared)
+        let (simulation, transaction) = try await coordinator.simulate(prepared)
         let execution = simulation.diagnostics.value
         guard execution.error == nil else {
             guard execution.lacksFunds else { throw PrivateBalanceError.preparationFailed }
