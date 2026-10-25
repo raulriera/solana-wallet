@@ -5,7 +5,7 @@ extension TokenTransfer {
     ///
     /// Destination creation is idempotent, so another sender creating the account
     /// before execution doesn't invalidate the instruction. The token owner pays any destination creation deposit.
-    /// Token-2022 fees are checked on-chain; a changed fee requires a new preparation and approval.
+    /// The checked instruction asserts the expected Token-2022 fee on-chain.
     ///
     /// - Returns: Ordered account creation, memo, and checked-transfer instructions.
     /// - Throws: An address validation error if a program identifier is invalid.

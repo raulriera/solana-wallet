@@ -5,7 +5,7 @@ public import Foundation
 public struct TransactionBuilder: TransactionBuilding {
     private let decoder: any TransactionDecoding = TransactionDecoder()
 
-    /// Creates an assembler with a structural decoder and no wallet or network access.
+    /// Creates a transaction builder.
     public init() {}
 
     /// Appends an empty slot for each required signer and validates the complete envelope.
@@ -89,7 +89,7 @@ public struct TransactionBuilder: TransactionBuilding {
         return index
     }
 
-    /// Applies the same strict point and signature checks to every assembly path.
+    /// Verifies an Ed25519 signature strictly, rejecting small-order keys and nonces.
     ///
     /// - Parameters:
     ///   - signature: The Ed25519 signature to validate.

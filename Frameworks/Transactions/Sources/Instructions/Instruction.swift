@@ -12,7 +12,7 @@ public struct Instruction: Sendable, Equatable {
     /// The program-specific instruction data.
     public let data: Data
 
-    /// Creates an invocation without compiling, signing, or submitting it.
+    /// Creates an instruction.
     ///
     /// - Parameters:
     ///   - program: The invoked program's address.

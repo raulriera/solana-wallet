@@ -24,7 +24,7 @@ enum PointEncoding {
     /// Returns whether bytes encode a small-order point or one of its aliases.
     ///
     /// This check does not decompress points or replace cryptographic verification.
-    /// Only a local comparison copy loses the sign bit; original bytes remain unchanged.
+    /// The comparison ignores the sign bit.
     ///
     /// - Parameter bytes: A compressed Ed25519 point.
     /// - Returns: `true` for a known small-order encoding; `false` for other bytes,

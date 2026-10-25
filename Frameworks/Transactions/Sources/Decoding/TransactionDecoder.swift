@@ -3,10 +3,10 @@ public import Foundation
 
 /// A stateless inspector for complete V1 envelopes with one or more required signers.
 public struct TransactionDecoder: TransactionDecoding {
-    /// Creates a decoder without networking, key access, or shared mutable state.
+    /// Creates a decoder.
     public init() {}
 
-    /// Imports bounded Base64 without asking workflow callers to construct byte buffers.
+    /// Decodes a Base64-encoded V1 transaction of at most 4,096 bytes.
     ///
     /// - Parameter base64: A complete V1 transaction, without whitespace or ignored characters.
     /// - Returns: The decoded transaction with its exact message bytes preserved.

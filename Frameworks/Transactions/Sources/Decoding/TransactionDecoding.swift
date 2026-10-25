@@ -2,7 +2,7 @@ public import Foundation
 
 /// A type that inspects complete serialized V1 transactions without signing them.
 public protocol TransactionDecoding: Sendable {
-    /// Imports a Base64 transaction into the typed representation used by app services.
+    /// Decodes a complete Base64-encoded V1 transaction.
     ///
     /// - Parameter base64: The complete encoded V1 envelope received at an import boundary.
     /// - Returns: Structural inspection with the original message and signature slots preserved.

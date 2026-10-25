@@ -3,7 +3,7 @@ public import Foundation
 
 /// A stateless V1 compiler shared by every program's instructions.
 public struct MessageBuilder: MessageBuilding {
-    /// Creates a compiler without network, storage, or signing dependencies.
+    /// Creates a message builder.
     public init() {}
 
     /// Merges account permissions while preserving instruction and argument order,
