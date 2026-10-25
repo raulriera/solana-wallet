@@ -466,8 +466,7 @@ struct PortfolioTests {
         #expect(await http.requests.count == 1)
     }
 
-    /// Verifies an older cache, with tokens and metadata that DAS discovered, is absent during refresh
-    /// and after a network failure.
+    /// Verifies a snapshot saved in another format is ignored during a refresh and after it fails.
     /// - Parameter version: An older cache format.
     /// - Throws: A cache fixture or test prerequisite error.
     @Test(arguments: [1, 2, 3])

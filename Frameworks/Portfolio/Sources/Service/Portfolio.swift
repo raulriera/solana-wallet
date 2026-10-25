@@ -53,12 +53,9 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
         observer = ObservationCoordinator(refresh: coordinator, tokenLists: lists, changes: changes, pause: pause)
     }
 
-    /// Returns cached state, then reads balances, logos, and prices again.
+    /// Returns cached state, then reads balances, logos, and prices again; concurrent callers share one read.
     ///
-    /// The service owns cache lookup, persistence, and failure fallback.
-    /// Each caller receives its own stream while concurrent callers share the refresh.
-    /// Registration completes before this method returns; the refresh arrives through the stream.
-    /// The reload also connects the wallet's observation again at once when it is disconnected.
+    /// Also reconnects a disconnected observation.
     ///
     /// - Parameter owner: The wallet address whose holdings to retrieve.
     /// - Returns: A finite stream of complete states. Cancelling its consuming task

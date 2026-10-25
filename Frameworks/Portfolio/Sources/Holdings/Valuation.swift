@@ -9,7 +9,7 @@ public struct Valuation: Codable, Sendable, Equatable {
     /// The currency in which the price and total are quoted, if known.
     public let currency: String?
     /// The quote's 24-hour price change as a fraction, so `0.0129` is a 1.29% rise,
-    /// or `nil` when unknown. Snapshots saved without it restore as unknown.
+    /// or `nil` when unknown.
     public let dayChange: Decimal?
 
     /// Creates a valuation while preserving unknown prices.

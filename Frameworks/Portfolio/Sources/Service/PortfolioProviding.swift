@@ -5,15 +5,12 @@
 /// `Update.snapshotRevision` until a provider change. Consumers can then order data and status
 /// independently of wall time.
 public protocol PortfolioProviding: Sendable {
-    /// Observes finalized account changes for the lifetime of the consuming task.
+    /// Observes finalized changes to the wallet and its listed token accounts until the consuming task is
+    /// cancelled, reading balances again after each.
     ///
-    /// Shares one connection per wallet. Each new consumer requests a reload or joins one in progress.
-    /// Setup completes before the initial reload; bursts of changes are coalesced into one balance read.
-    /// Every connection error is surfaced at once. A dropped connection then reconnects by itself, waiting
-    /// 2 seconds and doubling the wait after each failed attempt up to a minute, until a connection reads balances
-    /// successfully. Rate limits, rejected keys, and other refusals stay until a reload, a token-list change,
-    /// or a new consumer connects again. Failed balance reads aren't retried.
-    /// The app owns starting and cancelling observation with its foreground/view lifecycle.
+    /// Connection errors are reported; dropped connections reconnect with increasing delays, and refusals
+    /// wait for a reload, a token-list change, or a new consumer.
+    ///
     /// - Parameter owner: The wallet whose holdings to observe.
     /// - Returns: A stream of cached state, refresh results, and connection errors, ending on cancellation,
     ///   data removal, or a provider change.
