@@ -7,7 +7,7 @@
 - Never lose work: land committed work where the user wants it before deleting or archiving its branch or worktree.
 - Use Conventional Commits format for every commit, and name branches `<type>/<topic>` with a Conventional Commits type, such as `refactor/provider-wording`; never use agent prefixes like `claude/`. Rename a wrongly named branch to a correct name.
 - Never create merge commits anywhere: update a branch by rebasing it onto `origin/main`, and land work on `main` by rebase or squash, including PR merges.
-- Author commits with the user's git identity, never an agent identity. Add no AI attribution lines to commits or PR descriptions. Ask before opening PRs.
+- Author commits with the user's git identity, never an agent identity. Add no AI attribution lines to commits or PR descriptions. Ask before opening PRs, keep their titles short, and follow the template: one small paragraph summarizing the change, not a list of every detail, and one concise line per verification step.
 - Commit or explicitly discard each milestone before starting the next; keep completed milestones in separate commits.
 - Do not add module-name prefixes to types; rely on the module namespace.
 - Keep project files grouped by concern in real folders that Xcode mirrors; organize UI features into focused subfolders for scenes, screens, sections, components, and models as needed. Group related tests accordingly.
