@@ -1,24 +1,24 @@
 import Dispatch
-import Foundation
+public import Foundation
 
 /// A value saved on this device as one file, such as the saved contacts.
 ///
 /// The file is readable only while the device is unlocked. A file that can't be read is reported, never deleted or
 /// replaced with an empty value.
-nonisolated struct FileItem<Coding: ValueCoding>: ValueStoring {
+public struct FileItem<Coding: ValueCoding>: ValueStoring {
     /// Blocking file work that runs only on the file queue.
     private typealias Operation<Result: Sendable> = @Sendable () throws -> Result
 
     /// The file that keeps the value.
-    let url: URL
+    public let url: URL
     /// How the value is kept as bytes.
-    let coding: Coding
+    public let coding: Coding
 
     /// Names the file without creating or reading it.
     /// - Parameters:
     ///   - url: The file that keeps the value, inside a directory the app owns.
-    ///   - coding: How the value is kept as bytes, such as `.json(AddressBook.self)`.
-    init(url: URL, coding: Coding) {
+    ///   - coding: How the value is kept as bytes, such as `.json([String].self)`.
+    public init(url: URL, coding: Coding) {
         self.url = url
         self.coding = coding
     }
@@ -27,7 +27,7 @@ nonisolated struct FileItem<Coding: ValueCoding>: ValueStoring {
     /// - Returns: The value, or `nil` before one is saved.
     /// - Throws: ``FileItemError/unreadable`` for bytes that aren't a value, a filesystem error, or
     ///   `CancellationError`.
-    func load() async throws -> Coding.Value? {
+    public func load() async throws -> Coding.Value? {
         try await perform { [self] in try read() }
     }
 
@@ -37,13 +37,13 @@ nonisolated struct FileItem<Coding: ValueCoding>: ValueStoring {
     /// that has already been written.
     /// - Parameter value: The new value.
     /// - Throws: ``FileItemError/unencodable``, an encoding or filesystem error, or `CancellationError`.
-    func save(_ value: Coding.Value) async throws {
+    public func save(_ value: Coding.Value) async throws {
         try await perform { [self] in try write(value) }
     }
 
     /// Deletes the file; a missing file is already deleted.
     /// - Throws: A filesystem error or `CancellationError`.
-    func delete() async throws {
+    public func delete() async throws {
         try await perform { [self] in try remove() }
     }
 
@@ -56,7 +56,7 @@ nonisolated struct FileItem<Coding: ValueCoding>: ValueStoring {
     /// - Returns: The change's result.
     /// - Throws: The change's error, which keeps the saved value, ``FileItemError``, an encoding or filesystem error,
     ///   or `CancellationError`.
-    func update<Result: Sendable>(
+    public func update<Result: Sendable>(
         _ change: @escaping @Sendable (inout Coding.Value?) throws -> Result
     ) async throws -> Result {
         try await perform { [self] in
@@ -116,6 +116,6 @@ nonisolated struct FileItem<Coding: ValueCoding>: ValueStoring {
 }
 
 /// The serial queue that every file item shares, so each save and each read-change-save runs atomically.
-nonisolated private enum FileQueue {
+private enum FileQueue {
     static let shared = DispatchQueue(label: "FileItem.Files", qos: .userInitiated)
 }

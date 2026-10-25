@@ -1,5 +1,5 @@
 /// A value saved on this device, such as an API key or a setting.
-nonisolated protocol ValueStoring<Value>: Sendable {
+public protocol ValueStoring<Value>: Sendable {
     /// The type of the saved value.
     associatedtype Value: Equatable & Sendable
 

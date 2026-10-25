@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import RPC
+import Storage
 import Transactions
 
 /// Owns the addresses a window can pay: the wallet's other accounts, saved contacts, and recent payments.

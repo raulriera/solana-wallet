@@ -1,4 +1,5 @@
 import Foundation
+import Storage
 import Vault
 
 /// Deletes recovery phrases first, so a failed later step never leaves secrets behind.

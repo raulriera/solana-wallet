@@ -1,23 +1,26 @@
-import Foundation
+public import Foundation
 
 /// Keeps text as its UTF-8 bytes.
-nonisolated struct UTF8Coding: ValueCoding {
+public struct UTF8Coding: ValueCoding {
+    /// Creates a coding that keeps text as UTF-8.
+    public init() {}
+
     /// Converts text to its UTF-8 bytes.
     /// - Parameter value: The text to save.
     /// - Returns: The text's UTF-8 bytes.
-    func encode(_ value: String) -> Data {
+    public func encode(_ value: String) -> Data {
         Data(value.utf8)
     }
 
     /// Converts UTF-8 bytes back to text.
     /// - Parameter data: The kept bytes.
     /// - Returns: The text, or `nil` when the bytes aren't valid UTF-8.
-    func decode(_ data: Data) -> String? {
+    public func decode(_ data: Data) -> String? {
         String(data: data, encoding: .utf8)
     }
 }
 
-nonisolated extension ValueCoding where Self == UTF8Coding {
+extension ValueCoding where Self == UTF8Coding {
     /// Keeps text as its UTF-8 bytes.
-    static var utf8: UTF8Coding { UTF8Coding() }
+    public static var utf8: UTF8Coding { UTF8Coding() }
 }

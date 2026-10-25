@@ -1,6 +1,7 @@
 import Foundation
 import Privacy
 @testable import RPC
+import Storage
 import Testing
 import Transactions
 import Wallet

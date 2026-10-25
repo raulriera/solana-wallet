@@ -1,4 +1,5 @@
 import Foundation
+import Storage
 import Testing
 @testable import widgets
 
@@ -44,5 +45,16 @@ struct ProviderSettingsTests {
         settings.select(.custom(unlisted))
 
         #expect(settings == ProviderSettings())
+    }
+
+    /// Saved settings, including a custom URL that holds a key, come back as they were saved.
+    /// - Throws: An encoding or test prerequisite error.
+    @Test
+    func `Settings come back as they were saved`() throws {
+        let custom = try #require(URL(string: "https://rpc.example.com/fixture-token?api-key=fixture-key"))
+        let settings = ProviderSettings(selection: .custom(custom), customRPCs: [custom])
+        let coding: JSONCoding<ProviderSettings> = .json(ProviderSettings.self)
+
+        #expect(coding.decode(try coding.encode(settings)) == settings)
     }
 }

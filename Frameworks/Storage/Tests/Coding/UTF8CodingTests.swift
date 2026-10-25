@@ -1,6 +1,6 @@
 import Foundation
+import Storage
 import Testing
-@testable import widgets
 
 /// Checks that bytes which aren't UTF-8 are refused instead of becoming text.
 struct UTF8CodingTests {

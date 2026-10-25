@@ -1,5 +1,6 @@
 import Foundation
 import RPC
+import Storage
 
 /// Sends one network's requests through the RPC provider selected on this device.
 ///

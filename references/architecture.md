@@ -12,6 +12,7 @@ The wallet app owns workflow coordination through internal, protocol-based servi
 | [Vault](../Frameworks/Vault/README.md) | Protected recovery storage and authentication for access. |
 | [Portfolio](../Frameworks/Portfolio/README.md) | Each account's manual token list, with its balances, prices, refresh, and finalized changes. |
 | [Encoding](../Frameworks/Encoding/README.md) | Shared codecs. |
+| [Storage](../Frameworks/Storage/README.md) | Device-only values saved as one file or Keychain item each, behind one storage protocol. |
 | [ModularArithmetic](../Frameworks/ModularArithmetic/README.md) | Prime-field arithmetic in Montgomery form for the BN254 scalar and base fields and the P-256 scalar field. |
 | [Privacy](../Frameworks/Privacy/README.md) | Solana Rings private balances: Poseidon over BN254, the commitments of default-ring transfers, SOL note encryption, shielded-pool deposit and transact instructions, their proofs, registration status, and note sync; it reads through RPC. |
 | [Themes](../Frameworks/Themes/README.md) | Color tokens, package reading/writing, validation, and resolution against app-provided defaults. |

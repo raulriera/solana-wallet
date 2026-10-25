@@ -1,5 +1,5 @@
 import Foundation
-@testable import widgets
+import Storage
 
 /// Keeps one value in memory in place of device storage, optionally failing each read or save or the first deletion,
 /// keeping unreadable bytes, or suspending a save or an unreadable read.

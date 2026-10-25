@@ -1,6 +1,6 @@
 import Foundation
+import Storage
 import Testing
-@testable import widgets
 
 /// Checks file storage against the simulator's real file system.
 @Suite(.timeLimit(.minutes(1)))

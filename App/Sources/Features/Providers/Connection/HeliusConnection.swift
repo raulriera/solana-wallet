@@ -1,5 +1,6 @@
 import Foundation
 import RPC
+import Storage
 
 /// Connects the app to Helius, its only DAS provider, with a user-supplied key.
 nonisolated struct HeliusConnection: ProviderConnecting {

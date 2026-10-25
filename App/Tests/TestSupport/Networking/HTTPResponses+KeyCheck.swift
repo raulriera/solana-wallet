@@ -1,4 +1,5 @@
 import Foundation
+import Storage
 @testable import RPC
 @testable import widgets
 

@@ -97,6 +97,18 @@
       },
       "target" : {
         "containerPath" : "container:widgets.xcodeproj",
+        "identifier" : "AC0000000000000000000015",
+        "name" : "StorageTests"
+      }
+    },
+    {
+      "skippedTags" : {
+        "tags" : [
+          ".network"
+        ]
+      },
+      "target" : {
+        "containerPath" : "container:widgets.xcodeproj",
         "identifier" : "A90000000000000000000015",
         "name" : "ThemesTests"
       }

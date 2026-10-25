@@ -2,6 +2,7 @@ import Foundation
 import Observation
 @testable import Portfolio
 import RPC
+import Storage
 import Testing
 @testable import widgets
 

@@ -1,5 +1,6 @@
 import Foundation
 import Portfolio
+import Storage
 
 /// Applies RPC provider choices and custom RPC changes to each created portfolio and every window.
 @MainActor

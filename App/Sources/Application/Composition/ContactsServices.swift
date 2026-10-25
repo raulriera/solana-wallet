@@ -1,4 +1,5 @@
 import Foundation
+import Storage
 
 /// The saved contacts and recent payments that every window's Contacts shares.
 struct ContactsServices {

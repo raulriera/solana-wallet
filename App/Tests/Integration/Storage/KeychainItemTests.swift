@@ -1,9 +1,9 @@
 import Foundation
 import Security
+import Storage
 import Testing
-@testable import widgets
 
-/// Checks device-only value storage against the simulator's real Keychain.
+/// Checks device-only value storage against the simulator's real Keychain, which needs the app as test host.
 @Suite(.timeLimit(.minutes(1)))
 struct KeychainItemTests {
     /// Reading before any save reports a missing value rather than an error.
@@ -51,10 +51,10 @@ struct KeychainItemTests {
     func `Saved bytes that aren't a value are unreadable`() async throws {
         let service = Self.isolatedService()
         defer { Self.removeItems(for: service) }
-        try await Self.text(in: service).save("not settings")
+        try await Self.text(in: service).save("not a list")
 
         await #expect(throws: KeychainItemError.unreadable) {
-            try await KeychainItem(service: service, account: "value", coding: .json(ProviderSettings.self)).load()
+            try await KeychainItem(service: service, account: "value", coding: .json([String].self)).load()
         }
     }
 

@@ -1,6 +1,7 @@
 import Foundation
 import Portfolio
 import RPC
+import Storage
 
 /// Saves the currency and rate source choice, lists each source's currencies, and has each created portfolio read its
 /// prices again after a change.

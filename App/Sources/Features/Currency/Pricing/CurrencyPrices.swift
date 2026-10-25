@@ -1,5 +1,6 @@
 import Foundation
 import RPC
+import Storage
 
 /// Supplies prices in the person's currency: another provider's quotes, converted with the chosen exchange rates.
 ///

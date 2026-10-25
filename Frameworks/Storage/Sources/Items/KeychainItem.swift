@@ -6,23 +6,23 @@ import Security
 ///
 /// The item never synchronizes to iCloud or moves to another device. It can be read whenever
 /// the device is unlocked, without biometric authentication.
-nonisolated struct KeychainItem<Coding: ValueCoding>: ValueStoring {
+public struct KeychainItem<Coding: ValueCoding>: ValueStoring {
     /// Blocking Security work that runs only on the Keychain queue.
     private typealias Operation<Result: Sendable> = @Sendable () throws -> Result
 
     /// The stable, app-specific namespace that holds the item.
-    let service: String
+    public let service: String
     /// The item's name within its namespace.
-    let account: String
+    public let account: String
     /// How the value is kept as bytes.
-    let coding: Coding
+    public let coding: Coding
 
     /// Names an item in the app's Keychain access group.
     /// - Parameters:
     ///   - service: The stable, app-specific namespace that holds the item.
     ///   - account: The item's name within its namespace.
     ///   - coding: How the value is kept as bytes, such as `.utf8`.
-    init(service: String, account: String, coding: Coding) {
+    public init(service: String, account: String, coding: Coding) {
         self.service = service
         self.account = account
         self.coding = coding
@@ -31,7 +31,7 @@ nonisolated struct KeychainItem<Coding: ValueCoding>: ValueStoring {
     /// Reads the saved value without user interaction.
     /// - Returns: The value, or `nil` before one is saved.
     /// - Throws: ``KeychainItemError`` or `CancellationError`.
-    func load() async throws -> Coding.Value? {
+    public func load() async throws -> Coding.Value? {
         try await perform { [self] in try read() }
     }
 
@@ -41,13 +41,13 @@ nonisolated struct KeychainItem<Coding: ValueCoding>: ValueStoring {
     /// Cancellation doesn't roll back a save that has already reached the Keychain.
     /// - Parameter value: The new value.
     /// - Throws: ``KeychainItemError``, an encoding error, or `CancellationError`.
-    func save(_ value: Coding.Value) async throws {
+    public func save(_ value: Coding.Value) async throws {
         try await perform { [self] in try write(value) }
     }
 
     /// Deletes the saved value; a missing value is already deleted.
     /// - Throws: ``KeychainItemError`` or `CancellationError`.
-    func delete() async throws {
+    public func delete() async throws {
         try await perform { [self] in try remove() }
     }
 
@@ -61,7 +61,7 @@ nonisolated struct KeychainItem<Coding: ValueCoding>: ValueStoring {
     /// - Returns: The change's result.
     /// - Throws: The change's error, which keeps the saved value, ``KeychainItemError``, an encoding error, or
     ///   `CancellationError`.
-    func update<Result: Sendable>(
+    public func update<Result: Sendable>(
         _ change: @escaping @Sendable (inout Coding.Value?) throws -> Result
     ) async throws -> Result {
         try await perform { [self] in
@@ -140,11 +140,11 @@ nonisolated struct KeychainItem<Coding: ValueCoding>: ValueStoring {
 /// Converts a Security status into a value-free storage error.
 /// - Parameter status: The Keychain operation's status.
 /// - Throws: ``KeychainItemError/keychain(status:)`` for any status other than success.
-nonisolated private func check(_ status: OSStatus) throws {
+private func check(_ status: OSStatus) throws {
     guard status == errSecSuccess else { throw KeychainItemError.keychain(status: status) }
 }
 
 /// The serial queue that every Keychain item shares, so each save and each read-change-save runs atomically.
-nonisolated private enum KeychainQueue {
+private enum KeychainQueue {
     static let shared = DispatchQueue(label: "KeychainItem.Keychain", qos: .userInitiated)
 }

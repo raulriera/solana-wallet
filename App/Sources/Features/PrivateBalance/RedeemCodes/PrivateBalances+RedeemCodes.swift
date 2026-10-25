@@ -1,6 +1,7 @@
 import Foundation
 import Privacy
 import RPC
+import Storage
 import Transactions
 import Wallet
 

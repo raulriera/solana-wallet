@@ -2,6 +2,7 @@ import Foundation
 import Portfolio
 import Privacy
 import RPC
+import Storage
 import Vault
 import Wallet
 
