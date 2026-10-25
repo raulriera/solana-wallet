@@ -25,20 +25,13 @@ The wallet app owns workflow coordination through internal, protocol-based servi
 
 [PortfolioCoordinator](../App/Sources/Features/Portfolio/Coordination/PortfolioCoordinator.swift) owns one portfolio presentation through `PortfolioCoordinating`. Its observable state is main-actor isolated; it injects `PortfolioProviding` and `TokenListProviding` for one configured network and adds and removes tokens in its wallet's list. Each window owns its coordinator and supplies its selected wallet and scene activity to the view task; cancellation stops that presentation's observation and manual refreshes. Windows using the same service configuration share the underlying provider. Wallet changes clear the preceding wallet's display state; backgrounding retains its latest snapshot. Create a new coordinator when changing networks. Screen composition remains separate.
 
-Program helpers produce `Instruction` values; adding an operation must not introduce another preparation/signing/submission pipeline. The compiler merges account roles and supports distinct fee payers and multiple authorities. Token prerequisites resolve in an internal feature helper before generic preparation. `TransactionDecoder` and `TransactionBuilder` preserve imported bytes and signature slots; see [usage](transaction-workflow.md). Durable nonces and program-aware explanations remain pending.
+Program helpers produce `Instruction` values; adding an operation must not introduce another preparation/signing/submission pipeline. The compiler merges account roles and supports distinct fee payers and multiple authorities. Token prerequisites resolve in an internal feature helper before generic preparation. `TransactionDecoder` and `TransactionBuilder` preserve imported bytes and signature slots; see [usage](transaction-workflow.md).
 
-## Framework milestones
+## Limitations
 
-The agreed wallet, transaction, portfolio, and initial color-only Themes framework milestones are complete. The deferred capabilities below remain separate milestones.
-
-| Framework | Status |
-| --- | --- |
-| Encoding | Complete for the current scope. |
-| ModularArithmetic | Complete for the current scope: the BN254 scalar and base fields and the P-256 scalar field. |
-| Privacy | Poseidon, the commitments of default-ring transfers between Ed25519 owners, the encryption of their SOL notes, SOL deposit and transact instructions with their proofs from the indexer's tree proofs and the prover's complete route, registry lookups, registration status, received notes, and note sync are complete. The app keeps keys and syncs notes without UI; the registration transaction, private-balance UI, token notes, and policy rings are separate milestones. |
-| Themes | Color-only package service with app-supplied defaults and PNG/JPEG assets. App services manage immutable built-ins, custom installations, app/wallet preferences, deletion fallbacks, and one-time recovery from iOS Settings. Import/export presentation and rendering remain separate; see [UI architecture](ui.md). |
-| RPC | Complete for the agreed transaction, discovery, DAS, pricing, finalized account-subscription, and signature-watch workflows. The manual token list adds per-account subscriptions; a QuickNode client is planned. Helius also serves the Solana Rings indexer and prover. |
-| Transactions | Further capabilities are parked; current SOL and supported-token flows remain available. The goal is all Token-2022 extensions, reviewed and agreed individually before implementation. |
-| Wallet | Complete for local derivation and SOL-only discovery across twenty addresses in two path families, with one RPC lookup per scan, verified on devnet; and for Solana Rings private-balance keys. See [Wallet](wallet.md). |
-| Vault | Implemented and tested, including real simulator Keychain checks. Keep the specific device-validation caveat in [Wallet](wallet.md) separate from framework test status. |
-| Portfolio | Complete for each account's manual token list, read with standard RPC; DAS only looks up logos. NFTs and currency conversion remain deferred; see [Portfolio](portfolio.md). |
+- Public Solana RPC and Helius are the built-in providers; QuickNode is planned as the third. See [RPC scope](rpc-scope.md).
+- Portfolios show native SOL and fungible tokens only; NFTs and currency conversion are deferred. See [Portfolio](portfolio.md).
+- Durable nonces and program-aware transaction explanations are pending; see [simulation explanations](transaction-simulation.md).
+- Token-2022 extensions are added one at a time, each agreed with the user first; unsupported extensions fail explicitly. See [Transactions](transactions.md).
+- Theme packs support color tokens and bundled images; typography and other component tokens are deferred. See [UI architecture](ui.md#theme-packs).
+- Private balances support SOL notes in the default ring; token notes and policy rings aren't supported. See [Privacy](../Frameworks/Privacy/README.md).
