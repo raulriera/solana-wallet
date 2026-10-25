@@ -10,8 +10,8 @@ struct RecipientPaymentStack<Details: View>: View {
     /// The payment being typed, or `nil` when the account has no token with a balance; it stays when the person picks
     /// another recipient.
     let payment: PaymentModel?
-    /// The person's own history, which the review's checks compare the recipient with.
-    let context: RecipientContext
+    /// The person's own history, which the review's checks compare the recipient with and a landed payment joins.
+    let contacts: ContactsModel
     /// The window's account, network, and transactions, which send the payment.
     let sender: PaymentSender
     /// The recipient's details, which the keypad's Details button pushes.
@@ -28,14 +28,15 @@ struct RecipientPaymentStack<Details: View>: View {
     /// - Parameters:
     ///   - recipient: Who the payment goes to.
     ///   - payment: The payment being typed, or `nil` when the account has no token with a balance.
-    ///   - context: The person's own history, which the review's checks compare the recipient with.
+    ///   - contacts: The person's own history, which the review's checks compare the recipient with and a landed
+    ///     payment joins.
     ///   - sender: The window's account, network, and transactions, which send the payment.
     ///   - details: The recipient's details, which the keypad's Details button pushes.
-    init(recipient: PaymentRecipient, payment: PaymentModel?, context: RecipientContext, sender: PaymentSender,
+    init(recipient: PaymentRecipient, payment: PaymentModel?, contacts: ContactsModel, sender: PaymentSender,
          @ViewBuilder details: () -> Details) {
         self.recipient = recipient
         self.payment = payment
-        self.context = context
+        self.contacts = contacts
         self.sender = sender
         self.details = details()
     }
@@ -47,12 +48,19 @@ struct RecipientPaymentStack<Details: View>: View {
                     PaymentAmountScreen(payment: payment, recipient: recipient) {
                         SendButton(payment: payment,
                                    send: SendPaymentAction(sender: sender, payment: payment, recipient: recipient,
-                                                           context: context, send: $send, error: $sendError))
+                                                           context: contacts.recipientContext, send: $send,
+                                                           error: $sendError))
                             .matchedTransitionSource(id: ObjectIdentifier(payment), in: review)
                     }
                     .sheet(item: $send) { send in
                         PaymentReviewSheet(send: send)
                             .sendLifecycle()
+                            // A payment that reached the recipient lists them under Recents, and stops warning that
+                            // they were never paid.
+                            .onChange(of: send.outcome) { _, outcome in
+                                guard outcome == .succeeded else { return }
+                                contacts.record(RecentPayment(address: recipient.address, date: .now))
+                            }
                             // The review grows out of the Send button, and shrinks back into it when canceled.
                             .navigationTransition(.zoom(sourceID: ObjectIdentifier(payment), in: review))
                     }

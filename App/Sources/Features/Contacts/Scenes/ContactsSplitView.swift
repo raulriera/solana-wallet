@@ -64,7 +64,7 @@ struct ContactsSplitView: View {
                 } detail: {
                     if let selection, !payment.isLoading {
                         RecipientPaymentStack(recipient: contacts.recipient(for: selection), payment: payment.model,
-                                              context: contacts.recipientContext, sender: sender) {
+                                              contacts: contacts, sender: sender) {
                             RecipientScreen(address: selection, contacts: contacts, selection: $selection)
                         }
                         // Another recipient starts on the keypad, not on the previous one's details.
