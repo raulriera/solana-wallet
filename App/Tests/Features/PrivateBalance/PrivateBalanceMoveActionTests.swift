@@ -11,12 +11,8 @@ struct PrivateBalanceMoveActionTests {
     /// - Throws: A fixture error.
     private static func model() async throws -> PrivateBalanceModel {
         let account = try await PrivateBalanceFixtures.account()
-        let model = try PrivateBalanceModel.fixture(
-            HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered]),
-            keys: StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
-        )
+        let model = try await PrivateBalanceFixtures.model(holding: .available, of: account)
         await model.refresh(for: account)
-        model.show(.balance(available: 1_000_000, pending: 0))
         return model
     }
 

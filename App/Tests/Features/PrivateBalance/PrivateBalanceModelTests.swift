@@ -105,21 +105,18 @@ struct PrivateBalanceModelTests {
 
     /// Moving to the public balance opens a withdrawal of the available private SOL only while there's some; pending
     /// SOL alone, or an unregistered account, opens nothing.
-    /// - Parameter status: The account's private balance.
-    @Test(arguments: [PrivateBalanceStatus.balance(available: 1_000_000, pending: 0),
-                      .balance(available: 0, pending: 1_000_000), .unregistered])
-    func `Moving to the public balance opens a withdrawal only with available SOL`(status: PrivateBalanceStatus) async throws {
+    /// - Parameter balance: The account's private balance.
+    @Test(arguments: [PrivateBalanceFixtures.Balance.available, .pending, .unregistered])
+    func `Moving to the public balance opens a withdrawal only with available SOL`(
+        balance: PrivateBalanceFixtures.Balance
+    ) async throws {
         let account = try await PrivateBalanceFixtures.account()
-        let model = try PrivateBalanceModel.fixture(
-            HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered]),
-            keys: StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
-        )
+        let model = try await PrivateBalanceFixtures.model(holding: balance, of: account)
         await model.refresh(for: account)
-        model.show(status)
 
         model.moveToPublicBalance()
 
-        let opens = status == .balance(available: 1_000_000, pending: 0)
+        let opens = balance == .available
         #expect(model.availableLamports == (opens ? 1_000_000 : nil))
         #expect(model.move?.direction == (opens ? .toPublic : nil))
         #expect(model.move?.payment.source == (opens ? .privateBalance : nil))
@@ -145,49 +142,47 @@ struct PrivateBalanceModelTests {
         #expect(model.error == .preparationFailed)
     }
 
-    /// A settled transaction's balance shows at once; pending SOL starts a follow-up of at most ten quick reads, and
-    /// nothing pending starts none.
+    /// The first read after one of the account's transactions settles follows up quickly on pending SOL, with at most
+    /// ten quick reads; pending SOL without a settled transaction, or a settled one without pending SOL, starts none.
     /// - Parameters:
-    ///   - pending: The settled balance's pending lamports.
-    ///   - followsUp: Whether the model follows up.
-    @Test(arguments: [(UInt64(1_000_000), true), (0, false)])
-    func `A settled balance with pending SOL starts a follow-up`(pending: UInt64, followsUp: Bool) async throws {
-        let model = try PrivateBalanceModel.fixture(HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered]))
-        await model.refresh(for: try await PrivateBalanceFixtures.account())
+    ///   - balance: The account's private balance.
+    ///   - followsUp: Whether the model follows up after the transaction settles.
+    @Test(arguments: [(PrivateBalanceFixtures.Balance.pending, true), (.available, false)])
+    func `A read after a settled transaction with pending SOL starts a follow-up`(
+        balance: PrivateBalanceFixtures.Balance, followsUp: Bool
+    ) async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let sent = try PendingPayment(from: account.id)
+        let model = try await PrivateBalanceFixtures.model(holding: balance, of: account, transactions: sent.transactions)
+        await model.refresh(for: account)
+        #expect(!model.isFollowingUp)
 
-        model.show(.balance(available: 0, pending: pending))
+        #expect(try await sent.settle() == .succeeded)
+        await model.refresh()
 
-        #expect(model.status == .balance(available: 0, pending: pending))
         #expect(model.isFollowingUp == followsUp)
         #expect(model.followUpReadsLeft == (followsUp ? PrivateBalanceModel.followUpReads : 0))
-        #expect(model.followUp == (followsUp ? 1 : 0))
     }
 
     /// Each follow-up poll uses one quick read, and a read that finds nothing pending ends the follow-up.
     @Test
     func `A follow-up ends once nothing is pending`() async throws {
         let account = try await PrivateBalanceFixtures.account()
-        let record = try await PrivateBalanceFixtures.keys(for: account)
-        let registry = try PrivateBalanceFixtures.registry(publishing: record.shieldedAccount(for: account.address))
-        let model = try PrivateBalanceModel.fixture(HTTPResponses.privateNotes(registry: [registry]),
-                                                    keys: StoredValue([account.address.value: record]))
+        let sent = try PendingPayment(from: account.id)
+        let (model, notes) = try await PrivateBalanceFixtures.pendingDeposit(of: account,
+                                                                             transactions: sent.transactions)
         await model.refresh(for: account)
-        model.show(.balance(available: 0, pending: 1_000_000))
+        _ = try await sent.settle()
+        await model.refresh()
+        try #require(model.followUpReadsLeft == PrivateBalanceModel.followUpReads)
 
+        await model.poll()
+        #expect(model.followUpReadsLeft == PrivateBalanceModel.followUpReads - 1)
+        // The indexer reports the deposit, so nothing is pending.
+        try await notes.save([PrivateBalances.noteID(of: account, on: .devnet): NoteSyncState()])
         await model.poll()
 
         #expect(model.status == .balance(available: 0, pending: 0))
-        #expect(!model.isFollowingUp)
-    }
-
-    /// Without an account, a settled balance has nothing to show.
-    @Test
-    func `A settled balance without an account shows nothing`() throws {
-        let model = try PrivateBalanceModel.fixture(HTTPResponses.privateNotes())
-
-        model.show(.balance(available: 0, pending: 1_000_000))
-
-        #expect(model.status == nil)
         #expect(!model.isFollowingUp)
     }
 

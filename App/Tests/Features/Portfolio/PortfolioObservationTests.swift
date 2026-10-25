@@ -31,4 +31,25 @@ struct PortfolioObservationTests {
         #expect(devnet.observedOwners == [owner])
         #expect(mainnet.observedOwners == [owner])
     }
+
+    /// A transaction of the window's account that settles reads the balances again, even without the review that sent
+    /// it; nothing is read again before.
+    /// - Throws: A fixture or test prerequisite error.
+    @Test
+    func `A settled transaction reads the balances again`() async throws {
+        let account = try Account.fixture(index: 1)
+        let portfolio = RecordingPortfolio()
+        let sent = try PendingPayment(from: account.id)
+        let hosted = try HostedWindow(PortfolioObservationRoot(shown: ShownPortfolio(portfolio), account: account,
+                                                               transactions: sent.transactions))
+        defer { hosted.close() }
+        try #require(try await hosted.appears())
+        for await observing in Observations({ portfolio.isObserving }) where observing { break }
+        #expect(portfolio.refreshes == 0)
+
+        #expect(try await sent.settle() == .succeeded)
+
+        // The suite's time limit ends the wait if the balances are never read again.
+        for await refreshes in Observations({ portfolio.refreshes }) where refreshes == 1 { break }
+    }
 }

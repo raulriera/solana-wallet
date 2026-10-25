@@ -6,6 +6,7 @@ import SwiftUI
 /// then leaves the list in view.
 struct AccountDeletionLifecycle: ViewModifier {
     @Environment(AccountStore.self) private var store
+    @Environment(TransactionStore.self) private var transactions
     @Bindable var deletion: AccountDeletionModel
 
     /// Awaits one deletion at a time and presents its failure.
@@ -14,7 +15,7 @@ struct AccountDeletionLifecycle: ViewModifier {
     func body(content: Content) -> some View {
         let attempt = deletion.attempt
         content
-            .task(id: attempt) { await deletion.run(attempt, store: store) }
+            .task(id: attempt) { await deletion.run(attempt, store: store, transactions: transactions) }
             .errorAlert($deletion.error)
     }
 }

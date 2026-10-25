@@ -297,4 +297,32 @@ struct PaymentModelTests {
         #expect(payment.token == Self.usdc)
         #expect(payment.unit == .currency)
     }
+
+    /// A key press forgets the sent payment's record, so its success can't clear the newly typed amount.
+    @Test func `A key press forgets the sent payment`() {
+        let payment = Self.sentPayment()
+
+        payment.press(.digit(5))
+
+        #expect(payment.submittedRecord == nil)
+    }
+
+    /// Clearing the amount forgets the sent payment's record.
+    @Test func `Clearing forgets the sent payment`() {
+        let payment = Self.sentPayment()
+
+        payment.clear()
+
+        #expect(payment.submittedRecord == nil)
+    }
+
+    /// A payment of 1 that was sent, with its pending record.
+    /// - Returns: The payment.
+    private static func sentPayment() -> PaymentModel {
+        let payment = Self.payment()
+        payment.press(.digit(1))
+        payment.submittedRecord = .fixture(.payment(recipient: PaymentFixtures.usdc, mint: nil, units: 1),
+                                           account: UUID())
+        return payment
+    }
 }

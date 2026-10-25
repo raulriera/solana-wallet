@@ -170,12 +170,22 @@ final class TransactionStore {
     /// - Throws: A storage error from the first records that can't be deleted.
     func erase() async throws {
         let entries = Array(entries.values)
-        for entry in entries {
-            for watch in entry.watches.values { watch.cancel() }
-            entry.watches = [:]
-            entry.settlings = [:]
-        }
+        for entry in entries { stop(entry) }
         for entry in entries { try await entry.records.erase() }
+    }
+
+    /// Stops an account's watches on every network, then deletes its records on every network, read or not, and
+    /// forgets them, as after the account is deleted.
+    ///
+    /// Settlings that didn't run are forgotten; the private balances' indexer sync still finds their transactions.
+    /// - Parameter account: The identifier of the account.
+    /// - Throws: A storage error from the first records that can't be deleted; the records after them stay.
+    func erase(account: UUID) async throws {
+        let keys = Network.allCases.map { TransactionRecord.Key(account: account, network: $0) }
+        let entries = keys.map(entry(for:))
+        for entry in entries { stop(entry) }
+        for entry in entries { try await entry.records.erase() }
+        for key in keys { self.entries[key] = nil }
     }
 
     /// Returns a key's records, settled count, and watches, creating them on first use without reading anything.
@@ -186,6 +196,14 @@ final class TransactionStore {
         let entry = Entry(storage: storage(key))
         entries[key] = entry
         return entry
+    }
+
+    /// Stops a key's watches and forgets the settlings that didn't run.
+    /// - Parameter entry: The key's entry.
+    private func stop(_ entry: Entry) {
+        for watch in entry.watches.values { watch.cancel() }
+        entry.watches = [:]
+        entry.settlings = [:]
     }
 
     /// Saves a sent transaction's pending record as the newest, forgetting the oldest beyond the limit, and starts
@@ -244,6 +262,8 @@ final class TransactionStore {
     /// - Throws: The coordinator's creation or watch error, or a storage error; the record stays pending.
     private func settle(_ record: TransactionRecord, in entry: Entry) async throws -> TransactionRecord.Status {
         let confirmation = try await coordinator(for: record.key.network).confirm(record.submission)
+        // A stopped watch saves nothing, so an erase that stopped it doesn't see its records written again.
+        try Task.checkCancellation()
         let status = TransactionRecord.Status(confirmation.outcome)
         let settled = Date.now
         try await entry.records.update { records in

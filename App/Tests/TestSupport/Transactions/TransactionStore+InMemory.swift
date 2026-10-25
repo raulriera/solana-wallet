@@ -12,6 +12,19 @@ extension TransactionStore {
         TransactionStore(storage: { _ in records }, coordinators: coordinators)
     }
 
+    /// Creates the shared transactions over each key's own in-memory records, without reading them or creating a
+    /// coordinator.
+    /// - Parameters:
+    ///   - records: The in-memory storage of each key's records; other keys start with no records.
+    ///   - coordinators: Creates a network's transaction coordinator; by default, one that never leaves the process.
+    /// - Returns: A store that reads nothing until it's used.
+    static func inMemory(_ records: [TransactionRecord.Key: StoredValue<[TransactionRecord]>],
+                         coordinators: @escaping (Network) throws -> any TransactionCoordinating = {
+                             try TransactionCoordinator.unused(on: $0)
+                         }) -> TransactionStore {
+        TransactionStore(storage: { records[$0] ?? StoredValue() }, coordinators: coordinators)
+    }
+
     /// Transactions whose coordinators never leave the process and never read recovery, for models that don't send.
     static var unused: TransactionStore {
         inMemory { try TransactionCoordinator.unused(on: $0) }

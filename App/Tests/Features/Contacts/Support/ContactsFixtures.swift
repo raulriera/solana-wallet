@@ -2,6 +2,7 @@ import Foundation
 import RPC
 import Storage
 import Transactions
+import Wallet
 @testable import widgets
 
 /// Addresses and a contacts list for the contacts tests, generated for them and owned by no one.
@@ -23,8 +24,15 @@ nonisolated enum ContactsFixtures {
     /// An unsaved address that was paid.
     static let recent = try! Address("44korouVTkSZ4u3SAT4BCg5S2AqJTV7osjVGVkjs3vtV")
 
-    /// The wallet whose recent payments are listed.
+    /// The wallet whose accounts' payments are listed.
     static let wallet = UUID(uuidString: "0B6D2F4A-6C1E-4E8B-9A3D-5F7C1B2E8D90")!
+    /// The saved account payments leave from, named Main.
+    static let main = widgets.Account(id: UUID(uuidString: "6F1C2B3A-4D5E-4F60-8A7B-9C0D1E2F3A4B")!,
+                                      recoveryID: wallet, address: sending, path: .solana, customName: "Main")
+    /// The wallet's other saved account, named Savings.
+    static let savingsAccount = widgets.Account(id: UUID(uuidString: "1A2B3C4D-5E6F-4071-8293-A4B5C6D7E8F9")!,
+                                                recoveryID: wallet, address: savings,
+                                                path: try! DerivationPath("m/44'/501'/1'/0'"), customName: "Savings")
 
     /// Saved contacts Alice, a favorite, and bruno, with the Savings account as a favorite.
     static let addressBook: AddressBook = {
@@ -35,12 +43,24 @@ nonisolated enum ContactsFixtures {
         return book
     }()
 
-    /// The wallet's payments on mainnet to Alice and an unsaved address.
-    static var recents: [String: [RecentPayment]] {
-        [ContactsModel.recentsKey(wallet: wallet, network: .mainnet): [
-            RecentPayment(address: recent, date: Date(timeIntervalSince1970: 1_000)),
-            RecentPayment(address: alice, date: Date(timeIntervalSince1970: 2_000)),
-        ]]
+    /// The sending account's succeeded payments on mainnet to an unsaved address, then to Alice.
+    @MainActor
+    static var records: [TransactionRecord] {
+        [payment(to: alice, signature: "alice", settled: 2_000), payment(to: recent, signature: "recent", settled: 1_000)]
+    }
+
+    /// A succeeded payment from the sending account.
+    /// - Parameters:
+    ///   - recipient: Who the payment went to.
+    ///   - signature: The payment's signature.
+    ///   - network: The network it was sent on.
+    ///   - settled: When it landed, in seconds after 1 January 2001.
+    /// - Returns: The payment's record.
+    @MainActor
+    static func payment(to recipient: Address, signature: String, network: Network = .mainnet,
+                        settled: TimeInterval) -> TransactionRecord {
+        .fixture(.payment(recipient: recipient, mint: nil, units: 1), signature: signature, account: main.id,
+                 network: network, status: .succeeded, created: settled - 1, settled: settled)
     }
 
     /// A contact store over storage that keeps the address book in memory, starting with ``addressBook``.
@@ -51,28 +71,28 @@ nonisolated enum ContactsFixtures {
         ContactStore(storage: addressBook)
     }
 
-    /// Contacts services over storage that keeps recent payments in memory, starting with ``recents``.
-    /// - Parameter recents: The saved recent payments.
-    /// - Returns: Contacts services that haven't read the storage yet.
+    /// Shared transactions over in-memory records, whose coordinators never leave the process.
+    /// - Parameter records: Each key's records; by default the sending account's mainnet records are ``records``.
+    /// - Returns: Transactions that haven't read the records yet.
     @MainActor
-    static func services(recents: StoredValue<[String: [RecentPayment]]> = StoredValue(recents)) -> ContactsServices {
-        ContactsServices(storage: recents)
+    static func transactions(_ records: [TransactionRecord.Key: StoredValue<[TransactionRecord]>] = [
+        TransactionRecord.Key(account: main.id, network: .mainnet): StoredValue(Self.records),
+    ]) -> TransactionStore {
+        .inMemory(records)
     }
 
     /// A list with the sending account, a favorite other account, two contacts, and payments to Alice and an
     /// unsaved address, read from storage.
     /// - Parameters:
     ///   - store: The contacts to read, ``store(_:)`` by default.
-    ///   - services: The recent payments to read, ``services(recents:)`` by default.
+    ///   - transactions: The records to read, ``transactions(_:)`` by default.
     ///   - network: The network whose recent payments are listed.
     /// - Returns: The loaded contacts model.
     @MainActor
-    static func model(store: ContactStore? = nil, services: ContactsServices? = nil,
+    static func model(store: ContactStore? = nil, transactions: TransactionStore? = nil,
                       network: Network = .mainnet) async -> ContactsModel {
-        let model = ContactsModel(sendingAccount: sending, wallet: wallet, network: network,
-                                  accounts: [Contact(name: "Main", address: sending),
-                                             Contact(name: "Savings", address: savings)],
-                                  store: store ?? self.store(), services: services ?? self.services())
+        let model = ContactsModel(sendingAccount: main, network: network, accounts: [main, savingsAccount],
+                                  store: store ?? self.store(), transactions: transactions ?? self.transactions())
         await model.load()
         return model
     }

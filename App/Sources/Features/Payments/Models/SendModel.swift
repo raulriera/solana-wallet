@@ -72,7 +72,6 @@ final class SendModel: Identifiable {
     private let account: Account
     private let coordinator: any TransactionCoordinating
     private let transactions: TransactionStore
-    private let portfolio: any PortfolioCoordinating
 
     /// The sent payment's signature and network.
     var submission: Submission? { record?.submission }
@@ -85,16 +84,15 @@ final class SendModel: Identifiable {
 
     /// Starts a payment of the amount typed now; ``prepareReview()`` simulates it.
     /// - Parameters:
-    ///   - payment: The keypad's payment, which a successful payment clears.
+    ///   - payment: The keypad's payment, which keeps the sent payment's record, so it clears once the payment
+    ///     succeeds.
     ///   - recipient: Who the payment goes to.
     ///   - warnings: What to check about the recipient, most serious first.
     ///   - account: The window's account, which pays the amount and the fees.
     ///   - coordinator: The window's network's transaction coordinator, which simulates the payment.
     ///   - transactions: The shared transactions, which send, record, and watch the payment.
-    ///   - portfolio: The window's portfolio, which reads the balances again after the payment lands.
     init(payment: PaymentModel, recipient: PaymentRecipient, warnings: [RecipientWarning], account: Account,
-         coordinator: any TransactionCoordinating, transactions: TransactionStore,
-         portfolio: any PortfolioCoordinating) {
+         coordinator: any TransactionCoordinating, transactions: TransactionStore) {
         amount = payment.amount
         self.recipient = recipient
         self.warnings = warnings
@@ -102,7 +100,6 @@ final class SendModel: Identifiable {
         self.account = account
         self.coordinator = coordinator
         self.transactions = transactions
-        self.portfolio = portfolio
     }
 
     /// Asks to simulate the payment for review, unless a step is waiting or running or it was sent.
@@ -206,6 +203,7 @@ final class SendModel: Identifiable {
             return
         }
         self.record = record
+        payment.submittedRecord = record
         guard !Task.isCancelled else { return }
         await settle(record)
     }
@@ -216,7 +214,7 @@ final class SendModel: Identifiable {
         await settle(record)
     }
 
-    /// Waits until a sent payment settles, shows the outcome, and reads the balances again once it landed.
+    /// Waits until a sent payment settles and shows the outcome.
     /// - Parameter record: The sent payment's record.
     private func settle(_ record: TransactionRecord) async {
         let status: TransactionRecord.Status
@@ -230,18 +228,14 @@ final class SendModel: Identifiable {
         switch status {
         case .succeeded:
             outcome = .succeeded
-            payment.clear()
         case .failed:
             outcome = .failed
         case .dropped:
             outcome = .dropped
-            return
         case .pending:
             // A watch returns only once the payment settled.
-            return
+            break
         }
-        // A landed payment changed the balances, failed or not, since it paid its fee.
-        await portfolio.refresh()
     }
 
     /// Simulates the payment and reads what it costs.

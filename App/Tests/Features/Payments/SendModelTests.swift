@@ -27,8 +27,6 @@ struct SendModelTests {
         let model: SendModel
         /// The keypad's payment, with 1 SOL typed.
         let keypad: PaymentModel
-        /// The window's portfolio, which counts refreshes.
-        let portfolio: RecordingPortfolio
         /// The shared transactions' in-memory records.
         let records: StoredValue<[TransactionRecord]>
         /// The responses that answer the coordinator's preparation reads and simulations.
@@ -75,11 +73,11 @@ struct SendModelTests {
         #expect(!model.canApprove)
     }
 
-    /// Approving signs and sends the reviewed payment and watches it until it lands, which records it, clears the
-    /// keypad's amount, and reads the balances again.
+    /// Approving signs and sends the reviewed payment and watches it until it lands, which records it; the keypad keeps
+    /// the record, so its amount clears once the record succeeded, and the amount stays typed meanwhile.
     /// - Throws: A fixture error.
     @Test
-    func `A landed payment clears the amount and reads the balances again`() async throws {
+    func `A landed payment gives the keypad its record`() async throws {
         let payment = try Self.payment(statuses: [.status(.finalized)])
         let model = payment.model
         try await Self.review(model)
@@ -93,18 +91,45 @@ struct SendModelTests {
         #expect(record.id == model.record?.id)
         #expect(record.kind == .payment(recipient: model.recipient.address, mint: nil, units: 1_000_000_000))
         #expect(record.status == .succeeded)
-        #expect(payment.keypad.quantity == 0)
-        #expect(payment.portfolio.refreshes == 1)
+        #expect(payment.keypad.submittedRecord?.id == record.id)
+        #expect(payment.keypad.quantity == 1)
         #expect(model.amount.quantity == 1)
         #expect(model.error == nil)
         await payment.sockets.waitUntilClosed()
     }
 
-    /// A payment that lands and fails paid its network fee, so the balances are read again, but the amount stays
-    /// typed.
+    /// Closing the review while the payment is sent stops only the review's wait: the payment is still delivered,
+    /// recorded, and watched, and the keypad keeps its record, so the amount clears once it succeeds.
     /// - Throws: A fixture error.
     @Test
-    func `A failed payment keeps the amount and reads the balances again`() async throws {
+    func `Closing the review while sending still delivers the payment`() async throws {
+        let gate = Suspension()
+        let payment = try Self.payment(statuses: [.status(.finalized)], sent: .sending(gate: gate))
+        let model = payment.model
+        try await Self.review(model)
+        model.approve()
+        let attempt = model.attempt
+        let review = Task { await model.run(attempt) }
+        await gate.waitUntilStarted()
+
+        // Closing the sheet cancels its task.
+        review.cancel()
+        gate.resume()
+        await review.value
+
+        let record = try #require(await payment.records.value?.first)
+        #expect(model.record?.id == record.id)
+        #expect(payment.keypad.submittedRecord?.id == record.id)
+        #expect(model.outcome == nil)
+        #expect(model.error == nil)
+        // The store's watch keeps going after the review closed.
+        await payment.sockets.waitUntilClosed()
+    }
+
+    /// A payment that lands and fails shows its outcome and keeps its signature.
+    /// - Throws: A fixture error.
+    @Test
+    func `A failed payment shows its outcome`() async throws {
         let failure = TransactionError(name: "InstructionError",
                                        details: .array([.integer(0), .object(["Custom": .integer(1)])]))
         let payment = try Self.payment(statuses: [.status(.finalized, error: failure)])
@@ -116,13 +141,10 @@ struct SendModelTests {
 
         #expect(model.outcome == .failed)
         #expect(model.submission != nil)
-        #expect(payment.keypad.quantity == 1)
-        #expect(payment.portfolio.refreshes == 1)
         await payment.sockets.waitUntilClosed()
     }
 
-    /// A dropped payment keeps its signature, reads no balances, and can be tried again, which reviews the same
-    /// amount anew.
+    /// A dropped payment keeps its signature and can be tried again, which reviews the same amount anew.
     /// - Throws: A fixture error.
     @Test
     func `Trying a dropped payment again reviews the same amount`() async throws {
@@ -134,7 +156,6 @@ struct SendModelTests {
         await model.run(model.attempt)
         try #require(model.outcome == .dropped)
         #expect(model.submission != nil)
-        #expect(payment.portfolio.refreshes == 0)
         await payment.sockets.waitUntilClosed()
 
         model.tryAgain()
@@ -267,25 +288,26 @@ struct SendModelTests {
     ///   - statuses: The watch's status reads, in arrival order.
     ///   - height: The finalized block height of the watch's epoch reads.
     ///   - sockets: The watch's connections.
+    ///   - sent: The responses that acknowledge each sent payment.
     /// - Returns: The model and the local responses and connections behind it.
     /// - Throws: A fixture error.
     private static func payment(simulation: SimulateTransaction.Value = success, store: SigningRecoveryStore? = nil,
                                 statuses: [GetSignatureStatuses.Response] = [], height: UInt64 = 500,
-                                sockets: SocketSequence = SocketSequence()) throws -> Payment {
+                                sockets: SocketSequence = SocketSequence(),
+                                sent: HTTPResponses = .sending()) throws -> Payment {
         var fixture = try SigningFixture()
         fixture.simulation = SimulateTransaction.Response(context: Context(slot: 402), value: simulation)
         let local = try LocalTransactions(fixture: fixture, recovery: store, statuses: statuses, height: height,
-                                          sockets: sockets)
+                                          sockets: sockets, sent: sent)
         let transactions = local.coordinator
         let keypad = PaymentModel(tokens: [sol], currencyCode: "USD")
         keypad.press(.digit(1))
-        let portfolio = RecordingPortfolio()
         let records = StoredValue<[TransactionRecord]>()
         let model = SendModel(payment: keypad,
                               recipient: PaymentRecipient(address: fixture.transfer.accounts[1].address, name: "Bruno"),
                               warnings: [], account: fixture.account, coordinator: transactions,
-                              transactions: .inMemory(records) { _ in transactions }, portfolio: portfolio)
-        return Payment(model: model, keypad: keypad, portfolio: portfolio, records: records,
+                              transactions: .inMemory(records) { _ in transactions })
+        return Payment(model: model, keypad: keypad, records: records,
                        preparation: local.preparation, sockets: sockets)
     }
 

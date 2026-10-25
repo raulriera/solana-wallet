@@ -17,7 +17,6 @@ struct WalletScene: View {
     let connection: any ProviderConnecting<ProviderConnectionError>
     let security: SecurityCoordinator
     let providers: ProvidersCoordinator
-    let contacts: ContactsServices
 
     var body: some View {
         TabView(selection: $section) {
@@ -27,7 +26,7 @@ struct WalletScene: View {
                     .tokenRemovalLifecycle()
             }
             Tab("Contacts", systemImage: "person.crop.circle", value: .contacts) {
-                ContactsScene(account: account, network: network, services: contacts, portfolio: portfolio)
+                ContactsScene(account: account, network: network, portfolio: portfolio)
             }
             Tab("Settings", systemImage: "gearshape", value: .settings) {
                 SettingsScene(settings: settings, account: account, network: $network, security: security,
@@ -36,7 +35,7 @@ struct WalletScene: View {
             }
         }
         .tabViewStyle(.tabBarOnly)
-        .portfolioObservation(of: account, coordinator: portfolio, providerRevisions: providers.revisions)
+        .portfolioObservation(of: account, on: network, coordinator: portfolio, providerRevisions: providers.revisions)
         .privateBalanceObservation(of: account, model: privateBalance, providerRevisions: providers.revisions)
         // Settings work belongs to the window, so switching tabs keeps an import or a saved choice going.
         .onDisappear { settings.cancel() }

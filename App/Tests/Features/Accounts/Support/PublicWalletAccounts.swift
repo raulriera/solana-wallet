@@ -17,6 +17,8 @@ struct PublicWalletAccounts {
     let recovery: SecurityRecoveryStore
     /// Creates accounts from ``recovery``.
     let creation: AccountCreation
+    /// The shared transactions, which keep no records.
+    let transactions = TransactionStore.unused
 
     /// Derives the first account, saves it, and reads it back.
     /// - Parameter readError: The error every recovery read throws, such as a cancelled prompt.
@@ -31,11 +33,12 @@ struct PublicWalletAccounts {
         creation = AccountCreation(recovery: recovery, wallet: Wallet())
     }
 
-    /// Shows a view in a real window with the wallet's accounts and account creation in its environment.
+    /// Shows a view in a real window with the wallet's accounts, account creation, and the shared transactions in its
+    /// environment.
     /// - Parameter content: The view under test.
     /// - Returns: The window, which the test closes.
     /// - Throws: A failed prerequisite when the test host has no active window scene.
     func hosted(_ content: some View) throws -> HostedWindow<some View> {
-        try HostedWindow(content.environment(store).environment(\.accountCreation, creation))
+        try HostedWindow(content.environment(store).environment(\.accountCreation, creation).environment(transactions))
     }
 }

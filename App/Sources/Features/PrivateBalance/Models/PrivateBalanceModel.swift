@@ -8,8 +8,8 @@ import Wallet
 ///
 /// A refresh shows the account's last read balance, or why it has none; a failed refresh keeps what was read before.
 /// While private balances are on, a poll reads the balance again; a failure that reading again can't fix, such as a
-/// rate limit, pauses polling until a refresh that the person or the window starts succeeds. After a transaction settles
-/// with pending SOL, the next few polls follow up quickly until the indexer reports it. Accounts whose path has
+/// rate limit, pauses polling until a refresh that the person or the window starts succeeds. When a read after one of the
+/// account's transactions settles finds pending SOL, the next few polls follow up quickly until the indexer reports it. Accounts whose path has
 /// no private-balance keys show nothing. Turning private balances on runs once per attempt in
 /// the scene's task and reports a typed error, except when the person cancels authentication.
 @MainActor
@@ -34,14 +34,15 @@ final class PrivateBalanceModel {
     private(set) var isPollingPaused = false
     /// The open move of the account's SOL between its public and private balances.
     var move: BalanceMoveModel?
-    /// Counts settled transactions that left pending SOL; each one starts the window's reads again.
-    private(set) var followUp = 0
     /// The quick reads left until the pending SOL of a settled transaction turns available.
     private(set) var followUpReadsLeft = 0
+    /// The window's network.
+    private let network: Network
     private var account: Account?
+    /// The account's settled count when its balance was last read, or `nil` before the first read.
+    private var readSettledCount: Int?
     private let balances: any PrivateBalancing
     private let transactions: TransactionStore
-    private let network: Network
 
     /// Whether an attempt to turn private balances on is waiting or running.
     var isTurningOn: Bool { attempt != nil }
@@ -75,39 +76,44 @@ final class PrivateBalanceModel {
             isPollingPaused = false
             move = nil
             followUpReadsLeft = 0
+            readSettledCount = nil
         }
         await refresh()
+    }
+
+    /// How many of an account's transactions on the window's network settled since launch; each one reads the balance
+    /// again.
+    /// - Parameter account: The window's account.
+    /// - Returns: The account's settled count.
+    func settledCount(for account: Account) -> Int {
+        transactions.settledCount(for: TransactionRecord.Key(account: account.id, network: network))
     }
 
     /// Reads the current account's private balance again; a failed read keeps the balance read before.
     ///
     /// A failure that reading again can't fix, such as a rate limit or a rejected key, pauses polling; a read that
-    /// succeeds resumes it, and ends a follow-up once nothing is pending.
+    /// succeeds resumes it. The first read that finds pending SOL after one of the account's transactions settled
+    /// starts a follow-up, and a read that finds nothing pending ends it.
     func refresh() async {
         guard let account, account.path.hasPrivateBalanceKeys else { return }
+        let settledCount = settledCount(for: account)
         do {
             let status = try await balances.refresh(account, on: network)
             guard self.account == account else { return }
             self.status = status
             isPollingPaused = false
-            // Nothing left to turn available, so polls slow down again.
-            if case .balance(_, let pending) = status, pending > 0 { return }
-            followUpReadsLeft = 0
+            let settledSinceRead = readSettledCount.map { settledCount > $0 } ?? false
+            readSettledCount = settledCount
+            guard case .balance(_, let pending) = status, pending > 0 else {
+                // Nothing left to turn available, so polls slow down again.
+                followUpReadsLeft = 0
+                return
+            }
+            if settledSinceRead { followUpReadsLeft = Self.followUpReads }
         } catch {
             guard self.account == account else { return }
             isPollingPaused = !(error is CancellationError || (error as? RPCError)?.isRecoverable == true)
         }
-    }
-
-    /// Shows the balance that a settled transaction returned, such as a deposit's pending SOL, and follows up quickly
-    /// until the indexer reports it.
-    /// - Parameter status: The account's balance after the transaction settled.
-    func show(_ status: PrivateBalanceStatus) {
-        guard account != nil else { return }
-        self.status = status
-        guard case .balance(_, let pending) = status, pending > 0 else { return }
-        followUpReadsLeft = Self.followUpReads
-        followUp += 1
     }
 
     /// Reads the balance again while private balances are on for the account and polling isn't paused; each poll uses

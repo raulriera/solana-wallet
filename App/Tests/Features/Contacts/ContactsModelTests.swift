@@ -118,10 +118,9 @@ struct ContactsModelTests {
         let accounts = AccountStore.inMemory(StoredValue([main, otherWallet, savings]))
         await accounts.load()
         let addressBook = StoredValue<AddressBook>()
-        let contacts = ContactsModel(sendingAccount: main.address, wallet: ContactsFixtures.wallet, network: .mainnet,
-                                     accounts: accounts.accounts(inWallet: ContactsFixtures.wallet).map(Contact.init),
-                                     store: ContactsFixtures.store(addressBook),
-                                     services: ContactsFixtures.services(recents: StoredValue()))
+        let contacts = ContactsModel(sendingAccount: main, network: .mainnet,
+                                     accounts: accounts.accounts(inWallet: ContactsFixtures.wallet),
+                                     store: ContactsFixtures.store(addressBook), transactions: .unused)
         await contacts.load()
 
         let listed = try #require(contacts.accounts.first)
@@ -139,11 +138,9 @@ struct ContactsModelTests {
 
     /// A wallet with only its sending account and no contacts or payments has no one to list.
     @Test func `A list without anyone else is empty`() async {
-        let contacts = ContactsModel(sendingAccount: ContactsFixtures.sending, wallet: ContactsFixtures.wallet,
-                                     network: .mainnet,
-                                     accounts: [Contact(name: "Main", address: ContactsFixtures.sending)],
-                                     store: ContactsFixtures.store(StoredValue()),
-                                     services: ContactsFixtures.services(recents: StoredValue()))
+        let contacts = ContactsModel(sendingAccount: ContactsFixtures.main, network: .mainnet,
+                                     accounts: [ContactsFixtures.main], store: ContactsFixtures.store(StoredValue()),
+                                     transactions: .unused)
 
         await contacts.load()
 
@@ -176,51 +173,68 @@ struct ContactsModelTests {
     /// Windows share one store, so a change in one window shows in another at once, before it's saved.
     @Test func `Changes show in every window at once`() async throws {
         let store = ContactsFixtures.store()
-        let services = ContactsFixtures.services()
-        let window = await ContactsFixtures.model(store: store, services: services)
-        let other = await ContactsFixtures.model(store: store, services: services)
+        let window = await ContactsFixtures.model(store: store)
+        let other = await ContactsFixtures.model(store: store)
         let alice = try #require(window.saved(at: ContactsFixtures.alice))
 
         window.save(Contact(name: "Aaron", address: ContactsFixtures.stranger))
         window.delete(alice)
-        window.record(RecentPayment(address: ContactsFixtures.stranger, date: Date(timeIntervalSince1970: 3_000)))
 
         #expect(other.contacts.map(\.name) == ["Aaron", "bruno"])
-        #expect(other.payments.map(\.address) == [ContactsFixtures.stranger, ContactsFixtures.alice,
-                                                  ContactsFixtures.recent])
         await window.load()
     }
 
-    /// A landed payment is listed first, an address keeps only its latest payment, and each wallet keeps its own
-    /// payments on each network.
-    @Test func `Recent payments are kept per network`() async throws {
-        let recents = StoredValue(ContactsFixtures.recents)
-        let services = ContactsFixtures.services(recents: recents)
-        let mainnet = await ContactsFixtures.model(services: services)
+    /// A payment that lands shows under Recents in every window, from the shared transactions' record of it.
+    @Test func `A landed payment shows in every window`() async throws {
+        let sent = try PendingPayment(from: ContactsFixtures.main.id, to: ContactsFixtures.stranger)
+        async let window = ContactsFixtures.model(transactions: sent.transactions, network: .devnet)
+        async let other = ContactsFixtures.model(transactions: sent.transactions, network: .devnet)
+        let (first, second) = await (window, other)
+        #expect(first.recents.isEmpty)
 
-        mainnet.record(RecentPayment(address: ContactsFixtures.recent, date: Date(timeIntervalSince1970: 3_000)))
-        await mainnet.load()
+        #expect(try await sent.settle() == .succeeded)
 
-        let relaunched = await ContactsFixtures.model(services: ContactsFixtures.services(recents: recents))
-        #expect(relaunched.payments.map(\.address) == [ContactsFixtures.recent, ContactsFixtures.alice])
-        #expect(await ContactsFixtures.model(services: services, network: .devnet).payments.isEmpty)
+        #expect(first.recents.map(\.address) == [ContactsFixtures.stranger])
+        #expect(second.recents.map(\.address) == [ContactsFixtures.stranger])
     }
 
-    /// Only the latest payments are kept, so Recents stays short.
-    @Test func `Only the latest ten payments are kept`() async throws {
-        let recents = StoredValue<[String: [RecentPayment]]>()
-        let contacts = await ContactsFixtures.model(services: ContactsFixtures.services(recents: recents))
+    /// Recents list the latest payment to each address from every account in the wallet on the window's network.
+    @Test func `Recents list the wallet's payments on the window's network`() async throws {
+        let transactions = ContactsFixtures.transactions([
+            TransactionRecord.Key(account: ContactsFixtures.main.id, network: .mainnet):
+                StoredValue(ContactsFixtures.records),
+            TransactionRecord.Key(account: ContactsFixtures.savingsAccount.id, network: .mainnet): StoredValue([
+                .fixture(.payment(recipient: ContactsFixtures.recent, mint: nil, units: 1), signature: "savings",
+                         account: ContactsFixtures.savingsAccount.id, network: .mainnet, status: .succeeded,
+                         settled: 3_000),
+            ]),
+            TransactionRecord.Key(account: ContactsFixtures.main.id, network: .devnet):
+                StoredValue([ContactsFixtures.payment(to: ContactsFixtures.stranger, signature: "devnet",
+                                                      network: .devnet, settled: 4_000)]),
+        ])
+
+        async let mainnetModel = ContactsFixtures.model(transactions: transactions)
+        async let devnetModel = ContactsFixtures.model(transactions: transactions, network: .devnet)
+        let (mainnet, devnet) = await (mainnetModel, devnetModel)
+
+        #expect(mainnet.payments.map(\.address) == [ContactsFixtures.recent, ContactsFixtures.alice])
+        #expect(mainnet.payments.first?.date == Date(timeIntervalSinceReferenceDate: 3_000))
+        #expect(devnet.payments.map(\.address) == [ContactsFixtures.stranger])
+    }
+
+    /// Only the latest payments are listed, so Recents stays short.
+    @Test func `Only the latest ten payments are listed`() async throws {
         let addresses = try (1...12).map { try Address(bytes: [UInt8](repeating: UInt8($0), count: 32)) }
-
-        for (index, address) in addresses.enumerated() {
-            contacts.record(RecentPayment(address: address, date: Date(timeIntervalSince1970: Double(index))))
+        let records = addresses.enumerated().map { index, address in
+            ContactsFixtures.payment(to: address, signature: "payment-\(index)", settled: Double(index + 1))
         }
-        await contacts.load()
+        let transactions = ContactsFixtures.transactions([
+            TransactionRecord.Key(account: ContactsFixtures.main.id, network: .mainnet): StoredValue(records),
+        ])
 
-        let expected = Array(addresses.reversed().prefix(ContactsModel.recentLimit))
-        #expect(contacts.payments.map(\.address) == expected)
-        let relaunched = await ContactsFixtures.model(services: ContactsFixtures.services(recents: recents))
-        #expect(relaunched.payments.map(\.address) == expected)
+        let contacts = await ContactsFixtures.model(transactions: transactions)
+
+        #expect(contacts.payments.map(\.address) == Array(addresses.reversed().prefix(ContactsModel.recentLimit)))
     }
 
     /// Storage that can't be read is reported instead of showing an empty list, and nothing replaces it.
@@ -235,8 +249,11 @@ struct ContactsModelTests {
 
     /// Recent payments that can't be read are reported, as unreadable contacts are.
     @Test func `Unreadable payments are reported`() async {
-        let recents = StoredValue(ContactsFixtures.recents, unreadable: true)
-        let contacts = await ContactsFixtures.model(services: ContactsFixtures.services(recents: recents))
+        let transactions = ContactsFixtures.transactions([
+            TransactionRecord.Key(account: ContactsFixtures.main.id, network: .mainnet):
+                StoredValue(ContactsFixtures.records, unreadable: true),
+        ])
+        let contacts = await ContactsFixtures.model(transactions: transactions)
 
         #expect(contacts.isUnreadable)
         #expect(!contacts.isLoaded)
@@ -267,18 +284,6 @@ struct ContactsModelTests {
 
         #expect(await firstError(of: contacts) == .unsaved)
         #expect(contacts.contacts.map(\.name) == ["Alice", "bruno"])
-    }
-
-    /// A payment that can't be saved shows an error, and Recents returns to what's saved.
-    @Test func `A payment that can't be saved is undone`() async {
-        let recents = StoredValue(ContactsFixtures.recents, failsSaving: true)
-        let contacts = await ContactsFixtures.model(services: ContactsFixtures.services(recents: recents))
-
-        contacts.record(RecentPayment(address: ContactsFixtures.stranger, date: Date(timeIntervalSince1970: 3_000)))
-        await contacts.load()
-
-        #expect(await firstError(of: contacts) == .unsaved)
-        #expect(contacts.payments.map(\.address) == [ContactsFixtures.alice, ContactsFixtures.recent])
     }
 
     /// Waits until a change that couldn't be saved sets the model's error.

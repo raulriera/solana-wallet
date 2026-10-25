@@ -3,8 +3,9 @@ import SwiftUI
 /// Presents a move's review over its keypad, as tall as its content, and replaces it with the result once the move
 /// is sent.
 ///
-/// Cancel returns to the keypad with the amount as typed, except while the move is sent; the result can't be
-/// swiped away, and Close closes the keypad too.
+/// Cancel returns to the keypad with the amount as typed. Once the move is approved, Cancel closes the keypad too, since
+/// the move can't be reviewed again: the shared transactions keep sending and watching it. The result can't be swiped
+/// away, and Close closes the keypad too.
 struct BalanceMoveReviewSheet: View {
     @Bindable var move: BalanceMoveModel
     /// Closes the keypad's sheet, and this one with it.
@@ -26,8 +27,7 @@ struct BalanceMoveReviewSheet: View {
                 } else if let review = shownReview {
                     BalanceMoveReviewScreen(move: move, review: review)
                         .contentHeightDetent()
-                        .cancellationAction()
-                        .disabled(move.isSending)
+                        .cancellationAction(move.isSending || move.submission != nil ? { close() } : nil)
                 }
             }
             // The result blurs in over the review. The sheet jumps to the result's height: a sheet doesn't animate a
@@ -44,6 +44,7 @@ struct BalanceMoveReviewSheet: View {
         .onChange(of: move.review, initial: true) { _, review in
             if let review { shownReview = review }
         }
+        // Swiping returns only to the keypad, which an approved move no longer has; Cancel closes both instead.
         .interactiveDismissDisabled(move.isWorking || move.submission != nil)
         // Alerts show from the topmost presentation, so errors while the review shows appear here.
         .errorAlert($move.error)

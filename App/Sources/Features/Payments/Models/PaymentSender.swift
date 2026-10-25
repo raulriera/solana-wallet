@@ -1,7 +1,6 @@
 import RPC
 
-/// What a window needs to send payments: its account on its network, the shared transactions, and the portfolio that
-/// reads the balances again after a payment lands.
+/// What a window needs to send payments: its account on its network and the shared transactions.
 @MainActor
 struct PaymentSender {
     /// The window's account, which pays.
@@ -10,8 +9,6 @@ struct PaymentSender {
     let network: Network
     /// The transactions that every window sends, watches, and records.
     let transactions: TransactionStore
-    /// The window's portfolio, on the window's network.
-    let portfolio: any PortfolioCoordinating
 
     /// Starts a payment of the amount typed now, with what its review asks the person to check about the recipient.
     /// - Parameters:
@@ -24,7 +21,6 @@ struct PaymentSender {
         -> SendModel {
         SendModel(payment: payment, recipient: recipient,
                   warnings: RecipientClassifier.review.warnings(for: recipient.address, in: context), account: account,
-                  coordinator: try transactions.coordinator(for: network), transactions: transactions,
-                  portfolio: portfolio)
+                  coordinator: try transactions.coordinator(for: network), transactions: transactions)
     }
 }

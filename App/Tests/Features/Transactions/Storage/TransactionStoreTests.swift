@@ -264,6 +264,50 @@ struct TransactionStoreTests {
         }
     }
 
+    /// Erasing an account stops its watches and deletes its records, so its transactions are forgotten.
+    @Test
+    func `Erasing an account stops its watches and forgets its records`() async throws {
+        // The watch never settles: no status exists and the blockhash stays valid.
+        let sending = try Self.sending(statuses: [.status(nil)])
+        let record = try await sending.send()
+        for await _ in sending.sockets.openings { break }
+
+        try await sending.store.erase(account: sending.account.id)
+
+        await sending.sockets.waitUntilClosed()
+        #expect(sending.store.records(for: sending.key).isEmpty)
+        #expect(await sending.records.value == nil)
+        await #expect(throws: TransactionStoreError.missingRecord) {
+            try await sending.store.watch(record.id, for: sending.key)
+        }
+    }
+
+    /// Erasing an account deletes its records on every network, even ones that were never read, and keeps other
+    /// accounts' records.
+    @Test
+    func `Erasing an account deletes its records on every network only`() async throws {
+        let fixture = try SigningFixture()
+        let other = UUID()
+        let mainnet = StoredValue([try TransactionRecord.fixture(Self.payment(), signature: "mainnet",
+                                                                 account: fixture.account.id, network: .mainnet)])
+        let devnet = StoredValue([try TransactionRecord.fixture(Self.payment(), signature: "devnet",
+                                                                account: fixture.account.id)])
+        let kept = StoredValue([try TransactionRecord.fixture(Self.payment(), signature: "kept", account: other)])
+        let otherKey = TransactionRecord.Key(account: other, network: .devnet)
+        let sending = try Self.sending(fixture: fixture, records: devnet, otherRecords: [
+            TransactionRecord.Key(account: fixture.account.id, network: .mainnet): mainnet, otherKey: kept,
+        ])
+        await sending.store.load(sending.key)
+        await sending.store.load(otherKey)
+
+        try await sending.store.erase(account: fixture.account.id)
+
+        #expect(await mainnet.value == nil)
+        #expect(await devnet.value == nil)
+        #expect(await kept.value?.map(\.id) == ["kept"])
+        #expect(sending.store.records(for: otherKey).map(\.id) == ["kept"])
+    }
+
     // MARK: Reading
 
     /// Recent payments list the latest succeeded payment to each recipient across several accounts, the latest to
@@ -291,9 +335,7 @@ struct TransactionStoreTests {
                 .fixture(Self.payment(to: dana), signature: "dana", account: second, status: .succeeded, settled: 20),
             ]),
         ]
-        let store = TransactionStore(storage: { storages[$0] ?? StoredValue() }) { _ in
-            throw SubmitterError.noProviders
-        }
+        let store = TransactionStore.inMemory(storages)
         let keys = Array(storages.keys)
         for key in keys { await store.load(key) }
 
@@ -386,7 +428,8 @@ struct TransactionStoreTests {
     ///   - sockets: The watch's connections.
     ///   - sent: The responses that acknowledge each sent transaction.
     ///   - fixture: The account and transaction to send, or `nil` for a new fixture.
-    ///   - records: The in-memory records.
+    ///   - records: The in-memory records of the fixture account on devnet.
+    ///   - otherRecords: The in-memory records of other keys; keys without any start with no records.
     /// - Returns: The store and what stands behind it.
     /// - Throws: A fixture error.
     private static func sending(recovery: SigningRecoveryStore? = nil,
@@ -394,11 +437,15 @@ struct TransactionStoreTests {
                                 height: UInt64 = 500, statusGate: Suspension? = nil,
                                 sockets: SocketSequence = SocketSequence(), sent: HTTPResponses = .sending(),
                                 fixture: SigningFixture? = nil,
-                                records: StoredValue<[TransactionRecord]> = StoredValue()) throws -> Sending {
+                                records: StoredValue<[TransactionRecord]> = StoredValue(),
+                                otherRecords: [TransactionRecord.Key: StoredValue<[TransactionRecord]>] = [:]) throws
+        -> Sending {
         let fixture = try fixture ?? SigningFixture()
         let coordinator = try LocalTransactions(fixture: fixture, recovery: recovery, statuses: statuses, height: height,
                                                 statusGate: statusGate, sockets: sockets, sent: sent).coordinator
-        return Sending(store: .inMemory(records) { _ in coordinator }, records: records, account: fixture.account,
+        var storages = otherRecords
+        storages[TransactionRecord.Key(account: fixture.account.id, network: .devnet)] = records
+        return Sending(store: .inMemory(storages) { _ in coordinator }, records: records, account: fixture.account,
                        recipient: fixture.transfer.accounts[1].address, sent: sent, sockets: sockets)
     }
 

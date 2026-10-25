@@ -1,4 +1,6 @@
 import Observation
+import Privacy
+import RPC
 import SwiftUI
 import Testing
 import Transactions
@@ -44,16 +46,15 @@ struct PrivateBalanceObservationTests {
         #expect(model.status == .balance(available: 0, pending: 0))
     }
 
-    /// A settled transaction's pending SOL starts the reads again at once and follows up quickly, so it turns available
-    /// without waiting for the next poll.
+    /// A settled transaction starts the reads again at once, and pending SOL then follows up quickly, so it turns
+    /// available without waiting for the next poll.
     /// - Throws: A fixture or test prerequisite error.
     @Test
-    func `Pending SOL from a settled transaction is read again quickly`() async throws {
+    func `Pending SOL after a settled transaction is read again quickly`() async throws {
         let account = try await PrivateBalanceFixtures.account()
-        let record = try await PrivateBalanceFixtures.keys(for: account)
-        let registry = try PrivateBalanceFixtures.registry(publishing: record.shieldedAccount(for: account.address))
-        let model = try PrivateBalanceModel.fixture(HTTPResponses.privateNotes(registry: [registry]),
-                                                    keys: StoredValue([account.address.value: record]))
+        let sent = try PendingPayment(from: account.id)
+        let (model, notes) = try await PrivateBalanceFixtures.pendingDeposit(of: account,
+                                                                             transactions: sent.transactions)
         // Ordinary polls never come within the suite's time limit, so only a follow-up reads the balance again.
         let hosted = try HostedWindow(PrivateBalanceObservationRoot(model: model, account: account, scenePhase: .active,
                                                                     pollInterval: .seconds(3_600),
@@ -61,10 +62,15 @@ struct PrivateBalanceObservationTests {
         defer { hosted.close() }
         try #require(try await hosted.appears())
         for await status in Observations({ model.status }) where status != nil { break }
+        #expect(!model.isFollowingUp)
 
-        model.show(.balance(available: 0, pending: 1_000_000))
+        #expect(try await sent.settle() == .succeeded)
 
-        // The suite's time limit ends the wait if no follow-up reads the balance.
+        // The suite's time limit ends each wait if no follow-up reads the balance.
+        for await left in Observations({ model.followUpReadsLeft })
+        where left > 0 && left < PrivateBalanceModel.followUpReads { break }
+        // The indexer reports the deposit, so nothing is pending.
+        try await notes.save([PrivateBalances.noteID(of: account, on: .devnet): NoteSyncState()])
         for await status in Observations({ model.status }) where status == .balance(available: 0, pending: 0) { break }
         #expect(!model.isFollowingUp)
     }

@@ -3,8 +3,8 @@ import SwiftUI
 /// Presents a payment's review over its keypad, as tall as its content, and replaces it with the result once the
 /// payment is sent.
 ///
-/// Cancel returns to the keypad with the amount as typed, except while the payment is sent; the result can't be
-/// swiped away, and Close closes it.
+/// Cancel returns to the keypad with the amount as typed, even while the payment is sent: the shared transactions keep
+/// sending and watching it, and the keypad clears once it succeeds. The result can't be swiped away; Close closes it.
 struct PaymentReviewSheet: View {
     @Environment(\.dismiss) private var dismiss
     let send: SendModel
@@ -24,7 +24,6 @@ struct PaymentReviewSheet: View {
                     PaymentReviewScreen(send: send)
                         .contentHeightDetent()
                         .cancellationAction()
-                        .disabled(send.isSending)
                 }
             }
             // The result blurs in over the review.
@@ -35,7 +34,7 @@ struct PaymentReviewSheet: View {
         .onChange(of: send.outcome, initial: true) { _, outcome in
             withAnimation { shownOutcome = outcome }
         }
-        // A sent payment stays until the person reads how it settled.
-        .interactiveDismissDisabled(send.isSending || send.submission != nil)
+        // A settled payment stays until the person reads how it settled.
+        .interactiveDismissDisabled(send.outcome != nil)
     }
 }

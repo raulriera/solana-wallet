@@ -85,6 +85,63 @@ enum PrivateBalanceFixtures {
                                    registers: false, authorities: [.account(account)])
     }
 
+    /// Creates a window's private balance on devnet over saved keys and notes in which a succeeded deposit of
+    /// 1,000,000 lamports is still pending, as after the deposit settles and before the indexer reports it.
+    /// - Parameters:
+    ///   - account: A fixture account.
+    ///   - transactions: The shared transactions.
+    /// - Returns: The model, before its first read, and the saved notes, which a test changes as the indexer would.
+    /// - Throws: A fixture error.
+    @MainActor
+    static func pendingDeposit(of account: widgets.Account, transactions: TransactionStore = .unused) async throws
+        -> (model: PrivateBalanceModel, notes: StoredValue<PrivateBalances.Notes>) {
+        let keys = StoredValue([account.address.value: try await keys(for: account)])
+        let notes = StoredValue<PrivateBalances.Notes>([PrivateBalances.noteID(of: account, on: .devnet): NoteSyncState()])
+        let balances = PrivateBalances.inMemory(keys: keys, notes: notes, recovery: try recoveryStore(),
+                                                responses: HTTPResponses.privateNotes())
+        _ = try await balances.complete(preparedDeposit(1_000_000, from: account), with: confirmation(.succeeded))
+        let model = try PrivateBalanceModel.fixture(HTTPResponses.privateNotes(), keys: keys, notes: notes,
+                                                    transactions: transactions)
+        return (model, notes)
+    }
+
+    /// A private balance of a fixture account, as the local provider and saved notes report it.
+    enum Balance: Sendable {
+        /// 1,000,000 lamports available.
+        case available
+        /// 1,000,000 lamports pending, from a deposit that settled.
+        case pending
+        /// No balance, since the account isn't registered.
+        case unregistered
+    }
+
+    /// Creates a window's private balance on devnet whose reads report a balance of an account with private balances
+    /// on.
+    /// - Parameters:
+    ///   - balance: The balance that each read reports.
+    ///   - account: A fixture account.
+    ///   - transactions: The shared transactions.
+    /// - Returns: The model, before its first read.
+    /// - Throws: A fixture error.
+    @MainActor
+    static func model(holding balance: Balance, of account: widgets.Account,
+                      transactions: TransactionStore = .unused) async throws -> PrivateBalanceModel {
+        let record = try await keys(for: account)
+        let keys = StoredValue([account.address.value: record])
+        switch balance {
+        case .available:
+            let shielded = try record.shieldedAccount(for: account.address)
+            let responses = HTTPResponses.privateNotes(registry: [try registry(publishing: shielded)],
+                                                       deposits: [try deposit(1_000_000, to: shielded, leafIndex: 4)])
+            return try PrivateBalanceModel.fixture(responses, keys: keys, transactions: transactions)
+        case .pending:
+            return try await pendingDeposit(of: account, transactions: transactions).model
+        case .unregistered:
+            return try PrivateBalanceModel.fixture(HTTPResponses.privateNotes(registry: [unregistered]), keys: keys,
+                                                   transactions: transactions)
+        }
+    }
+
     /// Counts the proof requests sent so far.
     /// - Parameter responses: The local responses that recorded the requests.
     /// - Returns: The number of requests on the prover's route.

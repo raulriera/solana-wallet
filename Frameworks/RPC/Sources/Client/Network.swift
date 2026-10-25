@@ -1,5 +1,5 @@
 /// A Solana network that can receive remote procedure calls.
-public enum Network: String, Codable, Sendable, Hashable {
+public enum Network: String, Codable, Sendable, Hashable, CaseIterable {
     /// The production Solana network.
     case mainnet
 
