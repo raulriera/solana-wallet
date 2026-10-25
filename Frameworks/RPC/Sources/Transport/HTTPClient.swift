@@ -31,11 +31,7 @@ struct HTTPClient: Sendable, CustomStringConvertible, CustomDebugStringConvertib
     /// A reflection without children, so dumps can't reveal the endpoint or its key.
     var customMirror: Mirror { Mirror(self, children: [:]) }
 
-    /// Sends one request to the configured endpoint and decodes its response.
-    ///
-    /// Execution leaves the caller's actor. Each call uses its own encoder,
-    /// decoder, and request identifier, with a 30-second request timeout.
-    /// The client doesn't retry failed requests.
+    /// Sends one request with a 30-second timeout and no retry.
     ///
     /// - Parameter request: The typed RPC method and its parameters.
     /// - Returns: The method's decoded result, after validating its response envelope.

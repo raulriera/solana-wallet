@@ -25,7 +25,7 @@ public struct HeliusRPC: RPC, AccountChangeProviding, SignatureEventProviding, L
         self.init(apiKey: apiKey, network: network, transport: URLSessionTransport())
     }
 
-    /// Creates a client with an injected transport that redacts the key and endpoints from diagnostics.
+    /// Creates a client with an injected transport and subscription factory; diagnostics omit the key.
     ///
     /// - Parameters:
     ///   - apiKey: The Helius API key to include in the request URL.

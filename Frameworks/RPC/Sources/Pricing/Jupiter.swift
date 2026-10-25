@@ -40,12 +40,8 @@ public struct Jupiter: PriceProviding, CustomStringConvertible, CustomDebugStrin
     /// A debugging representation that omits authentication credentials.
     public var debugDescription: String { description }
 
-    /// Retrieves available prices in paced, sequential batches of at most fifty unique mints.
+    /// Fetches sequential, paced batches of at most 50 unique mints; any failed batch throws without partial results.
     ///
-    /// Batching and pacing are internal to the adapter and shared across concurrent calls.
-    /// Each batch is attempted once; a failure
-    /// prevents partial success from reaching the consumer. No holdings or metadata
-    /// requests, polling, fallback, or retries are performed.
     /// - Parameter mints: Mainnet mint addresses; duplicates are ignored.
     /// - Returns: Normalized quotes for the mints whose prices are available.
     /// - Throws: An HTTP, transport, decoding, or cancellation error.

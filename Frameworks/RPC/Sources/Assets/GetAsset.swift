@@ -1,4 +1,4 @@
-/// A DAS request for one asset, which the app uses to check that a key reaches DAS.
+/// A DAS request for one asset.
 public struct GetAsset: RPCRequest {
     /// The DAS method for retrieving one asset.
     public static let method = "getAsset"
