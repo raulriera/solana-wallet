@@ -3,8 +3,8 @@ import Storage
 import Transactions
 import Wallet
 
-/// Keeps the saved accounts as a JSON list of their public fields, and reads back only a list of valid, distinct
-/// accounts.
+/// Keeps the saved accounts as a JSON list of their public fields and names, and reads back only a list of valid,
+/// distinct accounts.
 ///
 /// A list with an invalid address or path, a missing field, or a duplicate account isn't a value, so a file that keeps
 /// one is unreadable and is never replaced.
@@ -38,6 +38,8 @@ nonisolated struct AccountsCoding: ValueCoding {
         let recoveryID: UUID
         let address: String
         let path: String
+        /// The name the person gave the account, or `nil` when it keeps its numbered name.
+        let name: String?
 
         /// Copies an account's public fields into its saved representation.
         /// - Parameter account: The account to save.
@@ -46,13 +48,15 @@ nonisolated struct AccountsCoding: ValueCoding {
             recoveryID = account.recoveryID
             address = account.address.value
             path = account.path.description
+            name = account.customName
         }
 
         /// Reconstructs the account, checking its address and path.
         /// - Returns: The account.
         /// - Throws: An address or derivation-path validation error.
         func account() throws -> Account {
-            Account(id: id, recoveryID: recoveryID, address: try Address(address), path: try DerivationPath(path))
+            Account(id: id, recoveryID: recoveryID, address: try Address(address), path: try DerivationPath(path),
+                    customName: name)
         }
     }
 }

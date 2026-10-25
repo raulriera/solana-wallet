@@ -27,6 +27,7 @@ struct WindowRoot: View {
         .environment(\.currencySelection, services.currency)
         .environment(services.contactStore)
         .environment(services.accountStore)
+        .environment(\.accountCreation, services.accountCreation)
         .environment(\.network, network)
     }
 }

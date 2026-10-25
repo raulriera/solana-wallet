@@ -13,6 +13,11 @@ struct SettingsSidebar: View {
             NavigationLink(value: SettingsDestination.network) {
                 Label("Network", systemImage: "network")
             }
+            NavigationLink(value: SettingsDestination.accounts) {
+                Label("Accounts", systemImage: "wallet.bifold.fill")
+                    // The wallet has no colors of its own, so it takes a leather wallet's brown.
+                    .labelStyle(.sidebar(tint: .brown))
+            }
             NavigationLink(value: SettingsDestination.providers) {
                 Label("Providers", systemImage: "point.3.filled.connected.trianglepath.dotted")
             }

@@ -114,7 +114,7 @@ final class OnboardingCoordinator: OnboardingCoordinating {
             let recovery = try makeRecovery()
             let selected = try await selectAccount(recovery)
             try Task.checkCancellation()
-            preparedAccount = Account(id: UUID(), recoveryID: UUID(), address: try Address(selected.address), path: selected.path)
+            preparedAccount = try Account(selected, recoveryID: UUID())
             self.recovery = recovery
         } catch let error as RecoveryPhrase.ValidationError {
             throw error

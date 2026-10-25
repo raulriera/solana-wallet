@@ -198,4 +198,134 @@ struct AccountStoreTests {
         #expect(await storage.value == nil)
         #expect(await storage.deletions == 1)
     }
+
+    /// A rename shows at once in every window and saves the trimmed name.
+    @Test
+    func `A rename saves the new name`() async throws {
+        let first = try widgets.Account.fixture(index: 0)
+        let second = try widgets.Account.fixture(index: 1, recoveryID: first.recoveryID)
+        let storage = StoredValue([first, second])
+        let accounts = AccountStore.inMemory(storage)
+        await accounts.load()
+
+        try await accounts.rename(second.id, to: "  Savings ")
+
+        #expect(accounts.accounts.map(\.name) == ["Account 1", "Savings"])
+        #expect(await storage.value?.map(\.customName) == [nil, "Savings"])
+    }
+
+    /// An empty name gives the account back its numbered name.
+    @Test
+    func `An empty name restores the numbered name`() async throws {
+        var account = try widgets.Account.fixture(index: 1)
+        account.customName = "Savings"
+        let storage = StoredValue([account])
+        let accounts = AccountStore.inMemory(storage)
+        await accounts.load()
+
+        try await accounts.rename(account.id, to: " ")
+
+        #expect(accounts.accounts.first?.name == "Account 2")
+        #expect(await storage.value?.first?.customName == nil)
+    }
+
+    /// A wallet's next account takes the lowest account index that none of its accounts uses, in either Solana family,
+    /// at `m/44'/501'/i'/0'`; other wallets and other paths don't count.
+    /// - Parameters:
+    ///   - paths: The wallet's saved paths.
+    ///   - index: The next account's index.
+    @Test(arguments: [
+        ([], 0), (["m/44'/501'/0'/0'"], 1), (["m/44'/501'/0'/0'", "m/44'/501'/2'/0'"], 1), (["m/44'/501'/0'"], 1),
+        (["m/44'/501'/0'", "m/44'/501'/1'/0'"], 2), (["m/44'/60'/0'/0'"], 0),
+    ] as [([String], UInt32)])
+    func `The next account takes the lowest unused index`(paths: [String], index: UInt32) async throws {
+        let recoveryID = UUID()
+        let saved = try paths.enumerated().map { offset, path in
+            try widgets.Account(id: UUID(), recoveryID: recoveryID,
+                                address: widgets.Account.fixture(index: UInt8(offset)).address,
+                                path: DerivationPath(path))
+        }
+        let other = try widgets.Account.fixture(index: 9)
+        let accounts = AccountStore.inMemory(StoredValue(saved + [other]))
+        await accounts.load()
+
+        #expect(accounts.nextPath(inWallet: recoveryID) == .solana(account: index))
+    }
+
+    /// A deletion leaves every window's list at once and saves the remaining accounts.
+    @Test
+    func `Deleting removes the account`() async throws {
+        let first = try widgets.Account.fixture(index: 0)
+        let second = try widgets.Account.fixture(index: 1, recoveryID: first.recoveryID)
+        let storage = StoredValue([first, second])
+        let accounts = AccountStore.inMemory(storage)
+        await accounts.load()
+
+        try await accounts.remove(second.id)
+
+        #expect(accounts.accounts == [first])
+        #expect(await storage.value == [first])
+    }
+
+    /// A deleted account's index is free again, so the next account takes it back.
+    @Test
+    func `A deleted account's index is used again`() async throws {
+        let first = try widgets.Account.fixture(index: 0)
+        let second = try widgets.Account.fixture(index: 1, recoveryID: first.recoveryID)
+        let accounts = AccountStore.inMemory(StoredValue([first, second]))
+        await accounts.load()
+
+        try await accounts.remove(second.id)
+
+        #expect(accounts.nextPath(inWallet: first.recoveryID) == .solana(account: 1))
+    }
+
+    /// A change to an account that's no longer saved changes nothing.
+    /// - Parameter change: The change.
+    @Test(arguments: Change.allCases)
+    func `A change to an unsaved account changes nothing`(_ change: Change) async throws {
+        let first = try widgets.Account.fixture(index: 0)
+        let storage = StoredValue([first])
+        let accounts = AccountStore.inMemory(storage)
+        await accounts.load()
+
+        try await change.apply(to: UUID(), in: accounts)
+
+        #expect(accounts.accounts == [first])
+        #expect(await storage.value == [first])
+    }
+
+    /// A change that can't be saved is undone and throws.
+    /// - Parameter change: The change.
+    @Test(arguments: Change.allCases)
+    func `A failed change is undone`(_ change: Change) async throws {
+        let first = try widgets.Account.fixture(index: 0)
+        let storage = StoredValue([first], failsSaving: true)
+        let accounts = AccountStore.inMemory(storage)
+        await accounts.load()
+
+        await #expect(throws: CocoaError.self) { try await change.apply(to: first.id, in: accounts) }
+
+        #expect(accounts.accounts == [first])
+        #expect(await storage.value == [first])
+    }
+
+    /// A change to a saved account.
+    enum Change: CaseIterable {
+        case rename
+        case deletion
+
+        /// Makes the change to an account.
+        /// - Parameters:
+        ///   - id: The account's identity.
+        ///   - accounts: The shared accounts.
+        /// - Throws: A storage error.
+        @MainActor
+        func apply(to id: widgets.Account.ID, in accounts: AccountStore) async throws {
+            switch self {
+            case .rename: try await accounts.rename(id, to: "Savings")
+            case .deletion: try await accounts.remove(id)
+            }
+        }
+    }
 }

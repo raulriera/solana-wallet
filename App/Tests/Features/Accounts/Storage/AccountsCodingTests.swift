@@ -42,6 +42,19 @@ struct AccountsCodingTests {
         #expect(encoded == existing)
     }
 
+    /// A custom name is saved with the account and read back, beside an account that keeps its numbered name.
+    @Test
+    func `Custom names are saved and read back`() throws {
+        var accounts = try Self.accounts
+        accounts[0].customName = "Savings"
+
+        let encoded = try AccountsCoding().encode(accounts)
+        let records = try #require(JSONSerialization.jsonObject(with: encoded) as? [[String: String]])
+
+        #expect(AccountsCoding().decode(encoded) == accounts)
+        #expect(records.map { $0["name"] } == ["Savings", nil])
+    }
+
     /// An empty list is a value, unlike missing bytes.
     @Test
     func `An empty list decodes`() {

@@ -19,17 +19,7 @@ struct RecipientScreen: View {
         let saved = contacts.saved(at: address)
         let contact = contacts.contacts.first { $0.address == address }
         Form {
-            Section {
-                // The whole address, which people can copy with a touch and hold.
-                FullAddress(text: address.value)
-                    .foregroundStyle(palette.primaryText)
-            } header: {
-                Text("Address")
-            } footer: {
-                Text("Touch and hold the address to copy it.")
-                    .foregroundStyle(palette.secondaryText)
-            }
-            .listRowBackground(palette.surface)
+            FullAddressSection(address: address)
 
             Section {
                 Group {

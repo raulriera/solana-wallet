@@ -29,4 +29,15 @@ struct AccountTests {
 
         #expect(named.name == "m/44'/60'/0'/0'")
     }
+
+    /// A name the person gave the account replaces its numbered name, which stays its default.
+    @Test
+    func `A custom name replaces the numbered name`() throws {
+        var account = try widgets.Account.fixture(index: 1)
+
+        account.customName = "Savings"
+
+        #expect(account.name == "Savings")
+        #expect(account.defaultName == "Account 2")
+    }
 }

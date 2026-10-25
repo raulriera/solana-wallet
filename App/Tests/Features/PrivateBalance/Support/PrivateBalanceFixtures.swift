@@ -25,7 +25,7 @@ enum PrivateBalanceFixtures {
     /// - Returns: The public test phrase without a BIP-39 passphrase.
     /// - Throws: A validation error, which doesn't happen.
     static func recovery() throws -> Recovery {
-        Recovery(phrase: try RecoveryPhrase(PublicWallet.words), passphrase: "")
+        try PublicWallet.recovery()
     }
 
     /// Recovery storage that holds the published recovery.
@@ -40,11 +40,7 @@ enum PrivateBalanceFixtures {
     /// - Returns: The account with its derived address.
     /// - Throws: A derivation or test prerequisite error.
     static func account(index: UInt32 = 0) async throws -> widgets.Account {
-        let recovery = try recovery()
-        let path = try DerivationPath("m/44'/501'/\(index)'/0'")
-        let derived = try #require(try await Wallet().accounts(for: recovery.phrase, passphrase: recovery.passphrase,
-                                                               paths: [path]).first)
-        return widgets.Account(id: UUID(), recoveryID: recoveryID, address: try Address(derived.address), path: path)
+        try await PublicWallet.account(index: index, recoveryID: recoveryID)
     }
 
     /// Derives a fixture account's private-balance keys as Wallet does.

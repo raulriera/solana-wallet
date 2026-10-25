@@ -31,6 +31,8 @@ struct AppServices {
     let contactStore: ContactStore
     /// The saved accounts, which every window shares; nothing is read until a window's startup loads them.
     let accountStore: AccountStore
+    /// Creates new accounts in saved wallets from their recovery.
+    let accountCreation: AccountCreation
 
     /// Creates production services after any explicit simulator UI-test reset.
     init() {
@@ -54,6 +56,7 @@ struct AppServices {
         self.wallet = wallet
         discovery = AccountDiscovery(rpc: Solana(network: .mainnet), wallet: wallet)
         recovery = KeychainStore(service: recoveryService)
+        accountCreation = AccountCreation(recovery: recovery, wallet: wallet)
         let privateBalanceKeys = KeychainItem(service: privateBalanceService, account: "keys",
                                               coding: .json(PrivateBalances.Keys.self))
         let privateBalanceNotes = KeychainItem(service: privateBalanceService, account: "notes",

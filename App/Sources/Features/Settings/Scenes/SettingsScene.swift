@@ -12,14 +12,15 @@ struct SettingsScene: View {
     let security: SecurityCoordinator
     let providers: ProvidersCoordinator
 
-    /// Presents the window's preference-editing workflow, its network, its RPC provider choices, its currency, and its
-    /// wallet's security choices.
+    /// Presents the window's preference-editing workflow, its network, its wallet's accounts, its RPC provider choices,
+    /// its currency, and its wallet's security choices.
     ///
     /// Appearance loading and rendering belong to the owning window's root.
     /// - Parameters:
     ///   - settings: The window's workflow; the window cancels unfinished work when it closes.
     ///   - wallet: The owning window's selected wallet theme scope, if one exists.
-    ///   - account: The owning window's wallet, whose recovery Security & Privacy shows.
+    ///   - account: The owning window's account, whose wallet's accounts Accounts lists and whose recovery Security &
+    ///     Privacy shows.
     ///   - network: The network that the owning window shows; other windows keep theirs.
     ///   - security: The window's Security & Privacy navigation and steps.
     ///   - providers: The window's RPC provider choices and key entry.
@@ -49,6 +50,8 @@ struct SettingsScene: View {
                 NavigationStack {
                     NetworkScreen(network: $network)
                 }
+            case .accounts:
+                AccountsScene(account: account)
             case .providers:
                 ProvidersScene(coordinator: providers)
             case .currency:

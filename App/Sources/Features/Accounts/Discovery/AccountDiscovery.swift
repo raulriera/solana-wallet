@@ -29,7 +29,7 @@ nonisolated struct AccountDiscovery: AccountDiscovering {
     func discover(for phrase: RecoveryPhrase, passphrase: String) async throws -> [DerivedAccount] {
         try Task.checkCancellation()
         let paths = try (UInt32(0)..<10).flatMap { index in
-            try [DerivationPath("m/44'/501'/\(index)'/0'"), DerivationPath("m/44'/501'/\(index)'")]
+            [.solana(account: index), try DerivationPath("m/44'/501'/\(index)'")]
         }
         let candidates = try await wallet.accounts(for: phrase, passphrase: passphrase, paths: paths)
         guard candidates.map(\.path) == paths else { throw AccountDiscoveryError.mismatchedAccounts }
