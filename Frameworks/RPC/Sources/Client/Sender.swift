@@ -31,10 +31,11 @@ public struct Sender: RPC {
     public init(tier: Tier) {
         self.tier = tier
         submissionRequirements = SubmissionRequirements(
-            tipRecipient: Self.tipAccounts.randomElement()!,
+            tipRecipient: Self.tipAccounts[Int.random(in: Self.tipAccounts.indices)],
             tipLamports: tier == .premium ? 1_000_000 : 5_000,
             minimumPriorityFeeLamports: tier == .premium ? 5_000 : 1
         )
+        // swift-format-ignore: NeverForceUnwrap
         var endpoint = URL(string: "https://sender.helius-rpc.com/fast")!
         if tier == .standard {
             endpoint.append(queryItems: [URLQueryItem(name: "swqos_only", value: "true")])

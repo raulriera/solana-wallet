@@ -37,11 +37,14 @@ struct RecipientRow: View {
 }
 
 #Preview {
-    List {
-        RecipientRow(name: "Alice", address: try! Address("6d8tEyrqPqVbEr6Jpuc7BEyYekeMUTyzHEwdmcAYEmtK"), date: nil,
-                     systemImage: "person.crop.circle")
-        RecipientRow(name: nil, address: try! Address("44korouVTkSZ4u3SAT4BCg5S2AqJTV7osjVGVkjs3vtV"),
-                     date: .now.addingTimeInterval(-3 * 24 * 60 * 60), systemImage: "clock")
+    if let alice = try? Address("6d8tEyrqPqVbEr6Jpuc7BEyYekeMUTyzHEwdmcAYEmtK"),
+       let recent = try? Address("44korouVTkSZ4u3SAT4BCg5S2AqJTV7osjVGVkjs3vtV") {
+        List {
+            RecipientRow(name: "Alice", address: alice, date: nil,
+                         systemImage: "person.crop.circle")
+            RecipientRow(name: nil, address: recent,
+                         date: .now.addingTimeInterval(-3 * 24 * 60 * 60), systemImage: "clock")
+        }
+        .listStyle(.sidebar)
     }
-    .listStyle(.sidebar)
 }

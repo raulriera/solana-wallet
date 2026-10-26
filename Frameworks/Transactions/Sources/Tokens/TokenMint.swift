@@ -77,22 +77,25 @@ public struct TokenMint: Sendable {
             case 1: _ = try data.value(type, length: 108)
             case 3, 12: _ = try data.value(type, length: 32)
             case 6:
-                let state = try data.value(type, length: 1)![0]
-                guard state == 1 || state == 2 else { throw TokenError.invalidAccount }
+                guard let state = try data.value(type, length: 1)?[0], state == 1 || state == 2 else {
+                    throw TokenError.invalidAccount
+                }
                 if createsDestination && state == 2 { throw TokenError.frozenAccount }
             case 9: throw TokenError.transferDisabled
             case 10: _ = try data.value(type, length: 52) // Interest changes display, not raw transfer units.
             case 14:
-                let hook = try data.value(type, length: 64)!
-                guard hook[32...].allSatisfy({ $0 == 0 }) else { throw TokenError.unsupportedExtension(type) }
+                guard let hook = try data.value(type, length: 64), hook[32...].allSatisfy({ $0 == 0 }) else {
+                    throw TokenError.unsupportedExtension(type)
+                }
             case 18, 20, 22: _ = try data.value(type, length: 64)
             case 19: break // Metadata has variable length and doesn't change raw-unit transfers.
             case 21: _ = try data.value(type, length: 80)
             case 23: _ = try data.value(type, length: 72)
             case 25: _ = try data.value(type, length: 56) // UI scaling doesn't change raw transfer units.
             case 26:
-                let paused = try data.value(type, length: 33)![32]
-                guard paused <= 1 else { throw TokenError.invalidAccount }
+                guard let paused = try data.value(type, length: 33)?[32], paused <= 1 else {
+                    throw TokenError.invalidAccount
+                }
                 if paused == 1 { throw TokenError.transferDisabled }
             default: throw TokenError.unsupportedExtension(type)
             }

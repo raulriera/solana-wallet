@@ -10,6 +10,7 @@ extension Poseidon {
     /// - Returns: The hash.
     /// - Precondition: There are at most twelve inputs.
     static func hash(_ first: Element, _ rest: Element...) -> Element {
+        // swift-format-ignore: NeverUseForceTry
         // One to twelve inputs always have parameters; only a thirteenth input could throw.
         try! hash([first] + rest)
     }

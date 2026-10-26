@@ -53,6 +53,7 @@ struct ProviderSetupScreen<Submission: ProviderSubmitting>: View {
                     Text(purpose.footer)
                         .foregroundStyle(palette.secondaryText)
                     if purpose != .customRPC {
+                        // swift-format-ignore: NeverForceUnwrap
                         Link("Get an API key from Helius", destination: URL(string: "https://dashboard.helius.dev")!)
                     }
                 }

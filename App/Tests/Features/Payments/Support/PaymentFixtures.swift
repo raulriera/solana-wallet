@@ -1,6 +1,7 @@
 import Foundation
 import Transactions
 
+// swift-format-ignore: NeverUseForceTry
 /// Token mints for the payment tests, generated for them and owned by no one.
 nonisolated enum PaymentFixtures {
     /// A dollar stablecoin's mint.

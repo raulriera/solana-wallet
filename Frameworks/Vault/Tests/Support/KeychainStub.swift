@@ -4,6 +4,8 @@ import Security
 import Synchronization
 @testable import Vault
 
+// swift-format-ignore: NeverForceUnwrap
+// The production queries always carry these values; a missing one is a test bug that stops the run.
 /// A per-test Keychain that records protection and simulates Security results.
 final class KeychainStub: KeychainAccessing {
     /// The service and account used to scope a stored item.

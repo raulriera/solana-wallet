@@ -70,6 +70,7 @@ public struct Jupiter: PriceProviding, CustomStringConvertible, CustomDebugStrin
     /// - Returns: The provider's price records, before normalization.
     /// - Throws: An HTTP, transport, decoding, or cancellation error.
     private func fetch(_ mints: [String]) async throws -> [String: Value?] {
+        // swift-format-ignore: NeverForceUnwrap
         let url = URL(string: "https://api.jup.ag/price/v3")!
             .appending(queryItems: [URLQueryItem(name: "ids", value: mints.joined(separator: ","))])
         var request = URLRequest(url: url, timeoutInterval: 30)

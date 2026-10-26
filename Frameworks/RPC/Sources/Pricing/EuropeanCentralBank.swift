@@ -25,6 +25,7 @@ public struct EuropeanCentralBank: ExchangeRateProviding {
     @concurrent
     public func rates(from currency: String) async throws -> [String: Decimal] {
         try Task.checkCancellation()
+        // swift-format-ignore: NeverForceUnwrap
         var request = URLRequest(url: URL(string: "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml")!,
                                  timeoutInterval: 30)
         request.httpMethod = "GET"

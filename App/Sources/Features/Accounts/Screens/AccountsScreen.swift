@@ -79,12 +79,14 @@ struct AccountsScreen: View {
 
 #Preview {
     let wallet = UUID()
-    NavigationStack {
-        AccountsScreen(accounts: [
-            Account(id: UUID(), recoveryID: wallet, address: try! Address("6d8tEyrqPqVbEr6Jpuc7BEyYekeMUTyzHEwdmcAYEmtK"),
-                    path: .solana),
-            Account(id: UUID(), recoveryID: wallet, address: try! Address("44korouVTkSZ4u3SAT4BCg5S2AqJTV7osjVGVkjs3vtV"),
-                    path: .solana(account: 1), customName: "Savings"),
-        ], wallet: wallet, addition: AccountAdditionModel(), deletion: AccountDeletionModel())
+    if let main = try? Address("6d8tEyrqPqVbEr6Jpuc7BEyYekeMUTyzHEwdmcAYEmtK"),
+       let savings = try? Address("44korouVTkSZ4u3SAT4BCg5S2AqJTV7osjVGVkjs3vtV") {
+        NavigationStack {
+            AccountsScreen(accounts: [
+                Account(id: UUID(), recoveryID: wallet, address: main, path: .solana),
+                Account(id: UUID(), recoveryID: wallet, address: savings, path: .solana(account: 1),
+                        customName: "Savings"),
+            ], wallet: wallet, addition: AccountAdditionModel(), deletion: AccountDeletionModel())
+        }
     }
 }

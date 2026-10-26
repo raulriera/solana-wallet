@@ -27,6 +27,7 @@ public struct Coinbase: ExchangeRateProviding {
         try Task.checkCancellation()
         let codes = Set(Locale.commonISOCurrencyCodes)
         guard codes.contains(currency) else { return [:] }
+        // swift-format-ignore: NeverForceUnwrap
         let url = URL(string: "https://api.coinbase.com/v2/exchange-rates")!
             .appending(queryItems: [URLQueryItem(name: "currency", value: currency)])
         var request = URLRequest(url: url, timeoutInterval: 30)

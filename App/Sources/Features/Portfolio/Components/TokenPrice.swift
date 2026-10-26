@@ -16,6 +16,6 @@ struct TokenPrice: View {
 #Preview {
     VStack(alignment: .trailing) {
         TokenPrice(price: 166.23, currency: "USD")
-        TokenPrice(price: Decimal(string: "0.000021")!, currency: "USD")
+        TokenPrice(price: 0.000021, currency: "USD")
     }
 }

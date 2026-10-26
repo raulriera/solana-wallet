@@ -100,7 +100,8 @@ struct SubscriptionClient: Sendable, CustomReflectable {
                 throw RPCError.transport(.timedOut)
             }
             defer { group.cancelAll() }
-            return try await group.next()!
+            guard let value = try await group.next() else { throw RPCError.transport(.timedOut) }
+            return value
         }
     }
 

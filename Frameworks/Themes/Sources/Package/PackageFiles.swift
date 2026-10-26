@@ -59,6 +59,7 @@ enum PackageFiles {
     ///   - byteLimit: The allowance for complete exported JSON.
     /// - Throws: A validation error if a complete manifest would exceed the read budget.
     private static func validateExportSize(_ manifest: Manifest, byteLimit: Int) throws {
+        // swift-format-ignore: NeverForceUnwrap
         let longest = Color.System.allCases.max { $0.rawValue.utf8.count < $1.rawValue.utf8.count }!
         let complete = Dictionary(uniqueKeysWithValues: Appearance.allCases.map { appearance in
             (appearance, Dictionary(uniqueKeysWithValues: Role.allCases.map { role in

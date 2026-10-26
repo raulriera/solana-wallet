@@ -39,6 +39,7 @@ public struct Solana: RPC, AccountChangeProviding, SignatureEventProviding, Cust
         case .mainnet: "api.mainnet.solana.com"
         case .devnet: "api.devnet.solana.com"
         }
+        // swift-format-ignore: NeverForceUnwrap
         self.init(network: network, endpoint: URL(string: "https://\(host)")!, socketEndpoint: URL(string: "wss://\(host)")!,
                   redactor: SecretRedactor(secrets: []), transport: transport, socket: socket)
     }

@@ -5,6 +5,7 @@ import Transactions
 import Wallet
 @testable import widgets
 
+// swift-format-ignore: NeverForceUnwrap, NeverUseForceTry
 /// Addresses and a contacts list for the contacts tests, generated for them and owned by no one.
 nonisolated enum ContactsFixtures {
     /// The account payments leave from.

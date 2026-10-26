@@ -40,6 +40,7 @@ final class SilentWebSocketServer: Sendable {
             listening.cancel()
             throw URLError(.cannotConnectToHost)
         }
+        // swift-format-ignore: NeverForceUnwrap
         endpoint = URL(string: "ws://127.0.0.1:\(port)/")!
     }
 

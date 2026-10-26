@@ -81,7 +81,7 @@ struct PaymentAmountScreen<Action: View>: View {
 }
 
 #Preview("Glass keys") {
-    let payment = PaymentModel(tokens: [PaymentToken(mint: nil, symbol: "SOL", balance: Decimal(string: "1.2")!,
+    let payment = PaymentModel(tokens: [PaymentToken(mint: nil, symbol: "SOL", balance: 1.2,
                                                      price: 150, decimals: 9)],
                                currencyCode: "USD")
     NavigationStack {
@@ -93,7 +93,7 @@ struct PaymentAmountScreen<Action: View>: View {
 }
 
 #Preview("Plain keys") {
-    let payment = PaymentModel(tokens: [PaymentToken(mint: nil, symbol: "SOL", balance: Decimal(string: "1.2")!,
+    let payment = PaymentModel(tokens: [PaymentToken(mint: nil, symbol: "SOL", balance: 1.2,
                                                      price: 150, decimals: 9)],
                                currencyCode: "USD")
     NavigationStack {
@@ -106,7 +106,7 @@ struct PaymentAmountScreen<Action: View>: View {
 }
 
 #Preview("One balance") {
-    let payment = PaymentModel(tokens: [PaymentToken(mint: nil, symbol: "SOL", balance: Decimal(string: "1.2")!,
+    let payment = PaymentModel(tokens: [PaymentToken(mint: nil, symbol: "SOL", balance: 1.2,
                                                      price: nil, decimals: 9)],
                                currencyCode: "USD", source: .publicBalance)
     NavigationStack {

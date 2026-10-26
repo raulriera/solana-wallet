@@ -45,8 +45,8 @@ struct DayChangeLabel: View {
 
 #Preview {
     VStack(alignment: .trailing) {
-        DayChangeLabel(change: Decimal(string: "0.0129")!)
-        DayChangeLabel(change: Decimal(string: "-0.0347")!)
+        DayChangeLabel(change: 0.0129)
+        DayChangeLabel(change: -0.0347)
         DayChangeLabel(change: 0)
     }
 }

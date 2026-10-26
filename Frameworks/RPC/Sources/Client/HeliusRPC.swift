@@ -42,10 +42,13 @@ public struct HeliusRPC: RPC, AccountChangeProviding, SignatureEventProviding, L
         case .mainnet: "mainnet.helius-rpc.com"
         case .devnet: "devnet.helius-rpc.com"
         }
+        // swift-format-ignore: NeverForceUnwrap
         let endpoint = URL(string: "https://\(host)/")!
             .appending(queryItems: [URLQueryItem(name: "api-key", value: apiKey)])
+        // swift-format-ignore: NeverForceUnwrap
         let socketEndpoint = URL(string: "wss://\(host)/")!
             .appending(queryItems: [URLQueryItem(name: "api-key", value: apiKey)])
+        // swift-format-ignore: NeverForceUnwrap
         let gatewayEndpoint = URL(string: "https://\(host)/v1/zolana")!
             .appending(queryItems: [URLQueryItem(name: "api-key", value: apiKey)])
         // The key, a query value of both endpoints, is redacted wherever it appears, including gateway URLs.

@@ -68,8 +68,7 @@ public struct TokenAccount: Sendable {
             case 2: _ = try data.value(type, length: 8)
             case 7, 27: _ = try data.value(type, length: 0)
             case 8, 11, 15:
-                let flag = try data.value(type, length: 1)![0]
-                guard flag <= 1 else { throw TokenError.invalidAccount }
+                guard let flag = try data.value(type, length: 1)?[0], flag <= 1 else { throw TokenError.invalidAccount }
                 if type == 8 && receiving { memoRequired = flag == 1 }
                 if type == 15 && flag == 1 { throw TokenError.invalidAccount }
             case 13: throw TokenError.transferDisabled

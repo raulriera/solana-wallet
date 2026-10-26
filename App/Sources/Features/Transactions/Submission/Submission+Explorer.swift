@@ -12,6 +12,7 @@ nonisolated extension Submission {
         case .mainnet: break
         case .devnet: components.queryItems = [URLQueryItem(name: "cluster", value: "devnet")]
         }
+        // swift-format-ignore: NeverForceUnwrap
         // A base-58 signature has only letters and digits, so the components always form a URL.
         return components.url!
     }
