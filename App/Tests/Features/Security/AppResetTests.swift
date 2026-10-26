@@ -11,7 +11,7 @@ struct AppResetTests {
     /// Secrets go first, the directories before appearance forgets them, and every window hears about the reset only once
     /// everything is deleted.
     @Test
-    func `Reset deletes recovery, private balances, the directories, appearance, contacts, accounts, transactions, the API key, then the provider settings`() async throws {
+    func `Reset deletes recovery, private balances, the directories, appearance, contacts, accounts, transactions, the pending transactions, the API key, then the provider settings`() async throws {
         let storage = ResetStorage()
         defer { try? FileManager.default.removeItem(at: storage.directory) }
         try createFile(in: storage.directory)
@@ -20,7 +20,7 @@ struct AppResetTests {
         try await AppReset(storage: storage, revision: revision).reset()
 
         #expect(await storage.deletions == ResetStorage.Step.allCases)
-        #expect(await storage.directoryExisted == [true, true, false, false, false, false, false, false])
+        #expect(await storage.directoryExisted == [true, true, false, false, false, false, false, false, false])
         #expect(revision.value == 1)
     }
 

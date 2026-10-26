@@ -1,7 +1,8 @@
 import RPC
 import SwiftUI
 
-/// Owns one window: its network, its workflows, and its appearance lifecycle.
+/// Owns one window: its network, its workflows, its appearance lifecycle, and the resumption of pending transactions'
+/// watches.
 ///
 /// The window keeps its network with its scene state and creates its workflows when it first appears, so a root value
 /// that SwiftUI discards creates no coordinator or network service.
@@ -28,6 +29,7 @@ struct WindowRoot: View {
         .environment(services.contactStore)
         .environment(services.accountStore)
         .environment(\.accountCreation, services.accountCreation)
+        .transactionResumption(providerRevisions: services.providerRevisions)
         .environment(services.transactionStore)
         .environment(\.network, network)
     }

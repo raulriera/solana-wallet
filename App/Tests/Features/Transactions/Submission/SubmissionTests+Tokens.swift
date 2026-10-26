@@ -14,7 +14,7 @@ extension SubmissionTests {
     /// - Parameter program: The first-party token program exercised through the same consumer API.
     @Test(.tags(.network), .timeLimit(.minutes(3)), arguments: TokenProgram.allCases)
     func `Devnet token transfers deliver balances to the configured recipient`(_ program: TokenProgram) async throws {
-        let rpcs = try devnetRPCs()
+        let rpcs = try LiveClients.devnetRPCs()
         let rpc = rpcs[0]
         let wallets = try await DevnetWallets.configured()
         let sender = wallets.sender

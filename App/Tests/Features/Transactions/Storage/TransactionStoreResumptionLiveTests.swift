@@ -1,0 +1,51 @@
+import Foundation
+import Observation
+import RPC
+import Storage
+import Testing
+import Transactions
+@testable import widgets
+
+/// Sends a devnet payment from account 0 to account 1 of the test seed, saves it as pending as the store does before
+/// the app stops, and settles it through a store that a relaunch creates over the same files.
+@MainActor
+@Suite(.tags(.network), .timeLimit(.minutes(3)))
+struct TransactionStoreResumptionLiveTests {
+    /// The payment, which stays with account 1.
+    private static let lamports: UInt64 = 1_000_000
+
+    /// A payment that was sent and saved as pending, but never watched, as when the app stops right after sending,
+    /// settles once a store over the same files resumes, and its key leaves the pending index.
+    @Test
+    func `A devnet payment that a relaunch interrupted settles through resume`() async throws {
+        let directory = URL.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let wallets = try await DevnetWallets.configured()
+        let rpcs = try LiveClients.devnetRPCs()
+        let balance = try await rpcs[0].send(GetMultipleAccounts(addresses: [wallets.sender.address.value]))
+        try #require((balance.value.first ?? nil)?.lamports ?? 0 >= Self.lamports + 10_000_000,
+                     "Account 0 of DEVNET_TEST_SEED needs at least 0.011 devnet SOL")
+        let coordinator = try TransactionCoordinator(rpc: rpcs[0],
+                                                     store: SigningRecoveryStore(recovery: wallets.recovery), rpcs: rpcs)
+        let simulation = try await coordinator.transfer(Self.lamports, using: wallets.sender,
+                                                        to: wallets.recipient.address)
+        try #require(simulation.diagnostics.value.error == nil)
+        let record = TransactionRecord(.payment(recipient: wallets.recipient.address, mint: nil, units: Self.lamports),
+                                       from: wallets.sender.id, submission: try await coordinator.submit(simulation),
+                                       created: .now)
+        let records = TransactionStore.files(in: directory)(record.key)
+        let pending = TransactionStore.pendingIndex(in: directory)
+        try await pending.save([record.key])
+        try await records.save([record])
+
+        let relaunched = TransactionStore(directory: directory) { _ in coordinator }
+        await relaunched.resume()
+
+        // The count increases once the outcome and the index are saved; the suite's time limit ends the wait if the
+        // payment never settles.
+        for await count in Observations({ relaunched.settledCount(for: record.key) }) where count == 1 { break }
+        #expect(relaunched.record(record.id, for: record.key)?.status == .succeeded)
+        #expect(try await records.load()?.first { $0.id == record.id }?.status == .succeeded)
+        #expect(try await pending.load() == [])
+    }
+}

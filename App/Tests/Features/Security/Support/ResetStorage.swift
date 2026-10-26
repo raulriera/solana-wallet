@@ -8,7 +8,7 @@ import Vault
 /// at each one, optionally failing one step once.
 actor ResetStorage: RecoveryStoring {
     /// A store that a reset empties; the cases are in the order a reset empties them.
-    nonisolated enum Step: String, Sendable, CaseIterable { case recovery, privateBalances, appearance, contacts, accounts, transactions, key, settings }
+    nonisolated enum Step: String, Sendable, CaseIterable { case recovery, privateBalances, appearance, contacts, accounts, transactions, pendingTransactions, key, settings }
 
     /// The test's own directory, which stands in for the app's kept and cached files.
     nonisolated let directory = URL.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
@@ -43,7 +43,8 @@ actor ResetStorage: RecoveryStoring {
 
     /// The shared transactions after one window read an account's records, whose erasure this storage records.
     @MainActor var transactions: TransactionStore {
-        let store = TransactionStore(storage: { _ in ResetValue(storage: self, step: .transactions) }) { _ in
+        let store = TransactionStore(storage: { _ in ResetValue(storage: self, step: .transactions) },
+                                     pending: ResetValue(storage: self, step: .pendingTransactions)) { _ in
             throw SubmitterError.noProviders
         }
         _ = store.records(for: TransactionRecord.Key(account: UUID(), network: .devnet))

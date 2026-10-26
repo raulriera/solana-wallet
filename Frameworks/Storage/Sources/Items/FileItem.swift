@@ -3,8 +3,8 @@ public import Foundation
 
 /// A value saved on this device as one file, such as the saved contacts.
 ///
-/// The file is readable only while the device is unlocked. A file that can't be read is reported, never deleted or
-/// replaced with an empty value.
+/// By default, the file is readable only while the device is unlocked. A file that can't be read is reported, never
+/// deleted or replaced with an empty value.
 public struct FileItem<Coding: ValueCoding>: ValueStoring {
     /// Blocking file work that runs only on the file queue.
     private typealias Operation<Result: Sendable> = @Sendable () throws -> Result
@@ -13,14 +13,20 @@ public struct FileItem<Coding: ValueCoding>: ValueStoring {
     public let url: URL
     /// How the value is kept as bytes.
     public let coding: Coding
+    /// When the file can be read and written, which each save applies.
+    let protection: FileProtectionType
 
     /// Names the file without creating or reading it.
     /// - Parameters:
     ///   - url: The file that keeps the value, inside a directory the app owns.
     ///   - coding: How the value is kept as bytes, such as `.json([String].self)`.
-    public init(url: URL, coding: Coding) {
+    ///   - protection: When the file can be read and written; by default, only while the device is unlocked. Use
+    ///     `.completeUntilFirstUserAuthentication` for a file that work in the background saves while the device is
+    ///     locked.
+    public init(url: URL, coding: Coding, protection: FileProtectionType = .complete) {
         self.url = url
         self.coding = coding
+        self.protection = protection
     }
 
     /// Reads the saved value.
@@ -91,8 +97,7 @@ public struct FileItem<Coding: ValueCoding>: ValueStoring {
         let data = try coding.encode(value)
         guard coding.decode(data) == value else { throw FileItemError.unencodable }
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        // The app only reads and writes in the foreground, while the device is unlocked.
-        try data.write(to: url, options: [.atomic, .completeFileProtection])
+        try data.write(to: url, options: [.atomic, Data.WritingOptions(protection)])
     }
 
     /// Deletes the file on the file queue; a missing file is already deleted.
@@ -111,6 +116,20 @@ public struct FileItem<Coding: ValueCoding>: ValueStoring {
         try Task.checkCancellation()
         return try await withCheckedThrowingContinuation { continuation in
             FileQueue.shared.async { continuation.resume(with: Swift.Result(catching: operation)) }
+        }
+    }
+}
+
+extension Data.WritingOptions {
+    /// The write option that gives a file a protection class.
+    /// - Parameter protection: When the file can be read and written; an unknown class gets complete protection.
+    init(_ protection: FileProtectionType) {
+        self = switch protection {
+        case .none: .noFileProtection
+        case .completeUnlessOpen: .completeFileProtectionUnlessOpen
+        case .completeUntilFirstUserAuthentication: .completeFileProtectionUntilFirstUserAuthentication
+        case .completeWhenUserInactive: .completeFileProtectionWhenUserInactive
+        default: .completeFileProtection
         }
     }
 }

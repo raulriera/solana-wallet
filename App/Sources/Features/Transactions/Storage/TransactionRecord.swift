@@ -7,11 +7,16 @@ import Transactions
 /// A record holds no keys and no signed bytes. Its persisted names are permanent, so saved records stay readable.
 nonisolated struct TransactionRecord: Codable, Identifiable, Equatable, Sendable {
     /// The account and network whose records are kept together.
-    struct Key: Hashable, Sendable {
+    struct Key: Hashable, Codable, Sendable {
         /// The identifier of the account that sent the transaction.
         let account: UUID
         /// The network that the transaction was sent on.
         let network: Network
+
+        /// The key's persisted names, which never change.
+        private enum CodingKeys: String, CodingKey {
+            case account, network
+        }
     }
 
     /// What a transaction does.

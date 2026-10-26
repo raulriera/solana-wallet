@@ -1,4 +1,5 @@
 import Foundation
+import RPC
 import Testing
 import Transactions
 @testable import widgets
@@ -41,6 +42,17 @@ struct TransactionRecordTests {
             {"account": "E621E1F8-C36C-495A-93FC-0C247A3E6E5F", "network": "devnet", "kind": "\(name)",
              "lamports": 1000, "signature": "signature", "lastValidBlockHeight": 550, "status": "pending",
              "created": 800000000}
+            """))
+    }
+
+    /// A key in the pending index keeps its account and network under their permanent names.
+    /// - Throws: An encoding error.
+    @Test
+    func `A pending index key saves its account and network under their permanent names`() throws {
+        let key = TransactionRecord.Key(account: Self.account, network: .devnet)
+
+        try #expect(Self.object(JSONEncoder().encode(key)) == Self.object("""
+            {"account": "E621E1F8-C36C-495A-93FC-0C247A3E6E5F", "network": "devnet"}
             """))
     }
 

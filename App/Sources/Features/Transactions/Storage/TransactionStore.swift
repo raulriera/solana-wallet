@@ -9,7 +9,9 @@ import Transactions
 /// Records are kept per account and network, newest first, and only the latest 200 of each. The store reads a key's
 /// records on first use and creates a network's transaction coordinator when something first sends or simulates on it.
 /// Sending and watching run in tasks that the store owns, so a review that closes or a caller that's cancelled stops
-/// only its own wait: the transaction is still delivered, recorded, and watched until it settles.
+/// only its own wait: the transaction is still delivered, recorded, and watched until it settles. A pending index lists
+/// the keys with pending records, so ``resume()`` watches them again after a relaunch without reading every key's
+/// records.
 @MainActor
 @Observable
 final class TransactionStore {
@@ -18,17 +20,33 @@ final class TransactionStore {
 
     private let storage: (TransactionRecord.Key) -> any ValueStoring<[TransactionRecord]>
     private let makeCoordinator: (Network) throws -> any TransactionCoordinating
+    /// The keys whose records include a pending record, and maybe keys whose records all settled since.
+    @ObservationIgnored private let pendingKeys: PersistentValue<Set<TransactionRecord.Key>>
     @ObservationIgnored private var coordinators: [Network: any TransactionCoordinating] = [:]
     @ObservationIgnored private var entries: [TransactionRecord.Key: Entry] = [:]
 
-    /// Connects to the records' storage and the networks' coordinators, without reading or creating any.
+    /// Connects to the records' storage, the pending index, and the networks' coordinators, without reading or
+    /// creating any.
     /// - Parameters:
     ///   - storage: Returns the storage that keeps an account's records on a network.
+    ///   - pending: The storage of the pending index, which lists the keys with pending records.
     ///   - coordinators: Creates a network's transaction coordinator.
     init(storage: @escaping (TransactionRecord.Key) -> any ValueStoring<[TransactionRecord]>,
+         pending: any ValueStoring<Set<TransactionRecord.Key>>,
          coordinators: @escaping (Network) throws -> any TransactionCoordinating) {
         self.storage = storage
+        pendingKeys = PersistentValue(storage: pending, empty: [])
         makeCoordinator = coordinators
+    }
+
+    /// Connects to the Transactions files in a directory and the networks' coordinators, without reading or creating
+    /// any.
+    /// - Parameters:
+    ///   - directory: The directory that keeps each key's records and the pending index.
+    ///   - coordinators: Creates a network's transaction coordinator.
+    convenience init(directory: URL, coordinators: @escaping (Network) throws -> any TransactionCoordinating) {
+        self.init(storage: Self.files(in: directory), pending: Self.pendingIndex(in: directory),
+                  coordinators: coordinators)
     }
 
     /// The files that keep each account's records on each network, at `<network>/<account>.json` in a directory.
@@ -41,6 +59,13 @@ final class TransactionStore {
                          .appending(path: "\(key.account.uuidString).json"),
                      coding: .json([TransactionRecord].self))
         }
+    }
+
+    /// The file that keeps the pending index, at `pending.json` in a directory.
+    /// - Parameter directory: The directory that keeps the Transactions files.
+    /// - Returns: The pending index's storage, which isn't created or read yet.
+    nonisolated static func pendingIndex(in directory: URL) -> any ValueStoring<Set<TransactionRecord.Key>> {
+        FileItem(url: directory.appending(path: "pending.json"), coding: .json(Set<TransactionRecord.Key>.self))
     }
 
     /// Returns a network's coordinator, which simulates the transactions that the store sends, creating it on the
@@ -146,7 +171,7 @@ final class TransactionStore {
     /// found, the watch saves it, runs the transaction's settling once, then increases ``settledCount(for:)``. A watch
     /// that ended keeps its result for the next caller, even when no caller waited, so an error is never skipped: after
     /// a watch error the record stays pending, the next caller receives the error, and watching again starts a new
-    /// watch.
+    /// watch. Only ``resume()`` replaces a watch whose error no caller read.
     /// - Parameters:
     ///   - id: The record's signature.
     ///   - key: The account and network.
@@ -164,14 +189,42 @@ final class TransactionStore {
         return try await result(of: startWatch(of: record, in: entry), for: id, in: entry)
     }
 
-    /// Stops every watch, then deletes every record that the store read, so every window forgets them.
+    /// Watches every pending record that has no watch, as after a relaunch.
+    ///
+    /// It reads only the records of the keys in the pending index, so a launch reads no key whose records all settled.
+    /// Calling it again while the watches run starts none. A watch that ended with an error keeps it for the next
+    /// caller, since errors such as a rate limit aren't retried on their own; only a change that may fix them, such as
+    /// a new provider connection, replaces it.
+    /// - Parameter replacingFailedWatches: Whether watches that ended with an error that no caller read start again.
+    func resume(replacingFailedWatches: Bool = false) async {
+        await pendingKeys.load()
+        for key in pendingKeys.value {
+            let entry = entry(for: key)
+            if entry.records.phase != .loaded { await entry.records.load() }
+            // An erase during the read stopped the key for good, though the read may still show its records.
+            guard entry.records.phase == .loaded, !entry.isErased else { continue }
+            for record in entry.records.value where record.status == .pending {
+                guard let watch = entry.watches[record.id] else {
+                    startWatch(of: record, in: entry)
+                    continue
+                }
+                if replacingFailedWatches, watch.isFinished { startWatch(of: record, in: entry) }
+            }
+            // A key whose records all settled leaves the index, as after the app stopped before the index was saved.
+            await index(key, in: entry)
+        }
+    }
+
+    /// Stops every watch for good, then deletes every record that the store read and the pending index, so every window
+    /// forgets them.
     ///
     /// Settlings that didn't run are forgotten; the private balances' indexer sync still finds their transactions.
-    /// - Throws: A storage error from the first records that can't be deleted.
+    /// - Throws: A storage error from the first records that can't be deleted, or from the pending index.
     func erase() async throws {
         let entries = Array(entries.values)
         for entry in entries { stop(entry) }
         for entry in entries { try await entry.records.erase() }
+        try await pendingKeys.erase()
     }
 
     /// Stops an account's watches on every network, then deletes its records on every network, read or not, and
@@ -179,13 +232,17 @@ final class TransactionStore {
     ///
     /// Settlings that didn't run are forgotten; the private balances' indexer sync still finds their transactions.
     /// - Parameter account: The identifier of the account.
-    /// - Throws: A storage error from the first records that can't be deleted; the records after them stay.
+    /// - Throws: A storage error from the first records that can't be deleted, after which the records after them and
+    ///   the account's keys in the pending index stay.
     func erase(account: UUID) async throws {
         let keys = Network.allCases.map { TransactionRecord.Key(account: account, network: $0) }
         let entries = keys.map(entry(for:))
         for entry in entries { stop(entry) }
         for entry in entries { try await entry.records.erase() }
         for key in keys { self.entries[key] = nil }
+        await pendingKeys.load()
+        guard pendingKeys.value.contains(where: { $0.account == account }) else { return }
+        try await pendingKeys.update { $0 = $0.filter { $0.account != account } }
     }
 
     /// Returns a key's records, settled count, and watches, creating them on first use without reading anything.
@@ -198,9 +255,10 @@ final class TransactionStore {
         return entry
     }
 
-    /// Stops a key's watches and forgets the settlings that didn't run.
+    /// Stops a key's watches for good, as before its records are erased, and forgets the settlings that didn't run.
     /// - Parameter entry: The key's entry.
     private func stop(_ entry: Entry) {
+        entry.isErased = true
         for watch in entry.watches.values { watch.cancel() }
         entry.watches = [:]
         entry.settlings = [:]
@@ -217,7 +275,9 @@ final class TransactionStore {
         -> TransactionRecord {
         let entry = entry(for: record.key)
         if entry.records.phase != .loaded { await entry.records.load() }
-        try await entry.records.update { records in
+        // The key joins the index before the record is saved, so a relaunch after the save always resumes it.
+        try? await pendingKeys.update { $0.insert(record.key) }
+        try await update(entry, of: record.key) { records in
             records = Array(([record] + records).prefix(Self.recordLimit))
         }
         entry.settlings[record.id] = settling
@@ -237,6 +297,36 @@ final class TransactionStore {
         entry.watches[record.id] = watch
         watch.start { [self] in try await settle(record, in: entry) }
         return watch
+    }
+
+    /// Changes a key's records and saves them, then updates the pending index, so the index always follows the records.
+    /// - Parameters:
+    ///   - entry: The key's entry, whose records were read.
+    ///   - key: The account and network.
+    ///   - change: Changes the records.
+    /// - Throws: A storage error from the records, which leaves the index as it is.
+    private func update(_ entry: Entry, of key: TransactionRecord.Key,
+                        _ change: @escaping @Sendable (inout [TransactionRecord]) -> Void) async throws {
+        try await entry.records.update(change)
+        // A change to the same key meanwhile, such as a watch that settled, may have changed the index.
+        await index(key, in: entry)
+    }
+
+    /// Lists a key in the pending index while its records include a pending record, and removes it once none is left.
+    ///
+    /// An index that can't be read or saved is left as it is, as a storage failure of the records is: a pending record
+    /// of a key that the index misses isn't resumed after a relaunch until a caller watches it.
+    /// - Parameters:
+    ///   - key: The account and network.
+    ///   - entry: The key's entry, whose records were read.
+    private func index(_ key: TransactionRecord.Key, in entry: Entry) async {
+        await pendingKeys.load()
+        // Deciding after the wait, with no wait before the change, orders the change after every change before it.
+        let isPending = entry.records.value.contains { $0.status == .pending }
+        guard pendingKeys.value.contains(key) != isPending else { return }
+        try? await pendingKeys.update { keys in
+            if isPending { keys.insert(key) } else { keys.remove(key) }
+        }
     }
 
     /// Waits for a watch's result, then forgets the watch once it ended, so the next caller reads the saved status or
@@ -266,11 +356,13 @@ final class TransactionStore {
         try Task.checkCancellation()
         let status = TransactionRecord.Status(confirmation.outcome)
         let settled = Date.now
-        try await entry.records.update { records in
+        try await update(entry, of: record.key) { records in
             guard let index = records.firstIndex(where: { $0.id == record.id }) else { return }
             records[index].status = status
             records[index].settled = settled
         }
+        // An erase while the outcome was saved stopped the watch, so the forgotten transaction isn't counted.
+        try Task.checkCancellation()
         if let settling = entry.settlings.removeValue(forKey: record.id) { await settling.settle(confirmation) }
         entry.settledCount += 1
         return status
@@ -284,6 +376,8 @@ final class TransactionStore {
         let records: PersistentValue<[TransactionRecord]>
         /// How many of the key's transactions settled since launch.
         var settledCount = 0
+        /// Whether the key's records were erased, after which none of its watches starts again.
+        @ObservationIgnored var isErased = false
         /// The watch of each pending record, kept after it ends until a caller reads its result.
         @ObservationIgnored var watches: [TransactionRecord.ID: Watch] = [:]
         /// What finishes each pending transaction's work once its outcome is found.

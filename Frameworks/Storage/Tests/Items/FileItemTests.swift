@@ -1,5 +1,5 @@
 import Foundation
-import Storage
+@testable import Storage
 import Testing
 
 /// Checks file storage against the simulator's real file system.
@@ -82,6 +82,45 @@ struct FileItemTests {
         try await item.update { $0 = nil }
 
         #expect(!FileManager.default.fileExists(atPath: item.url.path))
+    }
+
+    /// A file item that names no protection is readable only while the device is unlocked.
+    @Test
+    func `A file item is completely protected by default`() {
+        let item = FileItem(url: Self.isolatedDirectory().appending(path: "value"), coding: .utf8)
+
+        #expect(item.protection == .complete)
+    }
+
+    /// Each protection class saves with its own write option. The simulator doesn't apply protection classes to files,
+    /// so the check reads the option that each save writes with.
+    /// - Parameters:
+    ///   - protection: The item's protection.
+    ///   - option: The write option that applies it.
+    @Test(arguments: [
+        (FileProtectionType.complete, Data.WritingOptions.completeFileProtection),
+        (.completeUnlessOpen, .completeFileProtectionUnlessOpen),
+        (.completeUntilFirstUserAuthentication, .completeFileProtectionUntilFirstUserAuthentication),
+        (.completeWhenUserInactive, .completeFileProtectionWhenUserInactive),
+        (.none, .noFileProtection),
+    ])
+    func `Each protection saves with its write option`(protection: FileProtectionType,
+                                                       option: Data.WritingOptions) {
+        #expect(Data.WritingOptions(protection) == option)
+    }
+
+    /// A file item with a protection other than the default saves and reads its value.
+    @Test
+    func `A file that stays readable while locked saves its value`() async throws {
+        let directory = Self.isolatedDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let item = FileItem(url: directory.appending(path: "value"), coding: .utf8,
+                            protection: .completeUntilFirstUserAuthentication)
+
+        try await item.save("first")
+        try await item.update { $0 = "second" }
+
+        #expect(try await item.load() == "second")
     }
 
     /// Creates a directory path that no other test uses.

@@ -18,6 +18,13 @@ enum LiveClients {
         return HeliusRPC(apiKey: try heliusAPIKey(), network: network, transport: transport)
     }
 
+    /// Creates the real devnet clients that send funded test transactions, using a test-runner credential.
+    /// - Returns: Helius and public Solana clients on devnet, which also watch signatures.
+    /// - Throws: A test prerequisite failure when the local API key isn't supplied.
+    static func devnetRPCs() throws -> [any RPC & SignatureEventProviding] {
+        try [client(network: .devnet), client(helius: false, network: .devnet)]
+    }
+
     /// Reads the Helius key that ignored local configuration supplies to live tests.
     /// - Returns: The configured key, which serves mainnet and devnet.
     /// - Throws: A test prerequisite failure if the key is missing or wasn't expanded.

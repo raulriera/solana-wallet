@@ -103,7 +103,7 @@ struct SubmissionTests {
     /// Verifies 0.001 SOL reaches the configured recipient, where it stays.
     @Test(.tags(.network), .timeLimit(.minutes(3)))
     func `Devnet submission delivers 0.001 SOL to the configured recipient`() async throws {
-        let rpcs = try devnetRPCs()
+        let rpcs = try LiveClients.devnetRPCs()
         let wallets = try await DevnetWallets.configured()
         let sender = wallets.sender.address
         let recipient = wallets.recipient.address
@@ -143,7 +143,7 @@ struct SubmissionTests {
     /// Verifies real validators reject an unfunded payer, independently for each RPC.
     @Test(.tags(.network), .timeLimit(.minutes(2)))
     func `Devnet RPCs reject a signed transaction from an unfunded wallet`() async throws {
-        let rpcs = try devnetRPCs()
+        let rpcs = try LiveClients.devnetRPCs()
         let wallet = Wallet()
         let phrase = try wallet.recoveryPhrase(wordCount: .twelve)
         let account = try #require(try await wallet.accounts(for: phrase, passphrase: "", paths: [.solana]).first)
@@ -194,14 +194,6 @@ struct SubmissionTests {
             try await Submitter(rpcs: [Solana(network: .devnet)]).submit(input)
         }
         #expect(error.cause as? SubmitterError == .transactionMismatch)
-    }
-
-    /// Creates real clients restricted to devnet using a test-runner credential.
-    ///
-    /// - Returns: Helius and public Solana clients on the same test network, which also watch signatures.
-    /// - Throws: A test prerequisite failure when the local API key isn't supplied.
-    func devnetRPCs() throws -> [any RPC & SignatureEventProviding] {
-        try [LiveClients.client(network: .devnet), LiveClients.client(helius: false, network: .devnet)]
     }
 
     /// Supplies explicit V1 resource limits for a small native transfer.

@@ -25,7 +25,7 @@ let saved = try await key.load()
 
 ## Protection
 
-- `FileItem` writes atomically with complete file protection, so its file is readable only while the device is unlocked.
+- `FileItem` writes atomically with complete file protection by default, so its file is readable only while the device is unlocked. Pass `protection:`, such as `.completeUntilFirstUserAuthentication`, for a file that background work saves while the device is locked.
 - `KeychainItem` keeps a generic password in the data protection Keychain with `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`. It never synchronizes through iCloud and needs no biometric authentication. The calling process needs a Keychain access group; without one, such as in a test bundle without a host app, every call throws `KeychainItemError.keychain(status:)` with `errSecMissingEntitlement`.
 - [`FileItemError`](Sources/Items/FileItemError.swift) and [`KeychainItemError`](Sources/Items/KeychainItemError.swift) never contain the stored value.
 

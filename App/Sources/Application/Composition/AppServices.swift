@@ -83,8 +83,7 @@ struct AppServices {
         currency = CurrencySelection(settings: currencySettings, rates: rates, portfolios: { portfolios.created })
         // Approved transactions go to the selected provider and to Solana's public RPC on the same network.
         let transactionStore = TransactionStore(
-            storage: TransactionStore.files(in: .persistentDirectory.appending(path: "Transactions",
-                                                                               directoryHint: .isDirectory))
+            directory: .persistentDirectory.appending(path: "Transactions", directoryHint: .isDirectory)
         ) { [recovery] network in
             let provider = ProviderClient(network: network, settings: providerSettings, providerKey: providerKey)
             return try TransactionCoordinator(rpc: provider, store: recovery, rpcs: [provider, Solana(network: network)])
