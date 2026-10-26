@@ -12,7 +12,6 @@ struct SendErrorTests {
         (SendError.notEnoughSOL, false),
         (.preparationFailed, true),
         (.notSent, true),
-        (.watchStopped, true),
     ])
     func `Only running out of SOL can't be tried again`(error: SendError, canRetry: Bool) {
         #expect(error.canRetry == canRetry)

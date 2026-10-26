@@ -10,17 +10,14 @@ final class ReceivedKeypadPayment {
     var payment = KeypadPayment.loading
 }
 
-/// Follows a portfolio's tokens with a balance and the shared transactions, as the contacts tab does.
+/// Follows a portfolio's tokens with a balance, as the contacts tab does.
 struct KeypadPaymentObservationRoot: View {
     let portfolio: any PortfolioCoordinating
     let received: ReceivedKeypadPayment
-    /// The shared transactions, which a window's root supplies.
-    var transactions = TransactionStore.unused
 
     var body: some View {
         @Bindable var received = received
         Color.clear
             .keypadPayment(from: portfolio, into: $received.payment)
-            .environment(transactions)
     }
 }

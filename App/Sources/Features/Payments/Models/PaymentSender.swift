@@ -10,17 +10,19 @@ struct PaymentSender {
     /// The transactions that every window sends, watches, and records.
     let transactions: TransactionStore
 
-    /// Starts a payment of the amount typed now, with what its review asks the person to check about the recipient.
+    /// Starts the review of a payment of the amount typed now, with what it asks the person to check about the
+    /// recipient.
     /// - Parameters:
-    ///   - payment: The keypad's payment.
+    ///   - amount: The amount as typed now.
     ///   - recipient: Who the payment goes to.
     ///   - context: The person's own history, which the review's checks compare the recipient with.
-    /// - Returns: The payment, before its review is simulated.
+    /// - Returns: The payment's review, before it's simulated.
     /// - Throws: The error of creating the network's transaction coordinator.
-    func send(_ payment: PaymentModel, to recipient: PaymentRecipient, in context: RecipientContext) throws
-        -> SendModel {
-        SendModel(payment: payment, recipient: recipient,
-                  warnings: RecipientClassifier.review.warnings(for: recipient.address, in: context), account: account,
-                  coordinator: try transactions.coordinator(for: network), transactions: transactions)
+    func review(_ amount: PaymentAmount, to recipient: PaymentRecipient, in context: RecipientContext) throws
+        -> TransactionReviewModel<PaymentProposal> {
+        let proposal = PaymentProposal(amount: amount, recipient: recipient,
+                                       warnings: RecipientClassifier.review.warnings(for: recipient.address,
+                                                                                     in: context))
+        return try TransactionReviewModel(proposal, from: account, on: network, transactions: transactions)
     }
 }

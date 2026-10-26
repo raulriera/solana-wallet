@@ -92,9 +92,6 @@ final class PaymentModel {
     private(set) var rejection: AmountRejection?
     /// Counts rejected keys and conversions, so each one signals again while the same rejection stays.
     private(set) var rejectionCount = 0
-    /// The record of the payment that was sent with this amount, as it was sent, so the amount clears once the payment
-    /// succeeds; a key press or a clear forgets it, so a later success never clears a newly typed amount.
-    var submittedRecord: TransactionRecord?
 
     /// Starts an empty amount in the first token, typed in the person's currency when the token has a price.
     /// - Precondition: `tokens` isn't empty.
@@ -171,7 +168,6 @@ final class PaymentModel {
     /// Applies a key press; rejected keys leave the amount unchanged and are counted.
     /// - Parameter key: The pressed key.
     func press(_ key: KeypadKey) {
-        submittedRecord = nil
         if entry.press(key) {
             rejection = nil
         } else {
@@ -180,12 +176,10 @@ final class PaymentModel {
         pressCount += 1
     }
 
-    /// Clears the amount after it was sent, keeping the token and the unit it's typed in, and forgets the sent
-    /// payment's record.
+    /// Clears the amount after it was sent, keeping the token and the unit it's typed in.
     func clear() {
         entry = emptyEntry
         rejection = nil
-        submittedRecord = nil
     }
 
     /// Follows the account's latest balances, prices, and currency, keeping the selected token and the amount as typed.

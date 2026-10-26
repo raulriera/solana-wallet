@@ -1,13 +1,11 @@
 import SwiftUI
 
 /// Follows the tokens that the window's account can pay with in its portfolio, so only this modifier reads each
-/// portfolio update, and clears the amount once the payment sent with it succeeds.
+/// portfolio update.
 ///
 /// The payment changes in place as balances and prices change, so its owner updates only when the keypad starts,
-/// or when there's nothing left to pay with. The sent payment's status comes from the shared transactions, so the
-/// amount clears even when its review closed before the payment landed, and when the tab shows again after it landed.
+/// or when there's nothing left to pay with.
 private struct KeypadPaymentObservation: ViewModifier {
-    @Environment(TransactionStore.self) private var transactions
     let portfolio: any PortfolioCoordinating
     /// What the keypad pays with.
     @Binding var payment: KeypadPayment
@@ -17,16 +15,6 @@ private struct KeypadPaymentObservation: ViewModifier {
             .onChange(of: portfolio.payableTokens(), initial: true) { _, tokens in
                 follow(tokens)
             }
-            .onChange(of: submittedStatus, initial: true) { _, status in
-                guard status == .succeeded, let model = payment.model else { return }
-                withAnimation { model.clear() }
-            }
-    }
-
-    /// The status of the payment sent with the typed amount, or `nil` when none was sent since the last key press.
-    private var submittedStatus: TransactionRecord.Status? {
-        guard let record = payment.model?.submittedRecord else { return nil }
-        return transactions.record(record.id, for: record.key)?.status
     }
 
     /// Keeps the payment's tokens with the account's balances and prices, keeping the amount as typed while its token
@@ -52,8 +40,7 @@ private struct KeypadPaymentObservation: ViewModifier {
 }
 
 extension View {
-    /// Follows the tokens that the window's account can pay with as its balances, prices, and currency change, and
-    /// clears the amount once the payment sent with it succeeds.
+    /// Follows the tokens that the window's account can pay with as its balances, prices, and currency change.
     /// - Parameters:
     ///   - portfolio: The window's portfolio, on the window's network.
     ///   - payment: What the keypad pays with, which starts a payment once the portfolio lists a token with a

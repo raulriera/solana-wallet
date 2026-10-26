@@ -13,7 +13,8 @@ struct SendPaymentActionTests {
     /// Holds what the action opens, as the keypad's stack does.
     @MainActor
     private final class Presented {
-        var send: SendModel?
+        var review: TransactionReviewModel<PaymentProposal>?
+        var presented: TransactionReviewModel<PaymentProposal>?
         var error: SendError?
     }
 
@@ -26,9 +27,10 @@ struct SendPaymentActionTests {
 
         try Self.action(payment: payment, presented: presented)()
 
-        let send = try #require(presented.send)
-        #expect(send.attempt?.work == .review)
-        #expect(send.amount.quantity == 1)
+        let review = try #require(presented.review)
+        #expect(presented.presented === review)
+        #expect(review.attempt?.work == .review)
+        #expect(review.proposal.amount.quantity == 1)
         #expect(presented.error == nil)
     }
 
@@ -45,7 +47,27 @@ struct SendPaymentActionTests {
 
         try Self.action(payment: payment, presented: presented, context: context)()
 
-        #expect(try #require(presented.send).warnings == (paid ? [] : [.firstPayment]))
+        #expect(try #require(presented.review).proposal.warnings == (paid ? [] : [.firstPayment]))
+    }
+
+    /// A review that shows keeps showing; once it closed, the next Send replaces the review that stayed.
+    /// - Throws: A fixture error.
+    @Test func `Sending again replaces only a closed review`() throws {
+        let presented = Presented()
+        let payment = PaymentModel(tokens: [Self.sol], currencyCode: "USD")
+        payment.press(.digit(1))
+        let action = try Self.action(payment: payment, presented: presented)
+        action()
+        let first = try #require(presented.review)
+
+        action()
+        #expect(presented.review === first)
+
+        presented.presented = nil
+        action()
+
+        #expect(presented.review !== first)
+        #expect(presented.presented === presented.review)
     }
 
     /// An empty amount opens nothing.
@@ -55,7 +77,8 @@ struct SendPaymentActionTests {
 
         try Self.action(payment: PaymentModel(tokens: [Self.sol], currencyCode: "USD"), presented: presented)()
 
-        #expect(presented.send == nil)
+        #expect(presented.review == nil)
+        #expect(presented.presented == nil)
     }
 
     /// A network whose transactions can't be created explains it instead of opening a review.
@@ -68,7 +91,8 @@ struct SendPaymentActionTests {
         try Self.action(payment: payment, presented: presented,
                         transactions: .inMemory { _ in throw SubmitterError.noProviders })()
 
-        #expect(presented.send == nil)
+        #expect(presented.review == nil)
+        #expect(presented.presented == nil)
         #expect(presented.error == .preparationFailed)
     }
 
@@ -92,7 +116,8 @@ struct SendPaymentActionTests {
         return SendPaymentAction(sender: sender, payment: payment,
                                  recipient: PaymentRecipient(address: fixture.transfer.accounts[1].address, name: nil),
                                  context: context,
-                                 send: Binding { presented.send } set: { presented.send = $0 },
+                                 review: Binding { presented.review } set: { presented.review = $0 },
+                                 presented: Binding { presented.presented } set: { presented.presented = $0 },
                                  error: Binding { presented.error } set: { presented.error = $0 })
     }
 }

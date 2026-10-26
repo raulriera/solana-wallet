@@ -21,6 +21,9 @@ struct ContactsSplitView: View {
     @State private var preferredColumn = NavigationSplitViewColumn.sidebar
     /// What the keypad pays with; the payment being typed stays when the person picks another recipient.
     @State private var payment = KeypadPayment.loading
+    /// The latest payment's review; the owner of the amount keeps it, so the amount clears once that payment succeeds,
+    /// even after the person picked another recipient or went back to the list.
+    @State private var review: TransactionReviewModel<PaymentProposal>?
     /// The sheet that enters a new payment's recipient or saves a recent address as a contact.
     @State private var entry: RecipientEntryModel?
 
@@ -62,7 +65,7 @@ struct ContactsSplitView: View {
                 } detail: {
                     if let selection, !payment.isLoading {
                         RecipientPaymentStack(recipient: contacts.recipient(for: selection), payment: payment.model,
-                                              contacts: contacts, sender: sender) {
+                                              contacts: contacts, sender: sender, review: $review) {
                             RecipientScreen(address: selection, contacts: contacts, selection: $selection)
                         }
                         // Another recipient starts on the keypad, not on the previous one's details.
@@ -84,6 +87,7 @@ struct ContactsSplitView: View {
         }
         .animation(.default, value: isEmpty)
         .keypadPayment(from: portfolio, into: $payment)
+        .clearsSentAmount(payment.model, review: $review)
         // Reads what's saved when the tab first appears and after Try Again; every window shares what's read.
         .task(id: loadAttempt) { await contacts.load() }
         .errorAlert($contacts.error)

@@ -11,18 +11,22 @@ struct SendPaymentAction {
     let recipient: PaymentRecipient
     /// The person's own history, which the review's checks compare the recipient with.
     let context: RecipientContext
-    /// The payment whose review shows.
-    let send: Binding<SendModel?>
+    /// The latest payment's review, which stays after it closes.
+    let review: Binding<TransactionReviewModel<PaymentProposal>?>
+    /// The review that shows, or `nil` while none does.
+    let presented: Binding<TransactionReviewModel<PaymentProposal>?>
     /// Why a payment couldn't start.
     let error: Binding<SendError?>
 
-    /// Opens the review and starts simulating it; nothing opens while the amount can't be sent or a review shows.
+    /// Opens a review of the typed amount and starts simulating it; nothing opens while the amount can't be sent or a
+    /// review shows.
     func callAsFunction() {
-        guard send.wrappedValue == nil, payment.canSend else { return }
+        guard presented.wrappedValue == nil, payment.canSend else { return }
         do {
-            let model = try sender.send(payment, to: recipient, in: context)
+            let model = try sender.review(payment.amount, to: recipient, in: context)
             model.prepareReview()
-            send.wrappedValue = model
+            review.wrappedValue = model
+            presented.wrappedValue = model
         } catch {
             self.error.wrappedValue = .preparationFailed
         }
