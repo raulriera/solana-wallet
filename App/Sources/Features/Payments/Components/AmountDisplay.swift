@@ -20,10 +20,30 @@ struct AmountDisplay: View {
             .monospacedDigit()
             .lineLimit(1)
             .minimumScaleFactor(0.3)
-            .foregroundStyle(fill)
+            // The digits start in the screen's background color, so a translucent fill painted over them shows the
+            // same color it would over the screen.
+            .foregroundStyle(palette.background)
             // Key presses animate the change, so the digits roll into place.
             .contentTransition(.numericText())
             .environment(\.contentTransitionAddsDrawingGroup, true)
+            // VoiceOver and focus take the digits' frame here; after the fill below, they'd take its larger frame.
+            .accessibilityLabel("Amount")
+            .accessibilityValue(text)
+            .focusable(interactions: .edit)
+            .focused($isFocused)
+            // Choosing another tab or screen moves focus away, and default focus doesn't take it back, so the amount
+            // takes it when it appears.
+            .onAppear { isFocused = true }
+            // A fill on the text stops at its frame and cuts off the rolling digits' blur, so the fill paints over
+            // the digits from a layer twice their size instead.
+            .overlay {
+                Rectangle()
+                    .fill(fill)
+                    .scaleEffect(2)
+                    .blendMode(.sourceAtop)
+                    .allowsHitTesting(false)
+            }
+            .compositingGroup()
             .keyframeAnimator(initialValue: 0.0, trigger: rejectionCount) { content, offset in
                 content.offset(x: offset)
             } keyframes: { _ in
@@ -35,21 +55,18 @@ struct AmountDisplay: View {
                     LinearKeyframe(0, duration: 0.05)
                 }
             }
-            .accessibilityLabel("Amount")
-            .accessibilityValue(text)
-            .focusable(interactions: .edit)
-            .focused($isFocused)
-            // Choosing another tab or screen moves focus away, and default focus doesn't take it back, so the amount
-            // takes it when it appears.
-            .onAppear { isFocused = true }
     }
 
     /// The digits' fill: a brushed-metal sheen from a light at the top leading corner, or the plain text color.
+    ///
+    /// The sheen runs between the digits' corners, which sit at a quarter and three quarters of the layer twice
+    /// their size.
     private var fill: AnyShapeStyle {
         switch style.amountLook {
         case .chrome:
             AnyShapeStyle(LinearGradient(colors: [palette.primaryText, palette.secondaryText, palette.primaryText],
-                                         startPoint: .topLeading, endPoint: .bottomTrailing))
+                                         startPoint: UnitPoint(x: 0.25, y: 0.25),
+                                         endPoint: UnitPoint(x: 0.75, y: 0.75)))
         case .plain:
             AnyShapeStyle(palette.primaryText)
         }
