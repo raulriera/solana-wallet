@@ -2,42 +2,35 @@ import Foundation
 import Testing
 @testable import widgets
 
-/// Checks Providers choices, custom RPCs, Helius's details, key entry, and failures with the production selection over
-/// in-memory stores.
+/// Checks Providers choices, custom RPCs, Helius's details, key entry, and failures with the shared provider settings
+/// over in-memory stores.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct ProvidersCoordinatorTests {
-    /// A choice made in one window shows in every window's next read.
+    /// A choice made in one window shows in every window at once, since every window reads the shared settings.
     @Test
-    func `Every window checks a new provider after its next read`() async {
+    func `A choice made in one window shows in every window`() async {
         let settings = StoredValue(ProviderSettings(selection: .helius))
-        let keys = StoredValue<String>()
-        let revisions = ProviderRevisions()
-        let coordinator = ProvidersCoordinator.inMemory(settings: settings, providerKey: keys, revisions: revisions)
-        let otherWindow = ProvidersCoordinator.inMemory(settings: settings, providerKey: keys, revisions: revisions)
+        let providers = ProviderStore.inMemory(settings)
+        let coordinator = ProvidersCoordinator.inMemory(providers)
+        await coordinator.load()
 
         coordinator.select(.solana)
         await coordinator.run(coordinator.attempt)
-        await coordinator.reload()
-        await otherWindow.reload()
 
-        #expect(revisions.settings.value == 1)
-        #expect(coordinator.selection == .solana)
-        #expect(otherWindow.selection == .solana)
+        #expect(providers.settings?.selection == .solana)
+        #expect(await settings.value?.selection == .solana)
         #expect(coordinator.attempt == nil)
         #expect(coordinator.error == nil)
     }
 
     /// Helius without a key asks for one without an error, and a saved key continues the choice that asked for it.
-    /// - Parameters:
-    ///   - saved: The saved choice, or `nil` while Solana is in use by default.
-    ///   - settingsChanges: The setting changes every window hears about: the saved key, then any new choice.
+    /// - Parameter saved: The saved choice, or `nil` while Solana is in use by default.
     /// - Throws: A test prerequisite error.
-    @Test(arguments: [(nil, 2), (ProviderSettings(selection: .helius), 1)])
-    func `Helius is in use once its key is saved`(saved: ProviderSettings?, settingsChanges: Int) async throws {
-        let revisions = ProviderRevisions()
-        let coordinator = ProvidersCoordinator.inMemory(settings: StoredValue(saved), providerKey: StoredValue(),
-                                                        revisions: revisions)
+    @Test(arguments: [nil, ProviderSettings(selection: .helius)])
+    func `Helius is in use once its key is saved`(saved: ProviderSettings?) async throws {
+        let providers = ProviderStore.inMemory(StoredValue(saved))
+        let coordinator = ProvidersCoordinator.inMemory(providers)
         coordinator.select(.helius)
         await coordinator.run(coordinator.attempt)
         let keyEntry = try #require(coordinator.keyEntry)
@@ -46,11 +39,10 @@ struct ProvidersCoordinatorTests {
         try await saveKey(in: keyEntry, for: coordinator)
         let attempt = try #require(coordinator.attempt)
         await coordinator.run(attempt)
-        await coordinator.reload()
 
-        #expect(coordinator.selection == .helius)
+        #expect(providers.settings?.selection == .helius)
+        #expect(providers.connection == .helius(key: "fixture-key"))
         #expect(coordinator.completedKeyChoice == .helius)
-        #expect(revisions.settings.value == settingsChanges)
         #expect(coordinator.attempt == nil)
         #expect(coordinator.error == nil)
     }
@@ -60,7 +52,7 @@ struct ProvidersCoordinatorTests {
     @Test
     func `Only a choice that waited for its key completes it`() async throws {
         let settings = StoredValue<ProviderSettings>()
-        let coordinator = ProvidersCoordinator.inMemory(settings: settings, providerKey: StoredValue())
+        let coordinator = ProvidersCoordinator.inMemory(.inMemory(settings))
         coordinator.select(.helius)
         await coordinator.run(coordinator.attempt)
         try await saveKey(in: try #require(coordinator.keyEntry), for: coordinator)
@@ -83,8 +75,7 @@ struct ProvidersCoordinatorTests {
     /// - Throws: A test prerequisite error.
     @Test
     func `A key choice that can't be saved doesn't complete`() async throws {
-        let coordinator = ProvidersCoordinator.inMemory(settings: StoredValue(failsSaving: true),
-                                                        providerKey: StoredValue())
+        let coordinator = ProvidersCoordinator.inMemory(.inMemory(StoredValue(failsSaving: true)))
         coordinator.select(.helius)
         await coordinator.run(coordinator.attempt)
         try await saveKey(in: try #require(coordinator.keyEntry), for: coordinator)
@@ -101,9 +92,8 @@ struct ProvidersCoordinatorTests {
     @Test
     func `A replaced key keeps the provider in use`() async throws {
         let settings = StoredValue(ProviderSettings(selection: .solana))
-        let revisions = ProviderRevisions()
-        let coordinator = ProvidersCoordinator.inMemory(settings: settings, providerKey: StoredValue(),
-                                                        revisions: revisions)
+        let providers = ProviderStore.inMemory(settings)
+        let coordinator = ProvidersCoordinator.inMemory(providers)
         coordinator.select(.helius)
         await coordinator.run(coordinator.attempt)
         try #require(coordinator.keyEntry != nil)
@@ -120,15 +110,14 @@ struct ProvidersCoordinatorTests {
 
         #expect(coordinator.keyEntry == nil)
         #expect(await settings.value?.selection == .solana)
+        #expect(providers.keyPreview == "replacement-key".formatted(.masked))
         #expect(coordinator.attempt == nil)
-        #expect(revisions.settings.value == 1)
     }
 
     /// Helius's details open without a key check.
     @Test
     func `Helius's details open without a key check`() {
-        let coordinator = ProvidersCoordinator.inMemory(settings: StoredValue(),
-                                                        providerKey: StoredValue("fixture-key"))
+        let coordinator = ProvidersCoordinator.inMemory(.inMemory(key: StoredValue("fixture-key")))
 
         coordinator.showDetails(for: .helius)
 
@@ -142,7 +131,7 @@ struct ProvidersCoordinatorTests {
     @Test
     func `A closed screen keeps its content`() throws {
         let url = try #require(URL(string: "https://rpc.example.com"))
-        let coordinator = ProvidersCoordinator.inMemory(settings: StoredValue(), providerKey: StoredValue())
+        let coordinator = ProvidersCoordinator.inMemory(.inMemory())
 
         coordinator.changeKey()
         let newKey = try #require(coordinator.newKey)
@@ -164,7 +153,7 @@ struct ProvidersCoordinatorTests {
     /// - Throws: A test prerequisite error.
     @Test
     func `A screen that opens again starts a new check`() async throws {
-        let coordinator = ProvidersCoordinator.inMemory(settings: StoredValue(), providerKey: StoredValue())
+        let coordinator = ProvidersCoordinator.inMemory(.inMemory())
         coordinator.changeKey()
         let saved = try #require(coordinator.newKey)
         saved.submit("fixture-key")
@@ -176,17 +165,20 @@ struct ProvidersCoordinatorTests {
 
         #expect(coordinator.newKey !== saved)
         #expect(coordinator.newKey?.isSaved == false)
-        #expect(coordinator.path == [.providerKey(.add)])
+        #expect(coordinator.path == [.providerKey(.change)])
     }
 
-    /// Key entry from Helius's details replaces a key only when one is saved, and keeps that wording while it saves.
+    /// Key entry from Helius's details replaces a key only when one is saved, keeps that wording while it saves, and
+    /// shows the new key in every window.
     /// - Throws: A test prerequisite error.
     @Test
     func `Key entry from details replaces a key only when one is saved`() async throws {
-        let saved = ProvidersCoordinator.inMemory(settings: StoredValue(), providerKey: StoredValue("fixture-key"))
-        let missing = ProvidersCoordinator.inMemory(settings: StoredValue(), providerKey: StoredValue())
-        await saved.reload()
-        await missing.reload()
+        let savedProviders = ProviderStore.inMemory(key: StoredValue("fixture-key"))
+        let missingProviders = ProviderStore.inMemory()
+        let saved = ProvidersCoordinator.inMemory(savedProviders)
+        let missing = ProvidersCoordinator.inMemory(missingProviders)
+        await saved.load()
+        await missing.load()
 
         saved.showDetails(for: .helius)
         saved.changeKey()
@@ -196,70 +188,16 @@ struct ProvidersCoordinatorTests {
         added.submit("fixture-key")
         await added.run(added.attempt)
         try #require(added.isSaved)
-        await missing.reload()
 
         #expect(saved.path.last == .providerKey(.change))
         #expect(missing.path.last == .providerKey(.add))
-        #expect(missing.keyPreview == "fixture-key".formatted(.masked))
-    }
-
-    /// Helius's details show only the saved key's first characters, and nothing before a key is saved.
-    /// - Parameters:
-    ///   - saved: The saved key, or `nil` before one is saved.
-    ///   - preview: The key preview the details show.
-    @Test(arguments: [("fixture-key", "fixt•••••••"), (nil, nil)] as [(String?, String?)])
-    func `Helius's details show only the start of the saved key`(saved: String?, preview: String?) async {
-        let coordinator = ProvidersCoordinator.inMemory(settings: StoredValue(), providerKey: StoredValue(saved))
-
-        await coordinator.reload()
-
-        #expect(coordinator.keyPreview == preview)
-    }
-
-    /// A key that can't be read keeps the last preview and shows no alert, because no choice depends on it.
-    /// - Throws: A test prerequisite error.
-    @Test
-    func `A key that can't be read keeps the last preview`() async throws {
-        let keys = StoredValue("fixture-key")
-        let coordinator = ProvidersCoordinator.inMemory(settings: StoredValue(), providerKey: keys)
-        await coordinator.reload()
-        let preview = try #require(coordinator.keyPreview)
-
-        await keys.failLoading()
-        await coordinator.reload()
-
-        #expect(coordinator.keyPreview == preview)
-        #expect(coordinator.selection == .solana)
-        #expect(coordinator.error == nil)
-    }
-
-    /// A key saved in another window shows in this window's details after its next read.
-    /// - Throws: A test prerequisite error.
-    @Test
-    func `A key changed in another window shows after the next read`() async throws {
-        let settings = StoredValue<ProviderSettings>()
-        let keys = StoredValue("fixture-key")
-        let revisions = ProviderRevisions()
-        let coordinator = ProvidersCoordinator.inMemory(settings: settings, providerKey: keys, revisions: revisions)
-        let otherWindow = ProvidersCoordinator.inMemory(settings: settings, providerKey: keys, revisions: revisions)
-        await coordinator.reload()
-        coordinator.showDetails(for: .helius)
-
-        otherWindow.showDetails(for: .helius)
-        otherWindow.changeKey()
-        let replacement = try #require(otherWindow.newKey)
-        replacement.submit("replacement-key")
-        await replacement.run(replacement.attempt)
-        try #require(revisions.settings.value == 1)
-        await coordinator.reload()
-
-        #expect(coordinator.keyPreview == "replacement-key".formatted(.masked))
+        #expect(missingProviders.keyPreview == "fixture-key".formatted(.masked))
     }
 
     /// Solana has no details, so asking for them opens nothing.
     @Test
     func `Solana's details open nothing`() {
-        let coordinator = ProvidersCoordinator.inMemory(settings: StoredValue(), providerKey: StoredValue())
+        let coordinator = ProvidersCoordinator.inMemory(.inMemory())
 
         coordinator.showDetails(for: .solana)
 
@@ -273,7 +211,7 @@ struct ProvidersCoordinatorTests {
     func `Taps during a choice are ignored`() async throws {
         let url = try #require(URL(string: "https://rpc.example.com"))
         let settings = StoredValue(ProviderSettings(selection: .helius, customRPCs: [url]))
-        let coordinator = ProvidersCoordinator.inMemory(settings: settings, providerKey: StoredValue())
+        let coordinator = ProvidersCoordinator.inMemory(.inMemory(settings))
 
         coordinator.select(.solana)
         let attempt = try #require(coordinator.attempt)
@@ -297,7 +235,7 @@ struct ProvidersCoordinatorTests {
     /// - Throws: A test prerequisite error.
     @Test
     func `A cancelled choice opens no key entry and shows no error`() async throws {
-        let coordinator = ProvidersCoordinator.inMemory(settings: StoredValue(), providerKey: StoredValue())
+        let coordinator = ProvidersCoordinator.inMemory(.inMemory())
         coordinator.select(.helius)
         let attempt = try #require(coordinator.attempt)
 
@@ -310,25 +248,50 @@ struct ProvidersCoordinatorTests {
         #expect(coordinator.attempt == nil)
     }
 
+    /// Settings that can't be read explain it, whether the choice or the key fails; a later read tries again.
+    /// - Parameter isKeyUnreadable: Whether the key, not the choice, can't be read.
+    @Test(arguments: [false, true])
+    func `Settings that can't be read explain it`(isKeyUnreadable: Bool) async {
+        let coordinator = ProvidersCoordinator.inMemory(.inMemory(StoredValue(failsLoading: !isKeyUnreadable),
+                                                                  key: StoredValue(failsLoading: isKeyUnreadable)))
+
+        await coordinator.load()
+
+        #expect(coordinator.error == .selectionUnreadable)
+    }
+
     /// Leaving the screen before a read fails shows no alert when the screen returns.
     @Test
     func `A cancelled read that fails shows no error`() async {
-        let coordinator = ProvidersCoordinator.inMemory(settings: StoredValue(failsLoading: true),
-                                                        providerKey: StoredValue())
+        let coordinator = ProvidersCoordinator.inMemory(.inMemory(StoredValue(failsLoading: true)))
 
-        let reading = Task { await coordinator.reload() }
+        let reading = Task { await coordinator.load() }
         reading.cancel()
         await reading.value
 
         #expect(coordinator.error == nil)
     }
 
+    /// A choice while the settings can't be read explains the read, not a save.
+    /// - Throws: A test prerequisite error.
+    @Test
+    func `A choice while the settings can't be read explains the read`() async throws {
+        let coordinator = ProvidersCoordinator.inMemory(.inMemory(StoredValue(ProviderSettings(selection: .helius)),
+                                                                  key: StoredValue(failsLoading: true)))
+
+        coordinator.select(.solana)
+        await coordinator.run(try #require(coordinator.attempt))
+
+        #expect(coordinator.error == .selectionUnreadable)
+        #expect(coordinator.attempt == nil)
+    }
+
     /// Leaving the screen before a choice fails shows no alert when the screen returns.
     /// - Throws: A test prerequisite error.
     @Test
     func `A cancelled choice that fails shows no error`() async throws {
-        let coordinator = ProvidersCoordinator.inMemory(settings: StoredValue(ProviderSettings(selection: .helius), failsSaving: true),
-                                                        providerKey: StoredValue())
+        let settings = StoredValue(ProviderSettings(selection: .helius), failsSaving: true)
+        let coordinator = ProvidersCoordinator.inMemory(.inMemory(settings))
         coordinator.select(.solana)
         let attempt = try #require(coordinator.attempt)
 
@@ -343,58 +306,28 @@ struct ProvidersCoordinatorTests {
     /// A choice that can't be saved explains it, and the provider in use stays checked.
     @Test
     func `A choice that can't be saved explains it and keeps the checkmark`() async {
-        let coordinator = ProvidersCoordinator.inMemory(settings: StoredValue(ProviderSettings(selection: .helius), failsSaving: true),
-                                                        providerKey: StoredValue())
-        await coordinator.reload()
+        let providers = ProviderStore.inMemory(StoredValue(ProviderSettings(selection: .helius), failsSaving: true))
+        let coordinator = ProvidersCoordinator.inMemory(providers)
+        await coordinator.load()
 
         coordinator.select(.solana)
         await coordinator.run(coordinator.attempt)
 
         #expect(coordinator.error == .selectionUnsaved)
-        #expect(coordinator.selection == .helius)
+        #expect(providers.settings?.selection == .helius)
         #expect(coordinator.attempt == nil)
     }
 
-    /// Choosing the provider in use changes nothing, so a key that can't be read isn't an error.
-    @Test
-    func `Choosing Helius again with an unreadable key shows no error`() async {
-        let coordinator = ProvidersCoordinator.inMemory(settings: StoredValue(ProviderSettings(selection: .helius)),
-                                                        providerKey: StoredValue("fixture-key", failsLoading: true))
-        await coordinator.reload()
-
-        coordinator.select(.helius)
-        await coordinator.run(coordinator.attempt)
-
-        #expect(coordinator.error == nil)
-        #expect(coordinator.selection == .helius)
-    }
-
-    /// A choice that can't be read explains it and keeps the provider read before checked.
-    @Test
-    func `A choice that can't be read explains it and keeps the checkmark`() async {
-        let settings = StoredValue(ProviderSettings(selection: .helius))
-        let coordinator = ProvidersCoordinator.inMemory(settings: settings, providerKey: StoredValue())
-        await coordinator.reload()
-
-        await settings.failLoading()
-        await coordinator.reload()
-
-        #expect(coordinator.error == .selectionUnreadable)
-        #expect(coordinator.selection == .helius)
-    }
-
     /// Closing after a reset drops a waiting choice, key entry, the choice that asked for a key, pushed screens and what
-    /// they show, a deletion waiting for confirmation, and the last read.
+    /// they show, and a deletion waiting for confirmation.
     /// - Throws: A test prerequisite error.
     @Test
     func `Closing drops waiting work and key entry`() async throws {
         let url = try #require(URL(string: "https://rpc.example.com"))
         let saved = ProviderSettings(selection: .helius, customRPCs: [url])
         let settings = StoredValue(saved)
-        let coordinator = ProvidersCoordinator.inMemory(settings: settings, providerKey: StoredValue())
-        await coordinator.reload()
-        try #require(coordinator.selection == .helius)
-        try #require(coordinator.customRPCs == [url])
+        let coordinator = ProvidersCoordinator.inMemory(.inMemory(settings))
+        await coordinator.load()
         coordinator.select(.helius)
         await coordinator.run(coordinator.attempt)
         let keyEntry = try #require(coordinator.keyEntry)
@@ -418,8 +351,6 @@ struct ProvidersCoordinatorTests {
 
         #expect(coordinator.keyEntry == nil)
         #expect(coordinator.attempt == nil)
-        #expect(coordinator.selection == nil)
-        #expect(coordinator.customRPCs.isEmpty)
         #expect(coordinator.removal == nil)
         #expect(coordinator.path.isEmpty)
         #expect(coordinator.setup == nil)
@@ -428,26 +359,12 @@ struct ProvidersCoordinatorTests {
         #expect(await settings.value == saved)
     }
 
-    /// Closing after a reset drops the key preview, because the reset deleted the key without a provider change.
-    /// - Throws: A test prerequisite error.
-    @Test
-    func `Closing drops the key preview`() async throws {
-        let coordinator = ProvidersCoordinator.inMemory(settings: StoredValue(),
-                                                        providerKey: StoredValue("fixture-key"))
-        await coordinator.reload()
-        try #require(coordinator.keyPreview != nil)
-
-        coordinator.close()
-
-        #expect(coordinator.keyPreview == nil)
-    }
-
     /// Leaving Providers closes its pushed screens and drops a deletion waiting for confirmation.
     /// - Throws: A test prerequisite error.
     @Test
     func `Leaving Providers closes its screens and any waiting deletion`() throws {
         let url = try #require(URL(string: "https://rpc.example.com"))
-        let coordinator = ProvidersCoordinator.inMemory(settings: StoredValue(), providerKey: StoredValue())
+        let coordinator = ProvidersCoordinator.inMemory(.inMemory())
 
         coordinator.addCustomRPC()
         try #require(coordinator.path == [.customRPCSetup])
@@ -458,31 +375,23 @@ struct ProvidersCoordinatorTests {
         #expect(coordinator.removal == nil)
     }
 
-    /// Deleting a custom RPC saves the deletion and leaves every window's list on its next read, so its open details
-    /// close themselves.
+    /// Deleting the custom RPC in use saves the deletion, leaves the list that every window shows, and switches to
+    /// Solana.
     /// - Throws: A test prerequisite error.
     @Test
     func `Deleting a custom RPC leaves every window's list`() async throws {
         let deleted = try #require(URL(string: "https://one.example.com"))
         let kept = try #require(URL(string: "https://two.example.com"))
         let settings = StoredValue(ProviderSettings(selection: .custom(deleted), customRPCs: [deleted, kept]))
-        let revisions = ProviderRevisions()
-        let coordinator = ProvidersCoordinator.inMemory(settings: settings, providerKey: StoredValue(),
-                                                        revisions: revisions)
-        let otherWindow = ProvidersCoordinator.inMemory(settings: settings, providerKey: StoredValue(),
-                                                        revisions: revisions)
-        await coordinator.reload()
-        try #require(coordinator.customRPCs == [deleted, kept])
+        let providers = ProviderStore.inMemory(settings)
+        let coordinator = ProvidersCoordinator.inMemory(providers)
+        await coordinator.load()
 
         coordinator.remove(deleted)
         await coordinator.run(coordinator.attempt)
-        await coordinator.reload()
-        await otherWindow.reload()
 
-        #expect(coordinator.customRPCs == [kept])
-        #expect(otherWindow.customRPCs == [kept])
-        #expect(coordinator.selection == .solana)
-        #expect(revisions.settings.value == 1)
+        #expect(providers.settings == ProviderSettings(selection: .solana, customRPCs: [kept]))
+        #expect(await settings.value == providers.settings)
         #expect(coordinator.error == nil)
     }
 
@@ -492,14 +401,15 @@ struct ProvidersCoordinatorTests {
     func `A deletion that can't be saved explains it`() async throws {
         let url = try #require(URL(string: "https://rpc.example.com"))
         let settings = StoredValue(ProviderSettings(customRPCs: [url]), failsSaving: true)
-        let coordinator = ProvidersCoordinator.inMemory(settings: settings, providerKey: StoredValue())
-        await coordinator.reload()
+        let providers = ProviderStore.inMemory(settings)
+        let coordinator = ProvidersCoordinator.inMemory(providers)
+        await coordinator.load()
 
         coordinator.remove(url)
         await coordinator.run(coordinator.attempt)
 
         #expect(coordinator.error == .deletionUnsaved)
-        #expect(coordinator.customRPCs == [url])
+        #expect(providers.settings?.customRPCs == [url])
         #expect(await settings.value?.customRPCs == [url])
         #expect(coordinator.attempt == nil)
     }

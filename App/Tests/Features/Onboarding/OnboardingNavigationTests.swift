@@ -18,7 +18,7 @@ struct OnboardingNavigationTests {
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery(gate: gate).client),
                                                 wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
         let submission = ImportWalletModel(coordinator: coordinator)
-        let navigation = OnboardingNavigation(walletImport: submission, providers: .inMemory(settings: StoredValue(), providerKey: StoredValue()))
+        let navigation = OnboardingNavigation(walletImport: submission, providers: .inMemory(.inMemory()))
         navigation.showImport()
         try #require(navigation.path == [.importWallet])
         submission.submit(OnboardingCoordinatorTests.phrase, passphrase: "TREZOR")
@@ -42,7 +42,7 @@ struct OnboardingNavigationTests {
     /// - Throws: A test prerequisite error.
     @Test
     func `The provider choice's screens show above onboarding's steps`() throws {
-        let providers = ProvidersCoordinator.inMemory(settings: StoredValue(), providerKey: StoredValue())
+        let providers = ProvidersCoordinator.inMemory(.inMemory())
         let navigation = OnboardingNavigation(walletImport: Self.submission(), providers: providers)
         navigation.path = [.recovery, .providers]
 

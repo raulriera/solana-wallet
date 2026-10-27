@@ -56,12 +56,12 @@ struct RedeemCodeLiveTests {
                                                      strategy: .none)
         let notes = StoredValue<PrivateBalances.Notes>()
         let settings = StoredValue(ProviderSettings(selection: .helius))
-        let providerKey = StoredValue(apiKey)
+        let providers = await ProviderStore.inMemory(settings, key: StoredValue(apiKey))
         let balances = PrivateBalances(
             recovery: SecurityRecoveryStore(records: [sender.recoveryID: wallets.recovery]), wallet: Wallet(),
             keys: StoredValue(), notes: notes, codes: StoredValue()
         ) { network in
-            ProviderClient(network: network, settings: settings, providerKey: providerKey)
+            ProviderClient(network: network, providers: providers)
         }
         try await balances.enable(sender, on: .devnet)
         try await balances.enable(recipient, on: .devnet)

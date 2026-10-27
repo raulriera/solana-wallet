@@ -53,12 +53,12 @@ struct PrivateTransferLiveTests {
                                                      strategy: .none)
         let notes = StoredValue<PrivateBalances.Notes>()
         let settings = StoredValue(ProviderSettings(selection: .helius))
-        let providerKey = StoredValue(apiKey)
+        let providers = await ProviderStore.inMemory(settings, key: StoredValue(apiKey))
         let balances = PrivateBalances(
             recovery: SecurityRecoveryStore(records: [sender.recoveryID: wallets.recovery]), wallet: Wallet(),
             keys: StoredValue(), notes: notes, codes: StoredValue()
         ) { network in
-            ProviderClient(network: network, settings: settings, providerKey: providerKey)
+            ProviderClient(network: network, providers: providers)
         }
 
         // 1. Account 1 registers, signing as the owner, while account 0 pays its rent.

@@ -2,6 +2,7 @@ import SwiftUI
 
 /// Shows a screen that Providers pushes, in Settings and in onboarding; the coordinator decides what each screen shows.
 struct ProvidersDestination: View {
+    @Environment(ProviderStore.self) private var providers
     @Bindable var coordinator: ProvidersCoordinator
     let route: ProvidersRoute
 
@@ -13,7 +14,7 @@ struct ProvidersDestination: View {
                     .providerSetupLifecycle()
             }
         case .providerDetails:
-            ProviderDetailsScreen(keyPreview: coordinator.keyPreview, actions: coordinator)
+            ProviderDetailsScreen(keyPreview: providers.keyPreview, actions: coordinator)
         case .providerKey(let purpose):
             if let newKey = coordinator.newKey {
                 ProviderSetupScreen(purpose: purpose, submission: newKey)
@@ -21,7 +22,7 @@ struct ProvidersDestination: View {
             }
         case .customRPCDetails:
             if let url = coordinator.details {
-                CustomRPCDetailsScreen(url: url, isListed: coordinator.customRPCs.contains(url),
+                CustomRPCDetailsScreen(url: url, isListed: providers.settings?.customRPCs.contains(url) == true,
                                        removal: $coordinator.removal)
             }
         }

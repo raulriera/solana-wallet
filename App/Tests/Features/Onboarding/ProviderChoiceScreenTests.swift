@@ -16,12 +16,13 @@ struct ProviderChoiceScreenTests {
         let recovery = OnboardingRecoveryStore()
         let router = WindowRouter(initialDestination: .onboarding)
         let settings = StoredValue(ProviderSettings(selection: .solana))
-        let providers = ProvidersCoordinator.inMemory(settings: settings, providerKey: StoredValue())
+        let providerStore = ProviderStore.inMemory(settings)
+        let providers = ProvidersCoordinator.inMemory(providerStore)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client),
                                                 wallet: Wallet(), recovery: recovery,
                                                 accounts: AccountStore.inMemory(), router: router)
         let scene = OnboardingScene(coordinator: coordinator, providers: providers, pasteboard: NoPasteboard())
-        let hosted = try HostedWindow(scene.onboardingLifecycle())
+        let hosted = try HostedWindow(scene.onboardingLifecycle().environment(providerStore))
         defer { hosted.close() }
         try #require(try await hosted.appears())
         // Saving the wallet on screen pushes the provider choice.

@@ -17,7 +17,8 @@ struct RecoveryCleanupTests {
         let keys = Self.savedKeys()
         let notes = Self.savedNotes()
         let cleanup = RecoveryCleanup(accounts: StoredValue<[Account]>(), recovery: recovery,
-                                      privateBalances: Self.privateBalances(keys: keys, notes: notes, recovery: recovery))
+                                      privateBalances: await Self.privateBalances(keys: keys, notes: notes,
+                                                                                  recovery: recovery))
 
         try await withThrowingTaskGroup(of: Void.self) { group in
             for _ in 0..<3 { group.addTask { try await cleanup.complete() } }
@@ -38,7 +39,8 @@ struct RecoveryCleanupTests {
         let notes = Self.savedNotes()
         let saved = try [Account.fixture(index: 0)]
         let cleanup = RecoveryCleanup(accounts: StoredValue(saved), recovery: recovery,
-                                      privateBalances: Self.privateBalances(keys: keys, notes: notes, recovery: recovery))
+                                      privateBalances: await Self.privateBalances(keys: keys, notes: notes,
+                                                                                  recovery: recovery))
 
         try await cleanup.complete()
 
@@ -56,7 +58,8 @@ struct RecoveryCleanupTests {
         let notes = Self.savedNotes()
         let accounts = StoredValue<[Account]>(unreadable: true)
         let cleanup = RecoveryCleanup(accounts: accounts, recovery: recovery,
-                                      privateBalances: Self.privateBalances(keys: keys, notes: notes, recovery: recovery))
+                                      privateBalances: await Self.privateBalances(keys: keys, notes: notes,
+                                                                                  recovery: recovery))
 
         await #expect(throws: KeychainItemError.unreadable) { try await cleanup.complete() }
         #expect(await recovery.deletions == 0)
@@ -76,8 +79,9 @@ struct RecoveryCleanupTests {
     func `A failed deletion is retried`() async throws {
         let recovery = StartupRecoveryStore(error: KeychainStoreError.keychain(status: -1))
         let cleanup = RecoveryCleanup(accounts: StoredValue<[Account]>(), recovery: recovery,
-                                      privateBalances: Self.privateBalances(keys: Self.savedKeys(), notes: Self.savedNotes(),
-                                                                            recovery: recovery))
+                                      privateBalances: await Self.privateBalances(keys: Self.savedKeys(),
+                                                                                  notes: Self.savedNotes(),
+                                                                                  recovery: recovery))
 
         await #expect(throws: KeychainStoreError.keychain(status: -1)) { try await cleanup.complete() }
         await #expect(throws: KeychainStoreError.keychain(status: -1)) { try await cleanup.complete() }
@@ -106,6 +110,7 @@ struct RecoveryCleanupTests {
     ///   - notes: The saved notes.
     ///   - recovery: The startup recovery storage, which fails the test if read.
     /// - Returns: Private balances that the cleanup empties.
+    @MainActor
     private static func privateBalances(keys: StoredValue<PrivateBalances.Keys>, notes: StoredValue<PrivateBalances.Notes>,
                                         recovery: StartupRecoveryStore) -> PrivateBalances {
         PrivateBalances.inMemory(keys: keys, notes: notes, recovery: recovery, responses: HTTPResponses([:]))

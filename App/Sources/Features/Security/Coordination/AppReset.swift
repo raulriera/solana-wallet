@@ -1,5 +1,4 @@
 import Foundation
-import Storage
 import Vault
 
 /// Deletes recovery phrases first, so a failed later step never leaves secrets behind.
@@ -10,8 +9,6 @@ struct AppReset: AppResetting {
     private let directories: [URL]
     private let appearance: any AppearanceCoordinating
     private let stores: [any Erasable]
-    private let providerKey: any ValueStoring<String>
-    private let providerSettings: any ValueStoring<ProviderSettings>
     private let revision: Revision
 
     /// Connects the reset to every store that holds the person's data.
@@ -20,27 +17,21 @@ struct AppReset: AppResetting {
     ///   - privateBalances: Each account's private-balance keys, notes, and redeem codes.
     ///   - directories: The directories that hold every other kept and cached file, such as wallets and themes.
     ///   - appearance: The shared appearance, which forgets its cached selections once the directories are gone.
-    ///   - stores: The shared stores, such as the contacts, the accounts, the transactions, and the currency choice,
-    ///     which every window forgets once the directories are gone.
-    ///   - providerKey: The provider's API key storage.
-    ///   - providerSettings: The provider choice and custom RPC storage.
+    ///   - stores: The shared stores, such as the contacts, the accounts, the transactions, the currency choice, and
+    ///     the provider settings, which every window forgets once the directories are gone.
     ///   - revision: Tells every window when the reset finishes.
     init(recovery: any RecoveryStoring, privateBalances: any PrivateBalancing, directories: [URL],
-         appearance: any AppearanceCoordinating, stores: [any Erasable], providerKey: any ValueStoring<String>,
-         providerSettings: any ValueStoring<ProviderSettings>, revision: Revision) {
+         appearance: any AppearanceCoordinating, stores: [any Erasable], revision: Revision) {
         self.recovery = recovery
         self.privateBalances = privateBalances
         self.directories = directories
         self.appearance = appearance
         self.stores = stores
-        self.providerKey = providerKey
-        self.providerSettings = providerSettings
         self.revision = revision
     }
 
     /// Deletes every recovery phrase, then the private-balance keys, notes, and redeem codes, then the directories,
-    /// restarts appearance, erases each shared store, then deletes the provider API key, then the provider choice and
-    /// custom RPCs, and returns every window to onboarding.
+    /// restarts appearance, erases each shared store, and returns every window to onboarding.
     /// - Throws: A storage or cancellation error from the first step that fails.
     func reset() async throws {
         try await recovery.deleteAllRecovery()
@@ -48,8 +39,6 @@ struct AppReset: AppResetting {
         try await Self.delete(directories)
         try await appearance.restart()
         for store in stores { try await store.erase() }
-        try await providerKey.delete()
-        try await providerSettings.delete()
         revision.advance()
     }
 

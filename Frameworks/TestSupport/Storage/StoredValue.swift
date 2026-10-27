@@ -54,11 +54,6 @@ actor StoredValue<Value: Equatable & Sendable> {
         return value
     }
 
-    /// Makes later reads throw, as storage that becomes unreadable does.
-    func failLoading() {
-        failsLoading = true
-    }
-
     /// Makes later saves throw, as storage that stops accepting writes does, or succeed again.
     /// - Parameter fails: Whether later saves throw.
     func failSaving(_ fails: Bool = true) {

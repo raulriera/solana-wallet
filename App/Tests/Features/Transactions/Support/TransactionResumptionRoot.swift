@@ -9,8 +9,11 @@ struct TransactionResumptionRoot: View {
 
     var body: some View {
         Color.clear
-            .transactionResumption(providerRevisions: scene.providerRevisions)
+            .transactionResumption()
             .environment(transactions)
+            .environment(scene.providers)
+            // A window's root reads the provider settings before its workflows start.
+            .task { await scene.providers.load() }
             // A hosted window isn't a SwiftUI scene, so the root reports the scene phase that the test sets.
             .environment(\.scenePhase, scene.phase)
     }

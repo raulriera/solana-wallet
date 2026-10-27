@@ -7,29 +7,40 @@ import RPC
 /// Windows on one network share its service's cache, subscriptions, and price pacing. Mainnet's service exists from
 /// the start; another network's service is created when a window first shows that network, so a network that no
 /// window shows has no service and does no work. After each change to the currency choice, from any window, every
-/// service reads its prices again.
+/// service reads its prices again. After each new provider connection, every service ends the previous provider's
+/// work before ``connection`` follows, so windows observe again only once that work has ended.
 @MainActor
+@Observable
 final class NetworkPortfolios {
     /// A network's portfolio and token-list service.
     typealias Service = any PortfolioProviding & TokenListProviding
 
+    /// The provider connection that the services read through, or `nil` until the provider settings are read and
+    /// after they're erased.
+    ///
+    /// It follows the shared settings' connection once every service has ended the previous provider's work, so an
+    /// observation that starts when it changes never meets that work's end.
+    private(set) var connection: ProviderClient.Endpoint?
     private let prices: any PriceProviding
     private let make: (Network, (any PriceProviding)?) -> Service
-    private var services: [Network: Service] = [:]
+    @ObservationIgnored private var services: [Network: Service] = [:]
 
     /// Creates mainnet's service at once, and each other network's service when a window first shows it.
     /// - Parameters:
     ///   - prices: The price provider, which values holdings only on the network it quotes.
     ///   - currency: The currency choice that the prices convert with, whose changes have every service read its
     ///     prices again.
+    ///   - providers: The provider settings that the services read through, whose new connections end every
+    ///     service's work with the previous provider.
     ///   - make: Creates a network's service with its prices, or with none when the price provider quotes another
     ///     network.
-    init(prices: any PriceProviding, currency: CurrencyStore,
+    init(prices: any PriceProviding, currency: CurrencyStore, providers: ProviderStore,
          make: @escaping (Network, (any PriceProviding)?) -> Service) {
         self.prices = prices
         self.make = make
         _ = service(for: .mainnet)
         watch(currency)
+        watch(providers)
     }
 
     /// The services created so far: mainnet's, and each other network's once a window shows it.
@@ -58,16 +69,40 @@ final class NetworkPortfolios {
                 isRead = choice != nil
                 guard wasRead, isRead else { continue }
                 guard let self else { return }
-                await self.pricesDidChange()
+                await self.forEachService { await $0.pricesDidChange() }
             }
         }
     }
 
-    /// Has every created service read its prices again, each on its own.
-    private func pricesDidChange() async {
+    /// Follows each new provider connection once every created service has ended the previous provider's work.
+    ///
+    /// Reading the settings isn't a new connection, because nothing read through one yet, and neither is erasing
+    /// them, as a reset does; both apply at once. The store also tells of equal connections, such as after a new key
+    /// while another provider is in use, which change nothing. The watch lasts as long as these services, and ends at
+    /// the first change after they're gone.
+    /// - Parameter providers: The provider settings that every window shares.
+    private func watch(_ providers: ProviderStore) {
+        let connections = Observations { providers.connection }
+        Task { [weak self] in
+            for await connection in connections {
+                guard let self else { return }
+                guard connection != self.connection else { continue }
+                if ProviderClient.Endpoint.isNew(connection, after: self.connection) {
+                    // Logos that one service can't remove, as on a full disk, don't keep another from ending its
+                    // work; they stay until a later change.
+                    await self.forEachService { try? await $0.providerDidChange() }
+                }
+                self.connection = connection
+            }
+        }
+    }
+
+    /// Runs work on every created service, each on its own.
+    /// - Parameter work: The work for one service, such as reading its prices again.
+    private func forEachService(_ work: @escaping @Sendable (Service) async -> Void) async {
         let created = created
         await withDiscardingTaskGroup { group in
-            for service in created { group.addTask { await service.pricesDidChange() } }
+            for service in created { group.addTask { await work(service) } }
         }
     }
 

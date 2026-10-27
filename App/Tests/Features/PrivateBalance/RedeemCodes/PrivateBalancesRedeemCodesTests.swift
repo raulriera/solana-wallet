@@ -25,7 +25,7 @@ struct PrivateBalancesRedeemCodesTests {
             sender.deposit, try RedeemCodeFixtures.deposit(1, to: used, leafIndex: 9),
         ])
         let codes = StoredValue<PrivateBalances.Codes>()
-        let balances = try Self.balances(responses, keys: sender.storedKeys, notes: sender.notes, codes: codes)
+        let balances = try await Self.balances(responses, keys: sender.storedKeys, notes: sender.notes, codes: codes)
 
         let prepared = try await balances.prepare(.createCode(1_000_000), from: sender.account, on: .devnet)
 
@@ -62,7 +62,7 @@ struct PrivateBalancesRedeemCodesTests {
         let sender = try await Self.sender()
         let responses = try RedeemCodeFixtures.responses(accounts: [:], deposits: [sender.deposit])
         let codes = StoredValue<PrivateBalances.Codes>()
-        let balances = try Self.balances(responses, keys: sender.storedKeys, notes: sender.notes, codes: codes)
+        let balances = try await Self.balances(responses, keys: sender.storedKeys, notes: sender.notes, codes: codes)
 
         async let preparedFirst = balances.prepare(.createCode(1_000), from: sender.account, on: .devnet)
         async let preparedSecond = balances.prepare(.createCode(2_000), from: sender.account, on: .devnet)
@@ -88,7 +88,7 @@ struct PrivateBalancesRedeemCodesTests {
 
         let first = try await Self.balances(responses, keys: sender.storedKeys, notes: sender.notes, codes: codes)
             .prepare(.createCode(1_000), from: sender.account, on: .devnet)
-        let relaunched = try Self.balances(responses, keys: sender.storedKeys, notes: sender.notes, codes: codes)
+        let relaunched = try await Self.balances(responses, keys: sender.storedKeys, notes: sender.notes, codes: codes)
         let second = try await relaunched.prepare(.createCode(1_000), from: sender.account, on: .devnet)
 
         #expect(Self.index(of: first) == 0)
@@ -118,7 +118,7 @@ struct PrivateBalancesRedeemCodesTests {
         let sender = try await Self.sender()
         let responses = try RedeemCodeFixtures.responses(accounts: [:], deposits: [sender.deposit])
         let codes = StoredValue<PrivateBalances.Codes>()
-        let balances = try Self.balances(responses, keys: sender.storedKeys, notes: sender.notes, codes: codes)
+        let balances = try await Self.balances(responses, keys: sender.storedKeys, notes: sender.notes, codes: codes)
         let prepared = try await balances.prepare(.createCode(1_000), from: sender.account, on: .devnet)
         await codes.failSaving()
 
@@ -152,7 +152,7 @@ struct PrivateBalancesRedeemCodesTests {
             oneTime.address: RedeemCodeFixtures.systemAccount(lamports: RedeemCodeFixtures.reserve),
             try RedeemCodeFixtures.recordAddress(of: recipient.account): recipient.record,
         ], deposits: [try RedeemCodeFixtures.deposit(1_000_000, to: oneTime, leafIndex: 3)])
-        let balances = try Self.balances(responses, keys: recipient.storedKeys, notes: recipient.notes)
+        let balances = try await Self.balances(responses, keys: recipient.storedKeys, notes: recipient.notes)
         let code = try RedeemCode(secret: oneTime.secret, network: .devnet)
 
         let prepared = try await balances.prepare(.redeem(code), from: recipient.account, on: .devnet)
@@ -190,7 +190,7 @@ struct PrivateBalancesRedeemCodesTests {
         let responses = try RedeemCodeFixtures.responses(accounts: [
             oneTime.address: RedeemCodeFixtures.systemAccount(lamports: RedeemCodeFixtures.reserve),
         ], deposits: [try RedeemCodeFixtures.deposit(1_000_000, to: oneTime, leafIndex: 3)])
-        let balances = try Self.balances(responses, keys: recipient.storedKeys, notes: recipient.notes)
+        let balances = try await Self.balances(responses, keys: recipient.storedKeys, notes: recipient.notes)
 
         let prepared = try await balances.prepare(.redeem(RedeemCode(secret: oneTime.secret, network: .devnet)),
                                                   from: recipient.account, on: .devnet)
@@ -281,7 +281,7 @@ struct PrivateBalancesRedeemCodesTests {
         ], deposits: [sender.deposit, try RedeemCodeFixtures.deposit(1_000, to: oneTime, leafIndex: 3)])
         let codes = StoredValue([sender.id: RedeemCodeLedger(records: [Self.record(at: 0), Self.record(at: 1)],
                                                              isDiscovered: true)])
-        let balances = try Self.balances(responses, keys: sender.storedKeys, notes: sender.notes, codes: codes)
+        let balances = try await Self.balances(responses, keys: sender.storedKeys, notes: sender.notes, codes: codes)
 
         let prepared = try await balances.prepare(.takeBack(index: 1), from: sender.account, on: .devnet)
         guard case .redeem(let redemption) = prepared.effect else {
@@ -317,7 +317,7 @@ struct PrivateBalancesRedeemCodesTests {
         )
         let codes = StoredValue([sender.id: RedeemCodeLedger(records: [Self.record(at: 0), Self.record(at: 1),
                                                                        Self.record(at: 2)], isDiscovered: true)])
-        let balances = try Self.balances(responses, keys: sender.storedKeys, notes: sender.notes, codes: codes)
+        let balances = try await Self.balances(responses, keys: sender.storedKeys, notes: sender.notes, codes: codes)
 
         let outstanding = try await balances.outstandingCodes(of: sender.account, on: .devnet)
 
@@ -342,7 +342,7 @@ struct PrivateBalancesRedeemCodesTests {
             spends: [try RedeemCodeFixtures.spend(of: 500, to: swept, leafIndex: 4)]
         )
         let codes = StoredValue([sender.id: RedeemCodeLedger(records: [Self.record(at: 1)], isDiscovered: true)])
-        let balances = try Self.balances(responses, keys: sender.storedKeys, notes: sender.notes, codes: codes)
+        let balances = try await Self.balances(responses, keys: sender.storedKeys, notes: sender.notes, codes: codes)
 
         #expect(try await balances.outstandingCodes(of: sender.account, on: .devnet).isEmpty)
         #expect(await codes.value?[sender.id]?.records.isEmpty == true)
@@ -364,7 +364,7 @@ struct PrivateBalancesRedeemCodesTests {
             PendingRedeemCode(index: 1, created: now.addingTimeInterval(-7_200)),
             PendingRedeemCode(index: 2, created: now),
         ], isDiscovered: true)])
-        let balances = try Self.balances(responses, keys: sender.storedKeys, notes: sender.notes, codes: codes)
+        let balances = try await Self.balances(responses, keys: sender.storedKeys, notes: sender.notes, codes: codes)
 
         let outstanding = try await balances.outstandingCodes(of: sender.account, on: .devnet)
 
@@ -391,7 +391,7 @@ struct PrivateBalancesRedeemCodesTests {
             spends: [try RedeemCodeFixtures.spend(of: 500, to: swept, leafIndex: 3)]
         )
         let codes = StoredValue<PrivateBalances.Codes>()
-        let balances = try Self.balances(responses, keys: sender.storedKeys, notes: sender.notes, codes: codes)
+        let balances = try await Self.balances(responses, keys: sender.storedKeys, notes: sender.notes, codes: codes)
 
         let outstanding = try await balances.outstandingCodes(of: sender.account, on: .devnet)
 
@@ -420,7 +420,7 @@ struct PrivateBalancesRedeemCodesTests {
             spends: [try RedeemCodeFixtures.spend(of: 500, to: swept, leafIndex: 3)]
         )
         let codes = StoredValue<PrivateBalances.Codes>()
-        let balances = try Self.balances(responses, keys: sender.storedKeys, notes: sender.notes, codes: codes)
+        let balances = try await Self.balances(responses, keys: sender.storedKeys, notes: sender.notes, codes: codes)
 
         let outstanding = try await balances.outstandingCodes(of: sender.account, on: .devnet)
 
@@ -437,7 +437,7 @@ struct PrivateBalancesRedeemCodesTests {
         let responses = try RedeemCodeFixtures.responses(accounts: [:], deposits: [])
         let codes = StoredValue<PrivateBalances.Codes>([sender.id: RedeemCodeLedger(isDiscovered: true)],
                                                        unreadable: true)
-        let balances = try Self.balances(responses, keys: sender.storedKeys, notes: sender.notes, codes: codes)
+        let balances = try await Self.balances(responses, keys: sender.storedKeys, notes: sender.notes, codes: codes)
 
         #expect(try await balances.outstandingCodes(of: sender.account, on: .devnet).isEmpty)
         #expect(await codes.deletions == 1)
@@ -449,8 +449,8 @@ struct PrivateBalancesRedeemCodesTests {
     func `Removing private balances deletes the codes`() async throws {
         let sender = try await Self.sender()
         let codes = StoredValue([sender.id: RedeemCodeLedger(records: [Self.record(at: 0)], isDiscovered: true)])
-        let balances = try Self.balances(RedeemCodeFixtures.responses(accounts: [:], deposits: []),
-                                         keys: sender.storedKeys, notes: sender.notes, codes: codes)
+        let balances = try await Self.balances(RedeemCodeFixtures.responses(accounts: [:], deposits: []),
+                                               keys: sender.storedKeys, notes: sender.notes, codes: codes)
 
         try await balances.removeAll()
 
@@ -466,6 +466,7 @@ struct PrivateBalancesRedeemCodesTests {
     ///   - codes: Each account's codes; empty storage by default.
     /// - Returns: Private balances whose requests never leave the process.
     /// - Throws: A validation error, which doesn't happen.
+    @MainActor
     private static func balances(_ responses: HTTPResponses, keys: StoredValue<PrivateBalances.Keys> = StoredValue(),
                                  notes: StoredValue<PrivateBalances.Notes> = StoredValue(),
                                  codes: StoredValue<PrivateBalances.Codes> = StoredValue()) throws -> PrivateBalances {

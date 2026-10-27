@@ -47,8 +47,7 @@ struct PortfolioErrorTests {
         let directory = URL.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
         let client = HTTPResponses.keyCheck().providerClient(network: network,
-                                                              settings: StoredValue(ProviderSettings(selection: provider)),
-                                                              providerKey: StoredValue<String>())
+                                                              providers: .inMemory(selection: provider))
         let coordinator = PortfolioCoordinator(service: Portfolio(
             rpc: client, store: FileSnapshotStore(directory: directory),
             tokenLists: FileTokenListStore(directory: directory.appendingPathComponent("TokenLists"))))

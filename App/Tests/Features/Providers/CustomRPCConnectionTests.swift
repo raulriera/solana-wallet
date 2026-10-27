@@ -19,13 +19,13 @@ struct CustomRPCConnectionTests {
         let settings = StoredValue<ProviderSettings>()
         let responses = HTTPResponses(["getMultipleAccounts": [Self.accounts]])
         let sockets = SocketSequence()
-        let revisions = ProviderRevisions()
+        let providers = ProviderStore.inMemory(settings)
 
-        try await makeConnection(settings: settings, responses: responses, sockets: sockets, revisions: revisions)
+        try await makeConnection(providers: providers, responses: responses, sockets: sockets)
             .connect("https://rpc.example.com/fixture-token")
 
         #expect(await settings.value == ProviderSettings(selection: .custom(url), customRPCs: [url]))
-        #expect(revisions.settings.value == 1)
+        #expect(providers.connection == .custom(url))
         #expect(await responses.requests.map(\.url) == [url])
         try #require(sockets.sockets.count == 2)
         // The two connections open at once, so find each by its first request.
@@ -45,7 +45,7 @@ struct CustomRPCConnectionTests {
         let responses = HTTPResponses([:])
 
         await #expect(throws: CustomRPCError.notHTTPS) {
-            try await makeConnection(settings: settings, responses: responses).connect(entry)
+            try await makeConnection(providers: .inMemory(settings), responses: responses).connect(entry)
         }
 
         #expect(await responses.requests.isEmpty)
@@ -61,7 +61,7 @@ struct CustomRPCConnectionTests {
         let responses = HTTPResponses([:])
 
         await #expect(throws: CustomRPCError.duplicate) {
-            try await makeConnection(settings: settings, responses: responses).connect(url.absoluteString)
+            try await makeConnection(providers: .inMemory(settings), responses: responses).connect(url.absoluteString)
         }
 
         #expect(await responses.requests.isEmpty)
@@ -84,7 +84,8 @@ struct CustomRPCConnectionTests {
         let sockets = SocketSequence()
 
         await #expect(throws: expected) {
-            try await makeConnection(settings: settings, responses: HTTPResponses([:], error: error), sockets: sockets)
+            try await makeConnection(providers: .inMemory(settings),
+                                     responses: HTTPResponses([:], error: error), sockets: sockets)
                 .connect("https://rpc.example.com")
         }
 
@@ -118,7 +119,7 @@ struct CustomRPCConnectionTests {
 
         await #expect(throws: expected) {
             let responses = HTTPResponses(["getMultipleAccounts": [Self.accounts]])
-            try await makeConnection(settings: settings, responses: responses, sockets: sockets)
+            try await makeConnection(providers: .inMemory(settings), responses: responses, sockets: sockets)
                 .connect("https://rpc.example.com")
         }
 
@@ -132,7 +133,7 @@ struct CustomRPCConnectionTests {
         let responses = HTTPResponses([:])
 
         await #expect(throws: CustomRPCError.unavailable) {
-            try await makeConnection(settings: StoredValue(failsLoading: true), responses: responses)
+            try await makeConnection(providers: .inMemory(StoredValue(failsLoading: true)), responses: responses)
                 .connect("https://rpc.example.com")
         }
 
@@ -154,16 +155,15 @@ struct CustomRPCConnectionTests {
     /// A checked RPC that this device can't store explains it, and every window keeps its provider.
     @Test
     func `A checked RPC that can't be saved explains it`() async {
-        let revisions = ProviderRevisions()
+        let providers = ProviderStore.inMemory(StoredValue(failsSaving: true))
 
         await #expect(throws: CustomRPCError.storageFailed) {
-            try await makeConnection(settings: StoredValue(failsSaving: true),
-                                     responses: HTTPResponses(["getMultipleAccounts": [Self.accounts]]),
-                                     revisions: revisions)
+            try await makeConnection(providers: providers,
+                                     responses: HTTPResponses(["getMultipleAccounts": [Self.accounts]]))
                 .connect("https://rpc.example.com")
         }
 
-        #expect(revisions.settings.value == 0)
+        #expect(providers.connection == .solana)
     }
 
     /// Leaving the screen during the check saves nothing.
@@ -173,7 +173,7 @@ struct CustomRPCConnectionTests {
         let settings = StoredValue<ProviderSettings>()
         let sockets = SocketSequence()
         let responses = HTTPResponses(["getMultipleAccounts": [Self.accounts]], gate: gate)
-        let connection = makeConnection(settings: settings, responses: responses, sockets: sockets)
+        let connection = makeConnection(providers: .inMemory(settings), responses: responses, sockets: sockets)
         let operation = Task { try await connection.connect("https://rpc.example.com") }
         defer { operation.cancel() }
         await gate.waitUntilStarted()
@@ -186,19 +186,15 @@ struct CustomRPCConnectionTests {
         #expect(await settings.value == nil)
     }
 
-    /// Creates the production check over in-memory stores, local HTTP fixtures, and scripted sockets.
+    /// Creates the production check over shared provider settings, local HTTP fixtures, and scripted sockets.
     /// - Parameters:
-    ///   - settings: The saved provider choice and custom RPCs.
+    ///   - providers: The provider settings that the check reads and adds to.
     ///   - responses: The fixtures that answer standard requests.
     ///   - sockets: The connections that answer subscriptions; by default, each one acknowledges every subscription.
-    ///   - revisions: Count provider changes that every window hears about.
     /// - Returns: A check whose requests never leave the process.
-    private func makeConnection(settings: StoredValue<ProviderSettings>, responses: HTTPResponses,
-                                sockets: SocketSequence = SocketSequence(),
-                                revisions: ProviderRevisions = ProviderRevisions()) -> CustomRPCConnection {
-        let providers = ProviderSelection(settings: settings, providerKey: StoredValue(),
-                                          portfolios: { [PortfolioChanges()] }, revisions: revisions)
-        return CustomRPCConnection(providers: providers) { responses.client(for: $0, on: $1, socket: { sockets.connect($0) }) }
+    private func makeConnection(providers: ProviderStore, responses: HTTPResponses,
+                                sockets: SocketSequence = SocketSequence()) -> CustomRPCConnection {
+        CustomRPCConnection(providers: providers) { responses.client(for: $0, on: $1, socket: { sockets.connect($0) }) }
     }
 
     /// Decodes a subscription request that the real client sent.

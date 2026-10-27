@@ -13,12 +13,14 @@ extension PrivateBalances {
     ///   - responses: The local responses that every network's provider client sends requests to.
     ///   - provider: The selected provider; Helius by default.
     /// - Returns: Private balances whose requests never leave the process.
+    @MainActor
     static func inMemory(keys: StoredValue<Keys>, notes: StoredValue<Notes>, codes: StoredValue<Codes> = StoredValue(),
                          recovery: any RecoveryStoring,
                          responses: HTTPResponses, provider: ProviderSettings.Provider = .helius) -> PrivateBalances {
-        PrivateBalances(recovery: recovery, wallet: Wallet(), keys: keys, notes: notes, codes: codes) { network in
-            responses.providerClient(network: network, settings: StoredValue(ProviderSettings(selection: provider)),
-                                     providerKey: StoredValue("fixture-key"))
+        let providers = ProviderStore.inMemory(selection: provider, key: "fixture-key")
+        return PrivateBalances(recovery: recovery, wallet: Wallet(), keys: keys, notes: notes,
+                               codes: codes) { network in
+            responses.providerClient(network: network, providers: providers)
         }
     }
 }

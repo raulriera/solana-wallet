@@ -17,8 +17,8 @@ struct PortfolioScene: View {
     /// The window's token removals, which the parent runs with ``tokenRemovalLifecycle()`` and token details start
     /// with ``TokenRemovalAction``.
     let removal: TokenRemovalModel
-    /// The window's private balance, which the parent reads with ``privateBalanceObservation(of:model:providerRevisions:)``
-    /// and SOL's details turn on.
+    /// The window's private balance, which the parent reads with
+    /// ``privateBalanceObservation(of:model:pollInterval:followUpInterval:)`` and SOL's details turn on.
     let privateBalance: PrivateBalanceModel
 
     var body: some View {

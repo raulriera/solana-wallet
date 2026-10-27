@@ -1,16 +1,15 @@
 import Foundation
 import RPC
-import Storage
 
 /// Sends one network's requests through the RPC provider selected on this device.
 ///
-/// Each request and subscription reads the saved choice, and Helius's saved key, so a change made in any
-/// window applies to the next request. Solana's public RPC and Helius serve each network at its own host; Helius
-/// uses the same key on each network. A custom RPC serves mainnet only; on another network it fails instead of
-/// using another provider. Optional capabilities follow the provider's client conformances: without ``LogoProviding``,
-/// logo lookups return nothing; without ``PrivateNoteProviding`` and ``ProofProviding``, private-note reads and proofs
-/// throw ``ProviderClientError/privateNotesUnavailable``. The client for the latest provider is kept to reuse its
-/// connections.
+/// Each request and subscription reads the shared choice, and Helius's key, with every change made so far, so a change
+/// made in any window applies to the next request, even before it's saved. Solana's public RPC and Helius serve each
+/// network at its own host; Helius uses the same key on each network. A custom RPC serves mainnet only; on another
+/// network it fails instead of using another provider. Optional capabilities follow the provider's client
+/// conformances: without ``LogoProviding``, logo lookups return nothing; without ``PrivateNoteProviding`` and
+/// ``ProofProviding``, private-note reads and proofs throw ``ProviderClientError/privateNotesUnavailable``. The client
+/// for the latest provider is kept to reuse its connections.
 nonisolated struct ProviderClient: RPC, AccountChangeProviding, SignatureEventProviding, LogoProviding,
     PrivateNoteProviding, ProofProviding {
     /// Where requests go, with what the provider needs to accept them.
@@ -28,29 +27,26 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, SignatureEventPr
 
     /// The network that receives every request and subscription.
     let network: Network
-    private let settings: any ValueStoring<ProviderSettings>
-    private let providerKey: any ValueStoring<String>
+    private let providers: ProviderStore
     private let clients: Clients
 
-    /// Creates a client that reads the selected provider from device storage before every request.
+    /// Creates a client that reads the selected provider from the shared settings before every request.
     /// - Parameters:
     ///   - network: The network that receives every request and subscription.
-    ///   - settings: Device-only storage for the provider choice.
-    ///   - providerKey: Device-only storage for Helius's accepted key.
+    ///   - providers: The provider choice and key that every window shares.
     ///   - client: Creates the client for an endpoint on a network.
-    init(network: Network, settings: any ValueStoring<ProviderSettings>, providerKey: any ValueStoring<String>,
+    init(network: Network, providers: ProviderStore,
          client: @escaping @Sendable (Endpoint, Network) -> Client? = Self.client(for:on:)) {
         self.network = network
-        self.settings = settings
-        self.providerKey = providerKey
+        self.providers = providers
         clients = Clients(network: network, make: client)
     }
 
     /// Sends one request to the selected provider, without retrying it.
     /// - Parameter request: The RPC method and its parameters.
     /// - Returns: The validated and decoded response.
-    /// - Throws: ``ProviderClientError`` for a missing or rejected API key or a custom RPC on another network,
-    ///   a storage error, any other `RPCError`, or `CancellationError`.
+    /// - Throws: ``ProviderClientError`` for a missing or rejected API key, unreadable settings, or a custom
+    ///   RPC on another network, any other `RPCError`, or `CancellationError`.
     func send<Request: RPCRequest>(_ request: Request) async throws -> Request.Response {
         try await perform { try await $0.send(request) }
     }
@@ -58,8 +54,8 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, SignatureEventPr
     /// Observes finalized changes to each account through the selected provider.
     /// - Parameter addresses: The accounts to watch; a repeated address is watched once.
     /// - Returns: Increasing finalized change slots after all subscriptions are acknowledged.
-    /// - Throws: ``ProviderClientError`` for a missing or rejected API key or a custom RPC on another network,
-    ///   a storage error, or another sanitized subscription, transport, timeout, or cancellation error.
+    /// - Throws: ``ProviderClientError`` for a missing or rejected API key, unreadable settings, or a custom
+    ///   RPC on another network, or another sanitized subscription, transport, timeout, or cancellation error.
     func changedSlots(for addresses: [String]) async throws -> AsyncThrowingStream<UInt64, any Error> {
         try await perform { try await $0.changedSlots(for: addresses) }
     }
@@ -67,8 +63,8 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, SignatureEventPr
     /// Watches a sent transaction's landing and new roots through the selected provider.
     /// - Parameter signature: The base-58 encoded signature of a sent transaction.
     /// - Returns: The transaction's landing and new roots, after both subscriptions are acknowledged.
-    /// - Throws: ``ProviderClientError`` for a missing or rejected API key or a custom RPC on another network,
-    ///   a storage error, or another sanitized subscription, transport, timeout, or cancellation error.
+    /// - Throws: ``ProviderClientError`` for a missing or rejected API key, unreadable settings, or a custom
+    ///   RPC on another network, or another sanitized subscription, transport, timeout, or cancellation error.
     func events(for signature: String) async throws -> AsyncThrowingStream<SignatureEvent, any Error> {
         try await perform { try await $0.events(for: signature) }
     }
@@ -77,8 +73,8 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, SignatureEventPr
     /// - Parameter mints: Mint addresses; duplicates are ignored.
     /// - Returns: Logo URLs on the provider's CDN, keyed by mint address, or none, without a request,
     ///   when the provider has no logo copies.
-    /// - Throws: ``ProviderClientError`` for a missing or rejected API key or a custom RPC on another network,
-    ///   a storage error, any other `RPCError`, or `CancellationError`.
+    /// - Throws: ``ProviderClientError`` for a missing or rejected API key, unreadable settings, or a custom
+    ///   RPC on another network, any other `RPCError`, or `CancellationError`.
     func logos(for mints: [String]) async throws -> [String: URL] {
         try await perform { client in
             guard let client = client as? any LogoProviding else { return [:] }
@@ -92,7 +88,7 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, SignatureEventPr
     ///   - position: The position from an earlier read of the same tags, or `nil` to read from the start.
     /// - Returns: The provider's transactions, tree, and next position.
     /// - Throws: ``ProviderClientError/privateNotesUnavailable`` when the selected provider doesn't read private notes,
-    ///   another ``ProviderClientError``, a storage error, a `PrivateNoteError`, any other `RPCError`, or
+    ///   another ``ProviderClientError``, a `PrivateNoteError`, any other `RPCError`, or
     ///   `CancellationError`.
     func shieldedTransactions(taggedWith tags: [[UInt8]], after position: NoteSyncPosition?) async throws
         -> ShieldedTransactionBatch {
@@ -103,7 +99,7 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, SignatureEventPr
     /// - Parameter nullifiers: 32-byte nullifiers.
     /// - Returns: Each spending transaction once, in slot and signature order.
     /// - Throws: ``ProviderClientError/privateNotesUnavailable`` when the selected provider doesn't read private notes,
-    ///   another ``ProviderClientError``, a storage error, a `PrivateNoteError`, any other `RPCError`, or
+    ///   another ``ProviderClientError``, a `PrivateNoteError`, any other `RPCError`, or
     ///   `CancellationError`.
     func shieldedTransactions(spending nullifiers: [[UInt8]]) async throws -> [ShieldedTransaction] {
         try await performPrivateNotes { try await $0.shieldedTransactions(spending: nullifiers) }
@@ -115,7 +111,7 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, SignatureEventPr
     ///   - tree: The tree account's base-58 address.
     /// - Returns: One proof per leaf, in order.
     /// - Throws: ``ProviderClientError/privateNotesUnavailable`` when the selected provider doesn't read private notes,
-    ///   another ``ProviderClientError``, a storage error, a `PrivateNoteError`, any other `RPCError`, or
+    ///   another ``ProviderClientError``, a `PrivateNoteError`, any other `RPCError`, or
     ///   `CancellationError`.
     func merkleProofs(for leaves: [[UInt8]], inTree tree: String) async throws -> [MerkleProof] {
         try await performPrivateNotes { try await $0.merkleProofs(for: leaves, inTree: tree) }
@@ -127,7 +123,7 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, SignatureEventPr
     ///   - tree: The tree account's base-58 address.
     /// - Returns: One proof per nullifier, in order.
     /// - Throws: ``ProviderClientError/privateNotesUnavailable`` when the selected provider doesn't read private notes,
-    ///   another ``ProviderClientError``, a storage error, a `PrivateNoteError`, any other `RPCError`, or
+    ///   another ``ProviderClientError``, a `PrivateNoteError`, any other `RPCError`, or
     ///   `CancellationError`.
     func nonInclusionProofs(for nullifiers: [[UInt8]], inTree tree: String) async throws -> [NonInclusionProof] {
         try await performPrivateNotes { try await $0.nonInclusionProofs(for: nullifiers, inTree: tree) }
@@ -138,8 +134,8 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, SignatureEventPr
     ///
     /// A provider does when its client conforms to ``PrivateNoteProviding`` and ``ProofProviding``; a custom RPC off
     /// mainnet serves nothing.
-    /// - Throws: ``ProviderClientError`` for a missing API key or an unusable endpoint, or a storage or cancellation
-    ///   error.
+    /// - Throws: ``ProviderClientError`` for a missing API key, unreadable settings, or an unusable endpoint, or
+    ///   `CancellationError`.
     var readsPrivateNotes: Bool {
         get async throws {
             do {
@@ -154,7 +150,7 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, SignatureEventPr
     /// - Parameter request: The transfer's tree slots, public input hash, and witness.
     /// - Returns: The proof and the proving key's digest.
     /// - Throws: ``ProviderClientError/privateNotesUnavailable`` when the selected provider doesn't prove private
-    ///   transfers, another ``ProviderClientError``, a storage error, any other `RPCError`, or `CancellationError`.
+    ///   transfers, another ``ProviderClientError``, any other `RPCError`, or `CancellationError`.
     func proveTransfer(_ request: TransferProofRequest) async throws -> TransferProof {
         try await performPrivateNotes { try await $0.proveTransfer(request) }
     }
@@ -192,34 +188,15 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, SignatureEventPr
         }
     }
 
-    /// Reads the saved choice and, for Helius, its key.
+    /// Reads the shared choice and, for Helius, its key.
     /// - Returns: The endpoint that receives the next request.
     /// - Throws: ``ProviderClientError/missingKey`` when Helius is selected without a key,
-    ///   ``ProviderClientError/unsupportedNetwork`` when a custom RPC is selected off mainnet, or a storage or
-    ///   cancellation error.
+    ///   ``ProviderClientError/unsupportedNetwork`` when a custom RPC is selected off mainnet,
+    ///   ``ProviderClientError/settingsUnreadable`` when the choice or the key can't be read, or `CancellationError`.
     private func endpoint() async throws -> Endpoint {
-        switch (try await settings.load() ?? ProviderSettings()).selection {
-        case .solana:
-            return .solana
-        case .custom(let url):
-            guard network == .mainnet else { throw ProviderClientError.unsupportedNetwork }
-            return .custom(url)
-        case .helius:
-            return .helius(key: try await Self.heliusKey(in: providerKey))
-        }
-    }
-
-    /// Reads Helius's saved key.
-    /// - Parameter store: Device-only storage for Helius's accepted key.
-    /// - Returns: The saved key.
-    /// - Throws: ``ProviderClientError/missingKey`` when no key is saved, or a storage or cancellation error; a
-    ///   cancelled read is never reported as a missing key.
-    static func heliusKey(in store: any ValueStoring<String>) async throws -> String {
-        guard let key = try await store.load() else {
-            try Task.checkCancellation()
-            throw ProviderClientError.missingKey
-        }
-        return key
+        let endpoint = try await providers.loadedConnection()
+        if case .custom = endpoint, network != .mainnet { throw ProviderClientError.unsupportedNetwork }
+        return endpoint
     }
 
     /// Creates the production client for an endpoint on a network.
@@ -252,7 +229,7 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, SignatureEventPr
         }
 
         /// Returns the kept client for this endpoint, or creates one for a new endpoint.
-        /// - Parameter endpoint: The endpoint read from storage for this request.
+        /// - Parameter endpoint: The endpoint read from the shared settings for this request.
         /// - Returns: A client that sends requests to this endpoint.
         /// - Throws: ``ProviderClientError/unusableEndpoint`` for a saved endpoint that can't be used.
         func client(for endpoint: Endpoint) throws -> Client {

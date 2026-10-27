@@ -6,10 +6,6 @@ import Storage
 @MainActor
 @Observable
 final class ProvidersCoordinator: ProviderActions {
-    /// The provider in use as last read, or `nil` before the first read, so no provider shows as in use.
-    private(set) var selection: ProviderSettings.Provider?
-    /// The custom RPCs as last read, in the order they were added.
-    private(set) var customRPCs: [URL] = []
     /// The screens pushed above Providers; Back removes the last one.
     ///
     /// A closed screen's check or RPC stays until the screen opens again, so the screen keeps its content while it
@@ -19,9 +15,6 @@ final class ProvidersCoordinator: ProviderActions {
     private(set) var setup: ProviderSetupModel<CustomRPCError>?
     /// The custom RPC whose details opened last.
     private(set) var details: URL?
-    /// The saved key as last read, with all but its first four characters masked, or `nil` when no key is saved; the
-    /// full key is never kept.
-    private(set) var keyPreview: String?
     /// The new key's checks for the last opening of its screen; each opening starts a new one.
     private(set) var newKey: ProviderSetupModel<ProviderConnectionError>?
     /// The custom RPC waiting for the person to confirm its deletion.
@@ -35,14 +28,10 @@ final class ProvidersCoordinator: ProviderActions {
     /// The provider chosen once the key it asked for was saved, until another change begins; a choice made without
     /// key entry never sets it.
     private(set) var completedKeyChoice: ProviderSettings.Provider?
-    /// Tell every window when the provider settings change, including a saved key, and when portfolios use another
-    /// connection.
-    let revisions: ProviderRevisions
     @ObservationIgnored private var request: Request?
     /// The choice that waits for a key; kept after its key sheet closes, so the sheet's saved key still continues it.
     private var keyChoice: KeyChoice?
-    private let providers: any ProviderSelecting
-    private let providerKey: any ValueStoring<String>
+    private let providers: ProviderStore
     private let connection: any ProviderConnecting<ProviderConnectionError>
     private let customRPCConnection: any ProviderConnecting<CustomRPCError>
 
@@ -61,19 +50,14 @@ final class ProvidersCoordinator: ProviderActions {
 
     /// Connects the coordinator to the shared provider services.
     /// - Parameters:
-    ///   - providers: Reads and changes the provider that every window uses, and the custom RPCs.
-    ///   - providerKey: Device-only storage for Helius's accepted key, read only to show its first characters.
+    ///   - providers: The provider choice, custom RPCs, and key that every window shares.
     ///   - connection: Verifies and saves the provider's API key.
     ///   - customRPCConnection: Checks a custom RPC URL, then adds it and chooses it.
-    ///   - revisions: Tell every window when the provider settings change, and when portfolios use another connection.
-    init(providers: any ProviderSelecting, providerKey: any ValueStoring<String>,
-         connection: any ProviderConnecting<ProviderConnectionError>,
-         customRPCConnection: any ProviderConnecting<CustomRPCError>, revisions: ProviderRevisions) {
+    init(providers: ProviderStore, connection: any ProviderConnecting<ProviderConnectionError>,
+         customRPCConnection: any ProviderConnecting<CustomRPCError>) {
         self.providers = providers
-        self.providerKey = providerKey
         self.connection = connection
         self.customRPCConnection = customRPCConnection
-        self.revisions = revisions
     }
 
     /// Chooses the provider that every window uses, asking for its key first when none is saved.
@@ -107,7 +91,7 @@ final class ProvidersCoordinator: ProviderActions {
     func changeKey() {
         guard attempt == nil else { return }
         newKey = ProviderSetupModel(connection: connection)
-        path.append(.providerKey(ProviderEntryPurpose(keyPreview: keyPreview)))
+        path.append(.providerKey(ProviderEntryPurpose(keyPreview: providers.keyPreview)))
     }
 
     /// Opens the screen that checks and adds a custom RPC.
@@ -135,31 +119,12 @@ final class ProvidersCoordinator: ProviderActions {
         begin(.select(keyChoice.provider, afterKeyEntry: true))
     }
 
-    /// Reads the saved choice, custom RPCs, and key again; unreadable settings keep the last ones read and explain
-    /// the failure.
-    ///
-    /// The key is read separately and only its first characters are kept; a key that can't be read keeps the last
-    /// preview without an alert, because no choice depends on it.
-    func reload() async {
-        do {
-            let settings = try await providers.settings()
-            guard !Task.isCancelled else { return }
-            selection = settings.selection
-            customRPCs = settings.customRPCs
-        } catch is CancellationError {
-            // The screen left before the settings were read.
-            return
-        } catch {
-            guard !Task.isCancelled else { return }
-            self.error = .selectionUnreadable
-        }
-        do {
-            let key = try await providerKey.load()
-            guard !Task.isCancelled else { return }
-            keyPreview = key?.formatted(.masked)
-        } catch {
-            // A key that can't be read keeps the last preview.
-        }
+    /// Reads the settings that every window shares, unless they were already read; unreadable settings explain the
+    /// failure.
+    func load() async {
+        await providers.load()
+        guard !Task.isCancelled, providers.phase == .unreadable else { return }
+        error = .selectionUnreadable
     }
 
     /// Closes the screens pushed above Providers, and any deletion waiting for confirmation, when another Settings
@@ -169,8 +134,8 @@ final class ProvidersCoordinator: ProviderActions {
         path = []
     }
 
-    /// Closes the coordinator after a reset, dropping pushed screens and what they show, key entry, any waiting change
-    /// or deletion, and the settings and key preview last read.
+    /// Closes the coordinator after a reset, dropping pushed screens and what they show, key entry, and any waiting
+    /// change or deletion.
     func close() {
         keyChoice = nil
         keyEntry = nil
@@ -182,9 +147,6 @@ final class ProvidersCoordinator: ProviderActions {
         request = nil
         completedKeyChoice = nil
         error = nil
-        selection = nil
-        customRPCs = []
-        keyPreview = nil
         path = []
     }
 
@@ -203,6 +165,9 @@ final class ProvidersCoordinator: ProviderActions {
             }
         } catch is CancellationError {
             // The screen left before the change was saved.
+        } catch ProviderClientError.settingsUnreadable {
+            guard !Task.isCancelled, self.attempt == attempt else { return }
+            error = .selectionUnreadable
         } catch ProviderClientError.missingKey {
             guard !Task.isCancelled, self.attempt == attempt, case .select(let provider, _) = request else { return }
             let keyEntry = ProviderSetupModel(connection: connection)
@@ -211,9 +176,6 @@ final class ProvidersCoordinator: ProviderActions {
         } catch {
             guard !Task.isCancelled, self.attempt == attempt else { return }
             switch request {
-            case .select(let provider, _) where provider == selection:
-                // Choosing the provider in use changes nothing, even when its key can't be read.
-                break
             case .select: self.error = .selectionUnsaved
             case .remove: self.error = .deletionUnsaved
             }

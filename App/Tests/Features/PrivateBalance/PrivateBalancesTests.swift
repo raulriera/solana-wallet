@@ -122,7 +122,7 @@ struct PrivateBalancesTests {
         )
         let keys = StoredValue<PrivateBalances.Keys>()
         let notes = StoredValue<PrivateBalances.Notes>()
-        let balances = try Self.balances(responses, keys: keys, notes: notes)
+        let balances = try await Self.balances(responses, keys: keys, notes: notes)
 
         let enabling = Task { try await balances.enable(account, on: .devnet) }
         await gate.waitUntilStarted()
@@ -156,7 +156,8 @@ struct PrivateBalancesTests {
         let keys = StoredValue<PrivateBalances.Keys>()
 
         await #expect(throws: CancellationError.self) {
-            try await Self.balances(responses, recovery: SecurityRecoveryStore(readError: CancellationError()), keys: keys)
+            try await Self.balances(responses, recovery: SecurityRecoveryStore(readError: CancellationError()),
+                                    keys: keys)
                 .enable(account, on: .devnet)
         }
         #expect(await keys.value == nil)
@@ -223,7 +224,8 @@ struct PrivateBalancesTests {
             deposits: [try PrivateBalanceFixtures.deposit(1_000_000, to: shielded, leafIndex: 4)]
         )
         let notes = StoredValue<PrivateBalances.Notes>()
-        let balances = try Self.balances(responses, keys: StoredValue([account.address.value: record]), notes: notes)
+        let balances = try await Self.balances(responses, keys: StoredValue([account.address.value: record]),
+                                               notes: notes)
         let id = PrivateBalances.noteID(of: account, on: .devnet)
 
         let first = try await balances.refresh(account, on: .devnet)
@@ -246,7 +248,8 @@ struct PrivateBalancesTests {
         let notes = StoredValue<PrivateBalances.Notes>()
         let keys = StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
 
-        #expect(try await Self.balances(responses, keys: keys, notes: notes).refresh(account, on: .devnet) == .unregistered)
+        #expect(try await Self.balances(responses, keys: keys, notes: notes).refresh(account,
+                                        on: .devnet) == .unregistered)
         #expect(await notes.value == nil)
         #expect(try await Self.methods(of: responses) == [GetMultipleAccounts.method])
     }
@@ -275,7 +278,8 @@ struct PrivateBalancesTests {
         let notes = StoredValue<PrivateBalances.Notes>([id: NoteSyncState()])
         let keys = StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
 
-        let status = try await Self.balances(responses, provider: .solana, keys: keys, notes: notes).refresh(account, on: .devnet)
+        let status = try await Self.balances(responses, provider: .solana, keys: keys, notes: notes).refresh(account,
+                                             on: .devnet)
 
         #expect(status == .unavailable)
         #expect(await notes.value == [id: NoteSyncState()])
@@ -291,8 +295,9 @@ struct PrivateBalancesTests {
         let registry = try PrivateBalanceFixtures.registry(publishing: record.shieldedAccount(for: account.address))
         let responses = HTTPResponses.privateNotes(registry: [registry])
         let notes = StoredValue<PrivateBalances.Notes>()
-        let balances = try Self.balances(responses, provider: .solana, keys: StoredValue([account.address.value: record]),
-                                         notes: notes)
+        let balances = try await Self.balances(responses, provider: .solana,
+                                               keys: StoredValue([account.address.value: record]),
+                                               notes: notes)
 
         #expect(try await balances.refresh(account, on: .devnet) == .unavailable)
         #expect(await notes.value == [PrivateBalances.noteID(of: account, on: .devnet): NoteSyncState()])
@@ -344,7 +349,8 @@ struct PrivateBalancesTests {
             gate: gate, heldMethod: GetShieldedTransactionsByTags.method
         )
         let notes = StoredValue<PrivateBalances.Notes>([PrivateBalances.noteID(of: account, on: .devnet): NoteSyncState()])
-        let balances = try Self.balances(responses, keys: StoredValue([account.address.value: record]), notes: notes)
+        let balances = try await Self.balances(responses, keys: StoredValue([account.address.value: record]),
+                                               notes: notes)
 
         let first = await Self.startRefresh(of: account, in: balances)
         await gate.waitUntilStarted()
@@ -369,7 +375,8 @@ struct PrivateBalancesTests {
         ])
         let id = PrivateBalances.noteID(of: account, on: .devnet)
         let notes = StoredValue<PrivateBalances.Notes>([id: NoteSyncState()])
-        let balances = try Self.balances(responses, keys: StoredValue([account.address.value: record]), notes: notes)
+        let balances = try await Self.balances(responses, keys: StoredValue([account.address.value: record]),
+                                               notes: notes)
 
         await #expect(throws: RPCError.self) { try await balances.refresh(account, on: .devnet) }
         #expect(await notes.value == [id: NoteSyncState()])
@@ -391,7 +398,8 @@ struct PrivateBalancesTests {
         )
         let id = PrivateBalances.noteID(of: account, on: .devnet)
         let notes = StoredValue<PrivateBalances.Notes>([id: NoteSyncState()])
-        let balances = try Self.balances(responses, keys: StoredValue([account.address.value: record]), notes: notes)
+        let balances = try await Self.balances(responses, keys: StoredValue([account.address.value: record]),
+                                               notes: notes)
 
         let refresh = await Self.startRefresh(of: account, in: balances)
         await gate.waitUntilStarted()
@@ -415,7 +423,7 @@ struct PrivateBalancesTests {
         )
         let keys = StoredValue([account.address.value: record])
         let notes = StoredValue<PrivateBalances.Notes>([PrivateBalances.noteID(of: account, on: .devnet): NoteSyncState()])
-        let balances = try Self.balances(responses, keys: keys, notes: notes)
+        let balances = try await Self.balances(responses, keys: keys, notes: notes)
 
         let refresh = await Self.startRefresh(of: account, in: balances)
         await gate.waitUntilStarted()
@@ -439,7 +447,7 @@ struct PrivateBalancesTests {
         let keys = StoredValue([syncing.address.value: try await PrivateBalanceFixtures.keys(for: syncing),
                                 other.address.value: try await PrivateBalanceFixtures.keys(for: other)])
         let notes = StoredValue<PrivateBalances.Notes>([PrivateBalances.noteID(of: syncing, on: .devnet): NoteSyncState()])
-        let balances = try Self.balances(responses, keys: keys, notes: notes)
+        let balances = try await Self.balances(responses, keys: keys, notes: notes)
 
         let sync = await Self.startRefresh(of: syncing, in: balances)
         await gate.waitUntilStarted()
@@ -463,7 +471,7 @@ struct PrivateBalancesTests {
         let notes = StoredValue<PrivateBalances.Notes>([firstID: NoteSyncState(), secondID: NoteSyncState()],
                                                        unreadable: true)
         let keys = StoredValue([first.account.address.value: first.keys, second.account.address.value: second.keys])
-        let balances = try Self.balances(responses, keys: keys, notes: notes)
+        let balances = try await Self.balances(responses, keys: keys, notes: notes)
 
         // The refreshes run in turn, so each registry read returns its own account's record.
         let firstStatus = try await balances.refresh(first.account, on: .devnet)
@@ -486,7 +494,8 @@ struct PrivateBalancesTests {
         let keys = StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)],
                                unreadable: true)
 
-        #expect(try await Self.balances(responses, keys: keys).refresh(account, on: .devnet) == .off(isRegistered: false))
+        #expect(try await Self.balances(responses, keys: keys).refresh(account,
+                                        on: .devnet) == .off(isRegistered: false))
         #expect(await keys.deletions == 1)
         #expect(await keys.value == nil)
         #expect(try await Self.methods(of: responses) == [GetMultipleAccounts.method])
@@ -512,7 +521,7 @@ struct PrivateBalancesTests {
         let responses = HTTPResponses.privateNotes(registry: [registered.registry], deposits: [registered.deposit])
         let keys = StoredValue([registered.account.address.value: registered.keys])
         let notes = StoredValue<PrivateBalances.Notes>(unreadable: true)
-        let balances = try Self.balances(responses, keys: keys, notes: notes)
+        let balances = try await Self.balances(responses, keys: keys, notes: notes)
         try #require(try await balances.refresh(registered.account, on: .devnet) == .balance(available: 1_000, pending: 0))
         let rebuilt = await notes.value
 
@@ -533,7 +542,7 @@ struct PrivateBalancesTests {
         let gate = Suspension()
         let keys = StoredValue([registered.account.address.value: registered.keys])
         let notes = StoredValue<PrivateBalances.Notes>(unreadable: true, readGate: gate)
-        let balances = try Self.balances(responses, keys: keys, notes: notes)
+        let balances = try await Self.balances(responses, keys: keys, notes: notes)
 
         let held = await Self.startRefresh(of: registered.account, in: balances)
         await gate.waitUntilStarted()
@@ -553,7 +562,7 @@ struct PrivateBalancesTests {
         let responses = HTTPResponses.privateNotes(registry: [registered.registry], deposits: [registered.deposit])
         let keys = StoredValue([registered.account.address.value: registered.keys])
         let notes = StoredValue<PrivateBalances.Notes>(failsFirstDeletion: true, unreadable: true)
-        let balances = try Self.balances(responses, keys: keys, notes: notes)
+        let balances = try await Self.balances(responses, keys: keys, notes: notes)
 
         await #expect(throws: CocoaError.self) { try await balances.refresh(registered.account, on: .devnet) }
         let retried = try await balances.refresh(registered.account, on: .devnet)
@@ -578,7 +587,7 @@ struct PrivateBalancesTests {
             unreadable: true, readGate: gate
         )
         let keys = StoredValue([first.account.address.value: first.keys, second.account.address.value: second.keys])
-        let balances = try Self.balances(responses, keys: keys, notes: notes)
+        let balances = try await Self.balances(responses, keys: keys, notes: notes)
 
         let held = await Self.startRefresh(of: first.account, in: balances)
         await gate.waitUntilStarted()
@@ -599,7 +608,8 @@ struct PrivateBalancesTests {
         let shielded = try record.shieldedAccount(for: account.address)
         let responses = HTTPResponses.privateNotes(outputTreeID: 1)
         let notes = StoredValue<PrivateBalances.Notes>([PrivateBalances.noteID(of: account, on: .devnet): NoteSyncState()])
-        let balances = try Self.balances(responses, keys: StoredValue([account.address.value: record]), notes: notes)
+        let balances = try await Self.balances(responses, keys: StoredValue([account.address.value: record]),
+                                               notes: notes)
 
         let prepared = try await balances.prepare(.deposit(5_000), from: account, on: .devnet)
 
@@ -619,7 +629,8 @@ struct PrivateBalancesTests {
         let shielded = try record.shieldedAccount(for: account.address)
         let responses = HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered], outputTreeID: 1)
         let notes = StoredValue<PrivateBalances.Notes>()
-        let balances = try Self.balances(responses, keys: StoredValue([account.address.value: record]), notes: notes)
+        let balances = try await Self.balances(responses, keys: StoredValue([account.address.value: record]),
+                                               notes: notes)
 
         let prepared = try await balances.prepare(.deposit(5_000), from: account, on: .devnet)
 
@@ -640,7 +651,8 @@ struct PrivateBalancesTests {
         let keys = StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
 
         await #expect(throws: PrivateBalanceError.unavailable) {
-            try await Self.balances(responses, keys: keys, notes: notes).prepare(.deposit(5_000), from: account, on: .devnet)
+            try await Self.balances(responses, keys: keys, notes: notes).prepare(.deposit(5_000), from: account,
+                                    on: .devnet)
         }
     }
 
@@ -690,8 +702,9 @@ struct PrivateBalancesTests {
         let account = try await PrivateBalanceFixtures.account()
         let id = PrivateBalances.noteID(of: account, on: network)
         let saved: PrivateBalances.Keys? = hasKeys ? [account.address.value: try await PrivateBalanceFixtures.keys(for: account)] : nil
-        let balances = try Self.balances(HTTPResponses.privateNotes(outputTreeID: 1), provider: provider, keys: StoredValue(saved),
-                                         notes: StoredValue([id: NoteSyncState()]))
+        let balances = try await Self.balances(HTTPResponses.privateNotes(outputTreeID: 1), provider: provider,
+                                               keys: StoredValue(saved),
+                                               notes: StoredValue([id: NoteSyncState()]))
 
         await #expect(throws: error) { try await balances.prepare(.deposit(5_000), from: account, on: network) }
     }
@@ -724,7 +737,7 @@ struct PrivateBalancesTests {
         let responses = HTTPResponses.privateNotes(registry: [registry, PrivateBalanceFixtures.unregistered],
                                                    deposits: [sender.deposit], outputTreeID: 1,
                                                    prove: PrivateBalanceFixtures.proof(answering:))
-        let balances = try Self.balances(responses, keys: sender.keys, notes: sender.notes)
+        let balances = try await Self.balances(responses, keys: sender.keys, notes: sender.notes)
 
         let prepared = try await balances.prepare(.send(400_000, to: recipient.address), from: sender.account, on: .devnet)
 
@@ -786,7 +799,7 @@ struct PrivateBalancesTests {
         let account = try await PrivateBalanceFixtures.account()
         let id = PrivateBalances.noteID(of: account, on: .devnet)
         let notes = StoredValue<PrivateBalances.Notes>([id: NoteSyncState()])
-        let balances = try Self.balances(HTTPResponses.privateNotes(), notes: notes)
+        let balances = try await Self.balances(HTTPResponses.privateNotes(), notes: notes)
 
         let status = try await balances.complete(PrivateBalanceFixtures.preparedDeposit(5_000, from: account), with: PrivateBalanceFixtures.confirmation(.succeeded))
 
@@ -801,7 +814,8 @@ struct PrivateBalancesTests {
         let record = try await PrivateBalanceFixtures.keys(for: account)
         let responses = HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered], outputTreeID: 1)
         let notes = StoredValue<PrivateBalances.Notes>()
-        let balances = try Self.balances(responses, keys: StoredValue([account.address.value: record]), notes: notes)
+        let balances = try await Self.balances(responses, keys: StoredValue([account.address.value: record]),
+                                               notes: notes)
         let prepared = try await balances.prepare(.deposit(5_000), from: account, on: .devnet)
 
         let status = try await balances.complete(prepared, with: PrivateBalanceFixtures.confirmation(.succeeded))
@@ -818,7 +832,7 @@ struct PrivateBalancesTests {
         let id = PrivateBalances.noteID(of: account, on: .devnet)
         let notes = StoredValue<PrivateBalances.Notes>([id: NoteSyncState()])
         let keys = StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
-        let balances = try Self.balances(HTTPResponses.privateNotes(), keys: keys, notes: notes)
+        let balances = try await Self.balances(HTTPResponses.privateNotes(), keys: keys, notes: notes)
 
         let status = try await balances.complete(PrivateBalanceFixtures.preparedDeposit(5_000, from: account), with: PrivateBalanceFixtures.confirmation(outcome))
 
@@ -852,7 +866,7 @@ struct PrivateBalancesTests {
         let responses = HTTPResponses.privateNotes(gate: gate, heldMethod: GetShieldedTransactionsByTags.method)
         let notes = StoredValue<PrivateBalances.Notes>([id: NoteSyncState()])
         let keys = StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
-        let balances = try Self.balances(responses, keys: keys, notes: notes)
+        let balances = try await Self.balances(responses, keys: keys, notes: notes)
 
         let refresh = await Self.startRefresh(of: account, in: balances)
         await gate.waitUntilStarted()
@@ -872,7 +886,7 @@ struct PrivateBalancesTests {
         let gate = Suspension()
         let notes = StoredValue<PrivateBalances.Notes>([id: NoteSyncState()], gate: gate)
         let keys = StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
-        let balances = try Self.balances(HTTPResponses.privateNotes(), keys: keys, notes: notes)
+        let balances = try await Self.balances(HTTPResponses.privateNotes(), keys: keys, notes: notes)
 
         let completion = await Self.startCompletion(of: PrivateBalanceFixtures.preparedDeposit(5_000, from: account), in: balances)
         await gate.waitUntilStarted()
@@ -894,7 +908,7 @@ struct PrivateBalancesTests {
         let responses = HTTPResponses.privateNotes(gate: gate, heldMethod: GetShieldedTransactionsByTags.method)
         let notes = StoredValue<PrivateBalances.Notes>([id: NoteSyncState()])
         let keys = StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
-        let balances = try Self.balances(responses, keys: keys, notes: notes)
+        let balances = try await Self.balances(responses, keys: keys, notes: notes)
 
         let refresh = await Self.startRefresh(of: account, in: balances)
         await gate.waitUntilStarted()
@@ -915,7 +929,7 @@ struct PrivateBalancesTests {
         let gate = Suspension()
         let notes = StoredValue<PrivateBalances.Notes>([id: NoteSyncState()], gate: gate)
         let keys = StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
-        let balances = try Self.balances(HTTPResponses.privateNotes(), keys: keys, notes: notes)
+        let balances = try await Self.balances(HTTPResponses.privateNotes(), keys: keys, notes: notes)
 
         let first = await Self.startCompletion(of: PrivateBalanceFixtures.preparedDeposit(5_000, from: account), signature: "first", in: balances)
         await gate.waitUntilStarted()
@@ -954,7 +968,8 @@ struct PrivateBalancesTests {
         let keys = StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
 
         await #expect(throws: PrivateBalanceError.registeredWithOtherKeys) {
-            try await Self.balances(responses, keys: keys, notes: notes).prepare(.deposit(5_000), from: account, on: .devnet)
+            try await Self.balances(responses, keys: keys, notes: notes).prepare(.deposit(5_000), from: account,
+                                    on: .devnet)
         }
         #expect(await notes.value == nil)
     }
@@ -967,7 +982,8 @@ struct PrivateBalancesTests {
         let shielded = try record.shieldedAccount(for: account.address)
         let responses = HTTPResponses.privateNotes(registry: [try PrivateBalanceFixtures.registry(publishing: shielded)], outputTreeID: 1)
         let notes = StoredValue<PrivateBalances.Notes>()
-        let balances = try Self.balances(responses, keys: StoredValue([account.address.value: record]), notes: notes)
+        let balances = try await Self.balances(responses, keys: StoredValue([account.address.value: record]),
+                                               notes: notes)
 
         let prepared = try await balances.prepare(.deposit(5_000), from: account, on: .devnet)
 
@@ -986,6 +1002,7 @@ struct PrivateBalancesTests {
     ///   - notes: Each account's notes; empty storage by default.
     /// - Returns: Private balances whose requests never leave the process.
     /// - Throws: A validation error, which doesn't happen.
+    @MainActor
     private static func balances(
         _ responses: HTTPResponses, provider: ProviderSettings.Provider = .helius,
         recovery: SecurityRecoveryStore? = nil, keys: StoredValue<PrivateBalances.Keys> = StoredValue(),

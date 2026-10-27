@@ -2,21 +2,15 @@ import Foundation
 @testable import widgets
 
 extension ProvidersCoordinator {
-    /// Creates a coordinator around the production selection, key connection, and custom RPC check over in-memory
-    /// stores.
-    /// - Parameters:
-    ///   - settings: The saved provider choice and custom RPCs.
-    ///   - providerKey: Helius's saved key, which key entry fills, the selection reads, and the coordinator previews.
-    ///   - revisions: Count provider changes that every window hears about.
+    /// Creates a coordinator around the production key connection and custom RPC check over the shared settings.
+    /// - Parameter providers: The provider choice, custom RPCs, and key that key entry fills and the coordinator
+    ///   changes.
     /// - Returns: A coordinator that never leaves the process.
-    static func inMemory(settings: StoredValue<ProviderSettings>, providerKey: StoredValue<String>,
-                         revisions: ProviderRevisions = ProviderRevisions()) -> ProvidersCoordinator {
-        let providers = ProviderSelection(settings: settings, providerKey: providerKey,
-                                          portfolios: { [PortfolioChanges()] }, revisions: revisions)
-        let connection = HTTPResponses.keyCheck().connection(providerKey: providerKey, revisions: revisions)
+    static func inMemory(_ providers: ProviderStore) -> ProvidersCoordinator {
+        let connection = HTTPResponses.keyCheck().connection(providers: providers)
         // Unplanned requests fail instead of reaching the network.
         let customRPCConnection = CustomRPCConnection(providers: providers) { HTTPResponses([:]).client(for: $0, on: $1) }
-        return ProvidersCoordinator(providers: providers, providerKey: providerKey, connection: connection,
-                                    customRPCConnection: customRPCConnection, revisions: revisions)
+        return ProvidersCoordinator(providers: providers, connection: connection,
+                                    customRPCConnection: customRPCConnection)
     }
 }

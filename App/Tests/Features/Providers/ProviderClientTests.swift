@@ -7,6 +7,7 @@ import Transactions
 @testable import widgets
 
 /// Checks that requests go to the provider and key saved when they're sent, through the real clients and local HTTP fixtures.
+@MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct ProviderClientTests {
     /// Without a saved key, Helius requests, subscriptions, signature watches, and logo lookups fail before anything
@@ -14,8 +15,7 @@ struct ProviderClientTests {
     @Test
     func `A missing Helius key fails before contacting Helius`() async {
         let responses = HTTPResponses.keyCheck()
-        let client = responses.providerClient(settings: StoredValue(ProviderSettings(selection: .helius)),
-                                              providerKey: StoredValue<String>())
+        let client = responses.providerClient(providers: .inMemory(selection: .helius))
 
         await #expect(throws: ProviderClientError.missingKey) { _ = try await client.send(GetAsset(id: HTTPResponses.keyCheckAsset)) }
         await #expect(throws: ProviderClientError.missingKey) { _ = try await client.changedSlots(for: [PublicWallet.address]) }
@@ -33,7 +33,8 @@ struct ProviderClientTests {
         let keys = StoredValue("rejected-key")
 
         await #expect(throws: ProviderClientError.invalidKey) {
-            _ = try await responses.providerClient(settings: StoredValue(ProviderSettings(selection: .helius)), providerKey: keys)
+            _ = try await responses.providerClient(
+                providers: .inMemory(StoredValue(ProviderSettings(selection: .helius)), key: keys))
                 .send(GetAsset(id: HTTPResponses.keyCheckAsset))
         }
     }
@@ -45,33 +46,33 @@ struct ProviderClientTests {
         let keys = StoredValue("fixture-key")
 
         await #expect(throws: RPCError.http(statusCode: 429, retryAfter: nil)) {
-            _ = try await responses.providerClient(settings: StoredValue(ProviderSettings(selection: .helius)), providerKey: keys)
+            _ = try await responses.providerClient(
+                providers: .inMemory(StoredValue(ProviderSettings(selection: .helius)), key: keys))
                 .send(GetAsset(id: HTTPResponses.keyCheckAsset))
         }
     }
 
-    /// Each request reads the saved choice and key, starting at Solana's public RPC before anything is saved, and
-    /// requests to the same endpoint share one client.
+    /// Each request reads the shared choice and key with every change made so far, starting at Solana's public RPC
+    /// before anything is saved, and requests to the same endpoint share one client.
     @Test
-    func `Each request goes to the provider and key saved when it's sent`() async throws {
+    func `Each request goes to the provider and key chosen when it's sent`() async throws {
         let responses = HTTPResponses.keyCheck()
-        let settings = StoredValue<ProviderSettings>()
-        let keys = StoredValue<String>()
+        let providers = ProviderStore.inMemory()
         let custom = try #require(URL(string: "https://rpc.example.com/fixture-token"))
         let created = Mutex<[ProviderClient.Endpoint]>([])
-        let client = ProviderClient(network: .mainnet, settings: settings, providerKey: keys) { endpoint, network in
+        let client = ProviderClient(network: .mainnet, providers: providers) { endpoint, network in
             created.withLock { $0.append(endpoint) }
             return responses.client(for: endpoint, on: network)
         }
 
         _ = try await client.send(GetAsset(id: HTTPResponses.keyCheckAsset))
         _ = try await client.send(GetAsset(id: HTTPResponses.keyCheckAsset))
-        try await settings.save(ProviderSettings(selection: .custom(custom)))
+        try await providers.add(custom)
         _ = try await client.send(GetAsset(id: HTTPResponses.keyCheckAsset))
-        try await keys.save("first-key")
-        try await settings.save(ProviderSettings(selection: .helius))
+        try await providers.save(key: "first-key")
+        try await providers.select(.helius)
         _ = try await client.send(GetAsset(id: HTTPResponses.keyCheckAsset))
-        try await keys.save("second-key")
+        try await providers.save(key: "second-key")
         _ = try await client.send(GetAsset(id: HTTPResponses.keyCheckAsset))
 
         #expect(await responses.requests.map { $0.url?.host() } == [
@@ -95,7 +96,8 @@ struct ProviderClientTests {
                                                              key: String?) async throws {
         let responses = HTTPResponses.keyCheck()
         let settings = StoredValue(ProviderSettings(selection: provider))
-        let client = responses.providerClient(network: .devnet, settings: settings, providerKey: StoredValue("fixture-key"))
+        let client = responses.providerClient(network: .devnet,
+                                              providers: .inMemory(settings, key: StoredValue("fixture-key")))
 
         _ = try await client.send(GetAsset(id: HTTPResponses.keyCheckAsset))
 
@@ -120,8 +122,8 @@ struct ProviderClientTests {
         let responses = HTTPResponses.keyCheck()
         let sockets = SocketSequence()
         let opened = Mutex<[URL]>([])
-        let client = ProviderClient(network: .devnet, settings: StoredValue(ProviderSettings(selection: provider)),
-                                    providerKey: StoredValue("fixture-key")) { endpoint, network in
+        let providers = ProviderStore.inMemory(selection: provider, key: "fixture-key")
+        let client = ProviderClient(network: .devnet, providers: providers) { endpoint, network in
             responses.client(for: endpoint, on: network) { url in
                 opened.withLock { $0.append(url) }
                 return sockets.connect(url)
@@ -147,7 +149,7 @@ struct ProviderClientTests {
         let responses = HTTPResponses.keyCheck()
         let custom = try #require(URL(string: "https://rpc.example.com"))
         let settings = StoredValue(ProviderSettings(selection: .custom(custom)))
-        let client = responses.providerClient(network: .devnet, settings: settings, providerKey: StoredValue<String>())
+        let client = responses.providerClient(network: .devnet, providers: .inMemory(settings))
         let asset = HTTPResponses.keyCheckAsset
 
         await #expect(throws: ProviderClientError.unsupportedNetwork) { _ = try await client.send(GetAsset(id: asset)) }
@@ -162,8 +164,7 @@ struct ProviderClientTests {
     @Test(arguments: [ProviderSettings.Provider.solana, .custom(URL(string: "https://rpc.example.com")!)])
     func `Only Helius reports key errors`(provider: ProviderSettings.Provider) async throws {
         let responses = HTTPResponses.keyCheck(error: .http(statusCode: 401, retryAfter: nil))
-        let client = responses.providerClient(settings: StoredValue(ProviderSettings(selection: provider)),
-                                              providerKey: StoredValue<String>())
+        let client = responses.providerClient(providers: .inMemory(selection: provider))
 
         await #expect(throws: RPCError.http(statusCode: 401, retryAfter: nil)) {
             _ = try await client.send(GetAsset(id: HTTPResponses.keyCheckAsset))
@@ -178,7 +179,8 @@ struct ProviderClientTests {
     func `Only a provider with logo copies looks up logos`(provider: ProviderSettings.Provider, lookups: Int) async throws {
         let responses = HTTPResponses(["getAssetBatch": ["[null]"]])
         let keys = StoredValue("fixture-key")
-        let client = responses.providerClient(settings: StoredValue(ProviderSettings(selection: provider)), providerKey: keys)
+        let client = responses.providerClient(
+            providers: .inMemory(StoredValue(ProviderSettings(selection: provider)), key: keys))
 
         #expect(try await client.logos(for: [HTTPResponses.keyCheckAsset]).isEmpty)
         #expect(await responses.requests.count == lookups)
@@ -188,8 +190,8 @@ struct ProviderClientTests {
     @Test
     func `Helius reads private notes`() async throws {
         let responses = HTTPResponses.privateNotes()
-        let client = responses.providerClient(network: .devnet, settings: StoredValue(ProviderSettings(selection: .helius)),
-                                              providerKey: StoredValue("fixture-key"))
+        let client = responses.providerClient(network: .devnet,
+                                              providers: .inMemory(selection: .helius, key: "fixture-key"))
         let tag = [UInt8](repeating: 7, count: 32)
 
         let batch = try await client.shieldedTransactions(taggedWith: [tag], after: nil)
@@ -216,8 +218,8 @@ struct ProviderClientTests {
     func `Only Helius reads private notes`(provider: ProviderSettings.Provider, network: Network,
                                            reads: Bool) async throws {
         let responses = HTTPResponses.privateNotes()
-        let client = responses.providerClient(network: network, settings: StoredValue(ProviderSettings(selection: provider)),
-                                              providerKey: StoredValue("fixture-key"))
+        let client = responses.providerClient(network: network,
+                                              providers: .inMemory(selection: provider, key: "fixture-key"))
 
         #expect(try await client.readsPrivateNotes == reads)
         #expect(await responses.requests.isEmpty)
@@ -227,8 +229,7 @@ struct ProviderClientTests {
     @Test
     func `Other providers fail private-note reads before sending anything`() async {
         let responses = HTTPResponses.privateNotes()
-        let client = responses.providerClient(network: .devnet, settings: StoredValue(ProviderSettings(selection: .solana)),
-                                              providerKey: StoredValue<String>())
+        let client = responses.providerClient(network: .devnet, providers: .inMemory(selection: .solana))
         let tag = [UInt8](repeating: 7, count: 32)
 
         await #expect(throws: ProviderClientError.privateNotesUnavailable) {
@@ -250,8 +251,8 @@ struct ProviderClientTests {
     @Test
     func `Helius reads tree proofs`() async throws {
         let responses = HTTPResponses.privateNotes(prove: PrivateBalanceFixtures.proof(answering:))
-        let client = responses.providerClient(network: .devnet, settings: StoredValue(ProviderSettings(selection: .helius)),
-                                              providerKey: StoredValue("fixture-key"))
+        let client = responses.providerClient(network: .devnet,
+                                              providers: .inMemory(selection: .helius, key: "fixture-key"))
         let tree = try ShieldedPool.tree(id: 1).value
         let leaf = [UInt8](repeating: 7, count: 32)
 
@@ -271,8 +272,8 @@ struct ProviderClientTests {
         let account = try await PrivateBalanceFixtures.account()
         let shielded = try await PrivateBalanceFixtures.keys(for: account).shieldedAccount(for: account.address)
         let responses = HTTPResponses.privateNotes(prove: PrivateBalanceFixtures.proof(answering:))
-        let client = responses.providerClient(network: .devnet, settings: StoredValue(ProviderSettings(selection: .helius)),
-                                              providerKey: StoredValue("fixture-key"))
+        let client = responses.providerClient(network: .devnet,
+                                              providers: .inMemory(selection: .helius, key: "fixture-key"))
         let request = try PrivateBalanceFixtures.proofRequest(spending: shielded)
 
         let proof = try await client.proveTransfer(request)
@@ -299,8 +300,7 @@ struct ProviderClientTests {
         let responses = HTTPResponses.privateNotes()
         let custom = try #require(URL(string: "https://rpc.example.com"))
         let provider: ProviderSettings.Provider = isCustom ? .custom(custom) : .solana
-        let client = responses.providerClient(network: .devnet, settings: StoredValue(ProviderSettings(selection: provider)),
-                                              providerKey: StoredValue<String>())
+        let client = responses.providerClient(network: .devnet, providers: .inMemory(selection: provider))
         let request = try PrivateBalanceFixtures.proofRequest(spending: shielded)
 
         await #expect(throws: error) { _ = try await client.proveTransfer(request) }
@@ -317,8 +317,7 @@ struct ProviderClientTests {
                                                                          error: ProviderClientError) async throws {
         let responses = HTTPResponses.privateNotes()
         let custom = try #require(URL(string: "https://rpc.example.com"))
-        let client = responses.providerClient(network: network, settings: StoredValue(ProviderSettings(selection: .custom(custom))),
-                                              providerKey: StoredValue<String>())
+        let client = responses.providerClient(network: network, providers: .inMemory(selection: .custom(custom)))
         let tag = [UInt8](repeating: 7, count: 32)
 
         await #expect(throws: error) { _ = try await client.shieldedTransactions(taggedWith: [tag], after: nil) }
@@ -331,8 +330,8 @@ struct ProviderClientTests {
     @Test(arguments: [401, 403])
     func `A rejected Helius key on a private-note read is reported as a key error`(status: Int) async {
         let responses = HTTPResponses.privateNotes(error: .http(statusCode: status, retryAfter: nil))
-        let client = responses.providerClient(network: .devnet, settings: StoredValue(ProviderSettings(selection: .helius)),
-                                              providerKey: StoredValue("rejected-key"))
+        let client = responses.providerClient(network: .devnet,
+                                              providers: .inMemory(selection: .helius, key: "rejected-key"))
         let tag = [UInt8](repeating: 7, count: 32)
 
         await #expect(throws: ProviderClientError.invalidKey) {
@@ -346,8 +345,7 @@ struct ProviderClientTests {
     func `A saved custom URL that isn't HTTPS can't be used`() async throws {
         let responses = HTTPResponses.keyCheck()
         let insecure = try #require(URL(string: "http://rpc.example.com"))
-        let client = responses.providerClient(settings: StoredValue(ProviderSettings(selection: .custom(insecure))),
-                                              providerKey: StoredValue<String>())
+        let client = responses.providerClient(providers: .inMemory(selection: .custom(insecure)))
 
         await #expect(throws: ProviderClientError.unusableEndpoint) {
             _ = try await client.send(GetAsset(id: HTTPResponses.keyCheckAsset))

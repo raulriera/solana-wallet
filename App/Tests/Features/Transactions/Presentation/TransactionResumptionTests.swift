@@ -53,12 +53,13 @@ struct TransactionResumptionTests {
             return coordinator
         }
         let scene = ResumingScene(.active)
+        await scene.providers.load()
         let hosted = try HostedWindow(TransactionResumptionRoot(scene: scene, transactions: transactions))
         defer { hosted.close() }
         try #require(try await hosted.appears())
         for await _ in attempts { break }
 
-        scene.providerRevisions.connection.advance()
+        try await scene.providers.select(.helius)
 
         #expect(await transactions.settledStatus(of: record) == .succeeded)
         await sockets.waitUntilClosed()

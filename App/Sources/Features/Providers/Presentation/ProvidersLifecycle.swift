@@ -7,16 +7,18 @@ import SwiftUI
 /// merges those pushes into its own stack on compact displays, or onboarding's navigation stack. So a failure to read
 /// the settings can alert on any screen of that container.
 struct ProvidersLifecycle: ViewModifier {
+    @Environment(ProviderStore.self) private var providers
     @Bindable var coordinator: ProvidersCoordinator
 
-    /// Reads the settings whenever any window changes them and awaits one change at a time.
+    /// Reads the settings and awaits one change at a time.
     /// - Parameter content: The settings or onboarding scene.
     /// - Returns: The scene with managed reads, changes, key entry, deletion confirmations, and failure
     ///   presentation.
     func body(content: Content) -> some View {
         let attempt = coordinator.attempt
         content
-            .task(id: coordinator.revisions.settings.value) { await coordinator.reload() }
+            // Every window observes the store, so one read shows every later change.
+            .task { await coordinator.load() }
             .task(id: attempt) { await coordinator.run(attempt) }
             // The sheet closes itself after a saved key, before its own content could react, so the choice that asked
             // for the key continues from here, once the sheet has finished closing.
@@ -26,7 +28,7 @@ struct ProvidersLifecycle: ViewModifier {
                 Button("Cancel", role: .cancel) {}
             } message: { url in
                 let host = Text(ProviderSettings.Provider.custom(url).name)
-                if coordinator.selection == .custom(url) {
+                if providers.settings?.selection == .custom(url) {
                     Text("\(host) will be deleted from this device, and every window will switch to Solana's public RPC.",
                          comment: "The Delete RPC alert's message for the RPC in use. The variable is the RPC's host.")
                 } else {

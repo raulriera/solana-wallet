@@ -1,5 +1,4 @@
 import Foundation
-import Storage
 @testable import RPC
 @testable import widgets
 
@@ -19,24 +18,21 @@ extension HTTPResponses {
 
     /// Creates the production connection, answering each checked key with its own fixtures.
     /// - Parameters:
-    ///   - providerKey: The test's isolated key storage.
-    ///   - revisions: Count saved keys that every window hears about.
+    ///   - providers: The test's provider settings, which keep the accepted key.
     ///   - responses: The fixtures that answer a given key.
     /// - Returns: A connection whose Helius client never leaves the process.
-    nonisolated static func connection(providerKey: any ValueStoring<String>, revisions: ProviderRevisions,
+    nonisolated static func connection(providers: ProviderStore,
                                        responding responses: @escaping @Sendable (String) -> HTTPResponses) -> HeliusConnection {
-        HeliusConnection(providerKey: providerKey, revisions: revisions) {
+        HeliusConnection(providers: providers) {
             HeliusRPC(apiKey: $0, network: .mainnet, transport: responses($0))
         }
     }
 
     /// Creates the production connection with these fixtures in place of the network.
-    /// - Parameters:
-    ///   - providerKey: The test's isolated key storage.
-    ///   - revisions: Count saved keys that every window hears about.
+    /// - Parameter providers: The test's provider settings, which keep the accepted key.
     /// - Returns: A connection whose Helius client never leaves the process.
-    nonisolated func connection(providerKey: any ValueStoring<String>, revisions: ProviderRevisions) -> HeliusConnection {
-        Self.connection(providerKey: providerKey, revisions: revisions) { _ in self }
+    nonisolated func connection(providers: ProviderStore) -> HeliusConnection {
+        Self.connection(providers: providers) { _ in self }
     }
 
     /// Creates the client that production uses for an endpoint on a Solana network, with these fixtures in place of
@@ -59,11 +55,9 @@ extension HTTPResponses {
     /// Creates the production selected-provider client with these fixtures in place of the internet.
     /// - Parameters:
     ///   - network: The Solana network that receives every request; mainnet by default.
-    ///   - settings: The test's provider choice.
-    ///   - providerKey: The test's isolated key storage.
+    ///   - providers: The test's provider choice and key.
     /// - Returns: A client whose requests never leave the process.
-    nonisolated func providerClient(network: Network = .mainnet, settings: any ValueStoring<ProviderSettings>,
-                                    providerKey: any ValueStoring<String>) -> ProviderClient {
-        ProviderClient(network: network, settings: settings, providerKey: providerKey) { self.client(for: $0, on: $1) }
+    nonisolated func providerClient(network: Network = .mainnet, providers: ProviderStore) -> ProviderClient {
+        ProviderClient(network: network, providers: providers) { self.client(for: $0, on: $1) }
     }
 }

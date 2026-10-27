@@ -17,20 +17,21 @@ struct OnboardingIdentityTests {
         let storage = StoredValue<[widgets.Account]>()
         let accounts = AccountStore.inMemory(storage)
         let recovery = ResetRecoveryStore()
-        let keys = StoredValue<String>()
+        let providerStore = ProviderStore.inMemory()
         let gate = Suspension()
         let http = HTTPResponses.discovery(gate: gate)
         let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: http.client), wallet: Wallet(),
                                                 recovery: recovery, accounts: accounts, router: router)
-        let providers = ProvidersCoordinator.inMemory(settings: StoredValue(), providerKey: keys)
+        let providers = ProvidersCoordinator.inMemory(providerStore)
         let original = OnboardingScene(coordinator: coordinator, providers: providers, pasteboard: NoPasteboard())
         // Read only the public model references in initial State, never recovery or input text.
         let navigation: OnboardingNavigation = try initialState("_navigation", in: original)
         let submission: ImportWalletModel = try initialState("_walletImport", in: original)
         let rendered = AsyncStream<Int>.makeStream()
         let hosted = try HostedWindow(OnboardingIdentityRoot(scene: original, generation: 0,
-                                                             rendered: rendered.continuation))
+                                                             rendered: rendered.continuation,
+                                                             providers: providerStore))
         defer {
             gate.resume()
             hosted.close()
@@ -53,9 +54,9 @@ struct OnboardingIdentityTests {
                                                    recovery: nil)
             try await AppReset(recovery: recovery, privateBalances: privateBalances,
                                directories: [directory], appearance: appearance,
-                               stores: [ContactsFixtures.store(StoredValue()), accounts, TransactionStore.unused],
-                               providerKey: keys,
-                               providerSettings: StoredValue<ProviderSettings>(), revision: revision).reset()
+                               stores: [ContactsFixtures.store(StoredValue()), accounts, TransactionStore.unused,
+                                        providerStore],
+                               revision: revision).reset()
             try #require(revision.value == 1)
             try #require(accounts.accounts.isEmpty)
             try #require(await recovery.count == 0)
@@ -66,7 +67,7 @@ struct OnboardingIdentityTests {
             router.route(to: .onboarding)
             hosted.host.rootView = OnboardingIdentityRoot(
                 scene: OnboardingScene(coordinator: replacement, providers: providers, pasteboard: NoPasteboard()),
-                generation: 1, rendered: rendered.continuation)
+                generation: 1, rendered: rendered.continuation, providers: providerStore)
             try #require(await renders.next() == 1)
             gate.resume()
             await waitForCompletion(submission)

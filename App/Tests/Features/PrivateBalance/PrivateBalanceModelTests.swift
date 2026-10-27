@@ -330,26 +330,28 @@ struct PrivateBalanceModelTests {
         #expect(polled == isOn)
     }
 
-    /// A missing key pauses polling, so polls send nothing even once the key is back, until a refresh succeeds.
+    /// A rejected key pauses polling, so polls send nothing even once a new key is saved, until a refresh succeeds.
     @Test
     func `Paused polling waits for a refresh that succeeds`() async throws {
         let account = try await PrivateBalanceFixtures.account()
         let record = try await PrivateBalanceFixtures.keys(for: account)
         let responses = HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered])
-        let providerKey = StoredValue("fixture-key")
+        let rejecting = HTTPResponses.privateNotes(error: .http(statusCode: 401, retryAfter: nil))
+        let providers = ProviderStore.inMemory(selection: .helius, key: "fixture-key")
         let balances = PrivateBalances(recovery: try PrivateBalanceFixtures.recoveryStore(), wallet: Wallet(),
                                        keys: StoredValue([account.address.value: record]), notes: StoredValue(),
                                        codes: StoredValue()) { network in
-            responses.providerClient(network: network, settings: StoredValue(ProviderSettings(selection: .helius)),
-                                     providerKey: providerKey)
+            ProviderClient(network: network, providers: providers) { endpoint, network in
+                (endpoint == .helius(key: "rejected-key") ? rejecting : responses).client(for: endpoint, on: network)
+            }
         }
         let model = PrivateBalanceModel(balances: balances, transactions: .unused, network: .devnet)
         await model.refresh(for: account)
 
-        try await providerKey.delete()
+        try await providers.save(key: "rejected-key")
         await model.poll()
         let isPaused = model.isPollingPaused
-        try await providerKey.save("fixture-key")
+        try await providers.save(key: "fixture-key")
         let pausedRequests = await responses.requests.count
         await model.poll()
         let pausedPollRequests = await responses.requests.count - pausedRequests

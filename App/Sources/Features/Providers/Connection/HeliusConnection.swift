@@ -1,28 +1,24 @@
 import Foundation
 import RPC
-import Storage
 
 /// Connects the app to Helius, its only DAS provider, with a user-supplied key.
 nonisolated struct HeliusConnection: ProviderConnecting {
     typealias EntryError = ProviderConnectionError
 
-    private let providerKey: any ValueStoring<String>
-    private let revisions: ProviderRevisions
+    private let providers: ProviderStore
     private let client: @Sendable (String) -> any RPC
 
     /// Creates a connection that checks keys against Helius mainnet.
     /// - Parameters:
-    ///   - providerKey: Device-only storage for the accepted key.
-    ///   - revisions: Tell every window when a saved key applies.
+    ///   - providers: The provider settings that every window shares, which keep the accepted key.
     ///   - client: Creates the Helius client for a candidate key.
-    init(providerKey: any ValueStoring<String>, revisions: ProviderRevisions,
+    init(providers: ProviderStore,
          client: @escaping @Sendable (String) -> any RPC = { HeliusRPC(apiKey: $0, network: .mainnet) }) {
-        self.providerKey = providerKey
-        self.revisions = revisions
+        self.providers = providers
         self.client = client
     }
 
-    /// Makes one DAS request with the key, saves the key only after Helius accepts it, and tells every window.
+    /// Makes one DAS request with the key, and saves the key for every window only after Helius accepts it.
     /// - Parameter key: The key, without surrounding whitespace.
     /// - Throws: ``ProviderConnectionError`` or `CancellationError`, never containing the key.
     func connect(_ key: String) async throws {
@@ -40,15 +36,10 @@ nonisolated struct HeliusConnection: ProviderConnecting {
         }
         try Task.checkCancellation()
         do {
-            try await providerKey.save(key)
+            try await providers.save(key: key)
         } catch {
             try Task.checkCancellation()
             throw ProviderConnectionError.storageFailed
-        }
-        // Both in one main-actor turn, so no window sees the saved key in its list without the new connection.
-        await MainActor.run {
-            revisions.settings.advance()
-            revisions.connection.advance()
         }
     }
 }

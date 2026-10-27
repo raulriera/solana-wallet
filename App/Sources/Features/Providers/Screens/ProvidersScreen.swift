@@ -3,12 +3,13 @@ import SwiftUI
 /// Lists the RPC providers with a checkmark on the one that every window uses.
 struct ProvidersScreen<Actions: View>: View {
     @Environment(\.palette) private var palette
+    @Environment(ProviderStore.self) private var providers
     @Bindable var coordinator: ProvidersCoordinator
     private let actions: Actions
 
     /// Creates the provider list with sections of actions after it.
     /// - Parameters:
-    ///   - coordinator: The provider choice that every window shares.
+    ///   - coordinator: The window's provider changes and pushed screens.
     ///   - actions: Sections that follow the list, such as onboarding's Continue.
     init(coordinator: ProvidersCoordinator, @ViewBuilder actions: () -> Actions) {
         self.coordinator = coordinator
@@ -16,6 +17,8 @@ struct ProvidersScreen<Actions: View>: View {
     }
 
     var body: some View {
+        let settings = providers.settings
+        let customRPCs = settings?.customRPCs ?? []
         Form {
             Section {
                 TitleCardContent(
@@ -26,15 +29,15 @@ struct ProvidersScreen<Actions: View>: View {
             }
             .listRowBackground(palette.surface)
 
-            ProviderSelectionSection(selection: coordinator.selection,
-                                     customRPCs: coordinator.customRPCs,
+            ProviderSelectionSection(selection: settings?.selection,
+                                     customRPCs: customRPCs,
                                      removal: $coordinator.removal,
                                      actions: coordinator)
 
             actions
         }
         // Each save adds or deletes one custom RPC, so its rows animate whenever the count changes.
-        .animation(.default, value: coordinator.customRPCs.count)
+        .animation(.default, value: customRPCs.count)
         .navigationTitle("Providers")
         .navigationBarTitleDisplayMode(.inline)
         .foregroundStyle(palette.primaryText, palette.secondaryText)
@@ -46,7 +49,7 @@ struct ProvidersScreen<Actions: View>: View {
 
 extension ProvidersScreen where Actions == EmptyView {
     /// Creates the provider list on its own, as Settings shows it.
-    /// - Parameter coordinator: The provider choice that every window shares.
+    /// - Parameter coordinator: The window's provider changes and pushed screens.
     init(coordinator: ProvidersCoordinator) {
         self.init(coordinator: coordinator) { EmptyView() }
     }

@@ -33,8 +33,8 @@ actor ResetStorage: RecoveryStoring {
     /// The shared appearance, whose restart this storage records.
     @MainActor var appearance: ResetAppearance { ResetAppearance(storage: self) }
 
-    /// The shared contacts, accounts, transactions after one window read an account's records, and currency choice,
-    /// in the order the app erases them, each recording its erasure in this storage.
+    /// The shared contacts, accounts, transactions after one window read an account's records, currency choice, and
+    /// provider settings, in the order the app erases them, each recording its erasure in this storage.
     @MainActor var stores: [any Erasable] {
         let transactions = TransactionStore(storage: { _ in ResetValue(storage: self, step: .transactions) },
                                             pending: ResetValue(storage: self, step: .pendingTransactions),
@@ -44,14 +44,10 @@ actor ResetStorage: RecoveryStoring {
                 AccountStore(storage: ResetValue<[widgets.Account]>(storage: self, step: .accounts),
                              cleanup: StartupRecoveryCleanup()),
                 transactions,
-                CurrencyStore(storage: ResetValue<CurrencySettings>(storage: self, step: .currency), rates: [:])]
+                CurrencyStore(storage: ResetValue<CurrencySettings>(storage: self, step: .currency), rates: [:]),
+                ProviderStore(settings: ResetValue<ProviderSettings>(storage: self, step: .settings),
+                              key: ResetValue<String>(storage: self, step: .key))]
     }
-
-    /// The provider's API key, whose deletion this storage records.
-    nonisolated var key: ResetValue<String> { ResetValue(storage: self, step: .key) }
-
-    /// The provider choice and custom RPCs, whose deletion this storage records.
-    nonisolated var settings: ResetValue<ProviderSettings> { ResetValue(storage: self, step: .settings) }
 
     /// Records a successful deletion or throws the step's one scripted failure.
     /// - Parameter step: The store being emptied.
@@ -94,7 +90,6 @@ extension AppReset {
     ///   - revision: Tells every window when the reset finishes.
     init(storage: ResetStorage, revision: Revision) {
         self.init(recovery: storage, privateBalances: storage.privateBalances, directories: [storage.directory],
-                  appearance: storage.appearance, stores: storage.stores, providerKey: storage.key,
-                  providerSettings: storage.settings, revision: revision)
+                  appearance: storage.appearance, stores: storage.stores, revision: revision)
     }
 }

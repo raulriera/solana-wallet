@@ -12,11 +12,8 @@ struct AppServices {
     let wallet: any WalletProviding
     let discovery: any AccountDiscovering
     let recovery: any RecoveryStoring
-    let providerKey: any ValueStoring<String>
     let providerConnection: any ProviderConnecting<ProviderConnectionError>
-    let providerRevisions = ProviderRevisions()
     let portfolios: NetworkPortfolios
-    let providerSelection: any ProviderSelecting
     let customRPCConnection: any ProviderConnecting<CustomRPCError>
     // One sampler for every window shares its remembered logo colors.
     let artworkColors: any ArtworkColorProviding = ArtworkColors()
@@ -27,6 +24,9 @@ struct AppServices {
     /// The currency and rate source choice, which every window shares; nothing is read until a window's Currency or a
     /// price lookup reads it.
     let currencyStore: CurrencyStore
+    /// The RPC provider choice, custom RPCs, and Helius's key, which every window shares; each window reads them when
+    /// it appears.
+    let providerStore: ProviderStore
     /// The saved contacts and favorites, which every window shares; nothing is read until a window's Contacts loads.
     let contactStore: ContactStore
     /// The saved accounts, which every window shares; nothing is read until a window's startup loads them.
@@ -65,10 +65,10 @@ struct AppServices {
                                                coding: .json(PrivateBalances.Notes.self))
         let privateBalanceCodes = KeychainItem(service: privateBalanceService, account: "codes",
                                                coding: .json(PrivateBalances.Codes.self))
-        let providerKey = KeychainItem(service: providerService, account: "api-key", coding: .utf8)
-        let providerSettings = KeychainItem(service: providerService, account: "settings", coding: .json(ProviderSettings.self))
-        self.providerKey = providerKey
-        providerConnection = HeliusConnection(providerKey: providerKey, revisions: providerRevisions)
+        let providerStore = ProviderStore(service: providerService)
+        self.providerStore = providerStore
+        providerConnection = HeliusConnection(providers: providerStore)
+        customRPCConnection = CustomRPCConnection(providers: providerStore)
         let rates: [CurrencySettings.RateSource: any ExchangeRateProviding] = [.europeanCentralBank: EuropeanCentralBank(),
                                                                                  .coinbase: Coinbase()]
         let currencyStore = CurrencyStore(directory: .persistentDirectory.appending(path: "Currency",
@@ -77,8 +77,9 @@ struct AppServices {
         self.currencyStore = currencyStore
         // Prices come in US dollars and convert to the person's currency before any portfolio values a holding.
         let prices = CurrencyPrices(prices: Jupiter(), currency: currencyStore)
-        let portfolios = NetworkPortfolios(prices: prices, currency: currencyStore) { network, prices in
-            Portfolio(rpc: ProviderClient(network: network, settings: providerSettings, providerKey: providerKey),
+        let portfolios = NetworkPortfolios(prices: prices, currency: currencyStore,
+                                           providers: providerStore) { network, prices in
+            Portfolio(rpc: ProviderClient(network: network, providers: providerStore),
                       prices: prices,
                       tokenListDirectory: .persistentDirectory.appending(path: "TokenLists", directoryHint: .isDirectory),
                       cacheDirectory: .ephemeralDirectory.appending(path: "Portfolio", directoryHint: .isDirectory))
@@ -88,31 +89,27 @@ struct AppServices {
         let transactionStore = TransactionStore(
             directory: .persistentDirectory.appending(path: "Transactions", directoryHint: .isDirectory)
         ) { [recovery] network in
-            let provider = ProviderClient(network: network, settings: providerSettings, providerKey: providerKey)
+            let provider = ProviderClient(network: network, providers: providerStore)
             return try TransactionCoordinator(rpc: provider, store: recovery, rpcs: [provider, Solana(network: network)])
         }
         self.transactionStore = transactionStore
         // Private balances keep their own client per network, apart from the portfolios' token reads.
         let privateBalances = PrivateBalances(recovery: recovery, wallet: wallet, keys: privateBalanceKeys,
                                               notes: privateBalanceNotes, codes: privateBalanceCodes) { network in
-            ProviderClient(network: network, settings: providerSettings, providerKey: providerKey)
+            ProviderClient(network: network, providers: providerStore)
         }
         self.privateBalances = privateBalances
         let accounts = AccountStore.file(in: .persistentDirectory.appending(path: "Accounts", directoryHint: .isDirectory))
         accountStore = AccountStore(storage: accounts, cleanup: RecoveryCleanup(accounts: accounts, recovery: recovery,
                                                                                 privateBalances: privateBalances))
-        let providerSelection = ProviderSelection(settings: providerSettings, providerKey: providerKey,
-                                                  portfolios: { portfolios.created }, revisions: providerRevisions)
-        self.providerSelection = providerSelection
-        customRPCConnection = CustomRPCConnection(providers: providerSelection)
         recoveryPasteboard = RecoveryPasteboard()
         security = SecurityServices(
             recovery: RecoveryReveal(store: recovery),
             owner: DeviceOwnerAuthentication(),
             reset: AppReset(recovery: recovery, privateBalances: privateBalances,
                             directories: directories, appearance: appearance.appearance,
-                            stores: [contactStore, accountStore, transactionStore, currencyStore],
-                            providerKey: providerKey, providerSettings: providerSettings, revision: resetRevision),
+                            stores: [contactStore, accountStore, transactionStore, currencyStore, providerStore],
+                            revision: resetRevision),
             pasteboard: recoveryPasteboard
         )
     }
@@ -155,8 +152,8 @@ struct AppServices {
     /// Creates independent RPC provider choices, pushed screens, and key entry around the shared provider services.
     /// - Returns: A coordinator whose choices, pushed screens, and key entry belong to one window.
     func makeProvidersCoordinator() -> ProvidersCoordinator {
-        ProvidersCoordinator(providers: providerSelection, providerKey: providerKey, connection: providerConnection,
-                             customRPCConnection: customRPCConnection, revisions: providerRevisions)
+        ProvidersCoordinator(providers: providerStore, connection: providerConnection,
+                             customRPCConnection: customRPCConnection)
     }
 
     /// Assembles a preference-editing workflow around the app's shared appearance services.

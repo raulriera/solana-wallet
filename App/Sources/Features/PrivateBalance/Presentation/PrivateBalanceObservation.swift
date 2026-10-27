@@ -9,15 +9,16 @@ import SwiftUI
 /// balances are off or polling is paused.
 private struct PrivateBalanceObservation: ViewModifier {
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(ProviderStore.self) private var providers
     let account: Account
     let model: PrivateBalanceModel
-    let providerRevisions: ProviderRevisions
     let pollInterval: Duration
     let followUpInterval: Duration
 
     func body(content: Content) -> some View {
-        let session = Session(accountID: account.id, model: ObjectIdentifier(model), isActive: scenePhase == .active,
-                              providerConnection: providerRevisions.connection.value,
+        let session = Session(accountID: account.id, model: ObjectIdentifier(model),
+                              isActive: scenePhase == .active && providers.isRead,
+                              providerConnection: providers.connection,
                               settledMove: model.lastSettledMove(for: account)?.id)
         content
             .task(id: session) {
@@ -30,12 +31,13 @@ private struct PrivateBalanceObservation: ViewModifier {
             }
     }
 
-    /// What starts a new read of the balance.
+    /// What starts a new read of the balance; reads run only while the provider settings are read, so a reset stops
+    /// them.
     private struct Session: Equatable {
         let accountID: UUID
         let model: ObjectIdentifier
         let isActive: Bool
-        let providerConnection: Int
+        let providerConnection: ProviderClient.Endpoint?
         let settledMove: TransactionRecord.ID?
     }
 }
@@ -45,15 +47,13 @@ extension View {
     /// - Parameters:
     ///   - account: The window's account.
     ///   - model: The window's private balance.
-    ///   - providerRevisions: The app-wide provider changes, which read the balance again.
     ///   - pollInterval: The time between polls.
     ///   - followUpInterval: The time between polls that follow up on pending SOL.
     /// - Returns: The window's content, reading its private balance.
     func privateBalanceObservation(of account: Account, model: PrivateBalanceModel,
-                                   providerRevisions: ProviderRevisions,
                                    pollInterval: Duration = .seconds(30),
                                    followUpInterval: Duration = .seconds(3)) -> some View {
-        modifier(PrivateBalanceObservation(account: account, model: model, providerRevisions: providerRevisions,
+        modifier(PrivateBalanceObservation(account: account, model: model,
                                            pollInterval: pollInterval, followUpInterval: followUpInterval))
     }
 }

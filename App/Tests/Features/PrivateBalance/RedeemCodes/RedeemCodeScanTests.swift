@@ -43,7 +43,7 @@ struct RedeemCodeScanTests {
             try RedeemCodeFixtures.deposit(1, to: keys.oneTimeAccount(at: 4), leafIndex: 5),
         ])
 
-        let fundings = try await RedeemCodeScan.fundings(of: [3, 4, 6], from: keys, using: Self.client(responses))
+        let fundings = try await RedeemCodeScan.fundings(of: [3, 4, 6], from: keys, using: await Self.client(responses))
 
         #expect(fundings.map(\.index) == [4, 6])
         #expect(fundings.map(\.signature) == [RedeemCodeFixtures.signature(ofDepositAt: 2),
@@ -64,7 +64,7 @@ struct RedeemCodeScanTests {
         ])
         let batch = RedeemCodeScan.candidates(from: 0, count: RedeemCodeScan.discoveryBatchSize)
 
-        let fundings = try await RedeemCodeScan.fundings(of: batch, from: keys, using: Self.client(responses))
+        let fundings = try await RedeemCodeScan.fundings(of: batch, from: keys, using: await Self.client(responses))
 
         #expect(fundings.map(\.index) == [0, 499])
         #expect(try await RedeemCodeFixtures.tagCounts(of: responses) == [500])
@@ -82,7 +82,7 @@ struct RedeemCodeScanTests {
             spends: [try RedeemCodeFixtures.spend(of: 500, to: swept, leafIndex: 4)]
         )
 
-        let statuses = try await RedeemCodeScan.statuses(of: [1, 2, 3], from: keys, using: Self.client(responses))
+        let statuses = try await RedeemCodeScan.statuses(of: [1, 2, 3], from: keys, using: await Self.client(responses))
 
         #expect(statuses == [1: .unspent(lamports: 700, signature: RedeemCodeFixtures.signature(ofDepositAt: 3)),
                              2: .spent, 3: .unfunded])
@@ -98,8 +98,8 @@ struct RedeemCodeScanTests {
     /// Creates a devnet client that sends its requests to local responses.
     /// - Parameter responses: The local responses.
     /// - Returns: The client.
+    @MainActor
     private static func client(_ responses: HTTPResponses) -> some PrivateNoteProviding {
-        responses.providerClient(network: .devnet, settings: StoredValue(ProviderSettings(selection: .helius)),
-                                 providerKey: StoredValue("fixture-key"))
+        responses.providerClient(network: .devnet, providers: .inMemory(selection: .helius, key: "fixture-key"))
     }
 }

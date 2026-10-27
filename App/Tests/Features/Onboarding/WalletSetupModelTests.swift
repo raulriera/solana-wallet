@@ -223,7 +223,7 @@ struct WalletSetupModelTests {
             recovery = OnboardingRecoveryStore(gate: recoveryGate)
             self.accounts = accounts
             router = WindowRouter(initialDestination: .onboarding)
-            providers = ProvidersCoordinator.inMemory(settings: StoredValue(), providerKey: StoredValue())
+            providers = ProvidersCoordinator.inMemory(.inMemory())
             coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client),
                                                 wallet: wallet, recovery: recovery,
                                                 accounts: .inMemory(accounts),

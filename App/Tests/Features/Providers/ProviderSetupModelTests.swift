@@ -7,15 +7,12 @@ import Testing
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct ProviderSetupModelTests {
-    /// Each test starts from a fresh app-wide count of saved keys.
-    private let revisions = ProviderRevisions()
-
     /// An accepted key is saved without the whitespace a paste can add, so the flow that asked for it can continue.
     @Test
     func `An accepted key is saved without surrounding whitespace`() async {
         let keys = StoredValue<String>()
         let submission = ProviderSetupModel(
-            connection: HTTPResponses.keyCheck().connection(providerKey: keys, revisions: revisions))
+            connection: HTTPResponses.keyCheck().connection(providers: .inMemory(key: keys)))
 
         submission.submit(" fixture-key \n")
         await submission.run(submission.attempt)
@@ -32,7 +29,7 @@ struct ProviderSetupModelTests {
     func `A rejected key shows the inline message and keeps setup open`() async {
         let responses = HTTPResponses.keyCheck(error: .http(statusCode: 401, retryAfter: nil))
         let submission = ProviderSetupModel(
-            connection: responses.connection(providerKey: StoredValue<String>(), revisions: revisions))
+            connection: responses.connection(providers: .inMemory()))
 
         submission.submit("rejected-key")
         await submission.run(submission.attempt)
@@ -41,7 +38,6 @@ struct ProviderSetupModelTests {
         #expect(submission.rejectionCount == 1)
         #expect(submission.error == nil)
         #expect(!submission.isSaved)
-        #expect(revisions.settings.value == 0)
         submission.submit("rejected-key")
         await submission.run(submission.attempt)
         #expect(submission.rejection == .invalidKey)
@@ -53,7 +49,7 @@ struct ProviderSetupModelTests {
     func `Failures other than rejection explain their cause in an alert`() async {
         let responses = HTTPResponses.keyCheck(error: .http(statusCode: 429, retryAfter: nil))
         let submission = ProviderSetupModel(
-            connection: responses.connection(providerKey: StoredValue<String>(), revisions: revisions))
+            connection: responses.connection(providers: .inMemory()))
 
         submission.submit("fixture-key")
         await submission.run(submission.attempt)
@@ -69,7 +65,7 @@ struct ProviderSetupModelTests {
         let gate = Suspension()
         let rejecting = HTTPResponses.keyCheck(error: .http(statusCode: 401, retryAfter: nil))
         let limiting = HTTPResponses.keyCheck(error: .http(statusCode: 429, retryAfter: nil), gate: gate)
-        let connection = HTTPResponses.connection(providerKey: StoredValue<String>(), revisions: revisions) {
+        let connection = HTTPResponses.connection(providers: .inMemory()) {
             $0 == "rejected-key" ? rejecting : limiting
         }
         let submission = ProviderSetupModel(connection: connection)
@@ -97,7 +93,7 @@ struct ProviderSetupModelTests {
         let responses = HTTPResponses.keyCheck(gate: gate)
         let keys = StoredValue<String>()
         let submission = ProviderSetupModel(
-            connection: responses.connection(providerKey: keys, revisions: revisions))
+            connection: responses.connection(providers: .inMemory(key: keys)))
         submission.submit("first-key")
         let attempt = try #require(submission.attempt)
         let operation = Task { await submission.run(attempt) }
@@ -122,7 +118,7 @@ struct ProviderSetupModelTests {
         let gate = Suspension()
         let responses = HTTPResponses.keyCheck(gate: gate)
         let submission = ProviderSetupModel(
-            connection: responses.connection(providerKey: StoredValue<String>(), revisions: revisions))
+            connection: responses.connection(providers: .inMemory()))
         submission.submit("fixture-key")
         let attempt = try #require(submission.attempt)
         let operation = Task { await submission.run(attempt) }
@@ -144,7 +140,7 @@ struct ProviderSetupModelTests {
         let gate = Suspension()
         let keys = StoredValue<String>(gate: gate)
         let submission = ProviderSetupModel(
-            connection: HTTPResponses.keyCheck().connection(providerKey: keys, revisions: revisions))
+            connection: HTTPResponses.keyCheck().connection(providers: .inMemory(key: keys)))
         submission.submit("fixture-key")
         let attempt = try #require(submission.attempt)
         let operation = Task { await submission.run(attempt) }
@@ -152,11 +148,12 @@ struct ProviderSetupModelTests {
         await gate.waitUntilStarted()
 
         operation.cancel()
+        // Cancellation doesn't stop a save that started, so the save finishes once the storage returns.
+        gate.resume()
         await operation.value
 
         #expect(await keys.value == "fixture-key")
         #expect(submission.isSaved)
-        #expect(revisions.settings.value == 1)
         #expect(submission.error == nil)
     }
 }
