@@ -1,12 +1,12 @@
 import SwiftUI
 
 /// Shows how a sent move settled, with a link to its page on Solana Explorer, which also shows its signature, and
-/// offers what can follow: trying a dropped move again, or checking one whose watch stopped.
-struct BalanceMoveResultScreen: View {
+/// offers to try a dropped move again.
+struct BalanceMoveResultScreen: TransactionResultContent {
     @Environment(\.palette) private var palette
     @AccessibilityFocusState private var isFocused: Bool
-    let move: BalanceMoveModel
-    let outcome: BalanceMoveModel.Outcome
+    let review: TransactionReviewModel<BalanceMoveProposal>
+    let outcome: TransactionOutcome
 
     var body: some View {
         let card = card
@@ -18,45 +18,33 @@ struct BalanceMoveResultScreen: View {
             }
             .listRowBackground(palette.surface)
 
-            Section {
-                switch outcome {
-                case .dropped:
-                    Button("Try Again", action: move.tryAgain)
-                case .unconfirmed:
-                    Button(action: move.checkAgain) {
-                        HStack {
-                            Text("Check Again")
-                            Spacer()
-                            if move.isChecking {
-                                ProgressView()
-                            }
-                        }
+            // Every outcome links to its page on Solana Explorer, so the person can check it themselves.
+            if let submission = review.submission {
+                Section {
+                    if outcome == .dropped {
+                        Button("Try Again", action: review.tryAgain)
                     }
-                    .disabled(move.isChecking)
-                case .succeeded, .failed:
-                    EmptyView()
-                }
-                if let submission = move.submission, outcome != .dropped {
                     Link("View in Explorer", destination: submission.explorerURL)
                 }
+                .foregroundStyle(palette.accent)
+                .listRowBackground(palette.surface)
             }
-            .foregroundStyle(palette.accent)
-            .listRowBackground(palette.surface)
         }
         .foregroundStyle(palette.primaryText, palette.secondaryText)
         .scrollContentBackground(.hidden)
         .readableContentWidth()
         .background(palette.background)
-        .navigationTitle(Text(move.direction.title))
+        .navigationTitle(Text(review.proposal.direction.title))
         .navigationBarTitleDisplayMode(.inline)
-        // The result replaces the review in place, and checking again can change it, so VoiceOver moves to it.
+        // The result replaces the review in place, so VoiceOver moves to it.
         .onChange(of: outcome, initial: true) { isFocused = true }
     }
 
     /// The result's symbol, title, and explanation, for the move's direction.
     private var card: (title: LocalizedStringResource, message: LocalizedStringResource, systemImage: String) {
-        let amount = move.payment.quantity
-        let token = move.payment.token
+        let move = review.proposal
+        let amount = move.amount.quantity
+        let token = move.amount.token
         switch (move.direction, outcome) {
         case (.toPrivate, .succeeded):
             return ("SOL Is Private",
@@ -65,8 +53,8 @@ struct BalanceMoveResultScreen: View {
                     // The symbol matches the private-balance sign on SOL's card.
                     "eye.slash.circle.fill")
         case (.toPublic, .succeeded):
-            // A spent note's change returns to the private balance, pending until the network reports it.
-            let message: LocalizedStringResource = if case .balance(_, let pending)? = move.status, pending > 0 {
+            // The spent notes' change returns to the private balance, pending until the network reports it.
+            let message: LocalizedStringResource = if review.review?.pendingChange != nil {
                 LocalizedStringResource("\(amount, format: .quantity(of: token)) is in your public balance. The rest of your private balance becomes available within a minute.",
                                         comment: "Message after private SOL moved to the public balance, when the rest of the private balance is pending. The variable is the amount with its symbol, such as 0.5 SOL.")
             } else {
@@ -87,10 +75,6 @@ struct BalanceMoveResultScreen: View {
             return ("Not Sent", "Nothing left your public balance.", "xmark.circle.fill")
         case (.toPublic, .dropped):
             return ("Not Sent", "Nothing left your private balance.", "xmark.circle.fill")
-        case (_, .unconfirmed):
-            return ("Couldn't Check Transaction",
-                    "The transaction was sent, but the selected provider stopped answering. Check it again, or view it in Explorer.",
-                    "exclamationmark.circle.fill")
         }
     }
 }

@@ -8,7 +8,7 @@ struct PrivateBalanceMoveAction {
 
     /// Opens a move in one direction; a withdrawal opens only while some private SOL is available.
     /// - Parameter direction: Which balance the SOL leaves, and which one it reaches.
-    func callAsFunction(_ direction: BalanceMoveModel.Direction) {
+    func callAsFunction(_ direction: BalanceMoveProposal.Direction) {
         switch direction {
         case .toPrivate: model.addToPrivateBalance(publicLamports: publicLamports)
         case .toPublic: model.moveToPublicBalance()

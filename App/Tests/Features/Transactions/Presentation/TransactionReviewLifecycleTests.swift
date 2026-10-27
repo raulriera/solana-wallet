@@ -29,7 +29,7 @@ struct TransactionReviewLifecycleTests {
     @Test
     func `A failed review shows its alert`() async throws {
         let error = TransactionError(name: "InsufficientFundsForFee", details: nil)
-        let payment = try LocalPaymentReview(simulation: LocalPaymentReview.execution(error: error))
+        let payment = try LocalPaymentReview(simulation: .failure(error, fee: LocalPaymentReview.networkFee))
         payment.model.prepareReview()
         let hosted = try HostedWindow(TransactionReviewSheet<PaymentReviewScreen, PaymentResultScreen>(review: payment.model)
             .transactionReviewLifecycle())
@@ -47,7 +47,7 @@ struct TransactionReviewLifecycleTests {
         let refusal = RPCError.http(statusCode: 429, retryAfter: "3")
         let sockets = SocketSequence { $0 == 0 ? SocketSequence.failing(with: refusal) : SocketSequence.watch() }
         let payment = try LocalPaymentReview(statuses: [.status(.finalized)], sockets: sockets)
-        try await payment.review()
+        try await payment.model.runReview()
         let hosted = try HostedWindow(TransactionReviewSheet<PaymentReviewScreen, PaymentResultScreen>(review: payment.model)
             .transactionReviewLifecycle())
         defer { hosted.close() }

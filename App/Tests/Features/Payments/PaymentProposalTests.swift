@@ -32,7 +32,7 @@ struct PaymentProposalTests {
          .preparationFailed),
     ])
     func `A failed simulation throws the payment's error`(error: TransactionError, expected: SendError) async throws {
-        let payment = try LocalPaymentReview(simulation: LocalPaymentReview.execution(error: error))
+        let payment = try LocalPaymentReview(simulation: .failure(error, fee: LocalPaymentReview.networkFee))
 
         await #expect(throws: expected) { try await Self.simulate(payment.model.proposal, in: payment) }
     }

@@ -40,13 +40,7 @@ struct PaymentReviewScreen: TransactionReviewContent {
                 LabeledContent("Pay With") {
                     Text(payment.amount.token.symbol)
                 }
-                LabeledContent("Network Fee") {
-                    TokenBalance(amount: Amount(lamports: costs?.networkFee ?? Self.placeholderFee), symbol: "SOL")
-                        // Until the first simulation, a placeholder keeps the row's place instead of a spinner, and
-                        // VoiceOver doesn't read its made-up value.
-                        .redacted(reason: costs == nil ? .placeholder : [])
-                        .accessibilityHidden(costs == nil)
-                }
+                NetworkFeeRow(fee: costs?.networkFee)
                 if let accountDeposit = costs?.accountDeposit {
                     LabeledContent("Account Deposit") {
                         TokenBalance(amount: Amount(lamports: accountDeposit), symbol: "SOL")
@@ -74,7 +68,4 @@ struct PaymentReviewScreen: TransactionReviewContent {
         .confirmationAction("Send", isEnabled: review.canApprove, isPending: review.isSending,
                             action: review.approve)
     }
-
-    /// A typical network fee, which the placeholder shows until the first simulation, in lamports.
-    private static let placeholderFee: UInt64 = 5_000
 }

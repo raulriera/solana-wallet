@@ -64,28 +64,4 @@ struct LocalPaymentReview {
         preparation = local.preparation
         self.sockets = sockets
     }
-
-    /// Creates a failed simulation without balances.
-    /// - Parameter error: The execution error.
-    /// - Returns: The execution.
-    static func execution(error: TransactionError) -> SimulateTransaction.Value {
-        SimulateTransaction.Value(error: error, logs: [], unitsConsumed: 150, loadedAccountsDataSize: 256,
-                                  fee: networkFee, replacementBlockhash: nil, preBalances: nil, postBalances: nil,
-                                  preTokenBalances: nil, postTokenBalances: nil)
-    }
-
-    /// Reviews the payment, as the sheet does when it opens.
-    /// - Throws: A test failure when the review can't be approved.
-    func review() async throws {
-        model.prepareReview()
-        await model.run(model.attempt)
-        try #require(model.canApprove)
-    }
-
-    /// Counts the simulations sent so far.
-    /// - Returns: The number of `simulateTransaction` requests.
-    /// - Throws: A test prerequisite error for a request without a method.
-    func simulations() async throws -> Int {
-        try await preparation.requests.count { try $0.rpcMethod == "simulateTransaction" }
-    }
 }

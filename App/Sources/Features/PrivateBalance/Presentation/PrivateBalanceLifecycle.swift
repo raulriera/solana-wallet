@@ -10,7 +10,7 @@ private struct PrivateBalanceLifecycle: ViewModifier {
         content
             .task(id: attempt) { await model.run(attempt) }
             .errorAlert($model.error)
-            .sheet(item: $model.move) { BalanceMoveSheet(move: $0).balanceMoveLifecycle() }
+            .sheet(item: $model.move) { BalanceMoveSheet(move: $0) }
             .sensoryFeedback(.success, trigger: model.isTurnedOn) { _, isTurnedOn in isTurnedOn }
             .onChange(of: model.isTurnedOn) { _, isTurnedOn in
                 guard isTurnedOn else { return }

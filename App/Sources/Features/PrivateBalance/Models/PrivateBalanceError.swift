@@ -1,7 +1,7 @@
 import Foundation
 
 /// A private-balance error that the app explains in an alert, without keys or underlying errors.
-nonisolated enum PrivateBalanceError: LocalizedError, Equatable, CaseIterable {
+nonisolated enum PrivateBalanceError: TransactionReviewError, CaseIterable {
     /// The account's derivation path has no private-balance keys; only standard Solana accounts have them.
     case unsupportedAccount
     /// The account registered other private-balance keys, such as another app's, so this app can't read its notes.
@@ -22,6 +22,8 @@ nonisolated enum PrivateBalanceError: LocalizedError, Equatable, CaseIterable {
     case insufficientPublicBalanceForFees
     /// The transaction couldn't be prepared or simulated for another reason, such as a provider error.
     case preparationFailed
+    /// The transaction couldn't be signed or sent, so nothing left the wallet.
+    case notSent
     /// The text isn't a redeem code, or it's damaged or incomplete.
     case invalidCode
     /// The redeem code holds SOL on another network than the selected one.
@@ -46,6 +48,8 @@ nonisolated enum PrivateBalanceError: LocalizedError, Equatable, CaseIterable {
             String(localized: "Not Enough SOL")
         case .preparationFailed:
             String(localized: "Can't Prepare Transaction")
+        case .notSent:
+            String(localized: "Couldn't Send Transaction")
         case .invalidCode, .codeForOtherNetwork, .codeRedeemed, .codeUnderfunded, .codeNotReady:
             String(localized: "Can't Use Code")
         case .turnOnFailed:
@@ -76,6 +80,8 @@ nonisolated enum PrivateBalanceError: LocalizedError, Equatable, CaseIterable {
             String(localized: "Your public balance must cover the fees. Add SOL to it, then try again.")
         case .preparationFailed:
             String(localized: "The selected provider couldn't prepare this transaction. Try again.")
+        case .notSent:
+            String(localized: "Nothing left your wallet. Try again in a moment.")
         case .invalidCode:
             String(localized: "This isn't a valid code. Check that you have the whole code.")
         case .codeForOtherNetwork:
@@ -90,4 +96,7 @@ nonisolated enum PrivateBalanceError: LocalizedError, Equatable, CaseIterable {
             String(localized: "Private balances couldn't be turned on for this account. Try again.")
         }
     }
+
+    /// Whether repeating the step that failed can help: only a provider or sending error can pass on a second try.
+    var canRetry: Bool { self == .preparationFailed || self == .notSent }
 }

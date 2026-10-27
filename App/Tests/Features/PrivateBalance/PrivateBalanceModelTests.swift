@@ -124,24 +124,6 @@ struct PrivateBalanceModelTests {
         #expect(model.error == nil)
     }
 
-    /// A network without a transaction coordinator opens no deposit and explains that the transaction can't be
-    /// prepared.
-    @Test
-    func `Adding without a transaction coordinator fails`() async throws {
-        let account = try await PrivateBalanceFixtures.account()
-        let model = try PrivateBalanceModel.fixture(
-            HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered]),
-            keys: StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)]),
-            transactions: .inMemory { _ in throw SubmitterError.noProviders }
-        )
-        await model.refresh(for: account)
-
-        model.addToPrivateBalance(publicLamports: 2_000_000_000)
-
-        #expect(model.move == nil)
-        #expect(model.error == .preparationFailed)
-    }
-
     /// A settled private deposit or withdrawal becomes the account's last settled move, which reads the balance again.
     /// - Parameter kind: The private move.
     @Test(arguments: [TransactionRecord.Kind.privateDeposit(lamports: 1_000_000),

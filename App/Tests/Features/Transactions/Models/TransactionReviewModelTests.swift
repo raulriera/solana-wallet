@@ -32,7 +32,7 @@ struct TransactionReviewModelTests {
     @Test
     func `A failed simulation shows the proposal's error without a review`() async throws {
         let error = TransactionError(name: "InsufficientFundsForFee", details: nil)
-        let model = try LocalPaymentReview(simulation: LocalPaymentReview.execution(error: error)).model
+        let model = try LocalPaymentReview(simulation: .failure(error, fee: LocalPaymentReview.networkFee)).model
 
         model.prepareReview()
         await model.run(model.attempt)
@@ -72,7 +72,7 @@ struct TransactionReviewModelTests {
     func `A landed transaction shows its outcome from its record`() async throws {
         let payment = try LocalPaymentReview(statuses: [.status(.finalized)])
         let model = payment.model
-        try await payment.review()
+        try await payment.model.runReview()
 
         model.approve()
         await model.run(model.attempt)
@@ -97,7 +97,7 @@ struct TransactionReviewModelTests {
         let gate = Suspension()
         let payment = try LocalPaymentReview(statuses: [.status(.finalized)], sent: .sending(gate: gate))
         let model = payment.model
-        try await payment.review()
+        try await payment.model.runReview()
         model.approve()
         let attempt = model.attempt
         let review = Task { await model.run(attempt) }
@@ -124,7 +124,7 @@ struct TransactionReviewModelTests {
                                        details: .array([.integer(0), .object(["Custom": .integer(1)])]))
         let payment = try LocalPaymentReview(statuses: [.status(.finalized, error: failure)])
         let model = payment.model
-        try await payment.review()
+        try await payment.model.runReview()
 
         model.approve()
         await model.run(model.attempt)
@@ -142,7 +142,7 @@ struct TransactionReviewModelTests {
         // The epoch's block height is past the blockhash's last valid block height, 550, and no status exists.
         let payment = try LocalPaymentReview(statuses: [.status(nil)], height: 600)
         let model = payment.model
-        try await payment.review()
+        try await payment.model.runReview()
         model.approve()
         await model.run(model.attempt)
         try #require(await payment.transactions.settledStatus(of: try #require(model.record)) == .dropped)
@@ -158,7 +158,7 @@ struct TransactionReviewModelTests {
         #expect(model.outcome == nil)
         #expect(model.submission == nil)
         #expect(model.canApprove)
-        #expect(try await payment.simulations() == 2)
+        #expect(try await payment.preparation.simulations() == 2)
     }
 
     /// A watch that a rate limit stops leaves the review waiting without an error, and a later watch of the same
@@ -170,7 +170,7 @@ struct TransactionReviewModelTests {
         let sockets = SocketSequence { $0 == 0 ? SocketSequence.failing(with: refusal) : SocketSequence.watch() }
         let payment = try LocalPaymentReview(statuses: [.status(.finalized)], sockets: sockets)
         let model = payment.model
-        try await payment.review()
+        try await payment.model.runReview()
         model.approve()
         await model.run(model.attempt)
         let record = try #require(model.record)
@@ -199,7 +199,7 @@ struct TransactionReviewModelTests {
         let store = SigningRecoveryStore(recovery: try SigningFixture().recovery, error: CancellationError())
         let payment = try LocalPaymentReview(store: store)
         let model = payment.model
-        try await payment.review()
+        try await payment.model.runReview()
 
         model.approve()
         await model.run(model.attempt)
@@ -209,7 +209,7 @@ struct TransactionReviewModelTests {
         #expect(model.submission == nil)
         #expect(model.canApprove)
         #expect(await store.reads.count == 1)
-        #expect(try await payment.simulations() == 2)
+        #expect(try await payment.preparation.simulations() == 2)
     }
 
     /// A transaction that can't be signed sends nothing and uses up its simulation, so retrying reviews it again.
@@ -219,7 +219,7 @@ struct TransactionReviewModelTests {
         let store = SigningRecoveryStore(recovery: try SigningFixture().recovery, error: CocoaError(.fileReadUnknown))
         let payment = try LocalPaymentReview(store: store)
         let model = payment.model
-        try await payment.review()
+        try await payment.model.runReview()
         model.approve()
         await model.run(model.attempt)
         try #require(model.error == .notSent)
@@ -230,7 +230,7 @@ struct TransactionReviewModelTests {
         await model.run(model.attempt)
 
         #expect(model.canApprove)
-        #expect(try await payment.simulations() == 2)
+        #expect(try await payment.preparation.simulations() == 2)
     }
 
     /// Refreshing an open review simulates the same transaction again and keeps the same review.
@@ -239,13 +239,13 @@ struct TransactionReviewModelTests {
     func `Refreshing a review simulates it again`() async throws {
         let payment = try LocalPaymentReview()
         let model = payment.model
-        try await payment.review()
+        try await payment.model.runReview()
 
         await model.refreshReview()
 
         #expect(model.review == LocalPaymentReview.costs)
         #expect(model.canApprove)
-        #expect(try await payment.simulations() == 2)
+        #expect(try await payment.preparation.simulations() == 2)
     }
 
     /// A review that's being sent isn't simulated again, so the approved transaction stays the one that's signed.
@@ -254,11 +254,11 @@ struct TransactionReviewModelTests {
     func `Refreshing skips a review that's being sent`() async throws {
         let payment = try LocalPaymentReview()
         let model = payment.model
-        try await payment.review()
+        try await payment.model.runReview()
         model.approve()
 
         await model.refreshReview()
 
-        #expect(try await payment.simulations() == 1)
+        #expect(try await payment.preparation.simulations() == 1)
     }
 }

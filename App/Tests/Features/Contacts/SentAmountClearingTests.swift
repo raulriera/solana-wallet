@@ -97,7 +97,7 @@ struct SentAmountClearingTests {
         /// - Returns: The review's cancelled task, which finishes once the payment is delivered.
         /// - Throws: A test failure when the review can't be approved.
         func approveAndClose() async throws -> Task<Void, Never> {
-            try await payment.review()
+            try await payment.model.runReview()
             let model = payment.model
             model.approve()
             let attempt = model.attempt

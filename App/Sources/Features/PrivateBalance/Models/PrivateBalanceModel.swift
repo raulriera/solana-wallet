@@ -24,7 +24,7 @@ final class PrivateBalanceModel {
     /// Whether the account holds any private SOL, available or pending; kept apart from ``status`` so the token list
     /// changes only when this does.
     private(set) var hasBalance = false
-    /// The error of the last attempt to turn private balances on, or to open a move.
+    /// The error of the last attempt to turn private balances on.
     var error: PrivateBalanceError?
     /// The attempt to turn private balances on that's waiting for the scene's task, or running.
     private(set) var attempt: UUID?
@@ -34,7 +34,7 @@ final class PrivateBalanceModel {
     /// can't fix.
     private(set) var isPollingPaused = false
     /// The open move of the account's SOL between its public and private balances.
-    var move: BalanceMoveModel?
+    var move: BalanceMove?
     /// The quick reads left until the pending SOL of a settled transaction turns available.
     private(set) var followUpReadsLeft = 0
     /// The window's network.
@@ -171,18 +171,12 @@ final class PrivateBalanceModel {
     /// - Parameters:
     ///   - direction: Which balance the SOL leaves, and which one it reaches.
     ///   - spendableLamports: The SOL that the move can take from the balance that it leaves, in lamports.
-    private func open(_ direction: BalanceMoveModel.Direction, spendableLamports: UInt64) {
+    private func open(_ direction: BalanceMoveProposal.Direction, spendableLamports: UInt64) {
         guard let account, move == nil else { return }
         switch status {
         case .unregistered?, .balance?:
-            do {
-                move = BalanceMoveModel(direction: direction, account: account, network: network,
-                                        spendableLamports: spendableLamports, balances: balances,
-                                        coordinator: try transactions.coordinator(for: network),
-                                        transactions: transactions)
-            } catch {
-                self.error = .preparationFailed
-            }
+            move = BalanceMove(direction: direction, account: account, network: network,
+                               spendableLamports: spendableLamports, balances: balances, transactions: transactions)
         case .off?, .unavailable?, nil:
             return
         }

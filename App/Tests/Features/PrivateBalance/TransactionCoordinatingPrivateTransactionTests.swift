@@ -26,7 +26,7 @@ struct TransactionCoordinatingPrivateTransactionTests {
 
         #expect(transaction.instructions == [fixture.transfer])
         #expect(simulation.fee == 10_000)
-        #expect(try await Self.simulations(of: responses) == 1)
+        #expect(try await responses.simulations() == 1)
     }
 
     /// A sweep reads the fee from a first simulation without a fee, then simulates and returns the transaction whose
@@ -49,7 +49,7 @@ struct TransactionCoordinatingPrivateTransactionTests {
         #expect(redemption.networkFee == 7_000)
         #expect(redemption.lamports == 13_001)
         #expect(transaction.instructions == (try prepared.withNetworkFee(7_000).instructions))
-        #expect(try await Self.simulations(of: responses) == 2)
+        #expect(try await responses.simulations() == 2)
     }
 
     /// A sweep whose fee is unknown, or whose charged transaction reports another fee, isn't returned for approval.
@@ -126,13 +126,5 @@ struct TransactionCoordinatingPrivateTransactionTests {
         return PreparedPrivateTransaction(instructions: try redemption.transactionInstructions, account: fixture.account,
                                           network: .devnet, effect: .redeem(redemption), registers: false,
                                           authorities: [.oneTime(fixture.oneTime)])
-    }
-
-    /// Counts the simulations sent so far.
-    /// - Parameter responses: The local responses that recorded the requests.
-    /// - Returns: The number of `simulateTransaction` requests.
-    /// - Throws: A test prerequisite error for a request without a method.
-    private static func simulations(of responses: HTTPResponses) async throws -> Int {
-        try await responses.requests.filter { try $0.rpcMethod == "simulateTransaction" }.count
     }
 }
