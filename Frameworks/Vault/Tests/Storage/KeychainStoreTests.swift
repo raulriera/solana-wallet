@@ -1,4 +1,3 @@
-import Dispatch
 import Foundation
 import LocalAuthentication
 import Security
@@ -88,33 +87,84 @@ struct KeychainStoreTests {
     @Test
     func `Cancelling recovery invalidates authentication without deleting the wallet`() async throws {
         let (started, signal) = AsyncStream<Void>.makeStream()
-        let blocked = Mutex(false)
-        let timedOut = Mutex(false)
-        let release = DispatchSemaphore(value: 0)
-        let keychain = KeychainStub(
-            contextFactory: {
-                TestContext { if blocked.withLock(\.self) { release.signal() } }
-            },
-            beforeRead: {
-                blocked.withLock { $0 = true }
-                signal.yield(())
-                // Simulate the blocking Security call only on the dedicated background queue.
-                if release.wait(timeout: .now() + 5) == .timedOut { timedOut.withLock { $0 = true } }
-            }
-        )
+        let keychain = KeychainStub(beforeRead: { signal.yield(()) })
         let store = KeychainStore(service: "test.recovery", keychain: keychain)
         let id = UUID()
         try await store.save(Fixtures.recovery(), for: id)
         let original = keychain.state.withLock(\.items)
+        keychain.state.withLock { $0.blocksReads = true }
         let read = Task { @concurrent in try await store.recovery(for: id, reason: "Recover wallet") }
-        defer { read.cancel(); release.signal(); signal.finish() }
+        defer {
+            read.cancel()
+            signal.finish()
+        }
         for await _ in started { break }
 
         read.cancel()
 
         await #expect(throws: CancellationError.self) { try await read.value }
-        #expect(!timedOut.withLock { $0 })
+        let readNotFreed = keychain.state.withLock(\.readNotFreed)
+        #expect(!readNotFreed)
         #expect(keychain.state.withLock(\.items) == original)
+    }
+
+    /// Verifies that a prompt that never appears frees the read as a retryable error and keeps the wallet.
+    @Test
+    func `An authentication prompt that never appears frees the read as a retryable error`() async throws {
+        let keychain = KeychainStub()
+        let store = KeychainStore(
+            service: "test.recovery", keychain: keychain, authenticationTimeout: .milliseconds(200)
+        )
+        let id = UUID()
+        try await store.save(Fixtures.recovery(), for: id)
+        let original = keychain.state.withLock(\.items)
+        keychain.state.withLock { $0.blocksReads = true }
+
+        await #expect(throws: KeychainStoreError.interactionNotAllowed) {
+            try await store.recovery(for: id, reason: "Recover wallet")
+        }
+        keychain.state.withLock { $0.blocksReads = false }
+        // The retry runs on the same serial queue, so it starts only after the timed-out read ends.
+        let recovered = try await store.recovery(for: id, reason: "Try recovery again")
+
+        #expect(recovered.passphrase == " TREZOR ")
+        #expect(keychain.state.withLock(\.readCount) == 2)
+        let readNotFreed = keychain.state.withLock(\.readNotFreed)
+        #expect(!readNotFreed)
+        #expect(keychain.state.withLock(\.items) == original)
+    }
+
+    /// Verifies that a read queued behind another read's prompt, as from a second window, gets its full time bound.
+    @Test
+    func `A read waiting behind another read gets its full time bound`() async throws {
+        let (started, signal) = AsyncStream<Void>.makeStream()
+        let reads = Mutex(0)
+        let keychain = KeychainStub(beforeRead: {
+            let count = reads.withLock {
+                $0 += 1
+                return $0
+            }
+            // The first read's prompt never appears; the second read's person takes a moment to answer.
+            if count == 1 { signal.yield(()) } else { Thread.sleep(forTimeInterval: 0.15) }
+        })
+        let store = KeychainStore(
+            service: "test.recovery", keychain: keychain, authenticationTimeout: .milliseconds(300)
+        )
+        let id = UUID()
+        try await store.save(Fixtures.recovery(), for: id)
+        keychain.state.withLock { $0.blocksReads = true }
+        let first = Task { @concurrent in try await store.recovery(for: id, reason: "Recover wallet") }
+        defer {
+            first.cancel()
+            signal.finish()
+        }
+        for await _ in started { break }
+        keychain.state.withLock { $0.blocksReads = false }
+
+        let second = try await store.recovery(for: id, reason: "Recover wallet in another window")
+
+        await #expect(throws: KeychainStoreError.interactionNotAllowed) { try await first.value }
+        #expect(second.passphrase == " TREZOR ")
     }
 
     /// Verifies that a device without a passcode never gets weaker or unusable storage.

@@ -32,7 +32,7 @@ let restored = try await store.recovery(
 
 Storage requires a device passcode; biometrics are optional. Records use `kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly` and `userPresence`, with no iCloud synchronization or migration to another device. Biometric enrollment changes don't affect access; removing the device passcode deletes records.
 
-Cancellation dismisses pending authentication; it does not undo completed writes or deletions. Blocking Keychain operations run on a private queue outside the main actor.
+Cancellation dismisses pending authentication; it does not undo completed writes or deletions. Operations run one at a time. A recovery read that hasn't finished authenticating 30 seconds after it starts, not counting time spent waiting behind an earlier operation, dismisses any pending prompt and throws `KeychainStoreError.interactionNotAllowed`, so the caller can retry; this also ends a read whose prompt other system UI, such as a notification banner, kept from appearing. Blocking Keychain operations run on a private queue outside the main actor.
 
 The caller owns backup and recovery workflows. Restoring an account requires the original phrase, any BIP-39 passphrase, and derivation path; device authentication does not replace that backup. Recovery descriptions omit secrets, but explicit properties expose them and do not guarantee memory erasure; the raw Keychain payload is zeroed after use on a best-effort basis.
 

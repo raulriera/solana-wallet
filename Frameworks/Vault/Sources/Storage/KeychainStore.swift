@@ -2,6 +2,7 @@ import Dispatch
 public import Foundation
 import LocalAuthentication
 import Security
+import Synchronization
 
 /// Device-only recovery storage that opens with biometrics or the device passcode.
 ///
@@ -14,14 +15,24 @@ public struct KeychainStore: RecoveryStoring {
 
     private let service: String
     private let keychain: any KeychainAccessing
+    private let authenticationTimeout: Duration
     private let queue = DispatchQueue(label: "Vault.Keychain", qos: .userInitiated)
+
+    /// The longest a recovery read waits, once it starts, before it ends authentication and reports
+    /// ``KeychainStoreError/interactionNotAllowed``.
+    ///
+    /// System UI, such as a notification banner, can take over presentation just as the biometric prompt would
+    /// appear, so the prompt never shows and the Keychain read would otherwise wait with no end. Operations run one
+    /// at a time, and time spent waiting behind an earlier one doesn't count. The bound does count time spent
+    /// answering a prompt that shows, so a prompt still open at the bound closes. The error is retryable, so a later
+    /// attempt, once presentation is free, succeeds.
+    static let defaultAuthenticationTimeout = Duration.seconds(30)
 
     /// Creates device-only storage in the app's Keychain access group.
     ///
     /// - Parameter service: A stable, app-specific namespace, such as `com.example.wallet.recovery`.
     public init(service: String) {
-        self.service = service
-        keychain = SystemKeychain()
+        self.init(service: service, keychain: SystemKeychain())
     }
 
     /// Creates storage with injected Keychain operations for focused verification.
@@ -29,9 +40,13 @@ public struct KeychainStore: RecoveryStoring {
     /// - Parameters:
     ///   - service: The stable storage namespace.
     ///   - keychain: The implementation of Security operations.
-    init(service: String, keychain: any KeychainAccessing) {
+    ///   - authenticationTimeout: How long a read waits, once it starts, before it reports
+    ///     ``KeychainStoreError/interactionNotAllowed``.
+    init(service: String, keychain: any KeychainAccessing,
+         authenticationTimeout: Duration = KeychainStore.defaultAuthenticationTimeout) {
         self.service = service
         self.keychain = keychain
+        self.authenticationTimeout = authenticationTimeout
     }
 
     /// Saves recovery material without overwriting an existing wallet.
@@ -74,9 +89,10 @@ public struct KeychainStore: RecoveryStoring {
     ///   - recoveryID: The local identifier used when saving the recovery.
     ///   - reason: A localized, secret-free explanation shown during authentication.
     /// - Returns: The validated recovery material.
-    /// - Throws: ``KeychainStoreError`` if access fails, or `CancellationError` if canceled.
+    /// - Throws: ``KeychainStoreError`` if access fails, including ``KeychainStoreError/interactionNotAllowed`` when
+    ///   authentication doesn't finish within the time bound, or `CancellationError` if canceled.
     public func recovery(for recoveryID: UUID, reason: String) async throws -> Recovery {
-        try await perform(reason: reason) { context in
+        try await perform(reason: reason, timeout: authenticationTimeout) { context in
             var query = identity(for: recoveryID)
             query[kSecMatchLimit as String] = kSecMatchLimitOne
             query[kSecReturnData as String] = true
@@ -137,31 +153,55 @@ public struct KeychainStore: RecoveryStoring {
         namespace.merging([kSecAttrAccount as String: recoveryID.uuidString]) { $1 }
     }
 
-    /// Runs a blocking Keychain operation outside Swift's cooperative executor.
+    /// Runs a blocking Keychain operation outside Swift's cooperative executor, optionally within a time bound.
     ///
+    /// With a `timeout`, the caller resumes at the bound even if the blocking Keychain call never returns, and
+    /// invalidating the context dismisses any pending prompt.
     /// - Parameters:
     ///   - reason: The localized authentication explanation, when reading an item.
+    ///   - timeout: How long to wait once the operation starts on the Keychain queue before reporting
+    ///     ``KeychainStoreError/interactionNotAllowed``, or `nil` to wait without a bound, as for operations that
+    ///     never present a prompt.
     ///   - operation: Work whose queries and context stay on the background queue.
     /// - Returns: The operation's result after checking cancellation.
-    /// - Throws: The operation's error, or `CancellationError` if canceled.
+    /// - Throws: The operation's error, ``KeychainStoreError/interactionNotAllowed`` at the time bound, or
+    ///   `CancellationError` if canceled.
     private func perform<Value: Sendable>(
         reason: String = "",
+        timeout: Duration? = nil,
         _ operation: @escaping Operation<Value>
     ) async throws -> Value {
         try Task.checkCancellation()
         let authentication = AuthenticationContext(context: keychain.makeContext(), reason: reason)
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
+                // The operation and the time bound race to resume the caller; only the first one does.
+                let pending = Mutex<CheckedContinuation<Value, any Error>?>(continuation)
+                let resume: @Sendable (Result<Value, any Error>) -> Void = { result in
+                    pending.withLock { $0.take() }?.resume(with: result)
+                }
                 queue.async {
-                    defer { authentication.finish() }
+                    // The bound starts once the operation runs, so time spent waiting behind another one doesn't count.
+                    let timer = timeout.map { timeout in
+                        Task { @concurrent in
+                            try await Task.sleep(for: timeout)
+                            authentication.timeOut()
+                            // The outcome is final now, so this reports the timeout, or a cancellation that came first.
+                            do { try authentication.checkRunning() } catch { resume(.failure(error)) }
+                        }
+                    }
+                    defer {
+                        authentication.finish()
+                        timer?.cancel()
+                    }
                     let result = Result {
-                        try authentication.checkCancellation()
+                        try authentication.checkRunning()
                         return try operation(authentication.context)
                     }
                     do {
-                        try authentication.checkCancellation()
-                        continuation.resume(with: result)
-                    } catch { continuation.resume(throwing: error) }
+                        try authentication.checkRunning()
+                        resume(result)
+                    } catch { resume(.failure(error)) }
                 }
             }
         } onCancel: { authentication.cancel() }

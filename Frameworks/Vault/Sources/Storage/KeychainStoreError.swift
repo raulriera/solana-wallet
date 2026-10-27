@@ -6,7 +6,8 @@ public enum KeychainStoreError: Error, Sendable, Equatable {
     case recoveryUnavailable
     /// Authentication didn't authorize access to the item.
     case authenticationFailed
-    /// Keychain access couldn't present authentication in the current state.
+    /// Keychain access couldn't present authentication in the current state, or authentication didn't finish within
+    /// the time bound.
     case interactionNotAllowed
     /// The device has no passcode, or the requested item protection is unavailable.
     case protectionUnavailable

@@ -1,3 +1,4 @@
+import Dispatch
 import Foundation
 import LocalAuthentication
 import Security
@@ -26,6 +27,10 @@ final class KeychainStub: KeychainAccessing {
         var hidesPasscode = false
         var reusesUnlock = false
         var readCount = 0
+        /// Makes reads wait until their own context is invalidated, as when the prompt never appears.
+        var blocksReads = false
+        /// Records a blocked read that waited the full bound without its context being invalidated.
+        var readNotFreed = false
     }
 
     let state = Mutex(State())
@@ -72,13 +77,17 @@ final class KeychainStub: KeychainAccessing {
     func copy(matching query: [String: Any]) -> (status: OSStatus, data: Data?) {
         let identity = identity(in: query)
         let context = query[kSecUseAuthenticationContext as String] as! LAContext
-        state.withLock {
+        let blocksRead = state.withLock {
             $0.promptReasons.append(context.localizedReason)
             $0.hidesPasscode = $0.hidesPasscode || context.localizedFallbackTitle == ""
             $0.reusesUnlock = $0.reusesUnlock || context.touchIDAuthenticationAllowableReuseDuration != 0
             $0.readCount += 1
+            return $0.blocksReads
         }
         beforeRead()
+        if blocksRead, (context as? TestContext)?.waitForInvalidation(until: .now() + 5) != true {
+            state.withLock { $0.readNotFreed = true }
+        }
         return state.withLock {
             guard $0.readStatus == errSecSuccess else { return ($0.readStatus, nil) }
             guard let data = $0.dataOverride ?? $0.items[identity] else { return (errSecItemNotFound, nil) }
@@ -123,20 +132,25 @@ final class KeychainStub: KeychainAccessing {
 
 /// Observes invalidation without using the system's biometric prompt.
 ///
-/// The only cross-thread test callback is immutable and Sendable. Inherited
-/// context configuration remains owned by the production per-operation wrapper.
+/// The invalidation semaphore is the only state shared across threads, and it's
+/// thread-safe. Inherited context configuration remains owned by the production
+/// per-operation wrapper.
 final class TestContext: LAContext, @unchecked Sendable {
     private let available: Bool
-    private let onInvalidate: @Sendable () -> Void
+    private let invalidation = DispatchSemaphore(value: 0)
 
-    /// Creates a context with a thread-safe invalidation observer.
-    /// - Parameters:
-    ///   - available: Whether the test device has a passcode.
-    ///   - onInvalidate: The callback invoked when authentication is invalidated.
-    init(available: Bool = true, onInvalidate: @escaping @Sendable () -> Void = {}) {
+    /// Creates a context that records its own invalidation.
+    /// - Parameter available: Whether the test device has a passcode.
+    init(available: Bool = true) {
         self.available = available
-        self.onInvalidate = onInvalidate
         super.init()
+    }
+
+    /// Waits until this context is invalidated, including an invalidation that already happened.
+    /// - Parameter deadline: The latest time to wait until.
+    /// - Returns: Whether the context was invalidated before the deadline.
+    func waitForInvalidation(until deadline: DispatchTime) -> Bool {
+        invalidation.wait(timeout: deadline) == .success
     }
 
     /// Reports availability without consulting simulator authentication configuration.
@@ -150,7 +164,7 @@ final class TestContext: LAContext, @unchecked Sendable {
 
     /// Records cancellation or completion before invalidating the context.
     override func invalidate() {
-        onInvalidate()
+        invalidation.signal()
         super.invalidate()
     }
 }
