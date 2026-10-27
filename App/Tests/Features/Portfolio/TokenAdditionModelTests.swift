@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 import Portfolio
 import RPC
 import Testing
@@ -15,7 +16,7 @@ struct TokenAdditionModelTests {
     /// Pasted text that isn't an address asks for a valid one and looks nothing up.
     @Test
     func `Pasted text that isn't an address asks for one without a lookup`() {
-        let addition = TokenAdditionModel(coordinator: RecordingPortfolio())
+        let addition = TokenAdditionModel()
 
         addition.paste("not an address")
         #expect(addition.rejection == .notAddress)
@@ -29,7 +30,7 @@ struct TokenAdditionModelTests {
     /// Each rejection signals again, even when the same rejection is already on screen.
     @Test
     func `Each rejection signals again`() {
-        let addition = TokenAdditionModel(coordinator: RecordingPortfolio())
+        let addition = TokenAdditionModel()
 
         addition.paste("not an address")
         addition.paste("still not an address")
@@ -42,53 +43,69 @@ struct TokenAdditionModelTests {
     /// - Throws: A test prerequisite error.
     @Test
     func `A pasted address shows its token`() async throws {
-        let portfolio = RecordingPortfolio()
-        portfolio.preview = try Self.preview(Self.bonk)
-        let addition = TokenAdditionModel(coordinator: portfolio)
+        let preview = try Self.preview(Self.bonk)
+        let service = PortfolioResponses(preview: preview)
+        let portfolios = PortfolioStore.serving(service)
+        let addition = TokenAdditionModel()
 
         addition.paste(" \(Self.bonk)\n")
-        await addition.lookUp(addition.lookup)
+        try await addition.lookUp(in: portfolios)
 
         #expect(addition.text == Self.bonk)
-        #expect(addition.preview == portfolio.preview)
+        #expect(addition.preview == preview)
         #expect(addition.rejection == nil)
-        #expect(portfolio.lookups.map(\.value) == [Self.bonk])
+        #expect(await service.lookups.map(\.value) == [Self.bonk])
     }
 
     /// A rejection stays while the next address is looked up, so it changes in place, and a found token clears it.
     /// - Throws: A test prerequisite error.
     @Test
     func `A rejection stays until the next lookup answers`() async throws {
-        let portfolio = RecordingPortfolio()
-        portfolio.lookupError = TokenLookupError.notToken
-        let addition = TokenAdditionModel(coordinator: portfolio)
+        let preview = try Self.preview(Self.jup)
+        let service = PortfolioResponses(preview: preview)
+        await service.failLookups(with: TokenLookupError.notToken)
+        let portfolios = PortfolioStore.serving(service)
+        let addition = TokenAdditionModel()
         addition.paste(Self.bonk)
-        await addition.lookUp(addition.lookup)
+        try await addition.lookUp(in: portfolios)
 
-        portfolio.lookupError = nil
-        portfolio.preview = try Self.preview(Self.jup)
+        await service.failLookups(with: nil)
         addition.paste(Self.jup)
         #expect(addition.rejection == .notToken)
 
-        await addition.lookUp(addition.lookup)
+        try await addition.lookUp(in: portfolios)
         #expect(addition.rejection == nil)
-        #expect(addition.preview == portfolio.preview)
+        #expect(addition.preview == preview)
     }
 
     /// A token that's already in the list is rejected before any lookup.
     @Test
-    func `A listed token is rejected without a lookup`() async {
-        let portfolio = RecordingPortfolio()
-        portfolio.holdings = [Holding(id: .asset(Self.bonk), amount: nil, name: "Bonk", symbol: "Bonk", imageURL: nil,
-                                      valuation: nil)]
-        let addition = TokenAdditionModel(coordinator: portfolio)
+    /// - Throws: A test prerequisite error.
+    func `A listed token is rejected without a lookup`() async throws {
+        let service = PortfolioResponses()
+        let portfolios = PortfolioStore.serving(service)
+        let account = try Account.fixture(index: 1)
+        var requests = service.requests.makeAsyncIterator()
+        let viewing = Task { await portfolios.observe(account, on: .devnet) }
+        defer { viewing.cancel() }
+        let observation = try #require(await requests.next())
+        let bonk = Holding(id: .asset(Self.bonk), amount: nil, name: "Bonk", symbol: "Bonk", imageURL: nil,
+                           valuation: nil)
+        observation.continuation.yield(Update(snapshot: Snapshot(owner: account.address.value, network: .devnet,
+                                                                 holdings: [bonk]),
+                                              phase: .ready, revision: 1))
+        for await holdings in Observations({ portfolios.portfolio(for: account, on: .devnet)?.holdings ?? [] })
+        where !holdings.isEmpty {
+            break
+        }
+        let addition = TokenAdditionModel()
 
         addition.paste(Self.bonk)
-        await addition.lookUp(addition.lookup)
+        try await addition.lookUp(in: portfolios)
 
         #expect(addition.rejection == .alreadyListed)
         #expect(addition.rejectionCount == 1)
-        #expect(portfolio.lookups.isEmpty)
+        #expect(await service.lookups.isEmpty)
     }
 
     /// Addresses that aren't fungible token mints are rejected with what they are.
@@ -97,13 +114,14 @@ struct TokenAdditionModelTests {
     ///   - rejection: Why the sheet rejects the address.
     @Test(arguments: [(TokenLookupError.notToken, TokenRejection.notToken), (.nonFungible, .nonFungible)])
     func `Addresses that aren't fungible tokens are rejected`(error: TokenLookupError,
-                                                              rejection: TokenRejection) async {
-        let portfolio = RecordingPortfolio()
-        portfolio.lookupError = error
-        let addition = TokenAdditionModel(coordinator: portfolio)
+                                                              rejection: TokenRejection) async throws {
+        let service = PortfolioResponses()
+        await service.failLookups(with: error)
+        let portfolios = PortfolioStore.serving(service)
+        let addition = TokenAdditionModel()
 
         addition.paste(Self.bonk)
-        await addition.lookUp(addition.lookup)
+        try await addition.lookUp(in: portfolios)
 
         #expect(addition.rejection == rejection)
         #expect(addition.rejectionCount == 1)
@@ -114,12 +132,13 @@ struct TokenAdditionModelTests {
     /// - Throws: A test prerequisite error.
     @Test
     func `A new address replaces the previous preview`() async throws {
-        let portfolio = RecordingPortfolio()
-        portfolio.preview = try Self.preview(Self.bonk)
-        let addition = TokenAdditionModel(coordinator: portfolio)
+        let preview = try Self.preview(Self.bonk)
+        let service = PortfolioResponses(preview: preview)
+        let portfolios = PortfolioStore.serving(service)
+        let addition = TokenAdditionModel()
         addition.paste(Self.bonk)
-        await addition.lookUp(addition.lookup)
-        try #require(addition.preview == portfolio.preview)
+        try await addition.lookUp(in: portfolios)
+        try #require(addition.preview == preview)
         let previous = addition.lookup
 
         addition.paste(Self.jup)
@@ -133,19 +152,20 @@ struct TokenAdditionModelTests {
     /// - Throws: A test prerequisite error.
     @Test(arguments: [nil, TokenLookupError.notToken, RPCError.http(statusCode: 503, retryAfter: nil)] as [(any Error)?])
     func `A lookup that ends after a newer paste is ignored`(error: (any Error)?) async throws {
-        let portfolio = RecordingPortfolio()
-        portfolio.preview = try Self.preview(Self.bonk)
-        portfolio.lookupError = error
-        portfolio.holdsLookups = true
-        let addition = TokenAdditionModel(coordinator: portfolio)
+        let gate = Suspension()
+        let service = PortfolioResponses(preview: try Self.preview(Self.bonk), lookupGate: gate)
+        await service.failLookups(with: error)
+        let portfolios = PortfolioStore.serving(service)
+        let addition = TokenAdditionModel()
         addition.paste(Self.bonk)
         let stale = addition.lookup
-        let lookup = Task { await addition.lookUp(stale) }
-        for await _ in portfolio.heldLookups { break }
+        let account = try Account.fixture(index: 1)
+        let lookup = Task { await addition.lookUp(stale, in: portfolios, for: account, on: .devnet) }
+        await gate.waitUntilStarted()
 
         addition.paste(Self.jup)
         let newer = addition.lookup
-        portfolio.releaseLookups()
+        gate.resume()
         await lookup.value
 
         #expect(addition.preview == nil)
@@ -158,16 +178,17 @@ struct TokenAdditionModelTests {
     /// - Throws: A test prerequisite error.
     @Test
     func `Adding the previewed token closes the sheet`() async throws {
-        let portfolio = RecordingPortfolio()
-        portfolio.preview = try Self.preview(Self.bonk)
-        let addition = TokenAdditionModel(coordinator: portfolio)
+        let preview = try Self.preview(Self.bonk)
+        let service = PortfolioResponses(preview: preview)
+        let portfolios = PortfolioStore.serving(service)
+        let addition = TokenAdditionModel()
         addition.paste(Self.bonk)
-        await addition.lookUp(addition.lookup)
+        try await addition.lookUp(in: portfolios)
 
         addition.add()
-        await addition.run(addition.attempt)
+        try await addition.run(in: portfolios)
 
-        #expect(portfolio.added == [portfolio.preview?.token])
+        #expect(await service.added == [preview.token])
         #expect(addition.isAdded)
         #expect(addition.attempt == nil)
     }
@@ -182,15 +203,15 @@ struct TokenAdditionModelTests {
         (.unreadable, .listUnreadable),
     ])
     func `A list that can't take the token explains why`(error: TokenListError, expected: TokenAdditionError) async throws {
-        let portfolio = RecordingPortfolio()
-        portfolio.preview = try Self.preview(Self.bonk)
-        portfolio.addError = error
-        let addition = TokenAdditionModel(coordinator: portfolio)
+        let service = PortfolioResponses(preview: try Self.preview(Self.bonk))
+        await service.failAdds(with: error)
+        let portfolios = PortfolioStore.serving(service)
+        let addition = TokenAdditionModel()
         addition.paste(Self.bonk)
-        await addition.lookUp(addition.lookup)
+        try await addition.lookUp(in: portfolios)
 
         addition.add()
-        await addition.run(addition.attempt)
+        try await addition.run(in: portfolios)
 
         #expect(addition.error == expected)
         #expect(addition.error?.canRetry == false)
@@ -201,24 +222,25 @@ struct TokenAdditionModelTests {
     /// - Throws: A test prerequisite error.
     @Test
     func `A failed save can try again`() async throws {
-        let portfolio = RecordingPortfolio()
-        portfolio.preview = try Self.preview(Self.bonk)
-        portfolio.addError = CocoaError(.fileWriteUnknown)
-        let addition = TokenAdditionModel(coordinator: portfolio)
+        let preview = try Self.preview(Self.bonk)
+        let service = PortfolioResponses(preview: preview)
+        await service.failAdds(with: CocoaError(.fileWriteUnknown))
+        let portfolios = PortfolioStore.serving(service)
+        let addition = TokenAdditionModel()
         addition.paste(Self.bonk)
-        await addition.lookUp(addition.lookup)
+        try await addition.lookUp(in: portfolios)
         addition.add()
-        await addition.run(addition.attempt)
+        try await addition.run(in: portfolios)
         #expect(addition.error == .saveFailed)
         #expect(addition.error?.canRetry == true)
         #expect(!addition.isAdded)
 
-        portfolio.addError = nil
+        await service.failAdds(with: nil)
         addition.error = nil
         addition.retry()
-        await addition.run(addition.attempt)
+        try await addition.run(in: portfolios)
 
-        #expect(portfolio.added == [portfolio.preview?.token])
+        #expect(await service.added == [preview.token])
         #expect(addition.isAdded)
     }
 
@@ -234,42 +256,44 @@ struct TokenAdditionModelTests {
     ])
     func `A provider setup failure offers no retry until the address is pasted again`(error: ProviderClientError,
                                                                                       expected: TokenAdditionError) async throws {
-        let portfolio = RecordingPortfolio()
-        portfolio.preview = try Self.preview(Self.bonk)
-        portfolio.lookupError = error
-        let addition = TokenAdditionModel(coordinator: portfolio)
+        let preview = try Self.preview(Self.bonk)
+        let service = PortfolioResponses(preview: preview)
+        await service.failLookups(with: error)
+        let portfolios = PortfolioStore.serving(service)
+        let addition = TokenAdditionModel()
         addition.paste(Self.bonk)
-        await addition.lookUp(addition.lookup)
+        try await addition.lookUp(in: portfolios)
         #expect(addition.error == expected)
         #expect(addition.error?.canRetry == false)
         #expect(addition.lookup == nil)
 
-        portfolio.lookupError = nil
+        await service.failLookups(with: nil)
         addition.paste(Self.bonk)
-        await addition.lookUp(addition.lookup)
+        try await addition.lookUp(in: portfolios)
 
-        #expect(addition.preview == portfolio.preview)
+        #expect(addition.preview == preview)
     }
 
     /// A lookup that fails for a reason outside the address can run again.
     /// - Throws: A test prerequisite error.
     @Test
     func `A failed lookup can try again`() async throws {
-        let portfolio = RecordingPortfolio()
-        portfolio.preview = try Self.preview(Self.bonk)
-        portfolio.lookupError = RPCError.http(statusCode: 503, retryAfter: nil)
-        let addition = TokenAdditionModel(coordinator: portfolio)
+        let preview = try Self.preview(Self.bonk)
+        let service = PortfolioResponses(preview: preview)
+        await service.failLookups(with: RPCError.http(statusCode: 503, retryAfter: nil))
+        let portfolios = PortfolioStore.serving(service)
+        let addition = TokenAdditionModel()
         addition.paste(Self.bonk)
-        await addition.lookUp(addition.lookup)
+        try await addition.lookUp(in: portfolios)
         #expect(addition.error?.canRetry == true)
 
-        portfolio.lookupError = nil
+        await service.failLookups(with: nil)
         addition.error = nil
         addition.retry()
-        await addition.lookUp(addition.lookup)
+        try await addition.lookUp(in: portfolios)
 
-        #expect(addition.preview == portfolio.preview)
-        #expect(portfolio.lookups.count == 2)
+        #expect(addition.preview == preview)
+        #expect(await service.lookups.count == 2)
     }
 
     /// Builds the preview of a token at an address.
@@ -279,5 +303,21 @@ struct TokenAdditionModelTests {
     private static func preview(_ mint: String) throws -> TokenPreview {
         TokenPreview(token: ListedToken(mint: try Address(mint), program: .token, decimals: 5, symbol: "Bonk",
                                         name: "Bonk"), logo: nil)
+    }
+}
+
+private extension TokenAdditionModel {
+    /// Looks up the pasted address for the test account on devnet, as the add-token screen's task does.
+    /// - Parameter portfolios: The portfolios under test.
+    /// - Throws: A fixture error.
+    func lookUp(in portfolios: PortfolioStore) async throws {
+        await lookUp(lookup, in: portfolios, for: try .fixture(index: 1), on: .devnet)
+    }
+
+    /// Adds the previewed token to the test account's list on devnet, as the add-token screen's task does.
+    /// - Parameter portfolios: The portfolios under test.
+    /// - Throws: A fixture error.
+    func run(in portfolios: PortfolioStore) async throws {
+        await run(attempt, in: portfolios, for: try .fixture(index: 1), on: .devnet)
     }
 }

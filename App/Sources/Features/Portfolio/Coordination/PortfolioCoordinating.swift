@@ -1,49 +1,26 @@
 import Observation
 import Portfolio
-import Transactions
 
-/// The portfolio presentation's lifetime and explicit refresh boundary.
+/// One window's observation of its wallet, and the holdings that its keypad pays with.
 @MainActor
 protocol PortfolioCoordinating: AnyObject, Observable {
-    /// The selected wallet's latest state, or `nil` before any data is available.
-    var update: Update? { get }
     /// The latest snapshot's holdings in display order, or none without a snapshot.
     var holdings: [Holding] { get }
     /// Why the latest update failed, or `nil` when it didn't.
     var error: PortfolioError? { get }
 
-    /// Observes the selected wallet for the lifetime of the calling view task.
+    /// Observes the selected account's wallet for the lifetime of the calling view task.
     ///
-    /// Use the wallet and scene activity as the view task's identity. Cancellation,
-    /// an inactive scene, or a replacement wallet stops observation and manual refreshes.
+    /// Use the account and scene activity as the view task's identity. Cancellation,
+    /// an inactive scene, or a replacement account stops observation.
     /// - Parameters:
-    ///   - owner: The selected public address, or `nil` when no wallet is selected.
+    ///   - account: The selected account, or `nil` when no wallet is selected.
     ///   - isActive: Whether the presenting scene is active.
-    func observe(for owner: String?, isActive: Bool) async
+    func observe(for account: Account?, isActive: Bool) async
 
     /// Reloads the active wallet, awaiting completion for pull-to-refresh.
     ///
-    /// Overlapping calls share one operation, and a disconnected observation connects again.
-    /// Cancelling any call cancels that shared operation for every caller; the finalized-change observation
-    /// remains active.
-    /// Inactive calls do nothing.
+    /// Every window that observes the wallet receives the results, and a disconnected observation connects again.
+    /// Cancelling a call stops its wait, not the read. Inactive calls do nothing.
     func refresh() async
-
-    /// Looks up a pasted mint address, so the person can check the token before adding it.
-    /// - Parameter mint: The pasted mint address.
-    /// - Returns: The token with its on-chain name and symbol, and its logo when the provider has one.
-    /// - Throws: `TokenLookupError` when the address isn't a fungible token mint, or a request error.
-    func token(at mint: Address) async throws -> TokenPreview
-
-    /// Adds a token to the selected wallet's list; its balance arrives with the next snapshot.
-    /// - Parameter token: A token that ``token(at:)`` found.
-    /// - Throws: `TokenListError` for a full or unreadable list, or a file-system error if the list can't be saved.
-    func add(_ token: ListedToken) async throws
-
-    /// Removes a token from the selected wallet's list; it leaves ``holdings`` with the next snapshot.
-    ///
-    /// Native SOL has no mint address, so it always stays.
-    /// - Parameter mint: The mint address of a listed token.
-    /// - Throws: `TokenListError.unreadable` for an unreadable list, or a file-system error if the list can't be saved.
-    func remove(_ mint: Address) async throws
 }

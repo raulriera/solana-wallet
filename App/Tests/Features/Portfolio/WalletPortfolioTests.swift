@@ -116,6 +116,36 @@ struct WalletPortfolioTests {
         await viewing.value
     }
 
+    /// What views read follows each update: the presentation, the classified failure, and the snapshot's order.
+    /// - Throws: A test prerequisite error.
+    @Test
+    func `What views read follows each update`() async throws {
+        let service = PortfolioResponses()
+        let portfolio = WalletPortfolio(owner: "wallet-a", service: service)
+        var requests = service.requests.makeAsyncIterator()
+        let viewing = Task { await portfolio.observe() }
+        defer { viewing.cancel() }
+        let observation = try #require(await requests.next())
+        #expect(portfolio.presentation == .blank)
+
+        let cached = Snapshot.fixture(owner: "wallet-a", lamports: 1)
+        observation.continuation.yield(Update(snapshot: cached, phase: .ready, revision: 1, snapshotRevision: 1))
+        await waitForSnapshot(cached, in: portfolio)
+        #expect(portfolio.presentation == .holdings)
+        #expect(portfolio.error == nil)
+        #expect(portfolio.snapshotRevision == 1)
+
+        let limited = RPCError.http(statusCode: 429, retryAfter: nil)
+        observation.continuation.yield(Update(snapshot: cached, phase: .failed(limited), revision: 2,
+                                              snapshotRevision: 1))
+        for await error in Observations({ portfolio.error }) where error != nil { break }
+        #expect(portfolio.error == .rateLimited)
+        #expect(portfolio.presentation == .holdings)
+        #expect(portfolio.snapshotRevision == 1)
+        viewing.cancel()
+        await viewing.value
+    }
+
     /// Creates a priced portfolio whose provider order differs from its display order.
     /// - Parameter values: Each token's mint and USD value, in the provider's order; native SOL comes last.
     /// - Returns: A complete snapshot for `wallet-a`.

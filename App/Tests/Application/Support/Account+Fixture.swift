@@ -15,4 +15,11 @@ extension widgets.Account {
         Account(id: UUID(), recoveryID: recoveryID,
             address: try Address(Base58.encode(Array(repeating: index, count: 32))), path: .solana(account: UInt32(index)))
     }
+
+    /// The published wallet's first account, for tests that read or edit its token list without its recovery.
+    /// - Returns: Public account metadata at ``PublicWallet/address``.
+    /// - Throws: An address validation error.
+    static func publicWallet() throws -> widgets.Account {
+        Account(id: UUID(), recoveryID: UUID(), address: try Address(PublicWallet.address), path: .solana(account: 0))
+    }
 }

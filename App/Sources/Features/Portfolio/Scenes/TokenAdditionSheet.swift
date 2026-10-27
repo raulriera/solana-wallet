@@ -1,3 +1,4 @@
+import RPC
 import SwiftUI
 
 /// Presents adding a token in its own navigation container, so the system places the sheet on each display.
@@ -6,11 +7,15 @@ import SwiftUI
 struct TokenAdditionSheet: View {
     @Environment(\.dismiss) private var dismiss
     let addition: TokenAdditionModel
+    /// The account whose list the token joins.
+    let account: Account
+    /// The network whose list the token joins.
+    let network: Network
 
     var body: some View {
         NavigationStack {
             TokenAdditionScreen(addition: addition)
-                .tokenAdditionLifecycle()
+                .tokenAdditionLifecycle(for: account, on: network)
                 .onChange(of: addition.isAdded) { dismiss() }
                 .cancellationAction()
         }

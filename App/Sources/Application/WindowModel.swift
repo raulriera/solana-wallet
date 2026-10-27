@@ -11,10 +11,8 @@ final class WindowModel {
     var onboarding: any OnboardingCoordinating
     /// Restores the window's wallet when the window opens.
     let startup: any WindowStarting
-    /// The portfolio presentation for the network that the window shows.
+    /// The window's observation of its wallet on the network it shows, which the Contacts keypad also reads.
     private(set) var portfolio: any PortfolioCoordinating
-    /// The token removals that edit that portfolio's token lists.
-    private(set) var tokenRemoval: TokenRemovalModel
     /// The private balance of the window's account on that network.
     private(set) var privateBalance: PrivateBalanceModel
     /// The window's appearance editing.
@@ -34,9 +32,7 @@ final class WindowModel {
         self.router = router
         onboarding = services.makeOnboardingCoordinator(router: router)
         startup = services.makeWindowStartup(router: router)
-        let portfolio = services.makePortfolioCoordinator(for: network)
-        self.portfolio = portfolio
-        tokenRemoval = TokenRemovalModel(coordinator: portfolio)
+        portfolio = services.makePortfolioCoordinator(for: network)
         privateBalance = PrivateBalanceModel(balances: services.privateBalances,
                                              transactions: services.transactionStore, network: network)
         settings = services.makeAppearanceSettingsModel()
@@ -45,12 +41,11 @@ final class WindowModel {
         self.services = services
     }
 
-    /// Replaces the portfolio, its token removals, and the private balance with ones for the window's new network, so
-    /// the previous network's observation and refreshes never reach them.
+    /// Replaces the portfolio and the private balance with ones for the window's new network, so the previous
+    /// network's observation and refreshes never reach them.
     /// - Parameter network: The network that the window shows now.
     func show(_ network: Network) {
         portfolio = services.makePortfolioCoordinator(for: network)
-        tokenRemoval = TokenRemovalModel(coordinator: portfolio)
         privateBalance = PrivateBalanceModel(balances: services.privateBalances,
                                              transactions: services.transactionStore, network: network)
     }

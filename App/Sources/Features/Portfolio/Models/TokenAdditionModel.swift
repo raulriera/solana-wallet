@@ -1,9 +1,10 @@
 import Foundation
 import Observation
 import Portfolio
+import RPC
 import Transactions
 
-/// Owns one window's add-token sheet: it looks up the pasted address, then adds the token the person checked.
+/// Owns one add-token sheet: it looks up the pasted address, then adds the token the person checked.
 @MainActor
 @Observable
 final class TokenAdditionModel: Identifiable {
@@ -35,13 +36,6 @@ final class TokenAdditionModel: Identifiable {
     private(set) var attempt: UUID?
     /// Whether the previewed token is in the list; the sheet closes itself when it is.
     private(set) var isAdded = false
-    private let coordinator: any PortfolioCoordinating
-
-    /// Works with the window's portfolio.
-    /// - Parameter coordinator: The window's portfolio, which looks up tokens and adds them to its wallet's list.
-    init(coordinator: any PortfolioCoordinating) {
-        self.coordinator = coordinator
-    }
 
     /// The pasted address, or `nil` when the pasted text isn't one.
     var address: Address? { try? Address(text) }
@@ -59,15 +53,20 @@ final class TokenAdditionModel: Identifiable {
 
     /// Looks up the current address in the screen's SwiftUI-managed task; a newer address cancels it.
     ///
-    /// A token that's already listed is rejected without a request.
-    /// - Parameter lookup: The lookup captured by the owning view task.
-    func lookUp(_ lookup: UUID?) async {
+    /// A token that the wallet already lists is rejected without a request.
+    /// - Parameters:
+    ///   - lookup: The lookup captured by the owning view task.
+    ///   - portfolios: The portfolios that every window shares, which look up tokens.
+    ///   - account: The account whose list the token would join.
+    ///   - network: The network to look the token up on.
+    func lookUp(_ lookup: UUID?, in portfolios: PortfolioStore, for account: Account, on network: Network) async {
         guard let lookup, self.lookup == lookup, let address else { return }
-        guard !coordinator.holdings.contains(where: { $0.id == .asset(address.value) }) else {
+        let holdings = portfolios.portfolio(for: account, on: network)?.holdings ?? []
+        guard !holdings.contains(where: { $0.id == .asset(address.value) }) else {
             return reject(.alreadyListed)
         }
         do {
-            let preview = try await coordinator.token(at: address)
+            let preview = try await portfolios.token(at: address, on: network)
             guard self.lookup == lookup, !Task.isCancelled else { return }
             self.preview = preview
             rejection = nil
@@ -92,14 +91,18 @@ final class TokenAdditionModel: Identifiable {
         attempt = UUID()
     }
 
-    /// Adds the previewed token in the screen's SwiftUI-managed task.
-    /// - Parameter attempt: The attempt captured by the owning view task.
-    func run(_ attempt: UUID?) async {
+    /// Adds the previewed token to a wallet's list in the screen's SwiftUI-managed task.
+    /// - Parameters:
+    ///   - attempt: The attempt captured by the owning view task.
+    ///   - portfolios: The portfolios that every window shares, which save the wallet's list.
+    ///   - account: The account whose list the token joins.
+    ///   - network: The network whose list to change.
+    func run(_ attempt: UUID?, in portfolios: PortfolioStore, for account: Account, on network: Network) async {
         guard let attempt, self.attempt == attempt else { return }
         defer { self.attempt = nil }
         guard let token = preview?.token else { return }
         do {
-            try await coordinator.add(token)
+            try await portfolios.add(token, for: account, on: network)
             isAdded = true
         } catch TokenListError.limitReached {
             self.error = .limitReached

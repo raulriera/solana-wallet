@@ -3,7 +3,7 @@ import Portfolio
 import Testing
 import Transactions
 
-/// Controls portfolio workflow events without substituting an RPC client.
+/// Controls portfolio workflow events and token-list answers without substituting an RPC client.
 actor PortfolioResponses: PortfolioProviding {
     /// The portfolio operations requested by a presentation.
     enum Kind: Sendable, Equatable {
@@ -23,13 +23,51 @@ actor PortfolioResponses: PortfolioProviding {
     nonisolated let requests: AsyncStream<Request>
     private let requested: AsyncStream<Request>.Continuation
     private(set) var calls: [Request] = []
+    /// The looked-up mint addresses, in order.
+    private(set) var lookups: [Address] = []
+    /// The added tokens, in order.
+    private(set) var added: [ListedToken] = []
+    /// The removed mint addresses, in order.
+    private(set) var removed: [Address] = []
     private let registration: Registration?
+    private let preview: TokenPreview?
+    private let lookupGate: Suspension?
+    private let removalGate: Suspension?
+    private var lookupError: (any Error)?
+    private var addError: (any Error)?
+    private var removeError: (any Error)?
 
-    /// Creates isolated events, optionally suspending observation registration.
-    /// - Parameter registration: A deliberately cancellation-insensitive setup gate.
-    init(registration: Registration? = nil) {
+    /// Creates isolated events, optionally suspending observation registration, lookups, or removals.
+    /// - Parameters:
+    ///   - registration: A deliberately cancellation-insensitive setup gate.
+    ///   - preview: The token that each lookup finds; without one, a lookup finds no token.
+    ///   - lookupGate: A suspension inside the lookup, for a test that pastes again while it runs.
+    ///   - removalGate: A suspension inside the removal, for a test that acts while it saves.
+    init(registration: Registration? = nil, preview: TokenPreview? = nil, lookupGate: Suspension? = nil,
+         removalGate: Suspension? = nil) {
         (requests, requested) = AsyncStream<Request>.makeStream()
         self.registration = registration
+        self.preview = preview
+        self.lookupGate = lookupGate
+        self.removalGate = removalGate
+    }
+
+    /// Makes later lookups fail with an error, or succeed again.
+    /// - Parameter error: The error that lookups throw, or `nil` to find the preview.
+    func failLookups(with error: (any Error)?) {
+        lookupError = error
+    }
+
+    /// Makes later adds fail with an error, or succeed again.
+    /// - Parameter error: The error that adds throw, or `nil` to record the token.
+    func failAdds(with error: (any Error)?) {
+        addError = error
+    }
+
+    /// Makes later removals fail with an error, or succeed again.
+    /// - Parameter error: The error that removals throw, or `nil` to record the mint address.
+    func failRemovals(with error: (any Error)?) {
+        removeError = error
     }
 
     /// Registers a controllable long-lived observation.
@@ -109,32 +147,36 @@ actor PortfolioResponses: PortfolioProviding {
 }
 
 extension PortfolioResponses: TokenListProviding {
-    /// Reports token-list edits during view lifecycle changes.
+    /// Records an added token, or fails with the set error.
     /// - Parameters:
     ///   - token: The token to add.
-    ///   - owner: The requested wallet.
-    /// - Throws: An unreadable-list error.
+    ///   - owner: The wallet whose list the token joins.
+    /// - Throws: The set error.
     func addToken(_ token: ListedToken, for owner: String) async throws {
-        Issue.record("Lifecycle coordination must not edit token lists.")
-        throw TokenListError.unreadable
+        if let addError { throw addError }
+        added.append(token)
     }
 
-    /// Reports token-list edits during view lifecycle changes.
+    /// Records a removed token once the removal gate, if any, is released, or fails with the set error.
     /// - Parameters:
-    ///   - mint: The token to remove.
-    ///   - owner: The requested wallet.
-    /// - Throws: An unreadable-list error.
+    ///   - mint: The mint address of the token to remove.
+    ///   - owner: The wallet whose list the token leaves.
+    /// - Throws: The set error.
     func removeToken(_ mint: Address, for owner: String) async throws {
-        Issue.record("Lifecycle coordination must not edit token lists.")
-        throw TokenListError.unreadable
+        await removalGate?.suspend()
+        if let removeError { throw removeError }
+        removed.append(mint)
     }
 
-    /// Reports token lookups during view lifecycle changes.
-    /// - Parameter mint: The requested mint address.
-    /// - Returns: Nothing; the lookup always fails.
-    /// - Throws: A not-a-token error.
+    /// Answers a lookup with the preview or the set error, once the lookup gate, if any, is released.
+    /// - Parameter mint: The pasted mint address.
+    /// - Returns: The preview.
+    /// - Throws: The set error, or `TokenLookupError.notToken` without a preview.
     func token(at mint: Address) async throws -> TokenPreview {
-        Issue.record("Lifecycle coordination must not look up tokens.")
-        throw TokenLookupError.notToken
+        lookups.append(mint)
+        await lookupGate?.suspend()
+        if let lookupError { throw lookupError }
+        guard let preview else { throw TokenLookupError.notToken }
+        return preview
     }
 }

@@ -1,6 +1,5 @@
 import RPC
 import SwiftUI
-import Transactions
 
 /// Observes the window's wallet while its scene is active, whichever section is visible, and reads its balances again
 /// after each of its transactions on the window's network settles.
@@ -20,7 +19,7 @@ private struct PortfolioObservation: ViewModifier {
                               isActive: scenePhase == .active && providers.isRead)
         let settledCount = transactions.settledCount(for: TransactionRecord.Key(account: account.id, network: network))
         content
-            .task(id: session) { await coordinator.observe(for: account.address.value, isActive: session.isActive) }
+            .task(id: session) { await coordinator.observe(for: account, isActive: session.isActive) }
             // A settled transaction changed the balances, failed or not, since it paid its fee, even when its review
             // closed before it landed.
             .task(id: settledCount) {
@@ -48,7 +47,7 @@ extension View {
     /// - Parameters:
     ///   - account: The window's wallet.
     ///   - network: The window's network, whose settled transactions read the balances again.
-    ///   - coordinator: The window's portfolio presentation; a replacement, as for another network, restarts
+    ///   - coordinator: The window's portfolio observation; a replacement, as for another network, restarts
     ///     observation.
     /// - Returns: A view whose task observes the wallet, independent of the visible section.
     func portfolioObservation(of account: Account, on network: Network,

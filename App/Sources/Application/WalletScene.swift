@@ -11,7 +11,6 @@ struct WalletScene: View {
     @Binding var network: Network
     let account: Account
     let portfolio: any PortfolioCoordinating
-    let tokenRemoval: TokenRemovalModel
     let privateBalance: PrivateBalanceModel
     let settings: AppearanceSettingsModel
     let connection: any ProviderConnecting<ProviderConnectionError>
@@ -21,9 +20,12 @@ struct WalletScene: View {
     var body: some View {
         TabView(selection: $section) {
             Tab("Portfolio", systemImage: "wallet.bifold", value: .portfolio) {
-                PortfolioScene(coordinator: portfolio, connection: connection, removal: tokenRemoval,
+                PortfolioScene(account: account, network: network, connection: connection,
                                privateBalance: privateBalance)
-                    .tokenRemovalLifecycle()
+                    // Another account's or network's portfolio has its own tokens, so the tab starts again on the
+                    // token list.
+                    .id(network)
+                    .id(account.id)
             }
             Tab("Contacts", systemImage: "person.crop.circle", value: .contacts) {
                 ContactsScene(account: account, network: network, portfolio: portfolio)

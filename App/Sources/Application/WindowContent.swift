@@ -24,8 +24,7 @@ struct WindowContent: View {
                     .onboardingLifecycle()
             case .wallet(let account):
                 WalletScene(section: $section, network: $network, account: account,
-                            portfolio: window.portfolio, tokenRemoval: window.tokenRemoval,
-                            privateBalance: window.privateBalance,
+                            portfolio: window.portfolio, privateBalance: window.privateBalance,
                             settings: window.settings, connection: services.providerConnection,
                             security: window.security, providers: window.providers)
             }

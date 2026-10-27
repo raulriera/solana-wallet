@@ -1,6 +1,6 @@
 import Portfolio
 
-/// What the portfolio section shows for the coordinator's latest update.
+/// What the portfolio shows for a wallet's latest update.
 nonisolated enum PortfolioPresentation: Equatable {
     /// No update yet; the first one arrives as soon as observation starts.
     case blank
@@ -12,7 +12,7 @@ nonisolated enum PortfolioPresentation: Equatable {
     case unavailable(PortfolioError)
 
     /// Chooses the presentation; a failure that only provider setup fixes hides holdings, other failures don't.
-    /// - Parameter update: The coordinator's latest update, or `nil` before the first one.
+    /// - Parameter update: The wallet's latest update, or `nil` before the first one.
     init(_ update: Update?) {
         let error = update?.error.map(PortfolioError.init)
         if let error, error.requiresProviderSetup {

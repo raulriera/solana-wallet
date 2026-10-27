@@ -9,14 +9,26 @@ import Portfolio
 @Observable
 final class WalletPortfolio {
     /// The wallet's newest state, or `nil` before any data is available.
+    ///
+    /// Views read the values derived from it instead, which change only when what they show changes; an update isn't
+    /// `Equatable`, so every update notifies its readers.
     private(set) var update: Update? {
         didSet {
+            presentation = PortfolioPresentation(update)
+            error = update?.error.map(PortfolioError.init)
             // Sort once per new snapshot, not for every phase change or view update.
             guard update?.snapshotRevision != oldValue?.snapshotRevision else { return }
+            snapshotRevision = update?.snapshotRevision
             holdings = HoldingOrder.sorted(update?.holdings ?? [])
         }
     }
 
+    /// What the portfolio shows for the newest state.
+    private(set) var presentation = PortfolioPresentation.blank
+    /// Why the newest state failed, or `nil` when it didn't.
+    private(set) var error: PortfolioError?
+    /// The order of the latest snapshot, which changes once per new snapshot; `nil` without one.
+    private(set) var snapshotRevision: UInt64?
     /// The latest snapshot's holdings in display order, or none without a snapshot.
     private(set) var holdings: [Holding] = []
 

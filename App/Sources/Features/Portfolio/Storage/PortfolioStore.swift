@@ -45,45 +45,37 @@ final class PortfolioStore: Erasable {
         watch(providers)
     }
 
-    /// A wallet's latest state on a network.
+    /// An account's portfolio on a network.
     /// - Parameters:
-    ///   - owner: The wallet's public address.
-    ///   - network: The network whose state to read.
-    /// - Returns: The wallet's newest state, or `nil` before any data is available.
-    func update(for owner: String, on network: Network) -> Update? {
-        portfolios[Key(owner: owner, network: network)]?.update
+    ///   - account: The account whose wallet to read.
+    ///   - network: The network whose portfolio to read.
+    /// - Returns: The portfolio that every window showing the account on the network shares, or `nil` before any
+    ///   window observes it.
+    func portfolio(for account: Account, on network: Network) -> WalletPortfolio? {
+        portfolios[Key(account, on: network)]
     }
 
-    /// A wallet's latest holdings on a network, in display order.
-    /// - Parameters:
-    ///   - owner: The wallet's public address.
-    ///   - network: The network whose holdings to read.
-    /// - Returns: The latest snapshot's holdings, or none without a snapshot.
-    func holdings(for owner: String, on network: Network) -> [Holding] {
-        portfolios[Key(owner: owner, network: network)]?.holdings ?? []
-    }
-
-    /// Observes a wallet on a network for the lifetime of the calling task.
+    /// Observes an account's wallet on a network for the lifetime of the calling task.
     ///
     /// Callers that observe the same wallet on the same network, such as two windows, share one observation; when the
     /// last of them ends, its progress settles while its holdings stay.
     /// - Parameters:
-    ///   - owner: The wallet's public address.
+    ///   - account: The account whose wallet to observe.
     ///   - network: The network to observe the wallet on.
-    func observe(_ owner: String, on network: Network) async {
+    func observe(_ account: Account, on network: Network) async {
         guard !Task.isCancelled else { return }
-        await portfolio(for: Key(owner: owner, network: network)).observe()
+        await portfolio(for: Key(account, on: network)).observe()
     }
 
-    /// Reads an observed wallet again, awaiting the read for pull-to-refresh.
+    /// Reads an observed account's wallet again, awaiting the read for pull-to-refresh.
     ///
     /// Every window that observes the wallet receives the results. Cancelling the caller stops its wait, not the read.
     /// A wallet that nothing observes isn't read.
     /// - Parameters:
-    ///   - owner: The wallet's public address.
+    ///   - account: The account whose wallet to read.
     ///   - network: The network to read the wallet on.
-    func refresh(_ owner: String, on network: Network) async {
-        await portfolios[Key(owner: owner, network: network)]?.refresh()
+    func refresh(_ account: Account, on network: Network) async {
+        await portfolios[Key(account, on: network)]?.refresh()
     }
 
     /// Looks up a pasted mint address, so the person can check the token before adding it.
@@ -96,24 +88,24 @@ final class PortfolioStore: Erasable {
         try await service(for: network).token(at: mint)
     }
 
-    /// Adds a token to a wallet's list on a network; an observed wallet then reads its balances again.
+    /// Adds a token to an account's list on a network; an observed wallet then reads its balances again.
     /// - Parameters:
     ///   - token: A token that ``token(at:on:)`` found.
-    ///   - owner: The wallet's public address.
+    ///   - account: The account whose list to change.
     ///   - network: The network whose list to change.
     /// - Throws: `TokenListError` for a full or unreadable list, or a file-system error if the list can't be saved.
-    func add(_ token: ListedToken, for owner: String, on network: Network) async throws {
-        try await service(for: network).addToken(token, for: owner)
+    func add(_ token: ListedToken, for account: Account, on network: Network) async throws {
+        try await service(for: network).addToken(token, for: account.address.value)
     }
 
-    /// Removes a token from a wallet's list on a network; the service sends the next snapshot without it.
+    /// Removes a token from an account's list on a network; the service sends the next snapshot without it.
     /// - Parameters:
     ///   - mint: The mint address of a listed token.
-    ///   - owner: The wallet's public address.
+    ///   - account: The account whose list to change.
     ///   - network: The network whose list to change.
     /// - Throws: `TokenListError.unreadable` for an unreadable list, or a file-system error if the list can't be saved.
-    func remove(_ mint: Address, for owner: String, on network: Network) async throws {
-        try await service(for: network).removeToken(mint, for: owner)
+    func remove(_ mint: Address, for account: Account, on network: Network) async throws {
+        try await service(for: network).removeToken(mint, for: account.address.value)
     }
 
     /// Forgets every wallet's portfolio, as Reset App does, so no window shows a deleted wallet's holdings.
@@ -148,7 +140,7 @@ final class PortfolioStore: Erasable {
                 isRead = choice != nil
                 guard wasRead, isRead else { continue }
                 guard let self else { return }
-                await self.forEachService { await $0.pricesDidChange() }
+                await forEachService { await $0.pricesDidChange() }
             }
         }
     }
@@ -170,9 +162,9 @@ final class PortfolioStore: Erasable {
                 if ProviderClient.Endpoint.isNew(connection, after: self.connection) {
                     // Logos that one service can't remove, as on a full disk, don't keep another from ending its
                     // work; they stay until a later change.
-                    await self.forEachService { try? await $0.providerDidChange() }
+                    await forEachService { try? await $0.providerDidChange() }
                     // Ending the work ended the observations, which every window shares.
-                    for portfolio in self.portfolios.values { portfolio.observeAgain() }
+                    for portfolio in portfolios.values { portfolio.observeAgain() }
                 }
                 self.connection = connection
             }
@@ -199,9 +191,18 @@ final class PortfolioStore: Erasable {
         return service
     }
 
-    /// A wallet on a network, which identifies its shared portfolio.
+    /// A wallet on a network, which identifies its shared portfolio; accounts with the same address share it.
     private struct Key: Hashable {
         let owner: String
         let network: Network
+
+        /// Identifies an account's wallet on a network.
+        /// - Parameters:
+        ///   - account: The account whose wallet it is.
+        ///   - network: The network that the portfolio belongs to.
+        init(_ account: Account, on network: Network) {
+            owner = account.address.value
+            self.network = network
+        }
     }
 }

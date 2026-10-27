@@ -1,10 +1,14 @@
 import Accessibility
 import Portfolio
+import RPC
 import SwiftUI
 
 /// Binds lookups and adds to the add-token screen's lifetime without retaining task handles, and announces their results.
 private struct TokenAdditionLifecycle: ViewModifier {
+    @Environment(PortfolioStore.self) private var portfolios
     @Bindable var addition: TokenAdditionModel
+    let account: Account
+    let network: Network
 
     /// Runs the current lookup and accepted add, signals rejections and found tokens, and presents failures.
     /// - Parameter content: The add-token screen.
@@ -14,8 +18,8 @@ private struct TokenAdditionLifecycle: ViewModifier {
         let lookup = addition.lookup
         let attempt = addition.attempt
         content
-            .task(id: lookup) { await addition.lookUp(lookup) }
-            .task(id: attempt) { await addition.run(attempt) }
+            .task(id: lookup) { await addition.lookUp(lookup, in: portfolios, for: account, on: network) }
+            .task(id: attempt) { await addition.run(attempt, in: portfolios, for: account, on: network) }
             .sensoryFeedback(.error, trigger: addition.rejectionCount)
             .onChange(of: addition.rejectionCount) {
                 guard let rejection = addition.rejection else { return }
@@ -42,9 +46,12 @@ private struct TokenAdditionLifecycle: ViewModifier {
 
 extension TokenAdditionScreen {
     /// Runs the screen's lookups and adds only while it is on screen.
+    /// - Parameters:
+    ///   - account: The account whose list the token joins.
+    ///   - network: The network to look the token up on and whose list to change.
     /// - Returns: The screen with managed lookups and adds, rejection feedback, announcements, and failure
     ///   presentation.
-    func tokenAdditionLifecycle() -> some View {
-        modifier(TokenAdditionLifecycle(addition: addition))
+    func tokenAdditionLifecycle(for account: Account, on network: Network) -> some View {
+        modifier(TokenAdditionLifecycle(addition: addition, account: account, network: network))
     }
 }

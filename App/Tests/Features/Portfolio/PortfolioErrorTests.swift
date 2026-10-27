@@ -37,13 +37,14 @@ struct PortfolioErrorTests {
     ///   - network: The portfolio's network.
     ///   - provider: The selected provider, which can't serve that network as saved.
     ///   - expected: The error the portfolio presents.
+    /// - Throws: A fixture error.
     @MainActor
     @Test(.timeLimit(.minutes(1)), arguments: [
         (Network.mainnet, ProviderSettings.Provider.helius, PortfolioError.missingKey),
         (.devnet, .custom(URL(string: "https://rpc.example.com")!), .unsupportedNetwork),
     ] as [(Network, ProviderSettings.Provider, PortfolioError)])
     func `A provider failure reaches the portfolio as a typed failure`(network: Network, provider: ProviderSettings.Provider,
-                                                                      expected: PortfolioError) async {
+                                                                      expected: PortfolioError) async throws {
         let directory = URL.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
         let client = HTTPResponses.keyCheck().providerClient(network: network,
@@ -51,7 +52,8 @@ struct PortfolioErrorTests {
         let coordinator = PortfolioCoordinator(store: .serving(Portfolio(
             rpc: client, store: FileSnapshotStore(directory: directory),
             tokenLists: FileTokenListStore(directory: directory.appendingPathComponent("TokenLists")))), network: network)
-        let viewing = Task { await coordinator.observe(for: PublicWallet.address, isActive: true) }
+        let account = try Account.publicWallet()
+        let viewing = Task { await coordinator.observe(for: account, isActive: true) }
         defer { viewing.cancel() }
 
         for await error in Observations({ coordinator.error }) {

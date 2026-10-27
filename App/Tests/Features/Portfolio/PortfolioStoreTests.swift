@@ -2,6 +2,7 @@ import Foundation
 import Observation
 import Storage
 import Testing
+import Transactions
 @testable import Portfolio
 @testable import RPC
 @testable import widgets
@@ -13,7 +14,7 @@ import Testing
 struct PortfolioStoreTests {
     /// Only mainnet's service exists until a window observes on devnet; devnet's service is then created once.
     @Test
-    func `Devnet's service is created for its first window and then reused`() async {
+    func `Devnet's service is created for its first window and then reused`() async throws {
         var made: [Network] = []
         let devnet = PortfolioChanges()
         let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])),
@@ -23,8 +24,8 @@ struct PortfolioStoreTests {
         }
         #expect(made == [.mainnet])
 
-        let first = await Self.observe("wallet-a", on: .devnet, of: portfolios, through: devnet)
-        let second = await Self.observe("wallet-b", on: .devnet, of: portfolios, through: devnet)
+        let first = try await Self.observe(.fixture(index: 1), on: .devnet, of: portfolios, through: devnet)
+        let second = try await Self.observe(.fixture(index: 2), on: .devnet, of: portfolios, through: devnet)
 
         #expect(made == [.mainnet, .devnet])
         first.cancel()
@@ -33,7 +34,7 @@ struct PortfolioStoreTests {
 
     /// Mainnet's service gets the price provider, which quotes mainnet; devnet's service gets none.
     @Test
-    func `Only mainnet's service gets the price provider`() async {
+    func `Only mainnet's service gets the price provider`() async throws {
         var priced: [Network: Bool] = [:]
         let devnet = PortfolioChanges()
         let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])),
@@ -42,7 +43,7 @@ struct PortfolioStoreTests {
             return network == .mainnet ? PortfolioChanges() : devnet
         }
 
-        let viewing = await Self.observe("wallet-a", on: .devnet, of: portfolios, through: devnet)
+        let viewing = try await Self.observe(.fixture(index: 1), on: .devnet, of: portfolios, through: devnet)
 
         #expect(priced == [.mainnet: true, .devnet: false])
         viewing.cancel()
@@ -59,7 +60,7 @@ struct PortfolioStoreTests {
         let portfolios = PortfolioStore(prices: prices, currency: currency, providers: .inMemory()) { network, _ in
             network == .mainnet ? mainnet : devnet
         }
-        let viewing = await Self.observe("wallet-a", on: .devnet, of: portfolios, through: devnet)
+        let viewing = try await Self.observe(.fixture(index: 1), on: .devnet, of: portfolios, through: devnet)
         defer { viewing.cancel() }
         var mainnetReads = mainnet.priceReads.makeAsyncIterator()
         var devnetReads = devnet.priceReads.makeAsyncIterator()
@@ -137,19 +138,19 @@ struct PortfolioStoreTests {
                                         providers: providers) { network, prices in
             Portfolio(rpc: responses.providerClient(network: network, providers: providers),
                       store: FileSnapshotStore(directory: directory),
-                      tokenLists: FileTokenListStore(directory: directory.appendingPathComponent("TokenLists")),
-                      prices: prices)
+                      tokenLists: tokenLists(in: directory), prices: prices)
         }
-        let viewing = Task { await portfolios.observe(PublicWallet.address, on: .devnet) }
+        let account = try Account.publicWallet()
+        let viewing = Task { await portfolios.observe(account, on: .devnet) }
         defer { viewing.cancel() }
 
-        for await update in Observations({ portfolios.update(for: PublicWallet.address, on: .devnet) }) {
+        for await update in Observations({ portfolios.portfolio(for: account, on: .devnet)?.update }) {
             if let error = update?.error { throw error }
             if update?.isRefreshing == false, update?.snapshot != nil { break }
         }
 
-        let holdings = portfolios.holdings(for: PublicWallet.address, on: .devnet)
-        #expect(portfolios.update(for: PublicWallet.address, on: .devnet)?.snapshot?.network == .devnet)
+        let holdings = portfolios.portfolio(for: account, on: .devnet)?.holdings ?? []
+        #expect(portfolios.portfolio(for: account, on: .devnet)?.update?.snapshot?.network == .devnet)
         #expect(holdings.map(\.symbol) == ["SOL"])
         #expect(holdings.allSatisfy { $0.valuation == nil })
         #expect(await responses.requests.map { $0.url?.host() } == ["api.devnet.solana.com"])
@@ -169,7 +170,7 @@ struct PortfolioStoreTests {
                                         providers: providers) { network, _ in
             network == .mainnet ? mainnet : devnet
         }
-        let viewing = await Self.observe("wallet-a", on: .devnet, of: portfolios, through: devnet)
+        let viewing = try await Self.observe(.fixture(index: 1), on: .devnet, of: portfolios, through: devnet)
         defer { viewing.cancel() }
         await providers.load()
         try await Self.connection(of: portfolios, becomes: .solana)
@@ -215,7 +216,7 @@ struct PortfolioStoreTests {
                                         providers: providers) { network, _ in
             network == .mainnet ? failing : other
         }
-        let viewing = await Self.observe("wallet-a", on: .devnet, of: portfolios, through: other)
+        let viewing = try await Self.observe(.fixture(index: 1), on: .devnet, of: portfolios, through: other)
         defer { viewing.cancel() }
         await providers.load()
         try await Self.connection(of: portfolios, becomes: .helius(key: "fixture-key"))
@@ -290,19 +291,20 @@ struct PortfolioStoreTests {
         let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])), currency: .inMemory(),
                                         providers: providers) { _, _ in portfolio }
         var observed = portfolio.observedOwners.makeAsyncIterator()
-        let first = Task { await portfolios.observe("wallet-a", on: .mainnet) }
-        let second = Task { await portfolios.observe("wallet-a", on: .mainnet) }
+        let account = try Account.fixture(index: 1)
+        let first = Task { await portfolios.observe(account, on: .mainnet) }
+        let second = Task { await portfolios.observe(account, on: .mainnet) }
         defer {
             first.cancel()
             second.cancel()
         }
-        #expect(await observed.next() == "wallet-a")
+        #expect(await observed.next() == account.address.value)
         await providers.load()
         try await Self.connection(of: portfolios, becomes: .helius(key: "fixture-key"))
 
         try await providers.select(.solana)
 
-        #expect(await observed.next() == "wallet-a")
+        #expect(await observed.next() == account.address.value)
         try await Self.connection(of: portfolios, becomes: .solana)
         #expect(await portfolio.providerChanges == 1)
     }
@@ -315,23 +317,24 @@ struct PortfolioStoreTests {
         let service = PortfolioResponses()
         let portfolios = PortfolioStore.serving(service)
         var requests = service.requests.makeAsyncIterator()
-        let first = Task { await portfolios.observe("wallet-a", on: .devnet) }
+        let account = try Account.fixture(index: 1)
+        let first = Task { await portfolios.observe(account, on: .devnet) }
         defer { first.cancel() }
         let observation = try #require(await requests.next())
-        let second = Task { await portfolios.observe("wallet-a", on: .devnet) }
+        let second = Task { await portfolios.observe(account, on: .devnet) }
         defer { second.cancel() }
-        let shared = Snapshot.fixture(owner: "wallet-a", lamports: 1)
+        let shared = Snapshot.fixture(owner: account.address.value, lamports: 1)
         observation.continuation.yield(Update(snapshot: shared, phase: .ready, revision: 1))
-        for await snapshot in Observations({ portfolios.update(for: "wallet-a", on: .devnet)?.snapshot })
+        for await snapshot in Observations({ portfolios.portfolio(for: account, on: .devnet)?.update?.snapshot })
         where snapshot == shared {
             break
         }
 
         first.cancel()
         await first.value
-        let changed = Snapshot.fixture(owner: "wallet-a", lamports: 2)
+        let changed = Snapshot.fixture(owner: account.address.value, lamports: 2)
         observation.continuation.yield(Update(snapshot: changed, phase: .ready, revision: 2))
-        for await snapshot in Observations({ portfolios.update(for: "wallet-a", on: .devnet)?.snapshot })
+        for await snapshot in Observations({ portfolios.portfolio(for: account, on: .devnet)?.update?.snapshot })
         where snapshot == changed {
             break
         }
@@ -340,8 +343,8 @@ struct PortfolioStoreTests {
         for await _ in observation.termination {}
 
         #expect(await service.calls.count == 1)
-        #expect(portfolios.update(for: "wallet-a", on: .mainnet) == nil)
-        #expect(portfolios.update(for: "wallet-a", on: .devnet)?.snapshot == changed)
+        #expect(portfolios.portfolio(for: account, on: .mainnet) == nil)
+        #expect(portfolios.portfolio(for: account, on: .devnet)?.update?.snapshot == changed)
     }
 
     /// Erasing, as Reset App does, forgets every wallet's portfolio, so no window shows a deleted wallet's holdings.
@@ -351,34 +354,85 @@ struct PortfolioStoreTests {
         let service = PortfolioResponses()
         let portfolios = PortfolioStore.serving(service)
         var requests = service.requests.makeAsyncIterator()
-        let viewing = Task { await portfolios.observe("wallet-a", on: .devnet) }
+        let account = try Account.fixture(index: 1)
+        let viewing = Task { await portfolios.observe(account, on: .devnet) }
         defer { viewing.cancel() }
         let observation = try #require(await requests.next())
-        let saved = Snapshot.fixture(owner: "wallet-a", lamports: 1)
+        let saved = Snapshot.fixture(owner: account.address.value, lamports: 1)
         observation.continuation.yield(Update(snapshot: saved, phase: .ready, revision: 1))
-        for await snapshot in Observations({ portfolios.update(for: "wallet-a", on: .devnet)?.snapshot })
+        for await snapshot in Observations({ portfolios.portfolio(for: account, on: .devnet)?.update?.snapshot })
         where snapshot == saved {
             break
         }
 
         try await portfolios.erase()
 
-        #expect(portfolios.update(for: "wallet-a", on: .devnet) == nil)
-        #expect(portfolios.holdings(for: "wallet-a", on: .devnet).isEmpty)
+        #expect(portfolios.portfolio(for: account, on: .devnet) == nil)
+    }
+
+    /// Verifies an added token is saved to the wallet's list on the network.
+    /// - Throws: A storage or test prerequisite error.
+    @Test
+    func `Adding a token saves it to the wallet's list`() async throws {
+        let directory = URL.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let portfolios = PortfolioStore.serving(filePortfolio(in: directory))
+        let bonk = ListedToken(mint: try Address("DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"), program: .token,
+                               decimals: 5, symbol: "Bonk", name: "Bonk")
+
+        try await portfolios.add(bonk, for: Account.publicWallet(), on: .mainnet)
+
+        #expect(try savedList(in: directory)?.tokens.last == bonk)
+    }
+
+    /// Verifies a removed token leaves the wallet's saved list on the network.
+    /// - Throws: A storage or test prerequisite error.
+    @Test
+    func `Removing a token saves the wallet's list without it`() async throws {
+        let directory = URL.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let portfolios = PortfolioStore.serving(filePortfolio(in: directory))
+
+        try await portfolios.remove(Address(DefaultToken.usdt.rawValue), for: Account.publicWallet(), on: .mainnet)
+
+        #expect(try savedList(in: directory)?.tokens.map(\.mint.value) == [DefaultToken.usdc.rawValue])
+    }
+
+    /// Creates a portfolio service that keeps its token lists and snapshots in a test's directory.
+    /// - Parameter directory: The test's private directory.
+    /// - Returns: A mainnet service that makes no requests for token-list edits.
+    private func filePortfolio(in directory: URL) -> Portfolio {
+        Portfolio(rpc: Solana(network: .mainnet), store: FileSnapshotStore(directory: directory),
+                  tokenLists: tokenLists(in: directory))
+    }
+
+    /// Reads the public wallet's saved token list from a test's directory.
+    /// - Parameter directory: The test's private directory.
+    /// - Returns: The saved list, or `nil` before anything is saved.
+    /// - Throws: ``TokenListError/unreadable`` if the saved list can't be read.
+    private func savedList(in directory: URL) throws -> Portfolio::TokenList? {
+        try tokenLists(in: directory).tokenList(for: CacheKey(owner: PublicWallet.address, network: .mainnet))
+    }
+
+    /// Creates the token-list store in a test's directory.
+    /// - Parameter directory: The test's private directory.
+    /// - Returns: The store that the test's portfolio saves lists in.
+    private func tokenLists(in directory: URL) -> FileTokenListStore {
+        FileTokenListStore(directory: directory.appendingPathComponent("TokenLists"))
     }
 
     /// Starts observing a wallet on a network, as a window that shows the network does, which creates the network's
     /// service, and waits until the service observes it.
     /// - Parameters:
-    ///   - owner: The wallet to observe.
+    ///   - account: The account whose wallet to observe.
     ///   - network: The network to observe the wallet on.
     ///   - portfolios: The portfolios under test.
     ///   - service: The network's service, which reports the observation.
     /// - Returns: The observation, which runs until it's cancelled.
-    private static func observe(_ owner: String, on network: Network, of portfolios: PortfolioStore,
+    private static func observe(_ account: widgets.Account, on network: Network, of portfolios: PortfolioStore,
                                 through service: PortfolioChanges) async -> Task<Void, Never> {
         var observed = service.observedOwners.makeAsyncIterator()
-        let viewing = Task { await portfolios.observe(owner, on: network) }
+        let viewing = Task { await portfolios.observe(account, on: network) }
         _ = await observed.next()
         return viewing
     }

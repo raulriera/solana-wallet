@@ -1,9 +1,10 @@
 import Foundation
 import Observation
 import Portfolio
+import RPC
 import Transactions
 
-/// Owns one window's token removals: it removes each token the person confirms and explains a failed save.
+/// Owns one portfolio's token removals: it removes each token the person confirms and explains a failed save.
 @MainActor
 @Observable
 final class TokenRemovalModel {
@@ -12,13 +13,6 @@ final class TokenRemovalModel {
     /// The confirmed removal, while it waits for the scene's task or runs.
     private(set) var attempt: UUID?
     @ObservationIgnored private var request: Address?
-    private let coordinator: any PortfolioCoordinating
-
-    /// Works with the window's portfolio.
-    /// - Parameter coordinator: The window's portfolio, which removes tokens from its wallet's list.
-    init(coordinator: any PortfolioCoordinating) {
-        self.coordinator = coordinator
-    }
 
     /// Accepts a confirmed removal; the scene's task removes the token.
     ///
@@ -30,15 +24,19 @@ final class TokenRemovalModel {
         attempt = UUID()
     }
 
-    /// Removes the requested token once in the scene's SwiftUI-managed task.
+    /// Removes the requested token from a wallet's list once, in the scene's SwiftUI-managed task.
     ///
     /// The save can't stop partway, so an error is explained even when the task is cancelled.
-    /// - Parameter attempt: The attempt captured by the owning view task.
-    func run(_ attempt: UUID?) async {
+    /// - Parameters:
+    ///   - attempt: The attempt captured by the owning view task.
+    ///   - portfolios: The portfolios that every window shares, which save the wallet's list.
+    ///   - account: The account whose list to change.
+    ///   - network: The network whose list to change.
+    func run(_ attempt: UUID?, in portfolios: PortfolioStore, for account: Account, on network: Network) async {
         guard let attempt, self.attempt == attempt, let mint = request.take() else { return }
         defer { if self.attempt == attempt { self.attempt = nil } }
         do {
-            try await coordinator.remove(mint)
+            try await portfolios.remove(mint, for: account, on: network)
         } catch TokenListError.unreadable {
             self.error = .listUnreadable
         } catch {

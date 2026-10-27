@@ -1,8 +1,9 @@
 import Foundation
 import Observation
-@testable import Portfolio
 import RPC
 import Testing
+import Transactions
+@testable import Portfolio
 @testable import widgets
 
 /// Verifies independent read-only portfolio presentation against mainnet.
@@ -16,14 +17,15 @@ struct PortfolioCoordinatorLiveTests {
     @Test(.timeLimit(.minutes(1)))
     func `Portfolio presentation observes and reloads a public mainnet wallet`() async throws {
         let rpc = try LiveClients.client()
-        let owner = PublicWallet.address
+        let account = try Account.publicWallet()
+        let owner = account.address.value
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
         let service = Portfolio(rpc: rpc, store: FileSnapshotStore(directory: directory),
                                 tokenLists: FileTokenListStore(directory: directory.appendingPathComponent("TokenLists")))
         let coordinator = PortfolioCoordinator(store: .serving(service), network: .mainnet)
         let reloaded = try await withThrowingTaskGroup(of: Void.self) { group in
-            group.addTask { await coordinator.observe(for: owner, isActive: true) }
+            group.addTask { await coordinator.observe(for: account, isActive: true) }
             defer { group.cancelAll() }
             for await update in Observations({ coordinator.update }) {
                 if let error = update?.error { throw error }
