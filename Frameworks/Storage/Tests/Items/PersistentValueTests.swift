@@ -1,5 +1,7 @@
 import Foundation
+import Observation
 import Storage
+import Synchronization
 import Testing
 
 /// Checks how a persistent value reads, saves changes in order, undoes failed changes, and erases, against in-memory
@@ -152,6 +154,38 @@ struct PersistentValueTests {
 
         #expect(await storage.value == ["saved", "elsewhere", "here"])
         #expect(persistent.value == ["saved", "elsewhere", "here"])
+    }
+
+    /// Before anything is saved, a change that leaves the empty value saves nothing.
+    @Test
+    func `A change that leaves the empty value saves nothing`() async throws {
+        let storage = StoredValue<[String]>()
+        let persistent = PersistentValue(storage: storage, empty: [String]())
+        await persistent.load()
+
+        try await persistent.update { $0.removeAll() }
+
+        #expect(persistent.value.isEmpty)
+        #expect(await storage.value == nil)
+    }
+
+    /// A change or a finished save that leaves the value as it was tells no observer, and a real change does.
+    @Test
+    func `Only a real change tells observers`() async throws {
+        let persistent = PersistentValue(storage: StoredValue(["saved"]), empty: [String]())
+        await persistent.load()
+        let isNotified = Mutex(false)
+        withObservationTracking {
+            _ = persistent.value
+            _ = persistent.phase
+        } onChange: {
+            isNotified.withLock { $0 = true }
+        }
+
+        try await persistent.update { $0 = ["saved"] }
+        #expect(!isNotified.withLock { $0 })
+        try await persistent.update { $0.append("change") }
+        #expect(isNotified.withLock { $0 })
     }
 
     /// Loading returns once the changes made before it are saved.

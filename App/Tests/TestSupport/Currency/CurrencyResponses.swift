@@ -40,9 +40,10 @@ enum CurrencyResponses {
     }
 
     /// The real rate adapters, answered by a test's fixture transport.
-    /// - Parameter http: The fixture transport.
+    /// - Parameter http: The fixture transport, which answers every lookup unless a test makes one fail.
     /// - Returns: The exchange-rate provider for each rate source.
-    static func rates(_ http: HTTPResponses) -> [CurrencySettings.RateSource: any ExchangeRateProviding] {
+    static func rates(_ http: HTTPResponses = .currency())
+    -> [CurrencySettings.RateSource: any ExchangeRateProviding] {
         [.europeanCentralBank: EuropeanCentralBank(transport: http), .coinbase: Coinbase(transport: http)]
     }
 }

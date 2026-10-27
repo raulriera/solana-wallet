@@ -4,14 +4,16 @@ import SwiftUI
 struct CurrencyListScreen: View {
     @Environment(\.palette) private var palette
     @Environment(\.locale) private var locale
-    /// The saved choice and its changes.
+    /// The choice that every window shares, or `nil` until it's read, so nothing shows as chosen.
+    let settings: CurrencySettings?
+    /// Runs each change to the choice.
     let choice: CurrencySettingsModel
     /// The rate source's currencies and the search that narrows them.
     @Bindable var list: CurrencyListModel
 
     var body: some View {
-        let isRead = choice.settings != nil
-        let chosen = choice.settings?.currencyCode
+        let isRead = settings != nil
+        let chosen = settings?.currencyCode
         Group {
             if let error = list.error {
                 ContentUnavailableView {

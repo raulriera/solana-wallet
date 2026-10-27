@@ -1,13 +1,13 @@
 import Foundation
 import Observation
 import RPC
+import Storage
 
-/// Owns the Currency screen's choice: the saved rate source and currency as last read, and each change.
+/// Owns the Currency screens' changes to the choice that every window shares: one change at a time, and why one
+/// failed.
 @MainActor
 @Observable
 final class CurrencySettingsModel {
-    /// The choice as last read, or `nil` before the first read, so no choice shows as selected.
-    private(set) var settings: CurrencySettings?
     /// An error for the alert.
     var error: CurrencyError?
     /// The change waiting for the screen's task.
@@ -32,39 +32,37 @@ final class CurrencySettingsModel {
         begin(.currency(code))
     }
 
-    /// Reads the saved choice; an unreadable choice keeps the last one read and explains the failure.
-    /// - Parameter selection: The choice that every window shares.
-    func reload(from selection: CurrencySelection) async {
-        do {
-            let settings = try await selection.settings()
-            guard !Task.isCancelled else { return }
-            self.settings = settings
-        } catch is CancellationError {
-            // The screen left before the choice was read.
-        } catch {
-            guard !Task.isCancelled else { return }
-            self.error = .settingsUnreadable
-        }
+    /// Reads the choice that every window shares, unless it was already read; an unreadable choice explains the
+    /// failure.
+    /// - Parameter store: The choice that every window shares.
+    func load(from store: CurrencyStore) async {
+        await store.load()
+        guard !Task.isCancelled, store.phase == .unreadable else { return }
+        error = .settingsUnreadable
     }
 
-    /// Runs the waiting change once in the screen's SwiftUI-managed task; the saved change reaches every window
-    /// through the selection's revision.
+    /// Runs the waiting change once in the screen's SwiftUI-managed task; the change reaches every window through the
+    /// store.
     /// - Parameters:
     ///   - attempt: The identifier the screen's task captured.
-    ///   - selection: The choice that every window shares.
-    func run(_ attempt: UUID?, with selection: CurrencySelection) async {
+    ///   - store: The choice that every window shares.
+    func run(_ attempt: UUID?, with store: CurrencyStore) async {
         guard let attempt, self.attempt == attempt, let request = request.take() else { return }
         defer { if self.attempt == attempt { self.attempt = nil } }
         do {
             switch request {
-            case .source(let source): try await selection.select(source)
-            case .currency(let code): try await selection.select(currencyCode: code)
+            case .source(let source): try await store.select(source)
+            case .currency(let code): try await store.select(currencyCode: code)
             }
         } catch is CancellationError {
             // The screen left before the change was saved.
         } catch is RPCError {
             guard !Task.isCancelled, self.attempt == attempt else { return }
             error = .ratesUnavailable
+        } catch let error as CurrencyError {
+            // A choice that can't be read explains the read.
+            guard !Task.isCancelled, self.attempt == attempt else { return }
+            self.error = error
         } catch {
             guard !Task.isCancelled, self.attempt == attempt else { return }
             self.error = .settingsUnsaved

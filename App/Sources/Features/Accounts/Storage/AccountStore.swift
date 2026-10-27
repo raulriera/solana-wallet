@@ -10,7 +10,7 @@ import Wallet
 /// change that can't be saved is undone and throws.
 @MainActor
 @Observable
-final class AccountStore {
+final class AccountStore: Erasable {
     private let list: PersistentValue<[Account]>
 
     /// Connects to the storage that keeps the accounts, without reading it or running the cleanup.

@@ -4,6 +4,7 @@ import Testing
 @testable import widgets
 
 /// Checks how prices convert to the person's currency through the real price and exchange-rate adapters.
+@MainActor
 struct CurrencyPricesTests {
     /// Creates the prices under test around one test's fixtures.
     /// - Parameters:
@@ -13,8 +14,7 @@ struct CurrencyPricesTests {
     /// - Returns: Prices that convert Jupiter's quotes with the real rate adapters.
     private static func prices(_ settings: CurrencySettings?, locale: String = "en_US",
                                http: HTTPResponses) -> CurrencyPrices {
-        CurrencyPrices(prices: Jupiter(transport: http), settings: StoredValue(settings),
-                       rates: CurrencyResponses.rates(http),
+        CurrencyPrices(prices: Jupiter(transport: http), currency: .inMemory(StoredValue(settings), http: http),
                        locale: Locale(identifier: locale))
     }
 
@@ -23,7 +23,7 @@ struct CurrencyPricesTests {
     /// - Parameter source: The rate source.
     @Test(arguments: CurrencySettings.RateSource.allCases)
     func `Quotes convert to the chosen currency`(source: CurrencySettings.RateSource) async throws {
-        let http = HTTPResponses([:], respond: CurrencyResponses.respond(to:))
+        let http = HTTPResponses.currency()
         let prices = Self.prices(CurrencySettings(rateSource: source, currencyCode: "EUR"), http: http)
 
         let quotes = try await prices.prices(for: ["sol", "usdc"])
@@ -37,7 +37,7 @@ struct CurrencyPricesTests {
     @Test(arguments: [nil, CurrencySettings(currencyCode: "EUR"),
                       CurrencySettings(rateSource: .europeanCentralBank, currencyCode: "USD")] as [CurrencySettings?])
     func `Prices in dollars read no rates`(settings: CurrencySettings?) async throws {
-        let http = HTTPResponses([:], respond: CurrencyResponses.respond(to:))
+        let http = HTTPResponses.currency()
 
         let quotes = try await Self.prices(settings, http: http).prices(for: ["sol"])
 
@@ -47,7 +47,7 @@ struct CurrencyPricesTests {
 
     /// An automatic choice follows the region's currency: a German device shows euros.
     @Test func `An automatic choice follows the region's currency`() async throws {
-        let http = HTTPResponses([:], respond: CurrencyResponses.respond(to:))
+        let http = HTTPResponses.currency()
         let prices = Self.prices(CurrencySettings(rateSource: .europeanCentralBank), locale: "de_DE", http: http)
 
         let quotes = try await prices.prices(for: ["usdc"])
@@ -66,17 +66,25 @@ struct CurrencyPricesTests {
     ] as [(String?, [String: Quote])])
     func `A currency without rates keeps dollars only when automatic`(code: String?,
                                                                       expected: [String: Quote]) async throws {
-        let http = HTTPResponses([:], respond: CurrencyResponses.respond(to:))
+        let http = HTTPResponses.currency()
         let prices = Self.prices(CurrencySettings(rateSource: .europeanCentralBank, currencyCode: code),
                                  locale: "es_AR", http: http)
 
         #expect(try await prices.prices(for: ["sol"]) == expected)
     }
 
+    /// A choice that can't be read fails the lookup instead of showing prices in another currency.
+    @Test func `An unreadable choice fails the lookup`() async throws {
+        let prices = CurrencyPrices(prices: Jupiter(transport: HTTPResponses.currency()),
+                                    currency: .inMemory(StoredValue(failsLoading: true)))
+
+        await #expect(throws: CurrencyError.settingsUnreadable) { try await prices.prices(for: ["sol"]) }
+    }
+
     /// A rate limit fails the lookup instead of showing unconverted prices.
     @Test func `A rate failure fails the lookup`() async throws {
-        let http = HTTPResponses([:], error: .http(statusCode: 429, retryAfter: "60"), failingMethod: CurrencyResponses.referencePath,
-                                 respond: CurrencyResponses.respond(to:))
+        let http = HTTPResponses.currency(error: .http(statusCode: 429, retryAfter: "60"),
+                                          failingMethod: CurrencyResponses.referencePath)
         let prices = Self.prices(CurrencySettings(rateSource: .europeanCentralBank, currencyCode: "EUR"), http: http)
 
         await #expect(throws: RPCError.http(statusCode: 429, retryAfter: "60")) {

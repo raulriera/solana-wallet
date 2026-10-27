@@ -7,24 +7,16 @@ import Testing
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct CurrencyListModelTests {
-    /// Creates the shared choice around one test's fixtures.
-    /// - Parameter http: The fixture transport that the rate adapters share.
-    /// - Returns: The selection, which lists each source's currencies.
-    private static func selection(_ http: HTTPResponses = HTTPResponses([:], respond: CurrencyResponses.respond(to:)))
-    -> CurrencySelection {
-        CurrencySelection(settings: StoredValue(), rates: CurrencyResponses.rates(http), portfolios: { [] })
-    }
-
     /// A source's currencies load once; no source loads nothing.
     @Test func `A source's currencies load once`() async {
-        let http = HTTPResponses([:], respond: CurrencyResponses.respond(to:))
-        let selection = Self.selection(http)
+        let http = HTTPResponses.currency()
+        let store = CurrencyStore.inMemory(http: http)
         let model = CurrencyListModel()
 
-        await model.load(nil, from: selection)
+        await model.load(nil, from: store)
         #expect(model.currencies == nil)
-        await model.load(.europeanCentralBank, from: selection)
-        await model.load(.europeanCentralBank, from: selection)
+        await model.load(.europeanCentralBank, from: store)
+        await model.load(.europeanCentralBank, from: store)
 
         #expect(Set(model.currencies ?? []) == ["USD", "EUR", "JPY"])
         #expect(await http.requests.count == 1)
@@ -42,7 +34,7 @@ struct CurrencyListModelTests {
         let model = CurrencyListModel(locale: Locale(identifier: locale))
         #expect(model.automaticCurrency == region)
 
-        await model.load(.europeanCentralBank, from: Self.selection())
+        await model.load(.europeanCentralBank, from: .inMemory())
 
         #expect(model.automaticCurrency == currency)
     }
@@ -54,7 +46,7 @@ struct CurrencyListModelTests {
     @Test(arguments: [("", ["EUR", "JPY", "USD"]), ("yen", ["JPY"]), ("usd", ["USD"]), ("peso", [])])
     func `Currencies are ordered by name and searchable`(search: String, codes: [String]) async {
         let model = CurrencyListModel(locale: Locale(identifier: "en_US"))
-        await model.load(.europeanCentralBank, from: Self.selection())
+        await model.load(.europeanCentralBank, from: .inMemory())
 
         model.search = search
 
@@ -63,10 +55,10 @@ struct CurrencyListModelTests {
 
     /// Currencies that can't load show why until a retry, which clears the error and counts the retry.
     @Test func `Currencies that can't load can be loaded again`() async {
-        let http = HTTPResponses([:], error: .transport(.notConnectedToInternet),
-                                 failingMethod: CurrencyResponses.coinbasePath, respond: CurrencyResponses.respond(to:))
+        let http = HTTPResponses.currency(error: .transport(.notConnectedToInternet),
+                                          failingMethod: CurrencyResponses.coinbasePath)
         let model = CurrencyListModel()
-        await model.load(.coinbase, from: Self.selection(http))
+        await model.load(.coinbase, from: .inMemory(http: http))
         #expect(model.error == .ratesUnavailable)
         #expect(model.currencies == nil)
 
@@ -78,12 +70,12 @@ struct CurrencyListModelTests {
 
     /// Another source keeps the previous source's currencies on screen until its own load, so nothing flashes.
     @Test func `Another source's currencies replace the previous ones once they load`() async {
-        let http = HTTPResponses([:], respond: CurrencyResponses.respond(to:))
-        let selection = Self.selection(http)
+        let http = HTTPResponses.currency()
+        let store = CurrencyStore.inMemory(http: http)
         let model = CurrencyListModel()
-        await model.load(.europeanCentralBank, from: selection)
+        await model.load(.europeanCentralBank, from: store)
 
-        await model.load(.coinbase, from: selection)
+        await model.load(.coinbase, from: store)
 
         #expect(model.currencies != nil)
         #expect(await http.requests.map { $0.url?.path() } == [CurrencyResponses.referencePath,

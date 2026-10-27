@@ -14,7 +14,7 @@ import Transactions
 /// records.
 @MainActor
 @Observable
-final class TransactionStore {
+final class TransactionStore: Erasable {
     /// The most records kept for each account on each network.
     nonisolated static let recordLimit = 200
 

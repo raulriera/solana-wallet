@@ -4,14 +4,16 @@ import SwiftUI
 struct CurrencyScreen: View {
     @Environment(\.palette) private var palette
     @Environment(\.locale) private var locale
-    /// The saved choice and its changes.
+    /// The choice that every window shares, or `nil` until it's read, so nothing shows as chosen.
+    let settings: CurrencySettings?
+    /// Runs each change to the choice.
     let choice: CurrencySettingsModel
     /// The rate source's currencies, which name the currency that an automatic choice follows.
     let list: CurrencyListModel
 
     var body: some View {
-        let isRead = choice.settings != nil
-        let source = choice.settings?.rateSource
+        let isRead = settings != nil
+        let source = settings?.rateSource
         Form {
             Section {
                 TitleCardContent(
@@ -43,7 +45,7 @@ struct CurrencyScreen: View {
                 Section {
                     NavigationLink(value: CurrencyRoute.currencies) {
                         LabeledContent {
-                            Text(choice.settings?.currencyCode.map { locale.localizedString(forCurrencyCode: $0) ?? $0 } ?? automaticName)
+                            Text(settings?.currencyCode.map { locale.localizedString(forCurrencyCode: $0) ?? $0 } ?? automaticName)
                         } label: {
                             Text("Currency", comment: "The row in Settings > Currency that opens the list of currencies.")
                         }
@@ -72,6 +74,7 @@ struct CurrencyScreen: View {
 
 #Preview {
     NavigationStack {
-        CurrencyScreen(choice: CurrencySettingsModel(), list: CurrencyListModel())
+        CurrencyScreen(settings: CurrencySettings(rateSource: .europeanCentralBank), choice: CurrencySettingsModel(),
+                       list: CurrencyListModel())
     }
 }

@@ -25,7 +25,7 @@ struct WindowRoot: View {
         .windowAppearance(services: services.appearance)
         .limitedTextSize()
         .environment(\.artworkColors, services.artworkColors)
-        .environment(\.currencySelection, services.currency)
+        .environment(services.currencyStore)
         .environment(services.contactStore)
         .environment(services.accountStore)
         .environment(\.accountCreation, services.accountCreation)

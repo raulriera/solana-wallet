@@ -8,7 +8,7 @@ import Vault
 /// at each one, optionally failing one step once.
 actor ResetStorage: RecoveryStoring {
     /// A store that a reset empties; the cases are in the order a reset empties them.
-    nonisolated enum Step: String, Sendable, CaseIterable { case recovery, privateBalances, appearance, contacts, accounts, transactions, pendingTransactions, key, settings }
+    nonisolated enum Step: String, Sendable, CaseIterable { case recovery, privateBalances, appearance, contacts, accounts, transactions, pendingTransactions, currency, key, settings }
 
     /// The test's own directory, which stands in for the app's kept and cached files.
     nonisolated let directory = URL.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
@@ -33,22 +33,18 @@ actor ResetStorage: RecoveryStoring {
     /// The shared appearance, whose restart this storage records.
     @MainActor var appearance: ResetAppearance { ResetAppearance(storage: self) }
 
-    /// The shared contacts, whose erasure this storage records.
-    @MainActor var contacts: ContactStore { ContactStore(storage: ResetValue<AddressBook>(storage: self, step: .contacts)) }
-
-    /// The shared accounts, whose erasure this storage records.
-    @MainActor var accounts: AccountStore {
-        AccountStore(storage: ResetValue<[widgets.Account]>(storage: self, step: .accounts), cleanup: StartupRecoveryCleanup())
-    }
-
-    /// The shared transactions after one window read an account's records, whose erasure this storage records.
-    @MainActor var transactions: TransactionStore {
-        let store = TransactionStore(storage: { _ in ResetValue(storage: self, step: .transactions) },
-                                     pending: ResetValue(storage: self, step: .pendingTransactions)) { _ in
-            throw SubmitterError.noProviders
-        }
-        _ = store.records(for: TransactionRecord.Key(account: UUID(), network: .devnet))
-        return store
+    /// The shared contacts, accounts, transactions after one window read an account's records, and currency choice,
+    /// in the order the app erases them, each recording its erasure in this storage.
+    @MainActor var stores: [any Erasable] {
+        let transactions = TransactionStore(storage: { _ in ResetValue(storage: self, step: .transactions) },
+                                            pending: ResetValue(storage: self, step: .pendingTransactions),
+                                            coordinators: { _ in throw SubmitterError.noProviders })
+        _ = transactions.records(for: TransactionRecord.Key(account: UUID(), network: .devnet))
+        return [ContactStore(storage: ResetValue<AddressBook>(storage: self, step: .contacts)),
+                AccountStore(storage: ResetValue<[widgets.Account]>(storage: self, step: .accounts),
+                             cleanup: StartupRecoveryCleanup()),
+                transactions,
+                CurrencyStore(storage: ResetValue<CurrencySettings>(storage: self, step: .currency), rates: [:])]
     }
 
     /// The provider's API key, whose deletion this storage records.
@@ -95,15 +91,10 @@ extension AppReset {
     /// Creates a reset whose every store records its deletion in one shared storage.
     /// - Parameters:
     ///   - storage: The storage that records every reset step.
-    ///   - contacts: The shared contacts, or `nil` for contacts whose erasure the storage records.
-    ///   - accounts: The shared accounts, or `nil` for accounts whose erasure the storage records.
-    ///   - transactions: The shared transactions, or `nil` for transactions whose erasure the storage records.
     ///   - revision: Tells every window when the reset finishes.
-    init(storage: ResetStorage, contacts: ContactStore? = nil, accounts: AccountStore? = nil,
-         transactions: TransactionStore? = nil, revision: Revision) {
+    init(storage: ResetStorage, revision: Revision) {
         self.init(recovery: storage, privateBalances: storage.privateBalances, directories: [storage.directory],
-                  appearance: storage.appearance, contacts: contacts ?? storage.contacts,
-                  accounts: accounts ?? storage.accounts, transactions: transactions ?? storage.transactions,
-                  providerKey: storage.key, providerSettings: storage.settings, revision: revision)
+                  appearance: storage.appearance, stores: storage.stores, providerKey: storage.key,
+                  providerSettings: storage.settings, revision: revision)
     }
 }

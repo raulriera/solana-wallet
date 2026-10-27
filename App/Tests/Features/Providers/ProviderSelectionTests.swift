@@ -37,7 +37,8 @@ struct ProviderSelectionTests {
     @Test
     func `A new provider ends mainnet's work without creating devnet's portfolio`() async throws {
         var made: [Network: PortfolioChanges] = [:]
-        let portfolios = NetworkPortfolios(prices: Jupiter(transport: HTTPResponses([:]))) { network, _ in
+        let portfolios = NetworkPortfolios(prices: Jupiter(transport: HTTPResponses([:])),
+                                           currency: .inMemory()) { network, _ in
             let portfolio = PortfolioChanges()
             made[network] = portfolio
             return portfolio
@@ -57,7 +58,8 @@ struct ProviderSelectionTests {
     @Test
     func `A new provider ends devnet's work once a window has shown devnet`() async throws {
         var made: [Network: PortfolioChanges] = [:]
-        let portfolios = NetworkPortfolios(prices: Jupiter(transport: HTTPResponses([:]))) { network, _ in
+        let portfolios = NetworkPortfolios(prices: Jupiter(transport: HTTPResponses([:])),
+                                           currency: .inMemory()) { network, _ in
             let portfolio = PortfolioChanges()
             made[network] = portfolio
             return portfolio

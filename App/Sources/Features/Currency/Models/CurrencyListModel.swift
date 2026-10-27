@@ -43,12 +43,12 @@ final class CurrencyListModel {
     /// Another source's currencies stay until these load, so what they show doesn't flash.
     /// - Parameters:
     ///   - source: The chosen rate source, or `nil` when none is chosen and nothing loads.
-    ///   - selection: The choice that every window shares, which lists each source's currencies.
-    func load(_ source: CurrencySettings.RateSource?, from selection: CurrencySelection) async {
+    ///   - store: The choice that every window shares, which lists each source's currencies.
+    func load(_ source: CurrencySettings.RateSource?, from store: CurrencyStore) async {
         guard let source, currencies == nil || self.source != source else { return }
         error = nil
         do {
-            let codes = try await selection.currencies(for: source)
+            let codes = try await store.currencies(for: source)
             guard !Task.isCancelled else { return }
             currencies = codes
             self.source = source

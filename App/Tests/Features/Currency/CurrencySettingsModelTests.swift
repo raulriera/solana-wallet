@@ -3,55 +3,46 @@ import Foundation
 import Testing
 @testable import widgets
 
-/// Checks how the Currency screen reads the saved choice and runs each change.
+/// Checks how the Currency screens read the shared choice and run each change.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct CurrencySettingsModelTests {
-    /// Creates the shared choice around one test's fixtures.
+    /// A read explains only a choice that can't be read.
     /// - Parameters:
-    ///   - settings: Storage for the choice.
-    ///   - http: The fixture transport that the rate adapters share.
-    /// - Returns: The selection.
-    private static func selection(_ settings: StoredValue<CurrencySettings>,
-                                  http: HTTPResponses = HTTPResponses([:], respond: CurrencyResponses.respond(to:)))
-    -> CurrencySelection {
-        CurrencySelection(settings: settings, rates: CurrencyResponses.rates(http), portfolios: { [] })
-    }
-
-    /// A read shows the saved choice.
-    @Test func `A read shows the saved choice`() async {
-        let saved = CurrencySettings(rateSource: .europeanCentralBank, currencyCode: "JPY")
+    ///   - failsLoading: Whether the choice can't be read.
+    ///   - error: The explained error, if any.
+    @Test(arguments: [(false, nil), (true, CurrencyError.settingsUnreadable)] as [(Bool, CurrencyError?)])
+    func `A read explains only an unreadable choice`(failsLoading: Bool, error: CurrencyError?) async {
         let model = CurrencySettingsModel()
 
-        await model.reload(from: Self.selection(StoredValue(saved)))
+        await model.load(from: .inMemory(StoredValue(failsLoading: failsLoading)))
 
-        #expect(model.settings == saved)
+        #expect(model.error == error)
     }
 
-    /// An unreadable choice keeps nothing chosen and explains the read.
-    @Test func `An unreadable choice explains why`() async {
-        let model = CurrencySettingsModel()
-
-        await model.reload(from: Self.selection(StoredValue(failsLoading: true)))
-
-        #expect(model.settings == nil)
-        #expect(model.error == .settingsUnreadable)
-    }
-
-    /// A tap saves its change once, ignoring taps while it waits, and the saved choice reaches every window.
-    @Test func `A choice is saved once and reaches every window`() async {
-        let settings = StoredValue<CurrencySettings>()
-        let selection = Self.selection(settings)
+    /// A change to a choice that can't be read explains the read, not a save.
+    @Test func `A change to an unreadable choice explains the read`() async {
         let model = CurrencySettingsModel()
 
         model.select(.coinbase)
-        model.select(.europeanCentralBank)
-        await model.run(model.attempt, with: selection)
-        await model.reload(from: selection)
+        await model.run(model.attempt, with: .inMemory(StoredValue(failsLoading: true)))
 
-        #expect(await settings.value == CurrencySettings(rateSource: .coinbase))
-        #expect(model.settings == CurrencySettings(rateSource: .coinbase))
-        #expect(selection.revision.value == 1)
+        #expect(model.error == .settingsUnreadable)
+    }
+
+    /// A tap saves its change once, ignoring taps while it waits, and the store shows it to every window.
+    @Test func `A choice is saved once and reaches every window`() async {
+        let settings = StoredValue<CurrencySettings>()
+        let store = CurrencyStore.inMemory(settings)
+        let model = CurrencySettingsModel()
+        let expected = CurrencySettings(rateSource: .coinbase)
+
+        model.select(.coinbase)
+        model.select(.europeanCentralBank)
+        await model.run(model.attempt, with: store)
+
+        #expect(store.settings == expected)
+        #expect(await settings.value == expected)
         #expect(model.attempt == nil)
     }
 
@@ -67,14 +58,14 @@ struct CurrencySettingsModelTests {
     ] as [(CurrencySettings.RateSource?, Bool, CurrencyError)])
     func `A failed change explains why`(source: CurrencySettings.RateSource?, failsSaving: Bool,
                                         error: CurrencyError) async {
-        let http = HTTPResponses([:], error: .transport(.notConnectedToInternet),
-                                 failingMethod: CurrencyResponses.coinbasePath, respond: CurrencyResponses.respond(to:))
+        let http = HTTPResponses.currency(error: .transport(.notConnectedToInternet),
+                                          failingMethod: CurrencyResponses.coinbasePath)
         let settings = StoredValue(CurrencySettings(rateSource: .europeanCentralBank, currencyCode: "JPY"),
                                    failsSaving: failsSaving)
         let model = CurrencySettingsModel()
 
         model.select(source)
-        await model.run(model.attempt, with: Self.selection(settings, http: http))
+        await model.run(model.attempt, with: .inMemory(settings, http: http))
 
         #expect(model.error == error)
     }

@@ -2,22 +2,29 @@ import Foundation
 import Portfolio
 import Testing
 import Transactions
+@testable import widgets
 
-/// Records provider and price changes on a portfolio, optionally suspending or failing each provider change, and
-/// reports any other use.
+/// Records provider changes on a portfolio, optionally suspending or failing each one, and the currency choice that
+/// each price change reads, and reports any other use.
 actor PortfolioChanges: PortfolioProviding {
     private(set) var providerChanges = 0
-    private(set) var priceChanges = 0
+    /// The currency choice that each price change read, in order, when the portfolio reads one.
+    nonisolated let priceReads: AsyncStream<CurrencySettings?>
+    private let priceReadsContinuation: AsyncStream<CurrencySettings?>.Continuation
     private let gate: Suspension?
     private let error: (any Error)?
+    private let currency: CurrencyStore?
 
     /// Creates a portfolio for one test.
     /// - Parameters:
     ///   - gate: An optional suspension inside each provider change.
     ///   - error: An optional error that each provider change throws after it runs.
-    init(gate: Suspension? = nil, error: (any Error)? = nil) {
+    ///   - currency: An optional currency choice that each price change reads, as a real portfolio's prices do.
+    init(gate: Suspension? = nil, error: (any Error)? = nil, currency: CurrencyStore? = nil) {
         self.gate = gate
         self.error = error
+        self.currency = currency
+        (priceReads, priceReadsContinuation) = AsyncStream.makeStream()
     }
 
     /// Records a provider change, then waits for the gate and throws the configured error.
@@ -28,9 +35,9 @@ actor PortfolioChanges: PortfolioProviding {
         if let error { throw error }
     }
 
-    /// Records a price change.
+    /// Records the currency choice that a price change reads.
     func pricesDidChange() async {
-        priceChanges += 1
+        if let currency { priceReadsContinuation.yield(await currency.settings) }
     }
 
     /// Reports observation, because changing settings never observes a wallet.

@@ -9,7 +9,7 @@ import Transactions
 /// change that can't be saved is undone and throws.
 @MainActor
 @Observable
-final class ContactStore {
+final class ContactStore: Erasable {
     private let book: PersistentValue<AddressBook>
 
     /// Connects to the storage that keeps the address book, without reading it.

@@ -1,35 +1,26 @@
 import SwiftUI
 
-/// Keeps Currency's choice and the rate source's currencies current while a Currency screen is on screen, runs each
-/// change, and presents failures.
+/// Reads Currency's choice and keeps the rate source's currencies current while a Currency screen is on screen, runs
+/// each change, and presents failures.
 ///
 /// Each Currency screen attaches it, because a screen pushed on iPhone merges into the settings stack, where the
 /// screen below stops its tasks.
 private struct CurrencyLifecycle: ViewModifier {
-    @Environment(\.currencySelection) private var selection
+    @Environment(CurrencyStore.self) private var store
     @Bindable var choice: CurrencySettingsModel
     let list: CurrencyListModel
 
-    /// Reads the choice whenever any window changes it, loads the source's currencies, and awaits one change at a time.
+    /// Reads the choice, loads the source's currencies, and awaits one change at a time.
     /// - Parameter content: A Currency screen.
     /// - Returns: The screen with managed reads, changes, and failure presentation.
     func body(content: Content) -> some View {
-        let source = choice.settings?.rateSource
+        let source = store.settings?.rateSource
         let attempt = choice.attempt
         content
-            // Reads again after any window saves a change, so every window shows what's saved.
-            .task(id: selection?.revision.value) {
-                guard let selection else { return }
-                await choice.reload(from: selection)
-            }
-            .task(id: CurrenciesRequest(source: source, retry: list.retry)) {
-                guard let selection else { return }
-                await list.load(source, from: selection)
-            }
-            .task(id: attempt) {
-                guard let selection else { return }
-                await choice.run(attempt, with: selection)
-            }
+            // Every window observes the store, so one read shows every later change.
+            .task { await choice.load(from: store) }
+            .task(id: CurrenciesRequest(source: source, retry: list.retry)) { await list.load(source, from: store) }
+            .task(id: attempt) { await choice.run(attempt, with: store) }
             .errorAlert($choice.error)
     }
 

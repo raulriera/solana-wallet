@@ -3,7 +3,8 @@ public import Observation
 /// A saved value that views observe, such as the saved contacts, read once and shared by every window.
 ///
 /// The value reads nothing until ``load()``. A change shows in ``value`` at once and saves after the changes made before
-/// it; a change that can't be saved is undone, and the changes made after it stay.
+/// it; a change that can't be saved is undone, and the changes made after it stay. Observers hear only of a value or
+/// phase that differs from the one before.
 ///
 /// ```swift
 /// let bookmarks = PersistentValue(storage: FileItem(url: url, coding: .json([String].self)), empty: [])
@@ -59,18 +60,22 @@ public final class PersistentValue<Value: Equatable & Sendable> {
     /// Changes the value at once and saves the change after the changes made before it.
     ///
     /// The change also runs on the saved value, which may differ from ``value``, so it must give the same result each
-    /// time it runs on the same value. Cancellation doesn't stop or undo the save.
+    /// time it runs on the same value. A change that leaves the value as saved saves nothing, and before anything is
+    /// saved, neither does one that leaves the empty value. Cancellation doesn't stop or undo the save.
     /// - Parameter change: Changes the value.
     /// - Throws: A storage error after undoing the change; the changes made after it stay.
     public func update(_ change: @escaping @Sendable (inout Value) -> Void) async throws {
         pending.append(change)
-        change(&value)
+        var changed = value
+        change(&changed)
+        show(changed)
         try await enqueue { [storage, empty] in
             do {
                 let saved = try await storage.update { stored in
                     var value = stored ?? empty
                     change(&value)
-                    stored = value
+                    // The storage skips an unchanged value; an empty value with nothing saved stays unsaved too.
+                    if stored != nil || value != empty { stored = value }
                     return value
                 }
                 self.finishChange(saved: saved)
@@ -118,13 +123,19 @@ public final class PersistentValue<Value: Equatable & Sendable> {
     /// - Parameter saved: The value that's saved.
     private func settle(_ saved: Value) {
         self.saved = saved
-        phase = .loaded
+        if phase != .loaded { phase = .loaded }
         showPending()
     }
 
     /// Shows the saved value with the changes still being saved applied in order.
     private func showPending() {
-        value = pending.reduce(into: saved) { value, change in change(&value) }
+        show(pending.reduce(into: saved) { value, change in change(&value) })
+    }
+
+    /// Shows a value, unless it's already shown, so observers hear only of real changes.
+    /// - Parameter new: The value to show.
+    private func show(_ new: Value) {
+        if value != new { value = new }
     }
 }
 
