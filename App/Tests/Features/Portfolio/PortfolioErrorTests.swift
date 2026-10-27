@@ -48,9 +48,9 @@ struct PortfolioErrorTests {
         defer { try? FileManager.default.removeItem(at: directory) }
         let client = HTTPResponses.keyCheck().providerClient(network: network,
                                                               providers: .inMemory(selection: provider))
-        let coordinator = PortfolioCoordinator(service: Portfolio(
+        let coordinator = PortfolioCoordinator(store: .serving(Portfolio(
             rpc: client, store: FileSnapshotStore(directory: directory),
-            tokenLists: FileTokenListStore(directory: directory.appendingPathComponent("TokenLists"))))
+            tokenLists: FileTokenListStore(directory: directory.appendingPathComponent("TokenLists")))), network: network)
         let viewing = Task { await coordinator.observe(for: PublicWallet.address, isActive: true) }
         defer { viewing.cancel() }
 

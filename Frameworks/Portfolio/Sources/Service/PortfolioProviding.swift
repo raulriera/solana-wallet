@@ -29,6 +29,14 @@ public protocol PortfolioProviding: Sendable {
     ///   Failures retain the latest complete snapshot.
     func updates(for owner: String) async -> AsyncStream<Update>
 
+    /// Reads an observed wallet's balances, logos, and prices again through its observation.
+    ///
+    /// The results, with their progress, reach every consumer of ``observations(for:)``. A request during a read
+    /// waits for the next one, and the requests that arrive before a read starts share it. A disconnected observation
+    /// connects again at once. Cancelling the caller stops its wait, not the read.
+    /// - Parameter owner: The observed wallet; a wallet that isn't observed isn't read.
+    func reload(for owner: String) async
+
     /// Removes locally retained portfolio data and cancels its active refresh.
     ///
     /// - Parameter owner: The wallet whose local data to remove.

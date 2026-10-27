@@ -73,7 +73,8 @@ actor ObservationCoordinator {
         guard let watch = watches[owner] else { return }
         watch.connection?.cancel()
         watch.reconciliation?.cancel()
-        connect(owner: owner, consumers: watch.consumers, latest: watch.latest, minContextSlot: watch.minContextSlot)
+        connect(owner: owner, consumers: watch.consumers, latest: watch.latest, minContextSlot: watch.minContextSlot,
+                reloads: watch.reloads)
     }
 
     /// Connects a disconnected observation again at once, so a person's reload also restores live updates.
@@ -85,6 +86,38 @@ actor ObservationCoordinator {
         restart(for: owner)
     }
 
+    /// Reads an observed wallet again through its observation, and waits for a read that starts after this call.
+    ///
+    /// A connected observation reads at once, or after the read in progress; a disconnected one connects again at once;
+    /// a connecting one reads once it connects. The wait also ends when the observation fails or stops, or when the
+    /// caller is cancelled, which leaves the read running.
+    /// - Parameter owner: The wallet to read again; a wallet that isn't observed isn't read.
+    func reload(for owner: String) async {
+        guard let watch = watches[owner] else { return }
+        switch watch.state {
+        case .connected:
+            watches[owner]?.reloadRequested = true
+            schedule(owner: owner, generation: watch.generation, delayed: false)
+        case .disconnected:
+            restart(for: owner)
+        case .connecting:
+            // The connection reads balances once it's established.
+            break
+        }
+        let id = UUID()
+        await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                if watches[owner] == nil {
+                    continuation.resume()
+                } else {
+                    watches[owner]?.reloads[id] = Reload(continuation: continuation)
+                }
+            }
+        } onCancel: {
+            Task { await self.endWait(id, owner: owner) }
+        }
+    }
+
     /// Cancels this wallet's observation before its cache is removed.
     /// - Parameter owner: The wallet leaving the portfolio.
     func stop(for owner: String) {
@@ -92,6 +125,7 @@ actor ObservationCoordinator {
         watch.connection?.cancel()
         watch.reconciliation?.cancel()
         watch.consumers.finish()
+        for reload in watch.reloads.values { reload.continuation.resume() }
     }
 
     /// Watches every observed wallet's accounts again, then reads their balances once, as after a price change.
@@ -112,10 +146,12 @@ actor ObservationCoordinator {
     ///   - consumers: The streams that receive the wallet's updates.
     ///   - latest: The newest update those consumers already received, if any.
     ///   - minContextSlot: The newest finalized change already observed, if any.
+    ///   - reloads: The reloads that wait for a read, which the new lifetime's first read answers.
     private func connect(owner: String, consumers: UpdateConsumers, latest: Update? = nil,
-                         minContextSlot: UInt64? = nil) {
+                         minContextSlot: UInt64? = nil, reloads: [UUID: Reload] = [:]) {
         let generation = UUID()
-        watches[owner] = Watch(generation: generation, minContextSlot: minContextSlot, consumers: consumers, latest: latest)
+        watches[owner] = Watch(generation: generation, minContextSlot: minContextSlot, consumers: consumers, latest: latest,
+                               reloads: reloads.mapValues { Reload(continuation: $0.continuation) })
         watches[owner]?.connection = Task { await listen(owner: owner, generation: generation) }
     }
 
@@ -140,6 +176,8 @@ actor ObservationCoordinator {
                 let failed = await refresh.status(for: owner, phase: .failed(error))
                 guard watches[owner]?.generation == generation else { return }
                 publish(failed, owner: owner, generation: generation)
+                // The connection failed before it could read, which ends the reloads waiting for one.
+                endWaits(of: owner) { _ in true }
                 guard (error as? RPCError)?.isRecoverable == true,
                       await waitToReconnect(owner: owner, generation: generation) else {
                     return
@@ -212,11 +250,17 @@ actor ObservationCoordinator {
     private func reconcile(owner: String, generation: UUID, delayed: Bool) async {
         guard watches[owner]?.generation == generation else { return }
         watches[owner]?.reloadRequested = false
+        // This read answers the reloads requested before it, and a later one answers those requested during it.
+        let read = UUID()
+        for (id, reload) in watches[owner]?.reloads ?? [:] where reload.read == nil {
+            watches[owner]?.reloads[id]?.read = read
+        }
         var handledRevision: UUID?
         var requestFailed = false
         defer {
             if let watch = watches[owner], watch.generation == generation {
                 watches[owner]?.reconciliation = nil
+                endWaits(of: owner) { $0.read == read }
                 if !Task.isCancelled,
                    watch.reloadRequested || (!requestFailed && watch.revision != handledRevision) {
                     schedule(owner: owner, generation: generation, delayed: !watch.reloadRequested)
@@ -259,6 +303,25 @@ actor ObservationCoordinator {
         watches[owner]?.consumers.send(update)
     }
 
+    /// Ends the waits of the reloads that a read answered, or that a failure or a stopped observation ends.
+    /// - Parameters:
+    ///   - owner: The observed wallet.
+    ///   - answered: Whether a reload's wait ends.
+    private func endWaits(of owner: String, where answered: (Reload) -> Bool) {
+        for (id, reload) in watches[owner]?.reloads ?? [:] where answered(reload) {
+            watches[owner]?.reloads[id] = nil
+            reload.continuation.resume()
+        }
+    }
+
+    /// Ends one cancelled caller's wait, leaving its read running.
+    /// - Parameters:
+    ///   - id: The cancelled reload.
+    ///   - owner: The observed wallet.
+    private func endWait(_ id: UUID, owner: String) {
+        watches[owner]?.reloads.removeValue(forKey: id)?.continuation.resume()
+    }
+
     /// Releases the connection and active refresh when the final consumer leaves.
     /// - Parameters:
     ///   - owner: The observed wallet.
@@ -290,5 +353,12 @@ actor ObservationCoordinator {
         var latest: Update?
         var connection: Task<Void, Never>?
         var reconciliation: Task<Void, Never>?
+        var reloads: [UUID: Reload] = [:]
+    }
+
+    /// A caller waiting for a reload, and the read that answers it once one starts.
+    private struct Reload {
+        let continuation: CheckedContinuation<Void, Never>
+        var read: UUID?
     }
 }

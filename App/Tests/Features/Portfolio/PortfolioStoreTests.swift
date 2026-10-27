@@ -6,45 +6,46 @@ import Testing
 @testable import RPC
 @testable import widgets
 
-/// Checks that each network's portfolio service is created for the network's first window and then shared, that only
-/// the network that the price provider quotes values holdings, that every service reads its prices again after each
-/// currency change, and that every service ends the previous provider's work before windows observe a new connection.
+/// Checks the shared portfolios: each network's service, the settings changes that reach every service, and the
+/// wallets that windows share.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
-struct NetworkPortfoliosTests {
-    /// Only mainnet's service exists until a window shows devnet; devnet's service is then created once.
+struct PortfolioStoreTests {
+    /// Only mainnet's service exists until a window observes on devnet; devnet's service is then created once.
     @Test
-    func `Devnet's service is created for its first window and then reused`() {
+    func `Devnet's service is created for its first window and then reused`() async {
         var made: [Network] = []
-        let portfolios = NetworkPortfolios(prices: Jupiter(transport: HTTPResponses([:])),
-                                           currency: .inMemory(), providers: .inMemory()) { network, _ in
+        let devnet = PortfolioChanges()
+        let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])),
+                                        currency: .inMemory(), providers: .inMemory()) { network, _ in
             made.append(network)
-            return PortfolioChanges()
+            return network == .mainnet ? PortfolioChanges() : devnet
         }
         #expect(made == [.mainnet])
-        #expect(portfolios.created.count == 1)
 
-        _ = portfolios.makeCoordinator(for: .devnet)
-        _ = portfolios.makeCoordinator(for: .devnet)
-        _ = portfolios.makeCoordinator(for: .mainnet)
+        let first = await Self.observe("wallet-a", on: .devnet, of: portfolios, through: devnet)
+        let second = await Self.observe("wallet-b", on: .devnet, of: portfolios, through: devnet)
 
         #expect(made == [.mainnet, .devnet])
-        #expect(portfolios.created.count == 2)
+        first.cancel()
+        second.cancel()
     }
 
     /// Mainnet's service gets the price provider, which quotes mainnet; devnet's service gets none.
     @Test
-    func `Only mainnet's service gets the price provider`() {
+    func `Only mainnet's service gets the price provider`() async {
         var priced: [Network: Bool] = [:]
-        let portfolios = NetworkPortfolios(prices: Jupiter(transport: HTTPResponses([:])),
-                                           currency: .inMemory(), providers: .inMemory()) { network, prices in
+        let devnet = PortfolioChanges()
+        let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])),
+                                        currency: .inMemory(), providers: .inMemory()) { network, prices in
             priced[network] = prices is Jupiter
-            return PortfolioChanges()
+            return network == .mainnet ? PortfolioChanges() : devnet
         }
 
-        _ = portfolios.makeCoordinator(for: .devnet)
+        let viewing = await Self.observe("wallet-a", on: .devnet, of: portfolios, through: devnet)
 
         #expect(priced == [.mainnet: true, .devnet: false])
+        viewing.cancel()
     }
 
     /// Each change to the currency choice has every created service read its prices once, with the new choice;
@@ -55,10 +56,11 @@ struct NetworkPortfoliosTests {
         let mainnet = PortfolioChanges(currency: currency)
         let devnet = PortfolioChanges(currency: currency)
         let prices = Jupiter(transport: HTTPResponses([:]))
-        let portfolios = NetworkPortfolios(prices: prices, currency: currency, providers: .inMemory()) { network, _ in
+        let portfolios = PortfolioStore(prices: prices, currency: currency, providers: .inMemory()) { network, _ in
             network == .mainnet ? mainnet : devnet
         }
-        _ = portfolios.makeCoordinator(for: .devnet)
+        let viewing = await Self.observe("wallet-a", on: .devnet, of: portfolios, through: devnet)
+        defer { viewing.cancel() }
         var mainnetReads = mainnet.priceReads.makeAsyncIterator()
         var devnetReads = devnet.priceReads.makeAsyncIterator()
 
@@ -82,8 +84,8 @@ struct NetworkPortfoliosTests {
         let saved = CurrencySettings(rateSource: .coinbase)
         let currency = CurrencyStore.inMemory(StoredValue(saved, failsSaving: true))
         let portfolio = PortfolioChanges(currency: currency)
-        let portfolios = NetworkPortfolios(prices: Jupiter(transport: HTTPResponses([:])), currency: currency,
-                                           providers: .inMemory()) { _, _ in
+        let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])), currency: currency,
+                                        providers: .inMemory()) { _, _ in
             portfolio
         }
         var reads = portfolio.priceReads.makeAsyncIterator()
@@ -104,8 +106,8 @@ struct NetworkPortfoliosTests {
     func `Erasing the currency choice reads no prices`() async throws {
         let currency = CurrencyStore.inMemory(StoredValue(CurrencySettings(rateSource: .coinbase, currencyCode: "EUR")))
         let portfolio = PortfolioChanges(currency: currency)
-        let portfolios = NetworkPortfolios(prices: Jupiter(transport: HTTPResponses([:])), currency: currency,
-                                           providers: .inMemory()) { _, _ in
+        let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])), currency: currency,
+                                        providers: .inMemory()) { _, _ in
             portfolio
         }
         var reads = portfolio.priceReads.makeAsyncIterator()
@@ -131,25 +133,25 @@ struct NetworkPortfoliosTests {
         defer { try? FileManager.default.removeItem(at: directory) }
         let responses = HTTPResponses(["getMultipleAccounts": [#"{"context":{"slot":1},"value":[null]}"#]])
         let providers = ProviderStore.inMemory()
-        let portfolios = NetworkPortfolios(prices: Jupiter(transport: responses), currency: .inMemory(),
-                                           providers: providers) { network, prices in
+        let portfolios = PortfolioStore(prices: Jupiter(transport: responses), currency: .inMemory(),
+                                        providers: providers) { network, prices in
             Portfolio(rpc: responses.providerClient(network: network, providers: providers),
                       store: FileSnapshotStore(directory: directory),
                       tokenLists: FileTokenListStore(directory: directory.appendingPathComponent("TokenLists")),
                       prices: prices)
         }
-        let coordinator = portfolios.makeCoordinator(for: .devnet)
-        let viewing = Task { await coordinator.observe(for: PublicWallet.address, isActive: true) }
+        let viewing = Task { await portfolios.observe(PublicWallet.address, on: .devnet) }
         defer { viewing.cancel() }
 
-        for await update in Observations({ coordinator.update }) {
+        for await update in Observations({ portfolios.update(for: PublicWallet.address, on: .devnet) }) {
             if let error = update?.error { throw error }
             if update?.isRefreshing == false, update?.snapshot != nil { break }
         }
 
-        #expect(coordinator.update?.snapshot?.network == .devnet)
-        #expect(coordinator.holdings.map(\.symbol) == ["SOL"])
-        #expect(coordinator.holdings.allSatisfy { $0.valuation == nil })
+        let holdings = portfolios.holdings(for: PublicWallet.address, on: .devnet)
+        #expect(portfolios.update(for: PublicWallet.address, on: .devnet)?.snapshot?.network == .devnet)
+        #expect(holdings.map(\.symbol) == ["SOL"])
+        #expect(holdings.allSatisfy { $0.valuation == nil })
         #expect(await responses.requests.map { $0.url?.host() } == ["api.devnet.solana.com"])
         viewing.cancel()
         await viewing.value
@@ -163,11 +165,12 @@ struct NetworkPortfoliosTests {
         let gate = Suspension()
         let mainnet = PortfolioChanges(gate: gate)
         let devnet = PortfolioChanges()
-        let portfolios = NetworkPortfolios(prices: Jupiter(transport: HTTPResponses([:])), currency: .inMemory(),
-                                           providers: providers) { network, _ in
+        let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])), currency: .inMemory(),
+                                        providers: providers) { network, _ in
             network == .mainnet ? mainnet : devnet
         }
-        _ = portfolios.makeCoordinator(for: .devnet)
+        let viewing = await Self.observe("wallet-a", on: .devnet, of: portfolios, through: devnet)
+        defer { viewing.cancel() }
         await providers.load()
         try await Self.connection(of: portfolios, becomes: .solana)
 
@@ -186,8 +189,8 @@ struct NetworkPortfoliosTests {
     func `A new provider creates no devnet service`() async throws {
         let providers = ProviderStore.inMemory(selection: .helius, key: "fixture-key")
         var made: [Network: PortfolioChanges] = [:]
-        let portfolios = NetworkPortfolios(prices: Jupiter(transport: HTTPResponses([:])), currency: .inMemory(),
-                                           providers: providers) { network, _ in
+        let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])), currency: .inMemory(),
+                                        providers: providers) { network, _ in
             let portfolio = PortfolioChanges()
             made[network] = portfolio
             return portfolio
@@ -208,11 +211,12 @@ struct NetworkPortfoliosTests {
         let providers = ProviderStore.inMemory(selection: .helius, key: "fixture-key")
         let failing = PortfolioChanges(error: CocoaError(.fileWriteOutOfSpace))
         let other = PortfolioChanges()
-        let portfolios = NetworkPortfolios(prices: Jupiter(transport: HTTPResponses([:])), currency: .inMemory(),
-                                           providers: providers) { network, _ in
+        let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])), currency: .inMemory(),
+                                        providers: providers) { network, _ in
             network == .mainnet ? failing : other
         }
-        _ = portfolios.makeCoordinator(for: .devnet)
+        let viewing = await Self.observe("wallet-a", on: .devnet, of: portfolios, through: other)
+        defer { viewing.cancel() }
         await providers.load()
         try await Self.connection(of: portfolios, becomes: .helius(key: "fixture-key"))
 
@@ -227,8 +231,8 @@ struct NetworkPortfoliosTests {
     func `A new Helius key ends the previous key's work`() async throws {
         let providers = ProviderStore.inMemory(selection: .helius, key: "fixture-key")
         let portfolio = PortfolioChanges()
-        let portfolios = NetworkPortfolios(prices: Jupiter(transport: HTTPResponses([:])), currency: .inMemory(),
-                                           providers: providers) { _, _ in portfolio }
+        let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])), currency: .inMemory(),
+                                        providers: providers) { _, _ in portfolio }
         await providers.load()
         try await Self.connection(of: portfolios, becomes: .helius(key: "fixture-key"))
 
@@ -246,8 +250,8 @@ struct NetworkPortfoliosTests {
         let providers = ProviderStore.inMemory(StoredValue(ProviderSettings(customRPCs: [unused])),
                                                key: StoredValue("fixture-key"))
         let portfolio = PortfolioChanges()
-        let portfolios = NetworkPortfolios(prices: Jupiter(transport: HTTPResponses([:])), currency: .inMemory(),
-                                           providers: providers) { _, _ in portfolio }
+        let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])), currency: .inMemory(),
+                                        providers: providers) { _, _ in portfolio }
         await providers.load()
         try await Self.connection(of: portfolios, becomes: .solana)
 
@@ -264,8 +268,8 @@ struct NetworkPortfoliosTests {
     func `Erasing the provider settings ends no work`() async throws {
         let providers = ProviderStore.inMemory(selection: .helius, key: "fixture-key")
         let portfolio = PortfolioChanges()
-        let portfolios = NetworkPortfolios(prices: Jupiter(transport: HTTPResponses([:])), currency: .inMemory(),
-                                           providers: providers) { _, _ in portfolio }
+        let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])), currency: .inMemory(),
+                                        providers: providers) { _, _ in portfolio }
         await providers.load()
         try await Self.connection(of: portfolios, becomes: .helius(key: "fixture-key"))
 
@@ -277,12 +281,114 @@ struct NetworkPortfoliosTests {
         #expect(await portfolio.providerChanges == 0)
     }
 
+    /// A new provider observes every observed wallet again once the previous provider's work has ended, so the windows
+    /// that share it keep receiving updates without starting over.
+    @Test
+    func `A new provider observes the observed wallets again`() async throws {
+        let providers = ProviderStore.inMemory(selection: .helius, key: "fixture-key")
+        let portfolio = PortfolioChanges()
+        let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])), currency: .inMemory(),
+                                        providers: providers) { _, _ in portfolio }
+        var observed = portfolio.observedOwners.makeAsyncIterator()
+        let first = Task { await portfolios.observe("wallet-a", on: .mainnet) }
+        let second = Task { await portfolios.observe("wallet-a", on: .mainnet) }
+        defer {
+            first.cancel()
+            second.cancel()
+        }
+        #expect(await observed.next() == "wallet-a")
+        await providers.load()
+        try await Self.connection(of: portfolios, becomes: .helius(key: "fixture-key"))
+
+        try await providers.select(.solana)
+
+        #expect(await observed.next() == "wallet-a")
+        try await Self.connection(of: portfolios, becomes: .solana)
+        #expect(await portfolio.providerChanges == 1)
+    }
+
+    /// Windows that show the same wallet on the same network share one observation and one state, and the wallet's
+    /// observation ends only when the last of them does.
+    /// - Throws: A test prerequisite error.
+    @Test
+    func `Windows on the same wallet share one observation`() async throws {
+        let service = PortfolioResponses()
+        let portfolios = PortfolioStore.serving(service)
+        var requests = service.requests.makeAsyncIterator()
+        let first = Task { await portfolios.observe("wallet-a", on: .devnet) }
+        defer { first.cancel() }
+        let observation = try #require(await requests.next())
+        let second = Task { await portfolios.observe("wallet-a", on: .devnet) }
+        defer { second.cancel() }
+        let shared = Snapshot.fixture(owner: "wallet-a", lamports: 1)
+        observation.continuation.yield(Update(snapshot: shared, phase: .ready, revision: 1))
+        for await snapshot in Observations({ portfolios.update(for: "wallet-a", on: .devnet)?.snapshot })
+        where snapshot == shared {
+            break
+        }
+
+        first.cancel()
+        await first.value
+        let changed = Snapshot.fixture(owner: "wallet-a", lamports: 2)
+        observation.continuation.yield(Update(snapshot: changed, phase: .ready, revision: 2))
+        for await snapshot in Observations({ portfolios.update(for: "wallet-a", on: .devnet)?.snapshot })
+        where snapshot == changed {
+            break
+        }
+        second.cancel()
+        await second.value
+        for await _ in observation.termination {}
+
+        #expect(await service.calls.count == 1)
+        #expect(portfolios.update(for: "wallet-a", on: .mainnet) == nil)
+        #expect(portfolios.update(for: "wallet-a", on: .devnet)?.snapshot == changed)
+    }
+
+    /// Erasing, as Reset App does, forgets every wallet's portfolio, so no window shows a deleted wallet's holdings.
+    /// - Throws: A test prerequisite error.
+    @Test
+    func `Erasing forgets every wallet's portfolio`() async throws {
+        let service = PortfolioResponses()
+        let portfolios = PortfolioStore.serving(service)
+        var requests = service.requests.makeAsyncIterator()
+        let viewing = Task { await portfolios.observe("wallet-a", on: .devnet) }
+        defer { viewing.cancel() }
+        let observation = try #require(await requests.next())
+        let saved = Snapshot.fixture(owner: "wallet-a", lamports: 1)
+        observation.continuation.yield(Update(snapshot: saved, phase: .ready, revision: 1))
+        for await snapshot in Observations({ portfolios.update(for: "wallet-a", on: .devnet)?.snapshot })
+        where snapshot == saved {
+            break
+        }
+
+        try await portfolios.erase()
+
+        #expect(portfolios.update(for: "wallet-a", on: .devnet) == nil)
+        #expect(portfolios.holdings(for: "wallet-a", on: .devnet).isEmpty)
+    }
+
+    /// Starts observing a wallet on a network, as a window that shows the network does, which creates the network's
+    /// service, and waits until the service observes it.
+    /// - Parameters:
+    ///   - owner: The wallet to observe.
+    ///   - network: The network to observe the wallet on.
+    ///   - portfolios: The portfolios under test.
+    ///   - service: The network's service, which reports the observation.
+    /// - Returns: The observation, which runs until it's cancelled.
+    private static func observe(_ owner: String, on network: Network, of portfolios: PortfolioStore,
+                                through service: PortfolioChanges) async -> Task<Void, Never> {
+        var observed = service.observedOwners.makeAsyncIterator()
+        let viewing = Task { await portfolios.observe(owner, on: network) }
+        _ = await observed.next()
+        return viewing
+    }
+
     /// Waits until the portfolios serve a connection.
     /// - Parameters:
     ///   - portfolios: The portfolios under test.
     ///   - connection: The connection to wait for.
     /// - Throws: `CancellationError` when the suite's time limit ends the wait.
-    private static func connection(of portfolios: NetworkPortfolios,
+    private static func connection(of portfolios: PortfolioStore,
                                    becomes connection: ProviderClient.Endpoint?) async throws {
         for await served in Observations({ portfolios.connection }) where served == connection { return }
         try Task.checkCancellation()

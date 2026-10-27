@@ -69,6 +69,15 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
         return updates
     }
 
+    /// Reads an observed wallet again through its observation, so every consumer receives the results.
+    ///
+    /// Returns once a read that started after this call ends, with or without an error, or at once for a wallet that
+    /// isn't observed. Cancelling the caller stops its wait, not the read.
+    /// - Parameter owner: The observed wallet to read again.
+    public func reload(for owner: String) async {
+        await observer.reload(for: owner)
+    }
+
     /// Observes finalized changes to the wallet and its listed token accounts, and reads balances again after each one.
     ///
     /// A dropped connection reports its error, then reconnects by itself and reads balances again.

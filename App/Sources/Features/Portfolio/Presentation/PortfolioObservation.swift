@@ -7,7 +7,6 @@ import Transactions
 private struct PortfolioObservation: ViewModifier {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(TransactionStore.self) private var transactions
-    @Environment(NetworkPortfolios.self) private var portfolios
     @Environment(ProviderStore.self) private var providers
     let account: Account
     let network: Network
@@ -18,8 +17,7 @@ private struct PortfolioObservation: ViewModifier {
     /// - Returns: Content that observes the wallet until the scene leaves or the wallet changes.
     func body(content: Content) -> some View {
         let session = Session(accountID: account.id, coordinator: ObjectIdentifier(coordinator),
-                              isActive: scenePhase == .active && providers.isRead,
-                              providerConnection: portfolios.connection ?? providers.connection)
+                              isActive: scenePhase == .active && providers.isRead)
         let settledCount = transactions.settledCount(for: TransactionRecord.Key(account: account.id, network: network))
         content
             .task(id: session) { await coordinator.observe(for: account.address.value, isActive: session.isActive) }
@@ -31,19 +29,16 @@ private struct PortfolioObservation: ViewModifier {
             }
     }
 
-    /// The observation's identity: a new wallet, a replaced coordinator, scene activity, or a new provider connection
-    /// from any window restarts it. It runs only while the provider settings are read, so a reset stops it.
+    /// The observation's identity: a new wallet, a replaced coordinator, or scene activity restarts it. It runs only
+    /// while the provider settings are read, so a reset stops it.
     ///
-    /// The connection is the one the portfolios serve, which follows a new provider only after they end the previous
-    /// provider's work; that ending would also end an observation that started before it. Before the portfolios serve
-    /// one, it's the shared settings' connection, which ends no work, so a first read never restarts observation. The
+    /// A new provider doesn't restart it: the shared portfolios observe every observed wallet again themselves. The
     /// coordinator itself, not the window's stored network, keys the task, so observation always runs on the
     /// coordinator that the window shows.
     private struct Session: Equatable {
         let accountID: UUID
         let coordinator: ObjectIdentifier
         let isActive: Bool
-        let providerConnection: ProviderClient.Endpoint?
     }
 }
 

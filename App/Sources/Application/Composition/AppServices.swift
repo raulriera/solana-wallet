@@ -13,7 +13,7 @@ struct AppServices {
     let discovery: any AccountDiscovering
     let recovery: any RecoveryStoring
     let providerConnection: any ProviderConnecting<ProviderConnectionError>
-    let portfolios: NetworkPortfolios
+    let portfolios: PortfolioStore
     let customRPCConnection: any ProviderConnecting<CustomRPCError>
     // One sampler for every window shares its remembered logo colors.
     let artworkColors: any ArtworkColorProviding = ArtworkColors()
@@ -77,8 +77,8 @@ struct AppServices {
         self.currencyStore = currencyStore
         // Prices come in US dollars and convert to the person's currency before any portfolio values a holding.
         let prices = CurrencyPrices(prices: Jupiter(), currency: currencyStore)
-        let portfolios = NetworkPortfolios(prices: prices, currency: currencyStore,
-                                           providers: providerStore) { network, prices in
+        let portfolios = PortfolioStore(prices: prices, currency: currencyStore,
+                                        providers: providerStore) { network, prices in
             Portfolio(rpc: ProviderClient(network: network, providers: providerStore),
                       prices: prices,
                       tokenListDirectory: .persistentDirectory.appending(path: "TokenLists", directoryHint: .isDirectory),
@@ -108,7 +108,8 @@ struct AppServices {
             owner: DeviceOwnerAuthentication(),
             reset: AppReset(recovery: recovery, privateBalances: privateBalances,
                             directories: directories, appearance: appearance.appearance,
-                            stores: [contactStore, accountStore, transactionStore, currencyStore, providerStore],
+                            stores: [contactStore, accountStore, transactionStore, currencyStore, providerStore,
+                                     portfolios],
                             revision: resetRevision),
             pasteboard: recoveryPasteboard
         )
@@ -127,12 +128,11 @@ struct AppServices {
         WindowStartup(accounts: accountStore, router: router)
     }
 
-    /// Creates independent portfolio presentation around a network's shared portfolio service.
-    /// - Parameter network: The network that the window shows. Mainnet's service exists from launch; another
-    ///   network's service is created when a window first shows that network.
-    /// - Returns: A coordinator for that network, whose observation and refreshes belong to one window.
+    /// Creates one window's view of a network's shared portfolios.
+    /// - Parameter network: The network that the window shows.
+    /// - Returns: A coordinator for that network, whose observation belongs to one window.
     func makePortfolioCoordinator(for network: Network) -> any PortfolioCoordinating {
-        portfolios.makeCoordinator(for: network)
+        PortfolioCoordinator(store: portfolios, network: network)
     }
 
     /// Assembles a fresh onboarding workflow around the app's shared services.

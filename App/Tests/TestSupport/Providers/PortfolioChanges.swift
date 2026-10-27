@@ -4,13 +4,16 @@ import Testing
 import Transactions
 @testable import widgets
 
-/// Records provider changes on a portfolio, optionally suspending or failing each one, and the currency choice that
-/// each price change reads, and reports any other use.
+/// Records provider changes on a portfolio, optionally suspending or failing each one, the currency choice that each
+/// price change reads, and each observation, which receives nothing, and reports any other use.
 actor PortfolioChanges: PortfolioProviding {
     private(set) var providerChanges = 0
     /// The currency choice that each price change read, in order, when the portfolio reads one.
     nonisolated let priceReads: AsyncStream<CurrencySettings?>
     private let priceReadsContinuation: AsyncStream<CurrencySettings?>.Continuation
+    /// The wallet of each observation, in order, once the observation starts.
+    nonisolated let observedOwners: AsyncStream<String>
+    private let observedOwnersContinuation: AsyncStream<String>.Continuation
     private let gate: Suspension?
     private let error: (any Error)?
     private let currency: CurrencyStore?
@@ -25,6 +28,7 @@ actor PortfolioChanges: PortfolioProviding {
         self.error = error
         self.currency = currency
         (priceReads, priceReadsContinuation) = AsyncStream.makeStream()
+        (observedOwners, observedOwnersContinuation) = AsyncStream.makeStream()
     }
 
     /// Records a provider change, then waits for the gate and throws the configured error.
@@ -40,12 +44,12 @@ actor PortfolioChanges: PortfolioProviding {
         if let currency { priceReadsContinuation.yield(await currency.settings) }
     }
 
-    /// Reports observation, because changing settings never observes a wallet.
+    /// Records an observation, as a window that shows the portfolio's network starts, which receives nothing.
     /// - Parameter owner: The requested wallet.
-    /// - Returns: A finished stream.
+    /// - Returns: A stream that stays open without updates until its observer ends.
     func observations(for owner: String) async -> AsyncStream<Update> {
-        Issue.record("Changing settings must not observe a wallet.")
-        return AsyncStream { $0.finish() }
+        observedOwnersContinuation.yield(owner)
+        return AsyncStream { _ in }
     }
 
     /// Reports a refresh, because changing settings never reads balances or prices itself.
@@ -54,6 +58,12 @@ actor PortfolioChanges: PortfolioProviding {
     func updates(for owner: String) async -> AsyncStream<Update> {
         Issue.record("Changing settings must not read balances.")
         return AsyncStream { $0.finish() }
+    }
+
+    /// Reports a reload, because changing settings never reads balances or prices itself.
+    /// - Parameter owner: The requested wallet.
+    func reload(for owner: String) async {
+        Issue.record("Changing settings must not read balances.")
     }
 
     /// Reports data removal, because changing settings keeps every wallet's data.

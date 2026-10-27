@@ -9,6 +9,7 @@ actor PortfolioResponses: PortfolioProviding {
     enum Kind: Sendable, Equatable {
         case observation
         case refresh
+        case reload
     }
 
     /// A request whose updates and termination can be driven independently.
@@ -45,6 +46,14 @@ actor PortfolioResponses: PortfolioProviding {
     /// - Returns: The requested refresh's stream.
     func updates(for owner: String) async -> AsyncStream<Update> {
         makeStream(for: owner, kind: .refresh)
+    }
+
+    /// Registers a controllable reload, which lasts until the test finishes its stream or the caller is cancelled.
+    ///
+    /// Updates sent on the reload's stream are dropped; a real reload's results arrive through the observation.
+    /// - Parameter owner: The wallet to read again.
+    func reload(for owner: String) async {
+        for await _ in makeStream(for: owner, kind: .reload) {}
     }
 
     /// Reports unexpected cache removal during view lifecycle changes.

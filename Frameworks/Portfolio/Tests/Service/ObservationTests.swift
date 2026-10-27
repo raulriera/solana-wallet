@@ -785,6 +785,105 @@ struct ObservationTests {
         try await service.removeData(for: testWallet)
         await second.waitUntilCancelled()
     }
+
+    /// Verifies a reload reads an observed wallet again and every consumer receives the result before it returns.
+    @Test(.timeLimit(.minutes(1)))
+    func `A reload reads an observed wallet again for every consumer`() async throws {
+        let fixture = ObservationFixture()
+        defer { fixture.cleanUp() }
+        let ledger = ObservedLedger()
+        let service = fixture.service(ledger: ledger)
+        var first = await service.observations(for: testWallet).makeAsyncIterator()
+        try await nextResult(&first)
+        // Joining reads balances once more, which both consumers receive.
+        var second = await service.observations(for: testWallet).makeAsyncIterator()
+        try await nextResult(&second)
+        try await nextResult(&first)
+        await ledger.set(lamports: 200)
+
+        await service.reload(for: testWallet)
+
+        #expect(try await nextResult(&first).holdings.first?.amount?.units == 200)
+        #expect(try await nextResult(&second).holdings.first?.amount?.units == 200)
+        #expect(await ledger.readCount == 3)
+        try await service.removeData(for: testWallet)
+        await fixture.socket.waitUntilCancelled()
+    }
+
+    /// Verifies cancelling a reload's caller ends its wait while the read goes on and reaches the observation.
+    @Test(.timeLimit(.minutes(1)))
+    func `Cancelling a reload ends its wait and keeps its read`() async throws {
+        let fixture = ObservationFixture()
+        defer { fixture.cleanUp() }
+        let ledger = ObservedLedger()
+        let (pending, release) = AsyncStream<Void>.makeStream()
+        let (started, announce) = AsyncStream<Void>.makeStream()
+        defer {
+            release.finish()
+            announce.finish()
+        }
+        let http = AccountResponses { accounts in
+            let reading = try await ledger.response(for: accounts)
+            if await ledger.readCount == 2 {
+                announce.yield(())
+                for await _ in pending {}
+            }
+            return reading
+        }
+        let service = fixture.service(http: http)
+        var observed = await service.observations(for: testWallet).makeAsyncIterator()
+        try await nextResult(&observed)
+        await ledger.set(lamports: 200)
+        let reloading = Task { await service.reload(for: testWallet) }
+        var startedIterator = started.makeAsyncIterator()
+        _ = try #require(await startedIterator.next())
+
+        reloading.cancel()
+        await reloading.value
+        release.finish()
+
+        #expect(try await nextResult(&observed).holdings.first?.amount?.units == 200)
+        #expect(await ledger.readCount == 2)
+        try await service.removeData(for: testWallet)
+        await fixture.socket.waitUntilCancelled()
+    }
+
+    /// Verifies a reload connects a refused observation again and returns after the new connection's read.
+    @Test(.timeLimit(.minutes(1)))
+    func `A reload connects a refused observation again`() async throws {
+        let fixture = ObservationFixture()
+        defer { fixture.cleanUp() }
+        let ledger = ObservedLedger()
+        let connections = Connections { $0 == 1 ? RPCError.http(statusCode: 429, retryAfter: nil) : nil }
+        let service = fixture.service(ledger: ledger) { connections.connect(to: $0) }
+        var sockets = connections.opened.makeAsyncIterator()
+        var updates = await service.observations(for: testWallet).makeAsyncIterator()
+        try await nextResult(&updates)
+        _ = try #require(await sockets.next())
+        await ledger.set(lamports: 200)
+
+        await service.reload(for: testWallet)
+
+        let second = try #require(await sockets.next())
+        let reloaded = try await nextResult(&updates)
+        #expect(reloaded.error == nil)
+        #expect(reloaded.holdings.first?.amount?.units == 200)
+        try await service.removeData(for: testWallet)
+        await second.waitUntilCancelled()
+    }
+
+    /// Verifies a reload reads nothing for a wallet that isn't observed.
+    @Test(.timeLimit(.minutes(1)))
+    func `A reload of a wallet that isn't observed reads nothing`() async {
+        let fixture = ObservationFixture()
+        defer { fixture.cleanUp() }
+        let ledger = ObservedLedger()
+        let service = fixture.service(ledger: ledger)
+
+        await service.reload(for: testWallet)
+
+        #expect(await ledger.readCount == 0)
+    }
 }
 
 /// Holds the SOL balance that the next successful balance read reports, and records each read's accounts.
