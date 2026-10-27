@@ -55,10 +55,11 @@ struct PrivateBalanceObservationTests {
         let sent = try PendingMove(from: account.id)
         let (model, notes) = try await PrivateBalanceFixtures.pendingDeposit(of: account,
                                                                              transactions: sent.transactions)
-        // Ordinary polls never come within the suite's time limit, so only a follow-up reads the balance again.
+        // Ordinary polls never come within the suite's time limit, so only a follow-up reads the balance again. The
+        // follow-up's reads last several seconds, so the test changes the notes before they run out.
         let hosted = try HostedWindow(PrivateBalanceObservationRoot(model: model, account: account, scenePhase: .active,
                                                                     pollInterval: .seconds(3_600),
-                                                                    followUpInterval: .milliseconds(10)))
+                                                                    followUpInterval: .milliseconds(500)))
         defer { hosted.close() }
         try #require(try await hosted.appears())
         for await status in Observations({ model.status }) where status != nil { break }
@@ -66,9 +67,8 @@ struct PrivateBalanceObservationTests {
 
         #expect(try await sent.settle() == .succeeded)
 
-        // The suite's time limit ends each wait if no follow-up reads the balance.
-        for await left in Observations({ model.followUpReadsLeft })
-        where left > 0 && left < PrivateBalanceModel.followUpReads { break }
+        // The suite's time limit ends each wait if the follow-up doesn't start or no follow-up reads the balance.
+        for await isFollowingUp in Observations({ model.isFollowingUp }) where isFollowingUp { break }
         // The indexer reports the deposit, so nothing is pending.
         try await notes.save([PrivateBalances.noteID(of: account, on: .devnet): NoteSyncState()])
         for await status in Observations({ model.status }) where status == .balance(available: 0, pending: 0) { break }
