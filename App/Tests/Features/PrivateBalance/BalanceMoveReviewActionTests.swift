@@ -1,3 +1,4 @@
+import RPC
 import SwiftUI
 import Testing
 import Transactions
@@ -83,13 +84,14 @@ struct BalanceMoveReviewActionTests {
     /// - Throws: A fixture error, or a test failure when no move opens.
     private static func move(transactions: TransactionStore = .unused) async throws -> BalanceMove {
         let account = try await PrivateBalanceFixtures.account()
-        let model = try PrivateBalanceModel.fixture(
+        let store = try PrivateBalanceStore.fixture(
             HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered]),
             keys: StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)]),
             transactions: transactions
         )
-        await model.refresh(for: account)
-        model.addToPrivateBalance(publicLamports: 2_000_000_000)
+        let model = PrivateBalanceModel(store: store, network: .devnet)
+        await store.refresh(account, on: .devnet)
+        model.open(.toPrivate, publicLamports: 2_000_000_000, for: account)
         return try #require(model.move)
     }
 

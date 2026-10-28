@@ -19,6 +19,9 @@ struct AppServices {
     let artworkColors: any ArtworkColorProviding = ArtworkColors()
     let recoveryPasteboard: any RecoveryCopying
     let privateBalances: any PrivateBalancing
+    /// Each account's private balance on each network, which every window shares; nothing is read until a window
+    /// observes an account.
+    let privateBalanceStore: PrivateBalanceStore
     let resetRevision = Revision()
     let security: SecurityServices
     /// The currency and rate source choice, which every window shares; nothing is read until a window's Currency or a
@@ -99,6 +102,9 @@ struct AppServices {
             ProviderClient(network: network, providers: providerStore)
         }
         self.privateBalances = privateBalances
+        let privateBalanceStore = PrivateBalanceStore(balances: privateBalances, transactions: transactionStore,
+                                                      providers: providerStore)
+        self.privateBalanceStore = privateBalanceStore
         let accounts = AccountStore.file(in: .persistentDirectory.appending(path: "Accounts", directoryHint: .isDirectory))
         accountStore = AccountStore(storage: accounts, cleanup: RecoveryCleanup(accounts: accounts, recovery: recovery,
                                                                                 privateBalances: privateBalances))
@@ -109,7 +115,7 @@ struct AppServices {
             reset: AppReset(recovery: recovery, privateBalances: privateBalances,
                             directories: directories, appearance: appearance.appearance,
                             stores: [contactStore, accountStore, transactionStore, currencyStore, providerStore,
-                                     portfolios],
+                                     portfolios, privateBalanceStore],
                             revision: resetRevision),
             pasteboard: recoveryPasteboard
         )

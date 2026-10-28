@@ -2,6 +2,7 @@ import Portfolio
 import RPC
 import SwiftUI
 import Transactions
+import Wallet
 
 /// Shows one token's balance and, when known, its value, price, and 24-hour change; removes any token except native SOL.
 ///
@@ -11,11 +12,17 @@ import Transactions
 struct TokenDetailScreen: View {
     @Environment(\.palette) private var palette
     @Environment(\.network) private var network
+    @Environment(PrivateBalanceStore.self) private var privateBalances
     let holding: Holding
-    /// The window's private balance, which native SOL's details show and turn on with ``privateBalanceLifecycle()``.
+    /// The account whose token shows.
+    let account: Account
+    /// The window's private-balance workflows, which native SOL's details turn on with ``privateBalanceLifecycle()``.
     let privateBalance: PrivateBalanceModel
 
     var body: some View {
+        // Only SOL's details show the private balance, so other tokens don't follow its changes.
+        let walletPrivateBalance = holding.id == .nativeSOL ? privateBalances.balance(for: account, on: network) : nil
+        let privateStatus = walletPrivateBalance?.status
         Form {
             Section {
                 TokenTitleCard(symbol: holding.displaySymbol, name: holding.displayName, logoURL: holding.logoURL)
@@ -85,16 +92,18 @@ struct TokenDetailScreen: View {
             .listRowBackground(palette.surface)
 
             if holding.id == .nativeSOL {
-                PrivateBalanceSections(model: privateBalance, symbol: holding.displaySymbol)
+                PrivateBalanceSections(model: privateBalance, status: privateStatus,
+                                       canMakePublic: walletPrivateBalance?.availableLamports != nil,
+                                       symbol: holding.displaySymbol)
                     // The rows open moves with the account's public SOL without holding the private balance.
                     .environment(\.moveBalance,
-                                 PrivateBalanceMoveAction(model: privateBalance,
+                                 PrivateBalanceMoveAction(model: privateBalance, account: account,
                                                           publicLamports: holding.amount?.units ?? 0))
             }
         }
-        .animation(.default, value: privateBalance.status)
+        .animation(.default, value: privateStatus)
         .task(id: holding.id) {
-            if holding.id == .nativeSOL { await privateBalance.refresh() }
+            if holding.id == .nativeSOL { await privateBalances.refresh(account, on: network) }
         }
         .monospacedDigit()
         .foregroundStyle(palette.primaryText, palette.secondaryText)
@@ -115,23 +124,33 @@ struct TokenDetailScreen: View {
 }
 
 #Preview {
-    NavigationStack {
-        TokenDetailScreen(holding: Holding(id: .nativeSOL, amount: Amount(units: 12_500_000_000, decimals: 9),
-                                           name: "Solana", symbol: "SOL", imageURL: nil,
-                                           valuation: Valuation(pricePerUnit: 166, total: 2_075, currency: "USD",
-                                                                dayChange: Decimal(string: "0.0129"))),
-                          privateBalance: PrivateBalanceModel(balances: PreviewPrivateBalances(),
-                                                              transactions: .preview, network: .devnet))
+    let store = PrivateBalanceStore.preview
+    if let address = try? Address("6d8tEyrqPqVbEr6Jpuc7BEyYekeMUTyzHEwdmcAYEmtK") {
+        NavigationStack {
+            TokenDetailScreen(holding: Holding(id: .nativeSOL, amount: Amount(units: 12_500_000_000, decimals: 9),
+                                               name: "Solana", symbol: "SOL", imageURL: nil,
+                                               valuation: Valuation(pricePerUnit: 166, total: 2_075, currency: "USD",
+                                                                    dayChange: Decimal(string: "0.0129"))),
+                              account: Account(id: UUID(), recoveryID: UUID(), address: address, path: .solana),
+                              privateBalance: PrivateBalanceModel(store: store, network: .devnet))
+        }
+        .environment(store)
+        .environment(\.network, .devnet)
     }
 }
 
 #Preview("Other owner") {
-    NavigationStack {
-        TokenDetailScreen(holding: Holding(id: .asset("Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"), amount: nil,
-                                           otherOwner: try? Address("4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T"),
-                                           name: "Tether USD", symbol: "USDT", imageURL: nil, valuation: nil),
-                          privateBalance: PrivateBalanceModel(balances: PreviewPrivateBalances(),
-                                                              transactions: .preview, network: .devnet))
+    let store = PrivateBalanceStore.preview
+    if let address = try? Address("6d8tEyrqPqVbEr6Jpuc7BEyYekeMUTyzHEwdmcAYEmtK") {
+        NavigationStack {
+            TokenDetailScreen(holding: Holding(id: .asset("Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"), amount: nil,
+                                               otherOwner: try? Address("4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T"),
+                                               name: "Tether USD", symbol: "USDT", imageURL: nil, valuation: nil),
+                              account: Account(id: UUID(), recoveryID: UUID(), address: address, path: .solana),
+                              privateBalance: PrivateBalanceModel(store: store, network: .devnet))
+        }
+        .environment(store)
+        .environment(\.network, .devnet)
     }
 }
 
@@ -139,6 +158,14 @@ private extension TransactionStore {
     /// Keeps the preview local: no network has a coordinator, so a deposit never opens, and no records are read.
     static var preview: TransactionStore {
         TransactionStore(directory: .temporaryDirectory) { _ in throw SubmitterError.noProviders }
+    }
+}
+
+private extension PrivateBalanceStore {
+    /// Keeps the preview local: SOL's details read only the preview's private balances, which are off.
+    static var preview: PrivateBalanceStore {
+        PrivateBalanceStore(balances: PreviewPrivateBalances(), transactions: .preview,
+                            providers: ProviderStore(service: "preview"))
     }
 }
 

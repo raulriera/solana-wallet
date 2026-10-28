@@ -10,6 +10,7 @@ struct PortfolioSplitView: View {
     @Environment(\.palette) private var palette
     @Environment(\.cardStyle) private var cardStyle
     @Environment(PortfolioStore.self) private var portfolios
+    @Environment(PrivateBalanceStore.self) private var privateBalances
     @State private var selection: Holding.Identity?
     @State private var preferredColumn = NavigationSplitViewColumn.sidebar
     @State private var providerSetup: ProviderSetupModel<ProviderConnectionError>?
@@ -22,13 +23,14 @@ struct PortfolioSplitView: View {
     /// The portfolio's token removals, which run with ``tokenRemovalLifecycle()`` and token details start with
     /// ``TokenRemovalAction``.
     let removal: TokenRemovalModel
-    /// The window's private balance, which the window reads with
-    /// ``privateBalanceObservation(of:model:pollInterval:followUpInterval:)`` and SOL's details turn on.
+    /// The window's private-balance workflows, which SOL's details run; the window reads the balance itself with
+    /// ``privateBalanceObservation(of:on:)``.
     let privateBalance: PrivateBalanceModel
 
     var body: some View {
         let portfolio = portfolios.portfolio(for: account, on: network)
         let presentation = portfolio?.presentation ?? .blank
+        let hasPrivateBalance = privateBalances.balance(for: account, on: network)?.hasBalance ?? false
 
         // One container, so the lifecycle modifiers below run once instead of once for each presentation.
         ZStack {
@@ -50,10 +52,10 @@ struct PortfolioSplitView: View {
                         switch cardStyle.layout {
                         case .cards:
                             TokenCardStack(selection: $selection, preferredColumn: $preferredColumn,
-                                           holdings: holdings, hasPrivateBalance: privateBalance.hasBalance)
+                                           holdings: holdings, hasPrivateBalance: hasPrivateBalance)
                         case .rows:
                             TokenList(selection: $selection, holdings: holdings,
-                                      hasPrivateBalance: privateBalance.hasBalance)
+                                      hasPrivateBalance: hasPrivateBalance)
                         }
                     }
                     // A new snapshot is the only change to the tokens, so its revision keys their motion.
@@ -71,7 +73,7 @@ struct PortfolioSplitView: View {
                     .sidebarColumnWidth()
                 } detail: {
                     if let holding = holdings.first(where: { $0.id == selection }) {
-                        TokenDetailScreen(holding: holding, privateBalance: privateBalance)
+                        TokenDetailScreen(holding: holding, account: account, privateBalance: privateBalance)
                             .privateBalanceLifecycle()
                             // New prices roll into place, as they do in the token list.
                             .animation(.default, value: portfolio?.snapshotRevision)
@@ -116,7 +118,7 @@ struct PortfolioSplitView: View {
     /// - Parameter holding: The token whose details show.
     private func refreshDetail(of holding: Holding) async {
         guard holding.id == .nativeSOL else { return await refresh() }
-        async let privateRefresh: Void = privateBalance.refresh()
+        async let privateRefresh: Void = privateBalances.refresh(account, on: network)
         await refresh()
         await privateRefresh
     }

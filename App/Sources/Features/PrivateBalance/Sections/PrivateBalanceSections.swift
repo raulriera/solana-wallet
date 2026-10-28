@@ -7,11 +7,16 @@ import SwiftUI
 /// Nothing shows before the first read, or where private balances aren't available, so the sections animate in.
 struct PrivateBalanceSections: View {
     @Environment(\.palette) private var palette
+    /// The window's private-balance workflows, which turn private balances on.
     let model: PrivateBalanceModel
+    /// The account's last read private balance, or `nil` before the first read.
+    let status: PrivateBalanceStatus?
+    /// Whether some private SOL is available to move to the public balance.
+    let canMakePublic: Bool
     let symbol: String
 
     var body: some View {
-        switch model.status {
+        switch status {
         case .off(let isRegistered)?:
             Section {
                 Button(action: model.turnOn) {
@@ -46,7 +51,7 @@ struct PrivateBalanceSections: View {
                 LabeledContent("Available") {
                     TokenBalance(amount: Amount(lamports: 0), symbol: symbol)
                 }
-                PrivateBalanceActions(canMakePublic: model.availableLamports != nil)
+                PrivateBalanceActions(canMakePublic: canMakePublic)
             }
             .listRowBackground(palette.surface)
         case .balance(let available, let pending)?:
@@ -61,7 +66,7 @@ struct PrivateBalanceSections: View {
                             .foregroundStyle(palette.secondaryText)
                     }
                 }
-                PrivateBalanceActions(canMakePublic: model.availableLamports != nil)
+                PrivateBalanceActions(canMakePublic: canMakePublic)
             } header: {
                 Text("Private Balance")
             } footer: {

@@ -3,245 +3,80 @@ import Privacy
 import RPC
 import Testing
 import Transactions
-import Wallet
 @testable import widgets
 
-/// Checks a window's private balance and turning it on through real private balances and local indexer fixtures.
+/// Checks a window's private-balance workflows, turning private balances on and opening moves, through real private
+/// balances and local indexer fixtures.
 @MainActor
 struct PrivateBalanceModelTests {
-    /// Nothing shows before the first refresh; a refresh shows why the account has no balance yet.
+    /// Opening a move keeps the move that the shared store creates, for the window's network.
     @Test
-    func `A refresh shows the account's status`() async throws {
+    func `Opening keeps the store's move`() async throws {
         let account = try await PrivateBalanceFixtures.account()
-        let model = try PrivateBalanceModel.fixture(HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered]))
-        #expect(model.status == nil)
+        let store = try await PrivateBalanceFixtures.store(holding: .available, of: account)
+        let model = PrivateBalanceModel(store: store, network: .devnet)
+        await store.refresh(account, on: .devnet)
 
-        await model.refresh(for: account)
+        model.open(.toPublic, publicLamports: 2_000_000_000, for: account)
 
-        #expect(model.status == .off(isRegistered: false))
-    }
-
-    /// An account at a path without private-balance keys shows nothing and reads nothing.
-    @Test
-    func `An account at another path shows nothing`() async throws {
-        let responses = HTTPResponses.privateNotes()
-        let model = try PrivateBalanceModel.fixture(responses)
-
-        await model.refresh(for: try await Self.otherPathAccount())
-
-        #expect(model.status == nil)
-        #expect(await responses.requests.isEmpty)
-    }
-
-    /// A refresh that fails keeps the status that the last refresh read.
-    @Test
-    func `A failed refresh keeps the last status`() async throws {
-        let account = try await PrivateBalanceFixtures.account()
-        let keys = StoredValue<PrivateBalances.Keys>()
-        let responses = HTTPResponses.privateNotes(error: .http(statusCode: 429, retryAfter: nil))
-        let model = try PrivateBalanceModel.fixture(responses, keys: keys)
-        await model.refresh(for: account)
-        try await keys.save([account.address.value: PrivateBalanceFixtures.keys(for: account)])
-
-        await model.refresh()
-
-        #expect(model.status == .off(isRegistered: false))
-    }
-
-    /// Another account starts over: its status replaces the last account's, so nothing shows for an account without
-    /// private-balance keys.
-    @Test
-    func `Another account starts over`() async throws {
-        let model = try PrivateBalanceModel.fixture(HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered]))
-        await model.refresh(for: try await PrivateBalanceFixtures.account())
-
-        await model.refresh(for: try await Self.otherPathAccount())
-
-        #expect(model.status == nil)
-    }
-
-    /// A registered account with SOL in its private balance has a balance; one without SOL doesn't.
-    @Test
-    func `Only private SOL counts as a balance`() async throws {
-        let account = try await PrivateBalanceFixtures.account()
-        let record = try await PrivateBalanceFixtures.keys(for: account)
-        let shielded = try record.shieldedAccount(for: account.address)
-        let responses = HTTPResponses.privateNotes(
-            registry: [try PrivateBalanceFixtures.registry(publishing: shielded)],
-            deposits: [try PrivateBalanceFixtures.deposit(1_000_000, to: shielded, leafIndex: 4)]
-        )
-        let funded = try PrivateBalanceModel.fixture(responses, keys: StoredValue([account.address.value: record]))
-        let unfunded = try PrivateBalanceModel.fixture(HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered]),
-                                      keys: StoredValue([account.address.value: record]))
-
-        await funded.refresh(for: account)
-        await unfunded.refresh(for: account)
-
-        #expect(funded.status == .balance(available: 1_000_000, pending: 0))
-        #expect(funded.hasBalance)
-        #expect(unfunded.status == .unregistered)
-        #expect(!unfunded.hasBalance)
-    }
-
-    /// While private balances are on, adding opens a move of the account's public SOL into its private balance; while
-    /// they're off, nothing opens.
-    /// - Parameter isOn: Whether the account turned private balances on.
-    @Test(arguments: [true, false])
-    func `Adding opens a deposit only while private balances are on`(isOn: Bool) async throws {
-        let account = try await PrivateBalanceFixtures.account()
-        let keys: PrivateBalances.Keys = isOn ? [account.address.value: try await PrivateBalanceFixtures.keys(for: account)] : [:]
-        let model = try PrivateBalanceModel.fixture(HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered]),
-                                                    keys: StoredValue(keys))
-        await model.refresh(for: account)
-
-        model.addToPrivateBalance(publicLamports: 2_000_000_000)
-
-        #expect((model.move != nil) == isOn)
-        #expect(model.move?.direction == (isOn ? .toPrivate : nil))
-        #expect(model.move?.payment.source == (isOn ? .publicBalance : nil))
-        #expect(model.move?.payment.token.balance == (isOn ? 2 : nil))
+        let move = try #require(model.move)
+        #expect(move.direction == .toPublic)
+        #expect(move.payment.token.balance == Decimal(string: "0.001"))
         #expect(model.error == nil)
     }
 
-    /// Moving to the public balance opens a withdrawal of the available private SOL only while there's some; pending
-    /// SOL alone, or an unregistered account, opens nothing.
-    /// - Parameter balance: The account's private balance.
-    @Test(arguments: [PrivateBalanceFixtures.Balance.available, .pending, .unregistered])
-    func `Moving to the public balance opens a withdrawal only with available SOL`(
-        balance: PrivateBalanceFixtures.Balance
-    ) async throws {
-        let account = try await PrivateBalanceFixtures.account()
-        let model = try await PrivateBalanceFixtures.model(holding: balance, of: account)
-        await model.refresh(for: account)
-
-        model.moveToPublicBalance()
-
-        let opens = balance == .available
-        #expect(model.availableLamports == (opens ? 1_000_000 : nil))
-        #expect(model.move?.direction == (opens ? .toPublic : nil))
-        #expect(model.move?.payment.source == (opens ? .privateBalance : nil))
-        #expect(model.move?.payment.token.balance == (opens ? Decimal(string: "0.001") : nil))
-        #expect(model.error == nil)
-    }
-
-    /// A settled private deposit or withdrawal becomes the account's last settled move, which reads the balance again.
-    /// - Parameter kind: The private move.
-    @Test(arguments: [TransactionRecord.Kind.privateDeposit(lamports: 1_000_000),
-                      .privateWithdrawal(lamports: 1_000_000)])
-    func `A settled private move reads the private balance again`(kind: TransactionRecord.Kind) async throws {
-        let account = try await PrivateBalanceFixtures.account()
-        let sent = try PendingMove(kind, from: account.id)
-        let model = try await PrivateBalanceFixtures.model(holding: .pending, of: account,
-                                                           transactions: sent.transactions)
-        await model.refresh(for: account)
-        #expect(model.lastSettledMove(for: account) == nil)
-
-        #expect(try await sent.settle() == .succeeded)
-
-        #expect(model.lastSettledMove(for: account)?.id == sent.record.id)
-    }
-
-    /// A payment never changes the private balance, so a settled one doesn't read it again or follow up on pending SOL.
+    /// A move that's open stays until it closes; opening another replaces nothing.
     @Test
-    func `A settled payment doesn't read the private balance again`() async throws {
+    func `A second move keeps the open one`() async throws {
         let account = try await PrivateBalanceFixtures.account()
-        let sent = try PendingPayment(from: account.id)
-        let model = try await PrivateBalanceFixtures.model(holding: .pending, of: account,
-                                                           transactions: sent.transactions)
-        await model.refresh(for: account)
+        let store = try await PrivateBalanceFixtures.store(holding: .available, of: account)
+        let model = PrivateBalanceModel(store: store, network: .devnet)
+        await store.refresh(account, on: .devnet)
+        model.open(.toPrivate, publicLamports: 2_000_000_000, for: account)
+        let first = try #require(model.move)
 
-        #expect(try await sent.settle() == .succeeded)
-        await model.refresh()
+        model.open(.toPublic, publicLamports: 2_000_000_000, for: account)
 
-        #expect(model.lastSettledMove(for: account) == nil)
-        #expect(!model.isFollowingUp)
+        #expect(model.move?.id == first.id)
+        #expect(model.move?.direction == .toPrivate)
     }
 
-    /// A refresh reads the account's records, and the last settled move is the deposit or withdrawal that settled
-    /// last, whatever order the moves were sent in; payments and pending moves don't count.
-    @Test
-    func `The last settled move is the private move that settled last`() async throws {
-        let account = try await PrivateBalanceFixtures.account()
-        let key = TransactionRecord.Key(account: account.id, network: .devnet)
-        // Newest first, as the store keeps them.
-        let records: [TransactionRecord] = [
-            .fixture(.privateDeposit(lamports: 1), signature: "pending deposit", account: account.id, created: 40),
-            .fixture(.payment(recipient: account.address, mint: nil, units: 1), signature: "payment",
-                     account: account.id, status: .succeeded, created: 30, settled: 35),
-            .fixture(.privateWithdrawal(lamports: 1), signature: "withdrawal", account: account.id,
-                     status: .failed, created: 20, settled: 25),
-            .fixture(.privateDeposit(lamports: 1), signature: "deposit", account: account.id, status: .succeeded,
-                     created: 10, settled: 28),
-        ]
-        let model = try await PrivateBalanceFixtures.model(holding: .available, of: account,
-                                                           transactions: .inMemory([key: StoredValue(records)]))
-
-        await model.refresh(for: account)
-
-        #expect(model.lastSettledMove(for: account)?.id == "deposit")
-    }
-
-    /// The first read after one of the account's private moves settles follows up quickly on pending SOL, with at most
-    /// ten quick reads; pending SOL without a settled move, or a settled one without pending SOL, starts none.
-    /// - Parameters:
-    ///   - balance: The account's private balance.
-    ///   - followsUp: Whether the model follows up after the move settles.
-    @Test(arguments: [(PrivateBalanceFixtures.Balance.pending, true), (.available, false)])
-    func `A read after a settled private move with pending SOL starts a follow-up`(
-        balance: PrivateBalanceFixtures.Balance, followsUp: Bool
-    ) async throws {
-        let account = try await PrivateBalanceFixtures.account()
-        let sent = try PendingMove(from: account.id)
-        let model = try await PrivateBalanceFixtures.model(holding: balance, of: account, transactions: sent.transactions)
-        await model.refresh(for: account)
-        #expect(!model.isFollowingUp)
-
-        #expect(try await sent.settle() == .succeeded)
-        await model.refresh()
-
-        #expect(model.isFollowingUp == followsUp)
-        #expect(model.followUpReadsLeft == (followsUp ? PrivateBalanceModel.followUpReads : 0))
-    }
-
-    /// Each follow-up poll uses one quick read, and a read that finds nothing pending ends the follow-up.
-    @Test
-    func `A follow-up ends once nothing is pending`() async throws {
-        let account = try await PrivateBalanceFixtures.account()
-        let sent = try PendingMove(from: account.id)
-        let (model, notes) = try await PrivateBalanceFixtures.pendingDeposit(of: account,
-                                                                             transactions: sent.transactions)
-        await model.refresh(for: account)
-        _ = try await sent.settle()
-        await model.refresh()
-        try #require(model.followUpReadsLeft == PrivateBalanceModel.followUpReads)
-
-        await model.poll()
-        #expect(model.followUpReadsLeft == PrivateBalanceModel.followUpReads - 1)
-        // The indexer reports the deposit, so nothing is pending.
-        try await notes.save([PrivateBalances.noteID(of: account, on: .devnet): NoteSyncState()])
-        await model.poll()
-
-        #expect(model.status == .balance(available: 0, pending: 0))
-        #expect(!model.isFollowingUp)
-    }
-
-    /// Turning on keeps the account's keys, then shows its balance and reports that it's on.
+    /// Turning on keeps the account's keys, then shows its balance in the shared store and reports that it's on.
     @Test
     func `Turning on keeps the keys and shows the balance`() async throws {
         let account = try await PrivateBalanceFixtures.account()
         let keys = StoredValue<PrivateBalances.Keys>()
-        let model = try PrivateBalanceModel.fixture(HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered]), keys: keys)
-        await model.refresh(for: account)
+        let store = try PrivateBalanceStore.fixture(HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered]),
+                                                    keys: keys)
+        let model = PrivateBalanceModel(store: store, network: .devnet)
+        await store.refresh(account, on: .devnet)
 
         model.turnOn()
         #expect(model.isTurningOn)
-        await model.run(model.attempt)
+        await model.run(model.attempt, for: account)
 
-        #expect(model.status == .unregistered)
+        #expect(store.balance(for: account, on: .devnet)?.status == .unregistered)
         #expect(model.isTurnedOn)
         #expect(!model.isTurningOn)
         #expect(model.error == nil)
         #expect(await keys.value == [account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
+    }
+
+    /// A new attempt starts as not turned on, so each attempt that succeeds announces itself again.
+    @Test
+    func `Each attempt that succeeds turns on again`() async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let store = try PrivateBalanceStore.fixture(HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered]))
+        let model = PrivateBalanceModel(store: store, network: .devnet)
+        model.turnOn()
+        await model.run(model.attempt, for: account)
+        try #require(model.isTurnedOn)
+
+        model.turnOn()
+
+        #expect(!model.isTurnedOn)
+        await model.run(model.attempt, for: account)
+        #expect(model.isTurnedOn)
     }
 
     /// Keys that another app registered for the account fail turning on with that error, and private balances stay
@@ -250,14 +85,15 @@ struct PrivateBalanceModelTests {
     func `Turning on an account registered with other keys fails`() async throws {
         let account = try await PrivateBalanceFixtures.account()
         let other = try PrivateBalanceFixtures.otherKeys(for: account.address)
-        let model = try PrivateBalanceModel.fixture(HTTPResponses.privateNotes(registry: [try PrivateBalanceFixtures.registry(publishing: other)]))
-        await model.refresh(for: account)
+        let store = try PrivateBalanceStore.fixture(HTTPResponses.privateNotes(registry: [try PrivateBalanceFixtures.registry(publishing: other)]))
+        let model = PrivateBalanceModel(store: store, network: .devnet)
+        await store.refresh(account, on: .devnet)
 
         model.turnOn()
-        await model.run(model.attempt)
+        await model.run(model.attempt, for: account)
 
         #expect(model.error == .registeredWithOtherKeys)
-        #expect(model.status == .off(isRegistered: true))
+        #expect(store.balance(for: account, on: .devnet)?.status == .off(isRegistered: true))
         #expect(!model.isTurnedOn)
         #expect(!model.isTurningOn)
     }
@@ -266,15 +102,16 @@ struct PrivateBalanceModelTests {
     @Test
     func `Cancelled authentication shows no error`() async throws {
         let account = try await PrivateBalanceFixtures.account()
-        let model = try PrivateBalanceModel.fixture(HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered]),
-                                   recovery: SecurityRecoveryStore(readError: CancellationError()))
-        await model.refresh(for: account)
+        let store = try PrivateBalanceStore.fixture(HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered]),
+                                                    recovery: SecurityRecoveryStore(readError: CancellationError()))
+        let model = PrivateBalanceModel(store: store, network: .devnet)
+        await store.refresh(account, on: .devnet)
 
         model.turnOn()
-        await model.run(model.attempt)
+        await model.run(model.attempt, for: account)
 
         #expect(model.error == nil)
-        #expect(model.status == .off(isRegistered: false))
+        #expect(store.balance(for: account, on: .devnet)?.status == .off(isRegistered: false))
         #expect(!model.isTurnedOn)
         #expect(!model.isTurningOn)
     }
@@ -285,11 +122,12 @@ struct PrivateBalanceModelTests {
         let account = try await PrivateBalanceFixtures.account()
         let responses = HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered],
                                                    error: .http(statusCode: 429, retryAfter: nil))
-        let model = try PrivateBalanceModel.fixture(responses)
-        await model.refresh(for: account)
+        let store = try PrivateBalanceStore.fixture(responses)
+        let model = PrivateBalanceModel(store: store, network: .devnet)
+        await store.refresh(account, on: .devnet)
 
         model.turnOn()
-        await model.run(model.attempt)
+        await model.run(model.attempt, for: account)
 
         #expect(model.error == .turnOnFailed)
         #expect(!model.isTurnedOn)
@@ -300,101 +138,17 @@ struct PrivateBalanceModelTests {
     func `One attempt runs at a time`() async throws {
         let account = try await PrivateBalanceFixtures.account()
         let recovery = try PrivateBalanceFixtures.recoveryStore()
-        let model = try PrivateBalanceModel.fixture(HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered]),
-                                   recovery: recovery)
-        await model.refresh(for: account)
+        let store = try PrivateBalanceStore.fixture(HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered]),
+                                                    recovery: recovery)
+        let model = PrivateBalanceModel(store: store, network: .devnet)
+        await store.refresh(account, on: .devnet)
 
         model.turnOn()
         let first = model.attempt
         model.turnOn()
-        await model.run(UUID())
+        await model.run(UUID(), for: account)
 
         #expect(model.attempt == first)
         #expect(await recovery.reads.isEmpty)
-    }
-
-    /// A poll reads the balance again only while private balances are on; off, it reads nothing.
-    /// - Parameter isOn: Whether the account has private-balance keys.
-    @Test(arguments: [true, false])
-    func `Polls read only while private balances are on`(isOn: Bool) async throws {
-        let account = try await PrivateBalanceFixtures.account()
-        let keys: PrivateBalances.Keys? = isOn ? [account.address.value: try await PrivateBalanceFixtures.keys(for: account)] : nil
-        let responses = HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered])
-        let model = try PrivateBalanceModel.fixture(responses, keys: StoredValue(keys))
-        await model.refresh(for: account)
-        let refreshRequests = await responses.requests.count
-
-        await model.poll()
-
-        let polled = await responses.requests.count > refreshRequests
-        #expect(polled == isOn)
-    }
-
-    /// A rejected key pauses polling, so polls send nothing even once a new key is saved, until a refresh succeeds.
-    @Test
-    func `Paused polling waits for a refresh that succeeds`() async throws {
-        let account = try await PrivateBalanceFixtures.account()
-        let record = try await PrivateBalanceFixtures.keys(for: account)
-        let responses = HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered])
-        let rejecting = HTTPResponses.privateNotes(error: .http(statusCode: 401, retryAfter: nil))
-        let providers = ProviderStore.inMemory(selection: .helius, key: "fixture-key")
-        let balances = PrivateBalances(recovery: try PrivateBalanceFixtures.recoveryStore(), wallet: Wallet(),
-                                       keys: StoredValue([account.address.value: record]), notes: StoredValue(),
-                                       codes: StoredValue()) { network in
-            ProviderClient(network: network, providers: providers) { endpoint, network in
-                (endpoint == .helius(key: "rejected-key") ? rejecting : responses).client(for: endpoint, on: network)
-            }
-        }
-        let model = PrivateBalanceModel(balances: balances, transactions: .unused, network: .devnet)
-        await model.refresh(for: account)
-
-        try await providers.save(key: "rejected-key")
-        await model.poll()
-        let isPaused = model.isPollingPaused
-        try await providers.save(key: "fixture-key")
-        let pausedRequests = await responses.requests.count
-        await model.poll()
-        let pausedPollRequests = await responses.requests.count - pausedRequests
-        await model.refresh()
-
-        #expect(isPaused)
-        #expect(pausedPollRequests == 0)
-        #expect(!model.isPollingPaused)
-        #expect(model.status == .unregistered)
-    }
-
-    /// A failure that can clear by itself, such as a server error, keeps polling.
-    @Test
-    func `A failure that can clear by itself keeps polling`() async throws {
-        let account = try await PrivateBalanceFixtures.account()
-        let keys = StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
-        let model = try PrivateBalanceModel.fixture(HTTPResponses.privateNotes(error: .http(statusCode: 503, retryAfter: nil)),
-                                                    keys: keys)
-
-        await model.refresh(for: account)
-
-        #expect(!model.isPollingPaused)
-    }
-
-    /// A rate limit pauses polling.
-    @Test
-    func `A rate limit pauses polling`() async throws {
-        let account = try await PrivateBalanceFixtures.account()
-        let keys = StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
-        let model = try PrivateBalanceModel.fixture(HTTPResponses.privateNotes(error: .http(statusCode: 429, retryAfter: nil)),
-                                                    keys: keys)
-
-        await model.refresh(for: account)
-
-        #expect(model.isPollingPaused)
-    }
-
-    /// The fixture account's address at a path without private-balance keys.
-    /// - Returns: The account.
-    /// - Throws: A derivation or test prerequisite error.
-    private static func otherPathAccount() async throws -> widgets.Account {
-        let fixture = try await PrivateBalanceFixtures.account()
-        return widgets.Account(id: UUID(), recoveryID: PrivateBalanceFixtures.recoveryID, address: fixture.address,
-                               path: try DerivationPath("m/44'/501'/0'"))
     }
 }

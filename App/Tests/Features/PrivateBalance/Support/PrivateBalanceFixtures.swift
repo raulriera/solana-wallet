@@ -2,6 +2,7 @@ import CryptoKit
 import Encoding
 import Foundation
 import ModularArithmetic
+import Observation
 @testable import Privacy
 @testable import RPC
 import Testing
@@ -85,24 +86,28 @@ enum PrivateBalanceFixtures {
                                    registers: false, authorities: [.account(account)])
     }
 
-    /// Creates a window's private balance on devnet over saved keys and notes in which a succeeded deposit of
-    /// 1,000,000 lamports is still pending, as after the deposit settles and before the indexer reports it.
+    /// Creates the shared private balances over saved keys and notes in which a succeeded devnet deposit of 1,000,000
+    /// lamports is still pending, as after the deposit settles and before the indexer reports it.
     /// - Parameters:
     ///   - account: A fixture account.
     ///   - transactions: The shared transactions.
-    /// - Returns: The model, before its first read, and the saved notes, which a test changes as the indexer would.
+    ///   - pollInterval: The time between polls.
+    ///   - followUpInterval: The time between polls that follow up on pending SOL.
+    /// - Returns: The store, before its first read, and the saved notes, which a test changes as the indexer would.
     /// - Throws: A fixture error.
     @MainActor
-    static func pendingDeposit(of account: widgets.Account, transactions: TransactionStore = .unused) async throws
-        -> (model: PrivateBalanceModel, notes: StoredValue<PrivateBalances.Notes>) {
+    static func pendingDeposit(of account: widgets.Account, transactions: TransactionStore = .unused,
+                               pollInterval: Duration = .seconds(30), followUpInterval: Duration = .seconds(3))
+        async throws -> (store: PrivateBalanceStore, notes: StoredValue<PrivateBalances.Notes>) {
         let keys = StoredValue([account.address.value: try await keys(for: account)])
         let notes = StoredValue<PrivateBalances.Notes>([PrivateBalances.noteID(of: account, on: .devnet): NoteSyncState()])
         let balances = PrivateBalances.inMemory(keys: keys, notes: notes, recovery: try recoveryStore(),
                                                 responses: HTTPResponses.privateNotes())
         _ = try await balances.complete(preparedDeposit(1_000_000, from: account), with: confirmation(.succeeded))
-        let model = try PrivateBalanceModel.fixture(HTTPResponses.privateNotes(), keys: keys, notes: notes,
-                                                    transactions: transactions)
-        return (model, notes)
+        let store = try PrivateBalanceStore.fixture(HTTPResponses.privateNotes(), keys: keys, notes: notes,
+                                                    transactions: transactions, pollInterval: pollInterval,
+                                                    followUpInterval: followUpInterval)
+        return (store, notes)
     }
 
     /// A private balance of a fixture account, as the local provider and saved notes report it.
@@ -115,17 +120,17 @@ enum PrivateBalanceFixtures {
         case unregistered
     }
 
-    /// Creates a window's private balance on devnet whose reads report a balance of an account with private balances
+    /// Creates the shared private balances whose devnet reads report a balance of an account with private balances
     /// on.
     /// - Parameters:
     ///   - balance: The balance that each read reports.
     ///   - account: A fixture account.
     ///   - transactions: The shared transactions.
-    /// - Returns: The model, before its first read.
+    /// - Returns: The store, before its first read.
     /// - Throws: A fixture error.
     @MainActor
-    static func model(holding balance: Balance, of account: widgets.Account,
-                      transactions: TransactionStore = .unused) async throws -> PrivateBalanceModel {
+    static func store(holding balance: Balance, of account: widgets.Account,
+                      transactions: TransactionStore = .unused) async throws -> PrivateBalanceStore {
         let record = try await keys(for: account)
         let keys = StoredValue([account.address.value: record])
         switch balance {
@@ -133,13 +138,47 @@ enum PrivateBalanceFixtures {
             let shielded = try record.shieldedAccount(for: account.address)
             let responses = HTTPResponses.privateNotes(registry: [try registry(publishing: shielded)],
                                                        deposits: [try deposit(1_000_000, to: shielded, leafIndex: 4)])
-            return try PrivateBalanceModel.fixture(responses, keys: keys, transactions: transactions)
+            return try PrivateBalanceStore.fixture(responses, keys: keys, transactions: transactions)
         case .pending:
-            return try await pendingDeposit(of: account, transactions: transactions).model
+            return try await pendingDeposit(of: account, transactions: transactions).store
         case .unregistered:
-            return try PrivateBalanceModel.fixture(HTTPResponses.privateNotes(registry: [unregistered]), keys: keys,
+            return try PrivateBalanceStore.fixture(HTTPResponses.privateNotes(registry: [unregistered]), keys: keys,
                                                    transactions: transactions)
         }
+    }
+
+    /// Reads a fixture account's devnet private balance through a store.
+    /// - Parameters:
+    ///   - account: A fixture account.
+    ///   - store: The shared private balances.
+    /// - Returns: The account's balance after one read.
+    /// - Throws: A test failure, which doesn't happen, since a read creates the balance.
+    @MainActor
+    static func read(_ account: widgets.Account, in store: PrivateBalanceStore) async throws -> WalletPrivateBalance {
+        await store.refresh(account, on: .devnet)
+        return try #require(store.balance(for: account, on: .devnet))
+    }
+
+    /// Waits until a fixture account's devnet balance in a store shows a status.
+    /// - Parameters:
+    ///   - account: A fixture account.
+    ///   - store: The shared private balances.
+    ///   - status: The status to wait for.
+    /// - Throws: `CancellationError` when the caller's time limit ends the wait.
+    @MainActor
+    static func status(of account: widgets.Account, in store: PrivateBalanceStore,
+                       becomes status: PrivateBalanceStatus) async throws {
+        for await read in Observations({ store.balance(for: account, on: .devnet)?.status }) where read == status {
+            return
+        }
+        try Task.checkCancellation()
+    }
+
+    /// Counts the registry reads sent so far; each read of a balance with keys sends one.
+    /// - Parameter responses: The local responses that recorded the requests.
+    /// - Returns: The number of `getMultipleAccounts` requests.
+    static func registryReads(of responses: HTTPResponses) async -> Int {
+        await responses.requests.count { (try? $0.jsonBody()["method"] as? String) == GetMultipleAccounts.method }
     }
 
     /// Counts the proof requests sent so far.

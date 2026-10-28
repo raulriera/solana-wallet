@@ -4,11 +4,12 @@ import SwiftUI
 /// when it succeeds, and an alert when it fails; and presents moves of SOL between the account's balances.
 private struct PrivateBalanceLifecycle: ViewModifier {
     @Bindable var model: PrivateBalanceModel
+    let account: Account
 
     func body(content: Content) -> some View {
         let attempt = model.attempt
         content
-            .task(id: attempt) { await model.run(attempt) }
+            .task(id: attempt) { await model.run(attempt, for: account) }
             .errorAlert($model.error)
             .sheet(item: $model.move) { BalanceMoveSheet(move: $0) }
             .sensoryFeedback(.success, trigger: model.isTurnedOn) { _, isTurnedOn in isTurnedOn }
@@ -23,6 +24,6 @@ extension TokenDetailScreen {
     /// Runs turning private balances on from the token's details.
     /// - Returns: The details with turning private balances on.
     func privateBalanceLifecycle() -> some View {
-        modifier(PrivateBalanceLifecycle(model: privateBalance))
+        modifier(PrivateBalanceLifecycle(model: privateBalance, account: account))
     }
 }

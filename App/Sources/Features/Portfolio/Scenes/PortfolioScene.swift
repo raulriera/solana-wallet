@@ -13,7 +13,7 @@ struct PortfolioScene: View {
     /// The network whose portfolio shows.
     let network: Network
     let connection: any ProviderConnecting<ProviderConnectionError>
-    /// The window's private balance, which SOL's details show.
+    /// The window’s private-balance workflows, which SOL’s details run.
     let privateBalance: PrivateBalanceModel
 
     var body: some View {

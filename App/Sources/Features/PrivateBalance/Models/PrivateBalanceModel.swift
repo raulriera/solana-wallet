@@ -1,204 +1,70 @@
 import Foundation
 import Observation
 import RPC
-import Wallet
 
-/// One window's private balance of its account on its network, turning private balances on for that account, and
-/// opening moves of SOL between the account's balances.
+/// One window's private-balance workflows on its network: turning private balances on for an account, and opening
+/// moves of SOL between the account's balances.
 ///
-/// A refresh shows the account's last read balance, or why it has none; a failed refresh keeps what was read before.
-/// While private balances are on, a poll reads the balance again; a failure that reading again can't fix, such as a
-/// rate limit, pauses polling until a refresh that the person or the window starts succeeds. When a read after one of the
-/// account's private moves settles finds pending SOL, the next few polls follow up quickly until the indexer reports it;
-/// payments never change the private balance, so they start none. Accounts whose path has no private-balance keys show
-/// nothing. Turning private balances on runs once per attempt in
-/// the scene's task and reports a typed error, except when the person cancels authentication.
+/// The balances themselves come from the shared ``PrivateBalanceStore``. Turning private balances on runs once per
+/// attempt in the scene's task and reports a typed error, except when the person cancels authentication.
 @MainActor
 @Observable
 final class PrivateBalanceModel {
-    /// The account's last read balance, or why it has none; `nil` before the first read, or for an account without
-    /// private-balance keys.
-    private(set) var status: PrivateBalanceStatus? {
-        didSet { hasBalance = Self.holdsSOL(status) }
-    }
-    /// Whether the account holds any private SOL, available or pending; kept apart from ``status`` so the token list
-    /// changes only when this does.
-    private(set) var hasBalance = false
     /// The error of the last attempt to turn private balances on.
     var error: PrivateBalanceError?
     /// The attempt to turn private balances on that's waiting for the scene's task, or running.
     private(set) var attempt: UUID?
-    /// Whether the last attempt turned private balances on for the account.
+    /// Whether the last attempt turned private balances on for its account.
     private(set) var isTurnedOn = false
-    /// Whether polls wait for a refresh that the person or the window starts, after a failure that reading again
-    /// can't fix.
-    private(set) var isPollingPaused = false
     /// The open move of the account's SOL between its public and private balances.
     var move: BalanceMove?
-    /// The quick reads left until the pending SOL of a settled transaction turns available.
-    private(set) var followUpReadsLeft = 0
     /// The window's network.
     private let network: Network
-    private var account: Account?
-    /// When the last read of the account's balance that succeeded started, or `nil` before the first read.
-    private var lastReadStarted: Date?
-    private let balances: any PrivateBalancing
-    private let transactions: TransactionStore
+    private let store: PrivateBalanceStore
 
     /// Whether an attempt to turn private balances on is waiting or running.
     var isTurningOn: Bool { attempt != nil }
 
-    /// Whether polls follow up quickly on pending SOL from a settled transaction.
-    var isFollowingUp: Bool { followUpReadsLeft > 0 }
-
-    /// The quick reads that follow a settled transaction with pending SOL, at most.
-    static let followUpReads = 10
-
-    /// Creates a model that shows nothing until its first refresh.
+    /// Creates a model with no attempt or move.
     /// - Parameters:
-    ///   - balances: The private balances of every account.
-    ///   - transactions: The transactions that every window sends, watches, and records.
+    ///   - store: The private balance of every account on every network, which moves prepare, complete, and send
+    ///     through.
     ///   - network: The window's network.
-    init(balances: any PrivateBalancing, transactions: TransactionStore, network: Network) {
-        self.balances = balances
-        self.transactions = transactions
+    init(store: PrivateBalanceStore, network: Network) {
+        self.store = store
         self.network = network
     }
 
-    /// Reads an account's private balance, starting over when the account differs from the last one.
-    ///
-    /// The read follows the settling of the account's last settled private move, which records the move in the
-    /// account's notes, so it never finds the balance from before the move.
-    /// - Parameter account: The window's account.
-    func refresh(for account: Account) async {
-        if self.account != account {
-            self.account = account
-            status = nil
-            error = nil
-            attempt = nil
-            isTurnedOn = false
-            isPollingPaused = false
-            move = nil
-            followUpReadsLeft = 0
-            lastReadStarted = nil
-        }
-        let key = key(of: account)
-        await transactions.load(key)
-        if let move = lastSettledMove(for: account) {
-            // The move's watch ends once its settling ran; a watch error leaves nothing more to wait for.
-            _ = try? await transactions.watch(move.id, for: key)
-        }
-        // A cancelled caller's replacement reads the balance itself.
-        guard !Task.isCancelled else { return }
-        await refresh()
-    }
-
-    /// The account's private move on the window's network that settled last; each one reads the balance again.
-    /// - Parameter account: The window's account.
-    /// - Returns: The settled deposit or withdrawal with the latest settled date, or `nil` when none is kept or read.
-    func lastSettledMove(for account: Account) -> TransactionRecord? {
-        transactions.records(for: key(of: account)).lazy
-            .filter { record in
-                switch record.kind {
-                case .privateDeposit, .privateWithdrawal: record.settled != nil
-                case .payment: false
-                }
-            }
-            .max { ($0.settled ?? .distantPast) < ($1.settled ?? .distantPast) }
-    }
-
-    /// Reads the current account's private balance again; a failed read keeps the balance read before.
-    ///
-    /// A failure that reading again can't fix, such as a rate limit or a rejected key, pauses polling; a read that
-    /// succeeds resumes it. The first read that finds pending SOL after one of the account's private moves settled
-    /// starts a follow-up, and a read that finds nothing pending ends it.
-    func refresh() async {
-        guard let account, account.path.hasPrivateBalanceKeys else { return }
-        let settled = lastSettledMove(for: account)?.settled
-        let started = Date.now
-        do {
-            let status = try await balances.refresh(account, on: network)
-            guard self.account == account else { return }
-            self.status = status
-            isPollingPaused = false
-            // A move that settled while the last read ran may be missing from that read, so it counts as new.
-            let settledSinceRead = if let lastReadStarted, let settled { settled > lastReadStarted } else { false }
-            lastReadStarted = started
-            guard case .balance(_, let pending) = status, pending > 0 else {
-                // Nothing left to turn available, so polls slow down again.
-                followUpReadsLeft = 0
-                return
-            }
-            if settledSinceRead { followUpReadsLeft = Self.followUpReads }
-        } catch {
-            guard self.account == account else { return }
-            isPollingPaused = !(error is CancellationError || (error as? RPCError)?.isRecoverable == true)
-        }
-    }
-
-    /// Reads the balance again while private balances are on for the account and polling isn't paused; each poll uses
-    /// one quick read of a follow-up.
-    func poll() async {
-        switch status {
-        case .unregistered?, .balance?:
-            guard !isPollingPaused else { return }
-            if followUpReadsLeft > 0 { followUpReadsLeft -= 1 }
-            await refresh()
-        case .off?, .unavailable?, nil:
-            return
-        }
-    }
-
-    /// Opens a deposit of the account's public SOL into its private balance, while private balances are on.
-    /// - Parameter publicLamports: The account's public SOL, in lamports.
-    func addToPrivateBalance(publicLamports: UInt64) {
-        open(.toPrivate, spendableLamports: publicLamports)
-    }
-
-    /// The account's available private SOL, in lamports, or `nil` while it has none to move.
-    var availableLamports: UInt64? {
-        guard case .balance(let available, _)? = status, available > 0 else { return nil }
-        return available
-    }
-
-    /// Opens a withdrawal of the account's available private SOL to its own public address, while it has some.
-    func moveToPublicBalance() {
-        guard let availableLamports else { return }
-        open(.toPublic, spendableLamports: availableLamports)
-    }
-
-    /// Opens a move of the account's SOL between its balances, while private balances are on.
+    /// Opens a move of an account's SOL between its balances, while private balances are on; a withdrawal opens only
+    /// while some private SOL is available.
     /// - Parameters:
     ///   - direction: Which balance the SOL leaves, and which one it reaches.
-    ///   - spendableLamports: The SOL that the move can take from the balance that it leaves, in lamports.
-    private func open(_ direction: BalanceMoveProposal.Direction, spendableLamports: UInt64) {
-        guard let account, move == nil else { return }
-        switch status {
-        case .unregistered?, .balance?:
-            move = BalanceMove(direction: direction, account: account, network: network,
-                               spendableLamports: spendableLamports, balances: balances, transactions: transactions)
-        case .off?, .unavailable?, nil:
-            return
-        }
+    ///   - publicLamports: The account's public SOL, in lamports, which a deposit can add.
+    ///   - account: The window's account.
+    func open(_ direction: BalanceMoveProposal.Direction, publicLamports: UInt64, for account: Account) {
+        guard move == nil else { return }
+        move = store.move(direction, publicLamports: publicLamports, for: account, on: network)
     }
 
-    /// Asks to turn private balances on for the current account, unless an attempt is already waiting or running.
+    /// Asks to turn private balances on, unless an attempt is already waiting or running.
     func turnOn() {
-        guard attempt == nil, account != nil else { return }
+        guard attempt == nil else { return }
         error = nil
+        // Each attempt that succeeds changes this again, so its haptic and announcement follow.
+        isTurnedOn = false
         attempt = UUID()
     }
 
-    /// Turns private balances on once in the scene's SwiftUI-managed task, then reads the balance.
-    /// - Parameter attempt: The identifier that the scene's task captured.
-    func run(_ attempt: UUID?) async {
-        guard let attempt, self.attempt == attempt, let account else { return }
+    /// Turns private balances on once in the scene's SwiftUI-managed task; the shared store then shows the balance.
+    /// - Parameters:
+    ///   - attempt: The identifier that the scene's task captured.
+    ///   - account: The window's account.
+    func run(_ attempt: UUID?, for account: Account) async {
+        guard let attempt, self.attempt == attempt else { return }
         defer { if self.attempt == attempt { self.attempt = nil } }
         do {
-            try await balances.enable(account, on: network)
-            let status = try await balances.refresh(account, on: network)
-            guard self.attempt == attempt, self.account == account else { return }
-            self.status = status
+            try await store.turnOn(account, on: network)
+            guard self.attempt == attempt else { return }
             isTurnedOn = true
         } catch is CancellationError {
             // The person dismissed authentication, or the scene left.
@@ -206,20 +72,5 @@ final class PrivateBalanceModel {
             guard self.attempt == attempt else { return }
             self.error = error as? PrivateBalanceError ?? .turnOnFailed
         }
-    }
-
-    /// The account's records on the window's network.
-    /// - Parameter account: The window's account.
-    /// - Returns: The key of the account's records.
-    private func key(of account: Account) -> TransactionRecord.Key {
-        TransactionRecord.Key(account: account.id, network: network)
-    }
-
-    /// Whether a status holds any private SOL.
-    /// - Parameter status: A read status, or `nil` before the first read.
-    /// - Returns: Whether the balance's available or pending SOL is above zero.
-    private static func holdsSOL(_ status: PrivateBalanceStatus?) -> Bool {
-        guard case .balance(let available, let pending) = status else { return false }
-        return available > 0 || pending > 0
     }
 }

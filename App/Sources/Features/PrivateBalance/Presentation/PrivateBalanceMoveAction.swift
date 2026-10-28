@@ -3,15 +3,14 @@
 struct PrivateBalanceMoveAction {
     /// The window's private balance, which opens the move.
     let model: PrivateBalanceModel
+    /// The window's account, whose SOL moves.
+    let account: Account
     /// The account's public SOL, in lamports, which a deposit can add.
     let publicLamports: UInt64
 
     /// Opens a move in one direction; a withdrawal opens only while some private SOL is available.
     /// - Parameter direction: Which balance the SOL leaves, and which one it reaches.
     func callAsFunction(_ direction: BalanceMoveProposal.Direction) {
-        switch direction {
-        case .toPrivate: model.addToPrivateBalance(publicLamports: publicLamports)
-        case .toPublic: model.moveToPublicBalance()
-        }
+        model.open(direction, publicLamports: publicLamports, for: account)
     }
 }

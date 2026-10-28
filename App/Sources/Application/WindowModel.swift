@@ -11,7 +11,7 @@ final class WindowModel {
     var onboarding: any OnboardingCoordinating
     /// Restores the window's wallet when the window opens.
     let startup: any WindowStarting
-    /// The private balance of the window's account on that network.
+    /// The private-balance workflows of the window's account on that network.
     private(set) var privateBalance: PrivateBalanceModel
     /// The window's appearance editing.
     let settings: AppearanceSettingsModel
@@ -30,19 +30,17 @@ final class WindowModel {
         self.router = router
         onboarding = services.makeOnboardingCoordinator(router: router)
         startup = services.makeWindowStartup(router: router)
-        privateBalance = PrivateBalanceModel(balances: services.privateBalances,
-                                             transactions: services.transactionStore, network: network)
+        privateBalance = PrivateBalanceModel(store: services.privateBalanceStore, network: network)
         settings = services.makeAppearanceSettingsModel()
         security = services.makeSecurityCoordinator()
         providers = services.makeProvidersCoordinator()
         self.services = services
     }
 
-    /// Replaces the private balance with one for the window's new network, so the previous network's refreshes never
-    /// reach it.
+    /// Replaces the private-balance workflows with ones for the window's new network, so the previous network's
+    /// attempts never reach it.
     /// - Parameter network: The network that the window shows now.
     func show(_ network: Network) {
-        privateBalance = PrivateBalanceModel(balances: services.privateBalances,
-                                             transactions: services.transactionStore, network: network)
+        privateBalance = PrivateBalanceModel(store: services.privateBalanceStore, network: network)
     }
 }
