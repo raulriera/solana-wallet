@@ -2,7 +2,7 @@ import RPC
 import SwiftUI
 
 /// Shows a window's root destination, keeps the section it shows, runs the window's startup and reset lifecycles, and
-/// gives the window a new portfolio when its network changes.
+/// gives the window a new private balance when its network changes.
 struct WindowContent: View {
     @SceneStorage("window.section") private var section = WalletSection.portfolio
     @State private var startupAttempt = 0
@@ -24,7 +24,7 @@ struct WindowContent: View {
                     .onboardingLifecycle()
             case .wallet(let account):
                 WalletScene(section: $section, network: $network, account: account,
-                            portfolio: window.portfolio, privateBalance: window.privateBalance,
+                            privateBalance: window.privateBalance,
                             settings: window.settings, connection: services.providerConnection,
                             security: window.security, providers: window.providers)
             }

@@ -1,11 +1,11 @@
-import RPC
 import SwiftUI
 @testable import widgets
 
-/// Observes a wallet on the shown portfolio on devnet, as a wallet window does.
+/// Observes the shown wallet in the shared portfolios, as a wallet window does.
 struct PortfolioObservationRoot: View {
-    let shown: ShownPortfolio
-    let account: widgets.Account
+    /// The shared portfolios, which a window's root supplies.
+    let portfolios: PortfolioStore
+    let shown: ShownWallet
     /// The shared transactions, which a window's root supplies.
     var transactions = TransactionStore.unused
     /// The shared provider settings, which a window's root supplies and reads.
@@ -13,11 +13,12 @@ struct PortfolioObservationRoot: View {
 
     var body: some View {
         Color.clear
-            .portfolioObservation(of: account, on: .devnet, coordinator: shown.coordinator)
+            .portfolioObservation(of: shown.account, on: shown.network)
+            .environment(portfolios)
             .environment(transactions)
             .environment(providers)
             .task { await providers.load() }
-            // A hosted window isn't a SwiftUI scene, so the root reports the active scene that a shown window has.
-            .environment(\.scenePhase, .active)
+            // A hosted window isn't a SwiftUI scene, so the root reports the scene phase that a shown window has.
+            .environment(\.scenePhase, shown.phase)
     }
 }

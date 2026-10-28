@@ -128,13 +128,6 @@ struct AppServices {
         WindowStartup(accounts: accountStore, router: router)
     }
 
-    /// Creates one window's view of a network's shared portfolios.
-    /// - Parameter network: The network that the window shows.
-    /// - Returns: A coordinator for that network, whose observation belongs to one window.
-    func makePortfolioCoordinator(for network: Network) -> any PortfolioCoordinating {
-        PortfolioCoordinator(store: portfolios, network: network)
-    }
-
     /// Assembles a fresh onboarding workflow around the app's shared services.
     /// - Parameter router: The owning window's root navigation.
     /// - Returns: Independent draft state for the window that retains this coordinator.

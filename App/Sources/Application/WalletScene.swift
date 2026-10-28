@@ -10,7 +10,6 @@ struct WalletScene: View {
     /// The network that the window shows, which Settings changes.
     @Binding var network: Network
     let account: Account
-    let portfolio: any PortfolioCoordinating
     let privateBalance: PrivateBalanceModel
     let settings: AppearanceSettingsModel
     let connection: any ProviderConnecting<ProviderConnectionError>
@@ -37,7 +36,7 @@ struct WalletScene: View {
             }
         }
         .tabViewStyle(.tabBarOnly)
-        .portfolioObservation(of: account, on: network, coordinator: portfolio)
+        .portfolioObservation(of: account, on: network)
         .privateBalanceObservation(of: account, model: privateBalance)
         // Settings work belongs to the window, so switching tabs keeps an import or a saved choice going.
         .onDisappear { settings.cancel() }
