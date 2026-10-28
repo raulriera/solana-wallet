@@ -1,76 +1,37 @@
 import RPC
 import SwiftUI
 
-/// Owns settings navigation and presentations within the window's appearance environment.
+/// Owns a window's Settings tab: its Security & Privacy and Providers workflows, which the tab keeps while the person
+/// switches tabs.
+///
+/// Leaving the wallet, as a reset does, ends the tab and its workflows with it.
 struct SettingsScene: View {
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    @State private var selection: SettingsDestination?
+    @State private var security: SecurityCoordinator
+    @State private var providers: ProvidersCoordinator
     @Binding var network: Network
     let settings: AppearanceSettingsModel
-    let wallet: AppearanceWallet?
     let account: Account
-    let security: SecurityCoordinator
-    let providers: ProvidersCoordinator
 
-    /// Presents the window's preference-editing workflow, its network, its wallet's accounts, its RPC provider choices,
-    /// its currency, and its wallet's security choices.
-    ///
-    /// Appearance loading and rendering belong to the owning window's root.
+    /// Keeps the first workflows it receives for as long as the tab stays; later ones are discarded.
     /// - Parameters:
-    ///   - settings: The window's workflow; the window cancels unfinished work when it closes.
-    ///   - wallet: The owning window's selected wallet theme scope, if one exists.
+    ///   - settings: The window's appearance editing; the window cancels unfinished work when it leaves the wallet.
     ///   - account: The owning window's account, whose wallet's accounts Accounts lists and whose recovery Security &
     ///     Privacy shows.
     ///   - network: The network that the owning window shows; other windows keep theirs.
-    ///   - security: The window's Security & Privacy navigation and steps.
-    ///   - providers: The window's RPC provider choices and key entry.
-    init(settings: AppearanceSettingsModel, wallet: AppearanceWallet? = nil, account: Account,
+    ///   - security: New Security & Privacy navigation and steps for the tab.
+    ///   - providers: New RPC provider choices and key entry for the tab.
+    init(settings: AppearanceSettingsModel, account: Account,
          network: Binding<Network>, security: SecurityCoordinator, providers: ProvidersCoordinator) {
-        _network = network
-        self.settings = settings
-        self.wallet = wallet
-        self.account = account
         self.security = security
         self.providers = providers
+        _network = network
+        self.settings = settings
+        self.account = account
     }
 
     var body: some View {
-        @Bindable var settings = settings
-
-        NavigationSplitView {
-            SettingsSidebar(selection: $selection)
-                .sidebarColumnWidth()
-        } detail: {
-            switch selection ?? .appearance {
-            case .appearance:
-                NavigationStack {
-                    AppearanceView(settings: settings, wallet: wallet)
-                }
-            case .network:
-                NavigationStack {
-                    NetworkScreen(network: $network)
-                }
-            case .accounts:
-                AccountsScene(account: account)
-            case .providers:
-                ProvidersScene(coordinator: providers)
-            case .currency:
-                CurrencyScene()
-            case .security:
-                SecurityScene(coordinator: security, account: account)
-            }
-        }
-        .navigationSplitViewStyle(.tabSection)
-        .onChange(of: selection) { _, selection in
-            // Leaving Security & Privacy closes its screens and releases any open backup.
-            if selection != .security { security.close() }
-            // Leaving Providers closes its screens.
-            if selection != .providers { providers.leave() }
-        }
-        .onChange(of: horizontalSizeClass, initial: true) { _, sizeClass in
-            // A selection pushes its detail on compact displays, so only expanded layouts start with one.
-            if sizeClass == .regular, selection == nil { selection = .appearance }
-        }
-        .errorAlert($settings.error)
+        SettingsSplitView(settings: settings, account: account, network: $network, security: security,
+                          providers: providers)
+            .settingsLifecycle()
     }
 }

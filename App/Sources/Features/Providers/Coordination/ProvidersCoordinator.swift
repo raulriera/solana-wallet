@@ -134,22 +134,6 @@ final class ProvidersCoordinator: ProviderActions {
         path = []
     }
 
-    /// Closes the coordinator after a reset, dropping pushed screens and what they show, key entry, and any waiting
-    /// change or deletion.
-    func close() {
-        keyChoice = nil
-        keyEntry = nil
-        setup = nil
-        details = nil
-        newKey = nil
-        removal = nil
-        attempt = nil
-        request = nil
-        completedKeyChoice = nil
-        error = nil
-        path = []
-    }
-
     /// Runs the waiting change once in the screen's SwiftUI-managed task.
     /// - Parameter attempt: The identifier the screen's task captured.
     func run(_ attempt: UUID?) async {

@@ -11,7 +11,7 @@ struct ProvidersLifecycle: ViewModifier {
     @Bindable var coordinator: ProvidersCoordinator
 
     /// Reads the settings and awaits one change at a time.
-    /// - Parameter content: The settings or onboarding scene.
+    /// - Parameter content: The settings split view or onboarding's navigation stack.
     /// - Returns: The scene with managed reads, changes, key entry, deletion confirmations, and failure
     ///   presentation.
     func body(content: Content) -> some View {

@@ -1,13 +1,12 @@
 import SwiftUI
 
-/// Returns a window to onboarding with a fresh draft, closed Security & Privacy screens, and no pending provider work
-/// after the app resets.
+/// Returns a window to onboarding with a fresh draft after the app resets.
+///
+/// Leaving the wallet ends its tabs' workflows, and the fresh draft starts onboarding's own, so none is left open.
 private struct WindowReset: ViewModifier {
     @Binding var onboarding: any OnboardingCoordinating
     let services: AppServices
     let router: any WindowRouting
-    let security: SecurityCoordinator
-    let providers: ProvidersCoordinator
 
     /// Starts onboarding over each time any window resets the app.
     /// - Parameter content: The window's root destinations.
@@ -17,8 +16,6 @@ private struct WindowReset: ViewModifier {
             .onChange(of: services.resetRevision.value) {
                 // The finished draft still refers to a deleted wallet, so onboarding starts with a new one.
                 onboarding = services.makeOnboardingCoordinator(router: router)
-                security.close()
-                providers.close()
                 router.route(to: .onboarding)
             }
     }
@@ -30,12 +27,9 @@ extension View {
     ///   - services: The shared services that count resets and create onboarding drafts.
     ///   - router: The window's navigation.
     ///   - onboarding: The window's onboarding draft, replaced after a reset.
-    ///   - security: The window's Security & Privacy coordinator, closed after a reset.
-    ///   - providers: The window's Providers coordinator, closed after a reset.
     /// - Returns: A view whose window starts over after a reset.
-    func windowReset(_ services: AppServices, router: any WindowRouting, onboarding: Binding<any OnboardingCoordinating>,
-                     security: SecurityCoordinator, providers: ProvidersCoordinator) -> some View {
-        modifier(WindowReset(onboarding: onboarding, services: services, router: router, security: security,
-                             providers: providers))
+    func windowReset(_ services: AppServices, router: any WindowRouting,
+                     onboarding: Binding<any OnboardingCoordinating>) -> some View {
+        modifier(WindowReset(onboarding: onboarding, services: services, router: router))
     }
 }

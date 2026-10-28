@@ -318,47 +318,6 @@ struct ProvidersCoordinatorTests {
         #expect(coordinator.attempt == nil)
     }
 
-    /// Closing after a reset drops a waiting choice, key entry, the choice that asked for a key, pushed screens and what
-    /// they show, and a deletion waiting for confirmation.
-    /// - Throws: A test prerequisite error.
-    @Test
-    func `Closing drops waiting work and key entry`() async throws {
-        let url = try #require(URL(string: "https://rpc.example.com"))
-        let saved = ProviderSettings(selection: .helius, customRPCs: [url])
-        let settings = StoredValue(saved)
-        let coordinator = ProvidersCoordinator.inMemory(.inMemory(settings))
-        await coordinator.load()
-        coordinator.select(.helius)
-        await coordinator.run(coordinator.attempt)
-        let keyEntry = try #require(coordinator.keyEntry)
-        coordinator.addCustomRPC()
-        try #require(coordinator.setup != nil)
-        coordinator.changeKey()
-        try #require(coordinator.newKey != nil)
-        coordinator.showDetails(for: .custom(url))
-        try #require(coordinator.details == url)
-        coordinator.removal = url
-        coordinator.select(.solana)
-
-        let attempt = try #require(coordinator.attempt)
-        coordinator.close()
-        await coordinator.run(attempt)
-        // A key sheet that saves after the reset continues no choice.
-        keyEntry.submit("fixture-key")
-        await keyEntry.run(keyEntry.attempt)
-        try #require(keyEntry.isSaved)
-        coordinator.keySaved()
-
-        #expect(coordinator.keyEntry == nil)
-        #expect(coordinator.attempt == nil)
-        #expect(coordinator.removal == nil)
-        #expect(coordinator.path.isEmpty)
-        #expect(coordinator.setup == nil)
-        #expect(coordinator.newKey == nil)
-        #expect(coordinator.details == nil)
-        #expect(await settings.value == saved)
-    }
-
     /// Leaving Providers closes its pushed screens and drops a deletion waiting for confirmation.
     /// - Throws: A test prerequisite error.
     @Test

@@ -1,20 +1,20 @@
 import SwiftUI
 import Vault
 
-/// Owns onboarding's navigation container within the window's appearance environment.
+/// Owns onboarding's navigation container and its RPC provider choice within the window's appearance environment.
 struct OnboardingScene: View {
     @State private var navigation: OnboardingNavigation
     @State private var walletImport: ImportWalletModel
     @State private var walletSetup: WalletSetupModel
+    /// The provider choice, shown after the wallet is saved; a new draft's onboarding starts with a new one.
+    @State private var providers: ProvidersCoordinator
     let coordinator: any OnboardingCoordinating
-    let providers: ProvidersCoordinator
     let pasteboard: any RecoveryCopying
 
-    /// Seeds presentation once; the parent retains these services for the window's lifetime.
+    /// Seeds presentation once; the parent retains the coordinator and the pasteboard for the window's lifetime.
     /// - Parameters:
     ///   - coordinator: The owning window's preparation, persistence, and routing workflow.
-    ///   - providers: The window's RPC provider choice, shown after the wallet is saved; `onboardingLifecycle()` runs
-    ///     its work.
+    ///   - providers: New RPC provider choices and key entry, which onboarding keeps for as long as it stays.
     ///   - pasteboard: Copies a new wallet's recovery words to this device only, for a limited time.
     init(coordinator: any OnboardingCoordinating, providers: ProvidersCoordinator, pasteboard: any RecoveryCopying) {
         self.coordinator = coordinator
@@ -77,6 +77,8 @@ struct OnboardingScene: View {
             // Active work releases its draft after cancellation unwinds.
             if !coordinator.isWorking, !walletImport.isPending { walletSetup.discardDraft() }
         }
+        // The provider choice's reads, changes, and prompts run while any onboarding step is on screen.
+        .modifier(ProvidersLifecycle(coordinator: providers))
         .errorAlert($walletSetup.error)
     }
 

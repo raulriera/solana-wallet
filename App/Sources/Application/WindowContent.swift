@@ -18,19 +18,16 @@ struct WindowContent: View {
             case .walletRestorationFailed:
                 WalletUnavailableScreen(retry: { startupAttempt += 1 })
             case .onboarding:
-                OnboardingScene(coordinator: window.onboarding, providers: window.providers,
+                OnboardingScene(coordinator: window.onboarding, providers: services.makeProvidersCoordinator(),
                                 pasteboard: services.recoveryPasteboard)
                     .onboardingLifecycle()
             case .wallet(let account):
-                WalletScene(section: $section, network: $network, account: account,
-                            settings: window.settings, connection: services.providerConnection,
-                            security: window.security, providers: window.providers)
+                WalletScene(section: $section, network: $network, account: account, services: services)
             }
         }
         .animation(.default, value: window.router.destination)
         .windowRestoration(window.startup, router: window.router, attempt: startupAttempt, network: $network,
                            section: $section)
-        .windowReset(services, router: window.router, onboarding: $window.onboarding, security: window.security,
-                     providers: window.providers)
+        .windowReset(services, router: window.router, onboarding: $window.onboarding)
     }
 }

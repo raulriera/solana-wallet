@@ -1,8 +1,8 @@
 import SwiftUI
 
-extension SettingsScene {
+extension SettingsSplitView {
     /// Runs Security & Privacy's steps and Providers' reads and changes only while Settings is on screen.
-    /// - Returns: The scene with both flows' managed work, prompts, and failure presentation.
+    /// - Returns: The split view with both flows' managed work, prompts, and failure presentation.
     func settingsLifecycle() -> some View {
         modifier(SecurityLifecycle(coordinator: security).concat(ProvidersLifecycle(coordinator: providers)))
     }
