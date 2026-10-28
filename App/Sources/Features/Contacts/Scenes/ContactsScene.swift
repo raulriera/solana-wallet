@@ -10,8 +10,6 @@ struct ContactsScene: View {
     let account: Account
     /// The window's network, whose recent payments are listed.
     let network: Network
-    /// The window's portfolio, whose tokens with a balance the keypad pays with.
-    let portfolio: any PortfolioCoordinating
     @Environment(ContactStore.self) private var store
     @Environment(AccountStore.self) private var accounts
     @Environment(TransactionStore.self) private var transactions
@@ -23,7 +21,7 @@ struct ContactsScene: View {
         // One container, so the change below attaches once instead of to each branch.
         ZStack {
             if let contacts {
-                ContactsSplitView(contacts: contacts, portfolio: portfolio,
+                ContactsSplitView(contacts: contacts,
                                   sender: PaymentSender(account: account, network: network, transactions: transactions))
                     // New contacts start the selection and the payment over.
                     .id(ObjectIdentifier(contacts))

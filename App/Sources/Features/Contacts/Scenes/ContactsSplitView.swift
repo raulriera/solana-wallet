@@ -8,9 +8,7 @@ import Transactions
 struct ContactsSplitView: View {
     /// The addresses the window's account can pay, which ``ContactsScene`` owns.
     @Bindable var contacts: ContactsModel
-    /// The window's portfolio, whose tokens with a balance the keypad pays with.
-    let portfolio: any PortfolioCoordinating
-    /// The window's account, network, and transactions, which send payments.
+    /// The window's account, network, and transactions, which send payments from the account's tokens with a balance.
     let sender: PaymentSender
     /// Counts Try Again taps after the saved contacts couldn't be read.
     @State private var loadAttempt = 0
@@ -86,7 +84,7 @@ struct ContactsSplitView: View {
             }
         }
         .animation(.default, value: isEmpty)
-        .keypadPayment(from: portfolio, into: $payment)
+        .keypadPayment(for: sender.account, on: sender.network, into: $payment)
         .clearsSentAmount(payment.model, review: $review)
         // Reads what's saved when the tab first appears and after Try Again; every window shares what's read.
         .task(id: loadAttempt) { await contacts.load() }

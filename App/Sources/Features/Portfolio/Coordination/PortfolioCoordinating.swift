@@ -1,14 +1,8 @@
 import Observation
-import Portfolio
 
-/// One window's observation of its wallet, and the holdings that its keypad pays with.
+/// One window's observation of its wallet.
 @MainActor
 protocol PortfolioCoordinating: AnyObject, Observable {
-    /// The latest snapshot's holdings in display order, or none without a snapshot.
-    var holdings: [Holding] { get }
-    /// Why the latest update failed, or `nil` when it didn't.
-    var error: PortfolioError? { get }
-
     /// Observes the selected account's wallet for the lifetime of the calling view task.
     ///
     /// Use the account and scene activity as the view task's identity. Cancellation,

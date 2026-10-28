@@ -7,7 +7,7 @@ import Transactions
 /// Checks which of a portfolio's holdings the keypad pays with, which currency it types, and when the portfolio has
 /// nothing to show yet.
 @MainActor
-struct PortfolioPayableTokensTests {
+struct PayableTokensHoldingsTests {
     /// Native SOL with a balance and a dollar price.
     private static let sol = Holding(id: .nativeSOL, amount: Amount(units: 1_500_000_000, decimals: 9), name: nil,
                                      symbol: "SOL", imageURL: nil,
@@ -22,16 +22,15 @@ struct PortfolioPayableTokensTests {
 
     /// Before its first snapshot, the portfolio has nothing to show, which differs from having nothing to pay with.
     @Test func `A portfolio that hasn't loaded has no tokens yet`() {
-        #expect(RecordingPortfolio().payableTokens() == nil)
+        #expect(PayableTokens(holdings: [], error: nil) == nil)
     }
 
     /// Holdings with a balance become tokens in the portfolio's order, in their prices' currency; one without a
     /// balance is left out.
     @Test func `Only holdings with a balance are tokens`() {
-        let portfolio = RecordingPortfolio()
-        portfolio.holdings = [Self.sol, Self.empty, Self.unpriced]
+        let payable = PayableTokens(holdings: [Self.sol, Self.empty, Self.unpriced], error: nil)
 
-        #expect(portfolio.payableTokens() == PayableTokens(tokens: [
+        #expect(payable == PayableTokens(tokens: [
             PaymentToken(mint: nil, symbol: "SOL", balance: Decimal(string: "1.5")!, price: 150, decimals: 9),
             PaymentToken(mint: PaymentFixtures.unpriced, symbol: "NOPRICE", balance: Decimal(string: "2.5")!,
                          price: nil, decimals: 1),
@@ -40,14 +39,11 @@ struct PortfolioPayableTokensTests {
 
     /// Prices in the person's chosen currency, such as euros, keep their prices, and the keypad types that currency.
     @Test func `The keypad types the currency of the prices`() {
-        let portfolio = RecordingPortfolio()
-        portfolio.holdings = [
+        let payable = PayableTokens(holdings: [
             Self.unpriced,
             Holding(id: .nativeSOL, amount: Amount(units: 1_500_000_000, decimals: 9), name: nil, symbol: "SOL",
                     imageURL: nil, valuation: Valuation(pricePerUnit: 120, total: nil, currency: "EUR")),
-        ]
-
-        let payable = portfolio.payableTokens()
+        ], error: nil)
 
         #expect(payable?.currencyCode == "EUR")
         #expect(payable?.tokens.last?.price == 120)
@@ -55,9 +51,6 @@ struct PortfolioPayableTokensTests {
 
     /// A portfolio that failed before showing anything has nothing to pay with, instead of loading forever.
     @Test func `A portfolio that failed to load has no tokens`() {
-        let portfolio = RecordingPortfolio()
-        portfolio.error = .invalidKey
-
-        #expect(portfolio.payableTokens()?.tokens == [])
+        #expect(PayableTokens(holdings: [], error: .invalidKey)?.tokens == [])
     }
 }

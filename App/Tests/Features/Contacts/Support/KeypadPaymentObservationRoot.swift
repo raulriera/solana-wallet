@@ -1,4 +1,5 @@
 import Observation
+import RPC
 import SwiftUI
 @testable import widgets
 
@@ -10,14 +11,17 @@ final class ReceivedKeypadPayment {
     var payment = KeypadPayment.loading
 }
 
-/// Follows a portfolio's tokens with a balance, as the contacts tab does.
+/// Follows an account's tokens with a balance in the shared portfolios, as the contacts tab does.
 struct KeypadPaymentObservationRoot: View {
-    let portfolio: any PortfolioCoordinating
+    let portfolios: PortfolioStore
+    let account: widgets.Account
+    let network: Network
     let received: ReceivedKeypadPayment
 
     var body: some View {
         @Bindable var received = received
         Color.clear
-            .keypadPayment(from: portfolio, into: $received.payment)
+            .keypadPayment(for: account, on: network, into: $received.payment)
+            .environment(portfolios)
     }
 }

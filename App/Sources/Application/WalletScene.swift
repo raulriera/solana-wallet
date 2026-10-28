@@ -28,7 +28,7 @@ struct WalletScene: View {
                     .id(account.id)
             }
             Tab("Contacts", systemImage: "person.crop.circle", value: .contacts) {
-                ContactsScene(account: account, network: network, portfolio: portfolio)
+                ContactsScene(account: account, network: network)
             }
             Tab("Settings", systemImage: "gearshape", value: .settings) {
                 SettingsScene(settings: settings, account: account, network: $network, security: security,

@@ -1,18 +1,26 @@
+import RPC
 import SwiftUI
 
-/// Follows the tokens that the window's account can pay with in its portfolio, so only this modifier reads each
-/// portfolio update.
+/// Follows the tokens that an account can pay with in its portfolio, so only this modifier reads each portfolio update.
 ///
 /// The payment changes in place as balances and prices change, so its owner updates only when the keypad starts,
 /// or when there's nothing left to pay with.
 private struct KeypadPaymentObservation: ViewModifier {
-    let portfolio: any PortfolioCoordinating
+    @Environment(PortfolioStore.self) private var portfolios
+    /// The account whose tokens the keypad pays with.
+    let account: Account
+    /// The network whose portfolio the keypad pays from.
+    let network: Network
     /// What the keypad pays with.
     @Binding var payment: KeypadPayment
 
     func body(content: Content) -> some View {
+        // A portfolio that nothing observed yet has nothing to show.
+        let tokens = portfolios.portfolio(for: account, on: network).flatMap {
+            PayableTokens(holdings: $0.holdings, error: $0.error)
+        }
         content
-            .onChange(of: portfolio.payableTokens(), initial: true) { _, tokens in
+            .onChange(of: tokens, initial: true) { _, tokens in
                 follow(tokens)
             }
     }
@@ -40,13 +48,16 @@ private struct KeypadPaymentObservation: ViewModifier {
 }
 
 extension View {
-    /// Follows the tokens that the window's account can pay with as its balances, prices, and currency change.
+    /// Follows the tokens that an account can pay with as its balances, prices, and currency change.
+    ///
+    /// The portfolio comes from the environment's ``PortfolioStore``, which the window observes.
     /// - Parameters:
-    ///   - portfolio: The window's portfolio, on the window's network.
+    ///   - account: The account whose tokens the keypad pays with.
+    ///   - network: The network whose portfolio the keypad pays from.
     ///   - payment: What the keypad pays with, which starts a payment once the portfolio lists a token with a
     ///     balance and keeps it up to date.
     /// - Returns: A view that keeps `payment` up to date.
-    func keypadPayment(from portfolio: any PortfolioCoordinating, into payment: Binding<KeypadPayment>) -> some View {
-        modifier(KeypadPaymentObservation(portfolio: portfolio, payment: payment))
+    func keypadPayment(for account: Account, on network: Network, into payment: Binding<KeypadPayment>) -> some View {
+        modifier(KeypadPaymentObservation(account: account, network: network, payment: payment))
     }
 }
