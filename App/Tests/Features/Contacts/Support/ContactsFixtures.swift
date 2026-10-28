@@ -50,17 +50,18 @@ nonisolated enum ContactsFixtures {
         [payment(to: alice, signature: "alice", settled: 2_000), payment(to: recent, signature: "recent", settled: 1_000)]
     }
 
-    /// A succeeded payment from the sending account.
+    /// A succeeded payment from one of the wallet's accounts.
     /// - Parameters:
     ///   - recipient: Who the payment went to.
     ///   - signature: The payment's signature.
+    ///   - account: The identifier of the account that paid, the sending account's by default.
     ///   - network: The network it was sent on.
     ///   - settled: When it landed, in seconds after 1 January 2001.
     /// - Returns: The payment's record.
     @MainActor
-    static func payment(to recipient: Address, signature: String, network: Network = .mainnet,
+    static func payment(to recipient: Address, signature: String, account: UUID = main.id, network: Network = .mainnet,
                         settled: TimeInterval) -> TransactionRecord {
-        .fixture(.payment(recipient: recipient, mint: nil, units: 1), signature: signature, account: main.id,
+        .fixture(.payment(recipient: recipient, mint: nil, units: 1), signature: signature, account: account,
                  network: network, status: .succeeded, created: settled - 1, settled: settled)
     }
 
@@ -82,19 +83,50 @@ nonisolated enum ContactsFixtures {
         .inMemory(records)
     }
 
-    /// A list with the sending account, a favorite other account, two contacts, and payments to Alice and an
-    /// unsaved address, read from storage.
+    /// The lists of the sending account, as read from ``addressBook`` and its payments to Alice and an unsaved
+    /// address: a favorite other account, two contacts, and one recent payment.
+    static let lists = ContactLists(sendingAccount: sending, accounts: [Contact(savingsAccount)], addressBook: addressBook,
+                                    payments: [RecentPayment(address: alice, date: Date(timeIntervalSinceReferenceDate: 2_000)),
+                                               RecentPayment(address: recent, date: Date(timeIntervalSinceReferenceDate: 1_000))],
+                                    keys: [], phase: .loaded)
+
+    /// A tab's contacts for the sending account in a wallet with the Savings account, read from storage.
     /// - Parameters:
     ///   - store: The contacts to read, ``store(_:)`` by default.
     ///   - transactions: The records to read, ``transactions(_:)`` by default.
     ///   - network: The network whose recent payments are listed.
-    /// - Returns: The loaded contacts model.
+    /// - Returns: The loaded tab.
     @MainActor
-    static func model(store: ContactStore? = nil, transactions: TransactionStore? = nil,
-                      network: Network = .mainnet) async -> ContactsModel {
-        let model = ContactsModel(sendingAccount: main, network: network, accounts: [main, savingsAccount],
-                                  store: store ?? self.store(), transactions: transactions ?? self.transactions())
-        await model.load()
-        return model
+    static func tab(store: ContactStore? = nil, transactions: TransactionStore? = nil,
+                    network: Network = .mainnet) async -> ContactsTab {
+        let tab = ContactsTab(store: store ?? self.store(), transactions: transactions ?? self.transactions(),
+                              network: network)
+        await tab.load()
+        return tab
+    }
+}
+
+/// One Contacts tab over shared stores, which reads its lists as the tab's split view does.
+@MainActor
+struct ContactsTab {
+    /// The tab's changes to contacts and favorites.
+    let model = ContactsModel()
+    /// The saved contacts and favorites that every window shares.
+    let store: ContactStore
+    /// The transactions that every window sends, watches, and records.
+    let transactions: TransactionStore
+    /// The network whose recent payments are listed.
+    let network: Network
+    /// The wallet's accounts, in wallet order; the first pays.
+    var wallet = [ContactsFixtures.main, ContactsFixtures.savingsAccount]
+
+    /// The lists the tab shows now.
+    var lists: ContactLists {
+        model.lists(for: ContactsFixtures.main, on: network, in: wallet, store: store, transactions: transactions)
+    }
+
+    /// Reads the saved contacts and the listed records.
+    func load() async {
+        await model.load(lists.keys, from: store, transactions: transactions)
     }
 }

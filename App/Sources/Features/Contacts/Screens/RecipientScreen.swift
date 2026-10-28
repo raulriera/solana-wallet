@@ -8,16 +8,14 @@ struct RecipientScreen: View {
     @Environment(\.palette) private var palette
     @Environment(\.contactEntry) private var contactEntry
     let address: Address
-    let contacts: ContactsModel
-    /// The window's selected address, which deleting its contact clears.
-    @Binding var selection: Address?
+    /// The addresses the account can pay, which say what the address is saved as.
+    let lists: ContactLists
     /// The contact waiting for the person to confirm its deletion.
     @State private var removal: Contact?
 
     var body: some View {
-        @Bindable var contacts = contacts
-        let saved = contacts.saved(at: address)
-        let contact = contacts.contacts.first { $0.address == address }
+        let saved = lists.saved(at: address)
+        let contact = lists.contacts.first { $0.address == address }
         Form {
             FullAddressSection(address: address)
 
@@ -27,7 +25,7 @@ struct RecipientScreen: View {
                         Button("Edit Contact", systemImage: "pencil") { contactEntry?(editing: contact) }
                     }
                     if let saved {
-                        FavoriteButton(isFavorite: $contacts[isFavorite: saved])
+                        FavoriteButton(contact: saved)
                     } else {
                         AddContactButton(address: address)
                     }
@@ -43,16 +41,17 @@ struct RecipientScreen: View {
                     Button("Delete Contact", systemImage: "trash", role: .destructive) { removal = contact }
                         .labelStyle(.warning)
                         .lineLimit(1)
-                        .contactDeletion(of: contact, removal: $removal, from: contacts, selection: $selection)
+                        .contactDeletion(of: contact, removal: $removal)
                 }
                 .listRowBackground(palette.surface)
             }
         }
-        .animation(.default, value: saved)
+        // Saving the address adds its rows; the favorite button animates its own change.
+        .animation(.default, value: saved?.id)
         .scrollContentBackground(.hidden)
         .readableContentWidth()
         .background(palette.background)
-        .navigationTitle(contacts.recipient(for: address).title)
+        .navigationTitle(lists.recipient(for: address).title)
         .navigationBarTitleDisplayMode(.inline)
     }
 }

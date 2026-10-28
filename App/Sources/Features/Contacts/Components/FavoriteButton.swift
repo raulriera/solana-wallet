@@ -2,20 +2,21 @@ import SwiftUI
 
 /// Adds an account or contact to Favorites, or removes it.
 struct FavoriteButton: View {
-    /// Whether the account or contact is a favorite.
-    @Binding var isFavorite: Bool
+    @Environment(\.contactFavorite) private var contactFavorite
+    /// The listed account or contact, marked when it's a favorite.
+    let contact: Contact
 
     var body: some View {
-        let title: LocalizedStringKey = isFavorite ? "Remove from Favorites" : "Add to Favorites"
+        let title: LocalizedStringKey = contact.isFavorite ? "Remove from Favorites" : "Add to Favorites"
         Button {
             // The row moves between sections, which animates.
-            withAnimation { isFavorite.toggle() }
+            withAnimation { contactFavorite?(!contact.isFavorite, for: contact) }
         } label: {
             Label {
                 Text(title)
                     .contentTransition(.opacity)
             } icon: {
-                Image(systemName: isFavorite ? "star.slash" : "star")
+                Image(systemName: contact.isFavorite ? "star.slash" : "star")
                     .contentTransition(.symbolEffect(.replace))
             }
         }

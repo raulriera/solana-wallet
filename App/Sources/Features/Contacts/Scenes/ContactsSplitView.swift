@@ -1,15 +1,21 @@
+import RPC
 import SwiftUI
 import Transactions
 
-/// Shows the contacts tab's split view: the addresses the window's account can pay in the sidebar, the keypad as the
-/// detail of the selected one, and the sheet that enters a new recipient.
+/// Shows the contacts tab's split view: the addresses an account can pay in the sidebar, the keypad as the detail of
+/// the selected one, and the sheet that enters a new recipient.
 ///
-/// The keypad pays with the account's tokens that have a balance, on the window's network.
+/// The keypad pays with the account's tokens that have a balance, on the network.
 struct ContactsSplitView: View {
-    /// The addresses the window's account can pay, which ``ContactsScene`` owns.
+    @Environment(ContactStore.self) private var store
+    @Environment(AccountStore.self) private var accounts
+    @Environment(TransactionStore.self) private var transactions
+    /// The account payments leave from.
+    let account: Account
+    /// The network whose recent payments are listed and whose tokens pay.
+    let network: Network
+    /// The tab's changes to contacts and favorites, which ``ContactsScene`` owns.
     @Bindable var contacts: ContactsModel
-    /// The window's account, network, and transactions, which send payments from the account's tokens with a balance.
-    let sender: PaymentSender
     /// Counts Try Again taps after the saved contacts couldn't be read.
     @State private var loadAttempt = 0
     /// The selected address; every row that lists it is highlighted, so it stays highlighted when it moves to
@@ -26,10 +32,12 @@ struct ContactsSplitView: View {
     @State private var entry: RecipientEntryModel?
 
     var body: some View {
-        let isEmpty = contacts.isEmpty && selection == nil
+        let lists = contacts.lists(for: account, on: network, in: accounts.accounts(inWallet: account.recoveryID),
+                                   store: store, transactions: transactions)
+        let isEmpty = lists.isEmpty && selection == nil
         // One container, so the presentations and changes below attach once instead of to each branch.
         ZStack {
-            if contacts.isUnreadable {
+            if lists.isUnreadable {
                 // Nothing saved is replaced, so the person can try again without losing contacts.
                 UnavailableScreen(title: "Contacts Unavailable",
                                   message: "Your saved contacts couldn't be loaded. Try again.",
@@ -37,7 +45,7 @@ struct ContactsSplitView: View {
                     Button("Try Again") { loadAttempt += 1 }
                         .buttonStyle(.primary)
                 }
-            } else if !contacts.isLoaded {
+            } else if !lists.isLoaded {
                 // A local read is quick, so nothing shows until it finishes instead of a flashing empty state.
                 Color.clear
             } else if isEmpty {
@@ -50,7 +58,7 @@ struct ContactsSplitView: View {
                 }
             } else {
                 NavigationSplitView(columnVisibility: $columnVisibility, preferredCompactColumn: $preferredColumn) {
-                    RecipientList(selection: $selection, contacts: contacts)
+                    RecipientList(selection: $selection, lists: lists)
                     .navigationTitle("Contacts")
                     .toolbar {
                         ToolbarItem(placement: .primaryAction) {
@@ -62,9 +70,12 @@ struct ContactsSplitView: View {
                     .sidebarColumnWidth()
                 } detail: {
                     if let selection, !payment.isLoading {
-                        RecipientPaymentStack(recipient: contacts.recipient(for: selection), payment: payment.model,
-                                              contacts: contacts, sender: sender, review: $review) {
-                            RecipientScreen(address: selection, contacts: contacts, selection: $selection)
+                        RecipientPaymentStack(recipient: lists.recipient(for: selection), payment: payment.model,
+                                              context: lists.recipientContext,
+                                              sender: PaymentSender(account: account, network: network,
+                                                                    transactions: transactions),
+                                              review: $review) {
+                            RecipientScreen(address: selection, lists: lists)
                         }
                         // Another recipient starts on the keypad, not on the previous one's details.
                             .id(selection)
@@ -84,18 +95,26 @@ struct ContactsSplitView: View {
             }
         }
         .animation(.default, value: isEmpty)
-        .keypadPayment(for: sender.account, on: sender.network, into: $payment)
+        .keypadPayment(for: account, on: network, into: $payment)
         .clearsSentAmount(payment.model, review: $review)
-        // Reads what's saved when the tab first appears and after Try Again; every window shares what's read.
-        .task(id: loadAttempt) { await contacts.load() }
+        // Reads what's saved when the tab first appears, after Try Again, and for a new account in the wallet; every
+        // window shares what's read.
+        .task(id: Load(attempt: loadAttempt, keys: lists.keys)) {
+            await contacts.load(lists.keys, from: store, transactions: transactions)
+        }
         .errorAlert($contacts.error)
-        // Rows and details open the sheet to save or edit a contact without holding it.
-        .environment(\.contactEntry, ContactEntryAction(contacts: contacts, entry: $entry))
-        .sheet(item: $entry) { RecipientEntrySheet(entry: $0) }
-        // A new payment's recipient opens the keypad, and an edited address keeps paying the same contact; a new
-        // contact keeps whatever is selected.
+        // Rows and details open the sheet to save or edit a contact, change favorites, and delete contacts without
+        // holding them.
+        .environment(\.contactEntry, ContactEntryAction(lists: lists, entry: $entry))
+        .environment(\.contactFavorite, ContactFavoriteAction(contacts: contacts, lists: lists, store: store))
+        .environment(\.contactDeletion,
+                     ContactDeletionAction(contacts: contacts, lists: lists, store: store, selection: $selection))
+        .sheet(item: $entry) { RecipientEntrySheet(entry: $0, lists: lists) }
+        // The sheet's contact is saved, a new payment's recipient opens the keypad, and an edited address keeps paying
+        // the same contact; a new contact keeps whatever is selected.
         .onChange(of: entry?.confirmation) { _, confirmation in
             guard let confirmation else { return }
+            if let contact = confirmation.contact { contacts.save(contact, in: store) }
             switch confirmation.purpose {
             case .payment:
                 // An address that no row lists gets a New Payment row, which animates in.
@@ -114,6 +133,12 @@ struct ContactsSplitView: View {
 
     /// Opens the sheet that enters a new payment's recipient.
     private func startPayment() {
-        entry = RecipientEntryModel(contacts: contacts)
+        entry = RecipientEntryModel()
+    }
+
+    /// What a read of the saved contacts and records is for: a Try Again tap and the records it reads.
+    private struct Load: Hashable {
+        let attempt: Int
+        let keys: [TransactionRecord.Key]
     }
 }

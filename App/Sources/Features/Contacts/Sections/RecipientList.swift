@@ -9,67 +9,67 @@ struct RecipientList: View {
     @Binding var selection: Address?
     /// The contact waiting for the person to confirm its deletion.
     @State private var removal: Contact?
-    let contacts: ContactsModel
+    /// The addresses the account can pay.
+    let lists: ContactLists
 
     var body: some View {
-        @Bindable var contacts = contacts
         List(selection: $selection) {
-            if let newPayment = selection, !contacts.lists(newPayment) {
+            if let newPayment = selection, !lists.lists(newPayment) {
                 Section("New Payment") {
                     RecipientRow(name: nil, address: newPayment, date: nil, systemImage: "square.and.pencil")
                         .tag(newPayment)
                 }
             }
 
-            if !contacts.accounts.isEmpty {
+            if !lists.accounts.isEmpty {
                 Section("My Accounts") {
-                    ForEach(contacts.accounts) { account in
+                    ForEach(lists.accounts) { account in
                         RecipientRow(name: account.name, address: account.address, date: nil,
                                      systemImage: "wallet.bifold")
                             .tag(account.address)
                             .swipeActions(edge: .leading) {
-                                FavoriteButton(isFavorite: $contacts[isFavorite: account])
+                                FavoriteButton(contact: account)
                                     .swipeActionTint(.yellow)
                             }
                     }
                 }
             }
 
-            if !contacts.favorites.isEmpty {
+            if !lists.favorites.isEmpty {
                 Section("Favorites") {
-                    ForEach(contacts.favorites) { favorite in
+                    ForEach(lists.favorites) { favorite in
                         RecipientRow(name: favorite.name, address: favorite.address, date: nil, systemImage: "star")
                             .tag(favorite.address)
                             .swipeActions(edge: .leading) {
-                                FavoriteButton(isFavorite: $contacts[isFavorite: favorite])
+                                FavoriteButton(contact: favorite)
                                     .swipeActionTint(.yellow)
                             }
                     }
                 }
             }
 
-            if !contacts.contacts.isEmpty {
+            if !lists.contacts.isEmpty {
                 Section("Contacts") {
-                    ForEach(contacts.contacts) { contact in
+                    ForEach(lists.contacts) { contact in
                         RecipientRow(name: contact.name, address: contact.address, date: nil,
                                      systemImage: "person.crop.circle")
                             .tag(contact.address)
                             .swipeActions(edge: .leading) {
-                                FavoriteButton(isFavorite: $contacts[isFavorite: contact])
+                                FavoriteButton(contact: contact)
                                     .swipeActionTint(.yellow)
                             }
                             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                 SwipeDeleteButton(removal: $removal, item: contact)
                             }
                             // The confirmation points at the swiped row.
-                            .contactDeletion(of: contact, removal: $removal, from: contacts, selection: $selection)
+                            .contactDeletion(of: contact, removal: $removal)
                     }
                 }
             }
 
-            if !contacts.recents.isEmpty {
+            if !lists.recents.isEmpty {
                 Section("Recents") {
-                    ForEach(contacts.recents) { payment in
+                    ForEach(lists.recents) { payment in
                         RecipientRow(name: nil, address: payment.address, date: payment.date, systemImage: "clock")
                             .tag(payment.address)
                             .swipeActions(edge: .leading) {

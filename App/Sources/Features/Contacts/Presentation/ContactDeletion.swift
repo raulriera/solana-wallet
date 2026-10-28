@@ -1,15 +1,12 @@
 import SwiftUI
-import Transactions
 
 /// Asks before deleting a contact, from the view where the deletion starts, so the confirmation points at it.
 private struct ContactDeletion: ViewModifier {
+    @Environment(\.contactDeletion) private var contactDeletion
     /// The contact waiting for the person to confirm its deletion.
     @Binding var removal: Contact?
     /// The contact this view deletes; the confirmation shows only while it's the one waiting.
     let contact: Contact
-    let contacts: ContactsModel
-    /// The window's selected address, which the deletion clears when it leaves the address without a row.
-    @Binding var selection: Address?
 
     /// Adds the confirmation, which deletes the contact only when the person confirms.
     /// - Parameter content: The view where the deletion starts.
@@ -19,11 +16,7 @@ private struct ContactDeletion: ViewModifier {
             .confirmationDialog("Delete Contact?", isPresented: $removal[isRemoving: contact],
                                 presenting: contact) { contact in
                 Button("Delete Contact", role: .destructive) {
-                    withAnimation {
-                        contacts.delete(contact)
-                        // A paid address stays selected under Recents; any other leaves nothing selected.
-                        if selection == contact.address, !contacts.lists(contact.address) { selection = nil }
-                    }
+                    withAnimation { contactDeletion?(contact) }
                 }
             } message: { contact in
                 Text("\(contact.name) will be removed from your contacts.",
@@ -47,12 +40,8 @@ extension View {
     ///   - contact: The contact this view deletes.
     ///   - removal: The contact waiting for the person to confirm its deletion; the confirmation shows here only while
     ///     it's `contact`.
-    ///   - contacts: The window's contacts, which delete it.
-    ///   - selection: The window's selected address, which the deletion clears when it leaves the address without a
-    ///     row.
     /// - Returns: The view with the deletion's confirmation.
-    func contactDeletion(of contact: Contact, removal: Binding<Contact?>, from contacts: ContactsModel,
-                         selection: Binding<Address?>) -> some View {
-        modifier(ContactDeletion(removal: removal, contact: contact, contacts: contacts, selection: selection))
+    func contactDeletion(of contact: Contact, removal: Binding<Contact?>) -> some View {
+        modifier(ContactDeletion(removal: removal, contact: contact))
     }
 }

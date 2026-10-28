@@ -7,6 +7,8 @@ import SwiftUI
 struct RecipientEntryScreen: View {
     @Environment(\.palette) private var palette
     @Bindable var entry: RecipientEntryModel
+    /// The addresses the account can pay, which a pasted address is checked against.
+    let lists: ContactLists
 
     var body: some View {
         let rejection = entry.rejection
@@ -92,6 +94,6 @@ struct RecipientEntryScreen: View {
     /// Takes the pasted text, animating the change to the field and any rejection or warning it brings.
     /// - Parameter text: The pasteboard's text.
     private func paste(_ text: String) {
-        withAnimation { entry.paste(text) }
+        withAnimation { entry.paste(text, in: lists) }
     }
 }

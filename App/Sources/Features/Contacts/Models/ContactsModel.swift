@@ -4,128 +4,100 @@ import RPC
 import Storage
 import Transactions
 
-/// Lists the addresses a window can pay: the wallet's other accounts, saved contacts, and recent payments.
+/// Lists the addresses an account can pay on a network, and saves the changes the person makes to contacts and
+/// favorites.
 ///
 /// Contacts and favorites come from the store that every window shares, so a change in one window shows in the others.
 /// Changes show at once and save in the order they're made; a change that can't be saved sets ``error`` and is undone.
-/// Recent payments are the succeeded payments of every account in the wallet on the window's network, which the shared
+/// Recent payments are the succeeded payments of every account in the wallet on the network, which the shared
 /// transactions record, so a payment that lands shows in every window.
 @MainActor
 @Observable
 final class ContactsModel {
-    /// The account payments leave from; the lists never offer it.
-    let sendingAccount: Address
     /// Why the latest change couldn't be saved, or `nil` while there's nothing to explain.
     var error: ContactsError?
     /// How many recent payments the lists show.
     nonisolated static let recentLimit = 10
-    /// The wallet's other accounts, in wallet order, without their favorite marks.
-    private let walletAccounts: [Contact]
-    private let store: ContactStore
-    private let transactions: TransactionStore
-    /// The records of every account in the wallet on the window's network, whose payments are listed.
-    private let keys: [TransactionRecord.Key]
     /// The lists as last derived, so views read them without sorting and filtering on every update.
-    @ObservationIgnored private var derived: Lists?
+    @ObservationIgnored private var derived: (source: Source, lists: ContactLists)?
 
-    /// Starts with the wallet's accounts; ``load()`` reads the saved contacts and the accounts' records.
+    /// The lists an account can pay from on a network, derived again only after what they come from changes.
     /// - Parameters:
-    ///   - sendingAccount: The account payments leave from; it's left out of the listed accounts.
+    ///   - account: The account payments leave from; it's left out of the listed accounts.
     ///   - network: The network whose recent payments to list.
-    ///   - accounts: The wallet's accounts, in wallet order, whose payments are listed with the sending account's.
+    ///   - wallet: The wallet's accounts, in wallet order, whose payments are listed with the sending account's.
     ///   - store: The saved contacts and favorites that every window shares.
     ///   - transactions: The transactions that every window sends, watches, and records.
-    init(sendingAccount: Account, network: Network, accounts: [Account] = [], store: ContactStore,
-         transactions: TransactionStore) {
-        self.sendingAccount = sendingAccount.address
-        let others = accounts.filter { $0.address != sendingAccount.address }
-        walletAccounts = others.map(Contact.init)
-        self.store = store
-        self.transactions = transactions
-        keys = ([sendingAccount] + others).map { TransactionRecord.Key(account: $0.id, network: network) }
+    /// - Returns: The lists.
+    func lists(for account: Account, on network: Network, in wallet: [Account], store: ContactStore,
+               transactions: TransactionStore) -> ContactLists {
+        let others = wallet.filter { $0.address != account.address }
+        let keys = ([account] + others).map { TransactionRecord.Key(account: $0.id, network: network) }
+        let phases = [store.phase] + keys.map(transactions.phase(for:))
+        let source = Source(keys: keys, accounts: others, addressBook: store.addressBook,
+                            records: keys.map(transactions.records(for:)), phases: phases)
+        if let derived, derived.source == source {
+            // Equal values saved again keep the lists, and the next comparison finds the same buffers at once.
+            self.derived = (source, derived.lists)
+            return derived.lists
+        }
+        let payments = transactions.recentPayments(for: keys, limit: Self.recentLimit).compactMap(RecentPayment.init)
+        let phase: PersistentValuePhase = if phases.contains(.unreadable) {
+            .unreadable
+        } else if phases.allSatisfy({ $0 == .loaded }) {
+            .loaded
+        } else {
+            .loading
+        }
+        let lists = ContactLists(sendingAccount: account.address, accounts: others.map(Contact.init),
+                                 addressBook: source.addressBook, payments: payments, keys: keys, phase: phase)
+        derived = (source, lists)
+        return lists
     }
 
-    /// The wallet's other accounts, in wallet order.
-    var accounts: [Contact] { lists.accounts }
-    /// Saved contacts, sorted by name.
-    var contacts: [Contact] { lists.contacts }
-    /// The latest landed payment to each address, newest first, saved or not.
-    var payments: [RecentPayment] { lists.payments }
-    /// Favorite accounts, then favorite contacts.
-    var favorites: [Contact] { lists.favorites }
-    /// Recent payments to addresses that aren't saved; saved ones are listed under their names instead.
-    var recents: [RecentPayment] { lists.recents }
-    /// Whether there's no one to list yet.
-    var isEmpty: Bool { lists.isEmpty }
-
-    /// Whether the saved contacts and payments were read, so an empty list means there's no one to list.
-    var isLoaded: Bool {
-        store.phase == .loaded && keys.allSatisfy { transactions.phase(for: $0) == .loaded }
-    }
-
-    /// Whether the saved contacts or payments can't be read; nothing saved is deleted or replaced.
-    var isUnreadable: Bool {
-        store.phase == .unreadable || keys.contains { transactions.phase(for: $0) == .unreadable }
-    }
-
-    /// Reads the saved contacts, favorites, and the accounts' records that weren't read yet, once the changes made
-    /// before this call are saved or undone; a read that fails keeps the list as it was and sets ``isUnreadable``.
-    func load() async {
+    /// Reads the saved contacts, favorites, and the records that weren't read yet, once the changes made before this
+    /// call are saved or undone; a read that fails keeps the lists as they were and makes them unreadable.
+    /// - Parameters:
+    ///   - keys: The records whose payments are listed.
+    ///   - store: The saved contacts and favorites that every window shares.
+    ///   - transactions: The transactions that every window sends, watches, and records.
+    func load(_ keys: [TransactionRecord.Key], from store: ContactStore, transactions: TransactionStore) async {
         async let book: Void = store.load()
         async let records: Void = withDiscardingTaskGroup { group in
             for key in keys {
-                group.addTask { await self.transactions.load(key) }
+                group.addTask { await transactions.load(key) }
             }
         }
         _ = await (book, records)
     }
 
-    /// The account or contact saved at an address.
-    /// - Parameter address: The address to look up.
-    /// - Returns: The saved account or contact, or `nil` when the address isn't saved.
-    func saved(at address: Address) -> Contact? {
-        lists.saved[address]
-    }
-
-    /// Whether a row lists an address: an account, a contact, or a recent payment to an unsaved address.
-    /// - Parameter address: The address to look up.
-    /// - Returns: `true` when the address has a row.
-    func lists(_ address: Address) -> Bool {
-        saved(at: address) != nil || lists.recentAddresses.contains(address)
-    }
-
-    /// The person's own history, which rules check a recipient against.
-    var recipientContext: RecipientContext { lists.recipientContext }
-
-    /// Who an address pays, with the name it's saved under.
-    /// - Parameter address: The address to pay.
-    /// - Returns: The recipient, named when the address is saved.
-    func recipient(for address: Address) -> PaymentRecipient {
-        PaymentRecipient(address: address, name: saved(at: address)?.name)
-    }
-
     /// Saves a new contact, or replaces the saved contact with the same identity.
-    /// - Parameter contact: The contact to save.
-    func save(_ contact: Contact) {
-        perform { [store] in try await store.save(contact) }
+    /// - Parameters:
+    ///   - contact: The contact to save.
+    ///   - store: The saved contacts that every window shares.
+    func save(_ contact: Contact, in store: ContactStore) {
+        perform { try await store.save(contact) }
     }
 
     /// Deletes a saved contact; payments to its address move back to Recents.
-    /// - Parameter contact: The contact to delete.
-    func delete(_ contact: Contact) {
-        perform { [store] in try await store.delete(contact) }
+    /// - Parameters:
+    ///   - contact: The contact to delete.
+    ///   - store: The saved contacts that every window shares.
+    func delete(_ contact: Contact, from store: ContactStore) {
+        perform { try await store.delete(contact) }
     }
 
-    /// Whether an account or contact is a favorite; setting it adds the account or contact to Favorites or removes it.
-    /// - Parameter contact: The account or contact.
-    subscript(isFavorite contact: Contact) -> Bool {
-        get { lists.favoriteIDs.contains(contact.id) }
-        set {
-            if accounts.contains(where: { $0.id == contact.id }) {
-                perform { [store] in try await store.setFavorite(newValue, forAccountAt: contact.address) }
-            } else if contacts.contains(where: { $0.id == contact.id }) {
-                perform { [store] in try await store.setFavorite(newValue, for: contact) }
-            }
+    /// Adds a listed account or contact to Favorites or removes it; an address the lists don't save changes nothing.
+    /// - Parameters:
+    ///   - isFavorite: Whether the account or contact shows under Favorites.
+    ///   - contact: The listed account or contact.
+    ///   - lists: The lists that show it.
+    ///   - store: The saved favorites that every window shares.
+    func setFavorite(_ isFavorite: Bool, for contact: Contact, in lists: ContactLists, store: ContactStore) {
+        if lists.accounts.contains(where: { $0.id == contact.id }) {
+            perform { try await store.setFavorite(isFavorite, forAccountAt: contact.address) }
+        } else if lists.contacts.contains(where: { $0.id == contact.id }) {
+            perform { try await store.setFavorite(isFavorite, for: contact) }
         }
     }
 
@@ -143,83 +115,16 @@ final class ContactsModel {
         }
     }
 
-    /// The lists for the shared address book and the accounts' records, derived again only after either changes.
-    private var lists: Lists {
-        let addressBook = store.addressBook
-        let records = keys.map(transactions.records(for:))
-        guard var derived, derived.addressBook == addressBook, derived.records == records else {
-            let payments = transactions.recentPayments(for: keys, limit: Self.recentLimit).compactMap(RecentPayment.init)
-            let lists = Lists(sendingAccount: sendingAccount, accounts: walletAccounts, addressBook: addressBook,
-                              records: records, payments: payments)
-            self.derived = lists
-            return lists
-        }
-        // Equal values saved again keep the lists, and the next comparison finds the same buffers at once.
-        derived.addressBook = addressBook
-        derived.records = records
-        self.derived = derived
-        return derived
-    }
-
-    /// Orders contacts by name as Finder does, ignoring case and comparing numbers by value.
-    /// - Parameters:
-    ///   - first: A contact.
-    ///   - second: Another contact.
-    /// - Returns: `true` when `first` comes before `second`.
-    private static func byName(_ first: Contact, _ second: Contact) -> Bool {
-        first.name.localizedStandardCompare(second.name) == .orderedAscending
-    }
-
-    /// What views list, derived from the wallet's accounts, the address book, and the records it came from.
-    private struct Lists {
-        /// The address book the lists came from.
-        var addressBook: AddressBook
-        /// Each account's records that the lists came from, as the shared transactions keep them.
-        var records: [[TransactionRecord]]
-        let accounts: [Contact]
-        let contacts: [Contact]
-        let payments: [RecentPayment]
-        let favorites: [Contact]
-        let recents: [RecentPayment]
-        let isEmpty: Bool
-        /// Each saved account and contact by address; an account wins over a contact at the same address.
-        let saved: [Address: Contact]
-        /// The identities of the favorite accounts and contacts.
-        let favoriteIDs: Set<UUID>
-        /// The addresses under Recents.
-        let recentAddresses: Set<Address>
-        let recipientContext: RecipientContext
-
-        /// Marks favorite accounts, sorts contacts by name, and lists favorites, unsaved recents, and the addresses
-        /// rules check a recipient against.
-        /// - Parameters:
-        ///   - sendingAccount: The account payments leave from.
-        ///   - walletAccounts: The wallet's other accounts, in wallet order.
-        ///   - addressBook: The saved contacts and favorite accounts.
-        ///   - records: Each account's records that the payments came from.
-        ///   - payments: The wallet's recent payments on the window's network, newest first.
-        init(sendingAccount: Address, accounts walletAccounts: [Contact], addressBook: AddressBook,
-             records: [[TransactionRecord]], payments: [RecentPayment]) {
-            self.addressBook = addressBook
-            self.records = records
-            accounts = walletAccounts.map { account in
-                var account = account
-                account.isFavorite = addressBook.favoriteAccounts.contains(account.address)
-                return account
-            }
-            contacts = addressBook.contacts.sorted(by: ContactsModel.byName)
-            self.payments = payments
-            favorites = (accounts + contacts).filter(\.isFavorite)
-            let saved = Dictionary((accounts + contacts).map { ($0.address, $0) }) { account, _ in account }
-            self.saved = saved
-            favoriteIDs = Set(favorites.map(\.id))
-            recents = self.payments.filter { saved[$0.address] == nil }
-            recentAddresses = Set(recents.map(\.address))
-            isEmpty = accounts.isEmpty && contacts.isEmpty && recents.isEmpty
-            recipientContext = RecipientContext(
-                knownAddresses: [sendingAccount] + accounts.map(\.address) + contacts.map(\.address)
-                    + self.payments.map(\.address),
-                paidAddresses: Set(self.payments.map(\.address)))
-        }
+    /// What the lists were derived from, so equal sources reuse them.
+    private struct Source: Equatable {
+        /// The records of the sending account, then of the wallet's other accounts, on the network.
+        let keys: [TransactionRecord.Key]
+        /// The wallet's other accounts, whose names and order the lists show.
+        let accounts: [Account]
+        let addressBook: AddressBook
+        /// Each account's records that the payments come from, as the shared transactions keep them.
+        let records: [[TransactionRecord]]
+        /// Whether the address book and each account's records were read.
+        let phases: [PersistentValuePhase]
     }
 }

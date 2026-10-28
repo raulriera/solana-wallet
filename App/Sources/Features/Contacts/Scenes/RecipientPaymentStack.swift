@@ -12,7 +12,7 @@ struct RecipientPaymentStack<Details: View>: View {
     /// another recipient.
     let payment: PaymentModel?
     /// The person's own history, which the review's checks compare the recipient with.
-    let contacts: ContactsModel
+    let context: RecipientContext
     /// The window's account, network, and transactions, which send the payment.
     let sender: PaymentSender
     /// The recipient's details, which the keypad's Details button pushes.
@@ -31,15 +31,15 @@ struct RecipientPaymentStack<Details: View>: View {
     /// - Parameters:
     ///   - recipient: Who the payment goes to.
     ///   - payment: The payment being typed, or `nil` when the account has no token with a balance.
-    ///   - contacts: The person's own history, which the review's checks compare the recipient with.
+    ///   - context: The person's own history, which the review's checks compare the recipient with.
     ///   - sender: The window's account, network, and transactions, which send the payment.
     ///   - review: The latest payment's review, which the owner of the amount keeps after it closes.
     ///   - details: The recipient's details, which the keypad's Details button pushes.
-    init(recipient: PaymentRecipient, payment: PaymentModel?, contacts: ContactsModel, sender: PaymentSender,
+    init(recipient: PaymentRecipient, payment: PaymentModel?, context: RecipientContext, sender: PaymentSender,
          review: Binding<TransactionReviewModel<PaymentProposal>?>, @ViewBuilder details: () -> Details) {
         self.recipient = recipient
         self.payment = payment
-        self.contacts = contacts
+        self.context = context
         self.sender = sender
         _review = review
         self.details = details()
@@ -52,7 +52,7 @@ struct RecipientPaymentStack<Details: View>: View {
                     PaymentAmountScreen(payment: payment, recipient: recipient) {
                         SendButton(payment: payment,
                                    send: SendPaymentAction(sender: sender, payment: payment, recipient: recipient,
-                                                           context: contacts.recipientContext, review: $review,
+                                                           context: context, review: $review,
                                                            presented: $presentedReview, error: $sendError))
                             .matchedTransitionSource(id: ObjectIdentifier(payment), in: reviewTransition)
                     }

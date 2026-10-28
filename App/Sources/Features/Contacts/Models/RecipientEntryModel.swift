@@ -3,6 +3,9 @@ import Observation
 import Transactions
 
 /// Owns one recipient sheet: a pasted address and an optional name, for a new payment, a new contact, or an edit.
+///
+/// The sheet checks each address against the lists it's given; once the person confirms, its owner saves the contact
+/// that ``confirmation`` carries.
 @MainActor
 @Observable
 final class RecipientEntryModel: Identifiable {
@@ -41,12 +44,14 @@ final class RecipientEntryModel: Identifiable {
         }
     }
 
-    /// What the person confirmed: the sheet's purpose and the address it ends on.
+    /// What the person confirmed: the sheet's purpose, the address it ends on, and the contact to save.
     nonisolated struct Confirmation: Hashable, Sendable {
         /// What confirming the sheet did.
         let purpose: Purpose
         /// The address the sheet ends on.
         let address: Address
+        /// The new or edited contact the owner saves, or `nil` when there's nothing to save.
+        var contact: Contact?
     }
 
     /// What confirming the sheet does.
@@ -67,36 +72,31 @@ final class RecipientEntryModel: Identifiable {
     private(set) var rejectionCount = 0
     /// What the person confirmed; the sheet closes itself when it's set.
     private(set) var confirmation: Confirmation?
-    private let contacts: ContactsModel
 
     /// Starts an empty sheet for a new payment.
-    /// - Parameter contacts: The window's contacts, which check the address and save a named one.
-    init(contacts: ContactsModel) {
+    init() {
         purpose = .payment
         name = ""
-        self.contacts = contacts
     }
 
     /// Starts a sheet that saves an address as a contact.
     /// - Parameters:
     ///   - address: The address to save.
-    ///   - contacts: The window's contacts, which save the new contact.
-    init(savingContactAt address: Address, contacts: ContactsModel) {
+    ///   - lists: The addresses the account can pay, which the address is checked against.
+    init(savingContactAt address: Address, in lists: ContactLists) {
         purpose = .addContact
         name = ""
-        self.contacts = contacts
-        check(address.value)
+        check(address.value, in: lists)
     }
 
     /// Starts a sheet that edits a contact's name and address.
     /// - Parameters:
     ///   - contact: The contact to edit.
-    ///   - contacts: The window's contacts, which save the change.
-    init(editing contact: Contact, contacts: ContactsModel) {
+    ///   - lists: The addresses the account can pay, which the address is checked against.
+    init(editing contact: Contact, in lists: ContactLists) {
         purpose = .edit(contact)
         name = contact.name
-        self.contacts = contacts
-        check(contact.address.value)
+        check(contact.address.value, in: lists)
     }
 
     /// Whether the sheet needs a name: contacts do, payments don't.
@@ -109,45 +109,52 @@ final class RecipientEntryModel: Identifiable {
     }
 
     /// Takes pasted text, ignoring the spaces and line breaks that a copy can bring along.
-    /// - Parameter pasted: The pasteboard's text.
-    func paste(_ pasted: String) {
-        check(pasted.trimmingCharacters(in: .whitespacesAndNewlines))
+    /// - Parameters:
+    ///   - pasted: The pasteboard's text.
+    ///   - lists: The addresses the account can pay, which the address is checked against.
+    func paste(_ pasted: String, in lists: ContactLists) {
+        check(pasted.trimmingCharacters(in: .whitespacesAndNewlines), in: lists)
         if rejection != nil { rejectionCount += 1 }
     }
 
-    /// Saves what the purpose asks for, then sets ``confirmation``; a payment to an unsaved address with no name, or
-    /// to a saved one, saves nothing.
+    /// Sets ``confirmation`` with the contact the purpose saves: a new payment saves one only for an unsaved address
+    /// with a name.
     func confirm() {
         guard canConfirm, let address else { return }
+        var confirmation = Confirmation(purpose: purpose, address: address)
         if case .edit(var contact) = purpose {
             contact.name = trimmedName
             contact.address = address
-            contacts.save(contact)
+            confirmation.contact = contact
         } else if saved == nil, !trimmedName.isEmpty {
-            contacts.save(Contact(name: trimmedName, address: address))
+            confirmation.contact = Contact(name: trimmedName, address: address)
         }
-        confirmation = Confirmation(purpose: purpose, address: address)
+        self.confirmation = confirmation
     }
 
     /// Takes text and checks it once, so typing a name doesn't decode the address or look for look-alikes again.
-    /// - Parameter text: The text without the spaces and line breaks around it.
-    private func check(_ text: String) {
+    /// - Parameters:
+    ///   - text: The text without the spaces and line breaks around it.
+    ///   - lists: The addresses the account can pay, which the address is checked against.
+    private func check(_ text: String, in lists: ContactLists) {
         self.text = text
         address = try? Address(text)
-        saved = address.flatMap(contacts.saved(at:)).flatMap { isEdited($0) ? nil : $0 }
-        rejection = rejection(of: text)
+        saved = address.flatMap(lists.saved(at:)).flatMap { isEdited($0) ? nil : $0 }
+        rejection = rejection(of: text, sendingAccount: lists.sendingAccount)
         warnings = rejection == nil
-            ? address.map { RecipientClassifier.entry.warnings(for: $0, in: contacts.recipientContext) } ?? []
+            ? address.map { RecipientClassifier.entry.warnings(for: $0, in: lists.recipientContext) } ?? []
             : []
     }
 
     /// Why text can't be used as this sheet's address.
-    /// - Parameter text: The checked text.
+    /// - Parameters:
+    ///   - text: The checked text.
+    ///   - sendingAccount: The account payments leave from, which can't be its own recipient.
     /// - Returns: The rejection, or `nil` when the text is empty or usable.
-    private func rejection(of text: String) -> RecipientRejection? {
+    private func rejection(of text: String, sendingAccount: Address) -> RecipientRejection? {
         guard !text.isEmpty else { return nil }
         guard let address else { return .notAddress }
-        if address == contacts.sendingAccount { return .sendingAccount }
+        if address == sendingAccount { return .sendingAccount }
         if purpose != .payment, saved != nil { return .alreadySaved }
         return nil
     }

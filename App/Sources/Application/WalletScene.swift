@@ -40,6 +40,10 @@ struct WalletScene: View {
             }
             Tab("Contacts", systemImage: "person.crop.circle", value: .contacts) {
                 ContactsScene(account: account, network: network)
+                    // Another account or network has other recent payments and tokens, so the tab starts again with
+                    // nothing selected.
+                    .id(network)
+                    .id(account.id)
             }
             Tab("Settings", systemImage: "gearshape", value: .settings) {
                 SettingsScene(settings: settings, account: account, network: $network,

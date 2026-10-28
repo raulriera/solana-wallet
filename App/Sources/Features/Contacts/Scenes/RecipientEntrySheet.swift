@@ -6,10 +6,12 @@ import SwiftUI
 struct RecipientEntrySheet: View {
     @Environment(\.dismiss) private var dismiss
     let entry: RecipientEntryModel
+    /// The addresses the account can pay, which a pasted address is checked against.
+    let lists: ContactLists
 
     var body: some View {
         NavigationStack {
-            RecipientEntryScreen(entry: entry)
+            RecipientEntryScreen(entry: entry, lists: lists)
                 .onChange(of: entry.confirmation) { dismiss() }
                 .cancellationAction()
         }
