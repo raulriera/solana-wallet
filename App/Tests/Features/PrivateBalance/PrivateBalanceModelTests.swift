@@ -5,19 +5,19 @@ import Testing
 import Transactions
 @testable import widgets
 
-/// Checks a window's private-balance workflows, turning private balances on and opening moves, through real private
-/// balances and local indexer fixtures.
+/// Checks a Portfolio tab's private-balance workflows, turning private balances on and opening moves, through real
+/// private balances and local indexer fixtures.
 @MainActor
 struct PrivateBalanceModelTests {
-    /// Opening a move keeps the move that the shared store creates, for the window's network.
+    /// Opening a move keeps the move that the shared store creates for the account on the network.
     @Test
     func `Opening keeps the store's move`() async throws {
         let account = try await PrivateBalanceFixtures.account()
         let store = try await PrivateBalanceFixtures.store(holding: .available, of: account)
-        let model = PrivateBalanceModel(store: store, network: .devnet)
+        let model = PrivateBalanceModel()
         await store.refresh(account, on: .devnet)
 
-        model.open(.toPublic, publicLamports: 2_000_000_000, for: account)
+        model.open(.toPublic, publicLamports: 2_000_000_000, in: store, for: account, on: .devnet)
 
         let move = try #require(model.move)
         #expect(move.direction == .toPublic)
@@ -30,12 +30,12 @@ struct PrivateBalanceModelTests {
     func `A second move keeps the open one`() async throws {
         let account = try await PrivateBalanceFixtures.account()
         let store = try await PrivateBalanceFixtures.store(holding: .available, of: account)
-        let model = PrivateBalanceModel(store: store, network: .devnet)
+        let model = PrivateBalanceModel()
         await store.refresh(account, on: .devnet)
-        model.open(.toPrivate, publicLamports: 2_000_000_000, for: account)
+        model.open(.toPrivate, publicLamports: 2_000_000_000, in: store, for: account, on: .devnet)
         let first = try #require(model.move)
 
-        model.open(.toPublic, publicLamports: 2_000_000_000, for: account)
+        model.open(.toPublic, publicLamports: 2_000_000_000, in: store, for: account, on: .devnet)
 
         #expect(model.move?.id == first.id)
         #expect(model.move?.direction == .toPrivate)
@@ -48,12 +48,12 @@ struct PrivateBalanceModelTests {
         let keys = StoredValue<PrivateBalances.Keys>()
         let store = try PrivateBalanceStore.fixture(HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered]),
                                                     keys: keys)
-        let model = PrivateBalanceModel(store: store, network: .devnet)
+        let model = PrivateBalanceModel()
         await store.refresh(account, on: .devnet)
 
         model.turnOn()
         #expect(model.isTurningOn)
-        await model.run(model.attempt, for: account)
+        await model.run(model.attempt, in: store, for: account, on: .devnet)
 
         #expect(store.balance(for: account, on: .devnet)?.status == .unregistered)
         #expect(model.isTurnedOn)
@@ -67,15 +67,15 @@ struct PrivateBalanceModelTests {
     func `Each attempt that succeeds turns on again`() async throws {
         let account = try await PrivateBalanceFixtures.account()
         let store = try PrivateBalanceStore.fixture(HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered]))
-        let model = PrivateBalanceModel(store: store, network: .devnet)
+        let model = PrivateBalanceModel()
         model.turnOn()
-        await model.run(model.attempt, for: account)
+        await model.run(model.attempt, in: store, for: account, on: .devnet)
         try #require(model.isTurnedOn)
 
         model.turnOn()
 
         #expect(!model.isTurnedOn)
-        await model.run(model.attempt, for: account)
+        await model.run(model.attempt, in: store, for: account, on: .devnet)
         #expect(model.isTurnedOn)
     }
 
@@ -86,11 +86,11 @@ struct PrivateBalanceModelTests {
         let account = try await PrivateBalanceFixtures.account()
         let other = try PrivateBalanceFixtures.otherKeys(for: account.address)
         let store = try PrivateBalanceStore.fixture(HTTPResponses.privateNotes(registry: [try PrivateBalanceFixtures.registry(publishing: other)]))
-        let model = PrivateBalanceModel(store: store, network: .devnet)
+        let model = PrivateBalanceModel()
         await store.refresh(account, on: .devnet)
 
         model.turnOn()
-        await model.run(model.attempt, for: account)
+        await model.run(model.attempt, in: store, for: account, on: .devnet)
 
         #expect(model.error == .registeredWithOtherKeys)
         #expect(store.balance(for: account, on: .devnet)?.status == .off(isRegistered: true))
@@ -104,11 +104,11 @@ struct PrivateBalanceModelTests {
         let account = try await PrivateBalanceFixtures.account()
         let store = try PrivateBalanceStore.fixture(HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered]),
                                                     recovery: SecurityRecoveryStore(readError: CancellationError()))
-        let model = PrivateBalanceModel(store: store, network: .devnet)
+        let model = PrivateBalanceModel()
         await store.refresh(account, on: .devnet)
 
         model.turnOn()
-        await model.run(model.attempt, for: account)
+        await model.run(model.attempt, in: store, for: account, on: .devnet)
 
         #expect(model.error == nil)
         #expect(store.balance(for: account, on: .devnet)?.status == .off(isRegistered: false))
@@ -123,11 +123,11 @@ struct PrivateBalanceModelTests {
         let responses = HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered],
                                                    error: .http(statusCode: 429, retryAfter: nil))
         let store = try PrivateBalanceStore.fixture(responses)
-        let model = PrivateBalanceModel(store: store, network: .devnet)
+        let model = PrivateBalanceModel()
         await store.refresh(account, on: .devnet)
 
         model.turnOn()
-        await model.run(model.attempt, for: account)
+        await model.run(model.attempt, in: store, for: account, on: .devnet)
 
         #expect(model.error == .turnOnFailed)
         #expect(!model.isTurnedOn)
@@ -140,13 +140,13 @@ struct PrivateBalanceModelTests {
         let recovery = try PrivateBalanceFixtures.recoveryStore()
         let store = try PrivateBalanceStore.fixture(HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered]),
                                                     recovery: recovery)
-        let model = PrivateBalanceModel(store: store, network: .devnet)
+        let model = PrivateBalanceModel()
         await store.refresh(account, on: .devnet)
 
         model.turnOn()
         let first = model.attempt
         model.turnOn()
-        await model.run(UUID(), for: account)
+        await model.run(UUID(), in: store, for: account, on: .devnet)
 
         #expect(model.attempt == first)
         #expect(await recovery.reads.isEmpty)

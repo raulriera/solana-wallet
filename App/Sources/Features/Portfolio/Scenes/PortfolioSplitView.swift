@@ -23,7 +23,7 @@ struct PortfolioSplitView: View {
     /// The portfolio's token removals, which run with ``tokenRemovalLifecycle()`` and token details start with
     /// ``TokenRemovalAction``.
     let removal: TokenRemovalModel
-    /// The window's private-balance workflows, which SOL's details run; the window reads the balance itself with
+    /// The portfolio's private-balance workflows, which SOL's details run; the window reads the balance itself with
     /// ``privateBalanceObservation(of:on:)``.
     let privateBalance: PrivateBalanceModel
 
@@ -73,7 +73,8 @@ struct PortfolioSplitView: View {
                     .sidebarColumnWidth()
                 } detail: {
                     if let holding = holdings.first(where: { $0.id == selection }) {
-                        TokenDetailScreen(holding: holding, account: account, privateBalance: privateBalance)
+                        TokenDetailScreen(holding: holding, account: account, network: network,
+                                          privateBalance: privateBalance)
                             .privateBalanceLifecycle()
                             // New prices roll into place, as they do in the token list.
                             .animation(.default, value: portfolio?.snapshotRevision)

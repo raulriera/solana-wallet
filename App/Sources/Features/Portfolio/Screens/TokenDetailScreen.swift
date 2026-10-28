@@ -11,12 +11,14 @@ import Wallet
 /// A token whose account another address controls shows that address instead of a balance, value, or price.
 struct TokenDetailScreen: View {
     @Environment(\.palette) private var palette
-    @Environment(\.network) private var network
     @Environment(PrivateBalanceStore.self) private var privateBalances
     let holding: Holding
     /// The account whose token shows.
     let account: Account
-    /// The window's private-balance workflows, which native SOL's details turn on with ``privateBalanceLifecycle()``.
+    /// The network whose token shows.
+    let network: Network
+    /// The Portfolio tab's private-balance workflows, which native SOL's details run with
+    /// ``privateBalanceLifecycle()``.
     let privateBalance: PrivateBalanceModel
 
     var body: some View {
@@ -92,12 +94,15 @@ struct TokenDetailScreen: View {
             .listRowBackground(palette.surface)
 
             if holding.id == .nativeSOL {
-                PrivateBalanceSections(model: privateBalance, status: privateStatus,
+                PrivateBalanceSections(isTurningOn: privateBalance.isTurningOn,
+                                       turnOn: PrivateBalanceTurnOnAction(model: privateBalance),
+                                       status: privateStatus,
                                        canMakePublic: walletPrivateBalance?.availableLamports != nil,
                                        symbol: holding.displaySymbol)
                     // The rows open moves with the account's public SOL without holding the private balance.
                     .environment(\.moveBalance,
-                                 PrivateBalanceMoveAction(model: privateBalance, account: account,
+                                 PrivateBalanceMoveAction(model: privateBalance, privateBalances: privateBalances,
+                                                          account: account, network: network,
                                                           publicLamports: holding.amount?.units ?? 0))
             }
         }
@@ -132,10 +137,9 @@ struct TokenDetailScreen: View {
                                                valuation: Valuation(pricePerUnit: 166, total: 2_075, currency: "USD",
                                                                     dayChange: Decimal(string: "0.0129"))),
                               account: Account(id: UUID(), recoveryID: UUID(), address: address, path: .solana),
-                              privateBalance: PrivateBalanceModel(store: store, network: .devnet))
+                              network: .devnet, privateBalance: PrivateBalanceModel())
         }
         .environment(store)
-        .environment(\.network, .devnet)
     }
 }
 
@@ -147,10 +151,9 @@ struct TokenDetailScreen: View {
                                                otherOwner: try? Address("4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T"),
                                                name: "Tether USD", symbol: "USDT", imageURL: nil, valuation: nil),
                               account: Account(id: UUID(), recoveryID: UUID(), address: address, path: .solana),
-                              privateBalance: PrivateBalanceModel(store: store, network: .devnet))
+                              network: .devnet, privateBalance: PrivateBalanceModel())
         }
         .environment(store)
-        .environment(\.network, .devnet)
     }
 }
 

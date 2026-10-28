@@ -18,15 +18,15 @@ struct WindowRoot: View {
                 WindowContent(window: window, network: $network, services: services)
                     .transactionResumption()
             } else {
-                // The services stay the same for the app's lifetime, and a later network change replaces only the
-                // portfolio, so the window creates its workflows once, when it appears. Settings that can't be read
-                // still open the window, whose requests then explain the failure.
+                // The services stay the same for the app's lifetime, and a later network change starts only the
+                // Portfolio tab again, so the window creates its workflows once, when it appears. Settings that can't
+                // be read still open the window, whose requests then explain the failure.
                 Color.clear
                     .task {
                         await services.providerStore.load()
                         // A window that closed during the read creates no workflows.
                         guard !Task.isCancelled else { return }
-                        window = WindowModel(services: services, network: network)
+                        window = WindowModel(services: services)
                     }
             }
         }
@@ -41,6 +41,5 @@ struct WindowRoot: View {
         .environment(services.privateBalanceStore)
         .environment(services.providerStore)
         .environment(services.transactionStore)
-        .environment(\.network, network)
     }
 }

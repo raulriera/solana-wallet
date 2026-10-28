@@ -7,8 +7,10 @@ import SwiftUI
 /// Nothing shows before the first read, or where private balances aren't available, so the sections animate in.
 struct PrivateBalanceSections: View {
     @Environment(\.palette) private var palette
-    /// The window's private-balance workflows, which turn private balances on.
-    let model: PrivateBalanceModel
+    /// Whether an attempt to turn private balances on is waiting or running.
+    let isTurningOn: Bool
+    /// Turns private balances on.
+    let turnOn: PrivateBalanceTurnOnAction
     /// The account's last read private balance, or `nil` before the first read.
     let status: PrivateBalanceStatus?
     /// Whether some private SOL is available to move to the public balance.
@@ -19,17 +21,19 @@ struct PrivateBalanceSections: View {
         switch status {
         case .off(let isRegistered)?:
             Section {
-                Button(action: model.turnOn) {
+                Button {
+                    turnOn()
+                } label: {
                     HStack {
                         Text("Turn On Private Balance")
                         Spacer()
-                        if model.isTurningOn {
+                        if isTurningOn {
                             ProgressView()
                         }
                     }
                 }
                 .foregroundStyle(palette.accent)
-                .disabled(model.isTurningOn)
+                .disabled(isTurningOn)
             } header: {
                 Text("Private Balance")
             } footer: {

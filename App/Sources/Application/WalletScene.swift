@@ -10,7 +10,6 @@ struct WalletScene: View {
     /// The network that the window shows, which Settings changes.
     @Binding var network: Network
     let account: Account
-    let privateBalance: PrivateBalanceModel
     let settings: AppearanceSettingsModel
     let connection: any ProviderConnecting<ProviderConnectionError>
     let security: SecurityCoordinator
@@ -19,8 +18,7 @@ struct WalletScene: View {
     var body: some View {
         TabView(selection: $section) {
             Tab("Portfolio", systemImage: "wallet.bifold", value: .portfolio) {
-                PortfolioScene(account: account, network: network, connection: connection,
-                               privateBalance: privateBalance)
+                PortfolioScene(account: account, network: network, connection: connection)
                     // Another account's or network's portfolio has its own tokens, so the tab starts again on the
                     // token list.
                     .id(network)

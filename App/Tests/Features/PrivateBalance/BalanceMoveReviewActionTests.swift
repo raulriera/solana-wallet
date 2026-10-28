@@ -89,9 +89,9 @@ struct BalanceMoveReviewActionTests {
             keys: StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)]),
             transactions: transactions
         )
-        let model = PrivateBalanceModel(store: store, network: .devnet)
+        let model = PrivateBalanceModel()
         await store.refresh(account, on: .devnet)
-        model.open(.toPrivate, publicLamports: 2_000_000_000, for: account)
+        model.open(.toPrivate, publicLamports: 2_000_000_000, in: store, for: account, on: .devnet)
         return try #require(model.move)
     }
 

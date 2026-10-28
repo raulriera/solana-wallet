@@ -1,7 +1,7 @@
 import Observation
-import RPC
 
-/// Owns one window's workflows, which the window creates when it first appears; the services stay shared.
+/// Owns one window's navigation and settings workflows, which the window creates when it first appears; the services
+/// stay shared.
 @MainActor
 @Observable
 final class WindowModel {
@@ -11,36 +11,22 @@ final class WindowModel {
     var onboarding: any OnboardingCoordinating
     /// Restores the window's wallet when the window opens.
     let startup: any WindowStarting
-    /// The private-balance workflows of the window's account on that network.
-    private(set) var privateBalance: PrivateBalanceModel
     /// The window's appearance editing.
     let settings: AppearanceSettingsModel
     /// The window's Security & Privacy navigation and steps.
     let security: SecurityCoordinator
     /// The window's RPC provider choices and key entry.
     let providers: ProvidersCoordinator
-    private let services: AppServices
 
     /// Creates the window's workflows around the shared services.
-    /// - Parameters:
-    ///   - services: Shared services that retain no window-specific recovery draft.
-    ///   - network: The network that the window shows first.
-    init(services: AppServices, network: Network) {
+    /// - Parameter services: Shared services that retain no window-specific recovery draft.
+    init(services: AppServices) {
         let router = services.makeWindowRouter()
         self.router = router
         onboarding = services.makeOnboardingCoordinator(router: router)
         startup = services.makeWindowStartup(router: router)
-        privateBalance = PrivateBalanceModel(store: services.privateBalanceStore, network: network)
         settings = services.makeAppearanceSettingsModel()
         security = services.makeSecurityCoordinator()
         providers = services.makeProvidersCoordinator()
-        self.services = services
-    }
-
-    /// Replaces the private-balance workflows with ones for the window's new network, so the previous network's
-    /// attempts never reach it.
-    /// - Parameter network: The network that the window shows now.
-    func show(_ network: Network) {
-        privateBalance = PrivateBalanceModel(store: services.privateBalanceStore, network: network)
     }
 }

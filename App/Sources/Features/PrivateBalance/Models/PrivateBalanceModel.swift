@@ -2,11 +2,12 @@ import Foundation
 import Observation
 import RPC
 
-/// One window's private-balance workflows on its network: turning private balances on for an account, and opening
-/// moves of SOL between the account's balances.
+/// One Portfolio tab's private-balance workflows: turning private balances on for an account, and opening moves of
+/// SOL between the account's balances.
 ///
-/// The balances themselves come from the shared ``PrivateBalanceStore``. Turning private balances on runs once per
-/// attempt in the scene's task and reports a typed error, except when the person cancels authentication.
+/// The balances themselves come from the shared ``PrivateBalanceStore``, which each call receives with the account and
+/// network it acts on. Turning private balances on runs once per attempt in the scene's task and reports a typed
+/// error, except when the person cancels authentication.
 @MainActor
 @Observable
 final class PrivateBalanceModel {
@@ -18,32 +19,22 @@ final class PrivateBalanceModel {
     private(set) var isTurnedOn = false
     /// The open move of the account's SOL between its public and private balances.
     var move: BalanceMove?
-    /// The window's network.
-    private let network: Network
-    private let store: PrivateBalanceStore
 
     /// Whether an attempt to turn private balances on is waiting or running.
     var isTurningOn: Bool { attempt != nil }
-
-    /// Creates a model with no attempt or move.
-    /// - Parameters:
-    ///   - store: The private balance of every account on every network, which moves prepare, complete, and send
-    ///     through.
-    ///   - network: The window's network.
-    init(store: PrivateBalanceStore, network: Network) {
-        self.store = store
-        self.network = network
-    }
 
     /// Opens a move of an account's SOL between its balances, while private balances are on; a withdrawal opens only
     /// while some private SOL is available.
     /// - Parameters:
     ///   - direction: Which balance the SOL leaves, and which one it reaches.
     ///   - publicLamports: The account's public SOL, in lamports, which a deposit can add.
-    ///   - account: The window's account.
-    func open(_ direction: BalanceMoveProposal.Direction, publicLamports: UInt64, for account: Account) {
+    ///   - privateBalances: The private balance of every account on every network, which prepares the move.
+    ///   - account: The account whose SOL moves.
+    ///   - network: The network the SOL moves on.
+    func open(_ direction: BalanceMoveProposal.Direction, publicLamports: UInt64,
+              in privateBalances: PrivateBalanceStore, for account: Account, on network: Network) {
         guard move == nil else { return }
-        move = store.move(direction, publicLamports: publicLamports, for: account, on: network)
+        move = privateBalances.move(direction, publicLamports: publicLamports, for: account, on: network)
     }
 
     /// Asks to turn private balances on, unless an attempt is already waiting or running.
@@ -58,12 +49,15 @@ final class PrivateBalanceModel {
     /// Turns private balances on once in the scene's SwiftUI-managed task; the shared store then shows the balance.
     /// - Parameters:
     ///   - attempt: The identifier that the scene's task captured.
-    ///   - account: The window's account.
-    func run(_ attempt: UUID?, for account: Account) async {
+    ///   - privateBalances: The private balance of every account on every network, which turns private balances on.
+    ///   - account: The account to turn private balances on for.
+    ///   - network: The network to turn private balances on for.
+    func run(_ attempt: UUID?, in privateBalances: PrivateBalanceStore, for account: Account,
+             on network: Network) async {
         guard let attempt, self.attempt == attempt else { return }
         defer { if self.attempt == attempt { self.attempt = nil } }
         do {
-            try await store.turnOn(account, on: network)
+            try await privateBalances.turnOn(account, on: network)
             guard self.attempt == attempt else { return }
             isTurnedOn = true
         } catch is CancellationError {
