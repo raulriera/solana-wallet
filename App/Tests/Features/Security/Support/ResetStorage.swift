@@ -8,7 +8,7 @@ import Vault
 /// at each one, optionally failing one step once.
 actor ResetStorage: RecoveryStoring {
     /// A store that a reset empties; the cases are in the order a reset empties them.
-    nonisolated enum Step: String, Sendable, CaseIterable { case recovery, privateBalances, appearance, contacts, accounts, transactions, pendingTransactions, currency, key, settings }
+    nonisolated enum Step: String, Sendable, CaseIterable { case recovery, privateBalances, contacts, accounts, transactions, pendingTransactions, currency, key, settings, appearance }
 
     /// The test's own directory, which stands in for the app's kept and cached files.
     nonisolated let directory = URL.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)

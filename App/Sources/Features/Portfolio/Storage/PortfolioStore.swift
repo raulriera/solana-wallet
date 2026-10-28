@@ -108,10 +108,18 @@ final class PortfolioStore: Erasable {
         try await service(for: network).removeToken(mint, for: account.address.value)
     }
 
-    /// Forgets every wallet's portfolio, as Reset App does, so no window shows a deleted wallet's holdings.
+    /// Ends every wallet's work, removes its saved holdings and token list, and forgets its portfolio, as Reset App
+    /// does, so no read that's running saves a deleted wallet's holdings again and no window shows them.
+    /// - Throws: A file-system error if a wallet's saved holdings or token list can't be removed, which keeps every
+    ///   portfolio.
     func erase() async throws {
-        for portfolio in portfolios.values { portfolio.erase() }
-        portfolios = [:]
+        let keys = Array(portfolios.keys)
+        let wallets = keys.map { (owner: $0.owner, service: service(for: $0.network)) }
+        try await withThrowingDiscardingTaskGroup { group in
+            for wallet in wallets { group.addTask { try await wallet.service.removeData(for: wallet.owner) } }
+        }
+        // A wallet that a window starts to observe meanwhile keeps its portfolio, whose work didn't end.
+        for key in keys { portfolios.removeValue(forKey: key)?.erase() }
     }
 
     /// Returns a wallet's portfolio on a network, creating it, and the network's service, on the first observation.

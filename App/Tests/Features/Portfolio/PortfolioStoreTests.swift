@@ -347,27 +347,32 @@ struct PortfolioStoreTests {
         #expect(portfolios.portfolio(for: account, on: .devnet)?.update?.snapshot == changed)
     }
 
-    /// Erasing, as Reset App does, forgets every wallet's portfolio, so no window shows a deleted wallet's holdings.
-    /// - Throws: A test prerequisite error.
+    /// Erasing, as Reset App does, forgets every wallet's portfolio and its saved holdings, so no window or later launch
+    /// shows a deleted wallet's holdings.
+    /// - Throws: A portfolio failure or a test prerequisite error.
     @Test
-    func `Erasing forgets every wallet's portfolio`() async throws {
-        let service = PortfolioResponses()
-        let portfolios = PortfolioStore.serving(service)
-        var requests = service.requests.makeAsyncIterator()
-        let account = try Account.fixture(index: 1)
+    func `Erasing forgets every wallet's portfolio and its saved holdings`() async throws {
+        let directory = URL.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let responses = HTTPResponses(["getMultipleAccounts": [#"{"context":{"slot":1},"value":[null]}"#]])
+        let snapshots = FileSnapshotStore(directory: directory)
+        let portfolios = PortfolioStore.serving(Portfolio(
+            rpc: responses.providerClient(network: .devnet, providers: .inMemory()), store: snapshots,
+            tokenLists: tokenLists(in: directory)))
+        let account = try Account.publicWallet()
         let viewing = Task { await portfolios.observe(account, on: .devnet) }
         defer { viewing.cancel() }
-        let observation = try #require(await requests.next())
-        let saved = Snapshot.fixture(owner: account.address.value, lamports: 1)
-        observation.continuation.yield(Update(snapshot: saved, phase: .ready, revision: 1))
-        for await snapshot in Observations({ portfolios.portfolio(for: account, on: .devnet)?.update?.snapshot })
-        where snapshot == saved {
-            break
+        for await update in Observations({ portfolios.portfolio(for: account, on: .devnet)?.update }) {
+            if let error = update?.error { throw error }
+            if update?.isRefreshing == false, update?.snapshot != nil { break }
         }
 
         try await portfolios.erase()
 
         #expect(portfolios.portfolio(for: account, on: .devnet) == nil)
+        #expect(snapshots.snapshot(for: CacheKey(owner: account.address.value, network: .devnet)) == nil)
+        viewing.cancel()
+        await viewing.value
     }
 
     /// Verifies an added token is saved to the wallet's list on the network.

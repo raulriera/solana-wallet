@@ -1,15 +1,18 @@
 import Foundation
+@testable import Portfolio
+@testable import RPC
 import Testing
+import Transactions
 @testable import widgets
 
 /// Verifies the reset's deletion order, its window signal, and retries, without touching real storage.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct AppResetTests {
-    /// Secrets go first, the directories before appearance and the shared stores forget them, and every window hears
-    /// about the reset only once everything is deleted.
+    /// Secrets go first, the shared stores end their work before the directories are deleted, appearance forgets them
+    /// after, and every window hears about the reset only once everything is deleted.
     @Test
-    func `Reset deletes the secrets, the directories, appearance, each shared store, then the provider settings`() async throws {
+    func `Reset deletes the secrets, each shared store, the directories, then appearance`() async throws {
         let storage = ResetStorage()
         defer { try? FileManager.default.removeItem(at: storage.directory) }
         try createFile(in: storage.directory)
@@ -18,8 +21,8 @@ struct AppResetTests {
         try await AppReset(storage: storage, revision: revision).reset()
 
         #expect(await storage.deletions == ResetStorage.Step.allCases)
-        // Only recovery and the private balances go before the directories.
-        let existed = [true, true] + Array(repeating: false, count: ResetStorage.Step.allCases.count - 2)
+        // Only appearance restarts after the directories are deleted.
+        let existed = Array(repeating: true, count: ResetStorage.Step.allCases.count - 1) + [false]
         #expect(await storage.directoryExisted == existed)
         #expect(revision.value == 1)
     }
@@ -42,7 +45,7 @@ struct AppResetTests {
         #expect(revision.value == 1)
     }
 
-    /// A directory that can't be deleted stops the reset before appearance and the provider; trying again finishes it.
+    /// A directory that can't be deleted stops the reset before appearance; trying again finishes it.
     @Test
     func `Retrying after a directory can't be deleted finishes the reset`() async throws {
         let storage = ResetStorage()
@@ -54,13 +57,45 @@ struct AppResetTests {
         try setPermissions(0o555, of: storage.directory)
 
         await #expect(throws: CocoaError.self) { try await reset.reset() }
-        #expect(await storage.deletions == [.recovery, .privateBalances])
+        #expect(await storage.deletions == ResetStorage.Step.allCases.filter { $0 != .appearance })
         #expect(revision.value == 0)
 
         try setPermissions(0o755, of: storage.directory)
         try await reset.reset()
         #expect(!FileManager.default.fileExists(atPath: storage.directory.path))
         #expect(revision.value == 1)
+    }
+
+    /// A balance read that runs during a reset ends with it, so it can't save the deleted wallet's holdings into the
+    /// deleted directory afterward.
+    /// - Throws: A test prerequisite error.
+    @Test
+    func `A balance read that runs during a reset saves nothing afterward`() async throws {
+        let storage = ResetStorage()
+        defer { try? FileManager.default.removeItem(at: storage.directory) }
+        let gate = Suspension()
+        let responses = HTTPResponses(["getMultipleAccounts": [#"{"context":{"slot":1},"value":[null]}"#]],
+                                      gate: gate, heldMethod: "getMultipleAccounts")
+        let providers = ProviderStore.inMemory()
+        let service = Portfolio(rpc: responses.providerClient(network: .devnet, providers: providers),
+                                store: FileSnapshotStore(directory: storage.directory),
+                                tokenLists: FileTokenListStore(directory: storage.directory.appending(path: "TokenLists")))
+        let portfolios = PortfolioStore(prices: Jupiter(transport: responses), currency: .inMemory(),
+                                        providers: providers) { _, _ in service }
+        let account = try Account.publicWallet()
+        let viewing = Task { await portfolios.observe(account, on: .devnet) }
+        defer { viewing.cancel() }
+        await gate.waitUntilStarted()
+
+        try await AppReset(recovery: storage, privateBalances: storage.privateBalances, directories: [storage.directory],
+                           appearance: storage.appearance, stores: [portfolios], revision: Revision()).reset()
+        gate.resume()
+        // A reload returns once a read ends, so a read that the reset left running has saved by then.
+        await service.reload(for: account.address.value)
+
+        #expect(!FileManager.default.fileExists(atPath: storage.directory.path))
+        viewing.cancel()
+        await viewing.value
     }
 
     /// Saves one file in a directory, creating the directory.

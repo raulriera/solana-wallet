@@ -17,8 +17,9 @@ struct AppReset: AppResetting {
     ///   - privateBalances: Each account's private-balance keys, notes, and redeem codes.
     ///   - directories: The directories that hold every other kept and cached file, such as wallets and themes.
     ///   - appearance: The shared appearance, which forgets its cached selections once the directories are gone.
-    ///   - stores: The shared stores, such as the contacts, the accounts, the transactions, the currency choice, and
-    ///     the provider settings, which every window forgets once the directories are gone.
+    ///   - stores: The shared stores, such as the contacts, the accounts, the transactions, the currency choice, the
+    ///     provider settings, and the balances, which end their work before the directories are deleted, so nothing
+    ///     they started saves into them afterward.
     ///   - revision: Tells every window when the reset finishes.
     init(recovery: any RecoveryStoring, privateBalances: any PrivateBalancing, directories: [URL],
          appearance: any AppearanceCoordinating, stores: [any Erasable], revision: Revision) {
@@ -30,15 +31,15 @@ struct AppReset: AppResetting {
         self.revision = revision
     }
 
-    /// Deletes every recovery phrase, then the private-balance keys, notes, and redeem codes, then the directories,
-    /// restarts appearance, erases each shared store, and returns every window to onboarding.
+    /// Deletes every recovery phrase, then the private-balance keys, notes, and redeem codes, erases each shared store,
+    /// deletes the directories, restarts appearance, and returns every window to onboarding.
     /// - Throws: A storage or cancellation error from the first step that fails.
     func reset() async throws {
         try await recovery.deleteAllRecovery()
         try await privateBalances.removeAll()
+        for store in stores { try await store.erase() }
         try await Self.delete(directories)
         try await appearance.restart()
-        for store in stores { try await store.erase() }
         revision.advance()
     }
 
