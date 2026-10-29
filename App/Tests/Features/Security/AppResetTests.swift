@@ -10,9 +10,9 @@ import Transactions
 @Suite(.timeLimit(.minutes(1)))
 struct AppResetTests {
     /// Secrets go first, the shared stores end their work before the directories are deleted, appearance forgets them
-    /// after, and every window hears about the reset only once everything is deleted.
+    /// after, the saved accounts go last, and every window hears about the reset only once everything is deleted.
     @Test
-    func `Reset deletes the secrets, each shared store, the directories, then appearance`() async throws {
+    func `Reset deletes the secrets, each shared store, the directories, appearance, then the accounts`() async throws {
         let storage = ResetStorage()
         defer { try? FileManager.default.removeItem(at: storage.directory) }
         try createFile(in: storage.directory)
@@ -21,8 +21,8 @@ struct AppResetTests {
         try await AppReset(storage: storage, revision: revision).reset()
 
         #expect(await storage.deletions == ResetStorage.Step.allCases)
-        // Only appearance restarts after the directories are deleted.
-        let existed = Array(repeating: true, count: ResetStorage.Step.allCases.count - 1) + [false]
+        // Only appearance and the accounts go after the directories are deleted.
+        let existed = Array(repeating: true, count: ResetStorage.Step.allCases.count - 2) + [false, false]
         #expect(await storage.directoryExisted == existed)
         #expect(revision.value == 1)
     }
@@ -45,6 +45,24 @@ struct AppResetTests {
         #expect(revision.value == 1)
     }
 
+    /// A failed earlier step keeps the saved accounts, so every window stays on its wallet and can try again.
+    /// - Parameter step: The step whose first deletion fails.
+    /// - Throws: A test prerequisite error.
+    @Test(arguments: ResetStorage.Step.allCases.filter { $0 != .accounts })
+    func `A failed earlier step keeps the accounts`(_ step: ResetStorage.Step) async throws {
+        let storage = ResetStorage(failingOnce: step)
+        let account = try Account.fixture(index: 0)
+        let accounts = AccountStore.inMemory(StoredValue([account]))
+        await accounts.load()
+        let reset = AppReset(recovery: storage, privateBalances: storage.privateBalances,
+                             directories: [storage.directory], appearance: storage.appearance, stores: storage.stores,
+                             accounts: accounts, revision: Revision())
+
+        await #expect(throws: CocoaError.self) { try await reset.reset() }
+
+        #expect(accounts.accounts == [account])
+    }
+
     /// A directory that can't be deleted stops the reset before appearance; trying again finishes it.
     @Test
     func `Retrying after a directory can't be deleted finishes the reset`() async throws {
@@ -57,7 +75,7 @@ struct AppResetTests {
         try setPermissions(0o555, of: storage.directory)
 
         await #expect(throws: CocoaError.self) { try await reset.reset() }
-        #expect(await storage.deletions == ResetStorage.Step.allCases.filter { $0 != .appearance })
+        #expect(await storage.deletions == Array(ResetStorage.Step.allCases.prefix { $0 != .appearance }))
         #expect(revision.value == 0)
 
         try setPermissions(0o755, of: storage.directory)
@@ -88,7 +106,8 @@ struct AppResetTests {
         await gate.waitUntilStarted()
 
         try await AppReset(recovery: storage, privateBalances: storage.privateBalances, directories: [storage.directory],
-                           appearance: storage.appearance, stores: [portfolios], revision: Revision()).reset()
+                           appearance: storage.appearance, stores: [portfolios], accounts: storage.accounts,
+                           revision: Revision()).reset()
         gate.resume()
         // A reload returns once a read ends, so a read that the reset left running has saved by then.
         await service.reload(for: account.address.value)

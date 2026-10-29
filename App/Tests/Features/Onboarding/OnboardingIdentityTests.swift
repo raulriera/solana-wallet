@@ -54,9 +54,8 @@ struct OnboardingIdentityTests {
                                                    recovery: nil)
             try await AppReset(recovery: recovery, privateBalances: privateBalances,
                                directories: [directory], appearance: appearance,
-                               stores: [ContactsFixtures.store(StoredValue()), accounts, TransactionStore.unused,
-                                        providerStore],
-                               revision: revision).reset()
+                               stores: [ContactsFixtures.store(StoredValue()), TransactionStore.unused, providerStore],
+                               accounts: accounts, revision: revision).reset()
             try #require(revision.value == 1)
             try #require(accounts.accounts.isEmpty)
             try #require(await recovery.count == 0)

@@ -114,9 +114,9 @@ struct AppServices {
             owner: DeviceOwnerAuthentication(),
             reset: AppReset(recovery: recovery, privateBalances: privateBalances,
                             directories: directories, appearance: appearance.appearance,
-                            stores: [contactStore, accountStore, transactionStore, currencyStore, providerStore,
-                                     portfolios, privateBalanceStore],
-                            revision: resetRevision),
+                            stores: [contactStore, transactionStore, currencyStore, providerStore, portfolios,
+                                     privateBalanceStore],
+                            accounts: accountStore, revision: resetRevision),
             pasteboard: recoveryPasteboard
         )
     }

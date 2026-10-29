@@ -8,7 +8,7 @@ import Vault
 /// at each one, optionally failing one step once.
 actor ResetStorage: RecoveryStoring {
     /// A store that a reset empties; the cases are in the order a reset empties them.
-    nonisolated enum Step: String, Sendable, CaseIterable { case recovery, privateBalances, contacts, accounts, transactions, pendingTransactions, currency, key, settings, appearance }
+    nonisolated enum Step: String, Sendable, CaseIterable { case recovery, privateBalances, contacts, transactions, pendingTransactions, currency, key, settings, appearance, accounts }
 
     /// The test's own directory, which stands in for the app's kept and cached files.
     nonisolated let directory = URL.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
@@ -33,20 +33,24 @@ actor ResetStorage: RecoveryStoring {
     /// The shared appearance, whose restart this storage records.
     @MainActor var appearance: ResetAppearance { ResetAppearance(storage: self) }
 
-    /// The shared contacts, accounts, transactions after one window read an account's records, currency choice, and
-    /// provider settings, in the order the app erases them, each recording its erasure in this storage.
+    /// The shared contacts, transactions after one window read an account's records, currency choice, and provider
+    /// settings, in the order the app erases them, each recording its erasure in this storage.
     @MainActor var stores: [any Erasable] {
         let transactions = TransactionStore(storage: { _ in ResetValue(storage: self, step: .transactions) },
                                             pending: ResetValue(storage: self, step: .pendingTransactions),
                                             coordinators: { _ in throw SubmitterError.noProviders })
         _ = transactions.records(for: TransactionRecord.Key(account: UUID(), network: .devnet))
         return [ContactStore(storage: ResetValue<AddressBook>(storage: self, step: .contacts)),
-                AccountStore(storage: ResetValue<[widgets.Account]>(storage: self, step: .accounts),
-                             cleanup: StartupRecoveryCleanup()),
                 transactions,
                 CurrencyStore(storage: ResetValue<CurrencySettings>(storage: self, step: .currency), rates: [:]),
                 ProviderStore(settings: ResetValue<ProviderSettings>(storage: self, step: .settings),
                               key: ResetValue<String>(storage: self, step: .key))]
+    }
+
+    /// The saved accounts, which record their erasure in this storage.
+    @MainActor var accounts: AccountStore {
+        AccountStore(storage: ResetValue<[widgets.Account]>(storage: self, step: .accounts),
+                     cleanup: StartupRecoveryCleanup())
     }
 
     /// Records a successful deletion or throws the step's one scripted failure.
@@ -90,6 +94,7 @@ extension AppReset {
     ///   - revision: Tells every window when the reset finishes.
     init(storage: ResetStorage, revision: Revision) {
         self.init(recovery: storage, privateBalances: storage.privateBalances, directories: [storage.directory],
-                  appearance: storage.appearance, stores: storage.stores, revision: revision)
+                  appearance: storage.appearance, stores: storage.stores, accounts: storage.accounts,
+                  revision: revision)
     }
 }
