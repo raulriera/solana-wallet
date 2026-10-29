@@ -90,21 +90,23 @@ enum PrivateBalanceFixtures {
     /// lamports is still pending, as after the deposit settles and before the indexer reports it.
     /// - Parameters:
     ///   - account: A fixture account.
+    ///   - responses: The local responses that the store's reads receive.
     ///   - transactions: The shared transactions.
     ///   - pollInterval: The time between polls.
     ///   - followUpInterval: The time between polls that follow up on pending SOL.
     /// - Returns: The store, before its first read, and the saved notes, which a test changes as the indexer would.
     /// - Throws: A fixture error.
     @MainActor
-    static func pendingDeposit(of account: widgets.Account, transactions: TransactionStore = .unused,
-                               pollInterval: Duration = .seconds(30), followUpInterval: Duration = .seconds(3))
+    static func pendingDeposit(of account: widgets.Account, responses: HTTPResponses = HTTPResponses.privateNotes(),
+                               transactions: TransactionStore = .unused, pollInterval: Duration = .seconds(30),
+                               followUpInterval: Duration = .seconds(3))
         async throws -> (store: PrivateBalanceStore, notes: StoredValue<PrivateBalances.Notes>) {
         let keys = StoredValue([account.address.value: try await keys(for: account)])
         let notes = StoredValue<PrivateBalances.Notes>([PrivateBalances.noteID(of: account, on: .devnet): NoteSyncState()])
         let balances = PrivateBalances.inMemory(keys: keys, notes: notes, recovery: try recoveryStore(),
                                                 responses: HTTPResponses.privateNotes())
         _ = try await balances.complete(preparedDeposit(1_000_000, from: account), with: confirmation(.succeeded))
-        let store = try PrivateBalanceStore.fixture(HTTPResponses.privateNotes(), keys: keys, notes: notes,
+        let store = try PrivateBalanceStore.fixture(responses, keys: keys, notes: notes,
                                                     transactions: transactions, pollInterval: pollInterval,
                                                     followUpInterval: followUpInterval)
         return (store, notes)

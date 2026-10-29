@@ -338,6 +338,45 @@ struct PrivateBalancesTests {
         #expect(await notes.value == [id: NoteSyncState()])
     }
 
+    /// The saved status is the balance that the last sync saved, read without the network.
+    @Test
+    func `The saved status holds the last synced balance without reading the network`() async throws {
+        let registered = try await Self.registeredAccount(index: 0, lamports: 1_000_000)
+        let responses = HTTPResponses.privateNotes(registry: [registered.registry], deposits: [registered.deposit])
+        let keys = StoredValue([registered.account.address.value: registered.keys])
+        let balances = try await Self.balances(responses, keys: keys)
+        _ = try await balances.refresh(registered.account, on: .devnet)
+        let syncRequests = await responses.requests.count
+
+        let saved = try await balances.savedStatus(of: registered.account, on: .devnet)
+
+        #expect(saved == .balance(available: 1_000_000, pending: 0))
+        #expect(await responses.requests.count == syncRequests)
+    }
+
+    /// Notes that recorded a deposit before any sync hold it as pending, but only with the account's keys; an empty
+    /// notes entry from before the first sync holds no saved status.
+    @Test
+    func `Recorded notes need keys, and notes before the first sync have no saved status`() async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let id = PrivateBalances.noteID(of: account, on: .devnet)
+        let keys = StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
+        let recorded = try await PrivateBalanceFixtures.pendingDeposit(of: account).notes
+        let responses = HTTPResponses.privateNotes()
+        let withKeys = try await Self.balances(responses, keys: keys, notes: recorded)
+        let keyless = try await Self.balances(responses, notes: recorded)
+        let unsynced = try await Self.balances(responses, keys: keys, notes: StoredValue([id: NoteSyncState()]))
+
+        async let saved = withKeys.savedStatus(of: account, on: .devnet)
+        async let keylessStatus = keyless.savedStatus(of: account, on: .devnet)
+        async let unsyncedStatus = unsynced.savedStatus(of: account, on: .devnet)
+
+        #expect(try await saved == .balance(available: 0, pending: 1_000_000))
+        #expect(try await keylessStatus == nil)
+        #expect(try await unsyncedStatus == nil)
+        #expect(await responses.requests.isEmpty)
+    }
+
     /// A refresh that starts while another refresh of the same account is reading the indexer shares its sync.
     @Test
     func `Concurrent refreshes of one account share one sync`() async throws {

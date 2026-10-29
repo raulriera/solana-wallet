@@ -25,6 +25,16 @@ nonisolated protocol PrivateBalancing: Sendable {
     ///   never reads as a balance.
     func refresh(_ account: Account, on network: Network) async throws -> PrivateBalanceStatus
 
+    /// Returns the balance that an account's saved notes hold on a network, without reading the network.
+    ///
+    /// It's the balance that the last sync found, with the transactions recorded after it, for a refresh that fails.
+    /// - Parameters:
+    ///   - account: The account whose saved balance to read.
+    ///   - network: The network of the saved notes.
+    /// - Returns: The saved balance, or `nil` without keys or without notes that have synced or recorded a transaction.
+    /// - Throws: `CancellationError` if ``removeAll()`` ran first, or a storage error.
+    func savedStatus(of account: Account, on network: Network) async throws -> PrivateBalanceStatus?
+
     /// Builds a private-balance transaction for review, syncing the account's notes first.
     ///
     /// Reading the keys doesn't ask the person to authenticate; signing with a saved account does. An account's first

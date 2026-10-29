@@ -25,6 +25,7 @@ struct TokenDetailScreen: View {
         // Only SOL's details show the private balance, so other tokens don't follow its changes.
         let walletPrivateBalance = holding.id == .nativeSOL ? privateBalances.balance(for: account, on: network) : nil
         let privateStatus = walletPrivateBalance?.status
+        let isPrivateBalanceOutdated = walletPrivateBalance?.isOutdated ?? false
         Form {
             Section {
                 TokenTitleCard(symbol: holding.displaySymbol, name: holding.displayName, logoURL: holding.logoURL)
@@ -97,6 +98,7 @@ struct TokenDetailScreen: View {
                 PrivateBalanceSections(isTurningOn: privateBalance.isTurningOn,
                                        turnOn: PrivateBalanceTurnOnAction(model: privateBalance),
                                        status: privateStatus,
+                                       isOutdated: isPrivateBalanceOutdated,
                                        canMakePublic: walletPrivateBalance?.availableLamports != nil,
                                        symbol: holding.displaySymbol)
                     // The rows open moves with the account's public SOL without holding the private balance.
@@ -107,6 +109,7 @@ struct TokenDetailScreen: View {
             }
         }
         .animation(.default, value: privateStatus)
+        .animation(.default, value: isPrivateBalanceOutdated)
         .task(id: holding.id) {
             if holding.id == .nativeSOL { await privateBalances.refresh(account, on: network) }
         }
@@ -177,6 +180,8 @@ private struct PreviewPrivateBalances: PrivateBalancing {
     func enable(_ account: Account, on network: Network) async throws {}
 
     func refresh(_ account: Account, on network: Network) async throws -> PrivateBalanceStatus { .off(isRegistered: false) }
+
+    func savedStatus(of account: Account, on network: Network) async throws -> PrivateBalanceStatus? { nil }
 
     func prepare(_ request: PrivateTransactionRequest, from account: Account, on network: Network) async throws
         -> PreparedPrivateTransaction {

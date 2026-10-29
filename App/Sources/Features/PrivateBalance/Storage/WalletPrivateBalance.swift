@@ -8,11 +8,12 @@ import Wallet
 /// The first observer starts one poll loop and the last one ends it, keeping the balance for the next window. The loop
 /// reads the balance, then polls it, and starts again after each of the account's private moves on the network settles;
 /// payments never change the private balance, so they start nothing. Callers that read while a read runs share it. A
-/// read shows the account's last read balance, or why it has none; a failed read keeps what was read before. While
-/// private balances are on, a poll reads the balance again; a failure that reading again can't fix, such as a rate
-/// limit, pauses polling until a refresh succeeds. When a read after one of the account's private moves settles finds
-/// pending SOL, the next few polls follow up quickly until the indexer reports it. Accounts whose path has no
-/// private-balance keys show nothing.
+/// read shows the account's last read balance, or why it has none; a failed read keeps what was read before, or shows
+/// the balance that the account's saved notes hold, and marks it outdated until a read succeeds. Unless a read found
+/// private balances off or unavailable, a poll reads the balance again; a failure that reading again can't fix, such
+/// as a rate limit, pauses polling until a refresh succeeds. When a read after one of the account's private moves
+/// settles finds pending SOL, the next few polls follow up quickly until the indexer reports it. Accounts whose path
+/// has no private-balance keys show nothing.
 @MainActor
 @Observable
 final class WalletPrivateBalance {
@@ -24,6 +25,8 @@ final class WalletPrivateBalance {
     /// Whether the account holds any private SOL, available or pending; kept apart from ``status`` so the token list
     /// changes only when this does.
     private(set) var hasBalance = false
+    /// Whether the last read failed, so ``status`` is what an earlier read found or the saved notes hold, if anything.
+    private(set) var isOutdated = false
     /// Whether polls wait for a refresh, after a failure that reading again can't fix.
     private(set) var isPollingPaused = false
     /// The quick reads left until the pending SOL of a settled transaction turns available.
@@ -125,16 +128,16 @@ final class WalletPrivateBalance {
         await read.value
     }
 
-    /// Reads the balance again while private balances are on and polling isn't paused; each poll uses one quick read
-    /// of a follow-up.
+    /// Reads the balance again unless a read found private balances off or unavailable, or polling is paused; each poll
+    /// uses one quick read of a follow-up.
     func poll() async {
         switch status {
-        case .unregistered?, .balance?:
+        case .off?, .unavailable?:
+            return
+        case .unregistered?, .balance?, nil:
             guard !isPollingPaused else { return }
             if followUpReadsLeft > 0 { followUpReadsLeft -= 1 }
             await refresh()
-        case .off?, .unavailable?, nil:
-            return
         }
     }
 
@@ -171,6 +174,7 @@ final class WalletPrivateBalance {
         reading = nil
         lastReadStarted = nil
         status = nil
+        isOutdated = false
     }
 
     /// The account's records on the network.
@@ -217,7 +221,7 @@ final class WalletPrivateBalance {
         polling = nil
     }
 
-    /// Reads the balance once.
+    /// Reads the balance once; a failed read marks the balance outdated, and shows the saved one if none shows yet.
     private func read() async {
         let settled = lastSettledMove?.settled
         let started = Date.now
@@ -228,11 +232,26 @@ final class WalletPrivateBalance {
             receive(status, settled: settled, started: started)
         } catch {
             guard !Task.isCancelled, !isStale(started) else { return }
-            isPollingPaused = !(error is CancellationError || (error as? RPCError)?.isRecoverable == true)
+            guard !(error is CancellationError) else {
+                isPollingPaused = false
+                return
+            }
+            isPollingPaused = (error as? RPCError)?.isRecoverable != true
+            // Keys that another app registered aren't an outdated balance; nothing shows for them, as before.
+            guard !(error is PrivateBalanceError) else { return }
+            if status == nil {
+                // Saved notes that can't be read leave nothing to show but the outdated mark. A newer read that
+                // succeeds meanwhile sets the status and stays current.
+                let saved = try? await balances.savedStatus(of: account, on: network)
+                guard !Task.isCancelled, status == nil else { return }
+                status = saved
+            }
+            // Set with the saved balance in one update, so the footer never shows alone before the balance.
+            isOutdated = true
         }
     }
 
-    /// Shows a read balance, resumes polling, and starts or ends a follow-up on its pending SOL.
+    /// Shows a read balance as current, resumes polling, and starts or ends a follow-up on its pending SOL.
     /// - Parameters:
     ///   - status: The read balance.
     ///   - settled: When the account's last private move settled before the read, or `nil` without one.
@@ -240,6 +259,7 @@ final class WalletPrivateBalance {
     private func receive(_ status: PrivateBalanceStatus, settled: Date?, started: Date) {
         guard !isStale(started) else { return }
         self.status = status
+        isOutdated = false
         isPollingPaused = false
         // A move that settled while the last read ran may be missing from that read, so it counts as new.
         let settledSinceRead = if let lastReadStarted, let settled { settled > lastReadStarted } else { false }

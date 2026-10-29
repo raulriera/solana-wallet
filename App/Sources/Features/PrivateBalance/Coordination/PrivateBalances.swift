@@ -155,6 +155,26 @@ actor PrivateBalances: PrivateBalancing {
         }
     }
 
+    /// Returns the balance that an account's saved notes hold on a network, without reading the network.
+    ///
+    /// An unreadable item is deleted as for a refresh. An empty notes entry, which an account gets before its first
+    /// sync, holds no balance yet.
+    /// - Parameters:
+    ///   - account: The account whose saved balance to read.
+    ///   - network: The network of the saved notes.
+    /// - Returns: The saved balance, or `nil` without keys or without notes that have synced or recorded a transaction.
+    /// - Throws: `CancellationError` if ``removeAll()`` ran first, ``KeychainItemError/unreadable`` if an item is
+    ///   unreadable again after its deletion this launch, or a storage error.
+    func savedStatus(of account: Account, on network: Network) async throws -> PrivateBalanceStatus? {
+        let generation = generation
+        async let savedKeys = rebuilding(keys, .keys, from: generation) { try await $0.load() }
+        async let savedNotes = rebuilding(notes, .notes, from: generation) { try await $0.load() }
+        guard try await savedKeys?[account.address.value] != nil,
+              let state = try await savedNotes?[Self.noteID(of: account, on: network)], state != NoteSyncState()
+        else { return nil }
+        return .balance(of: state)
+    }
+
     /// Reads whether an account without keys on this device turned private balances on before, such as before its
     /// wallet was imported again.
     ///

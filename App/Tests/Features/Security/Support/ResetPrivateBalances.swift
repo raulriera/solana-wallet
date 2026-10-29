@@ -25,6 +25,16 @@ struct ResetPrivateBalances: PrivateBalancing {
         return .off(isRegistered: false)
     }
 
+    /// Reports any read of a saved balance, because a reset only deletes.
+    /// - Parameters:
+    ///   - account: The account the caller tried to read.
+    ///   - network: The network the caller named.
+    /// - Returns: `nil`.
+    func savedStatus(of account: widgets.Account, on network: Network) async throws -> PrivateBalanceStatus? {
+        Issue.record("A reset must not read saved private balances.")
+        return nil
+    }
+
     /// Reports any preparation, because a reset only deletes.
     /// - Parameters:
     ///   - request: The transaction the caller asked for.

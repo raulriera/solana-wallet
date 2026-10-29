@@ -36,7 +36,7 @@ struct WalletPrivateBalanceTests {
         #expect(await responses.requests.isEmpty)
     }
 
-    /// A read that fails keeps the status that the last read found.
+    /// A read that fails keeps the status that the last read found, marked outdated.
     @Test
     func `A failed read keeps the last status`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -44,11 +44,65 @@ struct WalletPrivateBalanceTests {
         let responses = HTTPResponses.privateNotes(error: .http(statusCode: 429, retryAfter: nil))
         let store = try PrivateBalanceStore.fixture(responses, keys: keys)
         let balance = try await PrivateBalanceFixtures.read(account, in: store)
+        let wasOutdated = balance.isOutdated
         try await keys.save([account.address.value: PrivateBalanceFixtures.keys(for: account)])
 
         await balance.refresh()
 
+        #expect(!wasOutdated)
         #expect(balance.status == .off(isRegistered: false))
+        #expect(balance.isOutdated)
+    }
+
+    /// A first read that fails shows the balance that the saved notes hold, marked outdated.
+    @Test
+    func `A failed first read shows the saved balance as outdated`() async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let failing = HTTPResponses.privateNotes(error: .http(statusCode: 500, retryAfter: nil))
+        let store = try await PrivateBalanceFixtures.pendingDeposit(of: account, responses: failing).store
+
+        let balance = try await PrivateBalanceFixtures.read(account, in: store)
+
+        #expect(balance.status == .balance(available: 0, pending: 1_000_000))
+        #expect(balance.isOutdated)
+    }
+
+    /// A read that finds the account registered with other keys shows nothing, without marking the balance outdated.
+    @Test
+    func `Keys that another app registered aren't an outdated balance`() async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let keys = StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
+        let other = try PrivateBalanceFixtures.otherKeys(for: account.address)
+        let responses = HTTPResponses.privateNotes(registry: [try PrivateBalanceFixtures.registry(publishing: other)])
+        let store = try PrivateBalanceStore.fixture(responses, keys: keys)
+
+        let balance = try await PrivateBalanceFixtures.read(account, in: store)
+
+        #expect(balance.status == nil)
+        #expect(!balance.isOutdated)
+    }
+
+    /// A first read that fails without saved notes shows no status, and polls read again until a read succeeds.
+    @Test
+    func `A failed first read without saved notes polls until a read succeeds`() async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let providers = ProviderStore.inMemory(selection: .helius, key: "failing-key")
+        let balance = try await Self.balance(
+            of: account, providers: providers,
+            responses: HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered]),
+            otherResponses: HTTPResponses.privateNotes(error: .http(statusCode: 500, retryAfter: nil))
+        )
+        await balance.refresh()
+        let failedStatus = balance.status
+        let wasOutdated = balance.isOutdated
+
+        try await providers.save(key: "fixture-key")
+        await balance.poll()
+
+        #expect(failedStatus == nil)
+        #expect(wasOutdated)
+        #expect(balance.status == .unregistered)
+        #expect(!balance.isOutdated)
     }
 
     /// A registered account with SOL in its private balance has a balance; one without SOL doesn't.
@@ -241,20 +295,12 @@ struct WalletPrivateBalanceTests {
     @Test
     func `Paused polling waits for a refresh that succeeds`() async throws {
         let account = try await PrivateBalanceFixtures.account()
-        let record = try await PrivateBalanceFixtures.keys(for: account)
         let responses = HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered])
-        let rejecting = HTTPResponses.privateNotes(error: .http(statusCode: 401, retryAfter: nil))
         let providers = ProviderStore.inMemory(selection: .helius, key: "fixture-key")
-        let balances = PrivateBalances(recovery: try PrivateBalanceFixtures.recoveryStore(), wallet: Wallet(),
-                                       keys: StoredValue([account.address.value: record]), notes: StoredValue(),
-                                       codes: StoredValue()) { network in
-            ProviderClient(network: network, providers: providers) { endpoint, network in
-                (endpoint == .helius(key: "rejected-key") ? rejecting : responses).client(for: endpoint, on: network)
-            }
-        }
-        let balance = WalletPrivateBalance(account: account, network: .devnet, balances: balances,
-                                           transactions: .unused, pollInterval: .seconds(30),
-                                           followUpInterval: .seconds(3))
+        let balance = try await Self.balance(
+            of: account, providers: providers, responses: responses,
+            otherResponses: HTTPResponses.privateNotes(error: .http(statusCode: 401, retryAfter: nil))
+        )
         await balance.refresh()
 
         try await providers.save(key: "rejected-key")
@@ -296,6 +342,29 @@ struct WalletPrivateBalanceTests {
         let balance = try await PrivateBalanceFixtures.read(account, in: store)
 
         #expect(balance.isPollingPaused)
+    }
+
+    /// One account's private balance on devnet, with its keys saved and no notes, whose responses follow the saved
+    /// Helius key.
+    /// - Parameters:
+    ///   - account: The account.
+    ///   - providers: The provider settings whose saved key picks the responses.
+    ///   - responses: The responses for the key `fixture-key`.
+    ///   - otherResponses: The responses for any other key.
+    /// - Returns: The balance.
+    /// - Throws: A derivation or test prerequisite error.
+    private static func balance(of account: widgets.Account, providers: ProviderStore, responses: HTTPResponses,
+                                otherResponses: HTTPResponses) async throws -> WalletPrivateBalance {
+        let record = try await PrivateBalanceFixtures.keys(for: account)
+        let balances = PrivateBalances(recovery: try PrivateBalanceFixtures.recoveryStore(), wallet: Wallet(),
+                                       keys: StoredValue([account.address.value: record]), notes: StoredValue(),
+                                       codes: StoredValue()) { network in
+            ProviderClient(network: network, providers: providers) { endpoint, network in
+                (endpoint == .helius(key: "fixture-key") ? responses : otherResponses).client(for: endpoint, on: network)
+            }
+        }
+        return WalletPrivateBalance(account: account, network: .devnet, balances: balances, transactions: .unused,
+                                    pollInterval: .seconds(30), followUpInterval: .seconds(3))
     }
 
     /// The fixture account's address at a path without private-balance keys.
