@@ -10,27 +10,28 @@ struct SettingsScene: View {
     @State private var providers: ProvidersCoordinator
     @Binding var network: Network
     let settings: AppearanceSettingsModel
-    let account: Account
+    /// The owning window's account, which Accounts changes.
+    @Binding var account: Account
 
     /// Keeps the first workflows it receives for as long as the tab stays; later ones are discarded.
     /// - Parameters:
     ///   - settings: The window's appearance editing; the window cancels unfinished work when it leaves the wallet.
-    ///   - account: The owning window's account, whose wallet's accounts Accounts lists and whose recovery Security &
-    ///     Privacy shows.
+    ///   - account: The owning window's account, whose wallet's accounts Accounts lists and changes, and whose recovery
+    ///     Security & Privacy shows.
     ///   - network: The network that the owning window shows; other windows keep theirs.
     ///   - security: New Security & Privacy navigation and steps for the tab.
     ///   - providers: New RPC provider choices and key entry for the tab.
-    init(settings: AppearanceSettingsModel, account: Account,
+    init(settings: AppearanceSettingsModel, account: Binding<Account>,
          network: Binding<Network>, security: SecurityCoordinator, providers: ProvidersCoordinator) {
         self.security = security
         self.providers = providers
         _network = network
         self.settings = settings
-        self.account = account
+        _account = account
     }
 
     var body: some View {
-        SettingsSplitView(settings: settings, account: account, network: $network, security: security,
+        SettingsSplitView(settings: settings, account: $account, network: $network, security: security,
                           providers: providers)
             .settingsLifecycle()
     }

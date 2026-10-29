@@ -25,7 +25,7 @@ struct SettingsSceneTests {
         let account = try Account.fixture(index: 0)
         let rendered = AsyncStream<Int>.makeStream()
         let hosted = try HostedWindow(SettingsSceneRoot(
-            scene: SettingsScene(settings: settings, account: account, network: .constant(.mainnet),
+            scene: SettingsScene(settings: settings, account: .constant(account), network: .constant(.mainnet),
                                  security: makeSecurity(), providers: first),
             generation: 0, rendered: rendered.continuation, providers: providerStore))
         defer {
@@ -37,7 +37,7 @@ struct SettingsSceneTests {
 
         let second = ProvidersCoordinator.inMemory(providerStore)
         hosted.host.rootView = SettingsSceneRoot(
-            scene: SettingsScene(settings: settings, account: account, network: .constant(.mainnet),
+            scene: SettingsScene(settings: settings, account: .constant(account), network: .constant(.mainnet),
                                  security: makeSecurity(), providers: second),
             generation: 1, rendered: rendered.continuation, providers: providerStore)
         try #require(await renders.next() == 1)

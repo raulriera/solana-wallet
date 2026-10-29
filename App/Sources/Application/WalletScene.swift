@@ -12,20 +12,21 @@ struct WalletScene: View {
     @Binding var section: WalletSection
     /// The network that the window shows, which Settings changes.
     @Binding var network: Network
-    let account: Account
+    /// The window's account, which Settings changes.
+    @Binding var account: Account
     let services: AppServices
 
     /// Keeps the first appearance editing it creates for as long as the window shows the wallet.
     /// - Parameters:
     ///   - section: The section that the window shows.
     ///   - network: The network that the window shows, which Settings changes.
-    ///   - account: The window's account.
+    ///   - account: The window's account, which Settings changes.
     ///   - services: The shared services that each section's workflows use.
-    init(section: Binding<WalletSection>, network: Binding<Network>, account: Account, services: AppServices) {
+    init(section: Binding<WalletSection>, network: Binding<Network>, account: Binding<Account>, services: AppServices) {
         settings = services.makeAppearanceSettingsModel()
         _section = section
         _network = network
-        self.account = account
+        _account = account
         self.services = services
     }
 
@@ -46,7 +47,7 @@ struct WalletScene: View {
                     .id(account.id)
             }
             Tab("Settings", systemImage: "gearshape", value: .settings) {
-                SettingsScene(settings: settings, account: account, network: $network,
+                SettingsScene(settings: settings, account: $account, network: $network,
                               security: services.makeSecurityCoordinator(),
                               providers: services.makeProvidersCoordinator())
             }

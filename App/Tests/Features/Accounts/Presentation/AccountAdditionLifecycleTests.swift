@@ -13,8 +13,8 @@ struct AccountAdditionLifecycleTests {
         let wallet = try await PublicWalletAccounts()
         await wallet.storage.failSaving()
         let addition = AccountAdditionModel()
-        let screen = AccountsScreen(accounts: wallet.store.accounts, wallet: wallet.first.recoveryID, addition: addition,
-                                    deletion: AccountDeletionModel())
+        let screen = AccountsScreen(accounts: wallet.store.accounts, selection: .constant(wallet.first),
+                                    addition: addition, deletion: AccountDeletionModel(), path: .constant([]))
         let hosted = try wallet.hosted(NavigationStack { screen.accountsLifecycle() })
         defer { hosted.close() }
         try #require(try await hosted.appears())

@@ -11,7 +11,7 @@ struct AccountsSceneTests {
     @Test
     func `Opening Accounts reads no recovery`() async throws {
         let wallet = try await PublicWalletAccounts()
-        let hosted = try wallet.hosted(AccountsScene(account: wallet.first))
+        let hosted = try wallet.hosted(AccountsScene(account: .constant(wallet.first)))
         defer { hosted.close() }
 
         try #require(try await hosted.appears())

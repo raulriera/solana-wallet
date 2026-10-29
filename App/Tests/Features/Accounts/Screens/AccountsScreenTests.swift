@@ -14,13 +14,13 @@ struct AccountsScreenTests {
     func `Add Account saves the wallet's next account`() async throws {
         let wallet = try await PublicWalletAccounts()
         let addition = AccountAdditionModel()
-        let screen = AccountsScreen(accounts: wallet.store.accounts, wallet: wallet.first.recoveryID, addition: addition,
-                                    deletion: AccountDeletionModel())
+        let screen = AccountsScreen(accounts: wallet.store.accounts, selection: .constant(wallet.first),
+                                    addition: addition, deletion: AccountDeletionModel(), path: .constant([]))
         let hosted = try wallet.hosted(NavigationStack { screen.accountsLifecycle() })
         defer { hosted.close() }
         try #require(try await hosted.appears())
 
-        addition.add(to: screen.wallet)
+        addition.add(to: wallet.first.recoveryID)
 
         // The store shows the account at once; the model reports it once it's saved. The suite's time limit ends the
         // wait if it never is.

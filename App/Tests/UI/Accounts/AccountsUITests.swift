@@ -1,7 +1,7 @@
 import XCTest
 
-/// Adds, renames, and deletes a new wallet's accounts from Settings > Accounts, and checks that each change survives a
-/// relaunch.
+/// Adds, chooses, renames, and deletes a new wallet's accounts from Settings > Accounts, and checks that the saved
+/// changes survive a relaunch.
 @MainActor
 final class AccountsUITests: XCTestCase {
     /// The titles of the alerts that report a failed addition, rename, or deletion.
@@ -23,13 +23,28 @@ final class AccountsUITests: XCTestCase {
         try flow.waitFor(row("Account 2", in: flow))
     }
 
+    /// Choosing an account checks it in place of the window's first account.
+    @objc(testChoosingAnAccountChecksItAndReturnError:)
+    func `test Choosing an account checks it`() throws {
+        let flow = try openAccounts()
+        defer { flow.app.terminate() }
+        try flow.tap(flow.app.buttons["Add Account"])
+        try flow.expectOutcome(row("Account 2", in: flow), matching: Self.rowLabel(beginningWith: "Account 2"),
+                               unless: Self.errorTitles)
+
+        try flow.tap(row("Account 2", in: flow))
+
+        XCTAssertTrue(row("Account 2", in: flow).isSelected, "The chosen account isn't checked.")
+        XCTAssertFalse(row("Account 1", in: flow).isSelected, "The first account is still checked.")
+    }
+
     /// Saving a name renames the account and closes its screen; the name is still there after a relaunch.
     @objc(testANewNameRenamesTheAccountAndReturnError:)
     func `test A new name renames the account`() throws {
         let flow = try openAccounts()
         defer { flow.app.terminate() }
 
-        try flow.tap(row("Account 1", in: flow))
+        try flow.tap(info("Account 1", in: flow))
         let name = flow.app.textFields["Name"]
         try flow.tap(name)
         name.typeText("Savings")
@@ -53,14 +68,14 @@ final class AccountsUITests: XCTestCase {
         try flow.expectOutcome(row("Account 2", in: flow), matching: Self.rowLabel(beginningWith: "Account 2"),
                                unless: Self.errorTitles)
 
-        try flow.tap(row("Account 2", in: flow))
+        try flow.tap(info("Account 2", in: flow))
         try flow.tap(flow.app.buttons["Delete Account"])
         try flow.tap(try flow.frontButton("Delete Account"))
 
         try flow.waitForAbsence(row("Account 2", in: flow))
         try flow.waitFor(row("Account 1", in: flow))
         XCTAssertFalse(flow.app.alerts["Couldn't Delete Account"].exists, "The app reported a failed deletion.")
-        try flow.tap(row("Account 1", in: flow))
+        try flow.tap(info("Account 1", in: flow))
         try flow.waitFor(flow.app.textFields["Name"])
         XCTAssertFalse(flow.app.buttons["Delete Account"].exists, "The window's own account offered a deletion.")
         flow.relaunch()
@@ -91,13 +106,22 @@ final class AccountsUITests: XCTestCase {
         try flow.waitFor(flow.app.navigationBars["Accounts"])
     }
 
-    /// An account's row, which reads its name and then its short address.
+    /// An account's choice, which reads its name and then its short address.
     /// - Parameters:
     ///   - name: The account's name.
     ///   - flow: The app's flow, showing the wallet's accounts.
-    /// - Returns: The row's button.
+    /// - Returns: The row's choice button.
     private func row(_ name: String, in flow: OnboardingApp) -> XCUIElement {
         flow.app.buttons.matching(Self.rowLabel(beginningWith: name)).firstMatch
+    }
+
+    /// The info button of an account's row, which opens the account's screen.
+    /// - Parameters:
+    ///   - name: The account's name.
+    ///   - flow: The app's flow, showing the wallet's accounts.
+    /// - Returns: The row's info button.
+    private func info(_ name: String, in flow: OnboardingApp) -> XCUIElement {
+        flow.app.cells.containing(Self.rowLabel(beginningWith: name)).buttons["More Info"].firstMatch
     }
 
     /// Matches an account's row by the start of its label.

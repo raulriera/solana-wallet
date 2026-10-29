@@ -13,8 +13,8 @@ struct AccountsLifecycleTests {
     func `The list runs a confirmed deletion`() async throws {
         let wallet = try await PublicWalletAccounts()
         let deletion = AccountDeletionModel()
-        let screen = AccountsScreen(accounts: wallet.store.accounts, wallet: wallet.first.recoveryID,
-                                    addition: AccountAdditionModel(), deletion: deletion)
+        let screen = AccountsScreen(accounts: wallet.store.accounts, selection: .constant(wallet.first),
+                                    addition: AccountAdditionModel(), deletion: deletion, path: .constant([]))
         let hosted = try wallet.hosted(NavigationStack { screen.accountsLifecycle() })
         defer { hosted.close() }
         try #require(try await hosted.appears())

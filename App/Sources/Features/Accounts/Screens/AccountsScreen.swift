@@ -3,17 +3,19 @@ import SwiftUI
 import Transactions
 import Wallet
 
-/// Lists the accounts of the window's wallet and adds the wallet's next account.
+/// Lists the accounts of the window's wallet, shows the chosen one in the window, and adds the wallet's next account.
 struct AccountsScreen: View {
     @Environment(\.palette) private var palette
     /// The wallet's accounts, in the order they were added.
     let accounts: [Account]
-    /// The window's wallet.
-    let wallet: UUID
+    /// The account that the window shows, which choosing another changes.
+    @Binding var selection: Account
     /// The scene's additions.
     let addition: AccountAdditionModel
     /// The scene's deletions, which run here once an account's screen closes.
     let deletion: AccountDeletionModel
+    /// The scene's pushed screens, which an account's info button opens its screen on.
+    @Binding var path: [AccountsRoute]
 
     var body: some View {
         let isAdding = addition.isAdding
@@ -29,17 +31,14 @@ struct AccountsScreen: View {
 
             Section {
                 ForEach(accounts) { account in
-                    NavigationLink(value: AccountsRoute.account(account.id)) {
-                        RecipientRow(name: account.name, address: account.address, date: nil,
-                                     systemImage: "wallet.bifold")
-                    }
+                    AccountRow(account: account, selection: $selection, path: $path)
                 }
             }
             .listRowBackground(palette.surface)
             .listRowSeparatorTint(palette.separator)
 
             Section {
-                Button { addition.add(to: wallet) } label: {
+                Button { addition.add(to: selection.recoveryID) } label: {
                     HStack {
                         Text("Add Account")
                         Spacer()
@@ -78,15 +77,18 @@ struct AccountsScreen: View {
 }
 
 #Preview {
+    @Previewable @State var path: [AccountsRoute] = []
     let wallet = UUID()
     if let main = try? Address("6d8tEyrqPqVbEr6Jpuc7BEyYekeMUTyzHEwdmcAYEmtK"),
        let savings = try? Address("44korouVTkSZ4u3SAT4BCg5S2AqJTV7osjVGVkjs3vtV") {
-        NavigationStack {
+        let first = Account(id: UUID(), recoveryID: wallet, address: main, path: .solana)
+        NavigationStack(path: $path) {
             AccountsScreen(accounts: [
-                Account(id: UUID(), recoveryID: wallet, address: main, path: .solana),
+                first,
                 Account(id: UUID(), recoveryID: wallet, address: savings, path: .solana(account: 1),
                         customName: "Savings"),
-            ], wallet: wallet, addition: AccountAdditionModel(), deletion: AccountDeletionModel())
+            ], selection: .constant(first), addition: AccountAdditionModel(), deletion: AccountDeletionModel(),
+               path: $path)
         }
     }
 }
