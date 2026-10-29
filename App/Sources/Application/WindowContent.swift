@@ -18,9 +18,8 @@ struct WindowContent: View {
             case .walletRestorationFailed:
                 WalletUnavailableScreen(retry: { startupAttempt += 1 })
             case .onboarding:
-                OnboardingScene(coordinator: window.onboarding, providers: services.makeProvidersCoordinator(),
-                                pasteboard: services.recoveryPasteboard)
-                    .onboardingLifecycle()
+                OnboardingScene(account: $window.account, coordinator: services.makeOnboardingCoordinator(),
+                                providers: services.makeProvidersCoordinator(), pasteboard: services.recoveryPasteboard)
             case .wallet:
                 // The wallet destination always has an account, which Settings can replace with another.
                 if let account = Binding($window.account) {
@@ -31,6 +30,6 @@ struct WindowContent: View {
         .animation(.default, value: window.router.destination)
         .windowRestoration(window.startup, router: window.router, attempt: startupAttempt, network: $network,
                            section: $section)
-        .windowReset(services, router: window.router, onboarding: $window.onboarding)
+        .windowReset(services, router: window.router)
     }
 }

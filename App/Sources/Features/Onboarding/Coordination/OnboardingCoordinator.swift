@@ -11,13 +11,13 @@ import Wallet
 final class OnboardingCoordinator: OnboardingCoordinating {
     private(set) var recovery: Recovery?
     private(set) var account: Account?
+    private(set) var finishedAccount: Account?
     private(set) var isWorking = false
 
     private let wallet: any WalletProviding
     private let discovery: any AccountDiscovering
     private let recoveryStore: any RecoveryStoring
     private let accountStore: AccountStore
-    private let router: any WindowRouting
     @ObservationIgnored private var preparedAccount: Account?
     @ObservationIgnored private var recoverySaved = false
 
@@ -27,15 +27,12 @@ final class OnboardingCoordinator: OnboardingCoordinating {
     ///   - wallet: Local phrase generation and address derivation.
     ///   - recovery: Protected recovery persistence.
     ///   - accounts: The saved accounts that every window shares.
-    ///   - router: The owning window's root navigation.
     init(discovery: any AccountDiscovering, wallet: any WalletProviding,
-         recovery: any RecoveryStoring, accounts: AccountStore,
-         router: any WindowRouting) {
+         recovery: any RecoveryStoring, accounts: AccountStore) {
         self.wallet = wallet
         self.discovery = discovery
         recoveryStore = recovery
         accountStore = accounts
-        self.router = router
     }
 
     /// Prepares a new twelve-word recovery with no BIP-39 passphrase.
@@ -80,11 +77,11 @@ final class OnboardingCoordinator: OnboardingCoordinating {
         return preparedAccount
     }
 
-    /// Routes this window to the saved account once onboarding's last step succeeds.
+    /// Publishes the saved account for the window to open once onboarding's last step succeeds.
     /// - Throws: ``OnboardingCoordinatorError/accountRequired`` before completion.
     func finish() throws {
         guard let account else { throw OnboardingCoordinatorError.accountRequired }
-        router.route(to: .wallet(account))
+        finishedAccount = account
     }
 
     /// Drops this window's unsaved draft without deleting either store's records.

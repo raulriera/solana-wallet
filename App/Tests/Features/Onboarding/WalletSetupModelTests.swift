@@ -101,7 +101,7 @@ struct WalletSetupModelTests {
 
         #expect(fixture.coordinator.account != nil)
         #expect(await fixture.recovery.saves.count == 1)
-        #expect(fixture.router.destination == .onboarding)
+        #expect(fixture.coordinator.finishedAccount == nil)
         #expect(setup.completion == nil)
         #expect(setup.error == nil)
     }
@@ -184,11 +184,11 @@ struct WalletSetupModelTests {
         fixture.providers.select(.solana)
         let change = try #require(fixture.providers.attempt)
         setup.open()
-        #expect(fixture.router.destination == .onboarding)
+        #expect(fixture.coordinator.finishedAccount == nil)
 
         await fixture.providers.run(change)
         setup.open()
-        #expect(fixture.router.destination == .wallet(account))
+        #expect(fixture.coordinator.finishedAccount == account)
         #expect(setup.error == nil)
     }
 
@@ -200,7 +200,7 @@ struct WalletSetupModelTests {
         fixture.setup.open()
 
         #expect(fixture.setup.error == .openFailed)
-        #expect(fixture.router.destination == .onboarding)
+        #expect(fixture.coordinator.finishedAccount == nil)
     }
 
     /// A window's real onboarding workflow and provider choice over isolated stores, with its setup model.
@@ -208,7 +208,6 @@ struct WalletSetupModelTests {
     private struct Fixture {
         let recovery: OnboardingRecoveryStore
         let accounts: StoredValue<[widgets.Account]>
-        let router: WindowRouter
         let providers: ProvidersCoordinator
         let coordinator: OnboardingCoordinator
         let setup: WalletSetupModel
@@ -222,12 +221,10 @@ struct WalletSetupModelTests {
              accounts: StoredValue<[widgets.Account]> = StoredValue()) {
             recovery = OnboardingRecoveryStore(gate: recoveryGate)
             self.accounts = accounts
-            router = WindowRouter(initialDestination: .onboarding)
             providers = ProvidersCoordinator.inMemory(.inMemory())
             coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client),
                                                 wallet: wallet, recovery: recovery,
-                                                accounts: .inMemory(accounts),
-                                                router: router)
+                                                accounts: .inMemory(accounts))
             setup = WalletSetupModel(coordinator: coordinator, providers: providers)
         }
     }

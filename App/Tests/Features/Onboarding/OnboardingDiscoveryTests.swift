@@ -15,9 +15,8 @@ struct OnboardingDiscoveryTests {
         let http = HTTPResponses.discovery(fundedOffsets: [1, 14])
         let recovery = OnboardingRecoveryStore()
         let accounts = AccountStore.inMemory()
-        let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: http.client), wallet: Wallet(),
-            recovery: recovery, accounts: accounts, router: router)
+            recovery: recovery, accounts: accounts)
 
         try await coordinator.importRecovery(OnboardingCoordinatorTests.phrase, passphrase: "")
         #expect(await recovery.saves.isEmpty)
@@ -36,9 +35,8 @@ struct OnboardingDiscoveryTests {
         let http = HTTPResponses.discovery()
         let recovery = OnboardingRecoveryStore()
         let accounts = AccountStore.inMemory()
-        let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: http.client), wallet: Wallet(),
-            recovery: recovery, accounts: accounts, router: router)
+            recovery: recovery, accounts: accounts)
 
         try await coordinator.importRecovery(OnboardingCoordinatorTests.phrase, passphrase: " TREZOR ")
         let account = try await coordinator.complete()
@@ -63,9 +61,8 @@ struct OnboardingDiscoveryTests {
         let http = HTTPResponses.discovery(error: error)
         let recovery = OnboardingRecoveryStore()
         let accounts = AccountStore.inMemory()
-        let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: http.client), wallet: Wallet(),
-            recovery: recovery, accounts: accounts, router: router)
+            recovery: recovery, accounts: accounts)
 
         await #expect(throws: expected) {
             try await coordinator.importRecovery(OnboardingCoordinatorTests.phrase, passphrase: "")
@@ -74,7 +71,7 @@ struct OnboardingDiscoveryTests {
         #expect(coordinator.recovery == nil)
         #expect(coordinator.account == nil)
         #expect(!coordinator.isWorking)
-        #expect(router.destination == .onboarding)
+        #expect(coordinator.finishedAccount == nil)
         #expect(await recovery.saves.isEmpty)
         #expect(accounts.accounts.isEmpty)
 
@@ -89,15 +86,14 @@ struct OnboardingDiscoveryTests {
     func `A real mainnet lookup prepares an import without persisting it`() async throws {
         let recovery = OnboardingRecoveryStore()
         let accounts = AccountStore.inMemory()
-        let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: Solana(network: .mainnet)),
-            wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
+            wallet: Wallet(), recovery: recovery, accounts: accounts)
 
         try await coordinator.importRecovery(OnboardingCoordinatorTests.phrase, passphrase: "")
 
         #expect(coordinator.recovery != nil)
         #expect(coordinator.account == nil)
-        #expect(router.destination == .onboarding)
+        #expect(coordinator.finishedAccount == nil)
         #expect(await recovery.saves.isEmpty)
         #expect(accounts.accounts.isEmpty)
         try coordinator.discard()

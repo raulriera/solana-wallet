@@ -135,11 +135,9 @@ struct AppServices {
     }
 
     /// Assembles a fresh onboarding workflow around the app's shared services.
-    /// - Parameter router: The owning window's root navigation.
-    /// - Returns: Independent draft state for the window that retains this coordinator.
-    func makeOnboardingCoordinator(router: any WindowRouting) -> any OnboardingCoordinating {
-        OnboardingCoordinator(discovery: discovery, wallet: wallet, recovery: recovery, accounts: accountStore,
-                              router: router)
+    /// - Returns: Independent draft state for the onboarding scene that retains this coordinator.
+    func makeOnboardingCoordinator() -> any OnboardingCoordinating {
+        OnboardingCoordinator(discovery: discovery, wallet: wallet, recovery: recovery, accounts: accountStore)
     }
 
     /// Creates independent Security & Privacy navigation and steps around the shared security services.

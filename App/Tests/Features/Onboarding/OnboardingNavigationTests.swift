@@ -14,9 +14,8 @@ struct OnboardingNavigationTests {
         let gate = Suspension()
         let recovery = OnboardingRecoveryStore()
         let accounts = AccountStore.inMemory()
-        let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery(gate: gate).client),
-                                                wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
+                                                wallet: Wallet(), recovery: recovery, accounts: accounts)
         let submission = ImportWalletModel(coordinator: coordinator)
         let navigation = OnboardingNavigation(walletImport: submission, providers: .inMemory(.inMemory()))
         navigation.showImport()
@@ -68,8 +67,7 @@ struct OnboardingNavigationTests {
         let recovery = OnboardingRecoveryStore()
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client),
                                                 wallet: Wallet(), recovery: recovery,
-                                                accounts: AccountStore.inMemory(),
-                                                router: WindowRouter(initialDestination: .onboarding))
+                                                accounts: AccountStore.inMemory())
         return ImportWalletModel(coordinator: coordinator)
     }
 }

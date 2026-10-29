@@ -8,6 +8,8 @@ protocol OnboardingCoordinating: AnyObject, Observable {
     var recovery: Recovery? { get }
     /// The account published only after both persistence steps succeed.
     var account: Account? { get }
+    /// The saved account after ``finish()``, which the owning window opens.
+    var finishedAccount: Account? { get }
     /// Whether preparation or completion is in progress.
     var isWorking: Bool { get }
 
@@ -33,7 +35,7 @@ protocol OnboardingCoordinating: AnyObject, Observable {
     /// - Throws: A storage, cancellation, or invalid-state error without recovery text.
     func complete() async throws -> Account
 
-    /// Ends onboarding by opening the saved account in the owning window.
+    /// Ends onboarding by publishing the saved account for the owning window to open.
     /// - Throws: ``OnboardingCoordinatorError/accountRequired`` before completion.
     func finish() throws
 

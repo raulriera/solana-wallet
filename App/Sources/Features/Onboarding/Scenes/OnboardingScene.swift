@@ -6,17 +6,25 @@ struct OnboardingScene: View {
     @State private var navigation: OnboardingNavigation
     @State private var walletImport: ImportWalletModel
     @State private var walletSetup: WalletSetupModel
+    /// The draft, which onboarding keeps for as long as it stays; onboarding that starts again starts with a new one.
+    @State private var coordinator: any OnboardingCoordinating
     /// The provider choice, shown after the wallet is saved; a new draft's onboarding starts with a new one.
     @State private var providers: ProvidersCoordinator
-    let coordinator: any OnboardingCoordinating
+    /// The account that the window shows, which onboarding sets when it finishes.
+    @Binding var account: Account?
     let pasteboard: any RecoveryCopying
 
-    /// Seeds presentation once; the parent retains the coordinator and the pasteboard for the window's lifetime.
+    /// Keeps the first draft and provider choice it receives for as long as onboarding stays; later ones are discarded.
+    ///
+    /// The parent retains the pasteboard for the window's lifetime.
     /// - Parameters:
-    ///   - coordinator: The owning window's preparation, persistence, and routing workflow.
+    ///   - account: The window's account, which opens the saved wallet when onboarding sets it.
+    ///   - coordinator: A new draft's preparation and persistence, which onboarding keeps for as long as it stays.
     ///   - providers: New RPC provider choices and key entry, which onboarding keeps for as long as it stays.
     ///   - pasteboard: Copies a new wallet's recovery words to this device only, for a limited time.
-    init(coordinator: any OnboardingCoordinating, providers: ProvidersCoordinator, pasteboard: any RecoveryCopying) {
+    init(account: Binding<Account?>, coordinator: any OnboardingCoordinating, providers: ProvidersCoordinator,
+         pasteboard: any RecoveryCopying) {
+        _account = account
         self.coordinator = coordinator
         self.providers = providers
         self.pasteboard = pasteboard
@@ -72,6 +80,7 @@ struct OnboardingScene: View {
             if previous == .recovery { walletSetup.leaveBackup() }
         }
         .onChange(of: coordinator.account?.id) { showProviders() }
+        .onChange(of: coordinator.finishedAccount) { _, finishedAccount in account = finishedAccount }
         .onChange(of: navigation.path.last) { showProviders() }
         .onDisappear {
             // Active work releases its draft after cancellation unwinds.

@@ -5,26 +5,23 @@ import Testing
 import Wallet
 @testable import widgets
 
-/// Exercises the production onboarding identity boundary with real SwiftUI task ownership.
+/// Exercises the production onboarding identity boundary with real SwiftUI state and task ownership.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct OnboardingIdentityTests {
-    /// Replacing a reset coordinator must retire the old import before it can persist after reset.
+    /// The window passes a new draft each time it updates, so onboarding must keep the one it started with.
     @Test
-    func `Replacing a reset onboarding coordinator cancels its pending import`() async throws {
-        let directory = URL.temporaryDirectory.appending(path: UUID().uuidString)
-        defer { try? FileManager.default.removeItem(at: directory) }
-        let storage = StoredValue<[widgets.Account]>()
-        let accounts = AccountStore.inMemory(storage)
-        let recovery = ResetRecoveryStore()
+    func `An onboarding scene keeps its draft when the window passes a new one`() async throws {
+        let accounts = AccountStore.inMemory()
+        let recovery = OnboardingRecoveryStore()
         let providerStore = ProviderStore.inMemory()
         let gate = Suspension()
         let http = HTTPResponses.discovery(gate: gate)
-        let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: http.client), wallet: Wallet(),
-                                                recovery: recovery, accounts: accounts, router: router)
+                                                recovery: recovery, accounts: accounts)
         let providers = ProvidersCoordinator.inMemory(providerStore)
-        let original = OnboardingScene(coordinator: coordinator, providers: providers, pasteboard: NoPasteboard())
+        let original = OnboardingScene(account: .constant(nil), coordinator: coordinator, providers: providers,
+                                       pasteboard: NoPasteboard())
         // Read only the public model references in initial State, never recovery or input text.
         let navigation: OnboardingNavigation = try initialState("_navigation", in: original)
         let submission: ImportWalletModel = try initialState("_walletImport", in: original)
@@ -42,44 +39,28 @@ struct OnboardingIdentityTests {
             var renders = rendered.stream.makeAsyncIterator()
             try #require(await renders.next() == 0)
             navigation.showImport()
-            submission.submit(PublicWallet.words, passphrase: "public-reset-fixture")
+            submission.submit(PublicWallet.words, passphrase: "public-identity-fixture")
             await gate.waitUntilStarted()
             try #require(submission.isPending)
-            try #require(await http.requests.count == 1)
 
-            let revision = Revision()
-            let privateBalances = PrivateBalances.inMemory(keys: StoredValue(), notes: StoredValue(), recovery: recovery,
-                                                           responses: HTTPResponses([:]))
-            let appearance = AppearanceCoordinator(store: AppearanceStore(directory: directory.appending(path: "Themes")),
-                                                   recovery: nil)
-            try await AppReset(recovery: recovery, privateBalances: privateBalances,
-                               directories: [directory], appearance: appearance,
-                               stores: [ContactsFixtures.store(StoredValue()), TransactionStore.unused, providerStore],
-                               accounts: accounts, revision: revision).reset()
-            try #require(revision.value == 1)
-            try #require(accounts.accounts.isEmpty)
-            try #require(await recovery.count == 0)
-
-            // WindowReset replaces the coordinator while an already-onboarding window keeps the same destination.
             let replacement = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client),
-                                                    wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
-            router.route(to: .onboarding)
+                                                    wallet: Wallet(), recovery: recovery, accounts: accounts)
             hosted.host.rootView = OnboardingIdentityRoot(
-                scene: OnboardingScene(coordinator: replacement, providers: providers, pasteboard: NoPasteboard()),
+                scene: OnboardingScene(account: .constant(nil), coordinator: replacement, providers: providers,
+                                       pasteboard: NoPasteboard()),
                 generation: 1, rendered: rendered.continuation, providers: providerStore)
             try #require(await renders.next() == 1)
             gate.resume()
             await waitForCompletion(submission)
 
-            #expect(await http.wasCancelled)
-            #expect(accounts.accounts.isEmpty)
-            #expect(await storage.value == nil)
-            #expect(await recovery.count == 0)
-            #expect(coordinator.account == nil)
-            #expect(coordinator.recovery == nil)
-            #expect(!coordinator.isWorking)
+            #expect(!(await http.wasCancelled))
+            let account = try #require(coordinator.account)
+            #expect(accounts.accounts.map(\.id) == [account.id])
+            #expect(await recovery.saves == [account.recoveryID])
+            #expect(replacement.account == nil)
+            #expect(replacement.recovery == nil)
         } catch {
-            // A failed prerequisite must still let the fixture task finish before storage cleanup.
+            // A failed prerequisite must still let the fixture task finish before the test ends.
             gate.resume()
             await waitForCompletion(submission)
             throw error

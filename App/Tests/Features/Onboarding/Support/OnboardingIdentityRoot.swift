@@ -1,7 +1,7 @@
 import SwiftUI
 @testable import widgets
 
-/// Hosts the production onboarding identity boundary and reports completed replacement updates.
+/// Hosts the production onboarding scene and reports completed updates.
 struct OnboardingIdentityRoot: View {
     let scene: OnboardingScene
     let generation: Int
@@ -11,7 +11,6 @@ struct OnboardingIdentityRoot: View {
 
     var body: some View {
         scene
-            .onboardingLifecycle()
             .environment(providers)
             .onChange(of: generation, initial: true) {
                 rendered.yield(generation)

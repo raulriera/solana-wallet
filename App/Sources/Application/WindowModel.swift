@@ -6,15 +6,13 @@ import Observation
 final class WindowModel {
     /// The window's root navigation.
     let router: any WindowRouting
-    /// The window's onboarding draft, which a reset replaces.
-    var onboarding: any OnboardingCoordinating
     /// Restores the window's wallet when the window opens.
     let startup: any WindowStarting
 
     /// The account that the window shows, or `nil` while it shows no wallet.
     ///
     /// Setting another account shows it in this window only, and the window reopens it after the system ends the app.
-    /// Setting `nil` changes nothing; only startup, onboarding, and a reset leave the wallet.
+    /// Setting `nil` changes nothing; only startup and a reset leave the wallet.
     var account: Account? {
         get {
             guard case .wallet(let account) = router.destination else { return nil }
@@ -31,7 +29,6 @@ final class WindowModel {
     init(services: AppServices) {
         let router = services.makeWindowRouter()
         self.router = router
-        onboarding = services.makeOnboardingCoordinator(router: router)
         startup = services.makeWindowStartup(router: router)
     }
 }

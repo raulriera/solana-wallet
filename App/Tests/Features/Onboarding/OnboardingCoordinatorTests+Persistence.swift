@@ -11,8 +11,7 @@ extension OnboardingCoordinatorTests {
     func `Recovery storage preserves its typed protection failure without wrapping secret text`() async throws {
         let recovery = OnboardingRecoveryStore(firstError: KeychainStoreError.protectionUnavailable)
         let accounts = AccountStore.inMemory()
-        let router = WindowRouter(initialDestination: .onboarding)
-        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts)
         try await coordinator.importRecovery(Self.phrase, passphrase: "TREZOR")
 
         await #expect(throws: KeychainStoreError.protectionUnavailable) { try await coordinator.complete() }
@@ -31,36 +30,33 @@ extension OnboardingCoordinatorTests {
         let storage = StoredValue([saved])
         let accounts = AccountStore.inMemory(storage)
         await accounts.load()
-        let router = WindowRouter(initialDestination: .onboarding)
-        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts)
         try await coordinator.importRecovery(Self.phrase, passphrase: "TREZOR")
 
         await #expect(throws: AccountStoreError.duplicateAccount) { try await coordinator.complete() }
 
         #expect(coordinator.account == nil)
         #expect(coordinator.recovery != nil)
-        #expect(router.destination == .onboarding)
+        #expect(coordinator.finishedAccount == nil)
         #expect(await storage.value == [saved])
     }
 
-    /// Finishing in one window leaves another window's recovery draft and navigation intact.
+    /// Finishing in one window leaves another window's recovery draft intact and unfinished.
     @Test
-    func `Finishing onboarding routes only its owning window`() async throws {
+    func `Finishing onboarding finishes only its owning window's draft`() async throws {
         let recovery = OnboardingRecoveryStore()
         let accounts = AccountStore.inMemory()
-        let firstRouter = WindowRouter(initialDestination: .onboarding)
-        let secondRouter = WindowRouter(initialDestination: .onboarding)
-        let first = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: firstRouter)
-        let second = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: secondRouter)
+        let first = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts)
+        let second = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts)
         try await first.importRecovery(Self.phrase, passphrase: "TREZOR")
         try await second.importRecovery(Self.phrase, passphrase: "other-window")
 
         let account = try await first.complete()
         try first.finish()
 
-        #expect(firstRouter.destination == .wallet(account))
+        #expect(first.finishedAccount == account)
         #expect(first.recovery == nil)
-        #expect(secondRouter.destination == .onboarding)
+        #expect(second.finishedAccount == nil)
         #expect(second.recovery?.passphrase == "other-window")
         #expect(second.account == nil)
         #expect(accounts.accounts.map(\.id) == [account.id])
@@ -73,13 +69,12 @@ extension OnboardingCoordinatorTests {
         let recovery = OnboardingRecoveryStore(firstError: NSError(domain: "private-recovery-marker", code: 1),
                                                commitBeforeError: committed)
         let accounts = AccountStore.inMemory()
-        let router = WindowRouter(initialDestination: .onboarding)
-        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts)
         try await coordinator.importRecovery(Self.phrase, passphrase: "TREZOR")
         await #expect(throws: OnboardingCoordinatorError.recoveryStorageFailed) { try await coordinator.complete() }
         #expect(coordinator.recovery != nil)
         #expect(coordinator.account == nil)
-        #expect(router.destination == .onboarding)
+        #expect(coordinator.finishedAccount == nil)
         #expect(accounts.accounts.isEmpty)
         let account = try await coordinator.complete()
         #expect(coordinator.account?.id == account.id)
@@ -95,13 +90,12 @@ extension OnboardingCoordinatorTests {
         let recovery = OnboardingRecoveryStore(firstError: CancellationError(), commitBeforeError: true,
                                                replacement: replacement)
         let accounts = AccountStore.inMemory()
-        let router = WindowRouter(initialDestination: .onboarding)
-        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts)
         try await coordinator.importRecovery(Self.phrase, passphrase: "TREZOR")
         await #expect(throws: CancellationError.self) { try await coordinator.complete() }
         await #expect(throws: OnboardingCoordinatorError.recoveryMismatch) { try await coordinator.complete() }
         #expect(coordinator.account == nil)
-        #expect(router.destination == .onboarding)
+        #expect(coordinator.finishedAccount == nil)
         #expect(coordinator.recovery != nil)
         #expect(accounts.accounts.isEmpty)
     }
@@ -111,13 +105,12 @@ extension OnboardingCoordinatorTests {
     func `Failed account saves retry without generating or saving another recovery`() async throws {
         let recovery = OnboardingRecoveryStore()
         let storage = StoredValue<[widgets.Account]>(failsSaving: true)
-        let router = WindowRouter(initialDestination: .onboarding)
-        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: .inMemory(storage), router: router)
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: .inMemory(storage))
         try await coordinator.importRecovery(Self.phrase, passphrase: "TREZOR")
         await #expect(throws: OnboardingCoordinatorError.accountStorageFailed) { try await coordinator.complete() }
         #expect(coordinator.recovery != nil)
         #expect(coordinator.account == nil)
-        #expect(router.destination == .onboarding)
+        #expect(coordinator.finishedAccount == nil)
         await storage.failSaving(false)
         let account = try await coordinator.complete()
         #expect(coordinator.account?.id == account.id)
@@ -132,8 +125,7 @@ extension OnboardingCoordinatorTests {
         let gate = Suspension()
         let recovery = OnboardingRecoveryStore(gate: gate)
         let accounts = AccountStore.inMemory()
-        let router = WindowRouter(initialDestination: .onboarding)
-        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts)
         try await coordinator.importRecovery(Self.phrase, passphrase: "TREZOR")
         let operation = Task { try await coordinator.complete() }
         defer { operation.cancel() }
@@ -143,7 +135,7 @@ extension OnboardingCoordinatorTests {
         operation.cancel()
         await #expect(throws: CancellationError.self) { try await operation.value }
         #expect(coordinator.account == nil)
-        #expect(router.destination == .onboarding)
+        #expect(coordinator.finishedAccount == nil)
         #expect(coordinator.recovery != nil)
         #expect(accounts.accounts.isEmpty)
         let account = try await coordinator.complete()
@@ -157,8 +149,7 @@ extension OnboardingCoordinatorTests {
         let gate = Suspension()
         let recovery = OnboardingRecoveryStore()
         let accounts = AccountStore.inMemory(StoredValue(gate: gate))
-        let router = WindowRouter(initialDestination: .onboarding)
-        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts)
         try await coordinator.importRecovery(Self.phrase, passphrase: "TREZOR")
         let operation = Task { try await coordinator.complete() }
         defer { operation.cancel() }

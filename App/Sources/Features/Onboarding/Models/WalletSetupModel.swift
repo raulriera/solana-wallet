@@ -19,7 +19,7 @@ final class WalletSetupModel {
 
     /// Retains the window's existing workflows without creating another persistence service.
     /// - Parameters:
-    ///   - coordinator: The sole owner of recovery preparation, persistence, and routing.
+    ///   - coordinator: The sole owner of recovery preparation, persistence, and completion.
     ///   - providers: The window's provider choice, whose waiting change keeps the saved wallet from opening.
     init(coordinator: any OnboardingCoordinating, providers: ProvidersCoordinator) {
         self.coordinator = coordinator

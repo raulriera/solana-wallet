@@ -14,15 +14,16 @@ struct ProviderChoiceScreenTests {
     @Test
     func `A key entered to choose Helius opens the saved wallet`() async throws {
         let recovery = OnboardingRecoveryStore()
-        let router = WindowRouter(initialDestination: .onboarding)
         let settings = StoredValue(ProviderSettings(selection: .solana))
         let providerStore = ProviderStore.inMemory(settings)
         let providers = ProvidersCoordinator.inMemory(providerStore)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client),
                                                 wallet: Wallet(), recovery: recovery,
-                                                accounts: AccountStore.inMemory(), router: router)
-        let scene = OnboardingScene(coordinator: coordinator, providers: providers, pasteboard: NoPasteboard())
-        let hosted = try HostedWindow(scene.onboardingLifecycle().environment(providerStore))
+                                                accounts: AccountStore.inMemory())
+        let window = OpenedAccount()
+        let scene = OnboardingScene(account: Bindable(window).account, coordinator: coordinator, providers: providers,
+                                    pasteboard: NoPasteboard())
+        let hosted = try HostedWindow(scene.environment(providerStore))
         defer { hosted.close() }
         try #require(try await hosted.appears())
         // Saving the wallet on screen pushes the provider choice.
@@ -35,9 +36,17 @@ struct ProviderChoiceScreenTests {
         keyEntry.submit("fixture-key")
 
         // The suite's time limit ends the wait if the wallet never opens.
-        for await destination in Observations({ router.destination }) where destination == .wallet(account) { break }
+        for await opened in Observations({ window.account }) where opened == account { break }
         // UIKit keeps the presented sheet until it has finished closing.
         #expect(hosted.host.presentedViewController == nil)
         #expect(await settings.value?.selection == .helius)
     }
+}
+
+/// Holds the account that a hosted onboarding window shows, in place of the window's model.
+@MainActor
+@Observable
+private final class OpenedAccount {
+    /// The account that onboarding opens, or `nil` until it finishes.
+    var account: widgets.Account?
 }

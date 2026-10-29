@@ -10,8 +10,7 @@ extension ImportWalletModelTests {
     func `Late disappearance from a previous presentation cannot cancel the next import`() async throws {
         let recovery = OnboardingRecoveryStore()
         let accounts = AccountStore.inMemory()
-        let router = WindowRouter(initialDestination: .onboarding)
-        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts)
         let submission = ImportWalletModel(coordinator: coordinator)
         submission.present()
         let oldPresentation = submission.presentationID
@@ -36,9 +35,8 @@ extension ImportWalletModelTests {
         let http = HTTPResponses.discovery(gate: gate)
         let recovery = OnboardingRecoveryStore()
         let accounts = AccountStore.inMemory()
-        let router = WindowRouter(initialDestination: .onboarding)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: http.client), wallet: Wallet(), recovery: recovery,
-                                                accounts: accounts, router: router)
+                                                accounts: accounts)
         let submission = ImportWalletModel(coordinator: coordinator)
         submission.present()
         submission.submit(OnboardingCoordinatorTests.phrase, passphrase: "TREZOR")
@@ -71,8 +69,7 @@ extension ImportWalletModelTests {
         let gate = Suspension()
         let recovery = OnboardingRecoveryStore(gate: gate)
         let accounts = AccountStore.inMemory()
-        let router = WindowRouter(initialDestination: .onboarding)
-        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts)
         let submission = ImportWalletModel(coordinator: coordinator)
         submission.present()
         submission.submit(OnboardingCoordinatorTests.phrase, passphrase: "TREZOR")
@@ -90,7 +87,7 @@ extension ImportWalletModelTests {
         #expect(accounts.accounts.isEmpty)
         #expect(coordinator.recovery == nil)
         #expect(submission.error == nil)
-        #expect(router.destination == .onboarding)
+        #expect(coordinator.finishedAccount == nil)
     }
 
     /// A dependency cancellation while the screen remains open permits retry of the prepared draft.
@@ -98,8 +95,7 @@ extension ImportWalletModelTests {
     func `Cancelled authentication retains the prepared import for an explicit retry`() async throws {
         let recovery = OnboardingRecoveryStore(firstError: CancellationError(), commitBeforeError: true)
         let accounts = AccountStore.inMemory()
-        let router = WindowRouter(initialDestination: .onboarding)
-        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts)
         let submission = ImportWalletModel(coordinator: coordinator)
         submission.present()
         submission.submit(OnboardingCoordinatorTests.phrase, passphrase: "TREZOR")
@@ -122,10 +118,8 @@ extension ImportWalletModelTests {
         let gate = Suspension()
         let recovery = OnboardingRecoveryStore()
         let accounts = AccountStore.inMemory(StoredValue(gate: gate))
-        let router = WindowRouter(initialDestination: .onboarding)
-        let otherRouter = WindowRouter(initialDestination: .onboarding)
-        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: router)
-        let other = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts, router: otherRouter)
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts)
+        let other = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts)
         try await other.importRecovery(OnboardingCoordinatorTests.phrase, passphrase: "other-window")
         let submission = ImportWalletModel(coordinator: coordinator)
         submission.present()
@@ -146,6 +140,6 @@ extension ImportWalletModelTests {
         #expect(await recovery.contains(account.recoveryID))
         #expect(submission.error == nil)
         #expect(other.recovery?.passphrase == "other-window")
-        #expect(otherRouter.destination == .onboarding)
+        #expect(other.finishedAccount == nil)
     }
 }

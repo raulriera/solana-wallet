@@ -29,7 +29,7 @@ final class ImportWalletModel: ImportSubmitting {
     var isPending: Bool { attempt != nil || isRunning }
 
     /// Retains the window's existing workflow without creating another persistence service.
-    /// - Parameter coordinator: The sole owner of recovery preparation, persistence, and routing.
+    /// - Parameter coordinator: The sole owner of recovery preparation, persistence, and completion.
     init(coordinator: any OnboardingCoordinating) {
         self.coordinator = coordinator
     }
