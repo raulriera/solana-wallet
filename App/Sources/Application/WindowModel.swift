@@ -24,11 +24,27 @@ final class WindowModel {
         }
     }
 
+    /// The account that the window shows, or `fallback` once a reset leaves the wallet, so its closing screens can
+    /// still read their binding; setting it shows that account.
+    /// - Parameter fallback: The account that the wallet's screens showed.
+    subscript(account fallback: Account) -> Account {
+        get { account ?? fallback }
+        set { account = newValue }
+    }
+
     /// Creates the window's navigation around the shared services.
     /// - Parameter services: Shared services that retain no window-specific recovery draft.
-    init(services: AppServices) {
+    convenience init(services: AppServices) {
         let router = services.makeWindowRouter()
+        self.init(router: router, startup: services.makeWindowStartup(router: router))
+    }
+
+    /// Creates the window's navigation from its routing and the startup that restores into it.
+    /// - Parameters:
+    ///   - router: The window's root navigation.
+    ///   - startup: Restores the window's wallet into `router` when the window opens.
+    init(router: any WindowRouting, startup: any WindowStarting) {
         self.router = router
-        startup = services.makeWindowStartup(router: router)
+        self.startup = startup
     }
 }

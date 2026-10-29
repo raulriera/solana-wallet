@@ -16,8 +16,7 @@ final class RecoveryPhraseUITests: XCTestCase {
         try flow.expectProviders()
         try flow.openWallet()
 
-        try flow.tap(flow.settingsTab)
-        try flow.tap(flow.app.buttons["Security & Privacy"])
+        try flow.openSecurity()
         try flow.tap(flow.app.buttons["Show Recovery Phrase"])
 
         try flow.waitFor(flow.app.navigationBars["Recovery Phrase"])

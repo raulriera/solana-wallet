@@ -20,11 +20,10 @@ struct WindowContent: View {
             case .onboarding:
                 OnboardingScene(account: $window.account, coordinator: services.makeOnboardingCoordinator(),
                                 providers: services.makeProvidersCoordinator(), pasteboard: services.recoveryPasteboard)
-            case .wallet:
-                // The wallet destination always has an account, which Settings can replace with another.
-                if let account = Binding($window.account) {
-                    WalletScene(section: $section, network: $network, account: account, services: services)
-                }
+            case .wallet(let account):
+                // Settings can replace the account with another.
+                WalletScene(section: $section, network: $network, account: $window[account: account],
+                            services: services)
             }
         }
         .animation(.default, value: window.router.destination)

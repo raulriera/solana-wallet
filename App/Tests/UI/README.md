@@ -19,6 +19,7 @@ The `widgets` scheme's `UI` test plan runs these tests; see the shared
 
 - Import tests use a public BIP-39 fixture; the Security test imports it, then opens its backup in
   Settings. Create tests generate disposable, unfunded wallets.
+- The reset test creates a wallet, then erases it with Reset App in Settings, which asks for Face ID.
 - Onboarding uses the app's mainnet discovery client and submits no transactions; import completion
   requires a successful scan, even when it finds no funded account. Completion tests open the wallet
   on Solana's public RPC without a key; the provider rejection test uses a dummy Helius key.

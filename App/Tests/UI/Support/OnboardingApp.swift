@@ -177,6 +177,16 @@ struct OnboardingApp {
         try tap(portfolioTab, file: file, line: line)
     }
 
+    /// Opens Settings > Security & Privacy from the open wallet.
+    /// - Parameters:
+    ///   - file: The calling test's source file for failure reporting.
+    ///   - line: The calling test's line for failure reporting.
+    /// - Throws: A missing or unavailable control.
+    func openSecurity(file: StaticString = #filePath, line: UInt = #line) throws {
+        try tap(settingsTab, file: file, line: line)
+        try tap(app.buttons["Security & Privacy"], file: file, line: line)
+    }
+
     /// Chooses Helius with the key from ignored local configuration, which opens the wallet once Helius is chosen.
     /// - Parameters:
     ///   - file: The calling test's source file for failure reporting.

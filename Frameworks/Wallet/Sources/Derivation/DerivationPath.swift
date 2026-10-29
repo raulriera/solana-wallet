@@ -1,5 +1,5 @@
 /// A SLIP-0010 path containing only hardened child indices.
-public struct DerivationPath: Sendable, Equatable, CustomStringConvertible {
+public struct DerivationPath: Sendable, Hashable, CustomStringConvertible {
     /// The first account at `m/44'/501'/0'/0'`.
     public static let solana = DerivationPath(indices: [44, 501, 0, 0])
 
