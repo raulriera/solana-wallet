@@ -242,7 +242,6 @@
           "target-membership": [
             "widgets/frameworks",
             { "build-phase": "widgets/copy/Embed Frameworks", "code-sign-on-copy": true, "header-preservation": "remove-on-copy" },
-            "Wallet/frameworks",
             "Privacy/frameworks",
             "ModularArithmeticTests/frameworks",
             "PrivacyTests/frameworks",
@@ -444,7 +443,6 @@
       "product-type": "framework",
       "dependencies": [
         "Encoding",
-        "ModularArithmetic",
       ],
       "build-phases": [
         "compile-sources",

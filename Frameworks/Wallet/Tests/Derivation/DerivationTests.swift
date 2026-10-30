@@ -1,4 +1,3 @@
-import CryptoKit
 import Testing
 @testable import Wallet
 
@@ -7,8 +6,6 @@ struct DerivationTests {
 
     private static let secondSeed = "fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a2"
         + "9f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542"
-
-    private static let retrySeed = "a7305bc8df8d0951f0cb224c0e95d7707cbdf2c6ce7e8d481fec69c7ff5e9446"
 
     @Test(arguments: try BIP39Vector.examples())
     func `Recovery phrases derive the BIP-39 reference seeds`(vector: BIP39Vector) throws {
@@ -49,43 +46,6 @@ struct DerivationTests {
 
         #expect(node.key == (try fixtureBytes(key)))
         #expect(node.chainCode == (try fixtureBytes(chainCode)))
-    }
-
-    @Test(arguments: [
-        (firstSeed, "m", "612091aaa12e22dd2abef664f8a01a82cae99ad7441b7ef8110424915c268bc2",
-         "beeb672fe4621673f722f38529c07392fecaa61015c80c34f29ce8b41b3cb6ea",
-         "0266874dc6ade47b3ecd096745ca09bcd29638dd52c2c12117b11ed3e458cfa9e8"),
-        (firstSeed, "m/0'", "6939694369114c67917a182c59ddb8cafc3004e63ca5d3b84403ba8613debc0c",
-         "3460cea53e6a6bb5fb391eeef3237ffd8724bf0a40e94943c98b83825342ee11",
-         "0384610f5ecffe8fda089363a41f56a5c7ffc1d81b59a612d0d649b2d22355590c"),
-        (secondSeed, "m", "eaa31c2e46ca2962227cf21d73a7ef0ce8b31c756897521eb6c7b39796633357",
-         "96cd4465a9644e31528eda3592aa35eb39a9527769ce1855beafc1b81055e75d",
-         "02c9e16154474b3ed5b38218bb0463e008f89ee03e62d22fdcc8014beab25b48fa"),
-        (firstSeed, "m/28578'", "06f0db126f023755d0b8d86d4591718a5210dd8d024e3e14b6159d63f53aa669",
-         "e94c8ebe30c2250a14713212f6449b20f3329105ea15b652ca5bdfc68f6c65c2",
-         "02519b5554a4872e8c9c1c847115363051ec43e93400e030ba3c36b52a3e70a5b7"),
-        (retrySeed, "m", "3b8c18469a4634517d6d0b65448f8e6c62091b45540a1743c5846be55d47d88f",
-         "7762f9729fed06121fd13f326884c82f59aa95c57ac492ce8c9654e60efd130c",
-         "0383619fadcde31063d8c5cb00dbfe1713f3e6fa169d8541a798752a1c1ca0cb20"),
-        (retrySeed, "m/1363273311'", "0213ada6e9dc77c431aa37826dfdc7231983a04a8e5310bc0ec965adbe1215bd",
-         "356dd432d445974e229d1a9799701821dbd4931f50302beb00c5512cd561a355",
-         "03142eafd1b2c965025fa416fa99984a8086a669f0124b60a27891e7cde5392471"),
-        (retrySeed, "m/1992219942'", "4752608fc7c55be36d2092cefde95020f06c82c9a85a64ba3d3e8e731ddaa1f7",
-         "aee30cbfbea633f932bd8b5015401528735fccf3996e0813dff012edd227d4e1",
-         "03f07907effffbb8f513922d654882af4a19f715900445c97aca15b151ca12b2f3"),
-        (firstSeed, "m/1'/655108711'", "ebd6a51b83d71322d022f3c189a07be80099b5c2f991dd1e2956f9690860e571",
-         "db4ecd277fcbe68d4bb76d215d383745c22f91ff9a8cdf39dd2f0bd3aebba484",
-         "032c9b94222509ea040ac763578bb903c5b2e5bd60fc518941b6f54fd85f90ca9c"),
-    ])
-    func `Hardened paths derive the nist256p1 reference nodes`(
-        seed: String, path: String, key: String, chainCode: String, publicKey: String
-    ) throws {
-        let node = try KeyDerivation.node(seed: fixtureBytes(seed), path: DerivationPath(path), curve: .p256)
-        let privateKey = try P256.KeyAgreement.PrivateKey(rawRepresentation: node.key)
-
-        #expect(node.key == (try fixtureBytes(key)))
-        #expect(node.chainCode == (try fixtureBytes(chainCode)))
-        #expect(Array(privateKey.publicKey.compressedRepresentation) == (try fixtureBytes(publicKey)))
     }
 
     @Test(arguments: [

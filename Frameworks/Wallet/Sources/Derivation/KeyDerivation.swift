@@ -21,7 +21,7 @@ enum KeyDerivation {
     ///   - seed: The BIP-39 seed bytes.
     ///   - path: The hardened child indices to derive.
     ///   - curve: The curve whose SLIP-0010 rules accept each key.
-    /// - Returns: The 32-byte private key: an Ed25519 private key seed, or a big-endian P-256 scalar.
+    /// - Returns: The 32-byte private key: an Ed25519 private key seed.
     /// - Throws: `CancellationError` if cancelled.
     static func privateKey(seed: [UInt8], path: DerivationPath, curve: some DerivationCurve) throws -> [UInt8] {
         var (key, chainCode) = try node(seed: seed, path: path, curve: curve)

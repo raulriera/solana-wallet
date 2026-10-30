@@ -29,10 +29,6 @@ SHA-256: 833d9389851d39a567b77b41f6c152bfd20e8f0df759ffedf9c190b21b2a62d0
 - CommitmentVectors.json owner_identity, blinding_seed, dummy_utxo_hash: sections
 - HashChainVectors.json tree_slots: a section
 
-https://github.com/helius-labs/zolana/blob/v0.4.0-alpha/test-vectors/key_derivation.json
-SHA-256: a816351faa20c6bf6b066e39a621e4c187e42d99fdd4b4d1d2a0e77dd9cb47c3
-- CommitmentVectors.json p256_rail: a section
-
 https://github.com/helius-labs/zolana/blob/v0.4.0-alpha/test-vectors/hash_chain_4.json
 SHA-256: 6b33b41f3af55d0b1fe98a2ecf28944ce3afa7361221b7af7f27d3fd74dd24a7
 - HashChainVectors.json hash_chain_4: the vectors array

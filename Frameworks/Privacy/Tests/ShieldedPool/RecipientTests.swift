@@ -16,7 +16,7 @@ struct RecipientTests {
         )
 
         #expect(recipient.owner == (try rail.ownerHash()))
-        #expect(recipient.viewTag == (try fixtureBytes(#require(rail.signerPubkey))))
+        #expect(recipient.viewTag == (try fixtureBytes(rail.signerPubkey)))
     }
 
     @Test(arguments: TransferVectors.transfers)
