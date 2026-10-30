@@ -1,10 +1,8 @@
 # RPC
 
-Typed Solana RPC, DAS asset queries, market prices, finalized account subscriptions, and signature watches. Clients connect directly to providers and encapsulate request encoding, transport, and response decoding.
+Typed Solana RPC, DAS asset queries, prices, exchange rates, and account and signature subscriptions. Clients connect directly to providers.
 
-## Example Usage
-
-Inject [`RPC`](Sources/Client/RPC.swift) and send an `RPCRequest`; its associated `Response` defines the result type.
+## Usage
 
 ```swift
 import RPC
@@ -14,42 +12,28 @@ let response = try await client.send(GetLatestBlockhash())
 let blockhash = response.value.blockhash
 ```
 
-| Provider | Capabilities |
+The module includes `Solana`, `HeliusRPC`, and `Sender` for RPC and submission, `Jupiter` for prices, and `EuropeanCentralBank` and `Coinbase` for exchange rates.
+
+## Use a custom RPC URL
+
+`Solana(endpoint:network:)` accepts an HTTPS URL with a host and returns `nil` otherwise. The server must serve standard JSON-RPC requests at that URL, and `accountSubscribe`, `signatureSubscribe`, and `rootSubscribe` over WSS at the same URL.
+
+```swift
+let client = Solana(endpoint: URL(string: "https://rpc.example.com")!, network: .mainnet)
+```
+
+## Add a provider
+
+A provider is a type in this module that conforms to [`RPC`](Sources/Client/RPC.swift) and sends each `RPCRequest` to its endpoint. Wrap a `Solana` client for an endpoint that speaks standard Solana RPC, as `HeliusRPC` does. Add the optional capabilities that the provider serves:
+
+| Protocol | Capability |
 | --- | --- |
-| `Solana(network:)` | Public mainnet or devnet RPC, finalized account subscriptions, and signature watches. No DAS. |
-| `Solana(endpoint:network:)` | RPC at a custom HTTPS URL, with finalized account subscriptions and signature watches at the same URL over WSS. No DAS. |
-| `HeliusRPC(apiKey:network:)` | Mainnet or devnet RPC, DAS, logo copies, finalized account subscriptions, signature watches, and the Solana Rings indexer and prover. |
-| `Sender(tier:)` | Optional mainnet transaction submission with `standard` or `premium` routing. Preparation and confirmation use ordinary RPC. |
-| `Jupiter(apiKey:)` | Mainnet prices through `PriceProviding`; independent of RPC and DAS. |
-| `EuropeanCentralBank()` | Daily euro reference rates for about 30 currencies through `ExchangeRateProviding`; no key. |
-| `Coinbase()` | Rates for about 150 ISO currencies, updated through the day, through `ExchangeRateProviding`; no key. |
+| [`AccountChangeProviding`](Sources/Subscriptions/AccountChangeProviding.swift) | Finalized account change subscriptions |
+| [`SignatureEventProviding`](Sources/Subscriptions/SignatureEventProviding.swift) | Signature and root subscriptions |
+| [`LogoProviding`](Sources/Assets/LogoProviding.swift) | HTTPS token logos hosted by the provider |
+| [`PrivateNoteProviding`](Sources/PrivateNotes/PrivateNoteProviding.swift) | Solana Rings indexer reads |
+| [`ProofProviding`](Sources/Proofs/ProofProviding.swift) | Solana Rings transfer proofs |
+| [`PriceProviding`](Sources/Pricing/PriceProviding.swift) | Token prices keyed by mint |
+| [`ExchangeRateProviding`](Sources/Pricing/ExchangeRateProviding.swift) | Currency exchange rates |
 
-Typed requests cover account and rent reads, blockhash lifetime, epochs, fees, simulation, submission, signature status, and DAS asset lookups. Requests that send a commitment always send `finalized`. See [supported request scope](../../references/rpc-scope.md).
-
-## Prices, logos, and subscriptions
-
-[`PriceProviding`](Sources/Pricing/PriceProviding.swift) returns quotes keyed by mint. Missing entries mean unavailable prices, not zero. A quote may include its 24-hour change as a fraction; a missing change is unknown, not zero. Providers own deduplication, batching, and pacing. Reuse a provider instance to share its request budget; refresh scheduling belongs to the caller.
-
-[`ExchangeRateProviding`](Sources/Pricing/ExchangeRateProviding.swift) returns how much of each currency one unit of a currency buys, keyed by ISO code, with the requested currency at 1. Missing entries mean unavailable rates, not zero; a currency the provider doesn't serve returns no rates. Each call is one request.
-
-[`LogoProviding`](Sources/Assets/LogoProviding.swift) returns a provider's HTTPS copies of token logos, keyed by mint, never creator-hosted links. `HeliusRPC` implements it with DAS batch lookups; a missing entry means no logo.
-
-[`AccountChangeProviding`](Sources/Subscriptions/AccountChangeProviding.swift) observes finalized changes to a list of accounts on one connection, including accounts that don't exist yet. `changedSlots(for:)` returns after subscriptions are acknowledged and emits increasing change slots. These signal a need to reconcile balances; they are not balance updates. Cancel the consuming task to close its connection.
-
-[`SignatureEventProviding`](Sources/Subscriptions/SignatureEventProviding.swift) watches a sent transaction with `signatureSubscribe` at finalized and `rootSubscribe` on one connection. `events(for:)` returns after both subscriptions are acknowledged and keeps every event: `.landed(error:)` with the execution error, or `nil` after success, and increasing `.rooted` slots. A landing has no slot, because a notification's context slot isn't guaranteed to be the execution slot. Cancel the consuming task to close its connection.
-
-## Private notes and proofs
-
-[`PrivateNoteProviding`](Sources/PrivateNotes/PrivateNoteProviding.swift) reads Solana Rings' default-ring indexer. `shieldedTransactions(taggedWith:after:)` reads the confidential-transaction and encrypted-output streams for 32-byte view tags to their ends, concurrently, keeping proofless deposits only from the second; it returns the transactions, the newest unpaused output tree, and a storable `NoteSyncPosition` that is valid only for the same tags. `shieldedTransactions(spending:)` returns the transactions that spent any of the nullifiers. `merkleProofs(for:inTree:)` and `nonInclusionProofs(for:inTree:)` read one tree's inclusion proofs of UTXO hashes and non-inclusion proofs of nullifiers, one request each, so each read's proofs share one root: `MerkleProof` has 32 siblings and `NonInclusionProof` 40, and the client rejects proofs that don't answer the requested leaves in order. Requests carry at most 1,000 tags, nullifiers, or leaves. `readsPrivateNotes` answers, without a request, whether a provider serves these reads and proofs; it defaults to `true`, so a provider that forwards to another can answer for it.
-
-[`ProofProviding`](Sources/Proofs/ProofProviding.swift) proves a default-ring confidential transfer on the prover's complete route: `TransferProofRequest` carries the whole witness, with each input's paths from the proof reads, the declared trees' roots, and the public input hash. It checks lengths and counts on creation and omits its witness, which includes the nullifier secret, from descriptions. `TransferProof` returns the points as received and the proving key's digest; the caller checks the digest and converts the points.
-
-`HeliusRPC` implements both through its gateway, `https://{host}/v1/zolana/{method}?api-key=…`: indexer methods as JSON-RPC, and proofs as zolana's flat `TransferParametersJSON`, every value `0x` hexadecimal, posted to `prove` with `X-Sync: true`. Other providers don't implement them. Helius's gateway serves only the complete route; on devnet this differs from zolana v0.4.0-alpha, whose clients default to the indexed route.
-
-## Errors and submission
-
-Requests are single-attempt. Ordinary RPC and DAS calls are not throttled; price batches are paced within provider limits. HTTP rate limits surface as `RPCError.http(statusCode:retryAfter:)`; `RPCError.isRateLimited` also recognizes code 429 in a subscription reply. Failed price batches throw without partial results. Subscription failures end the stream without automatic reconnection. A keep-alive ping without a pong within 10 seconds ends it with `RPCError.transport(.timedOut)`. `RPCError.isRecoverable` marks failures that can clear without a person's action: transport failures, HTTP 5xx statuses, and JSON-RPC `-32005` (node behind). Rate limits and key errors are not recoverable.
-
-The caller owns transaction construction, review, signing, routing, and confirmation. `submissionRequirements` exposes a submission service's tip and minimum priority fee for inclusion before signing. Sending bytes does not establish confirmation.
-
-Method availability depends on the provider.
+Throw `RPCError` for failures, and send each request once: callers handle rate limits and retries.

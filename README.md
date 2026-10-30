@@ -27,11 +27,11 @@ To run on a device, choose your team and a unique bundle identifier in the `widg
 
 ⌘U runs the Unit test plan, which never uses the network.
 
-The Integration and UI test plans use live providers. They read credentials from `Configuration/Local.xcconfig`, which Git ignores:
+The Integration and [UI](App/Tests/UI/README.md) test plans use live providers. They read credentials from `Configuration/Local.xcconfig`, which Git ignores:
 
 1. Copy `Configuration/Local.example.xcconfig` to `Configuration/Local.xcconfig`.
 2. Set `HELIUS_API_KEY` to your Helius API key.
-3. Set `DEVNET_TEST_SEED` to the recovery phrase of a funded devnet wallet. Tests that move funds send from account 0 to account 1.
+3. Set `DEVNET_TEST_SEED` to the recovery phrase of a funded devnet wallet. Tests that move funds send from its first account to its second.
 
 ## License
 

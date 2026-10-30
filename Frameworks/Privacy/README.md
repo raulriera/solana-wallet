@@ -1,88 +1,24 @@
 # Privacy
 
-Cryptography and instructions for Solana Rings private balances. It provides the Poseidon hash over the BN254 scalar field, built on [ModularArithmetic](../ModularArithmetic/README.md), the commitments of default-ring transfers, the encryption of their SOL notes, the shielded pool's deposit and transact instructions, as [Transactions](../Transactions/README.md) `Instruction` values, their proofs, and the notes an account receives. It reads registry records, indexer results, and proofs through [RPC](../RPC/README.md). Its public API is the account's registration, note sync, deposits, spends, and their costs: `ShieldedAccount`, `Registration`, `Recipient`, `NoteSyncState`, `ReceivedNote`, `PrivateSpend`, `UserRegistry.ValidationError`, `ShieldedPool.deposit`, `ShieldedPool.feePerNullifier`, `ShieldedPool.registryRecordRent`, and `ShieldedPool.networks`; the rest is internal to the module.
+Solana Rings private balances: an account's registration, its received notes, deposits, and private transfers and withdrawals with their proofs. Instructions are [Transactions](../Transactions/README.md) values, and reads go through [RPC](../RPC/README.md).
 
-## Poseidon
+## Usage
 
-[`Poseidon`](Sources/Poseidon/Poseidon.swift) is circom's x⁵ Poseidon over BN254, as light-poseidon v0.4.0 implements it:
+```swift
+import Privacy
+import RPC
+import Transactions
 
-- One to twelve inputs; the state is a zero domain tag followed by the inputs, a width t of 2 to 13. Other input counts throw `unsupportedInputCount`; the non-throwing variadic overload that commitments call traps instead, and each commitment passes one to seven inputs.
-- 8 full rounds around 56 to 66 partial rounds, depending on t. The hash is the first element of the final state.
-- Inputs are canonical field elements: 32 big-endian bytes below the modulus r, decoded with `FieldElement(bigEndianBytes:)`, which rejects other lengths and values at or above r.
+let account = try ShieldedAccount(
+    signingAddress: Address(address),
+    nullifierSecret: keys.nullifierSecret,
+    viewingKey: keys.viewingKey
+)
+let registration = try await account.registration(using: rpc)
+let notes = try await NoteSyncState().synced(for: account, using: helius)
+```
 
-## Parameters
-
-- The round constants and MDS matrices are generated in Swift with the Grain LFSR method of hadeshash's [`generate_parameters_grain.sage`](https://extgit.isec.tugraz.at/krypto/hadeshash); no tables are copied.
-- The hadeshash authors have deprecated that script. It is used because Solana Rings fixes circom's BN254 x⁵ parameters, and light-poseidon generated its tables with it.
-- Each width's parameters are built on its first hash and kept for the rest of the process.
-- Tests check the generated constants and matrices against the SHA-256 digests in zolana's Poseidon parity fixture, and hashes against all of its vectors.
-
-## Commitments
-
-The values that peer-to-peer transfers in the default (confidential) ring commit to. Owners are Ed25519 keys; UTXOs carry no UTXO data, ring data, or ring program, so P-256 and PDA owners and policy rings aren't supported.
-
-- [`PackedBytes`](Sources/Commitments/PackedBytes.swift): `hash_bytes_32` and `hash_bytes_33`, which right-align 31-byte chunks in field elements and fold them with Poseidon, and the packing of up to 31 bytes into one field element, which the nullifier secret uses. The specification forbids a variable-length byte hash, so other lengths have no entry point.
-- [`OwnerIdentity`](Sources/Commitments/OwnerIdentity.swift): a Solana owner's identity, `hash_bytes_33(0x53 ‖ signing public key)`, and its owner hash, `Poseidon(identity, nullifier public key)`.
-- [`NullifierKey`](Sources/Commitments/NullifierKey.swift): the 31-byte nullifier secret, held in a CryptoKit `SymmetricKey`; its public key, `Poseidon(secret)`; and nullifiers, `Poseidon(UTXO hash, blinding, secret)`. Each hash zeroes the buffer that packs the secret's bytes; the field elements that Poseidon copies the secret into are never erased.
-- [`UTXO`](Sources/Commitments/UTXO.swift): the hash `Poseidon(3, tree ID, hash_bytes_32(mint), amount, 0, Poseidon(0, 0), Poseidon(owner, blinding))`, with SOL's mint as 32 zero bytes, and the hash of the empty UTXO that pads unused input and output slots, `Poseidon(1, tree ID, 0, 0, 0, Poseidon(0, 0), Poseidon(0, blinding))`.
-- [`TransactBlinding`](Sources/Commitments/TransactBlinding.swift): a transact proof's output blinding seed, output blindings, and private transaction blinding, derived from its blinding seed, its first nullifier, and the domain tags `TXOS`, `TXOB`, and `TXPB`.
-- Tests check zolana's published vectors and the values of two SOL transfers in `hash_vectors.rs`. Edge cases that zolana doesn't publish come from an independent implementation.
-
-## Encryption
-
-The notes of confidential outputs in peer-to-peer default-ring transfers between users of this app. Only SOL, asset ID 1, is supported. CryptoKit supplies P-256 ECDH and HKDF-SHA256, and CommonCrypto supplies AES-256-CTR, which CryptoKit doesn't expose. Viewing keys and transaction viewing keys are CryptoKit `P256.KeyAgreement.PrivateKey` values.
-
-- [`TransactionViewingKey`](Sources/Encryption/TransactionViewingKey.swift): the key that seals one transaction's notes. The view root is `HKDF-Extract(salt: empty, ECDH(viewing key, P_const))`, where `P_const` is RFC 9380's `P256_XMD:SHA-256_SSWU_RO_` hash of the empty message under `TSPP/view_root/P_const/v1`, pinned as a constant. The transaction viewing secret is `HKDF-Expand(view root, "TSPP/tx_viewing", 32)`, and the key's scalar is `HKDF(salt: first nullifier, secret, "TSPP/tx_viewing", 48)` modulo n.
-- [`P256Scalar`](Sources/Encryption/P256Scalar.swift): the reduction of 48 big-endian bytes modulo n in ModularArithmetic's P-256 scalar field, as `low + high × (2^256 mod n)`. A zero scalar is rejected.
-- [`SlotCipher`](Sources/Encryption/SlotCipher.swift): ECDH of the transaction viewing key and the recipient's viewing key, then `HKDF(salt: empty, shared ‖ transaction viewing public key ‖ recipient viewing public key, "TSPP/hpke/" ‖ "TSPP/tx" ‖ salt ‖ slot, 44)` for the AES key and a 12-byte nonce. The slot is the output's position, a big-endian 32-bit integer, and the counter block starts at `nonce ‖ 00 00 00 02`. Encryption and decryption are the same operation.
-- [`ConfidentialPlaintext`](Sources/Encryption/ConfidentialPlaintext.swift): the 50-byte note: the asset ID and the amount as little-endian 64-bit integers, the canonical blinding, and zero bytes for no ring program and no data records. It holds the one mapping between asset IDs and mints.
-- [`ConfidentialOutput`](Sources/Encryption/ConfidentialOutput.swift): the 89-byte payload of an output's data slot: the encoding tag 1, the little-endian 32-bit length of the rest, the scheme 3, the recipient's compressed viewing public key, and the ciphertext. Senders seal and reopen notes. A recipient opens only payloads that name its viewing key; zolana's sync ignores that key, which its senders always set to the recipient's. A recipient receives the UTXO only if the note decodes and the rebuilt hash equals the published one; any other output isn't the account's.
-- The 58-byte transfer sender bundle in zolana's `spec.md` is stale; the module follows zolana's TypeScript and Rust code.
-- Tests check zolana's `tx_viewing` and `hpke_utxo` vectors. Other values, including the payload of a published transfer's output, come from an independent implementation.
-
-## Shielded pool
-
-Instructions for zolana's shielded-pool program: a proofless deposit, and a transact that carries its proof. Both are SOL only, in the default ring, between Ed25519 owners. The program ID is zolana's development deployment. Instruction data is a one-byte tag followed by zolana's wincode encoding, which [`WincodeWriter`](Sources/ShieldedPool/WincodeWriter.swift) writes.
-
-- [`ShieldedPool`](Sources/ShieldedPool/ShieldedPool.swift): the program, the SOL interface, `["sol_interface", [0]]`, each tree, `["tree", ID as little-endian u16]`, and each nullifier account, `["nullifier", tree, nullifier]`. `networks` lists where the programs exist: devnet only.
-- [`Recipient`](Sources/ShieldedPool/Recipient.swift): a shielded address's signing address, which is also its view tag, nullifier public key, and viewing public key, and its owner hash. Off-curve signing addresses are rejected, because no key could spend their UTXOs. Only the signing address is public. `lookup` reads up to 100 owners' records with one finalized `getMultipleAccounts` and returns `nil` for an owner without one. Records are permanent, but the registry's update instruction can change a viewing key, so senders read the recipient again before each send.
-- [`ShieldedPool+Deposit`](Sources/ShieldedPool/ShieldedPool+Deposit.swift): `deposit`, tag 15, of public SOL into one recipient's UTXO. The depositor signs, and the program derives the UTXO's blinding. The program doesn't read the registry, so a deposit can share a transaction with the recipient's registration.
-- [`TransactPlan`](Sources/Transact/TransactPlan.swift): a SOL transact before its proof, after zolana's `ConfidentialTransaction` with random padding. It spends at most 40 of the sender's UTXOs, zolana's wallet limit, from at most two trees, into a transfer, a withdrawal, or both, and change; picks the cheapest of the 38 supported [`Shape`](Sources/Transact/Shape.swift)s; pads inputs and outputs with empty UTXOs, each padding output encoding the view tag it borrows as that participant's output does, as zolana's main branch does since #432; derives the output blindings; and seals each real output's note. Randomness comes from an injected `RandomNumberGenerator`.
-- [`PrivateSpend`](Sources/Transact/PrivateSpend.swift): a proved transact that sends SOL to a `Recipient`, withdraws it to a public address, or both: a funded transfer also withdraws public SOL to the recipient's signing address. It reports the lamports that return to the sender, the change plus a transfer to itself, its nullifier count, every input slot of its shape, padding included, and the tree of its spent notes, whose fee per nullifier it pays.
-- [`ShieldedPool+TreeFee`](Sources/ShieldedPool/ShieldedPool+TreeFee.swift): a tree's fee per nullifier, the little-endian 64-bit integer at offset 8 of its account, read with one finalized `getMultipleAccounts`. A transact pays each input tree this fee for each of its input slots there. A missing, foreign, or short account throws.
-- [`ExternalData`](Sources/Transact/ExternalData.swift): the instruction's prefix that the proof commits to, with no expiry, and its hash: SHA-256 of the tag 16, the prefix, the withdrawal's SOL interface and recipient, and the payer once for each output that refers to it, with the first byte set to zero. [`TransactOutput`](Sources/Transact/TransactOutput.swift) writes each output with its view tag inline or as a reference to the payer.
-- [`PrivateTransactionHash`](Sources/Transact/PrivateTransactionHash.swift): `Poseidon(chain(inputs), chain(outputs), 0, blinding)` with zolana's nonzero hash chain; padding slots enter as zero, and no addresses are created.
-- [`TransactPlan.instruction(proof:treeContexts:)`](Sources/Transact/TransactPlan+Instruction.swift): `transact`, tag 16, with the [`TransactProof`](Sources/Transact/TransactProof.swift) and one [`TreeContext`](Sources/Transact/TreeContext.swift) per input tree. The sender pays the fee and signs; the proof binds the payer, not the blockhash.
-- [`UserRegistry`](Sources/ShieldedPool/UserRegistry.swift): an owner's record, `["zolana/registry/v0", owner]` under the user-registry program, decoded into a `Recipient`; a missing account, or one that the program doesn't own, means the owner hasn't registered. Lookups read up to 100 records with one finalized `getMultipleAccounts`. P-256 owners are rejected.
-- [`UserRegistry+Register`](Sources/ShieldedPool/UserRegistry+Register.swift) and [`ShieldedAccount+Register`](Sources/ShieldedPool/ShieldedAccount+Register.swift): `register`, tag 0, with Borsh data: no P-256 owner, the nullifier public key, and the compressed viewing public key, 67 bytes in all. The accounts are the writable record, the owner as a read-only signer, the payer as a writable signer, and the System Program. The payer funds the 134-byte record's rent and may be the owner. The program rejects an existing record, and no instruction removes one.
-- [`ShieldedPool+RegistryRent`](Sources/ShieldedPool/ShieldedPool+RegistryRent.swift) and [`ShieldedAccount+RegistrationCost`](Sources/ShieldedPool/ShieldedAccount+RegistrationCost.swift): the record's rent, one `getMinimumBalanceForRentExemption` read of 134 bytes, and an account's registration cost: the rent less the lamports at its record's address, at least zero, from the two reads run concurrently.
-- Policy rings, tokens, merges, and compact padding aren't supported.
-- Tests check zolana's nullifier account vector, the nonzero hash chain and private transaction hash vectors, and the external data and private transaction hashes of the two transfers in `hash_vectors.rs`, with every output's note. The transfers' recipient keys, the tree addresses, and whole deposit and transact instructions, which zolana doesn't publish, come from an independent implementation.
-
-## Proofs
-
-A transfer proof's one public input hashes 18 field elements: the 17 of the statement, with the tree slots' chain inserted at index 2. The client reads the roots from the indexer's proofs and sends the prover the whole witness and the full hash.
-
-- [`HashChain`](Sources/Proof/HashChain.swift): the left and right chains of three-element groups, the binary right chain, and chains of zeros.
-- [`InputFlags`](Sources/Proof/InputFlags.swift): padding inputs allowed in bit 0, and each input's tree position in three bits from bit `1 + 3i`. The program clears bit 0 when a tree runs low on room for padding nullifiers, which rejects such a proof.
-- [`PublicInputs`](Sources/Proof/PublicInputs.swift): the statement and its hash; [`TransactPlan.publicInputs`](Sources/Transact/TransactPlan+PublicInputs.swift) fills it from a plan: the payer as the only signer, SOL's asset and `r - lamports` in public slot 0 for a withdrawal, and each output tag's identity.
-- [`TransactPlan+TreeWitness`](Sources/Transact/TransactPlan+TreeWitness.swift): per declared tree, one inclusion read of its spent UTXOs and one non-inclusion read of every input slot's nullifier that names it, padding included, run concurrently with the other trees' reads, so real and padding slots share one nullifier root. Each read's proofs must share their root and position, positions must be inside the histories, 500 UTXO roots and 100 nullifier roots, roots must be canonical, and each low element must be below its nullifier and each high element above it. The roots fill the tree slots and their positions the `TreeContext`s.
-- [`TransactPlan+Proof`](Sources/Transact/TransactPlan+Proof.swift): the request on the prover's complete route: the tree slots, the public input hash from them, and the witness, which holds the nullifier secret and the blinding seed in plain form; padding inputs send a zero state path and their own non-inclusion proof. The response's proving-key digest must be the shape's, from zolana's lock file in [`Shape+ProvingKey`](Sources/Proof/Shape+ProvingKey.swift). [`ProofPoint`](Sources/Proof/ProofPoint.swift) negates and compresses `a` and compresses `c`.
-- No Groth16 pairing runs on the device, since Apple's frameworks have no BN254 pairing. A proof that doesn't verify fails the transaction's simulation with program error 7008 and can't move funds.
-- Tests check zolana's chain, input-flag, public-input, proving-key, and padding owner tag vectors and its assembled transfer. Whole requests, indexer proofs, responses with random curve points, registry records, and deposits, which zolana doesn't publish, come from an independent implementation.
-
-## Notes
-
-- [`ShieldedAccount`](Sources/ShieldedPool/ShieldedAccount.swift): an account's signing address, nullifier key, and viewing key, from Wallet's `PrivateBalanceKeys`. It spends a transact plan's inputs and receives notes. Descriptions and reflection omit every value.
-- [`Registration`](Sources/ShieldedPool/Registration.swift): an account's registry record, read with one `getMultipleAccounts` through any provider: `unregistered`, `registered` when the record's nullifier public key and compressed viewing public key are the account's, or `registeredWithOtherKeys`. A malformed record throws.
-- [`ReceivedNote`](Sources/Notes/ReceivedNote.swift): an account's UTXOs in the indexer's transactions, with their nullifiers, amounts, and tree IDs. Confidential outputs tagged with the account's signing address or its viewing public key's x-coordinate are opened with its viewing key. Proofless deposits, [`ProoflessOutput`](Sources/Notes/ProoflessOutput.swift), publish the UTXO in the clear; the account checks its owner hash, SOL, the blinding that [`ShieldedPool.depositBlinding`](Sources/ShieldedPool/ShieldedPool+Deposit.swift) derives from the tree and the leaf index, and the published hash. Outputs that fail any check belong to someone else. Notes encode their fields with field elements as 32 big-endian bytes; decoding rejects other lengths, non-canonical values, and mints other than SOL's.
-- [`NoteSyncState`](Sources/Notes/NoteSyncState.swift): an account's unspent SOL notes, its pending amounts, their total in lamports, the output tree that the latest sync reported, and the indexer position, stored by the caller. Every encoded field is required. The sync reads two view tags: the signing address and the viewing public key's x-coordinate, which zolana's command-line deposits use. `synced(for:using:)` reads the account's tagged transactions after the position and the current notes' spends concurrently, adds new notes once by nullifier, and, as soon as the tagged transactions arrive, reads the spends of the new notes they don't spend. It drops notes whose nullifiers any returned transaction publishes, sends no spend read without notes, and fails on the first error, which cancels the other reads. It returns a new state and leaves the old one unchanged on error. Totals above a 64-bit integer throw. Token notes don't decode, so a release that adds tokens syncs again from an empty state.
-- Recording a confirmed transaction updates the state before the indexer reports it. A spend's notes leave at once; a sync keeps hiding them if the indexer returns them again, until a returned transaction publishes their nullifiers or the batch omits them. A deposit to the account and a spend's received lamports stay pending, counted in the total but not spendable, until the tagged batch returns their transaction's signature or a kept note comes from it. A transaction is counted once: recording it adds nothing if its notes are already synced or it's already recorded.
-- [`NoteSyncState+Spend`](Sources/Notes/NoteSyncState+Spend.swift) and [`NoteSelection`](Sources/Notes/NoteSelection.swift): `spend` takes notes from one tree: in each tree, the largest first until they cover the amount, with a funded transfer's withdrawal, at most 40, zolana's limit; the tree that needs the fewest notes, then the lower tree ID, wins. Before planning, one finalized `getMultipleAccounts` reads the selected notes' nullifier accounts, which a transact creates as it spends; notes whose accounts the program owns or that hold data are left out and the selection runs again, so another device's spend that the indexer hasn't reported isn't spent twice. It plans the transact into the output tree with system randomness and proves it. A tree that covers the amount only with more than 40 notes throws `tooManyNotes`; otherwise an uncovered amount throws `insufficientFunds`, and a state without an output tree throws `noOutputTree`.
-
-## Side channels
-
-The rounds depend only on the number of inputs. Field arithmetic follows ModularArithmetic's [side-channel note](../ModularArithmetic/README.md#side-channels). The scalar reduction branches only to reject a zero scalar. Encryption zeroes the buffers that it fills with key material, scalars, and counter blocks; CryptoKit and CommonCrypto hold the other copies of keys and shared secrets; the view root and the field elements of the scalar reduction aren't erased.
+`keys` comes from Wallet's `privateBalanceKeys`. `ShieldedAccount.register(paidBy:)` and `ShieldedPool.deposit` make instructions, and `NoteSyncState.spend` makes a proved private transfer.
 
 ## Sources
 
@@ -107,5 +43,3 @@ The rounds depend only on the number of inputs. Field arithmetic follows Modular
 | [Poseidon: A New Hash Function for Zero-Knowledge Proof Systems](https://eprint.iacr.org/2019/458) | USENIX Security 2021 | The hash design |
 | [RFC 9380](https://www.rfc-editor.org/rfc/rfc9380), Hashing to Elliptic Curves | — | `P_const`'s hash to curve and the 48-byte scalar reduction |
 | [RFC 5869](https://www.rfc-editor.org/rfc/rfc5869), HKDF | — | Key derivation of the encryption |
-
-Solana Rings is in beta, and its releases can change parameters, vectors, and hashing rules; v0.4.0-alpha stopped earlier clients from working. Check this module against every new zolana or light-poseidon release before updating these versions.
