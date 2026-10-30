@@ -74,12 +74,11 @@ struct SecurityCoordinatorTests {
         #expect(await owner.prompts == 0)
     }
 
-    /// Confirming the reset deletes everything and tells every window.
+    /// Confirming the reset deletes everything.
     @Test
     func `Confirming the reset resets the app`() async {
         let storage = ResetStorage()
-        let revision = Revision()
-        let coordinator = makeCoordinator(storage: storage, revision: revision)
+        let coordinator = makeCoordinator(storage: storage)
 
         coordinator.confirmReset()
         coordinator.reset()
@@ -87,7 +86,6 @@ struct SecurityCoordinatorTests {
 
         #expect(coordinator.path == [.resetConfirmation])
         #expect(await storage.deletions == ResetStorage.Step.allCases)
-        #expect(revision.value == 1)
         #expect(coordinator.error == nil)
     }
 
@@ -136,15 +134,14 @@ struct SecurityCoordinatorTests {
     ///   - recovery: The recovery storage that the reveal reads.
     ///   - owner: The device-owner check.
     ///   - storage: The stores that a reset empties.
-    ///   - revision: Counts finished resets.
     /// - Returns: A coordinator with an empty path.
     private func makeCoordinator(recovery: SecurityRecoveryStore = SecurityRecoveryStore(),
-                                 owner: TestOwner = TestOwner(), storage: ResetStorage = ResetStorage(),
-                                 revision: Revision = Revision()) -> SecurityCoordinator {
+                                 owner: TestOwner = TestOwner(),
+                                 storage: ResetStorage = ResetStorage()) -> SecurityCoordinator {
         SecurityCoordinator(services: SecurityServices(
             recovery: RecoveryReveal(store: recovery),
             owner: owner,
-            reset: AppReset(storage: storage, revision: revision),
+            reset: AppReset(storage: storage),
             pasteboard: NoPasteboard()
         ))
     }

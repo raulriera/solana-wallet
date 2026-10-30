@@ -54,7 +54,7 @@ struct SettingsSceneTests {
         SecurityCoordinator(services: SecurityServices(
             recovery: RecoveryReveal(store: SecurityRecoveryStore()),
             owner: TestOwner(),
-            reset: AppReset(storage: ResetStorage(), revision: Revision()),
+            reset: AppReset(storage: ResetStorage()),
             pasteboard: NoPasteboard()
         ))
     }

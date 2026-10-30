@@ -11,7 +11,6 @@ struct AppReset: AppResetting {
     private let appearance: any AppearanceCoordinating
     private let stores: [any Erasable]
     private let accounts: any Erasable
-    private let revision: Revision
 
     /// Connects the reset to every store that holds the person's data.
     /// - Parameters:
@@ -24,17 +23,14 @@ struct AppReset: AppResetting {
     ///     saves into them afterward.
     ///   - accounts: The saved accounts, which are erased last, so a failed earlier step keeps every window on its
     ///     wallet, where it can try again.
-    ///   - revision: Tells every window when the reset finishes.
     init(recovery: any RecoveryStoring, privateBalances: any PrivateBalancing, directories: [URL],
-         appearance: any AppearanceCoordinating, stores: [any Erasable], accounts: any Erasable,
-         revision: Revision) {
+         appearance: any AppearanceCoordinating, stores: [any Erasable], accounts: any Erasable) {
         self.recovery = recovery
         self.privateBalances = privateBalances
         self.directories = directories
         self.appearance = appearance
         self.stores = stores
         self.accounts = accounts
-        self.revision = revision
     }
 
     /// Deletes every recovery phrase, then the private-balance keys, notes, and redeem codes, erases each shared store,
@@ -47,7 +43,6 @@ struct AppReset: AppResetting {
         try await Self.delete(directories)
         try await appearance.restart()
         try await accounts.erase()
-        revision.advance()
     }
 
     /// Deletes each directory with everything inside it, away from the main actor, since themes can hold many files.

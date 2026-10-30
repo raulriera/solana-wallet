@@ -22,7 +22,6 @@ struct AppServices {
     /// Each account's private balance on each network, which every window shares; nothing is read until a window
     /// observes an account.
     let privateBalanceStore: PrivateBalanceStore
-    let resetRevision = Revision()
     let security: SecurityServices
     /// The currency and rate source choice, which every window shares; nothing is read until a window's Currency or a
     /// price lookup reads it.
@@ -116,7 +115,7 @@ struct AppServices {
                             directories: directories, appearance: appearance.appearance,
                             stores: [contactStore, transactionStore, currencyStore, providerStore, portfolios,
                                      privateBalanceStore],
-                            accounts: accountStore, revision: resetRevision),
+                            accounts: accountStore),
             pasteboard: recoveryPasteboard
         )
     }

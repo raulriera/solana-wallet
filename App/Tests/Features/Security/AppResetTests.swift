@@ -5,26 +5,24 @@ import Testing
 import Transactions
 @testable import widgets
 
-/// Verifies the reset's deletion order, its window signal, and retries, without touching real storage.
+/// Verifies the reset's deletion order and retries, without touching real storage.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct AppResetTests {
     /// Secrets go first, the shared stores end their work before the directories are deleted, appearance forgets them
-    /// after, the saved accounts go last, and every window hears about the reset only once everything is deleted.
+    /// after, and the saved accounts go last, so every window leaves its wallet only once everything is deleted.
     @Test
     func `Reset deletes the secrets, each shared store, the directories, appearance, then the accounts`() async throws {
         let storage = ResetStorage()
         defer { try? FileManager.default.removeItem(at: storage.directory) }
         try createFile(in: storage.directory)
-        let revision = Revision()
 
-        try await AppReset(storage: storage, revision: revision).reset()
+        try await AppReset(storage: storage).reset()
 
         #expect(await storage.deletions == ResetStorage.Step.allCases)
         // Only appearance and the accounts go after the directories are deleted.
         let existed = Array(repeating: true, count: ResetStorage.Step.allCases.count - 2) + [false, false]
         #expect(await storage.directoryExisted == existed)
-        #expect(revision.value == 1)
     }
 
     /// A failed step stops the reset and keeps windows where they are; trying again finishes it.
@@ -32,17 +30,14 @@ struct AppResetTests {
     @Test(arguments: ResetStorage.Step.allCases)
     func `Retrying after a failed step finishes the reset`(_ step: ResetStorage.Step) async throws {
         let storage = ResetStorage(failingOnce: step)
-        let revision = Revision()
-        let reset = AppReset(storage: storage, revision: revision)
+        let reset = AppReset(storage: storage)
         let order = ResetStorage.Step.allCases
 
         await #expect(throws: CocoaError.self) { try await reset.reset() }
         #expect(await storage.deletions == Array(order.prefix { $0 != step }))
-        #expect(revision.value == 0)
 
         try await reset.reset()
         #expect(await Array(storage.deletions.suffix(order.count)) == order)
-        #expect(revision.value == 1)
     }
 
     /// A failed earlier step keeps the saved accounts, so every window stays on its wallet and can try again.
@@ -56,7 +51,7 @@ struct AppResetTests {
         await accounts.load()
         let reset = AppReset(recovery: storage, privateBalances: storage.privateBalances,
                              directories: [storage.directory], appearance: storage.appearance, stores: storage.stores,
-                             accounts: accounts, revision: Revision())
+                             accounts: accounts)
 
         await #expect(throws: CocoaError.self) { try await reset.reset() }
 
@@ -69,19 +64,16 @@ struct AppResetTests {
         let storage = ResetStorage()
         defer { try? FileManager.default.removeItem(at: storage.directory) }
         try createFile(in: storage.directory)
-        let revision = Revision()
-        let reset = AppReset(storage: storage, revision: revision)
+        let reset = AppReset(storage: storage)
         // A read-only directory keeps the file inside it.
         try setPermissions(0o555, of: storage.directory)
 
         await #expect(throws: CocoaError.self) { try await reset.reset() }
         #expect(await storage.deletions == Array(ResetStorage.Step.allCases.prefix { $0 != .appearance }))
-        #expect(revision.value == 0)
 
         try setPermissions(0o755, of: storage.directory)
         try await reset.reset()
         #expect(!FileManager.default.fileExists(atPath: storage.directory.path))
-        #expect(revision.value == 1)
     }
 
     /// A balance read that runs during a reset ends with it, so it can't save the deleted wallet's holdings into the
@@ -106,8 +98,7 @@ struct AppResetTests {
         await gate.waitUntilStarted()
 
         try await AppReset(recovery: storage, privateBalances: storage.privateBalances, directories: [storage.directory],
-                           appearance: storage.appearance, stores: [portfolios], accounts: storage.accounts,
-                           revision: Revision()).reset()
+                           appearance: storage.appearance, stores: [portfolios], accounts: storage.accounts).reset()
         gate.resume()
         // A reload returns once a read ends, so a read that the reset left running has saved by then.
         await service.reload(for: account.address.value)

@@ -89,12 +89,9 @@ actor ResetStorage: RecoveryStoring {
 
 extension AppReset {
     /// Creates a reset whose every store records its deletion in one shared storage.
-    /// - Parameters:
-    ///   - storage: The storage that records every reset step.
-    ///   - revision: Tells every window when the reset finishes.
-    init(storage: ResetStorage, revision: Revision) {
+    /// - Parameter storage: The storage that records every reset step.
+    init(storage: ResetStorage) {
         self.init(recovery: storage, privateBalances: storage.privateBalances, directories: [storage.directory],
-                  appearance: storage.appearance, stores: storage.stores, accounts: storage.accounts,
-                  revision: revision)
+                  appearance: storage.appearance, stores: storage.stores, accounts: storage.accounts)
     }
 }
