@@ -53,12 +53,12 @@ public struct TransactionDecoder: TransactionDecoding {
             let indices = try reader.read(count: header.accounts).map(Int.init)
             guard indices.allSatisfy({ $0 < accountCount }) else { throw ValidationError.invalidTransaction }
             instructions.append(.init(programIndex: header.program, accountIndices: indices,
-                                      data: try reader.read(count: header.bytes)))
+                                      data: Data(try reader.read(count: header.bytes))))
         }
         let message = Data(data.prefix(reader.offset))
         var signatures: [Data] = []
-        for _ in 0..<signerCount { signatures.append(try reader.read(count: 64)) }
-        guard reader.offset == data.count else { throw ValidationError.invalidTransaction }
+        for _ in 0..<signerCount { signatures.append(Data(try reader.read(count: 64))) }
+        guard reader.isAtEnd else { throw ValidationError.invalidTransaction }
         return Transaction(message: message, lifetimeSpecifier: lifetime, accounts: accounts,
                            requests: requests, instructions: instructions, signatures: signatures)
     }

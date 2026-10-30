@@ -1,6 +1,6 @@
 # Encoding
 
-Base58 encoding and decoding for Solana addresses, blockhashes, and signatures, and a strict CBOR decoder.
+Base58 encoding and decoding for Solana addresses, blockhashes, and signatures, a bounds-checked byte reader, and a strict CBOR decoder.
 
 ## Usage
 

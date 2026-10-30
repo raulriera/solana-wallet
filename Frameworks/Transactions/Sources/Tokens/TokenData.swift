@@ -1,3 +1,4 @@
+import Encoding
 import Foundation
 
 /// The validated bytes and extensions of a token account or mint.
@@ -22,8 +23,7 @@ struct TokenData: Sendable {
               bytes[baseSize..<165].allSatisfy({ $0 == 0 }) else { throw TokenError.invalidAccount }
         var values: [UInt16: [UInt8]] = [:]
         var reader = ByteReader(bytes, at: 166, error: TokenError.invalidAccount)
-        while reader.offset < bytes.count {
-            if bytes[reader.offset...].allSatisfy({ $0 == 0 }) { break }
+        while bytes[reader.offset...].contains(where: { $0 != 0 }) {
             let type: UInt16 = try reader.integer()
             let length: UInt16 = try reader.integer()
             guard type != 0, values[type] == nil else { throw TokenError.invalidAccount }
