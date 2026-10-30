@@ -343,6 +343,13 @@ struct PrivateBalancesTests {
     }
 
     @Test
+    func `Note IDs name the shielded-pool program`() async throws {
+        let account = try await PrivateBalanceFixtures.account()
+
+        #expect(PrivateBalances.noteID(of: account, on: .devnet).contains(ShieldedPool.programID))
+    }
+
+    @Test
     func `Concurrent refreshes of one account share one sync`() async throws {
         let account = try await PrivateBalanceFixtures.account()
         let record = try await PrivateBalanceFixtures.keys(for: account)

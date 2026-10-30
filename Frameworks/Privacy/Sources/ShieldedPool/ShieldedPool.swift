@@ -7,7 +7,7 @@ public enum ShieldedPool {
     /// The networks where the shielded-pool and user-registry programs are deployed.
     public static let networks: Set<Network> = [.devnet]
 
-    private static let programID = "sppU489D7A4U1exNo1oeMGZtLEofq3a6o2fR7UeoWB6"
+    public static let programID = "sppU489D7A4U1exNo1oeMGZtLEofq3a6o2fR7UeoWB6"
 
     static let transactTag: UInt8 = 16
 
