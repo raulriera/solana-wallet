@@ -29,11 +29,9 @@ changed=$(git diff --no-color --no-ext-diff -U0 "${base[@]}" "$relative" | awk '
 [[ -n $changed ]] || exit 0
 
 # Layout findings come from the pretty printer, which can't keep the repo's aligned
-# argument wrapping, so only rule findings are reported. Tests throw to fail, so they
-# don't document what they throw. Errors without a line, such as an unreadable
-# configuration, always pass so linting never turns off silently.
+# argument wrapping, so only rule findings are reported. Errors without a line, such as an
+# unreadable configuration, always pass so linting never turns off silently.
 skipped="\[(Indentation|AddLines|RemoveLine|LineLength|Spacing|TrailingWhitespace|TrailingComma|EndOfLineComment)\]"
-[[ "$relative" == */Tests/* ]] && skipped="$skipped|\[ValidateDocumentationComments\].*Throws"
 findings=$("$swiftFormat" lint "$relative" 2>&1 | grep -vE "$skipped" \
     | awk -F: -v lines="$changed" 'BEGIN { n = split(lines, list, " "); for (i = 1; i <= n; i++) keep[list[i]] = 1 }
         (($2 in keep) || ($2 !~ /^[0-9]+$/ && /error:/)) && !seen[$0]++')
@@ -42,6 +40,6 @@ findings=$("$swiftFormat" lint "$relative" 2>&1 | grep -vE "$skipped" \
 {
     echo "Lint findings on lines you changed in $relative (rules in .swift-format). Fix them now:"
     echo "$findings"
-    echo "Only when a finding is wrong, put '// swift-format-ignore: <Rule>' right above that line, with a reason."
+    echo "Only when a finding is wrong, put '// swift-format-ignore: <Rule>' right above that line."
 } >&2
 exit 2

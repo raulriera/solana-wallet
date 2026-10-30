@@ -60,7 +60,7 @@
 - Name test functions with sentence-style raw identifiers instead of camelCase; do not duplicate those names in `@Test` display strings.
 - Verify live integrations with real RPC clients: mainnet for read-only behavior, devnet for tests that fund wallets, submit transactions, or incur fees. Keep mainnet-only delivery tests explicitly opt-in with approved spending limits. Do not add fake RPC implementations for tests.
 - Devnet tests that move funds use the test wallet seed from ignored local configuration, never create wallets, and leave transferred funds with the recipient.
-- Document every function and initializer using Apple DocC conventions.
+- Document production code only, with Apple DocC conventions: a summary of what each function, initializer, and type does, and its parameters, return value, and thrown errors. Document properties and cases only when their names are not enough. Write no other comments: no inline comments, no comments in tests, and never history, sources, versions, rationale, or what other code does.
 - Solana V1 transactions only; compose ordered instructions through one shared transaction pipeline. Transfers are instruction helpers, not a separate transaction model.
 - Support SPL Token and Token-2022 together through shared token-transfer APIs. Review and agree on each Token-2022 extension with the user before implementing it.
 - Separate frameworks by concern; all Solana RPC, DAS, and price communication belongs in the RPC/API framework.
