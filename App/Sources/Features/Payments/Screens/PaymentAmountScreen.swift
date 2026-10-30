@@ -41,7 +41,6 @@ struct PaymentAmountScreen<Action: View>: View {
             AmountColumn(payment: payment)
         } secondary: {
             Keypad()
-                .padding(.vertical)
                 .environment(\.pressKey, KeypadPressAction(payment: payment))
             action
         }

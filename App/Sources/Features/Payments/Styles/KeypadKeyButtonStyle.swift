@@ -22,7 +22,6 @@ struct KeypadKeyButtonStyle: ButtonStyle {
             .background(background == .filled ? style.keyFill.color(in: palette) : .clear, in: .circle)
             .contentShape(.circle)
             .glassEffect(background == .glass ? .regular.interactive() : .identity, in: .circle)
-            .frame(maxWidth: 94, maxHeight: 94)
             .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
     }
 }
