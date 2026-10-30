@@ -3,7 +3,7 @@ Third-party test vectors in the Privacy framework's tests
 The Solana Rings test vectors and values below come from zolana, copied unchanged:
 https://github.com/helius-labs/zolana
 Licensed under the Apache License, Version 2.0; a copy is in zolana-LICENSE.txt, identical to
-upstream LICENSE at both revisions below. zolana ships no NOTICE file at either revision.
+upstream LICENSE at every revision below. zolana ships no NOTICE file at any of them.
 
 Fixtures
 - CommitmentVectors.json: Solana Rings commitment vectors
@@ -66,10 +66,6 @@ https://github.com/helius-labs/zolana/blob/v0.4.0-alpha/sdk-libs/ts/vectors/pose
 SHA-256: 4f5db50ef6c571ae63e0dbb76462480a40d6c0de9841d80211f230e4b27fca58
 - PoseidonParity.json: the whole file
 
-https://github.com/helius-labs/zolana/blob/v0.4.0-alpha/prover/server/prover/provingkeys/proving-keys.lock
-SHA-256: 9d0a878fa1a45d08e1f624232fa752c83e173157cdd468baa0d8acc38b013a4b
-- ProvingKeyVectors.json: the whole file
-
 https://github.com/helius-labs/zolana/blob/v0.4.0-alpha/sdk-libs/ts/test/seed-based-keypair.test.ts
 SHA-256: 16242d1b1b1af87da1a8986af0fa9ca6f9665dee2865a704d3fa7b8c7a9161f2
 - OwnerIdentityTests.swift: GOLDEN signing, nullifier, and owner-hash values of accounts 0 and 1
@@ -102,3 +98,11 @@ License: https://github.com/helius-labs/zolana/blob/f163d0f0c824381a7a6ebf8701bf
 https://github.com/helius-labs/zolana/blob/f163d0f0c824381a7a6ebf8701bff1e8266aee7e/test-vectors/dummy_owner_tags.json
 SHA-256: 2bba54587059a4f3b18d8fb9ca0bfdca728c61db4533f70e65385d7c103bb94b
 - DummyOwnerTagVectors.json: the whole file
+
+Release: 0.7.0-alpha
+Commit: bb2337f
+License: https://github.com/helius-labs/zolana/blob/bb2337f05317aa245a345f47c68e434ffed62561/LICENSE
+
+https://github.com/helius-labs/zolana/blob/bb2337f05317aa245a345f47c68e434ffed62561/prover/server/prover/provingkeys/proving-keys.lock
+SHA-256: 2c1dcfb16d93e0e40352a2c3f3806fac536a58effc49021d76e50edcf7b1dcd1
+- ProvingKeyVectors.json: the whole file

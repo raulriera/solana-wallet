@@ -11,7 +11,7 @@ struct ShapeProvingKeyTests {
 
     @Test
     func `The lock file's transfer keys are the supported shapes`() throws {
-        let names = try ProvingKeyVectors.load().keys.keys.filter { $0.hasPrefix("transfer_confidential_") }
+        let names = try ProvingKeyVectors.load().keys.keys.filter { $0.wholeMatch(of: /transfer_confidential_\d+_\d+\.key/) != nil }
 
         #expect(Set(names) == Set(Shape.supported.map { "transfer_confidential_\($0.inputs)_\($0.outputs).key" }))
     }
