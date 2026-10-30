@@ -1,13 +1,10 @@
 import Accessibility
 import SwiftUI
 
-/// Pastes an address and names it: a new payment's recipient, whose name is optional, or a contact's.
-///
-/// The owning sheet closes once the person confirms from the top bar.
+/// Pastes an address and names it for a new payment or a contact.
 struct RecipientEntryScreen: View {
     @Environment(\.palette) private var palette
     @Bindable var entry: RecipientEntryModel
-    /// The addresses the account can pay, which a pasted address is checked against.
     let lists: ContactLists
 
     var body: some View {
@@ -21,7 +18,6 @@ struct RecipientEntryScreen: View {
                             Text("Address")
                                 .foregroundStyle(palette.secondaryText)
                         } else {
-                            // The whole address, so people can check every character the warnings ask about.
                             FullAddress(text: entry.text)
                                 .foregroundStyle(palette.primaryText)
                                 .accessibilityLabel(Text("Address"))
@@ -50,7 +46,6 @@ struct RecipientEntryScreen: View {
             .listRowBackground(palette.surface)
 
             Section {
-                // A payment to a saved address keeps the name it's saved under.
                 if entry.purpose == .payment, let saved = entry.saved {
                     LabeledContent("Saved As", value: saved.name)
                 } else {
@@ -83,7 +78,6 @@ struct RecipientEntryScreen: View {
             guard let rejection = entry.rejection else { return }
             AccessibilityNotification.Announcement(String(localized: rejection.message)).post()
         }
-        // A pasted address can be accepted with warnings; VoiceOver hears the new ones, since focus stays on Paste.
         .onChange(of: warnings) { previous, current in
             let added = current.filter { !previous.contains($0) }.map { String(localized: $0.message) }
             guard !added.isEmpty else { return }
@@ -91,7 +85,8 @@ struct RecipientEntryScreen: View {
         }
     }
 
-    /// Takes the pasted text, animating the change to the field and any rejection or warning it brings.
+    /// Checks pasted text with animation.
+    ///
     /// - Parameter text: The pasteboard's text.
     private func paste(_ text: String) {
         withAnimation { entry.paste(text, in: lists) }

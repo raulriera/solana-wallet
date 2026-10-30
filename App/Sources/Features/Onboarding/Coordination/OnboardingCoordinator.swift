@@ -5,7 +5,7 @@ import Transactions
 import Vault
 import Wallet
 
-/// Coordinates one window's recovery draft, import discovery, and ordered persistence.
+/// Prepares and saves one window's first account.
 @MainActor
 @Observable
 final class OnboardingCoordinator: OnboardingCoordinating {
@@ -21,12 +21,13 @@ final class OnboardingCoordinator: OnboardingCoordinating {
     @ObservationIgnored private var preparedAccount: Account?
     @ObservationIgnored private var recoverySaved = false
 
-    /// Creates independent presentation state around shared, interchangeable services.
+    /// Creates a coordinator.
+    ///
     /// - Parameters:
-    ///   - discovery: One bounded SOL-only scan on the configured network for imports.
-    ///   - wallet: Local phrase generation and address derivation.
-    ///   - recovery: Protected recovery persistence.
-    ///   - accounts: The saved accounts that every window shares.
+    ///   - discovery: The service that finds an imported wallet's accounts.
+    ///   - wallet: The service that generates phrases and derives accounts.
+    ///   - recovery: The protected recovery storage.
+    ///   - accounts: The saved accounts.
     init(discovery: any AccountDiscovering, wallet: any WalletProviding,
          recovery: any RecoveryStoring, accounts: AccountStore) {
         self.wallet = wallet
@@ -35,26 +36,16 @@ final class OnboardingCoordinator: OnboardingCoordinating {
         accountStore = accounts
     }
 
-    /// Prepares a new twelve-word recovery with no BIP-39 passphrase.
-    /// - Throws: A preparation, cancellation, or invalid-state error.
     func create() async throws {
         try await prepare({ Recovery(phrase: try wallet.recoveryPhrase(wordCount: .twelve), passphrase: "") },
                           selecting: firstAccount)
     }
 
-    /// Selects the first SOL-funded account, or the default account after a successful empty scan.
-    /// - Parameters:
-    ///   - phrase: The supplied recovery words.
-    ///   - passphrase: The original BIP-39 passphrase, preserving case and whitespace.
-    /// - Throws: A phrase-validation, rate-limit, preparation, cancellation, or invalid-state error.
     func importRecovery(_ phrase: String, passphrase: String) async throws {
         try await prepare({ Recovery(phrase: try RecoveryPhrase(phrase), passphrase: passphrase) },
                           selecting: discoveredAccount)
     }
 
-    /// Commits protected recovery and public metadata; ``finish()`` opens the account afterwards.
-    /// - Returns: The saved account, including when cancellation follows its commit.
-    /// - Throws: A secret-free storage error, cancellation, or an invalid-state error.
     func complete() async throws -> Account {
         guard !isWorking else { throw OnboardingCoordinatorError.operationInProgress }
         if let account { return account }
@@ -70,24 +61,17 @@ final class OnboardingCoordinator: OnboardingCoordinating {
         try Task.checkCancellation()
         try await saveAccount(preparedAccount)
 
-        // The metadata commit is the completion boundary; late cancellation cannot undo it.
         account = preparedAccount
         self.preparedAccount = nil
         self.recovery = nil
         return preparedAccount
     }
 
-    /// Publishes the saved account for the window to open once onboarding's last step succeeds.
-    /// - Throws: ``OnboardingCoordinatorError/accountRequired`` before completion.
     func finish() throws {
         guard let account else { throw OnboardingCoordinatorError.accountRequired }
         finishedAccount = account
     }
 
-    /// Drops this window's unsaved draft without deleting either store's records.
-    ///
-    /// A saved account remains, so a step that ends after completion can't undo it.
-    /// - Throws: ``OnboardingCoordinatorError/operationInProgress`` until the caller's active task finishes.
     func discard() throws {
         guard !isWorking else { throw OnboardingCoordinatorError.operationInProgress }
         recovery = nil
@@ -95,11 +79,12 @@ final class OnboardingCoordinator: OnboardingCoordinating {
         recoverySaved = false
     }
 
-    /// Prepares one draft and publishes it only after cancellable account selection succeeds.
+    /// Prepares a draft from a recovery and its selected account.
+    ///
     /// - Parameters:
-    ///   - makeRecovery: Local generation or validation of recovery material.
-    ///   - selectAccount: Local default derivation or imported-account discovery.
-    /// - Throws: A phrase-validation error, cancellation, or a secret-free workflow error.
+    ///   - makeRecovery: A closure that creates or validates the recovery.
+    ///   - selectAccount: A closure that selects the recovery's account.
+    /// - Throws: A phrase validation, cancellation, or onboarding error.
     private func prepare(_ makeRecovery: () throws -> Recovery,
                          selecting selectAccount: (Recovery) async throws -> DerivedAccount) async throws {
         guard !isWorking else { throw OnboardingCoordinatorError.operationInProgress }
@@ -120,14 +105,14 @@ final class OnboardingCoordinator: OnboardingCoordinating {
         } catch let error as RPCError where error.isRateLimited {
             throw OnboardingCoordinatorError.discoveryRateLimited
         } catch {
-            // Arbitrary dependency errors may contain recovery text; only known safe errors escape.
             throw OnboardingCoordinatorError.preparationFailed
         }
     }
 
-    /// Derives the default first account locally without observing balances.
-    /// - Parameter recovery: The transient validated recovery and verbatim original passphrase.
-    /// - Returns: The default address paired with its exact path.
+    /// Derives a recovery's default first account.
+    ///
+    /// - Parameter recovery: The recovery to derive from.
+    /// - Returns: The default account and its path.
     /// - Throws: A derivation or cancellation error.
     private func firstAccount(_ recovery: Recovery) async throws -> DerivedAccount {
         let accounts = try await wallet.accounts(for: recovery.phrase, passphrase: recovery.passphrase, paths: [.solana])
@@ -135,10 +120,11 @@ final class OnboardingCoordinator: OnboardingCoordinating {
         return account
     }
 
-    /// Checks the existing twenty-address scan once; failures never become empty success.
-    /// - Parameter recovery: The transient validated recovery, never sent to RPC.
-    /// - Returns: The first positive-SOL result in scan order or the default account after an empty scan.
-    /// - Throws: A discovery, derivation, or cancellation error, without an automatic retry.
+    /// Finds a recovery's first account with SOL, or derives its default account when none has SOL.
+    ///
+    /// - Parameter recovery: The recovery to scan.
+    /// - Returns: The selected account.
+    /// - Throws: A discovery, derivation, or cancellation error.
     private func discoveredAccount(_ recovery: Recovery) async throws -> DerivedAccount {
         let accounts = try await discovery.discover(for: recovery.phrase, passphrase: recovery.passphrase)
         try Task.checkCancellation()
@@ -146,11 +132,12 @@ final class OnboardingCoordinator: OnboardingCoordinating {
         return try await firstAccount(recovery)
     }
 
-    /// Verifies a duplicate save before accepting an earlier, ambiguously completed write.
+    /// Saves a recovery, accepting an identical copy that's already saved.
+    ///
     /// - Parameters:
-    ///   - recovery: The exact recovery retained by this draft.
-    ///   - id: The stable recovery identity retained across retries.
-    /// - Throws: Cancellation or a secret-free storage or identity error.
+    ///   - recovery: The recovery to save.
+    ///   - id: The recovery's identifier.
+    /// - Throws: A cancellation, Keychain, or onboarding error.
     private func saveRecovery(_ recovery: Recovery, for id: UUID) async throws {
         do {
             do {
@@ -167,25 +154,22 @@ final class OnboardingCoordinator: OnboardingCoordinating {
         } catch OnboardingCoordinatorError.recoveryMismatch {
             throw OnboardingCoordinatorError.recoveryMismatch
         } catch let error as KeychainStoreError {
-            // Vault's typed failures retain useful context without recovery or underlying error text.
             throw error
         } catch {
-            // Unknown storage errors cross a secret-handling boundary and must lose their payload.
             throw OnboardingCoordinatorError.recoveryStorageFailed
         }
     }
 
-    /// Saves the prepared account, which an addition either saves or undoes, so a failed save can be tried again.
-    /// - Parameter account: The stable public identity retained by the draft.
-    /// - Throws: A secret-free account-storage error.
+    /// Saves the prepared account.
+    ///
+    /// - Parameter account: The account to save.
+    /// - Throws: An account storage or onboarding error.
     private func saveAccount(_ account: Account) async throws {
         do {
             try await accountStore.add(account)
         } catch let error as AccountStoreError {
-            // These closed, payload-free cases are safe to preserve for the caller.
             throw error
         } catch {
-            // Injected storage may attach secret-bearing context to otherwise ordinary errors.
             throw OnboardingCoordinatorError.accountStorageFailed
         }
     }

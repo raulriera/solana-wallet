@@ -1,27 +1,23 @@
 import Foundation
 import Observation
 
-/// Owns one Settings window's Security & Privacy navigation and runs its recovery and reset steps.
+/// Runs one window's Security & Privacy navigation and its recovery and reset steps.
 @MainActor
 @Observable
 final class SecurityCoordinator {
-    /// The screens pushed above Security & Privacy; Back removes the last one.
     var path: [SecurityRoute] = [] {
         didSet {
-            // A closed backup screen releases the words it showed.
             if !path.contains(.recoveryBackup) { backup = nil }
         }
     }
-    /// What the backup screen shows while it's open.
+    /// The recovery that the backup screen shows, or `nil` when the screen is closed.
     private(set) var backup: RecoveryDisplay?
-    /// A secret-free error for the alert.
     var error: SecurityError?
-    /// The step waiting for the scene's task, identified without secrets.
+    /// The identifier of the waiting step, or `nil` when none waits.
     private(set) var attempt: UUID?
     @ObservationIgnored private var request: Request?
     private let services: SecurityServices
 
-    /// Copies recovery words to this device only, for the backup screen.
     var pasteboard: any RecoveryCopying { services.pasteboard }
 
     /// A step that waits for authentication or storage.
@@ -31,20 +27,23 @@ final class SecurityCoordinator {
         case reset
     }
 
-    /// Connects the coordinator to the window's security services.
-    /// - Parameter services: Shows recovery, confirms the device owner, and resets the app.
+    /// Creates a coordinator.
+    ///
+    /// - Parameter services: The security services.
     init(services: SecurityServices) {
         self.services = services
     }
 
-    /// Reads the wallet's recovery, then opens its backup.
-    /// - Parameter account: The window's wallet.
+    /// Reads an account's recovery, then opens its backup.
+    ///
+    /// - Parameter account: The account whose recovery to show.
     func showRecovery(for account: Account) {
         begin(.showRecovery(account))
     }
 
-    /// Opens the reset explanation, confirming the device owner first unless recovery is already gone.
-    /// - Parameter mode: Why the user is resetting.
+    /// Opens the reset explanation, confirming the device owner first for a standard reset.
+    ///
+    /// - Parameter mode: The reason for the reset.
     func startReset(_ mode: ResetMode) {
         switch mode {
         case .standard: begin(.confirmOwner)
@@ -57,12 +56,12 @@ final class SecurityCoordinator {
         path.append(.resetConfirmation)
     }
 
-    /// Resets the app; every window then returns to onboarding.
+    /// Resets the app.
     func reset() {
         begin(.reset)
     }
 
-    /// Closes the coordinator when its scene leaves, releasing any open backup.
+    /// Cancels the waiting step and closes every pushed screen.
     func close() {
         attempt = nil
         request = nil
@@ -70,8 +69,9 @@ final class SecurityCoordinator {
         path = []
     }
 
-    /// Runs the waiting step once in the scene's SwiftUI-managed task.
-    /// - Parameter attempt: The identifier the scene's task captured.
+    /// Runs the waiting step.
+    ///
+    /// - Parameter attempt: The identifier of the step to run.
     func run(_ attempt: UUID?) async {
         guard let attempt, self.attempt == attempt, let request = request.take() else { return }
         defer { if self.attempt == attempt { self.attempt = nil } }
@@ -90,7 +90,6 @@ final class SecurityCoordinator {
                 try await services.reset.reset()
             }
         } catch is CancellationError {
-            // The user dismissed authentication or the scene left.
         } catch {
             guard self.attempt == attempt else { return }
             self.error = switch request {
@@ -101,7 +100,8 @@ final class SecurityCoordinator {
         }
     }
 
-    /// Accepts one step at a time, ignoring taps while another step waits.
+    /// Starts a step unless another step waits.
+    ///
     /// - Parameter request: The step to run.
     private func begin(_ request: Request) {
         guard attempt == nil else { return }

@@ -1,5 +1,6 @@
 extension Array where Element: Hashable {
-    /// The elements in their original order, without later repeats.
+    /// Returns the elements in their original order, without later repeats.
+    ///
     /// - Returns: The first occurrence of each element.
     func uniqued() -> [Element] {
         uniqued(by: \.self)
@@ -7,17 +8,19 @@ extension Array where Element: Hashable {
 }
 
 extension Array {
-    /// Splits the elements, in order, into consecutive batches no larger than one request allows.
-    /// - Parameter size: The largest batch, greater than zero.
-    /// - Returns: Full batches, followed by a shorter last batch for any remainder.
+    /// Splits the elements, in order, into consecutive batches of at most a given size.
+    ///
+    /// - Parameter size: The largest batch size, greater than zero.
+    /// - Returns: The batches in order.
     func batches(of size: Int) -> [[Element]] {
         stride(from: 0, to: count, by: size).map { Array(self[$0..<Swift.min($0 + size, count)]) }
     }
 }
 
 extension Array {
-    /// The elements in their original order, without later elements that repeat an earlier one's key.
-    /// - Parameter key: The identity of an element.
+    /// Returns the elements in their original order, without later elements whose key repeats an earlier one.
+    ///
+    /// - Parameter key: The closure that returns an element's identity.
     /// - Returns: The first element with each key.
     func uniqued<Key: Hashable>(by key: (Element) -> Key) -> [Element] {
         var seen = Set<Key>()

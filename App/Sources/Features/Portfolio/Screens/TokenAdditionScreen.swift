@@ -1,7 +1,7 @@
 import Portfolio
 import SwiftUI
 
-/// Pastes a mint address and previews the token it names; the owning sheet adds the token.
+/// Takes a pasted mint address and previews the token it names.
 struct TokenAdditionScreen: View {
     @Environment(\.palette) private var palette
     let addition: TokenAdditionModel
@@ -51,7 +51,6 @@ struct TokenAdditionScreen: View {
             }
         }
         .animation(.default, value: addition.rejection)
-        // A preview only ever appears or clears, so its presence keys its motion.
         .animation(.default, value: addition.preview != nil)
         .scrollContentBackground(.hidden)
         .readableContentWidth()
@@ -61,7 +60,8 @@ struct TokenAdditionScreen: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    /// Takes the pasted text, animating the change to the field and any rejection it brings.
+    /// Takes pasted text with animation.
+    ///
     /// - Parameter text: The pasteboard's text.
     private func paste(_ text: String) {
         withAnimation { addition.paste(text) }

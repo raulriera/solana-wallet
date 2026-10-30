@@ -1,13 +1,9 @@
 import Foundation
 
 extension TokenTransfer {
-    /// Constructs a token transfer for either program using their shared wire layout.
+    /// Returns the instructions that perform the transfer.
     ///
-    /// Destination creation is idempotent, so another sender creating the account
-    /// before execution doesn't invalidate the instruction. The token owner pays any destination creation deposit.
-    /// Token-2022 fees are checked on-chain; a changed fee requires a new preparation and approval.
-    ///
-    /// - Returns: Ordered account creation, memo, and checked-transfer instructions.
+    /// - Returns: The account creation, memo, and checked-transfer instructions, in order.
     /// - Throws: An address validation error if a program identifier is invalid.
     public func instructions() throws -> [Instruction] {
         let transfer = self
@@ -21,7 +17,7 @@ extension TokenTransfer {
                            .init(address: transfer.recipient, isSigner: false, isWritable: false),
                            .init(address: transfer.mint.address, isSigner: false, isWritable: false),
                            .init(address: try Address(SystemProgram.id), isSigner: false, isWritable: false),
-                           .init(address: program, isSigner: false, isWritable: false)], data: Data([1]) // CreateIdempotent.
+                           .init(address: program, isSigner: false, isWritable: false)], data: Data([1])
             ))
         }
         if let memo = transfer.memo {

@@ -1,13 +1,11 @@
 import Foundation
 import SwiftUI
 
-/// Shows a token's total value in its quote currency; new values roll into place.
-///
-/// Abbreviated values shorten from 10,000 up, as in US$10.2K, while VoiceOver still reads the full value.
+/// Shows a token's total value in its quote currency.
 struct TokenValue: View {
     let total: Decimal
     let currency: String
-    /// Whether values from 10,000 up are shortened, as on cards and rows.
+    /// Whether values from 10,000 up are shortened.
     var abbreviates = false
 
     var body: some View {

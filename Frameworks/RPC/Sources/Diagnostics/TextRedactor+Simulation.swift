@@ -1,8 +1,8 @@
 extension TextRedactor {
-    /// Redacts diagnostic text while preserving a simulation's numeric and structural data.
+    /// Redacts a simulation's text while keeping its numeric and structural data.
     ///
-    /// - Parameter simulation: The simulation diagnostics to sanitize.
-    /// - Returns: A simulation with sensitive text replaced by this redactor's policy.
+    /// - Parameter simulation: The simulation diagnostics.
+    /// - Returns: The simulation with its text redacted.
     func redact(_ simulation: SimulateTransaction.Value) -> SimulateTransaction.Value {
         SimulateTransaction.Value(
             error: simulation.error.map { redact($0) },
@@ -20,18 +20,18 @@ extension TextRedactor {
         )
     }
 
-    /// Redacts a transaction error's name and any associated text.
+    /// Redacts a transaction error's name and details.
     ///
-    /// - Parameter error: The transaction error to sanitize.
-    /// - Returns: The error with its sensitive text replaced.
+    /// - Parameter error: The transaction error.
+    /// - Returns: The error with its text redacted.
     private func redact(_ error: TransactionError) -> TransactionError {
         TransactionError(name: redact(error.name), details: error.details.map { redact($0) })
     }
 
-    /// Redacts nested strings and field names while retaining exact integer values.
+    /// Redacts the strings and field names in transaction-error data.
     ///
-    /// - Parameter detail: The associated transaction-error data to sanitize.
-    /// - Returns: The associated data with its sensitive text replaced.
+    /// - Parameter detail: The transaction-error data.
+    /// - Returns: The data with its text redacted.
     private func redact(_ detail: TransactionError.Detail) -> TransactionError.Detail {
         switch detail {
         case .string(let value):

@@ -1,7 +1,7 @@
-/// Why the user resets the app, which decides the explanation and whether the device owner confirms first.
+/// The reason for a reset.
 enum ResetMode: Hashable {
-    /// The user chose Reset App, so the device owner confirms first.
+    /// The person chose to reset the app.
     case standard
-    /// This device no longer has the wallet's recovery, so resetting is the only fix and nothing needs unlocking.
+    /// The wallet's recovery isn't on this device.
     case recoveryUnavailable
 }

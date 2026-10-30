@@ -2,8 +2,6 @@ import Portfolio
 import SwiftUI
 
 /// One token in the portfolio list: its symbol and name, with its value and 24-hour change on the trailing side.
-///
-/// The balance takes the value's place when the value is unknown; a token without a known balance shows neither.
 struct TokenRow: View {
     let symbol: String
     let name: String
@@ -13,11 +11,10 @@ struct TokenRow: View {
     /// The price's 24-hour change as a fraction, or `nil` when unknown.
     let change: Decimal?
     let imageURL: URL?
-    /// Whether the account also holds private SOL, which shows as a sign before the balance.
+    /// Whether the account also holds private SOL.
     var hasPrivateBalance = false
 
     var body: some View {
-        // The figures always sit beside the name and keep their room; the symbol and name truncate instead.
         HStack(spacing: 12) {
             TokenRowIdentity(symbol: symbol, name: name, imageURL: imageURL)
                 .frame(maxWidth: .infinity, alignment: .leading)

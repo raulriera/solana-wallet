@@ -1,18 +1,16 @@
-/// One onboarding screen, pushed above welcome in the order the person reaches it.
+/// An onboarding screen above welcome.
 nonisolated enum OnboardingStep: Hashable, Sendable {
-    /// Backup of a newly prepared recovery phrase.
+    /// The backup of a new recovery phrase.
     case recovery
-    /// Entry of an existing recovery phrase.
     case importWallet
-    /// The choice of the RPC provider after the wallet is saved.
     case providers
-    /// A screen that the provider choice pushes, such as a custom RPC's entry.
+    /// A screen that the provider choice pushes.
     case providersRoute(ProvidersRoute)
 
-    /// The number of steps in every flow: the wallet's own step, then the provider choice.
+    /// The number of steps in every flow.
     static let total = 2
 
-    /// This step's position in its flow, counting from one; the provider choice's screens all count as its step.
+    /// The step's position in its flow, counting from one.
     var number: Int {
         switch self {
         case .recovery, .importWallet: 1

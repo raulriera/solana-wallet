@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Shows a screen that Providers pushes, in Settings and in onboarding; the coordinator decides what each screen shows.
+/// Shows a screen that Providers pushes.
 struct ProvidersDestination: View {
     @Environment(ProviderStore.self) private var providers
     @Bindable var coordinator: ProvidersCoordinator

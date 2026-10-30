@@ -1,11 +1,6 @@
 /// An indexer read of the confidential transactions with an output or message for any of the view tags.
-///
-/// The request omits `limit`, so the indexer's default page size of 1,000 applies, and `ringProgramId`.
-/// Without that filter the indexer returns transactions of every ring; each row names its ring, if any.
 struct GetShieldedTransactionsByTags: RPCRequest {
-    /// The indexer method, which is also the route below the gateway.
     static let method = "getShieldedTransactionsByTags"
-    /// A page of transactions.
     typealias Response = ShieldedTransactionPage
     /// One to 1,000 base-58 view tags.
     let tags: [String]
@@ -13,13 +8,9 @@ struct GetShieldedTransactionsByTags: RPCRequest {
     let cursor: String?
 }
 
-/// An indexer read of every output whose view tag is any of the view tags, one row per output.
-///
-/// The request omits `limit` and `ringProgramId` like ``GetShieldedTransactionsByTags``.
+/// An indexer read of every output whose view tag is any of the view tags.
 struct GetEncryptedUtxosByTags: RPCRequest {
-    /// The indexer method, which is also the route below the gateway.
     static let method = "getEncryptedUtxosByTags"
-    /// A page of matching outputs.
     typealias Response = EncryptedOutputPage
     /// One to 1,000 base-58 view tags.
     let tags: [String]
@@ -29,9 +20,7 @@ struct GetEncryptedUtxosByTags: RPCRequest {
 
 /// An indexer read of the inclusion proofs of UTXO hashes in one tree, all against one root.
 struct GetMerkleProofs: RPCRequest {
-    /// The indexer method, which is also the route below the gateway.
     static let method = "getMerkleProofs"
-    /// One proof per leaf, in request order.
     typealias Response = MerkleProofList
     /// The tree account's base-58 address.
     let treeAccount: String
@@ -41,9 +30,7 @@ struct GetMerkleProofs: RPCRequest {
 
 /// An indexer read of the non-inclusion proofs of nullifiers in one tree, all against one root.
 struct GetNonInclusionProofs: RPCRequest {
-    /// The indexer method, which is also the route below the gateway.
     static let method = "getNonInclusionProofs"
-    /// One proof per nullifier, in request order.
     typealias Response = NonInclusionProofList
     /// The tree account's base-58 address.
     let treeAccount: String
@@ -52,12 +39,8 @@ struct GetNonInclusionProofs: RPCRequest {
 }
 
 /// An indexer read of the transactions that spent any of the nullifiers.
-///
-/// The request omits `limit`, so the indexer's default page size of 1,000 applies.
 struct GetShieldedTransactionsByNullifiers: RPCRequest {
-    /// The indexer method, which is also the route below the gateway.
     static let method = "getShieldedTransactionsByNullifiers"
-    /// A page of transactions.
     typealias Response = ShieldedTransactionPage
     /// One to 1,000 base-58 nullifiers.
     let nullifiers: [String]

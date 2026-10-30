@@ -1,34 +1,31 @@
 /// A SLIP-0010 path containing only hardened child indices.
 public struct DerivationPath: Sendable, Hashable, CustomStringConvertible {
-    /// The first account at `m/44'/501'/0'/0'`.
+    /// The path of the first Solana account, `m/44'/501'/0'/0'`.
     public static let solana = DerivationPath(indices: [44, 501, 0, 0])
 
-    /// The account at `m/44'/501'/i'/0'`, the default Solana account family.
+    /// Returns the path of a Solana account.
     ///
     /// - Parameter account: The account index i, below 2³¹.
-    /// - Returns: The account's path, whose ``accountIndex`` is `account`.
+    /// - Returns: The path `m/44'/501'/i'/0'`.
     public static func solana(account: UInt32) -> Self {
         precondition(account < hardenedBit, "An account index must be below 2³¹.")
         return Self(indices: [44, 501, account, 0])
     }
 
-    /// A malformed path or an index outside the hardened derivation range.
+    /// An error from parsing a derivation path.
     public enum ValidationError: Error, Equatable {
         /// The path isn't `m` followed by slash-separated hardened indices below 2³¹.
         case invalidPath
     }
 
-    /// The bit that marks a child index as hardened; the indices a path names stay below it.
     static let hardenedBit: UInt32 = 0x8000_0000
 
-    /// The child indices before adding the hardened bit.
+    /// The child indices without the hardened bit.
     let indices: [UInt32]
 
-    /// The child indices with the hardened bit set, as derivation uses them.
     var hardenedIndices: [UInt32] { indices.map { $0 | Self.hardenedBit } }
 
-    /// The account index i of a path in either Solana account family, `m/44'/501'/i'/0'` or `m/44'/501'/i'`, or `nil`
-    /// for any other path.
+    /// The account index i of a path `m/44'/501'/i'/0'` or `m/44'/501'/i'`, or `nil` for any other path.
     public var accountIndex: UInt32? {
         guard indices.count == 3 || indices.count == 4 && indices[3] == 0, indices[0] == 44, indices[1] == 501 else {
             return nil
@@ -36,16 +33,12 @@ public struct DerivationPath: Sendable, Hashable, CustomStringConvertible {
         return indices[2]
     }
 
-    /// The canonical path, with an apostrophe after each hardened child index.
     public var description: String { "m" + indices.map { "/\($0)'" }.joined() }
 
-    /// Parses a hardened derivation path.
-    ///
-    /// For example, `m/44'/501'/1'/0'` selects the second account in the default
-    /// Solana path family. The path `m` selects the master key.
+    /// Creates a path by parsing its text, such as `m/44'/501'/1'/0'`.
     ///
     /// - Parameter path: A path beginning with `m`, followed by hardened child indices.
-    /// - Throws: ``ValidationError/invalidPath`` for malformed or non-hardened paths.
+    /// - Throws: ``ValidationError/invalidPath`` for a malformed or non-hardened path.
     public init(_ path: String) throws {
         let components = path.split(separator: "/", omittingEmptySubsequences: false)
         guard components.first == "m" else { throw ValidationError.invalidPath }
@@ -60,9 +53,9 @@ public struct DerivationPath: Sendable, Hashable, CustomStringConvertible {
         }
     }
 
-    /// Creates a path from known, unhardened index values.
+    /// Creates a path from child indices without the hardened bit.
     ///
-    /// - Parameter indices: Valid indices below 2³¹.
+    /// - Parameter indices: Indices below 2³¹.
     init(indices: [UInt32]) {
         self.indices = indices
     }

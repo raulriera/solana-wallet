@@ -1,27 +1,21 @@
 public import Foundation
 
-/// Coinbase's public exchange rates, through the shared exchange-rate contract.
-///
-/// Coinbase serves about 150 currencies, updated through the day, without a key. Its responses also carry crypto
-/// assets; only ISO currencies reach consumers.
+/// An exchange-rate provider backed by Coinbase's public rates.
 public struct Coinbase: ExchangeRateProviding {
     private let transport: any HTTPTransport
 
-    /// Creates a rate provider with an ephemeral URL session.
+    /// Creates a rate provider.
     public init() {
         self.init(transport: URLSessionTransport())
     }
 
     /// Creates a rate provider with an injected HTTP transport.
-    /// - Parameter transport: The transport performing real requests or supplying HTTP test fixtures.
+    ///
+    /// - Parameter transport: The transport that performs HTTP requests.
     init(transport: any HTTPTransport) {
         self.transport = transport
     }
 
-    /// Reads the current rates from the requested currency.
-    /// - Parameter currency: The ISO code of the currency to convert from.
-    /// - Returns: Rates keyed by ISO currency code, or none when Coinbase doesn't serve the currency.
-    /// - Throws: An HTTP, transport, decoding, or cancellation error.
     @concurrent
     public func rates(from currency: String) async throws -> [String: Decimal] {
         try Task.checkCancellation()
@@ -52,7 +46,7 @@ public struct Coinbase: ExchangeRateProviding {
         return rates
     }
 
-    /// The adapter's private DTO; consumers see only rates keyed by ISO code.
+    /// The exchange-rate response body.
     private struct Response: Decodable {
         let data: Rates
 

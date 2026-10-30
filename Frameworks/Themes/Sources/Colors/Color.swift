@@ -3,7 +3,7 @@ public enum Color: Sendable, Equatable {
     case system(System)
     case srgb(red: UInt8, green: UInt8, blue: UInt8)
 
-    /// Supported semantic and adaptable iOS color names.
+    /// A semantic iOS color name.
     public enum System: String, CaseIterable, Sendable {
         case label, secondaryLabel, tertiaryLabel, quaternaryLabel
         case systemFill, secondarySystemFill, tertiarySystemFill, quaternarySystemFill

@@ -2,31 +2,22 @@ public import RPC
 import Transactions
 
 extension ShieldedPool {
-    /// A tree account that doesn't hold a fee schedule.
+    /// A tree read that didn't return a valid tree account.
     public enum TreeError: Error, Equatable {
-        /// No account exists at the tree's address.
         case missingTree
         /// The shielded-pool program doesn't own the account at the tree's address.
         case foreignOwner
-        /// The account is too short to hold the fee per nullifier.
         case invalidLength
         /// The provider returned a different number of accounts than the read asked for.
         case mismatchedResponse
     }
 
-    /// The position of the fee per nullifier in a tree account: after the discriminator, the state,
-    /// the tree ID, and 4 bytes of padding, the first field of the fee schedule.
     private static let feePerNullifierOffset = 8
 
-    /// Reads the fee that a transact pays a tree for each input slot that spends from it, with one
-    /// finalized `getMultipleAccounts` read of the tree's account.
-    ///
-    /// The fee is the tree's `fee_per_nullifier`, a little-endian 64-bit integer at offset 8. The
-    /// fee payer pays it once for each of a spend's ``PrivateSpend/nullifierCount`` slots in the
-    /// tree, padding included. The tree's authority can change it.
+    /// Reads the fee that a transact pays a tree for each input slot that spends from it.
     ///
     /// - Parameters:
-    ///   - treeID: The tree's ID, such as ``NoteSyncState/outputTreeID``.
+    ///   - treeID: The tree's ID.
     ///   - rpc: The client of the network whose tree to read.
     /// - Returns: The fee per nullifier, in lamports.
     /// - Throws: An RPC error, ``TreeError/mismatchedResponse`` if the provider returns another

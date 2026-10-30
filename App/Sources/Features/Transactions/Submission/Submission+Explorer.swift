@@ -2,7 +2,7 @@ import Foundation
 import RPC
 
 nonisolated extension Submission {
-    /// The sent transaction's page on Solana Explorer, on its own network, where anyone can check its outcome.
+    /// The transaction's page on Solana Explorer.
     var explorerURL: URL {
         var components = URLComponents()
         components.scheme = "https"
@@ -13,7 +13,6 @@ nonisolated extension Submission {
         case .devnet: components.queryItems = [URLQueryItem(name: "cluster", value: "devnet")]
         }
         // swift-format-ignore: NeverForceUnwrap
-        // A base-58 signature has only letters and digits, so the components always form a URL.
         return components.url!
     }
 }

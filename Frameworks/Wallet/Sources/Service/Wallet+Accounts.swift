@@ -2,16 +2,6 @@ import CryptoKit
 import Encoding
 
 extension Wallet {
-    /// Derives multiple accounts on the concurrent executor using one temporary BIP-39 seed.
-    ///
-    /// No phrase, passphrase, seed, or private key is retained by the service.
-    /// An empty path list returns an empty result without deriving a seed.
-    /// - Parameters:
-    ///   - phrase: The validated recovery words.
-    ///   - passphrase: The original BIP-39 passphrase, including significant whitespace.
-    ///   - paths: Hardened paths in the desired order, including any duplicates.
-    /// - Returns: The corresponding public addresses and exact paths.
-    /// - Throws: A cryptographic error or `CancellationError`.
     @concurrent
     public func accounts(for phrase: RecoveryPhrase, passphrase: String,
                          paths: [DerivationPath]) async throws -> [DerivedAccount] {

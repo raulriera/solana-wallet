@@ -4,25 +4,16 @@ import SwiftUI
 import Transactions
 import Wallet
 
-/// Shows one token's balance and, when known, its value, price, and 24-hour change; removes any token except native SOL.
-///
-/// Native SOL also shows the account's private balance, read again each time the screen appears.
-/// Devnet has no prices, so its tokens show only their balance and a note that they have no monetary value.
-/// A token whose account another address controls shows that address instead of a balance, value, or price.
+/// Shows one token's balance and, when known, its value, price, and 24-hour change.
 struct TokenDetailScreen: View {
     @Environment(\.palette) private var palette
     @Environment(PrivateBalanceStore.self) private var privateBalances
     let holding: Holding
-    /// The account whose token shows.
     let account: Account
-    /// The network whose token shows.
     let network: Network
-    /// The Portfolio tab's private-balance workflows, which native SOL's details run with
-    /// ``privateBalanceLifecycle()``.
     let privateBalance: PrivateBalanceModel
 
     var body: some View {
-        // Only SOL's details show the private balance, so other tokens don't follow its changes.
         let walletPrivateBalance = holding.id == .nativeSOL ? privateBalances.balance(for: account, on: network) : nil
         let privateStatus = walletPrivateBalance?.status
         let isPrivateBalanceOutdated = walletPrivateBalance?.isOutdated ?? false
@@ -41,9 +32,6 @@ struct TokenDetailScreen: View {
                 }
                 if let otherOwner = holding.otherOwner {
                     LabeledContent("Owner") {
-                        // Middle truncation hides characters only on screen, so copying takes the whole address.
-                        // Don't use the short address format here: it changes the text itself, so a copy would take
-                        // only its first and last four characters.
                         Text(otherOwner.value)
                             .lineLimit(1)
                             .truncationMode(.middle)
@@ -65,7 +53,6 @@ struct TokenDetailScreen: View {
                     LabeledContent {
                         DayChangeLabel(change: change)
                     } label: {
-                        // The value already says "over 24 hours", so VoiceOver doesn't repeat it.
                         Text("24h Change")
                             .accessibilityLabel(Text("Change"))
                     }
@@ -101,7 +88,6 @@ struct TokenDetailScreen: View {
                                        isOutdated: isPrivateBalanceOutdated,
                                        canMakePublic: walletPrivateBalance?.availableLamports != nil,
                                        symbol: holding.displaySymbol)
-                    // The rows open moves with the account's public SOL without holding the private balance.
                     .environment(\.moveBalance,
                                  PrivateBalanceMoveAction(model: privateBalance, privateBalances: privateBalances,
                                                           account: account, network: network,
@@ -121,7 +107,6 @@ struct TokenDetailScreen: View {
         .navigationTitle(holding.displayName)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            // Native SOL isn't part of the token list, so it always stays.
             if holding.id != .nativeSOL {
                 ToolbarItem(placement: .primaryAction) {
                     TokenActionsMenu(token: holding.id, symbol: holding.displaySymbol)
@@ -161,21 +146,19 @@ struct TokenDetailScreen: View {
 }
 
 private extension TransactionStore {
-    /// Keeps the preview local: no network has a coordinator, so a deposit never opens, and no records are read.
     static var preview: TransactionStore {
         TransactionStore(directory: .temporaryDirectory) { _ in throw SubmitterError.noProviders }
     }
 }
 
 private extension PrivateBalanceStore {
-    /// Keeps the preview local: SOL's details read only the preview's private balances, which are off.
     static var preview: PrivateBalanceStore {
         PrivateBalanceStore(balances: PreviewPrivateBalances(), transactions: .preview,
                             providers: ProviderStore(service: "preview"))
     }
 }
 
-/// Keeps the preview local: it has no tokens and never observes, looks up, adds, or removes one.
+/// A private-balance service for previews whose private balance is off.
 private struct PreviewPrivateBalances: PrivateBalancing {
     func enable(_ account: Account, on network: Network) async throws {}
 

@@ -1,23 +1,18 @@
 import Observation
 
-/// Owns onboarding's navigation path, ends an import as soon as its step leaves the path, and shows the screens that the
-/// provider choice pushes above it.
+/// The navigation path of onboarding and the screens that its provider choice pushes.
 @MainActor
 @Observable
 final class OnboardingNavigation {
-    /// Onboarding's own steps above welcome, in order; Back removes the last one.
+    /// Onboarding's own steps above welcome.
     var path: [OnboardingStep] = [] {
         didSet {
-            // Back must invalidate an in-flight import before SwiftUI delivers task cancellation.
             if oldValue.contains(.importWallet), !path.contains(.importWallet) {
                 walletImport.isPresented = false
             }
         }
     }
-    /// Every screen above welcome: onboarding's own steps, then the screens that the provider choice pushed.
-    ///
-    /// The provider choice keeps its pushed screens in its own path, as it does in Settings, so Back from one of them
-    /// changes that path and leaves onboarding's own steps as they are.
+    /// Every screen above welcome, including the screens that the provider choice pushes.
     var stack: [OnboardingStep] {
         get { path + providers.path.map(OnboardingStep.providersRoute) }
         set {
@@ -34,16 +29,17 @@ final class OnboardingNavigation {
     private let walletImport: ImportWalletModel
     private let providers: ProvidersCoordinator
 
-    /// Creates an empty path that keeps the window's import presentation and provider screens in step with navigation.
+    /// Creates an empty navigation path.
+    ///
     /// - Parameters:
-    ///   - walletImport: The window's import attempts, ended when phrase entry leaves the path.
-    ///   - providers: The window's provider choice, whose pushed screens show above onboarding's steps.
+    ///   - walletImport: The window's import model.
+    ///   - providers: The window's provider coordinator.
     init(walletImport: ImportWalletModel, providers: ProvidersCoordinator) {
         self.walletImport = walletImport
         self.providers = providers
     }
 
-    /// Pushes phrase entry once the import submission accepts a new presentation.
+    /// Pushes phrase entry when the import can start.
     func showImport() {
         guard path.isEmpty else { return }
         walletImport.present()

@@ -2,15 +2,12 @@ import Foundation
 
 /// Something to check about a recipient before paying them.
 nonisolated enum RecipientWarning: Hashable, Sendable {
-    /// The address starts and ends like another address the person paid or saved, but differs in between, as
-    /// address poisoning arranges.
+    /// The address starts and ends like another address the person used, but differs in between.
     case lookAlike
-    /// No key exists for the address, so only the program that derived it can move what it receives.
+    /// No key exists for the address.
     case offCurve
-    /// The person hasn't paid the address before.
     case firstPayment
 
-    /// Explains what to check.
     var message: LocalizedStringResource {
         switch self {
         case .lookAlike: "This address starts and ends like one you've used, but it's different. Check every character."
@@ -19,7 +16,6 @@ nonisolated enum RecipientWarning: Hashable, Sendable {
         }
     }
 
-    /// The name of the SF Symbol that pictures the warning.
     var systemImage: String {
         switch self {
         case .lookAlike: "exclamationmark.triangle.fill"
@@ -28,6 +24,6 @@ nonisolated enum RecipientWarning: Hashable, Sendable {
         }
     }
 
-    /// Whether the payment could go somewhere the person didn't intend, so the warning shows in red.
+    /// Whether the payment could go somewhere the person didn't intend.
     var isSerious: Bool { self != .firstPayment }
 }

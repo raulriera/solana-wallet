@@ -1,20 +1,16 @@
 public import Foundation
 
-/// A type that signs bytes with a locally recovered Ed25519 account.
+/// A type that signs messages with a recovered Ed25519 account.
 public protocol MessageSigning: Sendable {
-    /// Signs a message after checking the recovered account against the intended signer.
-    ///
-    /// The caller supplies the exact message bytes and owns transaction validation
-    /// and user consent. This operation doesn't authenticate, persist, or broadcast.
-    /// It refuses messages reserved for Solana Rings key derivation.
+    /// Signs a message after checking the recovered account's address.
     ///
     /// - Parameters:
-    ///   - message: The complete, unsigned message bytes to sign.
+    ///   - message: The message bytes to sign.
     ///   - phrase: The validated recovery phrase.
     ///   - expectedAddress: The exact Base58 address of the intended signer.
-    ///   - passphrase: The original BIP-39 passphrase, including significant whitespace.
+    ///   - passphrase: The original BIP-39 passphrase.
     ///   - path: The hardened derivation path of the intended account.
-    /// - Returns: A 64-byte Ed25519 signature, without private key material.
+    /// - Returns: A 64-byte Ed25519 signature.
     /// - Throws: ``SigningError/reservedMessage`` for a key derivation input,
     ///   ``SigningError/signerMismatch`` if the recovered account differs,
     ///   `CancellationError` if cancelled, or a cryptographic error.

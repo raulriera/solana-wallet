@@ -1,5 +1,5 @@
-/// A local request error detected before networking.
+/// An error for an invalid account read request.
 public enum GetMultipleAccountsError: Error, Sendable, Equatable {
-    /// A request must contain between one and 100 addresses.
+    /// The request doesn't have one to 100 addresses.
     case invalidAddressCount
 }

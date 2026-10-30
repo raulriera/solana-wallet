@@ -1,13 +1,13 @@
 import Foundation
 import Themes
 
-/// Shared catalog and preferences, with matching built-ins for every window.
+/// The theme catalog, appearance preferences, and theme pack services.
 struct AppearanceServices {
     let catalog: any ThemeCatalogProviding
     let appearance: any AppearanceCoordinating
     let packages: any PackServicing
 
-    /// Configures production services without opening installed packages.
+    /// Creates the production appearance services.
     init() {
         guard let url = OriginalAppearance.packageURL else { preconditionFailure("The app bundle is missing the original theme.") }
         let builtIns = [BundledTheme(id: OriginalAppearance.id, name: "Original", url: url)]

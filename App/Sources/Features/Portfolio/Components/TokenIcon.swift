@@ -14,7 +14,6 @@ struct TokenIcon: View {
                     .resizable()
                     .scaledToFill()
             case .empty where imageURL != nil:
-                // Even a cached logo arrives a moment later, so a letter here would flash before it.
                 Color.clear
             default:
                 Text(symbol.prefix(1).uppercased())
@@ -22,7 +21,6 @@ struct TokenIcon: View {
                     .foregroundStyle(.secondary)
             }
         }
-        // A new or missing logo starts a fresh image, so a logo never outlives its URL, as after a provider change.
         .id(imageURL)
         .frame(width: diameter, height: diameter)
         .background(.fill.tertiary, in: .circle)

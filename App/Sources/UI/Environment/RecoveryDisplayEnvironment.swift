@@ -1,6 +1,6 @@
 import SwiftUI
 
 extension EnvironmentValues {
-    /// Whether recovery words may appear: the scene is active, and nothing records or mirrors it.
+    /// Whether recovery words can show: the scene is active and not captured.
     var canDisplayRecovery: Bool { scenePhase == .active && !isSceneCaptured }
 }

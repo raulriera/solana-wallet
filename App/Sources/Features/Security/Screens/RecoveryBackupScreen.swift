@@ -1,7 +1,7 @@
 import SwiftUI
 import Wallet
 
-/// Shows one wallet's backup for writing down, or explains that this device no longer has it.
+/// Shows a wallet's recovery backup, or explains that it isn't on this device.
 struct RecoveryBackupScreen: View {
     @Environment(\.palette) private var palette
     @Environment(\.canDisplayRecovery) private var canDisplayRecovery

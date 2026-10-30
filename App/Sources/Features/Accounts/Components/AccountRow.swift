@@ -2,19 +2,15 @@ import SwiftUI
 import Transactions
 import Wallet
 
-/// One account of the window's wallet: a choice that shows it in the window, with a leading checkmark while the window
-/// shows it, and an info button that opens it to rename or delete it.
+/// A row that selects an account, with a button that opens the account's screen.
 struct AccountRow: View {
     @Environment(\.palette) private var palette
     let account: Account
-    /// The account that the window shows, which choosing this one changes.
     @Binding var selection: Account
-    /// The scene's pushed screens, which the info button opens the account's screen on.
     @Binding var path: [AccountsRoute]
 
     var body: some View {
         HStack {
-            // A leading checkmark leaves the trailing edge to the info button.
             Button {
                 selection = account
             } label: {
@@ -30,7 +26,6 @@ struct AccountRow: View {
             Button("More Info", systemImage: "info.circle") { path.append(.account(account.id)) }
                 .labelStyle(.iconOnly)
                 .foregroundStyle(palette.accent)
-                // A borderless button handles its own taps, so the rest of the row stays the choice.
                 .buttonStyle(.borderless)
         }
     }

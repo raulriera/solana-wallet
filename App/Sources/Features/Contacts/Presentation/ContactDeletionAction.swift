@@ -1,19 +1,15 @@
 import SwiftUI
 import Transactions
 
-/// Deletes a contact the person confirmed, from any view in Contacts, the way SwiftUI's `dismiss` acts for the view
-/// that reads it.
+/// An action that deletes a contact.
 struct ContactDeletionAction {
-    /// The window's contacts, which delete it and explain a deletion that can't be saved.
     let contacts: ContactsModel
-    /// The lists that show the contact.
     let lists: ContactLists
-    /// The saved contacts that every window shares.
     let store: ContactStore
-    /// The tab's selected address, which the deletion clears when it leaves the address without a row.
     let selection: Binding<Address?>
 
-    /// Deletes a contact; a paid address stays selected under Recents, and any other leaves nothing selected.
+    /// Deletes a contact and clears the selection when the contact's address leaves the lists.
+    ///
     /// - Parameter contact: The contact to delete.
     func callAsFunction(_ contact: Contact) {
         contacts.delete(contact, from: store)

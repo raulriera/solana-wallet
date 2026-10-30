@@ -1,18 +1,14 @@
 import Foundation
 
-/// A secret-free error that Security & Privacy explains in an alert.
+/// An error in Security & Privacy.
 nonisolated enum SecurityError: RetryableError, Equatable {
-    /// The recovery couldn't be read.
     case recoveryUnreadable
-    /// The device owner didn't authenticate.
     case ownerNotConfirmed
-    /// A reset stopped before deleting everything.
+    /// A reset that stopped before deleting everything.
     case resetIncomplete
 
-    /// Whether trying again can help; only an incomplete reset repeats from its alert.
     var canRetry: Bool { self == .resetIncomplete }
 
-    /// The alert's title.
     var errorDescription: String? {
         switch self {
         case .recoveryUnreadable: String(localized: "Couldn't Show Recovery Phrase")
@@ -21,7 +17,6 @@ nonisolated enum SecurityError: RetryableError, Equatable {
         }
     }
 
-    /// The alert's explanation.
     var recoverySuggestion: String? {
         switch self {
         case .recoveryUnreadable: String(localized: "Your recovery phrase couldn't be read. Try again.")

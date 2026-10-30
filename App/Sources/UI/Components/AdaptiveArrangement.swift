@@ -1,13 +1,12 @@
 import SwiftUI
 
-/// Lays out an adaptive arrangement's regions around the active fold that crosses it.
+/// Lays out an arrangement's regions around an active fold that crosses it.
 struct AdaptiveArrangement: View {
-    /// The active fold that crosses the arrangement, in the arrangement's own coordinates.
+    /// The active fold's frame in the arrangement's coordinates.
     @State private var fold: CGRect?
     let configuration: ArrangementViewStyleConfiguration
 
     var body: some View {
-        // The secondary region's views lay out one by one, so its second view can move under the primary region.
         Group(subviews: configuration.secondary) { secondary in
             AdaptiveArrangementLayout(fold: fold) {
                 configuration.primary

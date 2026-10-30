@@ -1,2 +1,2 @@
-/// The requested defaults domain could not be opened.
+/// An error reading the reset request.
 nonisolated enum SettingsRecoveryRequestError: Error { case unavailablePreferences }

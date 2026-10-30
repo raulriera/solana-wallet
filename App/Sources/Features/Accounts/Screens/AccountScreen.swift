@@ -3,28 +3,23 @@ import Transactions
 import Wallet
 
 /// Renames an account, shows its whole address and its path, and deletes it.
-///
-/// The screen closes once its new name is saved, or as the person confirms its deletion.
 struct AccountScreen: View {
     @Environment(\.palette) private var palette
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
     @State private var isConfirmingDeletion = false
-    /// The account as saved.
     let account: Account
-    /// Whether the account can be deleted: every account but the one the window shows.
     let canDelete: Bool
-    /// The scene's renames.
     let rename: AccountRenameModel
-    /// The scene's deletions, which the accounts list runs once this screen closes.
     let deletion: AccountDeletionModel
 
-    /// Shows an account, whose name field follows its saved name.
+    /// Creates the screen of an account.
+    ///
     /// - Parameters:
-    ///   - account: The account as saved.
-    ///   - canDelete: Whether the account can be deleted: every account but the one the window shows.
-    ///   - rename: The scene's renames.
-    ///   - deletion: The scene's deletions, which the accounts list runs once this screen closes.
+    ///   - account: The saved account.
+    ///   - canDelete: Whether the account can be deleted.
+    ///   - rename: The model that renames the account.
+    ///   - deletion: The model that deletes the account.
     init(account: Account, canDelete: Bool, rename: AccountRenameModel, deletion: AccountDeletionModel) {
         self.account = account
         self.canDelete = canDelete
@@ -39,7 +34,6 @@ struct AccountScreen: View {
                 TextField(text: $name) {
                     Text(account.defaultName)
                 }
-                // The placeholder is the numbered name, which VoiceOver would read as if it were typed.
                 .accessibilityLabel(Text("Name"))
                 .submitLabel(.done)
                 .onSubmit(save)
@@ -66,7 +60,6 @@ struct AccountScreen: View {
                 Section {
                     Button("Delete Account", systemImage: "trash", role: .destructive) { isConfirmingDeletion = true }
                         .labelStyle(.warning)
-                        // Action rows stay one line at every text size; VoiceOver still reads the whole title.
                         .lineLimit(1)
                         .disabled(isRenaming)
                         .confirmationDialog("Delete Account?", isPresented: $isConfirmingDeletion) {
@@ -86,8 +79,6 @@ struct AccountScreen: View {
         .background(palette.background)
         .navigationTitle(account.name)
         .navigationBarTitleDisplayMode(.inline)
-        // The field shows the saved name, or stays empty to show the numbered one, including a name saved in another
-        // window.
         .onChange(of: account.customName, initial: true) { _, saved in
             name = saved ?? ""
         }
@@ -96,16 +87,15 @@ struct AccountScreen: View {
         }
     }
 
-    /// Whether the typed name differs from the saved one; the store ignores the spaces around a name.
     private var canSave: Bool { name != account.customName ?? "" }
 
-    /// Closes the screen and leaves the deletion to the accounts list, where the account's row then leaves in view.
+    /// Starts deleting the account and closes the screen.
     private func delete() {
         deletion.delete(account.id)
         dismiss()
     }
 
-    /// Saves the typed name, unless it's the saved one.
+    /// Saves the typed name when it differs from the saved one.
     private func save() {
         guard canSave else { return }
         rename.rename(account.id, to: name)

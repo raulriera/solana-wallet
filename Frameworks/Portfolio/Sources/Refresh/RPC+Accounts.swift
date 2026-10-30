@@ -6,10 +6,9 @@ extension RPC {
     ///
     /// - Parameters:
     ///   - addresses: One through 100 account addresses.
-    ///   - minContextSlot: The earliest acceptable balance observation, or `nil`.
+    ///   - minContextSlot: The earliest slot the response may come from, or `nil` for any slot.
     /// - Returns: Each account's contents, or `nil` where no account exists.
-    /// - Throws: A validation or RPC error, or ``AccountReadError/mismatchedResponse`` when the provider
-    ///   returns a different number of accounts, or ``AccountReadError/staleContext`` for an older observation.
+    /// - Throws: A validation or RPC error, or an ``AccountReadError``.
     func accounts(at addresses: [Address], minContextSlot: UInt64? = nil) async throws -> [Account?] {
         let response = try await send(GetMultipleAccounts(addresses: addresses.map(\.value), minContextSlot: minContextSlot))
         if let minContextSlot, response.context.slot < minContextSlot { throw AccountReadError.staleContext }
@@ -18,10 +17,10 @@ extension RPC {
     }
 }
 
-/// A provider response that doesn't match its account read.
+/// An error from an account read whose response doesn't match the request.
 enum AccountReadError: Error, Equatable {
-    /// The provider returned a different number of accounts than the request asked for.
+    /// The response holds a different number of accounts than requested.
     case mismatchedResponse
-    /// The provider returned balances from before the required finalized change.
+    /// The response comes from a slot before the minimum context slot.
     case staleContext
 }

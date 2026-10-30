@@ -4,11 +4,8 @@ public import Foundation
 public protocol LogoProviding: Sendable {
     /// Looks up the provider's copies of token logos.
     ///
-    /// Returns only HTTPS URLs on the provider's own image server, never creator-hosted or off-chain
-    /// links, which would expose the viewer's IP address. A missing entry means the provider has no logo
-    /// for that mint. An empty input sends no request. Providers batch within their limits and don't retry.
-    /// - Parameter mints: Mint addresses on this provider's network; duplicates are ignored.
-    /// - Returns: Logo URLs keyed by mint address.
-    /// - Throws: A request, transport, response, or cancellation error.
+    /// - Parameter mints: Mint addresses on the provider's network.
+    /// - Returns: HTTPS logo URLs keyed by mint address.
+    /// - Throws: An ``RPCError`` or `CancellationError`.
     func logos(for mints: [String]) async throws -> [String: URL]
 }

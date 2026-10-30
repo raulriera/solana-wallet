@@ -1,30 +1,31 @@
 import Foundation
 import Transactions
 
-/// The saved contacts and favorites, which every wallet and network shares.
+/// The saved contacts and favorite accounts of every wallet and network.
 nonisolated struct AddressBook: Codable, Equatable, Sendable {
-    /// Saved contacts, in the order they were saved.
     private(set) var contacts: [Contact] = []
-    /// The addresses of the wallets' accounts that show under Favorites.
     private(set) var favoriteAccounts: Set<Address> = []
 
     /// Creates an empty address book.
     init() {}
 
-    /// Saves a new contact, or replaces the saved contact with the same identity.
+    /// Saves a contact, replacing the saved contact with the same identifier.
+    ///
     /// - Parameter contact: The contact to save.
     mutating func save(_ contact: Contact) {
         contacts.removeAll { $0.id == contact.id }
         contacts.append(contact)
     }
 
-    /// Deletes a saved contact; a contact that isn't saved is already deleted.
+    /// Deletes a saved contact.
+    ///
     /// - Parameter contact: The contact to delete.
     mutating func delete(_ contact: Contact) {
         contacts.removeAll { $0.id == contact.id }
     }
 
-    /// Adds a saved contact to Favorites or removes it; a contact that isn't saved stays unsaved.
+    /// Adds a saved contact to Favorites or removes it.
+    ///
     /// - Parameters:
     ///   - isFavorite: Whether the contact shows under Favorites.
     ///   - contact: The saved contact.
@@ -34,6 +35,7 @@ nonisolated struct AddressBook: Codable, Equatable, Sendable {
     }
 
     /// Adds an account to Favorites or removes it.
+    ///
     /// - Parameters:
     ///   - isFavorite: Whether the account shows under Favorites.
     ///   - account: The account's address.

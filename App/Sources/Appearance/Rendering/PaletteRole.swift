@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// One of the window palette's color roles, so a component's style can name a theme color before it resolves.
+/// A color role in a window's palette.
 nonisolated enum PaletteRole: Equatable, Sendable {
     case background
     case surface
@@ -10,8 +10,9 @@ nonisolated enum PaletteRole: Equatable, Sendable {
     case accent
     case onAccent
 
-    /// The role's color in a window's palette.
-    /// - Parameter palette: The window's resolved palette.
+    /// Returns the role's color in a palette.
+    ///
+    /// - Parameter palette: The window's palette.
     /// - Returns: The palette's color for this role.
     @MainActor
     func color(in palette: RenderedPalette) -> Color {

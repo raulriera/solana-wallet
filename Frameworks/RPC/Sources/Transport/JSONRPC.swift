@@ -10,7 +10,7 @@ struct JSONRPCRequest<Request: RPCRequest>: Encodable {
 
 /// A validated JSON-RPC envelope containing a result or a server error.
 struct JSONRPCResponse<Value: Decodable>: Decodable {
-    /// A server error may be unattributed; the caller still requires matching IDs for results.
+    /// The response identifier, or `nil` for an unattributed error.
     let id: String?
     let result: Result<Value, ServerError>
 
@@ -20,13 +20,6 @@ struct JSONRPCResponse<Value: Decodable>: Decodable {
         let message: String
         let simulation: SimulateTransaction.Value?
 
-        /// Decodes an RPC rejection and any recognized preflight simulation diagnostics.
-        ///
-        /// A missing or malformed diagnostic payload doesn't discard the server's code
-        /// and message. Error data from other RPC failures has a different schema.
-        ///
-        /// - Parameter decoder: The decoder containing the server's error payload.
-        /// - Throws: A decoding error if the error code or message is missing or malformed.
         init(from decoder: any Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             code = try container.decode(Int.self, forKey: .code)
@@ -42,20 +35,11 @@ struct JSONRPCResponse<Value: Decodable>: Decodable {
         }
     }
 
-    /// The fields used to decode a JSON-RPC response envelope.
+    /// The field names in a JSON-RPC response envelope.
     private enum CodingKeys: String, CodingKey {
         case jsonrpc, id, result, error
     }
 
-    /// Creates a response by decoding and validating its JSON-RPC envelope.
-    ///
-    /// The envelope must declare version 2.0 and contain exactly one of `result`
-    /// or `error`. The caller requires matching identifiers for results and
-    /// attributed errors, while preserving server errors with a null identifier.
-    ///
-    /// - Parameter decoder: The decoder containing the response envelope.
-    /// - Throws: `RPCError.invalidResponse` if the version or envelope is invalid,
-    ///   or `DecodingError` if a field can't be decoded as its expected type.
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         guard try container.decode(String.self, forKey: .jsonrpc) == "2.0" else {

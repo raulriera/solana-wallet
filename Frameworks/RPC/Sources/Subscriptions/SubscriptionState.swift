@@ -1,15 +1,16 @@
 import Foundation
 
-/// Validates acknowledgments and routes notifications for one connection's subscriptions.
+/// The acknowledgment and routing state of one connection's subscriptions.
 struct SubscriptionState<Group: SubscriptionGroup>: Sendable {
-    /// The requests to send, in order; read once from the group so the sent IDs match the awaited acknowledgments.
+    /// The requests to send, in order.
     let requests: [SubscriptionRequest]
     private var group: Group
     private var pending: [String: SubscriptionRequest]
     private var subscriptions: [UInt64: SubscriptionRequest] = [:]
 
     /// Creates a state that awaits an acknowledgment for each of the group's requests.
-    /// - Parameter group: The connection's subscriptions and the decoding of their notifications.
+    ///
+    /// - Parameter group: The connection's subscriptions.
     init(group: Group) {
         self.group = group
         requests = group.requests
@@ -20,11 +21,12 @@ struct SubscriptionState<Group: SubscriptionGroup>: Sendable {
     var isAcknowledged: Bool { pending.isEmpty }
 
     /// Validates one message and turns a notification into the group's event.
+    ///
     /// - Parameters:
     ///   - data: The received JSON bytes.
-    ///   - redactor: The provider's diagnostic redaction policy.
-    /// - Returns: An event, or `nil` for an acknowledgment or a notification that adds nothing new.
-    /// - Throws: A server, decoding, or envelope-validation error.
+    ///   - redactor: The redactor that removes secrets from server messages.
+    /// - Returns: An event, or `nil` for an acknowledgment or a notification without a new event.
+    /// - Throws: An ``RPCError`` or a decoding error.
     mutating func accept(_ data: Data, redactor: any TextRedactor) throws -> Group.Event? {
         let decoder = JSONDecoder()
         let header = try decoder.decode(Header.self, from: data)
@@ -51,9 +53,10 @@ struct SubscriptionState<Group: SubscriptionGroup>: Sendable {
 
     /// The routing fields common to subscription messages.
     private struct Header: Decodable { let jsonrpc: String; let method: String? }
-    /// The acknowledged subscription that a notification belongs to.
+    /// The notification fields that name its subscription.
     private struct Route: Decodable {
         let params: Parameters
+        /// The notification parameters that hold its subscription ID.
         struct Parameters: Decodable { let subscription: UInt64 }
     }
 }

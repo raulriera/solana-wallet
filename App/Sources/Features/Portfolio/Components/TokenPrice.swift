@@ -1,8 +1,7 @@
 import Foundation
 import SwiftUI
 
-/// Shows the price of one token in its quote currency, with enough digits for prices below one cent;
-/// new prices roll into place.
+/// Shows the price of one token in its quote currency.
 struct TokenPrice: View {
     let price: Decimal
     let currency: String

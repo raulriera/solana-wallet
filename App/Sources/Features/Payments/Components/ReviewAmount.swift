@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// A payment's amount at the top of its review: its worth in large digits over the token quantity, or the quantity
-/// alone when the token has no price.
+/// A payment's value in large digits over its token quantity, or the quantity alone when the token has no price.
 struct ReviewAmount: View {
     @Environment(\.palette) private var palette
     let amount: PaymentAmount

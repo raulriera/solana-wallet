@@ -1,7 +1,4 @@
-/// A provider that proves Solana Rings default-ring transfers.
-///
-/// The request carries the transfer's whole witness, including the owner's nullifier secret, which lets the
-/// prover link the owner's spends but not spend. Requests are single-attempt.
+/// A provider that proves default-ring confidential transfers.
 public protocol ProofProviding: Sendable {
     /// Proves a confidential transfer from its whole witness.
     ///

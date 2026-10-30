@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Composes appearance settings from independently updating sections.
+/// Shows the appearance settings: the app theme, the wallet theme, and theme packs.
 struct AppearanceView: View {
     @Environment(\.palette) private var palette
     let settings: AppearanceSettingsModel
@@ -45,9 +45,10 @@ struct AppearanceView: View {
         .disabled(settings.appearance.snapshot == nil)
     }
 
-    /// Reads the explicit selection for a chooser without resolving wallet inheritance.
-    /// - Parameter scope: The preference being edited.
-    /// - Returns: The persisted identity, or `nil` for Original or wallet inheritance.
+    /// Returns the theme selected for the app or a wallet, without the app's theme as a fallback.
+    ///
+    /// - Parameter scope: The app or wallet.
+    /// - Returns: The selected theme, or `nil` for none.
     private func selection(for scope: AppearancePreferences.Scope) -> UUID? {
         switch scope {
         case .application: settings.appearance.snapshot?.preferences.appThemeID

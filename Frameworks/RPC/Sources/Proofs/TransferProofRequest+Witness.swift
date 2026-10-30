@@ -1,7 +1,5 @@
 extension TransferProofRequest {
-    /// A UTXO as the circuit reads it: eight field elements.
-    ///
-    /// Descriptions and reflection omit the values, which include the amount and the blinding.
+    /// A UTXO as the eight field elements that the circuit reads.
     public struct UTXO: Sendable, Equatable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
         /// The domain: 3 for a UTXO, or 1 for padding.
         public let domain: [UInt8]
@@ -11,13 +9,12 @@ extension TransferProofRequest {
         public let asset: [UInt8]
         /// The amount, or zero for padding.
         public let amount: [UInt8]
-        /// The blinding.
         public let blinding: [UInt8]
-        /// The hash of the UTXO's data, zero without data.
+        /// The hash of the UTXO's data, or zero without data.
         public let dataHash: [UInt8]
-        /// The hash of the UTXO's ring data, zero in the default ring.
+        /// The hash of the UTXO's ring data, or zero in the default ring.
         public let ringDataHash: [UInt8]
-        /// The ring program's field element, zero in the default ring.
+        /// The ring program's field element, or zero in the default ring.
         public let ringProgramID: [UInt8]
 
         /// Creates a UTXO from its field elements.
@@ -47,19 +44,14 @@ extension TransferProofRequest {
             self.ringProgramID = ringProgramID
         }
 
-        /// A representation that omits the values.
         public var description: String { "TransferProofRequest.UTXO" }
 
-        /// A debugging representation that omits the values.
         public var debugDescription: String { description }
 
-        /// A reflection without children.
         public var customMirror: Mirror { Mirror(self, children: [:]) }
     }
 
     /// One input slot of the witness.
-    ///
-    /// Descriptions and reflection omit the values, which include the nullifier secret.
     public struct WitnessInput: Sendable, Equatable, CustomStringConvertible, CustomDebugStringConvertible,
                                 CustomReflectable {
         /// The spent UTXO, or padding.
@@ -68,16 +60,14 @@ extension TransferProofRequest {
         public let isDummy: Bool
         /// The position of the input's tree in ``TransferProofRequest/treeSlots``.
         public let treeSlot: UInt8
-        /// The published nullifier.
         public let nullifier: [UInt8]
         /// The owner's Solana identity, or zero for padding.
         public let ownerPublicKeyHash: [UInt8]
         /// The owner's nullifier secret, right-aligned in 32 big-endian bytes, or zero for padding.
         public let nullifierSecret: [UInt8]
-        /// The spent UTXO's inclusion proof under its tree slot's UTXO root, or `nil` for padding or a cached input,
-        /// whose path is zero.
+        /// The spent UTXO's inclusion proof, or `nil` for padding or a cached input.
         public let inclusionProof: MerkleProof?
-        /// The nullifier's non-inclusion proof under its tree slot's nullifier root; every slot has one.
+        /// The nullifier's non-inclusion proof under its tree slot's nullifier root.
         public let nonInclusionProof: NonInclusionProof
 
         /// Creates an input slot.
@@ -105,19 +95,14 @@ extension TransferProofRequest {
             self.nonInclusionProof = nonInclusionProof
         }
 
-        /// A representation that omits the values.
         public var description: String { "TransferProofRequest.WitnessInput" }
 
-        /// A debugging representation that omits the values.
         public var debugDescription: String { description }
 
-        /// A reflection without children.
         public var customMirror: Mirror { Mirror(self, children: [:]) }
     }
 
     /// One output slot of the witness.
-    ///
-    /// Descriptions and reflection omit the values, which include the amount and the blinding.
     public struct WitnessOutput: Sendable, Equatable, CustomStringConvertible, CustomDebugStringConvertible,
                                  CustomReflectable {
         /// The created UTXO, or padding.
@@ -150,56 +135,45 @@ extension TransferProofRequest {
             self.nullifierPublicKey = nullifierPublicKey
         }
 
-        /// A representation that omits the values.
         public var description: String { "TransferProofRequest.WitnessOutput" }
 
-        /// A debugging representation that omits the values.
         public var debugDescription: String { description }
 
-        /// A reflection without children.
         public var customMirror: Mirror { Mirror(self, children: [:]) }
     }
 
-    /// The circuit's witness: every value except the tree slots and the public input hash.
-    ///
-    /// Descriptions and reflection omit the values, which include the blinding seed.
+    /// The circuit's witness, without the tree slots and the public input hash.
     public struct Witness: Sendable, Equatable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
-        /// The input slots.
         public let inputs: [WitnessInput]
-        /// The output slots.
         public let outputs: [WitnessOutput]
         /// The ID of the tree that receives the outputs.
         public let outputTreeID: UInt16
-        /// The transfer's blinding seed.
         public let blindingSeed: [UInt8]
         /// The hash of the instruction's external data.
         public let externalDataHash: [UInt8]
-        /// The private transaction hash.
         public let privateTransactionHash: [UInt8]
         /// The three public slots' assets.
         public let publicAssets: [[UInt8]]
         /// The three public slots' amounts.
         public let publicAmounts: [[UInt8]]
-        /// The ring program's field element, zero in the default ring.
+        /// The ring program's field element, or zero in the default ring.
         public let ringProgramID: [UInt8]
         /// The signers' Solana identities, payer first, padded with zeros to the shape's signer width.
         public let signerPublicKeyHashes: [[UInt8]]
-        /// The input flags: whether padding inputs are allowed, and each input's tree slot.
+        /// The flags for whether padding inputs are allowed and each input's tree slot.
         public let inputFlags: [UInt8]
-        /// Each output's published owner identity.
         public let publishedOutputOwnerPublicKeyHashes: [[UInt8]]
-        /// The read cache's tree ID, zero without a cache.
+        /// The read cache's tree ID, or zero without a cache.
         public let cacheTreeID: [UInt8]
-        /// The read cache's hash chain.
         public let cacheReadHashChain: [UInt8]
-        /// The hashes that the read cache supplies, empty without a cache.
+        /// The hashes that the read cache supplies, or empty without a cache.
         public let cacheReadHashes: [[UInt8]]
-        /// Whether each input comes from the read cache, empty without a cache.
+        /// Whether each input comes from the read cache, or empty without a cache.
         public let cacheIsCached: [Bool]
-        /// Each cached input's position in the cache, empty without a cache.
+        /// Each cached input's position in the cache, or empty without a cache.
         public let cacheReadIndexes: [UInt64]
 
-        /// Creates a witness after checking its lengths and counts.
+        /// Creates a witness.
         ///
         /// - Parameters:
         ///   - inputs: The input slots, at least one.
@@ -216,12 +190,12 @@ extension TransferProofRequest {
         ///   - publishedOutputOwnerPublicKeyHashes: One owner identity per output.
         ///   - cacheTreeID: The read cache's tree ID.
         ///   - cacheReadHashChain: The read cache's hash chain.
-        ///   - cacheReadHashes: The cached hashes; empty by default.
-        ///   - cacheIsCached: Whether each input is cached; empty by default.
-        ///   - cacheReadIndexes: Each cached input's position; empty by default.
-        /// - Throws: ``ValidationError/invalidLength`` if a value isn't 32 bytes,
-        ///   ``ValidationError/invalidCount`` if a list doesn't have its count, ``ValidationError/zeroBlindingSeed``
-        ///   for a zero seed, or ``ValidationError/invalidCache`` if the read cache breaks zolana's rules.
+        ///   - cacheReadHashes: The cached hashes.
+        ///   - cacheIsCached: Whether each input is cached.
+        ///   - cacheReadIndexes: Each cached input's position.
+        /// - Throws: ``ValidationError/invalidLength`` if a value isn't 32 bytes, ``ValidationError/invalidCount`` if a
+        ///   list doesn't have its count, ``ValidationError/zeroBlindingSeed`` for a zero seed, or
+        ///   ``ValidationError/invalidCache`` for an invalid read cache.
         public init(
             inputs: [WitnessInput],
             outputs: [WitnessOutput],
@@ -272,7 +246,7 @@ extension TransferProofRequest {
             self.cacheReadIndexes = cacheReadIndexes
         }
 
-        /// Checks the read cache as zolana's prover does in `CacheSelectionParams.Validate`.
+        /// Checks that the read cache matches the inputs.
         ///
         /// - Parameters:
         ///   - inputCount: The number of input slots.
@@ -280,7 +254,7 @@ extension TransferProofRequest {
         ///   - readHashes: The cached hashes.
         ///   - isCached: Whether each input is cached.
         ///   - readIndexes: Each input's read position.
-        /// - Throws: ``ValidationError/invalidCache`` if a rule fails.
+        /// - Throws: ``ValidationError/invalidCache`` if the cache is invalid.
         private static func validateCache(inputCount: Int, treeID: [UInt8], readHashes: [[UInt8]], isCached: [Bool],
                                           readIndexes: [UInt64]) throws {
             let reads = readHashes.contains { $0.contains { $0 != 0 } }
@@ -299,13 +273,10 @@ extension TransferProofRequest {
             }
         }
 
-        /// A representation that omits the values.
         public var description: String { "TransferProofRequest.Witness" }
 
-        /// A debugging representation that omits the values.
         public var debugDescription: String { description }
 
-        /// A reflection without children.
         public var customMirror: Mirror { Mirror(self, children: [:]) }
     }
 }

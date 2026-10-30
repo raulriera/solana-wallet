@@ -1,38 +1,23 @@
 import RPC
 import Transactions
 
-/// Submits the exact reviewed transaction with preflight enabled and no automatic retry.
+/// A submitter that sends a reviewed transaction through ordinary RPCs without retrying.
 nonisolated struct Submitter: TransactionSubmitting {
-    /// Every RPC failed to acknowledge a transaction whose delivery may remain unknown.
+    /// An error for a transaction that no RPC acknowledged.
     struct Rejection: Error, Sendable {
-        /// The independent errors returned by the RPCs, including rate-limit details.
         let errors: [any Error]
     }
 
     private let rpcs: [any RPC]
     private let transactionBuilder: any TransactionBuilding = TransactionBuilder()
 
-    /// Creates submission through one or more ordinary RPCs.
+    /// Creates a submitter.
     ///
-    /// - Parameter rpcs: Every RPC to submit through.
+    /// - Parameter rpcs: The RPCs to submit through.
     init(rpcs: [any RPC]) {
         self.rpcs = rpcs
     }
 
-    /// Checks a typed signed result against its review locally, then sends it once.
-    ///
-    /// Signing has just checked the review's fee and lifetime with the network and rechecked the lifetime after
-    /// signing, so submission doesn't read them again. The original message and blockhash are preserved. Preflight
-    /// uses finalized commitment and the newest reviewed slot. Cancellation after dispatch doesn't revoke a
-    /// transaction; its locally known signature remains the lookup identifier.
-    ///
-    /// All RPC requests start concurrently. The operation finishes after the attempts
-    /// settle, succeeds if any RPC acknowledges the signature, and owns all cancellation.
-    ///
-    /// - Parameter signed: The exact approved result of the signing workflow.
-    /// - Returns: A plain receipt with the accepted signature, network, and blockhash expiry.
-    /// - Throws: ``SubmitterError/missingSignatures`` without a fee payer signature; otherwise a ``DeliveryError``
-    ///   that retains the receipt and the prerequisite, ``Rejection``, or cancellation error.
     @concurrent
     func submit(_ signed: SignedTransaction) async throws -> Submission {
         guard let signature = signed.signature else { throw SubmitterError.missingSignatures }
@@ -45,10 +30,11 @@ nonisolated struct Submitter: TransactionSubmitting {
         }
     }
 
-    /// Checks the signed transaction against its review, then sends it through every same-network RPC at once.
+    /// Checks a signed transaction against its review, then sends it through every RPC on its network at once.
+    ///
     /// - Parameters:
-    ///   - signed: The exact approved result of the signing workflow.
-    ///   - signature: The transaction's fee payer signature, which every RPC must acknowledge.
+    ///   - signed: The signed transaction.
+    ///   - signature: The fee payer's signature, which every RPC must acknowledge.
     /// - Throws: A prerequisite, signature, ``Rejection``, or cancellation error.
     private func send(_ signed: SignedTransaction, signature: String) async throws {
         try Task.checkCancellation()

@@ -2,10 +2,7 @@ import CryptoKit
 import Encoding
 
 extension Wallet {
-    /// Recovers an account from one temporary seed after checking it against the intended address.
-    ///
-    /// Signing and private-balance keys share this check. A malformed address fails before the seed
-    /// is derived. The seed is erased when `body` returns.
+    /// Recovers an account, checks its address, and runs work with its key and seed.
     ///
     /// - Parameters:
     ///   - phrase: The validated recovery words.
@@ -13,10 +10,9 @@ extension Wallet {
     ///   - path: The account's hardened path.
     ///   - expectedAddress: The exact Base58 address that the recovered key must match.
     ///   - mismatch: The error to throw if the address is malformed or belongs to another account.
-    ///   - body: Work that uses the account's signing key and the seed, within the current operation.
+    ///   - body: The work to run with the account's signing key and seed.
     /// - Returns: The result of `body`.
-    /// - Throws: `mismatch`, `CancellationError` if cancelled, a cryptographic error, or an error
-    ///   from `body`.
+    /// - Throws: `mismatch`, `CancellationError`, a cryptographic error, or an error from `body`.
     static func withVerifiedAccount<Value>(
         _ phrase: RecoveryPhrase,
         passphrase: String,

@@ -1,20 +1,20 @@
 import Foundation
 import Synchronization
 
-/// Bridges coordinated file work onto one serial queue, outside the main thread and Swift's shared executor.
+/// A coordinated file operation that runs on one serial queue.
 final class FileAccess: Sendable {
-    /// Synchronous work that receives a coordinated URL and access to cancellation checks.
+    /// Synchronous work that receives a coordinated URL and the operation's file access.
     typealias Operation<Value: Sendable> = @Sendable (URL, FileAccess) throws -> Value
 
     private static let queue: OperationQueue = {
         let queue = OperationQueue()
         queue.name = "Themes.FileAccess"
-        // A person waits for every import and export, so the work runs at user-initiated priority.
         queue.qualityOfService = .userInitiated
         queue.maxConcurrentOperationCount = 1
         return queue
     }()
 
+    /// The operation's cancellation and coordination state.
     private struct State {
         var cancelled = false
         var finished = false
@@ -22,20 +22,18 @@ final class FileAccess: Sendable {
         var coordinator: NSFileCoordinator?
     }
 
-    // Coordinator creation and registration happen on the queue. The mutex protects
-    // registration against cancellation; only cancel(), documented as thread-safe by
-    // Foundation, is called from another thread. No file work runs under this lock.
     private let state = Mutex(State())
 
-    /// Creates cancellation state for one coordinated operation.
+    /// Creates the file access for one coordinated operation.
     private init() {}
 
-    /// Suspends the caller while coordinated work runs at user-initiated priority.
+    /// Runs synchronous work with coordinated access to a file.
+    ///
     /// - Parameters:
     ///   - url: The local or security-scoped package location.
-    ///   - writing: Whether access replaces the destination rather than reading it.
-    ///   - operation: Synchronous work that must finish within the coordinated accessor.
-    /// - Returns: The owned result after security-scoped access ends.
+    ///   - writing: Whether the work replaces the item at `url` rather than reading it.
+    ///   - operation: The synchronous work to run.
+    /// - Returns: The work's result.
     /// - Throws: An access, operation, or cancellation error.
     static func perform<Value: Sendable>(at url: URL, writing: Bool = false,
                                         operation: @escaping Operation<Value>) async throws -> Value {
@@ -64,19 +62,21 @@ final class FileAccess: Sendable {
         }
     }
 
-    /// Checks the originating task's cancellation from a callback without Swift task context.
-    /// - Throws: `CancellationError` if the caller cancelled the operation.
+    /// Throws if the operation was cancelled.
+    ///
+    /// - Throws: `CancellationError` if the operation was cancelled.
     func checkCancellation() throws {
         if state.withLock(\.cancelled) { throw CancellationError() }
     }
 
-    /// Registers asynchronous coordination without occupying a worker while waiting for access.
+    /// Starts coordinated access to a file and runs work once access is granted.
+    ///
     /// - Parameters:
-    ///   - url: The caller's package location.
-    ///   - writing: Whether access replaces the destination.
-    ///   - operation: Work confined to the accessor's lifetime.
-    ///   - continuation: The suspended caller, resumed once after cleanup.
-    /// - Throws: A validation or cancellation error before coordination is registered.
+    ///   - url: The package location.
+    ///   - writing: Whether the work replaces the item at `url`.
+    ///   - operation: The synchronous work to run.
+    ///   - continuation: The caller's continuation.
+    /// - Throws: A validation or cancellation error before coordination starts.
     private func begin<Value: Sendable>(at url: URL, writing: Bool,
                                        operation: @escaping Operation<Value>,
                                        continuation: CheckedContinuation<Value, any Error>) throws {
@@ -110,8 +110,9 @@ final class FileAccess: Sendable {
         }
     }
 
-    /// Claims active work so cancellation cannot report failure after an atomic write starts.
-    /// - Throws: `CancellationError` when cancellation won before the accessor began.
+    /// Marks the work as started unless the operation was cancelled.
+    ///
+    /// - Throws: `CancellationError` if the operation was cancelled first.
     private func startWork() throws {
         try state.withLock { state in
             guard !state.cancelled else { throw CancellationError() }
@@ -119,10 +120,11 @@ final class FileAccess: Sendable {
         }
     }
 
-    /// Releases coordination state and resumes a caller only if pending cancellation did not win.
+    /// Releases the coordinator and resumes the caller unless cancellation already did.
+    ///
     /// - Parameters:
-    ///   - result: The final accessor or setup outcome.
-    ///   - continuation: The caller's continuation, resumed outside the state lock.
+    ///   - result: The operation's result.
+    ///   - continuation: The caller's continuation.
     private func finish<Value: Sendable>(_ result: Result<Value, any Error>,
                                          continuation: CheckedContinuation<Value, any Error>) {
         let resume = state.withLock { state in
@@ -135,7 +137,7 @@ final class FileAccess: Sendable {
         if resume { continuation.resume(with: result) }
     }
 
-    /// Cancels a pending request and signals cooperative cancellation inside active file work.
+    /// Cancels the operation.
     private func cancel() {
         let resume = state.withLock { state in
             state.cancelled = true

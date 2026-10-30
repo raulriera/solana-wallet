@@ -1,16 +1,13 @@
 import Wallet
 
-/// Coordinates local derivation and provider-neutral observations during phrase import.
+/// A service that finds the accounts of a recovery phrase that hold SOL.
 nonisolated protocol AccountDiscovering: Sendable {
-    /// Checks twenty addresses: indices zero through nine in both approved hardened Solana path families.
+    /// Finds the accounts with SOL at indices zero through nine of both Solana path families.
     ///
-    /// Zero-SOL accounts are intentionally excluded even if they own tokens or have history.
     /// - Parameters:
-    ///   - phrase: The imported and validated BIP-39 phrase.
-    ///   - passphrase: The original BIP-39 passphrase, or an empty string for none.
-    /// - Returns: SOL-funded accounts in index order, with the change family preceding the account family;
-    ///   empty when none has a positive SOL balance.
-    /// - Throws: A derivation, RPC, response-validation, or cancellation error.
-    ///   Failed scans never return partial results as a completed scan.
+    ///   - phrase: The recovery phrase.
+    ///   - passphrase: The passphrase, or an empty string for none.
+    /// - Returns: The accounts with SOL, in derivation order.
+    /// - Throws: A derivation, RPC, validation, or cancellation error.
     func discover(for phrase: RecoveryPhrase, passphrase: String) async throws -> [DerivedAccount]
 }

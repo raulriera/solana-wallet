@@ -1,15 +1,14 @@
-/// How a sent transaction settled, as its result shows it.
+/// How a sent transaction settled.
 nonisolated enum TransactionOutcome: Equatable, Sendable {
-    /// The transaction landed without an error.
     case succeeded
-    /// The transaction landed and failed; it paid its network fee and changed nothing else.
+    /// The transaction landed and failed.
     case failed
-    /// The transaction can never land, so nothing left the account.
+    /// The transaction can never land.
     case dropped
 
-    /// The outcome of a record's status.
+    /// Creates the outcome of a record's status, or `nil` while the transaction is pending.
+    ///
     /// - Parameter status: The record's status.
-    /// - Returns: The outcome, or `nil` while the transaction is pending.
     init?(_ status: TransactionRecord.Status) {
         switch status {
         case .pending: return nil

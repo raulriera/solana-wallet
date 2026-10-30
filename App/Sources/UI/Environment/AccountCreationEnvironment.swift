@@ -1,6 +1,6 @@
 import SwiftUI
 
 extension EnvironmentValues {
-    /// Creates new accounts in saved wallets; `nil` where no account can be created, as in previews.
+    /// The action that creates accounts, or `nil` where none can be created.
     @Entry var accountCreation: AccountCreation?
 }

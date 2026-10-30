@@ -1,6 +1,6 @@
 import SwiftUI
 
 extension EnvironmentValues {
-    /// Deletes a contact the person confirmed; `nil` outside Contacts, where no contact is listed.
+    /// The action that deletes a contact, or `nil` outside Contacts.
     @Entry var contactDeletion: ContactDeletionAction?
 }

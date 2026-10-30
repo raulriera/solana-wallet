@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Lists the RPC providers with a checkmark on the one that every window uses.
+/// Lists the RPC providers with a checkmark on the one in use.
 struct ProvidersScreen<Actions: View>: View {
     @Environment(\.palette) private var palette
     @Environment(ProviderStore.self) private var providers
@@ -8,9 +8,10 @@ struct ProvidersScreen<Actions: View>: View {
     private let actions: Actions
 
     /// Creates the provider list with sections of actions after it.
+    ///
     /// - Parameters:
-    ///   - coordinator: The window's provider changes and pushed screens.
-    ///   - actions: Sections that follow the list, such as onboarding's Continue.
+    ///   - coordinator: The coordinator of provider changes and pushed screens.
+    ///   - actions: The sections that follow the list.
     init(coordinator: ProvidersCoordinator, @ViewBuilder actions: () -> Actions) {
         self.coordinator = coordinator
         self.actions = actions()
@@ -36,7 +37,6 @@ struct ProvidersScreen<Actions: View>: View {
 
             actions
         }
-        // Each save adds or deletes one custom RPC, so its rows animate whenever the count changes.
         .animation(.default, value: customRPCs.count)
         .navigationTitle("Providers")
         .navigationBarTitleDisplayMode(.inline)
@@ -48,8 +48,9 @@ struct ProvidersScreen<Actions: View>: View {
 }
 
 extension ProvidersScreen where Actions == EmptyView {
-    /// Creates the provider list on its own, as Settings shows it.
-    /// - Parameter coordinator: The window's provider changes and pushed screens.
+    /// Creates the provider list without actions.
+    ///
+    /// - Parameter coordinator: The coordinator of provider changes and pushed screens.
     init(coordinator: ProvidersCoordinator) {
         self.init(coordinator: coordinator) { EmptyView() }
     }

@@ -1,16 +1,16 @@
 import Foundation
 
-/// Reads token base layouts and extension framing without trusting RPC parser output.
+/// The validated bytes and extensions of a token account or mint.
 struct TokenData: Sendable {
     let bytes: [UInt8]
     let extensions: [UInt16: [UInt8]]
 
-    /// Validates base size, account type, padding, and unique bounded TLV entries.
+    /// Creates token data by validating an account's layout and extensions.
     ///
     /// - Parameters:
-    ///   - data: Raw account bytes from RPC, including any extension data.
-    ///   - program: The verified account owner program.
-    ///   - isMint: Whether the base layout is a mint rather than a token account.
+    ///   - data: The account's raw bytes.
+    ///   - program: The account's owner program.
+    ///   - isMint: Whether the account is a mint rather than a token account.
     /// - Throws: ``TokenError/invalidAccount`` for malformed framing.
     init(_ data: Data, program: TokenProgram, isMint: Bool) throws {
         bytes = Array(data)
@@ -32,31 +32,31 @@ struct TokenData: Sendable {
         extensions = values
     }
 
-    /// Reads a bounded unsigned little-endian integer.
+    /// Reads an unsigned little-endian integer.
     ///
     /// - Parameters:
-    ///   - bytes: The validated field's containing bytes.
-    ///   - offset: The field's zero-based position.
-    /// - Returns: The exact integer without floating-point conversion.
+    ///   - bytes: The bytes that hold the field.
+    ///   - offset: The field's position.
+    /// - Returns: The integer.
     /// - Throws: ``TokenError/invalidAccount`` if the field is truncated.
     static func integer<Value: FixedWidthInteger & UnsignedInteger>(_ bytes: [UInt8], at offset: Int) throws -> Value {
         var reader = ByteReader(bytes, at: offset, error: TokenError.invalidAccount)
         return try reader.integer()
     }
 
-    /// Checks a Rust COption discriminant while leaving its payload uninterpreted.
+    /// Checks that an optional field's tag is zero or one.
     ///
-    /// - Parameter offset: The discriminant's position in the base layout.
-    /// - Throws: ``TokenError/invalidAccount`` for a discriminant other than zero or one.
+    /// - Parameter offset: The tag's position in the base layout.
+    /// - Throws: ``TokenError/invalidAccount`` for another tag.
     func validateOption(at offset: Int) throws {
         let tag: UInt32 = try Self.integer(bytes, at: offset)
         guard tag <= 1 else { throw TokenError.invalidAccount }
     }
 
-    /// Requires an extension's exact known length before interpreting it.
+    /// Returns an extension's bytes after checking their length.
     ///
     /// - Parameters:
-    ///   - type: The extension's numeric identifier.
+    ///   - type: The extension's type number.
     ///   - length: The expected byte count.
     /// - Returns: The extension bytes, or `nil` when absent.
     /// - Throws: ``TokenError/invalidAccount`` for an incorrect length.

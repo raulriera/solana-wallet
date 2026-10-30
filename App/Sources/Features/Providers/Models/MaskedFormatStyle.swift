@@ -1,16 +1,10 @@
 import Foundation
 
-/// Formats text that can hold a key, such as an API key or part of an RPC URL, with only its first four characters
-/// shown and a dot for each other character, so most of it stays hidden.
-///
-/// The output depends only on those characters and the text's length, so masked text formats the same again.
+/// Formats text that can hold a key, showing its first four characters and a dot for each other character.
 nonisolated struct MaskedFormatStyle: FormatStyle {
-    /// Whether the output is for VoiceOver, which hears that the rest is hidden instead of each dot.
+    /// Whether the output says the rest is hidden instead of showing dots.
     var isSpoken = false
 
-    /// Formats the text with everything after its first four characters masked.
-    /// - Parameter text: The text, or masked text.
-    /// - Returns: The text as people see or hear it; text of four characters or fewer stays as it is.
     func format(_ text: String) -> String {
         let shown = String(text.prefix(4))
         let hidden = text.count - shown.count
@@ -22,9 +16,7 @@ nonisolated struct MaskedFormatStyle: FormatStyle {
 }
 
 nonisolated extension FormatStyle where Self == MaskedFormatStyle {
-    /// Text with every character after its first four shown as a dot.
     static var masked: Self { Self() }
 
-    /// Masked text for VoiceOver, which hears its first four characters and that the rest is hidden.
     static var spokenMasked: Self { Self(isSpoken: true) }
 }

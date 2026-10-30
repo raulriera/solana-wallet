@@ -2,6 +2,6 @@ import Foundation
 
 /// A screen that Settings > Accounts pushes.
 nonisolated enum AccountsRoute: Hashable {
-    /// An account's name, address, and path, to rename it.
+    /// The screen of the account with this identifier.
     case account(UUID)
 }

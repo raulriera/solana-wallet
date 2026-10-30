@@ -2,37 +2,23 @@ import Foundation
 import RPC
 import Transactions
 
-/// A stateless service that evaluates exact V1 bytes through an injected RPC provider.
+/// A preparer that compiles and simulates transactions through a provider.
 nonisolated struct Preparer: TransactionPreparing {
     private let rpc: any RPC
     private let messageBuilder: any MessageBuilding = MessageBuilder()
     private let transactionBuilder: any TransactionBuilding = TransactionBuilder()
     private let requirements: [SubmissionRequirements]
 
-    /// Creates a service with a provider and local V1 encoders.
+    /// Creates a preparer.
     ///
     /// - Parameters:
-    ///   - rpc: The provider supplying the blockhash, fee, and simulation.
-    ///   - rpcs: Submission clients whose same-network payment requirements must be reviewed.
+    ///   - rpc: The provider that reads the blockhash, fee, and simulation.
+    ///   - rpcs: The RPCs that submit, whose tips on the provider's network the transaction pays, or `nil` for `rpc`.
     init(rpc: any RPC, rpcs: [any RPC]? = nil) {
         self.rpc = rpc
         requirements = (rpcs ?? [rpc]).filter { $0.network == rpc.network }.compactMap(\.submissionRequirements)
     }
 
-    /// Compiles and simulates ordered instructions without accessing wallet recovery.
-    ///
-    /// Service tips precede the caller's instructions, so the caller's last instruction stays last.
-    /// Automatic resource estimation happens before the final review. Explicit
-    /// configuration is preserved. No instructions or requests change after review.
-    ///
-    /// - Parameters:
-    ///   - instructions: The ordered invocations composing one atomic transaction.
-    ///   - payer: The transaction fee payer, independent of instruction authorities.
-    ///   - signer: The wallet account selected for later signing.
-    ///   - configuration: Explicit requests, or `nil` to estimate resources.
-    ///   - minimumSlot: The earliest ledger context permitted by resolved instructions.
-    /// - Returns: The exact final transaction, fee, expiry, and simulation diagnostics.
-    /// - Throws: A composition, resource estimation, RPC, or cancellation error.
     @concurrent
     func prepare(_ instructions: [Instruction], payer: Address, signer: Address,
                  configuration: Configuration? = nil, minimumSlot: UInt64? = nil) async throws -> Preparation {
@@ -73,13 +59,12 @@ nonisolated struct Preparer: TransactionPreparing {
                                   signer: signer, network: rpc.network, minimumSlot: context, tips: requirements)
     }
 
-    /// Requests a priority fee and the network's resource limits, or a tenth more than measured usage within them.
+    /// Returns a priority fee with the network's resource limits, or with a tenth more than the measured usage.
     ///
-    /// The extra tenth absorbs small differences between simulation and execution.
     /// - Parameters:
     ///   - priorityFee: The priority fee in lamports.
     ///   - measured: The simulated compute units and loaded account bytes, or `nil` to request the limits.
-    /// - Returns: The transaction's priority fee and resource requests.
+    /// - Returns: The priority fee and resource requests.
     /// - Throws: ``PreparerError/resourceUsageUnavailable`` when measured usage exceeds a limit, or a configuration
     ///   error.
     private func resourceRequests(priorityFee: UInt64, measured: (units: UInt64, bytes: UInt64)? = nil) throws
@@ -94,13 +79,14 @@ nonisolated struct Preparer: TransactionPreparing {
                                  loadedAccountsDataSizeLimit: UInt32(bytes))
     }
 
-    /// Compiles ordered instructions into a transaction for simulation, with every signature slot still empty.
+    /// Compiles instructions into an unsigned transaction for simulation.
+    ///
     /// - Parameters:
-    ///   - invocations: The ordered instructions, service tips first.
-    ///   - payer: The transaction fee payer.
-    ///   - blockhash: The recent blockhash that sets the transaction's lifetime.
+    ///   - invocations: The instructions, service tips first.
+    ///   - payer: The account that pays the fees.
+    ///   - blockhash: The recent blockhash.
     ///   - requests: The priority fee and resource requests.
-    ///   - signer: The wallet account whose required signature slot must be empty.
+    ///   - signer: The account whose signature slot must be empty.
     /// - Returns: The unsigned transaction.
     /// - Throws: A composition or validation error.
     private func simulationTransaction(_ invocations: [Instruction], payer: Address, blockhash: String,
@@ -111,16 +97,6 @@ nonisolated struct Preparer: TransactionPreparing {
                                                          for: signer)
     }
 
-    /// Validates an imported transaction and its blockhash without accessing protected recovery.
-    ///
-    /// A valid blockhash expires at most 150 blocks after the current height, so the
-    /// finalized height at or after the validity context plus 150 bounds the transaction's expiry.
-    ///
-    /// - Parameters:
-    ///   - imported: The typed transaction supplied by the import boundary.
-    ///   - signer: The account whose required signature slot must be empty.
-    /// - Returns: The unchanged transaction, its expiry bound, and network observations available for review.
-    /// - Throws: A validation, blockhash, RPC, or cancellation error.
     @concurrent
     func prepare(_ imported: Transaction, for signer: Address) async throws -> Preparation {
         try Task.checkCancellation()
@@ -138,17 +114,17 @@ nonisolated struct Preparer: TransactionPreparing {
                                   signer: signer, network: network)
     }
 
-    /// Retrieves the fee and final simulation concurrently.
+    /// Reads a transaction's fee and simulation at once.
     ///
     /// - Parameters:
-    ///   - transaction: The exact inspected message and existing signature slots.
-    ///   - source: The original construction intent or external validity context.
-    ///   - signer: The selected required signer.
-    ///   - network: The provider's network captured before the first request.
-    ///   - minimumSlot: The latest resource-estimation context, when applicable.
-    ///   - tips: The service payments added before compilation.
-    /// - Returns: An immutable review that retains execution failures and unknown fees.
-    /// - Throws: An RPC error or cancellation; structured child requests are cancelled together.
+    ///   - transaction: The transaction to evaluate.
+    ///   - source: Where the transaction came from.
+    ///   - signer: The account that signs.
+    ///   - network: The provider's network.
+    ///   - minimumSlot: The earliest slot for the reads, or `nil` for the source's context.
+    ///   - tips: The services whose tips the transaction pays.
+    /// - Returns: The preparation.
+    /// - Throws: An RPC, response, or cancellation error.
     private func evaluate(_ transaction: Transaction, source: Preparation.Source, signer: Address,
                   network: Network, minimumSlot: UInt64? = nil,
                   tips: [SubmissionRequirements] = []) async throws -> Preparation {

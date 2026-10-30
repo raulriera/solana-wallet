@@ -1,6 +1,6 @@
 import Foundation
 
-/// Stable identity and display name supplied by the owning wallet window.
+/// A wallet's identity and name for its theme setting.
 struct AppearanceWallet {
     let id: UUID
     let name: String

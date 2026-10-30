@@ -1,12 +1,10 @@
 import SwiftUI
 
-/// Shows Providers, as Settings does, with a last section that opens the new wallet with the provider in use.
-///
-/// A key entered to choose a provider opens the wallet once that provider is chosen, without another tap.
+/// Shows the RPC provider choice, with a button that opens the new wallet.
 struct ProviderChoiceScreen: View {
     @Environment(\.palette) private var palette
     let coordinator: ProvidersCoordinator
-    /// Opens the saved wallet.
+    /// The action that opens the saved wallet.
     let continueSetup: () -> Void
 
     var body: some View {

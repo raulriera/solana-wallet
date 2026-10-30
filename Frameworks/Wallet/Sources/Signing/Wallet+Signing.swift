@@ -2,23 +2,6 @@ import CryptoKit
 public import Foundation
 
 extension Wallet: MessageSigning {
-    /// Signs a message on the concurrent executor using the intended recovered account.
-    ///
-    /// The service retains no recovery material or private key after the call.
-    /// Swift value lifetimes don't guarantee that secret bytes are erased from memory.
-    /// This method signs the supplied bytes without parsing transaction intent, but refuses
-    /// Solana Rings key derivation inputs before deriving a seed.
-    ///
-    /// - Parameters:
-    ///   - message: The exact unsigned message bytes; no signature or envelope is added.
-    ///   - phrase: The validated recovery phrase.
-    ///   - expectedAddress: The exact Base58 address that must match the recovered key.
-    ///   - passphrase: The original BIP-39 passphrase.
-    ///   - path: The account path.
-    /// - Returns: A 64-byte Ed25519 signature. Signatures may vary between calls.
-    /// - Throws: ``SigningError/reservedMessage`` for a key derivation input,
-    ///   ``SigningError/signerMismatch`` for a different account,
-    ///   `CancellationError` if cancelled, or a cryptographic error.
     @concurrent
     public func signature(
         for message: Data,

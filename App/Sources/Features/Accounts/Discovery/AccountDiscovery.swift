@@ -1,30 +1,21 @@
 import RPC
 import Wallet
 
-/// Discovers SOL-funded accounts with one RPC request and no retained recovery material.
+/// A service that finds the accounts of a recovery phrase that hold SOL with one RPC request.
 nonisolated struct AccountDiscovery: AccountDiscovering {
     private let wallet: any WalletProviding
     private let rpc: any RPC
 
-    /// Creates a discovery coordinator using the selected network's ordinary RPC client.
+    /// Creates an account discovery service.
+    ///
     /// - Parameters:
-    ///   - rpc: The provider whose network defines the scan.
-    ///   - wallet: The service performing local derivation.
+    ///   - rpc: The RPC client that reads the balances.
+    ///   - wallet: The service that derives addresses.
     init(rpc: any RPC, wallet: any WalletProviding = Wallet()) {
         self.rpc = rpc
         self.wallet = wallet
     }
 
-    /// Scans indices zero through nine, including gaps, without expanding the range.
-    ///
-    /// Candidates use `m/44'/501'/i'/0'` and `m/44'/501'/i'`. One combined account
-    /// read returns their SOL balances. Zero-SOL and missing accounts are ignored,
-    /// including accounts with tokens or previous activity. Only public addresses reach RPC.
-    /// - Parameters:
-    ///   - phrase: The validated recovery phrase.
-    ///   - passphrase: The original BIP-39 passphrase.
-    /// - Returns: SOL-funded accounts in derivation order on the selected network.
-    /// - Throws: A derivation, RPC, response-validation, or cancellation error; no partial success is returned.
     @concurrent
     func discover(for phrase: RecoveryPhrase, passphrase: String) async throws -> [DerivedAccount] {
         try Task.checkCancellation()

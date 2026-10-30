@@ -1,28 +1,26 @@
 import Transactions
 
-/// A type that evaluates local instruction compositions and unchanged imported transactions.
+/// A type that prepares transactions for review.
 nonisolated protocol TransactionPreparing: Sendable {
-    /// Compiles and evaluates instructions for explicit review.
-    ///
-    /// Service tips precede the caller's instructions, so the caller's last instruction stays last.
+    /// Compiles and simulates instructions for review.
     ///
     /// - Parameters:
-    ///   - instructions: The ordered program invocations.
-    ///   - payer: The account paying network fees.
-    ///   - signer: The selected wallet authority.
-    ///   - configuration: Explicit resource requests, or `nil` for estimation.
-    ///   - minimumSlot: The earliest permitted context for instruction prerequisites.
-    /// - Returns: Exact transaction inspection, fees, and simulation diagnostics.
+    ///   - instructions: The instructions, in order.
+    ///   - payer: The account that pays the fees.
+    ///   - signer: The account that signs.
+    ///   - configuration: The priority fee and resource limits, or `nil` to estimate them.
+    ///   - minimumSlot: The earliest slot for the provider's reads, or `nil` for any.
+    /// - Returns: The transaction with its fee and simulation.
     /// - Throws: A validation, RPC, or cancellation error.
     func prepare(_ instructions: [Instruction], payer: Address, signer: Address,
                  configuration: Configuration?, minimumSlot: UInt64?) async throws -> Preparation
 
-    /// Evaluates an imported transaction without modifying its message or signatures.
+    /// Simulates an imported transaction without changing its message or signatures.
     ///
     /// - Parameters:
-    ///   - transaction: The complete imported transaction.
-    ///   - signer: The account whose empty required-signature slot will be filled.
-    /// - Returns: The unchanged transaction and review observations.
+    ///   - transaction: The imported transaction.
+    ///   - signer: The account whose empty signature slot gets filled.
+    /// - Returns: The unchanged transaction with its fee and simulation.
     /// - Throws: A validation, RPC, or cancellation error.
     func prepare(_ transaction: Transaction, for signer: Address) async throws -> Preparation
 }

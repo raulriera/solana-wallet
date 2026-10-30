@@ -3,7 +3,7 @@ public struct Context: Decodable, Sendable {
     /// The slot at which the node evaluated the request.
     public let slot: UInt64
 
-    /// Creates a ledger context for a response.
+    /// Creates a ledger context.
     ///
     /// - Parameter slot: The slot at which the node evaluated the request.
     public init(slot: UInt64) {

@@ -1,15 +1,11 @@
 import Accessibility
 import SwiftUI
 
-/// Binds accepted entry checks to their screen's lifetime without retaining task handles, and announces rejections.
+/// Runs a screen's accepted entry checks, announces rejections, and closes the screen once the entry is saved.
 private struct ProviderSetupLifecycle<EntryError: ProviderEntryError>: ViewModifier {
     @Environment(\.dismiss) private var dismiss
     @Bindable var submission: ProviderSetupModel<EntryError>
 
-    /// Awaits one entry check, signals and announces each rejected entry, presents its secret-free failure, and
-    /// closes the screen once the entry is saved.
-    /// - Parameter content: The entry screen.
-    /// - Returns: The screen with managed entry checks, rejection feedback, failure presentation, and closing.
     func body(content: Content) -> some View {
         let attempt = submission.attempt
         content
@@ -25,8 +21,9 @@ private struct ProviderSetupLifecycle<EntryError: ProviderEntryError>: ViewModif
 }
 
 extension ProviderSetupScreen {
-    /// Runs accepted entry checks only while this screen is on screen, and closes it once the entry is saved.
-    /// - Returns: The screen with managed entry checks, rejection feedback, failure presentation, and closing.
+    /// Runs the screen's accepted entry checks and closes it once the entry is saved.
+    ///
+    /// - Returns: The screen with managed entry checks.
     func providerSetupLifecycle<EntryError: ProviderEntryError>() -> some View
     where Submission == ProviderSetupModel<EntryError> {
         modifier(ProviderSetupLifecycle(submission: submission))

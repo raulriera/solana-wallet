@@ -1,10 +1,10 @@
 import SwiftUI
 
-/// Opens the current wallet's explicit override or application inheritance choice.
+/// A section that opens a wallet's theme choices.
 struct WalletThemeSection: View {
     @Environment(\.palette) private var palette
     let wallet: AppearanceWallet
-    /// The explicit theme's unchanged name, or `nil` when following the app default.
+    /// The wallet's theme name, or `nil` when it uses the app default.
     let themeName: String?
 
     var body: some View {

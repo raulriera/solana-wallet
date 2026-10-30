@@ -1,16 +1,13 @@
 import SwiftUI
 
-/// One row of the payment keypad.
+/// A row of the payment keypad.
 struct KeypadRow: View {
     @Environment(\.locale) private var locale
     @Environment(\.pressKey) private var pressKey
-    /// The row's keys, from leading to trailing.
     let keys: [KeypadKey]
 
     var body: some View {
         GridRow {
-            // Each key appears once in its row and never changes, so it identifies itself.
-            // swiftfairy:disable:next list-identity-costly-to-compare
             ForEach(keys, id: \.self) { key in
                 switch key {
                 case .digit(let digit):
@@ -39,7 +36,8 @@ struct KeypadRow: View {
         }
     }
 
-    /// Types a key, rolling the amount's digits into place.
+    /// Types a key with animation.
+    ///
     /// - Parameter key: The pressed key.
     private func press(_ key: KeypadKey) {
         withAnimation(.snappy) { pressKey?(key) }

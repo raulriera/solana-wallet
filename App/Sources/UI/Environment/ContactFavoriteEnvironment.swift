@@ -1,6 +1,6 @@
 import SwiftUI
 
 extension EnvironmentValues {
-    /// Adds an account or contact to Favorites or removes it; `nil` outside Contacts, where nothing is listed.
+    /// The action that adds or removes a favorite, or `nil` outside Contacts.
     @Entry var contactFavorite: ContactFavoriteAction?
 }

@@ -3,12 +3,10 @@ import Portfolio
 import SwiftUI
 
 /// Shows an exact token quantity.
-///
-/// Abbreviated balances shorten from 10,000 up, as in 11M, while VoiceOver still reads every digit.
 struct TokenBalance: View {
     let amount: Amount
     var symbol: String?
-    /// Whether balances from 10,000 up are shortened, as on cards and rows.
+    /// Whether balances from 10,000 up are shortened.
     var abbreviates = false
 
     var body: some View {
@@ -20,7 +18,6 @@ struct TokenBalance: View {
                     .accessibilityLabel(Text(amount, format: .amount))
             }
         }
-        // A new balance rolls its digits into place, up or down, as values and prices do.
         .contentTransition(.numericText(value: Double(amount.units) / pow(10, Double(amount.decimals))))
     }
 }

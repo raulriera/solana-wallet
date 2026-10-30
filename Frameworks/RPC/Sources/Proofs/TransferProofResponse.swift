@@ -1,16 +1,7 @@
-/// The strict decoding of a prover's JSON proof on the complete route.
-///
-/// The body is gnark's proof, `{ar, bs, krs}`, with `provingKeySha256`, which is required, and without the
-/// commitment that only P-256 proofs carry. Coordinates are `0x` hexadecimal with or without leading zeros.
+/// The strict decoding of a prover's JSON transfer proof.
 struct TransferProofResponse: Decodable, Sendable {
-    /// The decoded proof.
     let proof: TransferProof
 
-    /// Decodes the proof.
-    ///
-    /// - Parameter decoder: The decoder containing the response body.
-    /// - Throws: A decoding error for a missing field, a wrong count, a value of more than 32 bytes, a digest
-    ///   that isn't 64 lowercase hexadecimal digits, or a commitment.
     init(from decoder: any Decoder) throws {
         let body = try decoder.container(keyedBy: CodingKeys.self)
         guard !body.contains(.proofCommitment), !body.contains(.proofCommitmentPok) else {
@@ -43,13 +34,8 @@ struct TransferProofResponse: Decodable, Sendable {
 
 /// A list of 32-byte words in prover hexadecimal.
 private struct HexWords: Decodable {
-    /// The words' bytes.
     let words: [[UInt8]]
 
-    /// Decodes a list of words.
-    ///
-    /// - Parameter decoder: The decoder containing the list.
-    /// - Throws: A decoding error for a word that isn't valid or exceeds 32 bytes.
     init(from decoder: any Decoder) throws {
         words = try decoder.singleValueContainer().decode([HexWord].self).map(\.bytes)
     }
@@ -60,10 +46,6 @@ private struct HexWord: Decodable {
     /// The word's 32 big-endian bytes.
     let bytes: [UInt8]
 
-    /// Decodes a word with or without leading zeros.
-    ///
-    /// - Parameter decoder: The decoder containing the text.
-    /// - Throws: A decoding error for text that isn't `0x` and hexadecimal digits, or a value over 32 bytes.
     init(from decoder: any Decoder) throws {
         let container = try decoder.singleValueContainer()
         guard let bytes = FieldHex.decode(try container.decode(String.self)) else {

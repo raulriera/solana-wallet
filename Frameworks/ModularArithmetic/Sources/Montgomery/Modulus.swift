@@ -1,20 +1,17 @@
 /// An odd prime modulus between 2^64 and 2^256, with the parameters of its Montgomery arithmetic.
-///
-/// Field elements use Montgomery form with R = 2^256. The parameters are computed once from the
-/// public modulus. Only this module creates moduli, so the list of fields stays closed and tested.
 public struct Modulus: Sendable {
     /// The modulus m.
     let limbs: Limbs
-    /// -m⁻¹ mod 2^64, the factor that clears the lowest limb in each reduction step.
+    /// The value -m⁻¹ mod 2^64.
     let negatedInverse: UInt64
-    /// R mod m, the Montgomery form of one.
+    /// The Montgomery form of one, R mod m, where R = 2^256.
     let one: Limbs
-    /// R² mod m, which converts a value into Montgomery form.
+    /// The value R² mod m.
     let rSquared: Limbs
-    /// m - 2, the exponent of an inverse by Fermat's little theorem.
+    /// The exponent m - 2, which computes an inverse.
     let inverseExponent: Limbs
 
-    /// Computes the Montgomery parameters of an odd modulus between 2^64 and 2^256.
+    /// Creates a modulus and computes its Montgomery parameters.
     ///
     /// - Parameters:
     ///   - limb0: Bits 0 to 63 of the modulus.
@@ -23,13 +20,10 @@ public struct Modulus: Sendable {
     ///   - limb3: Bits 192 to 255 of the modulus.
     init(_ limb0: UInt64, _ limb1: UInt64, _ limb2: UInt64, _ limb3: UInt64) {
         let limbs = Limbs(limb0, limb1, limb2, limb3)
-        // An odd number is its own inverse modulo 2^3, and each Newton step doubles the
-        // correct low bits, so five steps give 96 ≥ 64 bits of m⁻¹ mod 2^64.
         var inverse = limb0
         for _ in 0..<5 {
             inverse = inverse &* (2 &- limb0 &* inverse)
         }
-        // Doubling one 256 times gives R mod m; 256 more doublings give R² mod m.
         var power = Limbs(1, 0, 0, 0)
         for _ in 0..<256 {
             power = power.adding(power, modulo: limbs)
@@ -63,11 +57,6 @@ public struct Modulus: Sendable {
 
     /// Multiplies two values with Montgomery reduction.
     ///
-    /// Coarsely integrated operand scanning (CIOS) adds one row of `a × b` and one row of a
-    /// multiple of m for each limb of `b`, then drops the cleared lowest limb. The running sum
-    /// keeps two limbs above the four limbs of `a`, so the result is correct for any odd modulus
-    /// below 2^256, including moduli above 2^255.
-    ///
     /// - Parameters:
     ///   - a: Any value below 2^256.
     ///   - b: A value below m.
@@ -78,13 +67,10 @@ public struct Modulus: Sendable {
         sum = scan(sum, a, b.limb1)
         sum = scan(sum, a, b.limb2)
         sum = scan(sum, a, b.limb3)
-        // The sum is now below 2m, so one conditional subtraction reduces it.
         return sum.low.reduced(carry: sum.high, modulo: limbs)
     }
 
-    /// Raises a value in Montgomery form to a public exponent by square-and-multiply.
-    ///
-    /// The sequence of multiplications depends only on the exponent's bits, never on the base.
+    /// Raises a value in Montgomery form to a public exponent.
     ///
     /// - Parameters:
     ///   - base: A value in Montgomery form, below m.
@@ -103,14 +89,13 @@ public struct Modulus: Sendable {
         return result
     }
 
-    /// Performs one CIOS step: adds `a × word` to the running sum, then adds the multiple of m
-    /// that clears the sum's lowest limb, and shifts the sum down by one limb.
+    /// Adds `a × word` and a multiple of m to the running sum, then shifts it down by one limb.
     ///
     /// - Parameters:
     ///   - sum: The running sum, below `a + m`, as four limbs and a fifth limb of zero or one.
     ///   - a: The multiplicand.
     ///   - word: The next limb of the multiplier.
-    /// - Returns: The next running sum, again below `a + m`.
+    /// - Returns: The next running sum, below `a + m`.
     @inline(always) private func scan(_ sum: (low: Limbs, high: UInt64), _ a: Limbs, _ word: UInt64) -> (low: Limbs, high: UInt64) {
         let (t0, c0) = a.limb0.multiplied(by: word, adding: sum.low.limb0, carry: 0)
         let (t1, c1) = a.limb1.multiplied(by: word, adding: sum.low.limb1, carry: c0)
@@ -119,7 +104,6 @@ public struct Modulus: Sendable {
         let (t4, t5) = sum.high.adding(c3, carry: 0)
 
         let factor = t0 &* negatedInverse
-        // The lowest limb of t0 + factor × m0 is zero by the choice of factor; only its carry remains.
         let (_, d0) = limbs.limb0.multiplied(by: factor, adding: t0, carry: 0)
         let (u0, d1) = limbs.limb1.multiplied(by: factor, adding: t1, carry: d0)
         let (u1, d2) = limbs.limb2.multiplied(by: factor, adding: t2, carry: d1)

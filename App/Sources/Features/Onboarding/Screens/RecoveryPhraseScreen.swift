@@ -1,7 +1,7 @@
 import SwiftUI
 import Wallet
 
-/// Presents a prepared recovery phrase for backup without generating or storing it.
+/// Shows a new recovery phrase for backup.
 struct RecoveryPhraseScreen: View {
     @Environment(\.palette) private var palette
     @State private var isConfirmingBackup = false
@@ -10,12 +10,13 @@ struct RecoveryPhraseScreen: View {
     let pasteboard: any RecoveryCopying
     let continueSetup: () -> Void
 
-    /// Shows the words it opened with until the wallet is saved and the next step covers this screen.
+    /// Creates a recovery phrase screen.
+    ///
     /// - Parameters:
-    ///   - initialPhrase: The prepared words when the screen opens; later values are ignored.
-    ///   - isSaved: Whether the wallet is saved; its words then leave memory once this screen is covered.
-    ///   - pasteboard: Copies the words to this device only, for a limited time.
-    ///   - continueSetup: Saves the wallet after the user confirms their backup.
+    ///   - initialPhrase: The words that the screen shows.
+    ///   - isSaved: Whether the wallet is saved.
+    ///   - pasteboard: The pasteboard that copies the words.
+    ///   - continueSetup: The action that saves the wallet.
     init(initialPhrase: RecoveryPhrase?, isSaved: Bool, pasteboard: any RecoveryCopying,
          continueSetup: @escaping () -> Void) {
         _phrase = State(initialValue: initialPhrase)
@@ -70,7 +71,6 @@ struct RecoveryPhraseScreen: View {
             Text("Make sure you've written down all the words in order and stored them somewhere safe.")
         }
         .onDisappear {
-            // A saved wallet never returns to its backup, so release the words once they're off screen.
             if isSaved { phrase = nil }
         }
     }
@@ -88,11 +88,9 @@ struct RecoveryPhraseScreen: View {
     }
 }
 
-/// Keeps previews from copying the public test phrase to the real pasteboard.
+/// A pasteboard for previews that copies nothing.
 nonisolated private struct PreviewRecoveryPasteboard: RecoveryCopying {
     let lifetime: Duration = .seconds(60)
 
-    /// Accepts preview taps without copying anything.
-    /// - Parameter phrase: The preview's public test phrase.
     func copy(_ phrase: RecoveryPhrase) {}
 }

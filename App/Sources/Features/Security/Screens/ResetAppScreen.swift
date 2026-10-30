@@ -7,7 +7,6 @@ struct ResetAppScreen: View {
     let account: Account
     let coordinator: SecurityCoordinator
 
-    /// The explanation for why the user is resetting.
     private var message: LocalizedStringResource {
         switch mode {
         case .standard:

@@ -1,8 +1,8 @@
-/// Shared saved data that a reset deletes, such as the contacts or the currency choice that every window shows.
+/// Saved data that a reset can delete.
 @MainActor
 protocol Erasable {
-    /// Ends the work that saves, then deletes what's saved, so nothing saves it again and every window that shows it
-    /// starts over.
-    /// - Throws: A storage error, which keeps what's saved.
+    /// Stops saving and deletes the saved data.
+    ///
+    /// - Throws: A storage error if the data can't be deleted.
     func erase() async throws
 }

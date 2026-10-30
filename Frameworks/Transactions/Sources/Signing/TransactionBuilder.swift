@@ -1,18 +1,13 @@
 import CryptoKit
 public import Foundation
 
-/// A stateless assembler that preserves V1 messages and verifies supplied signatures.
+/// A transaction builder that fills V1 signature slots with verified signatures.
 public struct TransactionBuilder: TransactionBuilding {
     private let decoder: any TransactionDecoding = TransactionDecoder()
 
-    /// Creates an assembler with a structural decoder and no wallet or network access.
+    /// Creates a transaction builder.
     public init() {}
 
-    /// Appends an empty slot for each required signer and validates the complete envelope.
-    ///
-    /// - Parameter message: A compiled V1 message, excluding signatures.
-    /// - Returns: The unchanged message with ordered placeholder signatures for simulation.
-    /// - Throws: A validation error for an unsupported header, malformed message, or oversized envelope.
     public func simulationTransaction(for message: Data) throws -> Data {
         guard message.count >= 2, message.first == 0x81 else { throw ValidationError.invalidMessage }
         let count = Int(message[message.startIndex + 1])
@@ -25,11 +20,6 @@ public struct TransactionBuilder: TransactionBuilding {
         return envelope
     }
 
-    /// Decodes an envelope and verifies every occupied signature slot.
-    ///
-    /// - Parameter transaction: Complete V1 bytes, including any empty signature slots.
-    /// - Returns: The inspected transaction; empty slots remain unsigned.
-    /// - Throws: A structural or signature validation error.
     public func validateSignatures(in transaction: Data) throws -> Transaction {
         let decoded = try decoder.decode(transaction)
         for (index, signature) in decoded.signatures.enumerated() where signature.contains(where: { $0 != 0 }) {
@@ -38,28 +28,12 @@ public struct TransactionBuilder: TransactionBuilding {
         return decoded
     }
 
-    /// Verifies existing signatures and the selected signer's empty slot.
-    ///
-    /// - Parameters:
-    ///   - transaction: A complete V1 envelope, potentially with empty slots.
-    ///   - signer: The required signer whose slot must still be empty.
-    /// - Returns: The decoded transaction; zero-filled slots remain unsigned.
-    /// - Throws: A validation error for malformed data, invalid signatures, an unrelated
-    ///   account, or an occupied selected slot.
     public func validateSignatures(in transaction: Data, for signer: Address) throws -> Transaction {
         let decoded = try validateSignatures(in: transaction)
         try unsignedIndex(for: signer, in: decoded)
         return decoded
     }
 
-    /// Fills the selected required signer's empty slot, retaining all other envelope bytes.
-    ///
-    /// - Parameters:
-    ///   - signature: The signature to verify against the selected account and message.
-    ///   - signer: The required signer whose empty slot to fill.
-    ///   - transaction: The original complete envelope.
-    /// - Returns: A typed transaction that may still lack other required signatures.
-    /// - Throws: ``ValidationError`` if the envelope, account, or signatures are invalid.
     public func transaction(byAdding signature: Data, for signer: Address, to transaction: Data) throws -> Transaction {
         let decoded = try validateSignatures(in: transaction)
         let index = try unsignedIndex(for: signer, in: decoded)
@@ -71,13 +45,13 @@ public struct TransactionBuilder: TransactionBuilding {
                            instructions: decoded.instructions, signatures: signatures)
     }
 
-    /// Locates an empty required-signature slot in structurally validated data.
+    /// Returns the index of a required signer's empty signature slot.
     ///
     /// - Parameters:
-    ///   - signer: The selected account whose signature is requested.
-    ///   - transaction: The decoded envelope.
-    /// - Returns: The selected account's signature index, which validation-only callers may ignore.
-    /// - Throws: A validation error for an unrelated account or occupied slot.
+    ///   - signer: The required signer.
+    ///   - transaction: The decoded transaction.
+    /// - Returns: The signer's signature index.
+    /// - Throws: ``ValidationError/signerNotRequired`` or ``ValidationError/signatureAlreadyPresent``.
     @discardableResult
     private func unsignedIndex(for signer: Address, in transaction: Transaction) throws -> Int {
         guard let index = transaction.accounts.firstIndex(where: { $0.address == signer && $0.isSigner }) else {
@@ -89,12 +63,12 @@ public struct TransactionBuilder: TransactionBuilding {
         return index
     }
 
-    /// Applies the same strict point and signature checks to every assembly path.
+    /// Verifies an Ed25519 signature of a message.
     ///
     /// - Parameters:
-    ///   - signature: The Ed25519 signature to validate.
-    ///   - publicKey: The encoded required signer's public key.
-    ///   - message: The exact bytes that must have been signed.
+    ///   - signature: The signature.
+    ///   - publicKey: The signer's public key.
+    ///   - message: The signed bytes.
     /// - Throws: ``ValidationError/invalidSignature`` if any check fails.
     private func verify(_ signature: Data, publicKey: Data, message: Data) throws {
         guard signature.count == 64,

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Explains why the portfolio can't show balances and offers the one action that can fix it, if any.
+/// Explains why the portfolio can't show balances and offers an action that can fix it.
 struct PortfolioUnavailableScreen: View {
     let error: PortfolioError
     let action: () -> Void
@@ -14,7 +14,6 @@ struct PortfolioUnavailableScreen: View {
         }
     }
 
-    /// Names what went wrong.
     private var title: LocalizedStringResource {
         switch error {
         case .missingKey: "API Key Required"
@@ -26,7 +25,6 @@ struct PortfolioUnavailableScreen: View {
         }
     }
 
-    /// Explains why balances aren't shown and what the action does.
     private var message: LocalizedStringResource {
         switch error {
         case .missingKey: "Your provider needs an API key to load your balances."
@@ -38,7 +36,6 @@ struct PortfolioUnavailableScreen: View {
         }
     }
 
-    /// Pictures the cause: the key, the provider's network, the provider's limit, the connection, or the saved list.
     private var systemImage: String {
         switch error {
         case .missingKey, .invalidKey: "key.slash"
@@ -49,8 +46,7 @@ struct PortfolioUnavailableScreen: View {
         }
     }
 
-    /// A new key fixes key failures and another try fixes passing ones; another provider or Mainnet, chosen in
-    /// Settings, fixes an unsupported network, and nothing in the app fixes an unreadable list.
+    /// The title of the action that can fix the error, or `nil` when there's none.
     private var actionTitle: LocalizedStringResource? {
         switch error {
         case .missingKey, .invalidKey: "Enter API Key"

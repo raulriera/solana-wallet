@@ -4,34 +4,11 @@ import Transactions
 
 /// A default-ring SOL transact before its proof: the sender spends UTXOs into a transfer, a public
 /// withdrawal, or both, and keeps the change.
-///
-/// The plan follows zolana's `ConfidentialTransaction` with random padding:
-///
-/// - The plan transfers, withdraws, or both. It spends at most 40 inputs, zolana's wallet limit,
-///   because wider shapes can exceed one transaction. The inputs keep the caller's order and declare
-///   their trees in first-use order, at most two. Every input must be a SOL UTXO that the sender
-///   owns.
-/// - The outputs are the recipient's, then the sender's change if it's positive. If neither exists,
-///   the sender gets a zero-amount output. The shape is the cheapest one that holds the inputs and
-///   the outputs before that zero-amount output.
-/// - Padding inputs are empty UTXOs in the last declared tree with random blindings, whose
-///   nullifiers use the zero nullifier secret. Padding outputs are empty UTXOs in the output tree
-///   with random payloads as long as a note, tagged with the sender's view tag, or the recipient's
-///   if the sender has no output.
-/// - Every output slot's blinding derives from the first nullifier and the blinding seed. Each real
-///   output's note is sealed with the transaction viewing key and the salt. Outputs with the
-///   sender's view tag, padding included, refer to the fee payer, the sender, for it, as in zolana's
-///   fix #432.
-///
-/// Descriptions and reflection omit the amounts, the blindings, and the blinding seed.
 struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
     /// A transact that the plan can't build.
     enum ValidationError: Error, Equatable {
-        /// The plan spends no UTXOs.
         case noInputs
-        /// The plan spends more UTXOs than one transaction holds.
         case tooManyInputs
-        /// The plan has neither a transfer nor a withdrawal.
         case nothingToSend
         /// An input isn't owned by the sender.
         case foreignInput
@@ -39,19 +16,14 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
         case unsupportedAsset
         /// The inputs come from more than two trees.
         case tooManyInputTrees
-        /// The inputs hold fewer lamports than the transfer and the withdrawal.
         case insufficientFunds
-        /// A sum of lamports exceeds a 64-bit integer.
         case amountOverflow
-        /// The tree contexts don't match the declared input trees one for one.
         case invalidTreeContextCount
-        /// The nullifier key doesn't derive the spent inputs' nullifiers, so it isn't the sender's.
         case foreignNullifierKey
-        /// The prover made the proof with a key other than the plan's shape's.
+        /// The proof's proving key isn't the one for the plan's shape.
         case unexpectedProvingKey
         /// A tree's proofs are missing, don't match its inputs, or disagree on their root or its position.
         case inconsistentProofs
-        /// A root's position is outside its tree's root history.
         case rootIndexOutOfRange
         /// A root isn't a canonical field element.
         case invalidRoot
@@ -60,28 +32,18 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
     }
 
     /// A transfer of SOL to another owner's shielded address.
-    ///
-    /// Descriptions and reflection omit the amount.
     struct Transfer: Sendable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
-        /// The owner who receives the SOL.
         let recipient: Recipient
-        /// The positive amount, in lamports.
         let lamports: UInt64
 
-        /// A description that omits the amount.
         var description: String { "TransactPlan.Transfer" }
 
-        /// A debugging description that omits the amount.
         var debugDescription: String { description }
 
-        /// A reflection view that omits the amount.
         var customMirror: Mirror { Mirror(self, children: [:]) }
     }
 
     /// The random values of one plan: the blinding seed, the salt, and the padding.
-    ///
-    /// Descriptions and reflection omit the values: with the public first nullifier, the blinding
-    /// seed derives every output blinding and the private transaction blinding.
     struct Randomness: Sendable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
         /// The proof's private blinding seed, below 2^248.
         let blindingSeed: Poseidon.Element
@@ -92,21 +54,18 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
         /// The payload of each padding output, as long as a note.
         let paddingOutputData: [[UInt8]]
 
-        /// A description that omits the random values.
         var description: String { "TransactPlan.Randomness" }
 
-        /// A debugging description that omits the random values.
         var debugDescription: String { description }
 
-        /// A reflection view that omits the random values.
         var customMirror: Mirror { Mirror(self, children: [:]) }
 
-        /// Draws random values, as zolana's clients do: blindings are 31 random bytes, right-aligned.
+        /// Draws random values for a plan.
         ///
         /// - Parameters:
         ///   - paddingInputs: The number of padding inputs.
         ///   - paddingOutputs: The number of padding outputs.
-        ///   - generator: The source of randomness, such as `SystemRandomNumberGenerator`.
+        ///   - generator: The source of randomness.
         /// - Returns: The random values.
         static func random(paddingInputs: Int, paddingOutputs: Int, using generator: inout some RandomNumberGenerator) -> Self {
             Self(
@@ -119,10 +78,10 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
             )
         }
 
-        /// Draws a blinding: 31 random bytes, right-aligned in a field element.
+        /// Draws a blinding from 31 random bytes.
         ///
         /// - Parameter generator: The source of randomness.
-        /// - Returns: The blinding, below 2^248 and so below r.
+        /// - Returns: The blinding, below 2^248.
         private static func blinding(using generator: inout some RandomNumberGenerator) -> Poseidon.Element {
             var random = bytes(count: 31, using: &generator)
             defer { random.erase() }
@@ -148,18 +107,13 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
         let treeIndex: UInt8
         /// The slot's UTXO hash: the spent UTXO's, or the empty UTXO's for padding.
         let hash: Poseidon.Element
-        /// The nullifier that the transact publishes for the slot.
         let nullifier: Poseidon.Element
-        /// The slot's blinding: the spent UTXO's, or the padding's random blinding.
         let blinding: Poseidon.Element
 
-        /// A description that omits the UTXO and the blinding.
         var description: String { "TransactPlan.Input" }
 
-        /// A debugging description that omits the UTXO and the blinding.
         var debugDescription: String { description }
 
-        /// A reflection view that omits the UTXO and the blinding.
         var customMirror: Mirror { Mirror(self, children: [:]) }
     }
 
@@ -169,43 +123,33 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
         let utxo: UTXO?
         /// The slot as the instruction publishes it.
         let published: TransactOutput
-        /// The slot's blinding, which derives from the first nullifier and the blinding seed.
         let blinding: Poseidon.Element
         /// The owner of the new UTXO, or `nil` for padding.
         let owner: Recipient?
 
-        /// A description that omits the UTXO, the blinding, and the owner.
         var description: String { "TransactPlan.Output" }
 
-        /// A debugging description that omits the UTXO, the blinding, and the owner.
         var debugDescription: String { description }
 
-        /// A reflection view that omits the UTXO, the blinding, and the owner.
         var customMirror: Mirror { Mirror(self, children: [:]) }
     }
 
     /// The validated slots of a plan before its random values.
     private struct Layout {
-        /// The sender as an owner of outputs.
         let senderOwner: Recipient
-        /// The spent UTXOs, in the caller's order.
         let utxos: [UTXO]
         /// The declared input trees, in first-use order.
         let inputTreeIDs: [UInt16]
         /// The owner and the amount of each real output, in slot order.
         let outputs: [(owner: Recipient, lamports: UInt64)]
-        /// The view tag of the padding outputs.
         let paddingViewTag: [UInt8]
-        /// The proof's shape.
         let shape: Shape
 
-        /// The number of padding inputs.
         var paddingInputCount: Int { shape.inputs - utxos.count }
 
-        /// The number of padding outputs.
         var paddingOutputCount: Int { shape.outputs - outputs.count }
 
-        /// Validates a transact and lays out its slots.
+        /// Creates a layout after validating a transact.
         ///
         /// - Parameters:
         ///   - utxos: The spent UTXOs.
@@ -252,11 +196,8 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
             self.shape = shape
         }
 
-        /// Encodes an output's view tag as the sender's outputs do: a reference to the payer, the sender, for the
-        /// sender's view tag, else the tag inline.
-        ///
-        /// Padding borrows a participant's view tag with the same encoding, so it can't be told apart from that
-        /// participant's output.
+        /// Returns the owner tag of a view tag: a reference to the payer for the sender's view tag, else the
+        /// tag inline.
         ///
         /// - Parameter viewTag: The output's view tag.
         /// - Returns: The output's owner tag.
@@ -278,21 +219,15 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
         }
     }
 
-    /// The most UTXOs that a plan spends, zolana's `MAX_SPEND_INPUTS`: the cheapest shape that holds
-    /// them still fits one transaction, and the next wider one doesn't.
     private static let maximumInputs = 40
 
-    /// The proof's shape.
     let shape: Shape
 
     /// The declared input trees, in first-use order.
     let inputTreeIDs: [UInt16]
 
-    /// The ID of the tree that receives the outputs.
     let outputTreeID: UInt16
 
-    /// The proof's private blinding seed, which the prover needs to derive the output blindings
-    /// and the private transaction blinding.
     let blindingSeed: Poseidon.Element
 
     /// The input slots, padding last.
@@ -301,37 +236,30 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
     /// The output slots, padding last.
     let outputs: [Output]
 
-    /// The withdrawal, if any.
     let withdrawal: ExternalData.Withdrawal?
 
-    /// The fee payer, the sender.
+    /// The fee payer, which is the sender.
     let payer: Address
 
-    /// The public part of the transact that the proof commits to.
     let externalData: ExternalData
 
-    /// The private transaction hash that the proof publishes.
     let privateTransactionHash: Poseidon.Element
 
     /// The nullifiers that the transact publishes, in input slot order.
     var nullifiers: [Poseidon.Element] { inputs.map(\.nullifier) }
 
-    /// The UTXO hashes that the output tree appends, in output slot order.
+    /// The UTXO hashes of the output slots, in slot order.
     var commitments: [Poseidon.Element] { outputs.map(\.published.utxoHash) }
 
-    /// The payloads of the output slots, in slot order.
     var payloads: [[UInt8]] { outputs.map(\.published.data) }
 
-    /// A description that omits the amounts and the blindings.
     var description: String { "TransactPlan" }
 
-    /// A debugging description that omits the amounts and the blindings.
     var debugDescription: String { description }
 
-    /// A reflection view that omits the amounts and the blindings.
     var customMirror: Mirror { Mirror(self, children: [:]) }
 
-    /// Plans a transact with random blindings, salt, and padding.
+    /// Creates a plan with random blindings, salt, and padding.
     ///
     /// - Parameters:
     ///   - utxos: The sender's SOL UTXOs to spend, in slot order.
@@ -339,7 +267,7 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
     ///   - transfer: The transfer to another owner, if any.
     ///   - withdrawal: The withdrawal to a public account, if any.
     ///   - outputTreeID: The ID of the tree that receives the outputs.
-    ///   - generator: The source of randomness, such as `SystemRandomNumberGenerator`.
+    ///   - generator: The source of randomness.
     /// - Throws: A ``ValidationError`` if the plan can't be built,
     ///   ``Transactions/ValidationError/invalidAmount`` for a zero-lamport transfer or withdrawal, a
     ///   ``Recipient/ValidationError`` if no key can sign for the sender's signing address, or an
@@ -359,7 +287,7 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
         try self.init(layout: layout, sender: sender, withdrawal: withdrawal, outputTreeID: outputTreeID, randomness: randomness)
     }
 
-    /// Plans a transact with given random values, such as a test vector's.
+    /// Creates a plan with the given random values.
     ///
     /// - Parameters:
     ///   - utxos: The sender's SOL UTXOs to spend, in slot order.
@@ -373,8 +301,6 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
     ///   ``Transactions/ValidationError/invalidAmount`` for a zero-lamport transfer or withdrawal, a
     ///   ``Recipient/ValidationError`` if no key can sign for the sender's signing address, or an
     ///   error from sealing the notes or deriving the accounts.
-    /// - Precondition: `randomness` holds as many padding values as the plan has padding slots, and
-    ///   a 16-byte salt.
     init(
         spending utxos: [UTXO],
         sender: ShieldedAccount,
@@ -387,7 +313,7 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
         try self.init(layout: layout, sender: sender, withdrawal: withdrawal, outputTreeID: outputTreeID, randomness: randomness)
     }
 
-    /// Fills a validated layout with its random values, commitments, notes, and hashes.
+    /// Creates a plan from a validated layout and its random values.
     ///
     /// - Parameters:
     ///   - layout: The validated slots.
@@ -396,7 +322,6 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
     ///   - outputTreeID: The ID of the tree that receives the outputs.
     ///   - randomness: The random values.
     /// - Throws: An error from sealing the notes or deriving the accounts.
-    /// - Precondition: `randomness` holds as many padding values as the layout has padding slots.
     private init(
         layout: Layout,
         sender: ShieldedAccount,
@@ -471,9 +396,8 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
     ///
     /// - Parameters:
     ///   - treeID: A declared tree's ID.
-    ///   - treeIDs: The declared trees, at most two.
+    ///   - treeIDs: The declared trees.
     /// - Returns: The tree's position.
-    /// - Precondition: `treeIDs` contains `treeID`.
     private static func index(of treeID: UInt16, in treeIDs: [UInt16]) -> UInt8 {
         guard let index = treeIDs.firstIndex(of: treeID) else { preconditionFailure("Every input's tree is declared.") }
         return UInt8(index)

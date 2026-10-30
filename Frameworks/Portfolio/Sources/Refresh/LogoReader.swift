@@ -1,17 +1,15 @@
 import Foundation
 import RPC
 
-/// Finds a provider's logo copies for an account's listed tokens.
+/// A service that finds a provider's logo copies for an account's listed tokens.
 struct LogoReader: Sendable {
     let provider: any LogoProviding
 
     /// Returns the listed tokens' logos, looking up only the tokens that don't have one yet.
     ///
-    /// Each token keeps the logo the cached snapshot shows. One lookup asks for the others. A failed
-    /// lookup leaves them without a logo, so the next balance read asks again. Native SOL has no lookup.
     /// - Parameters:
-    ///   - holdings: The holdings that the balance read returns.
-    ///   - cached: The account's previous complete snapshot, if any.
+    ///   - holdings: The holdings to find logos for.
+    ///   - cached: The previous snapshot, whose logos are kept, or `nil`.
     /// - Returns: The available logos, keyed by mint.
     @concurrent
     func logos(for holdings: [Holding.Identity], keeping cached: Snapshot?) async -> [String: URL] {
@@ -23,7 +21,6 @@ struct LogoReader: Sendable {
             guard case .asset(let mint) = holding, logos[mint] == nil else { return nil }
             return mint
         }
-        // A logo is decoration: a failure must not fail the balances it accompanies.
         if !missing.isEmpty, let found = try? await provider.logos(for: missing) {
             logos.merge(found) { kept, _ in kept }
         }
@@ -32,10 +29,10 @@ struct LogoReader: Sendable {
 }
 
 extension Snapshot {
-    /// Returns the same holdings with each listed token's logo replaced.
+    /// Returns a copy of the snapshot with each listed token's logo replaced.
     ///
-    /// - Parameter logos: Logo URLs keyed by mint; a token without an entry has no logo.
-    /// - Returns: A snapshot that differs only in its listed tokens' logos.
+    /// - Parameter logos: Logo URLs keyed by mint, where a missing mint means no logo.
+    /// - Returns: The snapshot with the new logos.
     func replacingLogos(with logos: [String: URL]) -> Snapshot {
         var snapshot = self
         for index in snapshot.holdings.indices {

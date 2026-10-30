@@ -1,11 +1,7 @@
 import Portfolio
 import SwiftUI
 
-/// Shows how much SOL a move takes from one of the account's balances to the other and what it costs, before the
-/// person approves it from the top bar.
-///
-/// It shows at once, while the move is proved and simulated; the approval waits until the move can be approved. While
-/// the person reads it, the review's lifecycle simulates the move again before the review expires.
+/// Shows a balance move's amount, balances, and fees for approval.
 struct BalanceMoveReviewScreen: TransactionReviewContent {
     @Environment(\.palette) private var palette
     let review: TransactionReviewModel<BalanceMoveProposal>
@@ -49,7 +45,6 @@ struct BalanceMoveReviewScreen: TransactionReviewContent {
                          comment: "Footer under the registration fee of an account's first deposit into its private balance.")
                         .foregroundStyle(palette.secondaryText)
                 } else if costs?.privacyFee != nil {
-                    // A fee that the person didn't expect says where it goes, so it doesn't read as a scam.
                     Text("The network fee pays Solana to process this transaction. The privacy fee goes to the private balance pool, which uses it to record spent SOL so it can't be spent twice. This app takes no fee.",
                          comment: "Footer under the fees of moving private SOL to the public balance, when the private balance pool charges a privacy fee.")
                         .foregroundStyle(palette.secondaryText)
@@ -62,12 +57,9 @@ struct BalanceMoveReviewScreen: TransactionReviewContent {
         .scrollContentBackground(.hidden)
         .readableContentWidth()
         .background(palette.background)
-        // Fees that change between simulations count to their new values.
         .animation(.default, value: costs)
         .navigationTitle("Review")
         .navigationBarTitleDisplayMode(.inline)
-        // The symbol matches the task's row on SOL's details. Proving takes a few seconds, so the approval shows that
-        // the move is being prepared, as it does while it's sent.
         .confirmationAction(move.direction.title, systemImage: move.direction == .toPrivate ? "eye.slash" : "eye",
                             isEnabled: review.canApprove, isPending: review.attempt != nil || review.isSending,
                             action: review.approve)

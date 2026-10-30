@@ -1,11 +1,10 @@
-/// A submission prerequisite or acknowledgment that cannot be accepted.
+/// An error that stops a transaction's submission.
 nonisolated enum SubmitterError: Error, Sendable, Equatable {
-    /// At least one required signature slot is still empty.
     case missingSignatures
-    /// The signed message or preserved signatures differ from the reviewed transaction.
+    /// The signed transaction differs from the reviewed one.
     case transactionMismatch
-    /// The provider acknowledged another signature; the local transaction may still have been received.
+    /// The provider acknowledged a different signature.
     case responseMismatch(expectedSignature: String)
-    /// No supplied RPC serves the transaction's network.
+    /// No RPC serves the transaction's network.
     case noProviders
 }

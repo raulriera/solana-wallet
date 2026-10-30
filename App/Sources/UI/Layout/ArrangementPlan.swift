@@ -1,32 +1,29 @@
 import SwiftUI
 
-/// Where an adaptive arrangement puts its regions, from the space it has and the space their content uses.
-///
-/// Frames are relative to the arrangement's origin.
+/// The frames where an adaptive arrangement puts its regions, relative to its origin.
 nonisolated struct ArrangementPlan: Equatable {
     /// A view the plan measures.
     nonisolated enum Region {
         case primary
         case secondary
-        /// The secondary region's second view, which follows the primary region when the regions sit side by side.
+        /// The secondary region's second view.
         case accessory
     }
 
     /// The direction the regions follow: horizontal for side by side, vertical for stacked.
     let axis: Axis
-    /// The primary region's frame.
     let primary: CGRect
-    /// The secondary region's frame.
     let secondary: CGRect
-    /// The accessory's frame, or `nil` when the secondary region has none.
+    /// The accessory's frame, or `nil` without an accessory.
     let accessory: CGRect?
 
-    /// Fills the top area with the primary region and centers the secondary region, with its accessory below it, in
-    /// the bottom area.
+    /// Stacks the primary region in the top area and centers the secondary region and its accessory in the
+    /// bottom area.
+    ///
     /// - Parameters:
     ///   - top: The primary region's area.
     ///   - bottom: The area for the secondary region and its accessory.
-    ///   - accessorySpacing: The space above the accessory, or `nil` when there's none.
+    ///   - accessorySpacing: The space above the accessory, or `nil` without an accessory.
     ///   - measure: The size a region's view takes for a proposal.
     /// - Returns: The stacked plan.
     private static func stacked(primaryIn top: CGRect, secondaryIn bottom: CGRect, accessorySpacing: CGFloat?,
@@ -43,12 +40,13 @@ nonisolated struct ArrangementPlan: Equatable {
         return Self(axis: .vertical, primary: top, secondary: secondary, accessory: accessory)
     }
 
-    /// Centers the secondary region in the trailing area and fills the leading area with the primary region, with the
-    /// accessory at its bottom.
+    /// Fills the leading area with the primary region and the accessory below it, and centers the secondary
+    /// region in the trailing area.
+    ///
     /// - Parameters:
     ///   - leading: The area for the primary region and the accessory.
     ///   - trailing: The secondary region's area.
-    ///   - accessorySpacing: The space above the accessory, or `nil` when there's none.
+    ///   - accessorySpacing: The space above the accessory, or `nil` without an accessory.
     ///   - measure: The size a region's view takes for a proposal.
     /// - Returns: The side-by-side plan.
     private static func sideBySide(primaryIn leading: CGRect, secondaryIn trailing: CGRect,
@@ -68,10 +66,11 @@ nonisolated struct ArrangementPlan: Equatable {
         return Self(axis: .horizontal, primary: primary, secondary: secondary, accessory: accessory)
     }
 
-    /// The height the accessory and the space above it take.
+    /// Returns the height of the accessory and the space above it.
+    ///
     /// - Parameters:
     ///   - width: The width offered to the accessory.
-    ///   - spacing: The space above the accessory, or `nil` when there's none.
+    ///   - spacing: The space above the accessory, or `nil` without an accessory.
     ///   - measure: The size a region's view takes for a proposal.
     /// - Returns: The accessory's height plus its spacing, or zero without an accessory.
     private static func accessoryHeight(width: CGFloat, spacing: CGFloat?,
@@ -82,19 +81,17 @@ nonisolated struct ArrangementPlan: Equatable {
 }
 
 nonisolated extension ArrangementPlan {
-    /// Splits at an active fold through the middle of the space. Otherwise places the regions side by side in space
-    /// wider than tall, and stacks them in other space: close together when they fit at the height their content uses,
-    /// or with the secondary region giving up height.
+    /// Creates a plan that splits at an active fold through the middle, places the regions side by side in wide
+    /// space, and stacks them otherwise.
+    ///
     /// - Parameters:
     ///   - size: The space the arrangement has.
-    ///   - fold: The active fold that crosses the space, if any.
-    ///   - accessorySpacing: The space between the accessory and the region above it, or `nil` when there's no
-    ///     accessory.
+    ///   - fold: The active fold's frame, or `nil` without one.
+    ///   - accessorySpacing: The space above the accessory, or `nil` without an accessory.
     ///   - measure: The size a region's view takes for a proposal.
     init(size: CGSize, fold: CGRect?, accessorySpacing: CGFloat?, measure: (Region, ProposedViewSize) -> CGSize) {
         var space = CGRect(origin: .zero, size: size)
         if let fold, fold.intersects(space) {
-            // A fold through the middle divides the space; one nearer an edge only trims that edge.
             if fold.width > fold.height {
                 let above = CGRect(x: space.minX, y: space.minY, width: space.width,
                                    height: max(fold.minY - space.minY, 0))
@@ -126,8 +123,6 @@ nonisolated extension ArrangementPlan {
                                    measure: measure)
             return
         }
-        // Regions that fit stay together in the middle; otherwise the primary region keeps the height its content uses
-        // and the secondary region gives up height.
         let accessoryHeight = Self.accessoryHeight(width: space.width, spacing: accessorySpacing, measure: measure)
         let primaryHeight = measure(.primary, ProposedViewSize(width: space.width, height: nil)).height
         let secondaryHeight = measure(.secondary, ProposedViewSize(width: space.width, height: nil)).height

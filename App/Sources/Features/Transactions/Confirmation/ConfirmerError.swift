@@ -1,7 +1,6 @@
-/// An observation failure that doesn't establish an on-chain execution outcome.
+/// An error that leaves a sent transaction's outcome unknown.
 nonisolated enum ConfirmerError: Error, Sendable, Equatable {
-    /// The provider serves a different network from the submission.
+    /// The provider serves a different network than the submission.
     case networkMismatch
-    /// The response cannot describe the single requested signature consistently.
     case invalidResponse
 }

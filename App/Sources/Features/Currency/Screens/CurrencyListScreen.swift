@@ -1,14 +1,12 @@
 import SwiftUI
 
-/// Lists the rate source's currencies by name, after the automatic choice that follows the device's region.
+/// Lists the rate source's currencies to choose from.
 struct CurrencyListScreen: View {
     @Environment(\.palette) private var palette
     @Environment(\.locale) private var locale
-    /// The choice that every window shares, or `nil` until it's read, so nothing shows as chosen.
+    /// The currency choice, or `nil` until it's read.
     let settings: CurrencySettings?
-    /// Runs each change to the choice.
     let choice: CurrencySettingsModel
-    /// The rate source's currencies and the search that narrows them.
     @Bindable var list: CurrencyListModel
 
     var body: some View {

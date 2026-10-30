@@ -1,11 +1,7 @@
 import SwiftUI
 
-/// The area where the cards show: everything above the pocket's lip, which runs along the bottom edge and dips at its
-/// center. Below the lip, the sidebar's background shows through the pocket.
+/// A shape that covers everything above a pocket's lip, which runs along the bottom edge and dips at its center.
 nonisolated struct PocketClip: Shape {
-    /// Draws the area above the lip.
-    /// - Parameter rect: The card stack's bounds; the lip is its bottom edge.
-    /// - Returns: The closed area, which reaches past the top and sides so card shadows and lifted cards still show.
     func path(in rect: CGRect) -> Path {
         let depth: CGFloat = 18
         let overhang: CGFloat = 32

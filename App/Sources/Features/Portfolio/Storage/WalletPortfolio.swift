@@ -1,83 +1,69 @@
 import Observation
 import Portfolio
 
-/// One wallet's portfolio on one network, which every window that observes the wallet there shares.
-///
-/// The first observer starts the wallet's observation and the last one ends it, settling any progress while keeping
-/// the holdings for the next window. Reloads run through the observation, so every window receives their results.
+/// One wallet's portfolio on one network.
 @MainActor
 @Observable
 final class WalletPortfolio {
     /// The wallet's newest state, or `nil` before any data is available.
-    ///
-    /// Views read the values derived from it instead, which change only when what they show changes; an update isn't
-    /// `Equatable`, so every update notifies its readers.
     private(set) var update: Update? {
         didSet {
             presentation = PortfolioPresentation(update)
             error = update?.error.map(PortfolioError.init)
-            // Sort once per new snapshot, not for every phase change or view update.
             guard update?.snapshotRevision != oldValue?.snapshotRevision else { return }
             snapshotRevision = update?.snapshotRevision
             holdings = HoldingOrder.sorted(update?.holdings ?? [])
         }
     }
 
-    /// What the portfolio shows for the newest state.
     private(set) var presentation = PortfolioPresentation.blank
-    /// Why the newest state failed, or `nil` when it didn't.
     private(set) var error: PortfolioError?
-    /// The order of the latest snapshot, which changes once per new snapshot; `nil` without one.
     private(set) var snapshotRevision: UInt64?
-    /// The latest snapshot's holdings in display order, or none without a snapshot.
+    /// The latest snapshot's holdings in display order.
     private(set) var holdings: [Holding] = []
 
     /// The wallet's public address.
     private let owner: String
     private let service: PortfolioStore.Service
-    /// The callers of ``observe()`` that are running.
+    /// The number of running ``observe()`` calls.
     @ObservationIgnored private var observers = 0
-    /// The wallet's observation, which runs while it has observers.
     @ObservationIgnored private var observation: Task<Void, Never>?
 
     /// Creates a portfolio with no data yet.
+    ///
     /// - Parameters:
     ///   - owner: The wallet's public address.
-    ///   - service: The service of the network that the portfolio belongs to.
+    ///   - service: The portfolio service of the wallet's network.
     init(owner: String, service: PortfolioStore.Service) {
         self.owner = owner
         self.service = service
     }
 
-    /// Observes the wallet until the calling task is cancelled, sharing one observation with the other observers.
+    /// Observes the wallet until the calling task is cancelled.
     func observe() async {
         guard !Task.isCancelled else { return }
         observers += 1
         if observers == 1 { start() }
-        // Each observer holds the shared observation until its own task ends.
         let lifetime = AsyncStream<Never> { _ in }
         for await _ in lifetime {}
         observers -= 1
         if observers == 0 { stop() }
     }
 
-    /// Reads the observed wallet again, awaiting the read for pull-to-refresh.
-    ///
-    /// Every observer receives the results. Cancelling the caller stops its wait, not the read. A wallet that nothing
-    /// observes isn't read.
+    /// Reads the observed wallet again.
     func refresh() async {
         guard observers > 0 else { return }
         await service.reload(for: owner)
     }
 
-    /// Observes the wallet again, as after a provider change ended its observation, while it has observers.
+    /// Restarts the wallet's observation while it has observers.
     func observeAgain() {
         guard observers > 0 else { return }
         observation?.cancel()
         start()
     }
 
-    /// Forgets the wallet's state, as Reset App does.
+    /// Forgets the wallet's state.
     func erase() {
         update = nil
     }
@@ -107,10 +93,10 @@ final class WalletPortfolio {
         }
     }
 
-    /// Publishes an update of the running observation; the service sends the wallet's updates in order.
-    /// - Parameter incoming: The service's state for the wallet.
+    /// Publishes an update of the running observation.
+    ///
+    /// - Parameter incoming: The wallet's new state.
     private func receive(_ incoming: Update) {
-        // An ended observation's last update can still arrive; the observation that replaced it owns the state.
         guard !Task.isCancelled else { return }
         update = incoming
     }

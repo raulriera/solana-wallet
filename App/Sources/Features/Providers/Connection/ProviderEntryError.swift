@@ -1,20 +1,17 @@
 import Foundation
 
-/// A failure from checking what a person entered for an RPC provider, such as an API key or an RPC URL.
-///
-/// It never contains the entry or underlying error text.
+/// An error from checking what a person entered for an RPC provider, such as an API key or an RPC URL.
 nonisolated protocol ProviderEntryError: LocalizedError, Equatable, Sendable {
-    /// The failure for anything unexpected, explained in an alert.
+    /// The error for any unexpected failure.
     static var unavailable: Self { get }
 
-    /// Whether the provider rejected the entry itself, so the screen explains it under the field, not in an alert.
+    /// Whether the provider rejected the entry itself.
     var rejectsEntry: Bool { get }
 
-    /// Explains the failure without the entry or underlying error text.
+    /// The explanation of the error.
     var message: LocalizedStringResource { get }
 }
 
 nonisolated extension ProviderEntryError {
-    /// Explains the failure in an alert's message.
     var recoverySuggestion: String? { String(localized: message) }
 }

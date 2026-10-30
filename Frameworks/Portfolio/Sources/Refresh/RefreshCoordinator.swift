@@ -1,7 +1,7 @@
 import Foundation
 import RPC
 
-/// Serializes cache access and shares each wallet's active refresh between consumers.
+/// An actor that serializes cache access and shares each wallet's refresh between its consumers.
 actor RefreshCoordinator {
     private let source: any BalanceReading
     private let tokenLists: TokenListCoordinator
@@ -12,14 +12,14 @@ actor RefreshCoordinator {
     private var revision: UInt64 = 0
     private var snapshotRevisions: [CacheKey: UInt64] = [:]
 
-    /// Creates a coordinator with independent network and storage dependencies.
+    /// Creates a refresh coordinator.
     ///
     /// - Parameters:
-    ///   - source: The balance source.
-    ///   - tokenLists: The token lists whose tokens each balance read covers.
-    ///   - store: The persistent snapshot store.
-    ///   - prices: An optional price provider for the listed tokens.
-    ///   - logos: An optional provider of logo copies for the listed tokens.
+    ///   - source: The balance reader.
+    ///   - tokenLists: The token lists to read balances for.
+    ///   - store: The snapshot store.
+    ///   - prices: The price provider, or `nil` for no prices.
+    ///   - logos: The logo provider, or `nil` for no logos.
     init(source: any BalanceReading, tokenLists: TokenListCoordinator, store: any SnapshotStoring,
          prices: (any PriceProviding)?, logos: (any LogoProviding)?) {
         self.source = source
@@ -29,12 +29,12 @@ actor RefreshCoordinator {
         self.logos = logos.map { LogoReader(provider: $0) }
     }
 
-    /// Registers an independent update stream and starts or joins the wallet's refresh.
+    /// Adds an update stream and starts or joins the wallet's refresh.
     ///
     /// - Parameters:
-    ///   - owner: The wallet whose holdings to retrieve.
-    ///   - minContextSlot: The earliest acceptable observation for a scheduled balance read, or `nil`.
-    /// - Returns: A registered stream, or a finished stream if the calling task is cancelled.
+    ///   - owner: The wallet address.
+    ///   - minContextSlot: The earliest slot the balance read may come from, or `nil` for any slot.
+    /// - Returns: The consumer's stream, or a finished stream if the task is cancelled.
     func updates(for owner: String, minContextSlot: UInt64? = nil) -> AsyncStream<Update> {
         guard !Task.isCancelled else { return AsyncStream { $0.finish() } }
         let key = CacheKey(owner: owner, network: source.network)
@@ -42,7 +42,6 @@ actor RefreshCoordinator {
         if var flight = flights[key] {
             let stream = flight.consumers.add(first: flight.initial, onEnd: unsubscribe)
             if (minContextSlot ?? 0) > (flight.minContextSlot ?? 0) {
-                // Keep every consumer, but replace work that cannot satisfy the newer balance request.
                 flight.minContextSlot = minContextSlot
                 restart(&flight, key: key)
             }
@@ -57,10 +56,9 @@ actor RefreshCoordinator {
         return stream
     }
 
-    /// Starts a balance read in progress again, so that it reads the account's current token list.
+    /// Starts an account's balance read in progress again.
     ///
-    /// Its consumers keep waiting and receive only the new read's result.
-    /// - Parameter owner: The account whose token list changed.
+    /// - Parameter owner: The account's wallet address.
     func restartBalanceRead(for owner: String) {
         let key = CacheKey(owner: owner, network: source.network)
         guard var flight = flights[key] else { return }
@@ -68,26 +66,21 @@ actor RefreshCoordinator {
         flights[key] = flight
     }
 
-    /// Starts every balance read in progress again, so that none delivers prices that changed while it ran.
-    ///
-    /// Their consumers keep waiting and receive only the new reads' results.
+    /// Starts every balance read in progress again.
     func restartBalanceReads() {
         for key in flights.keys { restartBalanceRead(for: key.owner) }
     }
 
-    /// Takes a removed token out of the saved snapshot, so no consumer or later launch shows it before the next read.
+    /// Removes a holding from an account's saved snapshot and restarts the account's refresh.
     ///
-    /// The snapshot gets a new revision, so consumers that receive it replace their older copy. A refresh in progress
-    /// starts again in the same step, so no read of the previous list can save over the edited snapshot.
     /// - Parameters:
-    ///   - id: The removed token's identity.
-    ///   - owner: The account whose token list no longer holds the token.
-    /// - Throws: An encoding or file-system error if the snapshot can't be saved; the refresh starts again either way.
+    ///   - id: The holding's identity.
+    ///   - owner: The account's wallet address.
+    /// - Throws: An encoding or file-system error.
     func removeHolding(_ id: Holding.Identity, for owner: String) throws {
         let key = CacheKey(owner: owner, network: source.network)
         defer {
             if var flight = flights[key] {
-                // The restarted refresh sends its consumers the edited snapshot instead of the earlier one.
                 flight.initial = nil
                 restart(&flight, key: key)
                 flights[key] = flight
@@ -102,33 +95,35 @@ actor RefreshCoordinator {
         snapshotRevisions[key] = revision
     }
 
-    /// Orders observation status in the same sequence as manual refreshes.
+    /// Returns an update with a wallet's cached snapshot and an observation phase.
+    ///
     /// - Parameters:
-    ///   - owner: The wallet whose cached holdings accompany the status.
+    ///   - owner: The wallet address.
     ///   - phase: The connection's progress or failure.
-    /// - Returns: Cached holdings and an ordered state without requesting network work.
+    /// - Returns: An update with the next revision.
     func status(for owner: String, phase: Update.Phase) -> Update {
         let key = CacheKey(owner: owner, network: source.network)
         return makeUpdate(snapshot: store.snapshot(for: key), phase: phase,
                           snapshotRevision: snapshotRevisions[key] ?? 0)
     }
 
-    /// Allocates a service-local order while retaining the snapshot's own original order.
+    /// Creates an update with the next revision.
+    ///
     /// - Parameters:
-    ///   - snapshot: The available complete holdings.
-    ///   - phase: The current operation status.
-    ///   - snapshotRevision: The snapshot's existing order, or zero for an initial disk cache.
-    /// - Returns: A state that can be merged across independently delivered streams.
+    ///   - snapshot: The latest complete snapshot, or `nil`.
+    ///   - phase: The refresh's phase.
+    ///   - snapshotRevision: The snapshot's revision, or zero for a snapshot read from disk.
+    /// - Returns: The new update.
     private func makeUpdate(snapshot: Snapshot?, phase: Update.Phase, snapshotRevision: UInt64) -> Update {
         revision += 1
         return Update(snapshot: snapshot, phase: phase, revision: revision, snapshotRevision: snapshotRevision)
     }
 
-    /// Detaches one consumer and cancels work only when no consumers remain.
+    /// Removes a consumer and cancels the refresh when none remain.
     ///
     /// - Parameters:
-    ///   - key: The wallet and network being observed.
-    ///   - id: The departing consumer's identifier.
+    ///   - key: The wallet and network.
+    ///   - id: The consumer's identifier.
     private func unsubscribe(key: CacheKey, id: UUID) {
         guard var flight = flights[key] else { return }
         flight.consumers.remove(id)
@@ -140,10 +135,10 @@ actor RefreshCoordinator {
         }
     }
 
-    /// Removes local data and prevents an older refresh from recreating it.
+    /// Ends a wallet's refresh and removes its saved snapshot.
     ///
-    /// - Parameter owner: The wallet whose local data to remove.
-    /// - Throws: A file-system error if the saved snapshot can't be removed.
+    /// - Parameter owner: The wallet address.
+    /// - Throws: A file-system error.
     func removeData(for owner: String) throws {
         let key = CacheKey(owner: owner, network: source.network)
         endRefresh(for: key)
@@ -151,14 +146,11 @@ actor RefreshCoordinator {
         snapshotRevisions.removeValue(forKey: key)
     }
 
-    /// Ends every refresh and removes logos from this network's saved snapshots after an RPC provider change.
+    /// Ends every refresh and removes logos from the network's saved snapshots.
     ///
-    /// Each snapshot gets a newer snapshot revision, so consumers replace copies that show the previous
-    /// provider's logos.
-    /// - Throws: A file-system error if the snapshots can't be listed or one can't be rewritten.
+    /// - Throws: A file-system error.
     func providerDidChange() throws {
         for key in flights.keys { endRefresh(for: key) }
-        // A revision newer than any snapshot that consumers already hold.
         revision += 1
         for snapshot in try store.snapshots() where snapshot.network == source.network {
             let key = CacheKey(owner: snapshot.owner, network: snapshot.network)
@@ -168,19 +160,20 @@ actor RefreshCoordinator {
         }
     }
 
-    /// Cancels a wallet's refresh and ends its consumers' streams, so the refresh can't deliver or save a result.
-    /// - Parameter key: The wallet and network whose refresh ends.
+    /// Cancels a wallet's refresh and ends its consumers' streams.
+    ///
+    /// - Parameter key: The wallet and network.
     private func endRefresh(for key: CacheKey) {
         guard let flight = flights.removeValue(forKey: key) else { return }
         flight.task?.cancel()
         flight.consumers.finish()
     }
 
-    /// Emits existing state, reads all balances with their logos and prices, and commits one complete update.
+    /// Sends the cached state, then reads balances, logos, and prices and saves and sends the result.
     ///
     /// - Parameters:
-    ///   - key: The wallet and network being refreshed.
-    ///   - generation: The identity of this refresh, used to reject obsolete results.
+    ///   - key: The wallet and network.
+    ///   - generation: The refresh's generation.
     private func refresh(key: CacheKey, generation: UUID) async {
         guard let flight = flights[key], flight.generation == generation else { return }
         let cached = store.snapshot(for: key)
@@ -195,7 +188,6 @@ actor RefreshCoordinator {
         do {
             let list = try await tokenLists.list(for: key.owner)
             let holdings = list.holdingIDs
-            // Logos and prices need only the listed tokens, so they're looked up while balances are read.
             async let balances = source.snapshot(of: list, for: key.owner, minContextSlot: flight.minContextSlot)
             async let logoLookup = logos?.logos(for: holdings, keeping: cached)
             async let quoteLookup = pricer?.quotes(for: holdings)
@@ -220,11 +212,11 @@ actor RefreshCoordinator {
         }
     }
 
-    /// Replaces a refresh's work under a new generation, so the replaced work can't deliver its results.
+    /// Restarts a refresh's work under a new generation.
     ///
     /// - Parameters:
-    ///   - flight: The refresh whose consumers wait for the new work.
-    ///   - key: The wallet and network being refreshed.
+    ///   - flight: The refresh to restart.
+    ///   - key: The wallet and network.
     private func restart(_ flight: inout Flight, key: CacheKey) {
         flight.task?.cancel()
         flight.generation = UUID()
@@ -232,12 +224,12 @@ actor RefreshCoordinator {
         flight.task = Task { await refresh(key: key, generation: generation) }
     }
 
-    /// Delivers the final state and closes every consumer of the matching refresh.
+    /// Sends a refresh's final update and ends its consumers' streams.
     ///
     /// - Parameters:
-    ///   - key: The cache identity being refreshed.
-    ///   - generation: The refresh identity that must still be current.
-    ///   - update: The final state, or `nil` for cancellation.
+    ///   - key: The wallet and network.
+    ///   - generation: The refresh's generation, which must still be current.
+    ///   - update: The final update, or `nil` to send none.
     private func finish(key: CacheKey, generation: UUID, update: Update?) {
         guard let flight = flights[key], flight.generation == generation else { return }
         flights.removeValue(forKey: key)
@@ -245,7 +237,7 @@ actor RefreshCoordinator {
         flight.consumers.finish()
     }
 
-    /// The consumers and task owned by one refresh generation.
+    /// A wallet's refresh, with its consumers and task.
     private struct Flight {
         var generation: UUID
         var minContextSlot: UInt64?

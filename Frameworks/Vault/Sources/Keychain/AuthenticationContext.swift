@@ -1,31 +1,23 @@
 import LocalAuthentication
 import Synchronization
 
-/// Owns one authentication context and whether its operation was cancelled or timed out.
-///
-/// Safety: configure the context before sharing it, use it on one Keychain
-/// queue, and only call `invalidate()` concurrently to stop authentication, as
-/// supported by LocalAuthentication. The outcome is protected by a mutex.
-/// Remove this unchecked conformance when the SDK supplies a Sendable context.
+/// An authentication context and whether its operation was cancelled or timed out.
 final class AuthenticationContext: @unchecked Sendable {
-    /// Why an operation stops before it finishes.
+    /// Whether an operation is running, cancelled, or timed out.
     private enum Outcome {
-        /// The operation is still allowed to run.
         case running
-        /// The user or the calling task cancelled the operation.
         case cancelled
-        /// Authentication didn't finish within the time bound.
         case timedOut
     }
 
     let context: LAContext
     private let outcome = Mutex(Outcome.running)
 
-    /// Configures a fresh context before the Keychain operation starts.
+    /// Creates an authentication context for one operation.
     ///
     /// - Parameters:
-    ///   - context: An unused context owned exclusively by this operation.
-    ///   - reason: The localized authentication explanation.
+    ///   - context: An unused context.
+    ///   - reason: The localized reason to show during authentication.
     init(context: LAContext, reason: String) {
         self.context = context
         context.localizedReason = reason
@@ -38,15 +30,15 @@ final class AuthenticationContext: @unchecked Sendable {
         context.invalidate()
     }
 
-    /// Stops the operation at its time bound and dismisses any pending authentication prompt.
+    /// Marks the operation as timed out and dismisses any pending authentication prompt.
     func timeOut() {
         outcome.withLock { if case .running = $0 { $0 = .timedOut } }
         context.invalidate()
     }
 
-    /// Rejects work after cancellation or a timeout, including work waiting on the queue.
-    /// - Throws: `CancellationError` if the operation was cancelled, or ``KeychainStoreError/interactionNotAllowed``
-    ///   if authentication didn't finish within the time bound.
+    /// Throws if the operation was cancelled or timed out.
+    ///
+    /// - Throws: `CancellationError` if cancelled, or ``KeychainStoreError/interactionNotAllowed`` if timed out.
     func checkRunning() throws {
         try outcome.withLock {
             switch $0 {
@@ -57,6 +49,6 @@ final class AuthenticationContext: @unchecked Sendable {
         }
     }
 
-    /// Invalidates the context after use so its authentication can't be reused.
+    /// Invalidates the context.
     func finish() { context.invalidate() }
 }

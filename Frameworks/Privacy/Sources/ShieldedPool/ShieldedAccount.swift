@@ -2,41 +2,26 @@ public import CryptoKit
 import ModularArithmetic
 public import Transactions
 
-/// An account's Solana Rings keys: the signing address that tags and pays for its transactions, the
-/// nullifier key that spends its UTXOs, and the viewing key that opens its notes.
-///
-/// The signing address is the account's Ed25519 public key and its view tag. The keys come from
-/// Wallet's `PrivateBalanceKeys`. Descriptions and reflection omit every value.
+/// An account's signing address and the keys that spend its UTXOs and open its notes.
 public struct ShieldedAccount: Sendable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
-    /// The account's Ed25519 signing address, which is also its view tag and fee payer.
     public let signingAddress: Address
 
-    /// The account's nullifier key.
     let nullifierKey: NullifierKey
 
-    /// The account's viewing key, which opens its notes and derives its transaction viewing keys.
     let viewingKey: P256.KeyAgreement.PrivateKey
 
-    /// A description that omits the values.
     public var description: String { "ShieldedAccount" }
 
-    /// A debugging description that omits the values.
     public var debugDescription: String { description }
 
-    /// A reflection view that omits the values.
     public var customMirror: Mirror { Mirror(self, children: [:]) }
 
-    /// The view tags that the indexer reads for the account: its signing address, then the
-    /// x-coordinate of its viewing public key, which zolana's command-line deposits tag.
+    /// The account's view tags: its signing address, then the x-coordinate of its viewing public key.
     var viewTags: [[UInt8]] {
         [signingAddress.bytes, Array(viewingKey.publicKey.compressedRepresentation.dropFirst())]
     }
 
-    /// The account's shielded address, the public half of its keys, such as the recipient of a
-    /// deposit to the account's own private balance.
-    ///
-    /// - Throws: ``Recipient/ValidationError/offCurveSigningAddress`` if the signing address isn't an
-    ///   Ed25519 point.
+    /// The account's shielded address.
     public var recipient: Recipient {
         get throws {
             try Recipient(
@@ -49,9 +34,8 @@ public struct ShieldedAccount: Sendable, CustomStringConvertible, CustomDebugStr
     ///
     /// - Parameters:
     ///   - signingAddress: The account's Ed25519 signing address.
-    ///   - nullifierSecret: The 31-byte nullifier secret, such as Wallet's
-    ///     `PrivateBalanceKeys.nullifierSecret`.
-    ///   - viewingKey: The P-256 viewing key, such as Wallet's `PrivateBalanceKeys.viewingKey`.
+    ///   - nullifierSecret: The 31-byte nullifier secret.
+    ///   - viewingKey: The P-256 viewing key.
     /// - Throws: ``NullifierKey/ValidationError/invalidSecretLength`` for a nullifier secret of
     ///   another length.
     public init(signingAddress: Address, nullifierSecret: SymmetricKey, viewingKey: P256.KeyAgreement.PrivateKey) throws {

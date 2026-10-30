@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// An inline theme choice with confirmed swipe deletion for custom packs.
+/// A theme choice for the app, with swipe deletion for installed themes.
 struct ThemeRow: View {
     let entry: ThemeEntry
     let isSelected: Bool

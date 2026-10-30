@@ -1,20 +1,17 @@
 import Foundation
 import Transactions
 
-/// What rules can see about the person's own history when they check a recipient.
+/// The person's own history that rules check a recipient against.
 nonisolated struct RecipientContext: Sendable {
-    /// Addresses the person used: their accounts, contacts, and addresses they paid.
+    /// The person's accounts, contacts, and paid addresses.
     let knownAddresses: [Address]
-    /// Addresses the person paid.
     let paidAddresses: Set<Address>
 }
 
-/// One thing to check about a recipient before paying them.
-///
-/// Add a check as its own rule type with a static shortcut, such as ``LookAlikeRule`` and `.lookAlike`, and list it in
-/// the ``RecipientClassifier`` of each screen that should show it.
+/// A check of a recipient before paying them.
 nonisolated protocol RecipientRule: Sendable {
     /// Checks an address.
+    ///
     /// - Parameters:
     ///   - address: The address to pay.
     ///   - context: The person's own history.

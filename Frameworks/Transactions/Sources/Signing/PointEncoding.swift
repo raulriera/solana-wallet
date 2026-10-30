@@ -1,10 +1,8 @@
 import Foundation
 
-/// Recognizes compressed Ed25519 points that cannot establish signing authority.
+/// A namespace for recognizing small-order compressed Ed25519 points.
 enum PointEncoding {
-    /// The seven small-order y-coordinate encodings, including unreduced aliases.
-    ///
-    /// Ignoring the x sign bit for comparison covers all fourteen encodings in SIMD-0376.
+    /// The small-order y-coordinate encodings, including unreduced aliases.
     private static let smallOrderCoordinates: [[UInt8]] = [
         Array(repeating: 0, count: 32),
         [1] + Array(repeating: 0, count: 31),
@@ -23,12 +21,8 @@ enum PointEncoding {
 
     /// Returns whether bytes encode a small-order point or one of its aliases.
     ///
-    /// This check does not decompress points or replace cryptographic verification.
-    /// Only a local comparison copy loses the sign bit; original bytes remain unchanged.
-    ///
     /// - Parameter bytes: A compressed Ed25519 point.
-    /// - Returns: `true` for a known small-order encoding; `false` for other bytes,
-    ///   including inputs whose length is not 32 bytes.
+    /// - Returns: `true` if the bytes encode a small-order point.
     static func isSmallOrder(_ bytes: Data) -> Bool {
         guard bytes.count == 32 else { return false }
         var encoding = Array(bytes)

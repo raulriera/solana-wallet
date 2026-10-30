@@ -1,8 +1,4 @@
 /// A transfer's Groth16 proof as the prover returns it.
-///
-/// Coordinates are 32 big-endian bytes, as received: `a` isn't negated, and no point is compressed or
-/// checked against the curve. The caller checks the proving key's digest and converts the points for the
-/// shielded-pool program.
 public struct TransferProof: Sendable, Equatable {
     /// A G1 point's affine coordinates.
     public struct G1Point: Sendable, Equatable {
@@ -24,9 +20,8 @@ public struct TransferProof: Sendable, Equatable {
 
     /// The proof's point `a`, not negated.
     public let a: G1Point
-    /// The proof's G2 point `b`: 128 bytes of four 32-byte words, as the prover returns them.
+    /// The proof's G2 point `b`, as 128 bytes of four 32-byte words.
     public let b: [UInt8]
-    /// The proof's point `c`.
     public let c: G1Point
     /// The SHA-256 digest of the proving key that the prover used.
     public let provingKeyDigest: [UInt8]

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Introduces wallet setup and forwards the user's choice to the owning window.
+/// Introduces wallet setup with buttons that create or import a wallet.
 struct WelcomeScreen: View {
     @Environment(\.palette) private var palette
     let createWallet: () -> Void
@@ -11,7 +11,6 @@ struct WelcomeScreen: View {
             ScrollView {
                 WelcomeIntroduction()
                     .padding(24)
-                    // Wide regions keep the content at the shared readable width, centered.
                     .frame(maxWidth: LayoutMetrics.readableWidth)
                     .frame(maxWidth: .infinity)
             }
@@ -20,7 +19,6 @@ struct WelcomeScreen: View {
             ScrollView {
                 WelcomeActions(createWallet: createWallet, importWallet: importWallet)
                     .padding(24)
-                    // Wide regions keep the content at the shared readable width, centered.
                     .frame(maxWidth: LayoutMetrics.readableWidth)
                     .frame(maxWidth: .infinity)
             }

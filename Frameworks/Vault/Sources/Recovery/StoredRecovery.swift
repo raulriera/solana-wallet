@@ -1,16 +1,16 @@
 import Foundation
 import Wallet
 
-/// The versioned representation stored inside the protected Keychain value.
+/// The versioned recovery payload stored in the Keychain.
 struct StoredRecovery: Codable {
     let version: Int
     let phrase: String
     let passphrase: String
 
-    /// Encodes recovery material for protected storage.
+    /// Encodes recovery material as a stored payload.
     ///
-    /// - Parameter recovery: The material to preserve without changing its passphrase.
-    /// - Returns: A versioned JSON payload containing secrets.
+    /// - Parameter recovery: The recovery material to encode.
+    /// - Returns: The JSON payload.
     /// - Throws: ``KeychainStoreError/invalidRecovery`` if encoding fails.
     static func encode(_ recovery: Recovery) throws -> Data {
         let stored = StoredRecovery(
@@ -23,8 +23,8 @@ struct StoredRecovery: Codable {
 
     /// Decodes and validates stored recovery material.
     ///
-    /// - Parameter data: The authenticated Keychain value.
-    /// - Returns: Validated recovery material using the original passphrase.
+    /// - Parameter data: The stored JSON payload.
+    /// - Returns: The validated recovery material.
     /// - Throws: ``KeychainStoreError/invalidRecovery`` for unsupported or malformed data.
     static func decode(_ data: Data) throws -> Recovery {
         do {
@@ -36,12 +36,12 @@ struct StoredRecovery: Codable {
         } catch { throw KeychainStoreError.invalidRecovery }
     }
 
-    /// Creates a versioned representation from validated recovery material.
+    /// Creates a stored payload.
     ///
     /// - Parameters:
     ///   - version: The payload format version.
     ///   - phrase: The space-separated recovery words.
-    ///   - passphrase: The unmodified BIP-39 passphrase.
+    ///   - passphrase: The BIP-39 passphrase.
     private init(version: Int, phrase: String, passphrase: String) {
         self.version = version
         self.phrase = phrase

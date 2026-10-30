@@ -1,31 +1,29 @@
 import Foundation
 
-/// The amount typed on the keypad, kept as typed so a trailing separator and trailing zeros stay on screen.
+/// The amount typed on the keypad, with its trailing separator and zeros as typed.
 nonisolated struct AmountEntry: Equatable, Sendable {
-    /// The largest number of whole digits an amount can have.
     static let maximumIntegerDigits = 9
 
     /// The whole digits without leading zeros, or `"0"` when the person typed a lone zero.
     private(set) var integerDigits = ""
     /// The digits after the separator, or `nil` until the person types the separator.
     private(set) var fractionDigits: String?
-    /// How many digits the unit allows after the separator, such as 2 for dollars or 9 for SOL.
     let maximumFractionDigits: Int
 
-    /// Starts an empty amount.
+    /// Creates an empty amount.
+    ///
     /// - Parameter maximumFractionDigits: How many digits the unit allows after the separator.
     init(maximumFractionDigits: Int) {
         self.maximumFractionDigits = maximumFractionDigits
     }
 
-    /// Starts from an existing amount, such as one converted from another unit, rounded to the unit's digits.
+    /// Creates an amount rounded to the unit's digits, or `nil` when it has more whole digits than the keypad types.
+    ///
     /// - Parameters:
     ///   - value: The amount to show.
     ///   - maximumFractionDigits: How many digits the unit allows after the separator.
-    ///   - rounding: How to drop extra digits; rounding down never shows more than was converted.
-    ///   - padsFraction: Whether a fraction shows every digit the unit allows, as a currency shows cents.
-    /// - Returns: The amount, empty when it rounds to zero, or `nil` when it has more whole digits than the keypad
-    ///   can type.
+    ///   - rounding: The rounding mode for extra digits.
+    ///   - padsFraction: Whether a fraction shows every digit the unit allows.
     init?(_ value: Decimal, maximumFractionDigits: Int, rounding: NSDecimalNumber.RoundingMode = .down,
           padsFraction: Bool = false) {
         self.init(maximumFractionDigits: maximumFractionDigits)
@@ -33,7 +31,6 @@ nonisolated struct AmountEntry: Equatable, Sendable {
         var rounded = Decimal()
         NSDecimalRound(&rounded, &source, maximumFractionDigits, rounding)
         guard rounded > 0 else { return }
-        // The decimal number's own text keeps every digit, without grouping or a locale's separator.
         let parts = NSDecimalNumber(decimal: rounded).stringValue.split(separator: ".", omittingEmptySubsequences: false)
         guard parts[0].count <= Self.maximumIntegerDigits else { return nil }
         integerDigits = String(parts[0])
@@ -53,10 +50,8 @@ nonisolated struct AmountEntry: Equatable, Sendable {
 
     /// Applies a key press when it keeps the amount well formed.
     ///
-    /// The keypad rejects a second separator, a separator in a unit without fractions, a leading zero
-    /// before another zero, and digits beyond the unit's limits. Delete on an empty amount does nothing.
     /// - Parameter key: The pressed key.
-    /// - Returns: `false` when the key was rejected, so the screen can signal it.
+    /// - Returns: `false` when the key was rejected.
     mutating func press(_ key: KeypadKey) -> Bool {
         switch key {
         case .digit(let digit):

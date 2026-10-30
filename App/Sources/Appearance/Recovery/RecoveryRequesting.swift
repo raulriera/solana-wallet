@@ -1,11 +1,13 @@
-/// Reads and acknowledges the one-time appearance recovery request from system Settings.
+/// A source of the person's request in Settings to reset the appearance.
 nonisolated protocol RecoveryRequesting: Sendable {
-    /// Checks for a pending reset without clearing it.
-    /// - Returns: Whether the user enabled appearance recovery.
+    /// Returns whether the person requested a reset.
+    ///
+    /// - Returns: Whether a reset is requested.
     /// - Throws: A preferences or cancellation error.
     func isRequested() async throws -> Bool
 
-    /// Turns off the request after appearance preferences have been reset successfully.
-    /// - Throws: A preferences or cancellation error; unacknowledged requests remain eligible for recovery.
+    /// Clears the reset request.
+    ///
+    /// - Throws: A preferences or cancellation error.
     func complete() async throws
 }

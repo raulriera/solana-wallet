@@ -1,15 +1,11 @@
 import CryptoKit
 
-/// Where a read of shielded transactions by view tag stopped, so a later read returns only newer rows.
-///
-/// The value is opaque and can be stored. It is valid only for the same view tags in the same order, which
-/// it identifies by their SHA-256 digest; it holds one indexer cursor per stream for each request's group of tags.
+/// The position where a read of shielded transactions by view tag stopped.
 public struct NoteSyncPosition: Sendable, Hashable, Codable {
-    /// The SHA-256 digest of the view tags, concatenated in order.
     let tagDigest: [UInt8]
-    /// The cursor of each tag group's confidential-transaction stream, or `nil` to read from the start.
+    /// The cursor of each tag group's confidential-transaction stream, or `nil` for the start.
     let transactionCursors: [String?]
-    /// The cursor of each tag group's encrypted-output stream, which carries proofless deposits.
+    /// The cursor of each tag group's encrypted-output stream, or `nil` for the start.
     let outputCursors: [String?]
 
     /// Creates a position for view tags from each tag group's cursors.
@@ -24,7 +20,7 @@ public struct NoteSyncPosition: Sendable, Hashable, Codable {
         self.outputCursors = outputCursors
     }
 
-    /// Creates the position of a first read, before any row.
+    /// Creates the position before the first row.
     ///
     /// - Parameters:
     ///   - tags: The view tags, in request order.
@@ -34,7 +30,7 @@ public struct NoteSyncPosition: Sendable, Hashable, Codable {
                   outputCursors: Array(repeating: nil, count: groupCount))
     }
 
-    /// Whether the position came from a read of these view tags, in this order, in this many groups.
+    /// Returns whether the position came from a read of these view tags, in this order and number of groups.
     ///
     /// - Parameters:
     ///   - tags: The view tags of the new read.
@@ -44,7 +40,7 @@ public struct NoteSyncPosition: Sendable, Hashable, Codable {
         tagDigest == Self.digest(of: tags) && transactionCursors.count == groupCount && outputCursors.count == groupCount
     }
 
-    /// The SHA-256 digest of view tags concatenated in order.
+    /// Returns the SHA-256 digest of view tags concatenated in order.
     ///
     /// - Parameter tags: The view tags.
     /// - Returns: The 32-byte digest.

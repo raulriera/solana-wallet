@@ -1,16 +1,11 @@
 import SwiftUI
 
-/// The line under the amount, opening a menu to pick the token and the unit.
+/// A menu that picks the token to pay with and the unit of the amount.
 struct AmountUnitMenu<Label: View>: View {
-    /// The token to pay with.
     @Binding var token: PaymentToken
-    /// The unit the amount is typed in.
     @Binding var unit: PaymentModel.Unit
-    /// The tokens the account can pay with.
     let tokens: [PaymentToken]
-    /// The ISO code of the person's currency.
     let currencyCode: String
-    /// The line the menu opens from.
     @ViewBuilder let label: Label
 
     var body: some View {
@@ -38,7 +33,6 @@ struct AmountUnitMenu<Label: View>: View {
         } label: {
             label
         }
-        // The unit choice is only there when the token has a price.
         .accessibilityHint(token.price == nil ? Text("Chooses the token.")
                                               : Text("Chooses the token and what you type the amount in."))
     }

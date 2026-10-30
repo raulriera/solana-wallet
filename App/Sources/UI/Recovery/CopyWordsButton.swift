@@ -2,11 +2,11 @@ import Accessibility
 import SwiftUI
 import Wallet
 
-/// Copies recovery words and confirms on the button until the clipboard clears them.
+/// A button that copies recovery words and shows that they're copied until they expire.
 struct CopyWordsButton: View {
     @Environment(\.canDisplayRecovery) private var canDisplayRecovery
     @State private var copiedUntil: ContinuousClock.Instant?
-    /// The words on screen, or `nil` once they leave memory, which disables copying.
+    /// The words to copy, or `nil` when they're no longer in memory.
     let phrase: RecoveryPhrase?
     let pasteboard: any RecoveryCopying
 
@@ -25,7 +25,7 @@ struct CopyWordsButton: View {
         .task(id: copiedUntil) { await offerCopyAfterExpiry() }
     }
 
-    /// Copies the words while they're on screen, then confirms on the button until the clipboard clears them.
+    /// Copies the words and confirms the copy.
     private func copyWords() {
         guard let phrase, canDisplayRecovery else { return }
         pasteboard.copy(phrase)
@@ -33,14 +33,13 @@ struct CopyWordsButton: View {
         AccessibilityNotification.Announcement(String(localized: "Recovery words copied")).post()
     }
 
-    /// Returns the button to its copy action once the copied words leave the clipboard.
+    /// Waits until the copied words expire, then resets the button.
     private func offerCopyAfterExpiry() async {
         guard let copiedUntil else { return }
         do {
             try await Task.sleep(until: copiedUntil)
             withAnimation { self.copiedUntil = nil }
         } catch {
-            // A newer copy or the button's removal cancelled this wait; the newer state owns the label.
         }
     }
 }

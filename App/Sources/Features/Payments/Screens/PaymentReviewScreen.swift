@@ -2,10 +2,7 @@ import Portfolio
 import SwiftUI
 import Transactions
 
-/// Shows how much the payment sends, in which token, to whom, and what it costs, with anything to check about the
-/// recipient, before the person sends it from the top bar.
-///
-/// While the person reads it, the review's lifecycle simulates the payment again before the review expires.
+/// Shows a payment's amount, token, recipient, warnings, and costs before the person sends it.
 struct PaymentReviewScreen: TransactionReviewContent {
     @Environment(\.palette) private var palette
     let review: TransactionReviewModel<PaymentProposal>
@@ -20,13 +17,11 @@ struct PaymentReviewScreen: TransactionReviewContent {
             .listRowBackground(Color.clear)
 
             Section {
-                // The whole address, so people can check every character before sending.
                 FullAddress(text: payment.recipient.address.value)
                 ForEach(payment.warnings, id: \.self) { warning in
                     RecipientWarningLabel(warning: warning)
                 }
             } header: {
-                // A named recipient is named in the header, so named and unnamed addresses share one layout.
                 if let name = payment.recipient.name {
                     Text("To \(name)",
                          comment: "Header above the address a payment goes to. The variable is the recipient's name.")
@@ -48,7 +43,6 @@ struct PaymentReviewScreen: TransactionReviewContent {
                 }
             } footer: {
                 if costs?.accountDeposit != nil {
-                    // A cost that the person didn't expect says where it goes, so it doesn't read as a scam.
                     Text("A one-time deposit opens \(payment.recipient.title)'s \(payment.amount.token.symbol) account. It goes to that account, not to this app.",
                          comment: "Footer under the deposit that opens a recipient's token account. The variables are the recipient's name or short address and the token's symbol, such as USDC.")
                         .foregroundStyle(palette.secondaryText)
@@ -61,7 +55,6 @@ struct PaymentReviewScreen: TransactionReviewContent {
         .scrollContentBackground(.hidden)
         .readableContentWidth()
         .background(palette.background)
-        // Fees that change between simulations count to their new values.
         .animation(.default, value: costs)
         .navigationTitle("Review")
         .navigationBarTitleDisplayMode(.inline)

@@ -1,7 +1,7 @@
-/// A private-balance key failure that contains no recovery material or rejected input.
+/// An error from deriving private-balance keys.
 public enum PrivateBalanceError: Error, Sendable, Equatable {
-    /// The path isn't a Solana account path `m/44'/501'/i'/0'`, the only family with private-balance keys.
+    /// The path isn't a Solana account path `m/44'/501'/i'/0'`.
     case unsupportedPath
-    /// The phrase, passphrase, and path don't derive the account at the expected address.
+    /// The recovered account isn't at the expected address.
     case accountMismatch
 }

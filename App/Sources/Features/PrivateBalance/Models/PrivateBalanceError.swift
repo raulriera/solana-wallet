@@ -1,43 +1,36 @@
 import Foundation
 
-/// A private-balance error that the app explains in an alert, without keys or underlying errors.
+/// A private-balance error that an alert explains.
 nonisolated enum PrivateBalanceError: TransactionReviewError, CaseIterable {
-    /// The account's derivation path has no private-balance keys; only standard Solana accounts have them.
+    /// The account's derivation path has no private-balance keys.
     case unsupportedAccount
-    /// The account registered other private-balance keys, such as another app's, so this app can't read its notes.
     case registeredWithOtherKeys
-    /// Private balances aren't turned on for the account: this device has no keys for it.
+    /// This device has no private-balance keys for the account.
     case turnedOff
     /// The network has no private balances, or the selected provider doesn't support them.
     case unavailable
-    /// The recipient hasn't turned on private balances, so only a regular payment can reach them.
     case recipientUnregistered
     /// The account's spendable private balance doesn't cover the amount.
     case insufficientBalance
     /// The amount needs more of the account's private notes than one transaction spends.
     case tooManyNotes
-    /// The account's public SOL doesn't cover the amount and the fees, as the simulation found.
+    /// The account's public SOL doesn't cover the amount and the fees.
     case insufficientPublicBalance
-    /// The account's public SOL doesn't cover the fees of moving private SOL to it, as the simulation found.
+    /// The account's public SOL doesn't cover the fees of moving private SOL to it.
     case insufficientPublicBalanceForFees
-    /// The transaction couldn't be prepared or simulated for another reason, such as a provider error.
     case preparationFailed
-    /// The transaction couldn't be signed or sent, so nothing left the wallet.
     case notSent
-    /// The text isn't a redeem code, or it's damaged or incomplete.
     case invalidCode
-    /// The redeem code holds SOL on another network than the selected one.
     case codeForOtherNetwork
     /// The redeem code's SOL was already redeemed or taken back.
     case codeRedeemed
     /// The redeem code's public SOL doesn't cover the fees of redeeming it.
     case codeUnderfunded
-    /// The redeem code's private SOL isn't readable yet, such as just after the code was created.
+    /// The indexer doesn't report the redeem code's private SOL yet.
     case codeNotReady
-    /// Turning private balances on failed for another reason, such as a provider or storage error.
+    /// Turning private balances on failed for another reason.
     case turnOnFailed
 
-    /// The alert's title.
     var errorDescription: String? {
         switch self {
         case .unsupportedAccount, .registeredWithOtherKeys, .turnedOff, .unavailable:
@@ -57,7 +50,6 @@ nonisolated enum PrivateBalanceError: TransactionReviewError, CaseIterable {
         }
     }
 
-    /// The alert's explanation.
     var recoverySuggestion: String? {
         switch self {
         case .unsupportedAccount:
@@ -97,6 +89,5 @@ nonisolated enum PrivateBalanceError: TransactionReviewError, CaseIterable {
         }
     }
 
-    /// Whether repeating the step that failed can help: only a provider or sending error can pass on a second try.
     var canRetry: Bool { self == .preparationFailed || self == .notSent }
 }

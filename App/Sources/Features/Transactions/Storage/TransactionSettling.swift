@@ -1,9 +1,7 @@
-/// Finishes what a transaction started once its outcome is found, such as recording a private move in the account's
-/// private balance.
-///
-/// A settling lives in memory with the transaction's watch and runs once, after the outcome is saved.
+/// A type that finishes a transaction's work once its outcome is found.
 nonisolated protocol TransactionSettling: Sendable {
-    /// Finishes the transaction's work after its outcome is found.
+    /// Finishes the transaction's work.
+    ///
     /// - Parameter confirmation: The transaction's settled outcome.
     func settle(_ confirmation: Confirmation) async
 }

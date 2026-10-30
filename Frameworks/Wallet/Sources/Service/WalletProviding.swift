@@ -7,12 +7,13 @@ public protocol WalletProviding: Sendable {
     /// - Throws: An error if secure randomness is unavailable.
     func recoveryPhrase(wordCount: RecoveryPhrase.WordCount) throws -> RecoveryPhrase
 
-    /// Derives an ordered batch of accounts without checking network activity.
+    /// Derives the accounts at the given paths.
+    ///
     /// - Parameters:
     ///   - phrase: The validated recovery phrase.
     ///   - passphrase: The original BIP-39 passphrase, or an empty string for none.
-    ///   - paths: The explicit hardened paths, in result order.
-    /// - Returns: Public addresses paired with their paths, preserving duplicates.
+    ///   - paths: The hardened paths to derive, in order.
+    /// - Returns: The derived accounts, one for each path.
     /// - Throws: A cryptographic error or `CancellationError`.
     func accounts(for phrase: RecoveryPhrase, passphrase: String, paths: [DerivationPath]) async throws -> [DerivedAccount]
 }

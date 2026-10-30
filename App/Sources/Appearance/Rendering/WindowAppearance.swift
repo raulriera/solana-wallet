@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Owns rendered colors and appearance loading for one window's view hierarchy.
+/// Loads a window's theme and provides its colors to the window's views.
 private struct WindowAppearance: ViewModifier {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.colorScheme) private var colorScheme
@@ -13,9 +13,6 @@ private struct WindowAppearance: ViewModifier {
     private var palette: RenderedPalette { rendered.palette(scheme: colorScheme, contrast: contrast) }
     private var selectedTheme: ThemeEntry? { services.appearance.snapshot?.theme(for: recoveryID) }
 
-    /// Installs this window's palette, tint, loading tasks, and error presentation.
-    /// - Parameter content: The window's feature hierarchy.
-    /// - Returns: Content inheriting the resolved appearance.
     func body(content: Content) -> some View {
         content
             .environment(\.palette, palette)
@@ -29,22 +26,21 @@ private struct WindowAppearance: ViewModifier {
             .errorAlert($error)
     }
 
-    /// Refreshes this window's colors without exposing package loading to feature scenes.
+    /// Loads the colors of the selected theme.
     private func loadSelectedTheme() async {
         let theme = selectedTheme
         do { try await rendered.load(theme, catalog: services.catalog, packages: services.packages) }
         catch {
             report(error, as: .themeUnreadable)
-            // A theme that can't be loaded fails again at every launch, so no window keeps it selected.
-            // A failed write keeps the selection, and the next launch tries again.
             if let theme, !Task.isCancelled { try? await services.appearance.forget(theme.id) }
         }
     }
 
-    /// Presents appearance failures only while this window's task is still active, without the underlying error.
+    /// Shows an error unless the task is cancelled.
+    ///
     /// - Parameters:
-    ///   - error: A theme loading or preference activation failure.
-    ///   - themeError: The error the alert explains.
+    ///   - error: The error that occurred.
+    ///   - themeError: The error to show.
     private func report(_ error: any Error, as themeError: ThemeError) {
         guard !Task.isCancelled, !(error is CancellationError) else { return }
         self.error = themeError
@@ -52,11 +48,12 @@ private struct WindowAppearance: ViewModifier {
 }
 
 extension View {
-    /// Owns appearance once at a window's root and shares its colors with descendants.
+    /// Loads a window's theme and provides its colors to this view's hierarchy.
+    ///
     /// - Parameters:
-    ///   - services: Shared appearance services, without window-specific rendered state.
-    ///   - recoveryID: The recovery identifier of the window's wallet, or `nil` to follow the app default.
-    /// - Returns: A view with an independent appearance lifecycle.
+    ///   - services: The shared appearance services.
+    ///   - recoveryID: The recovery identifier of the window's wallet, or `nil` for the app's theme.
+    /// - Returns: A view with the window's theme colors.
     func windowAppearance(services: AppearanceServices, recoveryID: UUID? = nil) -> some View {
         modifier(WindowAppearance(services: services, recoveryID: recoveryID))
     }

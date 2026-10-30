@@ -3,33 +3,19 @@ public import RPC
 import Transactions
 
 extension NoteSyncState {
-    /// Spends the account's notes into a private transfer, a public withdrawal, or both, and proves
-    /// the transact.
-    ///
-    /// The notes come from one tree, largest first, at most 40; pending amounts can't be spent, and
-    /// neither can notes whose nullifiers the program already queued, such as another device's
-    /// spends that the indexer hasn't reported. A
-    /// ``PrivateSpend/Destination/fundedTransfer(_:publicLamports:)`` spends notes that cover the
-    /// transfer and the withdrawal together. The outputs go to ``outputTreeID``: the recipient's
-    /// transfer, if any, and the account's change.
-    /// Padding, blindings, and the salt are random. The provider's indexer supplies the trees' proofs,
-    /// and its prover receives the account's nullifier secret, which lets it link the account's spends
-    /// but not spend.
+    /// Spends the account's notes into a private transfer, a public withdrawal, or both, and proves the spend.
     ///
     /// - Parameters:
     ///   - lamports: The positive amount to transfer or withdraw.
-    ///   - destination: The recipient's shielded address, the public account, or the recipient and
-    ///     the positive amount to withdraw to its signing address.
-    ///   - account: The account of this state, which signs as the fee payer.
+    ///   - destination: The shielded recipient, the public address, or a shielded recipient that also
+    ///     receives public lamports.
+    ///   - account: The account of this state.
     ///   - provider: The client, indexer, and prover of the account's network.
     /// - Returns: The proved spend.
-    /// - Throws: ``PrivateSpend/ValidationError/noOutputTree`` before a sync that reports a tree,
-    ///   ``Transactions/ValidationError/invalidAmount`` for zero lamports, a zero-lamport funding
-    ///   withdrawal, or a transfer and withdrawal whose sum exceeds a 64-bit integer,
-    ///   ``PrivateSpend/ValidationError/insufficientFunds`` or
-    ///   ``PrivateSpend/ValidationError/tooManyNotes`` if the unqueued notes can't cover the amount,
-    ///   an error from ``ShieldedPool/queuedNullifiers(of:using:)``, or an error from planning, the
-    ///   provider, or the checks of its proofs.
+    /// - Throws: ``PrivateSpend/ValidationError/noOutputTree`` before a sync reports a tree,
+    ///   ``Transactions/ValidationError/invalidAmount`` for a zero or overflowing amount,
+    ///   ``PrivateSpend/ValidationError/insufficientFunds`` or ``PrivateSpend/ValidationError/tooManyNotes``
+    ///   if the notes can't cover the amount, or an error from the provider or a proof check.
     @concurrent
     public func spend(
         _ lamports: UInt64,
@@ -41,16 +27,13 @@ extension NoteSyncState {
         return try await spend(lamports, to: destination, from: account, provider: provider, using: &generator)
     }
 
-    /// Spends the account's notes with an injected source of randomness, such as a seeded generator
-    /// in tests.
-    ///
-    /// The plan draws its random values before the proofs are read.
+    /// Spends the account's notes with a source of randomness.
     ///
     /// - Parameters:
     ///   - lamports: The positive amount to transfer or withdraw.
-    ///   - destination: The recipient's shielded address, the public account, or the recipient and
-    ///     the positive amount to withdraw to its signing address.
-    ///   - account: The account of this state, which signs as the fee payer.
+    ///   - destination: The shielded recipient, the public address, or a shielded recipient that also
+    ///     receives public lamports.
+    ///   - account: The account of this state.
     ///   - provider: The client, indexer, and prover of the account's network.
     ///   - generator: The source of the padding, blindings, and salt.
     /// - Returns: The proved spend.
@@ -89,11 +72,7 @@ extension NoteSyncState {
         )
     }
 
-    /// Selects notes that cover an amount as ``NoteSelection`` does, leaving out notes whose
-    /// nullifiers the program already queued.
-    ///
-    /// Each read that finds queued nullifiers selects again without their notes, so the reads stop
-    /// at the first selection without any, usually the first.
+    /// Selects notes that cover an amount, leaving out notes whose nullifiers the program already queued.
     ///
     /// - Parameters:
     ///   - lamports: The amount to cover.

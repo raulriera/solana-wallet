@@ -1,18 +1,19 @@
 import Foundation
 
-/// Private metadata committed atomically so deletion and selection fallback cannot diverge.
+/// The saved state of the theme catalog: installed themes and selections.
 nonisolated struct CatalogState: Codable, Sendable {
     var revision: UInt64 = 0
     var customEntries: [UUID: ThemeEntry] = [:]
     var preferences = AppearancePreferences()
 
-    /// Creates the empty state used before the first local mutation.
+    /// Creates an empty state.
     init() {}
 
-    /// Combines installed metadata with immutable built-in descriptors.
-    /// - Parameter builtIns: The app's configured built-in entries.
-    /// - Returns: All available entries, indexed by identity.
-    /// - Throws: A storage error if custom metadata collides with a protected built-in.
+    /// Returns the installed entries combined with the bundled ones.
+    ///
+    /// - Parameter builtIns: The bundled entries, keyed by identity.
+    /// - Returns: Every entry, keyed by identity.
+    /// - Throws: An invalid-storage error when an installed entry has a bundled identity.
     func entries(including builtIns: [UUID: ThemeEntry]) throws -> [UUID: ThemeEntry] {
         try customEntries.merging(builtIns) { _, _ in throw ThemeCatalogError.invalidStorage }
     }

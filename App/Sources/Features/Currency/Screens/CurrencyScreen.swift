@@ -1,14 +1,12 @@
 import SwiftUI
 
-/// Chooses where exchange rates come from and the currency that every window shows values in.
+/// Chooses the source of exchange rates and the currency that values show in.
 struct CurrencyScreen: View {
     @Environment(\.palette) private var palette
     @Environment(\.locale) private var locale
-    /// The choice that every window shares, or `nil` until it's read, so nothing shows as chosen.
+    /// The currency choice, or `nil` until it's read.
     let settings: CurrencySettings?
-    /// Runs each change to the choice.
     let choice: CurrencySettingsModel
-    /// The rate source's currencies, which name the currency that an automatic choice follows.
     let list: CurrencyListModel
 
     var body: some View {
@@ -54,7 +52,6 @@ struct CurrencyScreen: View {
                 .listRowBackground(palette.surface)
             }
         }
-        // The currency row comes and goes with the rate source.
         .animation(.default, value: source != nil)
         .navigationTitle("Currency")
         .navigationBarTitleDisplayMode(.inline)
@@ -64,7 +61,6 @@ struct CurrencyScreen: View {
         .background(palette.background)
     }
 
-    /// The automatic choice with the currency it resolves to.
     private var automaticName: String {
         let code = list.automaticCurrency
         return String(localized: "Automatic (\(locale.localizedString(forCurrencyCode: code) ?? code))",

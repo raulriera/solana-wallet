@@ -1,9 +1,10 @@
-/// A structural package error at a manifest field or package file.
+/// A package error at a manifest field or package file.
 public struct ValidationError: Error, Sendable, Equatable {
     let path: String
     let reason: String
 
-    /// Describes a failed package requirement.
+    /// Creates a package error.
+    ///
     /// - Parameters:
     ///   - path: A manifest field or package-relative file path.
     ///   - reason: A readable explanation of the expected value or file.

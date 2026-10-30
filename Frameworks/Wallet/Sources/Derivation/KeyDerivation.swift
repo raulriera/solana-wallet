@@ -1,13 +1,13 @@
 import CryptoKit
 
-/// Hardened SLIP-0010 key derivation for every supported curve.
+/// A namespace for hardened SLIP-0010 key derivation.
 enum KeyDerivation {
     /// Derives the Ed25519 signing key at a hardened path.
     ///
     /// - Parameters:
     ///   - seed: The BIP-39 seed bytes.
     ///   - path: The hardened account path.
-    /// - Returns: An Ed25519 key for use only within the current operation.
+    /// - Returns: The Ed25519 signing key.
     /// - Throws: `CancellationError` if cancelled, or a cryptographic error.
     static func signingKey(seed: [UInt8], path: DerivationPath) throws -> Curve25519.Signing.PrivateKey {
         var bytes = try privateKey(seed: seed, path: path, curve: .ed25519)
@@ -31,10 +31,6 @@ enum KeyDerivation {
 
     /// Derives the private key and chain code at a hardened path.
     ///
-    /// SLIP-0010 hashes again whenever the curve refuses a candidate key. The master key hashes the
-    /// refused output with the curve's label; a child hashes `0x01 || I_R || ser32(index)` with the
-    /// parent's chain code.
-    ///
     /// - Parameters:
     ///   - seed: The BIP-39 seed bytes.
     ///   - path: The hardened child indices to derive.
@@ -45,7 +41,6 @@ enum KeyDerivation {
         seed: [UInt8], path: DerivationPath, curve: some DerivationCurve
     ) throws -> (key: [UInt8], chainCode: [UInt8]) {
         try Task.checkCancellation()
-        // The current private key followed by its chain code.
         var node = acceptedNode(
             hashing: seed, using: SymmetricKey(data: Array(curve.label.utf8)), parent: nil, curve: curve
         ) { refused in refused }
@@ -65,8 +60,7 @@ enum KeyDerivation {
         return (Array(node.prefix(32)), Array(node.suffix(32)))
     }
 
-    /// Builds a child's HMAC message in one buffer, so that no partial copy of the secret bytes
-    /// is released without being erased.
+    /// Builds a child's HMAC message.
     ///
     /// - Parameters:
     ///   - marker: `0x00` before the parent's private key, or `0x01` before a refused output's I_R.

@@ -1,22 +1,20 @@
 public import Foundation
 
-/// The available market valuation of a holding in its quoted currency.
+/// The market valuation of a holding.
 public struct Valuation: Codable, Sendable, Equatable {
-    /// The price of one decimal-adjusted unit, if known.
+    /// The price of one decimal-adjusted unit.
     public let pricePerUnit: Decimal?
-    /// The value of the entire holding, if known.
+    /// The value of the whole holding.
     public let total: Decimal?
-    /// The currency in which the price and total are quoted, if known.
     public let currency: String?
-    /// The quote's 24-hour price change as a fraction, so `0.0129` is a 1.29% rise,
-    /// or `nil` when unknown. Snapshots saved without it restore as unknown.
+    /// The 24-hour price change as a fraction, where `0.0129` is a 1.29% rise.
     public let dayChange: Decimal?
 
-    /// Creates a valuation while preserving unknown prices.
+    /// Creates a valuation.
     ///
     /// - Parameters:
-    ///   - pricePerUnit: The unit price, or `nil` if unavailable.
-    ///   - total: The holding value, or `nil` if unavailable.
+    ///   - pricePerUnit: The price of one unit, or `nil` if unknown.
+    ///   - total: The value of the holding, or `nil` if unknown.
     ///   - currency: The quote currency, or `nil` if unknown.
     ///   - dayChange: The 24-hour price change as a fraction, or `nil` if unknown.
     public init(pricePerUnit: Decimal?, total: Decimal?, currency: String?, dayChange: Decimal? = nil) {

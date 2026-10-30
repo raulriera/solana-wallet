@@ -1,8 +1,7 @@
 import RPC
 
 nonisolated extension SimulateTransaction.Value {
-    /// Whether the simulated execution failed because the payer's SOL didn't cover it: its fee, the rent of an account
-    /// it creates, or a transfer, as the System Program logs when it runs out of lamports.
+    /// Whether the simulation failed because the payer lacked SOL for its fee, rent, or a transfer.
     var lacksFunds: Bool {
         guard let error else { return false }
         switch error.name {

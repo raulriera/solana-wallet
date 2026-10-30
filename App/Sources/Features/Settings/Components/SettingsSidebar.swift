@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Native icon-and-label navigation for the owning settings window.
+/// The Settings sidebar's list of destinations.
 struct SettingsSidebar: View {
     @ScaledMetric(relativeTo: .body) private var iconWidth = 28.0
     @Binding var selection: SettingsDestination?
@@ -15,7 +15,6 @@ struct SettingsSidebar: View {
             }
             NavigationLink(value: SettingsDestination.accounts) {
                 Label("Accounts", systemImage: "wallet.bifold.fill")
-                    // The wallet has no colors of its own, so it takes a leather wallet's brown.
                     .labelStyle(.sidebar(tint: .brown))
             }
             NavigationLink(value: SettingsDestination.providers) {
@@ -23,7 +22,6 @@ struct SettingsSidebar: View {
             }
             NavigationLink(value: SettingsDestination.currency) {
                 Label("Currency", systemImage: "banknote.fill")
-                    // The banknote has no colors of its own, so it takes money's green, as the other symbols take theirs.
                     .labelStyle(.sidebar(tint: .green))
             }
             NavigationLink(value: SettingsDestination.security) {
@@ -31,7 +29,6 @@ struct SettingsSidebar: View {
             }
         }
         .labelStyle(.sidebar)
-        // Symbols differ in width, so a shared icon column keeps the titles aligned.
         .labelReservedIconWidth(iconWidth)
         .listStyle(.sidebar)
         .navigationTitle("Settings")

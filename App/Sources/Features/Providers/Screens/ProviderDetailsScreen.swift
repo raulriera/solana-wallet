@@ -31,7 +31,6 @@ struct ProviderDetailsScreen: View {
             .listRowBackground(palette.surface)
 
             Section {
-                // The button names the screen it opens.
                 Button(ProviderEntryPurpose(keyPreview: keyPreview).title, action: actions.changeKey)
                     .foregroundStyle(palette.accent)
             }

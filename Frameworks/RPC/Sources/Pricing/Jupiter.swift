@@ -1,8 +1,7 @@
 import Foundation
 
-/// A Price V3 adapter that supplies mainnet USD quotes through the shared pricing contract.
+/// A price provider that supplies Jupiter's mainnet USD quotes.
 public struct Jupiter: PriceProviding, CustomStringConvertible, CustomDebugStringConvertible {
-    /// Jupiter quotes mainnet assets; these prices must not be applied to devnet balances.
     public let network: Network = .mainnet
 
     private let apiKey: String?
@@ -10,22 +9,19 @@ public struct Jupiter: PriceProviding, CustomStringConvertible, CustomDebugStrin
     private let redactor: any TextRedactor
     private let pacer: any RequestPacing
 
-    /// Creates a mainnet price provider with an ephemeral URL session.
+    /// Creates a mainnet price provider.
     ///
-    /// Reuse this provider across wallets to share its request budget. Requests are
-    /// spaced at twenty per minute without a key, or forty with a key. Copies share
-    /// the same budget; separately initialized providers and other devices do not.
-    /// Jupiter's organisation-wide quota may still produce rate-limit errors.
-    /// - Parameter apiKey: An optional Jupiter API key; `nil` uses keyless access.
+    /// - Parameter apiKey: A Jupiter API key, or `nil` for keyless access.
     public init(apiKey: String? = nil) {
         self.init(apiKey: apiKey, transport: URLSessionTransport())
     }
 
     /// Creates a price provider with an injected HTTP transport.
+    ///
     /// - Parameters:
-    ///   - apiKey: An optional key sent only in the authentication header.
-    ///   - transport: The transport performing real requests or supplying HTTP test fixtures.
-    ///   - pacer: Shared request admission control, or `nil` to space requests for keyed or keyless access.
+    ///   - apiKey: A Jupiter API key, or `nil` for keyless access.
+    ///   - transport: The transport that performs HTTP requests.
+    ///   - pacer: The request pacer, or `nil` for the default pace of the access type.
     init(apiKey: String? = nil, transport: any HTTPTransport, pacer: (any RequestPacing)? = nil) {
         self.apiKey = apiKey
         self.transport = transport
@@ -35,20 +31,9 @@ public struct Jupiter: PriceProviding, CustomStringConvertible, CustomDebugStrin
         )
     }
 
-    /// A textual representation that omits authentication credentials.
     public var description: String { "Jupiter(mainnet)" }
-    /// A debugging representation that omits authentication credentials.
     public var debugDescription: String { description }
 
-    /// Retrieves available prices in paced, sequential batches of at most fifty unique mints.
-    ///
-    /// Batching and pacing are internal to the adapter and shared across concurrent calls.
-    /// Each batch is attempted once; a failure
-    /// prevents partial success from reaching the consumer. No holdings or metadata
-    /// requests, polling, fallback, or retries are performed.
-    /// - Parameter mints: Mainnet mint addresses; duplicates are ignored.
-    /// - Returns: Normalized quotes for the mints whose prices are available.
-    /// - Throws: An HTTP, transport, decoding, or cancellation error.
     @concurrent
     public func prices(for mints: [String]) async throws -> [String: Quote] {
         try Task.checkCancellation()
@@ -65,10 +50,11 @@ public struct Jupiter: PriceProviding, CustomStringConvertible, CustomDebugStrin
         return quotes
     }
 
-    /// Sends one Price V3 request and decodes its private wire representation.
-    /// - Parameter mints: The unique addresses in this batch.
-    /// - Returns: The provider's price records, before normalization.
-    /// - Throws: An HTTP, transport, decoding, or cancellation error.
+    /// Sends one price request for a batch of mints.
+    ///
+    /// - Parameter mints: The unique mint addresses in the batch.
+    /// - Returns: The price records keyed by mint address.
+    /// - Throws: An ``RPCError`` or `CancellationError`.
     private func fetch(_ mints: [String]) async throws -> [String: Value?] {
         // swift-format-ignore: NeverForceUnwrap
         let url = URL(string: "https://api.jup.ag/price/v3")!
@@ -87,29 +73,28 @@ public struct Jupiter: PriceProviding, CustomStringConvertible, CustomDebugStrin
         }
     }
 
-    /// The adapter's private DTO; consumers see only normalized quotes.
+    /// A price record in Jupiter's response.
     private struct Value: Decodable {
         let pricePerUnit: Decimal?
-        /// The 24-hour change in percent, so `1.29` is a 1.29% rise.
+        /// The 24-hour change in percent, where `1.29` is a 1.29% rise.
         let percentChange: Decimal?
 
+        /// The field names in a price record.
         private enum CodingKeys: String, CodingKey {
             case pricePerUnit = "usdPrice"
             case percentChange = "priceChange24h"
         }
 
-        /// Decodes a price record; a malformed change leaves the change unknown instead of failing the price.
-        /// - Parameter decoder: The decoder for one record of the response.
-        /// - Throws: A decoding error if the price itself is malformed.
         init(from decoder: any Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             pricePerUnit = try container.decodeIfPresent(Decimal.self, forKey: .pricePerUnit)
             percentChange = try? container.decodeIfPresent(Decimal.self, forKey: .percentChange)
         }
 
-        /// Validates the decoded price and converts it to the shared domain value.
-        /// - Returns: A normalized quote, or `nil` for a record with an absent or null price.
-        /// - Throws: A decoding error if the price is negative or not a number.
+        /// Validates the decoded price and converts it to a quote.
+        ///
+        /// - Returns: A quote, or `nil` without a price.
+        /// - Throws: ``RPCError/decoding`` for a negative or invalid price.
         func makeQuote() throws -> Quote? {
             guard let pricePerUnit else { return nil }
             guard !pricePerUnit.isNaN, pricePerUnit >= 0 else { throw RPCError.decoding }

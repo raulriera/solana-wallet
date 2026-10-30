@@ -1,11 +1,11 @@
-/// Encodes and decodes bytes using the case-sensitive Bitcoin Base58 alphabet.
+/// A Base58 encoder and decoder that uses the Bitcoin alphabet.
 public enum Base58 {
     private static let alphabet = Array("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz".utf8)
 
-    /// Encodes bytes while preserving each leading zero as `1`.
+    /// Encodes bytes as Base58 text.
     ///
-    /// - Parameter bytes: The bytes to encode in their original order.
-    /// - Returns: The Base58 representation without a checksum.
+    /// - Parameter bytes: The bytes to encode.
+    /// - Returns: The Base58 text, without a checksum.
     public static func encode(_ bytes: [UInt8]) -> String {
         let leadingZeros = bytes.prefix(while: { $0 == 0 }).count
         var digits: [Int] = []
@@ -25,16 +25,11 @@ public enum Base58 {
         return String(decoding: encoded, as: UTF8.self)
     }
 
-    /// Decodes a fixed-width byte sequence without modifying its text representation.
-    ///
-    /// Leading `1` characters represent zero bytes. Only the ASCII alphabet is
-    /// accepted; whitespace, Unicode lookalikes, and normalization are rejected.
-    /// Processing stops when the value exceeds the requested width.
+    /// Decodes Base58 text into a fixed number of bytes.
     ///
     /// - Parameters:
-    ///   - value: The original, case-sensitive Base58 text.
-    ///   - byteCount: The required decoded width, which also bounds the output allocation.
-    ///     Zero accepts only an empty string; a negative count is invalid.
+    ///   - value: The Base58 text.
+    ///   - byteCount: The number of bytes to decode.
     /// - Returns: Exactly `byteCount` bytes, or `nil` for malformed text or a width mismatch.
     public static func decode(_ value: String, byteCount: Int) -> [UInt8]? {
         guard byteCount >= 0 else { return nil }

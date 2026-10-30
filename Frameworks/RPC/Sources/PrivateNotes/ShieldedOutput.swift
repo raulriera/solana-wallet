@@ -1,16 +1,13 @@
-/// One output of a shielded transaction, as an indexer publishes it.
-///
-/// The output's slot index, which note decryption binds, is its position in its transaction's ``ShieldedTransaction/outputs``.
+/// One output of a shielded transaction.
 public struct ShieldedOutput: Sendable, Equatable {
-    /// The 32-byte view tag that addresses the output, such as a recipient's Ed25519 public key.
+    /// The 32-byte view tag that addresses the output.
     public let viewTag: [UInt8]
-    /// The 32-byte UTXO hash, which is the output's leaf in its tree.
+    /// The 32-byte UTXO hash, the output's leaf in its tree.
     public let utxoHash: [UInt8]
     /// The ID of the tree that holds the leaf.
     public let treeID: UInt16
-    /// The leaf's position in its tree.
     public let leafIndex: UInt64
-    /// The output's published payload, such as an encrypted note, as received.
+    /// The published payload, such as an encrypted note.
     public let payload: [UInt8]
 
     /// Creates an output from its published fields.

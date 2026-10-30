@@ -2,38 +2,24 @@ public import CryptoKit
 import Encoding
 public import Foundation
 
-/// A Solana account that a 32-byte secret alone recovers, such as the account behind a redeem code.
-///
-/// The secret is a SLIP-0010 seed: the signing key is its Ed25519 node key at `m/44'/501'/0'/0'`,
-/// and its private-balance keys are those of account 0. An account's code root derives one secret
-/// per index. Access ``secret`` and ``privateBalanceKeys`` explicitly; descriptions and reflection
-/// omit everything. CryptoKit holds the keys; Swift doesn't guarantee that copies are erased from memory.
+/// A Solana account that a 32-byte secret alone recovers.
 public struct OneTimeAccount: Sendable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
-    /// The 32-byte secret that recovers the account.
     public let secret: SymmetricKey
 
-    /// The account's Solana Rings private-balance keys.
     public let privateBalanceKeys: PrivateBalanceKeys
 
-    /// The Ed25519 key that signs for the account.
     private let signingKey: Curve25519.Signing.PrivateKey
 
     /// The Base58-encoded Ed25519 public key.
     public var address: String { Base58.encode(Array(signingKey.publicKey.rawRepresentation)) }
 
-    /// A description that omits the secrets and the address.
     public var description: String { "OneTimeAccount" }
 
-    /// A debugging description that omits the secrets and the address.
     public var debugDescription: String { description }
 
-    /// A reflection view that omits the secrets and the address.
     public var customMirror: Mirror { Mirror(self, children: [:]) }
 
-    /// Derives the one-time account at an index of a code root.
-    ///
-    /// The secret is the SLIP-0010 Ed25519 node key at `m/index'`, with the code root's 32 bytes as
-    /// the seed. Intermediate bytes are erased on a best-effort basis.
+    /// Creates the one-time account at an index of a code root.
     ///
     /// - Parameters:
     ///   - codeRoot: An account's 32-byte ``PrivateBalanceKeys/codeRoot``.
@@ -45,11 +31,7 @@ public struct OneTimeAccount: Sendable, CustomStringConvertible, CustomDebugStri
         try self.init(secret: Self.secret(codeRoot: codeRoot, index: index))
     }
 
-    /// Derives only the address of the one-time account at an index of a code root, without its
-    /// private-balance keys, such as to look up many indices by view tag.
-    ///
-    /// The address is the one that ``init(codeRoot:index:)`` derives. Intermediate bytes are erased
-    /// on a best-effort basis.
+    /// Derives the address of the one-time account at an index of a code root.
     ///
     /// - Parameters:
     ///   - codeRoot: An account's 32-byte ``PrivateBalanceKeys/codeRoot``.
@@ -65,7 +47,7 @@ public struct OneTimeAccount: Sendable, CustomStringConvertible, CustomDebugStri
         return Base58.encode(Array(signingKey.publicKey.rawRepresentation))
     }
 
-    /// Derives the secret at an index of a code root: its SLIP-0010 Ed25519 node key at `m/index'`.
+    /// Derives the secret at an index of a code root.
     ///
     /// - Parameters:
     ///   - codeRoot: An account's 32-byte code root.
@@ -83,9 +65,7 @@ public struct OneTimeAccount: Sendable, CustomStringConvertible, CustomDebugStri
         return SymmetricKey(data: secret)
     }
 
-    /// Recovers a one-time account from its secret.
-    ///
-    /// Intermediate bytes are erased on a best-effort basis.
+    /// Creates a one-time account from its secret.
     ///
     /// - Parameter secret: The account's 32-byte secret.
     /// - Throws: ``OneTimeAccountError/invalidSecret`` if the secret isn't 32 bytes,
@@ -101,11 +81,8 @@ public struct OneTimeAccount: Sendable, CustomStringConvertible, CustomDebugStri
 
     /// Signs a message with the account's Ed25519 key.
     ///
-    /// The caller supplies the exact message bytes and owns transaction validation.
-    /// This method refuses Solana Rings key derivation inputs.
-    ///
-    /// - Parameter message: The exact unsigned message bytes; no signature or envelope is added.
-    /// - Returns: A 64-byte Ed25519 signature. Signatures may vary between calls.
+    /// - Parameter message: The message bytes to sign.
+    /// - Returns: A 64-byte Ed25519 signature.
     /// - Throws: ``SigningError/reservedMessage`` for a key derivation input, or a cryptographic error.
     public func signature(for message: Data) throws -> Data {
         guard !message.isDerivationInput else { throw SigningError.reservedMessage }

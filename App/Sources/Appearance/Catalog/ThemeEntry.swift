@@ -1,8 +1,8 @@
 import Foundation
 
-/// Lightweight catalog metadata, independent of image bytes and resolved colors.
+/// A catalog theme's identity, name, origin, and revision.
 nonisolated struct ThemeEntry: Codable, Sendable, Equatable, Identifiable {
-    /// Whether the app supplies the theme or the user installs it.
+    /// The source of a theme.
     enum Origin: String, Codable, Sendable {
         case builtIn
         case custom
@@ -13,12 +13,13 @@ nonisolated struct ThemeEntry: Codable, Sendable, Equatable, Identifiable {
     let origin: Origin
     let revision: UUID
 
-    /// Creates a catalog entry identifying one installed revision.
+    /// Creates a catalog entry.
+    ///
     /// - Parameters:
-    ///   - id: The manifest's stable identity.
-    ///   - name: The theme's display name, which need not be unique.
-    ///   - origin: The authority that owns the package.
-    ///   - revision: A new token for each installation, used to reject stale confirmations.
+    ///   - id: The theme's identity.
+    ///   - name: The theme's display name.
+    ///   - origin: The source of the theme.
+    ///   - revision: The identity of this installation.
     init(id: UUID, name: String, origin: Origin, revision: UUID = UUID()) {
         self.id = id
         self.name = name
@@ -27,16 +28,17 @@ nonisolated struct ThemeEntry: Codable, Sendable, Equatable, Identifiable {
     }
 }
 
-/// An immutable theme supplied by app composition from bundled resources.
+/// A theme bundled with the app.
 nonisolated struct BundledTheme: Sendable {
     let entry: ThemeEntry
     let url: URL
 
-    /// Declares bundled metadata without reading its images during catalog construction.
+    /// Creates a bundled theme.
+    ///
     /// - Parameters:
-    ///   - id: The bundled manifest's identity.
-    ///   - name: The bundled manifest's name.
-    ///   - url: Its app-owned package directory.
+    ///   - id: The theme's identity.
+    ///   - name: The theme's display name.
+    ///   - url: The location of the theme's package.
     init(id: UUID, name: String, url: URL) {
         entry = ThemeEntry(id: id, name: name, origin: .builtIn, revision: id)
         self.url = url

@@ -1,38 +1,43 @@
 import Foundation
 import Themes
 
-/// Owns installed theme packages; appearance selections and rendering belong to callers.
+/// A catalog of bundled and installed theme packages.
 nonisolated protocol ThemeCatalogProviding: Sendable {
-    /// Lists lightweight metadata without loading package assets.
-    /// - Returns: Built-in and custom entries; callers choose presentation order.
-    /// - Throws: A storage or cancellation error rather than an incomplete catalog.
+    /// Lists the bundled and installed themes without loading their packages.
+    ///
+    /// - Returns: The entries, in no particular order.
+    /// - Throws: A storage or cancellation error.
     func entries() async throws -> [ThemeEntry]
 
-    /// Installs a validated snapshot without activating it.
+    /// Installs a theme package without selecting it.
+    ///
     /// - Parameters:
-    ///   - pack: The snapshot returned by the package service after Files import.
-    ///   - existing: The exact custom revision the user approved replacing, or `nil` for a new identity.
-    /// - Returns: The committed custom entry.
-    /// - Throws: A conflict, immutable-theme, storage, or pre-commit cancellation error.
+    ///   - pack: The validated package.
+    ///   - existing: The installed theme to replace, or `nil` to add a new theme.
+    /// - Returns: The installed entry.
+    /// - Throws: A conflict, built-in theme, storage, or cancellation error.
     func install(_ pack: Pack, replacing existing: ThemeEntry?) async throws -> ThemeEntry
 
-    /// Loads one selected revision, retaining no package or image cache in the catalog.
-    /// - Parameter entry: The current entry being selected or exported.
-    /// - Returns: An independently owned validated package.
-    /// - Throws: A stale-entry, missing-package, validation, storage, or cancellation error.
+    /// Loads the package of a theme.
+    ///
+    /// - Parameter entry: The theme to load.
+    /// - Returns: The validated package.
+    /// - Throws: A changed-entry, validation, storage, or cancellation error.
     func pack(for entry: ThemeEntry) async throws -> Pack
 
-    /// Removes the exact custom revision and clears its application and wallet selections atomically.
-    /// - Parameter entry: The entry to remove; built-ins are immutable.
-    /// - Throws: A stale-entry, immutable-theme, storage, or pre-commit cancellation error.
+    /// Removes an installed theme and clears every selection of it.
+    ///
+    /// - Parameter entry: The installed theme to remove.
+    /// - Throws: A built-in theme, changed-entry, storage, or cancellation error.
     func remove(_ entry: ThemeEntry) async throws
 }
 
 extension ThemeCatalogProviding {
-    /// Installs a new identity without permitting replacement.
-    /// - Parameter pack: The validated imported snapshot.
-    /// - Returns: The committed custom entry.
-    /// - Throws: A catalog conflict, storage, or cancellation error.
+    /// Installs a theme package that isn't installed yet.
+    ///
+    /// - Parameter pack: The validated package.
+    /// - Returns: The installed entry.
+    /// - Throws: A conflict, storage, or cancellation error.
     func install(_ pack: Pack) async throws -> ThemeEntry {
         try await install(pack, replacing: nil)
     }

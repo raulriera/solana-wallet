@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Inline choices for the shared application theme, including custom-theme deletion.
+/// A section that lists the app's theme choices.
 struct ThemeSelectionSection: View {
     let entries: [ThemeEntry]
     let selection: UUID

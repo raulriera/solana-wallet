@@ -1,17 +1,10 @@
 /// The numbers of input and output slots of a transact proof's circuit.
-///
-/// The prover has keys for 38 shapes, which zolana's `SPP_SUPPORTED_SHAPES` lists in order of
-/// proving cost. A transact uses the first shape that holds its inputs and outputs and pads the
-/// remaining slots.
 struct Shape: Sendable, Hashable {
-    /// The number of input slots.
     let inputs: Int
 
-    /// The number of output slots.
     let outputs: Int
 
-    /// The number of signer identities that the shape's proof publishes, `Shape::signer_width`: the
-    /// fee payer and up to `min(inputs, 60 - inputs)` other input owners.
+    /// The number of signer identities that the shape's proof publishes.
     var signerWidth: Int { min(inputs, 60 - inputs) + 1 }
 
     /// Every shape that the prover supports, cheapest first.
@@ -27,8 +20,7 @@ struct Shape: Sendable, Hashable {
     /// - Parameters:
     ///   - inputs: The number of inputs, before padding.
     ///   - outputs: The number of outputs, before padding.
-    /// - Returns: The first supported shape with at least as many input and output slots, or `nil`
-    ///   if none has enough.
+    /// - Returns: The shape, or `nil` if none holds the slots.
     static func fitting(inputs: Int, outputs: Int) -> Shape? {
         supported.first { inputs <= $0.inputs && outputs <= $0.outputs }
     }

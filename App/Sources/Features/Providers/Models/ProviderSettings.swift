@@ -1,17 +1,15 @@
 import Foundation
 
-/// The RPC provider that every window uses and the custom RPCs a person added, saved on this device.
+/// The RPC provider in use and the custom RPCs a person added.
 nonisolated struct ProviderSettings: Codable, Equatable, Sendable {
     /// An RPC provider.
     nonisolated enum Provider: Codable, Hashable, Sendable {
-        /// Solana's public RPC, which needs no key.
+        /// Solana's public RPC.
         case solana
-        /// Helius, with the API key saved on this device.
         case helius
-        /// A custom HTTPS RPC, identified by its URL, which can contain a key.
         case custom(URL)
 
-        /// The provider's name as people see it; a custom RPC shows only its host, never a key in its URL.
+        /// The provider's name, or a custom RPC's host.
         var name: LocalizedStringResource {
             switch self {
             case .solana: "Solana"
@@ -21,16 +19,16 @@ nonisolated struct ProviderSettings: Codable, Equatable, Sendable {
             }
         }
 
-        /// Whether the provider has details to show: Helius's key, or a custom RPC's URL.
         var hasDetails: Bool { self != .solana }
     }
 
-    /// The provider in use: Solana's public RPC until a person chooses another.
+    /// The provider in use.
     var selection = Provider.solana
-    /// Custom RPC URLs, in the order they were added.
+    /// The custom RPC URLs in the order they were added.
     var customRPCs: [URL] = []
 
-    /// Chooses the provider that every window uses next; an unlisted custom RPC changes nothing.
+    /// Chooses the provider in use.
+    ///
     /// - Parameter provider: The provider to use; a custom RPC must already be in the list.
     mutating func select(_ provider: Provider) {
         if case .custom(let url) = provider, !customRPCs.contains(url) { return }
@@ -38,13 +36,15 @@ nonisolated struct ProviderSettings: Codable, Equatable, Sendable {
     }
 
     /// Adds a custom RPC, if it's new, and chooses it.
+    ///
     /// - Parameter url: The checked RPC URL.
     mutating func add(_ url: URL) {
         if !customRPCs.contains(url) { customRPCs.append(url) }
         select(.custom(url))
     }
 
-    /// Removes a custom RPC; removing the one in use chooses Solana.
+    /// Removes a custom RPC, choosing Solana if it was in use.
+    ///
     /// - Parameter url: The RPC URL to remove.
     mutating func remove(_ url: URL) {
         customRPCs.removeAll { $0 == url }

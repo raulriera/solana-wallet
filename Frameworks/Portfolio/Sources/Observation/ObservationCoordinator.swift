@@ -2,18 +2,12 @@ import Foundation
 import RPC
 import Transactions
 
-/// Shares a wallet's finalized subscription and reloads its balances after finalized changes.
-///
-/// A dropped connection reconnects by itself, waiting longer after each attempt until a connection's balance read
-/// succeeds. An error that a person must act on, such as a rate limit or a rejected key, keeps the consumers' streams
-/// but waits for a person's reload, a token-list change, or a new consumer.
+/// An actor that shares each wallet's finalized subscription and reloads its balances after finalized changes.
 actor ObservationCoordinator {
-    /// Suspends change coalescing or a reconnection for a cancellable duration.
+    /// A cancellable wait of a given duration.
     typealias Pause = @Sendable (Duration) async throws -> Void
 
-    /// The wait before the first reconnection after a drop.
     private static let firstReconnectDelay = Duration.seconds(2)
-    /// The longest wait between reconnections; each failed attempt doubles the wait up to this value.
     private static let longestReconnectDelay = Duration.seconds(60)
 
     private let refresh: RefreshCoordinator
@@ -22,12 +16,13 @@ actor ObservationCoordinator {
     private let pause: Pause
     private var watches: [String: Watch] = [:]
 
-    /// Creates observation policy around the same refresh coordinator used by explicit requests.
+    /// Creates an observation coordinator.
+    ///
     /// - Parameters:
-    ///   - refresh: The owner of cache and in-flight refreshes.
-    ///   - tokenLists: The token lists whose accounts each wallet's subscription watches.
-    ///   - changes: The optional provider of finalized account-change slots on the observed network.
-    ///   - pause: Cancellable scheduling for coalescing nearby changes and spacing reconnections.
+    ///   - refresh: The refresh coordinator.
+    ///   - tokenLists: The token lists whose accounts each subscription watches.
+    ///   - changes: The provider of finalized account changes, or `nil` if none.
+    ///   - pause: The cancellable wait for coalescing changes and spacing reconnections.
     init(refresh: RefreshCoordinator, tokenLists: TokenListCoordinator, changes: (any AccountChangeProviding)?,
          pause: @escaping Pause) {
         self.refresh = refresh
@@ -36,16 +31,14 @@ actor ObservationCoordinator {
         self.pause = pause
     }
 
-    /// Registers a consumer before starting or joining the wallet's long-lived observation.
+    /// Adds a consumer and starts or joins the wallet's observation.
     ///
-    /// Joining a disconnected observation connects it again at once.
-    /// - Parameter owner: The wallet whose holdings to observe.
-    /// - Returns: Cached state, initial reload, and subsequent finalized-change refresh results.
+    /// - Parameter owner: The wallet address.
+    /// - Returns: Cached state, an initial reload, and refresh results after finalized changes.
     func observations(for owner: String) -> AsyncStream<Update> {
         guard !Task.isCancelled else { return AsyncStream { $0.finish() } }
         let unsubscribe: @Sendable (UUID) async -> Void = { id in await self.unsubscribe(owner: owner, id: id) }
         if var watch = watches[owner] {
-            // A refresh in progress reaches the new consumer at once; otherwise a live watch reads balances for it.
             let refreshing = watch.latest.flatMap { $0.isRefreshing ? $0 : nil }
             let stream = watch.consumers.add(first: refreshing, onEnd: unsubscribe)
             if refreshing == nil, watch.state == .connected {
@@ -65,10 +58,9 @@ actor ObservationCoordinator {
         return stream
     }
 
-    /// Watches an observed wallet's accounts again after its token list changes, then reads its balances once.
+    /// Watches an observed wallet's accounts again, then reads its balances once.
     ///
-    /// Consumers keep their streams. A wallet that isn't observed is left alone.
-    /// - Parameter owner: The wallet whose token list changed.
+    /// - Parameter owner: The wallet address.
     func restart(for owner: String) {
         guard let watch = watches[owner] else { return }
         watch.connection?.cancel()
@@ -77,21 +69,17 @@ actor ObservationCoordinator {
                 reloads: watch.reloads)
     }
 
-    /// Connects a disconnected observation again at once, so a person's reload also restores live updates.
+    /// Connects a wallet's disconnected observation again.
     ///
-    /// An observation that is connected or connecting is left alone, as is a wallet that isn't observed.
-    /// - Parameter owner: The wallet that a person reloads.
+    /// - Parameter owner: The wallet address.
     func reconnect(for owner: String) {
         guard watches[owner]?.state == .disconnected else { return }
         restart(for: owner)
     }
 
-    /// Reads an observed wallet again through its observation, and waits for a read that starts after this call.
+    /// Reads an observed wallet again and waits for a read that starts after this call.
     ///
-    /// A connected observation reads at once, or after the read in progress; a disconnected one connects again at once;
-    /// a connecting one reads once it connects. The wait also ends when the observation fails or stops, or when the
-    /// caller is cancelled, which leaves the read running.
-    /// - Parameter owner: The wallet to read again; a wallet that isn't observed isn't read.
+    /// - Parameter owner: The wallet address.
     func reload(for owner: String) async {
         guard let watch = watches[owner] else { return }
         switch watch.state {
@@ -101,7 +89,6 @@ actor ObservationCoordinator {
         case .disconnected:
             restart(for: owner)
         case .connecting:
-            // The connection reads balances once it's established.
             break
         }
         let id = UUID()
@@ -118,8 +105,9 @@ actor ObservationCoordinator {
         }
     }
 
-    /// Cancels this wallet's observation before its cache is removed.
-    /// - Parameter owner: The wallet leaving the portfolio.
+    /// Cancels a wallet's observation and ends its consumers' streams.
+    ///
+    /// - Parameter owner: The wallet address.
     func stop(for owner: String) {
         guard let watch = watches.removeValue(forKey: owner) else { return }
         watch.connection?.cancel()
@@ -128,9 +116,7 @@ actor ObservationCoordinator {
         for reload in watch.reloads.values { reload.continuation.resume() }
     }
 
-    /// Watches every observed wallet's accounts again, then reads their balances once, as after a price change.
-    ///
-    /// Consumers keep their streams.
+    /// Watches every observed wallet's accounts again, then reads their balances once.
     func restartAll() {
         for owner in watches.keys { restart(for: owner) }
     }
@@ -140,13 +126,14 @@ actor ObservationCoordinator {
         for owner in watches.keys { stop(for: owner) }
     }
 
-    /// Starts a new observation lifetime for a wallet's consumers, so earlier work can't deliver results.
+    /// Starts a new observation generation for a wallet's consumers.
+    ///
     /// - Parameters:
-    ///   - owner: The watched wallet.
-    ///   - consumers: The streams that receive the wallet's updates.
-    ///   - latest: The newest update those consumers already received, if any.
-    ///   - minContextSlot: The newest finalized change already observed, if any.
-    ///   - reloads: The reloads that wait for a read, which the new lifetime's first read answers.
+    ///   - owner: The wallet address.
+    ///   - consumers: The consumers' streams.
+    ///   - latest: The newest update the consumers received, or `nil`.
+    ///   - minContextSlot: The slot of the newest observed finalized change, or `nil`.
+    ///   - reloads: The reloads waiting for a read.
     private func connect(owner: String, consumers: UpdateConsumers, latest: Update? = nil,
                          minContextSlot: UInt64? = nil, reloads: [UUID: Reload] = [:]) {
         let generation = UUID()
@@ -155,14 +142,11 @@ actor ObservationCoordinator {
         watches[owner]?.connection = Task { await listen(owner: owner, generation: generation) }
     }
 
-    /// Watches the wallet for the observation's lifetime, reconnecting after each dropped connection.
+    /// Watches the wallet for the observation's generation, reconnecting after each recoverable failure.
     ///
-    /// Each failure shows its error at once. After a failure that `RPCError.isRecoverable` accepts, the watch
-    /// waits the reconnection delay and connects again. Other errors leave the watch disconnected. The delay starts
-    /// over once a connection's balance read succeeds, not when its subscription is acknowledged.
     /// - Parameters:
-    ///   - owner: The watched wallet.
-    ///   - generation: The observation lifetime, used to reject late work after cancellation.
+    ///   - owner: The wallet address.
+    ///   - generation: The observation's generation.
     private func listen(owner: String, generation: UUID) async {
         let initial = await refresh.status(for: owner, phase: .refreshing)
         publish(initial, owner: owner, generation: generation)
@@ -176,7 +160,6 @@ actor ObservationCoordinator {
                 let failed = await refresh.status(for: owner, phase: .failed(error))
                 guard watches[owner]?.generation == generation else { return }
                 publish(failed, owner: owner, generation: generation)
-                // The connection failed before it could read, which ends the reloads waiting for one.
                 endWaits(of: owner) { _ in true }
                 guard (error as? RPCError)?.isRecoverable == true,
                       await waitToReconnect(owner: owner, generation: generation) else {
@@ -186,11 +169,12 @@ actor ObservationCoordinator {
         }
     }
 
-    /// Establishes subscriptions before requesting initial catch-up, avoiding the setup-to-fetch gap.
+    /// Subscribes to the wallet's account changes, then schedules a reload at once and after each change.
+    ///
     /// - Parameters:
-    ///   - owner: The watched wallet.
-    ///   - generation: The observation lifetime, used to reject late work after cancellation.
-    /// - Throws: Why the subscriptions couldn't start or ended; a stream that ends counts as a lost connection.
+    ///   - owner: The wallet address.
+    ///   - generation: The observation's generation.
+    /// - Throws: The error that stopped or ended the subscriptions.
     private func watchChanges(owner: String, generation: UUID) async throws {
         guard let changes else { throw ObservationError.providerUnavailable }
         let accounts = try await tokenLists.list(for: owner).accounts(of: Address(owner))
@@ -212,10 +196,11 @@ actor ObservationCoordinator {
     }
 
     /// Waits the reconnection delay and doubles it for the next attempt.
+    ///
     /// - Parameters:
-    ///   - owner: The disconnected wallet.
-    ///   - generation: The observation lifetime, used to reject late work after cancellation.
-    /// - Returns: Whether this observation lifetime connects again.
+    ///   - owner: The wallet address.
+    ///   - generation: The observation's generation.
+    /// - Returns: Whether the observation connects again.
     private func waitToReconnect(owner: String, generation: UUID) async -> Bool {
         guard let watch = watches[owner], watch.generation == generation else { return false }
         watches[owner]?.reconnectDelay = min(watch.reconnectDelay * 2, Self.longestReconnectDelay)
@@ -229,28 +214,26 @@ actor ObservationCoordinator {
         return true
     }
 
-    /// Coalesces notifications into one active reconciliation task for this wallet.
+    /// Starts a reconciliation for the wallet unless one is running.
+    ///
     /// - Parameters:
-    ///   - owner: The wallet to refresh.
-    ///   - generation: The current observation lifetime.
+    ///   - owner: The wallet address.
+    ///   - generation: The observation's generation.
     ///   - delayed: Whether to wait two seconds for nearby changes.
     private func schedule(owner: String, generation: UUID, delayed: Bool) {
         guard watches[owner]?.generation == generation, watches[owner]?.reconciliation == nil else { return }
         watches[owner]?.reconciliation = Task { await reconcile(owner: owner, generation: generation, delayed: delayed) }
     }
 
-    /// Reloads balances once per cycle, after an optional wait that gathers nearby changes.
+    /// Reloads the wallet's balances after an optional wait that gathers nearby changes.
     ///
-    /// A change that arrives during a reload starts another cycle, so the latest change is always read.
-    /// Failed requests aren't retried. A completed reload over a live connection resets the reconnection delay.
     /// - Parameters:
-    ///   - owner: The wallet to reload.
-    ///   - generation: The current observation lifetime.
-    ///   - delayed: Whether to gather nearby changes before the request.
+    ///   - owner: The wallet address.
+    ///   - generation: The observation's generation.
+    ///   - delayed: Whether to wait for nearby changes first.
     private func reconcile(owner: String, generation: UUID, delayed: Bool) async {
         guard watches[owner]?.generation == generation else { return }
         watches[owner]?.reloadRequested = false
-        // This read answers the reloads requested before it, and a later one answers those requested during it.
         let read = UUID()
         for (id, reload) in watches[owner]?.reloads ?? [:] where reload.read == nil {
             watches[owner]?.reloads[id]?.read = read
@@ -277,7 +260,6 @@ actor ObservationCoordinator {
                 try Task.checkCancellation()
                 if case .ready = update.phase, let watch = watches[owner], watch.generation == generation,
                    watch.state == .connected {
-                    // The connection works, so a later drop waits the shortest time again.
                     watches[owner]?.reconnectDelay = Self.firstReconnectDelay
                 }
                 publish(update, owner: owner, generation: generation)
@@ -291,11 +273,12 @@ actor ObservationCoordinator {
         }
     }
 
-    /// Delivers complete presentation state only to the current observation generation.
+    /// Sends a newer update from the current generation to the wallet's consumers.
+    ///
     /// - Parameters:
-    ///   - update: The cache or refresh result.
-    ///   - owner: The observed wallet.
-    ///   - generation: The observation lifetime that produced the result.
+    ///   - update: The update to send.
+    ///   - owner: The wallet address.
+    ///   - generation: The observation generation that produced the update.
     private func publish(_ update: Update, owner: String, generation: UUID) {
         guard watches[owner]?.generation == generation else { return }
         guard watches[owner]?.latest.map({ update.revision > $0.revision }) ?? true else { return }
@@ -303,9 +286,10 @@ actor ObservationCoordinator {
         watches[owner]?.consumers.send(update)
     }
 
-    /// Ends the waits of the reloads that a read answered, or that a failure or a stopped observation ends.
+    /// Ends the waits of the matching reloads.
+    ///
     /// - Parameters:
-    ///   - owner: The observed wallet.
+    ///   - owner: The wallet address.
     ///   - answered: Whether a reload's wait ends.
     private func endWaits(of owner: String, where answered: (Reload) -> Bool) {
         for (id, reload) in watches[owner]?.reloads ?? [:] where answered(reload) {
@@ -314,32 +298,32 @@ actor ObservationCoordinator {
         }
     }
 
-    /// Ends one cancelled caller's wait, leaving its read running.
+    /// Ends a cancelled reload's wait.
+    ///
     /// - Parameters:
-    ///   - id: The cancelled reload.
-    ///   - owner: The observed wallet.
+    ///   - id: The reload's identifier.
+    ///   - owner: The wallet address.
     private func endWait(_ id: UUID, owner: String) {
         watches[owner]?.reloads.removeValue(forKey: id)?.continuation.resume()
     }
 
-    /// Releases the connection and active refresh when the final consumer leaves.
+    /// Removes a consumer and stops the observation when none remain.
+    ///
     /// - Parameters:
-    ///   - owner: The observed wallet.
-    ///   - id: The departing consumer.
+    ///   - owner: The wallet address.
+    ///   - id: The consumer's identifier.
     private func unsubscribe(owner: String, id: UUID) {
         watches[owner]?.consumers.remove(id)
         if watches[owner]?.consumers.isEmpty == true { stop(for: owner) }
     }
 
-    /// One shared connection and its independent consumer streams.
+    /// A wallet's shared connection and its consumers' streams.
     private struct Watch {
         /// The progress of a watch's connection.
         enum State {
-            /// Opening subscriptions.
             case connecting
-            /// Subscriptions are live.
             case connected
-            /// Waiting to reconnect after a drop, or stopped by an error that a person must act on.
+            /// Waiting to reconnect, or stopped by an error.
             case disconnected
         }
 
@@ -356,7 +340,7 @@ actor ObservationCoordinator {
         var reloads: [UUID: Reload] = [:]
     }
 
-    /// A caller waiting for a reload, and the read that answers it once one starts.
+    /// A caller waiting for a reload, with the read that answers it.
     private struct Reload {
         let continuation: CheckedContinuation<Void, Never>
         var read: UUID?

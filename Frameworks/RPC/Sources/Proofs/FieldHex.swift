@@ -1,9 +1,5 @@
-/// The prover's hexadecimal text for 32-byte big-endian values, such as BN254 field elements.
-///
-/// Requests use `0x` and lowercase digits without leading zeros, so zero is `0x0`. Responses may pad
-/// values to 64 digits.
+/// The prover's hexadecimal text for 32-byte big-endian values.
 enum FieldHex {
-    /// The lowercase hexadecimal digits.
     private static let digits = Array("0123456789abcdef".utf8)
 
     /// Encodes big-endian bytes as `0x` and lowercase digits without leading zeros.
@@ -18,7 +14,7 @@ enum FieldHex {
 
     /// Encodes an integer as `0x` and lowercase digits without leading zeros.
     ///
-    /// - Parameter value: The integer, such as a tree ID or a flag.
+    /// - Parameter value: The integer.
     /// - Returns: The value's text, `0x0` for zero.
     static func encode(integer value: UInt64) -> String {
         "0x" + String(value, radix: 16)
@@ -27,8 +23,7 @@ enum FieldHex {
     /// Decodes `0x` and one or more hexadecimal digits, with or without leading zeros, as 32 big-endian bytes.
     ///
     /// - Parameter text: The value's text.
-    /// - Returns: The value right-aligned in 32 bytes, or `nil` without the prefix, for other characters,
-    ///   or for a value of more than 32 bytes.
+    /// - Returns: The value right-aligned in 32 bytes, or `nil` for invalid text or a value of more than 32 bytes.
     static func decode(_ text: String) -> [UInt8]? {
         guard text.hasPrefix("0x") else { return nil }
         var nibbles: [UInt8] = []

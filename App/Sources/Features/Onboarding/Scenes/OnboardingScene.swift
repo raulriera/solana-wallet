@@ -1,27 +1,23 @@
 import SwiftUI
 import Vault
 
-/// Owns onboarding's navigation container and its RPC provider choice within the window's appearance environment.
+/// Shows onboarding's steps, from welcome to the RPC provider choice.
 struct OnboardingScene: View {
     @State private var navigation: OnboardingNavigation
     @State private var walletImport: ImportWalletModel
     @State private var walletSetup: WalletSetupModel
-    /// The draft, which onboarding keeps for as long as it stays; onboarding that starts again starts with a new one.
     @State private var coordinator: any OnboardingCoordinating
-    /// The provider choice, shown after the wallet is saved; a new draft's onboarding starts with a new one.
     @State private var providers: ProvidersCoordinator
-    /// The account that the window shows, which onboarding sets when it finishes.
     @Binding var account: Account?
     let pasteboard: any RecoveryCopying
 
-    /// Keeps the first draft and provider choice it receives for as long as onboarding stays; later ones are discarded.
+    /// Creates an onboarding scene.
     ///
-    /// The parent retains the pasteboard for the window's lifetime.
     /// - Parameters:
-    ///   - account: The window's account, which opens the saved wallet when onboarding sets it.
-    ///   - coordinator: A new draft's preparation and persistence, which onboarding keeps for as long as it stays.
-    ///   - providers: New RPC provider choices and key entry, which onboarding keeps for as long as it stays.
-    ///   - pasteboard: Copies a new wallet's recovery words to this device only, for a limited time.
+    ///   - account: The account that the window shows.
+    ///   - coordinator: The onboarding coordinator.
+    ///   - providers: The RPC provider coordinator.
+    ///   - pasteboard: The pasteboard that copies recovery words.
     init(account: Binding<Account?>, coordinator: any OnboardingCoordinating, providers: ProvidersCoordinator,
          pasteboard: any RecoveryCopying) {
         _account = account
@@ -60,7 +56,6 @@ struct OnboardingScene: View {
                                     .id(presentationID)
                             }
                         case .providers:
-                            // The wallet is already saved, so its earlier steps no longer apply.
                             ProviderChoiceScreen(coordinator: providers, continueSetup: walletSetup.open)
                                 .navigationBarBackButtonHidden()
                         case .providersRoute(let route):
@@ -76,24 +71,19 @@ struct OnboardingScene: View {
             if isPrepared { navigation.path = [.recovery] }
         }
         .onChange(of: navigation.path.first) { previous, _ in
-            // Back from the backup ends it and releases any draft no task still owns.
             if previous == .recovery { walletSetup.leaveBackup() }
         }
         .onChange(of: coordinator.account?.id) { showProviders() }
         .onChange(of: coordinator.finishedAccount) { _, finishedAccount in account = finishedAccount }
         .onChange(of: navigation.path.last) { showProviders() }
         .onDisappear {
-            // Active work releases its draft after cancellation unwinds.
             if !coordinator.isWorking, !walletImport.isPending { walletSetup.discardDraft() }
         }
-        // The provider choice's reads, changes, and prompts run while any onboarding step is on screen.
         .modifier(ProvidersLifecycle(coordinator: providers))
         .errorAlert($walletSetup.error)
     }
 
-    /// Pushes the provider choice over the step that saved the wallet, and again if anything pops past it.
-    ///
-    /// Creation and import both end by saving the account; the saved wallet's earlier steps no longer apply.
+    /// Pushes the provider choice once the wallet is saved.
     private func showProviders() {
         guard coordinator.account != nil, navigation.path.last != .providers else { return }
         navigation.path.append(.providers)

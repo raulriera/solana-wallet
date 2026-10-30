@@ -1,32 +1,26 @@
 public import Foundation
 
-/// A request for the network fee associated with a serialized transaction message.
+/// A request for the network fee of a serialized transaction message.
 public struct GetFeeForMessage: RPCRequest {
-    /// The JSON-RPC method name for calculating a message's fee.
     public static let method = "getFeeForMessage"
 
-    /// A nullable fee and the ledger context in which it was evaluated.
+    /// A fee and the ledger context of its calculation.
     public struct Response: Decodable, Sendable {
-        /// The ledger context associated with the fee calculation.
         public let context: Context
 
         /// The fee in lamports, or `nil` if the node can't determine it.
         public let value: UInt64?
 
-        /// Creates a fee result with its ledger context.
+        /// Creates a fee result.
         ///
         /// - Parameters:
-        ///   - context: The ledger context associated with the fee calculation.
+        ///   - context: The ledger context of the fee calculation.
         ///   - value: The fee in lamports, or `nil` if unavailable.
         public init(context: Context, value: UInt64?) {
             self.context = context
             self.value = value
         }
 
-        /// Creates a fee result by decoding its context and required nullable value.
-        ///
-        /// - Parameter decoder: The decoder containing the fee result.
-        /// - Throws: A decoding error if a required field is missing or malformed.
         public init(from decoder: any Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             context = try container.decode(Context.self, forKey: .context)
@@ -47,21 +41,14 @@ public struct GetFeeForMessage: RPCRequest {
 
     /// Creates a request for the fee of a serialized transaction message at finalized commitment.
     ///
-    /// Message construction belongs to the caller. This request converts the bytes
-    /// to base64 for transport; the server validates the message.
-    ///
     /// - Parameters:
     ///   - message: The serialized message bytes, without the transaction's signatures.
-    ///   - minContextSlot: The minimum evaluation slot. The default is `nil`.
+    ///   - minContextSlot: The minimum evaluation slot, or `nil` for no minimum.
     public init(message: Data, minContextSlot: UInt64? = nil) {
         self.message = message
         self.minContextSlot = minContextSlot
     }
 
-    /// Encodes the base64 message and ledger configuration as positional RPC parameters.
-    ///
-    /// - Parameter encoder: The encoder that receives the parameter array.
-    /// - Throws: An encoding error if the encoder can't represent a parameter.
     public func encode(to encoder: any Encoder) throws {
         var parameters = encoder.unkeyedContainer()
         try parameters.encode(message.base64EncodedString())

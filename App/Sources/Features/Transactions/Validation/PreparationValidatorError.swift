@@ -1,17 +1,14 @@
-/// An operation prerequisite that requires a new preparation or user review.
+/// An error for a preparation that must be prepared and reviewed again.
 nonisolated enum PreparationValidatorError: Error, Sendable, Equatable {
-    /// The selected provider serves a different network from the reviewed preparation.
+    /// The provider serves a different network than the preparation.
     case networkMismatch
-    /// The encoded message differs from the reviewed inspection or local instruction composition.
+    /// The encoded message differs from the reviewed one.
     case messageMismatch
-    /// Simulation reported that the transaction couldn't execute.
     case simulationFailed
-    /// The preparation has no known network fee to review.
     case feeUnavailable
-    /// The simulation, fee, or ledger contexts conflict with the prepared message.
+    /// The simulation, fee, or ledger context conflicts with the message.
     case inconsistentPreparation
-    /// The provider can no longer confirm the reviewed total fee.
     case feeChanged
-    /// The original blockhash has expired or its current validity can't be established.
+    /// The blockhash expired, or its validity is unknown.
     case expired
 }

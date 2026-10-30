@@ -1,23 +1,21 @@
 import RPC
 
-/// What a window needs to send payments: its account on its network and the shared transactions.
+/// A sender of payments from an account on a network.
 @MainActor
 struct PaymentSender {
-    /// The window's account, which pays.
+    /// The account that pays.
     let account: Account
-    /// The window's network.
     let network: Network
-    /// The transactions that every window sends, watches, and records.
     let transactions: TransactionStore
 
-    /// Starts the review of a payment of the amount typed now, with what it asks the person to check about the
-    /// recipient.
+    /// Creates the review of a payment to a recipient.
+    ///
     /// - Parameters:
-    ///   - amount: The amount as typed now.
-    ///   - recipient: Who the payment goes to.
-    ///   - context: The person's own history, which the review's checks compare the recipient with.
+    ///   - amount: The amount to pay.
+    ///   - recipient: The recipient of the payment.
+    ///   - context: The context to check the recipient against.
     /// - Returns: The payment's review, before it's simulated.
-    /// - Throws: The error of creating the network's transaction coordinator.
+    /// - Throws: An error creating the network's transaction coordinator.
     func review(_ amount: PaymentAmount, to recipient: PaymentRecipient, in context: RecipientContext) throws
         -> TransactionReviewModel<PaymentProposal> {
         let proposal = PaymentProposal(amount: amount, recipient: recipient,

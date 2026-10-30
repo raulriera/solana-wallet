@@ -1,23 +1,20 @@
 import Foundation
 
 extension RPCError {
-    /// Creates the error for an HTTP response with an unsuccessful status.
+    /// Creates the error for an HTTP response's unsuccessful status, or `nil` for a 2xx status.
     ///
-    /// The `Retry-After` field is kept as received; ``sanitized(_:redactor:)`` redacts it.
     /// - Parameter response: The response whose status to check.
-    /// - Returns: `nil` for a 2xx status.
     init?(response: HTTPURLResponse) {
         guard !(200..<300).contains(response.statusCode) else { return nil }
         self = .http(statusCode: response.statusCode, retryAfter: response.value(forHTTPHeaderField: "Retry-After"))
     }
 
-    /// Removes authenticated endpoints and provider text from a failure before it crosses the module boundary.
+    /// Returns a failure with its credentials removed.
     ///
-    /// Foundation errors may contain authenticated URLs or headers in their userInfo, so only their code remains.
     /// - Parameters:
     ///   - error: A transport, subscription, or decoding failure.
-    ///   - redactor: The provider's credential redaction policy.
-    /// - Returns: Cancellation, an RPC error with redacted provider text, or a transport code without its userInfo.
+    ///   - redactor: The redactor that removes secrets from text.
+    /// - Returns: A `CancellationError` or an ``RPCError`` with redacted text.
     static func sanitized(_ error: any Error, redactor: any TextRedactor) -> any Error {
         if error.isCancellation { return CancellationError() }
         switch error {

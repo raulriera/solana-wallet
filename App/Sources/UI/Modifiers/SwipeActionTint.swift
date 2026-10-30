@@ -4,9 +4,6 @@ import SwiftUI
 private struct SwipeActionTint: ViewModifier {
     let color: Color
 
-    /// Keeps the action's title for VoiceOver while the button shows only its symbol.
-    /// - Parameter content: The swipe action's button.
-    /// - Returns: The button with its symbol in white on the color.
     func body(content: Content) -> some View {
         content
             .labelStyle(.iconOnly)
@@ -17,6 +14,7 @@ private struct SwipeActionTint: ViewModifier {
 
 extension View {
     /// Shows a row's swipe action as a white symbol on a colored button.
+    ///
     /// - Parameter color: The button's color.
     /// - Returns: The swipe action's button with its symbol in white on the color.
     func swipeActionTint(_ color: Color) -> some View {

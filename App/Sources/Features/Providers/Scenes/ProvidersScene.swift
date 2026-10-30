@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Owns Providers' navigation container; the coordinator decides what's pushed.
+/// Shows Providers in a navigation stack.
 struct ProvidersScene: View {
     @Bindable var coordinator: ProvidersCoordinator
 

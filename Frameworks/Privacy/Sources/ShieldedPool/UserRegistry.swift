@@ -4,27 +4,14 @@ import ModularArithmetic
 import RPC
 import Transactions
 
-/// zolana's user registry: the program-derived record that publishes an owner's shielded address.
-///
-/// Each record lives at the address derived from `zolana/registry/v0` and the owner's 32 bytes,
-/// with the canonical bump. The program allocates 134 bytes and writes zolana's Borsh `UserRecord`:
-/// the discriminator 1, the owner, the bump, an optional 33-byte P-256 owner, the nullifier
-/// public key, the compressed P-256 viewing public key, and the merging flag. An Ed25519 owner has
-/// no P-256 owner, so the fields shift and zeros fill the rest. A missing account, or one that the
-/// registry program doesn't own, means that the owner hasn't registered; a lookup needs only
-/// standard RPC.
+/// The user registry, whose program-derived records publish owners' shielded addresses.
 public enum UserRegistry {
     /// A registry read that didn't return a valid record of the requested owner.
     public enum ValidationError: Error, Equatable {
-        /// The account doesn't have a record's 134 bytes.
         case invalidLength
-        /// The account's first byte isn't a record's discriminator.
         case invalidDiscriminator
-        /// The record names another owner.
         case ownerMismatch
-        /// The record's bump isn't the canonical bump of its address.
         case nonCanonicalBump
-        /// The record's owner signs with P-256, which this module doesn't support.
         case unsupportedP256Owner
         /// The record's optional P-256 owner has an invalid tag.
         case invalidOptionTag
@@ -38,25 +25,19 @@ public enum UserRegistry {
         case mismatchedResponse
     }
 
-    /// The registry program's address.
     private static let programID = "regyS5rkAcw2YzDJCmTwCTHs2s246FXxbmuRZ42u2PD"
 
-    /// The seed prefix of a record.
     private static let recordSeed = Array("zolana/registry/v0".utf8)
 
-    /// The length of a record's account.
+    /// The length of a record's account, in bytes.
     static let recordLength = 134
 
-    /// The discriminator of a record.
     private static let discriminator: UInt8 = 1
 
-    /// The position of the owner's address in a record.
     private static let ownerRange = 1..<33
 
-    /// The position of the bump in a record.
     private static let bumpIndex = 33
 
-    /// The position of the optional P-256 owner's tag in a record.
     private static let optionTagIndex = 34
 
     /// The position of an Ed25519 owner's nullifier public key in its record.
@@ -68,10 +49,6 @@ public enum UserRegistry {
     /// The position of an Ed25519 owner's merging flag in its record.
     private static let mergingFlagIndex = 100
 
-    /// The registry program.
-    ///
-    /// - Throws: ``Transactions/ValidationError/invalidAddress`` if the program ID doesn't decode,
-    ///   which doesn't happen.
     static var program: Address {
         get throws { try Address(programID) }
     }
@@ -80,7 +57,7 @@ public enum UserRegistry {
     ///
     /// - Parameter owner: The owner's signing address.
     /// - Returns: The record's address and bump.
-    /// - Throws: A ``Transactions/ValidationError`` if the derivation fails, which doesn't happen.
+    /// - Throws: A ``Transactions/ValidationError`` if the derivation fails.
     static func record(of owner: Address) throws -> (address: Address, bump: UInt8) {
         try ProgramAddress.find(seeds: [recordSeed, owner.bytes], program: program)
     }
@@ -118,7 +95,7 @@ public enum UserRegistry {
         return try Recipient(signingAddress: owner, nullifierPublicKey: nullifierPublicKey, viewingPublicKey: viewingPublicKey)
     }
 
-    /// Looks up owners' shielded addresses with one finalized `getMultipleAccounts` read.
+    /// Looks up owners' shielded addresses.
     ///
     /// - Parameters:
     ///   - owners: One to 100 owners' signing addresses.

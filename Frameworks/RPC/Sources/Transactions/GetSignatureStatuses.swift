@@ -1,52 +1,45 @@
-/// A request for the current execution and confirmation status of transactions.
+/// A request for the execution and confirmation statuses of transactions.
 public struct GetSignatureStatuses: RPCRequest {
-    /// The JSON-RPC method name for retrieving transaction statuses.
     public static let method = "getSignatureStatuses"
 
-    /// Transaction statuses in request order and the ledger context in which they were read.
+    /// The statuses in request order, with the ledger context of the lookups.
     public struct Response: Decodable, Sendable {
-        /// The ledger context associated with the status lookups.
         public let context: Context
 
-        /// Statuses in signature order, with `nil` where the node didn't find a transaction.
-        ///
-        /// A missing status doesn't establish whether the transaction failed or expired.
+        /// The statuses in request order, or `nil` for a transaction that the node didn't find.
         public let value: [Status?]
 
-        /// Creates transaction status results with their ledger context.
+        /// Creates a status result.
         ///
         /// - Parameters:
-        ///   - context: The ledger context associated with the lookups.
-        ///   - value: The statuses in request order, retaining `nil` for missing transactions.
+        ///   - context: The ledger context of the lookups.
+        ///   - value: The statuses in request order, with `nil` for missing transactions.
         public init(context: Context, value: [Status?]) {
             self.context = context
             self.value = value
         }
     }
 
-    /// The execution outcome and confirmation progress of a transaction found by the node.
+    /// The execution outcome and confirmation progress of a transaction.
     public struct Status: Decodable, Sendable {
-        /// The slot in which the transaction was processed.
         public let slot: UInt64
 
         /// The confirmation count, or `nil` when the transaction is rooted and finalized.
         public let confirmations: UInt64?
 
-        /// The execution failure, or `nil` if the transaction executed successfully.
-        ///
-        /// Execution failures are returned as data, independently of confirmation progress.
+        /// The execution error, or `nil` if the transaction succeeded.
         public let error: TransactionError?
 
-        /// The confirmation level reported by the node, or `nil` if unavailable.
+        /// The confirmation level, or `nil` if unavailable.
         public let confirmationStatus: Commitment?
 
-        /// Creates the execution outcome and confirmation progress of a transaction.
+        /// Creates a status.
         ///
         /// - Parameters:
         ///   - slot: The slot in which the transaction was processed.
         ///   - confirmations: The confirmation count, or `nil` when rooted and finalized.
-        ///   - error: The execution failure, or `nil` if execution succeeded.
-        ///   - confirmationStatus: The reported confirmation level, or `nil` if unavailable.
+        ///   - error: The execution error, or `nil` if execution succeeded.
+        ///   - confirmationStatus: The confirmation level, or `nil` if unavailable.
         public init(slot: UInt64, confirmations: UInt64?, error: TransactionError?, confirmationStatus: Commitment?) {
             self.slot = slot
             self.confirmations = confirmations
@@ -54,10 +47,6 @@ public struct GetSignatureStatuses: RPCRequest {
             self.confirmationStatus = confirmationStatus
         }
 
-        /// Decodes a status while requiring its nullable execution and confirmation fields.
-        ///
-        /// - Parameter decoder: The decoder containing the transaction status.
-        /// - Throws: A decoding error if a required field is missing or a field is malformed.
         public init(from decoder: any Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             slot = try container.decode(UInt64.self, forKey: .slot)
@@ -73,23 +62,16 @@ public struct GetSignatureStatuses: RPCRequest {
         }
     }
 
-    /// The base-58 encoded transaction signatures to query, in response order.
+    /// The base-58 transaction signatures to query.
     public let signatures: [String]
 
-    /// Creates a request for up to 256 transaction statuses, searching ledger history beyond the recent status cache.
+    /// Creates a request for up to 256 transaction statuses that searches the full ledger history.
     ///
-    /// Each call performs one lookup. Callers control polling and expiry checks.
-    ///
-    /// - Parameter signatures: Up to 256 base-58 encoded transaction signatures. The server validates
-    ///   the signatures and their count. Split larger collections into separate requests.
+    /// - Parameter signatures: Up to 256 base-58 transaction signatures.
     public init(signatures: [String]) {
         self.signatures = signatures
     }
 
-    /// Encodes the signatures and the history search as positional RPC parameters.
-    ///
-    /// - Parameter encoder: The encoder that receives the parameter array.
-    /// - Throws: An encoding error if the encoder can't represent a parameter.
     public func encode(to encoder: any Encoder) throws {
         var parameters = encoder.unkeyedContainer()
         try parameters.encode(signatures)

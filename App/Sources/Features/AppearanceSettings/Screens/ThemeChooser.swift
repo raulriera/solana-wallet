@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Presents committed selection data without observing the full package workflow.
+/// Lists the themes to choose from for the app or a wallet.
 struct ThemeChooser: View {
     @Environment(\.palette) private var palette
     let entries: [ThemeEntry]

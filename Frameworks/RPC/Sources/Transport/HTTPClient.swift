@@ -1,71 +1,52 @@
 import Foundation
 
-/// The shared single-attempt HTTP transport for provider adapters.
-///
-/// It sends JSON-RPC requests to its endpoint or to a path below it, and plain JSON requests whose
-/// responses carry no JSON-RPC envelope. A path goes before the endpoint's query, so a key in the
-/// query reaches every route.
+/// A client that sends JSON-RPC and JSON requests to an endpoint or to paths below it.
 struct HTTPClient: Sendable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
     private let endpoint: URL
     private let transport: any HTTPTransport
     private let redactor: any TextRedactor
 
-    /// Creates an HTTP client without exposing its endpoint in diagnostics.
+    /// Creates an HTTP client for an endpoint.
     ///
     /// - Parameters:
     ///   - endpoint: The provider's HTTP endpoint.
-    ///   - transport: The operation that performs each request.
-    ///   - redactor: The provider's credential redaction policy.
+    ///   - transport: The transport that performs HTTP requests.
+    ///   - redactor: The redactor that removes secrets from diagnostics.
     init(endpoint: URL, transport: any HTTPTransport, redactor: any TextRedactor) {
         self.endpoint = endpoint
         self.transport = transport
         self.redactor = redactor
     }
 
-    /// A representation that omits the endpoint and credentials.
     var description: String { "HTTPClient" }
 
-    /// A debugging representation that omits the endpoint and credentials.
     var debugDescription: String { description }
 
-    /// A reflection without children, so dumps can't reveal the endpoint or its key.
     var customMirror: Mirror { Mirror(self, children: [:]) }
 
-    /// Sends one request to the configured endpoint and decodes its response.
+    /// Sends one request to the endpoint and decodes its response.
     ///
-    /// Execution leaves the caller's actor. Each call uses its own encoder,
-    /// decoder, and request identifier, with a 30-second request timeout.
-    /// The client doesn't retry failed requests.
-    ///
-    /// - Parameter request: The typed RPC method and its parameters.
-    /// - Returns: The method's decoded result, after validating its response envelope.
-    /// - Throws: `CancellationError` if the operation is cancelled, or ``RPCError``
-    ///   if encoding, transport, HTTP, RPC, decoding, or response validation fails.
+    /// - Parameter request: The RPC method and its parameters.
+    /// - Returns: The decoded result.
+    /// - Throws: An ``RPCError`` or `CancellationError`.
     @concurrent
     func send<Request: RPCRequest>(_ request: Request) async throws -> Request.Response {
         try await send(request, to: endpoint)
     }
 
-    /// Sends one request to a path below the configured endpoint and decodes its response.
-    ///
-    /// The path goes before the endpoint's query. Otherwise this behaves like ``send(_:)``.
+    /// Sends one request to a path below the endpoint and decodes its response.
     ///
     /// - Parameters:
-    ///   - request: The typed RPC method and its parameters.
-    ///   - path: One or more path components without a leading slash, such as the method name.
-    /// - Returns: The method's decoded result, after validating its response envelope.
-    /// - Throws: `CancellationError` if the operation is cancelled, or ``RPCError``
-    ///   if encoding, transport, HTTP, RPC, decoding, or response validation fails.
+    ///   - request: The RPC method and its parameters.
+    ///   - path: One or more path components without a leading slash.
+    /// - Returns: The decoded result.
+    /// - Throws: An ``RPCError`` or `CancellationError`.
     @concurrent
     func send<Request: RPCRequest>(_ request: Request, at path: String) async throws -> Request.Response {
         try await send(request, to: try url(at: path))
     }
 
-    /// Posts a JSON body to a path below the configured endpoint and decodes the response body directly.
-    ///
-    /// Execution leaves the caller's actor. The request has a 30-second timeout and isn't retried.
-    /// The response has no JSON-RPC envelope: an unsuccessful status throws ``RPCError/http(statusCode:retryAfter:)``
-    /// whatever its body, and a successful body must decode as `Response`.
+    /// Posts a JSON body to a path below the endpoint and decodes the response body without a JSON-RPC envelope.
     ///
     /// - Parameters:
     ///   - body: The value to send as the JSON request body.
@@ -73,8 +54,7 @@ struct HTTPClient: Sendable, CustomStringConvertible, CustomDebugStringConvertib
     ///   - headers: Header fields to add to `Content-Type: application/json`.
     ///   - response: The type of the decoded response body.
     /// - Returns: The decoded response body.
-    /// - Throws: `CancellationError` if the operation is cancelled, or ``RPCError``
-    ///   if encoding, transport, HTTP, or decoding fails.
+    /// - Throws: An ``RPCError`` or `CancellationError`.
     @concurrent
     func post<Body: Encodable & Sendable, Response: Decodable & Sendable>(
         _ body: Body, at path: String, headers: [String: String], decoding response: Response.Type
@@ -98,10 +78,10 @@ struct HTTPClient: Sendable, CustomStringConvertible, CustomDebugStringConvertib
     /// Sends one JSON-RPC request to a URL and validates its response envelope.
     ///
     /// - Parameters:
-    ///   - request: The typed RPC method and its parameters.
-    ///   - url: The endpoint, or a route below it.
-    /// - Returns: The method's decoded result.
-    /// - Throws: `CancellationError` or ``RPCError``.
+    ///   - request: The RPC method and its parameters.
+    ///   - url: The endpoint, or a path below it.
+    /// - Returns: The decoded result.
+    /// - Throws: An ``RPCError`` or `CancellationError`.
     private func send<Request: RPCRequest>(_ request: Request, to url: URL) async throws -> Request.Response {
         try Task.checkCancellation()
         let id = UUID().uuidString
@@ -135,14 +115,14 @@ struct HTTPClient: Sendable, CustomStringConvertible, CustomDebugStringConvertib
         }
     }
 
-    /// Creates a JSON `POST` request with the shared 30-second timeout.
+    /// Creates a JSON `POST` request with a 30-second timeout.
     ///
     /// - Parameters:
     ///   - url: The request's URL.
     ///   - body: The value to encode as the JSON body.
     ///   - headers: Header fields to add to `Content-Type: application/json`.
-    /// - Returns: The request, ready to send.
-    /// - Throws: `CancellationError`, or ``RPCError/encoding`` if the body can't be encoded.
+    /// - Returns: The request.
+    /// - Throws: ``RPCError/encoding`` or `CancellationError`.
     private func makeRequest(to url: URL, body: some Encodable, headers: [String: String]) throws -> URLRequest {
         var request = URLRequest(url: url, timeoutInterval: 30)
         request.httpMethod = "POST"
@@ -160,8 +140,8 @@ struct HTTPClient: Sendable, CustomStringConvertible, CustomDebugStringConvertib
     /// Appends a path to the endpoint's path, keeping its query.
     ///
     /// - Parameter path: One or more path components without a leading slash.
-    /// - Returns: The route's URL, such as `https://host/base/path?api-key=…`.
-    /// - Throws: ``RPCError/encoding`` if the result isn't a valid URL.
+    /// - Returns: The path's URL.
+    /// - Throws: ``RPCError/encoding`` for an invalid URL.
     private func url(at path: String) throws -> URL {
         guard var components = URLComponents(url: endpoint, resolvingAgainstBaseURL: false) else {
             throw RPCError.encoding

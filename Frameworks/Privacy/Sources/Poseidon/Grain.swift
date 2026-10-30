@@ -1,21 +1,12 @@
 /// The self-shrinking Grain LFSR that generates Poseidon's parameters for the BN254 scalar field.
-///
-/// It follows hadeshash's `generate_parameters_grain.sage`. An 80-bit register s₀ … s₇₉ is seeded
-/// from the instance's parameters, and each clock shifts in s₆₂ ⊕ s₅₁ ⊕ s₃₈ ⊕ s₂₃ ⊕ s₁₃ ⊕ s₀ after
-/// s₇₉. The first 160 bits are discarded. Afterwards the generator reads bits in pairs and outputs
-/// the second bit of each pair whose first bit is one.
 struct Grain {
-    /// The bit length n of the BN254 scalar field's modulus, and of each drawn value.
+    /// The bit length of the BN254 scalar field's modulus and of each drawn value.
     private static let fieldBits = 254
 
     /// The register, with s₀ in bit 79 and s₇₉ in bit 0.
     private var register: UInt128
 
-    /// Seeds the register for one Poseidon instance and discards the first 160 bits.
-    ///
-    /// The seed, most significant bit first, is the prime-field type 1 (2 bits), the x^α S-box 0
-    /// (4 bits), the field size n (12 bits), the width (12 bits), the full rounds (10 bits), the
-    /// partial rounds (10 bits), and thirty ones.
+    /// Creates a generator seeded for one Poseidon instance.
     ///
     /// - Parameters:
     ///   - width: The number of state elements, t.
@@ -33,7 +24,7 @@ struct Grain {
         }
     }
 
-    /// Draws n bits, most significant first.
+    /// Draws 254 bits, most significant first.
     ///
     /// - Returns: The bits as a 32-byte big-endian value below 2^254.
     mutating func nextValue() -> [UInt8] {
@@ -48,7 +39,6 @@ struct Grain {
     ///
     /// - Returns: The second bit of that pair.
     private mutating func nextBit() -> UInt8 {
-        // Each loop condition reads the first bit of a pair; the body discards its second bit.
         while clock() == 0 {
             clock()
         }
@@ -57,7 +47,7 @@ struct Grain {
 
     /// Shifts the register by one bit.
     ///
-    /// - Returns: The new bit s₇₉, zero or one.
+    /// - Returns: The new bit s₇₉.
     @discardableResult
     private mutating func clock() -> UInt128 {
         let bit = ((register >> 79) ^ (register >> 66) ^ (register >> 56)

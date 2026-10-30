@@ -1,26 +1,22 @@
 import RPC
 import SwiftUI
 
-/// Owns a window's Settings tab: its Security & Privacy and Providers workflows, which the tab keeps while the person
-/// switches tabs.
-///
-/// Leaving the wallet, as a reset does, ends the tab and its workflows with it.
+/// Shows a window's Settings tab with its Security & Privacy and Providers workflows.
 struct SettingsScene: View {
     @State private var security: SecurityCoordinator
     @State private var providers: ProvidersCoordinator
     @Binding var network: Network
     let settings: AppearanceSettingsModel
-    /// The owning window's account, which Accounts changes.
     @Binding var account: Account
 
-    /// Keeps the first workflows it receives for as long as the tab stays; later ones are discarded.
+    /// Creates the Settings tab.
+    ///
     /// - Parameters:
-    ///   - settings: The window's appearance editing; the window cancels unfinished work when it leaves the wallet.
-    ///   - account: The owning window's account, whose wallet's accounts Accounts lists and changes, and whose recovery
-    ///     Security & Privacy shows.
-    ///   - network: The network that the owning window shows; other windows keep theirs.
-    ///   - security: New Security & Privacy navigation and steps for the tab.
-    ///   - providers: New RPC provider choices and key entry for the tab.
+    ///   - settings: The window's appearance settings workflow.
+    ///   - account: The window's account.
+    ///   - network: The window's network.
+    ///   - security: The Security & Privacy workflow.
+    ///   - providers: The RPC provider workflow.
     init(settings: AppearanceSettingsModel, account: Binding<Account>,
          network: Binding<Network>, security: SecurityCoordinator, providers: ProvidersCoordinator) {
         self.security = security

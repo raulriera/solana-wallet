@@ -1,4 +1,4 @@
-/// An onboarding failure that never retains underlying errors or recovery text.
+/// An error in the onboarding workflow.
 nonisolated enum OnboardingCoordinatorError: Error, Equatable {
     case operationInProgress
     case draftAlreadyPrepared

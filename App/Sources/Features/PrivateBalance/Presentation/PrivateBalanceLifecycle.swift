@@ -1,8 +1,7 @@
 import RPC
 import SwiftUI
 
-/// Turns private balances on from SOL's details: one attempt at a time, with a haptic and a VoiceOver announcement
-/// when it succeeds, and an alert when it fails; and presents moves of SOL between the account's balances.
+/// Runs turning private balances on and presents balance moves.
 private struct PrivateBalanceLifecycle: ViewModifier {
     @Environment(PrivateBalanceStore.self) private var privateBalances
     @Bindable var model: PrivateBalanceModel
@@ -24,8 +23,9 @@ private struct PrivateBalanceLifecycle: ViewModifier {
 }
 
 extension TokenDetailScreen {
-    /// Runs turning private balances on from the token's details.
-    /// - Returns: The details with turning private balances on.
+    /// Runs turning private balances on and presents balance moves.
+    ///
+    /// - Returns: The screen with the private-balance lifecycle.
     func privateBalanceLifecycle() -> some View {
         modifier(PrivateBalanceLifecycle(model: privateBalance, account: account, network: network))
     }

@@ -1,6 +1,6 @@
 import Foundation
 
-/// Why a custom RPC couldn't be added; it never contains the URL, which can hold a key.
+/// A reason a custom RPC couldn't be added.
 nonisolated enum CustomRPCError: ProviderEntryError {
     /// The text isn't an HTTPS URL with a host.
     case notHTTPS
@@ -10,14 +10,12 @@ nonisolated enum CustomRPCError: ProviderEntryError {
     case unreachable
     /// The RPC didn't accept a live-updates subscription at the same URL.
     case noLiveUpdates
-    /// The RPC is limiting requests; the person decides when to try again.
     case rateLimited
     /// The RPC couldn't be checked for another reason.
     case unavailable
-    /// The checked RPC couldn't be saved on this device.
+    /// The RPC couldn't be saved.
     case storageFailed
 
-    /// Whether the URL itself was rejected, so the screen explains it under the field.
     var rejectsEntry: Bool {
         switch self {
         case .notHTTPS, .duplicate, .unreachable, .noLiveUpdates: true
@@ -25,7 +23,6 @@ nonisolated enum CustomRPCError: ProviderEntryError {
         }
     }
 
-    /// Names the failure in an alert's title.
     var errorDescription: String? {
         switch self {
         case .notHTTPS, .duplicate, .unreachable, .noLiveUpdates: String(localized: "Couldn't Add RPC")
@@ -35,7 +32,6 @@ nonisolated enum CustomRPCError: ProviderEntryError {
         }
     }
 
-    /// Explains the failure without the URL or underlying error text.
     var message: LocalizedStringResource {
         switch self {
         case .notHTTPS: "Enter a full URL that starts with https://."

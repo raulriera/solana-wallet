@@ -1,7 +1,6 @@
-/// What the backup screen shows after the user authenticates.
+/// The result of reading a wallet's recovery for backup.
 nonisolated enum RecoveryDisplay: Sendable {
-    /// The wallet's backup, ready to write down.
     case backup(RecoveryBackup)
-    /// This device no longer has the wallet's recovery.
+    /// The wallet's recovery isn't on this device.
     case unavailable
 }

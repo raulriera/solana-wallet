@@ -1,11 +1,7 @@
-/// The Groth16 proof of a transact: 192 bytes that the shielded-pool program verifies.
-///
-/// `a` and `c` are compressed G1 points of 32 bytes each, and `b` is a G2 point of 128 big-endian
-/// bytes, as the prover returns them.
+/// The 192-byte Groth16 proof of a transact.
 struct TransactProof: Sendable, Equatable {
     /// Bytes that aren't a proof.
     enum ValidationError: Error, Equatable {
-        /// A part doesn't have its length: 32 bytes for `a` and `c`, or 128 for `b`.
         case invalidLength
     }
 
@@ -32,7 +28,7 @@ struct TransactProof: Sendable, Equatable {
         self.c = c
     }
 
-    /// Writes the proof: `a`, `b`, and `c`, without lengths.
+    /// Writes `a`, `b`, and `c` without lengths.
     ///
     /// - Parameter writer: The writer that receives the proof.
     func write(to writer: inout WincodeWriter) {

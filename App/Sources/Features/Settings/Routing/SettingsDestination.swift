@@ -1,4 +1,4 @@
-/// Destinations available in the settings sidebar.
+/// A destination in the Settings sidebar.
 enum SettingsDestination: Hashable {
     case appearance
     case network

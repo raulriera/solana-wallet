@@ -1,18 +1,16 @@
 import Darwin
 import Foundation
 
-/// Private metadata and atomic directory operations, used only inside CatalogIO.
+/// File operations on the theme catalog's folder.
 nonisolated enum CatalogFiles {
     static let packageName = "Theme.xtheme"
     static let metadataName = "state.json"
 
-    /// Reads catalog metadata and preferences without touching manifests or assets.
+    /// Reads the catalog's state, deleting it and the installed packages when it's unreadable.
     ///
-    /// Metadata that can't be decoded or doesn't match itself can't be repaired, so it is deleted with the
-    /// installed packages, and the catalog starts over with the original appearance instead of failing forever.
-    /// - Parameter directory: The private catalog root.
-    /// - Returns: Current committed state, or an empty state before the first mutation or after unreadable metadata.
-    /// - Throws: A storage error from reading the metadata or deleting unreadable metadata.
+    /// - Parameter directory: The catalog's folder.
+    /// - Returns: The saved state, or an empty state when there's none.
+    /// - Throws: A storage error.
     static func state(in directory: URL) throws -> CatalogState {
         let url = directory.appendingPathComponent(metadataName)
         do {
@@ -30,13 +28,14 @@ nonisolated enum CatalogFiles {
         return state
     }
 
-    /// Checks that a mutation still refers to the entry the caller reviewed.
+    /// Checks that the installed theme with an identity matches the expected entry.
+    ///
     /// - Parameters:
-    ///   - id: The identity being installed, read, or removed.
-    ///   - expected: The approved revision, or `nil` when creating a new identity.
-    ///   - directory: The private catalog root.
-    /// - Returns: The checked state for a subsequent mutation on the same I/O queue.
-    /// - Throws: A replacement-required or changed-entry error before any mutation.
+    ///   - id: The theme's identity.
+    ///   - expected: The expected entry, or `nil` when the theme shouldn't be installed.
+    ///   - directory: The catalog's folder.
+    /// - Returns: The catalog's state.
+    /// - Throws: A replacement-required or changed-entry error.
     @discardableResult
     static func check(_ id: UUID, expected: ThemeEntry?, in directory: URL) throws -> CatalogState {
         let state = try state(in: directory)
@@ -46,10 +45,11 @@ nonisolated enum CatalogFiles {
         return state
     }
 
-    /// Creates operation-local staging on the catalog's volume.
-    /// - Parameter directory: The private catalog root, created when necessary.
-    /// - Returns: An OS-managed temporary directory on the same volume.
-    /// - Throws: A filesystem error.
+    /// Creates a temporary folder on the catalog's volume.
+    ///
+    /// - Parameter directory: The catalog's folder.
+    /// - Returns: The temporary folder.
+    /// - Throws: A file system error.
     static func staging(in directory: URL) throws -> URL {
         let manager = FileManager.default
         try manager.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -57,13 +57,14 @@ nonisolated enum CatalogFiles {
                                appropriateFor: directory, create: true)
     }
 
-    /// Commits catalog entries and selections together using an atomic metadata replacement.
+    /// Saves the catalog's state with the next revision in one atomic write.
+    ///
     /// - Parameters:
-    ///   - state: Updated state read on the same serial I/O queue.
-    ///   - directory: The private catalog root.
-    ///   - checkCancellation: The final cancellation checkpoint before the atomic write.
-    /// - Returns: Committed state with its monotonically increasing revision.
-    /// - Throws: An encoding, filesystem, or pre-commit cancellation error.
+    ///   - state: The state to save.
+    ///   - directory: The catalog's folder.
+    ///   - checkCancellation: A check that throws when the operation is cancelled.
+    /// - Returns: The saved state.
+    /// - Throws: An encoding, file system, or cancellation error.
     @discardableResult
     static func commit(_ state: CatalogState, in directory: URL,
                        checkCancellation: () throws -> Void) throws -> CatalogState {
@@ -77,38 +78,40 @@ nonisolated enum CatalogFiles {
         return committed
     }
 
-    /// Deletes every installed package; a missing folder is already deleted.
-    /// - Parameter directory: The private catalog root.
-    /// - Throws: A filesystem error.
+    /// Deletes every installed package.
+    ///
+    /// - Parameter directory: The catalog's folder.
+    /// - Throws: A file system error.
     private static func discard(packagesIn directory: URL) throws {
         do {
             try FileManager.default.removeItem(at: packages(in: directory))
         } catch CocoaError.fileNoSuchFile {}
     }
 
-    /// Locates immutable package bytes for one installed revision.
+    /// Returns the location of an installed theme's package.
+    ///
     /// - Parameters:
-    ///   - entry: A custom catalog entry.
-    ///   - directory: The private catalog root.
-    /// - Returns: The generation-specific package directory.
+    ///   - entry: The installed theme.
+    ///   - directory: The catalog's folder.
+    /// - Returns: The package's location.
     static func package(for entry: ThemeEntry, in directory: URL) -> URL {
         packages(in: directory).appendingPathComponent(entry.revision.uuidString + ".xtheme")
     }
 
-    /// Locates the folder that holds every installed package.
-    /// - Parameter directory: The private catalog root.
-    /// - Returns: The packages folder, which may not exist yet.
+    /// Returns the folder of installed packages.
+    ///
+    /// - Parameter directory: The catalog's folder.
+    /// - Returns: The packages folder.
     private static func packages(in directory: URL) -> URL {
         directory.appendingPathComponent("Packages")
     }
 
-    /// Commits a complete directory in one same-volume rename operation.
+    /// Moves a folder in one atomic rename that fails when the destination exists.
     ///
-    /// Exclusive insertion cannot overwrite another installed generation.
     /// - Parameters:
-    ///   - source: The staged package directory.
-    ///   - destination: The final location on the same volume.
-    /// - Throws: The filesystem error from the atomic operation.
+    ///   - source: The folder to move.
+    ///   - destination: The new location on the same volume.
+    /// - Throws: A file system error.
     static func move(_ source: URL, to destination: URL) throws {
         let errorCode = try source.withUnsafeFileSystemRepresentation { sourcePath in
             guard let sourcePath else { throw ThemeCatalogError.invalidStorage }

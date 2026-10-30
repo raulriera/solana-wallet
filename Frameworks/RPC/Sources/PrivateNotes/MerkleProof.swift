@@ -1,23 +1,17 @@
-/// A UTXO's inclusion proof in its tree's UTXO tree, as an indexer reads it.
-///
-/// Values are 32 big-endian bytes, the field elements that the prover reads. Bit `i` of the leaf index is 0 when
-/// the node at level `i` is a left child.
+/// A UTXO's inclusion proof in a UTXO tree.
 public struct MerkleProof: Sendable, Equatable {
-    /// The UTXO tree's height, the number of siblings in a path.
+    /// The number of siblings in a path.
     public static let height = 32
 
-    /// The UTXO hash that the proof includes.
     public let leaf: [UInt8]
     /// The leaf's siblings, leaf level first.
     public let path: [[UInt8]]
-    /// The leaf's position in the tree.
     public let leafIndex: UInt64
-    /// The root that the path leads to.
     public let root: [UInt8]
     /// The root's position in the tree's on-chain root history.
     public let rootIndex: UInt16
 
-    /// Creates a proof after checking its lengths.
+    /// Creates a proof.
     ///
     /// - Parameters:
     ///   - leaf: The 32-byte UTXO hash.

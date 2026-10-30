@@ -1,43 +1,36 @@
 public import Foundation
 public import Transactions
 
-/// An asset held by a wallet, with optional descriptive and pricing information.
+/// An asset that a wallet holds, with its details and valuation.
 public struct Holding: Codable, Sendable, Equatable, Identifiable {
-    /// An asset's identity within the snapshot's network.
+    /// The identity of an asset on a network.
     public enum Identity: Codable, Sendable, Hashable {
-        /// Native SOL, distinct from wrapped SOL tokens.
         case nativeSOL
         /// A token, identified by its mint address.
         case asset(String)
     }
 
-    /// The identity of the holding within its network.
     public let id: Identity
-    /// The exact amount, or `nil` if the balance couldn't be read or belongs to ``otherOwner``.
+    /// The amount, or `nil` if the balance couldn't be read or belongs to ``otherOwner``.
     public let amount: Amount?
-    /// The address that controls the token's account at the wallet's associated address, when it isn't the wallet.
-    ///
-    /// That address owns the account's tokens, so the holding has no amount.
+    /// The owner of the token account at the wallet's associated address, or `nil` if it's the wallet.
     public let otherOwner: Address?
-    /// The display name, if known.
     public let name: String?
-    /// The ticker symbol, if known.
+    /// The ticker symbol.
     public let symbol: String?
-    /// The image URL, if the provider supplies one.
     public internal(set) var imageURL: URL?
-    /// The available market valuation.
     public internal(set) var valuation: Valuation?
 
-    /// Creates a holding from its identity and available portfolio data.
+    /// Creates a holding.
     ///
     /// - Parameters:
-    ///   - id: The asset identity within the snapshot's network.
-    ///   - amount: The exact amount, or `nil` if unknown.
-    ///   - otherOwner: The address that controls the token's account instead of the wallet, or `nil`.
+    ///   - id: The asset's identity.
+    ///   - amount: The amount, or `nil` if unknown.
+    ///   - otherOwner: The owner of the token account when it isn't the wallet, or `nil`.
     ///   - name: The asset name, or `nil` if unknown.
     ///   - symbol: The ticker symbol, or `nil` if unknown.
-    ///   - imageURL: The image URL, or `nil` if unavailable.
-    ///   - valuation: The available price information, or `nil` if unpriced.
+    ///   - imageURL: The image URL, or `nil` if none.
+    ///   - valuation: The valuation, or `nil` if unpriced.
     public init(id: Identity, amount: Amount?, otherOwner: Address? = nil, name: String?, symbol: String?,
                 imageURL: URL?, valuation: Valuation?) {
         self.id = id

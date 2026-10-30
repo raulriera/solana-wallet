@@ -1,12 +1,13 @@
 import Foundation
 import Transactions
 
-/// Runs a screen's rules over an address, in the order the screen lists them.
+/// A list of rules that check a recipient's address.
 nonisolated struct RecipientClassifier: Sendable {
-    /// The checks to run, most serious first.
+    /// The rules, most serious first.
     let rules: [any RecipientRule]
 
     /// Runs every rule over an address.
+    ///
     /// - Parameters:
     ///   - address: The address to pay.
     ///   - context: The person's own history.
@@ -17,8 +18,8 @@ nonisolated struct RecipientClassifier: Sendable {
 }
 
 nonisolated extension RecipientClassifier {
-    /// The checks shown while a recipient is entered: whether the payment could go somewhere unintended.
+    /// The rules shown while a recipient is entered.
     static let entry = RecipientClassifier(rules: [.lookAlike, .programAddress])
-    /// The checks shown on a payment's review: the entry's, and whether the person paid the address before.
+    /// The rules shown on a payment's review.
     static let review = RecipientClassifier(rules: [.lookAlike, .programAddress, .firstPayment])
 }

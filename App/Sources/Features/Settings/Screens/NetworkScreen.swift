@@ -1,7 +1,7 @@
 import RPC
 import SwiftUI
 
-/// Chooses the network that the owning window shows; other windows keep theirs.
+/// A screen that chooses the window's network.
 struct NetworkScreen: View {
     @Environment(\.palette) private var palette
     @Binding var network: Network

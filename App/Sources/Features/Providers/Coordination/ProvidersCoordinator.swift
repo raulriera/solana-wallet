@@ -2,34 +2,28 @@ import Foundation
 import Observation
 import Storage
 
-/// Owns one window's RPC provider choices, custom RPCs, and the key entry they need, in Settings and onboarding.
+/// Coordinates one window's RPC provider choices, custom RPCs, and the key entry they need.
 @MainActor
 @Observable
 final class ProvidersCoordinator: ProviderActions {
-    /// The screens pushed above Providers; Back removes the last one.
-    ///
-    /// A closed screen's check or RPC stays until the screen opens again, so the screen keeps its content while it
-    /// slides away.
+    /// The screens pushed above Providers.
     var path: [ProvidersRoute] = []
-    /// The custom RPC check for the last opening of its screen; each opening starts a new one.
+    /// The custom RPC check of the last opened setup screen.
     private(set) var setup: ProviderSetupModel<CustomRPCError>?
     /// The custom RPC whose details opened last.
     private(set) var details: URL?
-    /// The new key's checks for the last opening of its screen; each opening starts a new one.
+    /// The new key's checks of the last opened key screen.
     private(set) var newKey: ProviderSetupModel<ProviderConnectionError>?
     /// The custom RPC waiting for the person to confirm its deletion.
     var removal: URL?
-    /// The key sheet's checks while a choice waits for a key; each opening starts a new one.
+    /// The key sheet's checks while a choice waits for a key.
     var keyEntry: ProviderSetupModel<ProviderConnectionError>?
-    /// A secret-free error for the alert.
     var error: ProvidersError?
-    /// The change waiting for the screen's task, identified without secrets.
+    /// The ID of the waiting change.
     private(set) var attempt: UUID?
-    /// The provider chosen once the key it asked for was saved, until another change begins; a choice made without
-    /// key entry never sets it.
+    /// The provider chosen after its key was saved, until another change begins.
     private(set) var completedKeyChoice: ProviderSettings.Provider?
     @ObservationIgnored private var request: Request?
-    /// The choice that waits for a key; kept after its key sheet closes, so the sheet's saved key still continues it.
     private var keyChoice: KeyChoice?
     private let providers: ProviderStore
     private let connection: any ProviderConnecting<ProviderConnectionError>
@@ -37,7 +31,7 @@ final class ProvidersCoordinator: ProviderActions {
 
     /// A change that waits for storage.
     private enum Request {
-        /// Chooses a provider; `afterKeyEntry` marks the choice that continues once its key sheet saved the key.
+        /// A provider choice, where `afterKeyEntry` marks one that continues after its key was saved.
         case select(ProviderSettings.Provider, afterKeyEntry: Bool)
         case remove(URL)
     }
@@ -48,11 +42,12 @@ final class ProvidersCoordinator: ProviderActions {
         let entry: ProviderSetupModel<ProviderConnectionError>
     }
 
-    /// Connects the coordinator to the shared provider services.
+    /// Creates a coordinator with the provider services.
+    ///
     /// - Parameters:
-    ///   - providers: The provider choice, custom RPCs, and key that every window shares.
-    ///   - connection: Verifies and saves the provider's API key.
-    ///   - customRPCConnection: Checks a custom RPC URL, then adds it and chooses it.
+    ///   - providers: The provider choice, custom RPCs, and key.
+    ///   - connection: The connection that checks and saves an API key.
+    ///   - customRPCConnection: The connection that checks and adds a custom RPC URL.
     init(providers: ProviderStore, connection: any ProviderConnecting<ProviderConnectionError>,
          customRPCConnection: any ProviderConnecting<CustomRPCError>) {
         self.providers = providers
@@ -60,18 +55,10 @@ final class ProvidersCoordinator: ProviderActions {
         self.customRPCConnection = customRPCConnection
     }
 
-    /// Chooses the provider that every window uses, asking for its key first when none is saved.
-    ///
-    /// Taps while another change waits are ignored.
-    /// - Parameter provider: The provider to use.
     func select(_ provider: ProviderSettings.Provider) {
         begin(.select(provider, afterKeyEntry: false))
     }
 
-    /// Pushes a provider's details: Helius's saved key or a custom RPC's URL.
-    ///
-    /// The provider in use stays.
-    /// - Parameter provider: The provider whose details to show.
     func showDetails(for provider: ProviderSettings.Provider) {
         guard attempt == nil else { return }
         switch provider {
@@ -85,57 +72,48 @@ final class ProvidersCoordinator: ProviderActions {
         }
     }
 
-    /// Pushes the screen that checks a new key and saves it in place of any saved key; the provider in use stays.
-    ///
-    /// The screen's wording, adding or changing a key, is set when it opens, so it stays while the key saves.
     func changeKey() {
         guard attempt == nil else { return }
         newKey = ProviderSetupModel(connection: connection)
         path.append(.providerKey(ProviderEntryPurpose(keyPreview: providers.keyPreview)))
     }
 
-    /// Opens the screen that checks and adds a custom RPC.
     func addCustomRPC() {
         guard attempt == nil else { return }
         setup = ProviderSetupModel(connection: customRPCConnection)
         path.append(.customRPCSetup)
     }
 
-    /// Deletes a confirmed custom RPC for every window; its details close themselves once the list no longer has it.
+    /// Deletes a confirmed custom RPC.
     ///
-    /// Deleting the RPC in use switches every window to Solana. Taps while another change waits are ignored.
     /// - Parameter url: The RPC to delete.
     func remove(_ url: URL) {
         begin(.remove(url))
     }
 
-    /// Continues the choice that asked for a key, once its key sheet has saved the key; a sheet that closed without a
-    /// saved key continues nothing.
-    ///
-    /// Once the choice is saved, ``completedKeyChoice`` names its provider.
+    /// Continues the choice that asked for a key once the key is saved.
     func keySaved() {
         guard let keyChoice, keyChoice.entry.isSaved else { return }
         self.keyChoice = nil
         begin(.select(keyChoice.provider, afterKeyEntry: true))
     }
 
-    /// Reads the settings that every window shares, unless they were already read; unreadable settings explain the
-    /// failure.
+    /// Reads the provider settings, and sets an error when they can't be read.
     func load() async {
         await providers.load()
         guard !Task.isCancelled, providers.phase == .unreadable else { return }
         error = .selectionUnreadable
     }
 
-    /// Closes the screens pushed above Providers, and any deletion waiting for confirmation, when another Settings
-    /// destination opens.
+    /// Closes the screens pushed above Providers and any deletion waiting for confirmation.
     func leave() {
         removal = nil
         path = []
     }
 
-    /// Runs the waiting change once in the screen's SwiftUI-managed task.
-    /// - Parameter attempt: The identifier the screen's task captured.
+    /// Runs the waiting change once.
+    ///
+    /// - Parameter attempt: The ID of the change to run.
     func run(_ attempt: UUID?) async {
         guard let attempt, self.attempt == attempt, let request = request.take() else { return }
         defer { if self.attempt == attempt { self.attempt = nil } }
@@ -148,7 +126,6 @@ final class ProvidersCoordinator: ProviderActions {
                 try await providers.remove(url)
             }
         } catch is CancellationError {
-            // The screen left before the change was saved.
         } catch ProviderClientError.settingsUnreadable {
             guard !Task.isCancelled, self.attempt == attempt else { return }
             error = .selectionUnreadable
@@ -166,7 +143,8 @@ final class ProvidersCoordinator: ProviderActions {
         }
     }
 
-    /// Accepts one change at a time, ignoring taps while another change waits.
+    /// Accepts a change unless another one waits.
+    ///
     /// - Parameter request: The change to run.
     private func begin(_ request: Request) {
         guard attempt == nil else { return }

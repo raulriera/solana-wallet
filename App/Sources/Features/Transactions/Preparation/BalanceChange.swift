@@ -1,38 +1,30 @@
 import RPC
 import Transactions
 
-/// A balance difference observed in simulation for one owner and asset.
-///
-/// Changes describe simulated execution only. They don't establish program intent,
-/// user consent, scam safety, or future execution.
+/// A balance change that a simulation shows for one owner and asset.
 nonisolated struct BalanceChange: Sendable, Equatable {
-    /// The asset whose balance changed.
+    /// An asset whose balance changed.
     enum Asset: Sendable, Hashable {
-        /// Native SOL held by the owner's own account, in lamports.
+        /// SOL in the owner's own account, in lamports.
         case sol
         /// One mint's raw units across the owner's token accounts.
         case token(mint: Address, decimals: UInt8)
     }
 
-    /// The account holding SOL, or the owner of the token accounts.
+    /// The account that holds the SOL, or the owner of the token accounts.
     let owner: Address
-    /// The changed asset.
     let asset: Asset
     /// The balance before execution, in lamports or raw token units.
     let before: UInt64
     /// The balance after execution, in lamports or raw token units.
     let after: UInt64
 
-    /// Compares the node's balances before and after execution.
-    ///
-    /// SOL changes use each account's own lamports, so deposits into token accounts
-    /// aren't attributed to their owners. Token changes sum raw units per owner and mint.
+    /// Returns the balances that a simulation changed.
     ///
     /// - Parameters:
-    ///   - transaction: The simulated transaction whose account list indexes the balances.
-    ///   - simulation: The execution outcome with balances before and after.
-    /// - Returns: The changed balances, SOL in account order and then tokens in observation
-    ///   order, or `nil` if balances are missing or can't be attributed to the transaction.
+    ///   - transaction: The simulated transaction, whose accounts index the balances.
+    ///   - simulation: The simulation with balances before and after execution.
+    /// - Returns: The changed balances, SOL first in account order, or `nil` if balances are missing or invalid.
     static func changes(in transaction: Transaction, from simulation: SimulateTransaction.Value) -> [BalanceChange]? {
         guard let lamportsBefore = simulation.preBalances, let lamportsAfter = simulation.postBalances,
               let tokensBefore = simulation.preTokenBalances, let tokensAfter = simulation.postTokenBalances,
@@ -63,7 +55,7 @@ nonisolated struct BalanceChange: Sendable, Equatable {
         return changes
     }
 
-    /// One owner's position in one asset.
+    /// One owner's balance in one asset.
     private struct Holding: Hashable {
         let owner: Address
         let asset: Asset

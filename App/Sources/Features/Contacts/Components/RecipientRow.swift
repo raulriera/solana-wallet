@@ -1,15 +1,13 @@
 import SwiftUI
 import Transactions
 
-/// One address in the contacts list: its name over its short address, or, unsaved, its short address over when it
-/// was last paid.
+/// A row that shows an address with its name, or with when it was last paid.
 struct RecipientRow: View {
     /// The name the address is saved under, or `nil` when it isn't saved.
     let name: String?
     let address: Address
-    /// When the address was last paid, shown under an unsaved address.
+    /// When the address was last paid.
     let date: Date?
-    /// The name of the SF Symbol that pictures the row's section.
     let systemImage: String
 
     var body: some View {

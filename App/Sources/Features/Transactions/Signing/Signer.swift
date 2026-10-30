@@ -4,39 +4,25 @@ import Transactions
 import Vault
 import Wallet
 
-/// A stateless coordinator for validating, unlocking, and signing reviewed V1 transactions.
+/// A signer that validates, unlocks, and signs reviewed transactions.
 nonisolated struct Signer: TransactionSigning {
     private let validator: any PreparationValidating
     private let store: any RecoveryStoring
     private let wallet: any MessageSigning
     private let transactionBuilder: any TransactionBuilding = TransactionBuilder()
 
-    /// Creates a signer with protected recovery storage and protocol-based dependencies.
+    /// Creates a signer.
     ///
     /// - Parameters:
-    ///   - validator: Rechecks the reviewed fee and original lifetime with the network.
-    ///   - store: The recovery store that authenticates access to the selected wallet.
-    ///   - wallet: The account-bound message signer. The default is `Wallet`.
+    ///   - validator: The validator that checks the preparation's fee and lifetime.
+    ///   - store: The recovery store that authenticates access to saved accounts.
+    ///   - wallet: The message signer.
     init(validator: any PreparationValidating, store: any RecoveryStoring, wallet: any MessageSigning = Wallet()) {
         self.validator = validator
         self.store = store
         self.wallet = wallet
     }
 
-    /// Validates the reviewed bytes before unlocking, then signs them without substitution.
-    ///
-    /// Expiry is checked before authentication and again after signing, so a message
-    /// that expired during authentication never yields a usable signature. The original
-    /// blockhash, amount, recipient, and fee configuration are never refreshed automatically.
-    /// Recovery material stays local to this operation and isn't returned or cached. A one-time
-    /// account signs with its in-memory key, without reading the recovery store or authenticating.
-    ///
-    /// - Parameters:
-    ///   - preparation: The preparation whose details the user has approved.
-    ///   - authority: The selected saved or one-time account.
-    ///   - reason: The localized explanation shown by the recovery store during authentication.
-    /// - Returns: The typed signed transaction and the unchanged review data.
-    /// - Throws: A prerequisite, dependency, or cancellation error.
     @concurrent
     func sign(_ preparation: Preparation, for authority: Authority, reason: String) async throws -> SignedTransaction {
         try Task.checkCancellation()
@@ -53,13 +39,13 @@ nonisolated struct Signer: TransactionSigning {
         return SignedTransaction(preparation: preparation, transaction: transaction)
     }
 
-    /// Produces the signature for one authority; a saved account's recovery lives only for this call.
+    /// Returns an authority's signature over a preparation's message.
     ///
     /// - Parameters:
-    ///   - preparation: The already validated review data.
-    ///   - authority: The selected saved or one-time account.
-    ///   - reason: The localized authentication explanation.
-    /// - Returns: The signature from the account matching the selected required signer.
+    ///   - preparation: The validated preparation.
+    ///   - authority: The account that signs.
+    ///   - reason: The localized reason for authentication.
+    /// - Returns: The signature.
     /// - Throws: A storage, signing, or cancellation error.
     private func signature(for preparation: Preparation, by authority: Authority, reason: String) async throws -> Data {
         switch authority {
@@ -71,13 +57,13 @@ nonisolated struct Signer: TransactionSigning {
         }
     }
 
-    /// Signs with recovery material whose lifetime ends when this call returns.
+    /// Signs a preparation's message with recovery material.
     ///
     /// - Parameters:
-    ///   - preparation: The already validated review data.
-    ///   - recovery: The authenticated recovery material, owned by this call only.
-    ///   - path: The selected account's derivation path.
-    /// - Returns: The signature over the reviewed message.
+    ///   - preparation: The validated preparation.
+    ///   - recovery: The authenticated recovery material.
+    ///   - path: The account's derivation path.
+    /// - Returns: The signature.
     /// - Throws: A signing or cancellation error.
     private func signature(for preparation: Preparation, using recovery: Recovery, path: DerivationPath) async throws -> Data {
         try Task.checkCancellation()

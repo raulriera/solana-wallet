@@ -1,10 +1,9 @@
-/// A type that submits a reviewed, signed transaction without rebuilding or resigning it.
+/// A type that submits a reviewed, signed transaction.
 nonisolated protocol TransactionSubmitting: Sendable {
-    /// Submits concurrently through all supplied RPCs after checking transaction prerequisites.
+    /// Checks a signed transaction, then submits it through every supplied RPC at once.
     ///
-    /// - Parameter signed: The approved transaction returned by the signing workflow.
-    /// - Returns: A plain receipt after the attempts finish and at least one RPC acknowledges it.
-    /// - Throws: A missing-signature error, or a ``DeliveryError`` that retains the receipt. A failure after dispatch
-    ///   doesn't prove the transaction wasn't received; use the receipt's signature for subsequent status checks.
+    /// - Parameter signed: The signed transaction.
+    /// - Returns: The transaction's receipt.
+    /// - Throws: A missing-signature error, or a ``DeliveryError`` with the receipt.
     func submit(_ signed: SignedTransaction) async throws -> Submission
 }

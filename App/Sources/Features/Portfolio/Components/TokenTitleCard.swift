@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// A token's logo, name, and symbol on Solana, as its details and the add-token preview introduce it.
+/// A title card with a token's logo, name, and symbol on Solana.
 struct TokenTitleCard: View {
     let symbol: String
     let name: String

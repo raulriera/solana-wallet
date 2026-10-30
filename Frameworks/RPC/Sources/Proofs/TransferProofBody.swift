@@ -1,53 +1,26 @@
-/// The JSON body of a transfer proof request on the prover's complete route, zolana's flat
-/// `TransferParametersJSON`.
-///
-/// Every field element, index, and tree ID is `0x` and lowercase hexadecimal digits without leading zeros, `0x0`
-/// for zero; the prover reads text without `0x` as hexadecimal too, so decimal text would be misread. Only the
-/// circuit type and the slot counts aren't hexadecimal. The five tree slots follow the declared trees with zeros.
+/// The JSON body of a transfer proof request.
 struct TransferProofBody: Encodable, Sendable {
-    /// The circuit's name.
     let circuitType = "transfer-confidential"
-    /// The value of the `nInputs` field.
     let nInputs: Int
-    /// The value of the `nOutputs` field.
     let nOutputs: Int
-    /// The value of the `inputs` field.
     let inputs: [Input]
-    /// The value of the `outputs` field.
     let outputs: [Output]
-    /// The value of the `treeSlots` field.
     let treeSlots: [TreeSlot]
-    /// The value of the `outputTreeId` field.
     let outputTreeId: String
-    /// The value of the `externalDataHash` field.
     let externalDataHash: String
-    /// The value of the `privateTxHash` field.
     let privateTxHash: String
-    /// The value of the `blindingSeed` field.
     let blindingSeed: String
-    /// The value of the `publicAssets` field.
     let publicAssets: [String]
-    /// The value of the `publicAmounts` field.
     let publicAmounts: [String]
-    /// The value of the `ringProgramId` field.
     let ringProgramId: String
-    /// The value of the `signerPkHashes` field.
     let signerPkHashes: [String]
-    /// The value of the `inputFlags` field.
     let inputFlags: String
-    /// The value of the `publishedOutputOwnerPkHashes` field.
     let publishedOutputOwnerPkHashes: [String]
-    /// The value of the `cacheTreeId` field.
     let cacheTreeId: String
-    /// The value of the `cacheReadHashChain` field.
     let cacheReadHashChain: String
-    /// The value of the `cacheReadHashes` field.
     let cacheReadHashes: [String]
-    /// The value of the `cacheIsCached` field.
     let cacheIsCached: [String]
-    /// The value of the `cacheReadIndex` field.
     let cacheReadIndex: [String]
-    /// The value of the `publicInputHash` field.
     let publicInputHash: String
 
     /// Creates the body of a request.
@@ -82,39 +55,25 @@ struct TransferProofBody: Encodable, Sendable {
 
     /// A tree slot's ID and roots.
     struct TreeSlot: Encodable, Sendable {
-        /// The value of the `id` field.
         let id: String
-        /// The value of the `utxoRoot` field.
         let utxoRoot: String
-        /// The value of the `nullifierRoot` field.
         let nullifierRoot: String
     }
 
     /// One input slot, with its Merkle and non-inclusion paths.
     struct Input: Encodable, Sendable {
-        /// The value of the `utxo` field.
         let utxo: UTXO
-        /// The value of the `isDummy` field.
         let isDummy: String
-        /// The value of the `treeSlot` field.
         let treeSlot: String
-        /// The value of the `nullifier` field.
         let nullifier: String
-        /// The value of the `ownerPkHash` field.
         let ownerPkHash: String
-        /// The value of the `nullifierSecret` field.
         let nullifierSecret: String
-        /// The value of the `statePathElements` field: 32 siblings, zero without an inclusion proof.
+        /// The 32 siblings, or zeros without an inclusion proof.
         let statePathElements: [String]
-        /// The value of the `statePathIndex` field.
         let statePathIndex: String
-        /// The value of the `nullifierLowValue` field.
         let nullifierLowValue: String
-        /// The value of the `nullifierNextValue` field.
         let nullifierNextValue: String
-        /// The value of the `nullifierLowPathElements` field: 40 siblings.
         let nullifierLowPathElements: [String]
-        /// The value of the `nullifierLowPathIndex` field.
         let nullifierLowPathIndex: String
 
         /// Creates an input slot's text.
@@ -139,15 +98,10 @@ struct TransferProofBody: Encodable, Sendable {
 
     /// One output slot.
     struct Output: Encodable, Sendable {
-        /// The value of the `utxo` field.
         let utxo: UTXO
-        /// The value of the `isDummy` field.
         let isDummy: String
-        /// The value of the `hash` field.
         let hash: String
-        /// The value of the `ownerPkHash` field.
         let ownerPkHash: String
-        /// The value of the `nullifierPk` field.
         let nullifierPk: String
 
         /// Creates an output slot's text.
@@ -164,21 +118,13 @@ struct TransferProofBody: Encodable, Sendable {
 
     /// A UTXO's eight field elements.
     struct UTXO: Encodable, Sendable {
-        /// The value of the `domain` field.
         let domain: String
-        /// The value of the `owner` field.
         let owner: String
-        /// The value of the `asset` field.
         let asset: String
-        /// The value of the `amount` field.
         let amount: String
-        /// The value of the `blinding` field.
         let blinding: String
-        /// The value of the `dataHash` field.
         let dataHash: String
-        /// The value of the `ringDataHash` field.
         let ringDataHash: String
-        /// The value of the `ringProgramId` field.
         let ringProgramId: String
 
         /// Creates a UTXO's text.

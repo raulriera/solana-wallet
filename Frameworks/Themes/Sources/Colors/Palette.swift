@@ -1,4 +1,4 @@
-/// Complete semantic colors for one appearance.
+/// The semantic colors for one appearance.
 public struct Palette: Sendable, Equatable {
     public let background: Color
     public let surface: Color
@@ -8,15 +8,16 @@ public struct Palette: Sendable, Equatable {
     public let accent: Color
     public let onAccent: Color
 
-    /// Creates a complete palette without implicit defaults.
+    /// Creates a palette.
+    ///
     /// - Parameters:
-    ///   - background: The main content background.
-    ///   - surface: Content layered on the background.
-    ///   - primaryText: Primary content text.
-    ///   - secondaryText: Supporting content text.
-    ///   - separator: Content dividers.
-    ///   - accent: Emphasized content.
-    ///   - onAccent: Content displayed over the accent color.
+    ///   - background: The main content background color.
+    ///   - surface: The color of content layered on the background.
+    ///   - primaryText: The primary text color.
+    ///   - secondaryText: The supporting text color.
+    ///   - separator: The color of content dividers.
+    ///   - accent: The color of emphasized content.
+    ///   - onAccent: The color of content over the accent color.
     public init(background: Color, surface: Color, primaryText: Color, secondaryText: Color,
                 separator: Color, accent: Color, onAccent: Color) {
         self.background = background
@@ -28,9 +29,10 @@ public struct Palette: Sendable, Equatable {
         self.onAccent = onAccent
     }
 
-    /// Resolves supplied roles against this palette.
-    /// - Parameter overrides: Validated overrides for individual roles.
-    /// - Returns: A complete palette retaining defaults for omitted roles.
+    /// Returns the palette with overrides applied.
+    ///
+    /// - Parameter overrides: The validated colors to override, by role.
+    /// - Returns: The palette, with its own colors for omitted roles.
     func applying(_ overrides: [Role: Color]) -> Palette {
         Palette(background: overrides[.background] ?? background,
                 surface: overrides[.surface] ?? surface,
@@ -41,14 +43,14 @@ public struct Palette: Sendable, Equatable {
                 onAccent: overrides[.onAccent] ?? onAccent)
     }
 
-    /// All role values for complete package serialization.
+    /// Every color, by role.
     var values: [Role: Color] {
         [.background: background, .surface: surface, .primaryText: primaryText,
          .secondaryText: secondaryText, .separator: separator, .accent: accent, .onAccent: onAccent]
     }
 }
 
-/// The manifest's supported semantic roles.
+/// A semantic color role.
 enum Role: String, CaseIterable, Sendable {
     case background, surface, primaryText, secondaryText, separator, accent, onAccent
 }

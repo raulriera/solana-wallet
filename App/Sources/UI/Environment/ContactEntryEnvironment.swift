@@ -1,6 +1,6 @@
 import SwiftUI
 
 extension EnvironmentValues {
-    /// Opens the window's recipient sheet; `nil` outside Contacts, where no sheet can open.
+    /// The action that opens the recipient sheet, or `nil` outside Contacts.
     @Entry var contactEntry: ContactEntryAction?
 }

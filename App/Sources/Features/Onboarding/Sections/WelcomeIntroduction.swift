@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Groups the welcome copy for either layout supplied by the screen.
+/// The welcome title card.
 struct WelcomeIntroduction: View {
     @Environment(\.palette) private var palette
 

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Owns Security & Privacy's navigation container; the coordinator decides what's pushed.
+/// Shows Security & Privacy and the screens it pushes.
 struct SecurityScene: View {
     @Bindable var coordinator: SecurityCoordinator
     let account: Account

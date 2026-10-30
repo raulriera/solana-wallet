@@ -1,33 +1,36 @@
 import Foundation
 import Observation
 
-/// Shared presentation state for application and wallet appearance selections.
+/// An observable source of the app's and wallets' theme selections.
 @MainActor protocol AppearanceCoordinating: AnyObject, Observable {
     var snapshot: AppearanceSnapshot? { get }
 
-    /// Applies pending Settings recovery before loading appearance when a window becomes active.
-    /// Concurrent activations share the same operation, which survives individual window cancellation.
-    /// - Throws: A storage or preferences error, leaving failed recovery requests enabled.
+    /// Loads the theme selections, first resetting them when the person requests it in Settings.
+    ///
+    /// - Throws: A storage or preferences error.
     func activate() async throws
 
-    /// Refreshes cached metadata at startup and after successful catalog mutations.
-    /// - Throws: A storage or cancellation error, preserving the previous snapshot.
+    /// Loads the theme selections again.
+    ///
+    /// - Throws: A storage or cancellation error.
     func reload() async throws
 
-    /// Forgets the cached selections and loads them again after the app deletes its saved data, which starts the
-    /// stored revision over.
-    /// - Throws: A storage or cancellation error, leaving the original appearance.
+    /// Discards the loaded theme selections and loads them again.
+    ///
+    /// - Throws: A storage or cancellation error.
     func restart() async throws
 
-    /// Persists a selection and publishes the committed state to all consuming windows.
+    /// Saves and publishes the theme of the app or a wallet.
+    ///
     /// - Parameters:
-    ///   - themeID: The selected identity, or `nil` to restore inheritance/original appearance.
-    ///   - scope: The application default or a stable wallet identity.
-    /// - Throws: A selection, storage, or cancellation error without an optimistic UI change.
+    ///   - themeID: The theme, or `nil` to clear the selection.
+    ///   - scope: The app or wallet to change.
+    /// - Throws: A selection, storage, or cancellation error.
     func select(_ themeID: UUID?, for scope: AppearancePreferences.Scope) async throws
 
-    /// Persists that no scope uses a theme and publishes the committed state to all consuming windows.
-    /// - Parameter themeID: The theme that the application and every wallet stop using.
-    /// - Throws: A storage or cancellation error without an optimistic UI change.
+    /// Clears and publishes every selection of a theme.
+    ///
+    /// - Parameter themeID: The theme to clear.
+    /// - Throws: A storage or cancellation error.
     func forget(_ themeID: UUID) async throws
 }

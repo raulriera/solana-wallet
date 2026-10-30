@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Presents key entry in its own navigation container, over the screen that needs the key.
+/// Presents key entry in its own navigation stack.
 struct ProviderSetupSheet: View {
     let submission: ProviderSetupModel<ProviderConnectionError>
 

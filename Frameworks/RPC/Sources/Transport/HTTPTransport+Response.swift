@@ -1,12 +1,13 @@
 import Foundation
 
 extension HTTPTransport {
-    /// Performs one HTTP attempt, preserving cancellation and sanitizing failures.
+    /// Performs one HTTP request and returns the body of a successful response.
+    ///
     /// - Parameters:
-    ///   - request: The complete request to perform.
-    ///   - redactor: The credential redaction policy for response diagnostics.
-    /// - Returns: The body of a successful HTTP response.
-    /// - Throws: A transport, HTTP, response-validation, or cancellation error.
+    ///   - request: The request to perform.
+    ///   - redactor: The redactor that removes secrets from errors.
+    /// - Returns: The response body.
+    /// - Throws: An ``RPCError`` or `CancellationError`.
     func responseData(for request: URLRequest, redactor: any TextRedactor) async throws -> Data {
         try Task.checkCancellation()
         let data: Data

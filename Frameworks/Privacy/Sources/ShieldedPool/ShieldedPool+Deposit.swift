@@ -4,35 +4,22 @@ import ModularArithmetic
 public import Transactions
 
 extension ShieldedPool {
-    /// The tag of the proofless `deposit` instruction.
     private static let depositTag: UInt8 = 15
 
-    /// The kind of a native-SOL settlement group, `DepositAssetKind::Sol`.
     private static let solAssetKind: UInt8 = 0
 
-    /// The domain of a deposit's blinding, ASCII `Deposit`.
     private static let depositBlindingDomain = Array("Deposit".utf8)
 
     /// Creates a proofless deposit of public SOL into one recipient's default-ring UTXO.
     ///
-    /// The instruction data is the tag 15, one SOL settlement group, and one entry: the group's
-    /// index 0, the recipient's view tag and owner hash, the amount as a little-endian 64-bit
-    /// integer, and no memo. The program derives the UTXO's blinding from the tree and the leaf
-    /// index, so the depositor commits to nothing else. The accounts are the tree, the depositor as
-    /// a writable signer, the shielded-pool program, the System Program, and the writable SOL
-    /// interface. The depositor signs; the program doesn't read the registry, so the deposit can
-    /// share a transaction with the recipient's registration.
-    ///
     /// - Parameters:
     ///   - lamports: The positive amount to deposit, excluding fees.
     ///   - depositor: The wallet that pays the lamports and signs.
-    ///   - recipient: The owner of the new UTXO, from ``Recipient/lookup(_:using:)``, or
-    ///     ``ShieldedAccount/recipient`` for the depositor's own private balance.
-    ///   - treeID: The ID of the tree that receives the UTXO, such as
-    ///     ``NoteSyncState/outputTreeID``.
-    /// - Returns: The instruction, which can be composed with other program invocations.
+    ///   - recipient: The owner of the new UTXO.
+    ///   - treeID: The ID of the tree that receives the UTXO.
+    /// - Returns: The deposit instruction.
     /// - Throws: ``Transactions/ValidationError/invalidAmount`` for zero lamports, or another
-    ///   ``Transactions/ValidationError`` if an account's derivation fails, which doesn't happen.
+    ///   ``Transactions/ValidationError`` if an account's derivation fails.
     public static func deposit(lamports: UInt64, from depositor: Address, to recipient: Recipient, treeID: UInt16) throws -> Instruction {
         guard lamports > 0 else { throw ValidationError.invalidAmount }
         var writer = WincodeWriter()
@@ -40,7 +27,6 @@ extension ShieldedPool {
         try writer.appendCount(1)
         writer.append(solAssetKind)
         try writer.appendCount(1)
-        // The entry's index into the settlement groups.
         writer.append(UInt8(0))
         writer.append(array: recipient.viewTag)
         writer.append(array: recipient.owner.bigEndianBytes)
@@ -55,12 +41,7 @@ extension ShieldedPool {
         ], data: Data(writer.bytes))
     }
 
-    /// Derives the blinding that the program gives a deposited UTXO, `deposit_blinding`.
-    ///
-    /// The blinding is SHA-256 of `Deposit`, the tree's address, and the UTXO's leaf index as a
-    /// big-endian 64-bit integer, with its first byte set to zero so it's a field element. A tree
-    /// position holds one UTXO, so no two deposits share a blinding. The deposit's payload also
-    /// publishes the blinding; a recipient recomputes it to check the payload.
+    /// Derives the blinding that the program gives a deposited UTXO.
     ///
     /// - Parameters:
     ///   - tree: The account of the tree that holds the UTXO.

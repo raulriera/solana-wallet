@@ -1,7 +1,7 @@
 import RPC
 import Transactions
 
-/// Serializes changes to each account's token list, so edits from several windows don't overwrite each other.
+/// An actor that serializes changes to each account's token list.
 actor TokenListCoordinator {
     private let store: any TokenListStoring
     private let network: Network
@@ -9,7 +9,7 @@ actor TokenListCoordinator {
     /// Creates a coordinator for one network's lists.
     ///
     /// - Parameters:
-    ///   - store: The persistent token-list store.
+    ///   - store: The token-list store.
     ///   - network: The network whose lists the coordinator keeps.
     init(store: any TokenListStoring, network: Network) {
         self.store = store
@@ -25,13 +25,13 @@ actor TokenListCoordinator {
         try store.tokenList(for: key(for: owner)) ?? TokenList(defaultsFor: network)
     }
 
-    /// Adds a token and saves the list; an unreadable saved list stays in place.
+    /// Adds a token to an account's list and saves the list.
     ///
     /// - Parameters:
     ///   - token: The token to add.
     ///   - owner: The account's wallet address.
-    /// - Returns: Whether the token was new to the list.
-    /// - Throws: ``TokenListError`` for a full or unreadable list, or a file-system error if saving fails.
+    /// - Returns: `true` if the token was new to the list.
+    /// - Throws: A ``TokenListError`` or a file-system error.
     func add(_ token: ListedToken, for owner: String) throws -> Bool {
         let saved = try list(for: owner)
         var list = saved
@@ -40,13 +40,13 @@ actor TokenListCoordinator {
         return list != saved
     }
 
-    /// Removes a token and saves the list; an unreadable saved list stays in place.
+    /// Removes a token from an account's list and saves the list.
     ///
     /// - Parameters:
     ///   - mint: The mint address of the token to remove.
     ///   - owner: The account's wallet address.
-    /// - Returns: Whether the token was listed.
-    /// - Throws: ``TokenListError/unreadable`` if the saved list can't be read, or a file-system error if saving fails.
+    /// - Returns: `true` if the token was listed.
+    /// - Throws: ``TokenListError/unreadable`` or a file-system error.
     func remove(_ mint: Address, for owner: String) throws -> Bool {
         let saved = try list(for: owner)
         var list = saved
@@ -58,15 +58,15 @@ actor TokenListCoordinator {
     /// Removes an account's saved list.
     ///
     /// - Parameter owner: The account's wallet address.
-    /// - Throws: A file-system error if an existing list can't be removed.
+    /// - Throws: A file-system error.
     func removeList(for owner: String) throws {
         try store.remove(for: key(for: owner))
     }
 
-    /// Identifies an account's list on this coordinator's network.
+    /// Returns the storage key of an account's list.
     ///
     /// - Parameter owner: The account's wallet address.
-    /// - Returns: The storage key for the account and network.
+    /// - Returns: The key for the account on the coordinator's network.
     private func key(for owner: String) -> CacheKey {
         CacheKey(owner: owner, network: network)
     }

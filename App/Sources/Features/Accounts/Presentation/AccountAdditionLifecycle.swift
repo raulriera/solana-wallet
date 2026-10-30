@@ -1,14 +1,11 @@
 import SwiftUI
 
-/// Runs each account addition while the accounts list is on screen and explains a failure.
+/// A modifier that runs account additions and presents their errors.
 struct AccountAdditionLifecycle: ViewModifier {
     @Environment(\.accountCreation) private var creation
     @Environment(AccountStore.self) private var store
     @Bindable var addition: AccountAdditionModel
 
-    /// Awaits one addition at a time and presents its failure, with Try Again when it can help.
-    /// - Parameter content: The accounts list.
-    /// - Returns: The list with managed additions and failure presentation.
     func body(content: Content) -> some View {
         let attempt = addition.attempt
         content

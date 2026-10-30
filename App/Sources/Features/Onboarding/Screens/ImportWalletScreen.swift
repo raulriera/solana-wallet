@@ -1,12 +1,11 @@
 import SwiftUI
 
-/// Collects and validates existing recovery without deriving accounts or saving secrets.
+/// Collects and validates an existing wallet's recovery words for import.
 struct ImportWalletScreen: View {
     @Environment(\.palette) private var palette
     @Environment(\.canDisplayRecovery) private var canDisplayRecovery
     @State private var input = RecoveryEntryModel()
     @FocusState private var focusedField: RecoveryEntryModel.Field?
-    /// Receives locally validated input after explicit approval; owns subsequent work.
     let submission: any ImportSubmitting
 
     var body: some View {
@@ -74,8 +73,6 @@ struct ImportWalletScreen: View {
         .navigationTitle("Import Wallet")
         .navigationBarTitleDisplayMode(.inline)
         .onChange(of: focusedField?.rawValue ?? 0) { oldValue, newValue in
-            // Revealing the words replaces the hidden control and resigns its focus; that isn't an editing exit.
-            // Hiding them while editing ends editing, so it checks the words as leaving the field does.
             let oldField = RecoveryEntryModel.Field(rawValue: oldValue)
             let newField = RecoveryEntryModel.Field(rawValue: newValue)
             if oldField == input.phraseField || oldField == .revealedPhrase,
@@ -96,7 +93,7 @@ struct ImportWalletScreen: View {
         }
     }
 
-    /// Delegates only a valid phrase, preserving the original passphrase exactly.
+    /// Submits valid recovery words for import.
     private func submit() {
         guard canDisplayRecovery else { return }
         focusedField = nil
@@ -112,13 +109,9 @@ struct ImportWalletScreen: View {
     .tint(RenderedPalette(OriginalAppearance.palette).accent)
 }
 
-/// Keeps previews local without persistence or task side effects.
+/// An import workflow for previews that imports nothing.
 private struct PreviewImportSubmission: ImportSubmitting {
     var isPending: Bool { false }
 
-    /// Accepts preview interaction without retaining or saving its supplied input.
-    /// - Parameters:
-    ///   - phrase: The preview's recovery input.
-    ///   - passphrase: The preview's optional original passphrase.
     func submit(_ phrase: String, passphrase: String) {}
 }

@@ -4,14 +4,12 @@ import ImageIO
 
 /// Picks a logo's most common colored region from a small thumbnail.
 nonisolated enum ArtworkSampler {
-    /// Samples encoded image data without decoding it at full size.
+    /// Samples a logo's encoded image data.
     ///
-    /// Transparent and neutral pixels, such as backgrounds and borders, don't count.
     /// - Parameter data: The encoded logo, such as PNG or JPEG data.
     /// - Returns: The average color of the most common colored region, or `nil` when the data isn't an image
     ///   or has no colored pixels.
     static func color(from data: Data) -> ArtworkColor? {
-        // At 64 pixels, thin marks such as SOL's bars keep more fill than edges blended into the background.
         guard let source = CGImageSourceCreateWithData(data as CFData, [kCGImageSourceShouldCache: false] as CFDictionary),
               let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [
                   kCGImageSourceCreateThumbnailFromImageAlways: true,
@@ -41,7 +39,6 @@ nonisolated enum ArtworkSampler {
             region.blue += blue
             regions[key] = region
         }
-        // Equal regions fall to the lower key, so a logo always gives the same color.
         guard let winner = regions.max(by: { lhs, rhs in
             lhs.value.count == rhs.value.count ? lhs.key > rhs.key : lhs.value.count < rhs.value.count
         })?.value else { return nil }

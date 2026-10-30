@@ -2,21 +2,19 @@ public import Foundation
 
 /// A request to evaluate a serialized transaction without broadcasting it.
 public struct SimulateTransaction: RPCRequest {
-    /// The JSON-RPC method name for transaction simulation.
     public static let method = "simulateTransaction"
 
-    /// An execution result and the ledger context in which it was evaluated.
+    /// An execution outcome and the ledger context of its simulation.
     public struct Response: Decodable, Sendable {
-        /// The ledger context associated with the simulation.
         public let context: Context
 
-        /// The execution outcome, including any transaction failure.
+        /// The execution outcome.
         public let value: Value
 
-        /// Creates a simulation response with its ledger context.
+        /// Creates a simulation response.
         ///
         /// - Parameters:
-        ///   - context: The ledger context associated with the simulation.
+        ///   - context: The ledger context of the simulation.
         ///   - value: The execution outcome.
         public init(context: Context, value: Value) {
             self.context = context
@@ -24,27 +22,24 @@ public struct SimulateTransaction: RPCRequest {
         }
     }
 
-    /// The outcome of evaluating a transaction, including diagnostics for failed execution.
+    /// The outcome of evaluating a transaction, with its diagnostics.
     public struct Value: Decodable, Sendable, Equatable {
-        /// The transaction failure, or `nil` if execution succeeded.
-        ///
-        /// Execution failures are returned with the simulation's diagnostics.
-        /// Failures to perform the RPC request are thrown by the client.
+        /// The transaction error, or `nil` if execution succeeded.
         public let error: TransactionError?
 
-        /// The program logs, or `nil` if logs weren't available.
+        /// The program logs, or `nil` if unavailable.
         public let logs: [String]?
 
         /// The compute units consumed, or `nil` if unavailable.
         public let unitsConsumed: UInt64?
 
-        /// The account-data bytes loaded during execution, or `nil` if unavailable.
+        /// The size in bytes of the account data loaded during execution, or `nil` if unavailable.
         public let loadedAccountsDataSize: UInt32?
 
         /// The simulated fee in lamports, or `nil` if unavailable.
         public let fee: UInt64?
 
-        /// The replacement blockhash and its expiry height, if supplied by the node.
+        /// The replacement blockhash and its expiry height, or `nil` if the node supplied none.
         public let replacementBlockhash: GetLatestBlockhash.Value?
 
         /// The lamports of each transaction account before execution, in account order, or `nil` if unavailable.
@@ -59,10 +54,10 @@ public struct SimulateTransaction: RPCRequest {
         /// The token account balances after execution, or `nil` if unavailable.
         public let postTokenBalances: [TokenBalance]?
 
-        /// Creates an execution outcome with its available diagnostics.
+        /// Creates an execution outcome.
         ///
         /// - Parameters:
-        ///   - error: The transaction failure, or `nil` if execution succeeded.
+        ///   - error: The transaction error, or `nil` if execution succeeded.
         ///   - logs: The program logs, or `nil` if unavailable.
         ///   - unitsConsumed: The consumed compute units, or `nil` if unavailable.
         ///   - loadedAccountsDataSize: The loaded account-data bytes, or `nil` if unavailable.
@@ -96,10 +91,6 @@ public struct SimulateTransaction: RPCRequest {
             self.postTokenBalances = postTokenBalances
         }
 
-        /// Decodes a required nullable execution error and the available diagnostics.
-        ///
-        /// - Parameter decoder: The decoder containing the execution outcome.
-        /// - Throws: A decoding error if the error field is missing or a field is malformed.
         public init(from decoder: any Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             error = try container.decode(TransactionError?.self, forKey: .error)
@@ -122,28 +113,27 @@ public struct SimulateTransaction: RPCRequest {
         }
     }
 
-    /// A token account's raw balance observed before or after execution.
+    /// A token account's raw balance before or after execution.
     public struct TokenBalance: Decodable, Sendable, Equatable {
         /// The token account's index in the transaction's account list.
         public let accountIndex: Int
 
-        /// The mint's Base58 address.
+        /// The mint's base-58 address.
         public let mint: String
 
         /// The token account's owner, or `nil` if the node didn't record it.
         public let owner: String?
 
-        /// The balance in raw units, ignoring decimals.
+        /// The balance in raw units, without decimals.
         public let amount: UInt64
 
-        /// The mint's decimal places.
         public let decimals: UInt8
 
-        /// Creates a token balance observation.
+        /// Creates a token balance.
         ///
         /// - Parameters:
         ///   - accountIndex: The token account's index in the transaction's account list.
-        ///   - mint: The mint's Base58 address.
+        ///   - mint: The mint's base-58 address.
         ///   - owner: The token account's owner, or `nil` if unrecorded.
         ///   - amount: The balance in raw units.
         ///   - decimals: The mint's decimal places.
@@ -155,10 +145,6 @@ public struct SimulateTransaction: RPCRequest {
             self.decimals = decimals
         }
 
-        /// Decodes the raw amount and decimals from the node's nested token amount.
-        ///
-        /// - Parameter decoder: The decoder containing the token balance.
-        /// - Throws: A decoding error if a required field is missing or the raw amount isn't a whole number of units.
         public init(from decoder: any Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             accountIndex = try container.decode(Int.self, forKey: .accountIndex)
@@ -184,36 +170,29 @@ public struct SimulateTransaction: RPCRequest {
         }
     }
 
-    /// The complete serialized transaction bytes, including its signature slots.
+    /// The serialized transaction bytes, including its signature slots.
     public let transaction: Data
 
     /// The earliest slot at which the node may evaluate the request, or `nil` for no minimum.
     public let minContextSlot: UInt64?
 
-    /// Creates a simulation request at finalized commitment for a complete serialized transaction.
-    ///
-    /// The node evaluates the transaction exactly as given: it doesn't verify signatures, so signature slots may
-    /// hold placeholders, and it keeps the transaction's own blockhash. The server validates the transaction bytes.
+    /// Creates a simulation request at finalized commitment for a serialized transaction.
     ///
     /// - Parameters:
-    ///   - transaction: The complete serialized transaction, including its signature slots.
-    ///   - minContextSlot: The minimum evaluation slot. The default is `nil`.
+    ///   - transaction: The serialized transaction, including its signature slots.
+    ///   - minContextSlot: The minimum evaluation slot, or `nil` for no minimum.
     public init(transaction: Data, minContextSlot: UInt64? = nil) {
         self.transaction = transaction
         self.minContextSlot = minContextSlot
     }
 
-    /// Encodes the base64 transaction and simulation configuration as positional RPC parameters.
-    ///
-    /// - Parameter encoder: The encoder that receives the parameter array.
-    /// - Throws: An encoding error if the encoder can't represent a parameter.
     public func encode(to encoder: any Encoder) throws {
         var parameters = encoder.unkeyedContainer()
         try parameters.encode(transaction.base64EncodedString())
         try parameters.encode(Configuration(minContextSlot: minContextSlot))
     }
 
-    /// The simulation options accompanying the serialized transaction.
+    /// The simulation options for the serialized transaction.
     private struct Configuration: Encodable {
         let encoding = "base64"
         let commitment = Commitment.finalized

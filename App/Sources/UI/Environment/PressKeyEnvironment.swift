@@ -1,6 +1,6 @@
 import SwiftUI
 
 extension EnvironmentValues {
-    /// Types a key into the payment's amount; `nil` outside the keypad screen, where no amount is typed.
+    /// The action that types a key into the amount, or `nil` outside the keypad.
     @Entry var pressKey: KeypadPressAction?
 }

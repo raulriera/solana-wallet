@@ -1,28 +1,32 @@
 import Foundation
 
-/// Persists local selections independently of scene navigation and theme rendering.
+/// A store of theme selections.
 nonisolated protocol AppearanceStoring: Sendable {
-    /// Loads a coherent snapshot and clears references to unavailable themes.
-    /// - Returns: Current preferences and lightweight catalog entries.
-    /// - Throws: A storage or pre-commit cancellation error.
+    /// Loads the selections and clears those of unavailable themes.
+    ///
+    /// - Returns: The selections and catalog entries.
+    /// - Throws: A storage or cancellation error.
     func load() async throws -> AppearanceSnapshot
 
-    /// Changes one scope against the latest stored state without losing other window edits.
+    /// Saves the theme of the app or a wallet.
+    ///
     /// - Parameters:
-    ///   - themeID: The selected identity, or `nil` for the original appearance/application inheritance.
-    ///   - scope: The application or wallet whose preference changes.
-    /// - Returns: The committed snapshot.
-    /// - Throws: An unavailable-theme, storage, or pre-commit cancellation error.
+    ///   - themeID: The theme, or `nil` to clear the selection.
+    ///   - scope: The app or wallet to change.
+    /// - Returns: The saved snapshot.
+    /// - Throws: An unavailable-theme, storage, or cancellation error.
     func select(_ themeID: UUID?, for scope: AppearancePreferences.Scope) async throws -> AppearanceSnapshot
 
-    /// Clears every selection of one theme, which stays installed.
-    /// - Parameter themeID: The theme that the application and every wallet stop using.
-    /// - Returns: The committed snapshot.
-    /// - Throws: A storage or pre-commit cancellation error.
+    /// Clears every selection of a theme without removing the theme.
+    ///
+    /// - Parameter themeID: The theme to clear.
+    /// - Returns: The saved snapshot.
+    /// - Throws: A storage or cancellation error.
     func forget(_ themeID: UUID) async throws -> AppearanceSnapshot
 
-    /// Restores the original built-in appearance and removes every wallet override.
-    /// - Returns: The committed snapshot, preserving installed packages.
-    /// - Throws: A storage or pre-commit cancellation error.
+    /// Clears every theme selection.
+    ///
+    /// - Returns: The saved snapshot.
+    /// - Throws: A storage or cancellation error.
     func reset() async throws -> AppearanceSnapshot
 }

@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// Explains something to check about a recipient: in red, like other warnings, when the payment could go somewhere
-/// unintended, and in gray otherwise.
+/// A label that shows a recipient warning, in red when it's serious.
 struct RecipientWarningLabel: View {
     @Environment(\.palette) private var palette
     let warning: RecipientWarning

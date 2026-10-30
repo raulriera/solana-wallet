@@ -1,32 +1,26 @@
 import RPC
 
-/// A sent transaction's settled outcome: finalized execution, or finalized proof that it can never land.
+/// A sent transaction's finalized outcome, or proof that it can never land.
 nonisolated struct Confirmation: Sendable, Equatable {
-    /// The execution outcome, independently of confirmation progress.
+    /// A transaction's execution outcome.
     enum Outcome: Sendable, Equatable {
-        /// The transaction executed without a reported error.
         case succeeded
-        /// The transaction's execution failed with the provider's structured diagnostics; it still paid its fee.
         case failed(TransactionError)
-        /// The transaction can never land, because its blockhash expired at finalized commitment without it.
+        /// The transaction's blockhash expired before it landed.
         case dropped
     }
 
-    /// The signature and network whose outcome was observed.
     let submission: Submission
-    /// The slot in which the transaction executed, when a status read reported it.
-    ///
-    /// A landing notification doesn't report the execution slot, and a dropped transaction has none.
+    /// The slot in which the transaction executed, or `nil` if unknown.
     let slot: UInt64?
-    /// Whether the transaction succeeded, failed, or was dropped.
     let outcome: Outcome
 
-    /// Creates an outcome observation without interpreting program-specific errors.
+    /// Creates a confirmation.
     ///
     /// - Parameters:
-    ///   - submission: The accepted signature and network.
-    ///   - slot: The transaction's execution slot, or `nil` when the observation doesn't report it.
-    ///   - outcome: The result, retaining structured failure details.
+    ///   - submission: The transaction's receipt.
+    ///   - slot: The transaction's execution slot, or `nil` if unknown.
+    ///   - outcome: How the transaction settled.
     init(submission: Submission, slot: UInt64?, outcome: Outcome) {
         self.submission = submission
         self.slot = slot

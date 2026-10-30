@@ -1,33 +1,23 @@
-/// A request for the Groth16 proof of a default-ring confidential transfer on the prover's complete route.
-///
-/// The request carries the whole witness: each input's Merkle and non-inclusion proofs, which the caller reads
-/// from an indexer, the declared trees' roots, and the full public input hash. Field elements are 32 big-endian
-/// bytes. The witness holds secrets, such as the owner's nullifier secret, the blinding seed, amounts, and
-/// blindings; the request's descriptions and reflection omit every value.
+/// A request for the Groth16 proof of a default-ring confidential transfer.
 public struct TransferProofRequest: Sendable, Equatable, CustomStringConvertible, CustomDebugStringConvertible,
                                     CustomReflectable {
-    /// A value that can't form a request.
+    /// An error for a value that can't form a request.
     public enum ValidationError: Error, Sendable, Equatable {
         /// A field element or root isn't 32 bytes.
         case invalidLength
-        /// A list doesn't have its count: one or two tree slots, three public slots, one published owner hash
-        /// per output, or at least one input and output.
+        /// A list doesn't have its required number of entries.
         case invalidCount
         /// An input names a tree slot that the request doesn't declare.
         case invalidTreeSlot
-        /// An input's inclusion proof doesn't match it: only a real input that isn't cached has one.
+        /// An input's inclusion proof is missing or unexpected.
         case invalidInclusionProof
-        /// The read cache breaks zolana's rules: each list has no entry or one per input, each read index
-        /// names an input, each cached input reads a nonzero hash, and the tree ID fits 16 bits and is zero
-        /// without reads.
+        /// The read cache's lists, read indexes, or tree ID don't match the inputs.
         case invalidCache
-        /// The blinding seed is zero, which the prover rejects.
         case zeroBlindingSeed
     }
 
     /// A declared input tree and the roots that its inputs are proven against.
     public struct TreeSlot: Sendable, Equatable {
-        /// The tree's ID.
         public let id: UInt16
         /// The 32-byte UTXO tree root.
         public let utxoRoot: [UInt8]
@@ -49,17 +39,16 @@ public struct TransferProofRequest: Sendable, Equatable, CustomStringConvertible
         }
     }
 
-    /// The number of tree slots that every transfer proof publishes; unused slots are zero.
+    /// The number of tree slots that every transfer proof publishes.
     static let treeSlotCount = 5
 
-    /// The declared input trees' slots, one or two, in the order that real inputs first use them.
+    /// The one or two declared input trees, in the order that real inputs first use them.
     public let treeSlots: [TreeSlot]
     /// The 32-byte public input hash of the transfer's statement with the tree slots.
     public let publicInputHash: [UInt8]
-    /// The circuit's witness.
     public let witness: Witness
 
-    /// Creates a request after checking that its parts agree.
+    /// Creates a request.
     ///
     /// - Parameters:
     ///   - treeSlots: One or two declared trees in first-use order.
@@ -81,13 +70,10 @@ public struct TransferProofRequest: Sendable, Equatable, CustomStringConvertible
         self.witness = witness
     }
 
-    /// A representation that omits the witness's secrets.
     public var description: String { "TransferProofRequest" }
 
-    /// A debugging representation that omits the witness's secrets.
     public var debugDescription: String { description }
 
-    /// A reflection without children, so dumps don't reveal the witness's secrets.
     public var customMirror: Mirror { Mirror(self, children: [:]) }
 
     /// Checks that every value in each list is a 32-byte field element.

@@ -2,55 +2,37 @@ import CryptoKit
 import Foundation
 
 /// A validated English BIP-39 recovery phrase.
-///
-/// Access ``words`` explicitly for backup. Descriptions and reflection omit the phrase.
-/// The value is held in memory; it doesn't provide persistence or guaranteed memory erasure.
 public struct RecoveryPhrase: Sendable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
     /// A supported BIP-39 phrase length.
     public enum WordCount: Int, CaseIterable, Sendable {
-        /// Twelve words representing 128 bits of entropy.
         case twelve = 12
-        /// Fifteen words representing 160 bits of entropy.
         case fifteen = 15
-        /// Eighteen words representing 192 bits of entropy.
         case eighteen = 18
-        /// Twenty-one words representing 224 bits of entropy.
         case twentyOne = 21
-        /// Twenty-four words representing 256 bits of entropy.
         case twentyFour = 24
 
-        /// The number of entropy bytes represented by this phrase length.
         var entropyByteCount: Int { rawValue / 3 * 4 }
     }
 
-    /// A recovery phrase validation failure that never contains supplied words.
+    /// An error from validating a recovery phrase.
     public enum ValidationError: Error, Equatable {
-        /// The phrase doesn't contain a supported number of words.
         case invalidWordCount
-        /// A word isn't in the English word list, at the specified zero-based position.
+        /// The word at a zero-based position isn't in the English word list.
         case unknownWord(position: Int)
-        /// The phrase's checksum doesn't match its entropy.
         case invalidChecksum
-        /// The entropy doesn't contain a supported number of bytes.
+        /// The entropy doesn't have a supported byte count.
         case invalidEntropy
     }
 
-    /// The validated words, exposed explicitly for backup.
     public let words: [String]
 
-    /// A description that omits the recovery words.
     public var description: String { "RecoveryPhrase" }
 
-    /// A debugging description that omits the recovery words.
     public var debugDescription: String { description }
 
-    /// A reflection view that omits the recovery words.
     public var customMirror: Mirror { Mirror(self, children: [:]) }
 
-    /// Validates and normalizes an imported recovery phrase.
-    ///
-    /// Normalization accepts uppercase English words and repeated whitespace.
-    /// Words must match the BIP-39 English list and contain a valid checksum.
+    /// Creates a recovery phrase by validating and normalizing its words.
     ///
     /// - Parameter phrase: The recovery words separated by whitespace.
     /// - Throws: ``ValidationError`` if the length, words, or checksum are invalid.
@@ -78,9 +60,9 @@ public struct RecoveryPhrase: Sendable, CustomStringConvertible, CustomDebugStri
         self.words = words
     }
 
-    /// Encodes entropy and its SHA-256 checksum as English recovery words.
+    /// Creates a recovery phrase that encodes entropy.
     ///
-    /// - Parameter entropy: Between 16 and 32 bytes, in increments of four.
+    /// - Parameter entropy: 16 to 32 bytes, in steps of four.
     /// - Throws: ``ValidationError/invalidEntropy`` if the byte count is unsupported.
     init(entropy: [UInt8]) throws {
         guard let count = WordCount.allCases.first(where: { $0.entropyByteCount == entropy.count }) else {

@@ -1,8 +1,8 @@
 /// The shielded transactions found for a set of view tags, and where the next read resumes.
 public struct ShieldedTransactionBatch: Sendable, Equatable {
-    /// Confidential transactions and proofless deposits, ordered by slot and signature.
+    /// The transactions in slot and signature order.
     public let transactions: [ShieldedTransaction]
-    /// The newest tree that isn't paused, where new outputs go, or `nil` when the indexer reports none.
+    /// The ID of the newest tree that isn't paused, or `nil` when the indexer reports none.
     public let outputTreeID: UInt16?
     /// The position to pass to the next read of the same view tags.
     public let position: NoteSyncPosition

@@ -1,6 +1,6 @@
 import SwiftUI
 
 extension EnvironmentValues {
-    /// Removes a token from the window's list; `nil` outside the portfolio, where no token can be removed.
+    /// The action that removes a token from the list, or `nil` outside the portfolio.
     @Entry var removeToken: TokenRemovalAction?
 }

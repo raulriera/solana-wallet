@@ -1,28 +1,27 @@
 import Foundation
 import Observation
 
-/// Owns one payment's amount: the keys typed on the keypad, the token it moves, and the unit it's typed in.
+/// A model of a payment's typed amount, its token, and the unit it's typed in.
 @MainActor
 @Observable
 final class PaymentModel {
-    /// What the keypad types in.
+    /// The unit that the keypad types in.
     nonisolated enum Unit: Hashable, Sendable {
-        /// The person's currency, converted to tokens at the token's price.
+        /// The person's currency, converted at the token's price.
         case currency
-        /// The token itself.
         case token
     }
 
-    /// Which of the account's balances the payment spends, which the line under the amount names.
+    /// The balance of the account that the payment spends.
     nonisolated enum Source: Hashable, Sendable {
         /// The account's tokens, without naming a balance.
         case account
-        /// The account's public balance, apart from its private balance.
         case publicBalance
-        /// The account's available private balance, apart from its public balance.
+        /// The account's available private balance.
         case privateBalance
 
-        /// The line under the amount when the person has nothing to choose: the balance that the payment spends.
+        /// Returns the named balance that the payment spends.
+        ///
         /// - Parameters:
         ///   - quantity: The balance.
         ///   - token: The token that the balance counts.
@@ -41,7 +40,7 @@ final class PaymentModel {
             }
         }
 
-        /// The warning that replaces the line under the amount when the amount is more than the balance.
+        /// The warning when the amount is more than the balance.
         var warning: LocalizedStringResource {
             switch self {
             case .account:
@@ -56,7 +55,8 @@ final class PaymentModel {
             }
         }
 
-        /// Tells VoiceOver the amount after a key press, and that it's more than the balance.
+        /// Returns an amount with a warning that it's more than the balance.
+        ///
         /// - Parameter amount: The formatted amount.
         /// - Returns: The amount with the warning.
         func overBalance(_ amount: String) -> LocalizedStringResource {
@@ -74,31 +74,26 @@ final class PaymentModel {
         }
     }
 
-    /// The tokens the account can pay with, which follow its balances and prices.
     private(set) var tokens: [PaymentToken]
-    /// The ISO code of the person's currency, which follows their choice.
+    /// The code of the person's currency.
     private(set) var currencyCode: String
-    /// Which of the account's balances the payment spends.
     let source: Source
-    /// The token the payment moves.
     private(set) var token: PaymentToken
-    /// What the keypad types in; tokens without a price are always typed as tokens.
     private(set) var unit: Unit
-    /// The amount typed on the keypad.
     private(set) var entry: AmountEntry
-    /// Counts key presses, accepted or not, so each one can be announced.
+    /// The number of key presses, accepted or not.
     private(set) var pressCount = 0
-    /// Why the last key or conversion left the amount as it was, until the next accepted key.
+    /// Why the last key or conversion was rejected, or `nil` after an accepted key.
     private(set) var rejection: AmountRejection?
-    /// Counts rejected keys and conversions, so each one signals again while the same rejection stays.
+    /// The number of rejected keys and conversions.
     private(set) var rejectionCount = 0
 
-    /// Starts an empty amount in the first token, typed in the person's currency when the token has a price.
-    /// - Precondition: `tokens` isn't empty.
+    /// Creates an empty amount in the first token, typed in the person's currency when the token has a price.
+    ///
     /// - Parameters:
-    ///   - tokens: The tokens the account can pay with; the first one is selected.
-    ///   - currencyCode: The ISO code of the person's currency.
-    ///   - source: Which of the account's balances the payment spends.
+    ///   - tokens: The tokens the account can pay with, which can't be empty.
+    ///   - currencyCode: The code of the person's currency.
+    ///   - source: The balance that the payment spends.
     init(tokens: [PaymentToken], currencyCode: String, source: Source = .account) {
         let token = tokens[0]
         let unit = token.price == nil ? Unit.token : .currency
@@ -126,12 +121,10 @@ final class PaymentModel {
         }
     }
 
-    /// The amount as it is now, which a review keeps while the balances and prices change.
     var amount: PaymentAmount {
         PaymentAmount(token: token, quantity: quantity, value: value, currencyCode: currencyCode)
     }
 
-    /// What the typed amount counts, for showing it.
     var entryUnit: AmountEntryFormatStyle.Unit {
         switch unit {
         case .currency: .currency(code: currencyCode)
@@ -139,33 +132,28 @@ final class PaymentModel {
         }
     }
 
-    /// Whether the amount is more than the account holds.
     var exceedsBalance: Bool { quantity > token.balance }
 
-    /// Whether the amount can be sent: more than zero and no more than the balance.
+    /// Whether the amount is more than zero and no more than the balance.
     var canSend: Bool { quantity > 0 && !exceedsBalance }
 
     /// Whether the person can pay with another token or type the amount in another unit.
     var offersChoices: Bool { tokens.count > 1 || token.price != nil }
 
-    /// The token to pay with, as a picker edits it.
-    ///
-    /// A currency amount carries over to another token with a price; otherwise the amount starts again in the new
-    /// token.
+    /// The token to pay with, which keeps a currency amount when set to another token with a price.
     var tokenChoice: PaymentToken {
         get { token }
         set { select(newValue) }
     }
 
-    /// The unit to type in, as a picker edits it.
-    ///
-    /// Switching converts what's typed; a conversion with more whole digits than the keypad types is refused.
+    /// The unit to type in, which converts the typed amount when set.
     var unitChoice: Unit {
         get { unit }
         set { switchUnit(to: newValue) }
     }
 
-    /// Applies a key press; rejected keys leave the amount unchanged and are counted.
+    /// Applies a key press and counts it.
+    ///
     /// - Parameter key: The pressed key.
     func press(_ key: KeypadKey) {
         if entry.press(key) {
@@ -176,21 +164,17 @@ final class PaymentModel {
         pressCount += 1
     }
 
-    /// Clears the amount after it was sent, keeping the token and the unit it's typed in.
+    /// Clears the amount, keeping the token and the unit it's typed in.
     func clear() {
         entry = emptyEntry
         rejection = nil
     }
 
-    /// Follows the account's latest balances, prices, and currency, keeping the selected token and the amount as typed.
+    /// Updates the tokens and currency, keeping the selected token and the typed amount when they remain.
     ///
-    /// A token that loses its price is typed in tokens, converted at its last price. An amount typed in the previous
-    /// currency starts again in the new one, and when the selected token is gone, the first one is selected and the
-    /// amount starts again.
-    /// - Precondition: `tokens` isn't empty.
     /// - Parameters:
-    ///   - tokens: The tokens the account can pay with now.
-    ///   - currencyCode: The ISO code of the currency that their prices are in.
+    ///   - tokens: The tokens the account can pay with, which can't be empty.
+    ///   - currencyCode: The code of the currency that their prices are in.
     func update(_ tokens: [PaymentToken], currencyCode: String) {
         guard tokens != self.tokens || currencyCode != self.currencyCode else { return }
         let changesCurrency = currencyCode != self.currencyCode
@@ -201,13 +185,11 @@ final class PaymentModel {
             return
         }
         guard !changesCurrency || unit == .token else {
-            // An amount in the previous currency means nothing in the new one.
             restart(in: updated)
             return
         }
         guard updated != token else { return }
         if unit == .currency, updated.price == nil {
-            // Converted before the price goes, so the payment keeps its quantity; it rounds down, so it never grows.
             let typed = AmountEntry(quantity, maximumFractionDigits: updated.decimals)
             unit = .token
             entry = typed ?? AmountEntry(maximumFractionDigits: updated.decimals)
@@ -216,6 +198,7 @@ final class PaymentModel {
     }
 
     /// Pays with another token, keeping a currency amount when the new token has a price.
+    ///
     /// - Parameter token: The token to pay with.
     private func select(_ token: PaymentToken) {
         guard token != self.token else { return }
@@ -227,6 +210,7 @@ final class PaymentModel {
     }
 
     /// Selects a token with an empty amount, typed in tokens when the token has no price.
+    ///
     /// - Parameter token: The token to pay with.
     private func restart(in token: PaymentToken) {
         self.token = token
@@ -234,19 +218,17 @@ final class PaymentModel {
         entry = emptyEntry
     }
 
-    /// Types the amount in another unit, converting what's already typed, or refuses a conversion too large to type.
-    /// - Parameter unit: The unit to type in; tokens without a price stay in tokens.
+    /// Converts the typed amount to another unit, or rejects a conversion too large to type.
+    ///
+    /// - Parameter unit: The unit to type in.
     private func switchUnit(to unit: Unit) {
         guard unit != self.unit, token.price != nil else { return }
         let digits = Self.fractionDigits(of: unit, token: token, currencyCode: currencyCode)
         let converted: AmountEntry?
         switch unit {
         case .token:
-            // Tokens round down, so the payment never grows.
             converted = AmountEntry(quantity, maximumFractionDigits: digits)
         case .currency:
-            // A value rounds to the nearest cent and shows every cent, so switching back and forth keeps it as typed,
-            // unless the nearest cent buys more tokens than were typed; then it rounds down, so the payment never grows.
             let worth = value ?? 0
             let nearest = AmountEntry(worth, maximumFractionDigits: digits, rounding: .plain, padsFraction: true)
             converted = nearest.flatMap { quantity(worth: $0.value) <= quantity ? $0 : nil }
@@ -260,12 +242,12 @@ final class PaymentModel {
         entry = converted
     }
 
-    /// An empty amount in the selected token and unit.
     private var emptyEntry: AmountEntry {
         AmountEntry(maximumFractionDigits: Self.fractionDigits(of: unit, token: token, currencyCode: currencyCode))
     }
 
-    /// The token quantity a value in the person's currency buys, rounded down to the token's decimals.
+    /// Returns the token quantity that a value in the person's currency buys, rounded down to the token's decimals.
+    ///
     /// - Parameter value: The value in the person's currency.
     /// - Returns: The quantity, or zero when the token has no price.
     private func quantity(worth value: Decimal) -> Decimal {
@@ -276,18 +258,20 @@ final class PaymentModel {
         return rounded
     }
 
-    /// Records why the amount stayed as it was, so the screen can signal it again even for the same reason.
-    /// - Parameter rejection: Why the amount didn't change.
+    /// Records and counts a rejection.
+    ///
+    /// - Parameter rejection: The reason the amount didn't change.
     private func reject(_ rejection: AmountRejection) {
         self.rejection = rejection
         rejectionCount += 1
     }
 
-    /// How many fraction digits a unit allows.
+    /// Returns how many fraction digits a unit allows.
+    ///
     /// - Parameters:
     ///   - unit: The unit the keypad types in.
     ///   - token: The selected token.
-    ///   - currencyCode: The ISO code of the person's currency.
+    ///   - currencyCode: The code of the person's currency.
     /// - Returns: The token's decimals, or the currency's minor units, such as 2 for dollars or 0 for yen.
     private static func fractionDigits(of unit: Unit, token: PaymentToken, currencyCode: String) -> Int {
         switch unit {

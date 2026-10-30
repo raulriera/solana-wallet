@@ -1,19 +1,16 @@
 import Portfolio
 import SwiftUI
 
-/// Lists the wallet's tokens as overlapping cards tucked into a pocket; choosing a card shows its details.
-///
-/// The cards sit in a sidebar list, so the system draws the same background as in every other sidebar.
+/// Lists the wallet's tokens as overlapping cards tucked into a pocket.
 struct TokenCardStack: View {
     @Binding var selection: Holding.Identity?
     @Binding var preferredColumn: NavigationSplitViewColumn
     let holdings: [Holding]
-    /// Whether the account also holds private SOL, which SOL's card shows with a sign.
+    /// Whether the account also holds private SOL.
     let hasPrivateBalance: Bool
 
     var body: some View {
         List {
-            // One row keeps the cards overlapping; separate rows clip each card on compact displays.
             VStack(spacing: 0) {
                 ForEach(holdings) { holding in
                     TokenCardOption(selection: $selection, preferredColumn: $preferredColumn, id: holding.id) {
@@ -24,10 +21,8 @@ struct TokenCardStack: View {
                     }
                 }
             }
-            // The cards end at the pocket's lip below the last card, so the sidebar shows through the pocket.
             .padding(.bottom, 24)
             .clipShape(PocketClip())
-            // The row clips its content, so the first card's lift and shadow need room above it.
             .padding(.top, 20)
             .padding(.bottom, 120)
             .listRowInsets(EdgeInsets())

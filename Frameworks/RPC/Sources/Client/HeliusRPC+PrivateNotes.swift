@@ -1,22 +1,6 @@
 import Encoding
 
 extension HeliusRPC: PrivateNoteProviding {
-    /// Reads Helius's Solana Rings indexer by view tag, through both of its streams to their ends.
-    ///
-    /// Requests carry at most 1,000 tags. Each group of tags reads its confidential-transaction stream,
-    /// without proofless rows or rows that name a ring, and its encrypted-output stream, keeping only outputs
-    /// without a transaction viewing key and salt, which are proofless deposits. Groups and streams run
-    /// concurrently, and the first failure cancels the rest. A transaction that several groups return appears once.
-    ///
-    /// Encrypted-output rows don't name their ring, so a deposit into another ring isn't filtered here; its
-    /// UTXO hash, which binds the ring, doesn't match a default-ring note.
-    /// - Parameters:
-    ///   - tags: 32-byte view tags.
-    ///   - position: The position from an earlier read of the same tags, or `nil` to read from the start.
-    /// - Returns: The transactions in slot and signature order, the newest unpaused tree, preferring the
-    ///   transaction stream's report, and the position where the next read resumes.
-    /// - Throws: ``PrivateNoteError`` for an invalid tag or a position from other tags, or an `RPCError`
-    ///   or `CancellationError`.
     @concurrent
     public func shieldedTransactions(taggedWith tags: [[UInt8]], after position: NoteSyncPosition?) async throws
         -> ShieldedTransactionBatch {
@@ -62,14 +46,6 @@ extension HeliusRPC: PrivateNoteProviding {
         )
     }
 
-    /// Reads Helius's Solana Rings indexer for the transactions that spent any of the nullifiers.
-    ///
-    /// Requests carry at most 1,000 nullifiers and run concurrently, each to its last page. Spends in any
-    /// ring are kept, since each one consumes its nullifier.
-    /// - Parameter nullifiers: 32-byte nullifiers.
-    /// - Returns: Each spending transaction once, in slot and signature order.
-    /// - Throws: ``PrivateNoteError/invalidNullifier`` for a nullifier that isn't 32 bytes, or an `RPCError`
-    ///   or `CancellationError`.
     @concurrent
     public func shieldedTransactions(spending nullifiers: [[UInt8]]) async throws -> [ShieldedTransaction] {
         guard nullifiers.allSatisfy({ $0.count == 32 }) else { throw PrivateNoteError.invalidNullifier }
@@ -83,14 +59,14 @@ extension HeliusRPC: PrivateNoteProviding {
             .uniqued(by: { TransactionKey(signature: $0.signature, eventIndex: $0.eventIndex) }))
     }
 
-    /// Reads one stream for each group of values concurrently, each from its own cursor to its end.
+    /// Reads one stream for each group of values concurrently, each from its cursor to its end.
     ///
     /// - Parameters:
-    ///   - groups: The values of each request, such as tags.
-    ///   - cursors: Each group's starting cursor, in group order.
-    ///   - page: Fetches one group's page after a cursor.
-    /// - Returns: Each group's read, in group order.
-    /// - Throws: The first error of any group, which cancels the others.
+    ///   - groups: The values of each request.
+    ///   - cursors: The starting cursor of each group.
+    ///   - page: The request that fetches a group's page after a cursor.
+    /// - Returns: The read of each group, in group order.
+    /// - Throws: The first error of any group.
     private static func read<Page: IndexerPage>(
         _ groups: [[String]],
         after cursors: [String?],
@@ -108,7 +84,7 @@ extension HeliusRPC: PrivateNoteProviding {
         }
     }
 
-    /// Orders transactions by slot, then signature, keeping the input order of equal keys.
+    /// Orders transactions by slot, then signature.
     ///
     /// - Parameter transactions: The transactions to order.
     /// - Returns: The ordered transactions.
@@ -117,36 +93,29 @@ extension HeliusRPC: PrivateNoteProviding {
     }
 }
 
-/// The reads of one of a tag read's two streams, for every tag group.
+/// The reads of one indexer stream for every tag group.
 private enum StreamReads: Sendable {
-    /// The confidential-transaction stream's reads.
     case transactions([IndexerRead<IndexedTransaction>])
-    /// The encrypted-output stream's reads.
     case outputs([IndexerRead<EncryptedOutput>])
 }
 
 /// The identity of an indexed transaction event.
 private struct TransactionKey: Hashable {
-    /// The transaction's signature.
     let signature: String
-    /// The event's position within the transaction, if reported.
+    /// The event's position in the transaction, or `nil` if unknown.
     let eventIndex: UInt16?
 }
 
 /// The identity of a proofless deposit's output.
 private struct DepositKey: Hashable {
-    /// The transaction's signature.
     let signature: String
-    /// The ID of the output's tree.
     let treeID: UInt16
-    /// The output's leaf position.
     let leafIndex: UInt64
-    /// The output's UTXO hash.
     let utxoHash: [UInt8]
 }
 
 extension DepositKey {
-    /// Creates the identity of a deposit's only output.
+    /// Creates the identity of a deposit's output.
     ///
     /// - Parameter deposit: A proofless deposit with one output.
     init(_ deposit: ShieldedTransaction) {

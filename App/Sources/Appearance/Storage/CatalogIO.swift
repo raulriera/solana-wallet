@@ -1,18 +1,18 @@
 import Foundation
 import Synchronization
 
-/// Serializes private catalog filesystem transactions outside the main actor and cooperative pool.
+/// Runs theme catalog file operations one at a time on a background queue.
 nonisolated enum CatalogIO {
-    /// Synchronous catalog work that receives cancellation checks for its pre-commit phase.
+    /// Synchronous file work that receives a cancellation check.
     typealias Operation<Value: Sendable> = @Sendable (_ checkCancellation: () throws -> Void) throws -> Value
 
-    // Shared by catalog instances so revision checks and commits have no suspension between them.
     private static let queue = DispatchQueue(label: "ThemeCatalog.IO", qos: .background)
 
-    /// Suspends while bounded filesystem work runs on the private background queue.
-    /// - Parameter operation: Work that checks cancellation before its commit point.
-    /// - Returns: The operation's result, including success when cancellation follows a commit.
-    /// - Throws: A storage or cooperative cancellation error.
+    /// Runs file work on the catalog's queue.
+    ///
+    /// - Parameter operation: The work to run.
+    /// - Returns: The work's result.
+    /// - Throws: The work's error or a cancellation error.
     static func perform<Value: Sendable>(
         _ operation: @escaping Operation<Value>
     ) async throws -> Value {
@@ -34,12 +34,12 @@ nonisolated enum CatalogIO {
         } onCancel: { cancelled.withLock { $0 = true } }
     }
 
-    /// Reclaims unreferenced files independently of cancellation after commit or failure.
-    /// - Parameter url: An operation's staging directory or obsolete package generation.
+    /// Deletes a file or folder on the catalog's queue, ignoring errors.
+    ///
+    /// - Parameter url: The file or folder to delete.
     static func discard(_ url: URL) async {
         await withCheckedContinuation { continuation in
             queue.async {
-                // Cleanup failure must not turn an already committed mutation into a failure.
                 try? FileManager.default.removeItem(at: url)
                 continuation.resume()
             }

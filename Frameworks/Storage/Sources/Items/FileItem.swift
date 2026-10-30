@@ -1,67 +1,39 @@
 import Dispatch
 public import Foundation
 
-/// A value saved on this device as one file, such as the saved contacts.
-///
-/// By default, the file is readable only while the device is unlocked. A file that can't be read is reported, never
-/// deleted or replaced with an empty value.
+/// A value saved on this device as one file.
 public struct FileItem<Coding: ValueCoding>: ValueStoring {
-    /// Blocking file work that runs only on the file queue.
+    /// Blocking work that runs on the file queue.
     private typealias Operation<Result: Sendable> = @Sendable () throws -> Result
 
-    /// The file that keeps the value.
     public let url: URL
-    /// How the value is kept as bytes.
     public let coding: Coding
-    /// When the file can be read and written, which each save applies.
     let protection: FileProtectionType
 
-    /// Names the file without creating or reading it.
+    /// Creates an item that keeps its value in a file.
+    ///
     /// - Parameters:
-    ///   - url: The file that keeps the value, inside a directory the app owns.
-    ///   - coding: How the value is kept as bytes, such as `.json([String].self)`.
-    ///   - protection: When the file can be read and written; by default, only while the device is unlocked. Use
-    ///     `.completeUntilFirstUserAuthentication` for a file that work in the background saves while the device is
-    ///     locked.
+    ///   - url: The file that keeps the value.
+    ///   - coding: The coding that converts the value to bytes.
+    ///   - protection: When the file can be read and written.
     public init(url: URL, coding: Coding, protection: FileProtectionType = .complete) {
         self.url = url
         self.coding = coding
         self.protection = protection
     }
 
-    /// Reads the saved value.
-    /// - Returns: The value, or `nil` before one is saved.
-    /// - Throws: ``FileItemError/unreadable`` for bytes that aren't a value, a filesystem error, or
-    ///   `CancellationError`.
     public func load() async throws -> Coding.Value? {
         try await perform { [self] in try read() }
     }
 
-    /// Saves a value, replacing any value already saved, in one atomic write.
-    ///
-    /// A value whose bytes don't decode back to an equal value isn't saved. Cancellation doesn't roll back a save
-    /// that has already been written.
-    /// - Parameter value: The new value.
-    /// - Throws: ``FileItemError/unencodable``, an encoding or filesystem error, or `CancellationError`.
     public func save(_ value: Coding.Value) async throws {
         try await perform { [self] in try write(value) }
     }
 
-    /// Deletes the file; a missing file is already deleted.
-    /// - Throws: A filesystem error or `CancellationError`.
     public func delete() async throws {
         try await perform { [self] in try remove() }
     }
 
-    /// Reads, changes, and saves the value in one step on the file queue, so changes from several windows don't
-    /// overwrite each other.
-    ///
-    /// Cancellation doesn't roll back a change that has already been written.
-    /// - Parameter change: Changes the saved value, or `nil` before one is saved; setting `nil` deletes the file,
-    ///   and an unchanged value isn't saved again.
-    /// - Returns: The change's result.
-    /// - Throws: The change's error, which keeps the saved value, ``FileItemError``, an encoding or filesystem error,
-    ///   or `CancellationError`.
     public func update<Result: Sendable>(
         _ change: @escaping @Sendable (inout Coding.Value?) throws -> Result
     ) async throws -> Result {
@@ -75,7 +47,8 @@ public struct FileItem<Coding: ValueCoding>: ValueStoring {
         }
     }
 
-    /// Reads the saved value on the file queue.
+    /// Reads the saved value.
+    ///
     /// - Returns: The value, or `nil` before one is saved.
     /// - Throws: ``FileItemError/unreadable`` or a filesystem error.
     private func read() throws -> Coding.Value? {
@@ -89,10 +62,10 @@ public struct FileItem<Coding: ValueCoding>: ValueStoring {
         return value
     }
 
-    /// Saves a value on the file queue once its bytes decode back to it.
+    /// Writes a value after checking that its bytes decode back to it.
+    ///
     /// - Parameter value: The new value.
-    /// - Throws: ``FileItemError/unencodable`` before writing bytes that don't decode back to the value, or an
-    ///   encoding or filesystem error.
+    /// - Throws: ``FileItemError/unencodable``, or an encoding or filesystem error.
     private func write(_ value: Coding.Value) throws {
         let data = try coding.encode(value)
         guard coding.decode(data) == value else { throw FileItemError.unencodable }
@@ -100,7 +73,8 @@ public struct FileItem<Coding: ValueCoding>: ValueStoring {
         try data.write(to: url, options: [.atomic, Data.WritingOptions(protection)])
     }
 
-    /// Deletes the file on the file queue; a missing file is already deleted.
+    /// Deletes the file if it exists.
+    ///
     /// - Throws: A filesystem error.
     private func remove() throws {
         do {
@@ -108,10 +82,11 @@ public struct FileItem<Coding: ValueCoding>: ValueStoring {
         } catch CocoaError.fileNoSuchFile {}
     }
 
-    /// Runs blocking file work outside Swift's cooperative executor.
-    /// - Parameter operation: File work that stays on the file queue.
+    /// Runs blocking file work on the file queue.
+    ///
+    /// - Parameter operation: The blocking file work.
     /// - Returns: The operation's result.
-    /// - Throws: The operation's error, or `CancellationError` if canceled before it's scheduled.
+    /// - Throws: The operation's error or `CancellationError`.
     private func perform<Result: Sendable>(_ operation: @escaping Operation<Result>) async throws -> Result {
         try Task.checkCancellation()
         return try await withCheckedThrowingContinuation { continuation in
@@ -121,8 +96,9 @@ public struct FileItem<Coding: ValueCoding>: ValueStoring {
 }
 
 extension Data.WritingOptions {
-    /// The write option that gives a file a protection class.
-    /// - Parameter protection: When the file can be read and written; an unknown class gets complete protection.
+    /// Creates the write option for a file protection class.
+    ///
+    /// - Parameter protection: The file protection class.
     init(_ protection: FileProtectionType) {
         self = switch protection {
         case .none: .noFileProtection
@@ -134,7 +110,7 @@ extension Data.WritingOptions {
     }
 }
 
-/// The serial queue that every file item shares, so each save and each read-change-save runs atomically.
+/// The serial queue that every file item shares.
 private enum FileQueue {
     static let shared = DispatchQueue(label: "FileItem.Files", qos: .userInitiated)
 }

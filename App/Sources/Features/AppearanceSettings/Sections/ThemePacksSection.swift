@@ -1,7 +1,7 @@
 import SwiftUI
 import Themes
 
-/// Owns Files import and default-template export presentation.
+/// A section that imports theme packs and exports the default template.
 struct ThemePacksSection: View {
     @Environment(\.palette) private var palette
     @Bindable var settings: AppearanceSettingsModel
@@ -31,8 +31,9 @@ struct ThemePacksSection: View {
         .listRowSeparatorTint(palette.separator)
     }
 
-    /// Passes the picked file or a picker error to the package workflow.
-    /// - Parameter result: The system import dialog's outcome.
+    /// Imports the picked file or reports the picker's error.
+    ///
+    /// - Parameter result: The file importer's result.
     private func completeImport(_ result: Result<URL, any Error>) {
         switch result {
         case .success(let url): settings.importPack(from: url)
@@ -40,8 +41,9 @@ struct ThemePacksSection: View {
         }
     }
 
-    /// Reports export errors before releasing the completed export's staging directory.
-    /// - Parameter result: The system export dialog's outcome.
+    /// Reports an export error and finishes the export.
+    ///
+    /// - Parameter result: The file exporter's result.
     private func completeExport(_ result: Result<URL, any Error>) {
         if case .failure(let error) = result { settings.report(error, defaultingTo: .exportFailed) }
         settings.finishExport()

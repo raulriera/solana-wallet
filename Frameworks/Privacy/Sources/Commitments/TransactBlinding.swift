@@ -1,11 +1,6 @@
 import ModularArithmetic
 
 /// The blindings that a transact proof derives from its blinding seed.
-///
-/// A client samples one private blinding seed for each proof. Each derivation hashes a domain tag,
-/// four ASCII letters read as a big-endian 32-bit integer, with the proof's first nullifier: the
-/// published nullifier of input slot 0. The tags let a client share the output blinding seed
-/// without revealing the private transaction blinding.
 enum TransactBlinding {
     /// The domain tag of the output blinding seed, ASCII TXOS.
     private static let outputBlindingSeedTag = Poseidon.Element(0x5458_4f53)
@@ -18,8 +13,6 @@ enum TransactBlinding {
 
     /// Derives the seed of a proof's output blindings.
     ///
-    /// Readers of the transfer derive each output blinding from this seed and the first nullifier.
-    ///
     /// - Parameters:
     ///   - firstNullifier: The nullifier of input slot 0.
     ///   - blindingSeed: The proof's private blinding seed.
@@ -28,7 +21,7 @@ enum TransactBlinding {
         Poseidon.hash(outputBlindingSeedTag, firstNullifier, blindingSeed)
     }
 
-    /// Derives the blinding of one output slot, padding slots included.
+    /// Derives the blinding of one output slot.
     ///
     /// - Parameters:
     ///   - firstNullifier: The nullifier of input slot 0.

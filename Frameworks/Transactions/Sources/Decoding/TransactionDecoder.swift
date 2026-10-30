@@ -1,33 +1,17 @@
 import Encoding
 public import Foundation
 
-/// A stateless inspector for complete V1 envelopes with one or more required signers.
+/// A transaction decoder for V1 envelopes.
 public struct TransactionDecoder: TransactionDecoding {
-    /// Creates a decoder without networking, key access, or shared mutable state.
+    /// Creates a transaction decoder.
     public init() {}
 
-    /// Imports bounded Base64 without asking workflow callers to construct byte buffers.
-    ///
-    /// - Parameter base64: A complete V1 transaction, without whitespace or ignored characters.
-    /// - Returns: The decoded transaction with its exact message bytes preserved.
-    /// - Throws: ``ValidationError`` for invalid encoding, size, or structure.
     public func decode(base64: String) throws -> Transaction {
-        // A 4,096-byte envelope needs at most 5,464 Base64 characters.
         guard base64.utf8.prefix(5_465).count <= 5_464,
               let data = Data(base64Encoded: base64) else { throw ValidationError.invalidTransaction }
         return try decode(data)
     }
 
-    /// Checks V1 framing and account references while retaining exact message bytes.
-    ///
-    /// The decoder accepts zero-filled signature slots for unsigned or partially
-    /// signed transactions. It doesn't verify signatures, interpret program data,
-    /// determine blockhash freshness, or guarantee runtime acceptance.
-    ///
-    /// - Parameter data: A complete V1 transaction of at most 4,096 bytes.
-    /// - Returns: Immutable inspection data with ordered accounts and signature slots.
-    /// - Throws: ``ValidationError`` for unsupported versions/configuration, malformed
-    ///   structure, duplicate addresses, invalid indices, or an invalid heap request.
     public func decode(_ data: Data) throws -> Transaction {
         guard !data.isEmpty, data.count <= 4_096 else { throw ValidationError.invalidTransaction }
         var reader = ByteReader(Array(data), error: ValidationError.invalidTransaction)
@@ -79,13 +63,13 @@ public struct TransactionDecoder: TransactionDecoding {
                            requests: requests, instructions: instructions, signatures: signatures)
     }
 
-    /// Reads supported configuration fields in mask order without supplying defaults.
+    /// Reads the configuration fields that a mask selects.
     ///
     /// - Parameters:
-    ///   - mask: The validated configuration mask.
+    ///   - mask: The configuration mask.
     ///   - reader: The reader positioned at the first configuration value.
-    /// - Returns: The encoded requests, retaining `nil` for omitted fields.
-    /// - Throws: A truncation error or ``ValidationError/invalidHeapSize``.
+    /// - Returns: The requests, with `nil` for omitted fields.
+    /// - Throws: The reader's error or ``ValidationError/invalidHeapSize``.
     private func requests(mask: UInt32, reader: inout ByteReader) throws -> Transaction.Requests {
         let fee: UInt64? = mask & 3 == 3 ? try reader.integer() : nil
         let compute: UInt32? = mask & 4 != 0 ? try reader.integer() : nil

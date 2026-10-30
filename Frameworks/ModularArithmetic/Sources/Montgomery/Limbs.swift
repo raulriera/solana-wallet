@@ -1,8 +1,4 @@
 /// A 256-bit value as four little-endian 64-bit limbs.
-///
-/// Carries and borrows come from 128-bit arithmetic and choices from masks, so no branch or
-/// memory index depends on a value. The arithmetic helpers are always inlined, and the target
-/// uses whole-module optimization, so each multiplication compiles to one straight-line sequence.
 struct Limbs: Sendable, Equatable {
     /// Bits 0 to 63.
     let limb0: UInt64
@@ -13,10 +9,8 @@ struct Limbs: Sendable, Equatable {
     /// Bits 192 to 255.
     let limb3: UInt64
 
-    /// The value zero.
     @inline(always) static var zero: Self { Self(0, 0, 0, 0) }
 
-    /// The value as 32 big-endian bytes.
     var bigEndianBytes: [UInt8] {
         [limb3, limb2, limb1, limb0].flatMap { limb in
             stride(from: 56, through: 0, by: -8).map { UInt8(truncatingIfNeeded: limb >> $0) }
@@ -37,10 +31,9 @@ struct Limbs: Sendable, Equatable {
         self.limb3 = limb3
     }
 
-    /// Reads a value from big-endian bytes.
+    /// Creates a value from big-endian bytes.
     ///
     /// - Parameter bytes: Exactly 32 bytes, most significant first.
-    /// - Precondition: `bytes` contains exactly 32 bytes.
     init(bigEndianBytes bytes: [UInt8]) {
         precondition(bytes.count == 32, "A 256-bit value needs exactly 32 bytes.")
         let limbs = stride(from: 24, through: 0, by: -8).map { start in
@@ -49,17 +42,11 @@ struct Limbs: Sendable, Equatable {
         self.init(limbs[0], limbs[1], limbs[2], limbs[3])
     }
 
-    /// Compares every limb without stopping at the first difference.
-    ///
-    /// - Parameters:
-    ///   - lhs: A value.
-    ///   - rhs: Another value.
-    /// - Returns: Whether the values are equal.
     static func == (lhs: Self, rhs: Self) -> Bool {
         ((lhs.limb0 ^ rhs.limb0) | (lhs.limb1 ^ rhs.limb1) | (lhs.limb2 ^ rhs.limb2) | (lhs.limb3 ^ rhs.limb3)) == 0
     }
 
-    /// Chooses one of two values with a mask instead of a branch.
+    /// Chooses one of two values without branching.
     ///
     /// - Parameters:
     ///   - condition: One to choose `first`, or zero to choose `second`.
@@ -79,7 +66,7 @@ struct Limbs: Sendable, Equatable {
     /// Adds another value modulo 2^256.
     ///
     /// - Parameter other: The value to add.
-    /// - Returns: The low 256 bits of the sum, and one if the sum reached 2^256 or zero otherwise.
+    /// - Returns: The sum modulo 2^256 and its carry, zero or one.
     @inline(always) func adding(_ other: Self) -> (sum: Self, carry: UInt64) {
         let (sum0, carry0) = limb0.adding(other.limb0, carry: 0)
         let (sum1, carry1) = limb1.adding(other.limb1, carry: carry0)
@@ -91,7 +78,7 @@ struct Limbs: Sendable, Equatable {
     /// Subtracts another value modulo 2^256.
     ///
     /// - Parameter other: The value to subtract.
-    /// - Returns: The difference modulo 2^256, and one if `other` exceeds this value or zero otherwise.
+    /// - Returns: The difference modulo 2^256 and its borrow, zero or one.
     @inline(always) func subtracting(_ other: Self) -> (difference: Self, borrow: UInt64) {
         let (difference0, borrow0) = limb0.subtracting(other.limb0, borrow: 0)
         let (difference1, borrow1) = limb1.subtracting(other.limb1, borrow: borrow0)
@@ -100,16 +87,14 @@ struct Limbs: Sendable, Equatable {
         return (Self(difference0, difference1, difference2, difference3), borrow3)
     }
 
-    /// Subtracts the modulus once when this value, with a carry above 2^256, reaches it.
+    /// Reduces this value and a carry above 2^256 by subtracting a modulus at most once.
     ///
     /// - Parameters:
-    ///   - carry: Zero or one, the bit above the four limbs.
-    ///   - modulus: The modulus; the value with its carry must be below twice the modulus.
+    ///   - carry: The bit above the four limbs, zero or one.
+    ///   - modulus: The modulus, more than half the value with its carry.
     /// - Returns: The value modulo `modulus`.
     @inline(always) func reduced(carry: UInt64, modulo modulus: Self) -> Self {
         let (difference, borrow) = subtracting(modulus)
-        // Continuing the subtraction through the carry limb leaves a final borrow exactly when
-        // the value is below the modulus.
         let (_, isBelowModulus) = carry.subtracting(0, borrow: borrow)
         return .select(isBelowModulus, self, difference)
     }
@@ -118,7 +103,7 @@ struct Limbs: Sendable, Equatable {
     ///
     /// - Parameters:
     ///   - other: A value below `modulus`.
-    ///   - modulus: The modulus; this value must also be below it.
+    ///   - modulus: The modulus, greater than this value.
     /// - Returns: The sum modulo `modulus`.
     @inline(always) func adding(_ other: Self, modulo modulus: Self) -> Self {
         let (sum, carry) = adding(other)
@@ -129,11 +114,10 @@ struct Limbs: Sendable, Equatable {
     ///
     /// - Parameters:
     ///   - other: A value below `modulus`.
-    ///   - modulus: The modulus; this value must also be below it.
+    ///   - modulus: The modulus, greater than this value.
     /// - Returns: The difference modulo `modulus`.
     @inline(always) func subtracting(_ other: Self, modulo modulus: Self) -> Self {
         let (difference, borrow) = subtracting(other)
-        // A borrow wrapped the difference past 2^256; adding the modulus wraps it back below it.
         return .select(borrow, difference.adding(modulus).sum, difference)
     }
 }
@@ -155,14 +139,13 @@ extension UInt64 {
     /// - Parameters:
     ///   - other: The limb to subtract.
     ///   - borrow: Zero or one, the borrow from the previous limb.
-    /// - Returns: The difference modulo 2^64, and one if the subtraction wrapped or zero otherwise.
+    /// - Returns: The difference modulo 2^64 and the borrow into the next limb.
     @inline(always) func subtracting(_ other: UInt64, borrow: UInt64) -> (UInt64, borrow: UInt64) {
-        // A negative 128-bit difference wraps to a value with its top bit set.
         let difference = UInt128(self) &- UInt128(other) &- UInt128(borrow)
         return (UInt64(truncatingIfNeeded: difference), UInt64(truncatingIfNeeded: difference &>> 127))
     }
 
-    /// Multiplies by another limb and adds two limbs, which can't overflow 128 bits.
+    /// Multiplies by another limb and adds two limbs.
     ///
     /// - Parameters:
     ///   - other: The limb to multiply by.

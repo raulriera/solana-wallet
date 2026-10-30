@@ -1,28 +1,24 @@
 public import Foundation
 
-/// An initialized token account with its exact balance and authority.
+/// An initialized token account with its balance and owner.
 public struct TokenAccount: Sendable {
-    /// The account's on-chain address, which can be an ancillary token account.
     public let address: Address
-    /// The program that owns this account.
     public let program: TokenProgram
-    /// The mint of tokens held in the account.
     public let mint: Address
-    /// The authority permitted to transfer these tokens.
+    /// The authority that can transfer the tokens.
     public let owner: Address
-    /// The balance in integer base units.
+    /// The balance in base units.
     public let amount: UInt64
-    /// Whether the token program has frozen the account.
     public let isFrozen: Bool
     let data: TokenData
 
-    /// Decodes the account without assuming every account has the legacy size.
+    /// Creates a token account by decoding its data.
     ///
     /// - Parameters:
-    ///   - address: The account address requested from RPC.
-    ///   - programOwner: The RPC-reported account owner program.
-    ///   - data: The raw base64-decoded token-account data.
-    /// - Throws: ``TokenError`` for unsupported owners or malformed account data.
+    ///   - address: The account address.
+    ///   - programOwner: The account's owner program.
+    ///   - data: The account's raw data.
+    /// - Throws: A ``TokenError`` for an unsupported owner or malformed data.
     public init(address: Address, programOwner: Address, data: Data) throws {
         guard let program = TokenProgram(rawValue: programOwner.value) else { throw TokenError.unsupportedProgram }
         let decoded = try TokenData(data, program: program, isMint: false)
@@ -37,16 +33,13 @@ public struct TokenAccount: Sendable {
         self.data = decoded
     }
 
-    /// Decodes the account at an associated token account address, which can hold SOL before its token account exists.
-    ///
-    /// Anyone can send SOL to the address first, which leaves an unallocated System Program account there.
-    /// The initializer fails for that account, because the token account doesn't exist yet.
+    /// Creates the token account at an associated token account address, or `nil` if it doesn't exist yet.
     ///
     /// - Parameters:
-    ///   - address: The associated token account address requested from RPC.
-    ///   - programOwner: The RPC-reported account owner program.
-    ///   - data: The raw base64-decoded account data.
-    /// - Throws: ``TokenError`` for unsupported owners, malformed account data, or a System Program account with data.
+    ///   - address: The associated token account address.
+    ///   - programOwner: The account's owner program.
+    ///   - data: The account's raw data.
+    /// - Throws: A ``TokenError`` for an unsupported owner, malformed data, or a System Program account with data.
     public init?(associatedAt address: Address, programOwner: Address, data: Data) throws {
         if programOwner.value == SystemProgram.id {
             guard data.isEmpty else { throw TokenError.invalidAccount }
@@ -55,11 +48,11 @@ public struct TokenAccount: Sendable {
         try self.init(address: address, programOwner: programOwner, data: data)
     }
 
-    /// Checks account extensions needed by an ordinary top-level transfer.
+    /// Checks the account's state and extensions for a transfer.
     ///
-    /// - Parameter receiving: Whether this account is the destination of the transfer.
-    /// - Returns: Whether the transfer must be preceded by a memo.
-    /// - Throws: ``TokenError`` for frozen accounts or unsupported extension behavior.
+    /// - Parameter receiving: Whether the account receives the transfer.
+    /// - Returns: Whether a memo must precede the transfer.
+    /// - Throws: A ``TokenError`` for a frozen account or an unsupported extension.
     func requiresMemo(receiving: Bool) throws -> Bool {
         guard !isFrozen else { throw TokenError.frozenAccount }
         var memoRequired = false

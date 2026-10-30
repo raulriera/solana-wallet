@@ -1,25 +1,19 @@
 import CryptoKit
 
-/// Derives program-derived addresses using Solana's descending bump search.
-///
-/// The address for seeds and a bump is `SHA-256(seeds ‖ bump ‖ program ‖ "ProgramDerivedAddress")`,
-/// valid only off the Ed25519 curve. The search tries bumps from 255 down to 1, as Solana's
-/// `find_program_address` does, and returns the first valid one, the canonical bump.
+/// A namespace for deriving program-derived addresses.
 public enum ProgramAddress {
-    /// The most seeds that an address takes, including the bump.
+    /// The most seeds an address takes, including the bump.
     private static let maximumSeedCount = 16
 
-    /// The most bytes in one seed.
     private static let maximumSeedLength = 32
 
-    /// Derives the canonical address for seeds: the one with the highest bump that is off the curve.
+    /// Derives the canonical program-derived address for seeds.
     ///
     /// - Parameters:
     ///   - seeds: The seeds in order, without the bump: at most 15, each at most 32 bytes.
     ///   - program: The program that owns the derived address.
     /// - Returns: The canonical program address and its bump.
-    /// - Throws: ``ValidationError/invalidSeeds`` for more than 15 seeds or a seed longer than
-    ///   32 bytes, or ``ValidationError/addressDerivationFailed`` if every bump is on the curve.
+    /// - Throws: ``ValidationError/invalidSeeds`` or ``ValidationError/addressDerivationFailed``.
     public static func find(seeds: [[UInt8]], program: Address) throws -> (address: Address, bump: UInt8) {
         guard seeds.count < maximumSeedCount, seeds.allSatisfy({ $0.count <= maximumSeedLength }) else {
             throw ValidationError.invalidSeeds

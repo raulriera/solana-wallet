@@ -2,15 +2,13 @@ import Portfolio
 import SwiftUI
 
 /// A token row's value, or its balance when the value is unknown, with the 24-hour change under the value.
-///
-/// Large values and balances shorten, as in 10.2K, so the symbol and name keep their room.
 struct TokenRowFigures: View {
     let amount: Amount?
     /// The token's total value and its quote currency, or `nil` when either is unknown.
     let value: (total: Decimal, currency: String)?
     /// The price's 24-hour change as a fraction, or `nil` when unknown.
     let change: Decimal?
-    /// Whether the account also holds private SOL, which shows as a sign before the balance.
+    /// Whether the account also holds private SOL.
     let hasPrivateBalance: Bool
 
     var body: some View {

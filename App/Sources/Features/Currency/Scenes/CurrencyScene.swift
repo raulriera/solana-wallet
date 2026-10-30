@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Owns Currency: its navigation, which pushes the rate source's currencies, and the screens' changes and currencies.
+/// Shows the Currency settings and the currency list they push.
 struct CurrencyScene: View {
     @Environment(CurrencyStore.self) private var store
     @State private var choice = CurrencySettingsModel()

@@ -1,19 +1,9 @@
 import ModularArithmetic
 
-/// The public input that packs a transact proof's dummy-input policy and each input's tree,
-/// `pack_input_flags`.
-///
-/// Bit 0 allows padding inputs; this module always sets it, as zolana's clients do. Input i's tree
-/// position occupies the three bits from bit `1 + 3i`. The value is a big-endian field element
-/// below 2^148, since a proof has at most 49 inputs.
-///
-/// The program sets bit 0 itself from the trees' room for padding nullifiers. If a tree runs low,
-/// the program clears the bit and rejects a proof that padding inputs need.
+/// The public input that packs a transact proof's padding policy and each input's tree.
 enum InputFlags {
-    /// The most inputs that a transact proof has.
     private static let maximumInputs = 49
 
-    /// The number of tree slots that a proof publishes, which three bits address.
     private static let treeSlots = 5
 
     /// Packs the input trees of a proof that allows padding inputs.
@@ -21,7 +11,6 @@ enum InputFlags {
     /// - Parameter treeIndexes: Each input slot's position among the declared input trees, in slot
     ///   order.
     /// - Returns: The packed flags.
-    /// - Precondition: There are at most 49 inputs, and each position is below 5.
     static func pack(treeIndexes: [UInt8]) -> Poseidon.Element {
         precondition(treeIndexes.count <= maximumInputs, "A transact proof has at most 49 inputs.")
         var bytes = [UInt8](repeating: 0, count: 32)
@@ -37,7 +26,7 @@ enum InputFlags {
     ///
     /// - Parameters:
     ///   - value: A value of at most three bits.
-    ///   - shift: The position of the value's lowest bit; bit b is bit `b % 8` of byte `31 - b / 8`.
+    ///   - shift: The position of the value's lowest bit.
     ///   - bytes: The 32-byte big-endian integer.
     private static func setBits(_ value: UInt16, at shift: Int, in bytes: inout [UInt8]) {
         let shifted = value << (shift % 8)

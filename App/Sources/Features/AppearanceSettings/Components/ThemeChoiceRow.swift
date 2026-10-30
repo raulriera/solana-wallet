@@ -1,10 +1,11 @@
 import SwiftUI
 
-/// One accessible theme choice with an independent SwiftUI update boundary.
+/// A row that selects a theme for the app or a wallet.
 struct ThemeChoiceRow: View {
     @Environment(\.palette) private var palette
+    /// The theme, or `nil` for the app default.
     let themeID: UUID?
-    /// The package's unchanged name, or `nil` for the localized inheritance choice.
+    /// The theme's name, or `nil` for the app default.
     let name: String?
     let isSelected: Bool
     let scope: AppearancePreferences.Scope
@@ -23,7 +24,7 @@ struct ThemeChoiceRow: View {
         .listRowSeparatorTint(palette.separator)
     }
 
-    /// Sends the choice through its window's workflow, preserving Original wallet overrides.
+    /// Selects the row's theme for its scope.
     private func select() {
         actions.select(scope == .application && themeID == OriginalAppearance.id ? nil : themeID, for: scope)
     }

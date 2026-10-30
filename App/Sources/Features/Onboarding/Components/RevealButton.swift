@@ -1,14 +1,10 @@
 import SwiftUI
 
-/// Shows or hides a recovery field's text with an eye icon on the trailing side of the field.
+/// A button that shows or hides a recovery field's text.
 struct RevealButton: View {
-    /// Whether the field currently shows its text.
     let isRevealed: Bool
-    /// The button's name while the text is hidden.
     let showTitle: LocalizedStringKey
-    /// The button's name while the text is shown.
     let hideTitle: LocalizedStringKey
-    /// Switches the field between hidden and shown.
     let action: () -> Void
 
     var body: some View {

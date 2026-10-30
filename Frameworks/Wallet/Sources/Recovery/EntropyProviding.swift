@@ -10,13 +10,8 @@ protocol EntropyProviding: Sendable {
     func bytes(count: Int) throws -> [UInt8]
 }
 
-/// An entropy source backed by Apple's Security framework.
+/// An entropy source that uses the system's secure random number generator.
 struct SystemEntropy: EntropyProviding {
-    /// Generates bytes with the system's cryptographically secure random number generator.
-    ///
-    /// - Parameter count: The number of bytes to generate.
-    /// - Returns: Exactly `count` random bytes.
-    /// - Throws: ``SystemEntropyError/unavailable`` if the system reports a failure.
     func bytes(count: Int) throws -> [UInt8] {
         var bytes = [UInt8](repeating: 0, count: count)
         let status = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)

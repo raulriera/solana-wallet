@@ -3,30 +3,20 @@ import ModularArithmetic
 import Transactions
 
 extension TransactPlan {
-    /// The circuit of a default-ring transact with Ed25519 owners, `CircuitId::ConfidentialEddsa`.
+    /// The circuit ID of a default-ring transact with Ed25519 owners.
     private static let confidentialEddsaCircuit: UInt16 = 0
 
-    /// The number of public asset slots in every transact circuit.
     private static let publicAssetSlots: UInt8 = 3
 
-    /// Creates the transact instruction once the proof exists.
-    ///
-    /// The data is the tag 16, the external data's encoded prefix, the private transaction hash,
-    /// the circuit (its ID as a little-endian 16-bit integer, then the input slots, the output slots,
-    /// and the 3 public asset slots), the proof, each input's nullifier and tree position, and the
-    /// tree contexts. The accounts are the fee payer as a writable signer, the writable output tree,
-    /// the shielded-pool program, the System Program, each declared input tree in declaration order,
-    /// each input's nullifier account in slot order, and for a withdrawal, the SOL interface and the
-    /// recipient, all writable except the programs.
+    /// Creates the transact instruction from the plan's proof.
     ///
     /// - Parameters:
     ///   - proof: The proof of the plan's public inputs.
     ///   - treeContexts: One context per declared input tree, in declaration order.
-    /// - Returns: The instruction, which the sender signs as the fee payer.
+    /// - Returns: The transact instruction.
     /// - Throws: ``ValidationError/invalidTreeContextCount`` unless there's one context per
     ///   declared input tree, ``WincodeWriter/ValidationError/lengthOverflow`` if a count exceeds
-    ///   255, or a ``Transactions/ValidationError`` if an account's derivation fails, which doesn't
-    ///   happen.
+    ///   255, or a ``Transactions/ValidationError`` if an account's derivation fails.
     func instruction(proof: TransactProof, treeContexts: [TreeContext]) throws -> Instruction {
         guard treeContexts.count == inputTreeIDs.count else { throw ValidationError.invalidTreeContextCount }
         var writer = WincodeWriter()

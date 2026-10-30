@@ -1,12 +1,13 @@
-/// Accepts locally validated recovery only after the user explicitly submits it.
+/// A workflow that imports submitted recovery words.
 @MainActor
 protocol ImportSubmitting {
-    /// Whether an accepted import is still running, so the screen keeps its input locked until it ends.
+    /// Whether an import is waiting or running.
     var isPending: Bool { get }
 
-    /// Requests one import without normalizing the original BIP-39 passphrase.
+    /// Submits recovery words for import.
+    ///
     /// - Parameters:
-    ///   - phrase: Recovery words supplied by the phrase-entry screen.
-    ///   - passphrase: The original passphrase, including case and whitespace.
+    ///   - phrase: The recovery words.
+    ///   - passphrase: The BIP-39 passphrase, including case and whitespace.
     func submit(_ phrase: String, passphrase: String)
 }

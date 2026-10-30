@@ -1,15 +1,9 @@
 import Foundation
 
 extension Asset {
-    /// Decodes a DAS asset's identity and the provider's HTTPS copy of its image.
-    ///
-    /// A malformed file entry is skipped without losing its neighbors. Asset identity remains strictly decoded.
-    /// - Parameter decoder: The decoder containing the DAS asset.
-    /// - Throws: A decoding error for a malformed identity.
     public init(from decoder: any Decoder) throws {
         let root = try Fields(from: decoder)
         let files = root.object("content")?.objects("files") ?? []
-        // Only the provider's HTTPS copy: creator-hosted and off-chain links expose the viewer's IP address.
         let image = files.first { file in
             file.value("mime", as: String.self)?.hasPrefix("image/") == true
                 && file.url("cdn_uri")?.scheme?.lowercased() == "https"
@@ -18,49 +12,51 @@ extension Asset {
     }
 }
 
-/// Private DAS field access; provider keys never become shared Codable keys.
+/// A DAS JSON object whose fields are read by name.
 private struct Fields: Decodable {
     private let container: KeyedDecodingContainer<Key>
 
-    /// Reads an object without imposing a provider schema on domain values.
-    /// - Parameter decoder: The decoder containing the object.
-    /// - Throws: A decoding error if the value isn't an object.
     init(from decoder: any Decoder) throws { container = try decoder.container(keyedBy: Key.self) }
 
-    /// Reads a required field with strict type validation.
+    /// Reads a required field.
+    ///
     /// - Parameters:
     ///   - type: The expected value type.
-    ///   - name: The provider's field name.
+    ///   - name: The field name.
     /// - Returns: The decoded value.
-    /// - Throws: A decoding error for absent or malformed values.
+    /// - Throws: A decoding error for an absent or malformed value.
     func required<T: Decodable>(_ type: T.Type, _ name: String) throws -> T {
         try container.decode(type, forKey: Key(name))
     }
 
-    /// Reads an optional field, rejecting malformed supplied values.
+    /// Reads an optional field.
+    ///
     /// - Parameters:
     ///   - type: The expected value type.
-    ///   - name: The provider's field name.
-    /// - Returns: The decoded value, or `nil` for absence or null.
-    /// - Throws: A decoding error for a malformed supplied value.
+    ///   - name: The field name.
+    /// - Returns: The decoded value, or `nil` if absent or null.
+    /// - Throws: A decoding error for a malformed value.
     func optional<T: Decodable>(_ type: T.Type, _ name: String) throws -> T? {
         try container.decodeIfPresent(type, forKey: Key(name))
     }
 
-    /// Reads an optional display field independently of its neighbors.
+    /// Reads an optional field, ignoring a malformed value.
+    ///
     /// - Parameters:
-    ///   - name: The provider's field name.
+    ///   - name: The field name.
     ///   - type: The expected value type.
     /// - Returns: The decoded value, or `nil` if absent or malformed.
     func value<T: Decodable>(_ name: String, as type: T.Type = T.self) -> T? { try? optional(type, name) }
 
     /// Reads an optional nested object.
-    /// - Parameter name: The provider's field name.
+    ///
+    /// - Parameter name: The field name.
     /// - Returns: The object, or `nil` if absent or malformed.
     func object(_ name: String) -> Fields? { value(name) }
 
-    /// Reads valid objects from an optional list without losing healthy neighbors.
-    /// - Parameter name: The provider's list name.
+    /// Reads the valid objects in an optional list.
+    ///
+    /// - Parameter name: The field name.
     /// - Returns: The decoded objects, or `nil` if the field isn't a list.
     func objects(_ name: String) -> [Fields]? {
         guard var list = try? container.nestedUnkeyedContainer(forKey: Key(name)) else { return nil }
@@ -72,8 +68,9 @@ private struct Fields: Decodable {
         return objects
     }
 
-    /// Reads a nonempty absolute resource URL, including decentralized URI schemes.
-    /// - Parameter name: The provider's URL field.
+    /// Reads a nonempty absolute URL.
+    ///
+    /// - Parameter name: The field name.
     /// - Returns: The URL, or `nil` if empty, relative, or malformed.
     func url(_ name: String) -> URL? {
         guard let text = value(name, as: String.self), !text.isEmpty,
@@ -81,18 +78,15 @@ private struct Fields: Decodable {
         return url
     }
 
-    /// An internal key for the provider's JSON field names.
+    /// A coding key for a field name.
     private struct Key: CodingKey {
         let stringValue: String
         var intValue: Int? { nil }
-        /// Creates a key from a provider field name.
+        /// Creates a key from a field name.
+        ///
         /// - Parameter name: The field name.
         init(_ name: String) { stringValue = name }
-        /// Creates a key from a coding string.
-        /// - Parameter stringValue: The field name.
         init?(stringValue: String) { self.init(stringValue) }
-        /// Rejects integer keys because DAS objects use string keys.
-        /// - Parameter intValue: The unsupported integer key.
         init?(intValue: Int) { return nil }
     }
 }

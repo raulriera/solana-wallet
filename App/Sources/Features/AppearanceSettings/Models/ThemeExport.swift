@@ -6,7 +6,7 @@ extension UTType {
     nonisolated static let themePack = UTType(exportedAs: "com.raulriera.xtheme", conformingTo: .package)
 }
 
-/// A fully prepared package; the system exporter copies it without serializing in a view.
+/// A theme package file to export.
 nonisolated struct ThemeExport: Transferable, Sendable, Equatable {
     let url: URL
 

@@ -2,9 +2,10 @@ import Foundation
 import Wallet
 
 extension RecoveryPhrase.ValidationError {
-    /// Explains the rejection under the recovery words; the words must never be logged or used as identifiers.
-    /// - Parameter phrase: The words as entered, read only to name an unknown word.
-    /// - Returns: The explanation, or `nil` when an unknown word's position no longer exists in the phrase.
+    /// Returns the explanation of the rejection.
+    ///
+    /// - Parameter phrase: The words as entered.
+    /// - Returns: The explanation, or `nil` when the unknown word's position is outside the phrase.
     func message(in phrase: String) -> LocalizedStringResource? {
         switch self {
         case .invalidWordCount:

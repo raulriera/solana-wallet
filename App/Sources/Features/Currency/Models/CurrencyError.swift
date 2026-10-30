@@ -1,15 +1,11 @@
 import Foundation
 
-/// An error that the Currency settings explain.
+/// An error in the Currency settings.
 nonisolated enum CurrencyError: LocalizedError, Equatable {
-    /// The currency choice couldn't be read.
     case settingsUnreadable
-    /// The currency choice couldn't be saved.
     case settingsUnsaved
-    /// The rate source's currencies couldn't be loaded.
     case ratesUnavailable
 
-    /// The error's title.
     var errorDescription: String? {
         switch self {
         case .settingsUnreadable: String(localized: "Couldn't Load Currency")
@@ -18,7 +14,6 @@ nonisolated enum CurrencyError: LocalizedError, Equatable {
         }
     }
 
-    /// The error's explanation.
     var recoverySuggestion: String? {
         switch self {
         case .settingsUnreadable: String(localized: "Your currency choice couldn't be loaded.")

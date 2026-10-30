@@ -4,13 +4,12 @@ public import Foundation
 public struct Amount: Codable, Sendable, Equatable {
     /// The quantity in the asset's smallest units.
     public let units: UInt64
-    /// The number of decimal places used by the asset.
     public let decimals: UInt8
 
-    /// Creates a quantity without floating-point conversion.
+    /// Creates an amount.
     ///
     /// - Parameters:
-    ///   - units: The exact integer quantity.
+    ///   - units: The quantity in the asset's smallest units.
     ///   - decimals: The number of decimal places.
     public init(units: UInt64, decimals: UInt8) {
         self.units = units
@@ -19,13 +18,7 @@ public struct Amount: Codable, Sendable, Equatable {
 
     /// Returns a localized string representing the quantity in whole asset units.
     ///
-    /// The result preserves every nonzero fractional digit and omits trailing
-    /// fractional zeros. It uses the locale's digits, grouping, and decimal
-    /// separator, without adding a token symbol or converting to floating point.
-    /// For example, 1,250,000,000 units with nine decimal places becomes `1.25`
-    /// in the `en_US` locale.
-    ///
-    /// - Parameter locale: The locale used to format the quantity.
+    /// - Parameter locale: The locale to format with.
     /// - Returns: The exact quantity formatted for display.
     public func formatted(locale: Locale) -> String {
         let digits = String(units)

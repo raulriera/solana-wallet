@@ -5,14 +5,10 @@ import Transactions
 extension TransactPlan {
     /// Reads each declared tree's proofs for the plan's inputs and checks them.
     ///
-    /// The trees are read concurrently, each with two concurrent reads: the inclusion proofs of its spent UTXOs,
-    /// and the non-inclusion proofs of the nullifiers of every input slot that names it, padding included, in one
-    /// request, so that real and padding slots share the nullifier root that the program reads by one position.
-    ///
-    /// - Parameter indexer: The indexer, such as a Helius client.
+    /// - Parameter indexer: The indexer.
     /// - Returns: One witness per declared tree, in declaration order.
     /// - Throws: An error from the indexer or ``TreeWitness/init(treeID:inclusionProofs:nonInclusionProofs:)``, or a
-    ///   ``Transactions/ValidationError`` if a tree account's derivation fails, which doesn't happen.
+    ///   ``Transactions/ValidationError`` if a tree account's derivation fails.
     func treeWitnesses(using indexer: some PrivateNoteProviding) async throws -> [TreeWitness] {
         let reads = try inputTreeIDs.enumerated().map { index, id in
             let slots = inputs.filter { Int($0.treeIndex) == index }
@@ -35,20 +31,7 @@ extension TransactPlan {
         }
     }
 
-    /// Creates the request for the plan's proof on the prover's complete route.
-    ///
-    /// The request carries the declared trees' slots, the public input hash with those slots, and the witness, as
-    /// zolana's `TransferParametersJSON` holds them:
-    ///
-    /// - A spent input carries its UTXO, the sender's identity, the nullifier secret, and its inclusion proof. A
-    ///   padding input carries only its domain and blinding, with zero for the identity, the secret, and the state
-    ///   path. Every input carries its nullifier's non-inclusion proof.
-    /// - A real output carries its UTXO, its owner's identity, and its owner's nullifier public key.
-    ///   A padding output carries only its domain and blinding, the identity of its view tag, and
-    ///   zero for the nullifier public key.
-    ///
-    /// The request holds the nullifier secret and the blinding seed in plain form; the prover can
-    /// link the sender's spends but can't spend, because each spend needs the sender's signature.
+    /// Creates the request for the plan's proof.
     ///
     /// - Parameters:
     ///   - nullifierKey: The sender's nullifier key.
@@ -57,17 +40,13 @@ extension TransactPlan {
     /// - Throws: ``ValidationError/foreignNullifierKey`` if the key doesn't derive the spent
     ///   inputs' nullifiers, ``ValidationError/inconsistentProofs`` unless each tree has one proof of each kind
     ///   for each of its inputs, in order, or a ``RPC/TransferProofRequest/ValidationError`` if a value is
-    ///   invalid, which doesn't happen.
+    ///   invalid.
     func proofRequest(nullifierKey: NullifierKey, trees: [TreeWitness]) throws -> TransferProofRequest {
         try check(nullifierKey)
         return try proofRequest(nullifierKey: nullifierKey, statement: publicInputs, trees: trees)
     }
 
     /// Checks the prover's response against the plan and converts its proof for the instruction.
-    ///
-    /// The proving key must be the plan's shape's. No pairing check runs on the device: a proof that doesn't
-    /// verify fails the transaction's simulation and can't move funds. `a` is negated and compressed, `c` is
-    /// compressed, and `b` is copied.
     ///
     /// - Parameter response: The prover's response.
     /// - Returns: The proof.
@@ -85,14 +64,10 @@ extension TransactPlan {
 
     /// Proves the plan and creates its transact instruction.
     ///
-    /// The work runs off the caller's actor: it checks the nullifier key before any request, reads the trees'
-    /// proofs, hashes the statement once, waits for the prover, and checks the response. The tree contexts hold
-    /// the positions of the roots that the request was proven against.
-    ///
     /// - Parameters:
     ///   - nullifierKey: The sender's nullifier key.
-    ///   - provider: The indexer and prover, such as a Helius client.
-    /// - Returns: The instruction, which the sender signs as the fee payer.
+    ///   - provider: The indexer and prover.
+    /// - Returns: The transact instruction.
     /// - Throws: An error from ``proofRequest(nullifierKey:trees:)``, ``treeWitnesses(using:)``, the prover,
     ///   ``proof(from:)``, or ``instruction(proof:treeContexts:)``.
     @concurrent
@@ -183,11 +158,10 @@ extension TransactPlan {
     /// Creates a slot's UTXO as the witness carries it.
     ///
     /// - Parameters:
-    ///   - utxo: The slot's UTXO, or `nil` for padding, which carries only its domain and blinding.
+    ///   - utxo: The slot's UTXO, or `nil` for padding.
     ///   - blinding: The slot's blinding.
     /// - Returns: The witness UTXO, without data, ring data, or a ring program.
-    /// - Throws: A ``RPC/TransferProofRequest/ValidationError`` if a value isn't 32 bytes, which
-    ///   doesn't happen.
+    /// - Throws: A ``RPC/TransferProofRequest/ValidationError`` if a value isn't 32 bytes.
     private static func witnessUTXO(_ utxo: UTXO?, blinding: Poseidon.Element) throws -> TransferProofRequest.UTXO {
         let zero = Poseidon.Element.zero.bigEndianBytes
         return try TransferProofRequest.UTXO(
@@ -203,7 +177,6 @@ extension TransactPlan {
 
 /// The values of one declared tree's two proof reads.
 private struct TreeRead: Sendable {
-    /// The tree's ID.
     let id: UInt16
     /// The tree account's base-58 address.
     let tree: String

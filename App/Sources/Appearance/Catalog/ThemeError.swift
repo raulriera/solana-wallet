@@ -1,12 +1,10 @@
 import Foundation
 
-/// A theme error that an alert explains without the underlying error's text.
+/// A theme error to show to the person.
 nonisolated enum ThemeError: LocalizedError, Equatable {
-    /// The window's selected theme couldn't be loaded, so it is no longer selected.
     case themeUnreadable
     /// The saved theme choices couldn't be loaded.
     case settingsUnreadable
-    /// A theme file couldn't be imported.
     case importFailed
     /// The theme template couldn't be exported.
     case exportFailed
@@ -17,7 +15,6 @@ nonisolated enum ThemeError: LocalizedError, Equatable {
     /// Another window changed the theme first.
     case changedElsewhere
 
-    /// The alert's title.
     var errorDescription: String? {
         switch self {
         case .themeUnreadable, .settingsUnreadable: String(localized: "Couldn't Load Theme")
@@ -27,7 +24,6 @@ nonisolated enum ThemeError: LocalizedError, Equatable {
         }
     }
 
-    /// The alert's explanation.
     var recoverySuggestion: String? {
         switch self {
         case .themeUnreadable: String(localized: "Your theme couldn't be loaded and is no longer selected.")

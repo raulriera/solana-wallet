@@ -1,27 +1,21 @@
-/// A nullifier's non-inclusion proof in its tree's indexed nullifier tree, as an indexer reads it.
-///
-/// The proof shows the low element, the largest nullifier below this one, whose next value is above it, at its
-/// position under the root. Values are 32 big-endian bytes, the field elements that the prover reads.
+/// A nullifier's non-inclusion proof in a nullifier tree.
 public struct NonInclusionProof: Sendable, Equatable {
-    /// The nullifier tree's height, the number of siblings in a path.
+    /// The number of siblings in a path.
     public static let height = 40
 
-    /// The nullifier that the tree doesn't hold.
     public let nullifier: [UInt8]
-    /// The low element's value.
+    /// The value of the largest element below the nullifier.
     public let lowElement: [UInt8]
-    /// The low element's position in the tree.
     public let lowElementIndex: UInt64
     /// The low element's next value, above the nullifier.
     public let highElement: [UInt8]
     /// The low element's siblings, leaf level first.
     public let path: [[UInt8]]
-    /// The root that the path leads to.
     public let root: [UInt8]
     /// The root's position in the tree's on-chain root history.
     public let rootIndex: UInt16
 
-    /// Creates a proof after checking its lengths.
+    /// Creates a proof.
     ///
     /// - Parameters:
     ///   - nullifier: The 32-byte nullifier.

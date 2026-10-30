@@ -1,15 +1,12 @@
 import Foundation
 
-/// A payment error that the app explains in an alert, without underlying errors.
+/// An error that stops a payment.
 nonisolated enum SendError: TransactionReviewError, CaseIterable {
-    /// The account's SOL doesn't cover the payment and its network fee, as the simulation found.
+    /// The account's SOL doesn't cover the payment and its network fee.
     case notEnoughSOL
-    /// The payment couldn't be prepared or simulated for another reason, such as a provider error.
     case preparationFailed
-    /// The payment couldn't be signed or sent, so nothing left the wallet.
     case notSent
 
-    /// The alert's title.
     var errorDescription: String? {
         switch self {
         case .notEnoughSOL: String(localized: "Not Enough SOL")
@@ -18,7 +15,6 @@ nonisolated enum SendError: TransactionReviewError, CaseIterable {
         }
     }
 
-    /// The alert's message.
     var recoverySuggestion: String? {
         switch self {
         case .notEnoughSOL:
@@ -30,6 +26,5 @@ nonisolated enum SendError: TransactionReviewError, CaseIterable {
         }
     }
 
-    /// Whether repeating the step that failed can help: a simulation that ran out of SOL fails the same way again.
     var canRetry: Bool { self != .notEnoughSOL }
 }

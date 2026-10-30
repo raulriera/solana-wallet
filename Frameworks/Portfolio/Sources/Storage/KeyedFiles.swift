@@ -2,9 +2,8 @@ import CryptoKit
 import Foundation
 import RPC
 
-/// One file per wallet and network, named by a digest so neither value becomes a path component.
+/// A directory with one file per wallet and network, each named by a digest of both.
 struct KeyedFiles: Sendable {
-    /// The directory that holds the files.
     let directory: URL
 
     /// Reads a wallet's file.
@@ -22,7 +21,7 @@ struct KeyedFiles: Sendable {
 
     /// Reads every wallet's file in the directory.
     ///
-    /// - Returns: The contents of each file that can be read, in no particular order; none when the directory is missing.
+    /// - Returns: The contents of each readable file, in no particular order.
     /// - Throws: A file-system error if the directory exists but can't be listed.
     func readAll() throws -> [Data] {
         let urls: [URL]
@@ -34,19 +33,18 @@ struct KeyedFiles: Sendable {
         return urls.filter { $0.pathExtension == "json" }.compactMap { try? Data(contentsOf: $0) }
     }
 
-    /// Atomically replaces a wallet's file, so an interrupted write preserves the previous contents.
+    /// Atomically replaces a wallet's file.
     ///
     /// - Parameters:
     ///   - data: The complete new contents.
     ///   - key: The wallet and network under which to store them.
-    /// - Throws: A file-system error if the write fails.
+    /// - Throws: A file-system error.
     func write(_ data: Data, for key: CacheKey) throws {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        // Portfolio files stay unreadable while the device is locked; the portfolio only runs in the foreground.
         try data.write(to: fileURL(for: key), options: [.atomic, .completeFileProtection])
     }
 
-    /// Removes a wallet's file, allowing one that's already absent.
+    /// Removes a wallet's file, if present.
     ///
     /// - Parameter key: The wallet and network to remove.
     /// - Throws: A file-system error other than a missing file.
@@ -58,9 +56,9 @@ struct KeyedFiles: Sendable {
         }
     }
 
-    /// Creates a safe filename from a wallet and network without using either as a path component.
+    /// Returns the URL of a wallet's file.
     ///
-    /// - Parameter key: The identity to encode.
+    /// - Parameter key: The wallet and network.
     /// - Returns: A JSON file URL inside the directory.
     private func fileURL(for key: CacheKey) -> URL {
         let data = Data("\(key.network.rawValue):\(key.owner)".utf8)

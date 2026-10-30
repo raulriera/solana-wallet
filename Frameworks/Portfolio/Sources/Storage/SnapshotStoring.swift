@@ -6,11 +6,9 @@ struct CacheKey: Hashable, Sendable {
     let network: Network
 }
 
-/// A type that stores complete snapshots independently of the network source.
-///
-/// The portfolio coordinator serializes these synchronous operations off the main actor.
+/// A type that stores complete snapshots.
 protocol SnapshotStoring: Sendable {
-    /// Reads the most recent compatible snapshot for a wallet and network.
+    /// Reads a wallet's stored snapshot.
     ///
     /// - Parameter key: The wallet and network to look up.
     /// - Returns: The stored snapshot, or `nil` if unavailable or incompatible.
@@ -18,22 +16,21 @@ protocol SnapshotStoring: Sendable {
 
     /// Reads every compatible stored snapshot.
     ///
-    /// Unreadable or incompatible files are skipped.
-    /// - Returns: The stored snapshots, in no particular order.
+    /// - Returns: The readable stored snapshots, in no particular order.
     /// - Throws: A file-system error if the stored snapshots can't be listed.
     func snapshots() throws -> [Snapshot]
 
-    /// Replaces a wallet's stored snapshot after a complete refresh.
+    /// Replaces a wallet's stored snapshot.
     ///
     /// - Parameters:
-    ///   - snapshot: The complete snapshot to persist.
+    ///   - snapshot: The complete snapshot to save.
     ///   - key: The wallet and network under which to store it.
-    /// - Throws: An encoding or file-system error if the snapshot can't be saved.
+    /// - Throws: An encoding or file-system error.
     func save(_ snapshot: Snapshot, for key: CacheKey) throws
 
     /// Removes a wallet's stored snapshot, if present.
     ///
     /// - Parameter key: The wallet and network to remove.
-    /// - Throws: A file-system error if an existing snapshot can't be removed.
+    /// - Throws: A file-system error.
     func remove(for key: CacheKey) throws
 }

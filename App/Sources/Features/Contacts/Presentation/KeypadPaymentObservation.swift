@@ -1,21 +1,14 @@
 import RPC
 import SwiftUI
 
-/// Follows the tokens that an account can pay with in its portfolio, so only this modifier reads each portfolio update.
-///
-/// The payment changes in place as balances and prices change, so its owner updates only when the keypad starts,
-/// or when there's nothing left to pay with.
+/// A modifier that keeps the keypad's payment up to date with the tokens an account can pay with.
 private struct KeypadPaymentObservation: ViewModifier {
     @Environment(PortfolioStore.self) private var portfolios
-    /// The account whose tokens the keypad pays with.
     let account: Account
-    /// The network whose portfolio the keypad pays from.
     let network: Network
-    /// What the keypad pays with.
     @Binding var payment: KeypadPayment
 
     func body(content: Content) -> some View {
-        // A portfolio that nothing observed yet has nothing to show.
         let tokens = portfolios.portfolio(for: account, on: network).flatMap {
             PayableTokens(holdings: $0.holdings, error: $0.error)
         }
@@ -25,10 +18,9 @@ private struct KeypadPaymentObservation: ViewModifier {
             }
     }
 
-    /// Keeps the payment's tokens with the account's balances and prices, keeping the amount as typed while its token
-    /// and currency remain.
-    /// - Parameter tokens: The account's tokens with a balance and their prices' currency, or `nil` before its
-    ///   portfolio has anything to show.
+    /// Updates the payment with the account's tokens and their prices' currency.
+    ///
+    /// - Parameter tokens: The tokens with a balance, or `nil` before the portfolio has anything to show.
     private func follow(_ tokens: PayableTokens?) {
         guard let tokens else {
             payment = .loading
@@ -42,20 +34,17 @@ private struct KeypadPaymentObservation: ViewModifier {
             payment = .ready(PaymentModel(tokens: tokens.tokens, currencyCode: tokens.currencyCode))
             return
         }
-        // Balances and values that change animate in place.
         withAnimation { model.update(tokens.tokens, currencyCode: tokens.currencyCode) }
     }
 }
 
 extension View {
-    /// Follows the tokens that an account can pay with as its balances, prices, and currency change.
+    /// Keeps a keypad payment up to date with the tokens an account can pay with.
     ///
-    /// The portfolio comes from the environment's ``PortfolioStore``, which the window observes.
     /// - Parameters:
-    ///   - account: The account whose tokens the keypad pays with.
-    ///   - network: The network whose portfolio the keypad pays from.
-    ///   - payment: What the keypad pays with, which starts a payment once the portfolio lists a token with a
-    ///     balance and keeps it up to date.
+    ///   - account: The account that pays.
+    ///   - network: The network of the account's portfolio.
+    ///   - payment: The keypad payment to update.
     /// - Returns: A view that keeps `payment` up to date.
     func keypadPayment(for account: Account, on network: Network, into payment: Binding<KeypadPayment>) -> some View {
         modifier(KeypadPaymentObservation(account: account, network: network, payment: payment))

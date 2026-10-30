@@ -1,31 +1,24 @@
 import RPC
 import SwiftUI
 
-/// Presents settings in a split view: the sidebar's destinations and the selected one's screens, within the window's
-/// appearance environment.
+/// Shows the Settings destinations in a sidebar and the selected one's screens.
 struct SettingsSplitView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var selection: SettingsDestination?
     @Binding var network: Network
     let settings: AppearanceSettingsModel
-    /// The owning window's account, which Accounts changes.
     @Binding var account: Account
-    /// The tab's Security & Privacy navigation and steps, which run with ``settingsLifecycle()``.
     let security: SecurityCoordinator
-    /// The tab's RPC provider choices and key entry, which run with ``settingsLifecycle()``.
     let providers: ProvidersCoordinator
 
-    /// Presents the window's preference-editing workflow, its network, its wallet's accounts, its RPC provider choices,
-    /// its currency, and its wallet's security choices.
+    /// Creates the Settings split view.
     ///
-    /// Appearance loading and rendering belong to the owning window's root.
     /// - Parameters:
-    ///   - settings: The window's appearance editing; the window cancels unfinished work when it leaves the wallet.
-    ///   - account: The owning window's account, whose wallet's accounts Accounts lists and changes, and whose recovery
-    ///     Security & Privacy shows.
-    ///   - network: The network that the owning window shows; other windows keep theirs.
-    ///   - security: The tab's Security & Privacy navigation and steps.
-    ///   - providers: The tab's RPC provider choices and key entry.
+    ///   - settings: The window's appearance settings workflow.
+    ///   - account: The window's account.
+    ///   - network: The window's network.
+    ///   - security: The Security & Privacy workflow.
+    ///   - providers: The RPC provider workflow.
     init(settings: AppearanceSettingsModel, account: Binding<Account>,
          network: Binding<Network>, security: SecurityCoordinator, providers: ProvidersCoordinator) {
         _network = network
@@ -63,13 +56,10 @@ struct SettingsSplitView: View {
         }
         .navigationSplitViewStyle(.tabSection)
         .onChange(of: selection) { _, selection in
-            // Leaving Security & Privacy closes its screens and releases any open backup.
             if selection != .security { security.close() }
-            // Leaving Providers closes its screens.
             if selection != .providers { providers.leave() }
         }
         .onChange(of: horizontalSizeClass, initial: true) { _, sizeClass in
-            // A selection pushes its detail on compact displays, so only expanded layouts start with one.
             if sizeClass == .regular, selection == nil { selection = .appearance }
         }
         .errorAlert($settings.error)

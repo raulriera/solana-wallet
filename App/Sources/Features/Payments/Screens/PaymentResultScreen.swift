@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// Shows how a sent payment settled, with a link to its page on Solana Explorer, which also shows its signature, and
-/// offers to try a dropped payment again.
+/// Shows how a sent payment settled, with a link to its explorer page and a way to retry a dropped payment.
 struct PaymentResultScreen: TransactionResultContent {
     @Environment(\.palette) private var palette
     @AccessibilityFocusState private var isFocused: Bool
@@ -18,7 +17,6 @@ struct PaymentResultScreen: TransactionResultContent {
             }
             .listRowBackground(palette.surface)
 
-            // Every outcome links to its page on Solana Explorer, so the person can check it themselves.
             if let submission = review.submission {
                 Section {
                     if outcome == .dropped {
@@ -36,7 +34,6 @@ struct PaymentResultScreen: TransactionResultContent {
         .background(palette.background)
         .navigationTitle(Text(verbatim: review.proposal.recipient.title))
         .navigationBarTitleDisplayMode(.inline)
-        // The result replaces the review in place, so VoiceOver moves to it.
         .onChange(of: outcome, initial: true) { isFocused = true }
     }
 

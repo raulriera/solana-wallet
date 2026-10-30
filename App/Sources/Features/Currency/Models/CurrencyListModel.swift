@@ -1,8 +1,7 @@
 import Foundation
 import Observation
 
-/// Owns the rate source's currencies: loading them, the search that narrows them, and the currency that an automatic
-/// choice follows.
+/// Loads and searches the rate source's currencies.
 @MainActor
 @Observable
 final class CurrencyListModel {
@@ -10,40 +9,36 @@ final class CurrencyListModel {
     private(set) var currencies: [String]? {
         didSet { updateListed() }
     }
-    /// The text that narrows the listed currencies to those whose name or code contains it.
     var search = "" {
         didSet { updateListed() }
     }
     /// The currencies that match ``search``, ordered by name.
     private(set) var listed: [String] = []
-    /// Why the currencies couldn't load, until a retry.
     private(set) var error: CurrencyError?
-    /// Counts retries after a failure, so each one loads the currencies again.
+    /// The number of retries after a failure.
     private(set) var retry = 0
-    /// The rate source that ``currencies`` belong to.
+    /// The rate source of ``currencies``.
     @ObservationIgnored private var source: CurrencySettings.RateSource?
     private let locale: Locale
 
-    /// Starts without currencies.
-    /// - Parameter locale: The locale whose region's currency an automatic choice follows, and that names and orders the
-    ///   currencies, as the prices' conversion does.
+    /// Creates a model without currencies.
+    ///
+    /// - Parameter locale: The locale that names and orders the currencies and sets the automatic currency.
     init(locale: Locale = .autoupdatingCurrent) {
         self.locale = locale
     }
 
-    /// The currency that an automatic choice shows values in: the region's when the rate source serves it, which it
-    /// is taken to do until its currencies load, and US dollars otherwise.
+    /// The ISO code of the currency that an automatic choice uses.
     var automaticCurrency: String {
         guard let region = locale.currency?.identifier, currencies?.contains(region) ?? true else { return "USD" }
         return region
     }
 
-    /// Loads a rate source's currencies, unless they're already loaded.
+    /// Loads a rate source's currencies unless they're already loaded.
     ///
-    /// Another source's currencies stay until these load, so what they show doesn't flash.
     /// - Parameters:
-    ///   - source: The chosen rate source, or `nil` when none is chosen and nothing loads.
-    ///   - store: The choice that every window shares, which lists each source's currencies.
+    ///   - source: The chosen rate source, or `nil` when none is chosen.
+    ///   - store: The currency store.
     func load(_ source: CurrencySettings.RateSource?, from store: CurrencyStore) async {
         guard let source, currencies == nil || self.source != source else { return }
         error = nil
@@ -58,7 +53,7 @@ final class CurrencyListModel {
         }
     }
 
-    /// Loads the currencies again after they failed.
+    /// Loads the currencies again after a failure.
     func retryLoading() {
         error = nil
         retry += 1

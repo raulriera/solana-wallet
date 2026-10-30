@@ -1,27 +1,21 @@
 import RPC
 import SwiftUI
 
-/// Owns a wallet window's sections behind a tab bar that always stays; each section owns its navigation.
-///
-/// The window keeps the section with its scene state, so it reopens the section it showed when the system ended the app.
+/// Shows a wallet window's sections in a tab bar.
 struct WalletScene: View {
-    /// The window's appearance editing, kept outside the Settings tab so switching tabs keeps an import or a saved
-    /// choice going; leaving the wallet cancels it.
     @State private var settings: AppearanceSettingsModel
-    /// The section that the window shows.
     @Binding var section: WalletSection
-    /// The network that the window shows, which Settings changes.
     @Binding var network: Network
-    /// The window's account, which Settings changes.
     @Binding var account: Account
     let services: AppServices
 
-    /// Keeps the first appearance editing it creates for as long as the window shows the wallet.
+    /// Creates a wallet scene.
+    ///
     /// - Parameters:
     ///   - section: The section that the window shows.
-    ///   - network: The network that the window shows, which Settings changes.
-    ///   - account: The window's account, which Settings changes.
-    ///   - services: The shared services that each section's workflows use.
+    ///   - network: The network that the window shows.
+    ///   - account: The account that the window shows.
+    ///   - services: The shared services.
     init(section: Binding<WalletSection>, network: Binding<Network>, account: Binding<Account>, services: AppServices) {
         settings = services.makeAppearanceSettingsModel()
         _section = section
@@ -34,15 +28,11 @@ struct WalletScene: View {
         TabView(selection: $section) {
             Tab("Portfolio", systemImage: "wallet.bifold", value: .portfolio) {
                 PortfolioScene(account: account, network: network, connection: services.providerConnection)
-                    // Another account's or network's portfolio has its own tokens, so the tab starts again on the
-                    // token list.
                     .id(network)
                     .id(account.id)
             }
             Tab("Contacts", systemImage: "person.crop.circle", value: .contacts) {
                 ContactsScene(account: account, network: network)
-                    // Another account or network has other recent payments and tokens, so the tab starts again with
-                    // nothing selected.
                     .id(network)
                     .id(account.id)
             }

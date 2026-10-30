@@ -1,7 +1,7 @@
 import Foundation
 import RPC
 
-/// Connects the app to Helius, its only DAS provider, with a user-supplied key.
+/// Checks a Helius API key, then saves it.
 nonisolated struct HeliusConnection: ProviderConnecting {
     typealias EntryError = ProviderConnectionError
 
@@ -9,18 +9,16 @@ nonisolated struct HeliusConnection: ProviderConnecting {
     private let client: @Sendable (String) -> any RPC
 
     /// Creates a connection that checks keys against Helius mainnet.
+    ///
     /// - Parameters:
-    ///   - providers: The provider settings that every window shares, which keep the accepted key.
-    ///   - client: Creates the Helius client for a candidate key.
+    ///   - providers: The provider settings that save the accepted key.
+    ///   - client: A function that creates the Helius client for a candidate key.
     init(providers: ProviderStore,
          client: @escaping @Sendable (String) -> any RPC = { HeliusRPC(apiKey: $0, network: .mainnet) }) {
         self.providers = providers
         self.client = client
     }
 
-    /// Makes one DAS request with the key, and saves the key for every window only after Helius accepts it.
-    /// - Parameter key: The key, without surrounding whitespace.
-    /// - Throws: ``ProviderConnectionError`` or `CancellationError`, never containing the key.
     func connect(_ key: String) async throws {
         guard !key.isEmpty else { throw ProviderConnectionError.invalidKey }
         do {

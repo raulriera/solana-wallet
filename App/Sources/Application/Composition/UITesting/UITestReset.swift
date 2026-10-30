@@ -2,15 +2,14 @@
 import Foundation
 import Security
 
-/// Clears the app's real persistent state only for an explicitly requested simulator UI-test launch.
+/// Clears the app's saved data for a UI-test launch on the simulator.
 enum UITestReset {
-    /// Resets wallet recovery, private-balance keys and notes, the provider key and choice, every saved and cached
-    /// file, and preferences before services are constructed.
+    /// Clears the Keychain items, files, and preferences when the launch requests a UI-test reset.
+    ///
     /// - Parameters:
-    ///   - keychainServices: The same Keychain services used by production wallet, private-balance, and provider
-    ///     storage.
-    ///   - directories: The same directories that hold the app's kept and cached files.
-    /// - Throws: A Keychain, filesystem, or app-configuration error if reset cannot complete.
+    ///   - keychainServices: The Keychain services to clear.
+    ///   - directories: The directories to delete.
+    /// - Throws: A Keychain, file system, or bundle error if the reset can't finish.
     static func runIfRequested(keychainServices: [String], directories: [URL]) throws {
         guard ProcessInfo.processInfo.environment["UI_TEST_RESET"] == "1" else { return }
         guard let bundleIdentifier = Bundle.main.bundleIdentifier else { throw UITestResetError.missingBundleIdentifier }

@@ -1,39 +1,38 @@
 import Foundation
 
-/// Owns the standard Solana subscription wire protocol for interchangeable providers.
+/// A client that opens standard Solana subscriptions over a WebSocket connection.
 struct SubscriptionClient: Sendable, CustomReflectable {
     let endpoint: URL
     let connect: @Sendable (URL) -> any WebSocketConnection
     let redactor: any TextRedactor
-    /// How long the connection waits between keep-alive pings.
     var pingInterval: Duration = .seconds(30)
-    /// How long each keep-alive ping waits for its pong before the connection counts as lost.
     var pongTimeout: Duration = .seconds(10)
 
-    /// A reflection without children, so dumps can't reveal the endpoint or its key.
     var customMirror: Mirror { Mirror(self, children: [:]) }
 
-    /// Opens one finalized subscription per account on one connection, then streams their increasing change slots.
-    /// - Parameter addresses: The accounts to watch; a repeated address is watched once.
-    /// - Returns: A cancellable stream after all subscription acknowledgments arrive.
-    /// - Throws: A sanitized setup, timeout, or cancellation error.
+    /// Opens one finalized subscription per account on one connection and streams their increasing change slots.
+    ///
+    /// - Parameter addresses: The accounts to watch.
+    /// - Returns: A stream of change slots.
+    /// - Throws: An ``RPCError`` or `CancellationError`.
     func changedSlots(for addresses: [String]) async throws -> AsyncThrowingStream<UInt64, any Error> {
         try await events(for: .accountChanges(for: addresses))
     }
 
-    /// Subscribes to a signature at finalized commitment and to new roots on one connection, then streams their events.
+    /// Subscribes to a signature and to new roots on one connection and streams their events.
+    ///
     /// - Parameter signature: The base-58 encoded signature of a sent transaction.
-    /// - Returns: A cancellable stream after both subscription acknowledgments arrive.
-    /// - Throws: A sanitized setup, timeout, or cancellation error.
+    /// - Returns: A stream of signature events.
+    /// - Throws: An ``RPCError`` or `CancellationError`.
     func events(for signature: String) async throws -> AsyncThrowingStream<SignatureEvent, any Error> {
         try await events(for: .signatureWatch(for: signature))
     }
 
-    /// Opens a group's subscriptions on one connection, then streams the events that their notifications produce.
-    /// - Parameter subscriptions: The subscriptions to open and the decoding of their notifications.
-    /// - Returns: A cancellable stream after all subscription acknowledgments arrive,
-    ///   starting with the setup events that the group's buffering policy keeps.
-    /// - Throws: A sanitized setup, timeout, or cancellation error.
+    /// Opens a group's subscriptions on one connection and streams the events of their notifications.
+    ///
+    /// - Parameter subscriptions: The subscriptions to open.
+    /// - Returns: A stream of the group's events.
+    /// - Throws: An ``RPCError`` or `CancellationError`.
     @concurrent
     func events<Group: SubscriptionGroup>(for subscriptions: Group) async throws
         -> AsyncThrowingStream<Group.Event, any Error> {
@@ -86,11 +85,12 @@ struct SubscriptionClient: Sendable, CustomReflectable {
     }
 
     /// Runs an operation that must finish within a time limit.
+    ///
     /// - Parameters:
     ///   - limit: The longest the operation may take.
-    ///   - operation: The work, which must stop when its task is cancelled.
+    ///   - operation: The work to run.
     /// - Returns: The operation's result.
-    /// - Throws: A transport timeout when the limit passes first, or the operation's error.
+    /// - Throws: A timeout ``RPCError`` or the operation's error.
     private func withTimeout<Value: Sendable>(_ limit: Duration,
                                               _ operation: @escaping @Sendable () async throws -> Value) async throws -> Value {
         try await withThrowingTaskGroup(of: Value.self) { group in
@@ -105,12 +105,13 @@ struct SubscriptionClient: Sendable, CustomReflectable {
         }
     }
 
-    /// Registers every subscription before returning control to the consumer.
+    /// Sends every subscription request and waits for each acknowledgment.
+    ///
     /// - Parameters:
     ///   - subscriptions: The subscriptions to open.
-    ///   - socket: The connected transport.
-    /// - Returns: The acknowledged subscriptions and the events from notifications received during setup.
-    /// - Throws: An encoding, transport, response, or cancellation error.
+    ///   - socket: The connection.
+    /// - Returns: The acknowledged state and the events received during setup.
+    /// - Throws: An ``RPCError``, a transport error, or `CancellationError`.
     private func handshake<Group: SubscriptionGroup>(_ subscriptions: Group, socket: any WebSocketConnection) async throws
         -> (state: SubscriptionState<Group>, events: [Group.Event]) {
         var state = SubscriptionState(group: subscriptions)

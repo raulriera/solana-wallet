@@ -4,30 +4,23 @@ import RPC
 import Storage
 import Transactions
 
-/// Lists the addresses an account can pay on a network, and saves the changes the person makes to contacts and
-/// favorites.
-///
-/// Contacts and favorites come from the store that every window shares, so a change in one window shows in the others.
-/// Changes show at once and save in the order they're made; a change that can't be saved sets ``error`` and is undone.
-/// Recent payments are the succeeded payments of every account in the wallet on the network, which the shared
-/// transactions record, so a payment that lands shows in every window.
+/// A model that lists the addresses an account can pay and saves changes to contacts and favorites.
 @MainActor
 @Observable
 final class ContactsModel {
-    /// Why the latest change couldn't be saved, or `nil` while there's nothing to explain.
     var error: ContactsError?
-    /// How many recent payments the lists show.
+    /// The number of recent payments the lists show.
     nonisolated static let recentLimit = 10
-    /// The lists as last derived, so views read them without sorting and filtering on every update.
     @ObservationIgnored private var derived: (source: Source, lists: ContactLists)?
 
-    /// The lists an account can pay from on a network, derived again only after what they come from changes.
+    /// Returns the lists of the addresses an account can pay on a network.
+    ///
     /// - Parameters:
-    ///   - account: The account payments leave from; it's left out of the listed accounts.
-    ///   - network: The network whose recent payments to list.
-    ///   - wallet: The wallet's accounts, in wallet order, whose payments are listed with the sending account's.
-    ///   - store: The saved contacts and favorites that every window shares.
-    ///   - transactions: The transactions that every window sends, watches, and records.
+    ///   - account: The account that pays.
+    ///   - network: The network of the recent payments.
+    ///   - wallet: The wallet's accounts.
+    ///   - store: The store of contacts and favorites.
+    ///   - transactions: The store that records transactions.
     /// - Returns: The lists.
     func lists(for account: Account, on network: Network, in wallet: [Account], store: ContactStore,
                transactions: TransactionStore) -> ContactLists {
@@ -37,7 +30,6 @@ final class ContactsModel {
         let source = Source(keys: keys, accounts: others, addressBook: store.addressBook,
                             records: keys.map(transactions.records(for:)), phases: phases)
         if let derived, derived.source == source {
-            // Equal values saved again keep the lists, and the next comparison finds the same buffers at once.
             self.derived = (source, derived.lists)
             return derived.lists
         }
@@ -55,12 +47,12 @@ final class ContactsModel {
         return lists
     }
 
-    /// Reads the saved contacts, favorites, and the records that weren't read yet, once the changes made before this
-    /// call are saved or undone; a read that fails keeps the lists as they were and makes them unreadable.
+    /// Reads the saved contacts, favorites, and records.
+    ///
     /// - Parameters:
-    ///   - keys: The records whose payments are listed.
-    ///   - store: The saved contacts and favorites that every window shares.
-    ///   - transactions: The transactions that every window sends, watches, and records.
+    ///   - keys: The keys of the records to read.
+    ///   - store: The store of contacts and favorites.
+    ///   - transactions: The store that records transactions.
     func load(_ keys: [TransactionRecord.Key], from store: ContactStore, transactions: TransactionStore) async {
         async let book: Void = store.load()
         async let records: Void = withDiscardingTaskGroup { group in
@@ -71,28 +63,31 @@ final class ContactsModel {
         _ = await (book, records)
     }
 
-    /// Saves a new contact, or replaces the saved contact with the same identity.
+    /// Saves a contact, replacing the saved contact with the same identifier.
+    ///
     /// - Parameters:
     ///   - contact: The contact to save.
-    ///   - store: The saved contacts that every window shares.
+    ///   - store: The store of contacts.
     func save(_ contact: Contact, in store: ContactStore) {
         perform { try await store.save(contact) }
     }
 
-    /// Deletes a saved contact; payments to its address move back to Recents.
+    /// Deletes a saved contact.
+    ///
     /// - Parameters:
     ///   - contact: The contact to delete.
-    ///   - store: The saved contacts that every window shares.
+    ///   - store: The store of contacts.
     func delete(_ contact: Contact, from store: ContactStore) {
         perform { try await store.delete(contact) }
     }
 
-    /// Adds a listed account or contact to Favorites or removes it; an address the lists don't save changes nothing.
+    /// Adds a listed account or contact to Favorites or removes it.
+    ///
     /// - Parameters:
     ///   - isFavorite: Whether the account or contact shows under Favorites.
     ///   - contact: The listed account or contact.
     ///   - lists: The lists that show it.
-    ///   - store: The saved favorites that every window shares.
+    ///   - store: The store of favorites.
     func setFavorite(_ isFavorite: Bool, for contact: Contact, in lists: ContactLists, store: ContactStore) {
         if lists.accounts.contains(where: { $0.id == contact.id }) {
             perform { try await store.setFavorite(isFavorite, forAccountAt: contact.address) }
@@ -101,11 +96,10 @@ final class ContactsModel {
         }
     }
 
-    /// Makes a change at once and sets ``error`` when it can't be saved.
-    /// - Parameter change: Changes the shared contacts, which show it at once, save it in order, and undo it when it
-    ///   can't be saved.
+    /// Makes a change and sets ``error`` when it can't be saved.
+    ///
+    /// - Parameter change: The change to the saved contacts.
     private func perform(_ change: @escaping @MainActor () async throws -> Void) {
-        // Runs at once, so the change shows before this method returns.
         Task.immediate {
             do {
                 try await change()
@@ -115,16 +109,13 @@ final class ContactsModel {
         }
     }
 
-    /// What the lists were derived from, so equal sources reuse them.
+    /// The values that the lists are derived from.
     private struct Source: Equatable {
-        /// The records of the sending account, then of the wallet's other accounts, on the network.
         let keys: [TransactionRecord.Key]
-        /// The wallet's other accounts, whose names and order the lists show.
+        /// The wallet's other accounts.
         let accounts: [Account]
         let addressBook: AddressBook
-        /// Each account's records that the payments come from, as the shared transactions keep them.
         let records: [[TransactionRecord]]
-        /// Whether the address book and each account's records were read.
         let phases: [PersistentValuePhase]
     }
 }

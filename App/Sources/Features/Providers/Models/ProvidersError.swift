@@ -1,15 +1,12 @@
 import Foundation
 
-/// A secret-free error that Providers explains in an alert.
+/// An error from reading or changing the provider settings.
 nonisolated enum ProvidersError: LocalizedError, Equatable {
-    /// The provider choice couldn't be read.
     case selectionUnreadable
-    /// The provider choice couldn't be saved.
     case selectionUnsaved
     /// The custom RPC's deletion couldn't be saved.
     case deletionUnsaved
 
-    /// The alert's title.
     var errorDescription: String? {
         switch self {
         case .selectionUnreadable: String(localized: "Couldn't Load Provider")
@@ -18,7 +15,6 @@ nonisolated enum ProvidersError: LocalizedError, Equatable {
         }
     }
 
-    /// The alert's explanation.
     var recoverySuggestion: String? {
         switch self {
         case .selectionUnreadable: String(localized: "Your provider choice couldn't be loaded.")

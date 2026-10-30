@@ -1,31 +1,18 @@
 import ModularArithmetic
 
-/// The Poseidon hash over the BN254 scalar field with circom's x⁵ parameters.
-///
-/// The hash matches light-poseidon v0.4.0, which Solana Rings uses. Its state is a zero domain tag
-/// followed by one to twelve inputs, a width t of 2 to 13. The permutation runs 4 full rounds, the
-/// width's partial rounds, and 4 more full rounds. Each round adds that round's constants, raises
-/// every element to the fifth power in a full round or only the first element in a partial round,
-/// and multiplies the state by the MDS matrix. The hash is the first element of the final state.
-///
-/// The rounds depend only on the number of inputs, never on their values.
+/// The Poseidon hash over the BN254 scalar field with the x⁵ S-box.
 enum Poseidon {
     /// An element of the BN254 scalar field.
     typealias Element = FieldElement<BN254ScalarField>
 
-    /// An input list that no supported width accepts.
+    /// An error that rejects a list of inputs.
     enum ValidationError: Error, Equatable {
-        /// The hash takes one to twelve inputs.
         case unsupportedInputCount
     }
 
     /// Hashes one to twelve field elements.
     ///
-    /// The first hash of each input count builds the parameters of its width; the process keeps
-    /// them for later hashes.
-    ///
-    /// - Parameter inputs: One to twelve elements, such as canonical 32-byte big-endian values
-    ///   decoded with `FieldElement(bigEndianBytes:)`.
+    /// - Parameter inputs: The one to twelve elements to hash.
     /// - Returns: The hash.
     /// - Throws: ``ValidationError/unsupportedInputCount`` for no inputs or more than twelve.
     static func hash(_ inputs: [Element]) throws -> Element {
@@ -37,11 +24,8 @@ enum Poseidon {
 
     /// Applies the Poseidon permutation to a state.
     ///
-    /// The rounds update the state in place and write each MDS product to a second array, then
-    /// swap the two, so every round reuses both arrays.
-    ///
     /// - Parameters:
-    ///   - state: Exactly `parameters.width` elements.
+    ///   - state: The state, with `parameters.width` elements.
     ///   - parameters: The constants of the state's width.
     /// - Returns: The permuted state.
     private static func permutation(of state: consuming [Element], with parameters: Parameters) -> [Element] {
@@ -67,7 +51,7 @@ enum Poseidon {
         return state
     }
 
-    /// Applies the S-box.
+    /// Raises an element to the fifth power.
     ///
     /// - Parameter element: An element of the state.
     /// - Returns: `element` raised to the fifth power.

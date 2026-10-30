@@ -1,11 +1,6 @@
-// BIP-39 English word list (MIT):
-// https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
-// Source: https://github.com/bitcoin/bips/blob/master/bip-0039/english.txt
-// SHA-256 of the source file: 2f5eed53a4727b4bf8880d8f3f199efc90e58503646d9ff8eff3a2ed3b24dbda
-
-/// The standard English BIP-39 words and their eleven-bit indices.
+/// The English BIP-39 word list.
 enum English {
-    /// The 2,048 words in the order specified by BIP-39.
+    /// The 2,048 words in index order.
     static let words = """
     abandon ability able about above absent absorb abstract absurd abuse access accident
     account accuse achieve acid acoustic acquire across act action actor actress actual
@@ -180,6 +175,5 @@ enum English {
     yellow you young youth zebra zero zone zoo
     """.split(whereSeparator: \.isWhitespace).map(String.init)
 
-    /// A lookup from a complete word to its index.
     static let indices = Dictionary(uniqueKeysWithValues: words.enumerated().map { ($1, $0) })
 }

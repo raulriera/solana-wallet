@@ -3,15 +3,16 @@ import ImageIO
 import UniformTypeIdentifiers
 import Darwin
 
-/// Synchronous file work confined to one coordinated operation.
+/// A namespace for reading and building theme package files.
 enum PackageFiles {
-    /// Reads a package and owns all declared image bytes before returning.
+    /// Reads and validates a package and its declared images.
+    ///
     /// - Parameters:
     ///   - url: The coordinated directory URL.
-    ///   - checkCancellation: Checks cancellation on the background file queue.
-    ///   - manifestByteBudget: The allowance for both input and complete exported JSON.
-    ///   - assetByteBudget: The aggregate allowance for unique image files.
-    /// - Returns: A fully validated independent snapshot.
+    ///   - checkCancellation: A closure that throws if the operation was cancelled.
+    ///   - manifestByteBudget: The byte limit for the manifest and its complete export.
+    ///   - assetByteBudget: The total byte limit for unique image files.
+    /// - Returns: The validated pack.
     /// - Throws: A validation, file-system, or cancellation error.
     static func read(at url: URL, checkCancellation: () throws -> Void,
                      manifestByteBudget: Int = ResourceLimits.manifestBytes,
@@ -53,11 +54,12 @@ enum PackageFiles {
         return Pack(manifest: manifest, assets: assets)
     }
 
-    /// Reserves room for complete export values so every accepted pack can be read back after export.
+    /// Throws if the manifest, with every color filled, would exceed a byte limit.
+    ///
     /// - Parameters:
-    ///   - manifest: The decoded overrides and metadata.
-    ///   - byteLimit: The allowance for complete exported JSON.
-    /// - Throws: A validation error if a complete manifest would exceed the read budget.
+    ///   - manifest: The decoded manifest.
+    ///   - byteLimit: The byte limit for the complete manifest.
+    /// - Throws: A validation error if the complete manifest exceeds the limit.
     private static func validateExportSize(_ manifest: Manifest, byteLimit: Int) throws {
         // swift-format-ignore: NeverForceUnwrap
         let longest = Color.System.allCases.max { $0.rawValue.utf8.count < $1.rawValue.utf8.count }!
@@ -70,12 +72,13 @@ enum PackageFiles {
         try ResourceLimits.checkBytes(Int64(try exported.encode().count), limit: byteLimit, path: "manifest.json")
     }
 
-    /// Builds a fresh package, retaining only declared assets.
+    /// Builds a package's file wrapper.
+    ///
     /// - Parameters:
-    ///   - manifest: Validated metadata and color settings, preserving omissions when installing.
-    ///   - assets: Previously validated image snapshots.
-    ///   - checkCancellation: Checks cancellation on the background file queue.
-    /// - Returns: A wrapper confined to the current export operation.
+    ///   - manifest: The validated manifest.
+    ///   - assets: The validated assets, keyed by declaration name.
+    ///   - checkCancellation: A closure that throws if the operation was cancelled.
+    /// - Returns: The package's directory wrapper.
     /// - Throws: A serialization, path, or cancellation error.
     static func wrapper(manifest: Manifest, assets: [String: Asset], checkCancellation: () throws -> Void) throws -> FileWrapper {
         let encoded = try manifest.encode()
@@ -105,11 +108,12 @@ enum PackageFiles {
         return root
     }
 
-    /// Restricts image paths to descendants of the Assets directory.
+    /// Splits an image path inside the Assets directory into its components.
+    ///
     /// - Parameters:
-    ///   - path: A package-relative declaration.
-    ///   - field: Its manifest field path.
-    /// - Returns: Safe literal path components.
+    ///   - path: The package-relative image path.
+    ///   - field: The manifest field that declares the path.
+    /// - Returns: The path's components.
     /// - Throws: A validation error for absolute, escaping, or ambiguous paths.
     private static func assetComponents(_ path: String, field: String) throws -> [String] {
         let components = path.components(separatedBy: "/")
@@ -121,18 +125,16 @@ enum PackageFiles {
         return components
     }
 
-    /// Opens each component relative to its directory without following symbolic links.
+    /// Reads a regular file in the package without following symbolic links.
     ///
-    /// Descriptor-relative access prevents a checked directory from being replaced by a link
-    /// before its file is opened. Nonblocking open and fstat also reject special files safely.
     /// - Parameters:
     ///   - components: Validated relative path components.
-    ///   - root: An open package directory descriptor owned by the caller.
-    ///   - path: The author-facing package location.
-    ///   - byteLimit: The smaller of the file limit and remaining package allowance.
-    ///   - checkCancellation: Checks cancellation on the background file queue.
-    /// - Returns: Owned file bytes.
-    /// - Throws: A validation or cooperative cancellation error.
+    ///   - root: The open package directory's descriptor.
+    ///   - path: The file's package-relative path.
+    ///   - byteLimit: The maximum number of bytes to read.
+    ///   - checkCancellation: A closure that throws if the operation was cancelled.
+    /// - Returns: The file's bytes.
+    /// - Throws: A validation or cancellation error.
     private static func readFile(_ components: [String], in root: Int32, path: String, byteLimit: Int,
                                  checkCancellation: () throws -> Void) throws -> Data {
         let unreadable = ValidationError(path: path, reason: "Expected a readable regular file inside the package; symbolic links are unsupported.")
@@ -164,18 +166,18 @@ enum PackageFiles {
                 throw unreadable
             }
             if chunk.isEmpty { break }
-            // Recheck actual bytes: another process need not honor coordination or the earlier size.
             try ResourceLimits.checkBytes(Int64(data.count + chunk.count), limit: byteLimit, path: path)
             data.append(chunk)
         }
         return data
     }
 
-    /// Confirms the actual image format and decodability without retaining a full-size bitmap.
+    /// Throws unless data is a decodable PNG or JPEG image within the pixel limit.
+    ///
     /// - Parameters:
-    ///   - data: Owned image bytes.
-    ///   - path: Their package-relative location.
-    /// - Throws: A validation error for unsupported or incomplete image data.
+    ///   - data: The image bytes.
+    ///   - path: The image's package-relative path.
+    /// - Throws: A validation error for unsupported, oversized, or incomplete image data.
     private static func validateImage(_ data: Data, path: String) throws {
         let options = [kCGImageSourceShouldCache: false] as CFDictionary
         guard let source = CGImageSourceCreateWithData(data as CFData, options),

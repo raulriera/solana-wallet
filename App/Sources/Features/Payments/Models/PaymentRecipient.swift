@@ -1,9 +1,8 @@
 import Foundation
 import Transactions
 
-/// Who a payment goes to: an address, with the name it's saved under when it's saved.
+/// The recipient of a payment: an address and the name it's saved under.
 nonisolated struct PaymentRecipient: Hashable, Sendable {
-    /// The address the payment goes to.
     let address: Address
     /// The name the address is saved under, or `nil` when it isn't saved.
     let name: String?

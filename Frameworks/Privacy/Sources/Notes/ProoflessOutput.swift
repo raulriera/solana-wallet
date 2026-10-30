@@ -1,68 +1,51 @@
 import ModularArithmetic
 
-/// The payload of a proofless deposit's output, which publishes the UTXO in the clear.
-///
-/// The shielded-pool program writes zolana's `OutputDataEncoding::Plaintext`: the encoding tag 0,
-/// the little-endian 32-bit length of the rest, the proofless scheme 0, and the Borsh
-/// `ProoflessOutput`: the owner hash, the blinding, the mint, the amount as a little-endian 64-bit
-/// integer, five absent options (data hash, UTXO data, ring program, ring data hash, ring data),
-/// and an optional memo. The program derives the blinding from the tree and the leaf index, and
-/// the memo commits to nothing. Descriptions and reflection omit the values.
+/// The payload of a proofless deposit's output, with the UTXO in the clear.
 struct ProoflessOutput: Sendable, Equatable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
-    /// A payload that isn't a supported proofless output.
+    /// An error that rejects a payload as a proofless output.
     enum ValidationError: Error, Equatable {
-        /// The payload or its declared length doesn't fit a proofless output.
         case invalidLength
-        /// The encoding tag isn't plaintext's 0.
         case unsupportedEncoding
-        /// The scheme isn't the proofless scheme 0.
         case unsupportedScheme
         /// The owner hash or the blinding isn't a canonical field element.
         case invalidField
-        /// The output carries a data hash, UTXO data, or a ring, which default-ring deposits don't.
+        /// The output carries a data hash, UTXO data, or a ring.
         case unsupportedData
     }
 
-    /// The length of the encoding tag and the declared length.
+    /// The length of the encoding tag and the declared length, in bytes.
     private static let headerLength = 5
 
-    /// The plaintext encoding tag.
     private static let plaintextEncoding: UInt8 = 0
 
-    /// The proofless scheme.
     private static let prooflessScheme: UInt8 = 0
 
-    /// The number of options before the memo, which a default-ring deposit leaves absent.
+    /// The number of absent options before the memo.
     private static let absentOptions = 5
 
-    /// The owner hash of the UTXO.
+    /// The UTXO's owner hash.
     let owner: Poseidon.Element
 
-    /// The UTXO's blinding.
     let blinding: Poseidon.Element
 
-    /// The asset's 32-byte mint address; SOL's is 32 zero bytes.
+    /// The asset's 32-byte mint address, all zeros for SOL.
     let mint: [UInt8]
 
     /// The amount, in the asset's smallest unit.
     let amount: UInt64
 
-    /// A description that omits the values.
     var description: String { "ProoflessOutput" }
 
-    /// A debugging description that omits the values.
     var debugDescription: String { description }
 
-    /// A reflection view that omits the values.
     var customMirror: Mirror { Mirror(self, children: [:]) }
 
-    /// Decodes a published payload.
+    /// Creates an output by decoding a published payload.
     ///
     /// - Parameter payload: The output's data slot.
-    /// - Throws: ``ValidationError/invalidLength`` if the payload, its declared length, or its memo
-    ///   doesn't fit, ``ValidationError/unsupportedEncoding`` or
-    ///   ``ValidationError/unsupportedScheme`` for another encoding or scheme,
-    ///   ``ValidationError/invalidField`` for a non-canonical owner hash or blinding, or
+    /// - Throws: ``ValidationError/invalidLength`` if a length doesn't fit,
+    ///   ``ValidationError/unsupportedEncoding`` or ``ValidationError/unsupportedScheme`` for another encoding
+    ///   or scheme, ``ValidationError/invalidField`` for a non-canonical owner hash or blinding, or
     ///   ``ValidationError/unsupportedData`` if an option before the memo is present.
     init(decoding payload: [UInt8]) throws {
         guard payload.count > Self.headerLength else { throw ValidationError.invalidLength }

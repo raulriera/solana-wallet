@@ -1,27 +1,15 @@
 import SwiftUI
 
-/// Places an adaptive arrangement's views where an ``ArrangementPlan`` puts them: the primary region, then the
-/// secondary region, then the secondary region's accessory, if it has one.
+/// A layout that places a primary region, a secondary region, and its optional accessory where an
+/// ``ArrangementPlan`` puts them.
 struct AdaptiveArrangementLayout: Layout {
-    /// The active fold that crosses the arrangement, in the arrangement's own coordinates.
+    /// The active fold's frame in the arrangement's coordinates.
     let fold: CGRect?
 
-    /// Takes all the space it's offered, like the regions it divides.
-    /// - Parameters:
-    ///   - proposal: The space offered to the arrangement.
-    ///   - subviews: The primary region, the secondary region, and its accessory.
-    ///   - cache: Unused.
-    /// - Returns: The offered size.
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         proposal.replacingUnspecifiedDimensions()
     }
 
-    /// Measures the views and places each in the frame the plan gives it.
-    /// - Parameters:
-    ///   - bounds: The arrangement's frame.
-    ///   - proposal: The space offered to the arrangement.
-    ///   - subviews: The primary region, the secondary region, and its accessory.
-    ///   - cache: Unused.
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         guard subviews.count > 1 else { return }
         let primary = subviews[0]
@@ -43,10 +31,11 @@ struct AdaptiveArrangementLayout: Layout {
         }
     }
 
-    /// Places a view at a frame given in the arrangement's own coordinates.
+    /// Places a view at a frame in the arrangement's coordinates.
+    ///
     /// - Parameters:
     ///   - subview: The view to place.
-    ///   - frame: Its frame, relative to the arrangement's origin.
+    ///   - frame: The view's frame, relative to the arrangement's origin.
     ///   - bounds: The arrangement's frame.
     private func place(_ subview: LayoutSubview, in frame: CGRect, within bounds: CGRect) {
         subview.place(at: CGPoint(x: bounds.minX + frame.minX, y: bounds.minY + frame.minY), anchor: .topLeading,

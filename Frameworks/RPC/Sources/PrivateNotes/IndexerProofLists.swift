@@ -1,38 +1,24 @@
 import Encoding
 
-/// A proof that an indexer returned, with the tree account that its context names.
+/// A proof with the tree account that its context names.
 struct TreeProof<Proof: Sendable>: Sendable {
     /// The tree account's base-58 address.
     let tree: String
-    /// The proof.
     let proof: Proof
 }
 
-/// The strict decoding of a `getMerkleProofs` result: one proof per requested leaf, in request order.
-///
-/// Each proof names a UTXO tree, tree type 1, and has a path of 32 base-58 hashes.
+/// The strict decoding of a `getMerkleProofs` result, one proof per requested leaf in request order.
 struct MerkleProofList: Decodable, Sendable {
-    /// The proofs, with their trees.
     let proofs: [TreeProof<MerkleProof>]
 
-    /// Decodes the result and each of its proofs.
-    ///
-    /// - Parameter decoder: The decoder containing the JSON-RPC result.
-    /// - Throws: A decoding error for a missing field, another tree type, a path of another length, a hash that
-    ///   isn't 32 bytes of base 58, or an invalid tree address.
     init(from decoder: any Decoder) throws {
         proofs = try decoder.container(keyedBy: ProofKey.self).decode([Entry].self, forKey: .proofs).map(\.value)
     }
 
     /// One decoded proof.
     private struct Entry: Decodable {
-        /// The proof and its tree.
         let value: TreeProof<MerkleProof>
 
-        /// Decodes a proof.
-        ///
-        /// - Parameter decoder: The decoder containing one proof.
-        /// - Throws: A decoding error as ``MerkleProofList/init(from:)`` describes.
         init(from decoder: any Decoder) throws {
             let entry = try decoder.container(keyedBy: ProofKey.self)
             value = TreeProof(tree: try entry.decodeTree(type: 1), proof: try MerkleProof(
@@ -46,32 +32,18 @@ struct MerkleProofList: Decodable, Sendable {
     }
 }
 
-/// The strict decoding of a `getNonInclusionProofs` result: one proof per requested nullifier, in request order.
-///
-/// Each proof names a nullifier tree, tree type 2, and has a path of 40 base-58 hashes. The high element's index,
-/// which the circuit doesn't read, is ignored.
+/// The strict decoding of a `getNonInclusionProofs` result, one proof per requested nullifier in request order.
 struct NonInclusionProofList: Decodable, Sendable {
-    /// The proofs, with their trees.
     let proofs: [TreeProof<NonInclusionProof>]
 
-    /// Decodes the result and each of its proofs.
-    ///
-    /// - Parameter decoder: The decoder containing the JSON-RPC result.
-    /// - Throws: A decoding error for a missing field, another tree type, a path of another length, a hash that
-    ///   isn't 32 bytes of base 58, or an invalid tree address.
     init(from decoder: any Decoder) throws {
         proofs = try decoder.container(keyedBy: ProofKey.self).decode([Entry].self, forKey: .proofs).map(\.value)
     }
 
     /// One decoded proof.
     private struct Entry: Decodable {
-        /// The proof and its tree.
         let value: TreeProof<NonInclusionProof>
 
-        /// Decodes a proof.
-        ///
-        /// - Parameter decoder: The decoder containing one proof.
-        /// - Throws: A decoding error as ``NonInclusionProofList/init(from:)`` describes.
         init(from decoder: any Decoder) throws {
             let entry = try decoder.container(keyedBy: ProofKey.self)
             value = TreeProof(tree: try entry.decodeTree(type: 2), proof: try NonInclusionProof(
@@ -94,7 +66,7 @@ private enum ProofKey: String, CodingKey {
 }
 
 fileprivate extension KeyedDecodingContainer<ProofKey> {
-    /// Decodes a proof's context: its tree type, which must match, and its tree account.
+    /// Decodes a proof's tree account after checking its tree type.
     ///
     /// - Parameter type: The required tree type: 1 for a UTXO tree, 2 for a nullifier tree.
     /// - Returns: The tree account's base-58 address, as received.
@@ -113,7 +85,7 @@ fileprivate extension KeyedDecodingContainer<ProofKey> {
 
     /// Decodes a path of base-58 hashes of a fixed length.
     ///
-    /// - Parameter count: The tree's height.
+    /// - Parameter count: The required number of hashes.
     /// - Returns: Each sibling's 32 bytes, in order.
     /// - Throws: A decoding error for a missing field, a hash that isn't 32 bytes, or another length.
     func decodePath(count: Int) throws -> [[UInt8]] {

@@ -2,47 +2,31 @@ public import Foundation
 
 /// An error encountered while preparing, sending, or interpreting an RPC request.
 public enum RPCError: Error, Sendable, Equatable {
-    /// The request couldn't be encoded as JSON.
     case encoding
-    /// The response couldn't be decoded as the expected type.
     case decoding
-    /// The transport failed with the associated URL error code.
     case transport(URLError.Code)
-    /// The server returned an unsuccessful HTTP status and an optional retry delay.
-    ///
-    /// `retryAfter` preserves the sanitized `Retry-After` field, which may contain
-    /// a delay in seconds or an HTTP date. The caller decides whether to retry.
+    /// An unsuccessful HTTP status and the `Retry-After` value, which holds seconds or an HTTP date.
     case http(statusCode: Int, retryAfter: String?)
-    /// The server returned a JSON-RPC error code and a sanitized message.
+    /// A JSON-RPC error that the server returned.
     case server(code: Int, message: String)
-    /// The server rejected submission during preflight simulation with code `-32002`.
-    ///
-    /// The message and simulation diagnostics omit the client's credentials.
+    /// A submission that the server rejected during preflight simulation.
     case preflight(message: String, simulation: SimulateTransaction.Value)
-    /// The response failed JSON-RPC envelope validation.
     case invalidResponse(InvalidResponse)
 
     /// A reason that a response can't be accepted as the request's result.
     public enum InvalidResponse: Sendable, Equatable {
-        /// The transport returned metadata for a non-HTTP response.
         case nonHTTPResponse
-        /// The response didn't declare JSON-RPC version 2.0.
         case unsupportedVersion
-        /// The response identifier didn't match the request identifier.
         case mismatchedID
-        /// The response contained both `result` and `error`, or neither field.
+        /// The response contained both `result` and `error`, or neither.
         case invalidEnvelope
-        /// A paged response repeated a cursor, or returned one on a page without rows, so it can't advance.
+        /// A page repeated a cursor or returned one without rows.
         case invalidCursor
-        /// An indexer's proofs don't answer the request: one proof per requested leaf, in order, in the requested tree.
+        /// The proofs don't match the requested leaves, their order, or the tree.
         case mismatchedProofs
     }
 
-    /// Whether the failure can clear without a person's action, so the caller may connect or read again later.
-    ///
-    /// Transport failures, such as no network or a missing pong, HTTP 5xx statuses, and JSON-RPC code `-32005`,
-    /// which reports a node that is behind, are recoverable. Rate limits, rejected or missing keys, and every
-    /// other refusal are not, so automatic retries can't make them worse.
+    /// Whether the failure can clear without the person's action.
     public var isRecoverable: Bool {
         switch self {
         case .transport, .http(statusCode: 500..<600, retryAfter: _), .server(code: -32005, message: _): true
@@ -50,9 +34,6 @@ public enum RPCError: Error, Sendable, Equatable {
         }
     }
 
-    /// Whether the provider is limiting requests: HTTP status 429, or code 429 in a subscription reply.
-    ///
-    /// The person decides when to try again; a rate limit is never recoverable.
     public var isRateLimited: Bool {
         switch self {
         case .http(statusCode: 429, retryAfter: _), .server(code: 429, message: _): true

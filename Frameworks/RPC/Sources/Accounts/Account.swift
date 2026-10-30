@@ -1,21 +1,19 @@
 public import Foundation
 
-/// Raw Solana account data with its owner program and lamport balance.
+/// An account's raw data, owner program, and lamport balance.
 public struct Account: Decodable, Sendable {
-    /// The account's program owner, not the authority encoded within token data.
+    /// The address of the program that owns the account.
     public let owner: String
-    /// The account's SOL balance in integer lamports.
+    /// The balance in lamports.
     public let lamports: UInt64
-    /// Whether the account contains executable program code.
     public let executable: Bool
-    /// The exact bytes decoded from the requested base64 representation.
     public let data: Data
 
-    /// Creates an account observation without interpreting its program data.
+    /// Creates an account.
     ///
     /// - Parameters:
     ///   - owner: The owner program's address.
-    ///   - lamports: The account's lamport balance.
+    ///   - lamports: The balance in lamports.
     ///   - executable: Whether the account is executable.
     ///   - data: The raw account bytes.
     public init(owner: String, lamports: UInt64, executable: Bool, data: Data) {
@@ -25,10 +23,6 @@ public struct Account: Decodable, Sendable {
         self.data = data
     }
 
-    /// Decodes only the base64 representation requested by the account RPC contract.
-    ///
-    /// - Parameter decoder: The account object supplied by the provider.
-    /// - Throws: A decoding error for malformed or unexpected account representations.
     public init(from decoder: any Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         owner = try values.decode(String.self, forKey: .owner)
@@ -41,5 +35,6 @@ public struct Account: Decodable, Sendable {
         data = bytes
     }
 
+    /// The field names of an account.
     private enum CodingKeys: String, CodingKey { case owner, lamports, executable, data }
 }

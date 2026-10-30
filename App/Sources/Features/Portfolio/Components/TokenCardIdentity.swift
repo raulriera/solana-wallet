@@ -16,8 +16,6 @@ struct TokenCardIdentity: View {
                     .font(.title3.bold())
                     .lineLimit(1)
                     .truncationMode(.middle)
-                // Provider names aren't localized strings, so they're uppercased for the person's locale;
-                // VoiceOver reads them as written, not letter by letter.
                 Text(name.localizedUppercase)
                     .font(.caption2.weight(.semibold))
                     .tracking(1.2)

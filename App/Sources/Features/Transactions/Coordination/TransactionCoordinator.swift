@@ -3,24 +3,24 @@ import RPC
 import Transactions
 import Vault
 
-/// The app's typed entry point for simulating and approving arbitrary V1 transactions.
+/// A coordinator that simulates, signs, sends, and watches transactions.
 nonisolated struct TransactionCoordinator: TransactionCoordinating {
-    /// The mutually exclusive submission strategy.
+    /// A way to submit transactions.
     enum Strategy: Sendable {
-        /// Submits through all configured ordinary RPCs without a Sender service tip.
+        /// Submits through every configured ordinary RPC, without a Sender tip.
         case none
-        /// Submits only through Sender's lower-cost delivery route.
+        /// Submits only through Sender's lower-cost route.
         case standard
-        /// Submits only through Sender's broader delivery routes, with a higher tip.
+        /// Submits only through Sender's broader routes, with a higher tip.
         case premium
 
-        /// Selects submission clients for one strategy and network.
+        /// Returns the RPCs that submit with this strategy on a network.
         ///
         /// - Parameters:
-        ///   - network: The network used for preparation and confirmation.
-        ///   - rpcs: The ordinary RPC candidates used when Sender is disabled.
-        /// - Returns: Same-network ordinary RPCs or one Sender client.
-        /// - Throws: ``SubmitterError/noProviders`` if the strategy has no route on this network.
+        ///   - network: The network to submit on.
+        ///   - rpcs: The ordinary RPCs to choose from.
+        /// - Returns: The ordinary RPCs on the network, or one Sender client.
+        /// - Throws: ``SubmitterError/noProviders`` if the strategy has no route on the network.
         func clients(for network: Network, from rpcs: [any RPC]) throws -> [any RPC] {
             let candidates: [any RPC] = switch self {
             case .none: rpcs.filter { $0.submissionRequirements == nil }
@@ -41,15 +41,15 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
     private let submitter: any TransactionSubmitting
     private let confirmer: any TransactionConfirming
 
-    /// Creates the wallet workflow with a shared provider and protected recovery store.
+    /// Creates a coordinator with a provider and a recovery store.
     ///
     /// - Parameters:
-    ///   - rpc: The provider used for prerequisites, simulation, and the real-time watch.
-    ///   - store: The recovery store that authenticates access to the selected wallet.
-    ///   - rpcs: Ordinary RPC candidates for `.none`, or `nil` to use `rpc` alone.
-    ///   - strategy: The submission strategy. The default disables Sender.
-    ///   - configuration: Explicit V1 requests, or `nil` for automatic resource estimation.
-    /// - Throws: ``SubmitterError/noProviders`` if no selected route serves the read client's network.
+    ///   - rpc: The provider that reads, simulates, and watches transactions.
+    ///   - store: The recovery store that authenticates access to saved accounts.
+    ///   - rpcs: The ordinary RPCs for `.none`, or `nil` to use `rpc` alone.
+    ///   - strategy: The submission strategy.
+    ///   - configuration: The priority fee and resource limits, or `nil` to estimate them.
+    /// - Throws: ``SubmitterError/noProviders`` if no route serves the provider's network.
     init(rpc: any RPC & SignatureEventProviding, store: any RecoveryStoring, rpcs: [any RPC]? = nil,
          strategy: Strategy = .none, configuration: Configuration? = nil) throws {
         let clients = try strategy.clients(for: rpc.network, from: rpcs ?? [rpc])
@@ -57,15 +57,15 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
                   submitter: Submitter(rpcs: clients), confirmer: Confirmer(rpc: rpc))
     }
 
-    /// Creates a workflow with independently supplied transaction services.
+    /// Creates a coordinator with the given transaction services.
     ///
     /// - Parameters:
-    ///   - rpc: The provider used to resolve token prerequisites.
-    ///   - configuration: Explicit requests or automatic estimation.
-    ///   - preparer: The service that produces unsigned review data.
-    ///   - signer: The service that validates and signs an approved preparation.
-    ///   - submitter: The service that sends a reviewed, fully signed transaction.
-    ///   - confirmer: The service that observes execution without broadcasting.
+    ///   - rpc: The provider that reads token accounts.
+    ///   - configuration: The priority fee and resource limits, or `nil` to estimate them.
+    ///   - preparer: The service that prepares transactions.
+    ///   - signer: The service that signs approved preparations.
+    ///   - submitter: The service that sends signed transactions.
+    ///   - confirmer: The service that watches sent transactions.
     init(rpc: any RPC, configuration: Configuration? = nil, preparer: any TransactionPreparing, signer: any TransactionSigning,
          submitter: any TransactionSubmitting, confirmer: any TransactionConfirming) {
         tokens = TokenTransfers(rpc: rpc)
@@ -76,13 +76,6 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
         self.confirmer = confirmer
     }
 
-    /// Simulates ordered instructions using the first authority as fee payer.
-    ///
-    /// - Parameters:
-    ///   - instructions: The invocations composing one atomic transaction.
-    ///   - authorities: The selected local signers in signing order; the first pays fees.
-    /// - Returns: An immutable review bound to these authorities and this coordinator.
-    /// - Throws: A validation, preparation, RPC, or cancellation error.
     func simulate(_ instructions: [Instruction], using authorities: [Authority]) async throws -> Simulation {
         let payer = try payer(in: authorities)
         let preparation = try await preparer.prepare(instructions, payer: payer, signer: payer,
@@ -90,30 +83,12 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
         return try review(preparation, authorities: authorities)
     }
 
-    /// Simulates an imported transaction without replacing its message or cosignatures.
-    ///
-    /// - Parameters:
-    ///   - transaction: The complete imported transaction.
-    ///   - wallets: The local accounts whose required slots will be signed after approval.
-    /// - Returns: The unchanged transaction and its review observations.
-    /// - Throws: A structural, signature, RPC, or cancellation error.
     func simulate(_ transaction: Transaction, using wallets: [Account]) async throws -> Simulation {
         let authorities = wallets.map(Authority.account)
         let preparation = try await preparer.prepare(transaction, for: payer(in: authorities))
         return try review(preparation, authorities: authorities)
     }
 
-    /// Resolves a payment into instructions and uses the shared simulation workflow.
-    ///
-    /// - Parameters:
-    ///   - amount: The positive amount in lamports or raw token units.
-    ///   - token: The token mint, or `nil` for native SOL.
-    ///   - wallet: The selected token authority and fee payer.
-    ///   - recipient: The receiving wallet, or a token account for `token`.
-    ///   - source: An optional non-associated source token account.
-    ///   - memo: An optional memo immediately before the payment instruction.
-    /// - Returns: The exact simulated transaction with applicable token and rent observations.
-    /// - Throws: An account, instruction, resource, RPC, or cancellation error.
     func transfer(_ amount: UInt64, token: Address?, using wallet: Account, to recipient: Address,
                   source: Address?, memo: String?) async throws -> Simulation {
         if let token {
@@ -130,25 +105,10 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
         return try await simulate(instructions, using: [.account(wallet)])
     }
 
-    /// Signs the approved review without broadcasting, including partial-signing requests.
-    ///
-    /// - Parameter simulation: The unchanged review whose details the user approved.
-    /// - Returns: The exact transaction with the selected local signatures filled.
-    /// - Throws: A review, authentication, signing, RPC, or cancellation error.
     func sign(_ simulation: Simulation) async throws -> Transaction {
         try await signed(simulation).transaction
     }
 
-    /// Authenticates, signs, and sends the transaction after explicit approval.
-    ///
-    /// The message is never rebuilt. An expired review requires a new simulation
-    /// and approval. Returns once sending settles and a route accepted the transaction,
-    /// without waiting for its outcome; submission errors may leave delivery unknown.
-    ///
-    /// - Parameter simulation: The exact review approved by the user.
-    /// - Returns: The receipt to observe with ``confirm(_:)``.
-    /// - Throws: A review, authentication, signing, or cancellation error. After signing, a
-    ///   ``DeliveryError`` that retains the receipt and the delivery or cancellation error.
     func submit(_ simulation: Simulation) async throws -> Submission {
         try validateOrigin(simulation)
         let local = Set(try simulation.authorities.map { try $0.address })
@@ -159,12 +119,6 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
         return try await submitter.submit(signed(simulation))
     }
 
-    /// Watches a sent transaction without reading recovery or sending it again.
-    ///
-    /// - Parameter submission: The receipt from ``submit(_:)`` or a ``DeliveryError``.
-    /// - Returns: The succeeded, failed, or dropped outcome.
-    /// - Throws: A ``DeliveryError`` that retains the receipt and the network, response, RPC,
-    ///   or cancellation error.
     func confirm(_ submission: Submission) async throws -> Confirmation {
         do {
             return try await confirmer.confirm(submission)
@@ -173,10 +127,11 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
         }
     }
 
-    /// Adds local signatures in the review's authority order while retaining the original review and all occupied slots.
-    /// - Parameter simulation: The approved review bound to this coordinator.
-    /// - Returns: A validated signed result for internal submission.
-    /// - Throws: A review, authentication, signature, or cancellation error.
+    /// Signs an approved simulation with each of its authorities in order.
+    ///
+    /// - Parameter simulation: The approved simulation from this coordinator.
+    /// - Returns: The signed transaction.
+    /// - Throws: A validation, authentication, signing, or cancellation error.
     private func signed(_ simulation: Simulation) async throws -> SignedTransaction {
         try validateOrigin(simulation)
         try await simulation.approval.consume()
@@ -191,14 +146,15 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
         return SignedTransaction(preparation: simulation.preparation, transaction: transaction)
     }
 
-    /// Binds review observations to selected local authorities without accessing their recovery.
+    /// Creates a simulation of a preparation for its signing authorities.
+    ///
     /// - Parameters:
-    ///   - preparation: The exact compiled or imported transaction and RPC observations.
-    ///   - authorities: The local authorities whose empty required slots will be filled.
-    ///   - token: Optional token-specific review details resolved before composition.
-    ///   - rent: The observed account deposit, or `nil` when unestimated.
-    /// - Returns: An immutable review with private authorization context.
-    /// - Throws: A signer-selection error for duplicate, unrelated, or occupied slots.
+    ///   - preparation: The prepared transaction.
+    ///   - authorities: The accounts whose empty signature slots get filled.
+    ///   - token: The resolved token transfer, or `nil` for none.
+    ///   - rent: The new destination account's rent in lamports, or `nil` if not estimated.
+    /// - Returns: The simulation to review.
+    /// - Throws: A validation error for an authority that isn't a required signer or already signed.
     private func review(_ preparation: Preparation, authorities: [Authority], token: TokenTransfer? = nil,
                         rent: UInt64? = nil) throws -> Simulation {
         for authority in authorities {
@@ -214,9 +170,10 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
                           tokenTransfer: token, destinationAccountRent: rent)
     }
 
-    /// Checks selected signers before beginning network work.
-    /// - Parameter authorities: The local authorities supplied by the caller.
-    /// - Returns: The first authority's address, used as fee payer for local composition.
+    /// Returns the fee payer among authorities.
+    ///
+    /// - Parameter authorities: The authorities that sign.
+    /// - Returns: The first authority's address.
     /// - Throws: A validation error for an empty or duplicate selection.
     private func payer(in authorities: [Authority]) throws -> Address {
         let addresses = try authorities.map { try $0.address }
@@ -226,51 +183,49 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
         return first
     }
 
-    /// Prevents a review from silently changing provider or submission policy.
-    /// - Parameter simulation: The review to bind to its original workflow.
-    /// - Throws: A validation error when another coordinator produced the review.
+    /// Checks that this coordinator created a simulation.
+    ///
+    /// - Parameter simulation: The simulation to check.
+    /// - Throws: A validation error if another coordinator created the simulation.
     private func validateOrigin(_ simulation: Simulation) throws {
         guard simulation.coordinator == id else { throw ValidationError.invalidTransaction }
     }
 }
 
-/// The exact transaction and observations to present before requesting approval.
+/// A simulated transaction that a person reviews before approving it.
 nonisolated struct Simulation: Sendable {
     fileprivate let preparation: Preparation
     fileprivate let authorities: [Authority]
     fileprivate let coordinator: UUID
     fileprivate let approval = Approval()
-    /// The locally resolved token debit, fee, and destination, when applicable.
+    /// The resolved token transfer, or `nil` for other transactions.
     let tokenTransfer: TokenTransfer?
-    /// The estimated destination deposit; `nil` means this composition doesn't estimate it.
+    /// The new destination account's rent in lamports, or `nil` if not estimated.
     let destinationAccountRent: UInt64?
-    /// The complete ordered instructions, accounts, resource requests, and signature slots.
     var transaction: Transaction { preparation.transaction }
-    /// The network that the transaction was simulated on, and that it's sent on.
     var network: Network { preparation.network }
-    /// The network fee, including its priority fee; `nil` remains unknown.
+    /// The network fee in lamports, including its priority fee, or `nil` if unknown.
     var fee: UInt64? { preparation.fee.value }
-    /// The original local block-height expiry, or `nil` for imported recent blockhashes.
+    /// The blockhash's last valid block height, or `nil` for an imported transaction.
     var lastValidBlockHeight: UInt64? {
         guard case .local = preparation.source else { return nil }
         return preparation.source.lastValidBlockHeight
     }
-    /// The final RPC simulation, retaining execution failures and their diagnostics.
+    /// The simulation's response, including any execution error.
     var diagnostics: SimulateTransaction.Response { preparation.simulation }
-    /// The balances the node observed changing, or `nil` when they're unknown.
-    ///
-    /// Changes are observations of simulated execution, not a cost claim, intent, or safety judgment.
+    /// The balances that the simulation changed, or `nil` if unknown.
     var balanceChanges: [BalanceChange]? { BalanceChange.changes(in: transaction, from: diagnostics.value) }
-    /// The separate service payments included before approval.
+    /// The services whose tips the transaction pays.
     var tips: [SubmissionRequirements] { preparation.tips }
 
-    /// Creates a review only through the coordinator that will later authorize it.
+    /// Creates a simulation.
+    ///
     /// - Parameters:
-    ///   - preparation: The exact transaction and its observations.
-    ///   - authorities: The selected local signers in signing order.
-    ///   - coordinator: The identity of the originating workflow.
-    ///   - tokenTransfer: Optional token-specific observations.
-    ///   - destinationAccountRent: The optional account deposit estimate.
+    ///   - preparation: The prepared transaction.
+    ///   - authorities: The accounts that sign, in signing order.
+    ///   - coordinator: The identifier of the coordinator that created it.
+    ///   - tokenTransfer: The resolved token transfer, or `nil` for none.
+    ///   - destinationAccountRent: The new destination account's rent in lamports, or `nil` if not estimated.
     fileprivate init(preparation: Preparation, authorities: [Authority], coordinator: UUID,
                      tokenTransfer: TokenTransfer?, destinationAccountRent: UInt64?) {
         self.preparation = preparation
@@ -281,15 +236,16 @@ nonisolated struct Simulation: Sendable {
     }
 }
 
-/// Serializes consent consumption across copies and concurrent uses of one review.
+/// A one-time approval that a simulation's copies share.
 fileprivate actor Approval {
     private var consumed = false
 
-    /// Creates unused approval state for one simulation.
+    /// Creates an unused approval.
     init() {}
 
-    /// Reserves the only signing attempt before awaiting authentication or provider work.
-    /// - Throws: A cancellation error or an already-used review error.
+    /// Marks the approval as used.
+    ///
+    /// - Throws: A cancellation error, or ``TransactionCoordinatorError/reviewAlreadyUsed`` if it was used.
     func consume() throws {
         try Task.checkCancellation()
         guard !consumed else { throw TransactionCoordinatorError.reviewAlreadyUsed }

@@ -1,10 +1,7 @@
 import RPC
 
 nonisolated extension Simulation {
-    /// What the payer pays the network and any service besides the instructions: the network fee and every service
-    /// tip, in lamports.
-    ///
-    /// `nil` when the fee is unknown, or when the total exceeds a 64-bit integer.
+    /// The network fee plus every service tip, in lamports, or `nil` if unknown or larger than `UInt64.max`.
     var networkFee: UInt64? {
         guard let fee else { return nil }
         var total = fee

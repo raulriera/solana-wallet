@@ -2,12 +2,12 @@ import Foundation
 import Observation
 import Themes
 
-/// One window's package workflow; committed selections are shared through the coordinator.
+/// A window's workflow for selecting, importing, exporting, and removing themes.
 @MainActor @Observable final class AppearanceSettingsModel: ThemeActions {
-    /// Runs one window's service calls and presentation updates on the main actor.
+    /// An asynchronous action on the main actor.
     private typealias Action = @MainActor () async throws -> Void
 
-    /// Exact snapshot and installed revision awaiting replacement approval.
+    /// An imported package and the installed theme it replaces.
     struct Replacement: Identifiable, Equatable {
         let pack: Pack
         let existing: ThemeEntry
@@ -22,11 +22,12 @@ import Themes
     var error: ThemeError?
     @ObservationIgnored private var operation: Task<Void, Never>?
 
-    /// Injects services shared with the other wallet windows.
+    /// Creates a model.
+    ///
     /// - Parameters:
-    ///   - appearance: Committed preference snapshots.
-    ///   - catalog: Installed package operations.
-    ///   - packages: Validated import and export operations.
+    ///   - appearance: The shared theme selections.
+    ///   - catalog: The theme catalog.
+    ///   - packages: The service that reads and writes packages.
     init(appearance: any AppearanceCoordinating, catalog: any ThemeCatalogProviding,
          packages: any PackServicing) {
         self.appearance = appearance
@@ -37,19 +38,15 @@ import Themes
     var entries: [ThemeEntry] { appearance.snapshot?.orderedEntries ?? [] }
     var entryIDs: [UUID] { appearance.snapshot?.orderedEntryIDs ?? [] }
 
-    /// Whether an action may start, checked at interaction time without changing control appearance.
     var canStartOperation: Bool { operation == nil && export == nil && replacement == nil }
 
-    /// Saves before publishing a checkmark or changing any window's appearance.
-    /// - Parameters:
-    ///   - id: A selected theme, or `nil` for inheritance.
-    ///   - scope: The application or selected wallet.
     func select(_ id: UUID?, for scope: AppearancePreferences.Scope) {
         run(defaultingTo: .saveFailed) { try await self.appearance.select(id, for: scope) }
     }
 
-    /// Reads an independent package snapshot and installs without selecting it.
-    /// - Parameter url: The security-scoped URL returned by the Files picker.
+    /// Imports a theme package without selecting it.
+    ///
+    /// - Parameter url: The package's security-scoped URL.
     func importPack(from url: URL) {
         run(defaultingTo: .saveFailed) {
             let pack: Pack
@@ -64,8 +61,9 @@ import Themes
         }
     }
 
-    /// Replaces only the installed revision the user explicitly approved.
-    /// - Parameter approved: The retained import snapshot and exact installed revision.
+    /// Replaces an installed theme with an imported package.
+    ///
+    /// - Parameter approved: The approved replacement.
     func replace(_ approved: Replacement) {
         replacement = nil
         run(defaultingTo: .saveFailed) {
@@ -74,8 +72,6 @@ import Themes
         }
     }
 
-    /// Removes an approved custom revision and reloads its atomic preference fallbacks.
-    /// - Parameter entry: The exact entry presented in the removal confirmation.
     func remove(_ entry: ThemeEntry) {
         run(defaultingTo: .saveFailed) {
             try await self.catalog.remove(entry)
@@ -83,7 +79,7 @@ import Themes
         }
     }
 
-    /// Prepares a complete default template before presenting the system destination picker.
+    /// Writes the default theme template to a temporary file for export.
     func prepareExport() {
         run(defaultingTo: .exportFailed) {
             let root = URL.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -102,33 +98,34 @@ import Themes
         }
     }
 
-    /// Releases a staged package only after the system exporter finishes or cancels.
+    /// Deletes the exported template's temporary file.
     func finishExport() {
         guard let export else { return }
         self.export = nil
         Task { @concurrent in await CatalogIO.discard(export.url.deletingLastPathComponent()) }
     }
 
-    /// Ends this window's work without stopping operations owned by other windows.
+    /// Cancels this window's running action, replacement, and export.
     func cancel() {
         operation?.cancel()
         replacement = nil
         finishExport()
     }
 
-    /// Waits for the current user action, including publication and staging cleanup.
+    /// Waits for the running action to finish.
     func waitForOperation() async { await operation?.value }
 
-    /// Publishes a committed catalog mutation even if its initiating window closes.
-    /// - Throws: A storage error while refreshing the shared snapshot.
+    /// Reloads the shared theme selections without inheriting the caller's cancellation.
+    ///
+    /// - Throws: A storage error.
     private func reloadAfterCommit() async throws {
-        // Publication belongs to all windows once the catalog has committed.
         try await Task { try await appearance.reload() }.value
     }
 
-    /// Classifies a failure for its alert without keeping the underlying error; cancellation is silent.
+    /// Shows an error unless it's a cancellation.
+    ///
     /// - Parameters:
-    ///   - error: An error from a service or a system file dialog.
+    ///   - error: The error that occurred.
     ///   - fallback: The error to show when the failure has no more specific cause.
     func report(_ error: any Error, defaultingTo fallback: ThemeError) {
         let cocoaError = error as NSError
@@ -142,10 +139,11 @@ import Themes
         }
     }
 
-    /// Serializes this window's user actions while service work suspends the main actor.
+    /// Runs an action unless another is running, and shows its error.
+    ///
     /// - Parameters:
     ///   - fallback: The error to show when the action fails without a more specific cause.
-    ///   - action: Service calls and small presentation-state updates.
+    ///   - action: The action to run.
     private func run(defaultingTo fallback: ThemeError, action: @escaping Action) {
         guard canStartOperation else { return }
         operation = Task {

@@ -1,16 +1,9 @@
 import Foundation
 
-/// Formats a BIP-39 passphrase for the recovery backup so that spaces at its start and end, which change the
-/// wallet but don't show in text, stay noticeable.
-///
-/// Each such space appears as `␣`, and VoiceOver hears it as "space". Spaces inside the passphrase stay as typed.
+/// Formats a BIP-39 passphrase with each space at its start and end marked.
 nonisolated struct PassphraseFormatStyle: FormatStyle {
-    /// Whether the output is for VoiceOver rather than for display.
     var isSpoken = false
 
-    /// Formats the passphrase with each space at its start and end marked.
-    /// - Parameter passphrase: The original passphrase.
-    /// - Returns: The passphrase as the backup shows or speaks it.
     func format(_ passphrase: String) -> String {
         let start = passphrase.firstIndex { !$0.isWhitespace } ?? passphrase.endIndex
         let end = passphrase.lastIndex { !$0.isWhitespace }.map(passphrase.index(after:)) ?? start
@@ -23,9 +16,9 @@ nonisolated struct PassphraseFormatStyle: FormatStyle {
 }
 
 nonisolated extension FormatStyle where Self == PassphraseFormatStyle {
-    /// A passphrase for display, with `␣` for each space at its start and end.
+    /// A style that shows each space at a passphrase's start and end as `␣`.
     static var passphrase: Self { Self() }
 
-    /// A passphrase for VoiceOver, which names each space at its start and end.
+    /// A style that names each space at a passphrase's start and end.
     static var spokenPassphrase: Self { Self(isSpoken: true) }
 }

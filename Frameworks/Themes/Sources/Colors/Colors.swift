@@ -1,16 +1,17 @@
-/// Complete palettes for the system's appearance and contrast combinations.
+/// The complete palettes for each appearance and contrast combination.
 public struct Colors: Sendable, Equatable {
     public let light: Palette
     public let dark: Palette
     public let lightIncreasedContrast: Palette
     public let darkIncreasedContrast: Palette
 
-    /// Creates complete appearance defaults or resolved colors.
+    /// Creates colors from a palette for each appearance.
+    ///
     /// - Parameters:
-    ///   - light: Standard light appearance.
-    ///   - dark: Standard dark appearance.
-    ///   - lightIncreasedContrast: Light appearance with increased contrast.
-    ///   - darkIncreasedContrast: Dark appearance with increased contrast.
+    ///   - light: The light palette.
+    ///   - dark: The dark palette.
+    ///   - lightIncreasedContrast: The light palette with increased contrast.
+    ///   - darkIncreasedContrast: The dark palette with increased contrast.
     public init(light: Palette, dark: Palette, lightIncreasedContrast: Palette, darkIncreasedContrast: Palette) {
         self.light = light
         self.dark = dark
@@ -18,9 +19,10 @@ public struct Colors: Sendable, Equatable {
         self.darkIncreasedContrast = darkIncreasedContrast
     }
 
-    /// Resolves each appearance independently against the supplied overrides.
-    /// - Parameter overrides: Validated appearance and role overrides.
-    /// - Returns: Complete colors without cross-appearance fallback.
+    /// Returns the colors with overrides applied to each appearance.
+    ///
+    /// - Parameter overrides: The validated colors to override, by appearance and role.
+    /// - Returns: The complete colors.
     func applying(_ overrides: [Appearance: [Role: Color]]) -> Colors {
         Colors(light: light.applying(overrides[.light] ?? [:]),
                dark: dark.applying(overrides[.dark] ?? [:]),
@@ -28,7 +30,7 @@ public struct Colors: Sendable, Equatable {
                darkIncreasedContrast: darkIncreasedContrast.applying(overrides[.darkIncreasedContrast] ?? [:]))
     }
 
-    /// All appearance values for complete package serialization.
+    /// Every color, by appearance and role.
     var values: [Appearance: [Role: Color]] {
         [.light: light.values, .dark: dark.values,
          .lightIncreasedContrast: lightIncreasedContrast.values,
@@ -36,7 +38,7 @@ public struct Colors: Sendable, Equatable {
     }
 }
 
-/// The manifest's supported appearance combinations.
+/// An appearance and contrast combination.
 enum Appearance: String, CaseIterable, Sendable {
     case light, dark, lightIncreasedContrast, darkIncreasedContrast
 }

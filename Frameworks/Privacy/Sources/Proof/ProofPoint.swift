@@ -1,18 +1,9 @@
 import ModularArithmetic
 
-/// The compression of a Groth16 proof's G1 points, as the shielded-pool program reads them.
-///
-/// A point's coordinates are 32-byte big-endian integers below the BN254 base field's modulus p,
-/// decoded as ModularArithmetic's `BN254BaseField` elements. The compressed point is x with its top
-/// bit set when y is above `(p - 1) / 2`, which holds exactly when `p - y`, the field's `-y`, is
-/// below y; the point at infinity, (0, 0), compresses to 32 zero bytes. The program verifies `-A`,
-/// so the prover's `A` is negated first: y becomes `-y`, and zero stays zero. Nothing here checks
-/// that a point is on the curve: the program's verification rejects a proof with an invalid point,
-/// and a simulation surfaces that before anything is sent.
+/// The compression of a Groth16 proof's G1 points.
 enum ProofPoint {
-    /// Coordinates that aren't a point's.
+    /// An error that rejects a point's coordinates.
     enum ValidationError: Error, Equatable {
-        /// A coordinate doesn't have 32 bytes or isn't below p.
         case invalidCoordinate
     }
 
@@ -27,7 +18,7 @@ enum ProofPoint {
     /// - Parameters:
     ///   - x: The 32-byte big-endian x coordinate.
     ///   - y: The 32-byte big-endian y coordinate.
-    ///   - negated: Whether to compress `-point`, as the proof's `A` needs.
+    ///   - negated: Whether to negate the point first.
     /// - Returns: The 32-byte compressed point.
     /// - Throws: ``ValidationError/invalidCoordinate`` if a coordinate doesn't have 32 bytes or
     ///   isn't below p.

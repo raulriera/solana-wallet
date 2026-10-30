@@ -3,9 +3,8 @@ import SwiftUI
 /// A custom RPC choice with confirmed swipe deletion.
 struct CustomRPCRow: View {
     let url: URL
-    /// Whether every window uses this RPC, which shows the checkmark.
     let isSelected: Bool
-    /// The custom RPC waiting for the person to confirm its deletion.
+    /// The RPC waiting for the person to confirm its deletion.
     @Binding var removal: URL?
     let actions: any ProviderActions
 

@@ -1,7 +1,7 @@
 import SwiftUI
 import Transactions
 
-/// A form section with a whole address, which people can copy with a touch and hold, under an Address header.
+/// A form section that shows a whole address that people can copy.
 struct FullAddressSection: View {
     @Environment(\.palette) private var palette
     let address: Address

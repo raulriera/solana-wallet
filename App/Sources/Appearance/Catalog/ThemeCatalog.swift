@@ -1,25 +1,23 @@
 import Foundation
 import Themes
 
-/// App-owned installed packages with immutable built-ins and explicit custom replacement.
+/// A theme catalog that stores installed packages in a folder.
 nonisolated struct ThemeCatalog: ThemeCatalogProviding {
     private let storage: ThemeStorage
     private let packages: any PackServicing
 
-    /// Creates shared catalog access without loading any packages or image data.
+    /// Creates a catalog.
+    ///
     /// - Parameters:
-    ///   - directory: App-private persistent storage.
-    ///   - builtIns: Immutable bundled themes supplied by app composition.
-    ///   - packages: The framework service owning package validation and serialization.
+    ///   - directory: The folder that stores installed themes.
+    ///   - builtIns: The bundled themes.
+    ///   - packages: The service that reads and writes packages.
     init(directory: URL,
          builtIns: [BundledTheme] = [], packages: any PackServicing = PackService()) {
         storage = ThemeStorage(directory: directory, builtIns: builtIns)
         self.packages = packages
     }
 
-    /// Reads catalog metadata without loading installed packages.
-    /// - Returns: All custom and bundled entries, without imposing UI ordering.
-    /// - Throws: A storage or cancellation error; corrupt entries are not silently omitted.
     @concurrent
     func entries() async throws -> [ThemeEntry] {
         try await CatalogIO.perform { _ in
@@ -28,12 +26,6 @@ nonisolated struct ThemeCatalog: ThemeCatalogProviding {
         }
     }
 
-    /// Installs one validated snapshot while preserving its omitted settings.
-    /// - Parameters:
-    ///   - pack: Independently owned package bytes from the framework's reader.
-    ///   - existing: The exact custom revision approved for replacement, or `nil` for insertion.
-    /// - Returns: The committed entry without changing any appearance preference.
-    /// - Throws: A conflict, immutable-theme, storage, or pre-commit cancellation error.
     @concurrent
     func install(_ pack: Pack, replacing existing: ThemeEntry?) async throws -> ThemeEntry {
         guard storage.builtIns[pack.id] == nil, existing?.origin != .builtIn else {
@@ -72,10 +64,6 @@ nonisolated struct ThemeCatalog: ThemeCatalogProviding {
         }
     }
 
-    /// Loads only the selected package and rejects a revision replaced during the read.
-    /// - Parameter entry: The revision being selected or exported.
-    /// - Returns: A validated snapshot with independent image bytes.
-    /// - Throws: A changed-entry, package-validation, storage, or cancellation error.
     @concurrent
     func pack(for entry: ThemeEntry) async throws -> Pack {
         let url: URL
@@ -98,9 +86,6 @@ nonisolated struct ThemeCatalog: ThemeCatalogProviding {
         return pack
     }
 
-    /// Removes a custom revision and its selections together before reclaiming package files.
-    /// - Parameter entry: The exact custom entry selected for removal.
-    /// - Throws: An immutable-theme, changed-entry, storage, or pre-commit cancellation error.
     @concurrent
     func remove(_ entry: ThemeEntry) async throws {
         guard storage.builtIns[entry.id] == nil, entry.origin == .custom else { throw ThemeCatalogError.builtInTheme }

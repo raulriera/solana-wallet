@@ -1,5 +1,4 @@
-/// A failure to refresh portfolio valuations through the configured price source.
+/// An error from refreshing portfolio valuations.
 public enum PriceError: Error, Equatable {
-    /// A provider returned an invalid price or currency.
     case invalidQuote
 }

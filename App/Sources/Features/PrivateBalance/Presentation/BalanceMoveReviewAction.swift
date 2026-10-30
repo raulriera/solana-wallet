@@ -1,19 +1,16 @@
 import SwiftUI
 
-/// Opens the review of a move's typed amount from the button under its keypad, the way SwiftUI's `dismiss` acts for the
-/// view that reads it.
+/// Opens the review of a balance move's typed amount.
 struct BalanceMoveReviewAction {
-    /// The move whose typed amount is reviewed.
     let move: BalanceMove
-    /// The latest review, which stays after it closes.
+    /// The latest review, including one whose sheet closed.
     let review: Binding<TransactionReviewModel<BalanceMoveProposal>?>
-    /// The review that shows, or `nil` while none does.
+    /// The review that shows, or `nil` when none shows.
     let presented: Binding<TransactionReviewModel<BalanceMoveProposal>?>
-    /// Why a review couldn't start.
+    /// The error that kept a review from starting.
     let error: Binding<PrivateBalanceError?>
 
-    /// Opens a review of the typed amount and starts proving and simulating it; nothing opens while the amount can't be
-    /// moved or a review shows.
+    /// Opens and prepares a review of the typed amount, unless one shows or the amount can't be moved.
     func callAsFunction() {
         guard presented.wrappedValue == nil, move.payment.canSend else { return }
         do {

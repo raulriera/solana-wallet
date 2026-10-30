@@ -1,12 +1,9 @@
-/// Checks whether public address bytes decompress on the Ed25519 curve.
-///
-/// This is public-data arithmetic for Solana PDA derivation and ``Address/isOnCurve``,
-/// not secret-key arithmetic or signature validation. Field elements use five 51-bit limbs.
+/// A namespace for checking whether bytes encode a point on the Ed25519 curve.
 enum EdwardsPoint {
-    /// Tests the Edwards equation, accepting the same reduced y coordinates as Dalek.
+    /// Returns whether bytes encode a point on the Ed25519 curve.
     ///
-    /// - Parameter bytes: A 32-byte compressed point, including its x sign bit.
-    /// - Returns: Whether the encoding has a corresponding Edwards point.
+    /// - Parameter bytes: A 32-byte compressed point.
+    /// - Returns: `true` if the bytes encode a curve point.
     static func isOnCurve(_ bytes: [UInt8]) -> Bool {
         guard bytes.count == 32 else { return false }
         var limbs = [UInt128](repeating: 0, count: 5)
@@ -18,26 +15,23 @@ enum EdwardsPoint {
         let numerator = square - .one
         let denominator = Field.d * square + .one
         guard denominator != .zero else { return false }
-        // n/d is a square exactly when n*d is a square. Euler's criterion avoids
-        // computing a square root or an inverse; zero is a valid square as well.
         let product = numerator * denominator
         return product == .zero || product.power() == .one
     }
 
-    /// A canonical residue modulo 2^255 - 19; intermediates fit in UInt128.
+    /// A field element modulo 2^255 - 19, stored as five 51-bit limbs.
     private struct Field: Equatable {
         private static let mask = (UInt128(1) << 51) - 1
         private static let modulus = [mask - 18, mask, mask, mask, mask]
         static let zero = Field([0, 0, 0, 0, 0])
         static let one = Field([1, 0, 0, 0, 0])
-        // d = -121665 / 121666 modulo 2^255 - 19.
         static let d = Field([929955233495203, 466365720129213, 1662059464998953,
                               2033849074728123, 1442794654840575])
         private let limbs: [UInt128]
 
-        /// Reduces bounded limbs and subtracts the modulus when needed.
+        /// Creates a field element by reducing limbs modulo the prime.
         ///
-        /// - Parameter values: Five limbs produced by a field operation.
+        /// - Parameter values: The five limbs to reduce.
         init(_ values: [UInt128]) {
             var reduced = values
             for _ in 0..<3 {
@@ -60,17 +54,32 @@ enum EdwardsPoint {
             limbs = reduced
         }
 
-        /// Adds public field values modulo the curve prime.
+        /// Adds two field elements.
+        ///
+        /// - Parameters:
+        ///   - lhs: The first value to add.
+        ///   - rhs: The second value to add.
+        /// - Returns: The sum.
         static func + (lhs: Self, rhs: Self) -> Self {
             Self(zip(lhs.limbs, rhs.limbs).map(+))
         }
 
-        /// Subtracts public field values without unsigned underflow.
+        /// Subtracts one field element from another.
+        ///
+        /// - Parameters:
+        ///   - lhs: The value to subtract from.
+        ///   - rhs: The value to subtract.
+        /// - Returns: The difference.
         static func - (lhs: Self, rhs: Self) -> Self {
             Self((0..<5).map { lhs.limbs[$0] + 2 * modulus[$0] - rhs.limbs[$0] })
         }
 
-        /// Multiplies bounded limbs, folding 2^255 back into 19.
+        /// Multiplies two field elements.
+        ///
+        /// - Parameters:
+        ///   - lhs: The first value to multiply.
+        ///   - rhs: The second value to multiply.
+        /// - Returns: The product.
         static func * (lhs: Self, rhs: Self) -> Self {
             var result = [UInt128](repeating: 0, count: 5)
             for left in 0..<5 {
@@ -82,12 +91,11 @@ enum EdwardsPoint {
             return Self(result)
         }
 
-        /// Raises a public value to (p - 1) / 2 for Euler's quadratic-residue test.
+        /// Raises the value to the power (p - 1) / 2.
         ///
         /// - Returns: Zero, one, or minus one modulo the prime.
         func power() -> Self {
             var result = Self.one
-            // (p - 1) / 2 = 2^254 - 10; low byte is 0xf6.
             for bit in stride(from: 253, through: 0, by: -1) {
                 result = result * result
                 if bit >= 8 || (0xf6 >> bit) & 1 == 1 { result = result * self }

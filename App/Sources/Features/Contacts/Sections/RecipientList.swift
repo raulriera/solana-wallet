@@ -1,15 +1,11 @@
 import SwiftUI
 import Transactions
 
-/// Lists the addresses a window can pay as native sidebar rows: the wallet's other accounts, favorites, contacts, and
-/// recent payments to unsaved addresses. A new payment's address that none of them lists gets its own row while it's
-/// selected, like Messages' New Message row, so every selection has a row.
+/// Lists the addresses an account can pay, with a row for a new payment's unlisted address.
 struct RecipientList: View {
-    /// The selected address; every row that lists it is highlighted.
     @Binding var selection: Address?
-    /// The contact waiting for the person to confirm its deletion.
+    /// The contact whose deletion waits for confirmation.
     @State private var removal: Contact?
-    /// The addresses the account can pay.
     let lists: ContactLists
 
     var body: some View {
@@ -61,7 +57,6 @@ struct RecipientList: View {
                             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                 SwipeDeleteButton(removal: $removal, item: contact)
                             }
-                            // The confirmation points at the swiped row.
                             .contactDeletion(of: contact, removal: $removal)
                     }
                 }

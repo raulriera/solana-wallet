@@ -1,11 +1,7 @@
 public import RPC
 
 extension ShieldedPool {
-    /// Reads the rent-exempt balance of a user-registry record with one finalized
-    /// `getMinimumBalanceForRentExemption` read of its 134 bytes.
-    ///
-    /// Registration moves this balance, less the lamports that the record's address already holds,
-    /// from the payer to the record; ``ShieldedAccount/registrationCost(using:)`` subtracts them.
+    /// Reads the rent-exempt balance of a user-registry record.
     ///
     /// - Parameter rpc: The client of the network whose rent to read.
     /// - Returns: The record's rent-exempt balance, in lamports.

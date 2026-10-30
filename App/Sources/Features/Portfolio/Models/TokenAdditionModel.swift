@@ -4,16 +4,11 @@ import Portfolio
 import RPC
 import Transactions
 
-/// Owns one add-token sheet: it looks up the pasted address, then adds the token the person checked.
+/// Looks up a pasted token address, then adds the token to an account's list.
 @MainActor
 @Observable
 final class TokenAdditionModel: Identifiable {
-    /// The pasted text without the spaces and line breaks around it; a new address replaces the previous preview
-    /// and starts a lookup.
-    ///
-    /// A rejection stays until the new address's lookup answers, so it changes in place.
-    /// After a failed lookup, pasting the address again looks it up again; otherwise, pasting the same address
-    /// keeps its preview or rejection without signaling again.
+    /// The pasted text without the spaces and line breaks around it.
     private(set) var text = "" {
         didSet {
             guard address != (try? Address(oldValue)) || lookup == nil else { return }
@@ -22,27 +17,21 @@ final class TokenAdditionModel: Identifiable {
             lookup = address.map { _ in UUID() }
         }
     }
-    /// The token that the current address names, once the lookup finds it.
+    /// The looked-up token, or `nil` until the lookup finds it.
     private(set) var preview: TokenPreview?
-    /// Why the pasted text can't be added, or `nil` while there's nothing to explain.
     private(set) var rejection: TokenRejection?
-    /// Counts rejections, so each one signals again while the same rejection stays on screen.
     private(set) var rejectionCount = 0
-    /// An error the person dismisses; trying again repeats the step that failed.
     var error: TokenAdditionError?
-    /// The current address's lookup, or `nil` when the text isn't an address.
+    /// The ID of the current address's lookup, or `nil` when there's nothing to look up.
     private(set) var lookup: UUID?
-    /// The accepted add, while it waits or runs.
+    /// The ID of the accepted add, while it waits or runs.
     private(set) var attempt: UUID?
-    /// Whether the previewed token is in the list; the sheet closes itself when it is.
     private(set) var isAdded = false
 
-    /// The pasted address, or `nil` when the pasted text isn't one.
     var address: Address? { try? Address(text) }
 
-    /// Takes pasted text, ignoring the spaces and line breaks that a copy can bring along.
+    /// Takes pasted text and rejects it when it isn't an address.
     ///
-    /// Text that isn't an address is rejected at once, without a lookup.
     /// - Parameter pasted: The pasteboard's text.
     func paste(_ pasted: String) {
         text = pasted.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -51,12 +40,11 @@ final class TokenAdditionModel: Identifiable {
         }
     }
 
-    /// Looks up the current address in the screen's SwiftUI-managed task; a newer address cancels it.
+    /// Looks up the token at the current address.
     ///
-    /// A token that the wallet already lists is rejected without a request.
     /// - Parameters:
-    ///   - lookup: The lookup captured by the owning view task.
-    ///   - portfolios: The portfolios that every window shares, which look up tokens.
+    ///   - lookup: The ID of the lookup to run.
+    ///   - portfolios: The store that looks up tokens.
     ///   - account: The account whose list the token would join.
     ///   - network: The network to look the token up on.
     func lookUp(_ lookup: UUID?, in portfolios: PortfolioStore, for account: Account, on network: Network) async {
@@ -71,13 +59,11 @@ final class TokenAdditionModel: Identifiable {
             self.preview = preview
             rejection = nil
         } catch {
-            // A newer address or a closed sheet replaces this lookup's result.
             guard self.lookup == lookup, !Task.isCancelled, !(error is CancellationError) else { return }
             switch error {
             case TokenLookupError.notToken: reject(.notToken)
             case TokenLookupError.nonFungible: reject(.nonFungible)
             default:
-                // Trying again can't help a rejected key, so pasting the address again looks it up instead.
                 rejection = nil
                 self.lookup = nil
                 self.error = TokenAdditionError(lookup: PortfolioError(error))
@@ -85,16 +71,17 @@ final class TokenAdditionModel: Identifiable {
         }
     }
 
-    /// Accepts the previewed token; taps while an add runs are ignored.
+    /// Accepts the previewed token for adding.
     func add() {
         guard preview != nil, attempt == nil else { return }
         attempt = UUID()
     }
 
-    /// Adds the previewed token to a wallet's list in the screen's SwiftUI-managed task.
+    /// Adds the previewed token to an account's list.
+    ///
     /// - Parameters:
-    ///   - attempt: The attempt captured by the owning view task.
-    ///   - portfolios: The portfolios that every window shares, which save the wallet's list.
+    ///   - attempt: The ID of the attempt to run.
+    ///   - portfolios: The store that saves the list.
     ///   - account: The account whose list the token joins.
     ///   - network: The network whose list to change.
     func run(_ attempt: UUID?, in portfolios: PortfolioStore, for account: Account, on network: Network) async {
@@ -114,7 +101,7 @@ final class TokenAdditionModel: Identifiable {
         }
     }
 
-    /// Repeats the step that failed: the lookup when there's no preview yet, otherwise the add.
+    /// Repeats the step that failed: the lookup when there's no preview yet, or else the add.
     func retry() {
         if preview == nil {
             lookup = address.map { _ in UUID() }
@@ -124,6 +111,7 @@ final class TokenAdditionModel: Identifiable {
     }
 
     /// Records why the current address can't be added, and counts the rejection.
+    ///
     /// - Parameter reason: Why the address can't be added.
     private func reject(_ reason: TokenRejection) {
         rejection = reason

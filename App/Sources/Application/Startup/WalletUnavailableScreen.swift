@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Offers an explicit retry while leaving unreadable wallet storage untouched.
+/// Shows that the saved wallets couldn't load, with a button that tries again.
 struct WalletUnavailableScreen: View {
     let retry: () -> Void
 

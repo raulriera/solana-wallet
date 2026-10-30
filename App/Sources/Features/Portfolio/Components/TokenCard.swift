@@ -2,10 +2,6 @@ import Portfolio
 import SwiftUI
 
 /// One token as a card: its logo, symbol, and name, with its value and 24-hour change on the trailing side.
-///
-/// The balance takes the value's place when the value is unknown; a token without a known balance shows neither.
-/// The card takes its color from the token's logo; until the color loads, or when the logo has none, it takes
-/// the placeholder gray.
 struct TokenCard: View {
     @Environment(\.cardStyle) private var style
     @Environment(\.artworkColors) private var artworkColors
@@ -18,7 +14,7 @@ struct TokenCard: View {
     /// The price's 24-hour change as a fraction, or `nil` when unknown.
     let change: Decimal?
     let imageURL: URL?
-    /// Whether the account also holds private SOL, which shows as a sign before the balance.
+    /// Whether the account also holds private SOL.
     var hasPrivateBalance = false
 
     var body: some View {
@@ -26,7 +22,6 @@ struct TokenCard: View {
         let shape = RoundedRectangle(cornerRadius: style.cornerRadius, style: .continuous)
         let secondary: ReadableSecondary = .readableSecondary(tint.text, on: tint.textBackground)
 
-        // The figures always sit beside the name and keep their room; the symbol and name truncate instead.
         HStack(spacing: 12) {
             TokenCardIdentity(symbol: symbol, name: name, imageURL: imageURL, secondary: secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -43,11 +38,9 @@ struct TokenCard: View {
                 .fill(LinearGradient(colors: [tint.top, tint.bottom], startPoint: .top, endPoint: .bottom))
                 .overlay { shape.strokeBorder(.white.opacity(0.7), lineWidth: 1) }
                 .shadow(color: .black.opacity(0.18), radius: 6, y: -2)
-                // The face continues under the next card or into the pocket, so its bottom never shows.
                 .padding(.bottom, -64)
         }
         .animation(.default, value: logoColor)
-        // The card moves as one piece when it re-sorts, so its rolling numbers don't drift apart from it.
         .geometryGroup()
         .accessibilityElement(children: .combine)
         .task(id: imageURL) {

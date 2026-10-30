@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Asks for the final confirmation before the reset; every window then returns to onboarding.
+/// Asks for the final confirmation before a reset.
 struct ResetConfirmationScreen: View {
     @Environment(\.palette) private var palette
     @State private var isConfirming = false

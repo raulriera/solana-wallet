@@ -1,20 +1,17 @@
 /// A request for a recent blockhash and the block height through which it remains valid.
 public struct GetLatestBlockhash: RPCRequest {
-    /// The JSON-RPC method name for retrieving the latest blockhash.
     public static let method = "getLatestBlockhash"
 
-    /// A blockhash and its expiry, together with the ledger context in which they were read.
+    /// A blockhash and its expiry, with the ledger context in which they were read.
     public struct Response: Decodable, Sendable {
-        /// The ledger context associated with the returned blockhash.
         public let context: Context
 
-        /// The blockhash and its last valid block height.
         public let value: Value
 
         /// Creates a blockhash response with its ledger context.
         ///
         /// - Parameters:
-        ///   - context: The ledger context associated with the blockhash.
+        ///   - context: The ledger context of the blockhash.
         ///   - value: The blockhash and its last valid block height.
         public init(context: Context, value: Value) {
             self.context = context
@@ -24,12 +21,9 @@ public struct GetLatestBlockhash: RPCRequest {
 
     /// A recent blockhash and the block height through which transactions may use it.
     public struct Value: Decodable, Sendable, Equatable {
-        /// The base-58 encoded blockhash to include in a transaction.
+        /// The base-58 encoded blockhash.
         public let blockhash: String
 
-        /// The last block height at which the blockhash is valid, inclusive.
-        ///
-        /// Compare this value with `GetBlockHeight`, not with the response's slot.
         public let lastValidBlockHeight: UInt64
 
         /// Creates a blockhash with its expiry height.
@@ -48,15 +42,11 @@ public struct GetLatestBlockhash: RPCRequest {
 
     /// Creates a request for the latest finalized blockhash and its expiry height.
     ///
-    /// - Parameter minContextSlot: The minimum evaluation slot. The default is `nil`.
+    /// - Parameter minContextSlot: The earliest evaluation slot, or `nil` for no minimum.
     public init(minContextSlot: UInt64? = nil) {
         self.minContextSlot = minContextSlot
     }
 
-    /// Encodes the ledger configuration as positional RPC parameters.
-    ///
-    /// - Parameter encoder: The encoder that receives the parameter array.
-    /// - Throws: An encoding error if the encoder can't represent a parameter.
     public func encode(to encoder: any Encoder) throws {
         var parameters = encoder.unkeyedContainer()
         try parameters.encode(LedgerConfiguration(minContextSlot: minContextSlot))

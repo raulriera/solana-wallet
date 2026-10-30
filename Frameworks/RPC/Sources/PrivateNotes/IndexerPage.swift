@@ -2,16 +2,13 @@ import Encoding
 import Foundation
 
 /// One page of an indexer stream that a cursor orders.
-///
-/// A page has a next cursor exactly when it has rows, even when it is short, so a stream ends only at an
-/// empty page. Any page that the limit didn't fill reports how far the indexer scanned.
 protocol IndexerPage: Decodable, Sendable {
     /// The type of the page's rows.
     associatedtype Item: Sendable
 
     /// The page's rows in stream order.
     var items: [Item] { get }
-    /// The newest tree that isn't paused, or `nil` when the indexer reports none.
+    /// The ID of the newest tree that isn't paused, or `nil` when the indexer reports none.
     var outputTreeID: UInt16? { get }
     /// The cursor after the page's last row, or `nil` at the end of the stream.
     var nextCursor: String? { get }
@@ -23,7 +20,7 @@ protocol IndexerPage: Decodable, Sendable {
 struct IndexerRead<Item: Sendable>: Sendable {
     /// The rows of every page in stream order.
     let items: [Item]
-    /// The newest tree that isn't paused, from the latest page that reports one.
+    /// The ID of the newest tree that isn't paused, from the latest page that reports one.
     let outputTreeID: UInt16?
     /// The last scanned position or next cursor that a page reported, else the starting cursor.
     let resumeCursor: String?
@@ -34,10 +31,10 @@ extension IndexerPage {
     ///
     /// - Parameters:
     ///   - cursor: The cursor to start after, or `nil` to start at the beginning.
-    ///   - page: Fetches the page after a cursor.
+    ///   - page: The closure that fetches the page after a cursor.
     /// - Returns: Every row, the reported output tree, and the resume cursor.
-    /// - Throws: ``RPCError/InvalidResponse/invalidCursor`` if the indexer repeats a cursor, which would
-    ///   never end the read, or returns one on a page without rows, or an error from `page`.
+    /// - Throws: ``RPCError/InvalidResponse/invalidCursor`` if the indexer repeats a cursor or returns one on a page
+    ///   without rows, or an error from `page`.
     static func readAll(from cursor: String?, fetching page: (String?) async throws -> Self) async throws
         -> IndexerRead<Item> {
         var cursor = cursor
@@ -64,19 +61,11 @@ extension IndexerPage {
 
 /// A page of shielded transactions, from a read by view tag or by nullifier.
 struct ShieldedTransactionPage: IndexerPage {
-    /// The page's rows in stream order.
     let items: [IndexedTransaction]
-    /// The newest tree that isn't paused, or `nil` when the indexer reports none.
     let outputTreeID: UInt16?
-    /// The cursor after the page's last row, or `nil` at the end of the stream.
     let nextCursor: String?
-    /// The position that the scan reached, on a terminal page.
     let scannedThrough: String?
 
-    /// Decodes a page and each of its transactions strictly.
-    ///
-    /// - Parameter decoder: The decoder containing the JSON-RPC result.
-    /// - Throws: A decoding error for a missing field, a wrong length, or a non-canonical encoding.
     init(from decoder: any Decoder) throws {
         let page = try decoder.container(keyedBy: IndexerKey.self)
         items = try page.decode([IndexedTransaction].self, forKey: .transactions)
@@ -86,21 +75,13 @@ struct ShieldedTransactionPage: IndexerPage {
     }
 }
 
-/// A page of encrypted outputs, each matching a view tag, from which proofless deposits come.
+/// A page of encrypted outputs that match view tags.
 struct EncryptedOutputPage: IndexerPage {
-    /// The page's rows in stream order.
     let items: [EncryptedOutput]
-    /// The newest tree that isn't paused, or `nil` when the indexer reports none.
     let outputTreeID: UInt16?
-    /// The cursor after the page's last row, or `nil` at the end of the stream.
     let nextCursor: String?
-    /// The position that the scan reached, on a terminal page.
     let scannedThrough: String?
 
-    /// Decodes a page and each of its outputs strictly.
-    ///
-    /// - Parameter decoder: The decoder containing the JSON-RPC result.
-    /// - Throws: A decoding error for a missing field, a wrong length, or a non-canonical encoding.
     init(from decoder: any Decoder) throws {
         let page = try decoder.container(keyedBy: IndexerKey.self)
         items = try page.decode([EncryptedOutput].self, forKey: .matches)
@@ -112,29 +93,22 @@ struct EncryptedOutputPage: IndexerPage {
 
 /// One output that matched a view tag, with its transaction's encryption fields.
 struct EncryptedOutput: Decodable, Sendable, Equatable {
-    /// The slot that included the transaction.
     let slot: UInt64
     /// The transaction's base-58 signature.
     let signature: String
-    /// The matching output.
     let output: ShieldedOutput
     /// The transaction viewing public key, or `nil` without encrypted notes.
     let transactionViewingKey: [UInt8]?
     /// The note salt, or `nil` without encrypted notes.
     let salt: [UInt8]?
 
-    /// The output as a proofless deposit of one output, or `nil` when its transaction has a transaction
-    /// viewing key or a salt, which only confidential transactions carry.
+    /// The output as a proofless deposit, or `nil` when its transaction has a transaction viewing key or a salt.
     var deposit: ShieldedTransaction? {
         guard transactionViewingKey == nil, salt == nil else { return nil }
         return ShieldedTransaction(signature: signature, slot: slot, eventIndex: nil, transactionViewingKey: nil,
                                    salt: nil, outputs: [output], nullifiers: [], isProofless: true)
     }
 
-    /// Decodes a match strictly.
-    ///
-    /// - Parameter decoder: The decoder containing one match.
-    /// - Throws: A decoding error for a missing field, a wrong length, or a non-canonical encoding.
     init(from decoder: any Decoder) throws {
         let match = try decoder.container(keyedBy: IndexerKey.self)
         slot = try match.decode(UInt64.self, forKey: .slot)
@@ -145,17 +119,12 @@ struct EncryptedOutput: Decodable, Sendable, Equatable {
     }
 }
 
-/// The strict decoding of one indexed shielded transaction, and whether a ring authorized it.
+/// A strictly decoded indexed shielded transaction, and whether a ring authorized it.
 struct IndexedTransaction: Decodable, Sendable, Equatable {
-    /// The decoded transaction.
     let value: ShieldedTransaction
-    /// Whether the transaction names a ring's config account or program, so it isn't in the default ring.
+    /// Whether the transaction names a ring's config account or program.
     let isInRing: Bool
 
-    /// Decodes a transaction, ignoring its messages, which default-ring notes don't use.
-    ///
-    /// - Parameter decoder: The decoder containing one transaction.
-    /// - Throws: A decoding error for a missing field, a wrong length, or a non-canonical encoding.
     init(from decoder: any Decoder) throws {
         let transaction = try decoder.container(keyedBy: IndexerKey.self)
         value = ShieldedTransaction(
@@ -174,15 +143,10 @@ struct IndexedTransaction: Decodable, Sendable, Equatable {
     }
 }
 
-/// The strict decoding of one output slot and its context.
+/// A strictly decoded output slot and its context.
 private struct IndexedOutput: Decodable {
-    /// The decoded output.
     let value: ShieldedOutput
 
-    /// Decodes an output, ignoring its deprecated tree address, which its tree ID determines.
-    ///
-    /// - Parameter decoder: The decoder containing one output slot.
-    /// - Throws: A decoding error for a missing field, a wrong length, or a non-canonical encoding.
     init(from decoder: any Decoder) throws {
         let slot = try decoder.container(keyedBy: IndexerKey.self)
         let context = try slot.nestedContainer(keyedBy: IndexerKey.self, forKey: .outputContext)
@@ -198,13 +162,8 @@ private struct IndexedOutput: Decodable {
 
 /// A 32-byte hash that an indexer encodes in base 58.
 struct IndexedHash: Decodable, Sendable {
-    /// The hash's bytes.
     let bytes: [UInt8]
 
-    /// Decodes a base-58 string of exactly 32 bytes.
-    ///
-    /// - Parameter decoder: The decoder containing the string.
-    /// - Throws: A decoding error for another length or invalid base 58.
     init(from decoder: any Decoder) throws {
         let container = try decoder.singleValueContainer()
         guard let bytes = Base58.decode(try container.decode(String.self), byteCount: 32) else {
@@ -278,7 +237,7 @@ extension KeyedDecodingContainer {
         return bytes
     }
 
-    /// Decodes an optional opaque cursor, which must be canonical base 64, treating `null` as absent.
+    /// Decodes an optional canonical base-64 cursor, treating `null` as absent.
     ///
     /// - Parameter key: The field's key.
     /// - Returns: The cursor as received, or `nil` when the field is absent or `null`.

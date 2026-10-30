@@ -1,5 +1,5 @@
-/// An account that can't be saved.
+/// An error that stops an account from being saved.
 nonisolated enum AccountStoreError: Error {
-    /// An account ID, public address, or recovery-and-path pair occurs more than once.
+    /// An account with the same identifier, address, or recovery and path is saved.
     case duplicateAccount
 }

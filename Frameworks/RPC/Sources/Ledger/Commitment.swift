@@ -1,13 +1,11 @@
-/// A Solana confirmation level used in requests and transaction status responses.
+/// A Solana confirmation level.
 public enum Commitment: String, Codable, Sendable {
-    /// Uses state that the node has processed.
+    /// State that the node has processed.
     case processed
 
-    /// Uses state that the cluster has confirmed; once Alpenglow activates, confirmed equals finalized.
-    ///
-    /// Transaction status responses can still report it.
+    /// State that the cluster has confirmed.
     case confirmed
 
-    /// Uses state that the cluster has finalized.
+    /// State that the cluster has finalized.
     case finalized
 }

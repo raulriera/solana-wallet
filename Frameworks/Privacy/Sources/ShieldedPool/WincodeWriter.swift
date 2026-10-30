@@ -1,31 +1,23 @@
-/// A writer of the wincode encoding that the shielded-pool program reads its instruction data in.
-///
-/// The encoding follows zolana's `deposit` and `transact` instruction data: integers are fixed-width
-/// and little-endian; fixed-size byte arrays are written raw; enum variants and element counts are
-/// one byte; byte vectors carry a little-endian 16-bit length; and an option is the byte 0 for none,
-/// or the byte 1 followed by its value.
+/// A writer of the wincode encoding of the shielded-pool program's instruction data.
 struct WincodeWriter {
     /// A value that the encoding can't represent.
     enum ValidationError: Error, Equatable {
-        /// A sequence has more elements than its length prefix can count.
         case lengthOverflow
     }
 
-    /// The bytes written so far.
     private(set) var bytes: [UInt8] = []
 
     /// Creates an empty writer.
     init() {}
 
-    /// Appends an integer in its fixed-width little-endian representation, such as an instruction
-    /// tag, an enum variant, or an amount.
+    /// Appends an integer in its fixed-width little-endian representation.
     ///
     /// - Parameter value: The integer.
     mutating func append(_ value: some FixedWidthInteger) {
         bytes.appendLittleEndian(value)
     }
 
-    /// Appends a fixed-size byte array, such as a hash or an address, without a length.
+    /// Appends a fixed-size byte array without a length.
     ///
     /// - Parameter array: The bytes.
     mutating func append(array: [UInt8]) {

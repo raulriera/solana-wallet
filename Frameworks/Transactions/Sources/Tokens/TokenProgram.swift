@@ -1,20 +1,18 @@
-/// The first-party Solana programs supported for token transfers.
+/// A token program, with its address as the raw value.
 public enum TokenProgram: String, Sendable, CaseIterable, Codable {
-    /// The original SPL Token program.
+    /// The SPL Token program.
     case token = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-    /// The Token Extensions program, also known as Token-2022.
     case token2022 = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
 }
 
 extension TokenProgram {
-    /// The Associated Token Account program, which creates and derives each wallet's token account for a mint.
+    /// The Associated Token Account program's address.
     static let associatedAccountProgram = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
 
     /// Derives a wallet's associated token account for a mint that this program owns.
     ///
-    /// The address is the same whether or not the account exists yet.
     /// - Parameters:
-    ///   - owner: The wallet that owns the token account, including an off-curve owner.
+    ///   - owner: The wallet that owns the token account.
     ///   - mint: The mint whose tokens the account holds.
     /// - Returns: The canonical associated token account address.
     /// - Throws: ``ValidationError/addressDerivationFailed`` if no valid bump exists.

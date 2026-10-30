@@ -1,13 +1,10 @@
 import SwiftUI
 
-/// Binds accepted imports to the phrase destination's lifetime without retaining task handles.
+/// Runs the waiting import while phrase entry is on screen and presents its errors.
 private struct ImportLifecycle: ViewModifier {
     @Bindable var submission: ImportWalletModel
     let presentationID: UUID
 
-    /// Awaits one non-secret attempt and releases its presentation when the destination leaves.
-    /// - Parameter content: The existing phrase-entry screen.
-    /// - Returns: The screen with cancellation and secret-free failure presentation.
     func body(content: Content) -> some View {
         let attempt = submission.attempt
         content
@@ -18,11 +15,12 @@ private struct ImportLifecycle: ViewModifier {
 }
 
 extension ImportWalletScreen {
-    /// Runs accepted imports only while this destination owns their presentation.
+    /// Runs the screen's waiting import and presents its errors.
+    ///
     /// - Parameters:
-    ///   - submission: The initiating window's import submission state.
-    ///   - presentationID: This destination's identity, independent of recovery input.
-    /// - Returns: The view with managed import work and failure presentation.
+    ///   - submission: The window's import model.
+    ///   - presentationID: The identifier of this presentation.
+    /// - Returns: The screen with the import lifecycle.
     func importLifecycle(_ submission: ImportWalletModel, presentationID: UUID) -> some View {
         modifier(ImportLifecycle(submission: submission, presentationID: presentationID))
     }

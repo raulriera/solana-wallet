@@ -4,35 +4,15 @@ import ModularArithmetic
 import RPC
 import Transactions
 
-/// A UTXO that an account received, where the indexer saw it, and the nullifier that spends it.
-///
-/// An account finds its notes in the shielded transactions that the indexer returns for its tags:
-///
-/// - In a confidential transaction, each output whose view tag is one of the account's view tags,
-///   its signing address or its viewing public key's x-coordinate, is opened with the account's
-///   viewing key and the transaction's viewing key and salt, at the
-///   output's position. The UTXO is the account's only if the note decodes and its rebuilt hash is
-///   the published one.
-/// - In a proofless deposit, the output publishes the UTXO in the clear. The UTXO is the account's
-///   only if it holds SOL for the account's owner hash, its blinding is the one that the program
-///   derives from the tree and the leaf index, and its rebuilt hash is the published one.
-///
-/// Outputs that don't pass are someone else's, not errors. A note is spent once the indexer
-/// returns a transaction that publishes its nullifier. Only SOL notes are received.
-///
-/// A note encodes its UTXO's fields, its position, its transaction, and its nullifier, with field
-/// elements and the mint as 32 big-endian bytes; decoding rejects other lengths, non-canonical
-/// field elements, and mints other than SOL's. Descriptions and reflection omit the values.
+/// A SOL UTXO that an account received, with its position, its transaction, and its nullifier.
 public struct ReceivedNote: Sendable, Equatable, Codable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
-    /// The encoded fields of a note.
+    /// The keys of a note's encoded fields.
     private enum CodingKeys: String, CodingKey {
         case owner, mint, amount, blinding, treeID, leafIndex, signature, slot, nullifier
     }
 
-    /// The received UTXO.
     let utxo: UTXO
 
-    /// The UTXO's position in its tree.
     let leafIndex: UInt64
 
     /// The signature of the transaction that created the UTXO.
@@ -41,32 +21,26 @@ public struct ReceivedNote: Sendable, Equatable, Codable, CustomStringConvertibl
     /// The slot of the transaction that created the UTXO.
     public let slot: UInt64
 
-    /// The nullifier that spending the UTXO publishes.
     let nullifier: Poseidon.Element
 
-    /// The note's amount, in lamports.
     public var lamports: UInt64 { utxo.amount }
 
-    /// The ID of the tree that holds the note, whose fee per nullifier a spend of the note pays.
     public var treeID: UInt16 { utxo.treeID }
 
-    /// A description that omits the values.
     public var description: String { "ReceivedNote" }
 
-    /// A debugging description that omits the values.
     public var debugDescription: String { description }
 
-    /// A reflection view that omits the values.
     public var customMirror: Mirror { Mirror(self, children: [:]) }
 
-    /// Creates a note from its parts.
+    /// Creates a note.
     ///
     /// - Parameters:
     ///   - utxo: The received UTXO.
     ///   - leafIndex: The UTXO's position in its tree.
     ///   - signature: The signature of the transaction that created the UTXO.
     ///   - slot: The slot of the transaction that created the UTXO.
-    ///   - nullifier: The nullifier that spending the UTXO publishes.
+    ///   - nullifier: The nullifier that a spend of the UTXO publishes.
     init(utxo: UTXO, leafIndex: UInt64, signature: String, slot: UInt64, nullifier: Poseidon.Element) {
         self.utxo = utxo
         self.leafIndex = leafIndex
@@ -75,11 +49,6 @@ public struct ReceivedNote: Sendable, Equatable, Codable, CustomStringConvertibl
         self.nullifier = nullifier
     }
 
-    /// Decodes a note and checks the lengths and canonical encoding of its fields.
-    ///
-    /// - Parameter decoder: The decoder that supplies the note's fields.
-    /// - Throws: A decoding error for a missing field, a mint that isn't SOL's, or a field element
-    ///   that isn't 32 canonical big-endian bytes.
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let mint = [UInt8](try container.decode(Data.self, forKey: .mint))
@@ -97,10 +66,6 @@ public struct ReceivedNote: Sendable, Equatable, Codable, CustomStringConvertibl
         nullifier = try Self.decodeElement(forKey: .nullifier, in: container)
     }
 
-    /// Encodes the note's fields, with field elements and the mint as 32 big-endian bytes.
-    ///
-    /// - Parameter encoder: The encoder that receives the note's fields.
-    /// - Throws: An encoding error if a field can't be written.
     public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(Data(utxo.owner.bigEndianBytes), forKey: .owner)
@@ -120,7 +85,7 @@ public struct ReceivedNote: Sendable, Equatable, Codable, CustomStringConvertibl
     ///   - key: The field's key.
     ///   - container: The note's container.
     /// - Returns: The field element.
-    /// - Throws: A decoding error for a missing field, another length, or a value at or above r.
+    /// - Throws: A decoding error if the field is missing or isn't a canonical field element.
     private static func decodeElement(
         forKey key: CodingKeys,
         in container: KeyedDecodingContainer<CodingKeys>
@@ -134,9 +99,9 @@ public struct ReceivedNote: Sendable, Equatable, Codable, CustomStringConvertibl
     /// Finds an account's notes in a shielded transaction.
     ///
     /// - Parameters:
-    ///   - transaction: A transaction that the indexer returned for the account's tags.
-    ///   - account: The account.
-    /// - Returns: The account's notes, in output order; empty if none of the outputs is the account's.
+    ///   - transaction: The shielded transaction.
+    ///   - account: The account that receives the notes.
+    /// - Returns: The account's notes, in output order.
     /// - Throws: ``SlotCipher/CipherError/cryptorFailed`` if CommonCrypto fails, or a CryptoKit
     ///   error if the key agreement fails.
     static func notes(in transaction: ShieldedTransaction, of account: ShieldedAccount) throws -> [ReceivedNote] {
@@ -156,7 +121,7 @@ public struct ReceivedNote: Sendable, Equatable, Codable, CustomStringConvertibl
     ///
     /// - Parameters:
     ///   - transaction: A confidential transaction.
-    ///   - account: The account.
+    ///   - account: The account that receives the outputs.
     ///   - owner: The account's owner hash.
     /// - Returns: Each output that the account received, with its UTXO.
     /// - Throws: A cipher or key agreement error.
@@ -165,7 +130,6 @@ public struct ReceivedNote: Sendable, Equatable, Codable, CustomStringConvertibl
         of account: ShieldedAccount,
         owner: Poseidon.Element
     ) throws -> [(ShieldedOutput, UTXO)] {
-        // A transaction without a valid viewing key or salt carries no note that the account can open.
         guard let viewingKeyBytes = transaction.transactionViewingKey, let salt = transaction.salt,
               let transactionViewingPublicKey = try? P256.KeyAgreement.PublicKey(compressedRepresentation: viewingKeyBytes) else {
             return []
@@ -189,24 +153,18 @@ public struct ReceivedNote: Sendable, Equatable, Codable, CustomStringConvertibl
     ///   - transaction: A proofless deposit.
     ///   - owner: The account's owner hash.
     /// - Returns: Each output that the account received, with its UTXO.
-    /// - Throws: A ``Transactions/ValidationError`` if a tree account's derivation fails, which
-    ///   doesn't happen.
+    /// - Throws: A ``Transactions/ValidationError`` if a tree account's derivation fails.
     private static func deposits(in transaction: ShieldedTransaction, owner: Poseidon.Element) throws -> [(ShieldedOutput, UTXO)] {
         try transaction.outputs.compactMap { output in try depositUTXO(in: output, owner: owner).map { (output, $0) } }
     }
 
     /// Rebuilds a proofless deposit's UTXO if it belongs to an owner hash.
     ///
-    /// The check needs only public values: the owner hash comes from the owner's registry record or
-    /// keys.
-    ///
     /// - Parameters:
     ///   - output: A proofless deposit's output.
     ///   - owner: The owner hash.
-    /// - Returns: The UTXO, or `nil` if the payload isn't a SOL deposit for `owner` with the
-    ///   program's blinding for the output's position and the published hash.
-    /// - Throws: A ``Transactions/ValidationError`` if the tree account's derivation fails, which
-    ///   doesn't happen.
+    /// - Returns: The UTXO, or `nil` if the output isn't a valid SOL deposit for `owner`.
+    /// - Throws: A ``Transactions/ValidationError`` if the tree account's derivation fails.
     static func depositUTXO(in output: ShieldedOutput, owner: Poseidon.Element) throws -> UTXO? {
         guard let deposit = try? ProoflessOutput(decoding: output.payload),
               deposit.owner == owner, deposit.mint == ConfidentialPlaintext.Asset.sol.mint,

@@ -2,23 +2,20 @@ import Foundation
 import Portfolio
 import RPC
 
-/// Why the portfolio couldn't load or refresh, classified by what the person can do about it.
+/// A reason the portfolio couldn't load or refresh.
 nonisolated enum PortfolioError: Error, Equatable {
-    /// The selected provider needs an API key, and none is saved on this device.
     case missingKey
-    /// The selected provider rejected the saved key.
     case invalidKey
-    /// The selected custom RPC doesn't serve the portfolio's network.
     case unsupportedNetwork
-    /// A provider is limiting requests; the person decides when to try again.
     case rateLimited
-    /// The portfolio couldn't load or refresh for another reason, such as a lost connection.
+    /// Any other failure, such as a lost connection.
     case unavailable
-    /// The saved token list can't be read, so trying again can't load the balances.
+    /// The saved token list can't be read.
     case listUnreadable
 
-    /// Classifies an error reported by a portfolio update.
-    /// - Parameter error: The failed update's error, which isn't retained.
+    /// Creates an error from a failed portfolio update.
+    ///
+    /// - Parameter error: The failed update's error.
     init(_ error: any Error) {
         switch error {
         case ProviderClientError.missingKey: self = .missingKey
@@ -30,10 +27,10 @@ nonisolated enum PortfolioError: Error, Equatable {
         }
     }
 
-    /// Whether the portfolio can load only after the person enters a new key or chooses another provider.
+    /// Whether the person must enter a new key or choose another provider.
     var requiresProviderSetup: Bool { self == .missingKey || self == .invalidKey || self == .unsupportedNetwork }
 
-    /// Why the shown balances may be out of date, or `nil` when the failure hides the balances instead.
+    /// Why the shown balances may be out of date, or `nil` when the error hides them.
     var staleStatus: LocalizedStringResource? {
         switch self {
         case .rateLimited: "Too many requests"

@@ -1,18 +1,16 @@
-/// A storage failure that contains no recovery material or underlying error text.
+/// An error from the recovery Keychain store.
 public enum KeychainStoreError: Error, Sendable, Equatable {
-    /// The recovery identifier already has stored recovery material.
+    /// Recovery material is already stored for the identifier.
     case duplicateRecovery
-    /// No item exists, including items the system deleted when the device passcode was removed.
+    /// No recovery material is stored for the identifier.
     case recoveryUnavailable
-    /// Authentication didn't authorize access to the item.
     case authenticationFailed
-    /// Keychain access couldn't present authentication in the current state, or authentication didn't finish within
-    /// the time bound.
+    /// Authentication couldn't be presented or didn't finish in time.
     case interactionNotAllowed
-    /// The device has no passcode, or the requested item protection is unavailable.
+    /// The device has no passcode or can't protect the item.
     case protectionUnavailable
-    /// The stored recovery payload is malformed or has an unsupported version.
+    /// The stored recovery payload is malformed or unsupported.
     case invalidRecovery
-    /// Another Security framework failure, identified only by its status code.
+    /// Another Security framework error.
     case keychain(status: Int32)
 }

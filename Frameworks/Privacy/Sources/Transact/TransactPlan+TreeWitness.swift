@@ -3,22 +3,13 @@ import RPC
 
 extension TransactPlan {
     /// One declared input tree's proofs for a transact, checked against each other.
-    ///
-    /// The inclusion proofs come from one indexer read of the tree's spent UTXOs, and the non-inclusion proofs
-    /// from one read of the nullifiers of every input slot in the tree, padding included, so each read has one
-    /// root. The roots fill the tree's slot of the public input hash, and their positions its tree context.
     struct TreeWitness: Sendable {
-        /// The capacity of a UTXO tree's root history, `STATE_ROOT_HISTORY_CAPACITY`.
         private static let utxoRootHistoryCapacity: UInt16 = 500
 
-        /// The capacity of a nullifier tree's root history on devnet, `NULLIFIER_TREE_ROOT_HISTORY_CAPACITY`: a
-        /// queue batch of 25,000 nullifiers over proof batches of 250.
         private static let nullifierRootHistoryCapacity: UInt16 = 100
 
-        /// The tree's slot: its ID and both roots.
         let slot: PublicInputs.TreeSlot
 
-        /// The roots' positions in their histories.
         let context: TreeContext
 
         /// The inclusion proofs of the tree's spent UTXOs, in input slot order.
@@ -27,7 +18,7 @@ extension TransactPlan {
         /// The non-inclusion proofs of the tree's input slots' nullifiers, padding included, in input slot order.
         let nonInclusionProofs: [NonInclusionProof]
 
-        /// Checks a tree's proofs and takes its roots from them.
+        /// Creates a witness by checking a tree's proofs and taking its roots from them.
         ///
         /// - Parameters:
         ///   - treeID: The tree's ID.

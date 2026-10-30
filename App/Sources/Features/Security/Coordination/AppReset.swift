@@ -1,8 +1,7 @@
 import Foundation
 import Vault
 
-/// Deletes recovery phrases first, so a failed later step never leaves secrets behind, and the saved accounts last, so
-/// every window stays on its wallet until everything else is deleted.
+/// Resets the app by deleting its secrets, stores, files, and saved accounts.
 @MainActor
 struct AppReset: AppResetting {
     private let recovery: any RecoveryStoring
@@ -12,17 +11,15 @@ struct AppReset: AppResetting {
     private let stores: [any Erasable]
     private let accounts: any Erasable
 
-    /// Connects the reset to every store that holds the person's data.
+    /// Creates a reset.
+    ///
     /// - Parameters:
-    ///   - recovery: The protected recovery storage.
-    ///   - privateBalances: Each account's private-balance keys, notes, and redeem codes.
-    ///   - directories: The directories that hold every other kept and cached file, such as wallets and themes.
-    ///   - appearance: The shared appearance, which forgets its cached selections once the directories are gone.
-    ///   - stores: The shared stores, such as the contacts, the transactions, the currency choice, the provider
-    ///     settings, and the balances, which end their work before the directories are deleted, so nothing they started
-    ///     saves into them afterward.
-    ///   - accounts: The saved accounts, which are erased last, so a failed earlier step keeps every window on its
-    ///     wallet, where it can try again.
+    ///   - recovery: The recovery storage.
+    ///   - privateBalances: The private-balance keys, notes, and redeem codes.
+    ///   - directories: The directories to delete.
+    ///   - appearance: The shared appearance to restart.
+    ///   - stores: The shared stores to erase.
+    ///   - accounts: The saved accounts to erase last.
     init(recovery: any RecoveryStoring, privateBalances: any PrivateBalancing, directories: [URL],
          appearance: any AppearanceCoordinating, stores: [any Erasable], accounts: any Erasable) {
         self.recovery = recovery
@@ -33,9 +30,6 @@ struct AppReset: AppResetting {
         self.accounts = accounts
     }
 
-    /// Deletes every recovery phrase, then the private-balance keys, notes, and redeem codes, erases each shared store,
-    /// deletes the directories, restarts appearance, erases the saved accounts, and returns every window to onboarding.
-    /// - Throws: A storage or cancellation error from the first step that fails.
     func reset() async throws {
         try await recovery.deleteAllRecovery()
         try await privateBalances.removeAll()
@@ -45,9 +39,10 @@ struct AppReset: AppResetting {
         try await accounts.erase()
     }
 
-    /// Deletes each directory with everything inside it, away from the main actor, since themes can hold many files.
-    /// - Parameter directories: The directories to delete; a missing one is already deleted.
-    /// - Throws: A filesystem error from the first directory that can't be deleted.
+    /// Deletes each directory and its contents.
+    ///
+    /// - Parameter directories: The directories to delete.
+    /// - Throws: A file system error from the first directory that can't be deleted.
     @concurrent
     private static func delete(_ directories: [URL]) async throws {
         for directory in directories {

@@ -1,8 +1,7 @@
 import Accessibility
 import SwiftUI
 
-/// Isolates recovery typing from the form's unrelated appearance and layout work, with a control to check the words
-/// and feedback for each rejected check.
+/// A field for the recovery words, with a button that shows or hides them and feedback when they're rejected.
 struct RecoveryPhraseEntry: View {
     @Bindable var input: RecoveryEntryModel
     @FocusState.Binding var focusedField: RecoveryEntryModel.Field?
@@ -21,7 +20,6 @@ struct RecoveryPhraseEntry: View {
         .sensoryFeedback(.error, trigger: input.rejectionCount)
         .onChange(of: input.rejectionCount) {
             guard let message = input.rejection?.message(in: input.phrase) else { return }
-            // Checks run as focus leaves the words, so the reason waits until VoiceOver finishes reading.
             var announcement = AttributedString(String(localized: message))
             announcement.accessibilitySpeechAnnouncementPriority = .low
             AccessibilityNotification.Announcement(announcement).post()

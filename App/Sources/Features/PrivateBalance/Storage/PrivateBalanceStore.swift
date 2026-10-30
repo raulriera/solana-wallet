@@ -2,29 +2,24 @@ import Foundation
 import Observation
 import RPC
 
-/// Keeps each account's private balance on each network, shared by every window that shows it.
-///
-/// Windows that show the same account on the same network share its ``WalletPrivateBalance``: one read and one poll
-/// loop. After each new provider connection, every observed balance reads again through it.
+/// Keeps each account's private balance on each network.
 @MainActor
 @Observable
 final class PrivateBalanceStore: Erasable {
-    /// Each account's private balance on each network that a window observed or read, kept for the next window that
-    /// shows it.
     private var balances: [Key: WalletPrivateBalance] = [:]
     private let privateBalances: any PrivateBalancing
     private let transactions: TransactionStore
     private let pollInterval: Duration
     private let followUpInterval: Duration
-    /// The provider connection that the observed balances last read through, or `nil` until the provider settings
-    /// are read and after they're erased.
+    /// The provider connection that the balances last read through, or `nil` before the settings are read.
     @ObservationIgnored private var connection: ProviderClient.Endpoint?
 
-    /// Creates a store that reads nothing until a window observes an account.
+    /// Creates a store.
+    ///
     /// - Parameters:
     ///   - balances: The private balances of every account.
-    ///   - transactions: The transactions whose settled private moves read a balance again, and which moves send.
-    ///   - providers: The provider settings, whose new connections read every observed balance again.
+    ///   - transactions: The transaction store.
+    ///   - providers: The provider settings.
     ///   - pollInterval: The time between polls.
     ///   - followUpInterval: The time between polls that follow up on pending SOL.
     init(balances: any PrivateBalancing, transactions: TransactionStore, providers: ProviderStore,
@@ -36,20 +31,18 @@ final class PrivateBalanceStore: Erasable {
         watch(providers)
     }
 
-    /// An account's private balance on a network.
+    /// Returns an account's private balance on a network.
+    ///
     /// - Parameters:
     ///   - account: The account whose balance to read.
     ///   - network: The network whose balance to read.
-    /// - Returns: The balance that every window showing the account on the network shares, or `nil` before any window
-    ///   observes or reads it.
+    /// - Returns: The balance, or `nil` before it's observed or read.
     func balance(for account: Account, on network: Network) -> WalletPrivateBalance? {
         balances[Key(account, on: network)]
     }
 
     /// Reads and polls an account's private balance on a network for the lifetime of the calling task.
     ///
-    /// Callers that observe the same account on the same network, such as two windows, share one read and one poll
-    /// loop, which reads again after each of the account's private moves on the network settles.
     /// - Parameters:
     ///   - account: The account whose balance to observe.
     ///   - network: The network to observe the balance on.
@@ -58,8 +51,8 @@ final class PrivateBalanceStore: Erasable {
         await shared(account, on: network).observe()
     }
 
-    /// Reads an account's private balance again, or waits for the read that's running, for pull-to-refresh and for
-    /// SOL's details.
+    /// Reads an account's private balance again, or waits for the read that's running.
+    ///
     /// - Parameters:
     ///   - account: The account whose balance to read.
     ///   - network: The network to read the balance on.
@@ -68,6 +61,7 @@ final class PrivateBalanceStore: Erasable {
     }
 
     /// Turns private balances on for an account on a network, then reads its balance.
+    ///
     /// - Parameters:
     ///   - account: The account to turn private balances on for.
     ///   - network: The network to turn them on for.
@@ -78,7 +72,6 @@ final class PrivateBalanceStore: Erasable {
 
     /// Creates a move of an account's SOL between its balances, while private balances are on.
     ///
-    /// A deposit can take the account's public SOL; a withdrawal takes its available private SOL, so it needs some.
     /// - Parameters:
     ///   - direction: Which balance the SOL leaves, and which one it reaches.
     ///   - publicLamports: The account's public SOL, in lamports.
@@ -102,17 +95,17 @@ final class PrivateBalanceStore: Erasable {
         }
     }
 
-    /// Forgets every account's private balance, as Reset App does, so no window shows a deleted wallet's balance.
     func erase() async throws {
         for balance in balances.values { balance.erase() }
         balances = [:]
     }
 
     /// Returns an account's balance on a network, creating it on the first request.
+    ///
     /// - Parameters:
     ///   - account: The account whose balance it is.
     ///   - network: The network that the balance belongs to.
-    /// - Returns: The balance that every window showing the account on the network shares.
+    /// - Returns: The account's balance on the network.
     private func shared(_ account: Account, on network: Network) -> WalletPrivateBalance {
         let key = Key(account, on: network)
         if let balance = balances[key] { return balance }
@@ -125,9 +118,7 @@ final class PrivateBalanceStore: Erasable {
 
     /// Reads every observed balance again after each new provider connection.
     ///
-    /// Reading the settings isn't a new connection, because nothing read through one yet, and neither is erasing
-    /// them, as a reset does. The watch lasts as long as this store, and ends at the first change after it's gone.
-    /// - Parameter providers: The provider settings that every window shares.
+    /// - Parameter providers: The provider settings.
     private func watch(_ providers: ProviderStore) {
         let connections = Observations { providers.connection }
         Task { [weak self] in
@@ -141,12 +132,13 @@ final class PrivateBalanceStore: Erasable {
         }
     }
 
-    /// An account on a network, which identifies its shared balance.
+    /// The identifier of an account's balance on a network.
     private struct Key: Hashable {
         let account: UUID
         let network: Network
 
-        /// Identifies an account's balance on a network.
+        /// Creates the identifier of an account's balance on a network.
+        ///
         /// - Parameters:
         ///   - account: The account whose balance it is.
         ///   - network: The network that the balance belongs to.

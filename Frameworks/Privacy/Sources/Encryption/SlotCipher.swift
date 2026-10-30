@@ -2,64 +2,42 @@ import CommonCrypto
 import CryptoKit
 import Foundation
 
-/// The cipher of one output slot's note: P-256 ECDH, HKDF-SHA256, and AES-256-CTR, as zolana's
-/// `applyTransferCipher` applies it.
-///
-/// - The shared secret is the x-coordinate of the ECDH point of one party's secret and the other
-///   party's public key.
-/// - The key material is `shared ‖ ephemeral public key ‖ recipient public key`, both keys SEC1
-///   compressed; the ephemeral key is the transaction viewing key.
-/// - `HKDF(salt: empty, key material, "TSPP/hpke/" ‖ "TSPP/tx" ‖ salt ‖ slot, 44)`, with the slot as
-///   a big-endian 32-bit integer, gives the 32-byte AES key and a 12-byte nonce.
-/// - The AES-256-CTR counter block starts at `nonce ‖ 00 00 00 02`, as in AES-GCM, and increments
-///   as a big-endian 128-bit integer. A counter that started at 1 would give another ciphertext.
-///
-/// CTR mode XORs the input with a key stream, so encryption and decryption are the same operation,
-/// for an input of any length. The slot binds each note to its output, so no key and nonce repeat
-/// within a transaction. The buffers that hold the key material and the counter block are zeroed
-/// before they're released. CryptoKit holds the shared secret and the derived key and nonce, and
-/// CommonCrypto holds its copy of the key until the cryptor is released.
+/// The cipher of one output slot's note, with P-256 ECDH, HKDF-SHA256, and AES-256-CTR.
 enum SlotCipher {
-    /// A salt that can't key a slot.
+    /// An error that rejects a salt.
     enum ValidationError: Error, Equatable {
-        /// A transaction's salt has exactly 16 bytes.
         case invalidSaltLength
     }
 
-    /// A failure of the platform cipher.
+    /// An error from the platform cipher.
     enum CipherError: Error, Equatable {
-        /// CommonCrypto couldn't apply AES-256-CTR.
         case cryptorFailed
     }
 
-    /// The number of bytes in a transaction's salt.
+    /// The length of a transaction's salt, in bytes.
     static let saltLength = 16
 
-    /// The HKDF info that precedes the salt and slot, `TSPP/hpke/` followed by the transfer label
-    /// `TSPP/tx`.
+    /// The HKDF info that precedes the salt and the slot.
     private static let infoPrefix = Array("TSPP/hpke/TSPP/tx".utf8)
 
-    /// The number of bytes in the AES-256 key, which precedes the nonce in the HKDF output.
+    /// The length of the AES-256 key, in bytes.
     private static let keyLength = kCCKeySizeAES256
 
-    /// The number of bytes in the HKDF output: the key and a 12-byte nonce.
+    /// The length of the key and the 12-byte nonce, in bytes.
     private static let keyAndNonceLength = keyLength + 12
 
-    /// The last byte of the initial counter block, whose last four bytes are `00 00 00 02`.
+    /// The last byte of the initial counter block.
     private static let initialCounter: UInt8 = 2
 
-    /// Applies a slot's cipher as the transaction's sender, who seals each output's note.
-    ///
-    /// Applying it to a ciphertext opens a note that the sender sealed, as zolana's
-    /// `decryptSlotEphemeral` does.
+    /// Applies a slot's cipher as the transaction's sender.
     ///
     /// - Parameters:
     ///   - input: The plaintext or the ciphertext.
-    ///   - transactionViewingKey: The transaction viewing key, the ephemeral key.
+    ///   - transactionViewingKey: The transaction viewing key.
     ///   - recipientViewingPublicKey: The output recipient's viewing public key.
     ///   - salt: The transaction's 16-byte salt.
     ///   - slot: The output's position in the transaction.
-    /// - Returns: The ciphertext or the plaintext, as long as `input`.
+    /// - Returns: The ciphertext or the plaintext.
     /// - Throws: ``ValidationError/invalidSaltLength`` for a salt of another length,
     ///   ``CipherError/cryptorFailed`` if CommonCrypto fails, or a CryptoKit error if the key
     ///   agreement fails.
@@ -77,7 +55,7 @@ enum SlotCipher {
         )
     }
 
-    /// Applies a slot's cipher as the output's recipient, who opens its note.
+    /// Applies a slot's cipher as the output's recipient.
     ///
     /// - Parameters:
     ///   - input: The ciphertext or the plaintext.
@@ -85,7 +63,7 @@ enum SlotCipher {
     ///   - transactionViewingPublicKey: The transaction's published viewing public key.
     ///   - salt: The transaction's 16-byte salt.
     ///   - slot: The output's position in the transaction.
-    /// - Returns: The plaintext or the ciphertext, as long as `input`.
+    /// - Returns: The plaintext or the ciphertext.
     /// - Throws: ``ValidationError/invalidSaltLength`` for a salt of another length,
     ///   ``CipherError/cryptorFailed`` if CommonCrypto fails, or a CryptoKit error if the key
     ///   agreement fails.
@@ -131,7 +109,6 @@ enum SlotCipher {
         let ephemeral = ephemeralPublicKey.compressedRepresentation
         let recipient = recipientPublicKey.compressedRepresentation
         var keyMaterial = [UInt8]()
-        // Reserving the whole length keeps appends from leaving unerased copies behind.
         keyMaterial.reserveCapacity(shared.withUnsafeBytes(\.count) + ephemeral.count + recipient.count)
         defer { keyMaterial.erase() }
         shared.withUnsafeBytes { keyMaterial.append(contentsOf: $0) }
@@ -149,8 +126,7 @@ enum SlotCipher {
     /// - Parameters:
     ///   - input: The bytes to XOR with the key stream.
     ///   - keyAndNonce: The 32-byte key followed by the 12-byte nonce.
-    /// - Returns: The input XORed with the key stream of the counter blocks from
-    ///   `nonce ‖ 00 00 00 02`.
+    /// - Returns: The input XORed with the key stream.
     /// - Throws: ``CipherError/cryptorFailed`` if CommonCrypto fails or doesn't process every byte.
     private static func counterMode(_ input: [UInt8], keyAndNonce: SymmetricKey) throws -> [UInt8] {
         try keyAndNonce.withUnsafeBytes { keyAndNonce in

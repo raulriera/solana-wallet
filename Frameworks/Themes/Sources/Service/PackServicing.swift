@@ -1,32 +1,36 @@
 public import Foundation
 
-/// Reads, saves, and resolves packs and exports templates without owning preferences or a catalog.
+/// A type that reads, saves, and resolves packs and exports templates.
 public protocol PackServicing: Sendable {
     /// Loads and validates a directory package, including every declared image.
+    ///
     /// - Parameter url: A local or security-scoped package directory URL.
-    /// - Returns: A snapshot independent of the original files and their access lifetime.
+    /// - Returns: The validated pack.
     /// - Throws: A validation, file-access, or cancellation error.
     func read(from url: URL) async throws -> Pack
 
-    /// Saves an owned snapshot for installation, preserving omitted color overrides.
+    /// Saves a pack to a package directory without filling its omitted colors.
+    ///
     /// - Parameters:
-    ///   - pack: A validated snapshot independent of its source files.
-    ///   - url: The app-owned destination package directory.
-    /// - Throws: A file-access or pre-commit cancellation error.
+    ///   - pack: The validated pack.
+    ///   - url: The destination package directory.
+    /// - Throws: A file-access or cancellation error.
     func save(_ pack: Pack, to url: URL) async throws
 
-    /// Fills omitted color settings from the matching app-provided appearance.
+    /// Fills a pack's omitted colors from default palettes.
+    ///
     /// - Parameters:
-    ///   - pack: A validated imported pack.
-    ///   - defaults: Complete app-owned palettes.
-    /// - Returns: Complete colors with system references preserved.
+    ///   - pack: A validated pack.
+    ///   - defaults: The complete default palettes.
+    /// - Returns: The complete colors.
     func resolve(_ pack: Pack, defaults: Colors) -> Colors
 
-    /// Exports complete defaults as a new custom theme with a freshly generated UUID.
+    /// Exports default palettes as a new theme with a new identifier.
+    ///
     /// - Parameters:
-    ///   - name: A nonempty display name for the template.
-    ///   - defaults: Complete app-owned palettes.
-    ///   - url: The destination package URL, with replacement approved by the caller.
-    /// - Throws: A validation, file-access, or pre-commit cancellation error.
+    ///   - name: A nonempty display name for the theme.
+    ///   - defaults: The complete default palettes.
+    ///   - url: The destination package URL.
+    /// - Throws: A validation, file-access, or cancellation error.
     func exportTemplate(named name: String, defaults: Colors, to url: URL) async throws
 }

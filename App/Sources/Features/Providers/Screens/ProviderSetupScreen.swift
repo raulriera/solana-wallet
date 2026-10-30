@@ -1,18 +1,15 @@
 import SwiftUI
 
-/// Collects an entry for an RPC provider, Helius's API key or a custom RPC URL; the owning scene checks and saves it.
+/// Collects an entry for an RPC provider, such as Helius's API key or a custom RPC URL.
 struct ProviderSetupScreen<Submission: ProviderSubmitting>: View {
     @Environment(\.palette) private var palette
     @State private var input = ProviderEntryModel()
     @FocusState private var isFocused: Bool
-    /// Why the screen asks for an entry, which sets its field and wording.
     let purpose: ProviderEntryPurpose
-    /// Checks the submitted entry and reports why the provider rejected it.
     let submission: Submission
 
     var body: some View {
         Form {
-            // Settings shows title cards only on its root screens, so the pushed entry screens get none.
             if purpose == .connect {
                 Section {
                     TitleCardContent(
@@ -73,7 +70,7 @@ struct ProviderSetupScreen<Submission: ProviderSubmitting>: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    /// Dismisses the keyboard so the result stays visible, then hands the entry to the scene.
+    /// Dismisses the keyboard and submits the entry.
     private func submitEntry() {
         isFocused = false
         submission.submit(input.text)
@@ -122,12 +119,10 @@ struct ProviderSetupScreen<Submission: ProviderSubmitting>: View {
     .tint(RenderedPalette(OriginalAppearance.palette).accent)
 }
 
-/// Keeps previews local, showing a fixed rejection without checking or saving an entry.
+/// A submission for previews that shows a fixed rejection.
 private struct PreviewSubmission<EntryError: ProviderEntryError>: ProviderSubmitting {
     let rejection: EntryError?
     var isPending: Bool { false }
 
-    /// Accepts preview interaction without checking or retaining the entry.
-    /// - Parameter entry: The preview's entry.
     func submit(_ entry: String) {}
 }

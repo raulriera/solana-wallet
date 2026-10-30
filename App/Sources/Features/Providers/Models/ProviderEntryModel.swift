@@ -1,6 +1,6 @@
 import Observation
 
-/// Keeps a provider entry, such as an API key or an RPC URL, transient and tracks whether there is text to submit.
+/// A provider entry, such as an API key or an RPC URL, and whether it has text to submit.
 @MainActor
 @Observable
 final class ProviderEntryModel {

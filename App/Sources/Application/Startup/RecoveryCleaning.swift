@@ -1,6 +1,7 @@
-/// Deletes all recovery material and private-balance keys and notes when no wallet is saved, once per launch.
+/// A cleanup that deletes recovery and private-balance secrets when no wallet is saved.
 nonisolated protocol RecoveryCleaning: Sendable {
-    /// Finishes the launch cleanup, running it on the first call and sharing that run with later callers.
-    /// - Throws: A storage error if saved wallets can't be read or recovery, keys, or notes can't be deleted.
+    /// Runs the cleanup once and waits for it to finish.
+    ///
+    /// - Throws: A storage error if the saved wallets can't be read or the secrets can't be deleted.
     func complete() async throws
 }

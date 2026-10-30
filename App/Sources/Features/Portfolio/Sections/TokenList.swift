@@ -5,7 +5,7 @@ import SwiftUI
 struct TokenList: View {
     @Binding var selection: Holding.Identity?
     let holdings: [Holding]
-    /// Whether the account also holds private SOL, which SOL's row shows with a sign.
+    /// Whether the account also holds private SOL.
     let hasPrivateBalance: Bool
 
     var body: some View {

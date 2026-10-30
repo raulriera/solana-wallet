@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Explains why a screen's content is unavailable and offers the one action that can fix it, if any.
+/// A screen that explains why its content is unavailable, with an optional action.
 struct UnavailableScreen<Action: View>: View {
     @Environment(\.palette) private var palette
     private let title: LocalizedStringResource
@@ -8,12 +8,13 @@ struct UnavailableScreen<Action: View>: View {
     private let systemImage: String
     private let action: Action?
 
-    /// Creates an explanation with an optional action.
+    /// Creates an unavailable screen.
+    ///
     /// - Parameters:
     ///   - title: What is unavailable.
     ///   - message: Why it's unavailable and what the action does.
-    ///   - systemImage: The name of the SF Symbol that pictures the cause.
-    ///   - action: The one action that can fix it, usually a button, or `nil` when nothing in the app can.
+    ///   - systemImage: The name of the SF Symbol that shows the cause.
+    ///   - action: The one action that can fix it, or `nil` for none.
     init(title: LocalizedStringResource, message: LocalizedStringResource, systemImage: String,
          @ViewBuilder action: () -> Action?) {
         self.title = title
@@ -36,7 +37,6 @@ struct UnavailableScreen<Action: View>: View {
             .frame(maxWidth: LayoutMetrics.readableWidth)
         }
         .defaultScrollAnchor(.center, for: .alignment)
-        // A screen pushed beside a sidebar leaves side margins that the background must still cover.
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(palette.background)
     }

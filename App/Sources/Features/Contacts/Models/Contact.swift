@@ -4,19 +4,18 @@ import Transactions
 /// An address saved under a name: a contact, or one of the wallet's own accounts.
 nonisolated struct Contact: Identifiable, Hashable, Codable, Sendable {
     let id: UUID
-    /// The name that labels the address.
     var name: String
-    /// The address the name labels.
     var address: Address
-    /// Whether the address also shows under Favorites.
+    /// Whether the address shows under Favorites.
     var isFavorite: Bool
 
     /// Creates a named address.
+    ///
     /// - Parameters:
-    ///   - id: The contact's identity, which stays when its name or address changes.
+    ///   - id: The contact's identifier.
     ///   - name: The name that labels the address.
     ///   - address: The address the name labels.
-    ///   - isFavorite: Whether the address also shows under Favorites.
+    ///   - isFavorite: Whether the address shows under Favorites.
     init(id: UUID = UUID(), name: String, address: Address, isFavorite: Bool = false) {
         self.id = id
         self.name = name
@@ -24,7 +23,8 @@ nonisolated struct Contact: Identifiable, Hashable, Codable, Sendable {
         self.isFavorite = isFavorite
     }
 
-    /// Saves one of the wallet's accounts under its name, keeping the account's identity.
+    /// Creates a contact with an account's identifier, name, and address.
+    ///
     /// - Parameter account: The account.
     init(_ account: Account) {
         self.init(id: account.id, name: account.name, address: account.address)

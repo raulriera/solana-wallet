@@ -1,33 +1,24 @@
 import Foundation
 
-/// A client for Helius Sender's optional mainnet transaction-submission service.
-///
-/// Use this client as the selected submission route. It serves submission methods;
-/// preparation and confirmation continue through an ordinary RPC client.
+/// A client for Helius Sender's mainnet transaction-submission service.
 public struct Sender: RPC {
     /// A Sender routing tier.
     public enum Tier: Sendable {
-        /// Lower-cost delivery through Helius's stake-weighted routing.
+        /// Delivery through stake-weighted routing with a lower tip.
         case standard
-        /// Broader delivery through all Helius Sender routes, with a higher tip.
+        /// Delivery through all Sender routes with a higher tip.
         case premium
     }
 
-    /// Sender's documented endpoints serve mainnet.
     public let network: Network = .mainnet
-    /// The selected routing tier.
     public let tier: Tier
-    /// The tip and priority-fee requirements to include before signing.
     public let submissionRequirements: SubmissionRequirements?
 
     private let client: HTTPClient
 
-    /// Creates a Sender client using its public HTTPS endpoint and the tier's minimum tip.
+    /// Creates a client for a routing tier.
     ///
-    /// A tip recipient is selected once per client so preparation and submission
-    /// share stable requirements. Standard Sender access doesn't require an API key.
-    ///
-    /// - Parameter tier: The routing tier chosen by the user.
+    /// - Parameter tier: The routing tier.
     public init(tier: Tier) {
         self.tier = tier
         submissionRequirements = SubmissionRequirements(
@@ -44,19 +35,10 @@ public struct Sender: RPC {
                             redactor: SecretRedactor(secrets: []))
     }
 
-    /// Sends one request without changing its transaction, preflight policy, or retry limit.
-    ///
-    /// - Parameter request: A submission request accepted by Sender.
-    /// - Returns: The validated response associated with the request.
-    /// - Throws: An `RPCError` or `CancellationError`.
     public func send<Request: RPCRequest>(_ request: Request) async throws -> Request.Response {
         try await client.send(request)
     }
 
-    /// Helius's published mainnet tip accounts, distributed to reduce shared write locks.
-    ///
-    /// Helius publishes this list only in its Sender documentation; a live test checks
-    /// the bundled addresses against that page.
     static let tipAccounts = [
         "4ACfpUFoaSD9bfPdeu6DBt89gB6ENTeHBXCAi87NhDEE",
         "D2L6yPZ2FmmmTKPgzaMKdhu6EWZcTpLy1Vhx8uvZe7NZ",

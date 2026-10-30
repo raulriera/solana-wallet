@@ -3,17 +3,13 @@ import Portfolio
 import RPC
 import SwiftUI
 
-/// Binds lookups and adds to the add-token screen's lifetime without retaining task handles, and announces their results.
+/// Runs an add-token screen's lookups and adds, and announces their results.
 private struct TokenAdditionLifecycle: ViewModifier {
     @Environment(PortfolioStore.self) private var portfolios
     @Bindable var addition: TokenAdditionModel
     let account: Account
     let network: Network
 
-    /// Runs the current lookup and accepted add, signals rejections and found tokens, and presents failures.
-    /// - Parameter content: The add-token screen.
-    /// - Returns: The screen with managed lookups and adds, rejection feedback, announcements, and failure
-    ///   presentation.
     func body(content: Content) -> some View {
         let lookup = addition.lookup
         let attempt = addition.attempt
@@ -25,7 +21,6 @@ private struct TokenAdditionLifecycle: ViewModifier {
                 guard let rejection = addition.rejection else { return }
                 AccessibilityNotification.Announcement(String(localized: rejection.message)).post()
             }
-            // A new address clears the previous preview first, so each found token appears from nothing.
             .onChange(of: addition.preview != nil) { _, isFound in
                 guard isFound, let preview = addition.preview else { return }
                 AccessibilityNotification.Announcement(String(localized: Self.announcement(for: preview))).post()
@@ -33,9 +28,10 @@ private struct TokenAdditionLifecycle: ViewModifier {
             .errorAlert($addition.error, retry: addition.retry)
     }
 
-    /// Tells VoiceOver which token the address names, without reading out the address itself.
+    /// Returns the announcement for a found token.
+    ///
     /// - Parameter preview: The token the lookup found.
-    /// - Returns: The token's claimed name or symbol, or a plain confirmation when it has neither.
+    /// - Returns: The token's name or symbol, or a plain confirmation when it has neither.
     private static func announcement(for preview: TokenPreview) -> LocalizedStringResource {
         let token = Holding(preview: preview)
         guard token.name?.isEmpty == false || token.symbol?.isEmpty == false else { return "Found a token." }
@@ -45,12 +41,12 @@ private struct TokenAdditionLifecycle: ViewModifier {
 }
 
 extension TokenAdditionScreen {
-    /// Runs the screen's lookups and adds only while it is on screen.
+    /// Runs the screen's lookups and adds while it's on screen.
+    ///
     /// - Parameters:
     ///   - account: The account whose list the token joins.
-    ///   - network: The network to look the token up on and whose list to change.
-    /// - Returns: The screen with managed lookups and adds, rejection feedback, announcements, and failure
-    ///   presentation.
+    ///   - network: The network whose list the token joins.
+    /// - Returns: The screen with managed lookups and adds.
     func tokenAdditionLifecycle(for account: Account, on network: Network) -> some View {
         modifier(TokenAdditionLifecycle(addition: addition, account: account, network: network))
     }

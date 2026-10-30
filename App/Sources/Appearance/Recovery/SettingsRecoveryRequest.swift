@@ -1,27 +1,23 @@
 import Foundation
 
-/// Bridges the Settings bundle's switch to background preferences access.
+/// A reset request read from the app's switch in Settings.
 nonisolated struct SettingsRecoveryRequest: RecoveryRequesting {
     static let key = "resetAppearance"
 
     private let suiteName: String?
 
-    /// Uses the application defaults domain or an isolated domain supplied by a test.
-    /// - Parameter suiteName: A preferences suite, or `nil` for this application's settings.
+    /// Creates a request that reads a defaults suite.
+    ///
+    /// - Parameter suiteName: The defaults suite, or `nil` for the app's defaults.
     init(suiteName: String? = nil) {
         self.suiteName = suiteName
     }
 
-    /// Reads the switch from Settings without opening theme packages.
-    /// - Returns: `false` when the user has never requested recovery.
-    /// - Throws: A preferences or cancellation error.
     @concurrent
     func isRequested() async throws -> Bool {
         try await CatalogIO.perform { _ in try defaults().bool(forKey: Self.key) }
     }
 
-    /// Clears the switch after the caller has committed the reset.
-    /// - Throws: A preferences or pre-write cancellation error.
     @concurrent
     func complete() async throws {
         try await CatalogIO.perform { checkCancellation in
@@ -31,9 +27,10 @@ nonisolated struct SettingsRecoveryRequest: RecoveryRequesting {
         }
     }
 
-    /// Opens preferences only from the background I/O queue.
-    /// - Returns: The configured defaults object, confined to the calling operation.
-    /// - Throws: An unavailable-domain error.
+    /// Opens the defaults suite.
+    ///
+    /// - Returns: The defaults suite.
+    /// - Throws: An unavailable-preferences error.
     private func defaults() throws -> UserDefaults {
         guard let defaults = UserDefaults(suiteName: suiteName) else { throw SettingsRecoveryRequestError.unavailablePreferences }
         return defaults

@@ -1,46 +1,27 @@
 import Foundation
 import RPC
 
-/// Watches one sent transaction in real time until it lands or can never land.
-///
-/// One connection carries the signature subscription, which reports the landing, and the root subscription,
-/// which schedules finalized block-height reads. A finalized block height above the blockhash's last valid one
-/// proves that no later block can include the transaction; a status read then shows whether an earlier one did.
+/// A confirmer that watches one sent transaction until it lands or can never land.
 nonisolated struct Confirmer: TransactionConfirming {
-    /// The wait before the first reconnection; each failed attempt doubles it.
+    /// The wait before the first reconnection, which doubles after each failed attempt.
     private static let firstReconnectDelay = Duration.seconds(2)
-    /// The longest wait between reconnections.
     private static let longestReconnectDelay = Duration.seconds(60)
-    /// How long a connection may go without a root before the watch counts it as lost.
+    /// How long a connection may go without a root before it counts as lost.
     private static let stallTimeout = Duration.seconds(30)
 
     private let rpc: any RPC & SignatureEventProviding
     private let clock: any Clock<Duration>
 
-    /// Creates a watch that reads and subscribes through one provider.
+    /// Creates a confirmer.
     ///
     /// - Parameters:
-    ///   - rpc: The provider serving the submission's network, for status reads and subscriptions.
-    ///   - clock: The clock that times stalled connections and reconnection waits; continuous time is the default.
+    ///   - rpc: The provider that reads statuses and subscribes on the submission's network.
+    ///   - clock: The clock that times stalls and reconnection waits.
     init(rpc: any RPC & SignatureEventProviding, clock: any Clock<Duration> = ContinuousClock()) {
         self.rpc = rpc
         self.clock = clock
     }
 
-    /// Watches the transaction until it lands at finalized commitment or its blockhash expires without it.
-    ///
-    /// After each subscription, one status read catches up on an earlier landing; once the blockhash has expired, it is
-    /// also the final read. Before that, a finalized epoch read checks the expiry alongside it, and when it finds the
-    /// expiry, a catch-up read from the expiry slot or later proves a drop; otherwise a status read follows.
-    /// Roots schedule later checks.
-    /// An error that `RPCError.isRecoverable` accepts, or 30 seconds without a root, reconnects after 2 seconds,
-    /// doubling the wait up to a minute until a subscription and its first reads succeed; the schedule carries over.
-    /// Rate limits, rejected keys, refused subscriptions, and malformed responses throw. The watch has no deadline,
-    /// and nothing rebuilds, resigns, or resubmits the transaction.
-    ///
-    /// - Parameter submission: The accepted signature, original network, and blockhash expiry.
-    /// - Returns: A finalized execution outcome, or finalized proof that the transaction was dropped.
-    /// - Throws: ``ConfirmerError``, an RPC error that reconnecting can't clear, or `CancellationError`.
     @concurrent
     func confirm(_ submission: Submission) async throws -> Confirmation {
         try Task.checkCancellation()
@@ -60,18 +41,13 @@ nonisolated struct Confirmer: TransactionConfirming {
 
     /// Subscribes once, then follows the landing and roots until the outcome settles or the connection fails.
     ///
-    /// The reconnection wait resets once the subscription and its first reads succeed.
-    /// Returning or throwing releases the stream, which closes its connection.
     /// - Parameters:
     ///   - submission: The transaction to watch.
     ///   - schedule: The checks and reconnection wait that every connection shares.
     /// - Returns: The settled outcome.
-    /// - Throws: A subscription, read, response, stall, or cancellation error; a stream that ends counts as a
-    ///   lost connection.
+    /// - Throws: A subscription, read, response, stall, lost connection, or cancellation error.
     private func watch(_ submission: Submission, schedule: inout Schedule) async throws -> Confirmation {
         let events = try await rpc.events(for: submission.signature)
-        // The subscription can miss a landing from before it started; after expiry, this read is also the final one.
-        // Until then, the expiry check runs alongside it, and a landing settles the watch without waiting for it.
         let checksExpiry = schedule.expiry == nil
         async let catchUpRead = status(of: submission)
         async let epochRead = checksExpiry ? rpc.send(GetEpochInfo()) : nil
@@ -80,8 +56,6 @@ nonisolated struct Confirmer: TransactionConfirming {
             return confirmation
         }
         if let epoch = try await epochRead { record(epoch, for: submission, at: schedule.root, schedule: &schedule) }
-        // Once the expiry is found, a catch-up read from the expiry slot or later proves a drop; an earlier one can't,
-        // so another status read follows.
         if checksExpiry, schedule.expiry != nil {
             if let confirmation = settle(catchUp, for: submission, at: schedule.root, schedule: &schedule) {
                 return confirmation
@@ -109,9 +83,8 @@ nonisolated struct Confirmer: TransactionConfirming {
         throw RPCError.transport(.networkConnectionLost)
     }
 
-    /// Waits for the next event, counting a connection that delivers no root for 30 seconds as lost.
+    /// Waits for the next event, counting a connection that delivers no root before the stall timeout as lost.
     ///
-    /// A stall stops waiting on the stream, which closes its connection.
     /// - Parameter events: The connection's landing and roots.
     /// - Returns: The next event, or `nil` when the stream ends.
     /// - Throws: `RPCError.transport(.timedOut)` after a stall, the stream's error, or a cancellation error.
@@ -130,11 +103,11 @@ nonisolated struct Confirmer: TransactionConfirming {
         }
     }
 
-    /// Reads whether the blockhash expired at finalized commitment and, once it has, whether the transaction landed first.
+    /// Checks whether the blockhash expired and, once it has, whether the transaction landed first.
     ///
     /// - Parameters:
     ///   - submission: The transaction and its blockhash expiry.
-    ///   - root: The newest root, from which the next check is scheduled.
+    ///   - root: The newest root.
     ///   - schedule: The next check and, once read, the expiry slot.
     /// - Returns: The outcome once a status read settles it, or `nil` to keep watching.
     /// - Throws: A read, response, or cancellation error.
@@ -144,15 +117,12 @@ nonisolated struct Confirmer: TransactionConfirming {
         return settle(response, for: submission, at: root, schedule: &schedule)
     }
 
-    /// Settles a status read: a finalized status gives its outcome, and once the blockhash has expired, a missing
-    /// status from a node that has reached the expiry slot proves the transaction was dropped.
+    /// Returns the outcome that a status read proves, or schedules the next check.
     ///
-    /// After expiry, a node behind the expiry slot is read again once roots advance by the slots it lags; a status
-    /// that isn't finalized yet is read again on the next root.
     /// - Parameters:
     ///   - response: The transaction's status read.
-    ///   - submission: The receipt that the outcome belongs to.
-    ///   - root: The newest root, or `0` before the first one, from which the next check is scheduled.
+    ///   - submission: The transaction's receipt.
+    ///   - root: The newest root, or `0` before the first one.
     ///   - schedule: The expiry slot, once read, and the next check.
     /// - Returns: The outcome, or `nil` to keep watching.
     private func settle(_ response: GetSignatureStatuses.Response, for submission: Submission, at root: UInt64,
@@ -164,12 +134,11 @@ nonisolated struct Confirmer: TransactionConfirming {
         if context >= expiry, status == nil {
             return Confirmation(submission: submission, slot: nil, outcome: .dropped)
         }
-        // Before the first root, the expiry slot stands in for it.
         schedule.nextCheck = Self.sum(max(root, expiry), context < expiry ? expiry - context : 1)
         return nil
     }
 
-    /// Reads whether the blockhash expired at finalized commitment, unless an earlier read found that it has.
+    /// Returns whether the blockhash expired at finalized commitment, reading it unless an earlier read found it.
     ///
     /// - Parameters:
     ///   - submission: The transaction and its last valid block height.
@@ -183,11 +152,8 @@ nonisolated struct Confirmer: TransactionConfirming {
         return schedule.expiry != nil
     }
 
-    /// Records the expiry slot once a finalized block height passes the last valid one, and schedules the next check
-    /// while the blockhash is valid.
+    /// Records the expiry slot once a finalized block height passes the last valid one, or schedules the next check.
     ///
-    /// Block height grows by at most one per slot, so the next check waits for a root past the slots that the
-    /// remaining heights need. A root ahead of the finalized slot moves the check past that root.
     /// - Parameters:
     ///   - epoch: A finalized epoch read.
     ///   - submission: The transaction and its last valid block height.
@@ -203,10 +169,10 @@ nonisolated struct Confirmer: TransactionConfirming {
         schedule.expiry = epoch.absoluteSlot
     }
 
-    /// Reads the transaction's status, searching history beyond the recent status cache.
+    /// Reads the transaction's status, including history beyond the recent status cache.
     ///
-    /// - Parameter submission: The transaction to look up without sending it.
-    /// - Returns: The response, describing exactly the one signature at or before its context slot.
+    /// - Parameter submission: The transaction to look up.
+    /// - Returns: The status response for the one signature.
     /// - Throws: ``ConfirmerError/invalidResponse``, an RPC error, or a cancellation error.
     private func status(of submission: Submission) async throws -> GetSignatureStatuses.Response {
         let response = try await rpc.send(GetSignatureStatuses(signatures: [submission.signature]))
@@ -216,38 +182,37 @@ nonisolated struct Confirmer: TransactionConfirming {
         return response
     }
 
-    /// Settles a status once it's finalized, keeping execution failures as outcomes.
+    /// Returns the outcome of a finalized status.
     ///
     /// - Parameters:
     ///   - status: The transaction's status.
-    ///   - submission: The receipt that the outcome belongs to.
-    /// - Returns: The outcome, or `nil` for a processed or confirmed status, or one without a commitment.
+    ///   - submission: The transaction's receipt.
+    /// - Returns: The outcome, or `nil` if the status isn't finalized.
     private func confirmation(of status: GetSignatureStatuses.Status, for submission: Submission) -> Confirmation? {
         guard status.confirmationStatus == .finalized else { return nil }
         return Confirmation(submission: submission, slot: status.slot,
                             outcome: status.error.map(Confirmation.Outcome.failed) ?? .succeeded)
     }
 
-    /// Adds slot counts, saturating instead of overflowing on values that no ledger reaches.
+    /// Adds a count to a slot, saturating at the largest slot.
     ///
     /// - Parameters:
     ///   - slot: A slot.
     ///   - count: The slots to add.
-    /// - Returns: The sum, or the largest slot when the sum isn't representable.
+    /// - Returns: The sum, or `UInt64.max` on overflow.
     private static func sum(_ slot: UInt64, _ count: UInt64) -> UInt64 {
         let (sum, overflow) = slot.addingReportingOverflow(count)
         return overflow ? .max : sum
     }
 
-    /// What a watch keeps across reconnections.
+    /// The state that a watch keeps across reconnections.
     private struct Schedule {
-        /// The root from which the next check is due.
+        /// The root at which the next check is due.
         var nextCheck: UInt64 = 0
-        /// The newest root received.
+        /// The newest root received, or `0` before the first.
         var root: UInt64 = 0
-        /// The finalized slot whose block height is above the last valid one, once read.
+        /// The finalized slot whose block height is above the last valid one, or `nil` until read.
         var expiry: UInt64?
-        /// The wait before the next reconnection.
         var reconnectDelay = Confirmer.firstReconnectDelay
     }
 }

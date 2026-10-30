@@ -3,18 +3,13 @@ import SwiftUI
 import Transactions
 import Wallet
 
-/// Lists the accounts of the window's wallet, shows the chosen one in the window, and adds the wallet's next account.
+/// Lists a wallet's accounts, selects one, and adds the wallet's next account.
 struct AccountsScreen: View {
     @Environment(\.palette) private var palette
-    /// The wallet's accounts, in the order they were added.
     let accounts: [Account]
-    /// The account that the window shows, which choosing another changes.
     @Binding var selection: Account
-    /// The scene's additions.
     let addition: AccountAdditionModel
-    /// The scene's deletions, which run here once an account's screen closes.
     let deletion: AccountDeletionModel
-    /// The scene's pushed screens, which an account's info button opens its screen on.
     @Binding var path: [AccountsRoute]
 
     var body: some View {
@@ -48,7 +43,6 @@ struct AccountsScreen: View {
                     }
                 }
                 .foregroundStyle(palette.accent)
-                // Action rows stay one line at every text size; VoiceOver still reads the whole title.
                 .lineLimit(1)
                 .disabled(isAdding)
             } footer: {
@@ -58,7 +52,6 @@ struct AccountsScreen: View {
             }
             .listRowBackground(palette.surface)
         }
-        // Rows only come and go here, so the count is a complete, cheap key: an added row slides in, a deleted one out.
         .animation(.default, value: accounts.count)
         .navigationTitle("Accounts")
         .navigationBarTitleDisplayMode(.inline)
@@ -67,7 +60,6 @@ struct AccountsScreen: View {
         .readableContentWidth()
         .background(palette.background)
         .sensoryFeedback(.success, trigger: addition.added)
-        // Focus stays on Add Account, so VoiceOver hears which account the row below is.
         .onChange(of: addition.added) { _, added in
             guard let added else { return }
             AccessibilityNotification.Announcement(String(localized: "\(added.name) added",

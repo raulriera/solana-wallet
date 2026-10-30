@@ -1,19 +1,20 @@
 import Foundation
 import CoreFoundation
 
-/// The internal version-one manifest representation.
+/// A theme package's manifest.
 struct Manifest: Sendable, Equatable {
     let id: UUID
     let name: String
     let colors: [Appearance: [Role: Color]]
     let assets: [String: String]
 
-    /// Creates manifest values for an imported or exported pack.
+    /// Creates a manifest.
+    ///
     /// - Parameters:
-    ///   - id: The stable theme identity.
+    ///   - id: The theme's identifier.
     ///   - name: A validated display name.
-    ///   - colors: Sparse overrides or complete export values.
-    ///   - assets: Named package-relative image paths.
+    ///   - colors: The colors by appearance and role, complete or partial.
+    ///   - assets: The package-relative image paths, keyed by name.
     init(id: UUID, name: String, colors: [Appearance: [Role: Color]], assets: [String: String]) {
         self.id = id
         self.name = name
@@ -21,10 +22,11 @@ struct Manifest: Sendable, Equatable {
         self.assets = assets
     }
 
-    /// Decodes a manifest while rejecting unknown fields and explicit null values.
-    /// - Parameter data: UTF-8 JSON manifest bytes.
-    /// - Returns: Validated metadata, color overrides, and asset declarations.
-    /// - Throws: A field-specific validation error.
+    /// Decodes and validates a manifest.
+    ///
+    /// - Parameter data: The manifest's UTF-8 JSON bytes.
+    /// - Returns: The validated manifest.
+    /// - Throws: A validation error for the invalid field.
     static func decode(_ data: Data) throws -> Manifest {
         let json: Any
         do {
@@ -77,8 +79,9 @@ struct Manifest: Sendable, Equatable {
         return Manifest(id: id, name: name, colors: colors, assets: assets)
     }
 
-    /// Serializes a manifest without resolving symbolic system colors.
-    /// - Returns: Deterministically ordered, readable JSON.
+    /// Encodes the manifest as JSON.
+    ///
+    /// - Returns: Readable JSON with sorted keys.
     /// - Throws: A JSON serialization error.
     func encode() throws -> Data {
         let palettes = Dictionary(uniqueKeysWithValues: colors.map { appearance, palette in
@@ -99,21 +102,23 @@ struct Manifest: Sendable, Equatable {
         return data
     }
 
-    /// Rejects display names containing no visible characters.
-    /// - Parameter name: The supplied display name.
-    /// - Throws: A validation error when the name is empty or whitespace.
+    /// Throws if a display name is empty or only whitespace.
+    ///
+    /// - Parameter name: The display name.
+    /// - Throws: A validation error if the name is empty or only whitespace.
     static func validateName(_ name: String) throws {
         guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw ValidationError(path: "name", reason: "Expected a nonempty display name.")
         }
     }
 
-    /// Reads an object and optionally checks its supported keys.
+    /// Reads a JSON object and checks its keys.
+    ///
     /// - Parameters:
     ///   - value: A decoded JSON value.
-    ///   - path: Its manifest location.
-    ///   - keys: Allowed field names, or nil for an arbitrary-name map.
-    /// - Returns: A JSON object.
+    ///   - path: The value's manifest location.
+    ///   - keys: The allowed keys, or `nil` to allow any key.
+    /// - Returns: The JSON object.
     /// - Throws: A validation error for a wrong type or unknown key.
     private static func object(_ value: Any, at path: String, keys: [String]? = nil) throws -> [String: Any] {
         guard let object = value as? [String: Any] else {
@@ -126,11 +131,12 @@ struct Manifest: Sendable, Equatable {
         return object
     }
 
-    /// Reads a required string without coercing other JSON types.
+    /// Reads a required JSON string.
+    ///
     /// - Parameters:
-    ///   - value: The supplied value, or nil for a missing field.
-    ///   - path: Its manifest location.
-    /// - Returns: The supplied string.
+    ///   - value: The decoded value, or `nil` if the field is missing.
+    ///   - path: The value's manifest location.
+    /// - Returns: The string.
     /// - Throws: A validation error for a missing or non-string value.
     private static func string(_ value: Any?, at path: String) throws -> String {
         guard let value = value as? String else {
@@ -139,12 +145,13 @@ struct Manifest: Sendable, Equatable {
         return value
     }
 
-    /// Decodes one atomic color representation.
+    /// Decodes a color.
+    ///
     /// - Parameters:
-    ///   - value: The supplied JSON object.
-    ///   - path: The semantic color's manifest location.
-    /// - Returns: A symbolic or opaque sRGB color.
-    /// - Throws: A validation error for an ambiguous or unsupported representation.
+    ///   - value: The decoded JSON value.
+    ///   - path: The color's manifest location.
+    /// - Returns: A system or opaque sRGB color.
+    /// - Throws: A validation error for an invalid color.
     private static func color(_ value: Any, at path: String) throws -> Color {
         let object = try object(value, at: path, keys: ["system", "srgb"])
         guard object.count == 1 else {

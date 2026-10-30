@@ -1,12 +1,9 @@
 import SwiftUI
 
 /// Presents a recipient sheet in its own navigation container.
-///
-/// The sheet closes itself on Cancel and once the person confirms.
 struct RecipientEntrySheet: View {
     @Environment(\.dismiss) private var dismiss
     let entry: RecipientEntryModel
-    /// The addresses the account can pay, which a pasted address is checked against.
     let lists: ContactLists
 
     var body: some View {

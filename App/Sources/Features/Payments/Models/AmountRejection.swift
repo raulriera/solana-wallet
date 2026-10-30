@@ -1,13 +1,12 @@
 import Foundation
 
-/// Why the keypad left the amount as it was.
+/// A reason the keypad left the amount unchanged.
 nonisolated enum AmountRejection: Equatable, Sendable {
-    /// The key would break the amount's format or limits, such as a second separator or a digit past the unit's.
+    /// The key would break the amount's format or limits.
     case key
     /// The amount, converted to the other unit, has more whole digits than the keypad types.
     case conversion
 
-    /// Tells VoiceOver why the amount didn't change.
     var message: LocalizedStringResource {
         switch self {
         case .key:

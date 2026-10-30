@@ -1,39 +1,34 @@
 import RPC
 import Transactions
 
-/// A type that validates reviewed transaction prerequisites without accessing wallet recovery.
+/// A type that checks a reviewed preparation.
 nonisolated protocol PreparationValidating: Sendable {
-    /// Checks review consistency, original lifetime, and the current fee.
+    /// Checks a preparation's consistency, blockhash lifetime, and current fee.
     ///
-    /// - Parameter preparation: The unchanged preparation approved by the user.
+    /// - Parameter preparation: The approved preparation.
     /// - Throws: A validation, RPC, or cancellation error.
     func validate(_ preparation: Preparation) async throws
 
-    /// Rechecks the original lifetime without refreshing the transaction.
+    /// Checks that a preparation's blockhash hasn't expired.
     ///
-    /// - Parameter preparation: The reviewed lifetime and minimum ledger context.
+    /// - Parameter preparation: The approved preparation.
     /// - Throws: An expiry, RPC, or cancellation error.
     func validateLifetime(_ preparation: Preparation) async throws
 }
 
-/// Validation the signer runs before signing, and the lifetime check it repeats after signing.
+/// A validator that checks a preparation against a provider.
 nonisolated struct PreparationValidator: PreparationValidating {
     private let rpc: any RPC
     private let messageBuilder: any MessageBuilding = MessageBuilder()
     private let transactionBuilder: any TransactionBuilding = TransactionBuilder()
 
-    /// Creates prerequisite checks with a provider and reusable transaction validators.
+    /// Creates a validator.
     ///
-    /// - Parameter rpc: The provider used for current fee and lifetime observations.
+    /// - Parameter rpc: The provider that reads the current fee and block height.
     init(rpc: any RPC) {
         self.rpc = rpc
     }
 
-    /// Checks the exact reviewed transaction before an operation with external effects.
-    ///
-    /// The lifetime and fee reads run together; an expired lifetime is reported before a changed fee.
-    /// - Parameter preparation: The review whose metadata, lifetime, and fee to verify.
-    /// - Throws: A prerequisite, RPC, or cancellation error without substituting new bytes.
     @concurrent
     func validate(_ preparation: Preparation) async throws {
         try Task.checkCancellation()
@@ -47,10 +42,10 @@ nonisolated struct PreparationValidator: PreparationValidating {
               fee.value == preparation.fee.value else { throw PreparationValidatorError.feeChanged }
     }
 
-    /// Checks that review metadata agrees with exact message bytes and any local instruction composition.
+    /// Checks that a preparation's details match its message and any local instructions.
     ///
-    /// - Parameter preparation: The review data to validate before signing.
-    /// - Throws: ``PreparationValidatorError`` for inconsistent or unsuccessful review data, or an encoding error.
+    /// - Parameter preparation: The preparation to check.
+    /// - Throws: A ``PreparationValidatorError``, or an encoding error.
     private func validateReview(_ preparation: Preparation) throws {
         guard preparation.network == rpc.network else { throw PreparationValidatorError.networkMismatch }
         guard preparation.simulation.value.error == nil else { throw PreparationValidatorError.simulationFailed }
@@ -73,10 +68,6 @@ nonisolated struct PreparationValidator: PreparationValidating {
         guard decoded == preparation.transaction else { throw PreparationValidatorError.messageMismatch }
     }
 
-    /// Checks the original lifetime at the current ledger without replacing it.
-    ///
-    /// - Parameter preparation: The blockhash expiry and context to check.
-    /// - Throws: ``PreparationValidatorError/expired``, an RPC error, or cancellation.
     func validateLifetime(_ preparation: Preparation) async throws {
         try Task.checkCancellation()
         switch preparation.source {

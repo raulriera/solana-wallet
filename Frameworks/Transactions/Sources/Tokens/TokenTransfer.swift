@@ -1,41 +1,32 @@
-/// A validated owner-authorized transfer for either first-party token program.
-///
-/// Account observations must come from the same network and a consistent ledger
-/// context. Construction cannot establish provider honesty or prevent later state changes.
+/// A validated token transfer that the source account's owner authorizes.
 public struct TokenTransfer: Sendable {
-    /// The token owner whose signature authorizes the transfer.
+    /// The source account's owner, who signs the transfer.
     public let sender: Address
     /// The wallet that owns the destination account.
     public let recipient: Address
-    /// The mint and program governing this transfer.
     public let mint: TokenMint
-    /// The source account, including support for non-associated token accounts.
     public let source: TokenAccount
-    /// The token account receiving the tokens: an existing account the recipient owns, or its associated account.
+    /// The token account that receives the tokens.
     public let destination: Address
-    /// The requested debit in integer base units, before any token transfer fee.
+    /// The debit in base units, before any transfer fee.
     public let amount: UInt64
-    /// The token fee asserted by the instruction, or `nil` when the mint has none.
+    /// The transfer fee the instruction asserts, or `nil` if the mint has none.
     public let expectedFee: UInt64?
-    /// Whether the transaction includes idempotent destination-account creation, whose rent depends on the mint's
-    /// ``TokenMint/associatedAccountSize``.
     public let createsDestination: Bool
-    /// An optional UTF-8 memo placed immediately before the transfer.
     public let memo: String?
 
-    /// Validates account relationships and the extensions needed for construction.
+    /// Creates a transfer after validating its accounts and extensions.
     ///
     /// - Parameters:
-    ///   - sender: The source owner authorizing the token debit.
+    ///   - sender: The source account's owner.
     ///   - recipient: The wallet that owns the destination account.
-    ///   - mint: The initialized mint observed through RPC.
-    ///   - source: The source account observed through RPC.
-    ///   - destination: An initialized token account the recipient owns, or `nil` to create the recipient's associated account.
-    ///   - amount: The positive base-unit debit, never a floating-point UI amount.
-    ///   - epoch: The current ledger epoch for transfer fees, or `nil` for fee-free mints.
-    ///   - memo: An optional memo; required when the destination enables incoming memos.
-    /// - Throws: ``TokenError`` for inconsistent or unsupported account state, or
-    ///   ``ValidationError/invalidAmount`` for a zero amount.
+    ///   - mint: The token's mint.
+    ///   - source: The source token account.
+    ///   - destination: The recipient's token account, or `nil` to create the recipient's associated account.
+    ///   - amount: The debit in base units, greater than zero.
+    ///   - epoch: The current epoch, or `nil` for a mint without transfer fees.
+    ///   - memo: A memo, or `nil` for none.
+    /// - Throws: A ``TokenError`` for inconsistent or unsupported accounts, or ``ValidationError/invalidAmount``.
     public init(sender: Address, recipient: Address, mint: TokenMint, source: TokenAccount,
                 destination: TokenAccount?, amount: UInt64, epoch: UInt64? = nil, memo: String? = nil) throws {
         guard amount > 0 else { throw ValidationError.invalidAmount }

@@ -1,7 +1,7 @@
 import RPC
 import SwiftUI
 
-/// One network choice, with a checkmark while the owning window shows that network.
+/// A network choice with a checkmark while it's selected.
 struct NetworkRow: View {
     let name: LocalizedStringResource
     let network: Network

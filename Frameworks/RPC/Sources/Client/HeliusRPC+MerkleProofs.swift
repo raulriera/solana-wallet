@@ -1,17 +1,6 @@
 import Encoding
 
 extension HeliusRPC {
-    /// Reads the inclusion proofs of UTXO hashes in one tree with one `getMerkleProofs` request to Helius's
-    /// Solana Rings indexer.
-    ///
-    /// The indexer reads every leaf in one database transaction, so the proofs share one root.
-    /// - Parameters:
-    ///   - leaves: At most 1,000 32-byte UTXO hashes.
-    ///   - tree: The tree account's base-58 address.
-    /// - Returns: One proof per leaf, in order.
-    /// - Throws: ``PrivateNoteError/invalidLeaf``, ``PrivateNoteError/invalidTree``, or
-    ///   ``PrivateNoteError/tooManyLeaves`` before sending, `RPCError.invalidResponse(.mismatchedProofs)` for
-    ///   proofs of other leaves or another tree, another `RPCError`, or `CancellationError`.
     @concurrent
     public func merkleProofs(for leaves: [[UInt8]], inTree tree: String) async throws -> [MerkleProof] {
         guard leaves.allSatisfy({ $0.count == 32 }) else { throw PrivateNoteError.invalidLeaf }
@@ -21,17 +10,6 @@ extension HeliusRPC {
         }
     }
 
-    /// Reads the non-inclusion proofs of nullifiers in one tree with one `getNonInclusionProofs` request to
-    /// Helius's Solana Rings indexer.
-    ///
-    /// The indexer reads every nullifier in one database transaction, so the proofs share one root.
-    /// - Parameters:
-    ///   - nullifiers: At most 1,000 32-byte nullifiers.
-    ///   - tree: The tree account's base-58 address.
-    /// - Returns: One proof per nullifier, in order.
-    /// - Throws: ``PrivateNoteError/invalidNullifier``, ``PrivateNoteError/invalidTree``, or
-    ///   ``PrivateNoteError/tooManyLeaves`` before sending, `RPCError.invalidResponse(.mismatchedProofs)` for
-    ///   proofs of other nullifiers or another tree, another `RPCError`, or `CancellationError`.
     @concurrent
     public func nonInclusionProofs(for nullifiers: [[UInt8]], inTree tree: String) async throws -> [NonInclusionProof] {
         guard nullifiers.allSatisfy({ $0.count == 32 }) else { throw PrivateNoteError.invalidNullifier }
@@ -42,17 +20,16 @@ extension HeliusRPC {
         }
     }
 
-    /// Reads one proof per leaf with one request and checks that the proofs answer it.
+    /// Reads one proof per leaf with one request and checks that the proofs match the leaves and the tree.
     ///
     /// - Parameters:
     ///   - leaves: The 32-byte leaves.
     ///   - tree: The tree account's base-58 address.
-    ///   - leaf: The leaf that a proof proves.
-    ///   - read: Sends the request with the tree and the base-58 leaves.
-    /// - Returns: The proofs in leaf order, or none without a request for no leaves.
-    /// - Throws: ``PrivateNoteError/invalidTree`` or ``PrivateNoteError/tooManyLeaves`` before sending,
-    ///   `RPCError.invalidResponse(.mismatchedProofs)` unless each proof names its leaf and the tree, or an error
-    ///   from `read`.
+    ///   - leaf: The key path to the leaf that a proof proves.
+    ///   - read: The request that takes the tree and the base-58 leaves.
+    /// - Returns: The proofs in leaf order.
+    /// - Throws: A ``PrivateNoteError`` for invalid input, an `RPCError` for mismatched proofs, or an error from
+    ///   `read`.
     private static func proofs<Proof: Sendable>(
         of leaves: [[UInt8]],
         inTree tree: String,

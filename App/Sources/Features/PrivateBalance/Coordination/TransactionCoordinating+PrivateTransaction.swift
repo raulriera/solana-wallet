@@ -2,19 +2,12 @@ import RPC
 import Transactions
 
 extension TransactionCoordinating {
-    /// Simulates a prepared private transaction with its authorities, first charging a redeem or take-back's network
-    /// fee to its trailing deposit.
+    /// Simulates a prepared private transaction, charging a redeem or take-back's network fee to its trailing deposit.
     ///
-    /// Other transactions run one simulation. A redeem or take-back runs two: the first, with no fee charged, only
-    /// reads the network fee and the service tips, which the payer pays for every signature and tip; the second
-    /// simulates the transaction charged with them, whose one-time account ends at zero lamports. Only the second goes
-    /// to approval, and only the returned transaction completes.
-    /// - Parameter transaction: A transaction from ``PrivateBalancing/prepare(_:from:on:)``.
-    /// - Returns: The review to approve and the transaction to complete once it settles.
-    /// - Throws: ``Redemption/FeeError/unknown`` if the provider doesn't report the fee,
-    ///   ``Redemption/FeeError/changed`` if the charged transaction's fee differs,
-    ///   ``PrivateBalanceError/codeUnderfunded`` if the fee exceeds the SOL left for it, or a preparation, RPC, or
-    ///   cancellation error.
+    /// - Parameter transaction: The prepared transaction.
+    /// - Returns: The simulation to approve and the transaction to complete.
+    /// - Throws: A ``Redemption/FeeError`` if the fee is unknown or changes, ``PrivateBalanceError/codeUnderfunded``
+    ///   if the fee exceeds the code's SOL, or a preparation, RPC, or cancellation error.
     func simulate(_ transaction: PreparedPrivateTransaction) async throws
         -> (simulation: Simulation, transaction: PreparedPrivateTransaction) {
         guard case .redeem = transaction.effect else {
@@ -29,10 +22,11 @@ extension TransactionCoordinating {
         return (simulation, charged)
     }
 
-    /// Reads a review's network fee with its service tips.
-    /// - Parameter simulation: The review.
-    /// - Returns: The lamports that the payer pays besides the instructions.
-    /// - Throws: ``Redemption/FeeError/unknown`` without a fee, or when the total exceeds a 64-bit integer.
+    /// Reads a simulation's network fee, including service tips.
+    ///
+    /// - Parameter simulation: The simulation.
+    /// - Returns: The network fee and service tips, in lamports.
+    /// - Throws: ``Redemption/FeeError/unknown`` without a fee.
     private static func networkFee(of simulation: Simulation) throws -> UInt64 {
         guard let fee = simulation.networkFee else { throw Redemption.FeeError.unknown }
         return fee

@@ -2,65 +2,39 @@ import Dispatch
 import Foundation
 import Security
 
-/// A value saved on this device as one Keychain item, such as a provider's API key.
-///
-/// The item never synchronizes to iCloud or moves to another device. It can be read whenever
-/// the device is unlocked, without biometric authentication.
+/// A value saved as one Keychain item that never leaves this device.
 public struct KeychainItem<Coding: ValueCoding>: ValueStoring {
-    /// Blocking Security work that runs only on the Keychain queue.
+    /// Blocking Security work that runs on the Keychain queue.
     private typealias Operation<Result: Sendable> = @Sendable () throws -> Result
 
-    /// The stable, app-specific namespace that holds the item.
     public let service: String
-    /// The item's name within its namespace.
     public let account: String
-    /// How the value is kept as bytes.
     public let coding: Coding
 
-    /// Names an item in the app's Keychain access group.
+    /// Creates an item in the app's Keychain access group.
+    ///
     /// - Parameters:
     ///   - service: The stable, app-specific namespace that holds the item.
     ///   - account: The item's name within its namespace.
-    ///   - coding: How the value is kept as bytes, such as `.utf8`.
+    ///   - coding: The coding that converts the value to bytes.
     public init(service: String, account: String, coding: Coding) {
         self.service = service
         self.account = account
         self.coding = coding
     }
 
-    /// Reads the saved value without user interaction.
-    /// - Returns: The value, or `nil` before one is saved.
-    /// - Throws: ``KeychainItemError`` or `CancellationError`.
     public func load() async throws -> Coding.Value? {
         try await perform { [self] in try read() }
     }
 
-    /// Saves a value, replacing any value already saved.
-    ///
-    /// A value whose bytes don't decode back to an equal value isn't saved, so a save never writes bytes that this coding can't read back.
-    /// Cancellation doesn't roll back a save that has already reached the Keychain.
-    /// - Parameter value: The new value.
-    /// - Throws: ``KeychainItemError``, an encoding error, or `CancellationError`.
     public func save(_ value: Coding.Value) async throws {
         try await perform { [self] in try write(value) }
     }
 
-    /// Deletes the saved value; a missing value is already deleted.
-    /// - Throws: ``KeychainItemError`` or `CancellationError`.
     public func delete() async throws {
         try await perform { [self] in try remove() }
     }
 
-    /// Reads, changes, and saves the value in one Keychain step, so changes made at the same time don't overwrite
-    /// each other.
-    ///
-    /// A changed value whose bytes don't decode back to an equal value isn't saved. Cancellation doesn't roll back a
-    /// change that has already reached the Keychain.
-    /// - Parameter change: Changes the saved value, or `nil` before one is saved; setting `nil` deletes the value,
-    ///   and an unchanged value isn't saved again.
-    /// - Returns: The change's result.
-    /// - Throws: The change's error, which keeps the saved value, ``KeychainItemError``, an encoding error, or
-    ///   `CancellationError`.
     public func update<Result: Sendable>(
         _ change: @escaping @Sendable (inout Coding.Value?) throws -> Result
     ) async throws -> Result {
@@ -74,7 +48,8 @@ public struct KeychainItem<Coding: ValueCoding>: ValueStoring {
         }
     }
 
-    /// Reads the saved value on the Keychain queue.
+    /// Reads the saved value.
+    ///
     /// - Returns: The value, or `nil` before one is saved.
     /// - Throws: ``KeychainItemError``.
     private func read() throws -> Coding.Value? {
@@ -89,10 +64,10 @@ public struct KeychainItem<Coding: ValueCoding>: ValueStoring {
         return value
     }
 
-    /// Saves a value on the Keychain queue, replacing any value already saved, once its bytes decode back to it.
+    /// Writes a value after checking that its bytes decode back to it.
+    ///
     /// - Parameter value: The new value.
-    /// - Throws: ``KeychainItemError/unencodable`` before writing bytes that don't decode back to the value,
-    ///   another ``KeychainItemError``, or an encoding error.
+    /// - Throws: ``KeychainItemError`` or an encoding error.
     private func write(_ value: Coding.Value) throws {
         let data = try coding.encode(value)
         guard coding.decode(data) == value else { throw KeychainItemError.unencodable }
@@ -107,14 +82,15 @@ public struct KeychainItem<Coding: ValueCoding>: ValueStoring {
         }
     }
 
-    /// Deletes the saved value on the Keychain queue; a missing value is already deleted.
+    /// Deletes the saved value if it exists.
+    ///
     /// - Throws: ``KeychainItemError``.
     private func remove() throws {
         let status = SecItemDelete(identity as CFDictionary)
         if status != errSecItemNotFound { try check(status) }
     }
 
-    /// The one non-synchronizing item that keeps this value.
+    /// The query attributes that identify the item.
     private var identity: [String: Any] {
         [
             kSecClass as String: kSecClassGenericPassword,
@@ -125,10 +101,11 @@ public struct KeychainItem<Coding: ValueCoding>: ValueStoring {
         ]
     }
 
-    /// Runs a blocking Keychain operation outside Swift's cooperative executor.
-    /// - Parameter operation: Security work whose queries stay on the Keychain queue.
+    /// Runs a blocking Keychain operation on the Keychain queue.
+    ///
+    /// - Parameter operation: The blocking Security work.
     /// - Returns: The operation's result.
-    /// - Throws: The operation's error, or `CancellationError` if canceled before it's scheduled.
+    /// - Throws: The operation's error or `CancellationError`.
     private func perform<Result: Sendable>(_ operation: @escaping Operation<Result>) async throws -> Result {
         try Task.checkCancellation()
         return try await withCheckedThrowingContinuation { continuation in
@@ -137,14 +114,15 @@ public struct KeychainItem<Coding: ValueCoding>: ValueStoring {
     }
 }
 
-/// Converts a Security status into a value-free storage error.
+/// Throws an error for a Security status other than success.
+///
 /// - Parameter status: The Keychain operation's status.
-/// - Throws: ``KeychainItemError/keychain(status:)`` for any status other than success.
+/// - Throws: ``KeychainItemError/keychain(status:)`` if the status isn't success.
 private func check(_ status: OSStatus) throws {
     guard status == errSecSuccess else { throw KeychainItemError.keychain(status: status) }
 }
 
-/// The serial queue that every Keychain item shares, so each save and each read-change-save runs atomically.
+/// The serial queue that every Keychain item shares.
 private enum KeychainQueue {
     static let shared = DispatchQueue(label: "KeychainItem.Keychain", qos: .userInitiated)
 }

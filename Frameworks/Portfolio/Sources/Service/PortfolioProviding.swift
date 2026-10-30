@@ -1,62 +1,33 @@
-/// A type that provides wallet portfolios while encapsulating caching and refreshes.
-///
-/// Assign increasing `Update.revision` values across all streams from one provider instance.
-/// Forwarded or replayed updates keep their revision; cached snapshots retain their original
-/// `Update.snapshotRevision` until a provider change. Consumers can then order data and status
-/// independently of wall time.
+/// A type that provides wallet portfolios with caching and refreshes.
 public protocol PortfolioProviding: Sendable {
     /// Observes finalized account changes for the lifetime of the consuming task.
     ///
-    /// Shares one connection per wallet. Each new consumer requests a reload or joins one in progress.
-    /// Setup completes before the initial reload; bursts of changes are coalesced into one balance read.
-    /// Every connection error is surfaced at once. A dropped connection then reconnects by itself, waiting
-    /// 2 seconds and doubling the wait after each failed attempt up to a minute, until a connection reads balances
-    /// successfully. Rate limits, rejected keys, and other refusals stay until a reload, a token-list change,
-    /// or a new consumer connects again. Failed balance reads aren't retried.
-    /// The app owns starting and cancelling observation with its foreground/view lifecycle.
-    /// - Parameter owner: The wallet whose holdings to observe.
-    /// - Returns: A stream of cached state, refresh results, and connection errors, ending on cancellation,
-    ///   data removal, or a provider change.
+    /// - Parameter owner: The wallet address.
+    /// - Returns: A stream of cached state, refresh results, and connection errors.
     func observations(for owner: String) async -> AsyncStream<Update>
 
     /// Returns cached portfolio state and reads balances, logos, and prices again.
     ///
-    /// The consumer is registered before this method returns. Network results arrive through the stream.
-    /// The reload also connects the wallet's observation again at once when it is disconnected.
-    ///
-    /// - Parameter owner: The wallet address whose portfolio to retrieve.
+    /// - Parameter owner: The wallet address.
     /// - Returns: The cached state while the refresh runs, followed by a completed or failed refresh.
-    ///   Failures retain the latest complete snapshot.
     func updates(for owner: String) async -> AsyncStream<Update>
 
-    /// Reads an observed wallet's balances, logos, and prices again through its observation.
+    /// Reads an observed wallet's balances, logos, and prices again.
     ///
-    /// The results, with their progress, reach every consumer of ``observations(for:)``. A request during a read
-    /// waits for the next one, and the requests that arrive before a read starts share it. A disconnected observation
-    /// connects again at once. Cancelling the caller stops its wait, not the read.
-    /// - Parameter owner: The observed wallet; a wallet that isn't observed isn't read.
+    /// - Parameter owner: The observed wallet's address.
     func reload(for owner: String) async
 
-    /// Removes locally retained portfolio data and cancels its active refresh.
+    /// Removes a wallet's local portfolio data and cancels its refresh.
     ///
-    /// - Parameter owner: The wallet whose local data to remove.
-    /// - Throws: A file-system error if the stored snapshot or token list can't be removed.
+    /// - Parameter owner: The wallet address.
+    /// - Throws: A file-system error.
     func removeData(for owner: String) async throws
 
     /// Ends the work that used the previous RPC provider and removes its logos from saved snapshots.
     ///
-    /// Call this after the RPC client starts to use the new provider, then observe again.
-    /// Observations and refreshes end without a further update, which closes their subscriptions.
-    /// Cached snapshots keep their balances and prices, lose their logos, and arrive with a newer
-    /// `Update.snapshotRevision`, so consumers replace copies that show the previous provider's logos.
-    /// The next balance read doesn't require an earlier finalized slot and looks up logos from the new provider.
-    /// - Throws: A file-system error if a saved snapshot's logos can't be removed; the work ends regardless.
+    /// - Throws: A file-system error.
     func providerDidChange() async throws
 
-    /// Reads every observed wallet's balances and prices again after the prices change, such as to another currency.
-    ///
-    /// Call this after the price provider starts to return the new prices. Consumers keep their streams and
-    /// receive the new read; a read in progress starts again, so it can't deliver the previous prices. Cached
-    /// snapshots keep their values, each in its own currency, until the new read replaces them.
+    /// Reads every observed wallet's balances and prices again after a price change.
     func pricesDidChange() async
 }

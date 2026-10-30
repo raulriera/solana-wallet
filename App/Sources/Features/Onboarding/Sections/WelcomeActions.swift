@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Groups the setup choices for either layout supplied by the screen.
+/// The buttons that create or import a wallet.
 struct WelcomeActions: View {
     let createWallet: () -> Void
     let importWallet: () -> Void

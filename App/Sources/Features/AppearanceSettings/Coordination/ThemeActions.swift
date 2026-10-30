@@ -1,14 +1,16 @@
 import Foundation
 
-/// The window-owned commands available to theme selection controls.
+/// Actions that select and remove themes.
 @MainActor protocol ThemeActions: AnyObject {
-    /// Persists a choice before publishing its selected appearance.
+    /// Selects the theme of the app or a wallet.
+    ///
     /// - Parameters:
-    ///   - id: The chosen theme, or `nil` for the application baseline or wallet inheritance.
-    ///   - scope: The application default or wallet override to change.
+    ///   - id: The theme, or `nil` to clear the selection.
+    ///   - scope: The app or wallet to change.
     func select(_ id: UUID?, for scope: AppearancePreferences.Scope)
 
-    /// Removes the exact custom revision approved by the user.
-    /// - Parameter entry: The entry retained by the deletion confirmation.
+    /// Removes an installed theme.
+    ///
+    /// - Parameter entry: The installed theme to remove.
     func remove(_ entry: ThemeEntry)
 }

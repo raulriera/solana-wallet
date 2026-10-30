@@ -1,18 +1,10 @@
 extension Shape {
-    /// The SHA-256 digest of the shape's proving key, `transfer_confidential_{inputs}_{outputs}.key`.
-    ///
-    /// The prover reports the digest of the key that made each proof. A proof made with another
-    /// key doesn't verify on chain, so a client rejects it before simulation. The digests come from
-    /// zolana's `prover/server/prover/provingkeys/proving-keys.lock`, and each one equals the
-    /// `VERIFYINGKEY_PROVING_KEY_SHA256` of the shape's verifying key.
-    ///
-    /// - Precondition: The shape is one of ``supported``.
+    /// The SHA-256 digest of the shape's proving key.
     var provingKeyDigest: [UInt8] {
         guard let digest = Self.provingKeyDigests[self] else { preconditionFailure("Every supported shape has a proving key.") }
         return digest
     }
 
-    /// The proving-key digest of each supported shape.
     private static let provingKeyDigests: [Shape: [UInt8]] = [
         Shape(inputs: 1, outputs: 2): [
             0x7e, 0xf9, 0x87, 0x96, 0x6b, 0x0d, 0xfb, 0xa5, 0xd8, 0x6e, 0xab, 0x7c, 0x67, 0x06, 0x8b, 0xe0,
