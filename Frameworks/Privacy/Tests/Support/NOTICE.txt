@@ -106,3 +106,7 @@ SHA-256: 2c1dcfb16d93e0e40352a2c3f3806fac536a58effc49021d76e50edcf7b1dcd1
 https://github.com/helius-labs/zolana/blob/bb2337f05317aa245a345f47c68e434ffed62561/program-libs/interface/tests/pda.rs
 SHA-256: 536152c956610a1166dbab6459b1d3c7f512b6f552523b028a3d0f3592caf270
 - ShieldedPoolTests.swift: the nullifier account of nullifier_pda_matches_typescript_vector
+
+https://github.com/helius-labs/zolana/blob/bb2337f05317aa245a345f47c68e434ffed62561/test-vectors/key_derivation.json
+SHA-256: ab5a2d28d0d7a0772ac7a593e5260c00039a57e4926e4fbf1c55490f9723e55d
+- Curve25519TaggedRepresentationTests.swift: eddsa_rail viewing_secret and viewing_pubkey, and tx_viewing tx_viewing_secret and tx_viewing_pubkey
