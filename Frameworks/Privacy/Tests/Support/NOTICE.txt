@@ -78,10 +78,6 @@ https://github.com/helius-labs/zolana/blob/v0.4.0-alpha/sdk-libs/transaction/tes
 SHA-256: b6b7a86e96072a77c7230f691c5f6e554e30486db4de13810f7ebbc5c1338550
 - TransferVectors.swift: the default-ring SOL transfer values
 
-https://github.com/helius-labs/zolana/blob/v0.4.0-alpha/program-libs/interface/tests/pda.rs
-SHA-256: f500898eb7413e10aafbbc7c4eaef650f895e903cded34086e3513fdfe13a441
-- ShieldedPoolTests.swift: the nullifier account of nullifier_pda_matches_typescript_vector
-
 https://github.com/helius-labs/zolana/blob/v0.4.0-alpha/sdk-libs/client/tests/assembly_vectors.rs
 SHA-256: df217702ce1ac812d3009227ef29e2f5187eba1417adfe1ff6baf765d45ce13b
 - PublicInputsTests.swift: PUBLIC_INPUT_HASH, DUMMY_OUTPUT_PUBLIC_INPUT_HASH, and the hashes,
@@ -106,3 +102,7 @@ License: https://github.com/helius-labs/zolana/blob/bb2337f05317aa245a345f47c68e
 https://github.com/helius-labs/zolana/blob/bb2337f05317aa245a345f47c68e434ffed62561/prover/server/prover/provingkeys/proving-keys.lock
 SHA-256: 2c1dcfb16d93e0e40352a2c3f3806fac536a58effc49021d76e50edcf7b1dcd1
 - ProvingKeyVectors.json: the whole file
+
+https://github.com/helius-labs/zolana/blob/bb2337f05317aa245a345f47c68e434ffed62561/program-libs/interface/tests/pda.rs
+SHA-256: 536152c956610a1166dbab6459b1d3c7f512b6f552523b028a3d0f3592caf270
+- ShieldedPoolTests.swift: the nullifier account of nullifier_pda_matches_typescript_vector

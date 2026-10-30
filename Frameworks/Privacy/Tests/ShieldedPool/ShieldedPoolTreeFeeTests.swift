@@ -4,7 +4,7 @@ import Foundation
 import Testing
 
 struct ShieldedPoolTreeFeeTests {
-    static let program = "sppU489D7A4U1exNo1oeMGZtLEofq3a6o2fR7UeoWB6"
+    static let program = "ring1GaLCuJnkUMVkX2JeZLTTX17wKsV4fZmPVzXANW"
 
     @Test
     func `Fees decode from the tree account`() async throws {
@@ -17,7 +17,7 @@ struct ShieldedPoolTreeFeeTests {
         let requests = try await transport.requests.map(requestBody)
         #expect(result == 0x0200_0000_0000_016c)
         #expect(requests.map { $0["method"] as? String } == ["getMultipleAccounts"])
-        #expect(requests.first.flatMap { ($0["params"] as? [Any])?.first as? [String] } == ["4q8pT6x2J6b75gFFGjT3Fayh4jQMimTWpUVWQgVVmHiq"])
+        #expect(requests.first.flatMap { ($0["params"] as? [Any])?.first as? [String] } == ["2jBVxLnY4tDYJqV34EptnNkXQJtB1yuDfW3mYiApaUa7"])
     }
 
     @Test

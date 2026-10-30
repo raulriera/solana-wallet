@@ -3,8 +3,8 @@ import ModularArithmetic
 import Transactions
 
 extension TransactPlan {
-    /// The circuit ID of a default-ring transact with Ed25519 owners.
-    private static let confidentialEddsaCircuit: UInt16 = 0
+    /// The circuit ID of a transact that its owners sign.
+    private static let confidentialSignerCircuit: UInt16 = 0
 
     private static let publicAssetSlots: UInt8 = 3
 
@@ -23,7 +23,7 @@ extension TransactPlan {
         writer.append(ShieldedPool.transactTag)
         writer.append(array: externalData.encoded)
         writer.append(array: privateTransactionHash.bigEndianBytes)
-        writer.append(Self.confidentialEddsaCircuit)
+        writer.append(Self.confidentialSignerCircuit)
         writer.append(UInt8(shape.inputs))
         writer.append(UInt8(shape.outputs))
         writer.append(Self.publicAssetSlots)
@@ -51,6 +51,7 @@ extension TransactPlan {
                 address: try ShieldedPool.nullifierAccount(tree: tree, nullifier: input.nullifier), isSigner: false, isWritable: true
             )
         }
+        accounts.append(.init(address: payer, isSigner: true, isWritable: false))
         if let withdrawal {
             accounts += [
                 .init(address: try ShieldedPool.solInterface, isSigner: false, isWritable: true),

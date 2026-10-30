@@ -4,10 +4,10 @@ import Transactions
 
 /// The shielded-pool program and the accounts that its instructions use.
 public enum ShieldedPool {
-    /// The networks where the shielded-pool and user-registry programs are deployed.
+    /// The networks where the module uses the shielded-pool and user-registry programs.
     public static let networks: Set<Network> = [.devnet]
 
-    public static let programID = "sppU489D7A4U1exNo1oeMGZtLEofq3a6o2fR7UeoWB6"
+    public static let programID = "ring1GaLCuJnkUMVkX2JeZLTTX17wKsV4fZmPVzXANW"
 
     static let transactTag: UInt8 = 16
 
