@@ -17,8 +17,8 @@ struct UserRegistryRegisterTests {
         let instruction = try UserRegistry.register(recipient, paidBy: payer)
 
         #expect(instruction.program == (try Address(RegistryVectors.load().program)))
-        #expect(Array(instruction.data) == (try fixtureBytes("0000" + vector.nullifierPublicKey + vector.viewingPublicKey)))
-        #expect(instruction.data.count == 67)
+        #expect(Array(instruction.data) == (try fixtureBytes("00" + vector.nullifierPublicKey + vector.viewingPublicKey)))
+        #expect(instruction.data.count == 66)
         #expect(instruction.accounts == [
             .init(address: try Address(vector.record), isSigner: false, isWritable: true),
             .init(address: try Address(vector.owner), isSigner: true, isWritable: false),

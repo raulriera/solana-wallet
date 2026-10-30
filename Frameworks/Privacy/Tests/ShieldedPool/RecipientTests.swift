@@ -46,7 +46,7 @@ struct RecipientTests {
     func `Lookups return registered owners in order`() async throws {
         let vectors = try RegistryVectors.load().records
         let owners = try [vectors[1].owner, vectors[0].owner].map(Address.init)
-        let record = #"{"owner":"regyS5rkAcw2YzDJCmTwCTHs2s246FXxbmuRZ42u2PD","lamports":1,"executable":false,"#
+        let record = #"{"owner":"\#(try RegistryVectors.load().program)","lamports":1,"executable":false,"#
             + #""data":["\#(Data(try fixtureBytes(vectors[1].data)).base64EncodedString())","base64"]}"#
         let transport = StubTransport { request in
             try reply(to: request, payload: #""result":{"context":{"slot":7},"value":[\#(record),null]}"#)

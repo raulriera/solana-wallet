@@ -122,11 +122,10 @@ enum PrivateBalanceFixtures {
 
     static func registryRecord(publishing account: ShieldedAccount) throws -> String {
         let owner = account.signingAddress.bytes
-        var data = [1] + owner + [try UserRegistry.record(of: account.signingAddress).bump, 0]
+        var data = [1] + owner + [try UserRegistry.record(of: account.signingAddress).bump]
         data += account.nullifierKey.publicKey.bigEndianBytes
         data += Array(account.viewingKey.publicKey.compressedRepresentation) + [0]
-        data += [UInt8](repeating: 0, count: 134 - data.count)
-        return #"{"owner":"\#(try UserRegistry.program.value)","lamports":1823520,"executable":false,"#
+        return #"{"owner":"\#(try UserRegistry.program.value)","lamports":1586880,"executable":false,"#
             + #""data":["\#(Data(data).base64EncodedString())","base64"]}"#
     }
 

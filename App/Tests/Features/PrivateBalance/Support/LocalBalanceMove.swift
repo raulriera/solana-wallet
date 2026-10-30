@@ -10,7 +10,7 @@ struct LocalBalanceMove {
     static let privateLamports: UInt64 = 2_000_000_000
     static let lamports: UInt64 = 1_000_000_000
     static let networkFee: UInt64 = 10_000
-    static let registrationRent: UInt64 = 1_823_520
+    static let registrationRent: UInt64 = 1_586_880
 
     let move: BalanceMove
     let model: TransactionReviewModel<BalanceMoveProposal>
