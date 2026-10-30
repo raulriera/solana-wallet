@@ -15,16 +15,15 @@ nonisolated struct PrivateBalanceKeyRecord: Codable, Equatable, Sendable, Custom
     /// The length of a nullifier secret, in bytes.
     private static let nullifierSecretLength = 31
 
-    /// The length of a viewing secret.
+    /// The length of a viewing secret, in bytes.
     private static let viewingSecretLength = 32
 
-    /// The length of a code root.
+    /// The length of a code root, in bytes.
     private static let codeRootLength = 32
 
     private let nullifierSecret: Data
-    /// The viewing key's 32-byte X25519 secret.
     private let viewingSecret: Data
-    /// The 32-byte root of the account's one-time accounts.
+    /// The root that derives the account's one-time accounts.
     private let codeRoot: Data
 
     var description: String { "PrivateBalanceKeyRecord" }

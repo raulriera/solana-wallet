@@ -2,7 +2,6 @@ import CryptoKit
 
 /// Hardened SLIP-0010 key derivation on Ed25519.
 enum KeyDerivation {
-    /// The HMAC-SHA512 key that derives the master node from a seed.
     private static let masterHMACKey = SymmetricKey(data: Array("ed25519 seed".utf8))
 
     /// Derives the Ed25519 signing key at a hardened path.

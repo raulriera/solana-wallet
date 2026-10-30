@@ -2,12 +2,11 @@ import CommonCrypto
 import CryptoKit
 import Foundation
 
-/// The cipher of one output slot's note, with P-256 ECDH, HKDF-SHA256, and AES-256-CTR.
+/// The cipher of one output slot's note, with X25519, HKDF-SHA256, and AES-256-CTR.
 enum SlotCipher {
-    /// An error that rejects a salt.
+    /// An error that rejects a salt or a public key.
     enum ValidationError: Error, Equatable {
         case invalidSaltLength
-        /// The other party's public key has low order.
         case lowOrderPublicKey
     }
 

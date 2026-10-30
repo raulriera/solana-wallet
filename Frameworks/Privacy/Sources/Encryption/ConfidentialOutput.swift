@@ -19,7 +19,7 @@ struct ConfidentialOutput: Sendable {
     /// The length of the encoding tag and the declared length, in bytes.
     private static let headerLength = 5
 
-    /// The length of a compressed P-256 public key, in bytes.
+    /// The length of a tagged X25519 public key, in bytes.
     private static let publicKeyLength = 33
 
     /// The length of the scheme, the recipient key, and the ciphertext, in bytes.
@@ -58,7 +58,7 @@ struct ConfidentialOutput: Sendable {
     /// - Parameter payload: The output's data slot.
     /// - Throws: ``ValidationError/invalidLength`` for another length, ``ValidationError/unsupportedEncoding``
     ///   or ``ValidationError/unsupportedScheme`` for another encoding or scheme, or
-    ///   ``ValidationError/invalidRecipientKey`` if the recipient key isn't a compressed P-256 point.
+    ///   ``ValidationError/invalidRecipientKey`` if the recipient key isn't a tagged X25519 public key.
     init(decoding payload: [UInt8]) throws {
         guard payload.count > Self.headerLength else { throw ValidationError.invalidLength }
         guard payload[0] == Self.encryptedEncoding else { throw ValidationError.unsupportedEncoding }

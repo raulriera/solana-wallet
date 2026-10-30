@@ -18,7 +18,7 @@ extension DerivationPath {
         Self(indices: [44, privateBalanceCoinType, account, 1, 0])
     }
 
-    /// Returns the P-256 path of an account's viewing key.
+    /// Returns the Ed25519 path of an account's viewing key.
     ///
     /// - Parameter account: The account index i, below 2³¹.
     /// - Returns: The path `m/44'/1392955331'/i'/2'/0'`.

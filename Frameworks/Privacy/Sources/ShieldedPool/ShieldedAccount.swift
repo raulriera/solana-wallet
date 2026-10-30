@@ -16,7 +16,7 @@ public struct ShieldedAccount: Sendable, CustomStringConvertible, CustomDebugStr
 
     public var customMirror: Mirror { Mirror(self, children: [:]) }
 
-    /// The account's view tags: its signing address, then the x-coordinate of its viewing public key.
+    /// The account's view tags: its signing address, then the `u`-coordinate of its viewing public key.
     var viewTags: [[UInt8]] {
         [signingAddress.bytes, Array(viewingKey.publicKey.rawRepresentation)]
     }
@@ -35,7 +35,7 @@ public struct ShieldedAccount: Sendable, CustomStringConvertible, CustomDebugStr
     /// - Parameters:
     ///   - signingAddress: The account's Ed25519 signing address.
     ///   - nullifierSecret: The 31-byte nullifier secret.
-    ///   - viewingKey: The P-256 viewing key.
+    ///   - viewingKey: The X25519 viewing key.
     /// - Throws: ``NullifierKey/ValidationError/invalidSecretLength`` for a nullifier secret of
     ///   another length.
     public init(signingAddress: Address, nullifierSecret: SymmetricKey, viewingKey: Curve25519.KeyAgreement.PrivateKey) throws {
