@@ -3,16 +3,6 @@ import Wallet
 @testable import widgets
 
 extension PrivateBalances {
-    /// Creates private balances over in-memory stores, with each network's production provider client sending its
-    /// requests to local responses.
-    /// - Parameters:
-    ///   - keys: Each account's keys.
-    ///   - notes: Each account's notes on each network.
-    ///   - codes: Each account's redeem codes on each network; empty storage by default.
-    ///   - recovery: The recovery storage that enabling reads.
-    ///   - responses: The local responses that every network's provider client sends requests to.
-    ///   - provider: The selected provider; Helius by default.
-    /// - Returns: Private balances whose requests never leave the process.
     @MainActor
     static func inMemory(keys: StoredValue<Keys>, notes: StoredValue<Notes>, codes: StoredValue<Codes> = StoredValue(),
                          recovery: any RecoveryStoring,

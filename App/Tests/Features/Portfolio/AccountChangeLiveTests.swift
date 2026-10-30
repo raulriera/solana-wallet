@@ -3,15 +3,8 @@ import Portfolio
 import RPC
 import Testing
 
-/// Verifies standard finalized subscriptions on mainnet without funding or transfers.
 @Suite(.tags(.network))
 struct AccountChangeLiveTests {
-    /// Watches a changing public sysvar on one connection together with as many accounts as a full token list.
-    ///
-    /// A full list watches the wallet, USDC, USDT, and every added token. The other accounts here
-    /// don't need to exist, since any 32 bytes form an address.
-    /// - Parameter helius: Whether to verify Helius or public Solana's mainnet endpoint.
-    /// - Throws: A credential, provider, timeout, or test prerequisite error.
     @Test(.timeLimit(.minutes(1)), arguments: [true, false])
     func `Mainnet clients deliver finalized account notifications while watching a full token list`(helius: Bool) async throws {
         let source = try LiveClients.client(helius: helius)

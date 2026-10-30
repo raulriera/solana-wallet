@@ -2,9 +2,7 @@ import Foundation
 import Testing
 @testable import RPC
 
-/// Verifies the wire contracts needed to inspect token-transfer prerequisites.
 struct AccountReadTests {
-    /// Verifies ordered raw bytes, missing accounts, exact lamports, and ledger constraints.
     @Test
     func `Account reads preserve bytes and missing accounts at a shared slot`() async throws {
         let transport = StubTransport { request in
@@ -30,7 +28,6 @@ struct AccountReadTests {
         #expect(options["minContextSlot"] as? UInt64 == 400)
     }
 
-    /// Verifies one request accepts the provider's limit without silently splitting contexts.
     @Test
     func `Account reads encode all 100 addresses in one request`() throws {
         let request = try GetMultipleAccounts(addresses: Array(repeating: "address", count: 100))
@@ -38,9 +35,6 @@ struct AccountReadTests {
         #expect((params.first as? [String])?.count == 100)
     }
 
-    /// Verifies empty and oversized lists fail before transport can run.
-    ///
-    /// - Parameter count: An address count outside the supported range.
     @Test(arguments: [0, 101])
     func `Account reads reject empty and oversized address lists`(_ count: Int) {
         #expect(throws: GetMultipleAccountsError.invalidAddressCount) {
@@ -48,9 +42,6 @@ struct AccountReadTests {
         }
     }
 
-    /// Verifies unexpected account representations aren't mistaken for valid raw bytes.
-    ///
-    /// - Parameter data: An invalid encoding tag, payload, or array shape.
     @Test(arguments: [
         #"["AQID","base58"]"#, #"["!","base64"]"#, #"["AQID"]"#, #"null"#
     ])
@@ -64,7 +55,6 @@ struct AccountReadTests {
         }
     }
 
-    /// Verifies epoch reads return the exact epoch with the slot and block height of the observation.
     @Test
     func `Epoch reads return the epoch, observation slot, and block height`() async throws {
         let transport = StubTransport { request in

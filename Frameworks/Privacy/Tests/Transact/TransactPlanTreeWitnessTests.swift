@@ -3,38 +3,22 @@ import ModularArithmetic
 import RPC
 import Testing
 
-/// Verifies the checks of a declared tree's proofs and the slot and context that they give.
 struct TransactPlanTreeWitnessTests {
-    /// A change to valid proofs that the witness must reject.
     enum Edit: CaseIterable, CustomTestStringConvertible {
-        /// No inclusion proof.
         case noInclusionProof
-        /// No non-inclusion proof.
         case noNonInclusionProof
-        /// A second inclusion proof under another UTXO root.
         case otherUTXORoot
-        /// A second inclusion proof at another UTXO root position.
         case otherUTXORootIndex
-        /// A second non-inclusion proof under another nullifier root.
         case otherNullifierRoot
-        /// A second non-inclusion proof at another nullifier root position.
         case otherNullifierRootIndex
-        /// A UTXO root position one past the history's 500 roots.
         case utxoRootIndexBeyondHistory
-        /// A nullifier root position one past the history's 100 roots.
         case nullifierRootIndexBeyondHistory
-        /// A UTXO root at r.
         case nonCanonicalUTXORoot
-        /// A nullifier root at r.
         case nonCanonicalNullifierRoot
-        /// A low element equal to the nullifier.
         case lowElementAtNullifier
-        /// A high element equal to the nullifier.
         case highElementAtNullifier
-        /// Low and high elements swapped.
         case swappedElements
 
-        /// The rejection that the edit causes.
         var error: TransactPlan.ValidationError {
             switch self {
             case .noInclusionProof, .noNonInclusionProof, .otherUTXORoot, .otherUTXORootIndex, .otherNullifierRoot,
@@ -45,16 +29,11 @@ struct TransactPlanTreeWitnessTests {
             }
         }
 
-        /// The edit's name, in test results.
         var testDescription: String { "\(self)" }
     }
 
-    /// The BN254 scalar field's modulus r, which no canonical root reaches.
     private static let modulus = "30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001"
 
-    /// Verifies the slot takes the tree's ID and both roots, and the context both root positions.
-    ///
-    /// - Throws: A validation error, which these proofs don't produce.
     @Test
     func `Witnesses take their roots and positions from the proofs`() throws {
         let witness = try TransactPlan.TreeWitness(
@@ -69,11 +48,6 @@ struct TransactPlanTreeWitnessTests {
         #expect(witness.nonInclusionProofs.map(\.nullifier) == [Self.field(0x50), Self.field(0x51)])
     }
 
-    /// Verifies that proofs that are missing, disagree, sit outside their histories, have a
-    /// non-canonical root, or don't enclose their nullifier are rejected.
-    ///
-    /// - Parameter edit: The change to valid proofs.
-    /// - Throws: A test failure if a fixture is malformed.
     @Test(arguments: Edit.allCases)
     func `Invalid proofs are rejected`(_ edit: Edit) throws {
         let r = try fixtureBytes(Self.modulus)
@@ -100,34 +74,12 @@ struct TransactPlanTreeWitnessTests {
         }
     }
 
-    /// A 32-byte big-endian field element of a small value.
-    ///
-    /// - Parameter value: The value's last byte.
-    /// - Returns: Thirty-one zero bytes followed by `value`.
     private static func field(_ value: UInt8) -> [UInt8] { Array(repeating: 0, count: 31) + [value] }
 
-    /// An inclusion proof with a zero path.
-    ///
-    /// - Parameters:
-    ///   - leaf: The leaf's last byte.
-    ///   - root: The UTXO root.
-    ///   - rootIndex: The root's position.
-    /// - Returns: The proof.
-    /// - Throws: A validation error for a root of another length.
     private static func inclusion(leaf: UInt8 = 0x11, root: [UInt8] = field(0x71), rootIndex: UInt16 = 499) throws -> MerkleProof {
         try MerkleProof(leaf: field(leaf), path: Array(repeating: field(0), count: 32), leafIndex: 3, root: root, rootIndex: rootIndex)
     }
 
-    /// A non-inclusion proof with a zero path.
-    ///
-    /// - Parameters:
-    ///   - nullifier: The nullifier's last byte.
-    ///   - low: The low element's last byte.
-    ///   - high: The high element's last byte.
-    ///   - root: The nullifier root.
-    ///   - rootIndex: The root's position.
-    /// - Returns: The proof.
-    /// - Throws: A validation error for a root of another length.
     private static func nonInclusion(nullifier: UInt8 = 0x50, low: UInt8 = 0x40, high: UInt8 = 0x60, root: [UInt8] = field(0x72),
                                      rootIndex: UInt16 = 99) throws -> NonInclusionProof {
         try NonInclusionProof(nullifier: field(nullifier), lowElement: field(low), lowElementIndex: 2, highElement: field(high),

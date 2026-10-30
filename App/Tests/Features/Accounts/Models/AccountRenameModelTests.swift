@@ -2,11 +2,9 @@ import Foundation
 import Testing
 @testable import widgets
 
-/// Checks how an account's screen saves its new name, with public metadata only.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct AccountRenameModelTests {
-    /// A rename saves the new name and reports it, so the Account screen closes.
     @Test
     func `A rename saves the new name`() async throws {
         let account = try widgets.Account.fixture(index: 0)
@@ -25,7 +23,6 @@ struct AccountRenameModelTests {
         #expect(await storage.value?.first?.customName == "Savings")
     }
 
-    /// Taps while a rename waits are ignored, so the first name is the one saved.
     @Test
     func `Taps while a rename waits are ignored`() async throws {
         let account = try widgets.Account.fixture(index: 0)
@@ -43,7 +40,6 @@ struct AccountRenameModelTests {
         #expect(store.accounts.first?.name == "Savings")
     }
 
-    /// The next rename starts as not yet saved, so its own save closes the screen again.
     @Test
     func `A new rename starts unsaved`() async throws {
         let account = try widgets.Account.fixture(index: 0)
@@ -58,7 +54,6 @@ struct AccountRenameModelTests {
         #expect(!model.isRenamed)
     }
 
-    /// A rename that can't be saved keeps the saved name and explains why.
     @Test
     func `A failed rename explains why`() async throws {
         let account = try widgets.Account.fixture(index: 0)

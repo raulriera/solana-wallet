@@ -2,13 +2,7 @@ import Foundation
 import Testing
 @testable import RPC
 
-/// Verifies public and custom endpoint clients use the shared typed request transport.
 struct SolanaTests {
-    /// Verifies public endpoints receive ordinary RPC submission without credentials or DAS.
-    ///
-    /// - Parameters:
-    ///   - network: The selected Solana network.
-    ///   - host: The public endpoint expected for that network.
     @Test(arguments: [
         (Network.mainnet, "api.mainnet.solana.com"), (.devnet, "api.devnet.solana.com")
     ])
@@ -33,8 +27,6 @@ struct SolanaTests {
         #expect(params.first as? String == bytes.base64EncodedString())
     }
 
-    /// Verifies a custom endpoint receives requests at its URL and subscriptions at the same URL over WSS.
-    /// - Parameter endpoint: The same URL, given whole or relative to its base.
     @Test(.timeLimit(.minutes(1)), arguments: [
         URL(string: "https://rpc.example.com:8443/fixture-token/?api-key=fixture-key")!,
         URL(string: "fixture-token/?api-key=fixture-key", relativeTo: URL(string: "https://rpc.example.com:8443/"))!,
@@ -56,8 +48,6 @@ struct SolanaTests {
         #expect(socket.subscribedAddresses == ["wallet"])
     }
 
-    /// Verifies a custom endpoint is refused when requests would travel without HTTPS or to no host.
-    /// - Parameter url: A URL that a custom endpoint can't use.
     @Test(arguments: ["http://rpc.example.com", "wss://rpc.example.com", "https://", "https:///fixture-token",
                       "https://:8443/fixture-token", "https://fixture-user@/fixture-token"])
     func `Custom endpoints require HTTPS and a host`(url: String) throws {
@@ -66,7 +56,6 @@ struct SolanaTests {
         #expect(Solana(endpoint: endpoint, network: .mainnet) == nil)
     }
 
-    /// Verifies server errors and descriptions omit a custom endpoint and each part that can hold its key.
     @Test
     func `Custom endpoint diagnostics hide the URL and its key`() async throws {
         let endpoint = URL(string: "https://fixture-user:fixture-pass@rpc.example.com/path-token?api-key=query-key&bare-key")!

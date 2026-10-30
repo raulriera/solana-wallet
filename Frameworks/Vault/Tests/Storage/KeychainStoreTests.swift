@@ -6,10 +6,8 @@ import Testing
 import Wallet
 @testable import Vault
 
-/// Verifies storage behavior with isolated Keychain data and no biometric prompts.
 @Suite(.timeLimit(.minutes(1)))
 struct KeychainStoreTests {
-    /// Verifies complete recovery and the device-only biometric-or-passcode policy in the outgoing query.
     @Test
     func `Saved recovery preserves the phrase and passphrase`() async throws {
         let keychain = KeychainStub()
@@ -38,7 +36,6 @@ struct KeychainStoreTests {
         #expect(!reusesUnlock)
     }
 
-    /// Verifies that a duplicate save never replaces an existing wallet's secrets.
     @Test
     func `Saving an existing wallet preserves its original recovery material`() async throws {
         let keychain = KeychainStub()
@@ -54,8 +51,6 @@ struct KeychainStoreTests {
         #expect(recovered.passphrase == original.passphrase)
     }
 
-    /// Verifies distinct error mapping and retention after unsuccessful authentication or missing access.
-    /// - Parameter status: The Security failure returned by the read operation.
     @Test(arguments: [
         errSecAuthFailed, errSecUserCanceled, errSecItemNotFound, errSecInteractionNotAllowed,
     ])
@@ -83,7 +78,6 @@ struct KeychainStoreTests {
         #expect(recovered.passphrase == " TREZOR ")
     }
 
-    /// Verifies that canceling an in-flight read invalidates its context and preserves storage.
     @Test
     func `Cancelling recovery invalidates authentication without deleting the wallet`() async throws {
         let (started, signal) = AsyncStream<Void>.makeStream()
@@ -108,7 +102,6 @@ struct KeychainStoreTests {
         #expect(keychain.state.withLock(\.items) == original)
     }
 
-    /// Verifies that a prompt that never appears frees the read as a retryable error and keeps the wallet.
     @Test
     func `An authentication prompt that never appears frees the read as a retryable error`() async throws {
         let keychain = KeychainStub()
@@ -124,7 +117,6 @@ struct KeychainStoreTests {
             try await store.recovery(for: id, reason: "Recover wallet")
         }
         keychain.state.withLock { $0.blocksReads = false }
-        // The retry runs on the same serial queue, so it starts only after the timed-out read ends.
         let recovered = try await store.recovery(for: id, reason: "Try recovery again")
 
         #expect(recovered.passphrase == " TREZOR ")
@@ -134,7 +126,6 @@ struct KeychainStoreTests {
         #expect(keychain.state.withLock(\.items) == original)
     }
 
-    /// Verifies that a read queued behind another read's prompt, as from a second window, gets its full time bound.
     @Test
     func `A read waiting behind another read gets its full time bound`() async throws {
         let (started, signal) = AsyncStream<Void>.makeStream()
@@ -144,7 +135,6 @@ struct KeychainStoreTests {
                 $0 += 1
                 return $0
             }
-            // The first read's prompt never appears; the second read's person takes a moment to answer.
             if count == 1 { signal.yield(()) } else { Thread.sleep(forTimeInterval: 0.15) }
         })
         let store = KeychainStore(
@@ -167,7 +157,6 @@ struct KeychainStoreTests {
         #expect(second.passphrase == " TREZOR ")
     }
 
-    /// Verifies that a device without a passcode never gets weaker or unusable storage.
     @Test
     func `Saving without a device passcode stores no recovery material`() async throws {
         let keychain = KeychainStub(contextFactory: { TestContext(available: false) })
@@ -181,7 +170,6 @@ struct KeychainStoreTests {
         #expect(isEmpty)
     }
 
-    /// Verifies that canceled callers don't reach Security or open authentication prompts.
     @Test
     func `Already cancelled recovery never queries the Keychain`() async {
         let keychain = KeychainStub()
@@ -198,7 +186,6 @@ struct KeychainStoreTests {
         #expect(keychain.state.withLock(\.readCount) == 0)
     }
 
-    /// Verifies that deleting all recovery empties only this namespace and can repeat safely.
     @Test
     func `Deleting all recovery removes every wallet in its namespace only`() async throws {
         let keychain = KeychainStub()
@@ -225,7 +212,6 @@ struct KeychainStoreTests {
         #expect(queriedOnlyLocalItems)
     }
 
-    /// Verifies exact deletion scope across wallet identifiers and service namespaces.
     @Test
     func `Deleting recovery preserves other wallets and namespaces`() async throws {
         let keychain = KeychainStub()
@@ -253,8 +239,6 @@ struct KeychainStoreTests {
         #expect(queriedOnlyLocalItems)
     }
 
-    /// Verifies that malformed or unsupported stored values fail without exposing or deleting them.
-    /// - Parameter invalid: A public malformed fixture returned by the test Keychain.
     @Test(arguments: [
         "not-json",
         "{\"version\":2,\"phrase\":\"secret-marker\",\"passphrase\":\"secret-marker\"}",

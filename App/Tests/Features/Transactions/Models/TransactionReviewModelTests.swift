@@ -4,16 +4,11 @@ import Testing
 import Transactions
 @testable import widgets
 
-/// Verifies a transaction's review, approval, and settling through a payment's review over the real transaction
-/// coordinator, with local responses and sockets.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct TransactionReviewModelTests {
-    /// A provider's rate limit.
     private static let rateLimit = RPCError.http(statusCode: 429, retryAfter: "3")
 
-    /// Reviewing simulates the transaction and shows its review, which can then be approved.
-    /// - Throws: A fixture error.
     @Test
     func `Reviewing shows the review`() async throws {
         let model = try LocalPaymentReview().model
@@ -27,8 +22,6 @@ struct TransactionReviewModelTests {
         #expect(model.attempt == nil)
     }
 
-    /// A simulation that the proposal rejects shows the proposal's own error without a review.
-    /// - Throws: A fixture error.
     @Test
     func `A failed simulation shows the proposal's error without a review`() async throws {
         let error = TransactionError(name: "InsufficientFundsForFee", details: nil)
@@ -42,9 +35,6 @@ struct TransactionReviewModelTests {
         #expect(!model.canApprove)
     }
 
-    /// An error that isn't the proposal's own, such as a provider's rate limit, is a preparation failure, which
-    /// retrying reviews again.
-    /// - Throws: A fixture error.
     @Test
     func `Another error is a preparation failure that retrying reviews again`() async throws {
         let payment = try LocalPaymentReview()
@@ -66,8 +56,6 @@ struct TransactionReviewModelTests {
         #expect(model.error == nil)
     }
 
-    /// Approving signs and sends the reviewed transaction, after which its record shows how it settled.
-    /// - Throws: A fixture error.
     @Test
     func `A landed transaction shows its outcome from its record`() async throws {
         let payment = try LocalPaymentReview(statuses: [.status(.finalized)])
@@ -89,9 +77,6 @@ struct TransactionReviewModelTests {
         await payment.sockets.waitUntilClosed()
     }
 
-    /// Closing the review while the transaction is sent stops only the review's wait: the transaction is still
-    /// delivered, recorded, and watched until it settles.
-    /// - Throws: A fixture error.
     @Test
     func `Closing the review while sending still delivers the transaction`() async throws {
         let gate = Suspension()
@@ -103,7 +88,6 @@ struct TransactionReviewModelTests {
         let review = Task { await model.run(attempt) }
         await gate.waitUntilStarted()
 
-        // Closing the sheet cancels its task.
         review.cancel()
         gate.resume()
         await review.value
@@ -116,8 +100,6 @@ struct TransactionReviewModelTests {
         await payment.sockets.waitUntilClosed()
     }
 
-    /// A transaction that lands and fails shows its outcome and keeps its signature.
-    /// - Throws: A fixture error.
     @Test
     func `A failed transaction shows its outcome`() async throws {
         let failure = TransactionError(name: "InstructionError",
@@ -135,11 +117,8 @@ struct TransactionReviewModelTests {
         await payment.sockets.waitUntilClosed()
     }
 
-    /// A dropped transaction keeps its signature and can be tried again, which reviews the same proposal anew.
-    /// - Throws: A fixture error.
     @Test
     func `Trying a dropped transaction again reviews it anew`() async throws {
-        // The epoch's block height is past the blockhash's last valid block height, 550, and no status exists.
         let payment = try LocalPaymentReview(statuses: [.status(nil)], height: 600)
         let model = payment.model
         try await payment.model.runReview()
@@ -161,9 +140,6 @@ struct TransactionReviewModelTests {
         #expect(try await payment.preparation.simulations() == 2)
     }
 
-    /// A watch that a rate limit stops leaves the review waiting without an error, and a later watch of the same
-    /// record shows the result.
-    /// - Throws: A fixture error.
     @Test
     func `A stopped watch keeps the review waiting until a later watch settles it`() async throws {
         let refusal = Self.rateLimit
@@ -174,7 +150,6 @@ struct TransactionReviewModelTests {
         model.approve()
         await model.run(model.attempt)
         let record = try #require(model.record)
-        // The first watch ends with the rate limit, which only a caller of the watch reads.
         await #expect(throws: (any Error).self) { try await payment.transactions.watch(record.id, for: record.key) }
 
         #expect(model.status == .pending)
@@ -191,9 +166,6 @@ struct TransactionReviewModelTests {
         await sockets.waitUntilClosed()
     }
 
-    /// A cancelled authentication uses up the simulation, so the model simulates the same preparation again and keeps
-    /// reviewing, without an error or a submission.
-    /// - Throws: A fixture error.
     @Test
     func `A cancelled authentication keeps reviewing with a new simulation`() async throws {
         let store = SigningRecoveryStore(recovery: try SigningFixture().recovery, error: CancellationError())
@@ -212,8 +184,6 @@ struct TransactionReviewModelTests {
         #expect(try await payment.preparation.simulations() == 2)
     }
 
-    /// A transaction that can't be signed sends nothing and uses up its simulation, so retrying reviews it again.
-    /// - Throws: A fixture error.
     @Test
     func `A transaction that can't be signed reviews again on retry`() async throws {
         let store = SigningRecoveryStore(recovery: try SigningFixture().recovery, error: CocoaError(.fileReadUnknown))
@@ -233,8 +203,6 @@ struct TransactionReviewModelTests {
         #expect(try await payment.preparation.simulations() == 2)
     }
 
-    /// Refreshing an open review simulates the same transaction again and keeps the same review.
-    /// - Throws: A fixture error.
     @Test
     func `Refreshing a review simulates it again`() async throws {
         let payment = try LocalPaymentReview()
@@ -248,8 +216,6 @@ struct TransactionReviewModelTests {
         #expect(try await payment.preparation.simulations() == 2)
     }
 
-    /// A review that's being sent isn't simulated again, so the approved transaction stays the one that's signed.
-    /// - Throws: A fixture error.
     @Test
     func `Refreshing skips a review that's being sent`() async throws {
         let payment = try LocalPaymentReview()

@@ -6,13 +6,7 @@ import RPC
 import Testing
 import Transactions
 
-/// Verifies that an account finds its notes in the indexer's transactions, proofless deposits
-/// against an independent implementation and the outputs of transact plans, and the notes' encoding.
 struct ReceivedNoteTests {
-    /// Verifies that the sender receives its deposits with their nullifiers, and not another
-    /// owner's deposit.
-    ///
-    /// - Parameter vector: A deposit.
     @Test(arguments: try DepositNoteVectors.load().deposits)
     func `Deposits match the independent reference`(_ vector: DepositNoteVectors.Deposit) throws {
         let transaction = try vector.transaction()
@@ -27,8 +21,6 @@ struct ReceivedNoteTests {
         #expect(notes.map(\.treeID) == (vector.ownedBySender ? [vector.treeID] : []))
     }
 
-    /// Verifies that a deposit reported at another leaf isn't received, because its blinding isn't
-    /// the program's for that position.
     @Test
     func `Deposits at another position are skipped`() throws {
         let vector = try #require(try DepositNoteVectors.load().deposits.first)
@@ -36,8 +28,6 @@ struct ReceivedNoteTests {
         #expect(try ReceivedNote.notes(in: vector.transaction(leafIndex: vector.leafIndex + 1), of: TransferVectors.sender()).isEmpty)
     }
 
-    /// Verifies that the sender receives its change from a transfer, at the output's position,
-    /// and not the recipient's output.
     @Test
     func `Senders receive their change`() throws {
         let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(lamports: 10)], transferLamports: 4)
@@ -49,8 +39,6 @@ struct ReceivedNoteTests {
         #expect(notes == [ReceivedNote(utxo: change, leafIndex: 41, signature: "transact", slot: 9, nullifier: change.nullifier(using: sender.nullifierKey))])
     }
 
-    /// Verifies that the sender's change, tagged with the x-coordinate of the viewing public key from
-    /// its independent registry record, is received.
     @Test
     func `Outputs tagged with the viewing key are received`() throws {
         let record = try #require(try RegistryVectors.load().records.first { $0.owner == TransferVectors.senderSigningAddress })
@@ -60,7 +48,6 @@ struct ReceivedNoteTests {
         #expect(notes.map(\.utxo) == [plan.outputs[1].utxo])
     }
 
-    /// Verifies that the sender's change under another account's tag isn't received.
     @Test
     func `Outputs tagged for another account aren't received`() throws {
         let (_, notes) = try Self.change(taggedWith: try Address(TransferVectors.recipientSigningAddress).bytes)
@@ -68,8 +55,6 @@ struct ReceivedNoteTests {
         #expect(notes.isEmpty)
     }
 
-    /// Verifies that a padding output tagged with the sender's view tag isn't received, while the
-    /// sender's zero-amount output is.
     @Test
     func `Padding outputs are skipped`() throws {
         let plan = try PlanFixtures.plan(
@@ -81,8 +66,6 @@ struct ReceivedNoteTests {
         #expect(notes.map(\.utxo) == [plan.outputs[0].utxo])
     }
 
-    /// Verifies that notes sealed under another salt, or a transaction without a viewing key,
-    /// yield nothing.
     @Test
     func `Unreadable transactions yield no notes`() throws {
         let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(lamports: 10)], transferLamports: 4)
@@ -97,7 +80,6 @@ struct ReceivedNoteTests {
         #expect(try ReceivedNote.notes(in: withoutKey, of: sender).isEmpty)
     }
 
-    /// Verifies that printing, dumping, and reflecting a note omit its values.
     @Test
     func `Note diagnostics omit the values`() throws {
         let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(lamports: 10)], transferLamports: 4)
@@ -109,7 +91,6 @@ struct ReceivedNoteTests {
         #expect(dumped == "- ReceivedNote\n")
     }
 
-    /// Verifies that a deposit's note and a transact's note decode to themselves.
     @Test
     func `Notes survive encoding`() throws {
         let sender = try TransferVectors.sender()
@@ -123,12 +104,6 @@ struct ReceivedNoteTests {
         #expect(decoded == notes)
     }
 
-    /// Verifies that an encoded note whose mint or field element has another length, whose field
-    /// element isn't canonical, or whose mint isn't SOL's is rejected as corrupted data at that field.
-    ///
-    /// - Parameters:
-    ///   - key: The encoded field to replace.
-    ///   - bytes: The replacement.
     @Test(arguments: [
         ("owner", [UInt8](repeating: 0xff, count: 32)),
         ("blinding", [UInt8](repeating: 0, count: 31)),
@@ -154,11 +129,6 @@ struct ReceivedNoteTests {
         #expect(context.codingPath.map(\.stringValue) == [key])
     }
 
-    /// Plans a transfer with change, tags every output with one view tag, and opens it as the sender.
-    ///
-    /// - Parameter tag: The view tag of every output.
-    /// - Returns: The plan, whose second output is the sender's change, and the sender's notes.
-    /// - Throws: A test failure if a fixture is malformed.
     private static func change(taggedWith tag: [UInt8]) throws -> (plan: TransactPlan, notes: [ReceivedNote]) {
         let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(lamports: 10)], transferLamports: 4)
         let transaction = try PlanFixtures.transaction(of: plan)

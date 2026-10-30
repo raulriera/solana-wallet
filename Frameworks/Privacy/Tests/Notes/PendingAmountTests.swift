@@ -2,9 +2,7 @@ import Foundation
 @testable import Privacy
 import Testing
 
-/// Verifies pending amounts: their encoding and their redaction.
 struct PendingAmountTests {
-    /// Verifies that an amount decodes to itself and that both fields are required.
     @Test
     func `Amounts survive encoding and require both fields`() throws {
         let amount = PendingAmount(signature: IndexerResponses.signature(1), lamports: 42)
@@ -17,7 +15,6 @@ struct PendingAmountTests {
         }
     }
 
-    /// Verifies that printing, dumping, and reflecting an amount omit its values.
     @Test
     func `Amount diagnostics omit the values`() {
         let amount = PendingAmount(signature: IndexerResponses.signature(1), lamports: 42)

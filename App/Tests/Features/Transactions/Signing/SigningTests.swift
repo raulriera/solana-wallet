@@ -7,9 +7,7 @@ import Transactions
 import Vault
 import Wallet
 
-/// Verifies review-to-signature boundaries through the internal signing service.
 struct SigningTests {
-    /// Verifies the real wallet signs reviewed bytes using the stored passphrase and selected account index.
     @Test
     func `An authenticated wallet signs the reviewed message at its last valid block height`() async throws {
         let fixture = try SigningFixture()
@@ -53,9 +51,6 @@ struct SigningTests {
         #expect((fee[1] as? [String: Any])?["commitment"] as? String == "finalized")
     }
 
-    /// Verifies changing either review metadata or encoded bytes cannot reach recovery access.
-    ///
-    /// - Parameter changed: The part of the preparation altered after simulation.
     @Test(arguments: [
         "amount", "recipient", "priority fee", "message"
     ])
@@ -84,9 +79,6 @@ struct SigningTests {
         #expect(await http.requests.isEmpty)
     }
 
-    /// Verifies incomplete or conflicting observations cannot authorize recovery access.
-    ///
-    /// - Parameter condition: The invalid observation presented for signing.
     @Test(arguments: [
         "failed simulation", "unknown fee", "conflicting fee", "replacement blockhash", "stale context", "understated fee"
     ])
@@ -126,7 +118,6 @@ struct SigningTests {
         #expect(await http.requests.isEmpty)
     }
 
-    /// Verifies a provider switch cannot sign a preparation made on another network.
     @Test
     func `A network mismatch rejects signing before wallet access`() async throws {
         var fixture = try SigningFixture()
@@ -143,9 +134,6 @@ struct SigningTests {
         #expect(await http.requests.isEmpty)
     }
 
-    /// Verifies expiry before authentication stops signing, and expiry during authentication discards the signature.
-    ///
-    /// - Parameter expiresDuringAuthentication: Whether the first expiry check still passes.
     @Test(arguments: [false, true])
     func `Expired preparations never yield a signature`(expiresDuringAuthentication: Bool) async throws {
         let fixture = try SigningFixture()
@@ -159,11 +147,9 @@ struct SigningTests {
         }
 
         #expect(await store.reads.count == (expiresDuringAuthentication ? 1 : 0))
-        // Signing precedes the recheck so recovery is released first; the expired signature is discarded.
         #expect(await wallet.messages.count == (expiresDuringAuthentication ? 1 : 0))
     }
 
-    /// Verifies a review that expired reports its expiry even when its fee changed too, although both reads run together.
     @Test
     func `An expired review reports its expiry before a changed fee`() async throws {
         let fixture = try SigningFixture()
@@ -178,9 +164,6 @@ struct SigningTests {
         #expect(await store.reads.isEmpty)
     }
 
-    /// Verifies changed or unavailable fees require another review before authentication.
-    ///
-    /// - Parameter fee: The fee now reported by the provider.
     @Test(arguments: [UInt64(11_000), nil])
     func `A changed network fee requires another review before unlocking`(_ fee: UInt64?) async throws {
         let fixture = try SigningFixture()
@@ -196,7 +179,6 @@ struct SigningTests {
         #expect(await http.requests.count == 2)
     }
 
-    /// Verifies a failed biometric read cannot fall through to signing.
     @Test
     func `Denied wallet authentication prevents message signing`() async throws {
         let fixture = try SigningFixture()
@@ -212,7 +194,6 @@ struct SigningTests {
         #expect(await wallet.messages.isEmpty)
     }
 
-    /// Verifies the reviewed sender, rather than a recovered substitute, reaches the actual wallet.
     @Test
     func `Recovery for another account cannot sign the reviewed sender's transfer`() async throws {
         let fixture = try SigningFixture()
@@ -225,7 +206,6 @@ struct SigningTests {
         }
     }
 
-    /// Verifies late recovery cannot produce a signature after the calling task is cancelled.
     @Test(.timeLimit(.minutes(1)))
     func `Cancelling authentication discards late recovery without signing`() async throws {
         let fixture = try SigningFixture()

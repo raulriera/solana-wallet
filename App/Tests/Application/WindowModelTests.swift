@@ -2,12 +2,9 @@ import SwiftUI
 import Testing
 @testable import widgets
 
-/// Verifies the window's account, which the saved accounts give, and the binding that Settings changes it through.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct WindowModelTests {
-    /// A reset removes the wallet while its screens still read the account's binding.
-    /// - Throws: A test prerequisite error.
     @Test
     func `Leaving the wallet closes its screens without losing their account`() async throws {
         let account = try Account.fixture(index: 1)
@@ -23,13 +20,10 @@ struct WindowModelTests {
 
         try await accounts.erase()
 
-        // The suite's time limit ends the wait if the screens never close.
         var closes = closed.stream.makeAsyncIterator()
         #expect(await closes.next() != nil)
     }
 
-    /// Choosing another account in Settings shows it in the window, and another window keeps its own.
-    /// - Throws: A test prerequisite error.
     @Test
     func `Choosing another account shows it in the window only`() async throws {
         let first = try Account.fixture(index: 1)
@@ -44,8 +38,6 @@ struct WindowModelTests {
         #expect(otherWindow.destination == .wallet(first))
     }
 
-    /// Another window's rename shows at once, without changing the destination's identity.
-    /// - Throws: A test prerequisite error.
     @Test
     func `A renamed account shows at once`() async throws {
         let account = try Account.fixture(index: 1)
@@ -59,9 +51,6 @@ struct WindowModelTests {
         #expect(window.destination.id == identity)
     }
 
-    /// Creates a window over the saved accounts and runs its startup, which opens the first saved account.
-    /// - Parameter accounts: The saved accounts.
-    /// - Returns: The window's navigation.
     private func makeWindow(over accounts: AccountStore) async -> WindowModel {
         let window = WindowModel(accounts: accounts)
         await window.restore(preferring: nil)
@@ -69,8 +58,6 @@ struct WindowModelTests {
     }
 }
 
-/// Shows the account list while the window shows a wallet, as the window's root does with Settings, and reports when
-/// the list closes.
 private struct WindowAccountRoot: View {
     @State private var addition = AccountAdditionModel()
     @State private var deletion = AccountDeletionModel()

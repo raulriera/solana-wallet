@@ -6,11 +6,7 @@ import ModularArithmetic
 import Testing
 import Transactions
 
-/// Verifies recipients: their owner hashes, their view tags, their signing-address checks, and their
-/// lookup in the registry.
 struct RecipientTests {
-    /// Verifies that the Ed25519 rail as a recipient has the owner hash that its published keys
-    /// derive and its signing address as its view tag.
     @Test
     func `Recipients derive the owner hash and use the signing address as the view tag`() throws {
         let rail = try CommitmentVectors.load().ed25519Rail
@@ -23,10 +19,6 @@ struct RecipientTests {
         #expect(recipient.viewTag == (try fixtureBytes(#require(rail.signerPubkey))))
     }
 
-    /// Verifies the independently derived recipient of zolana's published transfers against both
-    /// published slot-0 commitments.
-    ///
-    /// - Parameter transfer: A published transfer.
     @Test(arguments: TransferVectors.transfers)
     func `The derived recipient reproduces the published recipient commitments`(_ transfer: TransferVectors.Transfer) throws {
         let recipient = try TransferVectors.recipient()
@@ -41,8 +33,6 @@ struct RecipientTests {
         #expect(utxo.hash.bigEndianBytes == (try fixtureBytes(transfer.recipientCommitment)))
     }
 
-    /// Verifies that an off-curve signing address, such as the shielded pool's SOL interface, can't
-    /// own UTXOs.
     @Test
     func `Off-curve signing addresses are rejected`() throws {
         let viewingKey = P256.KeyAgreement.PrivateKey()
@@ -52,8 +42,6 @@ struct RecipientTests {
         }
     }
 
-    /// Verifies that a lookup reads both owners' records with one request and returns the registered
-    /// owner's keys and `nil` for the unregistered owner, in the owners' order.
     @Test
     func `Lookups return registered owners in order`() async throws {
         let vectors = try RegistryVectors.load().records

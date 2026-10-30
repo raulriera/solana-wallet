@@ -4,13 +4,9 @@ import Testing
 import Wallet
 @testable import widgets
 
-/// Runs onboarding's provider choice in a real window, so key entry continues setup as it does on screen.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct ProviderChoiceScreenTests {
-    /// Choosing Helius without a key opens key entry; the saved key closes the sheet, then chooses Helius and opens the
-    /// saved wallet, so the sheet never slides away while onboarding fades out.
-    /// - Throws: A test prerequisite error.
     @Test
     func `A key entered to choose Helius opens the saved wallet`() async throws {
         let recovery = OnboardingRecoveryStore()
@@ -26,7 +22,6 @@ struct ProviderChoiceScreenTests {
         let hosted = try HostedWindow(scene.environment(providerStore))
         defer { hosted.close() }
         try #require(try await hosted.appears())
-        // Saving the wallet on screen pushes the provider choice.
         try await coordinator.create()
         let account = try await coordinator.complete()
         providers.select(.helius)
@@ -35,18 +30,14 @@ struct ProviderChoiceScreenTests {
 
         keyEntry.submit("fixture-key")
 
-        // The suite's time limit ends the wait if the wallet never opens.
         for await opened in Observations({ window.account }) where opened == account { break }
-        // UIKit keeps the presented sheet until it has finished closing.
         #expect(hosted.host.presentedViewController == nil)
         #expect(await settings.value?.selection == .helius)
     }
 }
 
-/// Holds the account that a hosted onboarding window shows, in place of the window's model.
 @MainActor
 @Observable
 private final class OpenedAccount {
-    /// The account that onboarding opens, or `nil` until it finishes.
     var account: widgets.Account?
 }

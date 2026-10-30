@@ -3,11 +3,9 @@ import Storage
 import Testing
 @testable import widgets
 
-/// Checks that the shared contact store reads, changes, saves, and erases the address book.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct ContactStoreTests {
-    /// The store reads nothing until it loads, then shows the saved address book.
     @Test
     func `Loading reads the saved address book`() async {
         let addressBook = StoredValue(ContactsFixtures.addressBook)
@@ -21,7 +19,6 @@ struct ContactStoreTests {
         #expect(store.addressBook == ContactsFixtures.addressBook)
     }
 
-    /// Saving, favoriting, and deleting change the address book every window shows and are saved.
     @Test
     func `Changes are saved to the address book`() async throws {
         let addressBook = StoredValue(ContactsFixtures.addressBook)
@@ -44,7 +41,6 @@ struct ContactStoreTests {
         #expect(await addressBook.value == expected)
     }
 
-    /// Erasing deletes the saved address book and empties the one every window shows.
     @Test
     func `Erasing forgets the contacts`() async throws {
         let addressBook = StoredValue(ContactsFixtures.addressBook)
@@ -57,7 +53,6 @@ struct ContactStoreTests {
         #expect(await addressBook.value == nil)
     }
 
-    /// The address book is saved as `contacts.json` in the Contacts directory, which a reset deletes.
     @Test
     func `The address book is saved in the directory`() async throws {
         let directory = URL.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)

@@ -2,12 +2,7 @@ import ModularArithmetic
 @testable import Privacy
 import Testing
 
-/// Verifies the non-throwing Poseidon overload that commitments call.
 struct PoseidonCommitmentsTests {
-    /// Verifies that the overload returns the throwing hash for its fewest and most inputs.
-    ///
-    /// The overload takes one to twelve inputs, here the integers 1 to 12. The throwing hash is
-    /// checked against zolana's published vectors in ``PoseidonTests``.
     @Test
     func `Fixed-input hashes equal the throwing hash`() throws {
         let inputs = (1...12).map { Poseidon.Element(UInt64($0)) }

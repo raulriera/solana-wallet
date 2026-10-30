@@ -5,7 +5,6 @@ import Wallet
 @testable import widgets
 
 extension ImportWalletModelTests {
-    /// A disappearing destination can finish its transition after another presentation begins.
     @Test
     func `Late disappearance from a previous presentation cannot cancel the next import`() async throws {
         let recovery = OnboardingRecoveryStore()
@@ -27,8 +26,6 @@ extension ImportWalletModelTests {
         #expect(coordinator.account != nil)
     }
 
-    /// Cleanup keeps ownership until derivation unwinds, including before SwiftUI delivers cancellation.
-    /// - Parameter deliversCancellation: Whether the view task has received its cancellation signal.
     @Test(arguments: [true, false])
     func `Back during preparation blocks reopening until the attempt has unwound`(deliversCancellation: Bool) async throws {
         let gate = Suspension()
@@ -63,7 +60,6 @@ extension ImportWalletModelTests {
         #expect(submission.isPresented)
     }
 
-    /// A committed recovery survives Back, and no metadata is saved after cancellation is observed.
     @Test
     func `Back during recovery persistence preserves its write and releases only the draft`() async throws {
         let gate = Suspension()
@@ -90,7 +86,6 @@ extension ImportWalletModelTests {
         #expect(coordinator.finishedAccount == nil)
     }
 
-    /// A dependency cancellation while the screen remains open permits retry of the prepared draft.
     @Test
     func `Cancelled authentication retains the prepared import for an explicit retry`() async throws {
         let recovery = OnboardingRecoveryStore(firstError: CancellationError(), commitBeforeError: true)
@@ -112,7 +107,6 @@ extension ImportWalletModelTests {
         #expect(accounts.accounts.count == 1)
     }
 
-    /// Leaving after commit cannot turn saved onboarding into a failure, lose its account, or affect another window.
     @Test
     func `Late cancellation keeps the saved account and another windows prepared draft`() async throws {
         let gate = Suspension()
@@ -131,7 +125,6 @@ extension ImportWalletModelTests {
 
         submission.isPresented = false
         operation.cancel()
-        // Cancellation doesn't stop a save that started, so the saved account waits only for the storage.
         gate.resume()
         await operation.value
 

@@ -5,10 +5,8 @@ import Transactions
 import Wallet
 @testable import widgets
 
-/// Exercises submission through real Helius and public Solana devnet clients.
 @Suite(.serialized)
 struct SubmissionTests {
-    /// Verifies a provider's throttling cannot prevent another route accepting the same signed bytes.
     @Test
     func `One rate-limited route does not prevent another route accepting the transaction`() async throws {
         let signed = try ExternalFixture.signedResult()
@@ -27,7 +25,6 @@ struct SubmissionTests {
         }
     }
 
-    /// Verifies sending reads nothing before it dispatches, because signing has just checked the fee and lifetime.
     @Test
     func `Sending reads nothing before dispatch`() async throws {
         let signed = try ExternalFixture.signedResult()
@@ -40,7 +37,6 @@ struct SubmissionTests {
         #expect(try await accepted.requests.map { try $0.rpcMethod } == ["sendTransaction"])
     }
 
-    /// Verifies all failed routes retain the local signature and independent reasons without retrying.
     @Test
     func `Failed routes retain rate-limit details and reject a mismatched acknowledgment`() async throws {
         let signed = try ExternalFixture.signedResult()
@@ -63,7 +59,6 @@ struct SubmissionTests {
         #expect(await mismatched.requests.count == 1)
     }
 
-    /// Verifies the receipt keeps the reviewed blockhash expiry of a locally composed transaction.
     @Test
     func `A local receipt carries the reviewed last valid block height`() async throws {
         let fixture = try SigningFixture()
@@ -78,7 +73,6 @@ struct SubmissionTests {
         #expect(receipt == Submission(signature: signature, network: .devnet, lastValidBlockHeight: 550))
     }
 
-    /// Verifies submitting hands back the receipt once a route acknowledges it, before any status lookup.
     @Test
     func `Submitting a review returns its receipt without waiting for confirmation`() async throws {
         let expected = try ExternalFixture.preparation()
@@ -100,7 +94,6 @@ struct SubmissionTests {
         #expect(try await checks.requests.allSatisfy { try $0.rpcMethod != "getSignatureStatuses" })
     }
 
-    /// Verifies 0.001 SOL reaches the configured recipient, where it stays.
     @Test(.tags(.network), .timeLimit(.minutes(3)))
     func `Devnet submission delivers 0.001 SOL to the configured recipient`() async throws {
         let rpcs = try LiveClients.devnetRPCs()
@@ -140,7 +133,6 @@ struct SubmissionTests {
         }
     }
 
-    /// Verifies real validators reject an unfunded payer, independently for each RPC.
     @Test(.tags(.network), .timeLimit(.minutes(2)))
     func `Devnet RPCs reject a signed transaction from an unfunded wallet`() async throws {
         let rpcs = try LiveClients.devnetRPCs()
@@ -168,7 +160,6 @@ struct SubmissionTests {
         }
     }
 
-    /// Verifies incomplete local signature slots are rejected with real clients configured.
     @Test
     func `Partially signed transactions are rejected before submission`() async throws {
         let signed = try ExternalFixture.signedResult(hasPayerSignature: false)
@@ -179,7 +170,6 @@ struct SubmissionTests {
         }
     }
 
-    /// Verifies an existing cosigner's approved signature cannot be replaced, even by a valid one.
     @Test
     func `Replacing an existing cosigner signature prevents submission`() async throws {
         let signed = try ExternalFixture.signedResult()
@@ -196,29 +186,16 @@ struct SubmissionTests {
         #expect(error.cause as? SubmitterError == .transactionMismatch)
     }
 
-    /// Supplies explicit V1 resource limits for a small native transfer.
-    ///
-    /// - Returns: A zero-priority-fee configuration with enough resources for a native transfer.
-    /// - Throws: A validation error if the configuration is invalid.
     private func configuration() throws -> Configuration {
         try Configuration(priorityFeeLamports: 0, computeUnitLimit: 20_000, loadedAccountsDataSizeLimit: 65_536)
     }
 
-    /// Reuses the configured sender's balance before requesting small devnet faucet funding.
-    ///
-    /// If both faucets refuse, setup stops right away and names the address to fund manually.
-    ///
-    /// - Parameters:
-    ///   - address: The configured devnet sender's public address.
-    ///   - rpcs: The real devnet clients that can request funding and watch it land.
-    /// - Throws: A funding or cancellation error; no mainnet RPC is used.
     private func fund(_ address: String, using rpcs: [any RPC & SignatureEventProviding]) async throws {
         let current = try await rpcs[0].send(GetMultipleAccounts(addresses: [address]))
         if let account = current.value.first ?? nil, account.lamports >= 1_010_000 { return }
         for rpc in rpcs {
             do {
                 let signature = try await rpc.send(Airdrop(address: address))
-                // The faucet chose its blockhash before answering; the margin covers a node behind it.
                 let blockhash = try await rpc.send(GetLatestBlockhash())
                 let receipt = Submission(signature: signature, network: .devnet,
                                          lastValidBlockHeight: blockhash.value.lastValidBlockHeight + 150)
@@ -227,26 +204,19 @@ struct SubmissionTests {
             } catch is CancellationError {
                 throw CancellationError()
             } catch {
-                // Another faucet may still fund the sender; if none does, setup stops below.
                 continue
             }
         }
         throw SetupError.fundingUnavailable(address: address)
     }
 
-    /// Missing devnet funding, without including credentials or the seed.
     private enum SetupError: Error { case fundingUnavailable(address: String) }
 
-    /// A test-only request to the actual devnet faucet; it isn't an app RPC feature.
     private struct Airdrop: RPCRequest {
         static let method = "requestAirdrop"
         typealias Response = String
         let address: String
 
-        /// Encodes the public destination and a small devnet-only funding request.
-        ///
-        /// - Parameter encoder: The encoder receiving positional RPC parameters.
-        /// - Throws: An encoding error if the request cannot be represented.
         func encode(to encoder: any Encoder) throws {
             var values = encoder.unkeyedContainer()
             try values.encode(address)

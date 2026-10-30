@@ -3,11 +3,7 @@ import Foundation
 @testable import RPC
 import Testing
 
-/// Verifies the read of a user-registry record's rent through a real RPC client with local
-/// responses.
 struct ShieldedPoolRegistryRentTests {
-    /// Verifies that the rent is one finalized `getMinimumBalanceForRentExemption` read of an
-    /// independent registry record's length.
     @Test
     func `Rent is read for a record's length`() async throws {
         let record = try #require(try RegistryVectors.load().records.first)

@@ -1,9 +1,7 @@
 import Testing
 import Transactions
 
-/// Verifies native transfer input restrictions through the public API.
 struct SystemProgramTests {
-    /// Verifies zero lamports cannot become a wallet transfer instruction.
     @Test
     func `SOL transfers reject zero lamports`() throws {
         let sender = try Address(MessageFixture.sender)
@@ -14,9 +12,6 @@ struct SystemProgramTests {
         }
     }
 
-    /// Verifies the invoked program cannot also become a writable transfer account.
-    ///
-    /// - Parameter programIsSender: Whether to supply the System Program as the source.
     @Test(arguments: [true, false])
     func `SOL transfers reject the System Program as a transfer account`(programIsSender: Bool) throws {
         let account = try Address(MessageFixture.sender)

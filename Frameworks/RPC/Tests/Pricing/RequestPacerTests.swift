@@ -1,9 +1,7 @@
 import Testing
 @testable import RPC
 
-/// Exercises admission timing without arbitrary sleeps or external traffic.
 struct RequestPacerTests {
-    /// Verifies simultaneous waiters recheck admission after actor reentrancy.
     @Test(.timeLimit(.minutes(1)))
     func `Concurrent price requests share slots instead of waking into a burst`() async throws {
         let clock = ManualClock()
@@ -26,7 +24,6 @@ struct RequestPacerTests {
         try await second
     }
 
-    /// Verifies an idle provider admits one immediate request without saving unused slots.
     @Test(.timeLimit(.minutes(1)))
     func `Idle time does not accumulate price request bursts`() async throws {
         let clock = ManualClock()
@@ -43,7 +40,6 @@ struct RequestPacerTests {
         try await next
     }
 
-    /// Verifies cancelled waiters exit promptly and leave the next slot available.
     @Test(.timeLimit(.minutes(1)))
     func `Cancelling queued prices does not consume a request slot`() async throws {
         let clock = ManualClock()

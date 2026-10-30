@@ -2,14 +2,7 @@ import Foundation
 import Testing
 @testable import RPC
 
-/// Tests typed RPC requests and failures through an injected HTTP transport.
 struct HeliusRPCTests {
-    /// Verifies that requests reach the Helius endpoint for the selected network.
-    ///
-    /// - Parameters:
-    ///   - network: The Solana network selected when creating the client.
-    ///   - expectedHost: The Helius host that should receive the request.
-    /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
     @Test(arguments: [
         (Network.mainnet, "mainnet.helius-rpc.com"),
         (.devnet, "devnet.helius-rpc.com"),
@@ -33,15 +26,6 @@ struct HeliusRPCTests {
         #expect(query == [URLQueryItem(name: "api-key", value: "test-key")])
     }
 
-    /// Verifies the blockhash request, its expiry height, and its independent ledger slot.
-    ///
-    /// This test also covers the configuration that ledger requests share: finalized
-    /// commitment, and no minimum evaluation slot when it's `nil`.
-    ///
-    /// - Parameters:
-    ///   - query: The request with or without a minimum evaluation slot.
-    ///   - expectedSlot: The minimum evaluation slot, or `nil` when it should be omitted.
-    /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
     @Test(arguments: [
         (GetLatestBlockhash(), UInt64?.none),
         (GetLatestBlockhash(minContextSlot: 12340), UInt64?(12340)),
@@ -70,7 +54,6 @@ struct HeliusRPCTests {
         #expect(configuration.count == (expectedSlot == nil ? 1 : 2))
     }
 
-    /// Verifies that a blockhash without its required expiry cannot be returned to a caller.
     @Test
     func `Get latest blockhash rejects a response without an expiry height`() async {
         let transport = StubTransport { request in
@@ -83,9 +66,6 @@ struct HeliusRPCTests {
         }
     }
 
-    /// Verifies the height request and exact integer decoding without a context envelope.
-    ///
-    /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
     @Test
     func `Get block height returns the current ledger height`() async throws {
         let transport = StubTransport { request in
@@ -104,11 +84,6 @@ struct HeliusRPCTests {
         #expect(parameters.first?["minContextSlot"] as? UInt64 == 12340)
     }
 
-    /// Verifies the base64 message, minimum evaluation slot, and decoded fee and slot.
-    ///
-    /// The bytes are an encoding fixture; this test doesn't construct a transaction.
-    ///
-    /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
     @Test
     func `Get fee for message returns fee lamports and slot`() async throws {
         let transport = StubTransport { request in
@@ -130,9 +105,6 @@ struct HeliusRPCTests {
         #expect(configuration["minContextSlot"] as? UInt64 == 12340)
     }
 
-    /// Verifies that an unavailable fee remains distinct from a zero-lamport fee.
-    ///
-    /// - Throws: An RPC error if the fixture response can't be decoded.
     @Test
     func `Get fee for message preserves an unavailable fee and its slot`() async throws {
         let transport = StubTransport { request in
@@ -146,7 +118,6 @@ struct HeliusRPCTests {
         #expect(response.context.slot == 12345)
     }
 
-    /// Verifies that an omitted fee field is rejected rather than treated as an unavailable fee.
     @Test
     func `Get fee for message rejects a response without a fee field`() async {
         let transport = StubTransport { request in
@@ -159,12 +130,6 @@ struct HeliusRPCTests {
         }
     }
 
-    /// Verifies simulation diagnostics and the base64 transaction's execution options.
-    ///
-    /// The bytes are a transport fixture, not a constructed transaction.
-    ///
-    /// - Parameter expectedSlot: The minimum evaluation slot, or `nil` when omitted.
-    /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
     @Test(arguments: [UInt64?.none, 12340])
     func `Simulation returns logs compute usage fee and slot`(expectedSlot: UInt64?) async throws {
         let transport = StubTransport { request in
@@ -202,14 +167,6 @@ struct HeliusRPCTests {
         #expect(configuration.count == (expectedSlot == nil ? 4 : 5))
     }
 
-    /// Verifies that execution failures retain available diagnostics without becoming RPC errors.
-    ///
-    /// - Parameters:
-    ///   - value: The simulation outcome encoded by the fixture.
-    ///   - expectedError: The expected transaction failure.
-    ///   - expectedLogs: The available logs, or `nil` when execution never began.
-    ///   - expectedUnits: The consumed compute units, or `nil` if unavailable.
-    /// - Throws: An RPC error if the fixture response can't be decoded.
     @Test(arguments: [
         (#"{"err":{"InstructionError":[0,{"Custom":6001}]},"logs":["Program log: insufficient funds"],"unitsConsumed":120}"#,
          TransactionError(name: "InstructionError", details: .array([.integer(0), .object(["Custom": .integer(6001)])])),
@@ -236,9 +193,6 @@ struct HeliusRPCTests {
         #expect(response.value.replacementBlockhash == nil)
     }
 
-    /// Verifies a replacement blockhash that a node reports anyway is decoded, so the caller can reject it.
-    ///
-    /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
     @Test
     func `Simulation returns the replacement blockhash and expiry height`() async throws {
         let transport = StubTransport { request in
@@ -262,7 +216,6 @@ struct HeliusRPCTests {
         #expect(configuration["sigVerify"] as? Bool == false)
     }
 
-    /// Verifies that a missing execution-error field can't be mistaken for success.
     @Test
     func `Simulation rejects a response without an execution outcome`() async {
         let transport = StubTransport { request in
@@ -275,11 +228,6 @@ struct HeliusRPCTests {
         }
     }
 
-    /// Verifies unchanged transaction bytes, submission options, and the returned signature.
-    ///
-    /// Preflight always runs and the node never retries forwarding.
-    /// - Parameter expectedSlot: The minimum evaluation slot, or `nil` when omitted.
-    /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
     @Test(arguments: [UInt64?.none, 12340])
     func `Send transaction returns the accepted signature and preserves signed bytes`(
         expectedSlot: UInt64?
@@ -310,7 +258,6 @@ struct HeliusRPCTests {
         #expect(configuration.count == (expectedSlot == nil ? 4 : 5))
     }
 
-    /// Verifies that preflight rejection retains its execution failure and simulation diagnostics.
     @Test
     func `Send transaction preserves preflight errors and simulation logs without resubmitting`() async {
         let transport = StubTransport { request in
@@ -338,11 +285,6 @@ struct HeliusRPCTests {
         #expect(await transport.requests.count == 1)
     }
 
-    /// Verifies that absent or unrecognized diagnostic data doesn't hide the server's rejection.
-    ///
-    /// - Parameters:
-    ///   - code: The server's rejection code.
-    ///   - dataField: An optional JSON field containing error-specific diagnostics.
     @Test(arguments: [
         (-32002, ""),
         (-32002, #","data":null"#),
@@ -360,9 +302,6 @@ struct HeliusRPCTests {
         }
     }
 
-    /// Verifies status order, confirmation levels, and the history lookup beyond the recent status cache.
-    ///
-    /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
     @Test
     func `Get signature statuses returns confirmation levels and processing slots`() async throws {
         let signatures = ["processed-signature", "confirmed-signature", "finalized-signature"]
@@ -405,9 +344,6 @@ struct HeliusRPCTests {
         #expect(parameters.last as? [String: Bool] == ["searchTransactionHistory": true])
     }
 
-    /// Verifies that an unknown signature retains its position beside a known transaction.
-    ///
-    /// - Throws: An RPC error or a failed test prerequisite.
     @Test
     func `Get signature statuses preserves missing transaction positions`() async throws {
         let transport = StubTransport { request in
@@ -428,9 +364,6 @@ struct HeliusRPCTests {
         #expect(status.confirmationStatus == nil)
     }
 
-    /// Verifies that a confirmed transaction can retain an execution failure as status data.
-    ///
-    /// - Throws: An RPC error or a failed test prerequisite.
     @Test
     func `Get signature statuses returns execution failures for confirmed transactions`() async throws {
         let transport = StubTransport { request in
@@ -453,9 +386,6 @@ struct HeliusRPCTests {
         ))
     }
 
-    /// Verifies that omitted fields can't be mistaken for successful or finalized execution.
-    ///
-    /// - Parameter status: A status missing its execution error or confirmation count field.
     @Test(arguments: [
         #"{"slot":12340,"confirmations":4,"confirmationStatus":"confirmed"}"#,
         #"{"slot":12340,"err":null,"confirmationStatus":"confirmed"}"#,
@@ -471,11 +401,6 @@ struct HeliusRPCTests {
         }
     }
 
-    /// Verifies that server errors returned by the client omit its API key and endpoint.
-    ///
-    /// - Parameters:
-    ///   - network: The Solana network whose authenticated endpoint to redact.
-    ///   - includesSimulation: Whether the rejection contains preflight simulation logs.
     @Test(arguments: [Network.mainnet, .devnet], [false, true])
     func `Server errors hide API keys and authenticated URLs`(network: Network, includesSimulation: Bool) async {
         let apiKey = "test-key"
@@ -503,7 +428,6 @@ struct HeliusRPCTests {
         }
     }
 
-    /// Verifies that rate limiting exposes the retry delay without another HTTP attempt.
     @Test
     func `Rate limited requests expose the retry delay without retrying`() async {
         let transport = StubTransport { request in
@@ -518,7 +442,6 @@ struct HeliusRPCTests {
         #expect(await transport.requests.count == 1)
     }
 
-    /// Verifies that a response with a different request identifier is rejected.
     @Test
     func `Responses belonging to another request are rejected`() async {
         let transport = StubTransport { request in
@@ -532,9 +455,6 @@ struct HeliusRPCTests {
         }
     }
 
-    /// Verifies cancellation before networking even if the encoder returns normally.
-    ///
-    /// - Parameter throwsCancellation: Whether the encoder also throws after cancelling its task.
     @Test(arguments: [false, true])
     func `Cancelling during encoding prevents the HTTP request`(throwsCancellation: Bool) async {
         let transport = StubTransport { request in try reply(to: request, payload: #""result":false"#) }
@@ -547,9 +467,6 @@ struct HeliusRPCTests {
         #expect(await transport.requests.isEmpty)
     }
 
-    /// Verifies that cancellation during decoding never becomes a result or decoding error.
-    ///
-    /// - Parameter throwsCancellation: Whether the decoder also throws after cancelling its task.
     @Test(arguments: [false, true])
     func `Cancelling during decoding surfaces a cancellation error`(throwsCancellation: Bool) async {
         let transport = StubTransport { request in
@@ -564,11 +481,6 @@ struct HeliusRPCTests {
         #expect(await transport.requests.count == 1)
     }
 
-    /// Verifies transport cancellation after an RPC request has started.
-    ///
-    /// Streams coordinate request startup and cancellation without timed sleeps.
-    ///
-    /// - Throws: A test prerequisite error if the transport doesn't signal startup.
     @Test(.timeLimit(.minutes(1)))
     func `Cancelling a request cancels the HTTP operation`() async throws {
         let (started, startedContinuation) = AsyncStream<Void>.makeStream()
@@ -595,16 +507,11 @@ struct HeliusRPCTests {
     }
 }
 
-/// A request that triggers cancellation inside a synchronous coding operation.
 private struct CodingCancellationRequest: RPCRequest {
     static let method = "example"
     let cancelsDuringEncoding: Bool
     let throwsCancellation: Bool
 
-    /// Encodes empty parameters and optionally cancels the encoding task.
-    ///
-    /// - Parameter encoder: The encoder receiving the request parameters.
-    /// - Throws: `CancellationError` when the fixture is configured to throw during encoding.
     func encode(to encoder: any Encoder) throws {
         _ = encoder.unkeyedContainer()
         if cancelsDuringEncoding {
@@ -613,12 +520,7 @@ private struct CodingCancellationRequest: RPCRequest {
         }
     }
 
-    /// A response that deterministically cancels its own decoding task.
     struct Response: Decodable, Sendable {
-        /// Decodes whether to throw, then cancels the current task.
-        ///
-        /// - Parameter decoder: The decoder containing the fixture's throwing behavior.
-        /// - Throws: A decoding error, or `CancellationError` when configured to throw.
         init(from decoder: any Decoder) throws {
             let throwsCancellation = try decoder.singleValueContainer().decode(Bool.self)
             withUnsafeCurrentTask { $0?.cancel() }

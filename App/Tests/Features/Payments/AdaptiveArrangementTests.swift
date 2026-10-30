@@ -2,21 +2,14 @@ import SwiftUI
 import Testing
 @testable import widgets
 
-/// Checks that an arrangement with the adaptive style places a real secondary region's second view where the plan
-/// says: under the keys while stacked, and under the primary region at the keys' width while side by side.
 @MainActor @Suite(.timeLimit(.minutes(1)))
 struct AdaptiveArrangementTests {
-    /// Frames the hosted views report in the arrangement's coordinates.
     @MainActor final class Frames {
         var primary: CGRect?
         var secondary: CGRect?
         var accessory: CGRect?
     }
 
-    /// Hosts a keypad-like arrangement at a fixed size and waits until its three views report their frames.
-    /// - Parameter size: The arrangement's size.
-    /// - Returns: The reported frames.
-    /// - Throws: A failed expectation when the views don't appear or report frames in time.
     private func arrange(in size: CGSize) async throws -> Frames {
         let frames = Frames()
         let hosted = try HostedWindow(

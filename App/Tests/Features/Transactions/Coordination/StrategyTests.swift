@@ -6,9 +6,7 @@ import Wallet
 import Vault
 @testable import widgets
 
-/// Verifies exclusive strategy selection and preparation using actual RPC clients.
 struct StrategyTests {
-    /// Verifies disabling Sender retains ordinary clients only on the selected network.
     @Test
     func `None selects all ordinary RPCs on the transaction network`() throws {
         let clients = try TransactionCoordinator.Strategy.none.clients(for: .mainnet, from: [
@@ -21,11 +19,6 @@ struct StrategyTests {
         #expect(clients.allSatisfy { $0.network == .mainnet && $0.submissionRequirements == nil })
     }
 
-    /// Verifies a Sender strategy replaces the supplied routes with its single client.
-    ///
-    /// - Parameters:
-    ///   - strategy: The app's selected delivery strategy.
-    ///   - tier: The expected concrete Sender tier.
     @Test(arguments: [
         (TransactionCoordinator.Strategy.standard, Sender.Tier.standard),
         (.premium, .premium),
@@ -40,12 +33,6 @@ struct StrategyTests {
         #expect(sender.tier == tier)
     }
 
-    /// Verifies a selected service cannot silently increase the requested priority fee.
-    ///
-    /// - Parameters:
-    ///   - strategy: The service strategy selected for mainnet submission.
-    ///   - requestedFee: A priority fee below the selected tier's requirement.
-    ///   - minimumFee: The expected minimum total priority fee.
     @Test(arguments: [
         (TransactionCoordinator.Strategy.standard, UInt64(0), UInt64(1)),
         (.premium, UInt64(4_999), UInt64(5_000)),
@@ -65,9 +52,6 @@ struct StrategyTests {
         }
     }
 
-    /// Verifies unsupported Sender selection cannot silently submit through ordinary devnet RPCs.
-    ///
-    /// - Parameter strategy: The mainnet-only delivery strategy.
     @Test(arguments: [
         TransactionCoordinator.Strategy.standard, .premium,
     ])

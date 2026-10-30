@@ -5,21 +5,7 @@ import RPC
 import Testing
 import Transactions
 
-/// Transact plans that the sender of zolana's published transfers, the Ed25519 rail, builds.
-///
-/// The random values are fixed: the published blinding seed and salt, padding blindings of a zero
-/// byte and 31 copies of 0xd0 plus the slot, and padding payloads of 89 copies of 0xe0 plus the
-/// slot.
 enum PlanFixtures {
-    /// Creates a SOL UTXO that the sender owns.
-    ///
-    /// - Parameters:
-    ///   - lamports: The amount.
-    ///   - treeID: The ID of the tree that holds the UTXO.
-    ///   - blindingByte: The byte that repeats after the blinding's leading zero.
-    /// - Returns: The UTXO.
-    /// - Throws: A test failure if the fixture is missing or malformed, or an error if it can't be
-    ///   read or decoded.
     static func utxo(lamports: UInt64, treeID: UInt16 = 0, blindingByte: UInt8 = 0xa1) throws -> UTXO {
         UTXO(
             owner: try CommitmentVectors.load().ed25519Rail.ownerHash(), mint: Array(repeating: 0, count: 32), amount: lamports,
@@ -27,12 +13,6 @@ enum PlanFixtures {
         )
     }
 
-    /// Returns the fixed random values of a plan.
-    ///
-    /// - Parameters:
-    ///   - paddingInputs: The number of padding inputs.
-    ///   - paddingOutputs: The number of padding outputs.
-    /// - Returns: The random values.
     static func randomness(paddingInputs: Int, paddingOutputs: Int) -> TransactPlan.Randomness {
         TransactPlan.Randomness(
             blindingSeed: TransferVectors.blindingSeed, salt: TransferVectors.salt,
@@ -41,17 +21,6 @@ enum PlanFixtures {
         )
     }
 
-    /// Plans a transact with the fixed random values.
-    ///
-    /// - Parameters:
-    ///   - utxos: The sender's UTXOs to spend.
-    ///   - transferLamports: The amount for the published transfers' recipient, if any.
-    ///   - withdrawal: The withdrawal, if any.
-    ///   - outputTreeID: The ID of the output tree.
-    ///   - paddingInputs: The number of padding inputs that the plan's shape leaves.
-    ///   - paddingOutputs: The number of padding outputs that the plan's shape leaves.
-    /// - Returns: The plan.
-    /// - Throws: A test failure if a fixture is malformed, or an error if the plan can't be built.
     static func plan(
         spending utxos: [UTXO],
         transferLamports: UInt64?,
@@ -68,17 +37,6 @@ enum PlanFixtures {
         )
     }
 
-    /// Creates the indexer's view of a plan's transact, with output i at leaf `firstLeaf` + i.
-    ///
-    /// - Parameters:
-    ///   - plan: The plan.
-    ///   - salt: The salt that the transaction publishes.
-    ///   - signature: The transaction's signature.
-    ///   - slot: The transaction's slot.
-    ///   - firstLeaf: The position of the first output in the output tree.
-    /// - Returns: The transaction.
-    /// - Throws: A test failure if the plan has no inputs, or an error if the transaction viewing key
-    ///   can't be derived.
     static func transaction(
         of plan: TransactPlan,
         salt: [UInt8] = TransferVectors.salt,
@@ -104,11 +62,6 @@ enum PlanFixtures {
         )
     }
 
-    /// Returns a withdrawal to the published transfers' relayed payer.
-    ///
-    /// - Parameter lamports: The amount.
-    /// - Returns: The withdrawal.
-    /// - Throws: A test failure if the address is malformed.
     static func withdrawal(lamports: UInt64) throws -> ExternalData.Withdrawal {
         ExternalData.Withdrawal(recipient: try Address(TransferVectors.transfers[1].payer), lamports: lamports)
     }

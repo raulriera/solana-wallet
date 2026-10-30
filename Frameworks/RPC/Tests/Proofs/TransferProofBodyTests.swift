@@ -2,14 +2,9 @@ import Foundation
 import Testing
 @testable import RPC
 
-/// Verifies the JSON body of a transfer proof request on the complete route, zolana's flat `TransferParametersJSON`.
 struct TransferProofBodyTests {
     private typealias Fixture = ProofFixtures
 
-    /// Verifies the body writes every field as zolana's `TransferParametersJSON` does, flat and in hexadecimal, with
-    /// the declared tree slot followed by four unused ones.
-    ///
-    /// - Throws: An encoding or parsing error, or a failed test prerequisite.
     @Test
     func `The body matches zolana's flat fields`() throws {
         let body = try json(Fixture.request())
@@ -39,10 +34,6 @@ struct TransferProofBodyTests {
         ])
     }
 
-    /// Verifies an input without an inclusion proof, such as padding, sends a zero state path at index zero and
-    /// still sends its non-inclusion witness.
-    ///
-    /// - Throws: An encoding or parsing error, or a failed test prerequisite.
     @Test
     func `Inputs without an inclusion proof send a zero state path`() throws {
         let request = try TransferProofRequest(treeSlots: [Fixture.treeSlot()], publicInputHash: Fixture.field(0x99),
@@ -56,9 +47,6 @@ struct TransferProofBodyTests {
         #expect(input["isDummy"] as? String == "0x1")
     }
 
-    /// Verifies read-cache entries encode as hexadecimal, with flags as `0x0` or `0x1`.
-    ///
-    /// - Throws: An encoding or parsing error, or a failed test prerequisite.
     @Test
     func `Read cache entries encode as hexadecimal`() throws {
         let cached = try Fixture.witness(hasInclusionProof: false, cacheTreeID: Fixture.field(2),
@@ -73,10 +61,6 @@ struct TransferProofBodyTests {
         #expect(body["cacheReadIndex"] as? [String] == ["0x0"])
     }
 
-    /// Encodes a request's body as a JSON object.
-    /// - Parameter request: The request.
-    /// - Returns: The body's object.
-    /// - Throws: An encoding or parsing error, or a failed test prerequisite.
     private func json(_ request: TransferProofRequest) throws -> [String: AnyHashable] {
         try #require(try JSONSerialization.jsonObject(with: JSONEncoder().encode(TransferProofBody(request))) as? [String: AnyHashable])
     }

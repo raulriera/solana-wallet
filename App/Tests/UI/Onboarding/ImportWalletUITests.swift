@@ -1,9 +1,7 @@
 import XCTest
 
-/// Exercises visible import behavior through XCUIApplication with public recovery fixtures only.
 @MainActor
 final class ImportWalletUITests: XCTestCase {
-    /// Invalid words stay on phrase entry and cannot create a wallet restored by the next launch.
     @objc(testInvalidRecoveryDoesNotPersistAndReturnError:)
     func `test Invalid recovery displays an inline error without persisting a wallet`() throws {
         let flow = OnboardingApp()
@@ -23,7 +21,6 @@ final class ImportWalletUITests: XCTestCase {
         try flow.expectWelcome()
     }
 
-    /// Back discards transient entry, including a revealed phrase and an original passphrase.
     @objc(testBackClearsImportInputAndReturnError:)
     func `test Back returns to welcome and reopening import clears all input`() throws {
         let flow = OnboardingApp()
@@ -49,7 +46,6 @@ final class ImportWalletUITests: XCTestCase {
         XCTAssertEqual(passphrase.value as? String, "Optional")
     }
 
-    /// Returning from the background conceals revealed recovery while retaining the unfinished entry.
     @objc(testBackgroundConcealsRecoveryWithoutLosingInputAndReturnError:)
     func `test Returning from the background hides recovery without losing input`() throws {
         let flow = OnboardingApp()
@@ -63,7 +59,6 @@ final class ImportWalletUITests: XCTestCase {
         try flow.tap(reveal)
         try flow.waitFor(flow.app.buttons["Hide words"])
 
-        // The Home button leaves the app open on the iPhone Duo's inner display; opening SpringBoard works on every device.
         XCUIApplication(bundleIdentifier: "com.apple.springboard").activate()
         guard flow.app.wait(for: .runningBackground, timeout: 10) else {
             XCTFail("The app did not enter the background")
@@ -81,7 +76,6 @@ final class ImportWalletUITests: XCTestCase {
         XCTAssertTrue(flow.submitImport.isEnabled)
         try flow.tap(reveal)
         try flow.waitFor(flow.app.buttons["Hide words"])
-        // The revealed field exposes the words only as its value, without a label.
         try flow.waitFor(flow.app.textFields.matching(NSPredicate(format: "value == %@", OnboardingApp.phrase)).firstMatch)
         let passphrase = flow.app.secureTextFields["BIP-39 passphrase, optional"]
         if !passphrase.isHittable { flow.app.swipeUp() }
@@ -89,7 +83,6 @@ final class ImportWalletUITests: XCTestCase {
         XCTAssertNotEqual(try XCTUnwrap(passphrase.value as? String), "Optional")
     }
 
-    /// A hidden passphrase field replaces its text when edited again, so the exact passphrase can be revealed and checked.
     @objc(testRevealPassphraseAndReturnError:)
     func `test The passphrase can be revealed to check it exactly`() throws {
         let flow = OnboardingApp()
@@ -110,7 +103,6 @@ final class ImportWalletUITests: XCTestCase {
         XCTAssertNotEqual(hidden.value as? String, "Optional")
     }
 
-    /// Import bypasses backup confirmation and survives a fresh process through real startup restoration.
     @objc(testImportWithPassphraseRestoresAfterRelaunchAndReturnError:)
     func `test Import with an original passphrase completes and restores after relaunch`() throws {
         let flow = OnboardingApp()

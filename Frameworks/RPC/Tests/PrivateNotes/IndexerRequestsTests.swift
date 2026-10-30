@@ -2,15 +2,7 @@ import Foundation
 import Testing
 @testable import RPC
 
-/// Verifies the parameters of indexer requests.
 struct IndexerRequestsTests {
-    /// Verifies each request names its values and sends a cursor only when it has one, never a limit; proof
-    /// reads send only the tree account and the leaves.
-    ///
-    /// - Parameters:
-    ///   - request: The request to encode.
-    ///   - expected: Its parameters as JSON with sorted keys.
-    /// - Throws: An encoding error.
     @Test(arguments: [
         (GetShieldedTransactionsByTags(tags: ["a"], cursor: nil) as any RPCRequest, #"{"tags":["a"]}"#),
         (GetShieldedTransactionsByTags(tags: ["a"], cursor: "AQ=="), #"{"cursor":"AQ==","tags":["a"]}"#),

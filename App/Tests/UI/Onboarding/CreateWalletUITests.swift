@@ -1,9 +1,7 @@
 import XCTest
 
-/// Exercises production wallet creation with disposable, unfunded recovery and automatic state reset.
 @MainActor
 final class CreateWalletUITests: XCTestCase {
-    /// Declining the confirmation keeps the phrase available and leaves startup without a saved account.
     @objc(testDecliningBackupDoesNotPersistAndReturnError:)
     func `test Declining backup confirmation stays on recovery and does not persist a wallet`() throws {
         let flow = OnboardingApp()
@@ -26,7 +24,6 @@ final class CreateWalletUITests: XCTestCase {
         try flow.expectWelcome()
     }
 
-    /// Explicit backup approval commits generated recovery and the next process restores its account.
     @objc(testConfirmingBackupRestoresAfterRelaunchAndReturnError:)
     func `test Confirming backup completes creation and restores after relaunch`() throws {
         let flow = OnboardingApp()

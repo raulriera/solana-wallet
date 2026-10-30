@@ -3,13 +3,7 @@ import ModularArithmetic
 @testable import Privacy
 import Testing
 
-/// Verifies nullifier keys, their public keys, and their nullifiers.
 struct NullifierKeyTests {
-    /// Verifies the public keys of both of zolana's derivation rails against the published values.
-    ///
-    /// The nullifier key doesn't depend on the signing curve, so the P-256 rail's secret checks it too.
-    ///
-    /// - Parameter rail: A published 31-byte nullifier secret and its public key.
     @Test(arguments: try CommitmentVectors.load().rails)
     func `Public keys match the published nullifier public keys`(_ rail: CommitmentVectors.Rail) throws {
         let key = try rail.nullifierKey()
@@ -17,16 +11,6 @@ struct NullifierKeyTests {
         #expect(key.publicKey.bigEndianBytes == (try fixtureBytes(rail.nullifierPubkey)))
     }
 
-    /// Verifies nullifiers of the zero secret against zolana's published values.
-    ///
-    /// The values are the `ALLOW_PRESENT` and `BLOCK_CLEARED` UTXO hashes, blindings, and
-    /// nullifiers of zolana's `ring-policy.test.ts`, copied unchanged. Their owner's nullifier secret
-    /// is zero, and the nullifier formula is the same for every owner.
-    ///
-    /// - Parameters:
-    ///   - utxoHash: The UTXO's hash.
-    ///   - blinding: The UTXO's blinding, as an integer.
-    ///   - nullifier: The published nullifier.
     @Test(arguments: [
         (
             "03409e610c10c6e82bead86f12d0f79872c66e8ca3a51d796de1726aeed137ab", 1,
@@ -45,12 +29,6 @@ struct NullifierKeyTests {
         #expect(derived.bigEndianBytes == (try fixtureBytes(nullifier)))
     }
 
-    /// Verifies the nullifiers of spent UTXOs against zolana's published transfers.
-    ///
-    /// The secret is the Ed25519 rail's, and each published UTXO hash and blinding enters the
-    /// nullifier unchanged.
-    ///
-    /// - Parameter input: A published spent UTXO and its nullifier.
     @Test(arguments: TransferVectors.spentInputs)
     func `Nullifiers of the rail secret match the published transfers`(_ input: TransferVectors.Input) throws {
         let key = try CommitmentVectors.load().ed25519Rail.nullifierKey()
@@ -60,10 +38,6 @@ struct NullifierKeyTests {
         #expect(derived.bigEndianBytes == (try fixtureBytes(input.nullifier)))
     }
 
-    /// Verifies the nullifiers of padding inputs, which use the zero secret, against zolana's
-    /// published transfers.
-    ///
-    /// - Parameter input: A published padding input and its nullifier.
     @Test(arguments: TransferVectors.paddingInputs)
     func `Nullifiers of padding inputs match the published transfers`(_ input: TransferVectors.Input) throws {
         let key = try NullifierKey(secret: SymmetricKey(data: [UInt8](repeating: 0, count: 31)))
@@ -73,18 +47,6 @@ struct NullifierKeyTests {
         #expect(derived.bigEndianBytes == (try fixtureBytes(input.nullifier)))
     }
 
-    /// Verifies nullifiers of nonzero secrets against independently derived values.
-    ///
-    /// The expected values come from a separate Python implementation of Poseidon. The first case
-    /// uses the bytes 1 to 31 as the secret and the published empty-UTXO hash with blinding 7; the
-    /// second uses an all-ones secret, the largest value that a secret can encode, with r - 1 as both
-    /// the UTXO hash and the blinding.
-    ///
-    /// - Parameters:
-    ///   - secret: A 31-byte nullifier secret.
-    ///   - utxoHash: The UTXO's hash.
-    ///   - blinding: The UTXO's blinding.
-    ///   - nullifier: The expected nullifier.
     @Test(arguments: [
         (
             "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
@@ -112,9 +74,6 @@ struct NullifierKeyTests {
         #expect(derived.bigEndianBytes == (try fixtureBytes(nullifier)))
     }
 
-    /// Verifies that secrets of other lengths than 31 bytes are rejected.
-    ///
-    /// - Parameter length: A secret length in bytes: none, one fewer, or one more.
     @Test(arguments: [0, 30, 32])
     func `Secrets of other lengths are rejected`(length: Int) {
         #expect(throws: NullifierKey.ValidationError.invalidSecretLength) {
@@ -122,7 +81,6 @@ struct NullifierKeyTests {
         }
     }
 
-    /// Verifies that printing, dumping, and reflecting a key omit its secret.
     @Test
     func `Nullifier key diagnostics omit the secret`() throws {
         let key = try NullifierKey(secret: SymmetricKey(data: [UInt8](repeating: 1, count: 31)))

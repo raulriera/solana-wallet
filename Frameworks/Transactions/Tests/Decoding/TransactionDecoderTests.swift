@@ -2,9 +2,7 @@ import Foundation
 import Testing
 import Transactions
 
-/// Verifies arbitrary V1 framing through the framework's public decoding contract.
 struct TransactionDecoderTests {
-    /// Verifies the import boundary produces a typed value without changing the envelope.
     @Test
     func `Base64 imports preserve the complete V1 transaction`() throws {
         let decoder: any TransactionDecoding = TransactionDecoder()
@@ -15,9 +13,6 @@ struct TransactionDecoderTests {
         #expect(transaction.serializedRepresentation == (try DecodingFixture.transaction()))
     }
 
-    /// Verifies malformed or oversized transport input never becomes a typed transaction.
-    ///
-    /// - Parameter input: Invalid Base64, ignored-character attempts, or oversized input.
     @Test(arguments: [
         "!", " \(DecodingFixture.wire)", String(repeating: "A", count: 5_465)
     ])
@@ -25,9 +20,6 @@ struct TransactionDecoderTests {
         #expect(throws: ValidationError.invalidTransaction) { try TransactionDecoder().decode(base64: input) }
     }
 
-    /// Verifies account roles, instruction boundaries, and untouched signature slots.
-    ///
-    /// - Parameter usesSlice: Whether Foundation data starts at a nonzero index.
     @Test(arguments: [false, true])
     func `V1 inspection preserves signer roles, instruction order, and exact signed bytes`(usesSlice: Bool) throws {
         let original = try DecodingFixture.transaction()
@@ -58,9 +50,6 @@ struct TransactionDecoderTests {
         #expect(transaction.message + transaction.signatures.reduce(Data(), +) == original)
     }
 
-    /// Verifies wire observations aren't replaced with construction defaults or clamped.
-    ///
-    /// - Parameter value: The explicit request value, or `nil` to omit all requests.
     @Test(arguments: [
         nil, UInt32(0), UInt32.max
     ])
@@ -78,7 +67,6 @@ struct TransactionDecoderTests {
         #expect(transaction.instructions.last?.data == Data([4, 5]))
     }
 
-    /// Verifies the inclusive envelope limit counts signatures and retains the full payload.
     @Test
     func `A 4096-byte V1 envelope retains its complete instruction payload`() throws {
         var input = try DecodingFixture.transaction()
@@ -94,8 +82,6 @@ struct TransactionDecoderTests {
         #expect(transaction.signatures.last == Data(repeating: 0x55, count: 64))
     }
 
-    /// Verifies every truncation point fails without trapping.
-    /// - Parameter length: The truncated envelope's byte count.
     @Test(arguments: 0..<(try DecodingFixture.transaction()).count)
     func `Incomplete envelopes are rejected`(length: Int) throws {
         let input = try DecodingFixture.transaction()
@@ -104,16 +90,11 @@ struct TransactionDecoderTests {
         }
     }
 
-    /// Verifies unexpected trailing bytes and envelopes exceeding the byte limit fail.
-    /// - Parameter invalid: An extended or oversized envelope.
     @Test(arguments: [try DecodingFixture.transaction() + Data([0]), Data(repeating: 0, count: 4_097)])
     func `Extended and oversized envelopes are rejected`(invalid: Data) {
         #expect(throws: ValidationError.invalidTransaction) { try TransactionDecoder().decode(invalid) }
     }
 
-    /// Verifies malformed account permissions and references cannot become review data.
-    ///
-    /// - Parameter change: The invalid header field, address list, or instruction reference.
     @Test(arguments: [
         "no signer", "too many signers", "readonly payer", "overlapping readonly accounts",
         "too many accounts", "too many instructions", "duplicate address", "program outside accounts",
@@ -138,9 +119,6 @@ struct TransactionDecoderTests {
         #expect(throws: ValidationError.invalidTransaction) { try TransactionDecoder().decode(input) }
     }
 
-    /// Verifies the decoder never treats another envelope version as V1.
-    ///
-    /// - Parameter version: A legacy, V0, or unknown version prefix.
     @Test(arguments: [UInt8(1), 0x80, 0x82])
     func `Legacy, V0, and unknown transaction versions are rejected`(_ version: UInt8) throws {
         var input = try DecodingFixture.transaction()
@@ -149,9 +127,6 @@ struct TransactionDecoderTests {
         #expect(throws: ValidationError.unsupportedVersion) { try TransactionDecoder().decode(input) }
     }
 
-    /// Verifies a partial priority fee or unknown configuration never produces guessed fields.
-    ///
-    /// - Parameter mask: A configuration mask that cannot be interpreted completely.
     @Test(arguments: [UInt32(1), 2, 32, 0x80000000])
     func `Partial fees and unknown configuration bits are rejected`(_ mask: UInt32) throws {
         var input = try DecodingFixture.transaction()
@@ -161,11 +136,10 @@ struct TransactionDecoderTests {
         #expect(throws: error) { try TransactionDecoder().decode(input) }
     }
 
-    /// Verifies wire decoding applies the same heap validation as message construction.
     @Test
     func `An unaligned encoded heap request is rejected`() throws {
         var input = try DecodingFixture.transaction()
-        input[186] = 1 // 32,769 bytes.
+        input[186] = 1
 
         #expect(throws: ValidationError.invalidHeapSize) { try TransactionDecoder().decode(input) }
     }

@@ -2,16 +2,9 @@ import Foundation
 import Testing
 @testable import RPC
 
-/// Exercises transfer proofs through the real Helius client and recorded prover responses.
 struct HeliusRPCProofsTests {
     private typealias Fixture = ProofFixtures
 
-    /// Verifies the request posts the body to the gateway's complete route with the key and `X-Sync`.
-    ///
-    /// - Parameters:
-    ///   - network: The selected network.
-    ///   - host: The Helius host that serves it.
-    /// - Throws: An RPC, encoding, or parsing error, or a failed test prerequisite.
     @Test(arguments: [(Network.mainnet, "mainnet.helius-rpc.com"), (.devnet, "devnet.helius-rpc.com")])
     func `Proofs post to the complete route`(network: Network, host: String) async throws {
         let transport = StubTransport { request in
@@ -30,15 +23,9 @@ struct HeliusRPCProofsTests {
         #expect(sent.httpMethod == "POST")
         #expect(sent.value(forHTTPHeaderField: "X-Sync") == "true")
         #expect(sent.value(forHTTPHeaderField: "Content-Type") == "application/json")
-        // TransferProofBodyTests pins the body's fields.
         #expect(try requestBody(sent)["publicInputHash"] as? String == "0x99")
     }
 
-    /// Verifies refusals surface as HTTP errors whatever their body, with the key redacted from the retry delay.
-    ///
-    /// - Parameter status: A refusal: a witness that the circuit rejects, a missing key, a proof timeout, or a busy
-    ///   prover.
-    /// - Throws: A failed test prerequisite.
     @Test(arguments: [400, 401, 408, 429])
     func `Prover refusals surface as HTTP errors without the key`(status: Int) async throws {
         let transport = StubTransport { request in
@@ -55,9 +42,6 @@ struct HeliusRPCProofsTests {
         }
     }
 
-    /// Verifies a successful body that isn't a proof, such as one without its digest, fails with a decoding error.
-    ///
-    /// - Throws: A failed test prerequisite.
     @Test
     func `A body without a digest fails to decode`() async throws {
         let transport = StubTransport { request in

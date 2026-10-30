@@ -4,9 +4,7 @@ import RPC
 import Testing
 @testable import widgets
 
-/// Verifies that an outstanding code describes itself without its code or record.
 struct OutstandingRedeemCodeTests {
-    /// Printing, dumping, and reflecting an outstanding code omit its values.
     @Test
     func `Descriptions omit the code`() throws {
         let outstanding = OutstandingRedeemCode(

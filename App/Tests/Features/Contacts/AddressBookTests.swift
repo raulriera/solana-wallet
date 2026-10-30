@@ -2,9 +2,7 @@ import Foundation
 import Testing
 @testable import widgets
 
-/// Checks how the saved address book changes and that it reads back as saved.
 struct AddressBookTests {
-    /// Saving a contact with an existing identity replaces it instead of adding another.
     @Test func `Saving replaces a contact with the same identity`() {
         var book = AddressBook()
         var bruno = Contact(name: "bruno", address: ContactsFixtures.bruno)
@@ -16,7 +14,6 @@ struct AddressBookTests {
         #expect(book.contacts == [bruno])
     }
 
-    /// Deleting removes only that contact, and deleting one that isn't saved changes nothing.
     @Test func `Deleting removes only that contact`() {
         var book = ContactsFixtures.addressBook
         let alice = book.contacts.first { $0.address == ContactsFixtures.alice }!
@@ -27,7 +24,6 @@ struct AddressBookTests {
         #expect(book.contacts.map(\.address) == [ContactsFixtures.bruno])
     }
 
-    /// Contacts and accounts join and leave Favorites; an unsaved contact isn't added.
     @Test func `Favorites change for saved contacts and accounts`() {
         var book = ContactsFixtures.addressBook
         let bruno = book.contacts.first { $0.address == ContactsFixtures.bruno }!
@@ -41,7 +37,6 @@ struct AddressBookTests {
         #expect(book.favoriteAccounts.isEmpty)
     }
 
-    /// The book reads back from JSON exactly as it was saved.
     @Test func `The book reads back as saved`() throws {
         let book = ContactsFixtures.addressBook
 

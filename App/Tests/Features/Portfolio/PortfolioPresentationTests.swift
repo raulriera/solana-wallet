@@ -4,17 +4,13 @@ import RPC
 import Testing
 @testable import widgets
 
-/// Checks which state the portfolio section shows for each coordinator update.
 struct PortfolioPresentationTests {
-    /// Before the first update nothing shows; a first load without holdings shows progress.
     @Test
     func `No update shows nothing and a first load shows progress`() {
         #expect(PortfolioPresentation(nil) == .blank)
         #expect(PortfolioPresentation(Update(snapshot: nil, phase: .refreshing, revision: 1)) == .loading)
     }
 
-    /// Holdings stay through refreshes and through failures that provider setup can't fix.
-    /// - Parameter phase: A refresh's progress or outcome while holdings exist.
     @Test(arguments: [
         Update.Phase.ready,
         .refreshing,
@@ -25,21 +21,12 @@ struct PortfolioPresentationTests {
         #expect(PortfolioPresentation(Update(snapshot: snapshot, phase: phase, revision: 1)) == .holdings)
     }
 
-    /// A missing or rejected key, or a provider that doesn't serve the network, replaces holdings, because no refresh
-    /// can succeed without a new key or another provider.
-    /// - Parameters:
-    ///   - error: The provider's key or network failure.
-    ///   - hasHoldings: Whether earlier holdings are available.
     @Test(arguments: [ProviderClientError.missingKey, .invalidKey, .unsupportedNetwork], [false, true])
     func `Provider setup failures replace holdings`(error: ProviderClientError, hasHoldings: Bool) {
         let update = Update(snapshot: hasHoldings ? snapshot : nil, phase: .failed(error), revision: 1)
         #expect(PortfolioPresentation(update) == .unavailable(PortfolioError(error)))
     }
 
-    /// Without holdings, a failed first load shows its failure so the person can try again.
-    /// - Parameters:
-    ///   - error: The failed load's error.
-    ///   - expected: The error the section shows.
     @Test(arguments: [
         (RPCError.http(statusCode: 429, retryAfter: nil), PortfolioError.rateLimited),
         (.transport(.notConnectedToInternet), .unavailable),
@@ -49,6 +36,5 @@ struct PortfolioPresentationTests {
         #expect(PortfolioPresentation(update) == .unavailable(expected))
     }
 
-    /// An empty wallet's complete snapshot.
     private let snapshot = Snapshot(owner: "wallet", network: .mainnet, holdings: [])
 }

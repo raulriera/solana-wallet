@@ -1,13 +1,7 @@
 import Testing
 @testable import RPC
 
-/// Verifies the identity of shielded transaction batches.
 struct ShieldedTransactionBatchTests {
-    /// Verifies batches with different resume positions or output trees are different.
-    ///
-    /// - Parameters:
-    ///   - outputTreeID: The changed output tree.
-    ///   - cursor: The changed resume cursor.
     @Test(arguments: [(UInt16?(1), String?.none), (nil, "AQ==")])
     func `Batches differ by output tree and position`(outputTreeID: UInt16?, cursor: String?) {
         let position = NoteSyncPosition(tags: [[1]], groupCount: 1)

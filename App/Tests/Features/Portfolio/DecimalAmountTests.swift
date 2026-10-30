@@ -3,12 +3,7 @@ import Portfolio
 import Testing
 @testable import widgets
 
-/// Checks that an amount's units become a decimal quantity at its decimals.
 struct DecimalAmountTests {
-    /// Units count the smallest unit, so the decimals place the point.
-    /// - Parameters:
-    ///   - amount: The amount in units.
-    ///   - expected: The quantity.
     @Test(arguments: [
         (Amount(units: 1_500_000_000, decimals: 9), Decimal(string: "1.5")!),
         (Amount(units: 1, decimals: 6), Decimal(string: "0.000001")!),

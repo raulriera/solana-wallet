@@ -3,7 +3,6 @@ import Testing
 @testable import Themes
 
 struct ValidationTests {
-    /// Malformed supplied fields report their location rather than inheriting defaults.
     @Test(arguments: [
         (#""tokens":null"#, "tokens"),
         (#""tokens":[]"#, "tokens"),
@@ -33,7 +32,6 @@ struct ValidationTests {
         }
     }
 
-    /// Invalid headers fail independently of optional appearance settings.
     @Test(arguments: [
         ("{}", "version"), ("[]", "manifest.json"), ("not JSON", "manifest.json"), ("", "manifest.json"),
         (#"{"version":true}"#, "version"), (#"{"version":1.5}"#, "version"),
@@ -51,7 +49,6 @@ struct ValidationTests {
         }
     }
 
-    /// Only opaque, six-digit hexadecimal colors are accepted.
     @Test(arguments: ["#123", "#123456FF", "123456", "#GG1234", "#12 345", "#１２３４５６", "#+12345"])
     func `Invalid hex is rejected`(hex: String) async throws {
         let fixture = try Fixture()
@@ -62,7 +59,6 @@ struct ValidationTests {
         }
     }
 
-    /// Package reads never treat remote locations as local files.
     @Test func `Remote URL is rejected`() async throws {
         let url = try #require(URL(string: "https://example.invalid/theme"))
         await #expect { try await PackService().read(from: url) } throws: { error in

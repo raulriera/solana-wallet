@@ -4,45 +4,22 @@ import Testing
 import Transactions
 @testable import widgets
 
-/// The review of a 1 SOL devnet payment from the signing fixture's account to its recipient, named Bruno, whose shared
-/// transactions keep records in memory and whose real transaction coordinator answers from local responses and
-/// sockets.
-///
-/// Every simulation reports a 10,000-lamport network fee.
 @MainActor
 struct LocalPaymentReview {
-    /// The network fee of every simulation, in lamports.
     static let networkFee: UInt64 = 10_000
-    /// The review of every successful simulation of a SOL payment.
     static let costs = PaymentProposal.Review(networkFee: networkFee, accountDeposit: nil)
-    /// A successful simulation without balances.
     static let success = SimulateTransaction.Value(
         error: nil, logs: ["Program completed"], unitsConsumed: 150, loadedAccountsDataSize: 256, fee: networkFee,
         replacementBlockhash: nil, preBalances: nil, postBalances: nil, preTokenBalances: nil, postTokenBalances: nil
     )
 
-    /// The review under test.
     let model: TransactionReviewModel<PaymentProposal>
-    /// The account that pays.
     let account: widgets.Account
-    /// The shared transactions, which send, record, and watch the payment.
     let transactions: TransactionStore
-    /// The shared transactions' in-memory records.
     let records: StoredValue<[TransactionRecord]>
-    /// The responses that answer the coordinator's preparation reads and simulations.
     let preparation: HTTPResponses
-    /// The connections of the coordinator's watch.
     let sockets: SocketSequence
 
-    /// Creates the review of a 1 SOL payment, before it's simulated.
-    /// - Parameters:
-    ///   - simulation: The simulated execution of every payment.
-    ///   - store: The recovery storage that signing reads, or `nil` for the fixture recovery.
-    ///   - statuses: The watch's status reads, in arrival order.
-    ///   - height: The finalized block height of the watch's epoch reads.
-    ///   - sockets: The watch's connections.
-    ///   - sent: The responses that acknowledge each sent payment.
-    /// - Throws: A fixture error.
     init(simulation: SimulateTransaction.Value = success, store: SigningRecoveryStore? = nil,
          statuses: [GetSignatureStatuses.Response] = [], height: UInt64 = 500,
          sockets: SocketSequence = SocketSequence(), sent: HTTPResponses = .sending()) throws {

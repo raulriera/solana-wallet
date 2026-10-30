@@ -4,11 +4,9 @@ import Vault
 import Wallet
 @testable import widgets
 
-/// Checks how Settings > Accounts adds the wallet's next account, with public fixtures only.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct AccountAdditionModelTests {
-    /// Adding saves the wallet's next account, after the saved one, and reports it.
     @Test
     func `Adding saves the wallet's next account`() async throws {
         let wallet = try await PublicWalletAccounts()
@@ -28,7 +26,6 @@ struct AccountAdditionModelTests {
         #expect(model.error == nil)
     }
 
-    /// Taps while an addition waits are ignored, so one tap adds one account.
     @Test
     func `Taps while an addition waits are ignored`() async throws {
         let wallet = try await PublicWalletAccounts()
@@ -45,7 +42,6 @@ struct AccountAdditionModelTests {
         #expect(await wallet.recovery.reads.count == 1)
     }
 
-    /// A task that captured another attempt adds nothing.
     @Test
     func `A stale attempt adds nothing`() async throws {
         let wallet = try await PublicWalletAccounts()
@@ -60,7 +56,6 @@ struct AccountAdditionModelTests {
         #expect(model.isAdding)
     }
 
-    /// Cancelling authentication adds nothing and explains nothing.
     @Test
     func `Cancelled authentication adds nothing`() async throws {
         let wallet = try await PublicWalletAccounts(readError: CancellationError())
@@ -75,7 +70,6 @@ struct AccountAdditionModelTests {
         #expect(!model.isAdding)
     }
 
-    /// Leaving the screen before the account is derived cancels the addition, which adds nothing and explains nothing.
     @Test
     func `Leaving before the account is derived adds nothing`() async throws {
         let wallet = try await PublicWalletAccounts()
@@ -93,11 +87,6 @@ struct AccountAdditionModelTests {
         #expect(!model.isAdding)
     }
 
-    /// A failed addition explains why: a missing recovery phrase, or an account that couldn't be saved.
-    /// - Parameters:
-    ///   - readError: The error every recovery read throws, if any.
-    ///   - failsSaving: Whether the accounts can't be saved.
-    ///   - error: The explained error.
     @Test(arguments: [
         (KeychainStoreError.recoveryUnavailable, false, AccountsError.recoveryUnavailable),
         (nil, true, .notAdded),
@@ -117,7 +106,6 @@ struct AccountAdditionModelTests {
         #expect(await wallet.storage.value == [wallet.first])
     }
 
-    /// Trying again after a failed save adds to the same wallet.
     @Test
     func `Trying again adds the account`() async throws {
         let wallet = try await PublicWalletAccounts()
@@ -134,7 +122,6 @@ struct AccountAdditionModelTests {
         #expect(model.added?.recoveryID == wallet.first.recoveryID)
     }
 
-    /// Trying again after a missing recovery phrase does nothing, since the phrase stays missing.
     @Test
     func `A missing recovery isn't tried again`() async throws {
         let wallet = try await PublicWalletAccounts(readError: KeychainStoreError.recoveryUnavailable)

@@ -6,29 +6,15 @@ import ModularArithmetic
 import Testing
 import Transactions
 
-/// Verifies proof requests on the prover's complete route, the checks and conversion of the
-/// prover's responses, and whole proved instructions against an independent implementation, through
-/// the real Helius client with local indexer and prover responses.
 struct TransactPlanProofTests {
-    /// A change that makes a plan's tree witnesses disagree with its inputs.
     enum WitnessEdit: CaseIterable, CustomTestStringConvertible {
-        /// The trees in the other order.
         case reordered
-        /// The second tree missing.
         case missingTree
-        /// The first tree with the second tree's inclusion proofs.
         case crossedProofs
 
-        /// The change's name in test results.
         var testDescription: String { "\(self)" }
     }
 
-    /// Verifies whole proved instructions: the indexer reads of each declared tree, the request that
-    /// the prover receives on its complete route, and the instruction built from its response, for
-    /// transfers, withdrawals, both, one and two trees, and padding.
-    ///
-    /// - Parameter vector: A plan, its indexer proofs, its request, the prover's response, and the
-    ///   instruction.
     @Test(arguments: try ProofRequestVectors.load().transacts)
     func `Proved instructions match the independent reference`(_ vector: ProofRequestVectors.Transact) async throws {
         let plan = try vector.plan()
@@ -57,10 +43,6 @@ struct TransactPlanProofTests {
         #expect(Array(instruction.data) == (try fixtureBytes(vector.instructionData)))
     }
 
-    /// Verifies that the indexer's proofs give each declared tree the reference's roots and root
-    /// positions, and the slots reproduce the reference's public input hash.
-    ///
-    /// - Parameter vector: A plan and its indexer proofs.
     @Test(arguments: try ProofRequestVectors.load().transacts)
     func `Tree witnesses match the independent reference`(_ vector: ProofRequestVectors.Transact) throws {
         let plan = try vector.plan()
@@ -72,10 +54,6 @@ struct TransactPlanProofTests {
         #expect(plan.publicInputs.hash(treeSlots: trees.map(\.slot)) == (try Poseidon.Element(hex: vector.publicInputHash)))
     }
 
-    /// Verifies the conversion of each response: `a` negated and compressed, `b` copied, and `c`
-    /// compressed.
-    ///
-    /// - Parameter vector: A plan and the prover's response.
     @Test(arguments: try ProofRequestVectors.load().transacts)
     func `Proofs match the independent reference`(_ vector: ProofRequestVectors.Transact) throws {
         let response = try JSONDecoder().decode(TransferProofResponse.self, from: vector.response.data).proof
@@ -87,7 +65,6 @@ struct TransactPlanProofTests {
         #expect(writer.bytes == (try fixtureBytes(vector.proof)))
     }
 
-    /// Verifies that a proof made with another proving key is rejected.
     @Test
     func `Proofs of another proving key are rejected`() throws {
         let vector = try #require(try ProofRequestVectors.load().transacts.first)
@@ -100,8 +77,6 @@ struct TransactPlanProofTests {
         }
     }
 
-    /// Verifies that a proof point with a coordinate at the base field's modulus, and a `b` of
-    /// another length, are rejected.
     @Test
     func `Malformed proof points are rejected`() throws {
         let vector = try #require(try ProofRequestVectors.load().transacts.first)
@@ -120,11 +95,6 @@ struct TransactPlanProofTests {
         }
     }
 
-    /// Verifies that tree witnesses that don't match the plan's inputs can't form a request: trees
-    /// in another order, a missing tree, and a tree whose proofs prove other leaves.
-    ///
-    /// - Parameter edit: The change to the plan's witnesses.
-    /// - Throws: A test failure if a fixture is malformed.
     @Test(arguments: WitnessEdit.allCases)
     func `Witnesses of other inputs are rejected`(_ edit: WitnessEdit) throws {
         let vector = try #require(try ProofRequestVectors.load().transacts.first { $0.treeSlots.count == 2 })
@@ -146,8 +116,6 @@ struct TransactPlanProofTests {
         }
     }
 
-    /// Verifies that a nullifier key that isn't the sender's can't request a proof, and that a
-    /// proved instruction with it sends no request.
     @Test
     func `Other nullifier keys are rejected`() async throws {
         let vector = try #require(try ProofRequestVectors.load().transacts.first)
@@ -164,8 +132,6 @@ struct TransactPlanProofTests {
         #expect(await transport.requests.isEmpty)
     }
 
-    /// Verifies that printing, dumping, and reflecting a request omit its witness, which holds the
-    /// nullifier secret and the blinding seed.
     @Test
     func `Request diagnostics omit the witness`() throws {
         let vector = try #require(try ProofRequestVectors.load().transacts.first)
@@ -178,11 +144,6 @@ struct TransactPlanProofTests {
         #expect(Mirror(reflecting: request.witness).children.isEmpty)
     }
 
-    /// Decodes a vector's indexer proofs, as the Helius client does, into one witness per declared tree.
-    ///
-    /// - Parameter vector: A plan and its indexer proofs.
-    /// - Returns: The witnesses, in declaration order.
-    /// - Throws: A decoding or validation error for a malformed fixture.
     private static func witnesses(of vector: ProofRequestVectors.Transact) throws -> [TransactPlan.TreeWitness] {
         try zip(vector.treeSlots, zip(vector.merkleProofs, vector.nonInclusionProofs)).map { slot, proofs in
             try TransactPlan.TreeWitness(

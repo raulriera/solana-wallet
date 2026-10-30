@@ -1,18 +1,9 @@
 import Testing
 import RPC
 
-/// Verifies the checks of a transfer witness and its slots.
 struct TransferProofRequestWitnessTests {
     private typealias Fixture = ProofFixtures
 
-    /// Verifies witnesses whose lists don't have their counts are refused.
-    ///
-    /// - Parameters:
-    ///   - inputs: The number of input slots.
-    ///   - outputs: The number of output slots.
-    ///   - publicSlots: The number of public assets and amounts.
-    ///   - owners: The number of published output owners.
-    /// - Throws: A failed test prerequisite.
     @Test(arguments: [(0, 1, 3, 1), (1, 0, 3, 0), (1, 1, 2, 1), (1, 1, 3, 2)])
     func `Witnesses refuse lists without their counts`(inputs: Int, outputs: Int, publicSlots: Int, owners: Int) throws {
         let witness = try Fixture.witness()
@@ -31,9 +22,6 @@ struct TransferProofRequestWitnessTests {
         }
     }
 
-    /// Verifies every slot and witness value must be a 32-byte field element.
-    ///
-    /// - Parameter make: Creates a part with one value of another length.
     @Test(arguments: [
         { _ = try TransferProofRequest.UTXO(domain: [3], owner: ProofFixtures.field(0), asset: ProofFixtures.field(0),
                                            amount: ProofFixtures.field(0), blinding: ProofFixtures.field(0),
@@ -60,11 +48,9 @@ struct TransferProofRequestWitnessTests {
     }
 }
 
-/// Verifies the witness's blinding seed and read cache follow zolana's prover rules.
 struct TransferProofRequestCacheTests {
     private typealias Fixture = ProofFixtures
 
-    /// Verifies a zero blinding seed is refused.
     @Test
     func `A zero blinding seed is refused`() {
         #expect(throws: TransferProofRequest.ValidationError.zeroBlindingSeed) {
@@ -72,7 +58,6 @@ struct TransferProofRequestCacheTests {
         }
     }
 
-    /// Verifies a read cache that zolana's `CacheSelectionParams.Validate` accepts is accepted.
     @Test
     func `A valid read cache is accepted`() {
         #expect(throws: Never.self) {
@@ -81,13 +66,6 @@ struct TransferProofRequestCacheTests {
         }
     }
 
-    /// Verifies read caches that break zolana's rules are refused.
-    ///
-    /// - Parameters:
-    ///   - treeID: The cache's tree ID.
-    ///   - readHashes: The cached hashes.
-    ///   - isCached: Whether the input is cached.
-    ///   - readIndexes: The input's read position.
     @Test(arguments: [
         (ProofFixtures.field(0), [ProofFixtures.field(4), ProofFixtures.field(4)], [Bool](), [UInt64]()),
         (ProofFixtures.field(2), [], [], []),

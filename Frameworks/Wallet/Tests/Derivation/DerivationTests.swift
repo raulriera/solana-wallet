@@ -2,21 +2,14 @@ import CryptoKit
 import Testing
 @testable import Wallet
 
-/// Tests the standard seed and private key derivation independently of address formatting.
 struct DerivationTests {
-    /// The seed of SLIP-0010's first test vectors and its nist256p1 derivation retry vector.
     private static let firstSeed = "000102030405060708090a0b0c0d0e0f"
 
-    /// The seed of SLIP-0010's second test vectors.
     private static let secondSeed = "fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a2"
         + "9f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542"
 
-    /// The seed of SLIP-0010's nist256p1 seed retry vector, whose first master candidate is refused.
     private static let retrySeed = "a7305bc8df8d0951f0cb224c0e95d7707cbdf2c6ce7e8d481fec69c7ff5e9446"
 
-    /// Verifies PBKDF2 against published seeds, including every supported phrase length.
-    ///
-    /// - Parameter vector: A public BIP-39 example using the passphrase `TREZOR`.
     @Test(arguments: try BIP39Vector.examples())
     func `Recovery phrases derive the BIP-39 reference seeds`(vector: BIP39Vector) throws {
         let phrase = try RecoveryPhrase(vector.phrase)
@@ -25,13 +18,6 @@ struct DerivationTests {
         #expect(seed == (try fixtureBytes(vector.seed)))
     }
 
-    /// Verifies master and hardened child nodes against SLIP-0010's two Ed25519 vectors.
-    ///
-    /// - Parameters:
-    ///   - seed: The vector's seed.
-    ///   - path: A path from the published vector.
-    ///   - key: The independently specified private key seed.
-    ///   - chainCode: The independently specified chain code.
     @Test(arguments: [
         (firstSeed, "m", "2b4be7f19ee27bbf30c667b642d5f4aa69fd169872f8fc3059c08ebae2eb19e7",
          "90046a93de5380a72b5e45010748567d5ea02bbf6522f979e05c0d8d8ca9fffb"),
@@ -65,22 +51,6 @@ struct DerivationTests {
         #expect(node.chainCode == (try fixtureBytes(chainCode)))
     }
 
-    /// Verifies nist256p1 master and hardened child nodes, including master and child retries.
-    ///
-    /// The first five vectors are SLIP-0010's: test vector 1 at `m` and `m/0'`, test vector 2 at
-    /// `m`, the hardened parent `m/28578'` of the derivation retry vector, and the seed retry at
-    /// `m`. `m/28578'` doesn't retry; the published retry is at a non-hardened child, which this
-    /// derivation doesn't support. The last three are real hardened-child retries, where I_L ≥ n,
-    /// found by an independent search in C and derived independently with Python's `hmac` and
-    /// `hashlib` and pure-Python P-256 arithmetic. At `m/1363273311'` and `m/1992219942'`, the
-    /// master key and the child each retry once; at `m/1'/655108711'`, the second child retries once.
-    ///
-    /// - Parameters:
-    ///   - seed: The vector's seed.
-    ///   - path: The vector's hardened path.
-    ///   - key: The expected big-endian private scalar.
-    ///   - chainCode: The expected chain code.
-    ///   - publicKey: The expected compressed public key.
     @Test(arguments: [
         (firstSeed, "m", "612091aaa12e22dd2abef664f8a01a82cae99ad7441b7ef8110424915c268bc2",
          "beeb672fe4621673f722f38529c07392fecaa61015c80c34f29ce8b41b3cb6ea",
@@ -118,9 +88,6 @@ struct DerivationTests {
         #expect(Array(privateKey.publicKey.compressedRepresentation) == (try fixtureBytes(publicKey)))
     }
 
-    /// Verifies rejection of malformed paths, non-hardened indices, and integer overflow.
-    ///
-    /// - Parameter path: An invalid derivation path.
     @Test(arguments: [
         "", "M/44'", "m/", "m//0'", "m/0", "m/-1'", "m/+1'", "m/2147483648'", "m/4294967296'",
     ])
@@ -128,11 +95,6 @@ struct DerivationTests {
         #expect(throws: DerivationPath.ValidationError.invalidPath) { try DerivationPath(path) }
     }
 
-    /// Verifies that both Solana account families give their account index.
-    ///
-    /// - Parameters:
-    ///   - path: A path `m/44'/501'/i'/0'` or `m/44'/501'/i'`.
-    ///   - index: The path's account index i.
     @Test(arguments: [
         ("m/44'/501'/0'/0'", 0), ("m/44'/501'/1'", 1), ("m/44'/501'/2147483647'/0'", 2_147_483_647),
     ])
@@ -140,9 +102,6 @@ struct DerivationTests {
         #expect(try DerivationPath(path).accountIndex == index)
     }
 
-    /// Verifies that an account in the default Solana family has the path that parsing gives.
-    ///
-    /// - Parameter index: The account index i.
     @Test(arguments: [0, 1, 2_147_483_647] as [UInt32])
     func `Default Solana accounts have their path`(index: UInt32) throws {
         let path = DerivationPath.solana(account: index)
@@ -151,15 +110,11 @@ struct DerivationTests {
         #expect(path.accountIndex == index)
     }
 
-    /// Verifies that the first default Solana account is the default path.
     @Test
     func `The first default Solana account is the default path`() {
         #expect(DerivationPath.solana(account: 0) == .solana)
     }
 
-    /// Verifies that paths outside both Solana account families have no account index.
-    ///
-    /// - Parameter path: Another hardened path.
     @Test(arguments: ["m", "m/44'/501'", "m/44'/501'/0'/1'", "m/44'/60'/0'/0'", "m/44'/501'/0'/0'/0'", "m/45'/501'/0'"])
     func `Other paths have no account index`(path: String) throws {
         #expect(try DerivationPath(path).accountIndex == nil)

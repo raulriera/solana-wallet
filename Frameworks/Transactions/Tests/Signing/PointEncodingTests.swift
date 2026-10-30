@@ -2,11 +2,7 @@ import Foundation
 import Testing
 @testable import Transactions
 
-/// Verifies small-order point recognition independently of signature verification.
 struct PointEncodingTests {
-    /// Verifies all fourteen published encodings, including sign and unreduced aliases.
-    ///
-    /// - Parameter hexadecimal: A small-order encoding from SIMD-0376.
     @Test(arguments: [
         "0000000000000000000000000000000000000000000000000000000000000000",
         "0000000000000000000000000000000000000000000000000000000000000080",

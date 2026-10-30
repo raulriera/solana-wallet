@@ -2,13 +2,9 @@ import Foundation
 import Testing
 @testable import RPC
 
-/// Verifies the strict decoding of indexer pages and their rows.
 struct IndexerPageTests {
     private typealias Fixture = IndexerFixtures
 
-    /// Verifies a transaction page decodes every field that default-ring notes use.
-    ///
-    /// - Throws: A decoding error, or a failed test prerequisite.
     @Test
     func `Transaction pages decode their rows cursors and output tree`() throws {
         let json = page(Fixture.page([Fixture.transaction(signature: 1, slot: 9_007_199_254_740_993, eventIndex: 3,
@@ -31,9 +27,6 @@ struct IndexerPageTests {
         #expect(decoded.outputTreeID == 6)
     }
 
-    /// Verifies absent and `null` optional fields both decode as absent.
-    ///
-    /// - Throws: A decoding error, or a failed test prerequisite.
     @Test
     func `Absent and null optional fields decode as absent`() throws {
         let transaction = #"{"slot":1,"txSignature":"\#(Fixture.signature(1))","outputSlots":[],"nullifiers":[],"proofless":true}"#
@@ -50,11 +43,6 @@ struct IndexerPageTests {
         #expect(decoded.outputTreeID == nil)
     }
 
-    /// Verifies a page with a malformed value fails instead of yielding a partial row.
-    ///
-    /// - Parameters:
-    ///   - field: The JSON text to replace.
-    ///   - replacement: The malformed text.
     @Test(arguments: [
         (IndexerFixtures.hash(4), "11111111111111111111111111111111111"),
         (IndexerFixtures.viewingKey, Data(repeating: 2, count: 32).base64EncodedString()),
@@ -78,13 +66,6 @@ struct IndexerPageTests {
         }
     }
 
-    /// Verifies a transaction that names a ring's config account or program is marked as in a ring.
-    ///
-    /// - Parameters:
-    ///   - field: The ring field to add.
-    ///   - value: Its JSON value.
-    ///   - isInRing: Whether the row is in a ring.
-    /// - Throws: A decoding error, or a failed test prerequisite.
     @Test(arguments: [
         ("ringConfig", "\"" + IndexerFixtures.hash(3) + "\"", true),
         ("ringProgramId", "\"" + IndexerFixtures.hash(3) + "\"", true),
@@ -99,9 +80,6 @@ struct IndexerPageTests {
         #expect(decoded.items.map(\.isInRing) == [isInRing])
     }
 
-    /// Verifies a ring field that isn't a 32-byte address fails to decode.
-    ///
-    /// - Parameter field: The ring field.
     @Test(arguments: ["ringConfig", "ringProgramId"])
     func `Malformed ring fields fail to decode`(field: String) {
         let row = Fixture.transaction(signature: 1, slot: 1)
@@ -112,9 +90,6 @@ struct IndexerPageTests {
         }
     }
 
-    /// Verifies an encrypted-output page decodes its matches, and only unkeyed matches are deposits.
-    ///
-    /// - Throws: A decoding error, or a failed test prerequisite.
     @Test
     func `Encrypted outputs are deposits only without a viewing key and salt`() throws {
         let output = Fixture.output(tag: 1, hash: 2, leafIndex: 7)
@@ -135,9 +110,6 @@ struct IndexerPageTests {
         #expect(decoded.outputTreeID == 3)
     }
 
-    /// Verifies reading pages collects every row and resumes after the furthest position.
-    ///
-    /// - Throws: A decoding error, or a failed test prerequisite.
     @Test
     func `Reading pages collects rows until no cursor remains`() async throws {
         let pages = [
@@ -154,7 +126,6 @@ struct IndexerPageTests {
         #expect(read.resumeCursor == "Ag==")
     }
 
-    /// Verifies a page with a cursor but no rows fails, since the indexer sets cursors only on pages with rows.
     @Test
     func `A cursor on a page without rows fails the read`() async {
         await #expect(throws: RPCError.invalidResponse(.invalidCursor)) {
@@ -164,9 +135,6 @@ struct IndexerPageTests {
         }
     }
 
-    /// Extracts the page object from a JSON-RPC result member.
-    /// - Parameter member: A `"result":{…}` member from ``IndexerFixtures/page(_:in:next:scanned:outputTreeID:)``.
-    /// - Returns: The page object's JSON data.
     private func page(_ member: String) -> Data {
         Data(member.dropFirst(#""result":"#.count).utf8)
     }

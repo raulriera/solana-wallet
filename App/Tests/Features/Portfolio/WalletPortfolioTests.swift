@@ -5,12 +5,9 @@ import Testing
 @testable import Portfolio
 @testable import widgets
 
-/// Checks one wallet's shared portfolio: its single observation, its refreshes, and what it keeps when observers leave.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct WalletPortfolioTests {
-    /// Observers share one observation and its updates, and the last observer's end ends it.
-    /// - Throws: A test prerequisite error.
     @Test
     func `Observers share one observation, which the last one ends`() async throws {
         let service = PortfolioResponses()
@@ -36,8 +33,6 @@ struct WalletPortfolioTests {
         #expect(await service.calls.count == 1)
     }
 
-    /// The last observer's end settles the progress it leaves and keeps the holdings for the next observer.
-    /// - Throws: A test prerequisite error.
     @Test
     func `The last observer's end keeps the holdings and settles progress`() async throws {
         let service = PortfolioResponses()
@@ -59,8 +54,6 @@ struct WalletPortfolioTests {
         #expect(portfolio.holdings.map(\.id) == [.nativeSOL])
     }
 
-    /// A refresh reloads the observed wallet and returns once the reload ends.
-    /// - Throws: A test prerequisite error.
     @Test
     func `A refresh reloads the observed wallet`() async throws {
         let service = PortfolioResponses()
@@ -81,7 +74,6 @@ struct WalletPortfolioTests {
         await viewing.value
     }
 
-    /// A wallet that nothing observes isn't read, so an inactive window starts no work.
     @Test
     func `A wallet that nothing observes isn't read`() async {
         let service = PortfolioResponses()
@@ -93,8 +85,6 @@ struct WalletPortfolioTests {
         #expect(await service.calls.isEmpty)
     }
 
-    /// Holdings follow each new snapshot in display order.
-    /// - Throws: A test prerequisite error.
     @Test
     func `Holdings follow each snapshot in display order`() async throws {
         let service = PortfolioResponses()
@@ -116,8 +106,6 @@ struct WalletPortfolioTests {
         await viewing.value
     }
 
-    /// What views read follows each update: the presentation, the classified failure, and the snapshot's order.
-    /// - Throws: A test prerequisite error.
     @Test
     func `What views read follows each update`() async throws {
         let service = PortfolioResponses()
@@ -146,9 +134,6 @@ struct WalletPortfolioTests {
         await viewing.value
     }
 
-    /// Creates a priced portfolio whose provider order differs from its display order.
-    /// - Parameter values: Each token's mint and USD value, in the provider's order; native SOL comes last.
-    /// - Returns: A complete snapshot for `wallet-a`.
     private func pricedSnapshot(_ values: KeyValuePairs<String, Decimal>) -> Snapshot {
         let tokens = values.map { mint, total in
             Holding(id: .asset(mint), amount: Amount(units: 1, decimals: 0), name: nil, symbol: nil, imageURL: nil,
@@ -159,10 +144,6 @@ struct WalletPortfolioTests {
         return Snapshot(owner: "wallet-a", network: .devnet, holdings: tokens + [solana])
     }
 
-    /// Awaits a snapshot without sleeps or polling.
-    /// - Parameters:
-    ///   - expected: The snapshot that must reach the portfolio.
-    ///   - portfolio: The portfolio under test.
     private func waitForSnapshot(_ expected: Snapshot, in portfolio: WalletPortfolio) async {
         for await snapshot in Observations({ portfolio.update?.snapshot }) where snapshot == expected { return }
     }

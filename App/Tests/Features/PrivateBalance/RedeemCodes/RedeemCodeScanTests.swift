@@ -5,16 +5,13 @@ import Transactions
 import Wallet
 @testable import widgets
 
-/// Verifies how a scan lists, reads, and picks one-time account indices, and what it reports for each code.
 struct RedeemCodeScanTests {
-    /// A batch holds the requested number of consecutive indices from the start.
     @Test
     func `Batches hold consecutive indices`() {
         #expect(RedeemCodeScan.candidates(from: 3, count: 4) == [3, 4, 5, 6])
         #expect(RedeemCodeScan.candidates(from: 0, count: 1) == [0])
     }
 
-    /// A batch stops below 2³¹, and none remains from there.
     @Test
     func `Batches stop below the hardened range`() {
         let limit: UInt32 = 1 << 31
@@ -23,17 +20,11 @@ struct RedeemCodeScanTests {
         #expect(RedeemCodeScan.candidates(from: limit, count: 20).isEmpty)
     }
 
-    /// The choice is the first candidate above the highest used one, the first candidate when none is used, and none
-    /// when the last candidate is used.
-    /// - Parameters:
-    ///   - used: The used candidates of `[2, 3, 5, 8]`.
-    ///   - choice: The expected choice.
     @Test(arguments: [([], 2), ([2], 3), ([2, 5], 8), ([3], 5), ([8], nil)] as [(Set<UInt32>, UInt32?)])
     func `The choice follows the highest used index`(used: Set<UInt32>, choice: UInt32?) {
         #expect(RedeemCodeScan.choice(in: [2, 3, 5, 8], used: used) == choice)
     }
 
-    /// One tag read from the start finds the one-time accounts that outputs paid, with their first transaction.
     @Test
     func `Fundings name each paid index and its first transaction`() async throws {
         let keys = try await Self.keys()
@@ -53,8 +44,6 @@ struct RedeemCodeScanTests {
         #expect(try await RedeemCodeFixtures.tagCounts(of: responses) == [3])
     }
 
-    /// A discovery batch reads 500 indices' tags in one request and finds fundings across a gap of far more than 20
-    /// unused indices; this test's duration measures the derivation of the batch's addresses.
     @Test
     func `A discovery batch reads 500 tags at once across a gap`() async throws {
         let keys = try await Self.keys()
@@ -70,7 +59,6 @@ struct RedeemCodeScanTests {
         #expect(try await RedeemCodeFixtures.tagCounts(of: responses) == [500])
     }
 
-    /// The indexer alone decides each code's status: unspent notes, no funding yet, or every note spent.
     @Test
     func `Statuses come from the indexer`() async throws {
         let keys = try await Self.keys()
@@ -88,16 +76,10 @@ struct RedeemCodeScanTests {
                              2: .spent, 3: .unfunded])
     }
 
-    /// Derives fixture account 0's keys.
-    /// - Returns: The keys, whose code root derives the one-time accounts.
-    /// - Throws: A derivation error.
     private static func keys() async throws -> PrivateBalanceKeyRecord {
         try await PrivateBalanceFixtures.keys(for: PrivateBalanceFixtures.account())
     }
 
-    /// Creates a devnet client that sends its requests to local responses.
-    /// - Parameter responses: The local responses.
-    /// - Returns: The client.
     @MainActor
     private static func client(_ responses: HTTPResponses) -> some PrivateNoteProviding {
         responses.providerClient(network: .devnet, providers: .inMemory(selection: .helius, key: "fixture-key"))

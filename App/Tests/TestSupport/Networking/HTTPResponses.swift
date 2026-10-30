@@ -4,10 +4,7 @@ import Testing
 import Transactions
 @testable import widgets
 
-/// HTTP fixtures exercised through the real client's encoding, validation, and decoding.
 actor HTTPResponses: HTTPTransport {
-    /// Produces the raw JSON body of a request that isn't JSON-RPC, such as a proof request on the prover's route, or
-    /// the result value of a JSON-RPC method without fixtures, such as an indexer proof read.
     typealias Responder = @Sendable (URLRequest) throws -> String
 
     private var responses: [String: [String]]
@@ -19,20 +16,10 @@ actor HTTPResponses: HTTPTransport {
     private(set) var requests: [URLRequest] = []
     private(set) var wasCancelled = false
 
-    /// A real devnet client whose requests and subscriptions never reach the network.
     nonisolated var client: HeliusRPC {
         client(socket: { _ in SocketFixture() })
     }
 
-    /// Creates independent HTTP responses for one test.
-    /// - Parameters:
-    ///   - responses: JSON result values keyed by RPC method; the last value repeats.
-    ///   - error: An optional transport or HTTP failure.
-    ///   - failingMethod: The method to fail, or `nil` to fail every request.
-    ///   - gate: An optional suspension for cancellation checks.
-    ///   - heldMethod: The method to suspend, or `nil` to suspend every request.
-    ///   - respond: Answers requests without a JSON-RPC method, keyed by their URL path, and JSON-RPC methods without
-    ///     fixtures, or `nil` so that such a request fails the test.
     init(_ responses: [String: [String]], error: RPCError? = nil, failingMethod: String? = nil,
          gate: Suspension? = nil, heldMethod: String? = nil, respond: Responder? = nil) {
         self.responses = responses
@@ -43,23 +30,12 @@ actor HTTPResponses: HTTPTransport {
         self.heldMethod = heldMethod
     }
 
-    /// Creates a real devnet client whose requests use these fixtures and whose subscriptions use local sockets.
-    /// - Parameter socket: Opens each subscription connection.
-    /// - Returns: A client that never reaches the network.
     nonisolated func client(socket: @escaping @Sendable (URL) -> any WebSocketConnection) -> HeliusRPC {
         HeliusRPC(apiKey: "fixture-key", network: .devnet, transport: self, socket: socket)
     }
 
-    /// Records an actual HTTP request and wraps its fixture in a matching JSON-RPC envelope.
-    ///
-    /// A request without a JSON-RPC method is keyed by its URL path and answered by the responder, without an envelope;
-    /// a JSON-RPC method without fixtures gets the responder's result value in an envelope.
-    /// - Parameter request: The request encoded by the real client.
-    /// - Returns: The response body and HTTP status.
-    /// - Throws: A transport, cancellation, or fixture error.
     func data(for request: URLRequest) async throws -> (Data, URLResponse) {
         requests.append(request)
-        // A GET, such as a price or exchange-rate lookup, has no body and is keyed by its URL path.
         let rpcMethod = try request.httpBody.map { _ in try request.jsonBody()["method"] as? String } ?? nil
         let method = try rpcMethod ?? #require(request.url?.path())
         if let gate, heldMethod == nil || heldMethod == method { await gate.suspend() }
@@ -96,17 +72,6 @@ actor HTTPResponses: HTTPTransport {
         return (data, response)
     }
 
-    /// Creates fee, lifetime, and simulation responses from a public transaction fixture.
-    ///
-    /// An external fixture's finalized block height is 150 below its expiry bound.
-    ///
-    /// - Parameters:
-    ///   - fixture: The observations to encode as JSON.
-    ///   - blockhashError: An optional HTTP failure.
-    ///   - blockhashValid: Whether an imported blockhash remains valid.
-    ///   - simulationGate: An optional simulation suspension.
-    /// - Returns: HTTP responses for the preparation workflow.
-    /// - Throws: A JSON encoding or fixture error.
     static func preparation(fixture: Preparation, blockhashError: RPCError? = nil,
                             blockhashValid: Bool = true, simulationGate: Suspension? = nil) throws -> HTTPResponses {
         var responses = [
@@ -124,14 +89,6 @@ actor HTTPResponses: HTTPTransport {
         return HTTPResponses(responses, error: blockhashError, gate: simulationGate, heldMethod: "simulateTransaction")
     }
 
-    /// Creates the ledger observations used before and after authentication.
-    /// - Parameters:
-    ///   - heights: Ordered local block-height observations.
-    ///   - fee: The freshly estimated network fee.
-    ///   - validities: Ordered imported-blockhash observations.
-    ///   - validitySlot: The slot accompanying blockhash checks.
-    /// - Returns: HTTP responses for signing validation.
-    /// - Throws: A JSON encoding error.
     static func signing(heights: [UInt64] = [500, 500], fee: UInt64? = 10_000,
                         validities: [Bool] = [true, true], validitySlot: UInt64 = 403) throws -> HTTPResponses {
         HTTPResponses([
@@ -141,9 +98,6 @@ actor HTTPResponses: HTTPTransport {
         ])
     }
 
-    /// Accepts every sent transaction and acknowledges it with its own signature, as a provider does.
-    /// - Parameter gate: An optional suspension of each send, for cancellation checks.
-    /// - Returns: HTTP responses for submission.
     static func sending(gate: Suspension? = nil) -> HTTPResponses {
         HTTPResponses([:], gate: gate) { request in
             let encoded = try #require(try request.rpcParameters.first as? String)
@@ -152,16 +106,6 @@ actor HTTPResponses: HTTPTransport {
         }
     }
 
-    /// Creates positional signature-status and finalized epoch responses through real JSON decoding.
-    /// - Parameters:
-    ///   - statuses: The status observations in arrival order.
-    ///   - epochs: The epoch observations in arrival order; without any, an epoch read fails the test.
-    ///   - error: An optional transport or HTTP failure.
-    ///   - failingMethod: The method to fail, or `nil` to fail every request.
-    ///   - gate: An optional in-flight suspension.
-    ///   - heldMethod: The method to suspend, or `nil` to suspend every request.
-    /// - Returns: HTTP responses for confirmation.
-    /// - Throws: A JSON encoding error.
     static func confirmation(statuses: [GetSignatureStatuses.Response], epochs: [GetEpochInfo.Response] = [],
                              error: RPCError? = nil, failingMethod: String? = nil, gate: Suspension? = nil,
                              heldMethod: String? = nil) throws -> HTTPResponses {
@@ -181,10 +125,6 @@ actor HTTPResponses: HTTPTransport {
         return HTTPResponses(responses, error: error, failingMethod: failingMethod, gate: gate, heldMethod: heldMethod)
     }
 
-    /// Encodes a simulation fixture without adding encoding requirements to production types.
-    /// - Parameter response: The public RPC observation.
-    /// - Returns: The JSON result value.
-    /// - Throws: A JSON encoding error.
     static func simulation(_ response: SimulateTransaction.Response) throws -> String {
         let value = response.value
         return try json(["context": ["slot": response.context.slot], "value": [
@@ -202,9 +142,6 @@ actor HTTPResponses: HTTPTransport {
         ]])
     }
 
-    /// Encodes a token balance in the node's nested representation.
-    /// - Parameter balance: The typed observation.
-    /// - Returns: The JSON object, with null attribution fields when unrecorded.
     private static func tokenBalance(_ balance: SimulateTransaction.TokenBalance) -> [String: Any] {
         ["accountIndex": balance.accountIndex, "mint": balance.mint,
          "owner": balance.owner as Any? ?? NSNull(), "programId": NSNull(),
@@ -212,25 +149,15 @@ actor HTTPResponses: HTTPTransport {
                            "uiAmount": NSNull(), "uiAmountString": String(balance.amount)] as [String: Any]]
     }
 
-    /// Encodes a Foundation JSON value for a fixture envelope.
-    /// - Parameter value: An object, array, or scalar supported by JSONSerialization.
-    /// - Returns: UTF-8 JSON text.
-    /// - Throws: A JSON encoding error.
     static func json(_ value: Any) throws -> String {
         String(decoding: try JSONSerialization.data(withJSONObject: value, options: [.fragmentsAllowed, .sortedKeys]), as: UTF8.self)
     }
 
-    /// Converts an execution error to its JSON-RPC representation.
-    /// - Parameter error: The execution error, or `nil` for success.
-    /// - Returns: A JSON-compatible value.
     private static func errorValue(_ error: TransactionError?) -> Any {
         guard let error else { return NSNull() }
         return error.details.map { [error.name: detailValue($0)] } as Any? ?? error.name
     }
 
-    /// Converts associated error details without losing integer precision.
-    /// - Parameter detail: A nested Solana error detail.
-    /// - Returns: A JSON-compatible value.
     private static func detailValue(_ detail: TransactionError.Detail) -> Any {
         switch detail {
         case .string(let value): value
@@ -242,17 +169,12 @@ actor HTTPResponses: HTTPTransport {
 }
 
 extension URLRequest {
-    /// Decodes the actual request envelope for wire-level assertions.
-    /// - Returns: The JSON object sent by the client.
-    /// - Throws: A decoding or test prerequisite error.
     func jsonBody() throws -> [String: Any] {
         let data = try #require(httpBody)
         return try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
     }
 
-    /// The JSON-RPC method encoded in the request.
     var rpcMethod: String { get throws { try #require(jsonBody()["method"] as? String) } }
 
-    /// The positional parameters encoded in the request.
     var rpcParameters: [Any] { get throws { try #require(jsonBody()["params"] as? [Any]) } }
 }

@@ -2,9 +2,7 @@ import Foundation
 import Testing
 @testable import RPC
 
-/// Exercises logo lookups through the real Helius client and recorded DAS responses.
 struct LogoTests {
-    /// Verifies one batch request asks for each mint once, and only Helius's HTTPS copies become logos.
     @Test
     func `Logos come from one batch request and only from the provider's copies`() async throws {
         let transport = StubTransport { request in
@@ -34,7 +32,6 @@ struct LogoTests {
         #expect(try requestedIDs(try #require(requests.first)) == ["with-logo", "unknown", "creator-only", "no-image"])
     }
 
-    /// Verifies an empty lookup doesn't spend a request.
     @Test
     func `Empty logo lookups do not access the network`() async throws {
         let transport = StubTransport { try reply(to: $0, payload: #""result":[]"#) }
@@ -42,7 +39,6 @@ struct LogoTests {
         #expect(await transport.requests.isEmpty)
     }
 
-    /// Verifies lookups stay within DAS's limit of 1,000 assets per request.
     @Test
     func `Lookups split into batches of a thousand mints`() async throws {
         let transport = StubTransport { request in
@@ -58,7 +54,6 @@ struct LogoTests {
         #expect(batches.flatMap(\.self) == mints)
     }
 
-    /// Verifies an asset without a valid identity fails the lookup instead of becoming another mint's logo.
     @Test
     func `A malformed asset fails the lookup`() async {
         let transport = StubTransport {
@@ -70,10 +65,6 @@ struct LogoTests {
     }
 }
 
-/// Reads the asset identifiers a DAS batch request asks for.
-/// - Parameter request: The outgoing `getAssetBatch` request.
-/// - Returns: The identifiers in request order.
-/// - Throws: A JSON parsing error, or a test prerequisite error if the identifiers are missing.
 private func requestedIDs(_ request: URLRequest) throws -> [String] {
     let parameters = try #require(try requestBody(request)["params"] as? [String: Any])
     return try #require(parameters["ids"] as? [String])

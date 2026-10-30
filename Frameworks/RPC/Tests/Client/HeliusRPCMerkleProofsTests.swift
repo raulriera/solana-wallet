@@ -3,17 +3,9 @@ import Foundation
 import Testing
 @testable import RPC
 
-/// Exercises the indexer's proof reads through the real Helius client and recorded indexer responses.
 struct HeliusRPCMerkleProofsTests {
     private typealias Fixture = IndexerFixtures
 
-    /// Verifies each read posts JSON-RPC with the tree account and base-58 leaves to its method route below the
-    /// gateway, and returns the proofs in leaf order.
-    ///
-    /// - Parameters:
-    ///   - network: The selected network.
-    ///   - host: The Helius host that serves it.
-    /// - Throws: An RPC or JSON parsing error, or a failed test prerequisite.
     @Test(arguments: [(Network.mainnet, "mainnet.helius-rpc.com"), (.devnet, "devnet.helius-rpc.com")])
     func `Proof reads post to each method's route below the gateway`(network: Network, host: String) async throws {
         let transport = StubTransport { request in
@@ -44,11 +36,6 @@ struct HeliusRPCMerkleProofsTests {
         ])
     }
 
-    /// Verifies proofs that don't answer the request are rejected: another leaf, another order, a missing or extra
-    /// proof, or another tree.
-    ///
-    /// - Parameter proofs: The proofs that answer a read of leaves 7 and 8 in tree 9.
-    /// - Throws: A failed test prerequisite.
     @Test(arguments: [
         [IndexerFixtures.merkleProof(leaf: 7), IndexerFixtures.merkleProof(leaf: 6)],
         [IndexerFixtures.merkleProof(leaf: 8), IndexerFixtures.merkleProof(leaf: 7)],
@@ -65,9 +52,6 @@ struct HeliusRPCMerkleProofsTests {
         }
     }
 
-    /// Verifies a non-inclusion read rejects proofs of other nullifiers.
-    ///
-    /// - Throws: A failed test prerequisite.
     @Test
     func `Non-inclusion proofs of other nullifiers are rejected`() async throws {
         let transport = StubTransport { try reply(to: $0, payload: Fixture.proofs([Fixture.nonInclusionProof(leaf: 6)])) }
@@ -78,9 +62,6 @@ struct HeliusRPCMerkleProofsTests {
         }
     }
 
-    /// Verifies invalid reads are refused before sending, and a read of no leaves returns nothing without a request.
-    ///
-    /// - Throws: A failed test prerequisite.
     @Test
     func `Invalid or empty reads send nothing`() async throws {
         let transport = StubTransport { _ in throw CancellationError() }

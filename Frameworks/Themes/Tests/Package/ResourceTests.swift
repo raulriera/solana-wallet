@@ -3,7 +3,6 @@ import Testing
 @testable import Themes
 
 struct ResourceTests {
-    /// Oversized input is rejected for its resource cost before parsing or image validation.
     @Test(arguments: ["manifest.json", "Assets/image.png"])
     func `Oversized files are rejected before decoding`(path: String) async throws {
         let fixture = try Fixture()
@@ -27,7 +26,6 @@ struct ResourceTests {
         }
     }
 
-    /// An import cannot consume the space required to export its complete resolved colors.
     @Test func `Manifest must fit after resolving export defaults`() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
@@ -43,7 +41,6 @@ struct ResourceTests {
         }
     }
 
-    /// The package budget counts unique files, accepting its boundary and rejecting another image.
     @Test func `Total asset bytes are bounded without charging aliases twice`() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
@@ -68,7 +65,6 @@ struct ResourceTests {
         }
     }
 
-    /// Highly compressed large images are rejected by their dimensions before thumbnail decoding.
     @Test func `Oversized pixel dimensions are rejected`() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
@@ -80,7 +76,6 @@ struct ResourceTests {
         }
     }
 
-    /// Multiple semantic names retain one shared buffer for the same image file.
     @Test func `Asset aliases share owned bytes`() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }

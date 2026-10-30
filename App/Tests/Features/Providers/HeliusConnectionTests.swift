@@ -3,12 +3,9 @@ import RPC
 import Testing
 @testable import widgets
 
-/// Checks key verification outcomes through the real Helius client and local HTTP fixtures.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct HeliusConnectionTests {
-    /// An accepted key is saved, and every window shows it.
-    /// - Throws: A connection failure.
     @Test
     func `An accepted key is checked and saved`() async throws {
         let responses = HTTPResponses.keyCheck()
@@ -23,7 +20,6 @@ struct HeliusConnectionTests {
         #expect(await responses.requests.first?.url?.query() == "api-key=fixture-key")
     }
 
-    /// An empty key fails locally, so no request ever carries an empty key.
     @Test
     func `An empty key is rejected without contacting Helius`() async {
         let responses = HTTPResponses.keyCheck()
@@ -37,10 +33,6 @@ struct HeliusConnectionTests {
         #expect(await keys.value == nil)
     }
 
-    /// Each failed check reports the cause the setup screen presents and keeps the saved key in every window.
-    /// - Parameters:
-    ///   - status: The HTTP status Helius returns.
-    ///   - expected: The resulting setup failure.
     @Test(arguments: [
         (401, ProviderConnectionError.invalidKey),
         (403, ProviderConnectionError.invalidKey),
@@ -62,7 +54,6 @@ struct HeliusConnectionTests {
         #expect(providers.keyPreview == "save•••••")
     }
 
-    /// A key Helius accepted still fails setup when this device can't store it.
     @Test
     func `An accepted key that can't be saved reports a storage failure`() async {
         let responses = HTTPResponses.keyCheck()
@@ -75,7 +66,6 @@ struct HeliusConnectionTests {
         #expect(providers.keyPreview == nil)
     }
 
-    /// Cancelling a check reports cancellation rather than an outage, and nothing is saved.
     @Test
     func `A cancelled check reports cancellation and saves nothing`() async {
         let gate = Suspension()

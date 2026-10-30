@@ -4,14 +4,7 @@ import Testing
 import Transactions
 @testable import Portfolio
 
-/// Checks provider-neutral decimal valuation independently of HTTP response formats.
 struct ValuationTests {
-    /// Verifies exact totals and explicit unknowns at Decimal's representational limits.
-    /// - Parameters:
-    ///   - amount: The token quantity.
-    ///   - price: The price of one whole token in the provider's currency.
-    ///   - total: The expected total, or `nil` when it cannot be represented exactly.
-    /// - Throws: A pricing or test prerequisite error.
     @Test(arguments: [
         (Amount(units: .max, decimals: 6), Decimal(string: "0.1")!, Decimal(string: "1844674407370.9551615")),
         (Amount(units: 1, decimals: 9), Decimal(string: "123.456789")!, Decimal(string: "0.000000123456789")),
@@ -32,8 +25,6 @@ struct ValuationTests {
         #expect(valuation.currency == "CAD")
     }
 
-    /// Verifies malformed normalized quotes cannot enter cached portfolio values.
-    /// - Parameter quote: A quote violating the provider-neutral value contract.
     @Test(arguments: [
         Quote(pricePerUnit: -1, currency: "USD", dayChange: nil),
         Quote(pricePerUnit: .nan, currency: "USD", dayChange: nil),
@@ -49,8 +40,6 @@ struct ValuationTests {
         }
     }
 
-    /// Verifies that a holding without a balance gets no valuation, even when its token has a quote.
-    /// - Throws: A pricing error.
     @Test
     func `A holding without a balance has no valuation`() async throws {
         let quote = Quote(pricePerUnit: 1, currency: "USD", dayChange: Decimal(string: "0.01"))
@@ -64,9 +53,6 @@ struct ValuationTests {
         #expect(result.holdings.first?.valuation == nil)
     }
 
-    /// Verifies a valuation keeps the quote's 24-hour change, including an unknown one.
-    /// - Parameter change: The quote's 24-hour change, or `nil` when the provider has none.
-    /// - Throws: A pricing or test prerequisite error.
     @Test(arguments: [Decimal(string: "0.0129"), nil])
     func `Valuations keep the quote's 24-hour change`(change: Decimal?) async throws {
         let valuation = try await pricedValuation(dayChange: change)
@@ -74,8 +60,6 @@ struct ValuationTests {
         #expect(valuation.dayChange == change)
     }
 
-    /// Verifies a change that isn't a number stays unknown while the price is kept.
-    /// - Throws: A pricing or test prerequisite error.
     @Test
     func `A 24-hour change that isn't a number stays unknown`() async throws {
         let valuation = try await pricedValuation(dayChange: .nan)
@@ -83,8 +67,6 @@ struct ValuationTests {
         #expect(valuation.dayChange == nil)
     }
 
-    /// Verifies a valuation saved before the 24-hour change existed still loads, with the change unknown.
-    /// - Throws: A decoding error.
     @Test
     func `Saved valuations without a 24-hour change still load`() throws {
         let saved = Data(#"{"pricePerUnit":2,"total":4,"currency":"USD"}"#.utf8)
@@ -93,10 +75,6 @@ struct ValuationTests {
         #expect(valuation.dayChange == nil)
     }
 
-    /// Prices one unit of a token at 2 USD with the given 24-hour change.
-    /// - Parameter dayChange: The quote's 24-hour change.
-    /// - Returns: The token's valuation.
-    /// - Throws: A pricing or test prerequisite error.
     private func pricedValuation(dayChange: Decimal?) async throws -> Valuation {
         let quote = Quote(pricePerUnit: 2, currency: "USD", dayChange: dayChange)
         let snapshot = Snapshot(owner: "wallet", network: .devnet, holdings: [
@@ -107,26 +85,16 @@ struct ValuationTests {
         return try #require(result.holdings.first?.valuation)
     }
 
-    /// Prices a snapshot the way a refresh does: one quote lookup for its holdings, then valuation.
-    /// - Parameters:
-    ///   - snapshot: The holdings to value.
-    ///   - provider: The quote source.
-    /// - Returns: The holdings with their valuations.
-    /// - Throws: A pricing error.
     private func valued(_ snapshot: Snapshot, with provider: any PriceProviding) async throws -> Snapshot {
         let pricer = SnapshotPricer(provider: provider)
         return try pricer.snapshot(pricing: snapshot, with: await pricer.quotes(for: snapshot.holdings.map(\.id)))
     }
 }
 
-/// An alternate normalized provider proving valuation does not depend on Jupiter's format or currency.
 private struct FixedPrices: PriceProviding {
     let network: Network = .devnet
     let quote: Quote
 
-    /// Supplies a deterministic quote for pure valuation checks, without RPC communication.
-    /// - Parameter mints: The requested token markets.
-    /// - Returns: The normalized quote for each requested mint; a repeated mint has one entry.
     func prices(for mints: [String]) async throws -> [String: Quote] {
         Dictionary(mints.map { ($0, quote) }) { first, _ in first }
     }

@@ -4,20 +4,11 @@ import Testing
 import Transactions
 @testable import widgets
 
-/// Verifies moves of SOL between an account's balances, deposits and withdrawals, through the shared review: their
-/// reviews, sending, and settling through the real private balances and transaction coordinator, with local responses
-/// and sockets.
-///
-/// Each move types 1 SOL: a deposit from a public balance of 2 SOL, a withdrawal from a private note of 2 SOL to the
-/// same public balance. Every simulation reports a 10,000-lamport network fee.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct BalanceMoveProposalTests {
-    /// A provider's rate limit.
     private static let rateLimit = RPCError.http(statusCode: 429, retryAfter: "3")
 
-    /// Reviewing a registered account's typed amount shows the network fee, without a registration fee, and freezes
-    /// the amount as typed.
     @Test
     func `Reviewing a deposit shows its network fee`() async throws {
         let deposit = try await LocalBalanceMove.deposit()
@@ -34,8 +25,6 @@ struct BalanceMoveProposalTests {
         #expect(model.canApprove)
     }
 
-    /// An unregistered account's first deposit shows the registration fee: what the payer's SOL pays beyond the
-    /// deposit and the network fee.
     @Test
     func `A first deposit shows the registration fee`() async throws {
         let deposit = try await LocalBalanceMove.deposit(registered: false)
@@ -50,12 +39,6 @@ struct BalanceMoveProposalTests {
         #expect(model.error == nil)
     }
 
-    /// A simulation that runs out of SOL is an insufficient public balance, and another execution failure is a
-    /// preparation failure; neither shows a review.
-    /// - Parameters:
-    ///   - error: The simulated execution error.
-    ///   - logs: The simulated program logs.
-    ///   - expected: The review's error.
     @Test(arguments: [
         (TransactionError(name: "InsufficientFundsForFee", details: nil), [String](),
          PrivateBalanceError.insufficientPublicBalance),
@@ -78,7 +61,6 @@ struct BalanceMoveProposalTests {
         #expect(!model.canApprove)
     }
 
-    /// A private-balance error from preparing the deposit reaches the review unchanged, and nothing is simulated.
     @Test
     func `A preparation error reaches the review unchanged`() async throws {
         let deposit = try await LocalBalanceMove.deposit(provider: .solana)
@@ -92,8 +74,6 @@ struct BalanceMoveProposalTests {
         #expect(try await deposit.preparation.simulations() == 0)
     }
 
-    /// Approving sends the reviewed deposit; once it lands, its record shows the outcome and the settling leaves the
-    /// SOL pending in the private balance.
     @Test
     func `Approving sends the deposit and leaves it pending`() async throws {
         let deposit = try await LocalBalanceMove.deposit(statuses: [.status(.finalized)])
@@ -103,7 +83,6 @@ struct BalanceMoveProposalTests {
 
         #expect(record.kind == .privateDeposit(lamports: LocalBalanceMove.lamports))
         #expect(deposit.model.submission?.network == .devnet)
-        // The watch returns once the settling recorded the deposit in the private balance.
         #expect(try await deposit.transactions.watch(record.id, for: record.key) == .succeeded)
         #expect(deposit.model.outcome == .succeeded)
         #expect(try await deposit.balances.refresh(deposit.account, on: .devnet)
@@ -112,8 +91,6 @@ struct BalanceMoveProposalTests {
         await deposit.sockets.waitUntilClosed()
     }
 
-    /// A watch that a rate limit stops leaves the review waiting, without an error or a result; a later watch of the
-    /// same record settles the deposit and shows the result.
     @Test
     func `A stopped watch keeps the review waiting until a later watch settles it`() async throws {
         let refusal = Self.rateLimit
@@ -122,7 +99,6 @@ struct BalanceMoveProposalTests {
         let model = deposit.model
         try await deposit.model.runReview()
         let record = try await deposit.model.runApproval()
-        // The first watch ends with the rate limit, which only a caller of the watch reads.
         await #expect(throws: (any Error).self) { try await deposit.transactions.watch(record.id, for: record.key) }
 
         #expect(model.status == .pending)
@@ -141,9 +117,6 @@ struct BalanceMoveProposalTests {
         await sockets.waitUntilClosed()
     }
 
-    /// A withdrawal types from the available private balance, and its review shows the network fee and the spent
-    /// note's change, with the privacy fee only when the simulation charges one.
-    /// - Parameter privacyFee: The pool's fee that the simulation charges the payer, in lamports.
     @Test(arguments: [UInt64(0), 3_000])
     func `Reviewing a withdrawal shows a privacy fee only when it has one`(privacyFee: UInt64) async throws {
         let withdrawal = try await LocalBalanceMove.withdrawal(privacyFee: privacyFee)
@@ -162,7 +135,6 @@ struct BalanceMoveProposalTests {
         #expect(model.error == nil)
     }
 
-    /// A withdrawal that spends a whole note returns no change, so nothing becomes pending.
     @Test
     func `A withdrawal of a whole note has no pending change`() async throws {
         let withdrawal = try await LocalBalanceMove.withdrawal(privateLamports: LocalBalanceMove.lamports)
@@ -175,7 +147,6 @@ struct BalanceMoveProposalTests {
         #expect(model.error == nil)
     }
 
-    /// A withdrawal's simulation that runs out of SOL means the public balance can't pay the fees, and no review shows.
     @Test
     func `A withdrawal that the public balance can't pay for shows the fees error`() async throws {
         let failure = SimulateTransaction.Value.failure(TransactionError(name: "InsufficientFundsForFee", details: nil),
@@ -190,8 +161,6 @@ struct BalanceMoveProposalTests {
         #expect(model.review == nil)
     }
 
-    /// Approving sends the reviewed withdrawal; once it lands, the settling leaves the spent note's change pending in
-    /// the private balance.
     @Test
     func `Approving sends the withdrawal and keeps its change pending`() async throws {
         let withdrawal = try await LocalBalanceMove.withdrawal(statuses: [.status(.finalized)])

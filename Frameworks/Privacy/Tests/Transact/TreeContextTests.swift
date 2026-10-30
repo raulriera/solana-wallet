@@ -1,10 +1,7 @@
 @testable import Privacy
 import Testing
 
-/// Verifies the encoding of tree contexts.
 struct TreeContextTests {
-    /// Verifies that both root positions are written as little-endian 16-bit integers, UTXO tree
-    /// first.
     @Test
     func `Contexts write both root positions little-endian`() {
         var writer = WincodeWriter()

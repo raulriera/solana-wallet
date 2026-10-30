@@ -3,15 +3,7 @@ import Foundation
 import Testing
 import Wallet
 
-/// Tests local signing through the public protocol using only public recovery fixtures.
 struct SigningTests {
-    /// Verifies the selected passphrase and path recover the independently known signing key.
-    ///
-    /// - Parameters:
-    ///   - passphrase: The public fixture's BIP-39 passphrase.
-    ///   - path: The public fixture's account path.
-    ///   - address: The independently derived Base58 public key.
-    ///   - publicKey: The same public key encoded with Base64 by Node Web Crypto.
     @Test(arguments: [
         ("", "m/44'/501'/0'/0'", "HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk",
          "8DYnYkanW53jNJ7UKxXiMvZRj8IPX81PHWToH5vSWPc="),
@@ -31,7 +23,6 @@ struct SigningTests {
         #expect(key.isValidSignature(signature, for: message))
     }
 
-    /// Verifies selecting the wrong recovered account cannot return a signature.
     @Test
     func `Signing rejects recovery material for another sender`() async throws {
         let recovery = try PublicRecovery.phrase()
@@ -45,7 +36,6 @@ struct SigningTests {
         }
     }
 
-    /// Verifies Swift's canonical String equality cannot admit a non-ASCII sender.
     @Test
     func `Signing rejects a Unicode lookalike in the sender address`() async throws {
         let recovery = try PublicRecovery.phrase()
@@ -57,9 +47,6 @@ struct SigningTests {
         }
     }
 
-    /// Verifies that signing refuses Solana Rings derivation inputs, even for the correct account.
-    ///
-    /// - Parameter vector: A zolana message that's a derivation input.
     @Test(arguments: try PrivateBalanceVectors.load().derivationInputGuard.filter(\.isDerivationInput))
     func `Signing refuses Solana Rings derivation inputs`(_ vector: PrivateBalanceVectors.GuardVector) async throws {
         let recovery = try PublicRecovery.phrase()
@@ -73,9 +60,6 @@ struct SigningTests {
         }
     }
 
-    /// Verifies that messages resembling derivation inputs still sign.
-    ///
-    /// - Parameter vector: A zolana message that isn't a derivation input.
     @Test(arguments: try PrivateBalanceVectors.load().derivationInputGuard.filter { !$0.isDerivationInput })
     func `Signing accepts messages that only resemble derivation inputs`(_ vector: PrivateBalanceVectors.GuardVector) async throws {
         let message = Data(try fixtureBytes(vector.message))
@@ -90,7 +74,6 @@ struct SigningTests {
         #expect(key.isValidSignature(signature, for: message))
     }
 
-    /// Verifies cancellation prevents signature delivery without relying on task scheduling.
     @Test
     func `Cancelled signing throws CancellationError`() async throws {
         let recovery = try PublicRecovery.phrase()

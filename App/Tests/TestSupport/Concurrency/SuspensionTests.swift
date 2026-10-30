@@ -1,12 +1,10 @@
 import Testing
 
-/// Uses isolated flags to check ordering without sleeps or main-actor scheduling.
 @Suite(.timeLimit(.minutes(1)))
 actor SuspensionTests {
     private var didStart = false
     private var didResume = false
 
-    /// An observer registered first cannot finish before the dependency starts.
     @Test
     func `Waiting for suspension does not return before the operation starts`() async throws {
         let suspension = Suspension()
@@ -36,7 +34,6 @@ actor SuspensionTests {
         await operation.value
     }
 
-    /// A completed start notification remains observable after the operation ends.
     @Test
     func `A late observer receives the start signal after an already cancelled operation`() async {
         let suspension = Suspension()
@@ -44,7 +41,6 @@ actor SuspensionTests {
             didStart = true
             await suspension.suspend()
         }
-        // Actor isolation keeps the operation from starting before this cancellation.
         operation.cancel()
         await operation.value
 
@@ -53,7 +49,6 @@ actor SuspensionTests {
         #expect(!Task.isCancelled)
     }
 
-    /// Publishing the start signal must leave the dependency suspended until cancellation.
     @Test
     func `Suspension returns only after the operation is cancelled`() async throws {
         let suspension = Suspension()
@@ -74,7 +69,6 @@ actor SuspensionTests {
         #expect(didResume)
     }
 
-    /// Cancelling the observer must not require an operation to publish a start signal.
     @Test
     func `A cancelled start observer returns even when no operation starts`() async {
         let suspension = Suspension()

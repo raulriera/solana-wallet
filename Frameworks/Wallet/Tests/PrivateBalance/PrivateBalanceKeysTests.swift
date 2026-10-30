@@ -1,9 +1,7 @@
 import Testing
 import Wallet
 
-/// Verifies private-balance keys from outside the framework's access boundary.
 struct PrivateBalanceKeysTests {
-    /// Verifies that printing, dumping, and reflecting the keys omit both secrets.
     @Test
     func `Private-balance key diagnostics omit the secrets`() async throws {
         let keys = try await Wallet().privateBalanceKeys(

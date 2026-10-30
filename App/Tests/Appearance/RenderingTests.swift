@@ -6,7 +6,6 @@ import Themes
 
 @MainActor @Suite(.timeLimit(.minutes(1)))
 struct AppearanceRenderingTests {
-    /// Each window uses its own appearance and contrast variant from one loaded snapshot.
     @Test func `Resolves four independent variants`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
@@ -24,7 +23,6 @@ struct AppearanceRenderingTests {
         let entry = try await catalog.install(PackService().read(from: source))
         let rendered = RenderedAppearance()
         try await rendered.load(entry, catalog: catalog, packages: PackService())
-        // Removing storage after load proves trait selection needs no further package reads.
         fixture.remove()
         let environment = EnvironmentValues()
         #expect(rendered.palette(scheme: .light, contrast: .standard).accent.resolve(in: environment).red == 1)
@@ -34,7 +32,6 @@ struct AppearanceRenderingTests {
         #expect(rendered.palette(scheme: .dark, contrast: .increased).accent.resolve(in: environment).red == 1)
     }
 
-    /// An unreadable selected revision restores native colors and reports the failure.
     @Test func `Unreadable theme falls back to original`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }

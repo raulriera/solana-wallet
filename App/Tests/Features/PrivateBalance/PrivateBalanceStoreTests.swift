@@ -5,12 +5,9 @@ import Transactions
 @testable import RPC
 @testable import widgets
 
-/// Checks the shared private balances: each account's balance on each network, which windows share, and the reads that
-/// observers, settled moves, and provider changes start.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct PrivateBalanceStoreTests {
-    /// No balance exists before a window observes or reads the account.
     @Test
     func `Nothing shows before a window observes the account`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -21,8 +18,6 @@ struct PrivateBalanceStoreTests {
         #expect(await responses.requests.isEmpty)
     }
 
-    /// Windows on the same account and network share one balance, which another window's read reaches; another
-    /// network has its own.
     @Test
     func `Windows on the same account and network share one balance`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -33,20 +28,17 @@ struct PrivateBalanceStoreTests {
         try await PrivateBalanceFixtures.status(of: account, in: store, becomes: .off(isRegistered: false))
         let balance = store.balance(for: account, on: .devnet)
 
-        // Another window's pull-to-refresh reads the same balance.
         await store.refresh(account, on: .devnet)
 
         #expect(store.balance(for: account, on: .devnet) === balance)
         #expect(store.balance(for: account, on: .mainnet) == nil)
     }
 
-    /// A private move that settles reads the balance again for every window that observes it.
     @Test
     func `A settled private move reads the balance again for every window`() async throws {
         let account = try await PrivateBalanceFixtures.account()
         let record = try await PrivateBalanceFixtures.keys(for: account)
         let registry = try PrivateBalanceFixtures.registry(publishing: record.shieldedAccount(for: account.address))
-        // The first read finds the account unregistered; the next finds it registered with an empty balance.
         let responses = HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered, registry])
         let sent = try PendingMove(from: account.id)
         let store = try PrivateBalanceStore.fixture(responses, keys: StoredValue([account.address.value: record]),
@@ -59,11 +51,9 @@ struct PrivateBalanceStoreTests {
 
         #expect(try await sent.settle() == .succeeded)
 
-        // The suite's time limit ends the wait if the balance isn't read again.
         try await PrivateBalanceFixtures.status(of: account, in: store, becomes: .balance(available: 0, pending: 0))
     }
 
-    /// A new provider connection reads every observed balance again.
     @Test
     func `A new provider reads the observed balances again`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -80,11 +70,9 @@ struct PrivateBalanceStoreTests {
 
         try await providers.select(.solana)
 
-        // The suite's time limit ends the wait if the balance isn't read again.
         try await PrivateBalanceFixtures.status(of: account, in: store, becomes: .balance(available: 0, pending: 0))
     }
 
-    /// A pull-to-refresh reads the account's balance, and refreshes that overlap share one read.
     @Test
     func `Overlapping refreshes share one read`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -100,8 +88,6 @@ struct PrivateBalanceStoreTests {
         #expect(await PrivateBalanceFixtures.registryReads(of: responses) == 1)
     }
 
-    /// While private balances are on, a deposit takes the account's public SOL and a withdrawal its available private
-    /// SOL.
     @Test
     func `Moves take the SOL of the balance they leave`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -119,9 +105,6 @@ struct PrivateBalanceStoreTests {
         #expect(withdrawal?.payment.token.balance == Decimal(string: "0.001"))
     }
 
-    /// Without available private SOL, as with only pending SOL or an unregistered account, no withdrawal opens, while
-    /// a deposit still does.
-    /// - Parameter holding: The account's private balance, with nothing available.
     @Test(arguments: [PrivateBalanceFixtures.Balance.pending, .unregistered])
     func `No withdrawal opens without available SOL`(holding: PrivateBalanceFixtures.Balance) async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -132,7 +115,6 @@ struct PrivateBalanceStoreTests {
         #expect(store.move(.toPrivate, publicLamports: 2_000_000_000, for: account, on: .devnet) != nil)
     }
 
-    /// Nothing opens before the balance is read, or while private balances are off.
     @Test
     func `No move opens while private balances are off or unread`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -146,8 +128,6 @@ struct PrivateBalanceStoreTests {
         #expect(off == nil)
     }
 
-    /// Erasing forgets every account's balance, so no window shows a deleted wallet's balance, even from a read that
-    /// was running.
     @Test
     func `Erasing drops the read that's running`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -166,7 +146,6 @@ struct PrivateBalanceStoreTests {
         #expect(erased.status == nil)
     }
 
-    /// Erasing forgets every account's balance, so no window shows a deleted wallet's balance.
     @Test
     func `Erasing forgets every balance`() async throws {
         let account = try await PrivateBalanceFixtures.account()

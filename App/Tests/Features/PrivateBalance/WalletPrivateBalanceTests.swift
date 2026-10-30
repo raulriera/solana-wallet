@@ -8,12 +8,9 @@ import Wallet
 @testable import RPC
 @testable import widgets
 
-/// Checks one account's shared private balance: its reads, polls, and follow-ups, through real private balances and
-/// local indexer fixtures.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct WalletPrivateBalanceTests {
-    /// A read shows why the account has no balance yet.
     @Test
     func `A read shows the account's status`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -24,7 +21,6 @@ struct WalletPrivateBalanceTests {
         #expect(balance.status == .off(isRegistered: false))
     }
 
-    /// An account at a path without private-balance keys shows nothing and reads nothing.
     @Test
     func `An account at another path shows nothing`() async throws {
         let responses = HTTPResponses.privateNotes()
@@ -36,7 +32,6 @@ struct WalletPrivateBalanceTests {
         #expect(await responses.requests.isEmpty)
     }
 
-    /// A read that fails keeps the status that the last read found, marked outdated.
     @Test
     func `A failed read keeps the last status`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -54,7 +49,6 @@ struct WalletPrivateBalanceTests {
         #expect(balance.isOutdated)
     }
 
-    /// A first read that fails shows the balance that the saved notes hold, marked outdated.
     @Test
     func `A failed first read shows the saved balance as outdated`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -67,7 +61,6 @@ struct WalletPrivateBalanceTests {
         #expect(balance.isOutdated)
     }
 
-    /// A read that finds the account registered with other keys shows nothing, without marking the balance outdated.
     @Test
     func `Keys that another app registered aren't an outdated balance`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -82,7 +75,6 @@ struct WalletPrivateBalanceTests {
         #expect(!balance.isOutdated)
     }
 
-    /// A first read that fails without saved notes shows no status, and polls read again until a read succeeds.
     @Test
     func `A failed first read without saved notes polls until a read succeeds`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -105,7 +97,6 @@ struct WalletPrivateBalanceTests {
         #expect(!balance.isOutdated)
     }
 
-    /// A registered account with SOL in its private balance has a balance; one without SOL doesn't.
     @Test
     func `Only private SOL counts as a balance`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -123,8 +114,6 @@ struct WalletPrivateBalanceTests {
         #expect(unfunded.availableLamports == nil)
     }
 
-    /// A settled private deposit or withdrawal becomes the account's last settled move, which reads the balance again.
-    /// - Parameter kind: The private move.
     @Test(arguments: [TransactionRecord.Kind.privateDeposit(lamports: 1_000_000),
                       .privateWithdrawal(lamports: 1_000_000)])
     func `A settled private move becomes the last settled move`(kind: TransactionRecord.Kind) async throws {
@@ -139,8 +128,6 @@ struct WalletPrivateBalanceTests {
         #expect(balance.lastSettledMove?.id == sent.record.id)
     }
 
-    /// A payment never changes the private balance, so a settled one isn't a settled move and starts no follow-up on
-    /// pending SOL.
     @Test
     func `A settled payment is no settled move and starts no follow-up`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -155,13 +142,10 @@ struct WalletPrivateBalanceTests {
         #expect(!balance.isFollowingUp)
     }
 
-    /// A read after settling reads the account's records, and the last settled move is the deposit or withdrawal that
-    /// settled last, whatever order the moves were sent in; payments and pending moves don't count.
     @Test
     func `The last settled move is the private move that settled last`() async throws {
         let account = try await PrivateBalanceFixtures.account()
         let key = TransactionRecord.Key(account: account.id, network: .devnet)
-        // Newest first, as the store keeps them.
         let records: [TransactionRecord] = [
             .fixture(.privateDeposit(lamports: 1), signature: "pending deposit", account: account.id, created: 40),
             .fixture(.payment(recipient: account.address, mint: nil, units: 1), signature: "payment",
@@ -181,14 +165,12 @@ struct WalletPrivateBalanceTests {
         #expect(balance.status == .balance(available: 1_000_000, pending: 0))
     }
 
-    /// A read after settling never shares a read that's running, which may have started before the move settled.
     @Test
     func `A read after settling waits for the running read, then reads again`() async throws {
         let account = try await PrivateBalanceFixtures.account()
         let record = try await PrivateBalanceFixtures.keys(for: account)
         let registry = try PrivateBalanceFixtures.registry(publishing: record.shieldedAccount(for: account.address))
         let gate = Suspension()
-        // The running read finds the account unregistered; the read after settling finds it registered.
         let responses = HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered, registry],
                                                    gate: gate, heldMethod: GetMultipleAccounts.method)
         let transactions = TransactionStore.unused
@@ -199,7 +181,6 @@ struct WalletPrivateBalanceTests {
         let balance = try #require(store.balance(for: account, on: .devnet))
 
         let settling = Task { await balance.readAfterSettling() }
-        // Once the account's records are read, the read after settling waits on the running read.
         let key = TransactionRecord.Key(account: account.id, network: .devnet)
         for await phase in Observations({ transactions.phase(for: key) }) where phase == .loaded { break }
         gate.resume()
@@ -210,8 +191,6 @@ struct WalletPrivateBalanceTests {
         #expect(balance.status == .balance(available: 0, pending: 0))
     }
 
-    /// The first read after one of the account's private moves settles follows up quickly on pending SOL, with at most
-    /// ten quick reads; pending SOL before the move settled starts none.
     @Test
     func `A read after a settled private move with pending SOL starts a follow-up`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -226,7 +205,6 @@ struct WalletPrivateBalanceTests {
         #expect(balance.followUpReadsLeft == WalletPrivateBalance.followUpReads)
     }
 
-    /// A read after one of the account's private moves settles starts no follow-up when nothing is pending.
     @Test
     func `A read after a settled private move without pending SOL starts no follow-up`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -241,7 +219,6 @@ struct WalletPrivateBalanceTests {
         #expect(!balance.isFollowingUp)
     }
 
-    /// Each follow-up poll uses one quick read, and a read that finds nothing pending ends the follow-up.
     @Test
     func `A follow-up ends once nothing is pending`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -255,7 +232,6 @@ struct WalletPrivateBalanceTests {
 
         await balance.poll()
         #expect(balance.followUpReadsLeft == WalletPrivateBalance.followUpReads - 1)
-        // The indexer reports the deposit, so nothing is pending.
         try await notes.save([PrivateBalances.noteID(of: account, on: .devnet): NoteSyncState()])
         await balance.poll()
 
@@ -263,7 +239,6 @@ struct WalletPrivateBalanceTests {
         #expect(!balance.isFollowingUp)
     }
 
-    /// A poll reads the balance again while private balances are on.
     @Test
     func `Polls read while private balances are on`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -277,7 +252,6 @@ struct WalletPrivateBalanceTests {
         #expect(await PrivateBalanceFixtures.registryReads(of: responses) == 2)
     }
 
-    /// While private balances are off, a poll reads nothing.
     @Test
     func `Polls read nothing while private balances are off`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -291,7 +265,6 @@ struct WalletPrivateBalanceTests {
         #expect(await responses.requests.count == readRequests)
     }
 
-    /// A rejected key pauses polling, so polls send nothing even once a new key is saved, until a refresh succeeds.
     @Test
     func `Paused polling waits for a refresh that succeeds`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -318,7 +291,6 @@ struct WalletPrivateBalanceTests {
         #expect(balance.status == .unregistered)
     }
 
-    /// A failure that can clear by itself, such as a server error, keeps polling.
     @Test
     func `A failure that can clear by itself keeps polling`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -331,7 +303,6 @@ struct WalletPrivateBalanceTests {
         #expect(!balance.isPollingPaused)
     }
 
-    /// A rate limit pauses polling.
     @Test
     func `A rate limit pauses polling`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -344,15 +315,6 @@ struct WalletPrivateBalanceTests {
         #expect(balance.isPollingPaused)
     }
 
-    /// One account's private balance on devnet, with its keys saved and no notes, whose responses follow the saved
-    /// Helius key.
-    /// - Parameters:
-    ///   - account: The account.
-    ///   - providers: The provider settings whose saved key picks the responses.
-    ///   - responses: The responses for the key `fixture-key`.
-    ///   - otherResponses: The responses for any other key.
-    /// - Returns: The balance.
-    /// - Throws: A derivation or test prerequisite error.
     private static func balance(of account: widgets.Account, providers: ProviderStore, responses: HTTPResponses,
                                 otherResponses: HTTPResponses) async throws -> WalletPrivateBalance {
         let record = try await PrivateBalanceFixtures.keys(for: account)
@@ -367,9 +329,6 @@ struct WalletPrivateBalanceTests {
                                     pollInterval: .seconds(30), followUpInterval: .seconds(3))
     }
 
-    /// The fixture account's address at a path without private-balance keys.
-    /// - Returns: The account.
-    /// - Throws: A derivation or test prerequisite error.
     private static func otherPathAccount() async throws -> widgets.Account {
         let fixture = try await PrivateBalanceFixtures.account()
         return widgets.Account(id: UUID(), recoveryID: PrivateBalanceFixtures.recoveryID, address: fixture.address,

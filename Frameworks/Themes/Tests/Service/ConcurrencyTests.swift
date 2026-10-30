@@ -4,7 +4,6 @@ import Testing
 import Synchronization
 
 struct ConcurrencyTests {
-    /// Pending cancellation completes even while another accessor occupies the background worker.
     @Test(.timeLimit(.minutes(1))) func `Pending cancellation does not wait for another import`() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
@@ -45,7 +44,6 @@ struct ConcurrencyTests {
         try await worker.value
     }
 
-    /// A UI caller suspends while file work executes without occupying the main or task executor.
     @MainActor @Test func `File work runs outside the main actor and swift tasks`() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
@@ -56,7 +54,6 @@ struct ConcurrencyTests {
         #expect(!result.1)
     }
 
-    /// Active work observes cancellation before commit and preserves success after a completed write.
     @Test(arguments: [false, true]) func `Cancellation respects active work commit state`(committed: Bool) async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
@@ -68,7 +65,6 @@ struct ConcurrencyTests {
                 if committed { try Data("committed".utf8).write(to: url.appendingPathComponent("marker"), options: .atomic) }
                 entered.continuation.yield(())
                 entered.continuation.finish()
-                // This is a synchronous test worker on the dedicated file queue, never an async task.
                 release.wait()
                 if !committed { try access.checkCancellation() }
             }
@@ -84,7 +80,6 @@ struct ConcurrencyTests {
         }
     }
 
-    /// Cancellation interrupts a real pending coordinator without waiting for its presenter.
     @Test(.timeLimit(.minutes(1)), arguments: ["read", "save", "template"])
     func `Cancellation releases pending coordination`(operation: String) async throws {
         let fixture = try Fixture()
@@ -106,10 +101,7 @@ struct ConcurrencyTests {
             default: try await service.exportTemplate(named: "Cancelled", defaults: Fixture.defaults, to: fixture.source)
             }
         }
-        // The callback is the synchronization point; the time limit bounds the wait for it.
         for await _ in presenter.requested.stream {}
-        // From here, the watchdog only prevents a cancellation that waits for the presenter
-        // from hanging the test runner indefinitely.
         let timedOut = Mutex(false)
         let watchdog = DispatchWorkItem {
             timedOut.withLock { $0 = true }
@@ -123,7 +115,6 @@ struct ConcurrencyTests {
         #expect(try Data(contentsOf: fixture.source.appendingPathComponent("manifest.json")) == before)
     }
 
-    /// An already cancelled task cannot read a package or replace an existing destination.
     @Test(arguments: ["read", "save", "template"])
     func `Cancellation prevents file work`(operation: String) async throws {
         let fixture = try Fixture()
@@ -146,7 +137,6 @@ struct ConcurrencyTests {
         #expect(try FileManager.default.contentsOfDirectory(atPath: fixture.directory.path) == ["Source"])
     }
 
-    /// One injected service can serve independent callers without sharing mutable operation state.
     @Test func `Simultaneous exports keep their own names and identities`() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }

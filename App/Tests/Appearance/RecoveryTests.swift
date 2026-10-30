@@ -6,7 +6,6 @@ import Themes
 
 @MainActor @Suite(.timeLimit(.minutes(1)))
 struct AppearanceRecoveryTests {
-    /// The shipped Settings resource and recovery service agree on the disabled-by-default switch.
     @Test func `Settings bundle contains recovery switch`() throws {
         let url = try #require(Bundle.main.url(forResource: "Root", withExtension: "plist", subdirectory: "Settings.bundle"))
         let root = try #require(PropertyListSerialization.propertyList(from: Data(contentsOf: url), format: nil) as? [String: Any])
@@ -16,7 +15,6 @@ struct AppearanceRecoveryTests {
         #expect(toggle["DefaultValue"] as? Bool == false)
     }
 
-    /// Normal activation preserves selections when Settings has no pending request.
     @Test func `Activation without request loads existing appearance`() async throws {
         let files = try CatalogFixture()
         let preferences = RecoveryFixture()
@@ -32,7 +30,6 @@ struct AppearanceRecoveryTests {
         #expect(try await request.isRequested() == false)
     }
 
-    /// Recovery clears app and wallet selections, retains packs, and does not need readable artwork.
     @Test func `Requested reset restores original appearance once`() async throws {
         let files = try CatalogFixture()
         let preferences = RecoveryFixture()
@@ -42,7 +39,6 @@ struct AppearanceRecoveryTests {
         let store = AppearanceStore(directory: files.directory)
         _ = try await store.select(entry.id, for: .application)
         _ = try await store.select(entry.id, for: .wallet(UUID()))
-        // Recovery must not depend on decoding a damaged selected package.
         let manifest = CatalogFiles.package(for: entry, in: files.directory).appendingPathComponent("manifest.json")
         try Data("invalid".utf8).write(to: manifest)
         let request = SettingsRecoveryRequest(suiteName: preferences.suiteName)
@@ -65,7 +61,6 @@ struct AppearanceRecoveryTests {
         #expect(try await request.isRequested() == false)
     }
 
-    /// A failed reset preserves the switch and displayed state until a later activation succeeds.
     @Test func `Failed reset retains request for next activation`() async throws {
         let files = try CatalogFixture()
         let preferences = RecoveryFixture()
@@ -90,7 +85,6 @@ struct AppearanceRecoveryTests {
         #expect(try await catalog.pack(for: entry).id == entry.id)
     }
 
-    /// Two activating windows share one recovery operation even if one window's task is cancelled.
     @Test func `Concurrent activations share recovery and survive window cancellation`() async throws {
         let files = try CatalogFixture()
         let preferences = RecoveryFixture()
@@ -126,7 +120,6 @@ struct AppearanceRecoveryTests {
         #expect(try await request.isRequested() == false)
     }
 
-    /// A new user selection waits for pending recovery so the reset cannot erase that choice later.
     @Test func `Selection waits for pending recovery`() async throws {
         let files = try CatalogFixture()
         let preferences = RecoveryFixture()

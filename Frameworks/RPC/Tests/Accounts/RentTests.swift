@@ -2,9 +2,7 @@ import Foundation
 import RPC
 import Testing
 
-/// Verifies the rent request's wire contract.
 struct RentTests {
-    /// Verifies rent is queried for the specified size and explicit commitment only.
     @Test
     func `Rent queries encode the allocation size and finalized commitment`() throws {
         let request = GetMinimumBalanceForRentExemption(dataLength: 182)

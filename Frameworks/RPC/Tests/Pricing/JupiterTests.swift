@@ -2,9 +2,7 @@ import Foundation
 import Testing
 @testable import RPC
 
-/// Exercises the real Jupiter adapter with recorded HTTP inputs and controlled response bodies.
 struct JupiterTests {
-    /// Verifies exact decimal decoding, normalized fields, and omission of unavailable prices.
     @Test
     func `Prices preserve decimal precision and keep unavailable quotes absent`() async throws {
         let transport = StubTransport { request in
@@ -36,8 +34,6 @@ struct JupiterTests {
         #expect(request.url?.absoluteString.contains("fixture-key") == false)
     }
 
-    /// Verifies the 24-hour change arrives as a fraction, and that a missing or malformed change stays unknown
-    /// without discarding its price.
     @Test
     func `Quotes carry the 24-hour change as a fraction and leave a bad one unknown`() async throws {
         let transport = StubTransport { request in
@@ -58,8 +54,6 @@ struct JupiterTests {
         #expect(malformed.dayChange == nil)
     }
 
-    /// Verifies callers can supply multiple batches without knowing Jupiter's request limit.
-    /// - Parameter authenticated: Whether the provider uses the free-key request budget.
     @Test(arguments: [false, true])
     func `Price batches respect the keyless and free-key budgets`(authenticated: Bool) async throws {
         let transport = StubTransport { request in
@@ -82,7 +76,6 @@ struct JupiterTests {
         })
     }
 
-    /// Verifies copied providers share pacing across separate lookups and every batch.
     @Test(.timeLimit(.minutes(1)))
     func `Provider copies share the price budget across calls and batches`() async throws {
         let clock = ManualClock()
@@ -107,7 +100,6 @@ struct JupiterTests {
         #expect(try await transport.requests.map { try requestedMints($0).count } == [1, 50, 1])
     }
 
-    /// Verifies cancelling a queued batch prevents its HTTP attempt and preserves the next slot.
     @Test(.timeLimit(.minutes(1)))
     func `Cancelling a waiting batch stops without consuming a price request`() async throws {
         let clock = ManualClock()
@@ -131,7 +123,6 @@ struct JupiterTests {
         #expect(await transport.requests.count == 2)
     }
 
-    /// Verifies an empty set doesn't consume provider requests.
     @Test
     func `Empty price requests do not access the network`() async throws {
         let transport = StubTransport { try httpReply(to: $0, body: "{}") }
@@ -139,7 +130,6 @@ struct JupiterTests {
         #expect(await transport.requests.isEmpty)
     }
 
-    /// Verifies a later batch failure prevents partial results, retries, and subsequent requests.
     @Test
     func `Rate limits fail the price lookup without retries or partial success`() async throws {
         let transport = StubTransport { request in
@@ -160,8 +150,6 @@ struct JupiterTests {
         #expect(!String(reflecting: source).contains("fixture-key"))
     }
 
-    /// Verifies malformed or unrelated values can't become a valid quote.
-    /// - Parameter body: An invalid provider response.
     @Test(arguments: [
         #"{"mint":{"usdPrice":-1}}"#,
         #"{"mint":{"usdPrice":"invalid"}}"#,
@@ -178,7 +166,6 @@ struct JupiterTests {
         }
     }
 
-    /// Verifies cancellation reaches the active transport and prevents the next batch.
     @Test(.timeLimit(.minutes(1)))
     func `Cancelling prices stops the active request and remaining batches`() async throws {
         let (started, startedContinuation) = AsyncStream<Void>.makeStream()
@@ -205,7 +192,6 @@ struct JupiterTests {
         #expect(await transport.requests.count == 1)
     }
 
-    /// Verifies provider-specific credentials in transport diagnostics don't escape to consumers.
     @Test
     func `Price transport failures omit credential-bearing diagnostics`() async {
         let transport = StubTransport { _ in
@@ -217,10 +203,6 @@ struct JupiterTests {
     }
 }
 
-/// Reads the requested mint addresses from Jupiter's encoded query.
-/// - Parameter request: The outgoing price request.
-/// - Returns: The addresses in their requested order.
-/// - Throws: A test prerequisite error if the query is missing.
 private func requestedMints(_ request: URLRequest) throws -> [String] {
     let url = try #require(request.url)
     let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems

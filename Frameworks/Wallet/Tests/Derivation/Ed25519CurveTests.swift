@@ -1,16 +1,7 @@
 import Testing
 @testable import Wallet
 
-/// Verifies SLIP-0010's Ed25519 candidate rule directly.
 struct Ed25519CurveTests {
-    /// Verifies that every candidate is the private key, for the master key and for a child.
-    ///
-    /// All-zero and all-0xff candidates are the extremes; the last candidate is SLIP-0010's first
-    /// Ed25519 master key. SLIP-0010 never hashes again for Ed25519.
-    ///
-    /// - Parameters:
-    ///   - candidate: A 32-byte I_L.
-    ///   - parent: No parent for the master key, or a parent's private key.
     @Test(arguments: [
         "0000000000000000000000000000000000000000000000000000000000000000",
         "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",

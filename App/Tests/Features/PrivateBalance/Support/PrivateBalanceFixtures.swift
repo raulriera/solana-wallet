@@ -11,43 +11,23 @@ import Vault
 import Wallet
 @testable import widgets
 
-/// Public-fixture accounts with their private-balance keys, the registry records and deposits that a local provider
-/// returns for them, and their transactions' outcomes and proof requests.
-///
-/// Records and deposits are built from the account's keys as the user-registry and shielded-pool programs write them.
 enum PrivateBalanceFixtures {
-    /// The recovery identity of every fixture account.
     static let recoveryID = UUID(uuidString: "2C4B8E7A-3F61-4D0B-9E25-6A7D1C3B5F80")!
 
-    /// A registry read that finds no record.
     static let unregistered = #"{"context":{"slot":7},"value":[null]}"#
 
-    /// The published recovery that every fixture account comes from.
-    /// - Returns: The public test phrase without a BIP-39 passphrase.
-    /// - Throws: A validation error, which doesn't happen.
     static func recovery() throws -> Recovery {
         try PublicWallet.recovery()
     }
 
-    /// Recovery storage that holds the published recovery.
-    /// - Returns: Read-only storage with the fixture recovery under ``recoveryID``.
-    /// - Throws: A validation error, which doesn't happen.
     static func recoveryStore() throws -> SecurityRecoveryStore {
         SecurityRecoveryStore(records: [recoveryID: try recovery()])
     }
 
-    /// Derives a fixture account at `m/44'/501'/i'/0'`.
-    /// - Parameter index: The account index i.
-    /// - Returns: The account with its derived address.
-    /// - Throws: A derivation or test prerequisite error.
     static func account(index: UInt32 = 0) async throws -> widgets.Account {
         try await PublicWallet.account(index: index, recoveryID: recoveryID)
     }
 
-    /// Derives a fixture account's private-balance keys as Wallet does.
-    /// - Parameter account: A fixture account.
-    /// - Returns: The keys that enabling the account saves.
-    /// - Throws: A derivation error.
     static func keys(for account: widgets.Account) async throws -> PrivateBalanceKeyRecord {
         let recovery = try recovery()
         return PrivateBalanceKeyRecord(try await Wallet().privateBalanceKeys(
@@ -56,46 +36,22 @@ enum PrivateBalanceFixtures {
         ))
     }
 
-    /// Creates random keys for an address, such as the keys another app registered.
-    /// - Parameter address: The account's address.
-    /// - Returns: Keys that differ from the fixture account's.
-    /// - Throws: A validation error, which doesn't happen.
     static func otherKeys(for address: Address) throws -> ShieldedAccount {
         try ShieldedAccount(signingAddress: address, nullifierSecret: SymmetricKey(size: SymmetricKeySize(bitCount: 248)),
                             viewingKey: P256.KeyAgreement.PrivateKey())
     }
 
-    /// Creates a devnet transaction's settled outcome.
-    /// - Parameters:
-    ///   - outcome: Whether it succeeded, failed, or was dropped.
-    ///   - signature: The transaction's signature.
-    /// - Returns: The confirmation.
     static func confirmation(_ outcome: widgets.Confirmation.Outcome,
                              signature: String = "private") -> widgets.Confirmation {
         widgets.Confirmation(submission: Submission(signature: signature, network: .devnet, lastValidBlockHeight: 1), slot: 5,
                              outcome: outcome)
     }
 
-    /// Creates a prepared deposit on devnet without instructions, for recording outcomes.
-    /// - Parameters:
-    ///   - lamports: The deposited amount.
-    ///   - account: The depositing account.
-    /// - Returns: The prepared deposit.
     static func preparedDeposit(_ lamports: UInt64, from account: widgets.Account) -> PreparedPrivateTransaction {
         PreparedPrivateTransaction(instructions: [], account: account, network: .devnet, effect: .deposit(lamports),
                                    registers: false, authorities: [.account(account)])
     }
 
-    /// Creates the shared private balances over saved keys and notes in which a succeeded devnet deposit of 1,000,000
-    /// lamports is still pending, as after the deposit settles and before the indexer reports it.
-    /// - Parameters:
-    ///   - account: A fixture account.
-    ///   - responses: The local responses that the store's reads receive.
-    ///   - transactions: The shared transactions.
-    ///   - pollInterval: The time between polls.
-    ///   - followUpInterval: The time between polls that follow up on pending SOL.
-    /// - Returns: The store, before its first read, and the saved notes, which a test changes as the indexer would.
-    /// - Throws: A fixture error.
     @MainActor
     static func pendingDeposit(of account: widgets.Account, responses: HTTPResponses = HTTPResponses.privateNotes(),
                                transactions: TransactionStore = .unused, pollInterval: Duration = .seconds(30),
@@ -112,24 +68,12 @@ enum PrivateBalanceFixtures {
         return (store, notes)
     }
 
-    /// A private balance of a fixture account, as the local provider and saved notes report it.
     enum Balance: Sendable {
-        /// 1,000,000 lamports available.
         case available
-        /// 1,000,000 lamports pending, from a deposit that settled.
         case pending
-        /// No balance, since the account isn't registered.
         case unregistered
     }
 
-    /// Creates the shared private balances whose devnet reads report a balance of an account with private balances
-    /// on.
-    /// - Parameters:
-    ///   - balance: The balance that each read reports.
-    ///   - account: A fixture account.
-    ///   - transactions: The shared transactions.
-    /// - Returns: The store, before its first read.
-    /// - Throws: A fixture error.
     @MainActor
     static func store(holding balance: Balance, of account: widgets.Account,
                       transactions: TransactionStore = .unused) async throws -> PrivateBalanceStore {
@@ -149,24 +93,12 @@ enum PrivateBalanceFixtures {
         }
     }
 
-    /// Reads a fixture account's devnet private balance through a store.
-    /// - Parameters:
-    ///   - account: A fixture account.
-    ///   - store: The shared private balances.
-    /// - Returns: The account's balance after one read.
-    /// - Throws: A test failure, which doesn't happen, since a read creates the balance.
     @MainActor
     static func read(_ account: widgets.Account, in store: PrivateBalanceStore) async throws -> WalletPrivateBalance {
         await store.refresh(account, on: .devnet)
         return try #require(store.balance(for: account, on: .devnet))
     }
 
-    /// Waits until a fixture account's devnet balance in a store shows a status.
-    /// - Parameters:
-    ///   - account: A fixture account.
-    ///   - store: The shared private balances.
-    ///   - status: The status to wait for.
-    /// - Throws: `CancellationError` when the caller's time limit ends the wait.
     @MainActor
     static func status(of account: widgets.Account, in store: PrivateBalanceStore,
                        becomes status: PrivateBalanceStatus) async throws {
@@ -176,35 +108,18 @@ enum PrivateBalanceFixtures {
         try Task.checkCancellation()
     }
 
-    /// Counts the registry reads sent so far; each read of a balance with keys sends one.
-    /// - Parameter responses: The local responses that recorded the requests.
-    /// - Returns: The number of `getMultipleAccounts` requests.
     static func registryReads(of responses: HTTPResponses) async -> Int {
         await responses.requests.count { (try? $0.jsonBody()["method"] as? String) == GetMultipleAccounts.method }
     }
 
-    /// Counts the proof requests sent so far.
-    /// - Parameter responses: The local responses that recorded the requests.
-    /// - Returns: The number of requests on the prover's route.
     static func proofRequests(of responses: HTTPResponses) async -> Int {
         await responses.requests.count { $0.url?.path().hasSuffix("/prove") == true }
     }
 
-    /// A registry read that finds the record publishing an account's keys.
-    /// - Parameter account: The keys that the record publishes.
-    /// - Returns: The `getMultipleAccounts` result.
-    /// - Throws: A derivation error, which doesn't happen.
     static func registry(publishing account: ShieldedAccount) throws -> String {
         #"{"context":{"slot":7},"value":[\#(try registryRecord(publishing: account))]}"#
     }
 
-    /// The account of the registry record that publishes an account's keys.
-    ///
-    /// The record holds the discriminator 1, the owner, the canonical bump, no P-256 owner, the nullifier public key,
-    /// the compressed viewing public key, and no merging, padded with zeros to 134 bytes, with 1,823,520 lamports.
-    /// - Parameter account: The keys that the record publishes.
-    /// - Returns: The account's JSON object.
-    /// - Throws: A derivation error, which doesn't happen.
     static func registryRecord(publishing account: ShieldedAccount) throws -> String {
         let owner = account.signingAddress.bytes
         var data = [1] + owner + [try UserRegistry.record(of: account.signingAddress).bump, 0]
@@ -215,17 +130,6 @@ enum PrivateBalanceFixtures {
             + #""data":["\#(Data(data).base64EncodedString())","base64"]}"#
     }
 
-    /// A proofless deposit of SOL to an account, as an encrypted-output row of a tag read.
-    ///
-    /// The payload is the plaintext encoding: the tag 0, the little-endian length of the rest, the proofless scheme 0,
-    /// the owner hash, the program's blinding for the output's position, SOL's zero mint, the amount, five absent
-    /// options, and no memo.
-    /// - Parameters:
-    ///   - lamports: The deposited amount.
-    ///   - account: The receiving account.
-    ///   - leafIndex: The output's position in tree 1.
-    /// - Returns: The row's JSON object.
-    /// - Throws: A validation error, which doesn't happen.
     static func deposit(_ lamports: UInt64, to account: ShieldedAccount, leafIndex: UInt64) throws -> String {
         let treeID: UInt16 = 1
         let owner = try account.recipient.owner
@@ -241,20 +145,10 @@ enum PrivateBalanceFixtures {
         return #"{"slot":3,"txSignature":"\#(signature)","outputSlot":\#(output),"txViewingPk":null,"salt":null}"#
     }
 
-    /// The UTXO root position of every fixed inclusion proof.
     static let utxoRootIndex: UInt16 = 3
 
-    /// The nullifier root position of every fixed non-inclusion proof.
     static let nullifierRootIndex: UInt16 = 4
 
-    /// Answers a proof's requests: the indexer's proof reads with fixed proofs, by result value, and the prover's
-    /// complete route with fixed curve points and the shape's proving key, by body.
-    ///
-    /// Proofs have zero paths, the UTXO root 1, and the nullifier root 2, with each nullifier between 0 and r - 1. The
-    /// points aren't a valid proof, which only a validator's pairing check would notice.
-    /// - Parameter request: A `getMerkleProofs` or `getNonInclusionProofs` request, or a request on `prove`.
-    /// - Returns: The JSON-RPC result value, or the prover's response body.
-    /// - Throws: A test prerequisite error for a malformed request.
     static func proof(answering request: URLRequest) throws -> String {
         let body = try request.jsonBody()
         guard let method = body["method"] as? String else {
@@ -284,10 +178,6 @@ enum PrivateBalanceFixtures {
         return try HTTPResponses.json(["context": ["slot": 1], "proofs": proofs] as [String: Any])
     }
 
-    /// Creates the proof request of a withdrawal that spends one of an account's UTXOs in tree 1, with the fixed proofs.
-    /// - Parameter account: The spending account.
-    /// - Returns: The request that the account's client sends to the prover.
-    /// - Throws: A planning error, which doesn't happen.
     static func proofRequest(spending account: ShieldedAccount) throws -> TransferProofRequest {
         var generator = SystemRandomNumberGenerator()
         let utxo = UTXO(owner: try account.recipient.owner, mint: [UInt8](repeating: 0, count: 32), amount: 10,
@@ -302,19 +192,11 @@ enum PrivateBalanceFixtures {
         return try plan.proofRequest(nullifierKey: account.nullifierKey, trees: [tree])
     }
 
-    /// Creates the fixed inclusion proof of a UTXO hash.
-    /// - Parameter leaf: The 32-byte UTXO hash.
-    /// - Returns: The proof at leaf 0 with a zero path, under root 1 at ``utxoRootIndex``.
-    /// - Throws: A validation error for a leaf of another length.
     private static func inclusionProof(of leaf: [UInt8]) throws -> MerkleProof {
         try MerkleProof(leaf: leaf, path: Array(repeating: field(0), count: MerkleProof.height), leafIndex: 0, root: field(1),
                         rootIndex: utxoRootIndex)
     }
 
-    /// Creates the fixed non-inclusion proof of a nullifier.
-    /// - Parameter nullifier: The 32-byte nullifier.
-    /// - Returns: The proof between 0 at position 0 and r - 1, with a zero path, under root 2 at ``nullifierRootIndex``.
-    /// - Throws: A validation error for a nullifier of another length.
     private static func nonInclusionProof(of nullifier: [UInt8]) throws -> NonInclusionProof {
         let highest = try #require(FieldHex.decode("0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000000"))
         return try NonInclusionProof(nullifier: nullifier, lowElement: field(0), lowElementIndex: 0, highElement: highest,
@@ -322,14 +204,8 @@ enum PrivateBalanceFixtures {
                                      rootIndex: nullifierRootIndex)
     }
 
-    /// A 32-byte big-endian field element of a small value.
-    /// - Parameter value: The value's last byte.
-    /// - Returns: Thirty-one zero bytes followed by `value`.
     private static func field(_ value: UInt8) -> [UInt8] { Array(repeating: 0, count: 31) + [value] }
 
-    /// Encodes an integer's little-endian bytes.
-    /// - Parameter value: The integer.
-    /// - Returns: The bytes, least significant first.
     private static func littleEndian<Value: FixedWidthInteger>(_ value: Value) -> [UInt8] {
         withUnsafeBytes(of: value.littleEndian, Array.init)
     }

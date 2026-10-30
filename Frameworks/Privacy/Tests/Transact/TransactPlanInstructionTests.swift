@@ -4,14 +4,7 @@ import ModularArithmetic
 import Testing
 import Transactions
 
-/// Verifies transact instructions, with their hashes, data, and accounts, against an independent
-/// implementation, and their rejection of mismatched tree contexts.
 struct TransactPlanInstructionTests {
-    /// Verifies transacts against an independent implementation: a transfer with change, a
-    /// withdrawal with change from two trees, a transfer of every lamport, a transfer and a
-    /// withdrawal with a padding input, and a withdrawal of every lamport.
-    ///
-    /// - Parameter vector: A transact and its expected hashes and instruction.
     @Test(arguments: try InstructionVectors.load().transacts)
     func `Transacts match the independent reference`(_ vector: InstructionVectors.Transact) throws {
         let utxos = try vector.inputs.map {
@@ -34,9 +27,6 @@ struct TransactPlanInstructionTests {
         #expect(instruction.accounts == (try vector.accounts.map { try $0.account() }))
     }
 
-    /// Verifies that the instruction needs one tree context per declared input tree.
-    ///
-    /// - Parameter count: A number of contexts other than the plan's one tree.
     @Test(arguments: [0, 2])
     func `Instructions need one tree context per input tree`(count: Int) throws {
         let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(lamports: 10)], transferLamports: 4)

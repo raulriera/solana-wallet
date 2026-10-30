@@ -3,7 +3,6 @@ import Testing
 @testable import Themes
 
 struct ExportTests {
-    /// Installation keeps omission-based inheritance and owned image bytes after the source disappears.
     @Test func `Installed copy preserves overrides instead of freezing defaults`() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
@@ -28,7 +27,6 @@ struct ExportTests {
         #expect(Set(try #require(colors["light"]).keys) == ["accent"])
     }
 
-    /// Default exports have fresh identities and all twenty-eight colors, including symbolic values.
     @Test func `Template exports complete defaults with new identities`() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
@@ -57,7 +55,6 @@ struct ExportTests {
         #expect(colors["light"]?["background"] == ["system": "systemBackground"])
     }
 
-    /// Installed copies preserve shared PNG/JPEG assets and identity after source files disappear.
     @Test func `Saved copy preserves shared assets and identity`() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
@@ -83,7 +80,6 @@ struct ExportTests {
         #expect(colors["light"]?["accent"] == ["srgb": "#12AB34"])
     }
 
-    /// Replacing a destination removes obsolete files instead of merging packages.
     @Test func `Replacement writes one complete package`() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
@@ -95,7 +91,6 @@ struct ExportTests {
         #expect(result.name == "Replacement")
     }
 
-    /// A rejected export preserves the previous destination and creates no staging artifacts.
     @Test func `Validation failure leaves destination unchanged`() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
@@ -108,7 +103,6 @@ struct ExportTests {
         #expect(try FileManager.default.contentsOfDirectory(atPath: fixture.directory.path) == ["Source"])
     }
 
-    /// A real destination error does not create a partial package or alter its parent file.
     @Test func `Write failure preserves existing file`() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }

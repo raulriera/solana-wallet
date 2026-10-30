@@ -3,19 +3,10 @@ import SwiftUI
 import Testing
 @testable import widgets
 
-/// Checks that a token card keeps its name and figures on one line, truncating the name.
 @MainActor
 struct TokenCardTests {
-    /// A mint address, which a token without metadata shows as its symbol and name.
     private static let mint = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU"
 
-    /// Measures a card's height at a width.
-    /// - Parameters:
-    ///   - width: The width offered to the card.
-    ///   - symbol: The token's symbol.
-    ///   - name: The token's name.
-    /// - Returns: The height the card takes.
-    /// - Throws: A failed expectation when the card doesn't render.
     private func height(atWidth width: CGFloat, symbol: String = "MYST", name: String = "Mystery Token")
         throws -> CGFloat {
         let renderer = ImageRenderer(content: TokenCard(symbol: symbol, name: name,

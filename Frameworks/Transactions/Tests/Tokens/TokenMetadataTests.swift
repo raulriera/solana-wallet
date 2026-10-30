@@ -2,19 +2,13 @@ import Foundation
 import Testing
 import Transactions
 
-/// Checks reading token names and symbols from real mainnet metadata.
 struct TokenMetadataTests {
-    /// The ways a Metaplex account can fail to describe the requested mint.
     enum Mismatch: CaseIterable {
-        /// The account belongs to another program.
         case owner
-        /// The account describes another mint.
         case mint
-        /// The account ends inside the name.
         case truncated
     }
 
-    /// Verifies the derived address is the account that holds a mint's metadata on mainnet.
     @Test
     func `Metaplex metadata accounts derive from the mint`() throws {
         #expect(try TokenMetadata.metaplexAccount(for: Address(MetadataFixtures.usdcMint)).value
@@ -23,7 +17,6 @@ struct TokenMetadataTests {
                 == MetadataFixtures.pyusdMetadataAccount)
     }
 
-    /// Verifies a Metaplex account supplies the name and symbol without their padding.
     @Test
     func `A Metaplex account supplies the name and symbol`() throws {
         let metadata = try TokenMetadata(metaplexAccount: #require(Data(base64Encoded: MetadataFixtures.usdcMetadataData)),
@@ -33,8 +26,6 @@ struct TokenMetadataTests {
         #expect(metadata.symbol == "USDC")
     }
 
-    /// Verifies a Metaplex account is read only when it belongs to the Metaplex program and describes the mint.
-    /// - Parameter mismatch: How the account fails to describe the mint.
     @Test(arguments: Mismatch.allCases)
     func `A Metaplex account must belong to the program and describe the mint`(_ mismatch: Mismatch) throws {
         let data = try #require(Data(base64Encoded: MetadataFixtures.usdcMetadataData))
@@ -46,7 +37,6 @@ struct TokenMetadataTests {
         }
     }
 
-    /// Verifies a Token-2022 mint reads its own metadata extension, and a mint without one has none.
     @Test
     func `A Token-2022 mint supplies its own name and symbol`() throws {
         let pyusd = try MetadataFixtures.mint(MetadataFixtures.pyusdMint, program: .token2022,
@@ -58,7 +48,6 @@ struct TokenMetadataTests {
         #expect(usdc.metadata == nil)
     }
 
-    /// Verifies only a mint with no decimals and a supply of one counts as an NFT.
     @Test
     func `Only a mint with no decimals and a supply of one is non-fungible`() throws {
         let nft = try MetadataFixtures.mint(MetadataFixtures.nftMint, program: .token, data: MetadataFixtures.nftMintData)
@@ -69,5 +58,4 @@ struct TokenMetadataTests {
     }
 }
 
-/// The Metaplex Token Metadata program, which owns metadata accounts.
 private let metaplexProgram = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"

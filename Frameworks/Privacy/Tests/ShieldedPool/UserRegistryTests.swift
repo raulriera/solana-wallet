@@ -6,12 +6,7 @@ import ModularArithmetic
 import Testing
 import Transactions
 
-/// Verifies user registry records against an independent implementation, their rejections, and
-/// one lookup through a real RPC client with local responses.
 struct UserRegistryTests {
-    /// Verifies each record's address and canonical bump.
-    ///
-    /// - Parameter vector: A registered owner.
     @Test(arguments: try RegistryVectors.load().records)
     func `Records match the independent reference`(_ vector: RegistryVectors.Record) throws {
         let record = try UserRegistry.record(of: Address(vector.owner))
@@ -20,9 +15,6 @@ struct UserRegistryTests {
         #expect(record.bump == vector.bump)
     }
 
-    /// Verifies that a valid record decodes to the owner's shielded address.
-    ///
-    /// - Parameter vector: A registered owner.
     @Test(arguments: try RegistryVectors.load().records)
     func `Records decode to recipients`(_ vector: RegistryVectors.Record) throws {
         let recipient = try #require(try UserRegistry.recipient(of: Address(vector.owner), from: Self.account(fixtureBytes(vector.data))))
@@ -33,8 +25,6 @@ struct UserRegistryTests {
         #expect(recipient.owner.bigEndianBytes == (try fixtureBytes(vector.ownerHash)))
     }
 
-    /// Verifies that a missing account, and one that the registry program doesn't own, mean the
-    /// owner hasn't registered.
     @Test
     func `Unregistered owners have no recipient`() throws {
         let vector = try #require(try RegistryVectors.load().records.first)
@@ -45,12 +35,6 @@ struct UserRegistryTests {
         #expect(try UserRegistry.recipient(of: owner, from: donation) == nil)
     }
 
-    /// Verifies that a record that isn't a valid record of the owner is rejected.
-    ///
-    /// - Parameters:
-    ///   - range: The bytes of the sender's record to replace.
-    ///   - bytes: The replacement.
-    ///   - error: The expected rejection.
     @Test(arguments: [
         (133..<134, [], .invalidLength),
         (0..<1, [2], .invalidDiscriminator),
@@ -71,8 +55,6 @@ struct UserRegistryTests {
         }
     }
 
-    /// Verifies one lookup of three owners: one finalized `getMultipleAccounts` of their records in
-    /// order, which returns a record, no account, and an account that another program owns.
     @Test
     func `Lookups read every record at once`() async throws {
         let vectors = try RegistryVectors.load().records
@@ -100,7 +82,6 @@ struct UserRegistryTests {
         #expect(recipients.map { $0?.signingAddress.value } == [vectors[0].owner, nil, nil])
     }
 
-    /// Verifies that a response with another number of accounts is rejected.
     @Test
     func `Mismatched responses are rejected`() async throws {
         let owner = try Address(try #require(try RegistryVectors.load().records.first).owner)
@@ -113,10 +94,6 @@ struct UserRegistryTests {
         }
     }
 
-    /// Creates an account that the registry program owns.
-    ///
-    /// - Parameter data: The account's data.
-    /// - Returns: The account.
     private static func account(_ data: [UInt8]) -> Account {
         Account(owner: "regyS5rkAcw2YzDJCmTwCTHs2s246FXxbmuRZ42u2PD", lamports: 1_823_520, executable: false, data: Data(data))
     }

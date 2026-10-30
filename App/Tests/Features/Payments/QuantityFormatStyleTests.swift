@@ -2,15 +2,7 @@ import Foundation
 import Testing
 @testable import widgets
 
-/// Checks that token quantities show every decimal the token has and its symbol.
 struct QuantityFormatStyleTests {
-    /// A quantity shows all of its digits up to the token's decimals, without trailing zeros, in the locale's format;
-    /// extra digits are dropped, never rounded up.
-    /// - Parameters:
-    ///   - quantity: The quantity's digits.
-    ///   - decimals: The token's decimal places.
-    ///   - locale: The locale's identifier.
-    ///   - shown: What the quantity shows.
     @Test(arguments: [
         ("0.083408632", 9, "en_US", "0.083408632 SOL"),
         ("5", 9, "en_US", "5 SOL"),

@@ -5,13 +5,9 @@ import Testing
 import Themes
 @testable import widgets
 
-/// Runs the Settings tab in a real window, so its workflows live as long as SwiftUI keeps the tab.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct SettingsSceneTests {
-    /// The window creates new workflows each time it shows the tab again; the tab's lifecycle keeps running the changes
-    /// of the first ones, so a choice made before the window updated still saves.
-    /// - Throws: A test prerequisite error.
     @Test
     func `The tab runs its first workflows' changes after the window shows it again`() async throws {
         let fixture = try CatalogFixture()
@@ -43,13 +39,10 @@ struct SettingsSceneTests {
         try #require(await renders.next() == 1)
         first.select(.solana)
 
-        // The suite's time limit ends the wait if the tab never runs the first workflow's change.
         for await attempt in Observations({ first.attempt }) where attempt == nil { break }
         #expect(providerStore.settings?.selection == .solana)
     }
 
-    /// Creates Security & Privacy steps that never read recovery or reset anything.
-    /// - Returns: A coordinator with an empty path.
     private func makeSecurity() -> SecurityCoordinator {
         SecurityCoordinator(services: SecurityServices(
             recovery: RecoveryReveal(store: SecurityRecoveryStore()),
@@ -60,12 +53,10 @@ struct SettingsSceneTests {
     }
 }
 
-/// Hosts the Settings tab as a window does and reports each completed update.
 private struct SettingsSceneRoot: View {
     let scene: SettingsScene
     let generation: Int
     let rendered: AsyncStream<Int>.Continuation
-    /// The shared provider settings, which a window's root supplies.
     let providers: ProviderStore
 
     var body: some View {

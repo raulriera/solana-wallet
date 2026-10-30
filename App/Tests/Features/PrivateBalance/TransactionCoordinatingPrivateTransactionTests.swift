@@ -7,13 +7,9 @@ import Transactions
 import Wallet
 @testable import widgets
 
-/// Verifies that a redeem or take-back's network fee is read with one simulation and charged to its trailing deposit
-/// before the simulation that goes to approval, through the real coordinator and preparer with local responses.
 struct TransactionCoordinatingPrivateTransactionTests {
-    /// The lamports left for the network fee and the deposit of every fixture sweep.
     private static let available: UInt64 = 20_000
 
-    /// A transaction without a sweep runs one simulation with its authorities and returns unchanged.
     @Test
     func `Other transactions simulate once`() async throws {
         let fixture = try SigningFixture()
@@ -29,8 +25,6 @@ struct TransactionCoordinatingPrivateTransactionTests {
         #expect(try await responses.simulations() == 1)
     }
 
-    /// A sweep reads the fee from a first simulation without a fee, then simulates and returns the transaction whose
-    /// deposit is smaller by the fee.
     @Test
     func `A sweep's network fee comes out of its deposit`() async throws {
         let fixture = try SigningFixture()
@@ -52,10 +46,6 @@ struct TransactionCoordinatingPrivateTransactionTests {
         #expect(try await responses.simulations() == 2)
     }
 
-    /// A sweep whose fee is unknown, or whose charged transaction reports another fee, isn't returned for approval.
-    /// - Parameters:
-    ///   - fees: The fees of the two simulations.
-    ///   - error: The expected rejection.
     @Test(arguments: [
         ([UInt64?.none], Redemption.FeeError.unknown),
         ([7_000, 8_000], .changed),
@@ -68,7 +58,6 @@ struct TransactionCoordinatingPrivateTransactionTests {
         }
     }
 
-    /// A sweep whose fee exceeds the lamports left for it is underfunded.
     @Test
     func `A fee above the sweep's lamports is underfunded`() async throws {
         let fixture = try SigningFixture()
@@ -78,12 +67,6 @@ struct TransactionCoordinatingPrivateTransactionTests {
         }
     }
 
-    /// Creates a coordinator whose preparation reads use local responses and that has no delivery route.
-    /// - Parameters:
-    ///   - fixture: The review observations and explicit resource requests.
-    ///   - responses: The preparation responses.
-    /// - Returns: The coordinator.
-    /// - Throws: A fixture encoding error.
     private static func coordinator(_ fixture: SigningFixture, _ responses: HTTPResponses) throws
         -> any TransactionCoordinating {
         let signing = try HTTPResponses.signing()
@@ -94,10 +77,6 @@ struct TransactionCoordinatingPrivateTransactionTests {
         )
     }
 
-    /// Creates preparation responses whose fee reads return fees in order, the last one repeating.
-    /// - Parameter fees: The network fees, or `nil` for an unknown fee.
-    /// - Returns: The responses.
-    /// - Throws: A JSON encoding error.
     private static func responses(fees: [UInt64?]) throws -> HTTPResponses {
         let fixture = try SigningFixture()
         return HTTPResponses([
@@ -113,10 +92,6 @@ struct TransactionCoordinatingPrivateTransactionTests {
         ])
     }
 
-    /// Creates a sweep of the fixture's one-time account into its own shielded address, after a memo it signs.
-    /// - Parameter fixture: The one-time account and the account whose balance changes.
-    /// - Returns: The prepared sweep before its network fee.
-    /// - Throws: A fixture error, which doesn't happen.
     private static func sweep(_ fixture: SigningFixture) throws -> PreparedPrivateTransaction {
         let source = try Address(fixture.oneTime.address)
         let redemption = try Redemption(instructions: [try MemoProgram.memo("sweep", signers: [source])], noteLamports: 1,

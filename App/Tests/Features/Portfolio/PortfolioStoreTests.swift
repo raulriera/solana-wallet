@@ -7,12 +7,9 @@ import Transactions
 @testable import RPC
 @testable import widgets
 
-/// Checks the shared portfolios: each network's service, the settings changes that reach every service, and the
-/// wallets that windows share.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct PortfolioStoreTests {
-    /// Only mainnet's service exists until a window observes on devnet; devnet's service is then created once.
     @Test
     func `Devnet's service is created for its first window and then reused`() async throws {
         var made: [Network] = []
@@ -32,7 +29,6 @@ struct PortfolioStoreTests {
         second.cancel()
     }
 
-    /// Mainnet's service gets the price provider, which quotes mainnet; devnet's service gets none.
     @Test
     func `Only mainnet's service gets the price provider`() async throws {
         var priced: [Network: Bool] = [:]
@@ -49,8 +45,6 @@ struct PortfolioStoreTests {
         viewing.cancel()
     }
 
-    /// Each change to the currency choice has every created service read its prices once, with the new choice;
-    /// reading the saved choice and choosing what's already chosen read nothing, or the first read would show them.
     @Test
     func `Each currency change has every service read its prices once`() async throws {
         let currency = CurrencyStore.inMemory(StoredValue(CurrencySettings(rateSource: .coinbase)))
@@ -79,7 +73,6 @@ struct PortfolioStoreTests {
         withExtendedLifetime(portfolios) {}
     }
 
-    /// A change that can't be saved is undone, and the services then read their prices with the saved choice.
     @Test
     func `An unsaved currency change ends with the saved choice`() async throws {
         let saved = CurrencySettings(rateSource: .coinbase)
@@ -94,15 +87,12 @@ struct PortfolioStoreTests {
 
         await #expect(throws: CocoaError.self) { try await currency.select(currencyCode: "EUR") }
 
-        // The change shows before its save fails, so a read may see it before the undo.
         var read = await reads.next()
         if read == CurrencySettings(rateSource: .coinbase, currencyCode: "EUR") { read = await reads.next() }
         #expect(read == saved)
         withExtendedLifetime(portfolios) {}
     }
 
-    /// Erasing the choice, as a reset does, and the next read have no service read its prices; the next change does,
-    /// so the first price read shows that change.
     @Test
     func `Erasing the currency choice reads no prices`() async throws {
         let currency = CurrencyStore.inMemory(StoredValue(CurrencySettings(rateSource: .coinbase, currencyCode: "EUR")))
@@ -116,7 +106,6 @@ struct PortfolioStoreTests {
 
         try await currency.erase()
         await currency.load()
-        // Lists a source's currencies, as the Currency screen does, so the read and the change arrive apart.
         _ = try await currency.currencies(for: .europeanCentralBank)
         try await currency.select(currencyCode: "JPY")
 
@@ -125,9 +114,6 @@ struct PortfolioStoreTests {
         withExtendedLifetime(portfolios) {}
     }
 
-    /// A devnet window reads balances at the selected provider's devnet host, starting with SOL alone, and shows
-    /// amounts without value because the price provider quotes mainnet.
-    /// - Throws: A portfolio failure or a test prerequisite error.
     @Test
     func `A devnet window reads devnet balances without value`() async throws {
         let directory = URL.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -158,8 +144,6 @@ struct PortfolioStoreTests {
         await viewing.value
     }
 
-    /// A new provider ends every created service's work once, and the connection that windows observe follows only
-    /// after; reading the settings ends no work.
     @Test
     func `A new provider ends every service's work before windows observe again`() async throws {
         let providers = ProviderStore.inMemory(key: StoredValue("fixture-key"))
@@ -185,7 +169,6 @@ struct PortfolioStoreTests {
         #expect(await devnet.providerChanges == 1)
     }
 
-    /// A new provider ends mainnet's work and creates no devnet service while no window has shown devnet.
     @Test
     func `A new provider creates no devnet service`() async throws {
         let providers = ProviderStore.inMemory(selection: .helius, key: "fixture-key")
@@ -206,7 +189,6 @@ struct PortfolioStoreTests {
         #expect(await made[.mainnet]?.providerChanges == 1)
     }
 
-    /// Logos that one service can't remove don't keep another from ending its work, and windows still observe again.
     @Test
     func `A service that can't remove logos keeps no other from ending its work`() async throws {
         let providers = ProviderStore.inMemory(selection: .helius, key: "fixture-key")
@@ -227,7 +209,6 @@ struct PortfolioStoreTests {
         #expect(await other.providerChanges == 1)
     }
 
-    /// A new key while Helius is in use is a new connection, which ends the work that read with the previous key.
     @Test
     func `A new Helius key ends the previous key's work`() async throws {
         let providers = ProviderStore.inMemory(selection: .helius, key: "fixture-key")
@@ -243,8 +224,6 @@ struct PortfolioStoreTests {
         #expect(await portfolio.providerChanges == 1)
     }
 
-    /// Edits that keep the connection end no work: a new key while another provider is in use, and deleting a custom
-    /// RPC that isn't in use. The next provider then ends the work once, so it's the first change.
     @Test
     func `Edits that keep the connection end no work`() async throws {
         let unused = try #require(URL(string: "https://rpc.example.com"))
@@ -264,7 +243,6 @@ struct PortfolioStoreTests {
         #expect(await portfolio.providerChanges == 1)
     }
 
-    /// Erasing the settings, as a reset does, and the next read end no work, and windows see each at once.
     @Test
     func `Erasing the provider settings ends no work`() async throws {
         let providers = ProviderStore.inMemory(selection: .helius, key: "fixture-key")
@@ -282,8 +260,6 @@ struct PortfolioStoreTests {
         #expect(await portfolio.providerChanges == 0)
     }
 
-    /// A new provider observes every observed wallet again once the previous provider's work has ended, so the windows
-    /// that share it keep receiving updates without starting over.
     @Test
     func `A new provider observes the observed wallets again`() async throws {
         let providers = ProviderStore.inMemory(selection: .helius, key: "fixture-key")
@@ -309,9 +285,6 @@ struct PortfolioStoreTests {
         #expect(await portfolio.providerChanges == 1)
     }
 
-    /// Windows that show the same wallet on the same network share one observation and one state, and the wallet's
-    /// observation ends only when the last of them does.
-    /// - Throws: A test prerequisite error.
     @Test
     func `Windows on the same wallet share one observation`() async throws {
         let service = PortfolioResponses()
@@ -347,9 +320,6 @@ struct PortfolioStoreTests {
         #expect(portfolios.portfolio(for: account, on: .devnet)?.update?.snapshot == changed)
     }
 
-    /// Erasing, as Reset App does, forgets every wallet's portfolio and its saved holdings, so no window or later launch
-    /// shows a deleted wallet's holdings.
-    /// - Throws: A portfolio failure or a test prerequisite error.
     @Test
     func `Erasing forgets every wallet's portfolio and its saved holdings`() async throws {
         let directory = URL.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -375,8 +345,6 @@ struct PortfolioStoreTests {
         await viewing.value
     }
 
-    /// Verifies an added token is saved to the wallet's list on the network.
-    /// - Throws: A storage or test prerequisite error.
     @Test
     func `Adding a token saves it to the wallet's list`() async throws {
         let directory = URL.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -390,8 +358,6 @@ struct PortfolioStoreTests {
         #expect(try savedList(in: directory)?.tokens.last == bonk)
     }
 
-    /// Verifies a removed token leaves the wallet's saved list on the network.
-    /// - Throws: A storage or test prerequisite error.
     @Test
     func `Removing a token saves the wallet's list without it`() async throws {
         let directory = URL.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -403,37 +369,19 @@ struct PortfolioStoreTests {
         #expect(try savedList(in: directory)?.tokens.map(\.mint.value) == [DefaultToken.usdc.rawValue])
     }
 
-    /// Creates a portfolio service that keeps its token lists and snapshots in a test's directory.
-    /// - Parameter directory: The test's private directory.
-    /// - Returns: A mainnet service that makes no requests for token-list edits.
     private func filePortfolio(in directory: URL) -> Portfolio {
         Portfolio(rpc: Solana(network: .mainnet), store: FileSnapshotStore(directory: directory),
                   tokenLists: tokenLists(in: directory))
     }
 
-    /// Reads the public wallet's saved token list from a test's directory.
-    /// - Parameter directory: The test's private directory.
-    /// - Returns: The saved list, or `nil` before anything is saved.
-    /// - Throws: ``TokenListError/unreadable`` if the saved list can't be read.
     private func savedList(in directory: URL) throws -> Portfolio::TokenList? {
         try tokenLists(in: directory).tokenList(for: CacheKey(owner: PublicWallet.address, network: .mainnet))
     }
 
-    /// Creates the token-list store in a test's directory.
-    /// - Parameter directory: The test's private directory.
-    /// - Returns: The store that the test's portfolio saves lists in.
     private func tokenLists(in directory: URL) -> FileTokenListStore {
         FileTokenListStore(directory: directory.appendingPathComponent("TokenLists"))
     }
 
-    /// Starts observing a wallet on a network, as a window that shows the network does, which creates the network's
-    /// service, and waits until the service observes it.
-    /// - Parameters:
-    ///   - account: The account whose wallet to observe.
-    ///   - network: The network to observe the wallet on.
-    ///   - portfolios: The portfolios under test.
-    ///   - service: The network's service, which reports the observation.
-    /// - Returns: The observation, which runs until it's cancelled.
     private static func observe(_ account: widgets.Account, on network: Network, of portfolios: PortfolioStore,
                                 through service: PortfolioChanges) async -> Task<Void, Never> {
         var observed = service.observedOwners.makeAsyncIterator()
@@ -442,11 +390,6 @@ struct PortfolioStoreTests {
         return viewing
     }
 
-    /// Waits until the portfolios serve a connection.
-    /// - Parameters:
-    ///   - portfolios: The portfolios under test.
-    ///   - connection: The connection to wait for.
-    /// - Throws: `CancellationError` when the suite's time limit ends the wait.
     private static func connection(of portfolios: PortfolioStore,
                                    becomes connection: ProviderClient.Endpoint?) async throws {
         for await served in Observations({ portfolios.connection }) where served == connection { return }

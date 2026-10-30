@@ -2,14 +2,7 @@ import Foundation
 import RPC
 import Testing
 
-/// Tests Solana's error variants independently of the HTTP client.
 struct TransactionErrorTests {
-    /// Verifies named variants, instruction failures, and failures carrying account details.
-    ///
-    /// - Parameters:
-    ///   - json: The error's JSON representation.
-    ///   - expected: The expected variant and its exact associated data.
-    /// - Throws: A decoding error if the fixture isn't a supported transaction error.
     @Test(arguments: [
         (#""BlockhashNotFound""#, TransactionError(name: "BlockhashNotFound", details: nil)),
         (#"{"InstructionError":[2,"InvalidArgument"]}"#,
@@ -25,9 +18,6 @@ struct TransactionErrorTests {
         #expect(error == expected)
     }
 
-    /// Verifies that invalid error values can't be interpreted as one transaction failure.
-    ///
-    /// - Parameter json: An invalid root value or variant object.
     @Test(arguments: ["null", "42", "[]", "{}", #"{"First":1,"Second":2}"#])
     func `Transaction errors reject malformed variants`(json: String) {
         #expect(throws: DecodingError.self) {

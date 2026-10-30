@@ -4,17 +4,12 @@ import Testing
 import Transactions
 @testable import Portfolio
 
-/// Verifies each account's token list: its defaults, its limit, and saving it without losing added tokens.
 struct TokenListTests {
-    /// The ways a saved list can fail to belong to the account that reads it.
     enum UnreadableFile: CaseIterable {
-        /// Bytes that don't decode as a token list.
         case corrupt
-        /// A valid list saved for another account.
         case anotherAccount
     }
 
-    /// Verifies new lists hold each network's defaults, which mainnet pins by mint address.
     @Test
     func `New mainnet lists start with USDC and USDT, and devnet lists start empty`() async throws {
         let fixture = TokenListFixture()
@@ -30,7 +25,6 @@ struct TokenListTests {
         #expect(devnet.tokens.isEmpty)
     }
 
-    /// Verifies additions and removals are saved in order.
     @Test
     func `Added and removed tokens are saved in order`() async throws {
         let fixture = TokenListFixture()
@@ -45,7 +39,6 @@ struct TokenListTests {
         #expect(restored.tokens.last == added)
     }
 
-    /// Verifies a removed token leaves the cached holdings at once, so a later launch doesn't show it before a read.
     @Test
     func `A removed token leaves the cached holdings`() async throws {
         let fixture = TokenListFixture()
@@ -66,7 +59,6 @@ struct TokenListTests {
         #expect(saved?.holdings.map(\.id) == [.nativeSOL, .asset(DefaultToken.usdt.rawValue)])
     }
 
-    /// Verifies a token that's already listed keeps its place instead of appearing twice.
     @Test
     func `Adding a listed token changes nothing`() async throws {
         let fixture = TokenListFixture()
@@ -78,7 +70,6 @@ struct TokenListTests {
         #expect(try await fixture.list(for: "wallet") == before)
     }
 
-    /// Verifies the limit counts added tokens only.
     @Test
     func `A list takes fifty added tokens and refuses the fifty-first`() async throws {
         let fixture = TokenListFixture()
@@ -93,7 +84,6 @@ struct TokenListTests {
         #expect(list.tokens.count == TokenList.addedTokenLimit + 2)
     }
 
-    /// Verifies a default someone removed still fits in a full list when they add it again.
     @Test
     func `A removed default token fits again in a full list`() async throws {
         let fixture = TokenListFixture()
@@ -108,9 +98,6 @@ struct TokenListTests {
         #expect(try await fixture.list(for: "wallet").tokens.last == usdc)
     }
 
-    /// Verifies a saved list that can't be read stops changes, and its file stays as it was.
-    ///
-    /// - Parameter file: The kind of saved file the account can't use.
     @Test(arguments: UnreadableFile.allCases)
     func `An unreadable saved list stays in place instead of becoming the defaults`(_ file: UnreadableFile) async throws {
         let fixture = TokenListFixture()
@@ -133,7 +120,6 @@ struct TokenListTests {
         #expect(try files.read(for: key) == saved)
     }
 
-    /// Verifies removing a wallet's data takes its list with it, so a later read starts from the defaults.
     @Test
     func `Removing an account's data removes its token list`() async throws {
         let fixture = TokenListFixture()
@@ -145,7 +131,6 @@ struct TokenListTests {
         #expect(try await fixture.list(for: "wallet").tokens.map(\.symbol) == ["USDC", "USDT"])
     }
 
-    /// Verifies simultaneous edits, as from several windows, don't overwrite each other.
     @Test
     func `Simultaneous additions all reach the saved list`() async throws {
         let fixture = TokenListFixture()
@@ -164,46 +149,24 @@ struct TokenListTests {
     }
 }
 
-/// A private token-list directory for one test.
 private struct TokenListFixture {
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
 
-    /// The token-list store in this test's directory.
     var store: FileTokenListStore { FileTokenListStore(directory: directory) }
-    /// The cached-holdings store in this test's directory.
     var snapshots: FileSnapshotStore { FileSnapshotStore(directory: directory.appendingPathComponent("Snapshots")) }
 
-    /// Creates a service that keeps its token lists and snapshots in this test's directory.
-    ///
-    /// The service makes no network requests for token lists.
-    /// - Parameter network: The network of the service's RPC client.
-    /// - Returns: A service backed by this test's files.
     func portfolio(network: Network = .mainnet) -> Portfolio {
         Portfolio(rpc: Solana(network: network), store: snapshots, tokenLists: store)
     }
 
-    /// Reads an account's list as the service does: the saved list, or the network's defaults.
-    ///
-    /// - Parameters:
-    ///   - owner: The account's wallet address.
-    ///   - network: The list's network.
-    /// - Returns: The account's token list.
-    /// - Throws: ``TokenListError/unreadable`` if the saved list can't be read.
     func list(for owner: String, network: Network = .mainnet) async throws -> TokenList {
         try await TokenListCoordinator(store: store, network: network).list(for: owner)
     }
 
-    /// Removes only this test's files.
     func removeFiles() { try? FileManager.default.removeItem(at: directory) }
 }
 
-/// Creates a token with a distinct, valid mint address, so tests can fill a list.
-///
-/// - Parameter index: A number from 1 to 57; each gives a different mint.
-/// - Returns: A Token-2022 token named after the index.
-/// - Throws: A validation error if the generated address is malformed.
 private func token(_ index: Int) throws -> ListedToken {
-    // Thirty-one leading "1"s encode zero bytes, so one more Base58 digit completes a 32-byte address.
     let digits = Array("23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz")
     let mint = try Address(String(repeating: "1", count: 31) + String(digits[index - 1]))
     return ListedToken(mint: mint, program: .token2022, decimals: 9, symbol: "T\(index)", name: "Token \(index)")

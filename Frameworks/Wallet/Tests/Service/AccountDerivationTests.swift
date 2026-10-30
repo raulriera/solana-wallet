@@ -1,9 +1,7 @@
 import Testing
 import Wallet
 
-/// Verifies batch derivation through the public contract using independently derived addresses.
 struct AccountDerivationTests {
-    /// Verifies both approved families, ordering, duplicate paths, and a nonzero account index.
     @Test
     func `Batch derivation preserves exact paths and independently derived addresses`() async throws {
         let phrase = try PublicRecovery.phrase()
@@ -14,14 +12,12 @@ struct AccountDerivationTests {
         let accounts = try await wallet.accounts(for: phrase, passphrase: "", paths: paths)
 
         #expect(accounts.map(\.path) == paths)
-        // Public fixture addresses independently derived with Python hashlib/HMAC and OpenSSL Ed25519.
         #expect(accounts.map(\.address) == [
             "Hh8QwFUA6MtVu1qAoq12ucvFHNwCcVTV7hpWjeY1Hztb", "GjJyeC1r2RgkuoCWMyPYkCWSGSGLcz266EaAkLA27AhL",
             "HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk", "GjJyeC1r2RgkuoCWMyPYkCWSGSGLcz266EaAkLA27AhL",
         ])
     }
 
-    /// Verifies batching retains the original BIP-39 passphrase instead of silently using none.
     @Test
     func `Batch derivation applies the original BIP-39 passphrase`() async throws {
         let phrase = try PublicRecovery.phrase()
@@ -30,7 +26,6 @@ struct AccountDerivationTests {
         #expect(try await Wallet().accounts(for: phrase, passphrase: "", paths: []).isEmpty)
     }
 
-    /// Verifies a cancelled operation cannot return a successful batch.
     @Test
     func `Cancelled batch derivation throws CancellationError`() async throws {
         let phrase = try PublicRecovery.phrase()

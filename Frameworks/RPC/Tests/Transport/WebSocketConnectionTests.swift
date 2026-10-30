@@ -2,11 +2,7 @@ import Foundation
 import Testing
 @testable import RPC
 
-/// Verifies the URLSession WebSocket transport against a local server.
 struct WebSocketConnectionTests {
-    /// Verifies a ping whose pong never arrives stops waiting when its task is cancelled.
-    ///
-    /// - Throws: A server setup error or failed prerequisite.
     @Test(.timeLimit(.minutes(1)))
     func `A ping without a pong ends when its task is cancelled`() async throws {
         let server = try await SilentWebSocketServer()
@@ -21,7 +17,6 @@ struct WebSocketConnectionTests {
         _ = try #require(await pings.next())
 
         ping.cancel()
-        // A ping that ignores cancellation never ends, so a bound stops the wait before the time limit.
         let bound = Task { try? await Task.sleep(for: .seconds(10)); outcome.finish() }
         defer { bound.cancel() }
 

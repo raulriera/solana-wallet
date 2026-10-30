@@ -6,13 +6,8 @@ import Transactions
 @testable import Portfolio
 @testable import widgets
 
-/// Verifies the shared portfolios against mainnet, read-only.
 @Suite(.tags(.network))
 struct PortfolioStoreLiveTests {
-    /// Verifies the app observes and explicitly refreshes a public mainnet wallet through the shared portfolios.
-    ///
-    /// Uses real Helius subscriptions and balance reads without funding or transfers.
-    /// - Throws: A provider or test prerequisite error.
     @MainActor
     @Test(.timeLimit(.minutes(1)))
     func `The shared portfolios observe and reload a public mainnet wallet`() async throws {

@@ -1,7 +1,6 @@
 import Foundation
 import Synchronization
 
-/// A monotonic clock advanced explicitly by tests instead of wall-clock delays.
 final class ManualClock: Clock, Sendable {
     typealias Instant = ContinuousClock.Instant
     typealias Duration = Swift.Duration
@@ -11,19 +10,12 @@ final class ManualClock: Clock, Sendable {
     private let events: AsyncStream<Instant>.Continuation
     private let state = Mutex(State())
 
-    /// Creates a clock with a stream of registered sleep deadlines.
     init() {
         (waits, events) = AsyncStream.makeStream()
     }
 
-    /// The current simulated monotonic instant.
     var now: Instant { state.withLock(\.now) }
 
-    /// Suspends until the test advances time to the deadline or cancels this task.
-    /// - Parameters:
-    ///   - deadline: The instant at which to resume.
-    ///   - tolerance: The permitted timing tolerance, unused by this exact clock.
-    /// - Throws: `CancellationError` when cancelled before or during sleep.
     func sleep(until deadline: Instant, tolerance: Duration?) async throws {
         let id = UUID()
         try await withTaskCancellationHandler {
@@ -46,8 +38,6 @@ final class ManualClock: Clock, Sendable {
         try Task.checkCancellation()
     }
 
-    /// Advances simulated time and resumes every waiter whose deadline is due.
-    /// - Parameter instant: The new instant, at or after the clock's current time.
     func advance(to instant: Instant) {
         let due = state.withLock { state in
             precondition(instant >= state.now)
@@ -59,16 +49,13 @@ final class ManualClock: Clock, Sendable {
         for continuation in due { continuation.resume() }
     }
 
-    /// Finishes deadline observation when the clock is released.
     deinit { events.finish() }
 
-    /// Synchronous state protected by the clock's mutex.
     private struct State {
         var now = ContinuousClock.now
         var waiters: [UUID: Waiter] = [:]
     }
 
-    /// One cancellable clock suspension.
     private struct Waiter {
         let deadline: Instant
         let continuation: CheckedContinuation<Void, any Error>

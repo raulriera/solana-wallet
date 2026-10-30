@@ -4,14 +4,11 @@ import Vault
 import Wallet
 @testable import widgets
 
-/// Verifies Security & Privacy navigation and steps with public fixtures and in-memory stores.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct SecurityCoordinatorTests {
-    /// A step that can fail on its way to the next screen.
     enum Step: CaseIterable { case recovery, owner, reset }
 
-    /// Reading the recovery opens its backup.
     @Test
     func `Showing recovery opens the wallet's backup`() async throws {
         let account = try Account.fixture(index: 0)
@@ -30,8 +27,6 @@ struct SecurityCoordinatorTests {
         #expect(coordinator.attempt == nil)
     }
 
-    /// Leaving the backup screen, or the whole scene, releases the words.
-    /// - Parameter closesScene: Whether the scene leaves instead of only the backup screen.
     @Test(arguments: [false, true])
     func `Leaving the backup releases the words`(closesScene: Bool) async throws {
         let account = try Account.fixture(index: 0)
@@ -47,7 +42,6 @@ struct SecurityCoordinatorTests {
         #expect(coordinator.path.isEmpty)
     }
 
-    /// A standard reset asks the device owner before explaining the reset.
     @Test
     func `A standard reset confirms the owner first`() async {
         let owner = TestOwner()
@@ -61,7 +55,6 @@ struct SecurityCoordinatorTests {
         #expect(await owner.prompts == 1)
     }
 
-    /// Without recovery there's nothing to unlock, so the reset explanation opens at once.
     @Test
     func `A reset without recovery skips the owner check`() async {
         let owner = TestOwner()
@@ -74,7 +67,6 @@ struct SecurityCoordinatorTests {
         #expect(await owner.prompts == 0)
     }
 
-    /// Confirming the reset deletes everything.
     @Test
     func `Confirming the reset resets the app`() async {
         let storage = ResetStorage()
@@ -89,8 +81,6 @@ struct SecurityCoordinatorTests {
         #expect(coordinator.error == nil)
     }
 
-    /// A failed step explains itself and stays on the current screen; only an incomplete reset can be tried again.
-    /// - Parameter step: The step that fails.
     @Test(arguments: Step.allCases)
     func `A failed step explains itself without moving on`(_ step: Step) async throws {
         let account = try Account.fixture(index: 0)
@@ -111,8 +101,6 @@ struct SecurityCoordinatorTests {
         #expect(coordinator.error?.canRetry == (step == .reset))
     }
 
-    /// Dismissing the system prompt changes nothing.
-    /// - Parameter step: The step whose prompt is dismissed.
     @Test(arguments: [Step.recovery, .owner])
     func `A dismissed prompt changes nothing`(_ step: Step) async throws {
         let account = try Account.fixture(index: 0)
@@ -129,12 +117,6 @@ struct SecurityCoordinatorTests {
         #expect(coordinator.attempt == nil)
     }
 
-    /// Creates a coordinator around in-memory stores.
-    /// - Parameters:
-    ///   - recovery: The recovery storage that the reveal reads.
-    ///   - owner: The device-owner check.
-    ///   - storage: The stores that a reset empties.
-    /// - Returns: A coordinator with an empty path.
     private func makeCoordinator(recovery: SecurityRecoveryStore = SecurityRecoveryStore(),
                                  owner: TestOwner = TestOwner(),
                                  storage: ResetStorage = ResetStorage()) -> SecurityCoordinator {

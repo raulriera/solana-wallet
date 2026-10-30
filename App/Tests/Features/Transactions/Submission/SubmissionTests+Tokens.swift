@@ -6,12 +6,6 @@ import Wallet
 @testable import widgets
 
 extension SubmissionTests {
-    /// Verifies both first-party programs deliver wrapped devnet SOL to the configured recipient.
-    ///
-    /// Wrapping and cleanup use the programs' published SyncNative and CloseAccount layouts. Each run
-    /// first closes the token accounts the previous run left, so the delivered funds stay with the
-    /// recipient. Both authorities are accounts of the devnet wallet your local configuration supplies.
-    /// - Parameter program: The first-party token program exercised through the same consumer API.
     @Test(.tags(.network), .timeLimit(.minutes(3)), arguments: TokenProgram.allCases)
     func `Devnet token transfers deliver balances to the configured recipient`(_ program: TokenProgram) async throws {
         let rpcs = try LiveClients.devnetRPCs()
@@ -28,7 +22,6 @@ extension SubmissionTests {
         let source = try mint.program.associatedAccount(owner: sender.address, mint: mint.address)
         let destination = try mint.program.associatedAccount(owner: recipient.address, mint: mint.address)
         let oldAccounts = try await rpc.send(GetMultipleAccounts(addresses: [source.value, destination.value]))
-        // Close the token accounts the previous run left, returning each one's balance to its owner.
         var recoveryInstructions: [Instruction] = []
         if oldAccounts.value[0] != nil {
             recoveryInstructions.append(try close(source, owner: sender.address, to: sender.address, program: program))
@@ -76,14 +69,6 @@ extension SubmissionTests {
         #expect(balances == [0, amount])
     }
 
-    /// Reads the exact delivered token balances through each configured real provider.
-    /// - Parameters:
-    ///   - addresses: The token accounts to observe.
-    ///   - rpcs: The same-network clients used for broadcast, each watching the transaction again.
-    ///   - receipt: The confirmed transaction whose receipt each client watches.
-    ///   - program: The expected owner program.
-    /// - Returns: The observed raw balances, after asserting agreement between providers.
-    /// - Throws: An RPC, account-decoding, or prerequisite error.
     private func tokenBalances(_ addresses: [Address], through rpcs: [any RPC & SignatureEventProviding],
                                after receipt: widgets.Confirmation,
                                program: TokenProgram) async throws -> [UInt64] {
@@ -104,14 +89,6 @@ extension SubmissionTests {
         return try #require(expected)
     }
 
-    /// Creates the controlled sender's native-token account for live test setup.
-    /// - Parameters:
-    ///   - address: The derived associated token address.
-    ///   - owner: The configured sender paying for and owning the account.
-    ///   - mint: The program's native mint.
-    ///   - program: The token program receiving the account.
-    /// - Returns: The official idempotent ATA instruction.
-    /// - Throws: An address validation error.
     private func createAssociatedAccount(_ address: Address, owner: Address, mint: Address,
                                           program: TokenProgram) throws -> Instruction {
         try Instruction(program: Address("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"), accounts: [
@@ -124,14 +101,6 @@ extension SubmissionTests {
         ], data: Data([1]))
     }
 
-    /// Returns a native token account's lamports and rent deposit to the configured wallet.
-    /// - Parameters:
-    ///   - account: The account controlled by the selected authority.
-    ///   - owner: The configured wallet's account authorizing closure.
-    ///   - destination: The configured wallet's account receiving the deposit and native balance.
-    ///   - program: The owning token program.
-    /// - Returns: The official CloseAccount instruction.
-    /// - Throws: An address validation error.
     private func close(_ account: Address, owner: Address, to destination: Address,
                        program: TokenProgram) throws -> Instruction {
         try Instruction(program: Address(program.rawValue), accounts: [

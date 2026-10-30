@@ -2,13 +2,7 @@ import Foundation
 import Testing
 @testable import widgets
 
-/// Checks which keypad presses the amount accepts and what it shows while the person types.
 struct AmountEntryTests {
-    /// Types each key in order on a fresh amount.
-    /// - Parameters:
-    ///   - keys: The keys to press.
-    ///   - fractionDigits: How many digits the unit allows after the separator.
-    /// - Returns: The amount and whether the last key was accepted.
     private static func type(_ keys: [KeypadKey], fractionDigits: Int = 2) -> (entry: AmountEntry, accepted: Bool) {
         var entry = AmountEntry(maximumFractionDigits: fractionDigits)
         var accepted = true
@@ -16,7 +10,6 @@ struct AmountEntryTests {
         return (entry, accepted)
     }
 
-    /// Digits and one separator build the amount, keeping trailing zeros as typed.
     @Test func `Digits and a separator build the amount`() {
         let (entry, accepted) = Self.type([.digit(1), .digit(2), .decimalSeparator, .digit(5), .digit(0)])
         #expect(accepted)
@@ -24,10 +17,6 @@ struct AmountEntryTests {
         #expect(entry.fractionDigits == "50")
     }
 
-    /// Keys that would break the amount's format leave it unchanged.
-    /// - Parameters:
-    ///   - keys: The keys before the rejected one, which comes last.
-    ///   - fractionDigits: How many digits the unit allows after the separator.
     @Test(arguments: [
         ([KeypadKey.decimalSeparator, .decimalSeparator], 2),
         ([.decimalSeparator], 0),
@@ -42,13 +31,11 @@ struct AmountEntryTests {
         #expect(entry == before)
     }
 
-    /// A lone zero gives way to the next digit instead of leading it.
     @Test func `A leading zero is replaced`() {
         let (entry, _) = Self.type([.digit(0), .digit(7)])
         #expect(entry.integerDigits == "7")
     }
 
-    /// Delete removes fraction digits, then the separator, then whole digits, and does nothing when empty.
     @Test func `Delete removes the last typed character`() {
         var entry = Self.type([.digit(4), .decimalSeparator, .digit(2)]).entry
         _ = entry.press(.delete)
@@ -62,15 +49,6 @@ struct AmountEntryTests {
         #expect(entry == AmountEntry(maximumFractionDigits: 2))
     }
 
-    /// A converted amount starts as if its digits were typed: rounded down unless asked otherwise, so it never exceeds
-    /// what was converted; with every cent when asked, so $12.50 doesn't come back as $12.5; empty when it rounds to
-    /// nothing; and refused, instead of cut short, with more whole digits than the keypad types.
-    /// - Parameters:
-    ///   - value: The converted amount's digits.
-    ///   - fractionDigits: How many digits the unit allows after the separator.
-    ///   - rounding: How extra digits are dropped.
-    ///   - padsFraction: Whether the fraction shows every digit the unit allows.
-    ///   - keys: The keys that type the expected amount, or `nil` when the conversion is refused.
     @Test(arguments: [
         ("0.087579198", 4, .down, false,
          [.digit(0), .decimalSeparator, .digit(0), .digit(8), .digit(7), .digit(5)]),
@@ -88,13 +66,6 @@ struct AmountEntryTests {
         #expect(converted == keys.map { Self.type($0, fractionDigits: fractionDigits).entry })
     }
 
-    /// The amount shows as typed with the locale's separator, including a trailing one, wherever the locale puts the
-    /// currency, also when the currency isn't the locale's own.
-    /// - Parameters:
-    ///   - keys: The keys to press.
-    ///   - unit: The amount's unit.
-    ///   - locale: The locale's identifier.
-    ///   - shown: What the keypad shows.
     @Test(arguments: [
         ([KeypadKey](), AmountEntryFormatStyle.Unit.currency(code: "USD"), "en_US", "$0"),
         ([.digit(1), .digit(2)], .currency(code: "USD"), "en_US", "$12"),

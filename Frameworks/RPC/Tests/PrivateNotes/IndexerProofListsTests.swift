@@ -2,14 +2,9 @@ import Foundation
 import Testing
 @testable import RPC
 
-/// Verifies the strict decoding of the indexer's inclusion and non-inclusion proof results.
 struct IndexerProofListsTests {
     private typealias Fixture = IndexerFixtures
 
-    /// Verifies an inclusion proof decodes its tree, leaf, 32 siblings in order, leaf index, root, and root index,
-    /// ignoring the root's sequence number.
-    ///
-    /// - Throws: A decoding error, or a failed test prerequisite.
     @Test
     func `Inclusion proofs decode every field`() throws {
         let list = try decode(MerkleProofList.self, proofs: [Fixture.merkleProof(leaf: 7), Fixture.merkleProof(leaf: 8)])
@@ -21,10 +16,6 @@ struct IndexerProofListsTests {
                                                 leafIndex: 6, root: Fixture.bytes(0xbb), rootIndex: 499)))
     }
 
-    /// Verifies a non-inclusion proof decodes its tree, nullifier, low and high elements, low element index, 40
-    /// siblings in order, root, and root index, ignoring the high element's index.
-    ///
-    /// - Throws: A decoding error, or a failed test prerequisite.
     @Test
     func `Non-inclusion proofs decode every field`() throws {
         let list = try decode(NonInclusionProofList.self, proofs: [Fixture.nonInclusionProof(leaf: 5)])
@@ -38,9 +29,6 @@ struct IndexerProofListsTests {
         )))
     }
 
-    /// Verifies inclusion proofs of another tree type or path length, or with an invalid tree or hash, fail.
-    ///
-    /// - Parameter proof: A malformed proof's JSON object.
     @Test(arguments: [
         IndexerFixtures.merkleProof(leaf: 7, treeType: 2),
         IndexerFixtures.merkleProof(leaf: 7, pathCount: 31),
@@ -54,9 +42,6 @@ struct IndexerProofListsTests {
         #expect(throws: (any Error).self) { try decode(MerkleProofList.self, proofs: [proof]) }
     }
 
-    /// Verifies non-inclusion proofs of another tree type or path length, or with a missing or invalid element, fail.
-    ///
-    /// - Parameter proof: A malformed proof's JSON object.
     @Test(arguments: [
         IndexerFixtures.nonInclusionProof(leaf: 5, treeType: 1),
         IndexerFixtures.nonInclusionProof(leaf: 5, pathCount: 32),
@@ -68,12 +53,6 @@ struct IndexerProofListsTests {
         #expect(throws: (any Error).self) { try decode(NonInclusionProofList.self, proofs: [proof]) }
     }
 
-    /// Decodes a result object holding proofs.
-    /// - Parameters:
-    ///   - type: The list type.
-    ///   - proofs: The proofs' JSON objects.
-    /// - Returns: The decoded list.
-    /// - Throws: A decoding error.
     private func decode<List: Decodable>(_ type: List.Type, proofs: [String]) throws -> List {
         let json = #"{"context":{"blockTime":1,"slot":2},"proofs":[\#(proofs.joined(separator: ","))]}"#
         return try JSONDecoder().decode(List.self, from: Data(json.utf8))

@@ -2,13 +2,7 @@ import Foundation
 import Testing
 @testable import widgets
 
-/// Checks how a payment's amount counts in the token's smallest units.
 struct PaymentAmountTests {
-    /// A quantity counts in the token's smallest units: lamports for SOL's nine decimals, micro-units for six.
-    /// - Parameters:
-    ///   - quantity: The token quantity.
-    ///   - decimals: The token's decimals.
-    ///   - units: The smallest units.
     @Test(arguments: [
         (Decimal(string: "1.5")!, 9, UInt64(1_500_000_000)),
         (Decimal(string: "0.000000001")!, 9, 1),

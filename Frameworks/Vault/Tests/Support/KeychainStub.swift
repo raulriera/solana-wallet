@@ -6,16 +6,12 @@ import Synchronization
 @testable import Vault
 
 // swift-format-ignore: NeverForceUnwrap
-// The production queries always carry these values; a missing one is a test bug that stops the run.
-/// A per-test Keychain that records protection and simulates Security results.
 final class KeychainStub: KeychainAccessing {
-    /// The service and account used to scope a stored item.
     struct Identity: Hashable {
         let service: String
         let account: String
     }
 
-    /// Recorded data and outcomes, synchronized across the test and Keychain queue.
     struct State {
         var items: [Identity: Data] = [:]
         var readStatus: OSStatus = errSecSuccess
@@ -27,9 +23,7 @@ final class KeychainStub: KeychainAccessing {
         var hidesPasscode = false
         var reusesUnlock = false
         var readCount = 0
-        /// Makes reads wait until their own context is invalidated, as when the prompt never appears.
         var blocksReads = false
-        /// Records a blocked read that waited the full bound without its context being invalidated.
         var readNotFreed = false
     }
 
@@ -37,10 +31,6 @@ final class KeychainStub: KeychainAccessing {
     private let contextFactory: @Sendable () -> LAContext
     private let beforeRead: @Sendable () -> Void
 
-    /// Creates isolated storage with optional authentication and blocking controls.
-    /// - Parameters:
-    ///   - contextFactory: A fresh context factory for cancellation verification.
-    ///   - beforeRead: A synchronous hook running only on the background Keychain queue.
     init(
         contextFactory: @escaping @Sendable () -> LAContext = { TestContext() },
         beforeRead: @escaping @Sendable () -> Void = {}
@@ -49,13 +39,8 @@ final class KeychainStub: KeychainAccessing {
         self.beforeRead = beforeRead
     }
 
-    /// Creates an independent context for an operation.
-    /// - Returns: The context supplied by this test's factory.
     func makeContext() -> LAContext { contextFactory() }
 
-    /// Inserts data without overwriting an existing item and checks the protection policy.
-    /// - Parameter attributes: The production add query.
-    /// - Returns: Success or a duplicate status.
     func add(_ attributes: [String: Any]) -> OSStatus {
         let identity = identity(in: attributes)
         let expected = SecAccessControlCreateWithFlags(
@@ -71,9 +56,6 @@ final class KeychainStub: KeychainAccessing {
         }
     }
 
-    /// Returns one stored payload or the configured failure without mutating storage.
-    /// - Parameter query: The production read query.
-    /// - Returns: The configured status and matching data.
     func copy(matching query: [String: Any]) -> (status: OSStatus, data: Data?) {
         let identity = identity(in: query)
         let context = query[kSecUseAuthenticationContext as String] as! LAContext
@@ -95,9 +77,6 @@ final class KeychainStub: KeychainAccessing {
         }
     }
 
-    /// Removes the queried item, or every item in the service when the query names no account.
-    /// - Parameter query: The production deletion query.
-    /// - Returns: Success or the absent-item status.
     func delete(matching query: [String: Any]) -> OSStatus {
         let (service, account) = scope(in: query)
         return state.withLock { state in
@@ -107,17 +86,11 @@ final class KeychainStub: KeychainAccessing {
         }
     }
 
-    /// Extracts the item identity for queries that address one item.
-    /// - Parameter query: The add or read attributes.
-    /// - Returns: The scoped service and account.
     private func identity(in query: [String: Any]) -> Identity {
         let (service, account) = scope(in: query)
         return Identity(service: service, account: account!)
     }
 
-    /// Extracts the service and optional account and records query scope and execution context.
-    /// - Parameter query: The add, read, or delete attributes.
-    /// - Returns: The scoped service, and the account when the query names one.
     private func scope(in query: [String: Any]) -> (service: String, account: String?) {
         state.withLock {
             $0.queriedOnlyLocalItems = $0.queriedOnlyLocalItems
@@ -130,39 +103,23 @@ final class KeychainStub: KeychainAccessing {
     }
 }
 
-/// Observes invalidation without using the system's biometric prompt.
-///
-/// The invalidation semaphore is the only state shared across threads, and it's
-/// thread-safe. Inherited context configuration remains owned by the production
-/// per-operation wrapper.
 final class TestContext: LAContext, @unchecked Sendable {
     private let available: Bool
     private let invalidation = DispatchSemaphore(value: 0)
 
-    /// Creates a context that records its own invalidation.
-    /// - Parameter available: Whether the test device has a passcode.
     init(available: Bool = true) {
         self.available = available
         super.init()
     }
 
-    /// Waits until this context is invalidated, including an invalidation that already happened.
-    /// - Parameter deadline: The latest time to wait until.
-    /// - Returns: Whether the context was invalidated before the deadline.
     func waitForInvalidation(until deadline: DispatchTime) -> Bool {
         invalidation.wait(timeout: deadline) == .success
     }
 
-    /// Reports availability without consulting simulator authentication configuration.
-    /// - Parameters:
-    ///   - policy: The authentication policy requested by the production service.
-    ///   - error: An optional error output, unused by this test context.
-    /// - Returns: Whether the device has a passcode and the policy accepts biometrics or the passcode.
     override func canEvaluatePolicy(_ policy: LAPolicy, error: NSErrorPointer) -> Bool {
         available && policy == .deviceOwnerAuthentication
     }
 
-    /// Records cancellation or completion before invalidating the context.
     override func invalidate() {
         invalidation.signal()
         super.invalidate()

@@ -4,10 +4,7 @@ import Testing
 import Transactions
 @testable import widgets
 
-/// Verifies instruction preparation through the real client and actual V1 encoders.
 struct PreparationTests {
-    /// Verifies successful estimates cannot silently substitute missing or excessive resource usage.
-    /// - Parameter usage: A malformed resource observation from the provider.
     @Test(arguments: [
         #""loadedAccountsDataSize":256"#, #""unitsConsumed":150"#,
         #""unitsConsumed":1400001,"loadedAccountsDataSize":256"#,
@@ -28,8 +25,6 @@ struct PreparationTests {
         #expect(try await http.requests.map { try $0.rpcMethod } == ["getLatestBlockhash", "simulateTransaction"])
     }
 
-    /// Verifies estimates cannot change the lifetime or move behind the blockhash observation.
-    /// - Parameter response: An inconsistent estimate returned as successful JSON-RPC.
     @Test(arguments: [
         #"{"context":{"slot":399},"value":{"err":null}}"#,
         #"{"context":{"slot":401},"value":{"err":null,"replacementBlockhash":{"blockhash":"11111111111111111111111111111111","lastValidBlockHeight":600}}}"#,
@@ -46,7 +41,6 @@ struct PreparationTests {
         }
     }
 
-    /// Verifies one message binds the displayed transfer, fee, expiry, and simulation.
     @Test
     func `Preparing a SOL transfer returns its exact message, total fee, and block-height expiry`() async throws {
         let expected = try PreparationFixture.preparation()
@@ -68,7 +62,7 @@ struct PreparationTests {
         #expect(result.message == expected.message)
         #expect(resultSource.blockhash.value == expectedSource.blockhash.value)
         #expect(resultSource.blockhash.context.slot == 400)
-        #expect(result.fee.value == 10_000) // Total already includes the 5,000-lamport priority fee.
+        #expect(result.fee.value == 10_000)
         #expect(result.fee.context.slot == 401)
         #expect(result.simulation.value == expected.simulation.value)
         #expect(result.simulation.context.slot == 402)
@@ -83,13 +77,11 @@ struct PreparationTests {
         #expect(options["minContextSlot"] as? Int == 400)
         #expect(options["sigVerify"] as? Bool == false)
         #expect(options["replaceRecentBlockhash"] as? Bool == false)
-        // The blockhash, fee, and simulation all read finalized state.
         for request in requests {
             #expect(try (request.rpcParameters.last as? [String: Any])?["commitment"] as? String == "finalized")
         }
     }
 
-    /// Verifies a service tip leads the composition, so a memo stays before its transfer and the payment stays last.
     @Test
     func `Sender tips precede the caller's instructions`() async throws {
         let fixture = try PreparationFixture.preparation()
@@ -119,7 +111,6 @@ struct PreparationTests {
         #expect(result.transaction.instructions.map(\.data) == expected.map(\.data))
     }
 
-    /// Verifies execution failures remain usable alongside the transfer's review data.
     @Test
     func `Insufficient funds preserve simulation diagnostics and transfer details`() async throws {
         let error = TransactionError(name: "InstructionError", details: .array([
@@ -140,7 +131,6 @@ struct PreparationTests {
         #expect(resultSource.blockhash.value.lastValidBlockHeight == 550)
     }
 
-    /// Verifies missing fee information isn't converted into a free-transfer estimate.
     @Test
     func `An unavailable network fee remains unknown`() async throws {
         let expected = try PreparationFixture.preparation(fee: nil)
@@ -153,7 +143,6 @@ struct PreparationTests {
         #expect(result.simulation.value == expected.simulation.value)
     }
 
-    /// Verifies provider failures propagate without starting later work or retrying.
     @Test
     func `A failed blockhash request stops preparation without retrying`() async throws {
         let expected = try PreparationFixture.preparation()
@@ -169,7 +158,6 @@ struct PreparationTests {
         #expect(await http.requests.count == 1)
     }
 
-    /// Verifies parent cancellation reaches the active child request and prevents a result.
     @Test(.timeLimit(.minutes(1)))
     func `Cancelling preparation cancels the pending simulation`() async throws {
         let expected = try PreparationFixture.preparation()

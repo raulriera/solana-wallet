@@ -5,19 +5,11 @@ import Testing
 import Transactions
 @testable import widgets
 
-/// Verifies sending, recording, and watching through the real transaction coordinator, with local responses and
-/// sockets, and in-memory records.
-///
-/// Each transaction pays 1 SOL from the fixture account on devnet; its blockhash is valid through block height 550.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct TransactionStoreTests {
-    /// A provider's rate limit.
     private static let rateLimit = RPCError.http(statusCode: 429, retryAfter: "3")
 
-    // MARK: Sending
-
-    /// A sent payment is saved as a pending record of what it pays, and its watch saves how it settled.
     @Test
     func `A sent payment is saved as pending`() async throws {
         let sending = try LocalSending()
@@ -33,7 +25,6 @@ struct TransactionStoreTests {
         #expect(try await sending.settle(record) == .succeeded)
     }
 
-    /// A cancelled authentication records and sends nothing.
     @Test
     func `A cancelled authentication records nothing`() async throws {
         let sending = try LocalSending(recovery: SigningRecoveryStore(recovery: try SigningFixture().recovery,
@@ -44,7 +35,6 @@ struct TransactionStoreTests {
         await Self.expectNothingSent(by: sending)
     }
 
-    /// A payment that can't be signed records and sends nothing.
     @Test
     func `A payment that can't be signed records nothing`() async throws {
         let sending = try LocalSending(recovery: SigningRecoveryStore(recovery: try SigningFixture().recovery,
@@ -55,8 +45,6 @@ struct TransactionStoreTests {
         await Self.expectNothingSent(by: sending)
     }
 
-    /// A payment whose delivery is unknown after signing, such as after a rate limit, is still recorded and watched,
-    /// since it may land.
     @Test
     func `A payment with unknown delivery is recorded and watched`() async throws {
         let sending = try LocalSending(sent: HTTPResponses([:], error: Self.rateLimit))
@@ -68,7 +56,6 @@ struct TransactionStoreTests {
         #expect(try await sending.settle(record) == .succeeded)
     }
 
-    /// Cancelling the caller while the payment is being sent doesn't stop its delivery, its record, or its watch.
     @Test
     func `Cancelling the caller doesn't stop delivery`() async throws {
         let gate = Suspension()
@@ -86,7 +73,6 @@ struct TransactionStoreTests {
         #expect(try await sending.settle(record) == .succeeded)
     }
 
-    /// Only the latest 200 records are kept: a new one goes first and the oldest is forgotten.
     @Test
     func `Only the latest 200 records are kept`() async throws {
         let fixture = try SigningFixture()
@@ -105,17 +91,9 @@ struct TransactionStoreTests {
         _ = try await sending.settle(record)
     }
 
-    // MARK: Watching
-
-    /// A settled watch saves the status of its outcome and when it was found.
-    /// - Parameters:
-    ///   - status: The status read, or `nil` when the provider has none.
-    ///   - height: The finalized block height of the watch's epoch reads.
-    ///   - expected: The saved status.
     @Test(arguments: [
         (GetSignatureStatuses.Response.status(.finalized), UInt64(500), TransactionRecord.Status.succeeded),
         (.status(.finalized, error: TransactionError(name: "InstructionError", details: nil)), 500, .failed),
-        // The block height is past the blockhash's last valid one, and no status exists.
         (.status(nil), 600, .dropped),
     ])
     func `A settled watch saves its outcome`(status: GetSignatureStatuses.Response, height: UInt64,
@@ -132,7 +110,6 @@ struct TransactionStoreTests {
         #expect(sending.store.record(record.id, for: sending.key) == saved)
     }
 
-    /// The settling runs once, after the outcome is saved, and the settled count increases only after it.
     @Test
     func `The settling runs once after the outcome is saved`() async throws {
         let sending = try LocalSending()
@@ -147,8 +124,6 @@ struct TransactionStoreTests {
         #expect(sending.store.settledCount(for: sending.key) == 1)
     }
 
-    /// A watch that stops, even before anyone waits for it, gives its error to the next caller and leaves the record
-    /// pending without settling it; watching again settles it.
     @Test
     func `A stopped watch reports its error once and can watch again`() async throws {
         let refusal = Self.rateLimit
@@ -165,7 +140,6 @@ struct TransactionStoreTests {
         #expect(sockets.sockets.count == 2)
     }
 
-    /// Cancelling a caller ends only its wait; the watch keeps going and saves the outcome.
     @Test
     func `Cancelling a caller doesn't stop the watch`() async throws {
         let gate = Suspension()
@@ -182,7 +156,6 @@ struct TransactionStoreTests {
         #expect(await sending.records.value?.first?.status == .succeeded)
     }
 
-    /// A record that isn't kept can't be watched.
     @Test
     func `Watching a record that isn't kept throws`() async throws {
         let sending = try LocalSending()
@@ -192,10 +165,8 @@ struct TransactionStoreTests {
         }
     }
 
-    /// Erasing stops every watch and forgets every record.
     @Test
     func `Erasing stops the watches and forgets the records`() async throws {
-        // The watch never settles: no status exists and the blockhash stays valid.
         let sending = try LocalSending(statuses: [.status(nil)])
         let record = try await sending.send()
         for await _ in sending.sockets.openings { break }
@@ -210,10 +181,8 @@ struct TransactionStoreTests {
         }
     }
 
-    /// Erasing an account stops its watches and deletes its records, so its transactions are forgotten.
     @Test
     func `Erasing an account stops its watches and forgets its records`() async throws {
-        // The watch never settles: no status exists and the blockhash stays valid.
         let sending = try LocalSending(statuses: [.status(nil)])
         let record = try await sending.send()
         for await _ in sending.sockets.openings { break }
@@ -228,8 +197,6 @@ struct TransactionStoreTests {
         }
     }
 
-    /// Erasing an account deletes its records on every network, even ones that were never read, and keeps other
-    /// accounts' records.
     @Test
     func `Erasing an account deletes its records on every network only`() async throws {
         let fixture = try SigningFixture()
@@ -255,10 +222,6 @@ struct TransactionStoreTests {
         #expect(sending.store.records(for: otherKey).map(\.id) == ["kept"])
     }
 
-    // MARK: Reading
-
-    /// Recent payments list the latest succeeded payment to each recipient across several accounts, the latest to
-    /// land first, without moves, unsettled or failed payments, or other recipients beyond the limit.
     @Test
     func `Recent payments list each recipient's latest succeeded payment`() async throws {
         let (first, second) = (UUID(), UUID())
@@ -292,7 +255,6 @@ struct TransactionStoreTests {
         #expect(store.recentPayments(for: keys, limit: 2).map(\.id) == ["bruno-new", "carla"])
     }
 
-    /// A key's records read once, on first load, and show what's saved.
     @Test
     func `Loading reads a key's saved records`() async throws {
         let account = UUID()
@@ -310,7 +272,6 @@ struct TransactionStoreTests {
         #expect(await saved.loads == 1)
     }
 
-    /// Each account's records on each network are kept in their own file, at `<network>/<account>.json`.
     @Test
     func `Each key's records are kept in their own file`() async throws {
         let directory = URL.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
@@ -324,9 +285,6 @@ struct TransactionStoreTests {
         #expect(try JSONDecoder().decode([TransactionRecord].self, from: Data(contentsOf: file)) == [record])
     }
 
-    // MARK: Coordinators
-
-    /// No coordinator exists until something needs one; each network's coordinator is then created once.
     @Test
     func `Each network's coordinator is created on first use and then reused`() throws {
         var made: [Network] = []
@@ -343,13 +301,11 @@ struct TransactionStoreTests {
         #expect(made == [.devnet, .mainnet])
     }
 
-    /// A coordinator that couldn't be created isn't kept, so the next request creates it.
     @Test
     func `A failed creation is tried again on the next request`() throws {
         var attempts = 0
         let store = TransactionStore.inMemory { network in
             attempts += 1
-            // The first attempt has no route that sends on the network.
             return try TransactionCoordinator.unused(on: network, routes: attempts == 1 ? [] : nil)
         }
 
@@ -359,10 +315,6 @@ struct TransactionStoreTests {
         #expect(attempts == 2)
     }
 
-    // MARK: Fixtures
-
-    /// Checks that nothing was recorded or sent.
-    /// - Parameter sending: The store and what stands behind it.
     private static func expectNothingSent(by sending: LocalSending) async {
         #expect(await sending.records.value == nil)
         #expect(sending.store.records(for: sending.key).isEmpty)
@@ -370,15 +322,10 @@ struct TransactionStoreTests {
     }
 }
 
-/// Records each settling with the saved status and the settled count at that moment.
 private actor RecordingSettling: TransactionSettling {
-    /// One settling.
     struct Call: Equatable {
-        /// The settled transaction's signature.
         let signature: String
-        /// The transaction's saved status when the settling ran.
         let saved: TransactionRecord.Status?
-        /// The store's settled count when the settling ran.
         let settledCount: Int
     }
 
@@ -387,19 +334,12 @@ private actor RecordingSettling: TransactionSettling {
     private let key: TransactionRecord.Key
     private(set) var calls: [Call] = []
 
-    /// Reads the saved records and the store's settled count at each settling.
-    /// - Parameters:
-    ///   - records: The store's in-memory records.
-    ///   - store: The store, whose settled count is read.
-    ///   - key: The account and network whose settled count is read.
     init(records: StoredValue<[TransactionRecord]>, store: TransactionStore, key: TransactionRecord.Key) {
         self.records = records
         self.store = store
         self.key = key
     }
 
-    /// Records the settling.
-    /// - Parameter confirmation: The settled outcome.
     func settle(_ confirmation: widgets.Confirmation) async {
         let signature = confirmation.submission.signature
         let saved = await records.value?.first { $0.id == signature }?.status

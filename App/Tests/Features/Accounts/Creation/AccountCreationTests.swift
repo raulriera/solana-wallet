@@ -5,11 +5,8 @@ import Vault
 import Wallet
 @testable import widgets
 
-/// Verifies that a new account comes from the wallet's own recovery, with public fixtures only.
 @MainActor
 struct AccountCreationTests {
-    /// The new account has the address that the wallet's recovery gives at the path, a new identity, and belongs to the
-    /// wallet.
     @Test
     func `A new account is derived from the wallet's recovery`() async throws {
         let wallet = try await PublicWalletAccounts()
@@ -26,7 +23,6 @@ struct AccountCreationTests {
         #expect(await wallet.recovery.reads == [recoveryID])
     }
 
-    /// A wallet whose recovery this device no longer has gives no account.
     @Test
     func `A missing recovery gives no account`() async {
         let creation = AccountCreation(recovery: SecurityRecoveryStore(), wallet: Wallet())
@@ -36,7 +32,6 @@ struct AccountCreationTests {
         }
     }
 
-    /// Cancelling authentication gives no account and reports the cancellation.
     @Test
     func `Cancelled authentication gives no account`() async {
         let creation = AccountCreation(recovery: SecurityRecoveryStore(readError: CancellationError()), wallet: Wallet())

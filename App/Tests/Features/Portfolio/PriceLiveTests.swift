@@ -2,13 +2,8 @@ import Foundation
 import RPC
 import Testing
 
-/// Verifies live market prices through the public provider-neutral contract.
 @Suite(.tags(.network))
 struct PriceLiveTests {
-    /// Fetches two mainnet market quotes and their 24-hour changes without querying wallets or submitting transactions.
-    ///
-    /// Jupiter supplies mainnet market data; this test makes no devnet valuation claim.
-    /// - Throws: A price-provider or test prerequisite error.
     @Test(.timeLimit(.minutes(1)))
     func `Live price provider returns normalized SOL and USDC quotes`() async throws {
         let source: any PriceProviding = Jupiter(apiKey: ProcessInfo.processInfo.environment["JUPITER_API_KEY"])
@@ -21,7 +16,6 @@ struct PriceLiveTests {
             let quote = try #require(quotes[mint])
             #expect(quote.pricePerUnit > 0)
             #expect(quote.currency == "USD")
-            // Jupiter reports a 24-hour change for both markets; this checks it reaches the shared quote.
             #expect(quote.dayChange != nil)
         }
     }

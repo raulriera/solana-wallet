@@ -4,9 +4,7 @@ import ModularArithmetic
 import Testing
 import Transactions
 
-/// Verifies shielded accounts: their keys, their shielded address, and their redaction.
 struct ShieldedAccountTests {
-    /// Verifies that the sender's keys derive its published nullifier public key and owner hash.
     @Test
     func `Accounts derive their shielded address`() throws {
         let rail = try CommitmentVectors.load().ed25519Rail
@@ -18,8 +16,6 @@ struct ShieldedAccountTests {
         #expect(recipient.owner == (try rail.ownerHash()))
     }
 
-    /// Verifies that the sender's view tags are its signing address and the x-coordinate of its
-    /// viewing public key from its independent registry record.
     @Test
     func `Accounts read their signing and viewing key tags`() throws {
         let record = try #require(try RegistryVectors.load().records.first { $0.owner == TransferVectors.senderSigningAddress })
@@ -28,9 +24,6 @@ struct ShieldedAccountTests {
         #expect(sender.viewTags == [sender.signingAddress.bytes, Array(try fixtureBytes(record.viewingPublicKey).dropFirst())])
     }
 
-    /// Verifies that a nullifier secret of another length is rejected.
-    ///
-    /// - Parameter length: The secret's number of bytes.
     @Test(arguments: [30, 32])
     func `Nullifier secrets of another length are rejected`(length: Int) throws {
         let signingAddress = try Address(TransferVectors.senderSigningAddress)
@@ -43,7 +36,6 @@ struct ShieldedAccountTests {
         }
     }
 
-    /// Verifies that printing, dumping, and reflecting an account omit its keys.
     @Test
     func `Account diagnostics omit the keys`() throws {
         let account = try TransferVectors.sender()

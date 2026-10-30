@@ -7,16 +7,10 @@ import Transactions
 import Wallet
 @testable import widgets
 
-/// Verifies creating, redeeming, taking back, and listing redeem codes through the real provider client with local
-/// accounts, indexer, and prover responses, in in-memory storage.
 @Suite(.timeLimit(.minutes(1)))
 struct PrivateBalancesRedeemCodesTests {
-    /// The lamports that the sender's only note holds.
     private static let senderLamports: UInt64 = 5_000_000
 
-    /// A new code takes the first index above the one that the chain shows used, keeps it pending before the
-    /// preparation returns, and spends its amount and its reserve to that one-time account; its success turns the
-    /// pending index into the code.
     @Test
     func `Creating a code funds the next unused one-time account`() async throws {
         let sender = try await Self.sender()
@@ -55,8 +49,6 @@ struct PrivateBalancesRedeemCodesTests {
         #expect(!ledger.isDiscovered)
     }
 
-    /// Two codes prepared at once take different indices, and a dropped code leaves the pending indices without its
-    /// index being used again.
     @Test
     func `Concurrent codes take different indices and a dropped code's index isn't reused`() async throws {
         let sender = try await Self.sender()
@@ -77,9 +69,6 @@ struct PrivateBalancesRedeemCodesTests {
         #expect(await codes.value?[sender.id]?.records.isEmpty == true)
     }
 
-    /// An app that quits after submitting a code's funding and before recording its outcome must not
-    /// give a later code the same index while the indexer doesn't report the funding yet; the index stays pending in
-    /// storage, so a relaunch starts above it.
     @Test
     func `A relaunch after an unrecorded funding doesn't reuse its index`() async throws {
         let sender = try await Self.sender()
@@ -95,8 +84,6 @@ struct PrivateBalancesRedeemCodesTests {
         #expect(Self.index(of: second) == 1)
     }
 
-    /// A new code's index choice reads only 20 tags from the next index; the entry's pending indices already keep the
-    /// indices of this device's unrecorded codes.
     @Test
     func `A new code's index choice reads 20 tags`() async throws {
         let sender = try await Self.sender()
@@ -111,8 +98,6 @@ struct PrivateBalancesRedeemCodesTests {
         #expect(try await !RedeemCodeFixtures.tagCounts(of: responses).contains(RedeemCodeScan.discoveryBatchSize))
     }
 
-    /// If saving a succeeded code's record fails, its index stays pending, so a later listing still
-    /// finds the code's note instead of losing the code.
     @Test
     func `A failed record save keeps the code's index pending`() async throws {
         let sender = try await Self.sender()
@@ -128,7 +113,6 @@ struct PrivateBalancesRedeemCodesTests {
         #expect(await codes.value?[sender.id]?.pending.map(\.index) == [0])
     }
 
-    /// Without keys, an account can't create codes: no index is chosen and nothing is proved.
     @Test
     func `Creating a code without keys is turned off`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -142,8 +126,6 @@ struct PrivateBalancesRedeemCodesTests {
         #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 0)
     }
 
-    /// A redeem into a registered account spends the code's note to it and deposits every other lamport, which the
-    /// one-time account alone signs and pays for; its success keeps both amounts pending.
     @Test
     func `Redeeming into a registered account sweeps the code`() async throws {
         let recipient = try await Self.recipient(registered: true)
@@ -161,7 +143,6 @@ struct PrivateBalancesRedeemCodesTests {
             Issue.record("Expected a redemption.")
             return
         }
-        // One input slot pays the tree fee once, as the reserve expects.
         #expect(redemption.availableLamports == RedeemCodeFixtures.reserve - RedeemCodeFixtures.treeFee)
         #expect(redemption.noteLamports == 1_000_000)
         #expect(redemption.takenBackIndex == nil)
@@ -181,8 +162,6 @@ struct PrivateBalancesRedeemCodesTests {
         #expect(await recipient.notes.value?[recipient.id]?.pendingLamports == deposited)
     }
 
-    /// A redeem into an unregistered account registers it first, paid by the one-time account, and both sign; a
-    /// reserve-sized balance leaves no deposit once the two signatures are charged.
     @Test
     func `Redeeming into an unregistered account registers it`() async throws {
         let recipient = try await Self.recipient(registered: false)
@@ -205,7 +184,6 @@ struct PrivateBalancesRedeemCodesTests {
         #expect(await recipient.notes.value?[recipient.id]?.pendingLamports == 1_000_000)
     }
 
-    /// A code whose one-time account holds no lamports was redeemed or taken back, and nothing is proved.
     @Test
     func `Redeeming a swept code is rejected`() async throws {
         let recipient = try await Self.recipient(registered: true)
@@ -222,8 +200,6 @@ struct PrivateBalancesRedeemCodesTests {
         #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 0)
     }
 
-    /// A code whose one-time account holds lamports but whose note the indexer doesn't report yet isn't ready, so no
-    /// sweep leaves the note behind.
     @Test
     func `Redeeming a code before its note is indexed is rejected`() async throws {
         let recipient = try await Self.recipient(registered: true)
@@ -240,7 +216,6 @@ struct PrivateBalancesRedeemCodesTests {
         }
     }
 
-    /// A one-time account whose lamports don't cover the registration and the tree fee is underfunded.
     @Test
     func `Redeeming an underfunded code is rejected`() async throws {
         let recipient = try await Self.recipient(registered: false)
@@ -256,7 +231,6 @@ struct PrivateBalancesRedeemCodesTests {
         }
     }
 
-    /// A code for another network is rejected before any request.
     @Test
     func `Redeeming another network's code is rejected`() async throws {
         let recipient = try await Self.recipient(registered: true)
@@ -270,7 +244,6 @@ struct PrivateBalancesRedeemCodesTests {
         #expect(await responses.requests.isEmpty)
     }
 
-    /// Taking back one of the account's own codes sweeps it into the account's private balance and drops the code.
     @Test
     func `Taking back a code sweeps it home and drops it`() async throws {
         let sender = try await Self.sender()
@@ -292,7 +265,6 @@ struct PrivateBalancesRedeemCodesTests {
         _ = try await balances.complete(charged, with: PrivateBalanceFixtures.confirmation(.succeeded))
 
         #expect(redemption.takenBackIndex == 1)
-        // The take-back reads the keys once, and the shared sync once.
         #expect(await sender.storedKeys.loads == 2)
         #expect(try prepared.authorities.map { try $0.address } == [Address(oneTime.address)])
         #expect(await codes.value?[sender.id]?.records.map(\.index) == [0])
@@ -301,9 +273,6 @@ struct PrivateBalancesRedeemCodesTests {
             - RedeemCodeFixtures.treeFee - 5_000)
     }
 
-    /// A code's status comes from the indexer, not from public lamports. A lagging node that reports
-    /// no one-time account doesn't drop a code with unspent notes or one whose funding isn't indexed yet, and only a
-    /// code whose notes are all spent leaves; no account is read.
     @Test
     func `Outstanding codes follow the indexer, not a lagging node`() async throws {
         let sender = try await Self.sender()
@@ -330,8 +299,6 @@ struct PrivateBalancesRedeemCodesTests {
         #expect(try await !Self.methods(of: responses).contains(GetMultipleAccounts.method))
     }
 
-    /// Public lamports left on a one-time account whose notes are all spent, such as dust sent after
-    /// a sweep, don't keep the code outstanding.
     @Test
     func `Leftover lamports don't keep a spent code`() async throws {
         let sender = try await Self.sender()
@@ -348,9 +315,6 @@ struct PrivateBalancesRedeemCodesTests {
         #expect(await codes.value?[sender.id]?.records.isEmpty == true)
     }
 
-    /// A code whose app quit before recording its funding is listed once the indexer reports its
-    /// note, so the sender can still share or take it back; pending indices without notes leave only once their
-    /// fundings can no longer land.
     @Test
     func `Pending codes with indexed notes are listed and expired ones leave`() async throws {
         let sender = try await Self.sender()
@@ -377,8 +341,6 @@ struct PrivateBalancesRedeemCodesTests {
         #expect(await codes.value?[sender.id]?.nextIndex == 3)
     }
 
-    /// Without a codes entry, listing scans the account's one-time accounts until a batch has none used, and keeps the
-    /// codes whose notes are unspent, with their notes' amounts and their lamports as reserves.
     @Test
     func `Outstanding codes are found on chain without a codes entry`() async throws {
         let sender = try await Self.sender()
@@ -405,9 +367,6 @@ struct PrivateBalancesRedeemCodesTests {
         #expect(await codes.value?[sender.id]?.isDiscovered == true)
     }
 
-    /// A discovery reads batches of 500 tags, so it finds a code past a gap of more than 20
-    /// unused indices that abandoned preparations left, and keeps it by its unspent note even when a lagging node
-    /// reports no one-time account.
     @Test
     func `Discovery finds codes past a gap of unused indices`() async throws {
         let sender = try await Self.sender()
@@ -430,7 +389,6 @@ struct PrivateBalancesRedeemCodesTests {
         #expect(try await RedeemCodeFixtures.tagCounts(of: responses).prefix(2) == [500, 500])
     }
 
-    /// An unreadable codes item is deleted once, and the account's codes are found on chain again.
     @Test
     func `An unreadable codes item is deleted and found again`() async throws {
         let sender = try await Self.sender()
@@ -444,7 +402,6 @@ struct PrivateBalancesRedeemCodesTests {
         #expect(await codes.value == [sender.id: RedeemCodeLedger(isDiscovered: true)])
     }
 
-    /// Removing private balances deletes every account's codes with the keys and notes.
     @Test
     func `Removing private balances deletes the codes`() async throws {
         let sender = try await Self.sender()
@@ -458,14 +415,6 @@ struct PrivateBalancesRedeemCodesTests {
         #expect(await codes.deletions == 1)
     }
 
-    /// Creates private balances around local responses and in-memory storage.
-    /// - Parameters:
-    ///   - responses: The local responses that every network's provider client sends requests to.
-    ///   - keys: Each account's keys; empty storage by default.
-    ///   - notes: Each account's notes; empty storage by default.
-    ///   - codes: Each account's codes; empty storage by default.
-    /// - Returns: Private balances whose requests never leave the process.
-    /// - Throws: A validation error, which doesn't happen.
     @MainActor
     private static func balances(_ responses: HTTPResponses, keys: StoredValue<PrivateBalances.Keys> = StoredValue(),
                                  notes: StoredValue<PrivateBalances.Notes> = StoredValue(),
@@ -474,10 +423,6 @@ struct PrivateBalancesRedeemCodesTests {
                                  responses: responses)
     }
 
-    /// Derives fixture account 0, registered with a notes entry, and a deposit of ``senderLamports`` to it.
-    /// - Returns: The account, its keys, their storage, its notes, its notes entry, its deposit row, and its registry
-    ///   record.
-    /// - Throws: A derivation error.
     private static func sender() async throws -> (account: widgets.Account, keys: PrivateBalanceKeyRecord,
         storedKeys: StoredValue<PrivateBalances.Keys>, notes: StoredValue<PrivateBalances.Notes>, id: String,
         deposit: String, record: String) {
@@ -490,10 +435,6 @@ struct PrivateBalancesRedeemCodesTests {
                 try PrivateBalanceFixtures.registryRecord(publishing: shielded))
     }
 
-    /// Derives fixture account 1 with its keys, and a notes entry only when it's registered.
-    /// - Parameter registered: Whether the account registered its keys.
-    /// - Returns: The account, its shielded keys, their storage, its notes, its notes entry, and its registry record.
-    /// - Throws: A derivation error.
     private static func recipient(registered: Bool) async throws -> (account: widgets.Account, shielded: ShieldedAccount,
         storedKeys: StoredValue<PrivateBalances.Keys>, notes: StoredValue<PrivateBalances.Notes>, id: String,
         record: String) {
@@ -506,35 +447,20 @@ struct PrivateBalancesRedeemCodesTests {
                 try PrivateBalanceFixtures.registryRecord(publishing: shielded))
     }
 
-    /// Creates the one-time account of a code that someone else created.
-    /// - Returns: The one-time account of a fixed public secret.
-    /// - Throws: A derivation error, which doesn't happen.
     private static func giftedAccount() throws -> OneTimeAccount {
         try OneTimeAccount(secret: SymmetricKey(data: Data(repeating: 9, count: 32)))
     }
 
-    /// Creates a code's record.
-    /// - Parameters:
-    ///   - index: The code's index.
-    ///   - amount: The code's amount.
-    /// - Returns: The record.
     private static func record(at index: UInt32, amount: UInt64 = 1_000) -> RedeemCodeRecord {
         RedeemCodeRecord(index: index, amount: amount, reserve: RedeemCodeFixtures.reserve,
                          created: Date(timeIntervalSince1970: 0), fundingSignature: "funding")
     }
 
-    /// Reads the index of a code's creation.
-    /// - Parameter transaction: A prepared transaction.
-    /// - Returns: The code's index, or `nil` for another transaction.
     private static func index(of transaction: PreparedPrivateTransaction) -> UInt32? {
         guard case .createCode(_, let index, _) = transaction.effect else { return nil }
         return index
     }
 
-    /// Lists the RPC methods of the requests sent so far.
-    /// - Parameter responses: The local responses that recorded the requests.
-    /// - Returns: Each request's method, in arrival order.
-    /// - Throws: A test prerequisite error for a request without a method.
     private static func methods(of responses: HTTPResponses) async throws -> [String] {
         try await responses.requests.map { try $0.rpcMethod }
     }

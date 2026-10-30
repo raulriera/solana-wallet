@@ -1,12 +1,7 @@
 import Testing
 @testable import widgets
 
-/// Checks which outcome a sent transaction's record shows.
 struct TransactionOutcomeTests {
-    /// Each settled status shows its outcome, and a pending one shows none.
-    /// - Parameters:
-    ///   - status: The record's status.
-    ///   - outcome: The outcome that the result shows.
     @Test(arguments: [
         (TransactionRecord.Status.pending, nil),
         (.succeeded, TransactionOutcome.succeeded),

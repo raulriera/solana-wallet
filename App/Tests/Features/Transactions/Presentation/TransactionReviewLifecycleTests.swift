@@ -4,12 +4,9 @@ import SwiftUI
 import Testing
 @testable import widgets
 
-/// Runs a payment's review sheet in a real window, so its steps run and its errors show as on screen.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct TransactionReviewLifecycleTests {
-    /// The sheet's task simulates the review once it shows.
-    /// - Throws: A test prerequisite error.
     @Test
     func `Showing the review simulates it`() async throws {
         let payment = try LocalPaymentReview()
@@ -19,13 +16,10 @@ struct TransactionReviewLifecycleTests {
         defer { hosted.close() }
         try #require(try await hosted.appears())
 
-        // The suite's time limit ends the wait if the review never shows.
         for await canApprove in Observations({ payment.model.canApprove }) where canApprove { break }
         #expect(payment.model.review == LocalPaymentReview.costs)
     }
 
-    /// A simulation that fails shows the alert that explains it.
-    /// - Throws: A test prerequisite error.
     @Test
     func `A failed review shows its alert`() async throws {
         let error = TransactionError(name: "InsufficientFundsForFee", details: nil)
@@ -40,8 +34,6 @@ struct TransactionReviewLifecycleTests {
         #expect(payment.model.error == .notEnoughSOL)
     }
 
-    /// A watch that a rate limit stops shows nothing: the review keeps waiting, and a later watch settles it.
-    /// - Throws: A test prerequisite error.
     @Test
     func `A stopped watch shows no alert and settles later`() async throws {
         let refusal = RPCError.http(statusCode: 429, retryAfter: "3")
@@ -56,7 +48,6 @@ struct TransactionReviewLifecycleTests {
         payment.model.approve()
         for await record in Observations({ payment.model.record }) where record != nil { break }
         let record = try #require(payment.model.record)
-        // The first watch ends with the rate limit, which only a caller of the watch reads.
         await #expect(throws: (any Error).self) {
             try await payment.transactions.watch(record.id, for: record.key)
         }

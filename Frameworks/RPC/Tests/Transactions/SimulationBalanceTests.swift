@@ -2,11 +2,9 @@ import Foundation
 import Testing
 @testable import RPC
 
-/// Verifies simulation balance decoding independently of execution diagnostics.
 struct SimulationBalanceTests {
     private static let mint = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
 
-    /// Verifies lamport and token balances decode in account order, with optional attribution fields.
     @Test
     func `Simulation returns lamport and token balances before and after execution`() async throws {
         let transport = StubTransport { request in
@@ -35,9 +33,6 @@ struct SimulationBalanceTests {
         )])
     }
 
-    /// Verifies omitted or null balances stay unknown instead of becoming empty.
-    ///
-    /// - Parameter value: The execution outcome without usable balances.
     @Test(arguments: [
         #"{"err":null,"logs":[]}"#,
         #"{"err":null,"preBalances":null,"postBalances":null,"preTokenBalances":null,"postTokenBalances":null}"#,
@@ -56,9 +51,6 @@ struct SimulationBalanceTests {
         #expect(result.postTokenBalances == nil)
     }
 
-    /// Verifies a raw amount that isn't a whole number of units can't decode as zero or truncated units.
-    ///
-    /// - Parameter amount: The node's raw amount field.
     @Test(arguments: [#""1.5""#, #""-1""#, #""18446744073709551616""#, #""""#, "7"])
     func `Simulation rejects token balances without an integer raw amount`(amount: String) async {
         let transport = StubTransport { request in

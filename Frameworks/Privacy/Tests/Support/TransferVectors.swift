@@ -4,64 +4,28 @@ import ModularArithmetic
 import Testing
 import Transactions
 
-/// zolana's byte-literal fixtures of two default-ring SOL transfers.
-///
-/// The values are the literals of `sdk-libs/transaction/tests/hash_vectors.rs` at tag
-/// v0.4.0-alpha (Apache-2.0), copied unchanged as hexadecimal, with the amounts, blinding bytes,
-/// and tree IDs that its fixtures pass. `NOTICE.txt` records the source and its
-/// digest. The sender is the Ed25519 rail of `key_derivation.json`, whose signing secret is 32
-/// bytes of 7. Every UTXO holds SOL and carries no data. Case A spends one UTXO from tree 0 into
-/// tree 0; case B spends UTXOs from trees 3 and 1 into tree 2. Output slot 0 belongs to the
-/// recipient, the Ed25519 rail of signing secret 32 bytes of 9, whose keys zolana doesn't publish;
-/// a separate Python implementation of RFC 8032 signing and zolana's rail derivation supplies them,
-/// and they reproduce both published slot-0 commitments. Both cases seal every output's note with
-/// the salt of 16 bytes of 0x5a; case A's fee payer is the sender and case B's is the relayed payer
-/// of 32 bytes of 3.
 enum TransferVectors {
-    /// An input slot: a UTXO that the sender spends, or an empty UTXO that pads the slot.
     struct Input: Sendable, CustomTestStringConvertible {
-        /// The input's name in `hash_vectors.rs`.
         let name: String
-        /// The amount in lamports, which is zero for padding.
         let amount: UInt64
-        /// The byte that repeats after the blinding's leading zero.
         let blindingByte: UInt8
-        /// The ID of the tree that holds the UTXO.
         let treeID: UInt16
-        /// The UTXO's hash.
         let hash: String
-        /// The nullifier: under the sender's nullifier secret for a spent UTXO, and under the zero
-        /// secret for padding.
         let nullifier: String
 
-        /// The input's name, in test results.
         var testDescription: String { name }
     }
 
-    /// An output that the sender owns: the change in slot 1, or zero-amount padding in slots 2
-    /// and 3.
     struct Output: Sendable, CustomTestStringConvertible {
-        /// The output's name in `hash_vectors.rs`.
         let name: String
-        /// The proof's first nullifier, which its output blindings derive from.
         let firstNullifier: String
-        /// The ID of the output tree.
         let treeID: UInt16
-        /// The output slot.
         let index: UInt32
-        /// The amount in lamports.
         let amount: UInt64
-        /// The output's UTXO hash.
         let commitment: String
 
-        /// The output's name, in test results.
         var testDescription: String { name }
 
-        /// Derives the output's blinding from its proof's first nullifier and the published
-        /// blinding seed, through the output blinding seed.
-        ///
-        /// - Returns: The output's blinding.
-        /// - Throws: A test failure if the first nullifier is malformed or not canonical.
         func blinding() throws -> Poseidon.Element {
             let nullifier = try Poseidon.Element(hex: firstNullifier)
             let outputBlindingSeed = TransactBlinding.outputBlindingSeed(firstNullifier: nullifier, blindingSeed: TransferVectors.blindingSeed)
@@ -69,60 +33,36 @@ enum TransferVectors {
         }
     }
 
-    /// One whole transfer: its slots and the hashes that `hash_vectors.rs` publishes for it.
     struct Transfer: Sendable, CustomTestStringConvertible {
-        /// The transfer's name in `hash_vectors.rs`.
         let name: String
-        /// The nullifier of input slot 0.
         let firstNullifier: String
-        /// The ID of the output tree.
         let outputTreeID: UInt16
-        /// The spent inputs, in slot order before the padding.
         let spentInputs: [Input]
-        /// The padding inputs, which hash as zero.
         let paddingInputs: [Input]
-        /// The recipient's amount in output slot 0.
         let recipientAmount: UInt64
-        /// The recipient's UTXO hash in output slot 0.
         let recipientCommitment: String
-        /// The sender's outputs in slots 1 to 3.
         let senderOutputs: [Output]
-        /// The fee payer's address.
         let payer: String
-        /// The external data hash.
         let externalDataHash: String
-        /// The private transaction hash.
         let privateTransactionHash: String
 
-        /// The transfer's name, in test results.
         var testDescription: String { name }
     }
 
-    /// A proof's first nullifier and its private transaction blinding.
     struct Proof: Sendable, CustomTestStringConvertible {
-        /// The proof's name in `hash_vectors.rs`.
         let name: String
-        /// The nullifier of input slot 0.
         let firstNullifier: String
-        /// The private transaction blinding.
         let privateTransactionBlinding: String
 
-        /// The proof's name, in test results.
         var testDescription: String { name }
     }
 
-    /// The first nullifier of case A, `CASE_A_FIRST_NULLIFIER`, which is also the nullifier of
-    /// its input 0.
     private static let caseAFirstNullifier = "051737d4af5d70f1ccaeeefce207746efde8659fdaba87e213891592014fd988"
 
-    /// The first nullifier of case B, `CASE_B_FIRST_NULLIFIER`, which is also the nullifier of
-    /// its input 0.
     private static let caseBFirstNullifier = "2089309c50ba3a3d0061019331631a29efb6b1901eedfef33fe6b49a346c1538"
 
-    /// The blinding seed of both proofs, `BLINDING_SEED`.
     static let blindingSeed = blinding(0x42)
 
-    /// The UTXOs that the sender spends: case A's slot 0 and case B's slots 0 and 1.
     static let spentInputs = [
         Input(
             name: "CASE_A_INPUT_0", amount: 10, blindingByte: 0xa1, treeID: 0,
@@ -141,7 +81,6 @@ enum TransferVectors {
         ),
     ]
 
-    /// The empty UTXOs that pad input slots: case A's slot 1 and case B's slots 2 and 3.
     static let paddingInputs = [
         Input(
             name: "CASE_A_INPUT_1", amount: 0, blindingByte: 0xd1, treeID: 0,
@@ -160,7 +99,6 @@ enum TransferVectors {
         ),
     ]
 
-    /// The outputs that the sender owns, in slots 1 to 3 of both proofs.
     static let outputs = [
         Output(
             name: "CASE_A_OUTPUT_1", firstNullifier: caseAFirstNullifier, treeID: 0, index: 1, amount: 6,
@@ -188,7 +126,6 @@ enum TransferVectors {
         ),
     ]
 
-    /// Both proofs' private transaction blindings.
     static let proofs = [
         Proof(
             name: "CASE_A", firstNullifier: caseAFirstNullifier,
@@ -200,22 +137,16 @@ enum TransferVectors {
         ),
     ]
 
-    /// The salt of both transfers' notes, `SALT`.
     static let salt = [UInt8](repeating: 0x5a, count: 16)
 
-    /// The recipient's Ed25519 signing address, the public key of signing secret 32 bytes of 9.
     static let recipientSigningAddress = "J2xccRtuG43drESLYznHhLhQkLTdfepcKYbiQ9BsJVaf"
 
-    /// The recipient's nullifier public key, independently derived.
     static let recipientNullifierPublicKey = "07f313f2ef546c5ac079f4591e978eaaa944e2ffee4dd5c5fa2156ff39e84856"
 
-    /// The recipient's 32-byte P-256 viewing secret, independently derived.
     static let recipientViewingSecret = "e1eba2fc69ef567562725af78342749ef7af2a63251ae2343c7e789522dccfa2"
 
-    /// The sender's Ed25519 signing address, the Ed25519 rail's `signer_pubkey`.
     static let senderSigningAddress = "GmaDrppBC7P5ARKV8g3djiwP89vz1jLK23V2GBjuAEGB"
 
-    /// Both transfers, with the values that `hash_vectors.rs` publishes for them.
     static let transfers = [
         Transfer(
             name: "CASE_A", firstNullifier: caseAFirstNullifier, outputTreeID: 0,
@@ -235,19 +166,10 @@ enum TransferVectors {
         ),
     ]
 
-    /// Creates the recipient's viewing key from its independently derived secret.
-    ///
-    /// - Returns: The viewing key.
-    /// - Throws: A test failure if the secret is malformed, or a CryptoKit error if it isn't a
-    ///   P-256 private key.
     static func recipientViewingKey() throws -> P256.KeyAgreement.PrivateKey {
         try P256.KeyAgreement.PrivateKey(rawRepresentation: fixtureBytes(recipientViewingSecret))
     }
 
-    /// Creates the recipient of output slot 0 from its independently derived keys.
-    ///
-    /// - Returns: The recipient.
-    /// - Throws: A test failure if a key is malformed, or an error if a key isn't valid.
     static func recipient() throws -> Recipient {
         try Recipient(
             signingAddress: Address(recipientSigningAddress), nullifierPublicKey: Poseidon.Element(hex: recipientNullifierPublicKey),
@@ -255,11 +177,6 @@ enum TransferVectors {
         )
     }
 
-    /// Creates the sender, zolana's Ed25519 rail, from its published keys.
-    ///
-    /// - Returns: The sender.
-    /// - Throws: A test failure if the fixture is missing or malformed, or an error if a key isn't
-    ///   valid.
     static func sender() throws -> ShieldedAccount {
         let rail = try CommitmentVectors.load().ed25519Rail
         return try ShieldedAccount(
@@ -268,11 +185,6 @@ enum TransferVectors {
         )
     }
 
-    /// Returns a fixture blinding: a zero byte followed by 31 copies of one byte, as the
-    /// `blinding` function of `hash_vectors.rs` builds it.
-    ///
-    /// - Parameter byte: The byte that repeats after the leading zero.
-    /// - Returns: The blinding, which is below 2^248 and so below r.
     static func blinding(_ byte: UInt8) -> Poseidon.Element {
         Poseidon.Element(reducing: [0] + Array(repeating: byte, count: 31))
     }

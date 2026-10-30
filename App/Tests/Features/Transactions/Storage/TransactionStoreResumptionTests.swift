@@ -5,17 +5,9 @@ import Testing
 import Transactions
 @testable import widgets
 
-/// Verifies the pending index and resuming watches through the real transaction coordinator, with local responses and
-/// sockets, and in-memory records and index.
-///
-/// Each transaction pays 1 SOL from the fixture account on devnet; its blockhash is valid through block height 550.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct TransactionStoreResumptionTests {
-    // MARK: Pending index
-
-    /// Sending lists the key in the pending index, and resuming removes the keys whose records all settled, so the
-    /// index lists only keys with pending records.
     @Test
     func `The index lists only keys with pending records`() async throws {
         let settledKey = TransactionRecord.Key(account: UUID(), network: .devnet)
@@ -35,7 +27,6 @@ struct TransactionStoreResumptionTests {
         _ = try await resuming.settle(record)
     }
 
-    /// A record that settles removes its key from the pending index.
     @Test
     func `A settled record leaves the index`() async throws {
         let resuming = try LocalSending()
@@ -46,10 +37,6 @@ struct TransactionStoreResumptionTests {
         #expect(await resuming.pending.value == [])
     }
 
-    // MARK: Resuming
-
-    /// Resuming reads only the keys in the pending index and watches their pending records; a key outside the index
-    /// isn't read.
     @Test
     func `Resuming reads only the keys in the pending index`() async throws {
         let fixture = try SigningFixture()
@@ -69,7 +56,6 @@ struct TransactionStoreResumptionTests {
         await resuming.sockets.waitUntilClosed()
     }
 
-    /// Resuming again, at once or while the watch runs, starts no other watch.
     @Test
     func `Resuming starts no duplicate watches`() async throws {
         let fixture = try SigningFixture()
@@ -92,8 +78,6 @@ struct TransactionStoreResumptionTests {
         #expect(resuming.sockets.sockets.count == 1)
     }
 
-    /// A watch that stopped with an error keeps it when resuming again, since errors such as a rate limit aren't retried
-    /// on their own; once a caller reads it, or a new connection replaces the watch, resuming watches the record again.
     @Test
     func `Resuming retries a failed watch only after its error is read or on a new connection`() async throws {
         let fixture = try SigningFixture()
@@ -104,7 +88,6 @@ struct TransactionStoreResumptionTests {
                                                 sockets: sockets).coordinator
         let (attempts, attempted) = AsyncStream.makeStream(of: Void.self)
         var failures = 2
-        // The first two watches fail at once, as they can't create the coordinator.
         let store = TransactionStore.inMemory([record.key: StoredValue([record])], pending: StoredValue([record.key])) {
             _ in
             attempted.yield()
@@ -128,12 +111,8 @@ struct TransactionStoreResumptionTests {
         await sockets.waitUntilClosed()
     }
 
-    // MARK: Erasing
-
-    /// Erasing stops the watches and deletes the pending index.
     @Test
     func `Erasing clears the index`() async throws {
-        // The watch never settles: no status exists and the blockhash stays valid.
         let resuming = try LocalSending(statuses: [.status(nil)])
         _ = try await resuming.send()
         for await _ in resuming.sockets.openings { break }
@@ -144,7 +123,6 @@ struct TransactionStoreResumptionTests {
         #expect(await resuming.pending.value == nil)
     }
 
-    /// Erasing an account removes its keys on every network from the pending index and keeps other accounts' keys.
     @Test
     func `Erasing an account removes only its keys from the index`() async throws {
         let (erased, kept) = (UUID(), UUID())

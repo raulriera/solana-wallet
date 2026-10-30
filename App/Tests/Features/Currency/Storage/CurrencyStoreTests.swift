@@ -4,12 +4,9 @@ import Testing
 @testable import RPC
 @testable import widgets
 
-/// Checks that the shared currency store reads, changes, saves, and erases the choice, and that a new rate source keeps
-/// only a currency it serves.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct CurrencyStoreTests {
-    /// The store reads nothing until it loads, then shows the saved choice.
     @Test
     func `Loading reads the saved choice`() async throws {
         let saved = CurrencySettings(rateSource: .coinbase, currencyCode: "JPY")
@@ -22,7 +19,6 @@ struct CurrencyStoreTests {
         #expect(store.settings == saved)
     }
 
-    /// An unreadable choice shows nothing as chosen, and reading it for prices explains why.
     @Test
     func `An unreadable choice explains why`() async {
         let store = CurrencyStore.inMemory(StoredValue(failsLoading: true))
@@ -33,7 +29,6 @@ struct CurrencyStoreTests {
         #expect(store.settings == nil)
     }
 
-    /// A new rate source and a new currency each show at once and are saved.
     @Test
     func `A new choice is saved`() async throws {
         let settings = StoredValue<CurrencySettings>()
@@ -48,7 +43,6 @@ struct CurrencyStoreTests {
         #expect(await settings.value == expected)
     }
 
-    /// Prices read a change before its save finishes, so the change applies when it's made.
     @Test
     func `Prices read a change before it's saved`() async throws {
         let gate = Suspension()
@@ -63,8 +57,6 @@ struct CurrencyStoreTests {
         try await selecting.value
     }
 
-    /// Choosing what's already saved, including the defaults before anything is saved, saves nothing.
-    /// - Parameter saved: The choice saved before the test, if any.
     @Test(arguments: [nil, CurrencySettings(rateSource: .europeanCentralBank)] as [CurrencySettings?])
     func `An unchanged choice saves nothing`(saved: CurrencySettings?) async throws {
         let settings = StoredValue(saved)
@@ -77,13 +69,6 @@ struct CurrencyStoreTests {
         #expect(await settings.value == saved)
     }
 
-    /// A new source keeps a chosen currency that it serves, the yen, and goes back to the region's for one it doesn't,
-    /// the Argentine peso; USD Only keeps the choice for later. A switch before the choice is read reads it first, as
-    /// a tap during the screen's read does.
-    /// - Parameters:
-    ///   - chosen: The currency chosen before the switch.
-    ///   - source: The new rate source.
-    ///   - kept: The currency chosen after the switch.
     @Test(arguments: [
         ("JPY", .europeanCentralBank, "JPY"),
         ("ARS", .europeanCentralBank, nil),
@@ -101,7 +86,6 @@ struct CurrencyStoreTests {
         #expect(await settings.value == expected)
     }
 
-    /// When the new source's currencies can't be listed, nothing changes.
     @Test
     func `A source whose currencies can't load changes nothing`() async throws {
         let saved = CurrencySettings(rateSource: .coinbase, currencyCode: "JPY")
@@ -119,8 +103,6 @@ struct CurrencyStoreTests {
         #expect(await settings.value == saved)
     }
 
-    /// Each source lists the currencies it converts to, including US dollars.
-    /// - Parameter source: The rate source.
     @Test(arguments: CurrencySettings.RateSource.allCases)
     func `A source lists its currencies`(source: CurrencySettings.RateSource) async throws {
         let currencies = try await CurrencyStore.inMemory().currencies(for: source)
@@ -128,7 +110,6 @@ struct CurrencyStoreTests {
         #expect(Set(currencies) == ["USD", "EUR", "JPY"])
     }
 
-    /// Erasing deletes the saved choice and shows it as not read, as at launch; the next read finds US dollars.
     @Test
     func `Erasing forgets the choice until the next read`() async throws {
         let settings = StoredValue(CurrencySettings(rateSource: .coinbase, currencyCode: "EUR"))
@@ -143,7 +124,6 @@ struct CurrencyStoreTests {
         #expect(try await store.loadedSettings() == CurrencySettings())
     }
 
-    /// A currency chosen after an erase, as after a reset, reads the choice first, so the change shows.
     @Test
     func `A currency chosen after an erase shows`() async throws {
         let store = CurrencyStore.inMemory(StoredValue(CurrencySettings(rateSource: .coinbase, currencyCode: "EUR")))
@@ -155,7 +135,6 @@ struct CurrencyStoreTests {
         #expect(store.settings == CurrencySettings(currencyCode: "JPY"))
     }
 
-    /// A choice that can't be erased stays read and kept.
     @Test
     func `A failed erase keeps the choice`() async throws {
         let saved = CurrencySettings(rateSource: .coinbase, currencyCode: "EUR")
@@ -167,7 +146,6 @@ struct CurrencyStoreTests {
         #expect(store.settings == saved)
     }
 
-    /// The choice is saved as `settings.json` in the Currency directory, which a reset deletes.
     @Test
     func `The choice is saved in the directory`() async throws {
         let directory = URL.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)

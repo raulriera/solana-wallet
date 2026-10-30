@@ -2,16 +2,8 @@ import RPC
 import Testing
 import Transactions
 
-/// Verifies Helius's Solana Rings indexer on devnet with read-only requests.
-///
-/// The owners are ``ShieldedPoolOwners``: each paid for a deposit to its own view tag, and the first also
-/// sent a transact.
 @Suite(.tags(.network), .timeLimit(.minutes(1)))
 struct PrivateNoteLiveTests {
-    /// Reads an owner's transactions, checks their structure, and reads again from the returned position.
-    ///
-    /// - Parameter owner: The owner's base-58 address, whose bytes are its view tag.
-    /// - Throws: A credential, provider, decoding, or test prerequisite error.
     @Test(arguments: ShieldedPoolOwners.devnet)
     func `Tag reads return an owner's transactions and resume after them`(owner: String) async throws {
         let provider = HeliusRPC(apiKey: try LiveClients.heliusAPIKey(), network: .devnet)
@@ -37,9 +29,6 @@ struct PrivateNoteLiveTests {
         #expect(Set(later.transactions.map(\.signature)).isDisjoint(with: batch.transactions.map(\.signature)))
     }
 
-    /// Reads the transactions that spent the nullifiers of the owners' confidential transactions.
-    ///
-    /// - Throws: A credential, provider, decoding, or test prerequisite error.
     @Test
     func `Nullifier reads return the transactions that spent them`() async throws {
         let provider = HeliusRPC(apiKey: try LiveClients.heliusAPIKey(), network: .devnet)

@@ -4,8 +4,6 @@ import Synchronization
 import Testing
 
 extension SubscriptionTests {
-    /// Verifies both concrete providers watch the signature at finalized and new roots on the same connection.
-    /// - Parameter helius: Whether to exercise Helius or the public Solana client.
     @Test(.timeLimit(.minutes(1)), arguments: [false, true])
     func `A signature and new roots share one connection`(helius: Bool) async throws {
         let socket = SocketFixture()
@@ -26,10 +24,6 @@ extension SubscriptionTests {
         #expect((roots["params"] as? [Any])?.isEmpty == true)
     }
 
-    /// Verifies a landing reports the transaction's execution error, or none after it succeeded.
-    /// - Parameters:
-    ///   - error: The JSON of the notification's execution error.
-    ///   - expected: The decoded execution error.
     @Test(.timeLimit(.minutes(1)), arguments: [
         ("null", TransactionError?.none),
         (#"{"InstructionError":[0,{"Custom":1}]}"#,
@@ -44,7 +38,6 @@ extension SubscriptionTests {
         #expect(try await iterator.next() == .landed(error: expected))
     }
 
-    /// Verifies roots arrive in increasing order, skipping duplicate and older ones.
     @Test(.timeLimit(.minutes(1)))
     func `Roots only increase`() async throws {
         let socket = SocketFixture()
@@ -59,7 +52,6 @@ extension SubscriptionTests {
         #expect(try await iterator.next() == .rooted(12))
     }
 
-    /// Verifies a landing received during setup isn't lost or replaced by roots that arrive before the consumer reads.
     @Test(.timeLimit(.minutes(1)))
     func `A landing during setup stays ahead of later roots`() async throws {
         let socket = SocketFixture { data, ordinal in
@@ -70,7 +62,6 @@ extension SubscriptionTests {
         socket.notify(root: 10)
         socket.notify(root: 12)
         socket.fail(URLError(.networkConnectionLost))
-        // The connection closes only after the reader has delivered every notification before the failure.
         await socket.waitUntilCancelled()
         var iterator = events.makeAsyncIterator()
         #expect(try await iterator.next() == .landed(error: nil))
@@ -79,8 +70,6 @@ extension SubscriptionTests {
         await #expect(throws: RPCError.transport(.networkConnectionLost)) { try await iterator.next() }
     }
 
-    /// Verifies a landing without an execution result, or a root without a slot, ends the stream instead of guessing.
-    /// - Parameter frame: A malformed notification for an acknowledged subscription.
     @Test(.timeLimit(.minutes(1)), arguments: [
         #"{"jsonrpc":"2.0","method":"signatureNotification","params":{"subscription":1,"result":{"context":{"slot":5},"value":{}}}}"#,
         #"{"jsonrpc":"2.0","method":"rootNotification","params":{"subscription":2,"result":{"slot":5}}}"#,
@@ -96,7 +85,6 @@ extension SubscriptionTests {
         #expect(socket.isCancelled)
     }
 
-    /// Verifies a provider that refuses root subscriptions fails setup with its redacted error and closes the connection.
     @Test
     func `Refused subscriptions end setup with the redacted server error`() async {
         let socket = SocketFixture { data, ordinal in

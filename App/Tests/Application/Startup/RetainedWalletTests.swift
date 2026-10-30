@@ -6,9 +6,7 @@ import Vault
 import Wallet
 @testable import widgets
 
-/// Opt-in read-only verification of a retained app wallet after installing an update.
 struct RetainedWalletTests {
-    /// Existing recovery must still derive every saved account without generating replacement material.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["VERIFY_RETAINED_WALLET"] == "1"))
     func `Saved wallets remain recoverable after an app update`() async throws {
         let file = AccountStore.file(in: .persistentDirectory.appending(path: "Accounts", directoryHint: .isDirectory))

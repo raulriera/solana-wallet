@@ -2,11 +2,7 @@ import CryptoKit
 import Testing
 import Wallet
 
-/// Verifies private-balance key derivation through the public protocol against zolana's golden keys.
 struct PrivateBalanceKeyDerivationTests {
-    /// Verifies the nullifier secret, viewing scalar, and viewing public key of each golden account.
-    ///
-    /// - Parameter vector: A golden account and its published keys.
     @Test(arguments: try PrivateBalanceVectors.load().accounts)
     func `Golden accounts derive the published private-balance keys`(_ vector: PrivateBalanceVectors.Account) async throws {
         let deriver: any PrivateBalanceKeyDeriving = Wallet()
@@ -22,15 +18,6 @@ struct PrivateBalanceKeyDerivationTests {
         #expect(Array(keys.viewingKey.publicKey.compressedRepresentation) == (try fixtureBytes(vector.viewingPubkey)))
     }
 
-    /// Verifies each account's code root, the Ed25519 node key at `m/44'/1392955331'/i'/3'`.
-    ///
-    /// zolana publishes no code roots. The expected keys were derived independently with Python's
-    /// `hashlib` and `hmac`, by a SLIP-0010 reference that first reproduces the golden accounts'
-    /// addresses, nullifier secrets, and viewing public keys.
-    ///
-    /// - Parameters:
-    ///   - account: The account index i of `m/44'/501'/i'/0'`.
-    ///   - codeRoot: The expected 32-byte code root.
     @Test(arguments: [
         (0, "85ab5e0262c48a29205f6beb1e222665aff6bab7a7d0505fe06745b613860a8c"),
         (1, "589f28bfe6d251368c6dec380694e3fb871f76fbe07271729db0fc88be85344d"),
@@ -44,14 +31,6 @@ struct PrivateBalanceKeyDerivationTests {
         #expect(keys.codeRoot.withUnsafeBytes { Array($0) } == (try fixtureBytes(codeRoot)))
     }
 
-    /// Verifies that keys are derived only for the account at the expected address.
-    ///
-    /// The cases are a different passphrase, another account's address, a Kelvin sign in place of
-    /// `K`, a character outside the Base58 alphabet, and Base58 text that isn't 32 bytes long.
-    ///
-    /// - Parameters:
-    ///   - address: The expected address for account 0.
-    ///   - passphrase: The BIP-39 passphrase.
     @Test(arguments: [
         (PublicRecovery.addresses[0], "different account"),
         (PublicRecovery.addresses[1], ""),
@@ -69,8 +48,6 @@ struct PrivateBalanceKeyDerivationTests {
         }
     }
 
-    /// Verifies that Solana's other discovered path family has no private-balance keys, even with
-    /// its own correct address.
     @Test
     func `Private-balance keys refuse paths outside the Solana account family`() async throws {
         let recovery = try PublicRecovery.phrase()
@@ -84,7 +61,6 @@ struct PrivateBalanceKeyDerivationTests {
         }
     }
 
-    /// Verifies cancellation prevents key delivery without relying on task scheduling.
     @Test
     func `Cancelled private-balance derivation throws CancellationError`() async throws {
         let recovery = try PublicRecovery.phrase()

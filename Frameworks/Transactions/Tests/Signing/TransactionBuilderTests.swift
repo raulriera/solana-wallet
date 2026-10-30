@@ -2,9 +2,7 @@ import Foundation
 import Testing
 import Transactions
 
-/// Verifies V1 signature placement and failure boundaries through the public assembler.
 struct TransactionBuilderTests {
-    /// Verifies simulation preserves the message and reserves the trailing signature field.
     @Test
     func `Unsigned simulations preserve V1 messages with one empty signature slot`() throws {
         let message = try SignedTransferFixture.bytes(SignedTransferFixture.message)
@@ -16,7 +14,6 @@ struct TransactionBuilderTests {
         #expect(transaction == signedFixture.dropLast(64) + Data(repeating: 0, count: 64))
     }
 
-    /// Verifies the complete envelope against an independently signed Solana SDK fixture.
     @Test
     func `Signed SOL transfers match Solana SDK V1 transaction bytes`() throws {
         let transfer = try SystemProgram.transfer(from: Address(SignedTransferFixture.sender), to: Address(MessageFixture.recipient), lamports: 1_000_000_000)
@@ -34,7 +31,6 @@ struct TransactionBuilderTests {
         #expect(transaction.serializedRepresentation == (try SignedTransferFixture.bytes(SignedTransferFixture.transaction)))
     }
 
-    /// Verifies a signature can't be reused after changing the transfer amount.
     @Test
     func `Changing the lamport amount invalidates the transaction signature`() throws {
         var message = try SignedTransferFixture.bytes(SignedTransferFixture.message)
@@ -48,7 +44,6 @@ struct TransactionBuilderTests {
         }
     }
 
-    /// Verifies the public key used for verification comes from the encoded fee payer.
     @Test
     func `A signature from another sender is rejected`() throws {
         let message = try SignedTransferFixture.bytes(SignedTransferFixture.message)
@@ -61,9 +56,6 @@ struct TransactionBuilderTests {
         }
     }
 
-    /// Verifies the identity key cannot forge approval of either transfer amount.
-    ///
-    /// - Parameter changesAmount: Whether to reuse the forgery after changing the lamports.
     @Test(arguments: [false, true])
     func `Identity signers cannot authorize transfers`(changesAmount: Bool) throws {
         var message = try SignedTransferFixture.bytes(SignedTransferFixture.message)
@@ -79,7 +71,6 @@ struct TransactionBuilderTests {
         }
     }
 
-    /// Verifies a strong signer does not make a small-order signature point acceptable.
     @Test
     func `Signatures with an identity nonce point are rejected`() throws {
         let message = try SignedTransferFixture.bytes(SignedTransferFixture.message)
@@ -92,9 +83,6 @@ struct TransactionBuilderTests {
         }
     }
 
-    /// Verifies missing, truncated, and oversized signature fields fail closed.
-    ///
-    /// - Parameter count: An invalid signature length in bytes.
     @Test(arguments: [0, 63, 65])
     func `Transaction assembly rejects incomplete signature fields`(_ count: Int) throws {
         let message = try SignedTransferFixture.bytes(SignedTransferFixture.message)
@@ -105,11 +93,6 @@ struct TransactionBuilderTests {
         }
     }
 
-    /// Verifies inputs outside the V1 structural contract are rejected.
-    ///
-    /// - Parameters:
-    ///   - input: An empty, unsupported, truncated, or oversized message.
-    ///   - expectedError: The exact validation failure for this malformed input.
     @Test(arguments: [
         ("empty", ValidationError.invalidMessage),
         ("legacy", .invalidMessage),

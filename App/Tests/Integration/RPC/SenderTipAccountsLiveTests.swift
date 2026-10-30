@@ -2,10 +2,8 @@ import Foundation
 @testable import RPC
 import Testing
 
-/// Compares the bundled Sender tip accounts with the list Helius publishes; there is no endpoint for it.
 @Suite(.tags(.network), .timeLimit(.minutes(1)))
 struct SenderTipAccountsLiveTests {
-    /// Every bundled tip account must still appear in Helius's Sender documentation.
     @Test
     func `Bundled Sender tip accounts match the published list`() async throws {
         let url = URL(string: "https://www.helius.dev/docs/sending-transactions/sender.md")!

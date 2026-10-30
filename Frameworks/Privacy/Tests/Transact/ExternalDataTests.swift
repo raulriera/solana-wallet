@@ -4,15 +4,7 @@ import ModularArithmetic
 import Testing
 import Transactions
 
-/// Verifies the external data's encoded prefix and its hash.
-///
-/// The published transfers of `hash_vectors.rs` rebuild their whole outputs: each commitment, owner
-/// tag, and sealed note. Case A's fee payer is the sender, so the sender's outputs refer to the
-/// payer; case B's payer is relayed, so every output carries its view tag inline.
 struct ExternalDataTests {
-    /// Verifies the external data hashes of zolana's published transfers, rebuilt from their outputs.
-    ///
-    /// - Parameter transfer: A published transfer.
     @Test(arguments: TransferVectors.transfers)
     func `Hashes match the published transfers`(_ transfer: TransferVectors.Transfer) throws {
         let sender = try TransferVectors.sender()
@@ -42,8 +34,6 @@ struct ExternalDataTests {
         #expect(externalData.hash == (try fixtureBytes(transfer.externalDataHash)))
     }
 
-    /// Verifies the prefix without a withdrawal: no expiry, the viewing public key, the salt, no
-    /// interface transfers, no data hashes, the outputs, and no messages.
     @Test
     func `Prefixes without a withdrawal follow zolana's encoding`() throws {
         let key = P256.KeyAgreement.PrivateKey().publicKey
@@ -61,8 +51,6 @@ struct ExternalDataTests {
         #expect(externalData.hash[0] == 0)
     }
 
-    /// Verifies the prefix with a withdrawal: one interface transfer of variant 1 and its
-    /// little-endian amount.
     @Test
     func `Prefixes with a withdrawal carry one SOL withdrawal`() throws {
         let key = P256.KeyAgreement.PrivateKey().publicKey
@@ -75,7 +63,6 @@ struct ExternalDataTests {
             + [1, 1, 0x02, 0x01, 0, 0, 0, 0, 0, 0] + [0, 0, 0, 0])
     }
 
-    /// Verifies that the hash covers the withdrawal's recipient, which the prefix leaves out.
     @Test
     func `Hashes cover the withdrawal recipient`() throws {
         let key = P256.KeyAgreement.PrivateKey().publicKey
@@ -93,7 +80,6 @@ struct ExternalDataTests {
         #expect(toRelayedPayer.hash != toSender.hash)
     }
 
-    /// Verifies that the hash covers the payer only through outputs that refer to it.
     @Test
     func `Hashes cover the payer only for outputs that refer to it`() throws {
         let key = P256.KeyAgreement.PrivateKey().publicKey

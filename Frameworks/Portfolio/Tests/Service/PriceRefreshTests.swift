@@ -4,11 +4,7 @@ import Transactions
 import Testing
 @testable import Portfolio
 
-/// Verifies valuation, persistence, and coordination of prices during refreshes through real provider adapters.
 struct PriceRefreshTests {
-    /// Verifies a refresh values the new balances, shares SOL's quote with Wrapped SOL, and drops a cached price
-    /// that has no new quote.
-    /// - Throws: A fixture, refresh, or test prerequisite error.
     @Test
     func `A refresh values new holdings and shares SOL's quote with Wrapped SOL`() async throws {
         let fixture = PricingFixture()
@@ -41,11 +37,6 @@ struct PriceRefreshTests {
         #expect(await updates.next() == nil)
     }
 
-    /// Verifies a refresh looks up logos and prices while it reads balances, instead of after the read.
-    ///
-    /// The balance read answers only after both lookups have started, so a refresh that waits for balances first
-    /// never finishes.
-    /// - Throws: A fixture, refresh, or test prerequisite error.
     @Test(.timeLimit(.minutes(1)))
     func `A refresh looks up logos and prices while it reads balances`() async throws {
         let fixture = PricingFixture()
@@ -80,8 +71,6 @@ struct PriceRefreshTests {
         #expect(await prices.requests.count == 1)
     }
 
-    /// Verifies a failed quote request preserves the preceding complete snapshot without retrying.
-    /// - Throws: A fixture or test prerequisite error.
     @Test
     func `Price failures preserve the cached snapshot without retrying`() async throws {
         let fixture = PricingFixture()
@@ -101,8 +90,6 @@ struct PriceRefreshTests {
         #expect(await accounts.requests.count == 1)
     }
 
-    /// Verifies concurrent reloads share one balance read and one price lookup, and deliver the same result.
-    /// - Throws: A fixture, refresh, or test prerequisite error.
     @Test(.timeLimit(.minutes(1)))
     func `Concurrent reloads share one balance read and one price lookup`() async throws {
         let fixture = PricingFixture()
@@ -134,8 +121,6 @@ struct PriceRefreshTests {
         #expect(await second.next() == nil)
     }
 
-    /// Verifies removal cancels a refresh's price lookup and cannot restore a deleted snapshot.
-    /// - Throws: A fixture or test prerequisite error.
     @Test(.timeLimit(.minutes(1)))
     func `Removing a portfolio during its price lookup prevents cache restoration`() async throws {
         let fixture = PricingFixture()
@@ -164,9 +149,6 @@ struct PriceRefreshTests {
         #expect(fixture.store.snapshot(for: fixture.key) == nil)
     }
 
-    /// Verifies a provider change ends a refresh during its price lookup, so it can't save the previous provider's
-    /// logos again.
-    /// - Throws: A fixture or test prerequisite error.
     @Test(.timeLimit(.minutes(1)))
     func `A refresh during a provider change can't save the previous logos`() async throws {
         let fixture = PricingFixture()
@@ -202,30 +184,20 @@ struct PriceRefreshTests {
     }
 }
 
-/// A disk cache isolated to one pricing test.
 private struct PricingFixture {
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     let key = CacheKey(owner: testWallet, network: .mainnet)
     var store: FileSnapshotStore { FileSnapshotStore(directory: directory) }
 
-    /// Creates a service that keeps its snapshots in this test's directory.
-    /// - Parameters:
-    ///   - rpc: The client whose balance reads the service makes.
-    ///   - prices: The independent price provider, or `nil` for none.
-    /// - Returns: The service under test.
     func portfolio(rpc: any RPC, prices: (any PriceProviding)?) -> Portfolio {
         Portfolio(rpc: rpc, store: store, tokenLists: isolatedTokenLists(), prices: prices)
     }
 
-    /// Removes only this fixture's cache files.
     func removeFiles() { try? FileManager.default.removeItem(at: directory) }
 }
 
-/// A new balance read: 1 SOL and 3 USDC, with no USDT account.
 private let freshLedger = Ledger(lamports: 1_000_000_000, tokens: [usdcMint: 3_000_000])
 
-/// Creates a cached snapshot that a refresh replaces only when it completes.
-/// - Returns: SOL, Wrapped SOL, a token with a logo, and a previously priced token.
 private func pricingSnapshot() -> Snapshot {
     let holdings = [
         Holding(id: .nativeSOL, amount: Amount(units: 1_000_000_000, decimals: 9), name: "Solana", symbol: "SOL",

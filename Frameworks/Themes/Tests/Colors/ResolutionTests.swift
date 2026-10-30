@@ -2,7 +2,6 @@ import Testing
 import Themes
 
 struct ResolutionTests {
-    /// Omitted settings retain complete app-provided values in every appearance.
     @Test(arguments: ["", #""tokens":{}"#, #""tokens":{"colors":{}}"#])
     func `Omitted settings use defaults`(fields: String) async throws {
         let fixture = try Fixture()
@@ -13,7 +12,6 @@ struct ResolutionTests {
         #expect(service.resolve(pack, defaults: Fixture.defaults) == Fixture.defaults)
     }
 
-    /// An override changes only its appearance and role without applying a contrast gate.
     @Test(arguments: ["light", "dark", "lightIncreasedContrast", "darkIncreasedContrast"])
     func `Overrides stay within their appearance`(appearance: String) async throws {
         let fixture = try Fixture()
@@ -38,7 +36,6 @@ struct ResolutionTests {
         }
     }
 
-    /// Symbolic color names are accepted without flattening them into one appearance.
     @Test(arguments: Themes.Color.System.allCases)
     func `System references remain symbolic`(color: Themes.Color.System) async throws {
         let fixture = try Fixture()
@@ -49,7 +46,6 @@ struct ResolutionTests {
         #expect(result.light.accent == .system(color))
     }
 
-    /// Readable structure, rather than custom-theme contrast, determines acceptance.
     @Test func `Matching foreground and background are accepted`() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }

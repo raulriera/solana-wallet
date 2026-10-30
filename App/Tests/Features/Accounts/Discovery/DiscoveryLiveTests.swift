@@ -3,15 +3,8 @@ import Testing
 import Wallet
 @testable import widgets
 
-/// Checks discovery against real mainnet observations using published recovery input.
 @Suite(.tags(.network))
 struct DiscoveryLiveTests {
-    /// Compares discovery with the balances returned by its single live lookup: one twenty-address
-    /// request, and one distinct account for each funded address in it.
-    ///
-    /// The public fixture may have any balance; this test never accesses Vault or requests funding.
-    /// - Parameter helius: Whether to query Helius or the public Solana endpoint.
-    /// - Throws: A derivation, provider, or test prerequisite error.
     @Test(.timeLimit(.minutes(1)), arguments: [true, false])
     func `Mainnet discovery matches observed SOL balances for a public phrase`(helius: Bool) async throws {
         let transport = LiveResponses<GetMultipleAccounts>()

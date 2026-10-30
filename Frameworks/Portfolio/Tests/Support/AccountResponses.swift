@@ -4,40 +4,24 @@ import Testing
 @testable import RPC
 @testable import Transactions
 
-/// A public wallet whose balances in these tests come only from local fixtures.
 let testWallet = "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM"
-/// A second public wallet for checks that keep wallets apart.
 let otherWallet = "4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T"
-/// The USD Coin mint, a default token on mainnet.
 let usdcMint = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
-/// The USDT mint, a default token on mainnet.
 let usdtMint = "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"
-/// The PayPal USD mint, a Token-2022 token a person might add.
 let pyusdMint = "2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo"
-/// The mint that native SOL shares with Wrapped SOL for prices.
 let nativeMint = "So11111111111111111111111111111111111111112"
 
-/// The ledger state a balance-read fixture reports.
 struct Ledger: Sendable {
-    /// The slot at which these balances were observed.
     var slot: UInt64 = 100
-    /// The wallet's SOL balance in lamports, or `nil` when the wallet has no account.
     var lamports: UInt64? = 100
-    /// The balances of the token accounts that exist, keyed by mint address.
     var tokens: [String: UInt64] = [:]
-    /// Mints whose token accounts hold bytes that aren't a token account.
     var corrupt: Set<String> = []
-    /// Mints whose token accounts another address controls, keyed to that address.
     var otherOwners: [String: String] = [:]
-    /// Mints whose associated addresses received SOL before their token accounts were created.
     var prefunded: Set<String> = []
 }
 
-/// Balance-read and logo-lookup HTTP fixtures decoded by the real RPC clients during portfolio refreshes.
 actor AccountResponses: HTTPTransport {
-    /// Supplies the ledger state for one balance read of the requested addresses.
     typealias Responder = @Sendable ([String]) async throws -> Ledger
-    /// Supplies the CDN logo URL of each requested mint that has one, for one DAS logo lookup.
     typealias LogoResponder = @Sendable ([String]) async throws -> [String: String]
 
     private nonisolated let network: Network
@@ -47,31 +31,20 @@ actor AccountResponses: HTTPTransport {
     private let respond: Responder
     private let logos: LogoResponder
 
-    /// The real public-endpoint client receiving the fixture's HTTP responses.
     nonisolated var client: Solana {
         Solana(network: network, transport: self)
     }
 
-    /// The real Helius client, which also looks up logos through DAS.
     nonisolated var heliusClient: HeliusRPC {
         HeliusRPC(apiKey: "fixture-key", network: network, transport: self)
     }
 
-    /// Creates isolated balance reads and logo lookups for cache, refresh, and cancellation checks.
-    /// - Parameters:
-    ///   - network: The network associated with cached snapshots.
-    ///   - logos: The logo supplier for DAS lookups, which may fail a request; the default has no logos.
-    ///   - respond: The ledger supplier, which may suspend or fail a request.
     init(network: Network = .mainnet, logos: @escaping LogoResponder = { _ in [:] }, respond: @escaping Responder) {
         self.network = network
         self.logos = logos
         self.respond = respond
     }
 
-    /// Records the requested addresses or mints and returns their accounts or assets in a JSON-RPC envelope.
-    /// - Parameter request: The HTTP request created by the RPC client.
-    /// - Returns: The fixture's response data and HTTP metadata.
-    /// - Throws: A fixture, transport, or cancellation error.
     func data(for request: URLRequest) async throws -> (Data, URLResponse) {
         let body = try rpcBody(request)
         let result: Any
@@ -86,10 +59,6 @@ actor AccountResponses: HTTPTransport {
         return try rpcReply(to: body, result: result, request: request)
     }
 
-    /// Records one balance read and encodes the wallet and its token accounts.
-    /// - Parameter addresses: The wallet, then each listed token's associated account.
-    /// - Returns: The `getMultipleAccounts` result.
-    /// - Throws: A fixture, validation, or cancellation error.
     private func accounts(at addresses: [String]) async throws -> Any {
         requests.append(addresses)
         let ledger = try await respond(addresses)
@@ -99,32 +68,17 @@ actor AccountResponses: HTTPTransport {
         return ["context": ["slot": ledger.slot], "value": accounts] as [String: Any]
     }
 
-    /// Records one logo lookup and encodes each mint as a DAS asset with its CDN copy, or `null` without one.
-    /// - Parameter mints: The mints the lookup asks for.
-    /// - Returns: The `getAssetBatch` result, in request order.
-    /// - Throws: A fixture or cancellation error.
     private func assets(for mints: [String]) async throws -> Any {
         logoRequests.append(mints)
         return assetBatch(for: mints, logos: try await logos(mints))
     }
 
-    /// Encodes the wallet's system account, or a missing account.
-    /// - Parameter ledger: The ledger state to report.
-    /// - Returns: The account's JSON value.
     private func walletAccount(_ ledger: Ledger) -> Any {
         guard let lamports = ledger.lamports else { return NSNull() }
         return ["owner": "11111111111111111111111111111111", "lamports": lamports, "executable": false,
                 "data": ["", "base64"]] as [String: Any]
     }
 
-    /// Encodes the token account at an address when it's an existing associated account in the ledger,
-    /// or the empty system account of a prefunded address.
-    /// - Parameters:
-    ///   - address: The requested associated token account.
-    ///   - owner: The wallet whose token accounts the ledger describes.
-    ///   - ledger: The ledger state to report.
-    /// - Returns: The account's JSON value, or a missing account.
-    /// - Throws: A validation error for a malformed fixture address.
     private func tokenAccount(at address: String, owner: String, in ledger: Ledger) throws -> Any {
         let wallet = try Address(owner)
         for (mint, units) in ledger.tokens {
@@ -148,27 +102,16 @@ actor AccountResponses: HTTPTransport {
     }
 }
 
-/// Encodes an initialized token account as the token programs store it.
-///
-/// Token-2022 accounts carry the immutable-owner extension that associated accounts receive.
-/// - Parameters:
-///   - mint: The mint whose tokens the account holds.
-///   - owner: The wallet that owns the account.
-///   - units: The balance in the token's smallest units.
-///   - program: The token program that owns the account.
-/// - Returns: The account's raw bytes.
 func tokenAccountData(mint: Address, owner: Address, units: UInt64, program: TokenProgram) -> Data {
     var bytes = mint.bytes + owner.bytes + withUnsafeBytes(of: units.littleEndian, Array.init)
-    bytes += [UInt8](repeating: 0, count: 36) // No delegate.
-    bytes += [1] // Initialized.
-    bytes += [UInt8](repeating: 0, count: 20) // Not native, and nothing delegated.
-    bytes += [UInt8](repeating: 0, count: 36) // No close authority.
-    if program == .token2022 { bytes += [2, 7, 0, 0, 0] } // Account type, then an empty immutable-owner entry.
+    bytes += [UInt8](repeating: 0, count: 36)
+    bytes += [1]
+    bytes += [UInt8](repeating: 0, count: 20)
+    bytes += [UInt8](repeating: 0, count: 36)
+    if program == .token2022 { bytes += [2, 7, 0, 0, 0] }
     return Data(bytes)
 }
 
-/// Creates a token-list store in a new temporary directory, which stays empty unless a test adds a token.
-/// - Returns: A store that keeps a test's token lists apart from every other test.
 func isolatedTokenLists() -> FileTokenListStore {
     FileTokenListStore(directory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
 }

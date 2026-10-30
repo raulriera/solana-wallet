@@ -2,14 +2,7 @@ import Foundation
 import Testing
 @testable import widgets
 
-/// Checks which hardware keyboard characters type on the payment keypad.
 struct KeypadKeyTests {
-    /// Digits from any script type themselves, but not other numerals such as superscripts, and the locale's
-    /// separator and a period type the decimal separator.
-    /// - Parameters:
-    ///   - characters: The characters a key press produced.
-    ///   - locale: The locale's identifier.
-    ///   - key: The keypad key they type, if any.
     @Test(arguments: [
         ("5", "en_US", KeypadKey.digit(5)),
         (".", "en_US", .decimalSeparator),

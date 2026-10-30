@@ -3,12 +3,7 @@ import ModularArithmetic
 @testable import Privacy
 import Testing
 
-/// Verifies Solana owner identities and owner hashes.
 struct OwnerIdentityTests {
-    /// Verifies a Solana owner identity against zolana's published vector.
-    ///
-    /// The vector's public key is an arbitrary 32-byte value, tagged with 0x53 before
-    /// `hash_bytes_33`.
     @Test
     func `Solana owner identities match the published vector`() throws {
         let vector = try CommitmentVectors.load().ownerIdentity
@@ -17,19 +12,6 @@ struct OwnerIdentityTests {
             == (try fixtureBytes(vector.solanaOwnerIdentity)))
     }
 
-    /// Verifies owner hashes against zolana's published Ed25519 accounts.
-    ///
-    /// The values are the `GOLDEN` accounts 0 and 1 of zolana's `seed-based-keypair.test.ts`,
-    /// copied unchanged. The owner vector in `key_derivation.json` belongs to a P-256 owner, which
-    /// this module doesn't support. CryptoKit derives each signing public key from its secret, and
-    /// each nullifier key derives its public key from its secret.
-    ///
-    /// - Parameters:
-    ///   - signingSecret: The account's 32-byte Ed25519 private key.
-    ///   - signingPublicKey: The published public key of `signingSecret`.
-    ///   - nullifierSecret: The account's 31-byte nullifier secret.
-    ///   - nullifierPublicKey: The published public key of `nullifierSecret`.
-    ///   - ownerHash: The published owner hash.
     @Test(arguments: [
         (
             "37df573b3ac4ad5b522e064e25b63ea16bcbe79d449e81a0268d1047948bb445",

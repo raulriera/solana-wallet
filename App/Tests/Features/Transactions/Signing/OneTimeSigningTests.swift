@@ -6,9 +6,7 @@ import Transactions
 import Wallet
 @testable import widgets
 
-/// Verifies one-time accounts sign reviewed bytes in memory, with the same checks as saved accounts.
 struct OneTimeSigningTests {
-    /// Verifies a one-time account signs the reviewed message after both lifetime checks, without recovery access.
     @Test
     func `A one-time account signs the reviewed message without reading recovery`() async throws {
         let fixture = try SigningFixture()
@@ -25,7 +23,6 @@ struct OneTimeSigningTests {
         #expect(try await http.requests.filter { try $0.rpcMethod == "getBlockHeight" }.count == 2)
     }
 
-    /// Verifies a one-time account can't fill another signer's slot, before any network work.
     @Test
     func `A one-time account cannot sign for another address`() async throws {
         let fixture = try SigningFixture()
@@ -39,9 +36,6 @@ struct OneTimeSigningTests {
         #expect(await http.requests.isEmpty)
     }
 
-    /// Verifies a review that expires before or after signing never yields a one-time signature.
-    ///
-    /// - Parameter expiresAfterSigning: Whether the first expiry check still passes.
     @Test(arguments: [false, true])
     func `An expired review never yields a one-time signature`(expiresAfterSigning: Bool) async throws {
         let fixture = try SigningFixture()

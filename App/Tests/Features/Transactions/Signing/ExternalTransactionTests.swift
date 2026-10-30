@@ -5,11 +5,7 @@ import Testing
 import Transactions
 @testable import widgets
 
-/// Verifies external V1 bytes use the shared app review and signing boundary.
 struct ExternalTransactionTests {
-    /// Verifies signing a non-payer slot preserves the original message and other slots.
-    ///
-    /// - Parameter hasPayerSignature: Whether the result completes all required signatures.
     @Test(arguments: [true, false])
     func `A wallet cosigner preserves supplied bytes and existing signatures`(hasPayerSignature: Bool) async throws {
         let expected = try ExternalFixture.preparation(hasPayerSignature: hasPayerSignature)
@@ -22,7 +18,7 @@ struct ExternalTransactionTests {
         )
         var input = expected.bytes
         input.insert(0xff, at: input.startIndex)
-        input = input.dropFirst() // Exercise Foundation data with a nonzero start index.
+        input = input.dropFirst()
 
         let preparation = try await coordinator.simulate(TransactionDecoder().decode(input), using: SigningFixture().account)
         #expect(await store.reads.isEmpty)
@@ -44,7 +40,6 @@ struct ExternalTransactionTests {
         #expect(validity[0] as? String == expected.transaction.lifetimeSpecifier)
         let simulation = try #require(requests.first { try $0.rpcMethod == "simulateTransaction" }).rpcParameters
         #expect(simulation[0] as? String == input.base64EncodedString())
-        // The validity, height, fee, and simulation reads all use finalized state.
         for request in requests {
             #expect(try (request.rpcParameters.last as? [String: Any])?["commitment"] as? String == "finalized")
         }
@@ -59,8 +54,6 @@ struct ExternalTransactionTests {
         }
     }
 
-    /// Verifies an imported receipt expires 150 blocks after the finalized height where its blockhash was valid,
-    /// while the review shows no expiry because that bound isn't the blockhash's own.
     @Test
     func `An imported receipt expires 150 blocks after the finalized block height`() async throws {
         let expected = try ExternalFixture.preparation()
@@ -85,7 +78,6 @@ struct ExternalTransactionTests {
         #expect(options["minContextSlot"] as? Int == 400)
     }
 
-    /// Verifies a block height with no representable expiry bound cannot produce a review.
     @Test
     func `An imported review rejects a block height without a representable expiry`() async throws {
         let expected = try ExternalFixture.preparation()
@@ -101,9 +93,6 @@ struct ExternalTransactionTests {
         #expect(try await http.requests.map { try $0.rpcMethod } == ["isBlockhashValid", "getBlockHeight"])
     }
 
-    /// Verifies malformed authority cannot reach provider work or produce a review.
-    ///
-    /// - Parameter condition: The invalid signer role or existing signature.
     @Test(arguments: [
         "unrelated account", "occupied slot", "invalid cosigner"
     ])
@@ -130,9 +119,6 @@ struct ExternalTransactionTests {
         #expect(await http.requests.isEmpty)
     }
 
-    /// Verifies displayed instruction and account metadata must match the exact signed bytes.
-    ///
-    /// - Parameter field: The decoded field altered independently of its message.
     @Test(arguments: ["instructions", "privileges", "lifetime"])
     func `Altered external inspection details cannot unlock recovery`(_ field: String) async throws {
         let expected = try ExternalFixture.preparation()
@@ -160,9 +146,6 @@ struct ExternalTransactionTests {
         #expect(await store.reads.isEmpty)
     }
 
-    /// Verifies unknown, expired, or stale blockhash observations never yield a signed transaction.
-    ///
-    /// - Parameter stage: The point at which the supplied blockhash becomes unusable.
     @Test(arguments: [
         "preparation", "before authentication", "during authentication", "stale context"
     ])
@@ -188,7 +171,6 @@ struct ExternalTransactionTests {
             }
         }
 
-        // Expiry during authentication is detected after signing, once recovery is released; the signature is discarded.
         #expect(await wallet.messages.count == (stage == "during authentication" ? 1 : 0))
         #expect(await store.reads.count == (stage == "during authentication" ? 1 : 0))
     }

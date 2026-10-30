@@ -7,11 +7,7 @@ import Vault
 import Wallet
 @testable import widgets
 
-/// Verifies reviews that mix saved and one-time authorities pay, sign, and consume approval as one review.
 struct AuthorityCoordinationTests {
-    /// Verifies the first authority pays and each authority signs its own slot, reading recovery only for the saved account.
-    ///
-    /// - Parameter oneTimePays: Whether the one-time account is the first authority.
     @Test(arguments: [true, false])
     func `The first authority pays and every authority signs its own slot`(oneTimePays: Bool) async throws {
         let fixture = try SigningFixture()
@@ -35,10 +31,6 @@ struct AuthorityCoordinationTests {
         #expect(await store.reads.map(\.recoveryID) == [fixture.account.recoveryID])
     }
 
-    /// Verifies a repeated authority address fails before network work, whether the one-time account
-    /// repeats or a saved account shares its address.
-    ///
-    /// - Parameter savedAccountShares: Whether a saved account with the one-time address precedes it.
     @Test(arguments: [false, true])
     func `A repeated authority address cannot create a review`(savedAccountShares: Bool) async throws {
         let fixture = try SigningFixture()
@@ -54,7 +46,6 @@ struct AuthorityCoordinationTests {
         #expect(await http.requests.isEmpty)
     }
 
-    /// Verifies a review with a one-time authority authorizes only one signing attempt.
     @Test
     func `A one-time review signs only once`() async throws {
         let fixture = try SigningFixture()
@@ -67,7 +58,6 @@ struct AuthorityCoordinationTests {
         await #expect(throws: TransactionCoordinatorError.reviewAlreadyUsed) { try await coordinator.sign(review) }
     }
 
-    /// Verifies submission counts one-time authorities as local signers, so a mixed review reaches delivery.
     @Test
     func `Submission counts one-time authorities as local signers`() async throws {
         let fixture = try SigningFixture()
@@ -83,13 +73,6 @@ struct AuthorityCoordinationTests {
         #expect(await store.reads.count == 1)
     }
 
-    /// Creates a coordinator whose preparation and signing reads use local fixtures and that has no delivery route.
-    ///
-    /// - Parameters:
-    ///   - fixture: The review observations.
-    ///   - store: The recovery store for saved accounts.
-    /// - Returns: The coordinator and the preparation responses it reads.
-    /// - Throws: A fixture encoding error.
     private func coordinator(fixture: SigningFixture, store: any RecoveryStoring) throws -> (any TransactionCoordinating, HTTPResponses) {
         let preparation = try HTTPResponses.preparation(fixture: fixture.preparation)
         let signing = try HTTPResponses.signing()
@@ -101,11 +84,6 @@ struct AuthorityCoordinationTests {
         return (coordinator, preparation)
     }
 
-    /// Composes a transfer from the saved account and a memo that the one-time account signs.
-    ///
-    /// - Parameter fixture: The accounts and recipient.
-    /// - Returns: Instructions that require both signatures, whichever authority pays.
-    /// - Throws: An instruction validation error.
     private func instructions(_ fixture: SigningFixture) throws -> [Instruction] {
         try [
             SystemProgram.transfer(from: fixture.account.address, to: fixture.transfer.accounts[1].address, lamports: 1),

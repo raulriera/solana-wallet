@@ -6,12 +6,8 @@ import Vault
 import Wallet
 @testable import widgets
 
-/// Exercises token preparation's read-only mainnet validation without retained wallets or submission.
 @Suite(.tags(.network))
 struct TokenPreparationLiveTests {
-    /// Verifies an absent source account fails before signing or transferring funds.
-    /// - Parameter program: The token program whose native mint supplies the real account context.
-    /// - Throws: A derivation, provider, or test prerequisite error.
     @Test(.timeLimit(.minutes(1)), arguments: TokenProgram.allCases)
     func `Mainnet token preparation reports a missing source account`(_ program: TokenProgram) async throws {
         let rpc = try LiveClients.client()

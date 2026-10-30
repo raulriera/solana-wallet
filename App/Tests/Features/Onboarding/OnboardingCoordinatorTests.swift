@@ -5,13 +5,11 @@ import Vault
 import Wallet
 @testable import widgets
 
-/// Verifies explicit onboarding approval with isolated stores and published BIP-39 fixtures.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct OnboardingCoordinatorTests {
     static let phrase = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
 
-    /// New recovery stays only in memory until the caller explicitly completes onboarding.
     @Test
     func `Creating a wallet prepares twelve words without persisting recovery or accounts`() async throws {
         let http = HTTPResponses.discovery()
@@ -31,7 +29,6 @@ struct OnboardingCoordinatorTests {
         #expect(coordinator.recovery == nil)
     }
 
-    /// Imports a published fixture and commits the independently known index-zero address.
     @Test
     func `Explicit completion saves imported recovery before its first account and clears the draft`() async throws {
         let recovery = OnboardingRecoveryStore()
@@ -50,7 +47,6 @@ struct OnboardingCoordinatorTests {
         #expect(accounts.accounts.map(\.id) == [account.id])
     }
 
-    /// Provider setup follows completion, so the window opens the account only when onboarding finishes.
     @Test
     func `Finishing opens the saved account even after its draft is released`() async throws {
         let recovery = OnboardingRecoveryStore()
@@ -66,7 +62,6 @@ struct OnboardingCoordinatorTests {
         #expect(coordinator.finishedAccount == account)
     }
 
-    /// An unsaved draft can't end onboarding, so the window stays put.
     @Test
     func `Finishing before completion is rejected and keeps the window in onboarding`() async throws {
         let recovery = OnboardingRecoveryStore()
@@ -80,7 +75,6 @@ struct OnboardingCoordinatorTests {
         #expect(coordinator.recovery != nil)
     }
 
-    /// Separate windows keep their drafts and original passphrases independent.
     @Test
     func `Window drafts preserve passphrase whitespace and cannot clear another window`() async throws {
         let recovery = OnboardingRecoveryStore()
@@ -96,7 +90,6 @@ struct OnboardingCoordinatorTests {
         #expect(await recovery.saves.isEmpty)
     }
 
-    /// Invalid recovery never reaches either persistence boundary.
     @Test
     func `Invalid recovery reports validation without storing supplied text`() async throws {
         let http = HTTPResponses.discovery()
@@ -114,7 +107,6 @@ struct OnboardingCoordinatorTests {
         #expect(await http.requests.isEmpty)
     }
 
-    /// An unapproved draft cannot be replaced by a second preparation action.
     @Test
     func `Completion requires a draft and preparing again cannot replace one`() async throws {
         let recovery = OnboardingRecoveryStore()
@@ -127,7 +119,6 @@ struct OnboardingCoordinatorTests {
         #expect(await recovery.saves.isEmpty)
     }
 
-    /// Derivation errors from injected services cannot escape with recovery text.
     @Test
     func `Preparation errors do not expose underlying secret text`() async throws {
         let recovery = OnboardingRecoveryStore()
@@ -141,7 +132,6 @@ struct OnboardingCoordinatorTests {
         #expect(!String(reflecting: coordinator).contains("private-passphrase-marker"))
     }
 
-    /// Cancelled derivation cannot publish a late recovery draft or make storage calls.
     @Test
     func `Cancelling preparation rejects a late derived address without publishing recovery`() async throws {
         let gate = Suspension()

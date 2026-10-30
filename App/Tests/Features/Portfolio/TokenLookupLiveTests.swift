@@ -4,15 +4,10 @@ import RPC
 import Testing
 import Transactions
 
-/// Verifies live mint lookups through public mainnet RPC, which every provider choice supports.
 @Suite(.tags(.network))
 struct TokenLookupLiveTests {
-    /// Looks up an SPL token and a Token-2022 token without reading wallets or submitting transactions.
-    ///
-    /// - Throws: An RPC, validation, or lookup error.
     @Test(.timeLimit(.minutes(1)))
     func `Live lookups read on-chain names for both token programs`() async throws {
-        // Lookups save and cache nothing.
         let portfolio = Portfolio(rpc: Solana(network: .mainnet), tokenListDirectory: .temporaryDirectory,
                                   cacheDirectory: .temporaryDirectory)
 

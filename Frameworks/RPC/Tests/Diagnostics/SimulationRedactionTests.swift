@@ -1,9 +1,7 @@
 import Testing
 @testable import RPC
 
-/// Tests diagnostic redaction independently of HTTP requests and error decoding.
 struct SimulationRedactionTests {
-    /// Verifies that nested text is sanitized while diagnostic structure and numbers survive.
     @Test
     func `Simulation redaction removes secrets while preserving error structure and numeric diagnostics`() {
         let redactor: any TextRedactor = SecretRedactor(secrets: ["test-key"])
@@ -32,9 +30,6 @@ struct SimulationRedactionTests {
         ))
     }
 
-    /// Creates a token balance observation for one raw amount.
-    /// - Parameter amount: The balance in raw units.
-    /// - Returns: A USDC balance attributed to a public address.
     private func balance(amount: UInt64) -> SimulateTransaction.TokenBalance {
         SimulateTransaction.TokenBalance(
             accountIndex: 1, mint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",

@@ -5,11 +5,8 @@ import Testing
 import Transactions
 @testable import widgets
 
-/// Checks a Portfolio tab's private-balance workflows, turning private balances on and opening moves, through real
-/// private balances and local indexer fixtures.
 @MainActor
 struct PrivateBalanceModelTests {
-    /// Opening a move keeps the move that the shared store creates for the account on the network.
     @Test
     func `Opening keeps the store's move`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -25,7 +22,6 @@ struct PrivateBalanceModelTests {
         #expect(model.error == nil)
     }
 
-    /// A move that's open stays until it closes; opening another replaces nothing.
     @Test
     func `A second move keeps the open one`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -41,7 +37,6 @@ struct PrivateBalanceModelTests {
         #expect(model.move?.direction == .toPrivate)
     }
 
-    /// Turning on keeps the account's keys, then shows its balance in the shared store and reports that it's on.
     @Test
     func `Turning on keeps the keys and shows the balance`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -62,7 +57,6 @@ struct PrivateBalanceModelTests {
         #expect(await keys.value == [account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
     }
 
-    /// A new attempt starts as not turned on, so each attempt that succeeds announces itself again.
     @Test
     func `Each attempt that succeeds turns on again`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -79,8 +73,6 @@ struct PrivateBalanceModelTests {
         #expect(model.isTurnedOn)
     }
 
-    /// Keys that another app registered for the account fail turning on with that error, and private balances stay
-    /// off.
     @Test
     func `Turning on an account registered with other keys fails`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -98,7 +90,6 @@ struct PrivateBalanceModelTests {
         #expect(!model.isTurningOn)
     }
 
-    /// Dismissing authentication turns nothing on and shows no error.
     @Test
     func `Cancelled authentication shows no error`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -116,7 +107,6 @@ struct PrivateBalanceModelTests {
         #expect(!model.isTurningOn)
     }
 
-    /// Another failure, such as a rate-limited registration check, fails turning on with a typed error.
     @Test
     func `Other failures fail turning on`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -133,7 +123,6 @@ struct PrivateBalanceModelTests {
         #expect(!model.isTurnedOn)
     }
 
-    /// A second request while one waits keeps the first attempt, and a stale attempt runs nothing.
     @Test
     func `One attempt runs at a time`() async throws {
         let account = try await PrivateBalanceFixtures.account()

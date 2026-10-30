@@ -1,10 +1,7 @@
 import XCTest
 
-/// Switches a disposable wallet's window to Devnet while the portfolio shows a token's details.
 @MainActor
 final class NetworkSwitchUITests: XCTestCase {
-    /// Devnet has its own tokens, so a switch returns the portfolio from mainnet SOL's details to devnet's token list,
-    /// although SOL is on both networks.
     @objc(testSwitchingTheNetworkReturnsThePortfolioToItsTokenListAndReturnError:)
     func `test Switching the network returns the portfolio to its token list`() throws {
         let flow = OnboardingApp()
@@ -24,7 +21,6 @@ final class NetworkSwitchUITests: XCTestCase {
         try flow.waitFor(flow.app.buttons.matching(chosen).firstMatch)
         try flow.tap(flow.portfolioTab)
 
-        // Only the token list has Add Token; a token's details have the More menu instead.
         try flow.waitFor(flow.app.navigationBars.buttons["Add Token"])
         try flow.waitForAbsence(details)
         try flow.waitFor(flow.holding("SOL"))

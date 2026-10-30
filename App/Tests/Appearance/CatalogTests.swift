@@ -5,7 +5,6 @@ import Themes
 
 @Suite(.timeLimit(.minutes(1)))
 nonisolated struct CatalogTests {
-    /// An installation survives source deletion and a newly created catalog instance.
     @Test func `Installed copy survives source deletion and relaunch`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
@@ -19,7 +18,6 @@ nonisolated struct CatalogTests {
         #expect(try await reopened.pack(for: entry).id == pack.id)
     }
 
-    /// Display names never replace identity as the installation key.
     @Test func `Matching names with different identities coexist`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
@@ -31,7 +29,6 @@ nonisolated struct CatalogTests {
         #expect(Set(try await catalog.entries().map(\.id)) == [first.id, second.id])
     }
 
-    /// Replacement preserves identity, requires consent, and issues a new revision.
     @Test func `Replacement requires the current entry`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
@@ -50,7 +47,6 @@ nonisolated struct CatalogTests {
         #expect(try await catalog.entries() == [updated])
     }
 
-    /// Neither colliding imports nor removal can mutate a bundled theme.
     @Test func `Built-ins cannot be replaced or removed`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
@@ -65,7 +61,6 @@ nonisolated struct CatalogTests {
         #expect(!FileManager.default.fileExists(atPath: fixture.directory.path))
     }
 
-    /// Removal deletes only the selected custom entry, including its stored package.
     @Test func `Removing custom theme preserves other entries`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
@@ -78,7 +73,6 @@ nonisolated struct CatalogTests {
         await #expect(throws: ThemeCatalogError.changed) { try await catalog.pack(for: a) }
     }
 
-    /// Listing remains independent of package reads, even when a stored manifest becomes unreadable.
     @Test func `Listing does not read packages`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
@@ -90,8 +84,6 @@ nonisolated struct CatalogTests {
         await #expect(throws: (any Error).self) { try await catalog.pack(for: entry) }
     }
 
-    /// Metadata that can't be repaired starts an empty catalog, without its packages, that accepts new imports.
-    /// - Parameter corruption: How the metadata is broken.
     @Test(arguments: Corruption.allCases)
     func `Unreadable metadata starts an empty catalog`(corruption: Corruption) async throws {
         let fixture = try CatalogFixture()
@@ -106,7 +98,6 @@ nonisolated struct CatalogTests {
         #expect(try await catalog.install(pack).id == pack.id)
     }
 
-    /// Concurrent inserts of one identity cannot silently overwrite each other.
     @Test func `Concurrent imports have one winner`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
@@ -128,8 +119,6 @@ nonisolated struct CatalogTests {
         #expect(try await catalog.entries().count == 1)
     }
 
-    /// A second catalog instance can invalidate consent while a package is being staged.
-    /// - Parameter replacing: Whether the competing operations replace an existing identity.
     @Test(arguments: [false, true]) func `Commit rechecks revision after staging`(replacing: Bool) async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
@@ -154,7 +143,6 @@ nonisolated struct CatalogTests {
         #expect(try await catalog.pack(for: winner).id == pack.id)
     }
 
-    /// A failed write never publishes its staged replacement or removes the prior package.
     @Test func `Failed staging preserves installed revision`() async throws {
         enum InjectedError: Error { case injected }
         let fixture = try CatalogFixture()
@@ -168,7 +156,6 @@ nonisolated struct CatalogTests {
         #expect(try await catalog.pack(for: entry).id == pack.id)
     }
 
-    /// Cancellation after package staging but before catalog commit preserves existing data.
     @Test func `Cancelled replacement preserves installed revision`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
@@ -186,14 +173,12 @@ nonisolated struct CatalogTests {
         #expect(try await catalog.pack(for: entry).id == pack.id)
     }
 
-    /// Catalog file work has neither main-thread execution nor a Swift task context.
     @MainActor @Test func `Storage runs outside main actor and cooperative pool`() async throws {
         let result = try await CatalogIO.perform { _ in (Thread.isMainThread, withUnsafeCurrentTask { $0 != nil }) }
         #expect(!result.0)
         #expect(!result.1)
     }
 
-    /// Cancellation cannot report a failed operation after its filesystem commit has succeeded.
     @Test func `Cancellation after commit preserves success`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
@@ -209,7 +194,6 @@ nonisolated struct CatalogTests {
                 return true
             }
         }
-        // Bound test-only blocking even if a regression prevents the handshake.
         let watchdog = DispatchWorkItem { release.signal(); entered.continuation.finish() }
         DispatchQueue.global().asyncAfter(deadline: .now() + 15, execute: watchdog)
         defer { watchdog.cancel(); release.signal(); operation.cancel() }
@@ -220,16 +204,10 @@ nonisolated struct CatalogTests {
         #expect(try Data(contentsOf: marker) == Data("complete".utf8))
     }
 
-    /// Metadata that the catalog can't repair.
     enum Corruption: CaseIterable {
-        /// Bytes that aren't catalog metadata.
         case undecodable
-        /// Metadata whose entry is stored under another identity.
         case mismatched
 
-        /// Creates the broken metadata.
-        /// - Returns: The bytes to write in place of the catalog's metadata.
-        /// - Throws: An encoding error.
         func metadata() throws -> Data {
             switch self {
             case .undecodable:

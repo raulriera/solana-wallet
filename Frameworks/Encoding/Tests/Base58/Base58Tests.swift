@@ -1,13 +1,7 @@
 import Testing
 import Encoding
 
-/// Verifies Base58 independently of wallet and transaction rules.
 struct Base58Tests {
-    /// Verifies leading zero bytes and carry propagation in Base58 encoding.
-    ///
-    /// - Parameters:
-    ///   - bytes: The binary value to encode.
-    ///   - expected: Its Base58 representation.
     @Test(arguments: [
         ([UInt8](repeating: 0, count: 32), String(repeating: "1", count: 32)),
         ([UInt8](arrayLiteral: 0, 0, 1), "112"),
@@ -18,11 +12,6 @@ struct Base58Tests {
         #expect(Base58.encode(bytes) == expected)
     }
 
-    /// Verifies decoding against known bytes without relying on the encoder as an oracle.
-    ///
-    /// - Parameters:
-    ///   - value: A known Base58 representation.
-    ///   - expected: Its exact decoded bytes, including leading zeros.
     @Test(arguments: [
         ("", [UInt8]()),
         ("1", [UInt8](arrayLiteral: 0)),
@@ -36,12 +25,9 @@ struct Base58Tests {
         #expect(Base58.decode(value, byteCount: expected.count) == expected)
     }
 
-    /// Verifies the codec rejects invalid characters without trimming or substitutions.
-    ///
-    /// - Parameter value: Base58 text containing Unicode lookalikes or forbidden ASCII.
     @Test(arguments: [
-        "9WzDXwBbmkg8ZTbNMqUxvQRАyrZzDsGYdLVL9zYtAWWM", // Cyrillic А, U+0410.
-        "9WzDXwBbmkg8ZTbNMqUxvQŁAyrZzDsGYdLVL9zYtAWWM", // U+0141 truncates to ASCII A.
+        "9WzDXwBbmkg8ZTbNMqUxvQRАyrZzDsGYdLVL9zYtAWWM",
+        "9WzDXwBbmkg8ZTbNMqUxvQŁAyrZzDsGYdLVL9zYtAWWM",
         "9WzDXwBbmkg8ZTbNMqUxvQR0yrZzDsGYdLVL9zYtAWWM",
         "O", "I", "l", " 2", "2\n", "2\u{200B}"
     ])
@@ -49,11 +35,6 @@ struct Base58Tests {
         #expect(Base58.decode(value, byteCount: 32) == nil)
     }
 
-    /// Verifies decoding cannot overflow, silently pad, or discard leading zero bytes.
-    ///
-    /// - Parameters:
-    ///   - value: The text to decode.
-    ///   - byteCount: A width the input cannot satisfy.
     @Test(arguments: [
         ("", 1), ("1", 0), ("2", -1), ("2", 2), ("12", 1), ("LUv", 1),
         ("1111111111111111111111111111111", 32),

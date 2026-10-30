@@ -4,14 +4,7 @@ import ImageIO
 import Testing
 import UniformTypeIdentifiers
 
-/// Generated logos for artwork sampling, encoded as PNG data.
 enum ArtworkFixture {
-    /// Encodes a square logo with a filled center inside a gray border.
-    /// - Parameters:
-    ///   - border: The gray level of the border and background, from 0 to 1.
-    ///   - center: The sRGB components of the logo's center, from 0 to 1.
-    /// - Returns: The encoded PNG data.
-    /// - Throws: A test prerequisite error if the logo can't be drawn or encoded.
     static func png(border: CGFloat = 1, center: (red: CGFloat, green: CGFloat, blue: CGFloat)) throws -> Data {
         let space = try #require(CGColorSpace(name: CGColorSpace.sRGB))
         let context = try #require(CGContext(data: nil, width: 64, height: 64, bitsPerComponent: 8, bytesPerRow: 256,

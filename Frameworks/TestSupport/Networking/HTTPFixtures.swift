@@ -2,27 +2,17 @@ import Foundation
 import Testing
 @testable import RPC
 
-/// A transport that records requests and delegates responses to a fixture closure.
 actor StubTransport: HTTPTransport {
-    /// Produces a response body and HTTP metadata for a recorded request.
     typealias Responder = @Sendable (URLRequest) async throws -> (Data, URLResponse)
 
     private(set) var requests: [URLRequest] = []
     private(set) var observedCancellation = false
     private let respond: Responder
 
-    /// Creates a transport with a fixture response handler.
-    ///
-    /// - Parameter respond: The closure that produces a response or throws an error.
     init(respond: @escaping Responder) {
         self.respond = respond
     }
 
-    /// Records a request and awaits its fixture response.
-    ///
-    /// - Parameter request: The outgoing request to record and pass to the handler.
-    /// - Returns: The response body and metadata produced by the handler.
-    /// - Throws: Any error thrown by the fixture handler.
     func data(for request: URLRequest) async throws -> (Data, URLResponse) {
         requests.append(request)
         do {
@@ -34,28 +24,11 @@ actor StubTransport: HTTPTransport {
     }
 }
 
-/// Decodes an outgoing request body as a JSON object for assertions.
-///
-/// - Parameter request: The HTTP request whose body to inspect.
-/// - Returns: The request's JSON object, keyed by field name.
-/// - Throws: A JSON parsing error, or a test prerequisite error if the body is
-///   missing or isn't an object.
 func requestBody(_ request: URLRequest) throws -> [String: Any] {
     let data = try #require(request.httpBody)
     return try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
 }
 
-/// Creates an HTTP fixture response containing a JSON-RPC envelope.
-///
-/// - Parameters:
-///   - request: The request supplying the URL and default response identifier.
-///   - payload: A JSON member containing either `result` or `error`.
-///   - status: The HTTP status code. The default is 200.
-///   - headers: The response header fields. The default is an empty dictionary.
-///   - id: A response identifier override, or `nil` to echo the request's identifier.
-/// - Returns: The encoded response envelope and its HTTP metadata.
-/// - Throws: A JSON parsing error, or a test prerequisite error if required
-///   request fields or response metadata can't be obtained.
 func reply(
     to request: URLRequest,
     payload: String,
@@ -70,14 +43,6 @@ func reply(
     return (data, response)
 }
 
-/// Creates an ordinary HTTP response without a JSON-RPC envelope.
-/// - Parameters:
-///   - request: The request supplying the response URL.
-///   - body: The response body.
-///   - status: The HTTP status code.
-///   - headers: Additional HTTP response headers.
-/// - Returns: The encoded body and HTTP metadata.
-/// - Throws: A test prerequisite error if the response can't be created.
 func httpReply(to request: URLRequest, body: String, status: Int = 200,
                headers: [String: String] = [:]) throws -> (Data, URLResponse) {
     let url = try #require(request.url)

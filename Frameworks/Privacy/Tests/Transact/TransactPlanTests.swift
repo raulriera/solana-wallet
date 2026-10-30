@@ -5,13 +5,7 @@ import ModularArithmetic
 import Testing
 import Transactions
 
-/// Verifies transact plans: their slots, notes, hashes, and rejections.
-///
-/// The sender is zolana's Ed25519 rail and the recipient is the published transfers' recipient. The
-/// plans use the fixed random values of ``PlanFixtures``.
 struct TransactPlanTests {
-    /// Verifies a transfer with change: one input, the recipient's output in slot 0 tagged inline,
-    /// and the change in slot 1 referring to the payer, in the cheapest shape without padding.
     @Test
     func `Transfers with change lay out the recipient and then the change`() throws {
         let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(lamports: 10)], transferLamports: 4)
@@ -23,8 +17,6 @@ struct TransactPlanTests {
         #expect(plan.inputs.map { $0.utxo == nil } == [false])
     }
 
-    /// Verifies that the recipient receives its UTXO from the payload of slot 0 with its own viewing
-    /// key.
     @Test
     func `Recipients receive the transfer`() throws {
         let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(lamports: 10)], transferLamports: 4)
@@ -42,8 +34,6 @@ struct TransactPlanTests {
         #expect(received == plan.outputs[0].utxo)
     }
 
-    /// Verifies that the sender receives the change from the payload of slot 1 with its own viewing
-    /// key.
     @Test
     func `Senders receive the change`() throws {
         let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(lamports: 10)], transferLamports: 4)
@@ -60,8 +50,6 @@ struct TransactPlanTests {
         #expect(received == plan.outputs[1].utxo)
     }
 
-    /// Verifies a transfer of every lamport: no change, so the padding output carries the
-    /// recipient's view tag and the given payload. The independent references pin its commitment.
     @Test
     func `Transfers without change pad with the recipient's view tag`() throws {
         let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(lamports: 10)], transferLamports: 10, outputTreeID: 5, paddingOutputs: 1)
@@ -73,9 +61,6 @@ struct TransactPlanTests {
         #expect(padding.published.data == [UInt8](repeating: 0xe0, count: ConfidentialOutput.payloadLength))
     }
 
-    /// Verifies a withdrawal of every lamport: no transfer and no change, so the sender gets a
-    /// zero-amount output, and the padding output borrows the sender's view tag and, like the
-    /// sender's output, refers to the payer for it.
     @Test
     func `Withdrawals of every lamport give the sender a zero-amount output`() throws {
         let plan = try PlanFixtures.plan(
@@ -88,8 +73,6 @@ struct TransactPlanTests {
         #expect(plan.withdrawal == (try PlanFixtures.withdrawal(lamports: 10)))
     }
 
-    /// Verifies inputs from two trees: trees in first-use order, and padding inputs in the last
-    /// declared tree. The independent references pin the padding inputs' hashes and nullifiers.
     @Test
     func `Padding inputs join the last declared tree`() throws {
         let utxos = try [3, 1, 3, 1, 3, 1, 1].enumerated().map { index, tree in
@@ -105,8 +88,6 @@ struct TransactPlanTests {
         #expect(plan.inputTreeIDs[Int(padding.treeIndex)] == 1)
     }
 
-    /// Verifies that a plan keeps the values that its proof's witness needs: the blinding seed, each
-    /// input's blinding, and each output's owner. The independent references pin the outputs' blindings.
     @Test
     func `Plans keep the witness values`() throws {
         let utxos = try (0..<7).map { try PlanFixtures.utxo(lamports: 1, blindingByte: 0xb0 + UInt8($0)) }
@@ -117,7 +98,6 @@ struct TransactPlanTests {
         #expect(plan.outputs.map { $0.owner?.signingAddress } == [try TransferVectors.recipient().signingAddress, nil])
     }
 
-    /// Verifies that spent inputs publish the sender's nullifiers in the caller's order.
     @Test
     func `Spent inputs publish the sender's nullifiers in order`() throws {
         let utxos = try [PlanFixtures.utxo(lamports: 6, treeID: 3, blindingByte: 0xb1), PlanFixtures.utxo(lamports: 5, treeID: 1, blindingByte: 0xb2)]
@@ -126,8 +106,6 @@ struct TransactPlanTests {
         #expect(plan.nullifiers == (try TransferVectors.spentInputs[1...2].map { try Poseidon.Element(hex: $0.nullifier) }))
     }
 
-    /// Verifies that random values from a generator give the same plan as the same values passed
-    /// directly, and that the drawn blindings stay below 2^248.
     @Test
     func `Random values give the same plan as explicit ones`() throws {
         let utxos = [try PlanFixtures.utxo(lamports: 10)]
@@ -150,8 +128,6 @@ struct TransactPlanTests {
         #expect(randomness.paddingOutputData.map(\.count) == [ConfidentialOutput.payloadLength])
     }
 
-    /// Verifies that printing, dumping, and reflecting a plan, its slots, its transfer, and its
-    /// random values omit their values.
     @Test
     func `Plan diagnostics omit amounts and blindings`() throws {
         let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(lamports: 10)], transferLamports: 4)
@@ -174,13 +150,6 @@ struct TransactPlanTests {
         #expect(Mirror(reflecting: randomness).children.isEmpty)
     }
 
-    /// Verifies the plans that can't be built.
-    ///
-    /// - Parameters:
-    ///   - inputs: Each input's amount and tree.
-    ///   - transferLamports: The transfer, if any.
-    ///   - withdrawalLamports: The withdrawal, if any.
-    ///   - error: The expected rejection.
     @Test(arguments: [
         ([], 1, nil, .noInputs),
         (Array(repeating: (1, 0), count: 41), 1, nil, .tooManyInputs),
@@ -205,11 +174,6 @@ struct TransactPlanTests {
         }
     }
 
-    /// Verifies that a zero-lamport transfer or withdrawal is rejected.
-    ///
-    /// - Parameters:
-    ///   - transferLamports: The transfer, if any.
-    ///   - withdrawalLamports: The withdrawal, if any.
     @Test(arguments: [(0, nil), (nil, 0)] as [(UInt64?, UInt64?)])
     func `Zero amounts are rejected`(transferLamports: UInt64?, withdrawalLamports: UInt64?) throws {
         let withdrawal = try withdrawalLamports.map { try PlanFixtures.withdrawal(lamports: $0) }
@@ -219,7 +183,6 @@ struct TransactPlanTests {
         }
     }
 
-    /// Verifies that 40 inputs, zolana's wallet limit, fit the widest shape that a plan uses.
     @Test
     func `Forty inputs fit the widest shape`() throws {
         let plan = try PlanFixtures.plan(spending: Array(repeating: PlanFixtures.utxo(lamports: 1), count: 40), transferLamports: 1)
@@ -227,7 +190,6 @@ struct TransactPlanTests {
         #expect(plan.shape == Shape(inputs: 40, outputs: 2))
     }
 
-    /// Verifies that inputs that another owner holds can't be spent.
     @Test
     func `Inputs of other owners are rejected`() throws {
         let foreign = UTXO(
@@ -240,7 +202,6 @@ struct TransactPlanTests {
         }
     }
 
-    /// Verifies that inputs of assets other than SOL can't be spent.
     @Test
     func `Inputs of other assets are rejected`() throws {
         let token = UTXO(
@@ -253,7 +214,6 @@ struct TransactPlanTests {
         }
     }
 
-    /// Verifies that a sender whose signing address is off the curve is rejected.
     @Test
     func `Off-curve senders are rejected`() throws {
         let rail = try CommitmentVectors.load().ed25519Rail
@@ -271,17 +231,7 @@ struct TransactPlanTests {
     }
 }
 
-/// Verifies how outputs encode their view tags: participants as zolana's padding owner tag vectors
-/// expect, and padding with the sender's view tag as a reference to the payer, like the sender's
-/// own outputs, so an observer can't tell that padding from the sender's output.
 struct TransactPlanOwnerTagTests {
-    /// Verifies each self-paid case's participant encoding: the output whose view tag the vector's
-    /// padding borrows uses the case's encoding. Plans always have the sender pay, so the sponsored
-    /// case doesn't apply. Plans take the cheapest shape, not the vector's 8 output slots, so this
-    /// test checks only the participant; the next test covers padding with the sender's view tag.
-    ///
-    /// - Parameter vector: A transfer and the encoding of the view tag that its padding borrows.
-    /// - Throws: A test failure if the fixture is malformed, or an error if the plan can't be built.
     @Test(arguments: try DummyOwnerTagVectors.load().selfPaidCases)
     func `Participants use the vectors' encodings`(_ vector: DummyOwnerTagVectors.Case) throws {
         let vectors = try DummyOwnerTagVectors.load()
@@ -302,10 +252,6 @@ struct TransactPlanOwnerTagTests {
         #expect(participant.published.ownerTag == expected)
     }
 
-    /// Verifies a withdrawal with change, whose padding borrows the sender's view tag, refers to the
-    /// payer for it, as the sender's change does.
-    ///
-    /// - Throws: A test failure if a fixture is malformed, or an error if the plan can't be built.
     @Test
     func `Padding with the sender's view tag refers to the payer`() throws {
         let plan = try PlanFixtures.plan(
@@ -316,11 +262,6 @@ struct TransactPlanOwnerTagTests {
         #expect(plan.outputs.map(\.published.ownerTag) == [.payer, .payer])
     }
 
-    /// Creates an account whose Ed25519 secret's 32 bytes all equal a seed, as zolana's vectors do.
-    ///
-    /// - Parameter seed: The repeated byte.
-    /// - Returns: The account, with a nullifier secret and viewing key derived from the same seed.
-    /// - Throws: An error if a key can't be created.
     private static func account(seed: UInt8) throws -> ShieldedAccount {
         let signing = try Curve25519.Signing.PrivateKey(rawRepresentation: [UInt8](repeating: seed, count: 32))
         return try ShieldedAccount(

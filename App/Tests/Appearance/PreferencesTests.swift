@@ -5,7 +5,6 @@ import Themes
 
 @Suite(.timeLimit(.minutes(1)))
 nonisolated struct PreferencesTests {
-    /// Empty storage uses original appearance without creating files or reading packages.
     @Test func `New preferences use original appearance`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
@@ -15,7 +14,6 @@ nonisolated struct PreferencesTests {
         #expect(!FileManager.default.fileExists(atPath: fixture.directory.path))
     }
 
-    /// Prepared theme choices reflect imports, renames, and removals.
     @Test func `Catalog changes refresh prepared lists`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
@@ -42,7 +40,6 @@ nonisolated struct PreferencesTests {
         #expect(removed.orderedEntryIDs == [builtIn.entry.id, z.id])
     }
 
-    /// Wallet overrides persist, follow stable wallet identity, and survive app-default changes.
     @Test func `Wallet overrides persist and clear back to application default`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
@@ -64,7 +61,6 @@ nonisolated struct PreferencesTests {
         #expect(cleared.preferences.walletThemeIDs[wallet] == nil)
     }
 
-    /// Independent window/store edits merge against current disk state instead of stale snapshots.
     @Test func `Concurrent wallet edits do not overwrite each other`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
@@ -84,7 +80,6 @@ nonisolated struct PreferencesTests {
         #expect(saved.preferences.walletThemeIDs == Dictionary(uniqueKeysWithValues: wallets.map { ($0, entry.id) }))
     }
 
-    /// Package staging cannot overwrite selections committed while its I/O was suspended.
     @Test func `Preference edits during import survive catalog commit`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
@@ -111,8 +106,6 @@ nonisolated struct PreferencesTests {
         #expect(current.theme(for: nil) == entry)
     }
 
-    /// Removal clears all matching references while preserving other overrides and installations.
-    /// - Parameter selectedAsDefault: Whether the removed theme is also the application default.
     @Test(arguments: [false, true]) func `Deleting theme commits selection fallbacks`(selectedAsDefault: Bool) async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
@@ -137,7 +130,6 @@ nonisolated struct PreferencesTests {
         #expect(try await store.load().preferences == after.preferences)
     }
 
-    /// Replacing a selected theme keeps its selection and exposes its new package revision.
     @Test func `Replacement preserves selections`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
@@ -154,7 +146,6 @@ nonisolated struct PreferencesTests {
         #expect(loaded.orderedEntryIDs == selected.orderedEntryIDs)
     }
 
-    /// Forgetting a theme clears every scope that uses it, keeps other selections, and keeps the theme installed.
     @Test func `Forgetting a theme clears only its selections`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
@@ -176,7 +167,6 @@ nonisolated struct PreferencesTests {
         #expect(try await store.load() == snapshot)
     }
 
-    /// Preferences can select built-ins without reading their files; reset retains every pack.
     @Test func `Reset clears every selection and preserves installed themes`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
@@ -194,7 +184,6 @@ nonisolated struct PreferencesTests {
         #expect(try await store.load() == reset)
     }
 
-    /// Unknown theme selections fail without changing either persistent selections or revisions.
     @Test func `Unavailable selection leaves preferences unchanged`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
@@ -206,7 +195,6 @@ nonisolated struct PreferencesTests {
         #expect(try await store.load() == before)
     }
 
-    /// A failed atomic metadata write leaves the selected theme and its package installed.
     @Test func `Failed deletion preserves catalog and selections`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
@@ -221,7 +209,6 @@ nonisolated struct PreferencesTests {
         #expect(try await catalog.pack(for: entry).id == entry.id)
     }
 
-    /// A failed metadata commit rolls back a newly staged generation without touching the original.
     @Test func `Failed replacement commit preserves selected package`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
@@ -243,7 +230,6 @@ nonisolated struct PreferencesTests {
         #expect(generations == [CatalogFiles.package(for: entry, in: fixture.directory)])
     }
 
-    /// Identical selections do not rewrite the metadata file.
     @Test func `Unchanged preferences keep their revision`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
@@ -259,7 +245,6 @@ nonisolated struct PreferencesTests {
         #expect(try Data(contentsOf: metadata) == data)
     }
 
-    /// Unreadable metadata returns to the original appearance, and a later reset still succeeds.
     @Test func `Unreadable metadata resets selections`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
@@ -273,7 +258,6 @@ nonisolated struct PreferencesTests {
         #expect(try await store.reset().preferences == AppearancePreferences())
     }
 
-    /// Removing a configured built-in drops its stale selections once, including wallet overrides.
     @Test func `Missing built-in selections reconcile to original appearance`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }

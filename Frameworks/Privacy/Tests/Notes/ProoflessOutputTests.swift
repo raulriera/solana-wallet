@@ -2,12 +2,7 @@ import ModularArithmetic
 @testable import Privacy
 import Testing
 
-/// Verifies the decoding of proofless deposit payloads against an independent implementation, and
-/// the rejection of payloads that aren't default-ring deposits.
 struct ProoflessOutputTests {
-    /// Verifies each deposit's owner hash, blinding, mint, and amount, with and without a memo.
-    ///
-    /// - Parameter vector: A deposit.
     @Test(arguments: try DepositNoteVectors.load().deposits)
     func `Payloads decode to their deposits`(_ vector: DepositNoteVectors.Deposit) throws {
         let output = try ProoflessOutput(decoding: fixtureBytes(vector.payload))
@@ -17,12 +12,6 @@ struct ProoflessOutputTests {
         #expect(output.amount == (try #require(UInt64(vector.lamports))))
     }
 
-    /// Verifies that payloads that aren't default-ring deposits are rejected.
-    ///
-    /// - Parameters:
-    ///   - range: The bytes of the memo-less deposit's payload to replace.
-    ///   - bytes: The replacement.
-    ///   - error: The expected rejection.
     @Test(arguments: [
         (0..<1, [1], .unsupportedEncoding),
         (1..<2, [0x7f], .invalidLength),
@@ -41,7 +30,6 @@ struct ProoflessOutputTests {
         }
     }
 
-    /// Verifies that printing, dumping, and reflecting a deposit omit its values.
     @Test
     func `Deposit diagnostics omit the values`() throws {
         let output = try ProoflessOutput(decoding: fixtureBytes(try #require(try DepositNoteVectors.load().deposits.first).payload))

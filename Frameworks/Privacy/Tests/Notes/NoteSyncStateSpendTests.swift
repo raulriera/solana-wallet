@@ -5,46 +5,24 @@ import ModularArithmetic
 import Testing
 import Transactions
 
-/// Verifies spends of a state's notes end to end, through the real Helius client with local indexer
-/// and prover responses: the selected notes, the proved instruction, the lamports that return to the
-/// sender, the input slots, and the rejections before any request.
-///
-/// Each expected instruction comes from a plan of the expected notes with the same seeded
-/// randomness, and the indexer's fixed proofs give its trees fixed root positions.
 struct NoteSyncStateSpendTests {
-    /// A spend and its expected outcome.
     struct Spend: Sendable, CustomTestStringConvertible {
-        /// Where the spend goes.
         enum Destination: Sendable {
-            /// A transfer to the published transfers' recipient.
             case recipient
-            /// A transfer to the sender's own shielded address.
             case sender
-            /// A withdrawal to the published relayed payer.
             case withdrawal
-            /// A transfer to the published transfers' recipient, funded with a withdrawal of this
-            /// many lamports to its signing address.
             case fundedRecipient(publicLamports: UInt64)
         }
 
-        /// The spend's name, in test results.
         let testDescription: String
-        /// The amounts of the sender's notes in tree 0, at consecutive leaves.
         let notes: [UInt64]
-        /// The amount to spend.
         let lamports: UInt64
-        /// Where the spend goes.
         let destination: Destination
-        /// The leaves of the notes that the spend selects, in input order.
         let selected: [Int]
-        /// The lamports of the outputs that the sender owns.
         let receivedLamports: UInt64
-        /// The input slots of the proved shape, padding included.
         let nullifierCount: Int
     }
 
-    /// The spends, with change, without change, to the sender itself, funded with a withdrawal,
-    /// and with a padding input.
     static let spends = [
         Spend(
             testDescription: "transfer with change", notes: [3, 10, 5], lamports: 12, destination: .recipient, selected: [1, 2],
@@ -68,21 +46,12 @@ struct NoteSyncStateSpendTests {
         ),
     ]
 
-    /// The sender of zolana's published transfers.
     private let sender: ShieldedAccount
 
-    /// Loads the sender.
-    ///
-    /// - Throws: A test failure if the fixture is missing or malformed.
     init() throws {
         sender = try TransferVectors.sender()
     }
 
-    /// Verifies that a spend selects the expected notes, reads their nullifier accounts once on the
-    /// RPC endpoint and the tree's proofs, sends one proof request, and returns the instruction of a plan of those notes with the same randomness, with
-    /// a nullifier count of every input slot of the plan's shape.
-    ///
-    /// - Parameter spend: A spend and its expected outcome.
     @Test(arguments: spends)
     func `Spends prove a plan of the selected notes`(_ spend: Spend) async throws {
         let notes = try spend.notes.enumerated().map { try note($1, leaf: UInt64($0)) }
@@ -120,8 +89,6 @@ struct NoteSyncStateSpendTests {
         #expect(result.inputTreeID == 0)
     }
 
-    /// Verifies that a spend names the tree of the notes that it selects, whose fee per nullifier it
-    /// pays: here the only tree whose notes cover the amount, not the tree of the first note.
     @Test
     func `Spends name the tree of their selected notes`() async throws {
         let notes = [try note(3, leaf: 0), try note(4, leaf: 1), try note(10, leaf: 2, treeID: 2)]
@@ -149,9 +116,6 @@ struct NoteSyncStateSpendTests {
         #expect(result.nullifiers == [notes[2].nullifier])
     }
 
-    /// Verifies that a funded transfer withdraws its funding to the recipient's signing address,
-    /// which the spend's instruction names after the SOL interface, and returns the rest of the
-    /// selected notes to the sender.
     @Test
     func `Funded transfers withdraw to the recipient's signing address`() async throws {
         let recipient = try TransferVectors.recipient()
@@ -175,8 +139,6 @@ struct NoteSyncStateSpendTests {
         #expect(result.receivedLamports == 4)
     }
 
-    /// Verifies that a spend leaves out a note whose nullifier the program already queued, such as
-    /// another device's spend that the indexer hasn't reported, and spends the next note instead.
     @Test
     func `Spends leave out notes whose nullifiers are already queued`() async throws {
         let recipient = try TransferVectors.recipient()
@@ -200,8 +162,6 @@ struct NoteSyncStateSpendTests {
         #expect(result.receivedLamports == 1)
     }
 
-    /// Verifies that notes whose nullifiers are all queued can't cover a spend, which then sends no
-    /// proof request.
     @Test
     func `Spends of only queued notes are insufficient`() async throws {
         let recipient = try TransferVectors.recipient()
@@ -217,12 +177,6 @@ struct NoteSyncStateSpendTests {
         #expect(await transport.requests.compactMap { $0.url?.lastPathComponent } == ["/"])
     }
 
-    /// Verifies that a zero amount, or a funded transfer with a zero or overflowing funding
-    /// withdrawal, is rejected before any request.
-    ///
-    /// - Parameters:
-    ///   - lamports: The amount to spend from a 10-lamport note.
-    ///   - destination: Where the spend goes.
     @Test(arguments: [
         (UInt64(0), Spend.Destination.recipient),
         (4, .fundedRecipient(publicLamports: 0)),
@@ -240,17 +194,6 @@ struct NoteSyncStateSpendTests {
         #expect(await transport.requests.isEmpty)
     }
 
-    /// Verifies the spends that a state can't pay, rejected before any request: no output tree, an
-    /// amount that only pending lamports would cover, and a funded transfer whose notes cover the
-    /// transfer but not the withdrawal too.
-    ///
-    /// - Parameters:
-    ///   - notes: The amounts of the sender's notes in tree 0, at consecutive leaves.
-    ///   - outputTreeID: The state's output tree, or `nil` for none.
-    ///   - pendingLamports: The lamports of the state's pending deposits.
-    ///   - lamports: The amount to spend.
-    ///   - destination: Where the spend goes.
-    ///   - error: The expected rejection.
     @Test(arguments: [
         ([UInt64(10)], UInt16?.none, [UInt64](), UInt64(4), Spend.Destination.recipient, PrivateSpend.ValidationError.noOutputTree),
         ([], 0, [100], 50, .recipient, .insufficientFunds),
@@ -274,14 +217,6 @@ struct NoteSyncStateSpendTests {
         #expect(await transport.requests.isEmpty)
     }
 
-    /// Creates a note of the sender with its real nullifier.
-    ///
-    /// - Parameters:
-    ///   - lamports: The note's amount.
-    ///   - leaf: The note's leaf index, which also sets its blinding.
-    ///   - treeID: The tree that holds the note; tree 0 by default.
-    /// - Returns: The note.
-    /// - Throws: A test failure if a fixture is missing or malformed.
     private func note(_ lamports: UInt64, leaf: UInt64, treeID: UInt16 = 0) throws -> ReceivedNote {
         let utxo = try PlanFixtures.utxo(lamports: lamports, treeID: treeID, blindingByte: 0xa1 + UInt8(leaf))
         return ReceivedNote(
@@ -289,11 +224,6 @@ struct NoteSyncStateSpendTests {
         )
     }
 
-    /// Resolves a spend's destination.
-    ///
-    /// - Parameter destination: Where the spend goes.
-    /// - Returns: The destination.
-    /// - Throws: A test failure if a fixture is malformed.
     private func destination(_ destination: Spend.Destination) throws -> PrivateSpend.Destination {
         switch destination {
         case .recipient: .transfer(try TransferVectors.recipient())
@@ -303,12 +233,6 @@ struct NoteSyncStateSpendTests {
         }
     }
 
-    /// Returns a destination's transfer, if it is one.
-    ///
-    /// - Parameters:
-    ///   - destination: The destination.
-    ///   - lamports: The amount.
-    /// - Returns: The transfer, or `nil` for a withdrawal.
     private static func transfer(_ destination: PrivateSpend.Destination, lamports: UInt64) -> TransactPlan.Transfer? {
         switch destination {
         case .transfer(let recipient), .fundedTransfer(let recipient, _): TransactPlan.Transfer(recipient: recipient, lamports: lamports)
@@ -316,13 +240,6 @@ struct NoteSyncStateSpendTests {
         }
     }
 
-    /// Returns a destination's withdrawal, if it is one.
-    ///
-    /// - Parameters:
-    ///   - destination: The destination.
-    ///   - lamports: The amount.
-    /// - Returns: The withdrawal: the amount to the public account, or a funded transfer's funding to
-    ///   its recipient's signing address; `nil` for a transfer.
     private static func withdrawal(_ destination: PrivateSpend.Destination, lamports: UInt64) -> ExternalData.Withdrawal? {
         switch destination {
         case .transfer: nil
@@ -331,12 +248,6 @@ struct NoteSyncStateSpendTests {
         }
     }
 
-    /// Creates the prover's response for a shape: the first proof vector's curve points and the
-    /// shape's proving key.
-    ///
-    /// - Parameter shape: The shape of the proved plan.
-    /// - Returns: The response body.
-    /// - Throws: A test failure if a fixture is missing or malformed.
     private static func response(for shape: Shape) throws -> Data {
         let vector = try #require(try ProofRequestVectors.load().transacts.first)
         var fields = try JSONDecoder().decode([String: JSONValue].self, from: vector.response.data)
@@ -344,10 +255,6 @@ struct NoteSyncStateSpendTests {
         return try JSONValue.object(fields).data
     }
 
-    /// Encodes bytes as lowercase hexadecimal.
-    ///
-    /// - Parameter bytes: The bytes.
-    /// - Returns: Two digits per byte.
     private static func hex(_ bytes: [UInt8]) -> String {
         bytes.map { String(format: "%02x", $0) }.joined()
     }

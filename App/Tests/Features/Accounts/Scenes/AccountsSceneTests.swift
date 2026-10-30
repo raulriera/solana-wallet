@@ -2,12 +2,9 @@ import SwiftUI
 import Testing
 @testable import widgets
 
-/// Runs Settings > Accounts in a real window.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct AccountsSceneTests {
-    /// Opening Accounts lists what's saved without reading the wallet's recovery, so it asks for no authentication.
-    /// - Throws: A test prerequisite error.
     @Test
     func `Opening Accounts reads no recovery`() async throws {
         let wallet = try await PublicWalletAccounts()

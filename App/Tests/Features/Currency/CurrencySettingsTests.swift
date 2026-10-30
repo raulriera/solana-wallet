@@ -2,13 +2,7 @@ import Foundation
 import Testing
 @testable import widgets
 
-/// Checks which currency the saved choice shows values in.
 struct CurrencySettingsTests {
-    /// Without a rate source, values keep the prices' own currency; with one, a chosen currency wins over the region's.
-    /// - Parameters:
-    ///   - settings: The saved choice.
-    ///   - locale: The device's locale identifier.
-    ///   - currency: The currency that values show in, if any.
     @Test(arguments: [
         (CurrencySettings(), "de_DE", nil),
         (CurrencySettings(currencyCode: "JPY"), "de_DE", nil),

@@ -3,57 +3,32 @@ import ModularArithmetic
 @testable import Privacy
 import Testing
 
-/// Verifies confidential output payloads: their encoding, sealing, opening, and receiving.
-///
-/// The output is `CASE_A_OUTPUT_1` of zolana's published transfers: the Ed25519 rail's 6-lamport
-/// change in slot 1 of tree 0, which the rail seals to its own viewing key. Its blinding derives
-/// from case A's first nullifier and blinding seed, and its UTXO hash is published. The transaction
-/// viewing key derives from the rail's viewing key and case A's first nullifier, and the salt is
-/// the bytes 0 to 15. The expected payload comes from a separate Python implementation of P-256,
-/// HKDF, Poseidon, and the payload layout, with LibreSSL's AES-256-CTR.
 struct ConfidentialOutputTests {
-    /// The independently derived 89-byte payload of the output, in hexadecimal.
     private static let payloadHex = """
         0154000000030299cff79e0e9e5a109e998f3868a1c358eb82e30ee4737ce8271c1e3a473ea0f658586f6ab7254704\
         531d88b97a02449955861b69a9595a07a5dbcf55b2f8983afc2bbd7a731cb45b4fe74a7a909073fbc3ed
         """
 
-    /// The position of the ciphertext's first amount byte in the payload: the 5-byte header, the
-    /// scheme, the 33-byte recipient key, and the 8-byte asset ID.
     private static let amountPosition = 47
 
-    /// The published output.
     private let output: TransferVectors.Output
 
-    /// The independently derived payload's bytes.
     private let payload: [UInt8]
 
-    /// The independently derived payload, decoded.
     private let decodedPayload: ConfidentialOutput
 
-    /// The output's published UTXO hash.
     private let utxoHash: Poseidon.Element
 
-    /// The Ed25519 rail's viewing key, which the output is sealed to.
     private let viewingKey: P256.KeyAgreement.PrivateKey
 
-    /// The Ed25519 rail's owner hash.
     private let owner: Poseidon.Element
 
-    /// The output's note.
     private let note: ConfidentialPlaintext
 
-    /// The transaction viewing key of case A.
     private let transactionViewingKey: P256.KeyAgreement.PrivateKey
 
-    /// The transaction's salt, the bytes 0 to 15.
     private let salt = [UInt8](0..<16)
 
-    /// Decodes the payload and the output's UTXO hash, and derives the rail's keys and owner hash,
-    /// the output's note, and the transaction viewing key.
-    ///
-    /// - Throws: A test failure if a fixture is missing or malformed, or an error if it can't be read
-    ///   or decoded, or if a key can't be derived.
     init() throws {
         let rail = try CommitmentVectors.load().ed25519Rail
         output = try #require(TransferVectors.outputs.first)
@@ -69,8 +44,6 @@ struct ConfidentialOutputTests {
         )
     }
 
-    /// Verifies that sealing the output's note gives the independently derived payload, byte for
-    /// byte.
     @Test
     func `Sealed payloads match the independently derived payload`() throws {
         let sealed = try ConfidentialOutput.seal(
@@ -80,7 +53,6 @@ struct ConfidentialOutputTests {
         #expect(sealed.encoded == payload)
     }
 
-    /// Verifies that a decoded payload names its recipient and encodes unchanged.
     @Test
     func `Payloads decode and encode unchanged`() throws {
         let decoded = try ConfidentialOutput(decoding: payload)
@@ -89,7 +61,6 @@ struct ConfidentialOutputTests {
         #expect(decoded.encoded == payload)
     }
 
-    /// Verifies that the recipient opens the note that the sender sealed, through its payload.
     @Test
     func `Recipients open the notes that senders seal`() throws {
         let sealed = try ConfidentialOutput.seal(
@@ -103,7 +74,6 @@ struct ConfidentialOutputTests {
         #expect(opened == note)
     }
 
-    /// Verifies that the sender reopens its own payload with the transaction viewing key alone.
     @Test
     func `Senders reopen their own payloads`() throws {
         let opened = try decodedPayload.openAsSender(transactionViewingKey: transactionViewingKey, salt: salt, slot: output.index)
@@ -111,7 +81,6 @@ struct ConfidentialOutputTests {
         #expect(opened == note)
     }
 
-    /// Verifies that the recipient receives the published UTXO.
     @Test
     func `Recipients receive the published UTXO`() throws {
         let utxo = try decodedPayload.receive(
@@ -122,9 +91,6 @@ struct ConfidentialOutputTests {
         #expect(utxo == UTXO(owner: owner, mint: [UInt8](repeating: 0, count: 32), amount: 6, blinding: note.blinding, treeID: 0))
     }
 
-    /// Verifies that another account neither opens nor receives the payload.
-    ///
-    /// The other account is the P-256 rail, whose viewing key the payload doesn't name.
     @Test
     func `Payloads for another viewing key aren't addressed to it`() throws {
         let otherKey = try CommitmentVectors.load().p256Rail.viewingKey()
@@ -141,10 +107,6 @@ struct ConfidentialOutputTests {
         #expect(received == nil)
     }
 
-    /// Verifies that a tampered ciphertext opens to another note, whose UTXO the hash check rejects.
-    ///
-    /// Flipping the lowest bit of the ciphertext's first amount byte flips the same bit of the
-    /// amount, so the note opens with 7 lamports instead of 6.
     @Test
     func `Tampered ciphertexts fail the UTXO hash check`() throws {
         var bytes = payload
@@ -163,16 +125,6 @@ struct ConfidentialOutputTests {
         #expect(received == nil)
     }
 
-    /// Verifies that a payload that names the account's viewing key, but whose note doesn't decode
-    /// under the transaction's salt and slot, isn't received.
-    ///
-    /// The wrong slot or salt opens noise, which isn't a supported note, so opening throws but
-    /// receiving returns `nil`, as it does for noise that anyone can publish under the account's
-    /// viewing public key.
-    ///
-    /// - Parameters:
-    ///   - slot: An output position: the wrong one, 0, or the right one, 1.
-    ///   - salt: A transaction salt: the right one, the bytes 0 to 15, or the wrong one, 1 to 16.
     @Test(arguments: [(0, [UInt8](0..<16)), (1, [UInt8](1...16))] as [(UInt32, [UInt8])])
     func `Notes that don't decode aren't received`(slot: UInt32, salt: [UInt8]) throws {
         let received = try decodedPayload.receive(
@@ -186,11 +138,6 @@ struct ConfidentialOutputTests {
         #expect(received == nil)
     }
 
-    /// Verifies that malformed and unsupported payloads are rejected.
-    ///
-    /// - Parameters:
-    ///   - bytes: A malformed or unsupported payload.
-    ///   - error: The expected rejection.
     @Test(arguments: try ConfidentialOutputTests.unsupportedPayloads())
     func `Unsupported payloads are rejected`(bytes: [UInt8], error: ConfidentialOutput.ValidationError) {
         #expect(throws: error) {
@@ -198,16 +145,6 @@ struct ConfidentialOutputTests {
         }
     }
 
-    /// Builds unsupported payloads from the independently derived payload.
-    ///
-    /// The cases are no bytes and the header alone; the plaintext and verifiable encoding tags, 0
-    /// and 2; a declared length one byte short, one byte long, and consistent with one extra byte; a
-    /// payload one byte short and one byte long; the anonymous-recipient and ring-confidential
-    /// schemes, 1 and 4; and recipient keys with the uncompressed prefix 0x04 and with the
-    /// x-coordinate 1, which isn't on P-256.
-    ///
-    /// - Returns: Each payload and its expected rejection.
-    /// - Throws: A test failure if the payload is malformed.
     private static func unsupportedPayloads() throws -> [([UInt8], ConfidentialOutput.ValidationError)] {
         let bytes = try fixtureBytes(Self.payloadHex)
         return [

@@ -1,25 +1,13 @@
 import Foundation
 
-/// A JSON value from a fixture, compared by structure so key order and number formatting don't
-/// matter.
 indirect enum JSONValue: Codable, Sendable, Equatable {
-    /// `null`.
     case null
-    /// A Boolean.
     case bool(Bool)
-    /// A number.
     case number(Double)
-    /// A string.
     case string(String)
-    /// An array.
     case array([JSONValue])
-    /// An object.
     case object([String: JSONValue])
 
-    /// Decodes any JSON value.
-    ///
-    /// - Parameter decoder: The decoder that supplies the value.
-    /// - Throws: A decoding error if the value isn't JSON.
     init(from decoder: any Decoder) throws {
         let container = try decoder.singleValueContainer()
         if container.decodeNil() {
@@ -37,10 +25,6 @@ indirect enum JSONValue: Codable, Sendable, Equatable {
         }
     }
 
-    /// Encodes the value.
-    ///
-    /// - Parameter encoder: The encoder that receives the value.
-    /// - Throws: An encoding error.
     func encode(to encoder: any Encoder) throws {
         var container = encoder.singleValueContainer()
         switch self {
@@ -53,27 +37,15 @@ indirect enum JSONValue: Codable, Sendable, Equatable {
         }
     }
 
-    /// Decodes JSON data into a value.
-    ///
-    /// - Parameter data: The JSON data.
-    /// - Returns: The value.
-    /// - Throws: A decoding error if the data isn't JSON.
     static func decode(_ data: Data) throws -> Self {
         try JSONDecoder().decode(Self.self, from: data)
     }
 
-    /// Returns an object's member.
-    ///
-    /// - Parameter key: The member's name.
-    /// - Returns: The member's value, or `nil` if the value isn't an object or has no such member.
     func member(_ key: String) -> JSONValue? {
         guard case .object(let members) = self else { return nil }
         return members[key]
     }
 
-    /// The value's JSON data.
-    ///
-    /// - Throws: An encoding error.
     var data: Data {
         get throws { try JSONEncoder().encode(self) }
     }

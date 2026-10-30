@@ -4,13 +4,10 @@ import Testing
 import Transactions
 @testable import widgets
 
-/// Checks that the keypad's Send button opens the payment's review and starts simulating it.
 @MainActor
 struct SendPaymentActionTests {
-    /// The account's SOL, without a price.
     private static let sol = PaymentToken(mint: nil, symbol: "SOL", balance: 2, price: nil, decimals: 9)
 
-    /// Holds what the action opens, as the keypad's stack does.
     @MainActor
     private final class Presented {
         var review: TransactionReviewModel<PaymentProposal>?
@@ -18,8 +15,6 @@ struct SendPaymentActionTests {
         var error: SendError?
     }
 
-    /// Sending an amount that can be sent opens its review and starts simulating it.
-    /// - Throws: A fixture error.
     @Test func `Sending opens the review and starts simulating it`() throws {
         let presented = Presented()
         let payment = PaymentModel(tokens: [Self.sol], currencyCode: "USD")
@@ -34,9 +29,6 @@ struct SendPaymentActionTests {
         #expect(presented.error == nil)
     }
 
-    /// The review asks the person to check a recipient they haven't paid, and only then.
-    /// - Parameter paid: Whether the person paid the recipient before.
-    /// - Throws: A fixture error.
     @Test(arguments: [false, true])
     func `The review checks the recipient against the person's history`(paid: Bool) throws {
         let presented = Presented()
@@ -50,8 +42,6 @@ struct SendPaymentActionTests {
         #expect(try #require(presented.review).proposal.warnings == (paid ? [] : [.firstPayment]))
     }
 
-    /// A review that shows keeps showing; once it closed, the next Send replaces the review that stayed.
-    /// - Throws: A fixture error.
     @Test func `Sending again replaces only a closed review`() throws {
         let presented = Presented()
         let payment = PaymentModel(tokens: [Self.sol], currencyCode: "USD")
@@ -70,8 +60,6 @@ struct SendPaymentActionTests {
         #expect(presented.presented === presented.review)
     }
 
-    /// An empty amount opens nothing.
-    /// - Throws: A fixture error.
     @Test func `An empty amount opens nothing`() throws {
         let presented = Presented()
 
@@ -81,8 +69,6 @@ struct SendPaymentActionTests {
         #expect(presented.presented == nil)
     }
 
-    /// A network whose transactions can't be created explains it instead of opening a review.
-    /// - Throws: A fixture error.
     @Test func `Unavailable transactions explain the failure`() throws {
         let presented = Presented()
         let payment = PaymentModel(tokens: [Self.sol], currencyCode: "USD")
@@ -96,14 +82,6 @@ struct SendPaymentActionTests {
         #expect(presented.error == .preparationFailed)
     }
 
-    /// Creates the action for a payment to a fixed recipient from a fixture account on devnet.
-    /// - Parameters:
-    ///   - payment: The keypad's payment.
-    ///   - presented: Receives what the action opens.
-    ///   - context: The person's own history, which the review's checks compare the recipient with.
-    ///   - transactions: The shared transactions, or `nil` for ones whose coordinator answers from local responses.
-    /// - Returns: The action.
-    /// - Throws: A fixture error.
     private static func action(payment: PaymentModel, presented: Presented,
                                context: RecipientContext = RecipientContext(knownAddresses: [], paidAddresses: []),
                                transactions: TransactionStore? = nil) throws -> SendPaymentAction {

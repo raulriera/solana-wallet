@@ -6,16 +6,11 @@ import Testing
 import Transactions
 @testable import widgets
 
-/// Sends a devnet payment from account 0 to account 1 of the test seed, saves it as pending as the store does before
-/// the app stops, and settles it through a store that a relaunch creates over the same files.
 @MainActor
 @Suite(.tags(.network), .timeLimit(.minutes(3)))
 struct TransactionStoreResumptionLiveTests {
-    /// The payment, which stays with account 1.
     private static let lamports: UInt64 = 1_000_000
 
-    /// A payment that was sent and saved as pending, but never watched, as when the app stops right after sending,
-    /// settles once a store over the same files resumes, and its key leaves the pending index.
     @Test
     func `A devnet payment that a relaunch interrupted settles through resume`() async throws {
         let directory = URL.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
@@ -41,8 +36,6 @@ struct TransactionStoreResumptionLiveTests {
         let relaunched = TransactionStore(directory: directory) { _ in coordinator }
         await relaunched.resume()
 
-        // The count increases once the outcome and the index are saved; the suite's time limit ends the wait if the
-        // payment never settles.
         for await count in Observations({ relaunched.settledCount(for: record.key) }) where count == 1 { break }
         #expect(relaunched.record(record.id, for: record.key)?.status == .succeeded)
         #expect(try await records.load()?.first { $0.id == record.id }?.status == .succeeded)

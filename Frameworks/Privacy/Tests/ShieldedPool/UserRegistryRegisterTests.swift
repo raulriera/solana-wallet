@@ -5,15 +5,7 @@ import ModularArithmetic
 import Testing
 import Transactions
 
-/// Verifies the registry's `register` instruction against bytes assembled by hand from zolana's
-/// Rust layout in `program-libs/user-registry-interface/src/instruction.rs`: the tag 0, `None` for
-/// the P-256 owner, the nullifier public key, and the compressed viewing public key, with the keys
-/// and record addresses of the independent registry vectors.
 struct UserRegistryRegisterTests {
-    /// Verifies each registered owner's instruction with a separate payer: its 67 data bytes and its
-    /// record, owner, payer, and System Program accounts.
-    ///
-    /// - Parameter vector: A registered owner.
     @Test(arguments: try RegistryVectors.load().records)
     func `Registrations match the hand-assembled layout`(_ vector: RegistryVectors.Record) throws {
         let recipient = try Recipient(

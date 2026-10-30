@@ -3,11 +3,9 @@ import RPC
 import Testing
 @testable import widgets
 
-/// Checks provider setup's key submissions through the real Helius client and local HTTP fixtures.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct ProviderSetupModelTests {
-    /// An accepted key is saved without the whitespace a paste can add, so the flow that asked for it can continue.
     @Test
     func `An accepted key is saved without surrounding whitespace`() async {
         let keys = StoredValue<String>()
@@ -24,7 +22,6 @@ struct ProviderSetupModelTests {
         #expect(submission.attempt == nil)
     }
 
-    /// A rejected key keeps setup open with its inline message, and each further rejection signals again.
     @Test
     func `A rejected key shows the inline message and keeps setup open`() async {
         let responses = HTTPResponses.keyCheck(error: .http(statusCode: 401, retryAfter: nil))
@@ -44,7 +41,6 @@ struct ProviderSetupModelTests {
         #expect(submission.rejectionCount == 2)
     }
 
-    /// A failure other than rejection explains its cause in an alert and keeps setup open.
     @Test
     func `Failures other than rejection explain their cause in an alert`() async {
         let responses = HTTPResponses.keyCheck(error: .http(statusCode: 429, retryAfter: nil))
@@ -59,7 +55,6 @@ struct ProviderSetupModelTests {
         #expect(!submission.isSaved)
     }
 
-    /// The rejection stays on screen while the next check runs, then gives way to that check's different failure.
     @Test
     func `A rejection changes only when the next result arrives`() async throws {
         let gate = Suspension()
@@ -86,7 +81,6 @@ struct ProviderSetupModelTests {
         #expect(submission.error == .rateLimited)
     }
 
-    /// Taps and task reruns during a check can't replace the key being checked, which stays pending until it ends.
     @Test
     func `Taps during a check can't replace the key being checked`() async throws {
         let gate = Suspension()
@@ -112,7 +106,6 @@ struct ProviderSetupModelTests {
         #expect(!submission.isPending)
     }
 
-    /// Leaving setup mid-check reports nothing and keeps setup open.
     @Test
     func `A cancelled check reports nothing and keeps setup open`() async throws {
         let gate = Suspension()
@@ -134,7 +127,6 @@ struct ProviderSetupModelTests {
         #expect(!submission.isSaved)
     }
 
-    /// Once the key is saved, late cancellation can't undo it, so the flow can still continue.
     @Test
     func `Cancellation after the key is saved still counts the key as saved`() async throws {
         let gate = Suspension()
@@ -148,7 +140,6 @@ struct ProviderSetupModelTests {
         await gate.waitUntilStarted()
 
         operation.cancel()
-        // Cancellation doesn't stop a save that started, so the save finishes once the storage returns.
         gate.resume()
         await operation.value
 

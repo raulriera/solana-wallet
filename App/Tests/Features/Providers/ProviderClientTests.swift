@@ -6,12 +6,9 @@ import Testing
 import Transactions
 @testable import widgets
 
-/// Checks that requests go to the provider and key saved when they're sent, through the real clients and local HTTP fixtures.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct ProviderClientTests {
-    /// Without a saved key, Helius requests, subscriptions, signature watches, and logo lookups fail before anything
-    /// reaches Helius.
     @Test
     func `A missing Helius key fails before contacting Helius`() async {
         let responses = HTTPResponses.keyCheck()
@@ -25,8 +22,6 @@ struct ProviderClientTests {
         #expect(await responses.requests.isEmpty)
     }
 
-    /// Helius rejecting the saved key is reported as a typed error, never as a generic HTTP error.
-    /// - Parameter status: The HTTP status Helius returns.
     @Test(arguments: [401, 403])
     func `A rejected Helius key is reported as a key error`(status: Int) async {
         let responses = HTTPResponses.keyCheck(error: .http(statusCode: status, retryAfter: nil))
@@ -39,7 +34,6 @@ struct ProviderClientTests {
         }
     }
 
-    /// Other failures reach the caller unchanged, so they're never mistaken for a key problem.
     @Test
     func `Other request failures pass through unchanged`() async {
         let responses = HTTPResponses.keyCheck(error: .http(statusCode: 429, retryAfter: nil))
@@ -52,8 +46,6 @@ struct ProviderClientTests {
         }
     }
 
-    /// Each request reads the shared choice and key with every change made so far, starting at Solana's public RPC
-    /// before anything is saved, and requests to the same endpoint share one client.
     @Test
     func `Each request goes to the provider and key chosen when it's sent`() async throws {
         let responses = HTTPResponses.keyCheck()
@@ -81,13 +73,6 @@ struct ProviderClientTests {
         #expect(created.withLock(\.self) == [.solana, .custom(custom), .helius(key: "first-key"), .helius(key: "second-key")])
     }
 
-    /// On devnet, Solana's public RPC and Helius each serve requests at their own devnet host, Helius with the same
-    /// saved key.
-    /// - Parameters:
-    ///   - provider: A built-in provider.
-    ///   - host: The provider's devnet host.
-    ///   - key: The API key that the request carries, or `nil` for a provider without one.
-    /// - Throws: A test prerequisite error.
     @Test(arguments: [
         (ProviderSettings.Provider.solana, "api.devnet.solana.com", nil),
         (.helius, "devnet.helius-rpc.com", "fixture-key"),
@@ -107,12 +92,6 @@ struct ProviderClientTests {
         #expect(query.first(where: { $0.name == "api-key" })?.value == key)
     }
 
-    /// A signature watch subscribes at the selected provider's devnet host, with Helius's saved key.
-    /// - Parameters:
-    ///   - provider: The selected provider.
-    ///   - host: The provider's devnet host.
-    ///   - key: The API key that the connection carries, or `nil` for a provider without one.
-    /// - Throws: A test prerequisite error.
     @Test(arguments: [
         (ProviderSettings.Provider.solana, "api.devnet.solana.com", nil),
         (.helius, "devnet.helius-rpc.com", "fixture-key"),
@@ -141,9 +120,6 @@ struct ProviderClientTests {
         #expect(sockets.sockets.count == 1)
     }
 
-    /// On devnet, a selected custom RPC fails before anything is sent, instead of using another provider, because
-    /// custom RPCs serve mainnet.
-    /// - Throws: A test prerequisite error.
     @Test
     func `A custom RPC fails on devnet before contacting it`() async throws {
         let responses = HTTPResponses.keyCheck()
@@ -159,8 +135,6 @@ struct ProviderClientTests {
         #expect(await responses.requests.isEmpty)
     }
 
-    /// Providers other than Helius need no key and pass their own rejections through unchanged.
-    /// - Parameter provider: A provider without an API key.
     @Test(arguments: [ProviderSettings.Provider.solana, .custom(URL(string: "https://rpc.example.com")!)])
     func `Only Helius reports key errors`(provider: ProviderSettings.Provider) async throws {
         let responses = HTTPResponses.keyCheck(error: .http(statusCode: 401, retryAfter: nil))
@@ -171,10 +145,6 @@ struct ProviderClientTests {
         }
     }
 
-    /// Only a provider with logo copies is asked for logos; another provider gives none without a request.
-    /// - Parameters:
-    ///   - provider: The selected provider.
-    ///   - lookups: The number of logo requests expected.
     @Test(arguments: [(ProviderSettings.Provider.helius, 1), (.solana, 0)])
     func `Only a provider with logo copies looks up logos`(provider: ProviderSettings.Provider, lookups: Int) async throws {
         let responses = HTTPResponses(["getAssetBatch": ["[null]"]])
@@ -186,7 +156,6 @@ struct ProviderClientTests {
         #expect(await responses.requests.count == lookups)
     }
 
-    /// Private-note reads go to Helius's indexer on the client's network.
     @Test
     func `Helius reads private notes`() async throws {
         let responses = HTTPResponses.privateNotes()
@@ -205,11 +174,6 @@ struct ProviderClientTests {
         #expect(await responses.requests.allSatisfy { $0.url?.host() == "devnet.helius-rpc.com" })
     }
 
-    /// Only Helius reads private notes, and a custom RPC reads nothing off mainnet; the answer sends no request.
-    /// - Parameters:
-    ///   - provider: The selected provider.
-    ///   - network: The client's network.
-    ///   - reads: Whether the provider reads private notes there.
     @Test(arguments: [
         (ProviderSettings.Provider.helius, Network.devnet, true), (.helius, .mainnet, true), (.solana, .devnet, false),
         (.custom(URL(string: "https://rpc.example.com")!), .devnet, false),
@@ -225,7 +189,6 @@ struct ProviderClientTests {
         #expect(await responses.requests.isEmpty)
     }
 
-    /// A provider that doesn't read private notes fails each read before sending anything.
     @Test
     func `Other providers fail private-note reads before sending anything`() async {
         let responses = HTTPResponses.privateNotes()
@@ -247,7 +210,6 @@ struct ProviderClientTests {
         #expect(await responses.requests.isEmpty)
     }
 
-    /// Tree proof reads go to Helius's indexer on the client's network.
     @Test
     func `Helius reads tree proofs`() async throws {
         let responses = HTTPResponses.privateNotes(prove: PrivateBalanceFixtures.proof(answering:))
@@ -266,7 +228,6 @@ struct ProviderClientTests {
         #expect(await responses.requests.allSatisfy { $0.url?.host() == "devnet.helius-rpc.com" })
     }
 
-    /// Proof requests go to Helius's prover route on the client's network.
     @Test
     func `Helius proves private transfers`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -288,11 +249,6 @@ struct ProviderClientTests {
         #expect(sent.url?.path() == "/v1/zolana/prove")
     }
 
-    /// A provider that doesn't prove private transfers, or a custom RPC off mainnet, fails a proof request before
-    /// sending anything.
-    /// - Parameters:
-    ///   - isCustom: Whether a custom RPC is selected instead of Solana's public RPC.
-    ///   - error: The error that the proof request throws.
     @Test(arguments: [(false, .privateNotesUnavailable), (true, .unsupportedNetwork)] as [(Bool, ProviderClientError)])
     func `Other providers fail proofs before sending anything`(isCustom: Bool, error: ProviderClientError) async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -307,11 +263,6 @@ struct ProviderClientTests {
         #expect(await responses.requests.isEmpty)
     }
 
-    /// A custom RPC fails private-note reads before sending anything: off mainnet because it serves only mainnet, and
-    /// on mainnet because it doesn't read private notes.
-    /// - Parameters:
-    ///   - network: The client's network.
-    ///   - error: The error that each read throws.
     @Test(arguments: [(Network.devnet, ProviderClientError.unsupportedNetwork), (.mainnet, .privateNotesUnavailable)])
     func `A custom RPC fails private-note reads before sending anything`(network: Network,
                                                                          error: ProviderClientError) async throws {
@@ -325,8 +276,6 @@ struct ProviderClientTests {
         #expect(await responses.requests.isEmpty)
     }
 
-    /// Helius rejecting the saved key on a private-note read is reported as a key error.
-    /// - Parameter status: The HTTP status Helius returns.
     @Test(arguments: [401, 403])
     func `A rejected Helius key on a private-note read is reported as a key error`(status: Int) async {
         let responses = HTTPResponses.privateNotes(error: .http(statusCode: status, retryAfter: nil))
@@ -340,7 +289,6 @@ struct ProviderClientTests {
         await #expect(throws: ProviderClientError.invalidKey) { _ = try await client.shieldedTransactions(spending: [tag]) }
     }
 
-    /// A saved custom URL that the client can't use fails without sending a request.
     @Test
     func `A saved custom URL that isn't HTTPS can't be used`() async throws {
         let responses = HTTPResponses.keyCheck()

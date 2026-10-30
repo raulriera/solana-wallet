@@ -2,9 +2,7 @@ import Foundation
 import Testing
 @testable import RPC
 
-/// Verifies provider-owned subscriptions with controlled WebSocket frames.
 struct SubscriptionTests {
-    /// Verifies an abandoned stream releases its reader and keep-alive task without explicit cancellation.
     @Test(.timeLimit(.minutes(1)))
     func `Discarding an unconsumed subscription closes its connection`() async throws {
         let socket = SocketFixture()
@@ -14,8 +12,6 @@ struct SubscriptionTests {
         #expect(socket.isCancelled)
     }
 
-    /// Verifies both concrete providers watch each account once at finalized and decode the same events.
-    /// - Parameter helius: Whether to exercise Helius or the public Solana client.
     @Test(.timeLimit(.minutes(1)), arguments: [false, true])
     func `Each account gets one finalized subscription`(helius: Bool) async throws {
         let socket = SocketFixture()
@@ -44,10 +40,6 @@ struct SubscriptionTests {
         #expect(socket.isCancelled)
     }
 
-    /// Verifies account changes deliver only slots newer than every earlier one, whichever account notifies.
-    ///
-    /// The stream keeps only the newest unread slot, so this checks the filter itself rather than through a stream.
-    /// - Throws: A decoding error.
     @Test
     func `Account changes deliver only slots newer than every earlier one`() throws {
         var changes = AccountChanges(addresses: ["wallet", "token-account"])
@@ -62,7 +54,6 @@ struct SubscriptionTests {
         #expect(delivered == [10, nil, nil, 12, nil, nil, 13])
     }
 
-    /// Verifies account notifications received before all acknowledgments aren't lost.
     @Test(.timeLimit(.minutes(1)))
     func `Subscription setup retains early notifications`() async throws {
         let socket = SocketFixture { data, ordinal in
@@ -78,7 +69,6 @@ struct SubscriptionTests {
         #expect(try await iterator.next() == 99)
     }
 
-    /// Verifies decoder errors for another subscription stop the stream without retrying.
     @Test(.timeLimit(.minutes(1)))
     func `Unrelated subscription IDs terminate the stream`() async throws {
         let socket = SocketFixture()
@@ -90,10 +80,6 @@ struct SubscriptionTests {
         #expect(socket.isCancelled)
     }
 
-    /// Verifies a notification for an acknowledged subscription stops the stream when its method or result doesn't match.
-    /// - Parameters:
-    ///   - frame: An account-shaped notification with another subscription method, or an account notification without a slot.
-    ///   - error: The error that ends the stream.
     @Test(.timeLimit(.minutes(1)), arguments: [
         (#"{"jsonrpc":"2.0","method":"rootNotification","params":{"subscription":1,"result":{"context":{"slot":5},"value":{}}}}"#,
          RPCError.invalidResponse(.mismatchedID)),
@@ -111,7 +97,6 @@ struct SubscriptionTests {
         #expect(socket.isCancelled)
     }
 
-    /// Verifies an acknowledgment for a request that wasn't sent fails setup and closes the connection.
     @Test
     func `Acknowledgments for unsent requests fail subscription setup`() async {
         let socket = SocketFixture { _, _ in [Data(#"{"jsonrpc":"2.0","id":"another-request","result":1}"#.utf8)] }
@@ -121,7 +106,6 @@ struct SubscriptionTests {
         #expect(socket.isCancelled)
     }
 
-    /// Verifies two requests acknowledged with the same subscription number fail setup and close the connection.
     @Test
     func `Subscription numbers acknowledged twice fail subscription setup`() async {
         let socket = SocketFixture { data, _ in
@@ -136,7 +120,6 @@ struct SubscriptionTests {
         #expect(socket.isCancelled)
     }
 
-    /// Verifies provider credentials in a null-ID server error never reach consumers.
     @Test
     func `Subscription server errors preserve codes and redact credentials`() async {
         let socket = SocketFixture { _, _ in
@@ -149,7 +132,6 @@ struct SubscriptionTests {
         #expect(socket.requests.count == 1)
     }
 
-    /// Verifies a lost socket surfaces its transport code without leaking endpoint diagnostics or reconnecting.
     @Test(.timeLimit(.minutes(1)))
     func `Subscription disconnects end the stream without reconnecting`() async throws {
         let socket = SocketFixture()
@@ -161,7 +143,6 @@ struct SubscriptionTests {
         #expect(socket.requests.count == 1)
     }
 
-    /// Verifies a keep-alive ping without a pong ends the stream as a lost connection instead of waiting forever.
     @Test(.timeLimit(.minutes(1)))
     func `A ping without a pong ends the stream with a timeout`() async throws {
         let socket = SocketFixture(answersPings: false)
@@ -174,7 +155,6 @@ struct SubscriptionTests {
         #expect(socket.isCancelled)
     }
 
-    /// Verifies cancellation while waiting for an acknowledgment promptly closes the socket.
     @Test(.timeLimit(.minutes(1)))
     func `Cancelling subscription setup closes its connection`() async throws {
         let socket = SocketFixture { _, _ in [] }
@@ -187,12 +167,6 @@ struct SubscriptionTests {
         #expect(socket.isCancelled)
     }
 
-    /// Creates the actual provider with fixtures only at its transport boundaries.
-    /// - Parameters:
-    ///   - socket: The scripted WebSocket connection.
-    ///   - helius: Whether to use Helius or the public Solana client.
-    ///   - connected: Runs each time the provider opens a WebSocket connection.
-    /// - Returns: The provider-neutral subscription contracts.
     func client(socket: SocketFixture, helius: Bool = true,
                 connected: @escaping @Sendable () -> Void = {}) -> any AccountChangeProviding & SignatureEventProviding {
         let http = StubTransport { _ in throw URLError(.notConnectedToInternet) }

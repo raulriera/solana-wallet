@@ -1,9 +1,7 @@
 import Testing
 import Vault
 
-/// Verifies the recovery value from outside the framework's access boundary.
 struct RecoveryTests {
-    /// Verifies that ordinary descriptions and reflection don't reveal backup secrets.
     @Test
     func `Recovery descriptions omit the phrase and passphrase`() throws {
         let recovery = try Fixtures.recovery()

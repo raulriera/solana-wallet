@@ -5,11 +5,9 @@ import Transactions
 import Wallet
 @testable import widgets
 
-/// Verifies account selection at onboarding's real discovery and RPC-client boundaries.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct OnboardingDiscoveryTests {
-    /// The first positive-SOL result wins in scan order, including the shorter path family.
     @Test
     func `Import retains the first funded accounts exact path`() async throws {
         let http = HTTPResponses.discovery(fundedOffsets: [1, 14])
@@ -29,7 +27,6 @@ struct OnboardingDiscoveryTests {
         #expect(coordinator.account?.id == account.id)
     }
 
-    /// Only a completed empty scan selects the default first account and preserves the original passphrase.
     @Test
     func `An empty scan selects the default account with the original passphrase`() async throws {
         let http = HTTPResponses.discovery()
@@ -46,10 +43,6 @@ struct OnboardingDiscoveryTests {
         #expect(await http.requests.count == 1)
     }
 
-    /// A failed scan cannot silently fall back, save recovery, or retry without another explicit call.
-    /// - Parameters:
-    ///   - error: A transport or provider failure observed by the actual RPC client.
-    ///   - expected: The payload-free failure exposed by onboarding.
     @Test(arguments: [
         (RPCError.http(statusCode: 429, retryAfter: "3"), OnboardingCoordinatorError.discoveryRateLimited),
         (.http(statusCode: 503, retryAfter: nil), .preparationFailed),
@@ -81,7 +74,6 @@ struct OnboardingDiscoveryTests {
         #expect(await http.requests.count == 2)
     }
 
-    /// Performs a read-only mainnet scan using a public phrase without funding or touching saved wallets.
     @Test(.tags(.network))
     func `A real mainnet lookup prepares an import without persisting it`() async throws {
         let recovery = OnboardingRecoveryStore()

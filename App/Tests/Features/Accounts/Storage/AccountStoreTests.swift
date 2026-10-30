@@ -4,11 +4,9 @@ import Testing
 import Wallet
 @testable import widgets
 
-/// Verifies the shared accounts with in-memory storage and public metadata only.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct AccountStoreTests {
-    /// Creating the store reads nothing and runs no cleanup.
     @Test
     func `The store reads nothing until it loads`() async {
         let storage = StoredValue<[widgets.Account]>()
@@ -21,7 +19,6 @@ struct AccountStoreTests {
         #expect(await cleanup.completions == 0)
     }
 
-    /// The launch cleanup finishes before the first read, so no window reads accounts while recovery is deleted.
     @Test
     func `Loading finishes the launch cleanup before reading the accounts`() async throws {
         let saved = try [widgets.Account.fixture(index: 0)]
@@ -41,7 +38,6 @@ struct AccountStoreTests {
         #expect(accounts.accounts == saved)
     }
 
-    /// A failed cleanup leaves the accounts unread and unreadable, so no window opens onboarding past it.
     @Test
     func `A failed cleanup leaves the accounts unreadable`() async throws {
         let storage = StoredValue(try [widgets.Account.fixture(index: 0)])
@@ -54,7 +50,6 @@ struct AccountStoreTests {
         #expect(await storage.loads == 0)
     }
 
-    /// Unreadable accounts never count as an empty list and are never replaced by an addition.
     @Test
     func `Unreadable accounts are reported and kept`() async throws {
         let saved = try [widgets.Account.fixture(index: 0)]
@@ -69,7 +64,6 @@ struct AccountStoreTests {
         #expect(await storage.value == saved)
     }
 
-    /// An addition shows at once and saves after the saved accounts.
     @Test
     func `Adding saves after the saved accounts`() async throws {
         let first = try widgets.Account.fixture(index: 0)
@@ -84,7 +78,6 @@ struct AccountStoreTests {
         #expect(await storage.value == [first, second])
     }
 
-    /// Additions made at the same time save every account.
     @Test
     func `Concurrent additions keep every account`() async throws {
         let recoveryID = UUID()
@@ -102,8 +95,6 @@ struct AccountStoreTests {
         #expect(await storage.value?.count == added.count)
     }
 
-    /// An account with a saved identity, address, or recovery and path is rejected without changing storage.
-    /// - Parameter field: What the addition shares with the saved account.
     @Test(arguments: ["id", "address", "path"])
     func `Duplicate accounts are rejected`(_ field: String) async throws {
         let first = try widgets.Account.fixture(index: 0)
@@ -121,7 +112,6 @@ struct AccountStoreTests {
         #expect(await storage.value == [first])
     }
 
-    /// One wallet keeps both discovery path families at the same index.
     @Test
     func `Both discovery path families of a wallet are saved`() async throws {
         let first = try widgets.Account.fixture(index: 0)
@@ -136,7 +126,6 @@ struct AccountStoreTests {
         #expect(accounts.accounts == [first, second])
     }
 
-    /// An addition that can't be saved is undone and throws.
     @Test
     func `A failed addition is undone`() async throws {
         let first = try widgets.Account.fixture(index: 0)
@@ -150,8 +139,6 @@ struct AccountStoreTests {
         #expect(await storage.value == [first])
     }
 
-    /// The file's coding rejects a duplicate that an addition before the first read couldn't check, so the file keeps
-    /// its accounts.
     @Test
     func `A duplicate added before the first read is never written`() async throws {
         let directory = URL.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
@@ -171,7 +158,6 @@ struct AccountStoreTests {
         #expect(try Data(contentsOf: file) == original)
     }
 
-    /// A wallet's accounts leave out every other wallet's.
     @Test
     func `A wallet lists only its own accounts`() async throws {
         let first = try widgets.Account.fixture(index: 0)
@@ -184,7 +170,6 @@ struct AccountStoreTests {
         #expect(accounts.accounts(inWallet: UUID()).isEmpty)
     }
 
-    /// Erasing deletes the saved accounts and empties the list that every window shows.
     @Test
     func `Erasing forgets every account`() async throws {
         let storage = StoredValue(try [widgets.Account.fixture(index: 0)])
@@ -199,7 +184,6 @@ struct AccountStoreTests {
         #expect(await storage.deletions == 1)
     }
 
-    /// A rename shows at once in every window and saves the trimmed name.
     @Test
     func `A rename saves the new name`() async throws {
         let first = try widgets.Account.fixture(index: 0)
@@ -214,7 +198,6 @@ struct AccountStoreTests {
         #expect(await storage.value?.map(\.customName) == [nil, "Savings"])
     }
 
-    /// An empty name gives the account back its numbered name.
     @Test
     func `An empty name restores the numbered name`() async throws {
         var account = try widgets.Account.fixture(index: 1)
@@ -229,11 +212,6 @@ struct AccountStoreTests {
         #expect(await storage.value?.first?.customName == nil)
     }
 
-    /// A wallet's next account takes the lowest account index that none of its accounts uses, in either Solana family,
-    /// at `m/44'/501'/i'/0'`; other wallets and other paths don't count.
-    /// - Parameters:
-    ///   - paths: The wallet's saved paths.
-    ///   - index: The next account's index.
     @Test(arguments: [
         ([], 0), (["m/44'/501'/0'/0'"], 1), (["m/44'/501'/0'/0'", "m/44'/501'/2'/0'"], 1), (["m/44'/501'/0'"], 1),
         (["m/44'/501'/0'", "m/44'/501'/1'/0'"], 2), (["m/44'/60'/0'/0'"], 0),
@@ -252,7 +230,6 @@ struct AccountStoreTests {
         #expect(accounts.nextPath(inWallet: recoveryID) == .solana(account: index))
     }
 
-    /// A deletion leaves every window's list at once and saves the remaining accounts.
     @Test
     func `Deleting removes the account`() async throws {
         let first = try widgets.Account.fixture(index: 0)
@@ -267,7 +244,6 @@ struct AccountStoreTests {
         #expect(await storage.value == [first])
     }
 
-    /// A deleted account's index is free again, so the next account takes it back.
     @Test
     func `A deleted account's index is used again`() async throws {
         let first = try widgets.Account.fixture(index: 0)
@@ -280,8 +256,6 @@ struct AccountStoreTests {
         #expect(accounts.nextPath(inWallet: first.recoveryID) == .solana(account: 1))
     }
 
-    /// A change to an account that's no longer saved changes nothing.
-    /// - Parameter change: The change.
     @Test(arguments: Change.allCases)
     func `A change to an unsaved account changes nothing`(_ change: Change) async throws {
         let first = try widgets.Account.fixture(index: 0)
@@ -295,8 +269,6 @@ struct AccountStoreTests {
         #expect(await storage.value == [first])
     }
 
-    /// A change that can't be saved is undone and throws.
-    /// - Parameter change: The change.
     @Test(arguments: Change.allCases)
     func `A failed change is undone`(_ change: Change) async throws {
         let first = try widgets.Account.fixture(index: 0)
@@ -310,16 +282,10 @@ struct AccountStoreTests {
         #expect(await storage.value == [first])
     }
 
-    /// A change to a saved account.
     enum Change: CaseIterable {
         case rename
         case deletion
 
-        /// Makes the change to an account.
-        /// - Parameters:
-        ///   - id: The account's identity.
-        ///   - accounts: The shared accounts.
-        /// - Throws: A storage error.
         @MainActor
         func apply(to id: widgets.Account.ID, in accounts: AccountStore) async throws {
             switch self {

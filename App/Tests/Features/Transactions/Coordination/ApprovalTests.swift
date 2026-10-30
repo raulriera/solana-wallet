@@ -5,9 +5,7 @@ import Transactions
 import Wallet
 @testable import widgets
 
-/// Verifies the coordinator's approval boundary independently of live RPC behavior.
 struct ApprovalTests {
-    /// Verifies approval cannot cross coordinator instances, even with the same provider and wallet.
     @Test
     func `A review from another coordinator cannot unlock recovery`() async throws {
         let fixture = try SigningFixture()
@@ -22,8 +20,6 @@ struct ApprovalTests {
         #expect(await store.reads.isEmpty)
     }
 
-    /// Verifies invalid local authority selection fails before authentication.
-    /// - Parameter selection: An empty, duplicated, or unrelated authority selection.
     @Test(arguments: ["empty", "duplicate", "unrelated"])
     func `Invalid wallet selections cannot create an approvable review`(_ selection: String) async throws {
         let fixture = try SigningFixture()
@@ -39,7 +35,6 @@ struct ApprovalTests {
         #expect(await store.reads.isEmpty)
     }
 
-    /// Verifies broadcasting requires every unsigned authority before asking for biometrics.
     @Test
     func `Submitting with a missing cosigner cannot unlock recovery`() async throws {
         let fixture = try ExternalFixture.preparation(hasPayerSignature: false)
@@ -52,7 +47,6 @@ struct ApprovalTests {
         #expect(await store.reads.isEmpty)
     }
 
-    /// Verifies copies of one review cannot produce independently signed transactions.
     @Test
     func `Concurrent approval attempts unlock and sign a review only once`() async throws {
         let fixture = try SigningFixture()
@@ -85,7 +79,6 @@ struct ApprovalTests {
         #expect(await store.reads.count == 1)
     }
 
-    /// Verifies failure after signing doesn't hide the receipt needed to reconcile delivery.
     @Test
     func `A delivery failure retains the signed transaction receipt, its expiry, and the original cause`() async throws {
         let fixture = try SigningFixture()

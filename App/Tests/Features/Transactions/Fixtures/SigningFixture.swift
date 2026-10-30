@@ -6,7 +6,6 @@ import Transactions
 import Vault
 import Wallet
 
-/// Mutable test inputs that expose attempts to change immutable review data.
 struct SigningFixture {
     let recovery: Recovery
     let account: widgets.Account
@@ -20,7 +19,6 @@ struct SigningFixture {
     var fee: GetFeeForMessage.Response
     var simulation: SimulateTransaction.Response
 
-    /// The review value constructed through the internal initializer.
     var preparation: Preparation {
         Preparation(source: .local([transfer], transfer.accounts[0].address, configuration, blockhash), signer: transfer.accounts[0].address,
                     transaction: Transaction(message: message, lifetimeSpecifier: inspection.lifetimeSpecifier,
@@ -29,10 +27,6 @@ struct SigningFixture {
                     network: network, fee: fee, simulation: simulation)
     }
 
-    /// Creates a preparation for a published phrase with a nondefault passphrase and path, and a one-time
-    /// account from a fixed public secret.
-    ///
-    /// - Throws: An error if the public fixture or its message can't be constructed.
     init() throws {
         let base = try PreparationFixture.preparation()
         let source = try PreparationFixture.source(base)
@@ -53,11 +47,6 @@ struct SigningFixture {
         inspection = try TransactionDecoder().decode(message + Data(repeating: 0, count: 64))
     }
 
-    /// Builds review bytes for a one-lamport transfer that another public account signs and pays for.
-    ///
-    /// - Parameter address: The account required to sign the transfer.
-    /// - Returns: The account-bound preparation with this fixture's observations.
-    /// - Throws: An instruction, compilation, or decoding error.
     func preparation(for address: Address) throws -> Preparation {
         let instruction = try SystemProgram.transfer(from: address, to: transfer.accounts[1].address, lamports: 1)
         let message = try MessageBuilder().message(instructions: [instruction], payer: address,

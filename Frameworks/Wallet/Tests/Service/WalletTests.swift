@@ -1,18 +1,7 @@
 import Testing
 import Wallet
 
-/// Tests the wallet through its public API without privileged access or networking.
 struct WalletTests {
-    /// Verifies recovery across paths and significant or Unicode-normalized passphrases.
-    ///
-    /// The last three passphrases need NFKD to reorder combining marks after decomposition.
-    /// Expected addresses were derived independently with Python hashlib/HMAC and OpenSSL Ed25519;
-    /// the reordering rows use Python's NFKD and RFC 8032 Ed25519, checked against CryptoKit.
-    ///
-    /// - Parameters:
-    ///   - path: The explicit Solana account path.
-    ///   - passphrase: The BIP-39 passphrase, including significant whitespace.
-    ///   - expected: The independently derived Solana address.
     @Test(arguments: [
         ("m/44'/501'/0'/0'", "", "HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk"),
         ("m/44'/501'/1'/0'", "", "Hh8QwFUA6MtVu1qAoq12ucvFHNwCcVTV7hpWjeY1Hztb"),
@@ -34,7 +23,6 @@ struct WalletTests {
         #expect(accounts.map(\.address) == [expected])
     }
 
-    /// Verifies that a newly generated twelve-word wallet restores the same default account.
     @Test
     func `New twelve-word wallets restore their address`() async throws {
         let wallet = Wallet()

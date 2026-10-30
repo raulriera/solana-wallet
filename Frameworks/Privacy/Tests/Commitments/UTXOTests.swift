@@ -2,28 +2,13 @@ import ModularArithmetic
 @testable import Privacy
 import Testing
 
-/// Verifies UTXO hashes, empty-UTXO hashes, UTXO nullifiers, and redacted UTXO diagnostics.
-///
-/// zolana publishes the empty-UTXO hash of its blinding-seed vectors and, in `hash_vectors.rs`, the
-/// hashes of the owned SOL UTXOs and padding inputs of two transfers. The edge cases that zolana
-/// doesn't publish, such as the USDC mint, the largest amount and tree ID, tree 258, and r - 1
-/// blindings, come from a separate Python implementation of Poseidon and `hash_bytes_N`.
 struct UTXOTests {
-    /// The nullifier key of zolana's Ed25519 rail.
     private let nullifierKey: NullifierKey
 
-    /// The owner hash of zolana's Ed25519 rail, from its published signing public key and
-    /// nullifier secret.
     private let owner: Poseidon.Element
 
-    /// The published output blinding of slot 3 in zolana's blinding-seed vector.
     private let blinding: Poseidon.Element
 
-    /// Derives the Ed25519 rail's nullifier key and owner hash, and reads the published output
-    /// blinding from the fixture.
-    ///
-    /// - Throws: A test failure if the fixture is missing or malformed, or an error if it can't be
-    ///   read or decoded.
     init() throws {
         let vectors = try CommitmentVectors.load()
         nullifierKey = try vectors.ed25519Rail.nullifierKey()
@@ -31,12 +16,6 @@ struct UTXOTests {
         blinding = try Poseidon.Element(hex: vectors.blindingSeed.derivedOutputBlinding)
     }
 
-    /// Verifies the hashes of spent UTXOs against zolana's published transfers.
-    ///
-    /// Each UTXO holds SOL and is owned by the Ed25519 rail. Trees 3 and 1, unlike tree 0, read
-    /// differently in the other byte order, so they check the tree ID's encoding.
-    ///
-    /// - Parameter input: A published spent UTXO and its hash.
     @Test(arguments: TransferVectors.spentInputs)
     func `Spent UTXO hashes match the published transfers`(_ input: TransferVectors.Input) throws {
         let utxo = UTXO(
@@ -47,13 +26,6 @@ struct UTXOTests {
         #expect(utxo.hash.bigEndianBytes == (try fixtureBytes(input.hash)))
     }
 
-    /// Verifies the commitments of the sender's outputs against zolana's published transfers.
-    ///
-    /// Each output's blinding derives from its proof's first nullifier and the published blinding
-    /// seed, through the output blinding seed. The zero-amount padding outputs are UTXOs that the
-    /// sender owns, not empty UTXOs.
-    ///
-    /// - Parameter output: A published output and its commitment.
     @Test(arguments: TransferVectors.outputs)
     func `Output commitments match the published transfers`(_ output: TransferVectors.Output) throws {
         let utxo = UTXO(
@@ -64,17 +36,6 @@ struct UTXOTests {
         #expect(utxo.hash.bigEndianBytes == (try fixtureBytes(output.commitment)))
     }
 
-    /// Verifies empty-UTXO hashes against zolana's published values and an independently derived
-    /// value.
-    ///
-    /// The published values are the empty UTXO of the blinding-seed vector and the padding inputs of
-    /// the transfers in `hash_vectors.rs`. The last case, in the last tree with r - 1 as the
-    /// blinding, comes from a separate Python implementation of Poseidon.
-    ///
-    /// - Parameters:
-    ///   - treeID: The ID of the slot's tree.
-    ///   - blinding: The slot's blinding.
-    ///   - hex: The expected hash.
     @Test(arguments: try UTXOTests.emptyUTXOs())
     func `Empty-UTXO hashes match the published and independently derived values`(
         treeID: UInt16,
@@ -84,18 +45,6 @@ struct UTXOTests {
         #expect(UTXO.dummyHash(treeID: treeID, blinding: blinding).bigEndianBytes == (try fixtureBytes(hex)))
     }
 
-    /// Verifies UTXO hashes against independently derived values.
-    ///
-    /// Each case has the same owner and blinding. The mints are SOL's, 32 zero bytes, and USDC's,
-    /// `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`; each mint has the amounts 0, 1, and the
-    /// largest UInt64, split between the first and the last tree. The tree IDs 0 and 65535 read the
-    /// same in either byte order, so a SOL case in tree 258, 0x0102, checks the tree ID's byte order.
-    ///
-    /// - Parameters:
-    ///   - mint: The 32-byte mint address.
-    ///   - amount: The amount.
-    ///   - treeID: The ID of the tree that holds the UTXO.
-    ///   - hex: The expected hash.
     @Test(arguments: [
         (
             "0000000000000000000000000000000000000000000000000000000000000000", 0, 0,
@@ -132,11 +81,6 @@ struct UTXOTests {
         #expect(utxo.hash.bigEndianBytes == (try fixtureBytes(hex)))
     }
 
-    /// Verifies the nullifier of a UTXO owned by zolana's Ed25519 rail against an independently
-    /// derived value.
-    ///
-    /// The UTXO holds one lamport in the first tree, so its nullifier covers its hash, its
-    /// blinding, and the rail's nullifier secret.
     @Test
     func `Nullifiers match an independently derived value`() throws {
         let utxo = UTXO(owner: owner, mint: Array(repeating: 0, count: 32), amount: 1, blinding: blinding, treeID: 0)
@@ -144,7 +88,6 @@ struct UTXOTests {
         #expect(utxo.nullifier(using: nullifierKey).bigEndianBytes == (try fixtureBytes("0cd4871b07798e5135b2556f8c8ca0becca860a35ca286ab5b3a2215d920ee8f")))
     }
 
-    /// Verifies that printing, dumping, and reflecting a UTXO omit its amount and blinding.
     @Test
     func `UTXO diagnostics omit the amount and blinding`() {
         let utxo = UTXO(owner: owner, mint: Array(repeating: 0, count: 32), amount: 6, blinding: blinding, treeID: 0)
@@ -158,12 +101,6 @@ struct UTXOTests {
         #expect(Mirror(reflecting: utxo).children.isEmpty)
     }
 
-    /// Gathers the empty-UTXO cases: the published blinding-seed vector, the published padding
-    /// inputs, and one independently derived value.
-    ///
-    /// - Returns: Each case's tree ID, blinding, and expected hash.
-    /// - Throws: A test failure if the fixture is missing or malformed, or an error if it can't be
-    ///   read or decoded.
     private static func emptyUTXOs() throws -> [(UInt16, Poseidon.Element, String)] {
         let vector = try CommitmentVectors.load().dummyUTXOHash
         return [(vector.treeID, Poseidon.Element(vector.blinding), vector.hash)]

@@ -2,10 +2,8 @@ import Foundation
 import Testing
 @testable import widgets
 
-/// Verifies app data directories stay out of device backups without losing their contents.
 @Suite(.timeLimit(.minutes(1)))
 struct BackupExclusionTests {
-    /// A fresh install has no directory yet, so exclusion creates it first.
     @Test
     func `A missing directory is created and excluded from backups`() throws {
         let directory = URL.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -14,7 +12,6 @@ struct BackupExclusionTests {
         #expect(try directory.resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup == true)
     }
 
-    /// Every launch applies exclusion again, so saved data must stay untouched.
     @Test
     func `Excluding an existing directory keeps its files`() throws {
         let directory = URL.temporaryDirectory.appendingPathComponent(UUID().uuidString)

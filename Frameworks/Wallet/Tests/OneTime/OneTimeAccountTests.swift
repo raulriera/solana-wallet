@@ -3,37 +3,21 @@ import Foundation
 import Testing
 import Wallet
 
-/// Verifies one-time account derivation, validation, signing, and diagnostics through the public API.
-///
-/// The expected keys were derived independently with Python's `hashlib` and `hmac`, and pure-Python
-/// Ed25519 and P-256 arithmetic, by a SLIP-0010 reference that first reproduces zolana's golden keys.
-/// The code root is account 0's of `PublicRecovery`.
 struct OneTimeAccountTests {
-    /// The code root of `PublicRecovery`'s account 0.
     private static let codeRoot = "85ab5e0262c48a29205f6beb1e222665aff6bab7a7d0505fe06745b613860a8c"
 
-    /// The reference keys of one index of ``codeRoot``.
     struct Vector: Sendable, CustomTestStringConvertible {
-        /// The one-time account's index.
         let index: UInt32
-        /// The 32-byte secret at `m/index'`.
         let secret: String
-        /// The 32-byte Ed25519 public key at `m/44'/501'/0'/0'` of the secret.
         let publicKey: String
-        /// The public key in Base58.
         let address: String
-        /// The 31-byte nullifier secret of the secret's account 0.
         let nullifierSecret: String
-        /// The 33-byte compressed P-256 viewing public key of the secret's account 0.
         let viewingPublicKey: String
-        /// The 32-byte code root of the secret's account 0.
         let codeRoot: String
 
-        /// The index, in test results.
         var testDescription: String { "Index \(index)" }
     }
 
-    /// The first two indices and the largest one.
     static let vectors = [
         Vector(
             index: 0,
@@ -64,9 +48,6 @@ struct OneTimeAccountTests {
         ),
     ]
 
-    /// Verifies the secret that each index of a code root derives.
-    ///
-    /// - Parameter vector: An index and its reference keys.
     @Test(arguments: vectors)
     func `Code roots derive the reference one-time secrets`(_ vector: Vector) throws {
         let account = try OneTimeAccount(codeRoot: SymmetricKey(data: fixtureBytes(Self.codeRoot)), index: vector.index)
@@ -75,9 +56,6 @@ struct OneTimeAccountTests {
         #expect(account.address == vector.address)
     }
 
-    /// Verifies the address and private-balance keys that each secret recovers.
-    ///
-    /// - Parameter vector: A secret and its reference keys.
     @Test(arguments: vectors)
     func `Secrets recover the reference address and private-balance keys`(_ vector: Vector) throws {
         let account = try OneTimeAccount(secret: SymmetricKey(data: fixtureBytes(vector.secret)))
@@ -89,9 +67,6 @@ struct OneTimeAccountTests {
         #expect(keys.codeRoot.withUnsafeBytes { Array($0) } == (try fixtureBytes(vector.codeRoot)))
     }
 
-    /// Verifies that the address-only derivation of a code root's index matches the reference address.
-    ///
-    /// - Parameter vector: An index and its reference address.
     @Test(arguments: vectors)
     func `Code roots derive the reference one-time addresses alone`(_ vector: Vector) throws {
         let codeRoot = SymmetricKey(data: try fixtureBytes(Self.codeRoot))
@@ -99,8 +74,6 @@ struct OneTimeAccountTests {
         #expect(try OneTimeAccount.address(codeRoot: codeRoot, index: vector.index) == vector.address)
     }
 
-    /// Verifies that a batch of 500 addresses, the size of a redeem-code discovery read, derives distinct
-    /// addresses that match the full derivation; this test's duration measures the batch.
     @Test
     func `A batch of 500 one-time addresses derives distinct addresses`() throws {
         let codeRoot = SymmetricKey(data: try fixtureBytes(Self.codeRoot))
@@ -111,9 +84,6 @@ struct OneTimeAccountTests {
         #expect(addresses.last == (try OneTimeAccount(codeRoot: codeRoot, index: 499)).address)
     }
 
-    /// Verifies that only a 32-byte code root derives accounts or addresses.
-    ///
-    /// - Parameter byteCount: A code root length other than 32.
     @Test(arguments: [0, 31, 33, 64])
     func `Code roots that aren't 32 bytes are rejected`(byteCount: Int) {
         let codeRoot = SymmetricKey(data: [UInt8](repeating: 7, count: byteCount))
@@ -122,9 +92,6 @@ struct OneTimeAccountTests {
         #expect(throws: OneTimeAccountError.invalidCodeRoot) { try OneTimeAccount.address(codeRoot: codeRoot, index: 0) }
     }
 
-    /// Verifies that indices outside the hardened derivation range derive no account or address.
-    ///
-    /// - Parameter index: An index of 2³¹ or more.
     @Test(arguments: [2_147_483_648, UInt32.max])
     func `Indices of 2³¹ or more are rejected`(index: UInt32) throws {
         let codeRoot = SymmetricKey(data: try fixtureBytes(Self.codeRoot))
@@ -133,9 +100,6 @@ struct OneTimeAccountTests {
         #expect(throws: OneTimeAccountError.invalidIndex) { try OneTimeAccount.address(codeRoot: codeRoot, index: index) }
     }
 
-    /// Verifies that only a 32-byte secret recovers an account.
-    ///
-    /// - Parameter byteCount: A secret length other than 32.
     @Test(arguments: [0, 31, 33, 64])
     func `Secrets that aren't 32 bytes are rejected`(byteCount: Int) {
         let secret = SymmetricKey(data: [UInt8](repeating: 7, count: byteCount))
@@ -143,9 +107,6 @@ struct OneTimeAccountTests {
         #expect(throws: OneTimeAccountError.invalidSecret) { try OneTimeAccount(secret: secret) }
     }
 
-    /// Verifies that a signature verifies with the reference public key.
-    ///
-    /// - Parameter vector: A secret and its reference public key.
     @Test(arguments: vectors)
     func `Signatures verify with the account's public key`(_ vector: Vector) throws {
         let account = try OneTimeAccount(secret: SymmetricKey(data: fixtureBytes(vector.secret)))
@@ -158,9 +119,6 @@ struct OneTimeAccountTests {
         #expect(key.isValidSignature(signature, for: message))
     }
 
-    /// Verifies that signing refuses Solana Rings derivation inputs.
-    ///
-    /// - Parameter vector: A zolana message that's a derivation input.
     @Test(arguments: try PrivateBalanceVectors.load().derivationInputGuard.filter(\.isDerivationInput))
     func `Signing refuses Solana Rings derivation inputs`(_ vector: PrivateBalanceVectors.GuardVector) throws {
         let account = try OneTimeAccount(secret: SymmetricKey(data: fixtureBytes(Self.vectors[0].secret)))
@@ -169,7 +127,6 @@ struct OneTimeAccountTests {
         #expect(throws: SigningError.reservedMessage) { try account.signature(for: message) }
     }
 
-    /// Verifies that printing, dumping, and reflecting the account omit its secrets and address.
     @Test
     func `One-time account diagnostics omit the secrets`() throws {
         let account = try OneTimeAccount(secret: SymmetricKey(data: fixtureBytes(Self.vectors[0].secret)))

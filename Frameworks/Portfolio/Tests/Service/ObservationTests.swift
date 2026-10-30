@@ -5,10 +5,7 @@ import Testing
 import Transactions
 @testable import Portfolio
 
-/// Exercises observation through real public-endpoint decoding with controlled HTTP and WebSocket transports.
 struct ObservationTests {
-    /// Verifies lagging balance responses preserve the last complete snapshot and report failure.
-    /// - Parameter slot: A response slot older than the finalized change.
     @Test(.timeLimit(.minutes(1)), arguments: [100, 109] as [UInt64])
     func `Finalized changes reject older balance responses`(slot: UInt64) async throws {
         let fixture = ObservationFixture()
@@ -36,7 +33,6 @@ struct ObservationTests {
         await fixture.socket.waitUntilCancelled()
     }
 
-    /// Verifies a finalized change replaces an older manual read while preserving both consumers.
     @Test(.timeLimit(.minutes(1)))
     func `A finalized change replaces an active manual read with a newer read`() async throws {
         let fixture = ObservationFixture()
@@ -85,7 +81,6 @@ struct ObservationTests {
         await fixture.socket.waitUntilCancelled()
     }
 
-    /// A price change reads an observed wallet's prices again and delivers them on the same stream.
     @Test(.timeLimit(.minutes(1)))
     func `A price change reads an observed wallet's prices again`() async throws {
         let fixture = ObservationFixture()
@@ -115,7 +110,6 @@ struct ObservationTests {
         await second.waitUntilCancelled()
     }
 
-    /// A price change starts a read in progress again, so its consumers never receive the previous prices.
     @Test(.timeLimit(.minutes(1)))
     func `A price change restarts a read in progress`() async throws {
         let fixture = ObservationFixture()
@@ -148,7 +142,6 @@ struct ObservationTests {
         try await service.removeData(for: testWallet)
     }
 
-    /// Verifies restarting subscriptions and receiving an older notification cannot lower the required slot.
     @Test(.timeLimit(.minutes(1)))
     func `Token list changes preserve the newest finalized slot across connections`() async throws {
         let fixture = ObservationFixture()
@@ -192,8 +185,6 @@ struct ObservationTests {
         await second.waitUntilCancelled()
     }
 
-    /// Verifies a provider change closes the connection, drops the read in progress, and lets a new observation
-    /// read balances from a provider that is behind the previous provider's newest finalized change.
     @Test(.timeLimit(.minutes(1)))
     func `A provider change ends observation and the next one needs no earlier finalized slot`() async throws {
         let fixture = ObservationFixture()
@@ -241,15 +232,11 @@ struct ObservationTests {
         await second.waitUntilCancelled()
     }
 
-    /// The ways a person changes an account's token list.
     enum ListChange: CaseIterable {
-        /// Adding a token the list doesn't hold.
         case addition
-        /// Removing a listed token.
         case removal
     }
 
-    /// Verifies a new presentation reloads even when an existing consumer retains the connection.
     @Test(.timeLimit(.minutes(1)))
     func `Joining an established observation reloads fresh cached holdings`() async throws {
         let fixture = ObservationFixture()
@@ -270,7 +257,6 @@ struct ObservationTests {
         try await service.removeData(for: testWallet)
     }
 
-    /// Verifies releasing the final stream stops observation even when its consumer exits normally.
     @Test(.timeLimit(.minutes(1)))
     func `Leaving portfolio observation scope closes its connection`() async throws {
         let fixture = ObservationFixture()
@@ -282,8 +268,6 @@ struct ObservationTests {
         #expect(fixture.store.snapshot(for: fixture.key) == initial.snapshot)
     }
 
-    /// Verifies a finalized change bypasses fresh cache and reads balances after gathering nearby changes.
-    /// - Parameter slot: A response slot at or beyond the finalized change.
     @Test(.timeLimit(.minutes(1)), arguments: [110, 120] as [UInt64])
     func `Finalized changes refresh fresh portfolios`(slot: UInt64) async throws {
         let fixture = ObservationFixture()
@@ -312,7 +296,6 @@ struct ObservationTests {
         await fixture.socket.waitUntilCancelled()
     }
 
-    /// Verifies a change that arrives during a balance read leads to another read, so the latest balance shows.
     @Test(.timeLimit(.minutes(1)))
     func `A change during a balance read leads to another read`() async throws {
         let fixture = ObservationFixture()
@@ -355,7 +338,6 @@ struct ObservationTests {
         await fixture.socket.waitUntilCancelled()
     }
 
-    /// Verifies observation watches the wallet and each listed token's associated account, as balance reads do.
     @Test(.timeLimit(.minutes(1)))
     func `Observation watches the wallet and each listed token account`() async throws {
         let fixture = ObservationFixture()
@@ -375,8 +357,6 @@ struct ObservationTests {
         await fixture.socket.waitUntilCancelled()
     }
 
-    /// Verifies a list change moves an observed account's alerts to a new connection for the new list, then reads once.
-    /// - Parameter change: How the token list changes.
     @Test(.timeLimit(.minutes(1)), arguments: ListChange.allCases)
     func `Changing an observed token list watches the new list and reads balances once`(_ change: ListChange) async throws {
         let fixture = ObservationFixture()
@@ -412,7 +392,6 @@ struct ObservationTests {
         await second.waitUntilCancelled()
     }
 
-    /// Verifies a removed token leaves every observer at once, before the account's balances are read again.
     @Test(.timeLimit(.minutes(1)))
     func `A removed token leaves an observed account before the next balance read`() async throws {
         let fixture = ObservationFixture()
@@ -438,8 +417,6 @@ struct ObservationTests {
         await second.waitUntilCancelled()
     }
 
-    /// Verifies a removal during a balance read starts the read again, so its consumers get the edited holdings first
-    /// and the previous list's balances never arrive.
     @Test(.timeLimit(.minutes(1)))
     func `A removal during a balance read replaces the read of the previous list`() async throws {
         let fixture = ObservationFixture()
@@ -478,7 +455,6 @@ struct ObservationTests {
         #expect(await reload.next() == nil)
     }
 
-    /// Verifies list edits that change nothing keep the observed account's connection and read nothing.
     @Test(.timeLimit(.minutes(1)))
     func `Token list edits that change nothing keep the observation`() async throws {
         let fixture = ObservationFixture()
@@ -505,7 +481,6 @@ struct ObservationTests {
         await fixture.socket.waitUntilCancelled()
     }
 
-    /// Verifies a failed request ends the cycle immediately instead of retrying.
     @Test(.timeLimit(.minutes(1)))
     func `Observation does not retry failed RPC requests`() async throws {
         let fixture = ObservationFixture()
@@ -523,14 +498,12 @@ struct ObservationTests {
         #expect(failed.error as? RPCError == .transport(.notConnectedToInternet))
         #expect(failed.snapshot == initial.snapshot)
         #expect(await ledger.readCount == 2)
-        // A retry would first wait to gather changes; no such wait was requested.
         fixture.gate.finish()
         #expect(await delays.next() == nil)
         try await service.removeData(for: testWallet)
         await fixture.socket.waitUntilCancelled()
     }
 
-    /// Verifies separate consumers share one connection and the last cancellation closes it.
     @Test(.timeLimit(.minutes(1)))
     func `Portfolio observers share a connection until the final consumer leaves`() async throws {
         let fixture = ObservationFixture()
@@ -562,7 +535,6 @@ struct ObservationTests {
         #expect(fixture.store.snapshot(for: fixture.key) != nil)
     }
 
-    /// Verifies removing a wallet cancels a queued reload and prevents deleted data from returning.
     @Test(.timeLimit(.minutes(1)))
     func `Removing a watched wallet cancels queued reconciliation`() async throws {
         let fixture = ObservationFixture()
@@ -581,7 +553,6 @@ struct ObservationTests {
         #expect(await ledger.readCount == 1)
     }
 
-    /// Verifies a dropped connection shows its error at once, keeps the stream, and reconnects to the same accounts.
     @Test(.timeLimit(.minutes(1)))
     func `A dropped connection reconnects and reads balances again`() async throws {
         let fixture = ObservationFixture()
@@ -613,12 +584,10 @@ struct ObservationTests {
         await second.waitUntilCancelled()
     }
 
-    /// Verifies failed reconnections wait twice as long each time, up to a minute, and a working connection starts over.
     @Test(.timeLimit(.minutes(1)))
     func `Reconnection waits longer after each failed attempt`() async throws {
         let fixture = ObservationFixture()
         defer { fixture.cleanUp() }
-        // No network and server errors both count as dropped connections.
         let connections = Connections { number in
             guard (2...9).contains(number) else { return nil }
             let offline: any Error = URLError(.notConnectedToInternet)
@@ -649,7 +618,6 @@ struct ObservationTests {
         await reconnected.waitUntilCancelled()
     }
 
-    /// Verifies an acknowledged subscription whose balance read fails doesn't reset the reconnection wait.
     @Test(.timeLimit(.minutes(1)))
     func `A connection whose balance read fails keeps waiting longer`() async throws {
         let fixture = ObservationFixture()
@@ -676,8 +644,6 @@ struct ObservationTests {
         try await service.removeData(for: testWallet)
     }
 
-    /// Verifies a rate limit or a rejected key stops reconnection but keeps the stream, and a reload connects again.
-    /// - Parameter rejection: Why the provider refuses the subscription.
     @Test(.timeLimit(.minutes(1)),
           arguments: [RPCError.http(statusCode: 429, retryAfter: nil), RPCError.http(statusCode: 401, retryAfter: nil)])
     func `A refused subscription waits for a reload to connect again`(rejection: RPCError) async throws {
@@ -709,7 +675,6 @@ struct ObservationTests {
         await second.waitUntilCancelled()
     }
 
-    /// Verifies adding a token to a stopped observation connects again for the new list and reads its balances.
     @Test(.timeLimit(.minutes(1)))
     func `Adding a token connects a stopped observation again`() async throws {
         let fixture = ObservationFixture()
@@ -734,7 +699,6 @@ struct ObservationTests {
         await second.waitUntilCancelled()
     }
 
-    /// Verifies a new consumer connects a stopped observation again, as a second window does.
     @Test(.timeLimit(.minutes(1)))
     func `Joining a stopped observation connects again`() async throws {
         let fixture = ObservationFixture()
@@ -757,7 +721,6 @@ struct ObservationTests {
         await second.waitUntilCancelled()
     }
 
-    /// Verifies a reload connects at once while a reconnection waits.
     @Test(.timeLimit(.minutes(1)))
     func `A reload connects at once while the reconnection waits`() async throws {
         let fixture = ObservationFixture()
@@ -786,7 +749,6 @@ struct ObservationTests {
         await second.waitUntilCancelled()
     }
 
-    /// Verifies a reload reads an observed wallet again and every consumer receives the result before it returns.
     @Test(.timeLimit(.minutes(1)))
     func `A reload reads an observed wallet again for every consumer`() async throws {
         let fixture = ObservationFixture()
@@ -795,7 +757,6 @@ struct ObservationTests {
         let service = fixture.service(ledger: ledger)
         var first = await service.observations(for: testWallet).makeAsyncIterator()
         try await nextResult(&first)
-        // Joining reads balances once more, which both consumers receive.
         var second = await service.observations(for: testWallet).makeAsyncIterator()
         try await nextResult(&second)
         try await nextResult(&first)
@@ -810,7 +771,6 @@ struct ObservationTests {
         await fixture.socket.waitUntilCancelled()
     }
 
-    /// Verifies cancelling a reload's caller ends its wait while the read goes on and reaches the observation.
     @Test(.timeLimit(.minutes(1)))
     func `Cancelling a reload ends its wait and keeps its read`() async throws {
         let fixture = ObservationFixture()
@@ -848,7 +808,6 @@ struct ObservationTests {
         await fixture.socket.waitUntilCancelled()
     }
 
-    /// Verifies a reload connects a refused observation again and returns after the new connection's read.
     @Test(.timeLimit(.minutes(1)))
     func `A reload connects a refused observation again`() async throws {
         let fixture = ObservationFixture()
@@ -872,7 +831,6 @@ struct ObservationTests {
         await second.waitUntilCancelled()
     }
 
-    /// Verifies a reload reads nothing for a wallet that isn't observed.
     @Test(.timeLimit(.minutes(1)))
     func `A reload of a wallet that isn't observed reads nothing`() async {
         let fixture = ObservationFixture()
@@ -886,32 +844,20 @@ struct ObservationTests {
     }
 }
 
-/// Holds the SOL balance that the next successful balance read reports, and records each read's accounts.
 private actor ObservedLedger {
     private var lamports: UInt64 = 100
     private var slot: UInt64 = 100
     private var offline = false
-    /// The accounts each balance read requested, in order.
     private(set) var reads: [[String]] = []
-    /// The number of balance reads so far.
     var readCount: Int { reads.count }
 
-    /// Updates the balance that later reads report.
-    /// - Parameters:
-    ///   - lamports: The wallet's SOL balance in lamports.
-    ///   - slot: The slot of the updated balances.
     func set(lamports: UInt64, slot: UInt64 = 110) {
         self.lamports = lamports
         self.slot = slot
     }
 
-    /// Makes subsequent reads fail instead of returning an outdated balance.
     func fail() { offline = true }
 
-    /// Records a read and returns the balance at the moment it starts.
-    /// - Parameter accounts: The accounts the read requests.
-    /// - Returns: The ledger state for the fixture's balance read.
-    /// - Throws: An offline error when configured to fail.
     func response(for accounts: [String]) throws -> Ledger {
         reads.append(accounts)
         if offline { throw URLError(.notConnectedToInternet) }
@@ -919,22 +865,17 @@ private actor ObservedLedger {
     }
 }
 
-/// Exposes scheduling boundaries without elapsed-time waits.
 private struct PauseGate: Sendable {
     let delays: AsyncStream<Duration>
     private let scheduled: AsyncStream<Duration>.Continuation
     private let releases: AsyncStream<Void>
     private let release: AsyncStream<Void>.Continuation
 
-    /// Creates a gate with explicit scheduling and release streams.
     init() {
         (delays, scheduled) = AsyncStream.makeStream()
         (releases, release) = AsyncStream.makeStream()
     }
 
-    /// Records a requested delay and waits for explicit test release or task cancellation.
-    /// - Parameter duration: The delay requested by the observation policy.
-    /// - Throws: A cancellation error if the observation ends while waiting.
     func pause(_ duration: Duration) async throws {
         try Task.checkCancellation()
         scheduled.yield(duration)
@@ -943,13 +884,10 @@ private struct PauseGate: Sendable {
         try Task.checkCancellation()
     }
 
-    /// Releases one scheduled delay.
     func resume() { release.yield(()) }
-    /// Ends test scheduling and releases any pending continuation.
     func finish() { scheduled.finish(); release.finish() }
 }
 
-/// A shared real-client fixture with isolated cache, socket, and scheduling.
 private struct ObservationFixture: Sendable {
     let socket = SocketFixture()
     let gate = PauseGate()
@@ -957,23 +895,12 @@ private struct ObservationFixture: Sendable {
     let key = CacheKey(owner: testWallet, network: .mainnet)
     var store: FileSnapshotStore { FileSnapshotStore(directory: directory) }
 
-    /// Composes a real public-endpoint client with controlled network boundaries and the production Portfolio.
-    /// - Parameters:
-    ///   - connect: Opens each subscription connection; `nil` reuses the fixture's socket.
-    ///   - respond: The balance-read responder.
-    /// - Returns: The portfolio service whose observation behavior is exercised.
     func service(connect: (@Sendable (URL) -> any WebSocketConnection)? = nil,
                  respond: @escaping AccountResponses.Responder) -> Portfolio {
         let http = AccountResponses(respond: respond)
         return service(http: http, connect: connect)
     }
 
-    /// Composes the real client with a transport whose request options the test can inspect.
-    /// - Parameters:
-    ///   - http: The scripted account response transport.
-    ///   - prices: The price provider, or `nil` for none.
-    ///   - connect: Opens each subscription connection; `nil` reuses the fixture's socket.
-    /// - Returns: The portfolio service whose observation behavior is exercised.
     func service(http: AccountResponses, prices: (any PriceProviding)? = nil,
                  connect: (@Sendable (URL) -> any WebSocketConnection)? = nil) -> Portfolio {
         let rpc = Solana(network: .mainnet, transport: http, socket: connect ?? { _ in socket })
@@ -981,37 +908,24 @@ private struct ObservationFixture: Sendable {
                          pause: { try await gate.pause($0) })
     }
 
-    /// Composes a service whose balance reads report the given ledger.
-    /// - Parameters:
-    ///   - ledger: The balance state.
-    ///   - connect: Opens each subscription connection; `nil` reuses the fixture's socket.
-    /// - Returns: The portfolio service whose observation behavior is exercised.
     func service(ledger: ObservedLedger, connect: (@Sendable (URL) -> any WebSocketConnection)? = nil) -> Portfolio {
         service(connect: connect) { try await ledger.response(for: $0) }
     }
 
-    /// Ends fixture networking and removes only this test's cache files.
     func cleanUp() { socket.cancel(); gate.finish(); try? FileManager.default.removeItem(at: directory) }
 }
 
-/// Answers price lookups with SOL's current dollar price, which a test changes between lookups.
 private final class SOLPrice: Sendable {
     private let state: Mutex<(dollars: Int, lookups: Int)>
 
-    /// Starts at a price before any lookup.
-    /// - Parameter dollars: SOL's price in dollars.
     init(dollars: Int) {
         state = Mutex((dollars, 0))
     }
 
-    /// Changes the price that later lookups report.
-    /// - Parameter dollars: SOL's new price in dollars.
     func set(dollars: Int) {
         state.withLock { $0.dollars = dollars }
     }
 
-    /// Counts a lookup and answers it with the price at the moment it starts.
-    /// - Returns: The price provider's response body, and how many lookups there have been, including this one.
     func lookUp() -> (body: Data, count: Int) {
         let (dollars, count) = state.withLock { state in
             state.lookups += 1
@@ -1021,28 +935,19 @@ private final class SOLPrice: Sendable {
     }
 }
 
-/// Gives each subscription connection a new socket and hands it to the test, so tests can follow reconnections.
 private final class Connections: Sendable {
-    /// The sockets in the order the service opened them.
     let opened: AsyncStream<SocketFixture>
     private let announce: AsyncStream<SocketFixture>.Continuation
     private let rejection: @Sendable (Int) -> (any Error)?
     private let opens = Mutex(0)
 
-    /// The number of connections the service opened.
     var count: Int { opens.withLock { $0 } }
 
-    /// Creates a source of new sockets.
-    /// - Parameter rejection: The error that refuses the subscriptions on the connection with this one-based number,
-    ///   or `nil` to accept them.
     init(rejection: @escaping @Sendable (Int) -> (any Error)? = { _ in nil }) {
         (opened, announce) = AsyncStream.makeStream()
         self.rejection = rejection
     }
 
-    /// Opens a new socket for one connection.
-    /// - Parameter endpoint: The provider's WebSocket endpoint, which the fixture ignores.
-    /// - Returns: A new scripted socket.
     func connect(to endpoint: URL) -> any WebSocketConnection {
         let number = opens.withLock { $0 += 1; return $0 }
         let socket = if let error = rejection(number) { SocketFixture { _, _ in throw error } } else { SocketFixture() }
@@ -1051,10 +956,6 @@ private final class Connections: Sendable {
     }
 }
 
-/// Reads through progress updates to one complete success or failure.
-/// - Parameter iterator: The observation stream's active iterator.
-/// - Returns: The next completed update, which callers waiting only for completion may ignore.
-/// - Throws: A prerequisite error if observation ends before yielding a result.
 @discardableResult
 private func nextResult(_ iterator: inout AsyncStream<Update>.AsyncIterator) async throws -> Update {
     while let update = await iterator.next(isolation: #isolation) {
@@ -1063,10 +964,6 @@ private func nextResult(_ iterator: inout AsyncStream<Update>.AsyncIterator) asy
     return try #require(nil as Update?)
 }
 
-/// Limits an observation stream's lifetime to one completed result.
-/// - Parameter service: The portfolio whose observation to release on return.
-/// - Returns: Its first completed update.
-/// - Throws: A prerequisite error if the stream ends without a result.
 private func firstObservation(from service: Portfolio) async throws -> Update {
     var iterator = await service.observations(for: testWallet).makeAsyncIterator()
     return try await nextResult(&iterator)

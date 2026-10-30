@@ -2,20 +2,7 @@ import CryptoKit
 @testable import Privacy
 import Testing
 
-/// Verifies the reduction of 48 bytes of key material to P-256 private keys.
-///
-/// The expected scalars come from a separate Python implementation that reduces the big-endian
-/// value modulo n with integers.
 struct P256ScalarTests {
-    /// Verifies reductions against independently derived scalars.
-    ///
-    /// The cases are 1 and n - 1, which are already below n; n + 1, which reduces to 1; 2^256, whose
-    /// residue comes from the first 16 bytes alone; 2^384 - 1, the largest key material; and the
-    /// bytes 1 to 48.
-    ///
-    /// - Parameters:
-    ///   - keyMaterial: 48 bytes of key material.
-    ///   - scalar: The expected 32-byte scalar.
     @Test(arguments: [
         (
             "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001",
@@ -48,9 +35,6 @@ struct P256ScalarTests {
         #expect(Array(key.rawRepresentation) == (try fixtureBytes(scalar)))
     }
 
-    /// Verifies that key material that reduces to zero is rejected.
-    ///
-    /// - Parameter keyMaterial: A multiple of n: zero, n, or 2n.
     @Test(arguments: [
         "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
         "00000000000000000000000000000000ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551",

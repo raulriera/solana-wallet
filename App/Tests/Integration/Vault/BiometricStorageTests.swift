@@ -4,10 +4,8 @@ import Testing
 import Vault
 import Wallet
 
-/// Opt-in checks against the real Keychain on an isolated, unfunded simulator.
 @Suite(.timeLimit(.minutes(1)))
 struct BiometricStorageTests {
-    /// Verifies the device passcode still protects a real Keychain round trip without enrolled biometrics.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["BIOMETRIC_TEST_STATE"] == "unenrolled"))
     func `Unenrolled Touch ID still permits saving and reading wallet recovery`() async throws {
         let context = LAContext()
@@ -18,7 +16,6 @@ struct BiometricStorageTests {
         try await verifyRoundTrip()
     }
 
-    /// Verifies enrolled Touch ID permits a real protected Keychain round trip.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["BIOMETRIC_TEST_STATE"] == "enrolled"))
     func `Enrolled Touch ID permits saving and reading wallet recovery`() async throws {
         let context = LAContext()
@@ -27,8 +24,6 @@ struct BiometricStorageTests {
         try await verifyRoundTrip()
     }
 
-    /// Saves, reads, and deletes a public fixture in the real Keychain.
-    /// - Throws: A storage error, after removing any saved test item.
     private func verifyRoundTrip() async throws {
         let store = KeychainStore(service: "widgetsTests.biometric-probe")
         let id = UUID()
@@ -45,10 +40,6 @@ struct BiometricStorageTests {
         try await store.deleteRecovery(for: id)
     }
 
-    /// Creates a public BIP-39 fixture that must never receive funds.
-    ///
-    /// - Returns: Public recovery material for a disposable Keychain item.
-    /// - Throws: A phrase validation error if the fixture is malformed.
     private func recovery() throws -> Recovery {
         try Recovery(
             phrase: RecoveryPhrase(Array(repeating: "abandon", count: 11).joined(separator: " ") + " about"),

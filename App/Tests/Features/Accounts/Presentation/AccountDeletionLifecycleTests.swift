@@ -2,12 +2,9 @@ import SwiftUI
 import Testing
 @testable import widgets
 
-/// Runs deletions in a real window, so a failure shows its alert as on screen.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct AccountDeletionLifecycleTests {
-    /// A deletion that can't be saved shows the alert that explains it, and the account stays.
-    /// - Throws: A test prerequisite error.
     @Test
     func `A failed deletion shows its alert`() async throws {
         let wallet = try await PublicWalletAccounts()

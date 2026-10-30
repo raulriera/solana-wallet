@@ -8,11 +8,6 @@ import Themes
 
 @MainActor @Suite(.timeLimit(.minutes(1)))
 struct PaletteObservationTests {
-    /// Reloading identical colors does not invalidate protocol consumers of any appearance variant.
-    /// - Parameters:
-    ///   - scheme: The consumer's light or dark appearance.
-    ///   - contrast: The consumer's standard or increased contrast.
-    /// - Throws: A fixture or theme-loading error.
     @Test(arguments: [ColorScheme.light, .dark], [ColorSchemeContrast.standard, .increased])
     func `Reloading identical colors does not notify`(scheme: ColorScheme, contrast: ColorSchemeContrast) async throws {
         let fixture = try CatalogFixture()
@@ -33,11 +28,6 @@ struct PaletteObservationTests {
         #expect(!notified)
     }
 
-    /// Every semantic color remains observable through the protocol when a package changes its value.
-    /// - Parameters:
-    ///   - role: The manifest color role changed from the original appearance.
-    ///   - observesChangedVariant: Whether the consumer reads the changed contrast variant.
-    /// - Throws: A fixture, package-installation, or theme-loading error.
     @Test(arguments: ["background", "surface", "primaryText", "secondaryText", "separator", "accent", "onAccent"],
           [true, false])
     func `Changing color only notifies affected variant`(role: String, observesChangedVariant: Bool) async throws {

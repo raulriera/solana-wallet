@@ -1,16 +1,11 @@
 import Foundation
 import Network
 
-/// A loopback WebSocket server that reads every frame but never answers a ping.
 final class SilentWebSocketServer: Sendable {
-    /// The server's loopback WebSocket address.
     let endpoint: URL
-    /// Delivers one value each time a client's ping arrives.
     let pings: AsyncStream<Void>
     private let listening: Task<Void, any Error>
 
-    /// Starts listening on a free port of the loopback interface only.
-    /// - Throws: A Network framework error if the listener can't start.
     init() async throws {
         let loopback = NWParameters()
         loopback.requiredLocalEndpoint = .hostPort(host: .ipv4(.loopback), port: .any)
@@ -44,6 +39,5 @@ final class SilentWebSocketServer: Sendable {
         endpoint = URL(string: "ws://127.0.0.1:\(port)/")!
     }
 
-    /// Closes the listener and every connection.
     func stop() { listening.cancel() }
 }

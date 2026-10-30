@@ -4,19 +4,10 @@ import RPC
 import Testing
 import Transactions
 
-/// Verifies Solana Rings registry records and deposits of real devnet owners with read-only requests.
-///
-/// The owners are ``ShieldedPoolOwners``: each holds a user-registry record and paid for a proofless
-/// deposit to its own view tag. Registry records come from the public
-/// devnet RPC, which serves every wallet; deposits come from Helius's indexer.
 @Suite(.tags(.network), .timeLimit(.minutes(1)))
 struct PrivateBalanceLiveTests {
-    /// An address without a registry record: the System Program.
     private static let unregistered = "11111111111111111111111111111111"
 
-    /// Reads every owner's record and an unregistered address's with one public devnet request.
-    ///
-    /// - Throws: A provider, validation, or test prerequisite error.
     @Test
     func `Registry lookups decode every owner's record`() async throws {
         let addresses = try (ShieldedPoolOwners.devnet + [Self.unregistered]).map(Address.init)
@@ -26,12 +17,6 @@ struct PrivateBalanceLiveTests {
         #expect(recipients.map { $0?.signingAddress.value } == ShieldedPoolOwners.devnet + [nil])
     }
 
-    /// Checks each proofless deposit tagged with an owner against the owner's registry record: the
-    /// payload decodes, its blinding is the program's for the output's position, and the UTXO
-    /// rebuilt with the registry's owner hash is the published one.
-    ///
-    /// - Parameter owner: The owner's base-58 address, whose bytes are its view tag.
-    /// - Throws: A credential, provider, validation, or test prerequisite error.
     @Test(arguments: ShieldedPoolOwners.devnet)
     func `Deposits rebuild with the registry's owner hash`(owner: String) async throws {
         let address = try Address(owner)

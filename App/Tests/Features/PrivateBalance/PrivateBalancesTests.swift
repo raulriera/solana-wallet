@@ -7,11 +7,8 @@ import Transactions
 import Wallet
 @testable import widgets
 
-/// Verifies enabling, refreshing, and removing private balances through the real provider client and Helius client with
-/// local registry and indexer responses, in in-memory storage.
 @Suite(.timeLimit(.minutes(1)))
 struct PrivateBalancesTests {
-    /// Enabling an unregistered account derives its keys from recovery and keeps them by address, without notes.
     @Test
     func `Enabling keeps the keys of an unregistered account`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -28,7 +25,6 @@ struct PrivateBalancesTests {
         #expect(try await Self.methods(of: responses) == [GetMultipleAccounts.method])
     }
 
-    /// Enabling adds an account's keys beside the keys already kept for other accounts.
     @Test
     func `Enabling keeps other accounts' keys`() async throws {
         async let derivedFirst = PrivateBalanceFixtures.account(index: 0)
@@ -44,7 +40,6 @@ struct PrivateBalancesTests {
                                      second.address.value: try await PrivateBalanceFixtures.keys(for: second)])
     }
 
-    /// Off a network with private balances, enabling keeps the keys without reading a registry that doesn't exist there.
     @Test
     func `Enabling off devnet checks no registration`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -57,8 +52,6 @@ struct PrivateBalancesTests {
         #expect(await responses.requests.isEmpty)
     }
 
-    /// Enabling an account whose keys are already registered keeps its keys and its empty notes entry, so a refresh
-    /// never checks registration again.
     @Test
     func `Enabling an account registered with its own keys keeps its keys and notes entry`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -75,8 +68,6 @@ struct PrivateBalancesTests {
         #expect(try await Self.methods(of: responses) == [GetMultipleAccounts.method])
     }
 
-    /// A custom RPC serves only mainnet, so enabling on devnet keeps the keys without a registration check; a later
-    /// refresh checks it.
     @Test
     func `Enabling with a custom RPC off mainnet keeps the keys unchecked`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -92,7 +83,6 @@ struct PrivateBalancesTests {
         #expect(await responses.requests.isEmpty)
     }
 
-    /// An account at a path without private-balance keys is rejected before the person is asked to authenticate.
     @Test
     func `Enabling an account at another path prompts nothing and throws`() async throws {
         let fixture = try await PrivateBalanceFixtures.account()
@@ -110,7 +100,6 @@ struct PrivateBalancesTests {
         #expect(await responses.requests.isEmpty)
     }
 
-    /// A reset while enabling waits on the registry leaves no keys or notes once enabling finishes.
     @Test
     func `A reset during enabling leaves no keys`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -134,7 +123,6 @@ struct PrivateBalancesTests {
         #expect(await notes.value == nil)
     }
 
-    /// Keys that another app registered for the account are rejected, and nothing is saved.
     @Test
     func `Enabling rejects an account registered with other keys`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -148,7 +136,6 @@ struct PrivateBalancesTests {
         #expect(await keys.value == nil)
     }
 
-    /// A recovery read that fails, such as a cancelled prompt, fails enabling before any request or save.
     @Test
     func `Enabling saves nothing when recovery can't be read`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -164,9 +151,6 @@ struct PrivateBalancesTests {
         #expect(await responses.requests.isEmpty)
     }
 
-    /// Without keys, private balances are off, and only the account's registry record is read: an account that turned
-    /// them on before, such as before its wallet was imported again, shows as registered.
-    /// - Parameter isRegistered: Whether the registry publishes the account's keys.
     @Test(arguments: [false, true])
     func `Refreshing an account without keys is off and reads its registration`(isRegistered: Bool) async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -179,7 +163,6 @@ struct PrivateBalancesTests {
         #expect(try await Self.methods(of: responses) == [GetMultipleAccounts.method])
     }
 
-    /// A registry that can't be read leaves private balances off, as for an account that never turned them on.
     @Test
     func `An unread registry shows private balances off`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -188,9 +171,6 @@ struct PrivateBalancesTests {
         #expect(try await Self.balances(responses).refresh(account, on: .devnet) == .off(isRegistered: false))
     }
 
-    /// Without keys and with a provider that doesn't read private notes, private balances are unavailable instead of
-    /// off, so turning them on isn't offered, and nothing is requested.
-    /// - Parameter isCustom: Whether a custom RPC is selected, which serves only mainnet, instead of Solana's public RPC.
     @Test(arguments: [false, true])
     func `An account without keys is unavailable with a provider that doesn't read private notes`(isCustom: Bool) async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -201,7 +181,6 @@ struct PrivateBalancesTests {
         #expect(await responses.requests.isEmpty)
     }
 
-    /// Off a network with private balances, a refresh is unavailable, and nothing is read.
     @Test
     func `Refreshing off devnet is unavailable`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -212,8 +191,6 @@ struct PrivateBalancesTests {
         #expect(await responses.requests.isEmpty)
     }
 
-    /// A first refresh checks registration once, syncs from the start, and saves the notes; a later refresh resumes
-    /// from the saved notes without checking registration again.
     @Test
     func `A registered account syncs and saves its notes, checking registration once`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -240,7 +217,6 @@ struct PrivateBalancesTests {
         #expect(try await Self.tagCursors(of: responses) == [nil, HTTPResponses.indexerPosition])
     }
 
-    /// An unregistered account reads no notes and saves no notes entry.
     @Test
     func `An unregistered account reads no notes`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -254,7 +230,6 @@ struct PrivateBalancesTests {
         #expect(try await Self.methods(of: responses) == [GetMultipleAccounts.method])
     }
 
-    /// An account registered with other keys fails the refresh instead of showing a balance.
     @Test
     func `A refresh of an account registered with other keys fails`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -269,7 +244,6 @@ struct PrivateBalancesTests {
         #expect(await notes.value == nil)
     }
 
-    /// A selected provider that doesn't read private notes makes the balance unavailable and keeps the saved notes.
     @Test
     func `A provider without private notes is unavailable`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -286,8 +260,6 @@ struct PrivateBalancesTests {
         #expect(await responses.requests.isEmpty)
     }
 
-    /// Solana's public RPC reads the registry but not private notes: a registered account keeps its empty notes entry,
-    /// and its balance is unavailable.
     @Test
     func `Solana's public RPC without a notes entry is unavailable`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -304,9 +276,6 @@ struct PrivateBalancesTests {
         #expect(try await Self.methods(of: responses) == [GetMultipleAccounts.method])
     }
 
-    /// A custom RPC serves only mainnet, so on devnet a refresh is unavailable whether or not registration was checked,
-    /// and nothing is sent or saved.
-    /// - Parameter hasNotes: Whether the account already has a notes entry.
     @Test(arguments: [false, true])
     func `A custom RPC off mainnet is unavailable`(hasNotes: Bool) async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -323,7 +292,6 @@ struct PrivateBalancesTests {
         #expect(await responses.requests.isEmpty)
     }
 
-    /// A provider error, such as a rate limit, is thrown instead of a balance, and the saved notes stay.
     @Test
     func `Provider errors fail the refresh and keep the saved notes`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -338,7 +306,6 @@ struct PrivateBalancesTests {
         #expect(await notes.value == [id: NoteSyncState()])
     }
 
-    /// The saved status is the balance that the last sync saved, read without the network.
     @Test
     func `The saved status holds the last synced balance without reading the network`() async throws {
         let registered = try await Self.registeredAccount(index: 0, lamports: 1_000_000)
@@ -354,8 +321,6 @@ struct PrivateBalancesTests {
         #expect(await responses.requests.count == syncRequests)
     }
 
-    /// Notes that recorded a deposit before any sync hold it as pending, but only with the account's keys; an empty
-    /// notes entry from before the first sync holds no saved status.
     @Test
     func `Recorded notes need keys, and notes before the first sync have no saved status`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -377,7 +342,6 @@ struct PrivateBalancesTests {
         #expect(await responses.requests.isEmpty)
     }
 
-    /// A refresh that starts while another refresh of the same account is reading the indexer shares its sync.
     @Test
     func `Concurrent refreshes of one account share one sync`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -401,7 +365,6 @@ struct PrivateBalancesTests {
         #expect(try await Self.methods(of: responses).filter { $0 == GetShieldedTransactionsByTags.method }.count == 1)
     }
 
-    /// A shared sync that failed isn't kept: the next refresh syncs again.
     @Test
     func `A failed shared sync is retried by the next refresh`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -425,7 +388,6 @@ struct PrivateBalancesTests {
         #expect(try await Self.methods(of: responses).filter { $0 == GetShieldedTransactionsByTags.method }.count == 2)
     }
 
-    /// A cancelled refresh fails with `CancellationError`, while the sync it started finishes and saves the notes.
     @Test
     func `A cancelled refresh fails while the shared sync still saves`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -450,7 +412,6 @@ struct PrivateBalancesTests {
         #expect(!(await responses.wasCancelled))
     }
 
-    /// A reset while a sync waits on the indexer leaves no notes or keys once the sync finishes.
     @Test
     func `A reset during a sync leaves no notes`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -474,7 +435,6 @@ struct PrivateBalancesTests {
         #expect(await keys.value == nil)
     }
 
-    /// Another account's refresh finishes while one account's sync waits on the indexer.
     @Test
     func `Other accounts refresh while one account syncs`() async throws {
         async let derivedSyncing = PrivateBalanceFixtures.account(index: 0)
@@ -497,7 +457,6 @@ struct PrivateBalancesTests {
         #expect(try await sync.value == .balance(available: 0, pending: 0))
     }
 
-    /// An unreadable notes item is deleted once, and each account checks registration and syncs from the start again.
     @Test
     func `An unreadable notes item is deleted and every account syncs from the start`() async throws {
         async let registeredFirst = Self.registeredAccount(index: 0, lamports: 1_000)
@@ -512,7 +471,6 @@ struct PrivateBalancesTests {
         let keys = StoredValue([first.account.address.value: first.keys, second.account.address.value: second.keys])
         let balances = try await Self.balances(responses, keys: keys, notes: notes)
 
-        // The refreshes run in turn, so each registry read returns its own account's record.
         let firstStatus = try await balances.refresh(first.account, on: .devnet)
         let secondStatus = try await balances.refresh(second.account, on: .devnet)
 
@@ -525,7 +483,6 @@ struct PrivateBalancesTests {
         #expect(try await Self.tagCursors(of: responses) == [nil, nil])
     }
 
-    /// An unreadable keys item is deleted, and private balances are off until the person turns them on again.
     @Test
     func `An unreadable keys item is deleted and private balances are off`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -540,7 +497,6 @@ struct PrivateBalancesTests {
         #expect(try await Self.methods(of: responses) == [GetMultipleAccounts.method])
     }
 
-    /// Turning private balances on over an unreadable keys item deletes the item and keeps the account's keys.
     @Test
     func `Enabling over an unreadable keys item deletes it and keeps the keys`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -553,7 +509,6 @@ struct PrivateBalancesTests {
         #expect(await keys.value == [account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
     }
 
-    /// An item that is unreadable again after its deletion this launch fails the refresh and isn't deleted again.
     @Test
     func `An item unreadable again in the same launch fails the refresh without another deletion`() async throws {
         let registered = try await Self.registeredAccount(index: 0, lamports: 1_000)
@@ -573,7 +528,6 @@ struct PrivateBalancesTests {
         #expect(await notes.value == rebuilt)
     }
 
-    /// A reset while a refresh holds its unreadable read cancels the refresh, which deletes and saves nothing.
     @Test
     func `A reset during an unreadable read cancels the rebuild`() async throws {
         let registered = try await Self.registeredAccount(index: 0, lamports: 1_000)
@@ -594,7 +548,6 @@ struct PrivateBalancesTests {
         #expect(await keys.value == nil)
     }
 
-    /// A deletion that fails throws its error, and the next refresh deletes the item and syncs from the start.
     @Test
     func `A failed deletion is tried again by the next refresh`() async throws {
         let registered = try await Self.registeredAccount(index: 0, lamports: 1_000)
@@ -610,13 +563,11 @@ struct PrivateBalancesTests {
         #expect(await notes.deletions == 1)
     }
 
-    /// Two refreshes that each read the unreadable notes item before its deletion share one deletion, and both sync.
     @Test
     func `Concurrent refreshes that read an unreadable item delete it once`() async throws {
         async let registeredFirst = Self.registeredAccount(index: 0, lamports: 1_000)
         async let registeredSecond = Self.registeredAccount(index: 1, lamports: 2_000)
         let (first, second) = try await (registeredFirst, registeredSecond)
-        // The second account checks registration first, while the first account's unreadable read is held.
         let responses = HTTPResponses.privateNotes(registry: [second.registry, first.registry],
                                                    deposits: [first.deposit, second.deposit])
         let gate = Suspension()
@@ -638,8 +589,6 @@ struct PrivateBalancesTests {
         #expect(await notes.deletions == 1)
     }
 
-    /// A registered account's deposit goes into its own private balance in the indexer's output tree, without a
-    /// registry read.
     @Test
     func `Preparing a registered account's deposit deposits into its own balance`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -659,8 +608,6 @@ struct PrivateBalancesTests {
         #expect(try await !Self.methods(of: responses).contains(GetMultipleAccounts.method))
     }
 
-    /// An unregistered account's first deposit registers its keys in the same transaction, and its notes, read from
-    /// the start only to learn the output tree, aren't saved.
     @Test
     func `Preparing an unregistered account's first deposit registers it without saving notes`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -681,7 +628,6 @@ struct PrivateBalancesTests {
         #expect(await notes.value == nil)
     }
 
-    /// A deposit needs the indexer's output tree; without one, private balances are unavailable.
     @Test
     func `Preparing a deposit without an output tree is unavailable`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -695,8 +641,6 @@ struct PrivateBalancesTests {
         }
     }
 
-    /// A spend needs the indexer's output tree for its outputs; without one, private balances are unavailable and
-    /// nothing is proved.
     @Test
     func `Preparing a withdrawal without an output tree is unavailable`() async throws {
         let sender = try await Self.fundedAccount(lamports: 1_000_000)
@@ -709,8 +653,6 @@ struct PrivateBalancesTests {
         #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 0)
     }
 
-    /// A custom RPC serves only mainnet, so the recipient lookup of a devnet send can't run and private balances are
-    /// unavailable.
     @Test
     func `Preparing a send with a custom RPC off mainnet is unavailable`() async throws {
         async let funded = Self.fundedAccount(lamports: 1_000_000)
@@ -724,13 +666,6 @@ struct PrivateBalancesTests {
         }
     }
 
-    /// Without keys, private balances are off; off devnet, or with a provider that doesn't read private notes, they're
-    /// unavailable.
-    /// - Parameters:
-    ///   - network: The network to prepare on.
-    ///   - provider: The selected provider.
-    ///   - hasKeys: Whether the account's keys are kept.
-    ///   - error: The expected rejection.
     @Test(arguments: [
         (Network.devnet, ProviderSettings.Provider.helius, false, widgets.PrivateBalanceError.turnedOff),
         (.mainnet, .helius, true, .unavailable),
@@ -748,7 +683,6 @@ struct PrivateBalancesTests {
         await #expect(throws: error) { try await balances.prepare(.deposit(5_000), from: account, on: network) }
     }
 
-    /// A send to an account without private balances is rejected so that the caller can offer a regular payment.
     @Test
     func `Preparing a send to an unregistered recipient offers a regular payment`() async throws {
         async let funded = Self.fundedAccount(lamports: 1_000_000)
@@ -764,8 +698,6 @@ struct PrivateBalancesTests {
         #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 0)
     }
 
-    /// A send to a registered recipient proves a transfer of the sender's note, which no transact has queued, and
-    /// returns the change.
     @Test
     func `Preparing a send proves a private transfer`() async throws {
         async let funded = Self.fundedAccount(lamports: 1_000_000)
@@ -792,8 +724,6 @@ struct PrivateBalancesTests {
         #expect(await sender.notes.value?[sender.id]?.notes.isEmpty == true)
     }
 
-    /// A withdrawal of the whole note, which no transact has queued, proves a public withdrawal that returns nothing to
-    /// the private balance.
     @Test
     func `Preparing a withdrawal proves a public withdrawal`() async throws {
         async let funded = Self.fundedAccount(lamports: 1_000_000)
@@ -815,8 +745,6 @@ struct PrivateBalancesTests {
         #expect(spend.instruction.accounts.last?.address == destination.address)
     }
 
-    /// A spend beyond the spendable notes, or from an account that never registered, is an insufficient balance.
-    /// - Parameter isRegistered: Whether the account has a notes entry and a note, or never registered.
     @Test(arguments: [true, false])
     func `Spends beyond the spendable notes are insufficient`(isRegistered: Bool) async throws {
         let sender = try await Self.fundedAccount(lamports: 1_000_000)
@@ -832,7 +760,6 @@ struct PrivateBalancesTests {
         #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 0)
     }
 
-    /// A succeeded deposit stays pending in the saved notes, and counts in the returned balance.
     @Test
     func `Completing a succeeded deposit keeps it pending`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -846,7 +773,6 @@ struct PrivateBalancesTests {
         #expect(await notes.value?[id]?.pendingLamports == 5_000)
     }
 
-    /// An account's first deposit, which registered it, creates its notes entry once it succeeds.
     @Test
     func `Completing a first deposit creates the notes entry`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -863,8 +789,6 @@ struct PrivateBalancesTests {
         #expect(await notes.value?[PrivateBalances.noteID(of: account, on: .devnet)]?.pendingLamports == 5_000)
     }
 
-    /// A failed or dropped transaction changes nothing and returns the saved balance.
-    /// - Parameter outcome: The transaction's outcome.
     @Test(arguments: [widgets.Confirmation.Outcome.failed(TransactionError(name: "InsufficientFundsForFee", details: nil)), .dropped])
     func `Failed or dropped transactions change nothing`(outcome: widgets.Confirmation.Outcome) async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -879,7 +803,6 @@ struct PrivateBalancesTests {
         #expect(await notes.value == [id: NoteSyncState()])
     }
 
-    /// A confirmation from another network than the transaction's is rejected without a change.
     @Test
     func `Completing with another network's confirmation is rejected`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -895,8 +818,6 @@ struct PrivateBalancesTests {
         #expect(await notes.value == [id: NoteSyncState()])
     }
 
-    /// Recording an outcome waits for a running sync of the account's notes, so the sync's save doesn't drop the
-    /// recorded deposit.
     @Test
     func `Completing waits for a running sync`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -917,7 +838,6 @@ struct PrivateBalancesTests {
         #expect(await notes.value?[id]?.pendingLamports == 5_000)
     }
 
-    /// A sync that starts while an outcome is being recorded waits for it, so it loads and keeps the recorded deposit.
     @Test
     func `A sync waits for a running completion`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -937,8 +857,6 @@ struct PrivateBalancesTests {
         #expect(await notes.value?[id]?.pendingLamports == 5_000)
     }
 
-    /// A reset while a recording waits for a sync cancels the recording, whatever its outcome, and saves nothing.
-    /// - Parameter outcome: The transaction's outcome.
     @Test(arguments: [widgets.Confirmation.Outcome.succeeded, .dropped])
     func `A reset during a completion cancels it`(outcome: widgets.Confirmation.Outcome) async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -960,7 +878,6 @@ struct PrivateBalancesTests {
         #expect(await notes.value == nil)
     }
 
-    /// Two overlapping recordings for one account run one at a time, and a refresh that starts meanwhile waits for both.
     @Test
     func `Overlapping completions run one at a time`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -982,7 +899,6 @@ struct PrivateBalancesTests {
         #expect(await notes.value?[id]?.pendingLamports == 12_000)
     }
 
-    /// A spend that needs more than 40 notes is rejected as too many notes.
     @Test
     func `Preparing a spend of too many notes is rejected`() async throws {
         let sender = try await Self.fundedAccount(lamports: 1)
@@ -997,7 +913,6 @@ struct PrivateBalancesTests {
         #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 0)
     }
 
-    /// An account that registered other keys can't prepare a transaction, and nothing is saved.
     @Test
     func `Preparing for an account registered with other keys fails`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -1013,7 +928,6 @@ struct PrivateBalancesTests {
         #expect(await notes.value == nil)
     }
 
-    /// A registered account without a notes entry saves one while preparing, and its deposit doesn't register again.
     @Test
     func `Preparing for a registered account without notes saves its entry`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -1032,15 +946,6 @@ struct PrivateBalancesTests {
         #expect(await notes.value?[PrivateBalances.noteID(of: account, on: .devnet)] != nil)
     }
 
-    /// Creates private balances around local responses and in-memory storage.
-    /// - Parameters:
-    ///   - responses: The local responses that every network's provider client sends requests to.
-    ///   - provider: The selected provider; Helius by default.
-    ///   - recovery: The recovery storage; the published fixture recovery by default.
-    ///   - keys: Each account's keys; empty storage by default.
-    ///   - notes: Each account's notes; empty storage by default.
-    /// - Returns: Private balances whose requests never leave the process.
-    /// - Throws: A validation error, which doesn't happen.
     @MainActor
     private static func balances(
         _ responses: HTTPResponses, provider: ProviderSettings.Provider = .helius,
@@ -1052,19 +957,10 @@ struct PrivateBalancesTests {
                                  provider: provider)
     }
 
-    /// A selected custom RPC, which serves only mainnet.
-    /// - Returns: The custom RPC provider.
-    /// - Throws: A test prerequisite error, which doesn't happen.
     private static func customRPC() throws -> ProviderSettings.Provider {
         .custom(try #require(URL(string: "https://rpc.example.com")))
     }
 
-    /// Derives a fixture account registered with its own keys, and a deposit to it.
-    /// - Parameters:
-    ///   - index: The account index.
-    ///   - lamports: The deposit's amount.
-    /// - Returns: The account, its keys, the registry read that finds them, and the deposit's tag-read row.
-    /// - Throws: A derivation error.
     private static func registeredAccount(index: UInt32, lamports: UInt64) async throws
         -> (account: widgets.Account, keys: PrivateBalanceKeyRecord, registry: String, deposit: String) {
         let account = try await PrivateBalanceFixtures.account(index: index)
@@ -1074,10 +970,6 @@ struct PrivateBalancesTests {
                 try PrivateBalanceFixtures.deposit(lamports, to: shielded, leafIndex: UInt64(index) + 1))
     }
 
-    /// Derives a fixture account registered with its own keys, with a notes entry and a deposit to it in tree 1.
-    /// - Parameter lamports: The deposit's amount.
-    /// - Returns: The account, its kept keys, its notes storage, its notes entry, and the deposit's tag-read row.
-    /// - Throws: A derivation error.
     private static func fundedAccount(lamports: UInt64) async throws -> (account: widgets.Account,
         keys: StoredValue<PrivateBalances.Keys>, notes: StoredValue<PrivateBalances.Notes>, id: String, deposit: String) {
         let registered = try await registeredAccount(index: 0, lamports: lamports)
@@ -1086,44 +978,21 @@ struct PrivateBalancesTests {
                 StoredValue([id: NoteSyncState()]), id, registered.deposit)
     }
 
-    /// Lists the cursor of each tag read sent so far.
-    /// - Parameter responses: The local responses that recorded the requests.
-    /// - Returns: Each tag read's cursor, or `nil` for a read from the start, in arrival order.
-    /// - Throws: A test prerequisite error for a request without a method or parameters.
     private static func tagCursors(of responses: HTTPResponses) async throws -> [String?] {
         try await responses.requests.filter { try $0.rpcMethod == GetShieldedTransactionsByTags.method }
             .map { try #require($0.jsonBody()["params"] as? [String: Any])["cursor"] as? String }
     }
 
-    /// Lists the RPC methods of the requests sent so far.
-    /// - Parameter responses: The local responses that recorded the requests.
-    /// - Returns: Each request's method, in arrival order.
-    /// - Throws: A test prerequisite error for a request without a method.
     private static func methods(of responses: HTTPResponses) async throws -> [String] {
         try await responses.requests.map { try $0.rpcMethod }
     }
 
-    /// Starts recording an outcome that registers its recording, or reaches its wait for a running sync, before this
-    /// call returns.
-    /// - Parameters:
-    ///   - transaction: The prepared transaction, whose outcome succeeded.
-    ///   - signature: The transaction's signature.
-    ///   - outcome: The transaction's outcome.
-    ///   - balances: The private balances, whose isolation this call runs in.
-    /// - Returns: The completion's task.
     private static func startCompletion(of transaction: PreparedPrivateTransaction, signature: String = "private",
                                         outcome: widgets.Confirmation.Outcome = .succeeded,
                                         in balances: isolated PrivateBalances) -> Task<PrivateBalanceStatus, any Error> {
         Task.immediate { try await balances.complete(transaction, with: PrivateBalanceFixtures.confirmation(outcome, signature: signature)) }
     }
 
-    /// Starts a refresh that reaches the shared sync before this call returns.
-    ///
-    /// The task starts on the actor at once, so it joins or starts the account's sync before the caller continues.
-    /// - Parameters:
-    ///   - account: The account to refresh on devnet.
-    ///   - balances: The private balances, whose isolation this call runs in.
-    /// - Returns: The refresh's task.
     private static func startRefresh(of account: widgets.Account,
                                      in balances: isolated PrivateBalances) -> Task<PrivateBalanceStatus, any Error> {
         Task.immediate { try await balances.refresh(account, on: .devnet) }

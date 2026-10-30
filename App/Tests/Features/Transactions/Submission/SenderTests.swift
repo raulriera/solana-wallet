@@ -5,16 +5,8 @@ import Transactions
 import Wallet
 @testable import widgets
 
-/// Explicitly authorized mainnet checks; Sender has no devnet delivery route.
-/// Cases run serially because both spend from the configured test wallet's sender.
 @Suite(.tags(.network), .serialized)
 struct SenderTests {
-    /// Verifies a selected Sender route lands the reviewed message within its quoted cost.
-    ///
-    /// Enable only after approval of the mainnet tips and fees. The configured test wallet's sender
-    /// must already be funded; this test never requests funding or raises its bid.
-    /// - Parameter strategy: The exclusive Sender tier selected for submission.
-    /// - Throws: A credential, recovery, provider, or spending-limit prerequisite error.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["VERIFY_MAINNET_SENDER"] == "APPROVED"),
           .timeLimit(.minutes(2)), arguments: [TransactionCoordinator.Strategy.standard, .premium])
     func `Sender confirms a reviewed mainnet transaction at its quoted fee and tip`(_ strategy: TransactionCoordinator.Strategy) async throws {

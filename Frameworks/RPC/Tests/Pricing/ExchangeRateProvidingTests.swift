@@ -2,18 +2,13 @@ import Foundation
 import Testing
 @testable import RPC
 
-/// Checks the error policy that every exchange-rate provider shares.
 struct ExchangeRateProvidingTests {
-    /// An exchange-rate provider, named so test results read clearly.
     enum Source: String, CaseIterable, CustomTestStringConvertible {
         case europeanCentralBank
         case coinbase
 
         var testDescription: String { rawValue }
 
-        /// Creates the provider around a fixture transport.
-        /// - Parameter transport: The transport that records requests and supplies responses.
-        /// - Returns: The provider.
         func provider(transport: StubTransport) -> any ExchangeRateProviding {
             switch self {
             case .europeanCentralBank: EuropeanCentralBank(transport: transport)
@@ -22,8 +17,6 @@ struct ExchangeRateProvidingTests {
         }
     }
 
-    /// A rate limit reaches the caller after one request.
-    /// - Parameter source: The provider under test.
     @Test(arguments: Source.allCases)
     func `Rate limits surface without retries`(source: Source) async throws {
         let transport = StubTransport { try httpReply(to: $0, body: "", status: 429, headers: ["Retry-After": "60"]) }
@@ -33,8 +26,6 @@ struct ExchangeRateProvidingTests {
         #expect(await transport.requests.count == 1)
     }
 
-    /// Cancelling a lookup reaches the request in flight and ends with a cancellation, not a decoding error.
-    /// - Parameter source: The provider under test.
     @Test(.timeLimit(.minutes(1)), arguments: Source.allCases)
     func `Cancelling stops the request in flight`(source: Source) async throws {
         let (started, startedContinuation) = AsyncStream<Void>.makeStream()

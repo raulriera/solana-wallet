@@ -5,12 +5,9 @@ import Testing
 import Transactions
 @testable import widgets
 
-/// Verifies the reset's deletion order and retries, without touching real storage.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct AppResetTests {
-    /// Secrets go first, the shared stores end their work before the directories are deleted, appearance forgets them
-    /// after, and the saved accounts go last, so every window leaves its wallet only once everything is deleted.
     @Test
     func `Reset deletes the secrets, each shared store, the directories, appearance, then the accounts`() async throws {
         let storage = ResetStorage()
@@ -20,13 +17,10 @@ struct AppResetTests {
         try await AppReset(storage: storage).reset()
 
         #expect(await storage.deletions == ResetStorage.Step.allCases)
-        // Only appearance and the accounts go after the directories are deleted.
         let existed = Array(repeating: true, count: ResetStorage.Step.allCases.count - 2) + [false, false]
         #expect(await storage.directoryExisted == existed)
     }
 
-    /// A failed step stops the reset and keeps windows where they are; trying again finishes it.
-    /// - Parameter step: The store whose first deletion fails.
     @Test(arguments: ResetStorage.Step.allCases)
     func `Retrying after a failed step finishes the reset`(_ step: ResetStorage.Step) async throws {
         let storage = ResetStorage(failingOnce: step)
@@ -40,9 +34,6 @@ struct AppResetTests {
         #expect(await Array(storage.deletions.suffix(order.count)) == order)
     }
 
-    /// A failed earlier step keeps the saved accounts, so every window stays on its wallet and can try again.
-    /// - Parameter step: The step whose first deletion fails.
-    /// - Throws: A test prerequisite error.
     @Test(arguments: ResetStorage.Step.allCases.filter { $0 != .accounts })
     func `A failed earlier step keeps the accounts`(_ step: ResetStorage.Step) async throws {
         let storage = ResetStorage(failingOnce: step)
@@ -58,14 +49,12 @@ struct AppResetTests {
         #expect(accounts.accounts == [account])
     }
 
-    /// A directory that can't be deleted stops the reset before appearance; trying again finishes it.
     @Test
     func `Retrying after a directory can't be deleted finishes the reset`() async throws {
         let storage = ResetStorage()
         defer { try? FileManager.default.removeItem(at: storage.directory) }
         try createFile(in: storage.directory)
         let reset = AppReset(storage: storage)
-        // A read-only directory keeps the file inside it.
         try setPermissions(0o555, of: storage.directory)
 
         await #expect(throws: CocoaError.self) { try await reset.reset() }
@@ -76,9 +65,6 @@ struct AppResetTests {
         #expect(!FileManager.default.fileExists(atPath: storage.directory.path))
     }
 
-    /// A balance read that runs during a reset ends with it, so it can't save the deleted wallet's holdings into the
-    /// deleted directory afterward.
-    /// - Throws: A test prerequisite error.
     @Test
     func `A balance read that runs during a reset saves nothing afterward`() async throws {
         let storage = ResetStorage()
@@ -100,7 +86,6 @@ struct AppResetTests {
         try await AppReset(recovery: storage, privateBalances: storage.privateBalances, directories: [storage.directory],
                            appearance: storage.appearance, stores: [portfolios], accounts: storage.accounts).reset()
         gate.resume()
-        // A reload returns once a read ends, so a read that the reset left running has saved by then.
         await service.reload(for: account.address.value)
 
         #expect(!FileManager.default.fileExists(atPath: storage.directory.path))
@@ -108,19 +93,11 @@ struct AppResetTests {
         await viewing.value
     }
 
-    /// Saves one file in a directory, creating the directory.
-    /// - Parameter directory: The directory to fill.
-    /// - Throws: A filesystem error.
     private func createFile(in directory: URL) throws {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try Data("saved".utf8).write(to: directory.appending(path: "file.json"))
     }
 
-    /// Changes who can change a directory's contents.
-    /// - Parameters:
-    ///   - permissions: The POSIX permissions.
-    ///   - directory: The directory to change.
-    /// - Throws: A filesystem error.
     private func setPermissions(_ permissions: Int, of directory: URL) throws {
         try FileManager.default.setAttributes([.posixPermissions: permissions], ofItemAtPath: directory.path)
     }

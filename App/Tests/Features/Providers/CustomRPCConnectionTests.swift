@@ -3,16 +3,11 @@ import RPC
 import Testing
 @testable import widgets
 
-/// Checks custom RPC URLs through the real Solana client, local HTTP fixtures, and scripted sockets.
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct CustomRPCConnectionTests {
-    /// One standard reply to the check's account read.
     private static let accounts = #"{"context":{"slot":1},"value":[null]}"#
 
-    /// A URL that answers standard requests, account subscriptions, and a payment watch at the same URL is saved and
-    /// chosen for every window, and the check leaves no connection open.
-    /// - Throws: A connection failure or a test prerequisite error.
     @Test
     func `A checked RPC is saved and chosen`() async throws {
         let url = try #require(URL(string: "https://rpc.example.com/fixture-token"))
@@ -28,7 +23,6 @@ struct CustomRPCConnectionTests {
         #expect(providers.connection == .custom(url))
         #expect(await responses.requests.map(\.url) == [url])
         try #require(sockets.sockets.count == 2)
-        // The two connections open at once, so find each by its first request.
         let connections = try sockets.sockets.map { try $0.requests.map(Self.body(of:)) }
         let account = try #require(connections.first { $0.first?["method"] as? String == "accountSubscribe" })
         #expect(account.count == 1)
@@ -37,8 +31,6 @@ struct CustomRPCConnectionTests {
         await sockets.waitUntilClosed()
     }
 
-    /// Text that isn't an HTTPS URL with a host is rejected before any request.
-    /// - Parameter entry: The text as entered.
     @Test(arguments: ["http://rpc.example.com", "rpc.example.com", ""])
     func `A URL that isn't HTTPS is rejected without a request`(entry: String) async {
         let settings = StoredValue<ProviderSettings>()
@@ -52,8 +44,6 @@ struct CustomRPCConnectionTests {
         #expect(await settings.value == nil)
     }
 
-    /// An RPC that's already listed is rejected before any request.
-    /// - Throws: A test prerequisite error.
     @Test
     func `A listed RPC is rejected without a request`() async throws {
         let url = try #require(URL(string: "https://rpc.example.com"))
@@ -67,11 +57,6 @@ struct CustomRPCConnectionTests {
         #expect(await responses.requests.isEmpty)
     }
 
-    /// A failed standard request stops the check before any subscription, and nothing is saved: a URL that doesn't
-    /// answer as a Solana RPC is rejected, and one that limits requests asks to try again later.
-    /// - Parameters:
-    ///   - error: How the URL fails the request.
-    ///   - expected: The check's failure.
     @Test(arguments: [
         (RPCError.http(statusCode: 404, retryAfter: nil), CustomRPCError.unreachable),
         (.http(statusCode: 401, retryAfter: nil), .unreachable),
@@ -93,13 +78,6 @@ struct CustomRPCConnectionTests {
         #expect(await settings.value == nil)
     }
 
-    /// A failed live-updates subscription at the same URL stops the check, nothing is saved, and no connection stays
-    /// open: an RPC without account updates or a payment watch's signature or root updates is rejected, and one that
-    /// limits subscriptions asks to try again later.
-    /// - Parameters:
-    ///   - method: The subscription method that fails.
-    ///   - code: The JSON-RPC error code in the subscription's reply.
-    ///   - expected: The check's failure.
     @Test(arguments: [
         ("accountSubscribe", -32601, CustomRPCError.noLiveUpdates), ("signatureSubscribe", -32601, .noLiveUpdates),
         ("rootSubscribe", -32601, .noLiveUpdates), ("accountSubscribe", 429, .rateLimited),
@@ -127,7 +105,6 @@ struct CustomRPCConnectionTests {
         await sockets.waitUntilClosed()
     }
 
-    /// Custom RPCs that can't be read explain it in an alert before any request.
     @Test
     func `Unreadable custom RPCs explain it without a request`() async {
         let responses = HTTPResponses([:])
@@ -140,10 +117,6 @@ struct CustomRPCConnectionTests {
         #expect(await responses.requests.isEmpty)
     }
 
-    /// Refused URLs show under the field, and other failures explain their cause in an alert.
-    /// - Parameters:
-    ///   - error: A check failure.
-    ///   - rejectsEntry: Whether the failure shows under the field.
     @Test(arguments: [
         (CustomRPCError.notHTTPS, true), (.duplicate, true), (.unreachable, true), (.noLiveUpdates, true),
         (.rateLimited, false), (.unavailable, false), (.storageFailed, false),
@@ -152,7 +125,6 @@ struct CustomRPCConnectionTests {
         #expect(error.rejectsEntry == rejectsEntry)
     }
 
-    /// A checked RPC that this device can't store explains it, and every window keeps its provider.
     @Test
     func `A checked RPC that can't be saved explains it`() async {
         let providers = ProviderStore.inMemory(StoredValue(failsSaving: true))
@@ -166,7 +138,6 @@ struct CustomRPCConnectionTests {
         #expect(providers.connection == .solana)
     }
 
-    /// Leaving the screen during the check saves nothing.
     @Test
     func `A cancelled check saves nothing`() async {
         let gate = Suspension()
@@ -186,21 +157,11 @@ struct CustomRPCConnectionTests {
         #expect(await settings.value == nil)
     }
 
-    /// Creates the production check over shared provider settings, local HTTP fixtures, and scripted sockets.
-    /// - Parameters:
-    ///   - providers: The provider settings that the check reads and adds to.
-    ///   - responses: The fixtures that answer standard requests.
-    ///   - sockets: The connections that answer subscriptions; by default, each one acknowledges every subscription.
-    /// - Returns: A check whose requests never leave the process.
     private func makeConnection(providers: ProviderStore, responses: HTTPResponses,
                                 sockets: SocketSequence = SocketSequence()) -> CustomRPCConnection {
         CustomRPCConnection(providers: providers) { responses.client(for: $0, on: $1, socket: { sockets.connect($0) }) }
     }
 
-    /// Decodes a subscription request that the real client sent.
-    /// - Parameter request: The request's JSON bytes.
-    /// - Returns: The JSON object sent by the client.
-    /// - Throws: A test prerequisite error when the request isn't a JSON object.
     nonisolated private static func body(of request: Data) throws -> [String: Any] {
         try #require(JSONSerialization.jsonObject(with: request) as? [String: Any])
     }

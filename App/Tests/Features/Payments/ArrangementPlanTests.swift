@@ -2,17 +2,9 @@ import SwiftUI
 import Testing
 @testable import widgets
 
-/// Checks where an adaptive arrangement puts the keypad screen's regions and Send in different spaces and around folds.
 struct ArrangementPlanTests {
-    /// The space between Send and the view above it.
     private static let spacing: CGFloat = 8
 
-    /// Sizes like the keypad screen's views: the scrolling amount uses 154 pt of height, the keypad keeps its
-    /// 386 × 488 pt shape and shrinks to fit, and Send is 50 pt tall at any width.
-    /// - Parameters:
-    ///   - region: The view to measure.
-    ///   - proposal: The space offered to it.
-    /// - Returns: The view's size.
     private static func keypadScreen(_ region: ArrangementPlan.Region, _ proposal: ProposedViewSize) -> CGSize {
         switch region {
         case .primary:
@@ -25,11 +17,6 @@ struct ArrangementPlanTests {
         }
     }
 
-    /// Plans the keypad screen in the given space.
-    /// - Parameters:
-    ///   - size: The space the arrangement has.
-    ///   - fold: The active fold that crosses it, if any.
-    /// - Returns: The keypad screen's plan.
     private static func keypadPlan(_ size: CGSize, fold: CGRect? = nil) -> ArrangementPlan {
         ArrangementPlan(size: size, fold: fold, accessorySpacing: spacing, measure: keypadScreen)
     }
@@ -96,12 +83,6 @@ struct ArrangementPlanTests {
         #expect(plan.primary.width == 440)
     }
 
-    /// Places two scrolling regions, each 300 pt tall at its content's height, without an accessory, as onboarding's
-    /// introduction and actions do.
-    /// - Parameters:
-    ///   - size: The space the arrangement has.
-    ///   - primary: The primary region's expected frame.
-    ///   - secondary: The secondary region's expected frame.
     @Test(arguments: [
         (CGSize(width: 800, height: 400), CGRect(x: 0, y: 0, width: 400, height: 400),
          CGRect(x: 400, y: 0, width: 400, height: 400)),

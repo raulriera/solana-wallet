@@ -2,17 +2,12 @@ import SwiftUI
 import Testing
 import UIKit
 
-/// Shows a SwiftUI view in its own key window on the test host's scene, so tests run real view lifetimes and presentations.
 @MainActor
 final class HostedWindow<Content: View> {
-    /// The controller hosting the view under test; a test can replace its root view.
     let host: Host
     private let window: UIWindow
     private let previousKeyWindow: UIWindow?
 
-    /// Makes the view the content of a new key window on the test host's active scene.
-    /// - Parameter content: The view under test.
-    /// - Throws: A failed prerequisite when the test host has no active window scene.
     init(_ content: Content) throws {
         let scene = try #require(UIApplication.shared.connectedScenes.lazy.compactMap { $0 as? UIWindowScene }
             .first { $0.activationState == .foregroundActive })
@@ -23,36 +18,18 @@ final class HostedWindow<Content: View> {
         window.makeKeyAndVisible()
     }
 
-    /// Waits for UIKit to finish showing the hosted view, so closing the window can't interrupt its appearance.
-    /// - Parameter limit: How long to wait before giving up.
-    /// - Returns: Whether the hosted view appeared in time.
-    /// - Throws: `CancellationError` when the test is cancelled while waiting.
     func appears(within limit: Duration = .seconds(5)) async throws -> Bool {
         try await waits(within: limit) { host.hasAppeared }
     }
 
-    /// Waits for the hosted view to present a view controller, such as a system dialog.
-    /// - Parameter limit: How long to wait before giving up.
-    /// - Returns: Whether the host presented a view controller in time.
-    /// - Throws: `CancellationError` when the test is cancelled while waiting.
     func presentsViewController(within limit: Duration = .seconds(5)) async throws -> Bool {
         try await waits(within: limit) { host.presentedViewController != nil }
     }
 
-    /// Waits for the view controller that the hosted view presented, such as a sheet, to close.
-    /// - Parameter limit: How long to wait before giving up.
-    /// - Returns: Whether the presented view controller closed in time.
-    /// - Throws: `CancellationError` when the test is cancelled while waiting.
     func closesPresentedViewController(within limit: Duration = .seconds(5)) async throws -> Bool {
         try await waits(within: limit) { host.presentedViewController == nil }
     }
 
-    /// Checks UIKit's appearance or presentation state, which nothing observes, until it matches or the time runs out.
-    /// - Parameters:
-    ///   - limit: How long to wait before giving up.
-    ///   - condition: The state to wait for.
-    /// - Returns: Whether the condition became true in time.
-    /// - Throws: `CancellationError` when the test is cancelled while waiting.
     private func waits(within limit: Duration, until condition: () -> Bool) async throws -> Bool {
         let deadline = ContinuousClock.now + limit
         while !condition(), ContinuousClock.now < deadline {
@@ -61,7 +38,6 @@ final class HostedWindow<Content: View> {
         return condition()
     }
 
-    /// Removes the window and its presentations, and makes the previous key window key again.
     func close() {
         host.presentedViewController?.dismiss(animated: false)
         window.isHidden = true
@@ -69,13 +45,9 @@ final class HostedWindow<Content: View> {
         previousKeyWindow?.makeKey()
     }
 
-    /// Hosts the view under test and records when UIKit finishes showing it, which nothing observes.
     final class Host: UIHostingController<Content> {
-        /// Whether UIKit finished the host's appearance transition.
         private(set) var hasAppeared = false
 
-        /// Records that UIKit finished showing the hosted view.
-        /// - Parameter animated: Whether the appearance was animated.
         override func viewDidAppear(_ animated: Bool) {
             super.viewDidAppear(animated)
             hasAppeared = true

@@ -1,16 +1,9 @@
 import Testing
 import RPC
 
-/// Verifies the checks and redaction of transfer proof requests.
 struct TransferProofRequestTests {
     private typealias Fixture = ProofFixtures
 
-    /// Verifies requests without one or two tree slots, or whose input names an undeclared slot, are refused.
-    ///
-    /// - Parameters:
-    ///   - slots: The tree slots' IDs.
-    ///   - error: The expected refusal.
-    /// - Throws: A failed test prerequisite.
     @Test(arguments: [
         ([UInt16](), TransferProofRequest.ValidationError.invalidCount),
         ([0, 1, 2], .invalidCount),
@@ -23,9 +16,6 @@ struct TransferProofRequestTests {
         }
     }
 
-    /// Verifies an input that names a tree slot the request doesn't declare is refused.
-    ///
-    /// - Throws: A failed test prerequisite.
     @Test
     func `Inputs must name a declared tree slot`() throws {
         let witness = try Fixture.witness()
@@ -49,9 +39,6 @@ struct TransferProofRequestTests {
         }
     }
 
-    /// Verifies the public input hash and tree roots must be 32 bytes.
-    ///
-    /// - Parameter make: Creates a part with a value of another length.
     @Test(arguments: [
         { _ = try TransferProofRequest(treeSlots: [ProofFixtures.treeSlot()], publicInputHash: [1], witness: ProofFixtures.witness()) },
         { _ = try TransferProofRequest.TreeSlot(id: 0, utxoRoot: [1], nullifierRoot: ProofFixtures.field(1)) },
@@ -61,11 +48,6 @@ struct TransferProofRequestTests {
         #expect(throws: TransferProofRequest.ValidationError.invalidLength) { try make() }
     }
 
-    /// Verifies descriptions, debug descriptions, and dumps reveal none of the witness's values.
-    ///
-    /// The fixture's secrets end in bytes `a1`, `b1`, `c1`, and `d1`, whose decimal and hexadecimal forms
-    /// would appear in a reflected array.
-    /// - Throws: A validation error, which the fixture doesn't produce.
     @Test
     func `Descriptions reveal no witness values`() throws {
         let request = try Fixture.request()
@@ -82,17 +64,9 @@ struct TransferProofRequestTests {
     }
 }
 
-/// Verifies that inclusion proofs agree with their witness inputs: only a real input that isn't cached has one.
 struct TransferProofRequestInclusionTests {
     private typealias Fixture = ProofFixtures
 
-    /// Creates a request whose one input has the given witness.
-    /// - Parameters:
-    ///   - isDummy: Whether the input pads its slot.
-    ///   - cached: Whether the input comes from the read cache.
-    ///   - hasInclusionProof: Whether the input carries an inclusion proof.
-    /// - Returns: The request.
-    /// - Throws: A ``TransferProofRequest/ValidationError`` if the parts disagree.
     private static func request(isDummy: Bool, cached: Bool, hasInclusionProof: Bool) throws -> TransferProofRequest {
         let witness = try Fixture.witness(
             isDummy: isDummy, hasInclusionProof: hasInclusionProof, cacheTreeID: cached ? Fixture.field(2) : Fixture.field(0),
@@ -101,13 +75,6 @@ struct TransferProofRequestInclusionTests {
         return try TransferProofRequest(treeSlots: [Fixture.treeSlot()], publicInputHash: Fixture.field(1), witness: witness)
     }
 
-    /// Verifies inputs that agree with their inclusion proofs are accepted: a real input with one, and a cached
-    /// input and padding without one.
-    ///
-    /// - Parameters:
-    ///   - isDummy: Whether the input pads its slot.
-    ///   - cached: Whether the input is cached.
-    ///   - hasInclusionProof: Whether the input carries an inclusion proof.
     @Test(arguments: [(false, false, true), (false, true, false), (true, false, false)])
     func `Inputs that agree with their inclusion proofs are accepted`(isDummy: Bool, cached: Bool, hasInclusionProof: Bool) {
         #expect(throws: Never.self) {
@@ -115,12 +82,6 @@ struct TransferProofRequestInclusionTests {
         }
     }
 
-    /// Verifies inputs that disagree with their inclusion proofs are refused.
-    ///
-    /// - Parameters:
-    ///   - isDummy: Whether the input pads its slot.
-    ///   - cached: Whether the input is cached.
-    ///   - hasInclusionProof: Whether the input carries an inclusion proof.
     @Test(arguments: [(false, false, false), (false, true, true), (true, false, true)])
     func `Inputs that disagree with their inclusion proofs are refused`(isDummy: Bool, cached: Bool, hasInclusionProof: Bool) {
         #expect(throws: TransferProofRequest.ValidationError.invalidInclusionProof) {

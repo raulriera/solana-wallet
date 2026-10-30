@@ -8,9 +8,7 @@ import Vault
 import Wallet
 @testable import widgets
 
-/// Verifies numbered accounts sign with their own keys from one shared recovery.
 struct SharedRecoveryTests {
-    /// Checks two independently known public keys while both accounts read the same recovery ID.
     @Test
     func `Two numbered accounts sign using one recovery record`() async throws {
         let fixture = try SigningFixture()
@@ -34,8 +32,6 @@ struct SharedRecoveryTests {
         #expect(await store.reads.map(\.recoveryID) == [recoveryID, recoveryID])
     }
 
-    /// Rejects an unrelated address before access and a wrong path when recovering the signing key.
-    /// - Parameter field: The account field that disagrees with the reviewed signer.
     @Test(arguments: ["address", "path"])
     func `A mismatched account address or path cannot sign`(_ field: String) async throws {
         let fixture = try SigningFixture()
@@ -54,7 +50,6 @@ struct SharedRecoveryTests {
         if field == "address" { #expect(await http.requests.isEmpty) }
     }
 
-    /// The shorter discovery family signs with its exact stored path, not the default family.
     @Test
     func `A discovered account signs with its exact path`() async throws {
         let fixture = try SigningFixture()

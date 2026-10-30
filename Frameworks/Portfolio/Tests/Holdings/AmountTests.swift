@@ -2,13 +2,7 @@ import Foundation
 import Portfolio
 import Testing
 
-/// Tests exact quantity formatting through the framework's public API.
 struct AmountTests {
-    /// Verifies decimal placement without rounding, trailing zeros, or lost units.
-    ///
-    /// - Parameters:
-    ///   - amount: The raw quantity to display.
-    ///   - expected: Its exact representation in the US English locale.
     @Test(arguments: [
         (Amount(units: 1_250_000_000, decimals: 9), "1.25"),
         (Amount(units: 1_000_000_000, decimals: 9), "1"),
@@ -23,11 +17,6 @@ struct AmountTests {
         #expect(amount.formatted(locale: Locale(identifier: "en_US")) == expected)
     }
 
-    /// Verifies grouping, fractional padding, separators, and localized digits.
-    ///
-    /// - Parameters:
-    ///   - identifier: The locale used to display the quantity.
-    ///   - expected: The localized representation of the quantity.
     @Test(arguments: [
         ("en_US", "1,234.0005"),
         ("de_DE", "1.234,0005"),

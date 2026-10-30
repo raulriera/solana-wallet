@@ -1,8 +1,5 @@
 import Transactions
 
-/// Public Solana example inputs with message bytes produced by Kit 8.0.0.
-///
-/// See `references/transactions.md` for the source and generation procedure.
 struct MessageFixture: Sendable {
     static let sender = "4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T"
     static let recipient = "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM"
@@ -17,10 +14,6 @@ struct MessageFixture: Sendable {
     let blockhash: String
     let message: String
 
-    /// Creates the resource configuration represented by the fixture.
-    ///
-    /// - Returns: A configuration with the fixture's explicit fee and limits.
-    /// - Throws: A validation error if the fixture is invalid.
     func configuration() throws -> Configuration {
         try Configuration(priorityFeeLamports: priorityFeeLamports, computeUnitLimit: computeUnitLimit,
                           loadedAccountsDataSizeLimit: loadedAccountsDataSizeLimit, heapSize: heapSize)

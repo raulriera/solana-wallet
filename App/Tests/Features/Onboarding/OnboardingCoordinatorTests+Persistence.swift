@@ -6,7 +6,6 @@ import Wallet
 @testable import widgets
 
 extension OnboardingCoordinatorTests {
-    /// Known Vault failures preserve context while unknown dependency payloads remain redacted.
     @Test
     func `Recovery storage preserves its typed protection failure without wrapping secret text`() async throws {
         let recovery = OnboardingRecoveryStore(firstError: KeychainStoreError.protectionUnavailable)
@@ -20,7 +19,6 @@ extension OnboardingCoordinatorTests {
         #expect(accounts.accounts.isEmpty)
     }
 
-    /// An account already saved at the imported address keeps its typed error and can't complete the draft.
     @Test
     func `A duplicate account keeps its typed error and the draft`() async throws {
         let recovery = OnboardingRecoveryStore()
@@ -41,7 +39,6 @@ extension OnboardingCoordinatorTests {
         #expect(await storage.value == [saved])
     }
 
-    /// Finishing in one window leaves another window's recovery draft intact and unfinished.
     @Test
     func `Finishing onboarding finishes only its owning window's draft`() async throws {
         let recovery = OnboardingRecoveryStore()
@@ -62,8 +59,6 @@ extension OnboardingCoordinatorTests {
         #expect(accounts.accounts.map(\.id) == [account.id])
     }
 
-    /// Recovery save failures stop metadata writes while preserving the exact retry identity.
-    /// - Parameter committed: Whether recovery was written before its save reported failure.
     @Test(arguments: [false, true])
     func `Failed recovery saves retain the draft and safely retry the same identity`(committed: Bool) async throws {
         let recovery = OnboardingRecoveryStore(firstError: NSError(domain: "private-recovery-marker", code: 1),
@@ -83,7 +78,6 @@ extension OnboardingCoordinatorTests {
         #expect(accounts.accounts.count == 1)
     }
 
-    /// Retry must verify an existing recovery instead of trusting a duplicate error alone.
     @Test
     func `A duplicate recovery containing different material cannot complete onboarding`() async throws {
         let replacement = Recovery(phrase: try RecoveryPhrase(Self.phrase), passphrase: "different")
@@ -100,7 +94,6 @@ extension OnboardingCoordinatorTests {
         #expect(accounts.accounts.isEmpty)
     }
 
-    /// A failed account save keeps one recovery and one account identity for an explicit retry.
     @Test
     func `Failed account saves retry without generating or saving another recovery`() async throws {
         let recovery = OnboardingRecoveryStore()
@@ -119,7 +112,6 @@ extension OnboardingCoordinatorTests {
         #expect(coordinator.recovery == nil)
     }
 
-    /// Reentrant completion cannot save twice, and cancelled recovery work cannot publish an account.
     @Test
     func `Cancelling recovery persistence preserves the draft and concurrent completion is rejected`() async throws {
         let gate = Suspension()
@@ -143,7 +135,6 @@ extension OnboardingCoordinatorTests {
         #expect(await recovery.saves == [account.recoveryID])
     }
 
-    /// A successful metadata commit remains successful when cancellation arrives afterwards.
     @Test
     func `Cancellation after the metadata commit still returns the saved account`() async throws {
         let gate = Suspension()
@@ -155,7 +146,6 @@ extension OnboardingCoordinatorTests {
         defer { operation.cancel() }
         await gate.waitUntilStarted()
         operation.cancel()
-        // Cancellation doesn't stop a save that started, so the saved account waits only for the storage.
         gate.resume()
         let account = try await operation.value
         #expect(coordinator.account?.id == account.id)

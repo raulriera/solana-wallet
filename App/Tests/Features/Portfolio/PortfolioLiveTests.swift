@@ -4,14 +4,8 @@ import RPC
 import Testing
 import Transactions
 
-/// Verifies read-only mainnet balance reads and caching with a public wallet fixture.
 @Suite(.tags(.network))
 struct PortfolioLiveTests {
-    /// Verifies a live balance read of the default token list, exact native SOL, persistence, and a new service that
-    /// shows the saved snapshot while it reads balances again.
-    ///
-    /// Uses a public address and isolated storage without wallet recovery or funding.
-    /// - Throws: An RPC, storage, or test prerequisite error.
     @Test(.timeLimit(.minutes(1)))
     func `Mainnet portfolio persists listed balances and shows them while reading again`() async throws {
         let transport = LiveResponses<GetMultipleAccounts>()
@@ -36,7 +30,6 @@ struct PortfolioLiveTests {
         #expect(snapshot.owner == owner)
         #expect(snapshot.network == .mainnet)
         #expect(snapshot.holdings.map(\.symbol) == ["SOL", "USDC", "USDT"])
-        // A wallet without an account on the ledger holds no SOL.
         #expect(snapshot.holdings.first?.amount == Amount(units: read.value.first??.lamports ?? 0, decimals: 9))
         #expect(snapshot.holdings.allSatisfy { $0.amount != nil })
         #expect(store.snapshot(for: key) == snapshot)

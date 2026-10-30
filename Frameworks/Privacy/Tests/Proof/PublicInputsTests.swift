@@ -3,18 +3,7 @@ import ModularArithmetic
 @testable import Privacy
 import Testing
 
-/// Verifies the public input hash of transact proofs against zolana's published vectors.
-///
-/// The assembly tests use the byte literals of `sdk-libs/client/tests/assembly_vectors.rs` at tag
-/// v0.4.0-alpha (Apache-2.0), copied unchanged as hexadecimal: a two-input, four-output transfer in
-/// tree 3 from the Ed25519 key with secret 32 bytes of 0x11 to the one with 32 bytes of 0x22, whose
-/// tree slot has the roots `00 ‖ 0x54 × 31` and `00 ‖ 0x59 × 31`. `NOTICE.txt`
-/// records the source and its digest.
 struct PublicInputsTests {
-    /// Verifies the published transfer hashes that carry output owner identities, with full and
-    /// compact padding and up to 36 inputs.
-    ///
-    /// - Parameter vector: A published transfer.
     @Test(arguments: try PublicInputVectors.load().transfers.filter { $0.outputOwnerIdentities != nil })
     func `Hashes match the published transfers`(_ vector: PublicInputVectors.Transfer) throws {
         let publicInputs = try vector.publicInputs()
@@ -25,8 +14,6 @@ struct PublicInputsTests {
         #expect(hash.bigEndianBytes == (try fixtureBytes(vector.publicInputHash)))
     }
 
-    /// Verifies that the published transfer left out is the one without output owner identities,
-    /// which the default ring always publishes.
     @Test
     func `One published transfer has no owner identities`() throws {
         let names = try PublicInputVectors.load().transfers.filter { $0.outputOwnerIdentities == nil }.map(\.name)
@@ -34,8 +21,6 @@ struct PublicInputsTests {
         #expect(names == ["compact_5x4_without_owner_chain"])
     }
 
-    /// Verifies zolana's indexed proof fixture: the hash inserts two trees' slots at index 2 of 15
-    /// public inputs.
     @Test
     func `Hashes match the published proof request`() throws {
         let vector = try PublicInputVectors.load().indexedProof
@@ -48,7 +33,6 @@ struct PublicInputsTests {
         #expect(hash == (try PublicInputVectors.IndexedProof.element(vector.publicInputHash)))
     }
 
-    /// Verifies a tree slot's hash and the chain of that slot followed by 4 unused slots.
     @Test
     func `Tree slots match the published chain`() throws {
         let vector = try HashChainVectors.load().treeSlots
@@ -60,15 +44,6 @@ struct PublicInputsTests {
         #expect(PublicInputs.treeSlotsChain([slot]).bigEndianBytes == (try fixtureBytes(vector.singleTreeChain)))
     }
 
-    /// Verifies zolana's assembled transfer, and its variant whose last output is an ownerless
-    /// padding slot tagged with 32 bytes of 0x6d: one signer, the payer, of 3; the input flags of
-    /// two inputs in tree position 0; and the zero chain of one group for the cache.
-    ///
-    /// - Parameters:
-    ///   - lastOutputHash: The UTXO hash of output slot 3.
-    ///   - lastOutputTag: The view tag of output slot 3, or `nil` for the sender's.
-    ///   - privateTransactionHash: The private transaction hash.
-    ///   - expected: The public input hash.
     @Test(arguments: [
         (
             "031525ba7484687e92e323f2698262bee7a32d1aecf9d0d922b9d295655308d5", nil,

@@ -3,14 +3,7 @@ import Privacy
 import Testing
 import Transactions
 
-/// Verifies an account's registration instruction against bytes assembled by hand from zolana's
-/// Rust layout, with the sender's independent registry record: when the account pays for its record
-/// and when another wallet pays.
 struct ShieldedAccountRegisterTests {
-    /// Verifies the sender's registration: its own keys in the data, its record, itself as the
-    /// read-only signing owner, and the payer as a writable signer.
-    ///
-    /// - Parameter payer: The wallet that pays, the sender itself or the published relayed payer.
     @Test(arguments: [TransferVectors.senderSigningAddress, TransferVectors.transfers[1].payer])
     func `Registrations publish the account's keys`(payer: String) throws {
         let vector = try #require(try RegistryVectors.load().records.first { $0.owner == TransferVectors.senderSigningAddress })
