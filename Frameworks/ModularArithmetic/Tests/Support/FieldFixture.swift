@@ -26,7 +26,7 @@ struct FieldFixture: Sendable, CustomTestStringConvertible {
 }
 
 extension FieldFixture {
-    static let all: [Self] = [bn254, bn254Base, p256]
+    static let all: [Self] = [bn254, bn254Base, wide]
 
     static let zero = "0000000000000000000000000000000000000000000000000000000000000000"
     static let one = "0000000000000000000000000000000000000000000000000000000000000001"
@@ -86,9 +86,9 @@ extension FieldFixture {
         fieldEdgeValues: ["30644e72e131a028ffffffffffffffffffffffffffffffffffffffffffffffff"]
     )
 
-    static let p256 = Self(
-        field: P256ScalarField.self,
-        testDescription: "P-256 scalar field",
+    static let wide = Self(
+        field: WideField.self,
+        testDescription: "Field with a modulus above 2²⁵⁵",
         modulus: "ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551",
         modulusMinusOne: "ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632550",
         modulusMinusTwo: "ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc63254f",

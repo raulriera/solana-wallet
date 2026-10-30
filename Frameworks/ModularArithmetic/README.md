@@ -1,6 +1,6 @@
 # ModularArithmetic
 
-Arithmetic in the BN254 scalar, BN254 base, and P-256 scalar prime fields, built on the Swift standard library only.
+Arithmetic in the BN254 scalar and BN254 base prime fields, built on the Swift standard library only.
 
 ## Usage
 

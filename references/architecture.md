@@ -11,7 +11,7 @@ Xcode mirrors the folder layout in [AGENTS.md](../AGENTS.md); target and module 
 | [Portfolio](../Frameworks/Portfolio/README.md) | Each account's manual token list, balances, prices, and finalized changes. |
 | [Encoding](../Frameworks/Encoding/README.md) | Shared codecs. |
 | [Storage](../Frameworks/Storage/README.md) | Device-only values saved as one file or Keychain item each. |
-| [ModularArithmetic](../Frameworks/ModularArithmetic/README.md) | Prime-field arithmetic for BN254 and P-256. |
+| [ModularArithmetic](../Frameworks/ModularArithmetic/README.md) | Prime-field arithmetic for BN254. |
 | [Privacy](../Frameworks/Privacy/README.md) | Solana Rings private balances; it reads through RPC. |
 | [Themes](../Frameworks/Themes/README.md) | Theme packages, validation, and resolution against app defaults. |
 | App services and coordinators | Shared stores and every workflow: review, approval, authentication, signing, submission, and confirmation. |
