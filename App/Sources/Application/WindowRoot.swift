@@ -26,7 +26,7 @@ struct WindowRoot: View {
                         await services.providerStore.load()
                         // A window that closed during the read creates no workflows.
                         guard !Task.isCancelled else { return }
-                        window = WindowModel(services: services)
+                        window = WindowModel(accounts: services.accountStore)
                     }
             }
         }

@@ -121,19 +121,6 @@ struct AppServices {
         )
     }
 
-    /// Creates independent root navigation for a window that starts by restoring saved wallets.
-    /// - Returns: A new router whose selection is independent of other windows.
-    func makeWindowRouter() -> any WindowRouting {
-        WindowRouter(initialDestination: .restoringWallets)
-    }
-
-    /// Assembles startup restoration for one window from the shared accounts.
-    /// - Parameter router: The owning window's navigation.
-    /// - Returns: A workflow that opens saved accounts without reading recovery material.
-    func makeWindowStartup(router: any WindowRouting) -> any WindowStarting {
-        WindowStartup(accounts: accountStore, router: router)
-    }
-
     /// Assembles a fresh onboarding workflow around the app's shared services.
     /// - Returns: Independent draft state for the onboarding scene that retains this coordinator.
     func makeOnboardingCoordinator() -> any OnboardingCoordinating {

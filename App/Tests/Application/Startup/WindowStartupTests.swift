@@ -14,50 +14,63 @@ struct WindowStartupTests {
         let second = try Account.fixture(index: 1)
         let storage = StoredValue([first, second])
         let accounts = AccountStore.inMemory(storage)
-        let firstWindow = WindowRouter(initialDestination: .restoringWallets)
-        let secondWindow = WindowRouter(initialDestination: .restoringWallets)
+        let firstWindow = WindowModel(accounts: accounts)
+        let secondWindow = WindowModel(accounts: accounts)
 
-        for router in [firstWindow, secondWindow] {
-            await WindowStartup(accounts: accounts, router: router).restore(preferring: nil)
-            #expect(router.destination == .wallet(first))
+        for window in [firstWindow, secondWindow] {
+            await window.restore(preferring: nil)
+            #expect(window.destination == .wallet(first))
         }
-        firstWindow.route(to: .wallet(second))
+        firstWindow.account = second
         #expect(secondWindow.destination == .wallet(first))
         #expect(await storage.value == [first, second])
         #expect(await storage.loads == 1)
     }
 
-    /// A window reopens the wallet it showed before the system ended the app, not the first saved one.
+    /// A window reopens the account it showed before the system ended the app, not the first saved one.
     @Test
-    func `A restored window reopens its own saved wallet`() async throws {
+    func `A restored window reopens its own saved account`() async throws {
         let saved = try [Account.fixture(index: 0), Account.fixture(index: 1)]
-        let router = WindowRouter(initialDestination: .restoringWallets)
+        let window = WindowModel(accounts: .inMemory(StoredValue(saved)))
 
-        await WindowStartup(accounts: .inMemory(StoredValue(saved)), router: router).restore(preferring: saved[1].id)
+        await window.restore(preferring: .init(saved[1]))
 
-        #expect(router.destination == .wallet(saved[1]))
+        #expect(window.destination == .wallet(saved[1]))
     }
 
-    /// A restored identifier for a wallet that is no longer saved falls back to the first saved wallet.
+    /// A restored account that is no longer saved opens its wallet's first account, not another wallet's.
     @Test
-    func `A restored wallet that is no longer saved opens the first saved wallet`() async throws {
+    func `A restored account that is no longer saved opens its wallet's first account`() async throws {
+        let other = try Account.fixture(index: 0)
+        let walletFirst = try Account.fixture(index: 1)
+        let deleted = try Account.fixture(index: 2, recoveryID: walletFirst.recoveryID)
+        let window = WindowModel(accounts: .inMemory(StoredValue([other, walletFirst])))
+
+        await window.restore(preferring: .init(deleted))
+
+        #expect(window.destination == .wallet(walletFirst))
+    }
+
+    /// A restored account whose wallet is no longer saved opens the first saved account.
+    @Test
+    func `A restored wallet that is no longer saved opens the first saved account`() async throws {
         let saved = try [Account.fixture(index: 0), Account.fixture(index: 1)]
-        let router = WindowRouter(initialDestination: .restoringWallets)
+        let window = WindowModel(accounts: .inMemory(StoredValue(saved)))
 
-        await WindowStartup(accounts: .inMemory(StoredValue(saved)), router: router).restore(preferring: UUID())
+        await window.restore(preferring: .init(accountID: UUID(), walletID: UUID()))
 
-        #expect(router.destination == .wallet(saved[0]))
+        #expect(window.destination == .wallet(saved[0]))
     }
 
     /// An empty installation opens onboarding without saving anything.
     @Test
     func `An empty account store opens onboarding without saving accounts`() async {
         let storage = StoredValue<[Account]>()
-        let router = WindowRouter(initialDestination: .restoringWallets)
+        let window = WindowModel(accounts: .inMemory(storage))
 
-        await WindowStartup(accounts: .inMemory(storage), router: router).restore(preferring: nil)
+        await window.restore(preferring: nil)
 
-        #expect(router.destination == .onboarding)
+        #expect(window.destination == .onboarding)
         #expect(await storage.value == nil)
     }
 
@@ -66,11 +79,11 @@ struct WindowStartupTests {
     func `A failed launch cleanup shows an error before any wallet is read`() async throws {
         let storage = StoredValue<[Account]>()
         let cleanup = StartupRecoveryCleanup(error: CocoaError(.fileReadNoPermission))
-        let router = WindowRouter(initialDestination: .restoringWallets)
+        let window = WindowModel(accounts: .inMemory(storage, cleanup: cleanup))
 
-        await WindowStartup(accounts: .inMemory(storage, cleanup: cleanup), router: router).restore(preferring: nil)
+        await window.restore(preferring: nil)
 
-        #expect(router.destination == .walletRestorationFailed)
+        #expect(window.destination == .walletRestorationFailed)
         #expect(await cleanup.completions == 1)
         #expect(await storage.loads == 0)
     }
@@ -80,11 +93,11 @@ struct WindowStartupTests {
     func `Unreadable wallet storage shows an error without resetting its contents`() async throws {
         let saved = try [Account.fixture(index: 0)]
         let storage = StoredValue(saved, unreadable: true)
-        let router = WindowRouter(initialDestination: .restoringWallets)
+        let window = WindowModel(accounts: .inMemory(storage))
 
-        await WindowStartup(accounts: .inMemory(storage), router: router).restore(preferring: nil)
+        await window.restore(preferring: nil)
 
-        #expect(router.destination == .walletRestorationFailed)
+        #expect(window.destination == .walletRestorationFailed)
         #expect(await storage.value == saved)
     }
 
@@ -99,17 +112,15 @@ struct WindowStartupTests {
         let file = storage.url
         let original = try AccountsCoding().encode([saved])
         try Data("temporarily-unreadable".utf8).write(to: file)
-        let router = WindowRouter(initialDestination: .restoringWallets)
-        let startup = WindowStartup(accounts: AccountStore(storage: storage, cleanup: StartupRecoveryCleanup()),
-                                    router: router)
-        await startup.restore(preferring: nil)
-        try #require(router.destination == .walletRestorationFailed)
+        let window = WindowModel(accounts: AccountStore(storage: storage, cleanup: StartupRecoveryCleanup()))
+        await window.restore(preferring: nil)
+        try #require(window.destination == .walletRestorationFailed)
 
         // Only the test repairs its file; startup must leave the recovered bytes intact.
         try original.write(to: file)
-        await startup.restore(preferring: nil)
+        await window.restore(preferring: nil)
 
-        #expect(router.destination == .wallet(saved))
+        #expect(window.destination == .wallet(saved))
         #expect(try Data(contentsOf: file) == original)
     }
 
@@ -119,48 +130,43 @@ struct WindowStartupTests {
     func `Cancelled startup does not publish a late destination`(fails: Bool) async {
         let gate = Suspension()
         let cleanup = StartupRecoveryCleanup(error: fails ? CocoaError(.fileReadNoPermission) : nil, gate: gate)
-        let router = WindowRouter(initialDestination: .restoringWallets)
-        let startup = WindowStartup(accounts: .inMemory(cleanup: cleanup), router: router)
-        let operation = Task { await startup.restore(preferring: nil) }
+        let window = WindowModel(accounts: .inMemory(cleanup: cleanup))
+        let operation = Task { await window.restore(preferring: nil) }
         defer { operation.cancel() }
         await gate.waitUntilStarted()
         operation.cancel()
         gate.resume()
         await operation.value
 
-        #expect(router.destination == .restoringWallets)
+        #expect(window.destination == .restoringWallets)
     }
 
-    /// Reappearing windows preserve both unfinished onboarding and an already selected wallet.
-    /// - Parameter hasWallet: Whether the window is in onboarding or already shows a wallet.
-    @Test(arguments: [false, true])
-    func `Repeated startup preserves resolved window navigation`(hasWallet: Bool) async throws {
-        let destination: WindowDestination = try hasWallet ? .wallet(.fixture(index: 0)) : .onboarding
-        let router = WindowRouter(initialDestination: destination)
-        let storage = StoredValue<[Account]>()
-        let cleanup = StartupRecoveryCleanup()
+    /// A window in onboarding keeps it when startup runs again after another window saved a wallet.
+    @Test
+    func `Repeated startup keeps a window in onboarding`() async throws {
+        let accounts = AccountStore.inMemory()
+        let window = WindowModel(accounts: accounts)
+        await window.restore(preferring: nil)
+        try await accounts.add(.fixture(index: 0))
 
-        await WindowStartup(accounts: .inMemory(storage, cleanup: cleanup), router: router).restore(preferring: nil)
+        await window.restore(preferring: nil)
 
-        #expect(router.destination == destination)
-        #expect(await cleanup.completions == 0)
-        #expect(await storage.loads == 0)
+        #expect(window.destination == .onboarding)
     }
 
     /// A selection made while startup waits wins over its late initial result.
     @Test
     func `A late startup read cannot replace a newer wallet selection`() async throws {
         let gate = Suspension()
-        let router = WindowRouter(initialDestination: .restoringWallets)
-        let startup = WindowStartup(accounts: .inMemory(cleanup: StartupRecoveryCleanup(gate: gate)), router: router)
-        let operation = Task { await startup.restore(preferring: nil) }
+        let saved = try [Account.fixture(index: 0), Account.fixture(index: 1)]
+        let window = WindowModel(accounts: .inMemory(StoredValue(saved), cleanup: StartupRecoveryCleanup(gate: gate)))
+        let operation = Task { await window.restore(preferring: nil) }
         defer { operation.cancel(); gate.resume() }
         await gate.waitUntilStarted()
-        let selected = try Account.fixture(index: 0)
-        router.route(to: .wallet(selected))
+        window.account = saved[1]
         gate.resume()
         await operation.value
 
-        #expect(router.destination == .wallet(selected))
+        #expect(window.destination == .wallet(saved[1]))
     }
 }
