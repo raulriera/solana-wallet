@@ -60,7 +60,7 @@ public struct OneTimeAccount: Sendable, CustomStringConvertible, CustomDebugStri
         guard index < DerivationPath.hardenedBit else { throw OneTimeAccountError.invalidIndex }
         var seed = codeRoot.withUnsafeBytes { Array($0) }
         defer { seed.erase() }
-        var secret = try KeyDerivation.privateKey(seed: seed, path: DerivationPath(indices: [index]), curve: .ed25519)
+        var secret = try KeyDerivation.privateKey(seed: seed, path: DerivationPath(indices: [index]))
         defer { secret.erase() }
         return SymmetricKey(data: secret)
     }

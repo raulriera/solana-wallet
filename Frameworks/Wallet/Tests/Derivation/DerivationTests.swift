@@ -42,7 +42,7 @@ struct DerivationTests {
          "5d70af781f3a37b829f0d060924d5e960bdc02e85423494afc0b1a41bbe196d4"),
     ])
     func `Hardened paths derive the SLIP-0010 Ed25519 reference nodes`(seed: String, path: String, key: String, chainCode: String) throws {
-        let node = try KeyDerivation.node(seed: fixtureBytes(seed), path: DerivationPath(path), curve: .ed25519)
+        let node = try KeyDerivation.node(seed: fixtureBytes(seed), path: DerivationPath(path))
 
         #expect(node.key == (try fixtureBytes(key)))
         #expect(node.chainCode == (try fixtureBytes(chainCode)))
