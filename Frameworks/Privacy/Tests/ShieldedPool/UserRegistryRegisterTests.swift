@@ -10,7 +10,7 @@ struct UserRegistryRegisterTests {
     func `Registrations match the hand-assembled layout`(_ vector: RegistryVectors.Record) throws {
         let recipient = try Recipient(
             signingAddress: Address(vector.owner), nullifierPublicKey: Poseidon.Element(hex: vector.nullifierPublicKey),
-            viewingPublicKey: P256.KeyAgreement.PublicKey(compressedRepresentation: fixtureBytes(vector.viewingPublicKey))
+            viewingPublicKey: Curve25519.KeyAgreement.PublicKey(taggedRepresentation: fixtureBytes(vector.viewingPublicKey))
         )
         let payer = try Address(TransferVectors.transfers[1].payer)
 

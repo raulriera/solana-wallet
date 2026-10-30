@@ -21,7 +21,7 @@ struct UserRegistryTests {
 
         #expect(recipient.signingAddress.value == vector.owner)
         #expect(recipient.nullifierPublicKey.bigEndianBytes == (try fixtureBytes(vector.nullifierPublicKey)))
-        #expect(Array(recipient.viewingPublicKey.compressedRepresentation) == (try fixtureBytes(vector.viewingPublicKey)))
+        #expect([UInt8](recipient.viewingPublicKey.taggedRepresentation) == (try fixtureBytes(vector.viewingPublicKey)))
         #expect(recipient.owner.bigEndianBytes == (try fixtureBytes(vector.ownerHash)))
     }
 
@@ -41,7 +41,8 @@ struct UserRegistryTests {
         (1..<2, [0x00], .ownerMismatch),
         (33..<34, [254], .nonCanonicalBump),
         (34..<66, [UInt8](repeating: 0xff, count: 32), .invalidNullifierPublicKey),
-        (66..<67, [4], .invalidViewingPublicKey),
+        (66..<67, [2], .invalidViewingPublicKey),
+        (67..<99, X25519Fixtures.modulus, .invalidViewingPublicKey),
         (99..<100, [2], .invalidMergingFlag),
     ] as [(Range<Int>, [UInt8], UserRegistry.ValidationError)])
     func `Invalid records are rejected`(range: Range<Int>, bytes: [UInt8], error: UserRegistry.ValidationError) throws {

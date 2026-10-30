@@ -31,7 +31,7 @@ struct ShieldedAccountTests {
         #expect(throws: NullifierKey.ValidationError.invalidSecretLength) {
             try ShieldedAccount(
                 signingAddress: signingAddress, nullifierSecret: SymmetricKey(data: [UInt8](repeating: 1, count: length)),
-                viewingKey: P256.KeyAgreement.PrivateKey()
+                viewingKey: Curve25519.KeyAgreement.PrivateKey()
             )
         }
     }

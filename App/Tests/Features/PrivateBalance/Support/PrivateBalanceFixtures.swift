@@ -38,7 +38,7 @@ enum PrivateBalanceFixtures {
 
     static func otherKeys(for address: Address) throws -> ShieldedAccount {
         try ShieldedAccount(signingAddress: address, nullifierSecret: SymmetricKey(size: SymmetricKeySize(bitCount: 248)),
-                            viewingKey: P256.KeyAgreement.PrivateKey())
+                            viewingKey: Curve25519.KeyAgreement.PrivateKey())
     }
 
     static func confirmation(_ outcome: widgets.Confirmation.Outcome,
@@ -124,7 +124,7 @@ enum PrivateBalanceFixtures {
         let owner = account.signingAddress.bytes
         var data = [1] + owner + [try UserRegistry.record(of: account.signingAddress).bump]
         data += account.nullifierKey.publicKey.bigEndianBytes
-        data += Array(account.viewingKey.publicKey.compressedRepresentation) + [0]
+        data += Array(account.viewingKey.publicKey.taggedRepresentation) + [0]
         return #"{"owner":"\#(try UserRegistry.program.value)","lamports":1586880,"executable":false,"#
             + #""data":["\#(Data(data).base64EncodedString())","base64"]}"#
     }

@@ -21,7 +21,7 @@ struct CommitmentVectors: Decodable, Sendable {
         case ownerIdentity = "owner_identity"
         case blindingSeed = "blinding_seed"
         case dummyUTXOHash = "dummy_utxo_hash"
-        case ed25519Rail = "ed25519_rail"
+        case ed25519Rail = "eddsa_rail"
         case p256Rail = "p256_rail"
     }
 
@@ -103,8 +103,8 @@ struct CommitmentVectors: Decodable, Sendable {
             try NullifierKey(secret: nullifierSecretKey())
         }
 
-        func viewingKey() throws -> P256.KeyAgreement.PrivateKey {
-            try P256.KeyAgreement.PrivateKey(rawRepresentation: fixtureBytes(viewingSecret))
+        func viewingKey() throws -> Curve25519.KeyAgreement.PrivateKey {
+            try Curve25519.KeyAgreement.PrivateKey(rawRepresentation: fixtureBytes(viewingSecret))
         }
 
         func ownerHash() throws -> Poseidon.Element {

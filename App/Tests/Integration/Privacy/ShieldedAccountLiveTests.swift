@@ -42,7 +42,7 @@ struct ShieldedAccountLiveTests {
     private static func randomKeys(for address: Address) throws -> ShieldedAccount {
         try ShieldedAccount(
             signingAddress: address, nullifierSecret: SymmetricKey(size: SymmetricKeySize(bitCount: 248)),
-            viewingKey: P256.KeyAgreement.PrivateKey()
+            viewingKey: Curve25519.KeyAgreement.PrivateKey()
         )
     }
 }

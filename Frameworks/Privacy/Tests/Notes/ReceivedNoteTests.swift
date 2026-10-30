@@ -80,6 +80,18 @@ struct ReceivedNoteTests {
         #expect(try ReceivedNote.notes(in: withoutKey, of: sender).isEmpty)
     }
 
+    @Test(arguments: X25519Fixtures.lowOrderCoordinates)
+    func `Transactions under a low-order viewing key yield no notes`(u: [UInt8]) throws {
+        let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(lamports: 10)], transferLamports: 4)
+        let sealed = try PlanFixtures.transaction(of: plan)
+        let lowOrder = ShieldedTransaction(
+            signature: sealed.signature, slot: sealed.slot, eventIndex: nil, transactionViewingKey: [4] + u, salt: sealed.salt,
+            outputs: sealed.outputs, nullifiers: sealed.nullifiers, isProofless: false
+        )
+
+        #expect(try ReceivedNote.notes(in: lowOrder, of: TransferVectors.sender()).isEmpty)
+    }
+
     @Test
     func `Note diagnostics omit the values`() throws {
         let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(lamports: 10)], transferLamports: 4)

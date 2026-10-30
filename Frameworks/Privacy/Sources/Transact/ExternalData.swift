@@ -31,7 +31,7 @@ struct ExternalData: Sendable {
     /// - Throws: ``WincodeWriter/ValidationError/lengthOverflow`` for more than 255 outputs, or a
     ///   ``Transactions/ValidationError`` if the SOL interface's derivation fails.
     init(
-        transactionViewingPublicKey: P256.KeyAgreement.PublicKey,
+        transactionViewingPublicKey: Curve25519.KeyAgreement.PublicKey,
         salt: [UInt8],
         withdrawal: Withdrawal?,
         outputs: [TransactOutput],
@@ -40,7 +40,7 @@ struct ExternalData: Sendable {
         precondition(salt.count == SlotCipher.saltLength, "A transact's salt needs exactly 16 bytes.")
         var writer = WincodeWriter()
         writer.append(Self.noExpiry)
-        writer.append(array: Array(transactionViewingPublicKey.compressedRepresentation))
+        writer.append(array: Array(transactionViewingPublicKey.taggedRepresentation))
         writer.append(array: salt)
         var accounts = [[UInt8]]()
         if let withdrawal {

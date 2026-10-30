@@ -15,7 +15,7 @@ extension UserRegistry {
     /// - Throws: A ``Transactions/ValidationError`` if an account's derivation fails.
     static func register(_ recipient: Recipient, paidBy payer: Address) throws -> Instruction {
         let data: [UInt8] = [registerTag] + recipient.nullifierPublicKey.bigEndianBytes
-            + Array(recipient.viewingPublicKey.compressedRepresentation)
+            + Array(recipient.viewingPublicKey.taggedRepresentation)
         return Instruction(program: try program, accounts: [
             .init(address: try record(of: recipient.signingAddress).address, isSigner: false, isWritable: true),
             .init(address: recipient.signingAddress, isSigner: true, isWritable: false),

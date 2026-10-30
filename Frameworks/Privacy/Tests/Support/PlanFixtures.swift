@@ -57,7 +57,7 @@ enum PlanFixtures {
             )
         }
         return ShieldedTransaction(
-            signature: signature, slot: slot, eventIndex: 0, transactionViewingKey: Array(viewingKey.publicKey.compressedRepresentation),
+            signature: signature, slot: slot, eventIndex: 0, transactionViewingKey: Array(viewingKey.publicKey.taggedRepresentation),
             salt: salt, outputs: outputs, nullifiers: plan.nullifiers.map(\.bigEndianBytes), isProofless: false
         )
     }

@@ -4,15 +4,15 @@
       "account": 0,
       "signingPubkey": "f036276246a75b9de3349ed42b15e232f6518fc20f5fcd4f1d64e81f9bd258f7",
       "nullifierSecret": "85e3a0d6bf9d62582e6500ea3245ddddbf65e517dbc985c85982e383e4751e",
-      "viewingSecret": "1694bc1c8a456511d0364e26c71409b4912c5b2ff56bed3fc9c706e066496a54",
-      "viewingPubkey": "03170ee9cf7a6f1ad811bd2019d386f67ce337458e0bf585c3cad7ddac85373e32"
+      "viewingSecret": "910a295a5d309fbb7af1c86b8baf24423b2fc63c359842731a2dcef3935b6fcf",
+      "viewingPubkey": "0411e50fb712145d4327be7764b4e1fafe45abff32cbf2d0e150bb853510699350"
     },
     {
       "account": 1,
       "signingPubkey": "f8029acf5cbcbdd5ac46ec147f3b78a3df6e5022ef0411db2bab650d329a4cd4",
       "nullifierSecret": "62351d526f51996740cc2e88978b084117fdee00af7c04df999a22321c9001",
-      "viewingSecret": "60a8c80b23007c79c1dcf1821446dc77e6fcd2bb3e747ddca629784adaf8fa18",
-      "viewingPubkey": "03bb3b5ea4e0a873297d1f80e2ee1ebfabf472129debca75fced4753a95769fe27"
+      "viewingSecret": "5d49d47866cc64837aae098d73f5f102eed8f84f413eadbc68f151fbbdf0d15a",
+      "viewingPubkey": "04bf56646c84b5a325b98e840d094fa1017368d118a9f655f1f5e8eff96387cf1b"
     }
   ],
   "derivation_input_guard": [

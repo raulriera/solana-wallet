@@ -5,8 +5,6 @@ import Testing
 @testable import Privacy
 
 struct Curve25519TaggedRepresentationTests {
-    private static let modulus: [UInt8] = [0xed] + Array(repeating: 0xff, count: 30) + [0x7f]
-
     @Test(arguments: [
         ("a8c6cdc96a3f47a472674331e76bd7237bceb675e513d4faee8734847d376945",
          "0419078976c68ba992eb10aae97df1e453731a022d6c46eb8a0a4f1c976a0cc20a"),
@@ -36,7 +34,7 @@ struct Curve25519TaggedRepresentationTests {
         ([2] + Array(repeating: 1, count: 32), .invalidParameter),
         ([3] + Array(repeating: 1, count: 32), .invalidParameter),
         ([5] + Array(repeating: 1, count: 32), .invalidParameter),
-        ([4] + modulus, .invalidParameter),
+        ([4] + X25519Fixtures.modulus, .invalidParameter),
         ([4] + Array(repeating: 0, count: 31) + [0x80], .invalidParameter),
         ([4] + Array(repeating: 1, count: 31), .incorrectKeySize),
         ([4] + Array(repeating: 1, count: 33), .incorrectKeySize),

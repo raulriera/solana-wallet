@@ -1,5 +1,6 @@
 import Foundation
 import Privacy
+import Storage
 import Testing
 import Transactions
 import Vault
@@ -19,19 +20,33 @@ struct PrivateBalanceKeyRecordTests {
     }
 
     @Test(arguments: [
-        (30, [UInt8](repeating: 1, count: 32), Optional(32)),
-        (32, [UInt8](repeating: 1, count: 32), 32),
-        (31, [UInt8](repeating: 0, count: 32), 32),
-        (31, [UInt8](repeating: 1, count: 31), 32),
-        (31, [UInt8](repeating: 1, count: 32), 31),
-        (31, [UInt8](repeating: 1, count: 32), nil),
+        (30, 32, Optional(32)),
+        (32, 32, 32),
+        (31, 31, 32),
+        (31, 33, 32),
+        (31, 32, 31),
+        (31, 32, nil),
     ])
-    func `Unusable keys don't decode`(nullifierSecret: Int, viewingKey: [UInt8], codeRoot: Int?) throws {
-        var fields = ["nullifierSecret": Data(repeating: 1, count: nullifierSecret), "viewingKey": Data(viewingKey)]
+    func `Unusable keys don't decode`(nullifierSecret: Int, viewingSecret: Int, codeRoot: Int?) throws {
+        var fields = ["nullifierSecret": Data(repeating: 1, count: nullifierSecret),
+                      "viewingSecret": Data(repeating: 1, count: viewingSecret)]
         fields["codeRoot"] = codeRoot.map { Data(repeating: 1, count: $0) }
         let json = try JSONEncoder().encode(fields)
 
         #expect(throws: DecodingError.self) { try JSONDecoder().decode(PrivateBalanceKeyRecord.self, from: json) }
+    }
+
+    @Test
+    func `Keys kept with a P-256 viewing key are unreadable`() throws {
+        let record = [
+            "nullifierSecret": Data(repeating: 1, count: 31), "viewingKey": Data(repeating: 1, count: 32),
+            "codeRoot": Data(repeating: 1, count: 32),
+        ]
+        let coding: JSONCoding<PrivateBalances.Keys> = .json(PrivateBalances.Keys.self)
+
+        let kept = coding.decode(try JSONEncoder().encode(["account": record]))
+
+        #expect(kept == nil)
     }
 
     @Test

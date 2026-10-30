@@ -9,19 +9,22 @@ nonisolated struct PrivateBalanceKeyRecord: Codable, Equatable, Sendable, Custom
     CustomDebugStringConvertible, CustomReflectable {
     /// The encoded fields of a record.
     private enum CodingKeys: String, CodingKey {
-        case nullifierSecret, viewingKey, codeRoot
+        case nullifierSecret, viewingSecret, codeRoot
     }
 
     /// The length of a nullifier secret, in bytes.
     private static let nullifierSecretLength = 31
 
-    /// The length of a code root, in bytes.
+    /// The length of a viewing secret.
+    private static let viewingSecretLength = 32
+
+    /// The length of a code root.
     private static let codeRootLength = 32
 
     private let nullifierSecret: Data
-    /// The viewing key's raw scalar.
-    private let viewingKey: Data
-    /// The root that derives the account's one-time accounts.
+    /// The viewing key's 32-byte X25519 secret.
+    private let viewingSecret: Data
+    /// The 32-byte root of the account's one-time accounts.
     private let codeRoot: Data
 
     var description: String { "PrivateBalanceKeyRecord" }
@@ -35,22 +38,22 @@ nonisolated struct PrivateBalanceKeyRecord: Codable, Equatable, Sendable, Custom
     /// - Parameter keys: The account's private-balance keys.
     init(_ keys: PrivateBalanceKeys) {
         nullifierSecret = keys.nullifierSecret.withUnsafeBytes { Data($0) }
-        viewingKey = keys.viewingKey.rawRepresentation
+        viewingSecret = keys.viewingKey.rawRepresentation
         codeRoot = keys.codeRoot.withUnsafeBytes { Data($0) }
     }
 
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         nullifierSecret = try container.decode(Data.self, forKey: .nullifierSecret)
-        viewingKey = try container.decode(Data.self, forKey: .viewingKey)
+        viewingSecret = try container.decode(Data.self, forKey: .viewingSecret)
         codeRoot = try container.decode(Data.self, forKey: .codeRoot)
         guard nullifierSecret.count == Self.nullifierSecretLength else {
             throw DecodingError.dataCorruptedError(forKey: .nullifierSecret, in: container,
                                                    debugDescription: "A nullifier secret has 31 bytes.")
         }
-        guard (try? P256.KeyAgreement.PrivateKey(rawRepresentation: viewingKey)) != nil else {
-            throw DecodingError.dataCorruptedError(forKey: .viewingKey, in: container,
-                                                   debugDescription: "A viewing key is a P-256 scalar.")
+        guard viewingSecret.count == Self.viewingSecretLength else {
+            throw DecodingError.dataCorruptedError(forKey: .viewingSecret, in: container,
+                                                   debugDescription: "A viewing secret has 32 bytes.")
         }
         guard codeRoot.count == Self.codeRootLength else {
             throw DecodingError.dataCorruptedError(forKey: .codeRoot, in: container,
@@ -65,7 +68,7 @@ nonisolated struct PrivateBalanceKeyRecord: Codable, Equatable, Sendable, Custom
     /// - Throws: A CryptoKit or validation error for invalid keys.
     func shieldedAccount(for address: Address) throws -> ShieldedAccount {
         try ShieldedAccount(signingAddress: address, nullifierSecret: SymmetricKey(data: nullifierSecret),
-                            viewingKey: P256.KeyAgreement.PrivateKey(rawRepresentation: viewingKey))
+                            viewingKey: Curve25519.KeyAgreement.PrivateKey(rawRepresentation: viewingSecret))
     }
 
     /// Derives the one-time account at an index of the code root.

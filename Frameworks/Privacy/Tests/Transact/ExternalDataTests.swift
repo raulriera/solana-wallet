@@ -36,7 +36,7 @@ struct ExternalDataTests {
 
     @Test
     func `Prefixes without a withdrawal follow zolana's encoding`() throws {
-        let key = P256.KeyAgreement.PrivateKey().publicKey
+        let key = Curve25519.KeyAgreement.PrivateKey().publicKey
         let output = TransactOutput(utxoHash: .one, ownerTag: .payer, data: [7])
         var writer = WincodeWriter()
         try output.write(to: &writer)
@@ -46,26 +46,26 @@ struct ExternalDataTests {
             payer: Address(TransferVectors.senderSigningAddress)
         )
 
-        #expect(externalData.encoded == Array(repeating: 0xff, count: 8) + key.compressedRepresentation + TransferVectors.salt
+        #expect(externalData.encoded == Array(repeating: 0xff, count: 8) + key.taggedRepresentation + TransferVectors.salt
             + [0, 0, 0, 1] + writer.bytes + [0])
         #expect(externalData.hash[0] == 0)
     }
 
     @Test
     func `Prefixes with a withdrawal carry one SOL withdrawal`() throws {
-        let key = P256.KeyAgreement.PrivateKey().publicKey
+        let key = Curve25519.KeyAgreement.PrivateKey().publicKey
         let externalData = try ExternalData(
             transactionViewingPublicKey: key, salt: TransferVectors.salt, withdrawal: PlanFixtures.withdrawal(lamports: 0x0102),
             outputs: [], payer: Address(TransferVectors.senderSigningAddress)
         )
 
-        #expect(externalData.encoded == Array(repeating: 0xff, count: 8) + key.compressedRepresentation + TransferVectors.salt
+        #expect(externalData.encoded == Array(repeating: 0xff, count: 8) + key.taggedRepresentation + TransferVectors.salt
             + [1, 1, 0x02, 0x01, 0, 0, 0, 0, 0, 0] + [0, 0, 0, 0])
     }
 
     @Test
     func `Hashes cover the withdrawal recipient`() throws {
-        let key = P256.KeyAgreement.PrivateKey().publicKey
+        let key = Curve25519.KeyAgreement.PrivateKey().publicKey
         let payer = try Address(TransferVectors.senderSigningAddress)
         let toRelayedPayer = try ExternalData(
             transactionViewingPublicKey: key, salt: TransferVectors.salt, withdrawal: PlanFixtures.withdrawal(lamports: 5),
@@ -82,7 +82,7 @@ struct ExternalDataTests {
 
     @Test
     func `Hashes cover the payer only for outputs that refer to it`() throws {
-        let key = P256.KeyAgreement.PrivateKey().publicKey
+        let key = Curve25519.KeyAgreement.PrivateKey().publicKey
         let sender = try Address(TransferVectors.senderSigningAddress)
         let relayed = try Address(TransferVectors.transfers[1].payer)
         let inline = [TransactOutput(utxoHash: .one, ownerTag: .inline(sender.bytes), data: [7])]

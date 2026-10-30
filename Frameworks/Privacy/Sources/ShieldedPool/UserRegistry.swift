@@ -14,7 +14,7 @@ public enum UserRegistry {
         case nonCanonicalBump
         /// The record's nullifier public key isn't a canonical field element.
         case invalidNullifierPublicKey
-        /// The record's viewing public key isn't a compressed P-256 point.
+        /// The record's viewing public key isn't a tagged X25519 public key.
         case invalidViewingPublicKey
         /// The record's merging flag isn't 0 or 1.
         case invalidMergingFlag
@@ -72,9 +72,9 @@ public enum UserRegistry {
         guard let nullifierPublicKey = Poseidon.Element(bigEndianBytes: Array(data[nullifierPublicKeyRange])) else {
             throw ValidationError.invalidNullifierPublicKey
         }
-        let viewingPublicKey: P256.KeyAgreement.PublicKey
+        let viewingPublicKey: Curve25519.KeyAgreement.PublicKey
         do {
-            viewingPublicKey = try P256.KeyAgreement.PublicKey(compressedRepresentation: data[viewingPublicKeyRange])
+            viewingPublicKey = try Curve25519.KeyAgreement.PublicKey(taggedRepresentation: data[viewingPublicKeyRange])
         } catch {
             throw ValidationError.invalidViewingPublicKey
         }

@@ -35,7 +35,7 @@ struct RecipientTests {
 
     @Test
     func `Off-curve signing addresses are rejected`() throws {
-        let viewingKey = P256.KeyAgreement.PrivateKey()
+        let viewingKey = Curve25519.KeyAgreement.PrivateKey()
 
         #expect(throws: Recipient.ValidationError.offCurveSigningAddress) {
             try Recipient(signingAddress: ShieldedPool.solInterface, nullifierPublicKey: .one, viewingPublicKey: viewingKey.publicKey)

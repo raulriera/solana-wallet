@@ -7,6 +7,8 @@ enum SlotCipher {
     /// An error that rejects a salt.
     enum ValidationError: Error, Equatable {
         case invalidSaltLength
+        /// The other party's public key has low order.
+        case lowOrderPublicKey
     }
 
     /// An error from the platform cipher.
@@ -39,12 +41,12 @@ enum SlotCipher {
     ///   - slot: The output's position in the transaction.
     /// - Returns: The ciphertext or the plaintext.
     /// - Throws: ``ValidationError/invalidSaltLength`` for a salt of another length,
-    ///   ``CipherError/cryptorFailed`` if CommonCrypto fails, or a CryptoKit error if the key
-    ///   agreement fails.
+    ///   ``ValidationError/lowOrderPublicKey`` for a low-order public key of the other party, or
+    ///   ``CipherError/cryptorFailed`` if CommonCrypto fails.
     static func applyAsSender(
         to input: [UInt8],
-        transactionViewingKey: P256.KeyAgreement.PrivateKey,
-        recipientViewingPublicKey: P256.KeyAgreement.PublicKey,
+        transactionViewingKey: Curve25519.KeyAgreement.PrivateKey,
+        recipientViewingPublicKey: Curve25519.KeyAgreement.PublicKey,
         salt: [UInt8],
         slot: UInt32
     ) throws -> [UInt8] {
@@ -65,12 +67,12 @@ enum SlotCipher {
     ///   - slot: The output's position in the transaction.
     /// - Returns: The plaintext or the ciphertext.
     /// - Throws: ``ValidationError/invalidSaltLength`` for a salt of another length,
-    ///   ``CipherError/cryptorFailed`` if CommonCrypto fails, or a CryptoKit error if the key
-    ///   agreement fails.
+    ///   ``ValidationError/lowOrderPublicKey`` for a low-order public key of the other party, or
+    ///   ``CipherError/cryptorFailed`` if CommonCrypto fails.
     static func applyAsRecipient(
         to input: [UInt8],
-        viewingKey: P256.KeyAgreement.PrivateKey,
-        transactionViewingPublicKey: P256.KeyAgreement.PublicKey,
+        viewingKey: Curve25519.KeyAgreement.PrivateKey,
+        transactionViewingPublicKey: Curve25519.KeyAgreement.PublicKey,
         salt: [UInt8],
         slot: UInt32
     ) throws -> [UInt8] {
@@ -93,21 +95,23 @@ enum SlotCipher {
     ///   - slot: The output's position in the transaction.
     /// - Returns: The input XORed with the slot's key stream.
     /// - Throws: ``ValidationError/invalidSaltLength`` for a salt of another length,
-    ///   ``CipherError/cryptorFailed`` if CommonCrypto fails, or a CryptoKit error if the key
-    ///   agreement fails.
+    ///   ``ValidationError/lowOrderPublicKey`` for a low-order public key of the other party, or
+    ///   ``CipherError/cryptorFailed`` if CommonCrypto fails.
     private static func apply(
         to input: [UInt8],
-        secret: P256.KeyAgreement.PrivateKey,
-        counterparty: P256.KeyAgreement.PublicKey,
-        ephemeralPublicKey: P256.KeyAgreement.PublicKey,
-        recipientPublicKey: P256.KeyAgreement.PublicKey,
+        secret: Curve25519.KeyAgreement.PrivateKey,
+        counterparty: Curve25519.KeyAgreement.PublicKey,
+        ephemeralPublicKey: Curve25519.KeyAgreement.PublicKey,
+        recipientPublicKey: Curve25519.KeyAgreement.PublicKey,
         salt: [UInt8],
         slot: UInt32
     ) throws -> [UInt8] {
         guard salt.count == saltLength else { throw ValidationError.invalidSaltLength }
-        let shared = try secret.sharedSecretFromKeyAgreement(with: counterparty)
-        let ephemeral = ephemeralPublicKey.compressedRepresentation
-        let recipient = recipientPublicKey.compressedRepresentation
+        guard let shared = try? secret.sharedSecretFromKeyAgreement(with: counterparty) else {
+            throw ValidationError.lowOrderPublicKey
+        }
+        let ephemeral = ephemeralPublicKey.taggedRepresentation
+        let recipient = recipientPublicKey.taggedRepresentation
         var keyMaterial = [UInt8]()
         keyMaterial.reserveCapacity(shared.withUnsafeBytes(\.count) + ephemeral.count + recipient.count)
         defer { keyMaterial.erase() }

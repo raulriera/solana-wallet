@@ -267,7 +267,7 @@ struct TransactPlanOwnerTagTests {
         return try ShieldedAccount(
             signingAddress: Address(Base58.encode(Array(signing.publicKey.rawRepresentation))),
             nullifierSecret: SymmetricKey(data: [UInt8](repeating: seed, count: 31)),
-            viewingKey: P256.KeyAgreement.PrivateKey(rawRepresentation: [UInt8](repeating: seed, count: 32))
+            viewingKey: Curve25519.KeyAgreement.PrivateKey(rawRepresentation: [UInt8](repeating: seed, count: 32))
         )
     }
 }

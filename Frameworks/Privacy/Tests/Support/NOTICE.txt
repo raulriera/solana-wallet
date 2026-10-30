@@ -31,8 +31,7 @@ SHA-256: 833d9389851d39a567b77b41f6c152bfd20e8f0df759ffedf9c190b21b2a62d0
 
 https://github.com/helius-labs/zolana/blob/v0.4.0-alpha/test-vectors/key_derivation.json
 SHA-256: a816351faa20c6bf6b066e39a621e4c187e42d99fdd4b4d1d2a0e77dd9cb47c3
-- CommitmentVectors.json ed25519_rail, p256_rail: sections
-- EncryptionVectors.json tx_viewing, hpke_utxo: sections
+- CommitmentVectors.json p256_rail: a section
 
 https://github.com/helius-labs/zolana/blob/v0.4.0-alpha/test-vectors/hash_chain_4.json
 SHA-256: 6b33b41f3af55d0b1fe98a2ecf28944ce3afa7361221b7af7f27d3fd74dd24a7
@@ -74,10 +73,6 @@ https://github.com/helius-labs/zolana/blob/v0.4.0-alpha/sdk-libs/ts/test/ring-po
 SHA-256: 2d3413474c2f250ed7dced5391a33028a10fad4a52edea86c759a4e20e9cbafd
 - NullifierKeyTests.swift: ALLOW_PRESENT and BLOCK_CLEARED UTXO hashes, blindings, and nullifiers
 
-https://github.com/helius-labs/zolana/blob/v0.4.0-alpha/sdk-libs/transaction/tests/hash_vectors.rs
-SHA-256: b6b7a86e96072a77c7230f691c5f6e554e30486db4de13810f7ebbc5c1338550
-- TransferVectors.swift: the default-ring SOL transfer values
-
 https://github.com/helius-labs/zolana/blob/v0.4.0-alpha/sdk-libs/client/tests/assembly_vectors.rs
 SHA-256: df217702ce1ac812d3009227ef29e2f5187eba1417adfe1ff6baf765d45ce13b
 - PublicInputsTests.swift: PUBLIC_INPUT_HASH, DUMMY_OUTPUT_PUBLIC_INPUT_HASH, and the hashes,
@@ -109,4 +104,10 @@ SHA-256: 536152c956610a1166dbab6459b1d3c7f512b6f552523b028a3d0f3592caf270
 
 https://github.com/helius-labs/zolana/blob/bb2337f05317aa245a345f47c68e434ffed62561/test-vectors/key_derivation.json
 SHA-256: ab5a2d28d0d7a0772ac7a593e5260c00039a57e4926e4fbf1c55490f9723e55d
+- CommitmentVectors.json eddsa_rail: a section
+- EncryptionVectors.json tx_viewing, hpke_utxo: sections
 - Curve25519TaggedRepresentationTests.swift: eddsa_rail viewing_secret and viewing_pubkey, and tx_viewing tx_viewing_secret and tx_viewing_pubkey
+
+https://github.com/helius-labs/zolana/blob/bb2337f05317aa245a345f47c68e434ffed62561/sdk-libs/transaction/tests/hash_vectors.rs
+SHA-256: 7d0807d07c8665f5107bf7dbb4643d56d13662ed924f4ac48d1a034c4db74e35
+- TransferVectors.swift: the default-ring SOL transfer values

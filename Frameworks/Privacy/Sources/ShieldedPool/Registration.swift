@@ -22,7 +22,7 @@ extension ShieldedAccount {
             return .unregistered
         }
         let isOwn = record.nullifierPublicKey == nullifierKey.publicKey
-            && record.viewingPublicKey.compressedRepresentation == viewingKey.publicKey.compressedRepresentation
+            && record.viewingPublicKey.rawRepresentation == viewingKey.publicKey.rawRepresentation
         return isOwn ? .registered : .registeredWithOtherKeys
     }
 }
