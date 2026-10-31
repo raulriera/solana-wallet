@@ -10,6 +10,9 @@
       "Base",
     ],
   },
+  "packages": [
+    { "kind": "remote", "repository": "https://github.com/apple/swift-certificates.git", "version": { "up-to-next-major-version": "1.21.1" } },
+  ],
   "files": [
     {
       "kind": "group",
@@ -50,6 +53,14 @@
       "path": "Frameworks",
       "children": [
         {
+          "kind": "group",
+          "path": "Attestation",
+          "children": [
+            { "kind": "folder", "path": "Sources", "target-membership": [ "Attestation" ] },
+            { "kind": "folder", "path": "Tests", "target-membership": [ "AttestationTests" ] },
+            { "path": "README.md" },
+          ],
+        }, {
           "kind": "group",
           "path": "Encoding",
           "children": [
@@ -103,7 +114,7 @@
           "children": [
             { "kind": "folder", "path": "Concurrency", "target-membership": [ "StorageTests", "widgetsTests" ] },
             { "kind": "folder", "path": "Fields", "target-membership": [ "ModularArithmeticTests", "PrivacyTests" ] },
-            { "kind": "folder", "path": "Fixtures", "target-membership": [ "ModularArithmeticTests", "PrivacyTests", "TransactionsTests", "WalletTests" ] },
+            { "kind": "folder", "path": "Fixtures", "target-membership": [ "AttestationTests", "ModularArithmeticTests", "PrivacyTests", "TransactionsTests", "WalletTests" ] },
             {
               "kind": "folder",
               "path": "Networking",
@@ -221,6 +232,13 @@
             "PrivacyTests/frameworks",
           ],
         }, {
+          "path": "<PRODUCTS>/Attestation.framework",
+          "id": "AD0000000000000000000001",
+          "type": "wrapper.framework",
+          "target-membership": [
+            "AttestationTests/frameworks",
+          ],
+        }, {
           "path": "<PRODUCTS>/Encoding.framework",
           "id": "A60000000000000000000001",
           "type": "wrapper.framework",
@@ -232,6 +250,7 @@
             "Wallet/frameworks",
             "Transactions/frameworks",
             "Privacy/frameworks",
+            "Attestation/frameworks",
             "RPCTests/frameworks",
             "EncodingTests/frameworks",
           ],
@@ -291,6 +310,7 @@
         { "path": "<PRODUCTS>/widgetsUITests.xctest", "id": "AA0000000000000000000002", "type": "wrapper.cfbundle" },
         { "path": "<PRODUCTS>/WalletTests.xctest", "id": "A30000000000000000000002", "type": "wrapper.cfbundle" },
         { "path": "<PRODUCTS>/TransactionsTests.xctest", "id": "A50000000000000000000002", "type": "wrapper.cfbundle" },
+        { "path": "<PRODUCTS>/AttestationTests.xctest", "id": "AD0000000000000000000002", "type": "wrapper.cfbundle" },
         { "path": "<PRODUCTS>/EncodingTests.xctest", "id": "A60000000000000000000002", "type": "wrapper.cfbundle" },
         { "path": "<PRODUCTS>/ModularArithmeticTests.xctest", "id": "A80000000000000000000002", "type": "wrapper.cfbundle" },
         { "path": "<PRODUCTS>/PrivacyTests.xctest", "id": "AB0000000000000000000002", "type": "wrapper.cfbundle" },
@@ -494,6 +514,39 @@
         "INSTALL_PATH": "$(LOCAL_LIBRARY_DIR)/Frameworks",
         "MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS": "gnu17 gnu++20",
         "PRODUCT_BUNDLE_IDENTIFIER": "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).Transactions",
+        "PRODUCT_NAME": "$(TARGET_NAME)",
+        "SDKROOT": "iphoneos",
+        "SKIP_INSTALL": "YES",
+        "SUPPORTED_PLATFORMS": "iphoneos iphonesimulator",
+        "TARGETED_DEVICE_FAMILY": "1,2",
+      },
+    }, {
+      "name": "Attestation",
+      "id": "AD0000000000000000000014",
+      "product": "Products/Attestation.framework",
+      "product-type": "framework",
+      "dependencies": [
+        "Encoding",
+      ],
+      "package-product-members": [
+        { "product-name": "X509", "build-phase": { "build-phase": "frameworks" } },
+      ],
+      "build-phases": [
+        "compile-sources",
+        "frameworks",
+        "resources",
+      ],
+      "build-settings": {
+        "CODE_SIGN_IDENTITY": "",
+        "CODE_SIGN_STYLE": "Automatic",
+        "DEFINES_MODULE": "YES",
+        "DEVELOPMENT_TEAM": "R64MTWS872",
+        "ENABLE_HARDWARE_CHECKED_POINTER_ARITHMETIC_SLICE": "YES",
+        "ENABLE_MODULE_VERIFIER": "YES",
+        "GENERATE_INFOPLIST_FILE": "YES",
+        "INSTALL_PATH": "$(LOCAL_LIBRARY_DIR)/Frameworks",
+        "MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS": "gnu17 gnu++20",
+        "PRODUCT_BUNDLE_IDENTIFIER": "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).Attestation",
         "PRODUCT_NAME": "$(TARGET_NAME)",
         "SDKROOT": "iphoneos",
         "SKIP_INSTALL": "YES",
@@ -863,6 +916,38 @@
           "@loader_path/Frameworks",
         ],
         "PRODUCT_BUNDLE_IDENTIFIER": "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).TransactionsTests",
+        "PRODUCT_NAME": "$(TARGET_NAME)",
+        "SDKROOT": "iphoneos",
+        "SKIP_INSTALL": "YES",
+        "SUPPORTED_PLATFORMS": "iphoneos iphonesimulator",
+        "TARGETED_DEVICE_FAMILY": "1,2",
+        "TEST_HOST": "",
+      },
+    }, {
+      "name": "AttestationTests",
+      "id": "AD0000000000000000000015",
+      "product": "Products/AttestationTests.xctest",
+      "product-type": "bundle.unit-test",
+      "dependencies": [
+        "Attestation",
+      ],
+      "build-phases": [
+        "compile-sources",
+        "frameworks",
+        "resources",
+      ],
+      "build-settings": {
+        "BUNDLE_LOADER": "",
+        "CODE_SIGN_STYLE": "Automatic",
+        "DEVELOPMENT_TEAM": "R64MTWS872",
+        "ENABLE_HARDWARE_CHECKED_POINTER_ARITHMETIC_SLICE": "YES",
+        "GENERATE_INFOPLIST_FILE": "YES",
+        "LD_RUNPATH_SEARCH_PATHS": [
+          "$(inherited)",
+          "@executable_path/Frameworks",
+          "@loader_path/Frameworks",
+        ],
+        "PRODUCT_BUNDLE_IDENTIFIER": "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).AttestationTests",
         "PRODUCT_NAME": "$(TARGET_NAME)",
         "SDKROOT": "iphoneos",
         "SKIP_INSTALL": "YES",

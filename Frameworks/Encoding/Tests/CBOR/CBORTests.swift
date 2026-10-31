@@ -2,30 +2,7 @@ import Encoding
 import Testing
 
 struct CBORTests {
-    @Test(arguments: [
-        ([0x00], .integer(0)),
-        ([0x17], .integer(23)),
-        ([0x18, 0x18], .integer(24)),
-        ([0x19, 0x01, 0x00], .integer(256)),
-        ([0x1a, 0x00, 0x0f, 0x42, 0x40], .integer(1_000_000)),
-        ([0x20], .integer(-1)),
-        ([0x38, 0x63], .integer(-100)),
-        ([0x40], .bytes([])),
-        ([0x44, 0x01, 0x02, 0x03, 0x04], .bytes([1, 2, 3, 4])),
-        ([0x60], .text("")),
-        ([0x64, 0x49, 0x45, 0x54, 0x46], .text("IETF")),
-        ([0x63, 0xe6, 0xb0, 0xb4], .text("水")),
-        ([0x80], .array([])),
-        ([0x83, 0x01, 0x02, 0x03], .array([.integer(1), .integer(2), .integer(3)])),
-        ([0xa0], .map([:])),
-        ([0xa2, 0x01, 0x02, 0x03, 0x04], .map([.integer(1): .integer(2), .integer(3): .integer(4)])),
-        (
-            [0xa2, 0x61, 0x61, 0x01, 0x61, 0x62, 0x82, 0x02, 0x03],
-            .map([.text("a"): .integer(1), .text("b"): .array([.integer(2), .integer(3)])])
-        ),
-        ([0xf4], .boolean(false)),
-        ([0xf5], .boolean(true)),
-        ([0xf6], .null),
+    @Test(arguments: CBORVectors.canonical + [
         (
             [0x9f, 0x01, 0x82, 0x02, 0x03, 0x9f, 0x04, 0x05, 0xff, 0xff],
             .array([.integer(1), .array([.integer(2), .integer(3)]), .array([.integer(4), .integer(5)])])
@@ -34,8 +11,6 @@ struct CBORTests {
             [0xbf, 0x63, 0x46, 0x75, 0x6e, 0xf5, 0x63, 0x41, 0x6d, 0x74, 0x21, 0xff],
             .map([.text("Fun"): .boolean(true), .text("Amt"): .integer(-2)])
         ),
-        ([0x1b, 0x00, 0x1f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff], .integer(9_007_199_254_740_991)),
-        ([0x3b, 0x00, 0x1f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe], .integer(-9_007_199_254_740_991)),
     ] as [([UInt8], CBOR)])
     func `Items in the subset decode`(bytes: [UInt8], expected: CBOR) throws {
         #expect(try CBOR(decoding: bytes) == expected)
