@@ -7,25 +7,31 @@ struct SettingsSidebar: View {
 
     var body: some View {
         List(selection: $selection) {
-            NavigationLink(value: SettingsDestination.appearance) {
-                Label("Appearance", systemImage: "paintpalette.fill")
+            Section {
+                NavigationLink(value: SettingsDestination.accounts) {
+                    Label("Accounts", systemImage: "wallet.bifold.fill")
+                        .labelStyle(.sidebar(tint: .brown))
+                }
+                NavigationLink(value: SettingsDestination.security) {
+                    Label("Security & Privacy", systemImage: "hand.raised.fill")
+                }
             }
-            NavigationLink(value: SettingsDestination.network) {
-                Label("Network", systemImage: "network")
+            Section {
+                NavigationLink(value: SettingsDestination.appearance) {
+                    Label("Appearance", systemImage: "paintpalette.fill")
+                }
+                NavigationLink(value: SettingsDestination.currency) {
+                    Label("Currency", systemImage: "banknote.fill")
+                        .labelStyle(.sidebar(tint: .green))
+                }
             }
-            NavigationLink(value: SettingsDestination.accounts) {
-                Label("Accounts", systemImage: "wallet.bifold.fill")
-                    .labelStyle(.sidebar(tint: .brown))
-            }
-            NavigationLink(value: SettingsDestination.providers) {
-                Label("Providers", systemImage: "point.3.filled.connected.trianglepath.dotted")
-            }
-            NavigationLink(value: SettingsDestination.currency) {
-                Label("Currency", systemImage: "banknote.fill")
-                    .labelStyle(.sidebar(tint: .green))
-            }
-            NavigationLink(value: SettingsDestination.security) {
-                Label("Security & Privacy", systemImage: "hand.raised.fill")
+            Section {
+                NavigationLink(value: SettingsDestination.network) {
+                    Label("Network", systemImage: "network")
+                }
+                NavigationLink(value: SettingsDestination.providers) {
+                    Label("Providers", systemImage: "point.3.filled.connected.trianglepath.dotted")
+                }
             }
         }
         .labelStyle(.sidebar)

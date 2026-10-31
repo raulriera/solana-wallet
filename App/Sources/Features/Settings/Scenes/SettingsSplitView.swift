@@ -35,23 +35,23 @@ struct SettingsSplitView: View {
             SettingsSidebar(selection: $selection)
                 .sidebarColumnWidth()
         } detail: {
-            switch selection ?? .appearance {
+            switch selection ?? .accounts {
+            case .accounts:
+                AccountsScene(account: $account)
+            case .security:
+                SecurityScene(coordinator: security, account: account)
             case .appearance:
                 NavigationStack {
                     AppearanceView(settings: settings, wallet: nil)
                 }
+            case .currency:
+                CurrencyScene()
             case .network:
                 NavigationStack {
                     NetworkScreen(network: $network)
                 }
-            case .accounts:
-                AccountsScene(account: $account)
             case .providers:
                 ProvidersScene(coordinator: providers)
-            case .currency:
-                CurrencyScene()
-            case .security:
-                SecurityScene(coordinator: security, account: account)
             }
         }
         .navigationSplitViewStyle(.tabSection)
@@ -60,7 +60,7 @@ struct SettingsSplitView: View {
             if selection != .providers { providers.leave() }
         }
         .onChange(of: horizontalSizeClass, initial: true) { _, sizeClass in
-            if sizeClass == .regular, selection == nil { selection = .appearance }
+            if sizeClass == .regular, selection == nil { selection = .accounts }
         }
         .errorAlert($settings.error)
     }

@@ -18,12 +18,12 @@ struct SettingsSceneTests {
             appearance: AppearanceCoordinator(store: AppearanceStore(directory: fixture.directory), recovery: nil),
             catalog: ThemeCatalog(directory: fixture.directory), packages: PackService()
         )
-        let account = try Account.fixture(index: 0)
+        let wallet = try await PublicWalletAccounts()
         let rendered = AsyncStream<Int>.makeStream()
         let hosted = try HostedWindow(SettingsSceneRoot(
-            scene: SettingsScene(settings: settings, account: .constant(account), network: .constant(.mainnet),
+            scene: SettingsScene(settings: settings, account: .constant(wallet.first), network: .constant(.mainnet),
                                  security: makeSecurity(), providers: first),
-            generation: 0, rendered: rendered.continuation, providers: providerStore))
+            generation: 0, rendered: rendered.continuation, providers: providerStore, wallet: wallet))
         defer {
             hosted.close()
             rendered.continuation.finish()
@@ -33,9 +33,9 @@ struct SettingsSceneTests {
 
         let second = ProvidersCoordinator.inMemory(providerStore)
         hosted.host.rootView = SettingsSceneRoot(
-            scene: SettingsScene(settings: settings, account: .constant(account), network: .constant(.mainnet),
+            scene: SettingsScene(settings: settings, account: .constant(wallet.first), network: .constant(.mainnet),
                                  security: makeSecurity(), providers: second),
-            generation: 1, rendered: rendered.continuation, providers: providerStore)
+            generation: 1, rendered: rendered.continuation, providers: providerStore, wallet: wallet)
         try #require(await renders.next() == 1)
         first.select(.solana)
 
@@ -58,10 +58,12 @@ private struct SettingsSceneRoot: View {
     let generation: Int
     let rendered: AsyncStream<Int>.Continuation
     let providers: ProviderStore
+    let wallet: PublicWalletAccounts
 
     var body: some View {
         scene
             .environment(providers)
+            .environment(wallet)
             .onChange(of: generation, initial: true) {
                 rendered.yield(generation)
             }

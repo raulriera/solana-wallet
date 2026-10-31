@@ -24,6 +24,12 @@ struct PublicWalletAccounts {
     }
 
     func hosted(_ content: some View) throws -> HostedWindow<some View> {
-        try HostedWindow(content.environment(store).environment(\.accountCreation, creation).environment(transactions))
+        try HostedWindow(content.environment(self))
+    }
+}
+
+extension View {
+    func environment(_ wallet: PublicWalletAccounts) -> some View {
+        environment(wallet.store).environment(\.accountCreation, wallet.creation).environment(wallet.transactions)
     }
 }
