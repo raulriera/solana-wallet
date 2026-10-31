@@ -1,35 +1,14 @@
 # RPC scope
 
-Build for agreed wallet features. A test or hypothetical future use alone doesn't justify an RPC method.
-
-Connect directly to interchangeable RPC, DAS, and pricing providers; no app-owned backend or proxy. `HeliusRPC` and `Solana`, at a public or custom endpoint, share one internal HTTP client. Keep provider-specific endpoints, authentication, batching, and response transformations inside RPC; consumers depend on provider-neutral protocols and values. DAS serves only CDN logo lookups; see [portfolio](portfolio.md). App workflow coordination follows [architecture](architecture.md).
-
-| Feature | RPC need |
-| --- | --- |
-| Create/import seed phrases; view/copy address | None. Keep these local. |
-| Discover accounts after phrase import | One `GetMultipleAccounts` request for twenty public addresses; keep positive SOL balances and ignore zero-SOL accounts. [Wallet](wallet.md) defines the bounded scan. |
-| View portfolio | One `GetMultipleAccounts` request reads native SOL and the listed tokens' accounts, at most 100 accounts. With Helius, DAS lookups of the listed mints supply CDN logos. |
-| Add a token | One `GetMultipleAccounts` request reads the pasted mint and its Metaplex metadata account. With Helius, a DAS lookup adds the logo. |
-| Add a custom RPC | One `GetMultipleAccounts` request, then acknowledged subscriptions over WSS at the same URL: `accountSubscribe`, and `signatureSubscribe` with `rootSubscribe` for a signature that no transaction carries. They confirm that the RPC serves the wallet and its payment watch before it is saved. |
-| Observe incoming portfolio changes | `accountSubscribe` on the wallet and each listed token account supplies finalized changes; the portfolio then reads balances again. Notifications do not patch balances. |
-| Update market prices independently | `PriceProviding` returns our `Quote` values keyed by mint. `Jupiter` implements it through Price V3; consumers can switch providers without adopting a provider's response shape. Price requests do not refetch holdings or metadata. |
-| Show values in the person's currency | `ExchangeRateProviding` returns rates from the quote currency keyed by ISO code. `EuropeanCentralBank` and `Coinbase` implement it with one keyless request each; people choose one, or none to keep USD. |
-| V1 transactions | Ordered instruction compositions: blockhash and its last valid block height, fee/resource estimates, simulation, submission, and a watch that reports a transaction as dropped once its blockhash expires without it landing. Token transfers use `GetMultipleAccounts` for mint/account state, `GetEpochInfo` for Token-2022 fee schedules, and `GetMinimumBalanceForRentExemption` for new destination deposits. |
-| Watch a sent transaction | `signatureSubscribe` gives the result; `rootSubscribe` schedules checks; both share one WSS connection. `GetEpochInfo` at `finalized` proves expiry; until it does, one runs alongside the status read after each subscription. `GetSignatureStatuses` runs once after each subscription and once after expiry unless the first read already reached the expiry slot, then again on later roots while the node lags the expiry slot or reports a status that isn't finalized. |
-| Private balances (Solana Rings, devnet) | With Helius: the indexer's `getShieldedTransactionsByTags` and `getEncryptedUtxosByTags` read an account's notes and deposits by view tag, each to its last page from a stored position; `getShieldedTransactionsByNullifiers` finds spends. Recipient keys come from one `GetMultipleAccounts` request for user-registry records, which every provider serves. Before each spend, one `GetMultipleAccounts` read of the selected notes' nullifier accounts leaves out notes that a transact already queued but the indexer hasn't reported. |
-| Private transfer proofs | With Helius: per declared input tree, one `getMerkleProofs` and one `getNonInclusionProofs` read, concurrently; then one prover request on the complete route, `prove` with `X-Sync: true`, per transfer. |
-| AI-enhanced transaction simulation | Reuse simulation results, logs, and errors for human-readable explanations in a separate framework after RPC; see [simulation explanations](transaction-simulation.md). |
-
-- Confidential transfers remain conditional; agree on feasibility and the concrete flow before adding support.
-- Account and rent reads serve token-transfer prerequisites and the agreed SOL-only account-discovery flow; general account exploration and node-version queries remain outside the current scope. Token ownership and address-history methods have no current agreed consumer and are not exposed.
-- Public Solana (`https://api.mainnet.solana.com`, devnet `https://api.devnet.solana.com`), Helius (`mainnet.helius-rpc.com`, devnet `devnet.helius-rpc.com` with the same key) are the built-in providers, with QuickNode planned; people can add custom HTTPS RPC URLs. A custom RPC serves one network, mainnet; with one selected, devnet requests fail with a typed error instead of using another provider. Submission chooses ordinary RPC broadcast or one Helius Sender tier, never both; see [submission policy](transaction-workflow.md#submission-and-observation).
-- The app reads, simulates, and subscribes at `finalized`, because Alpenglow makes `confirmed` and `finalized` equivalent ([Alpenglow](https://solana.com/upgrades/alpenglow), [commitments](https://docs.anza.xyz/consensus/commitments)).
-- Preserve sanitized server errors with null response IDs. Successful results and attributed errors require matching IDs; missing or malformed ID fields are rejected.
+- Add an RPC method only for an agreed wallet feature; a test or a possible future use doesn't justify one. General account exploration, token ownership, address history, and node-version queries are out of scope. Agree on confidential transfers before adding them.
+- Connect directly to providers; no app-owned backend or proxy. Provider endpoints, authentication, batching, and response transforms stay inside RPC; consumers depend on provider-neutral protocols and values.
+- Built-in providers: public Solana RPC (no key) and Helius (one key for mainnet and devnet); QuickNode is planned. Custom HTTPS RPC URLs serve mainnet only; with one selected, devnet requests fail with a typed error and never use another provider. Before saving a custom RPC, the app checks `GetMultipleAccounts`, `accountSubscribe`, `signatureSubscribe`, and `rootSubscribe` at its URL.
+- Every wallet feature works on every provider. Only optional capabilities differ: Helius adds CDN logos and Solana Rings indexing and proofs.
+- Read, simulate, and subscribe at `finalized`; Alpenglow makes `confirmed` and `finalized` equivalent ([Alpenglow](https://solana.com/upgrades/alpenglow)).
+- Results and attributed errors require matching response IDs; keep sanitized server errors that have null IDs.
 
 ## Rate limits
 
-- Keep ordinary RPC and DAS requests single-attempt, without throttling or cooldowns. Expose HTTP `429` through `RPCError.http(statusCode:retryAfter:)`, preserving the sanitized `Retry-After` header. Subscriptions surface sanitized errors and do not reconnect themselves; Portfolio and the Confirmer reconnect only after errors that `RPCError.isRecoverable` accepts, never after a rate limit or a rejected key.
-- Price providers follow the same error policy. Jupiter deduplicates addresses and paces batches of at most fifty at twenty requests/minute without a key or forty with a key. A failed batch throws without retrying or returning partial results. Reuse the provider to share its request budget; refresh scheduling belongs to the consumer.
-- Exchange-rate providers follow the same error policy. Each call sends one request without pacing; the consumer decides how often to call.
-- Consumers decide presentation and recovery. Portfolio keeps its cached snapshot and exposes the refresh error; the app may silently ignore the warning.
-- Preserve each provider's submission error. Multi-submit attempts each enabled route once; one provider's rate limit must not cancel the others. Do not automatically resubmit.
+- Send RPC and DAS requests once, without throttling or cooldowns. HTTP `429` surfaces as `RPCError.http(statusCode:retryAfter:)`. Subscriptions don't reconnect themselves; consumers reconnect only after errors that `RPCError.isRecoverable` accepts.
+- Price providers pace batches within their request budget. Jupiter sends at most fifty mints per request, at twenty requests a minute without a key or forty with one. A failed batch throws without partial results. Reuse a provider to share its budget.
+- Multi-route submission tries each route once; one route's rate limit doesn't cancel the others. Never resubmit automatically.

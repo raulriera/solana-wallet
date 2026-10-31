@@ -81,4 +81,4 @@
 - Resolve unapproved UI design and behavior with the user before implementing it; do not infer production approval from disposable mockups. Follow [references/ui.md](references/ui.md).
 - Request documentation as Markdown by appending `.md`. Apple API docs: `https://developer.apple.com/documentation/<path>.md`; tutorials/design guidance: `https://developer.apple.com/tutorials/data/<path>.md`.
 
-Keep [references/](references/) concise: current approved decisions, behavior, and limitations only. Do not add project history, dated progress reports, or test-run results; keep unapproved designs out.
+Keep [references/](references/) to primitives the code can't show: approved rules, boundaries, and invariants that guide new work. Do not add feature specs, screen behavior, API walkthroughs, research, to-dos, project history, or test results; the code, DocC, and framework READMEs cover those. Keep unapproved designs out.
