@@ -1,7 +1,5 @@
 import CryptoKit
 import Foundation
-import SwiftASN1
-import X509
 
 /// A certificate chain that carries an AWS Nitro attestation document's signing key from a trusted root.
 struct NitroCertificateChain: Sendable {
@@ -20,13 +18,18 @@ struct NitroCertificateChain: Sendable {
     /// The time a certificate's start of validity may lead the clock, in seconds.
     private static let notBeforeTolerance: TimeInterval = 300
 
-    private static let knownCriticalExtensions: [ASN1ObjectIdentifier] = [
-        .X509ExtensionID.basicConstraints,
-        .X509ExtensionID.keyUsage,
+    private static let knownCriticalExtensions = [
+        NitroCertificate.Extension.basicConstraintsOID,
+        NitroCertificate.Extension.keyUsageOID,
     ]
 
     /// The DER of the ecdsa-with-SHA384 algorithm identifier.
     private static let ecdsaWithSHA384: [UInt8] = [0x30, 0x0a, 0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x04, 0x03, 0x03]
+
+    /// The DER of the algorithm identifier of an elliptic curve key on P-384, id-ecPublicKey with secp384r1.
+    private static let p384PublicKey: [UInt8] = [
+        0x30, 0x10, 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01, 0x06, 0x05, 0x2b, 0x81, 0x04, 0x00, 0x22,
+    ]
 
     /// The key of the certificate that signs the document.
     let signingKey: P384.Signing.PublicKey
@@ -41,49 +44,50 @@ struct NitroCertificateChain: Sendable {
     /// - Throws: A ``ValidationError`` for a chain that fails a check.
     init(certificate: [UInt8], bundle: [[UInt8]], root: [UInt8], at date: Date) throws {
         guard bundle.first == root else { throw ValidationError.untrustedRoot }
-        do {
-            let path = try ([certificate] + bundle.reversed()).map { try Certificate(derEncoded: $0) }
-            signingKey = try path.map { try Self.validatedKey(of: $0, at: date) }[0]
-            for (depth, (child, issuer)) in zip(path, path.dropFirst()).enumerated().reversed() {
-                guard child.issuer == issuer.subject, issuer.publicKey.isValidSignature(child.signature, for: child)
-                else { throw ValidationError.unsignedByIssuer }
-                guard case .isCertificateAuthority(let maxPathLength)? = try issuer.extensions.basicConstraints,
-                    maxPathLength.map({ $0 >= depth }) ?? true,
-                    try issuer.extensions.keyUsage?.keyCertSign ?? true
-                else { throw ValidationError.unauthorizedIssuer }
-            }
-            guard try path[0].extensions.keyUsage?.digitalSignature ?? true else {
-                throw ValidationError.unauthorizedSigner
-            }
-        } catch let error as ValidationError {
-            throw error
-        } catch {
+        guard let path = try? ([certificate] + bundle.reversed()).map(NitroCertificate.init(decoding:)) else {
             throw ValidationError.malformed
         }
+        let signed = try path.map { try Self.validated($0, at: date) }
+        for depth in path.indices.dropLast().reversed() {
+            let (child, issuer) = (path[depth], path[depth + 1])
+            guard child.issuer == issuer.subject,
+                signed[depth + 1].key.isValidSignature(signed[depth].signature, for: child.tbsCertificateBytes)
+            else { throw ValidationError.unsignedByIssuer }
+            guard case .isCertificateAuthority(let maxPathLength)? = issuer.basicConstraints,
+                maxPathLength.map({ $0 >= depth }) ?? true,
+                issuer.keyUsage?.keyCertSign ?? true
+            else { throw ValidationError.unauthorizedIssuer }
+        }
+        guard path[0].keyUsage?.digitalSignature ?? true else { throw ValidationError.unauthorizedSigner }
+        signingKey = signed[0].key
     }
 
-    /// Checks a certificate on its own and reads its key.
+    /// Checks a certificate on its own and reads its key and signature.
     ///
     /// - Parameters:
     ///   - certificate: The certificate to check.
     ///   - date: The time the certificate must be valid at.
-    /// - Returns: The certificate's P-384 key.
+    /// - Returns: The certificate's P-384 key and its ECDSA signature.
     /// - Throws: ``ValidationError/outsideValidity`` for a certificate not valid at `date`,
     ///   ``ValidationError/unknownCriticalExtension`` for a critical extension other than basic constraints and
     ///   key usage, ``ValidationError/unsupportedAlgorithm`` for a signature other than ecdsa-with-SHA384 or a
-    ///   key other than P-384, or an error for a certificate whose signed part doesn't parse.
-    private static func validatedKey(of certificate: Certificate, at date: Date) throws -> P384.Signing.PublicKey {
+    ///   key other than P-384, or ``ValidationError/malformed`` for a key or signature that CryptoKit can't read.
+    private static func validated(
+        _ certificate: NitroCertificate,
+        at date: Date
+    ) throws -> (key: P384.Signing.PublicKey, signature: P384.Signing.ECDSASignature) {
         guard certificate.notValidBefore <= date + notBeforeTolerance, date <= certificate.notValidAfter else {
             throw ValidationError.outsideValidity
         }
-        guard certificate.extensions.allSatisfy({ !$0.critical || knownCriticalExtensions.contains($0.oid) }) else {
+        guard certificate.extensions.allSatisfy({ !$0.isCritical || knownCriticalExtensions.contains($0.oid) }) else {
             throw ValidationError.unknownCriticalExtension
         }
-        guard certificate.signatureAlgorithm == .ecdsaWithSHA384,
-            case .constructed(let fields) = try DER.parse(certificate.tbsCertificateBytes).content,
-            fields.first(where: { $0.identifier == .sequence })?.encodedBytes.elementsEqual(ecdsaWithSHA384) == true,
-            let key = P384.Signing.PublicKey(certificate.publicKey)
+        guard certificate.signatureAlgorithm == ecdsaWithSHA384, certificate.tbsSignatureAlgorithm == ecdsaWithSHA384,
+            certificate.publicKeyAlgorithm == p384PublicKey
         else { throw ValidationError.unsupportedAlgorithm }
-        return key
+        guard let key = try? P384.Signing.PublicKey(x963Representation: certificate.publicKey),
+            let signature = try? P384.Signing.ECDSASignature(derRepresentation: certificate.signature)
+        else { throw ValidationError.malformed }
+        return (key, signature)
     }
 }

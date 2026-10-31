@@ -1,9 +1,6 @@
 import CryptoKit
-import Encoding
 import Foundation
-import SwiftASN1
 import Testing
-import X509
 @testable import Attestation
 
 struct NitroCertificateChainTests {
@@ -18,8 +15,6 @@ struct NitroCertificateChainTests {
         }
     }
 
-    private static let now = Date(timeIntervalSince1970: 1_800_000_000)
-
     @Test
     func `The recorded chain yields the key that signs the document`() throws {
         let (message, chain) = try Self.recorded()
@@ -31,7 +26,7 @@ struct NitroCertificateChainTests {
     func `A bundle that doesn't start at the root is rejected`() throws {
         let (_, recorded) = try Self.recorded()
         var otherRoot = recorded
-        otherRoot.root = try Self.generated().root
+        otherRoot.root = try Self.generated("leaf", issuedThrough: ["root"]).root
         var missingRoot = recorded
         missingRoot.bundle.removeFirst()
         var empty = recorded
@@ -45,7 +40,7 @@ struct NitroCertificateChainTests {
     @Test
     func `Certificates may start at most 300 seconds after the clock`() throws {
         var (_, chain) = try Self.recorded()
-        let start = try Certificate(derEncoded: chain.certificate).notValidBefore
+        let start = Date(timeIntervalSince1970: try Self.recordedSigner().notValidBefore)
 
         chain.date = start - 300
         #expect(throws: Never.self) { try chain.validated() }
@@ -56,7 +51,7 @@ struct NitroCertificateChainTests {
     @Test
     func `Expired certificates are rejected`() throws {
         var (_, chain) = try Self.recorded()
-        chain.date = try Certificate(derEncoded: chain.certificate).notValidAfter + 1
+        chain.date = Date(timeIntervalSince1970: try Self.recordedSigner().notValidAfter + 1)
 
         #expect(throws: NitroCertificateChain.ValidationError.outsideValidity) { try chain.validated() }
     }
@@ -79,43 +74,50 @@ struct NitroCertificateChainTests {
 
     @Test
     func `Bytes other than a certificate are rejected`() throws {
-        var chain = try Self.generated()
+        var chain = try Self.generated("leaf", issuedThrough: ["root"])
         chain.certificate = [0x30, 0x00]
 
         #expect(throws: NitroCertificateChain.ValidationError.malformed) { try chain.validated() }
     }
 
-    @Test
-    func `A generated chain is valid`() throws {
-        let chain = try Self.generated()
+    @Test(arguments: ["leaf-off-curve-key", "leaf-unparsable-signature"])
+    func `A P-384 key or ECDSA signature that CryptoKit can't read is rejected`(signer: String) throws {
+        let chain = try Self.generated(signer, issuedThrough: ["root"])
 
-        #expect(throws: Never.self) { try chain.validated() }
+        #expect(throws: NitroCertificateChain.ValidationError.malformed) { try chain.validated() }
     }
 
-    @Test
-    func `An issuer that isn't a certificate authority is rejected`() throws {
-        let chain = try Self.generated(rootExtensions: Certificate.Extensions {
-            Critical(BasicConstraints.notCertificateAuthority)
-            Critical(KeyUsage(keyCertSign: true))
-        })
+    @Test(arguments: [
+        ("leaf", ["root"]),
+        ("leaf-without-extensions", ["root"]),
+        ("leaf-below-intermediate", ["root", "intermediate"]),
+    ])
+    func `A generated chain yields its signer's key`(signer: String, bundle: [String]) throws {
+        let chain = try Self.generated(signer, issuedThrough: bundle)
+        let key = try fixtureBytes(NitroCertificateFixtures.load().certificate(named: signer).publicKey)
+
+        #expect(Array(try chain.validated().signingKey.x963Representation) == key)
+    }
+
+    @Test(arguments: ["root-not-authority", "root-without-basic-constraints"])
+    func `An issuer that isn't a certificate authority is rejected`(issuer: String) throws {
+        let chain = try Self.generated("leaf", issuedThrough: [issuer])
 
         #expect(throws: NitroCertificateChain.ValidationError.unauthorizedIssuer) { try chain.validated() }
     }
 
     @Test
     func `An issuer that may not sign certificates is rejected`() throws {
-        let chain = try Self.generated(rootExtensions: Certificate.Extensions {
-            Critical(BasicConstraints.isCertificateAuthority(maxPathLength: nil))
-            Critical(KeyUsage(digitalSignature: true, cRLSign: true))
-        })
+        let chain = try Self.generated("leaf", issuedThrough: ["root-without-certificate-signing"])
 
         #expect(throws: NitroCertificateChain.ValidationError.unauthorizedIssuer) { try chain.validated() }
     }
 
     @Test
     func `An issuer's path length limits the authorities below it`() throws {
-        let allowed = try Self.generated(rootExtensions: Self.authority(maxPathLength: 1), intermediates: 1)
-        let exceeded = try Self.generated(rootExtensions: Self.authority(maxPathLength: 0), intermediates: 1)
+        let signer = "leaf-below-intermediate"
+        let allowed = try Self.generated(signer, issuedThrough: ["root-path-length-1", "intermediate"])
+        let exceeded = try Self.generated(signer, issuedThrough: ["root-path-length-0", "intermediate"])
 
         #expect(throws: Never.self) { try allowed.validated() }
         #expect(throws: NitroCertificateChain.ValidationError.unauthorizedIssuer) { try exceeded.validated() }
@@ -123,108 +125,72 @@ struct NitroCertificateChainTests {
 
     @Test
     func `A signer that may not make digital signatures is rejected`() throws {
-        let chain = try Self.generated(leafExtensions: Certificate.Extensions { KeyUsage(keyEncipherment: true) })
+        let chain = try Self.generated("leaf-key-encipherment", issuedThrough: ["root"])
 
         #expect(throws: NitroCertificateChain.ValidationError.unauthorizedSigner) { try chain.validated() }
     }
 
     @Test
     func `An unknown critical extension is rejected`() throws {
-        let unknown = Certificate.Extension(oid: [1, 3, 6, 1, 4, 1, 99_999, 1], critical: true, value: [0x05, 0x00])
-        let critical = try Self.generated(leafExtensions: Certificate.Extensions { unknown })
-        let noncritical = try Self.generated(leafExtensions: Certificate.Extensions {
-            Certificate.Extension(oid: unknown.oid, critical: false, value: unknown.value)
-        })
+        let critical = try Self.generated("leaf-unknown-critical", issuedThrough: ["root"])
+        let noncritical = try Self.generated("leaf-unknown-noncritical", issuedThrough: ["root"])
 
         #expect(throws: NitroCertificateChain.ValidationError.unknownCriticalExtension) { try critical.validated() }
         #expect(throws: Never.self) { try noncritical.validated() }
     }
 
-    @Test
-    func `A certificate signed with another algorithm is rejected`() throws {
-        let chain = try Self.generated(signatureAlgorithm: .ecdsaWithSHA256)
+    @Test(arguments: [
+        ("leaf-sha256", "root"),
+        ("leaf-tbs-sha256", "root"),
+        ("leaf-rsa-signed", "rsa-root"),
+    ])
+    func `A certificate signed with an algorithm other than ECDSA with SHA-384 is rejected`(
+        signer: String,
+        issuer: String
+    ) throws {
+        let chain = try Self.generated(signer, issuedThrough: [issuer])
+
+        #expect(throws: NitroCertificateChain.ValidationError.unsupportedAlgorithm) { try chain.validated() }
+    }
+
+    @Test(arguments: ["leaf-p256", "leaf-rsa", "leaf-ed25519"])
+    func `A key other than P-384 is rejected`(signer: String) throws {
+        let chain = try Self.generated(signer, issuedThrough: ["root"])
 
         #expect(throws: NitroCertificateChain.ValidationError.unsupportedAlgorithm) { try chain.validated() }
     }
 
     @Test
-    func `A key other than P-384 is rejected`() throws {
-        let chain = try Self.generated(leafKey: Certificate.PrivateKey(P256.Signing.PrivateKey()))
+    func `An issuer name that differs only in its string type is rejected`() throws {
+        let chain = try Self.generated("leaf-printable-issuer", issuedThrough: ["root"])
 
-        #expect(throws: NitroCertificateChain.ValidationError.unsupportedAlgorithm) { try chain.validated() }
+        #expect(throws: NitroCertificateChain.ValidationError.unsignedByIssuer) { try chain.validated() }
     }
 
     private static func recorded() throws -> (message: COSESign1, chain: Chain) {
         let recorded = try RecordedNitroAttestation.load()
-        let message = try COSESign1(decoding: fixtureBytes(recorded.attestation.evidence.document))
-        guard case .map(let document) = try CBOR(decoding: message.payload),
-            case .bytes(let certificate)? = document[.text("certificate")],
-            case .array(let items)? = document[.text("cabundle")]
-        else { throw CBOR.ValidationError.malformed }
-        let bundle = try items.map { item in
-            guard case .bytes(let bytes) = item else { throw CBOR.ValidationError.malformed }
-            return bytes
-        }
-        let date = Date(timeIntervalSince1970: TimeInterval(recorded.capturedAt))
-        return (message, Chain(certificate: certificate, bundle: bundle, root: NitroCertificateChain.awsNitroEnclavesRoot, date: date))
+        let (message, certificate, bundle) = try recorded.decoded()
+        let chain = Chain(
+            certificate: certificate,
+            bundle: bundle,
+            root: NitroCertificateChain.awsNitroEnclavesRoot,
+            date: recorded.capturedDate
+        )
+        return (message, chain)
     }
 
-    private static func authority(maxPathLength: Int?) throws -> Certificate.Extensions {
-        try Certificate.Extensions {
-            Critical(BasicConstraints.isCertificateAuthority(maxPathLength: maxPathLength))
-            Critical(KeyUsage(keyCertSign: true))
-        }
+    private static func recordedSigner() throws -> NitroCertificateFixtures.Summary {
+        try #require(NitroCertificateFixtures.load().recorded.first)
     }
 
-    private static func generated(
-        rootExtensions: Certificate.Extensions? = nil,
-        intermediates: Int = 0,
-        leafExtensions: Certificate.Extensions? = nil,
-        leafKey: Certificate.PrivateKey = Certificate.PrivateKey(P384.Signing.PrivateKey()),
-        signatureAlgorithm: Certificate.SignatureAlgorithm = .ecdsaWithSHA384
-    ) throws -> Chain {
-        let keys = (0...intermediates).map { _ in Certificate.PrivateKey(P384.Signing.PrivateKey()) } + [leafKey]
-        let extensions = try [rootExtensions ?? authority(maxPathLength: nil)]
-            + Array(repeating: authority(maxPathLength: nil), count: intermediates)
-            + [leafExtensions ?? Certificate.Extensions { KeyUsage(digitalSignature: true) }]
-        let certificates = try keys.indices.map { index in
-            try issue(
-                "level \(index)",
-                publicKey: keys[index].publicKey,
-                issuer: "level \(max(index - 1, 0))",
-                issuerKey: keys[max(index - 1, 0)],
-                signatureAlgorithm: signatureAlgorithm,
-                extensions: extensions[index]
-            )
-        }
+    private static func generated(_ signer: String, issuedThrough bundle: [String]) throws -> Chain {
+        let fixtures = try NitroCertificateFixtures.load()
+        let bundle = try bundle.map(fixtures.bytes(of:))
         return Chain(
-            certificate: certificates[certificates.count - 1],
-            bundle: Array(certificates.dropLast()),
-            root: certificates[0],
-            date: now
+            certificate: try fixtures.bytes(of: signer),
+            bundle: bundle,
+            root: try #require(bundle.first),
+            date: Date(timeIntervalSince1970: TimeInterval(fixtures.date))
         )
-    }
-
-    private static func issue(
-        _ subject: String,
-        publicKey: Certificate.PublicKey,
-        issuer: String,
-        issuerKey: Certificate.PrivateKey,
-        signatureAlgorithm: Certificate.SignatureAlgorithm,
-        extensions: Certificate.Extensions
-    ) throws -> [UInt8] {
-        let certificate = try Certificate(
-            version: .v3,
-            serialNumber: Certificate.SerialNumber(),
-            publicKey: publicKey,
-            notValidBefore: now - 3_600,
-            notValidAfter: now + 3_600,
-            issuer: DistinguishedName { CommonName(issuer) },
-            subject: DistinguishedName { CommonName(subject) },
-            signatureAlgorithm: signatureAlgorithm,
-            extensions: extensions,
-            issuerPrivateKey: issuerKey
-        )
-        return try certificate.serializeAsPEM().derBytes
     }
 }

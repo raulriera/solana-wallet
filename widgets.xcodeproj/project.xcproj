@@ -10,9 +10,6 @@
       "Base",
     ],
   },
-  "packages": [
-    { "kind": "remote", "repository": "https://github.com/apple/swift-certificates.git", "version": { "up-to-next-major-version": "1.21.1" } },
-  ],
   "files": [
     {
       "kind": "group",
@@ -527,9 +524,6 @@
       "product-type": "framework",
       "dependencies": [
         "Encoding",
-      ],
-      "package-product-members": [
-        { "product-name": "X509", "build-phase": { "build-phase": "frameworks" } },
       ],
       "build-phases": [
         "compile-sources",
