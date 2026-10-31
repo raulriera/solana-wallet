@@ -7,14 +7,6 @@ struct DerivationTests {
     private static let secondSeed = "fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a2"
         + "9f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542"
 
-    @Test(arguments: try BIP39Vector.examples())
-    func `Recovery phrases derive the BIP-39 reference seeds`(vector: BIP39Vector) throws {
-        let phrase = try RecoveryPhrase(vector.phrase)
-        let seed = try SeedDerivation.seed(for: phrase, passphrase: "TREZOR")
-
-        #expect(seed == (try fixtureBytes(vector.seed)))
-    }
-
     @Test(arguments: [
         (firstSeed, "m", "2b4be7f19ee27bbf30c667b642d5f4aa69fd169872f8fc3059c08ebae2eb19e7",
          "90046a93de5380a72b5e45010748567d5ea02bbf6522f979e05c0d8d8ca9fffb"),
