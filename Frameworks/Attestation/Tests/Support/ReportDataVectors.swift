@@ -10,6 +10,6 @@ struct ReportDataVectors: Decodable, Sendable {
     }
 
     static func load() throws -> Self {
-        try fixture(named: "ReportDataVectors")
+        try fixture(named: "EncryptedProverVectors")
     }
 }

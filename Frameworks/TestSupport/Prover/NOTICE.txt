@@ -1,0 +1,27 @@
+Third-party test vectors in the shared Prover test support
+
+The prover test vectors below come from zolana, copied unchanged:
+https://github.com/helius-labs/zolana
+Licensed under the Apache License, Version 2.0; a copy is in zolana-LICENSE.txt, identical to
+upstream LICENSE at the revision below. zolana ships no NOTICE file at it.
+
+Fixtures
+- EncryptedProverVectors.json: encrypted prover report_data and HPKE request and response vectors
+- RecordedDevnetNitroAttestation.json: a recorded AWS Nitro attestation of the devnet prover
+- RecordedMainnetNitroAttestation.json: a recorded AWS Nitro attestation of the mainnet prover
+
+Release: 0.7.0-alpha
+Commit: bb2337f
+License: https://github.com/helius-labs/zolana/blob/bb2337f05317aa245a345f47c68e434ffed62561/LICENSE
+
+https://github.com/helius-labs/zolana/blob/bb2337f05317aa245a345f47c68e434ffed62561/prover/tee/testdata/devnet_e_tee_1_attestation.json
+SHA-256: aa32339621fb9ec645029741940bac2a5d382e494d2d33f71d7cfe07d0d83b5f
+- RecordedDevnetNitroAttestation.json: the whole file
+
+https://github.com/helius-labs/zolana/blob/bb2337f05317aa245a345f47c68e434ffed62561/prover/tee/testdata/mainnet_tee_2_attestation.json
+SHA-256: 9ae22d722f7fa9095de21466060e0c823c5ba8e868d3089fb0419592b64c7153
+- RecordedMainnetNitroAttestation.json: the whole file
+
+https://github.com/helius-labs/zolana/blob/bb2337f05317aa245a345f47c68e434ffed62561/prover/tee/testdata/vectors.json
+SHA-256: f28e01eb4bdcfabf4eec4b8ec8237b14935832ba5128b8fcd47f2b64185addc2
+- EncryptedProverVectors.json: the whole file

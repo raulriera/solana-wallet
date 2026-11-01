@@ -111,7 +111,7 @@
           "children": [
             { "kind": "folder", "path": "Concurrency", "target-membership": [ "StorageTests", "widgetsTests" ] },
             { "kind": "folder", "path": "Fields", "target-membership": [ "ModularArithmeticTests", "PrivacyTests" ] },
-            { "kind": "folder", "path": "Fixtures", "target-membership": [ "AttestationTests", "ModularArithmeticTests", "PrivacyTests", "TransactionsTests", "WalletTests" ] },
+            { "kind": "folder", "path": "Fixtures", "target-membership": [ "AttestationTests", "ModularArithmeticTests", "PrivacyTests", "RPCTests", "TransactionsTests", "WalletTests" ] },
             {
               "kind": "folder",
               "path": "Networking",
@@ -126,6 +126,23 @@
                   "target": "widgetsTests",
                   "exclusions": [
                     "SilentWebSocketServer.swift",
+                  ],
+                },
+              ],
+            },
+            {
+              "kind": "folder",
+              "path": "Prover",
+              "target-membership": [
+                "AttestationTests",
+                "RPCTests",
+              ],
+              "membership-exceptions": [
+                {
+                  "target": "AttestationTests",
+                  "exclusions": [
+                    "NOTICE.txt",
+                    "zolana-LICENSE.txt",
                   ],
                 },
               ],

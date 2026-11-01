@@ -9,9 +9,6 @@ Fixtures
 - DevnetNitroPolicy.json: the devnet prover's AWS Nitro deployment policy
 - MainnetNitroPolicy.json: the mainnet prover's AWS Nitro deployment policy
 - NitroCBORCases.json: AWS Nitro attestation CBOR cases
-- RecordedDevnetNitroAttestation.json: a recorded AWS Nitro attestation of the devnet prover
-- RecordedMainnetNitroAttestation.json: a recorded AWS Nitro attestation of the mainnet prover
-- ReportDataVectors.json: encrypted prover vectors, including report_data
 
 Release: 0.7.0-alpha
 Commit: bb2337f
@@ -25,18 +22,6 @@ https://github.com/helius-labs/zolana/blob/bb2337f05317aa245a345f47c68e434ffed62
 SHA-256: 56299c6067c5f29ab9b658ebf49294892a33905ca19e8a6744d65d4b38b16698
 - MainnetNitroPolicy.json: the whole file
 
-https://github.com/helius-labs/zolana/blob/bb2337f05317aa245a345f47c68e434ffed62561/prover/tee/testdata/devnet_e_tee_1_attestation.json
-SHA-256: aa32339621fb9ec645029741940bac2a5d382e494d2d33f71d7cfe07d0d83b5f
-- RecordedDevnetNitroAttestation.json: the whole file
-
-https://github.com/helius-labs/zolana/blob/bb2337f05317aa245a345f47c68e434ffed62561/prover/tee/testdata/mainnet_tee_2_attestation.json
-SHA-256: 9ae22d722f7fa9095de21466060e0c823c5ba8e868d3089fb0419592b64c7153
-- RecordedMainnetNitroAttestation.json: the whole file
-
 https://github.com/helius-labs/zolana/blob/bb2337f05317aa245a345f47c68e434ffed62561/prover/tee/testdata/nitro_cbor_cases.json
 SHA-256: 2222ecc174d1fcc0f2ab7d40b57fa0d56f43581dab15561b7160794c27d1871e
 - NitroCBORCases.json: the whole file
-
-https://github.com/helius-labs/zolana/blob/bb2337f05317aa245a345f47c68e434ffed62561/prover/tee/testdata/vectors.json
-SHA-256: f28e01eb4bdcfabf4eec4b8ec8237b14935832ba5128b8fcd47f2b64185addc2
-- ReportDataVectors.json: the whole file
