@@ -1,21 +1,21 @@
 import Encoding
 
-extension HeliusRPC {
+extension Zolana {
     @concurrent
     public func merkleProofs(for leaves: [[UInt8]], inTree tree: String) async throws -> [MerkleProof] {
         guard leaves.allSatisfy({ $0.count == 32 }) else { throw PrivateNoteError.invalidLeaf }
-        let gateway = gateway
+        let indexer = indexer
         return try await Self.proofs(of: leaves, inTree: tree, leaf: \.leaf) { tree, leaves in
-            try await gateway.send(GetMerkleProofs(treeAccount: tree, leaves: leaves), at: GetMerkleProofs.method).proofs
+            try await indexer.send(GetMerkleProofs(treeAccount: tree, leaves: leaves), at: GetMerkleProofs.method).proofs
         }
     }
 
     @concurrent
     public func nonInclusionProofs(for nullifiers: [[UInt8]], inTree tree: String) async throws -> [NonInclusionProof] {
         guard nullifiers.allSatisfy({ $0.count == 32 }) else { throw PrivateNoteError.invalidNullifier }
-        let gateway = gateway
+        let indexer = indexer
         return try await Self.proofs(of: nullifiers, inTree: tree, leaf: \.nullifier) { tree, leaves in
-            try await gateway.send(GetNonInclusionProofs(treeAccount: tree, leaves: leaves),
+            try await indexer.send(GetNonInclusionProofs(treeAccount: tree, leaves: leaves),
                                    at: GetNonInclusionProofs.method).proofs
         }
     }

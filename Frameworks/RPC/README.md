@@ -12,7 +12,7 @@ let response = try await client.send(GetLatestBlockhash())
 let blockhash = response.value.blockhash
 ```
 
-The module includes `Solana`, `HeliusRPC`, and `Sender` for RPC and submission, `Jupiter` for prices, and `EuropeanCentralBank` and `Coinbase` for exchange rates.
+The module includes `Solana`, `HeliusRPC`, and `Sender` for RPC and submission, `Zolana` for Solana Rings indexer reads, `Jupiter` for prices, and `EuropeanCentralBank` and `Coinbase` for exchange rates.
 
 ## Use a custom RPC URL
 

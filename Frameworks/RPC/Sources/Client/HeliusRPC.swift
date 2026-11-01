@@ -7,8 +7,10 @@ public struct HeliusRPC: RPC, AccountChangeProviding, SignatureEventProviding, L
 
     private let rpc: Solana
 
-    /// The client for the Solana Rings indexer and prover.
+    /// The client for the Solana Rings prover.
     let gateway: HTTPClient
+
+    let zolana: Zolana
 
     /// Creates a client for the selected network.
     ///
@@ -49,6 +51,7 @@ public struct HeliusRPC: RPC, AccountChangeProviding, SignatureEventProviding, L
         rpc = Solana(network: network, endpoint: endpoint, socketEndpoint: socketEndpoint,
                      redactor: redactor, transport: transport, socket: socket)
         gateway = HTTPClient(endpoint: gatewayEndpoint, transport: transport, redactor: redactor)
+        zolana = Zolana(network: network, transport: transport)
     }
 
     public var description: String { "HeliusRPC(\(network))" }

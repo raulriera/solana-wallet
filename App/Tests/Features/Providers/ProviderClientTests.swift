@@ -171,7 +171,9 @@ struct ProviderClientTests {
         #expect(try await responses.requests.map { try $0.rpcMethod }.sorted() == [
             GetEncryptedUtxosByTags.method, GetShieldedTransactionsByNullifiers.method, GetShieldedTransactionsByTags.method,
         ])
-        #expect(await responses.requests.allSatisfy { $0.url?.host() == "devnet.helius-rpc.com" })
+        #expect(await responses.requests.allSatisfy {
+            $0.url?.host() == "d34xe1hqb2ibg2.cloudfront.net" && $0.url?.query()?.contains("api-key") != true
+        })
     }
 
     @Test(arguments: [
@@ -225,7 +227,9 @@ struct ProviderClientTests {
         #expect(inclusionProofs.map(\.leaf) == [leaf])
         #expect(nonInclusionProofs.map(\.nullifier) == [leaf])
         #expect(try await responses.requests.map { try $0.rpcMethod }.sorted() == [GetMerkleProofs.method, GetNonInclusionProofs.method])
-        #expect(await responses.requests.allSatisfy { $0.url?.host() == "devnet.helius-rpc.com" })
+        #expect(await responses.requests.allSatisfy {
+            $0.url?.host() == "d34xe1hqb2ibg2.cloudfront.net" && $0.url?.query()?.contains("api-key") != true
+        })
     }
 
     @Test

@@ -3,11 +3,11 @@ import Foundation
 import Testing
 @testable import RPC
 
-struct HeliusRPCMerkleProofsTests {
+struct ZolanaMerkleProofsTests {
     private typealias Fixture = IndexerFixtures
 
-    @Test(arguments: [(Network.mainnet, "mainnet.helius-rpc.com"), (.devnet, "devnet.helius-rpc.com")])
-    func `Proof reads post to each method's route below the gateway`(network: Network, host: String) async throws {
+    @Test(arguments: IndexerFixtures.hosts)
+    func `Proof reads post to each method's route at the network's indexer`(network: Network, host: String) async throws {
         let transport = StubTransport { request in
             let (route, params) = try Fixture.call(request)
             let leaves = try #require(params["leaves"] as? [String])
@@ -16,7 +16,7 @@ struct HeliusRPCMerkleProofsTests {
                 : bytes.map { Fixture.nonInclusionProof(leaf: $0) }
             return try reply(to: request, payload: Fixture.proofs(proofs))
         }
-        let rpc: any PrivateNoteProviding = HeliusRPC(apiKey: "fixture-key", network: network, transport: transport)
+        let rpc: any PrivateNoteProviding = Zolana(network: network, transport: transport)
 
         let included = try await rpc.merkleProofs(for: [Fixture.bytes(7), Fixture.bytes(8)], inTree: Fixture.hash(9))
         let excluded = try await rpc.nonInclusionProofs(for: [Fixture.bytes(5)], inTree: Fixture.hash(9))
@@ -25,8 +25,8 @@ struct HeliusRPCMerkleProofsTests {
         #expect(excluded.map(\.nullifier) == [Fixture.bytes(5)])
         let requests = await transport.requests
         #expect(requests.map { $0.url?.absoluteString } == [
-            "https://\(host)/v1/zolana/getMerkleProofs?api-key=fixture-key",
-            "https://\(host)/v1/zolana/getNonInclusionProofs?api-key=fixture-key",
+            "https://\(host)/getMerkleProofs",
+            "https://\(host)/getNonInclusionProofs",
         ])
         let bodies = try requests.map(requestBody)
         #expect(bodies.map { $0["method"] as? String } == [GetMerkleProofs.method, GetNonInclusionProofs.method])
@@ -45,7 +45,7 @@ struct HeliusRPCMerkleProofsTests {
     ])
     func `Proofs that don't answer the request are rejected`(proofs: [String]) async throws {
         let transport = StubTransport { try reply(to: $0, payload: Fixture.proofs(proofs)) }
-        let rpc = HeliusRPC(apiKey: "fixture-key", network: .devnet, transport: transport)
+        let rpc = Zolana(network: .devnet, transport: transport)
 
         await #expect(throws: RPCError.invalidResponse(.mismatchedProofs)) {
             try await rpc.merkleProofs(for: [Fixture.bytes(7), Fixture.bytes(8)], inTree: Fixture.hash(9))
@@ -55,7 +55,7 @@ struct HeliusRPCMerkleProofsTests {
     @Test
     func `Non-inclusion proofs of other nullifiers are rejected`() async throws {
         let transport = StubTransport { try reply(to: $0, payload: Fixture.proofs([Fixture.nonInclusionProof(leaf: 6)])) }
-        let rpc = HeliusRPC(apiKey: "fixture-key", network: .devnet, transport: transport)
+        let rpc = Zolana(network: .devnet, transport: transport)
 
         await #expect(throws: RPCError.invalidResponse(.mismatchedProofs)) {
             try await rpc.nonInclusionProofs(for: [Fixture.bytes(5)], inTree: Fixture.hash(9))
@@ -65,7 +65,7 @@ struct HeliusRPCMerkleProofsTests {
     @Test
     func `Invalid or empty reads send nothing`() async throws {
         let transport = StubTransport { _ in throw CancellationError() }
-        let rpc = HeliusRPC(apiKey: "fixture-key", network: .devnet, transport: transport)
+        let rpc = Zolana(network: .devnet, transport: transport)
         let tree = Fixture.hash(9)
 
         #expect(try await rpc.merkleProofs(for: [], inTree: tree).isEmpty)

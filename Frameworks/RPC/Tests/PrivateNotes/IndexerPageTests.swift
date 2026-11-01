@@ -92,7 +92,7 @@ struct IndexerPageTests {
 
     @Test
     func `Encrypted outputs are deposits only without a viewing key and salt`() throws {
-        let output = Fixture.output(tag: 1, hash: 2, leafIndex: 7)
+        let output = Fixture.output(tag: 1, hash: 2, leafIndex: 7, payload: "AAID")
         let json = page(Fixture.page([Fixture.match(signature: 1, slot: 10, output: output),
                                       Fixture.match(signature: 2, slot: 11, output: output, keyed: true)],
                                      in: "matches", outputTreeID: 3))
@@ -100,7 +100,7 @@ struct IndexerPageTests {
         let decoded = try JSONDecoder().decode(EncryptedOutputPage.self, from: json)
 
         let expected = ShieldedOutput(viewTag: Fixture.bytes(1), utxoHash: Fixture.bytes(2), treeID: 0, leafIndex: 7,
-                                      payload: [1, 2, 3])
+                                      payload: [0, 2, 3])
         #expect(decoded.items.map(\.output) == [expected, expected])
         #expect(decoded.items.map(\.deposit) == [
             ShieldedTransaction(signature: Fixture.signature(1), slot: 10, eventIndex: nil, transactionViewingKey: nil,
@@ -108,6 +108,16 @@ struct IndexerPageTests {
             nil,
         ])
         #expect(decoded.outputTreeID == 3)
+    }
+
+    @Test(arguments: ["AQID", "AgID", ""])
+    func `Unkeyed outputs without a plaintext payload aren't deposits`(payload: String) throws {
+        let output = Fixture.output(tag: 1, hash: 2, leafIndex: 7, payload: payload)
+        let json = page(Fixture.page([Fixture.match(signature: 1, slot: 10, output: output)], in: "matches"))
+
+        let decoded = try JSONDecoder().decode(EncryptedOutputPage.self, from: json)
+
+        #expect(decoded.items.map(\.deposit) == [nil])
     }
 
     @Test

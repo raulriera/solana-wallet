@@ -4,6 +4,10 @@ import Testing
 @testable import RPC
 
 enum IndexerFixtures {
+    static let hosts: [(Network, String)] = [
+        (.mainnet, "dgcj4pjarvo65.cloudfront.net"), (.devnet, "d34xe1hqb2ibg2.cloudfront.net"),
+    ]
+
     static func hash(_ byte: UInt8) -> String { Base58.encode(bytes(byte)) }
 
     static func bytes(_ byte: UInt8) -> [UInt8] { Array(repeating: byte, count: 32) }
@@ -14,10 +18,10 @@ enum IndexerFixtures {
 
     static let salt = Data(repeating: 5, count: 16).base64EncodedString()
 
-    static func output(tag: UInt8, hash: UInt8, leafIndex: Int) -> String {
+    static func output(tag: UInt8, hash: UInt8, leafIndex: Int, payload: String = "AQID") -> String {
         """
         {"viewTag":"\(Self.hash(tag))","outputContext":{"hash":"\(Self.hash(hash))",\
-        "tree":"\(Self.hash(9))","treeId":0,"leafIndex":\(leafIndex)},"payload":"AQID"}
+        "tree":"\(Self.hash(9))","treeId":0,"leafIndex":\(leafIndex)},"payload":"\(payload)"}
         """
     }
 
