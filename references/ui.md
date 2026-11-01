@@ -6,8 +6,8 @@
 - Use a `TabView` with a fixed tab bar and a `NavigationSplitView` in each section. Onboarding is the approved exception: a linear `NavigationStack` in `OnboardingScene`.
 - A screen with two peer regions uses an `ArrangementView`, with scrolling inside each region where content can outgrow it.
 - A section with nothing to show in any column replaces its split view with one full-width empty screen and its one action.
-- One control idiom opens one kind of navigation: an info button always pushes details. Sheets are for required prompts.
 - Settings sidebar destinations use a native `Label` with a multicolor SF Symbol.
+- A What's New screen is a sheet with a bold title, up to three features, and one prominent Continue button, as Shortcuts shows it. Each feature is a tinted SF Symbol, a bold title, and one short sentence.
 - Preserve selection, navigation, scroll position, and unfinished input across resizing, folding, and theme changes.
 
 ## Layout
