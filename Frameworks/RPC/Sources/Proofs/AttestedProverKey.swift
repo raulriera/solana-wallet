@@ -5,6 +5,9 @@ import Foundation
 
 /// The Solana Rings prover's HPKE key, attested under a policy and reused for the policy's maximum age.
 actor AttestedProverKey {
+    /// The longest attestation response body, in bytes, to accept.
+    private static let maximumAttestationLength = 65_536
+
     private let prover: HTTPClient
     private let policy: NitroPolicy
     private let makeNonce: @Sendable () -> [UInt8]
@@ -42,8 +45,9 @@ actor AttestedProverKey {
     /// Returns the key of the attestation that started within the policy's maximum age, or of a new attestation.
     ///
     /// - Returns: The attested HPKE key.
-    /// - Throws: ``RPCError/InvalidResponse/untrustedProver`` for an attestation that fails the policy, another
-    ///   ``RPCError``, or `CancellationError` if cancelled.
+    /// - Throws: ``RPCError/InvalidResponse/untrustedProver`` for an attestation that fails the policy,
+    ///   ``RPCError/InvalidResponse/oversized`` for an attestation longer than 64 KiB, another ``RPCError``, or
+    ///   `CancellationError` if cancelled.
     func key() async throws -> Curve25519.KeyAgreement.PublicKey {
         let date = now()
         let task: Task<Curve25519.KeyAgreement.PublicKey, any Error>
@@ -55,6 +59,7 @@ actor AttestedProverKey {
                 let attestation = try await prover.get(
                     at: "tee/v1/attestation",
                     query: [URLQueryItem(name: "nonce", value: Hex.encode(nonce))],
+                    maximumLength: Self.maximumAttestationLength,
                     decoding: ProverAttestation.self
                 )
                 return try attestation.publicKey(for: nonce, under: policy, at: date)

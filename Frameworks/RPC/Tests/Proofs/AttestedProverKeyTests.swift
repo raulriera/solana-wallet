@@ -79,6 +79,15 @@ struct AttestedProverKeyTests {
         #expect(await transport.requests.count == 2)
     }
 
+    @Test
+    func `An attestation longer than 64 KiB is refused`() async throws {
+        let (key, _, _) = try Self.attestedKey(respond: { request in
+            try httpReply(to: request, body: String(repeating: " ", count: 65_537))
+        })
+
+        await #expect(throws: RPCError.invalidResponse(.oversized)) { try await key.key() }
+    }
+
     static func attestedKey(
         on network: Network = .devnet,
         elapsed: @escaping @Sendable () -> TimeInterval = { 0 },

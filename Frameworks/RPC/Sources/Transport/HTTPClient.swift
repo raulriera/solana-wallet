@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 /// A client that sends JSON-RPC and JSON requests to an endpoint or to paths below it.
@@ -71,17 +72,55 @@ struct HTTPClient: Sendable, CustomStringConvertible, CustomDebugStringConvertib
     /// - Parameters:
     ///   - path: One or more path components without a leading slash.
     ///   - query: The query items to add after the endpoint's query.
+    ///   - maximumLength: The longest response body, in bytes, to accept.
     ///   - response: The type of the decoded response body.
     /// - Returns: The decoded response body.
-    /// - Throws: An ``RPCError`` or `CancellationError`.
+    /// - Throws: ``RPCError/InvalidResponse/oversized`` for a longer response body, another ``RPCError``, or
+    ///   `CancellationError`.
     @concurrent
     func get<Response: Decodable & Sendable>(
-        at path: String, query: [URLQueryItem], decoding response: Response.Type
+        at path: String, query: [URLQueryItem], maximumLength: Int, decoding response: Response.Type
     ) async throws -> Response {
         try Task.checkCancellation()
         let request = makeRequest(to: try url(at: path).appending(queryItems: query), method: "GET")
-        let data = try await transport.responseData(for: request, redactor: redactor)
+        let data = try await transport.responseData(for: request, maximumLength: maximumLength, redactor: redactor)
         return try decode(Response.self, from: data)
+    }
+
+    /// Posts a JSON body encrypted to the Solana Rings prover's key to a path below the endpoint and decrypts the
+    /// prover's answer.
+    ///
+    /// - Parameters:
+    ///   - body: The value to encrypt as the JSON request body.
+    ///   - path: One or more path components without a leading slash.
+    ///   - headers: Header fields to add to the encrypted request.
+    ///   - maximumLength: The longest response body, in bytes, to accept.
+    ///   - key: The prover's attested HPKE key.
+    /// - Returns: The prover's decrypted status and body.
+    /// - Throws: ``RPCError/encoding`` for a body or request that can't be encrypted,
+    ///   ``RPCError/InvalidResponse/oversized`` for a longer response body, an ``RPCError`` for an answer that
+    ///   doesn't decrypt or an unencrypted refusal, or `CancellationError`.
+    @concurrent
+    func post(
+        sealing body: some Encodable & Sendable,
+        at path: String,
+        headers: [String: String],
+        maximumLength: Int,
+        to key: Curve25519.KeyAgreement.PublicKey
+    ) async throws -> SealedProverRequest.Answer {
+        try Task.checkCancellation()
+        let request = try makeRequest(to: try url(at: path), body: body, headers: headers)
+        let sealed = try SealedProverRequest(sealing: request, below: endpoint, to: key)
+        let (data, response) = try await transport.response(
+            for: sealed.request,
+            maximumLength: maximumLength,
+            redactor: redactor
+        )
+        do {
+            return try sealed.open(data, response: response)
+        } catch {
+            throw RPCError.sanitized(error, redactor: redactor)
+        }
     }
 
     /// Sends one JSON-RPC request to a URL and validates its response envelope.
