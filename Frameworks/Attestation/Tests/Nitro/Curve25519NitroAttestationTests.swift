@@ -102,7 +102,12 @@ struct Curve25519NitroAttestationTests {
     @Test
     func `A document the policy doesn't allow is rejected`() throws {
         var attempt = try Self.attempt()
-        attempt.policy = NitroPolicy(measurements: [], hpkePublicKey: nil, root: attempt.policy.root)
+        attempt.policy = NitroPolicy(
+            measurements: [],
+            hpkePublicKey: nil,
+            root: attempt.policy.root,
+            maximumAge: attempt.policy.maximumAge
+        )
 
         #expect(throws: NitroPolicy.ValidationError.unexpectedMeasurement) { try attempt.verified() }
     }
@@ -114,7 +119,8 @@ struct Curve25519NitroAttestationTests {
         attempt.policy = NitroPolicy(
             measurements: attempt.policy.measurements,
             hpkePublicKey: other,
-            root: attempt.policy.root
+            root: attempt.policy.root,
+            maximumAge: attempt.policy.maximumAge
         )
 
         #expect(throws: NitroPolicy.ValidationError.unexpectedPublicKey) { try attempt.verified() }

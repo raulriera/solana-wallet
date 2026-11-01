@@ -14,6 +14,7 @@ struct NitroPolicyTests {
         #expect(policy.measurements == pinned.measurements)
         #expect(policy.hpkePublicKey == pinned.hpkePublicKey)
         #expect(policy.root == pinned.root)
+        #expect(policy.maximumAge == pinned.maximumAge)
     }
 
     @Test(arguments: [0, 1, 2])
@@ -35,7 +36,7 @@ struct NitroPolicyTests {
     @Test
     func `A policy without measurements rejects every measurement`() throws {
         let allowed = try #require(NitroCBORCases.load().trustedPolicy().measurements.first)
-        let policy = NitroPolicy(measurements: [], hpkePublicKey: nil, root: [])
+        let policy = NitroPolicy(measurements: [], hpkePublicKey: nil, root: [], maximumAge: 0)
 
         #expect(throws: NitroPolicy.ValidationError.unexpectedMeasurement) {
             try policy.validate(allowed, publicKey: [])
@@ -47,7 +48,7 @@ struct NitroPolicyTests {
         let cases = try NitroCBORCases.load()
         let key = try fixtureBytes(cases.hpkePublicKey)
         let allowed = try #require(cases.trustedPolicy().measurements.first)
-        let policy = NitroPolicy(measurements: [allowed], hpkePublicKey: key, root: [])
+        let policy = NitroPolicy(measurements: [allowed], hpkePublicKey: key, root: [], maximumAge: 0)
 
         #expect(throws: Never.self) { try policy.validate(allowed, publicKey: key) }
         #expect(throws: NitroPolicy.ValidationError.unexpectedPublicKey) {

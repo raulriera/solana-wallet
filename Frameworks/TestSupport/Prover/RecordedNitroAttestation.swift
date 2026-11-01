@@ -1,8 +1,6 @@
+import Attestation
 import CryptoKit
-import Encoding
 import Foundation
-import Testing
-@testable import Attestation
 
 struct RecordedNitroAttestation: Decodable, Sendable {
     let capturedAt: Int
@@ -16,10 +14,12 @@ struct RecordedNitroAttestation: Decodable, Sendable {
     }
 
     struct Attestation: Decodable, Sendable {
+        let platform: String
         let hpkePublicKey: String
         let evidence: Evidence
 
         private enum CodingKeys: String, CodingKey {
+            case platform
             case hpkePublicKey = "hpke_public_key"
             case evidence
         }
@@ -37,22 +37,26 @@ struct RecordedNitroAttestation: Decodable, Sendable {
         Date(timeIntervalSince1970: TimeInterval(capturedAt))
     }
 
-    func decoded() throws -> (message: COSESign1, certificate: [UInt8], bundle: [[UInt8]]) {
-        let message = try COSESign1(decoding: fixtureBytes(attestation.evidence.document))
-        guard case .map(let document) = try CBOR(decoding: message.payload),
-            case .bytes(let certificate)? = document[.text("certificate")],
-            case .array(let items)? = document[.text("cabundle")]
-        else { throw CBOR.ValidationError.malformed }
-        let bundle = try items.map { item in
-            guard case .bytes(let bytes) = item else { throw CBOR.ValidationError.malformed }
-            return bytes
-        }
-        return (message, certificate, bundle)
+    var hpkePublicKey: [UInt8] {
+        get throws { try fixtureBytes(attestation.hpkePublicKey) }
+    }
+
+    var responseObject: [String: Any] {
+        [
+            "platform": attestation.platform,
+            "hpke_public_key": attestation.hpkePublicKey,
+            "gpu": NSNull(),
+            "evidence": ["document": attestation.evidence.document],
+        ]
+    }
+
+    func responseBody() throws -> String {
+        String(decoding: try JSONSerialization.data(withJSONObject: responseObject), as: UTF8.self)
     }
 
     func publicKey(under policy: NitroPolicy, at date: Date? = nil) throws -> Curve25519.KeyAgreement.PublicKey {
         try Curve25519.KeyAgreement.PublicKey(
-            rawRepresentation: fixtureBytes(attestation.hpkePublicKey),
+            rawRepresentation: hpkePublicKey,
             attestedBy: fixtureBytes(attestation.evidence.document),
             nonce: fixtureBytes(nonce),
             policy: policy,

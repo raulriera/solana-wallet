@@ -24,6 +24,8 @@ public enum RPCError: Error, Sendable, Equatable {
         case invalidCursor
         /// The proofs don't match the requested leaves, their order, or the tree.
         case mismatchedProofs
+        /// The prover's attestation doesn't prove that the expected enclave holds its key.
+        case untrustedProver
     }
 
     /// Whether the failure can clear without the person's action.

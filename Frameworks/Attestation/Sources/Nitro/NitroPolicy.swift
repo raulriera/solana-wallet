@@ -1,3 +1,5 @@
+public import Foundation
+
 /// A reviewed AWS Nitro Enclaves deployment of the Solana Rings prover, which an attestation must match.
 public struct NitroPolicy: Sendable {
     /// An error that rejects an AWS Nitro attestation under a policy.
@@ -43,6 +45,9 @@ public struct NitroPolicy: Sendable {
     /// The DER of the root that a document's certificate chain must start at.
     let root: [UInt8]
 
+    /// How long a passed attestation is reused, in seconds.
+    public let maximumAge: TimeInterval
+
     /// Checks an enclave's measurement and a claimed HPKE key against the policy's pins.
     ///
     /// - Parameters:
@@ -82,7 +87,8 @@ extension NitroPolicy {
             0xcf, 0x22, 0x54, 0xcf, 0xf5, 0x68, 0xf3, 0x40, 0x12, 0x72, 0xb0, 0xb5, 0xfc, 0x96, 0x59, 0x17,
             0x93, 0x84, 0x98, 0xe0, 0xae, 0x4a, 0x41, 0x39, 0x1b, 0x04, 0xf6, 0x92, 0x4a, 0x93, 0xe0, 0x33,
         ],
-        root: NitroCertificateChain.awsNitroEnclavesRoot
+        root: NitroCertificateChain.awsNitroEnclavesRoot,
+        maximumAge: 600
     )
 
     /// The mainnet prover's deployment.
@@ -110,6 +116,7 @@ extension NitroPolicy {
             0xee, 0x82, 0x89, 0xb5, 0xaf, 0xa1, 0xd2, 0xe8, 0x85, 0x80, 0x9a, 0x91, 0xf4, 0xb2, 0x8b, 0x64,
             0x58, 0x07, 0xdc, 0xfd, 0x5c, 0x94, 0x57, 0xdd, 0xf6, 0xa0, 0x31, 0xb3, 0xec, 0xb4, 0x58, 0x78,
         ],
-        root: NitroCertificateChain.awsNitroEnclavesRoot
+        root: NitroCertificateChain.awsNitroEnclavesRoot,
+        maximumAge: 600
     )
 }

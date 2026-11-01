@@ -109,7 +109,7 @@
           "kind": "group",
           "path": "TestSupport",
           "children": [
-            { "kind": "folder", "path": "Concurrency", "target-membership": [ "StorageTests", "widgetsTests" ] },
+            { "kind": "folder", "path": "Concurrency", "target-membership": [ "RPCTests", "StorageTests", "widgetsTests" ] },
             { "kind": "folder", "path": "Fields", "target-membership": [ "ModularArithmeticTests", "PrivacyTests" ] },
             { "kind": "folder", "path": "Fixtures", "target-membership": [ "AttestationTests", "ModularArithmeticTests", "PrivacyTests", "RPCTests", "TransactionsTests", "WalletTests" ] },
             {
@@ -250,6 +250,10 @@
           "id": "AD0000000000000000000001",
           "type": "wrapper.framework",
           "target-membership": [
+            "widgets/frameworks",
+            { "build-phase": "widgets/copy/Embed Frameworks", "code-sign-on-copy": true, "header-preservation": "remove-on-copy" },
+            "RPC/frameworks",
+            "RPCTests/frameworks",
             "AttestationTests/frameworks",
           ],
         }, {
@@ -345,6 +349,7 @@
         { "name": "Release", "file": "Configuration/App.xcconfig" },
       ],
       "dependencies": [
+        "Attestation",
         "Encoding",
         "ModularArithmetic",
         "Privacy",
@@ -410,6 +415,7 @@
       "product": "Products/RPC.framework",
       "product-type": "framework",
       "dependencies": [
+        "Attestation",
         "Encoding",
       ],
       "build-phases": [

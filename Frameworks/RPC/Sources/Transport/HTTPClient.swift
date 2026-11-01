@@ -63,16 +63,25 @@ struct HTTPClient: Sendable, CustomStringConvertible, CustomDebugStringConvertib
         let data = try await transport.responseData(
             for: try makeRequest(to: try url(at: path), body: body, headers: headers), redactor: redactor
         )
-        let value: Response
-        do {
-            value = try JSONDecoder().decode(Response.self, from: data)
-        } catch {
-            if error.isCancellation { throw CancellationError() }
-            if let error = error as? RPCError { throw error }
-            throw RPCError.decoding
-        }
+        return try decode(Response.self, from: data)
+    }
+
+    /// Gets a path below the endpoint with a query and decodes the response body without a JSON-RPC envelope.
+    ///
+    /// - Parameters:
+    ///   - path: One or more path components without a leading slash.
+    ///   - query: The query items to add after the endpoint's query.
+    ///   - response: The type of the decoded response body.
+    /// - Returns: The decoded response body.
+    /// - Throws: An ``RPCError`` or `CancellationError`.
+    @concurrent
+    func get<Response: Decodable & Sendable>(
+        at path: String, query: [URLQueryItem], decoding response: Response.Type
+    ) async throws -> Response {
         try Task.checkCancellation()
-        return value
+        let request = makeRequest(to: try url(at: path).appending(queryItems: query), method: "GET")
+        let data = try await transport.responseData(for: request, redactor: redactor)
+        return try decode(Response.self, from: data)
     }
 
     /// Sends one JSON-RPC request to a URL and validates its response envelope.
@@ -90,15 +99,7 @@ struct HTTPClient: Sendable, CustomStringConvertible, CustomDebugStringConvertib
 
         let data = try await transport.responseData(for: httpRequest, redactor: redactor)
 
-        let reply: JSONRPCResponse<Request.Response>
-        do {
-            reply = try JSONDecoder().decode(JSONRPCResponse<Request.Response>.self, from: data)
-        } catch {
-            if error.isCancellation { throw CancellationError() }
-            if let error = error as? RPCError { throw error }
-            throw RPCError.decoding
-        }
-        try Task.checkCancellation()
+        let reply = try decode(JSONRPCResponse<Request.Response>.self, from: data)
         switch reply.result {
         case .success(let value):
             guard reply.id == id else { throw RPCError.invalidResponse(.mismatchedID) }
@@ -115,6 +116,26 @@ struct HTTPClient: Sendable, CustomStringConvertible, CustomDebugStringConvertib
         }
     }
 
+    /// Decodes a JSON response body.
+    ///
+    /// - Parameters:
+    ///   - type: The type of the decoded value.
+    ///   - data: The response body.
+    /// - Returns: The decoded value.
+    /// - Throws: ``RPCError/decoding``, an ``RPCError`` that the value's decoding throws, or `CancellationError`.
+    private func decode<Value: Decodable>(_ type: Value.Type, from data: Data) throws -> Value {
+        let value: Value
+        do {
+            value = try JSONDecoder().decode(Value.self, from: data)
+        } catch {
+            if error.isCancellation { throw CancellationError() }
+            if let error = error as? RPCError { throw error }
+            throw RPCError.decoding
+        }
+        try Task.checkCancellation()
+        return value
+    }
+
     /// Creates a JSON `POST` request with a 30-second timeout.
     ///
     /// - Parameters:
@@ -124,8 +145,7 @@ struct HTTPClient: Sendable, CustomStringConvertible, CustomDebugStringConvertib
     /// - Returns: The request.
     /// - Throws: ``RPCError/encoding`` or `CancellationError`.
     private func makeRequest(to url: URL, body: some Encodable, headers: [String: String]) throws -> URLRequest {
-        var request = URLRequest(url: url, timeoutInterval: 30)
-        request.httpMethod = "POST"
+        var request = makeRequest(to: url, method: "POST")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         for (field, value) in headers { request.setValue(value, forHTTPHeaderField: field) }
         do {
@@ -134,6 +154,18 @@ struct HTTPClient: Sendable, CustomStringConvertible, CustomDebugStringConvertib
             if error.isCancellation { throw CancellationError() }
             throw RPCError.encoding
         }
+        return request
+    }
+
+    /// Creates a request with a 30-second timeout.
+    ///
+    /// - Parameters:
+    ///   - url: The request's URL.
+    ///   - method: The HTTP method.
+    /// - Returns: The request.
+    private func makeRequest(to url: URL, method: String) -> URLRequest {
+        var request = URLRequest(url: url, timeoutInterval: 30)
+        request.httpMethod = method
         return request
     }
 

@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import Attestation
 
@@ -5,12 +6,14 @@ struct NitroPolicyFixture: Decodable, Sendable {
     let platform: String
     let measurements: [Measurement]
     let gpu: String
+    let maximumAge: TimeInterval
     let hpkePublicKey: String?
 
     private enum CodingKeys: String, CodingKey {
         case platform
         case measurements
         case gpu
+        case maximumAge = "max_age_secs"
         case hpkePublicKey = "hpke_public_key"
     }
 
@@ -35,7 +38,8 @@ struct NitroPolicyFixture: Decodable, Sendable {
                 )
             },
             hpkePublicKey: try hpkePublicKey.map(fixtureBytes),
-            root: root
+            root: root,
+            maximumAge: maximumAge
         )
     }
 }
