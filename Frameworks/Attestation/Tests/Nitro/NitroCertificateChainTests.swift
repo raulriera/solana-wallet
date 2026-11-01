@@ -168,7 +168,7 @@ struct NitroCertificateChainTests {
     }
 
     private static func recorded() throws -> (message: COSESign1, chain: Chain) {
-        let recorded = try RecordedNitroAttestation.load()
+        let recorded = try RecordedNitroAttestation.load(named: "RecordedDevnetNitroAttestation")
         let (message, certificate, bundle) = try recorded.decoded()
         let chain = Chain(
             certificate: certificate,

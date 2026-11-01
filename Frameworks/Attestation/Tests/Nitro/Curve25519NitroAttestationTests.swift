@@ -23,13 +23,31 @@ struct Curve25519NitroAttestationTests {
         }
     }
 
-    @Test
-    func `The recorded devnet attestation yields its HPKE key`() throws {
-        let recorded = try RecordedNitroAttestation.load()
+    @Test(arguments: [
+        (NitroPolicy.devnet, "RecordedDevnetNitroAttestation"),
+        (.mainnet, "RecordedMainnetNitroAttestation"),
+    ])
+    func `A recorded attestation yields its HPKE key under its network's policy`(
+        policy: NitroPolicy,
+        file: String
+    ) throws {
+        let recorded = try RecordedNitroAttestation.load(named: file)
 
-        let key = try recorded.publicKey(under: .devnet)
+        let key = try recorded.publicKey(under: policy)
 
         #expect(Array(key.rawRepresentation) == (try fixtureBytes(recorded.attestation.hpkePublicKey)))
+    }
+
+    @Test(arguments: [
+        (NitroPolicy.mainnet, "RecordedDevnetNitroAttestation"),
+        (.devnet, "RecordedMainnetNitroAttestation"),
+    ])
+    func `A recorded attestation fails the other network's policy`(policy: NitroPolicy, file: String) throws {
+        let recorded = try RecordedNitroAttestation.load(named: file)
+
+        #expect(throws: NitroPolicy.ValidationError.unexpectedMeasurement) {
+            try recorded.publicKey(under: policy)
+        }
     }
 
     @Test(arguments: try NitroCBORCases.cases(expected: .accept))
@@ -57,7 +75,7 @@ struct Curve25519NitroAttestationTests {
 
     @Test
     func `A document whose certificates expired is rejected`() throws {
-        let recorded = try RecordedNitroAttestation.load()
+        let recorded = try RecordedNitroAttestation.load(named: "RecordedDevnetNitroAttestation")
 
         #expect(throws: NitroPolicy.ValidationError.untrustedCertificateChain) {
             try recorded.publicKey(under: .devnet, at: .distantFuture)

@@ -39,7 +39,8 @@ struct NitroCertificateTests {
 
     @Test
     func `The recorded AWS certificates decode the validity and constraints OpenSSL reads`() throws {
-        let (_, certificate, bundle) = try RecordedNitroAttestation.load().decoded()
+        let recorded = try RecordedNitroAttestation.load(named: "RecordedDevnetNitroAttestation")
+        let (_, certificate, bundle) = try recorded.decoded()
 
         let decoded = try ([certificate] + bundle).map(NitroCertificate.init(decoding:))
 

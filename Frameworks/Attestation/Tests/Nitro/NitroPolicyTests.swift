@@ -16,13 +16,6 @@ struct NitroPolicyTests {
         #expect(policy.root == pinned.root)
     }
 
-    @Test
-    func `The mainnet policy rejects the devnet prover`() throws {
-        let recorded = try RecordedNitroAttestation.load()
-
-        #expect(throws: NitroPolicy.ValidationError.unexpectedMeasurement) { try recorded.publicKey(under: .mainnet) }
-    }
-
     @Test(arguments: [0, 1, 2])
     func `A measurement that differs in any PCR is rejected`(index: Int) throws {
         let policy = try NitroCBORCases.load().trustedPolicy()

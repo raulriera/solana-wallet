@@ -9,7 +9,7 @@ struct NitroAttestationDocumentTests {
 
     @Test
     func `The recorded document decodes with the devnet prover's values`() throws {
-        let recorded = try RecordedNitroAttestation.load()
+        let recorded = try RecordedNitroAttestation.load(named: "RecordedDevnetNitroAttestation")
         let (message, certificate, bundle) = try recorded.decoded()
         let pins = try #require(NitroPolicyFixture.deployment(named: "DevnetNitroPolicy").measurements.first)
 

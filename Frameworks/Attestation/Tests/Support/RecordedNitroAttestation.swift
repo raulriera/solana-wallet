@@ -29,10 +29,8 @@ struct RecordedNitroAttestation: Decodable, Sendable {
         let document: String
     }
 
-    private static let loaded = Result { try fixture(named: "RecordedNitroAttestation") as Self }
-
-    static func load() throws -> Self {
-        try loaded.get()
+    static func load(named name: String) throws -> Self {
+        try fixture(named: name)
     }
 
     var capturedDate: Date {
