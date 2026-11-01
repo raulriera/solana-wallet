@@ -155,7 +155,7 @@ enum PrivateBalanceFixtures {
             let point = ["0x1", "0x2"]
             return try HTTPResponses.json([
                 "ar": point, "bs": [point, point], "krs": point,
-                "provingKeySha256": shape.provingKeyDigest.map { String(format: "%02x", $0) }.joined(),
+                "provingKeySha256": Hex.encode(shape.provingKeyDigest),
             ] as [String: Any])
         }
         let params = try #require(body["params"] as? [String: Any])

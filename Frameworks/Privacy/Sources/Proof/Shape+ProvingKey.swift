@@ -1,18 +1,12 @@
+import Encoding
+
 extension Shape {
     /// The SHA-256 digest of the shape's proving key.
     var provingKeyDigest: [UInt8] {
-        guard let digest = Self.provingKeyDigests[self] else { preconditionFailure("Every supported shape has a proving key.") }
-        return digest
-    }
-
-    private static let provingKeyDigests = hexadecimalDigests.mapValues { hex in
-        let digits = Array(hex.utf8)
-        return stride(from: 0, to: digits.count, by: 2).map { index in
-            guard let byte = UInt8(String(decoding: digits[index ..< index + 2], as: UTF8.self), radix: 16) else {
-                preconditionFailure("Every digest is hexadecimal.")
-            }
-            return byte
+        guard let hex = Self.hexadecimalDigests[self], let digest = Hex.decode(hex) else {
+            preconditionFailure("Every supported shape has a hexadecimal proving key digest.")
         }
+        return digest
     }
 
     private static let hexadecimalDigests: [Shape: String] = [

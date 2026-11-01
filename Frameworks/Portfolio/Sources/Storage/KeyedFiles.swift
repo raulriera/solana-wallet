@@ -1,4 +1,5 @@
 import CryptoKit
+import Encoding
 import Foundation
 import RPC
 
@@ -62,7 +63,7 @@ struct KeyedFiles: Sendable {
     /// - Returns: A JSON file URL inside the directory.
     private func fileURL(for key: CacheKey) -> URL {
         let data = Data("\(key.network.rawValue):\(key.owner)".utf8)
-        let digest = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        let digest = Hex.encode(Array(SHA256.hash(data: data)))
         return directory.appendingPathComponent(digest).appendingPathExtension("json")
     }
 }

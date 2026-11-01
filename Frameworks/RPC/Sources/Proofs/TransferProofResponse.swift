@@ -1,3 +1,5 @@
+import Encoding
+
 /// The strict decoding of a prover's JSON transfer proof.
 struct TransferProofResponse: Decodable, Sendable {
     let proof: TransferProof
@@ -15,7 +17,7 @@ struct TransferProofResponse: Decodable, Sendable {
             throw DecodingError.dataCorruptedError(forKey: .bs, in: body, debugDescription: "Invalid point.")
         }
         let digest = try body.decode(String.self, forKey: .provingKeySha256)
-        guard digest.utf8.count == 64, digest == digest.lowercased(), let digestBytes = FieldHex.decode("0x" + digest) else {
+        guard let digestBytes = Hex.decode(digest), digestBytes.count == 32 else {
             throw DecodingError.dataCorruptedError(forKey: .provingKeySha256, in: body, debugDescription: "Invalid digest.")
         }
         proof = TransferProof(

@@ -1,15 +1,14 @@
+import Encoding
+
 /// The prover's hexadecimal text for 32-byte big-endian values.
 enum FieldHex {
-    private static let digits = Array("0123456789abcdef".utf8)
-
     /// Encodes big-endian bytes as `0x` and lowercase digits without leading zeros.
     ///
     /// - Parameter bytes: The big-endian value.
     /// - Returns: The value's text, `0x0` for zero.
     static func encode(_ bytes: [UInt8]) -> String {
-        let nibbles = bytes.flatMap { [$0 >> 4, $0 & 0x0f] }.drop { $0 == 0 }
-        let text = nibbles.isEmpty ? [digits[0]] : nibbles.map { digits[Int($0)] }
-        return "0x" + String(decoding: text, as: UTF8.self)
+        let digits = Hex.encode(bytes).drop { $0 == "0" }
+        return "0x" + (digits.isEmpty ? "0" : digits)
     }
 
     /// Encodes an integer as `0x` and lowercase digits without leading zeros.

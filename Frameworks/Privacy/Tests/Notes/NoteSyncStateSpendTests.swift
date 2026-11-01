@@ -1,3 +1,4 @@
+import Encoding
 import Foundation
 import ModularArithmetic
 @testable import Privacy
@@ -251,11 +252,7 @@ struct NoteSyncStateSpendTests {
     private static func response(for shape: Shape) throws -> Data {
         let vector = try #require(try ProofRequestVectors.load().transacts.first)
         var fields = try JSONDecoder().decode([String: JSONValue].self, from: vector.response.data)
-        fields["provingKeySha256"] = .string(hex(shape.provingKeyDigest))
+        fields["provingKeySha256"] = .string(Hex.encode(shape.provingKeyDigest))
         return try JSONValue.object(fields).data
-    }
-
-    private static func hex(_ bytes: [UInt8]) -> String {
-        bytes.map { String(format: "%02x", $0) }.joined()
     }
 }
