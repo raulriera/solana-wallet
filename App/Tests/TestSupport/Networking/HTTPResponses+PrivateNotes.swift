@@ -6,7 +6,8 @@ extension HTTPResponses {
     static func privateNotes(registry: [String] = [], deposits: [String] = [], spends: [String] = [],
                              error: RPCError? = nil,
                              failingMethod: String? = nil, gate: Suspension? = nil, heldMethod: String? = nil,
-                             outputTreeID: UInt16? = nil, prove: Responder? = nil) -> HTTPResponses {
+                             outputTreeID: UInt16? = nil, prover: StubProver? = nil,
+                             respond: Responder? = nil) -> HTTPResponses {
         var responses = [
             GetShieldedTransactionsByTags.method: [indexerPage([], in: "transactions", outputTreeID: outputTreeID)],
             GetEncryptedUtxosByTags.method: [indexerPage(deposits, in: "matches", outputTreeID: outputTreeID)],
@@ -14,7 +15,7 @@ extension HTTPResponses {
         ]
         if !registry.isEmpty { responses[GetMultipleAccounts.method] = registry }
         return HTTPResponses(responses, error: error, failingMethod: failingMethod, gate: gate, heldMethod: heldMethod,
-                             respond: prove)
+                             prover: prover, respond: respond)
     }
 
     nonisolated static func indexerPage(_ rows: [String], in field: String, outputTreeID: UInt16? = nil) -> String {

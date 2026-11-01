@@ -1,10 +1,9 @@
-import Encoding
 import Foundation
 import ModularArithmetic
-@testable import Privacy
-@testable import RPC
 import Testing
 import Transactions
+@testable import Privacy
+@testable import RPC
 
 struct NoteSyncStateSpendTests {
     struct Spend: Sendable, CustomTestStringConvertible {
@@ -64,23 +63,20 @@ struct NoteSyncStateSpendTests {
             spending: selected.map(\.utxo), sender: sender, transfer: Self.transfer(destination, lamports: spend.lamports),
             withdrawal: Self.withdrawal(destination, lamports: spend.lamports), outputTreeID: 0, using: &planGenerator
         )
-        let response = try Self.response(for: plan.shape)
-        let proof = try plan.proof(from: JSONDecoder().decode(TransferProofResponse.self, from: response).proof)
-        let context = TreeContext(utxoTreeRootIndex: IndexerResponses.utxoRootIndex, nullifierTreeRootIndex: IndexerResponses.nullifierRootIndex)
-        let transport = StubTransport { request in
-            guard request.url?.lastPathComponent == "prove" else { return try IndexerResponses.spendReads(answering: request) }
-            let url = try #require(request.url)
-            return (response, try #require(HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)))
-        }
+        let proof = try plan.proof(from: IndexedProofs.proof(for: plan.shape))
+        let context = TreeContext(
+            utxoTreeRootIndex: IndexedProofs.utxoRootIndex, nullifierTreeRootIndex: IndexedProofs.nullifierRootIndex
+        )
+        let transport = try Self.transport()
         var spendGenerator = SeededGenerator(seed: 7)
 
         let result = try await state.spend(
-            spend.lamports, to: destination, from: sender, provider: HeliusRPC(apiKey: "fixture-key", network: .devnet, transport: transport),
-            using: &spendGenerator
+            spend.lamports, to: destination, from: sender, provider: Self.provider(transport), using: &spendGenerator
         )
 
-        let routes = await transport.requests.compactMap { $0.url?.lastPathComponent }
-        #expect(routes.sorted() == ["/", GetMerkleProofs.method, GetNonInclusionProofs.method, "prove"])
+        let routes = await transport.requests.compactMap { $0.url?.path() }
+        let route = "/prove/transfer_confidential_\(plan.shape.inputs)_\(plan.shape.outputs)/indexed"
+        #expect(routes == ["/", "/tee/v1/attestation", route])
         #expect(result.instruction == (try plan.instruction(proof: proof, treeContexts: [context])))
         #expect(result.nullifiers == selected.map(\.nullifier))
         #expect(result.lamports == spend.lamports)
@@ -95,22 +91,11 @@ struct NoteSyncStateSpendTests {
         let notes = [try note(3, leaf: 0), try note(4, leaf: 1), try note(10, leaf: 2, treeID: 2)]
         let state = try NoteSyncState(position: nil, notes: notes, outputTreeID: 0, pending: [], localSpends: [])
         let destination = PrivateSpend.Destination.transfer(try TransferVectors.recipient())
-        var planGenerator = SeededGenerator(seed: 7)
-        let plan = try TransactPlan(
-            spending: [notes[2].utxo], sender: sender, transfer: Self.transfer(destination, lamports: 9), withdrawal: nil, outputTreeID: 0,
-            using: &planGenerator
-        )
-        let response = try Self.response(for: plan.shape)
-        let transport = StubTransport { request in
-            guard request.url?.lastPathComponent == "prove" else { return try IndexerResponses.spendReads(answering: request) }
-            let url = try #require(request.url)
-            return (response, try #require(HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)))
-        }
+        let transport = try Self.transport()
         var spendGenerator = SeededGenerator(seed: 7)
 
         let result = try await state.spend(
-            9, to: destination, from: sender, provider: HeliusRPC(apiKey: "fixture-key", network: .devnet, transport: transport),
-            using: &spendGenerator
+            9, to: destination, from: sender, provider: Self.provider(transport), using: &spendGenerator
         )
 
         #expect(result.inputTreeID == 2)
@@ -122,17 +107,11 @@ struct NoteSyncStateSpendTests {
         let recipient = try TransferVectors.recipient()
         let notes = try [10, 5].enumerated().map { try note($1, leaf: UInt64($0)) }
         let state = try NoteSyncState(position: nil, notes: notes, outputTreeID: 0, pending: [], localSpends: [])
-        let response = try Self.response(for: Shape(inputs: 2, outputs: 2))
-        let transport = StubTransport { request in
-            guard request.url?.lastPathComponent == "prove" else { return try IndexerResponses.spendReads(answering: request) }
-            let url = try #require(request.url)
-            return (response, try #require(HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)))
-        }
+        let transport = try Self.transport()
         let solInterface = try ShieldedPool.solInterface
 
         let result = try await state.spend(
-            6, to: .fundedTransfer(recipient, publicLamports: 5), from: sender,
-            provider: HeliusRPC(apiKey: "fixture-key", network: .devnet, transport: transport)
+            6, to: .fundedTransfer(recipient, publicLamports: 5), from: sender, provider: Self.provider(transport)
         )
 
         #expect(result.instruction.accounts.suffix(2).map(\.address) == [solInterface, recipient.signingAddress])
@@ -146,17 +125,10 @@ struct NoteSyncStateSpendTests {
         let notes = try [10, 5].enumerated().map { try note($1, leaf: UInt64($0)) }
         let state = try NoteSyncState(position: nil, notes: notes, outputTreeID: 0, pending: [], localSpends: [])
         let queued = try ShieldedPool.nullifierAccount(tree: ShieldedPool.tree(id: 0), nullifier: notes[0].nullifier).value
-        let response = try Self.response(for: Shape(inputs: 1, outputs: 2))
-        let transport = StubTransport { request in
-            guard request.url?.lastPathComponent == "prove" else {
-                return try IndexerResponses.spendReads(answering: request, queued: [queued])
-            }
-            let url = try #require(request.url)
-            return (response, try #require(HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)))
-        }
+        let transport = try Self.transport(queued: [queued])
 
         let result = try await state.spend(
-            4, to: .transfer(recipient), from: sender, provider: HeliusRPC(apiKey: "fixture-key", network: .devnet, transport: transport)
+            4, to: .transfer(recipient), from: sender, provider: Self.provider(transport)
         )
 
         #expect(result.nullifiers == [notes[1].nullifier])
@@ -249,10 +221,15 @@ struct NoteSyncStateSpendTests {
         }
     }
 
-    private static func response(for shape: Shape) throws -> Data {
-        let vector = try #require(try ProofRequestVectors.load().transacts.first)
-        var fields = try JSONDecoder().decode([String: JSONValue].self, from: vector.response.data)
-        fields["provingKeySha256"] = .string(Hex.encode(shape.provingKeyDigest))
-        return try JSONValue.object(fields).data
+    private static func transport(queued: Set<String> = []) throws -> StubTransport {
+        let prover = try IndexedProofs.prover()
+        return StubTransport { request in
+            try prover.respond(to: request) ?? IndexerResponses.spendReads(answering: request, queued: queued)
+        }
+    }
+
+    private static func provider(_ transport: StubTransport) -> HeliusRPC {
+        HeliusRPC(apiKey: "fixture-key", network: .devnet, transport: transport,
+                  zolana: StubProver.zolana(transport: transport))
     }
 }

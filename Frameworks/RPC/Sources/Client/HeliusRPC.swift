@@ -7,9 +7,7 @@ public struct HeliusRPC: RPC, AccountChangeProviding, SignatureEventProviding, L
 
     private let rpc: Solana
 
-    /// The client for the Solana Rings prover.
-    let gateway: HTTPClient
-
+    /// The keyless client for the Solana Rings indexer and prover.
     let zolana: Zolana
 
     /// Creates a client for the selected network.
@@ -21,18 +19,21 @@ public struct HeliusRPC: RPC, AccountChangeProviding, SignatureEventProviding, L
         self.init(apiKey: apiKey, network: network, transport: URLSessionTransport())
     }
 
-    /// Creates a client with an injected transport and subscription connection factory.
+    /// Creates a client with an injected transport, subscription connection factory, and Solana Rings client.
     ///
     /// - Parameters:
     ///   - apiKey: The Helius API key.
     ///   - network: The Solana network to query.
     ///   - transport: The transport that performs HTTP requests.
     ///   - socket: The factory for a subscription connection.
+    ///   - zolana: The keyless client for the Solana Rings indexer and prover, or `nil` for the network's client on
+    ///     `transport`.
     init(
         apiKey: String,
         network: Network,
         transport: any HTTPTransport,
-        socket: @escaping @Sendable (URL) -> any WebSocketConnection = { URLSessionSocket(endpoint: $0) }
+        socket: @escaping @Sendable (URL) -> any WebSocketConnection = { URLSessionSocket(endpoint: $0) },
+        zolana: Zolana? = nil
     ) {
         let host = switch network {
         case .mainnet: "mainnet.helius-rpc.com"
@@ -44,14 +45,10 @@ public struct HeliusRPC: RPC, AccountChangeProviding, SignatureEventProviding, L
         // swift-format-ignore: NeverForceUnwrap
         let socketEndpoint = URL(string: "wss://\(host)/")!
             .appending(queryItems: [URLQueryItem(name: "api-key", value: apiKey)])
-        // swift-format-ignore: NeverForceUnwrap
-        let gatewayEndpoint = URL(string: "https://\(host)/v1/zolana")!
-            .appending(queryItems: [URLQueryItem(name: "api-key", value: apiKey)])
         let redactor = SecretRedactor(urls: [endpoint, socketEndpoint])
         rpc = Solana(network: network, endpoint: endpoint, socketEndpoint: socketEndpoint,
                      redactor: redactor, transport: transport, socket: socket)
-        gateway = HTTPClient(endpoint: gatewayEndpoint, transport: transport, redactor: redactor)
-        zolana = Zolana(network: network, transport: transport)
+        self.zolana = zolana ?? Zolana(network: network, transport: transport)
     }
 
     public var description: String { "HeliusRPC(\(network))" }

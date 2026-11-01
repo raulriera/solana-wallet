@@ -22,13 +22,11 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
         case foreignNullifierKey
         /// The proof's proving key isn't the one for the plan's shape.
         case unexpectedProvingKey
-        /// A tree's proofs are missing, don't match its inputs, or disagree on their root or its position.
-        case inconsistentProofs
         case rootIndexOutOfRange
         /// A root isn't a canonical field element.
         case invalidRoot
-        /// A non-inclusion proof's low and high elements don't enclose its nullifier.
-        case invalidNonInclusionProof
+        /// The prover's public input hash isn't the plan's statement with the resolved roots.
+        case mismatchedPublicInputHash
     }
 
     /// A transfer of SOL to another owner's shielded address.
@@ -163,7 +161,7 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
             guard !utxos.isEmpty else { throw ValidationError.noInputs }
             guard utxos.count <= TransactPlan.maximumInputs else { throw ValidationError.tooManyInputs }
             let senderOwner = try sender.recipient
-            var inputTreeIDs = [UInt16]()
+            var inputTreeIDs: [UInt16] = []
             for utxo in utxos {
                 guard utxo.owner == senderOwner.owner else { throw ValidationError.foreignInput }
                 guard utxo.mint == ConfidentialPlaintext.Asset.sol.mint else { throw ValidationError.unsupportedAsset }
@@ -175,7 +173,7 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
             let available = try Self.sum(utxos.map(\.amount))
             let spent = try Self.sum([transfer?.lamports ?? 0, withdrawal?.lamports ?? 0])
             guard available >= spent else { throw ValidationError.insufficientFunds }
-            var outputs = [(owner: Recipient, lamports: UInt64)]()
+            var outputs: [(owner: Recipient, lamports: UInt64)] = []
             if let transfer { outputs.append((transfer.recipient, transfer.lamports)) }
             if available > spent { outputs.append((senderOwner, available - spent)) }
             guard let shape = Shape.fitting(inputs: utxos.count, outputs: outputs.count) else {

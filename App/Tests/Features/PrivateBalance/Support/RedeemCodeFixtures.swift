@@ -1,11 +1,11 @@
 import Encoding
 import Foundation
 import ModularArithmetic
-@testable import Privacy
-@testable import RPC
 import Testing
 import Transactions
 import Wallet
+@testable import Privacy
+@testable import RPC
 @testable import widgets
 
 enum RedeemCodeFixtures {
@@ -20,7 +20,8 @@ enum RedeemCodeFixtures {
         var accounts = accounts
         accounts[try ShieldedPool.tree(id: 1).value] = try tree(fee: treeFee)
         let known = accounts
-        return HTTPResponses.privateNotes(deposits: deposits, spends: spends, outputTreeID: outputTreeID) { request in
+        return HTTPResponses.privateNotes(deposits: deposits, spends: spends, outputTreeID: outputTreeID,
+                                          prover: try IndexedProofs.prover()) { request in
             switch try request.jsonBody()["method"] as? String {
             case GetMultipleAccounts.method?:
                 let addresses = try #require(try request.rpcParameters.first as? [String])
@@ -28,7 +29,7 @@ enum RedeemCodeFixtures {
             case GetMinimumBalanceForRentExemption.method?:
                 return String(rent)
             default:
-                return try PrivateBalanceFixtures.proof(answering: request)
+                return try #require(nil as String?, "Unexpected request")
             }
         }
     }

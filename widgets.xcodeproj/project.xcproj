@@ -130,6 +130,7 @@
                 },
               ],
             },
+            { "kind": "folder", "path": "Proofs", "target-membership": [ "PrivacyTests", "widgetsTests" ] },
             {
               "kind": "folder",
               "path": "Prover",

@@ -1,7 +1,7 @@
 import Foundation
 import Testing
-@testable import RPC
 import Transactions
+@testable import RPC
 @testable import widgets
 
 actor HTTPResponses: HTTPTransport {
@@ -9,6 +9,7 @@ actor HTTPResponses: HTTPTransport {
 
     private var responses: [String: [String]]
     private let respond: Responder?
+    private let prover: StubProver?
     private let error: RPCError?
     private let failingMethod: String?
     private let gate: Suspension?
@@ -21,9 +22,10 @@ actor HTTPResponses: HTTPTransport {
     }
 
     init(_ responses: [String: [String]], error: RPCError? = nil, failingMethod: String? = nil,
-         gate: Suspension? = nil, heldMethod: String? = nil, respond: Responder? = nil) {
+         gate: Suspension? = nil, heldMethod: String? = nil, prover: StubProver? = nil, respond: Responder? = nil) {
         self.responses = responses
         self.respond = respond
+        self.prover = prover
         self.error = error
         self.failingMethod = failingMethod
         self.gate = gate
@@ -31,16 +33,19 @@ actor HTTPResponses: HTTPTransport {
     }
 
     nonisolated func client(socket: @escaping @Sendable (URL) -> any WebSocketConnection) -> HeliusRPC {
-        HeliusRPC(apiKey: "fixture-key", network: .devnet, transport: self, socket: socket)
+        HeliusRPC(apiKey: "fixture-key", network: .devnet, transport: self, socket: socket,
+                  zolana: StubProver.zolana(transport: self))
     }
 
     func data(for request: URLRequest) async throws -> (Data, URLResponse) {
         requests.append(request)
-        let rpcMethod = try request.httpBody.map { _ in try request.jsonBody()["method"] as? String } ?? nil
+        let body = request.httpBody.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+        let rpcMethod = body?["method"] as? String
         let method = try rpcMethod ?? #require(request.url?.path())
         if let gate, heldMethod == nil || heldMethod == method { await gate.suspend() }
         wasCancelled = Task.isCancelled
         try Task.checkCancellation()
+        if let reply = try prover?.respond(to: request) { return reply }
         let error = failingMethod == nil || failingMethod == method ? self.error : nil
         if case .transport(let code) = error { throw URLError(code) }
         let status: Int
@@ -48,7 +53,10 @@ actor HTTPResponses: HTTPTransport {
         if case .http(let code, let retryAfter) = error {
             status = code
             headers = retryAfter.map { ["Retry-After": $0] } ?? [:]
-        } else { status = 200; headers = [:] }
+        } else {
+            status = 200
+            headers = [:]
+        }
         let url = try #require(request.url)
         guard rpcMethod != nil else {
             let respond = try #require(respond, "Unexpected HTTP request: \(method)")
@@ -65,7 +73,7 @@ actor HTTPResponses: HTTPTransport {
             value = try respond(request)
         }
         if (responses[method]?.count ?? 0) > 1 { responses[method]?.removeFirst() }
-        let id = try #require(request.jsonBody()["id"] as? String)
+        let id = try #require(body?["id"] as? String)
         let data = Data(#"{"jsonrpc":"2.0","id":"\#(id)","result":\#(value)}"#.utf8)
         let response = try #require(HTTPURLResponse(url: url, statusCode: status,
                                                     httpVersion: nil, headerFields: headers))

@@ -3,12 +3,12 @@ import Encoding
 import Foundation
 import ModularArithmetic
 import Observation
-@testable import Privacy
-@testable import RPC
 import Testing
 import Transactions
 import Vault
 import Wallet
+@testable import Privacy
+@testable import RPC
 @testable import widgets
 
 enum PrivateBalanceFixtures {
@@ -113,7 +113,7 @@ enum PrivateBalanceFixtures {
     }
 
     static func proofRequests(of responses: HTTPResponses) async -> Int {
-        await responses.requests.count { $0.url?.path().hasSuffix("/prove") == true }
+        await responses.requests.count { $0.url?.path().hasSuffix("/indexed") == true }
     }
 
     static func registry(publishing account: ShieldedAccount) throws -> String {
@@ -148,16 +148,9 @@ enum PrivateBalanceFixtures {
 
     static let nullifierRootIndex: UInt16 = 4
 
-    static func proof(answering request: URLRequest) throws -> String {
+    static func treeProofs(answering request: URLRequest) throws -> String {
         let body = try request.jsonBody()
-        guard let method = body["method"] as? String else {
-            let shape = Shape(inputs: try #require(body["nInputs"] as? Int), outputs: try #require(body["nOutputs"] as? Int))
-            let point = ["0x1", "0x2"]
-            return try HTTPResponses.json([
-                "ar": point, "bs": [point, point], "krs": point,
-                "provingKeySha256": Hex.encode(shape.provingKeyDigest),
-            ] as [String: Any])
-        }
+        let method = try #require(body["method"] as? String)
         let params = try #require(body["params"] as? [String: Any])
         let tree = try #require(params["treeAccount"] as? String)
         let leaves = try #require(params["leaves"] as? [String]).map { try #require(Base58.decode($0, byteCount: 32)) }
@@ -177,18 +170,14 @@ enum PrivateBalanceFixtures {
         return try HTTPResponses.json(["context": ["slot": 1], "proofs": proofs] as [String: Any])
     }
 
-    static func proofRequest(spending account: ShieldedAccount) throws -> TransferProofRequest {
+    static func proofRequest(spending account: ShieldedAccount) throws -> IndexedTransferProofRequest {
         var generator = SystemRandomNumberGenerator()
         let utxo = UTXO(owner: try account.recipient.owner, mint: [UInt8](repeating: 0, count: 32), amount: 10,
                         blinding: Poseidon.Element(UInt64(7)), treeID: 1)
         let plan = try TransactPlan(spending: [utxo], sender: account, transfer: nil,
                                     withdrawal: ExternalData.Withdrawal(recipient: account.signingAddress, lamports: 10),
                                     outputTreeID: 1, using: &generator)
-        let tree = try TransactPlan.TreeWitness(
-            treeID: 1, inclusionProofs: plan.inputs.filter { $0.utxo != nil }.map { try inclusionProof(of: $0.hash.bigEndianBytes) },
-            nonInclusionProofs: plan.inputs.map { try nonInclusionProof(of: $0.nullifier.bigEndianBytes) }
-        )
-        return try plan.proofRequest(nullifierKey: account.nullifierKey, trees: [tree])
+        return try plan.proofRequest(nullifierKey: account.nullifierKey)
     }
 
     private static func inclusionProof(of leaf: [UInt8]) throws -> MerkleProof {

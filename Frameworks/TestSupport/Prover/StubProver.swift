@@ -28,6 +28,10 @@ struct StubProver: Sendable {
         return #"{"platform":"aws-nitro","hpke_public_key":"\#(hex)","gpu":null,"evidence":{"document":"00"}}"#
     }
 
+    func transport() -> StubTransport {
+        StubTransport { [self] in try #require(try respond(to: $0)) }
+    }
+
     func respond(to request: URLRequest) throws -> (Data, URLResponse)? {
         if request.value(forHTTPHeaderField: "Zolana-Tee") != nil {
             let sealed = try prover.open(request)

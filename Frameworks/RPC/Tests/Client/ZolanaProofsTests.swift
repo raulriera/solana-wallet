@@ -22,7 +22,7 @@ struct ZolanaProofsTests {
             opened.withLock { $0 = body }
             return (503, "{}")
         }
-        let transport = StubTransport { try #require(try prover.respond(to: $0)) }
+        let transport = prover.transport()
 
         _ = try? await StubProver.zolana(on: network, transport: transport).proveTransfer(request)
 

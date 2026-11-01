@@ -78,7 +78,7 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, SignatureEventPr
         }
     }
 
-    func proveTransfer(_ request: TransferProofRequest) async throws -> TransferProof {
+    func proveTransfer(_ request: IndexedTransferProofRequest) async throws -> IndexedTransferProof {
         try await performPrivateNotes { try await $0.proveTransfer(request) }
     }
 

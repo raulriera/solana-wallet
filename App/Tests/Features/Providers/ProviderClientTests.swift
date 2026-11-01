@@ -1,9 +1,9 @@
 import Foundation
-@testable import Privacy
-@testable import RPC
 import Synchronization
 import Testing
 import Transactions
+@testable import Privacy
+@testable import RPC
 @testable import widgets
 
 @MainActor
@@ -214,7 +214,7 @@ struct ProviderClientTests {
 
     @Test
     func `Helius reads tree proofs`() async throws {
-        let responses = HTTPResponses.privateNotes(prove: PrivateBalanceFixtures.proof(answering:))
+        let responses = HTTPResponses.privateNotes(respond: PrivateBalanceFixtures.treeProofs(answering:))
         let client = responses.providerClient(network: .devnet,
                                               providers: .inMemory(selection: .helius, key: "fixture-key"))
         let tree = try ShieldedPool.tree(id: 1).value
@@ -236,21 +236,15 @@ struct ProviderClientTests {
     func `Helius proves private transfers`() async throws {
         let account = try await PrivateBalanceFixtures.account()
         let shielded = try await PrivateBalanceFixtures.keys(for: account).shieldedAccount(for: account.address)
-        let responses = HTTPResponses.privateNotes(prove: PrivateBalanceFixtures.proof(answering:))
+        let responses = HTTPResponses.privateNotes(prover: try IndexedProofs.prover())
         let client = responses.providerClient(network: .devnet,
                                               providers: .inMemory(selection: .helius, key: "fixture-key"))
         let request = try PrivateBalanceFixtures.proofRequest(spending: shielded)
 
         let proof = try await client.proveTransfer(request)
 
-        let sent = try #require(await responses.requests.first)
-        let body = try sent.jsonBody()
-        let shape = Shape(inputs: try #require(body["nInputs"] as? Int), outputs: try #require(body["nOutputs"] as? Int))
-        #expect(shape == Shape(inputs: 1, outputs: 2))
-        #expect(proof.provingKeyDigest == shape.provingKeyDigest)
-        #expect(await responses.requests.count == 1)
-        #expect(sent.url?.host() == "devnet.helius-rpc.com")
-        #expect(sent.url?.path() == "/v1/zolana/prove")
+        #expect(proof.proof.provingKeyDigest == Shape(inputs: 1, outputs: 2).provingKeyDigest)
+        #expect(proof.resolution.trees.map(\.id) == [1])
     }
 
     @Test(arguments: [(false, .privateNotesUnavailable), (true, .unsupportedNetwork)] as [(Bool, ProviderClientError)])

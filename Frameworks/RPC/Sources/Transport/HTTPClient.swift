@@ -47,26 +47,6 @@ struct HTTPClient: Sendable, CustomStringConvertible, CustomDebugStringConvertib
         try await send(request, to: try url(at: path))
     }
 
-    /// Posts a JSON body to a path below the endpoint and decodes the response body without a JSON-RPC envelope.
-    ///
-    /// - Parameters:
-    ///   - body: The value to send as the JSON request body.
-    ///   - path: One or more path components without a leading slash.
-    ///   - headers: Header fields to add to `Content-Type: application/json`.
-    ///   - response: The type of the decoded response body.
-    /// - Returns: The decoded response body.
-    /// - Throws: An ``RPCError`` or `CancellationError`.
-    @concurrent
-    func post<Body: Encodable & Sendable, Response: Decodable & Sendable>(
-        _ body: Body, at path: String, headers: [String: String], decoding response: Response.Type
-    ) async throws -> Response {
-        try Task.checkCancellation()
-        let data = try await transport.responseData(
-            for: try makeRequest(to: try url(at: path), body: body, headers: headers), redactor: redactor
-        )
-        return try decode(Response.self, from: data)
-    }
-
     /// Gets a path below the endpoint with a query and decodes the response body without a JSON-RPC envelope.
     ///
     /// - Parameters:

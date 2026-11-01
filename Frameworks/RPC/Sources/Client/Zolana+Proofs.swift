@@ -1,6 +1,6 @@
 import CryptoKit
 
-extension Zolana {
+extension Zolana: ProofProviding {
     /// The longest encrypted proof answer, in bytes, to accept.
     private static let maximumProofLength = 1_048_576
 

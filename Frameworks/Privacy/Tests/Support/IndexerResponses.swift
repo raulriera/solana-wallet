@@ -1,62 +1,19 @@
 import Encoding
 import Foundation
-@testable import Privacy
 import RPC
 import Testing
 import Transactions
+@testable import Privacy
 
 enum IndexerResponses {
-    static let utxoRootIndex: UInt16 = 31
-
-    static let nullifierRootIndex: UInt16 = 87
-
     static func spendReads(answering request: URLRequest, queued: Set<String> = []) throws -> (Data, URLResponse) {
         let body = try requestBody(request)
-        guard body["method"] as? String == GetMultipleAccounts.method else { return try proofs(answering: request) }
+        try #require(body["method"] as? String == GetMultipleAccounts.method)
         let addresses = try #require((body["params"] as? [Any])?.first as? [String])
         let owner = try ShieldedPool.program.value
         let account = #"{"owner":"\#(owner)","lamports":1,"executable":false,"data":["AAAAAAAAAAA=","base64"]}"#
         let accounts = addresses.map { queued.contains($0) ? account : "null" }.joined(separator: ",")
         return try reply(to: request, payload: #""result":{"context":{"slot":1},"value":[\#(accounts)]}"#)
-    }
-
-    static func proofs(answering request: URLRequest) throws -> (Data, URLResponse) {
-        let (method, tree, leaves) = try proofRead(request)
-        let zero = Base58.encode([UInt8](repeating: 0, count: 32))
-        let highest = Base58.encode(try fixtureBytes("30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000000"))
-        let root = { (value: UInt8) in Base58.encode([UInt8](repeating: 0, count: 31) + [value]) }
-        let context = #""merkleContext":{"treeType":\#(method == "getMerkleProofs" ? 1 : 2),"tree":"\#(tree)"}"#
-        let proofs = leaves.map { leaf in
-            method == "getMerkleProofs"
-                ? #"{"leaf":"\#(leaf)",\#(context),"path":[\#(paths(zero, count: 32))],"leafIndex":0,"#
-                    + #""root":"\#(root(1))","rootSeq":1,"rootIndex":\#(utxoRootIndex)}"#
-                : #"{"leaf":"\#(leaf)",\#(context),"path":[\#(paths(zero, count: 40))],"lowElement":"\#(zero)","#
-                    + #""lowElementIndex":0,"highElement":"\#(highest)","highElementIndex":1,"root":"\#(root(2))","#
-                    + #""rootSeq":1,"rootIndex":\#(nullifierRootIndex)}"#
-        }
-        return try reply(to: request, payload: #""result":{"context":{"slot":1},"proofs":[\#(proofs.joined(separator: ","))]}"#)
-    }
-
-    static func proofs(from results: [[JSONValue]], answering request: URLRequest) throws -> (Data, URLResponse) {
-        let (_, tree, leaves) = try proofRead(request)
-        let proofs = try #require(results.first { proofs in
-            proofs.contains { $0.member("merkleContext")?.member("tree") == .string(tree) }
-        })
-        try #require(proofs.map { $0.member("leaf") } == leaves.map { .string($0) })
-        let text = String(decoding: try JSONValue.object(["context": .object(["slot": .number(1)]), "proofs": .array(proofs)]).data,
-                          as: UTF8.self)
-        return try reply(to: request, payload: #""result":\#(text)"#)
-    }
-
-    private static func proofRead(_ request: URLRequest) throws -> (method: String, tree: String, leaves: [String]) {
-        let body = try requestBody(request)
-        let params = try #require(body["params"] as? [String: Any])
-        return (try #require(body["method"] as? String), try #require(params["treeAccount"] as? String),
-                try #require(params["leaves"] as? [String]))
-    }
-
-    private static func paths(_ hash: String, count: Int) -> String {
-        Array(repeating: "\"\(hash)\"", count: count).joined(separator: ",")
     }
 
     static func signature(_ byte: UInt8) -> String {

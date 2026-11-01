@@ -10,7 +10,7 @@ extension NoteSyncState {
     ///   - destination: The shielded recipient, the public address, or a shielded recipient that also
     ///     receives public lamports.
     ///   - account: The account of this state.
-    ///   - provider: The client, indexer, and prover of the account's network.
+    ///   - provider: The client and prover of the account's network.
     /// - Returns: The proved spend.
     /// - Throws: ``PrivateSpend/ValidationError/noOutputTree`` before a sync reports a tree,
     ///   ``Transactions/ValidationError/invalidAmount`` for a zero or overflowing amount,
@@ -21,7 +21,7 @@ extension NoteSyncState {
         _ lamports: UInt64,
         to destination: PrivateSpend.Destination,
         from account: ShieldedAccount,
-        provider: some RPC & PrivateNoteProviding & ProofProviding
+        provider: some RPC & ProofProviding
     ) async throws -> PrivateSpend {
         var generator = SystemRandomNumberGenerator()
         return try await spend(lamports, to: destination, from: account, provider: provider, using: &generator)
@@ -34,7 +34,7 @@ extension NoteSyncState {
     ///   - destination: The shielded recipient, the public address, or a shielded recipient that also
     ///     receives public lamports.
     ///   - account: The account of this state.
-    ///   - provider: The client, indexer, and prover of the account's network.
+    ///   - provider: The client and prover of the account's network.
     ///   - generator: The source of the padding, blindings, and salt.
     /// - Returns: The proved spend.
     /// - Throws: An error as ``spend(_:to:from:provider:)`` describes.
@@ -42,7 +42,7 @@ extension NoteSyncState {
         _ lamports: UInt64,
         to destination: PrivateSpend.Destination,
         from account: ShieldedAccount,
-        provider: some RPC & PrivateNoteProviding & ProofProviding,
+        provider: some RPC & ProofProviding,
         using generator: inout some RandomNumberGenerator
     ) async throws -> PrivateSpend {
         guard let outputTreeID else { throw PrivateSpend.ValidationError.noOutputTree }

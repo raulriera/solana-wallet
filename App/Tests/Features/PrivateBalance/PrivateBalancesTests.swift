@@ -1,10 +1,10 @@
 import Foundation
 import Privacy
-@testable import RPC
 import Storage
 import Testing
 import Transactions
 import Wallet
+@testable import RPC
 @testable import widgets
 
 @Suite(.timeLimit(.minutes(1)))
@@ -651,7 +651,7 @@ struct PrivateBalancesTests {
     @Test
     func `Preparing a withdrawal without an output tree is unavailable`() async throws {
         let sender = try await Self.fundedAccount(lamports: 1_000_000)
-        let responses = HTTPResponses.privateNotes(deposits: [sender.deposit], prove: PrivateBalanceFixtures.proof(answering:))
+        let responses = HTTPResponses.privateNotes(deposits: [sender.deposit], prover: try IndexedProofs.prover())
 
         await #expect(throws: PrivateBalanceError.unavailable) {
             try await Self.balances(responses, keys: sender.keys, notes: sender.notes)
@@ -696,7 +696,7 @@ struct PrivateBalancesTests {
         async let derivedRecipient = PrivateBalanceFixtures.account(index: 1)
         let (sender, recipient) = try await (funded, derivedRecipient)
         let responses = HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered], deposits: [sender.deposit],
-                                                   outputTreeID: 1, prove: PrivateBalanceFixtures.proof(answering:))
+                                                   outputTreeID: 1, prover: try IndexedProofs.prover())
 
         await #expect(throws: PrivateBalanceError.recipientUnregistered) {
             try await Self.balances(responses, keys: sender.keys, notes: sender.notes)
@@ -714,7 +714,7 @@ struct PrivateBalancesTests {
         let registry = try PrivateBalanceFixtures.registry(publishing: recipientKeys.shieldedAccount(for: recipient.address))
         let responses = HTTPResponses.privateNotes(registry: [registry, PrivateBalanceFixtures.unregistered],
                                                    deposits: [sender.deposit], outputTreeID: 1,
-                                                   prove: PrivateBalanceFixtures.proof(answering:))
+                                                   prover: try IndexedProofs.prover())
         let balances = try await Self.balances(responses, keys: sender.keys, notes: sender.notes)
 
         let prepared = try await balances.prepare(.send(400_000, to: recipient.address), from: sender.account, on: .devnet)
@@ -738,7 +738,7 @@ struct PrivateBalancesTests {
         let (sender, destination) = try await (funded, derivedDestination)
         let responses = HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered], deposits: [sender.deposit],
                                                    outputTreeID: 1,
-                                                   prove: PrivateBalanceFixtures.proof(answering:))
+                                                   prover: try IndexedProofs.prover())
 
         let prepared = try await Self.balances(responses, keys: sender.keys, notes: sender.notes)
             .prepare(.withdraw(1_000_000, to: destination.address), from: sender.account, on: .devnet)
@@ -757,7 +757,7 @@ struct PrivateBalancesTests {
         let sender = try await Self.fundedAccount(lamports: 1_000_000)
         let responses = HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered],
                                                    deposits: isRegistered ? [sender.deposit] : [], outputTreeID: 1,
-                                                   prove: PrivateBalanceFixtures.proof(answering:))
+                                                   prover: try IndexedProofs.prover())
         let notes = isRegistered ? sender.notes : StoredValue<PrivateBalances.Notes>()
 
         await #expect(throws: PrivateBalanceError.insufficientBalance) {
@@ -911,7 +911,8 @@ struct PrivateBalancesTests {
         let sender = try await Self.fundedAccount(lamports: 1)
         let shielded = try await PrivateBalanceFixtures.keys(for: sender.account).shieldedAccount(for: sender.account.address)
         let deposits = try (1...41).map { try PrivateBalanceFixtures.deposit(1, to: shielded, leafIndex: UInt64($0)) }
-        let responses = HTTPResponses.privateNotes(deposits: deposits, outputTreeID: 1, prove: PrivateBalanceFixtures.proof(answering:))
+        let responses = HTTPResponses.privateNotes(deposits: deposits, outputTreeID: 1,
+                                                   prover: try IndexedProofs.prover())
 
         await #expect(throws: PrivateBalanceError.tooManyNotes) {
             try await Self.balances(responses, keys: sender.keys, notes: sender.notes)
