@@ -1,5 +1,5 @@
-import Testing
 import RPC
+import Testing
 
 struct TransferProofRequestWitnessTests {
     private typealias Fixture = ProofFixtures
@@ -23,17 +23,10 @@ struct TransferProofRequestWitnessTests {
     }
 
     @Test(arguments: [
-        { _ = try TransferProofRequest.UTXO(domain: [3], owner: ProofFixtures.field(0), asset: ProofFixtures.field(0),
-                                           amount: ProofFixtures.field(0), blinding: ProofFixtures.field(0),
-                                           dataHash: ProofFixtures.field(0), ringDataHash: ProofFixtures.field(0),
-                                           ringProgramID: ProofFixtures.field(0)) },
         { _ = try TransferProofRequest.WitnessInput(utxo: ProofFixtures.utxo(), isDummy: false, treeSlot: 0,
                                                    nullifier: ProofFixtures.field(1), ownerPublicKeyHash: ProofFixtures.field(1),
                                                    nullifierSecret: Array(repeating: 1, count: 31), inclusionProof: nil,
                                                    nonInclusionProof: ProofFixtures.nonInclusionProof()) },
-        { _ = try TransferProofRequest.WitnessOutput(utxo: ProofFixtures.utxo(), isDummy: false, hash: [],
-                                                    ownerPublicKeyHash: ProofFixtures.field(1),
-                                                    nullifierPublicKey: ProofFixtures.field(1)) },
         { let witness = try ProofFixtures.witness()
           _ = try TransferProofRequest.Witness(
               inputs: witness.inputs, outputs: witness.outputs, outputTreeID: 0, blindingSeed: Array(repeating: 1, count: 33),

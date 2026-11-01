@@ -7,7 +7,7 @@ struct TransferProofBodyTests {
 
     @Test
     func `The body matches zolana's flat fields`() throws {
-        let body = try json(Fixture.request())
+        let body = try Fixture.json(TransferProofBody(Fixture.request()))
 
         let utxo = ["domain": "0x3", "owner": "0x11", "asset": "0x0", "amount": "0xa1", "blinding": "0xb1",
                     "dataHash": "0x0", "ringDataHash": "0x0", "ringProgramId": "0x0"]
@@ -39,7 +39,8 @@ struct TransferProofBodyTests {
         let request = try TransferProofRequest(treeSlots: [Fixture.treeSlot()], publicInputHash: Fixture.field(0x99),
                                                witness: Fixture.witness(isDummy: true, hasInclusionProof: false))
 
-        let input = try #require((try json(request)["inputs"] as? [[String: AnyHashable]])?.first)
+        let inputs = try Fixture.json(TransferProofBody(request))["inputs"] as? [[String: AnyHashable]]
+        let input = try #require(inputs?.first)
 
         #expect(input["statePathElements"] as? [String] == Array(repeating: "0x0", count: 32))
         #expect(input["statePathIndex"] as? String == "0x0")
@@ -52,16 +53,13 @@ struct TransferProofBodyTests {
         let cached = try Fixture.witness(hasInclusionProof: false, cacheTreeID: Fixture.field(2),
                                          cacheReadHashes: [Fixture.field(4)], cacheIsCached: [true], cacheReadIndexes: [0])
 
-        let body = try json(TransferProofRequest(treeSlots: [Fixture.treeSlot()], publicInputHash: Fixture.field(1),
-                                                 witness: cached))
+        let body = try Fixture.json(TransferProofBody(
+            TransferProofRequest(treeSlots: [Fixture.treeSlot()], publicInputHash: Fixture.field(1), witness: cached)
+        ))
 
         #expect(body["cacheTreeId"] as? String == "0x2")
         #expect(body["cacheReadHashes"] as? [String] == ["0x4"])
         #expect(body["cacheIsCached"] as? [String] == ["0x1"])
         #expect(body["cacheReadIndex"] as? [String] == ["0x0"])
-    }
-
-    private func json(_ request: TransferProofRequest) throws -> [String: AnyHashable] {
-        try #require(try JSONSerialization.jsonObject(with: JSONEncoder().encode(TransferProofBody(request))) as? [String: AnyHashable])
     }
 }

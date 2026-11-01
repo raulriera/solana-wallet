@@ -1,55 +1,6 @@
 extension TransferProofRequest {
     /// A UTXO as the eight field elements that the circuit reads.
-    public struct UTXO: Sendable, Equatable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
-        /// The domain: 3 for a UTXO, or 1 for padding.
-        public let domain: [UInt8]
-        /// The owner hash, or zero for padding.
-        public let owner: [UInt8]
-        /// The asset's field element, or zero for padding.
-        public let asset: [UInt8]
-        /// The amount, or zero for padding.
-        public let amount: [UInt8]
-        public let blinding: [UInt8]
-        /// The hash of the UTXO's data, or zero without data.
-        public let dataHash: [UInt8]
-        /// The hash of the UTXO's ring data, or zero in the default ring.
-        public let ringDataHash: [UInt8]
-        /// The ring program's field element, or zero in the default ring.
-        public let ringProgramID: [UInt8]
-
-        /// Creates a UTXO from its field elements.
-        ///
-        /// - Parameters:
-        ///   - domain: The domain.
-        ///   - owner: The owner hash.
-        ///   - asset: The asset's field element.
-        ///   - amount: The amount.
-        ///   - blinding: The blinding.
-        ///   - dataHash: The data hash.
-        ///   - ringDataHash: The ring data hash.
-        ///   - ringProgramID: The ring program's field element.
-        /// - Throws: ``ValidationError/invalidLength`` if a value isn't 32 bytes.
-        public init(domain: [UInt8], owner: [UInt8], asset: [UInt8], amount: [UInt8], blinding: [UInt8],
-                    dataHash: [UInt8], ringDataHash: [UInt8], ringProgramID: [UInt8]) throws {
-            try TransferProofRequest.validateFields(
-                [domain, owner, asset, amount, blinding, dataHash, ringDataHash, ringProgramID]
-            )
-            self.domain = domain
-            self.owner = owner
-            self.asset = asset
-            self.amount = amount
-            self.blinding = blinding
-            self.dataHash = dataHash
-            self.ringDataHash = ringDataHash
-            self.ringProgramID = ringProgramID
-        }
-
-        public var description: String { "TransferProofRequest.UTXO" }
-
-        public var debugDescription: String { description }
-
-        public var customMirror: Mirror { Mirror(self, children: [:]) }
-    }
+    public typealias UTXO = IndexedTransferProofRequest.UTXO
 
     /// One input slot of the witness.
     public struct WitnessInput: Sendable, Equatable, CustomStringConvertible, CustomDebugStringConvertible,
@@ -103,44 +54,7 @@ extension TransferProofRequest {
     }
 
     /// One output slot of the witness.
-    public struct WitnessOutput: Sendable, Equatable, CustomStringConvertible, CustomDebugStringConvertible,
-                                 CustomReflectable {
-        /// The created UTXO, or padding.
-        public let utxo: UTXO
-        /// Whether the slot is padding.
-        public let isDummy: Bool
-        /// The output's published hash.
-        public let hash: [UInt8]
-        /// The owner's Solana identity, or for padding the identity of its view tag's owner.
-        public let ownerPublicKeyHash: [UInt8]
-        /// The owner's nullifier public key, or zero for padding.
-        public let nullifierPublicKey: [UInt8]
-
-        /// Creates an output slot.
-        ///
-        /// - Parameters:
-        ///   - utxo: The created UTXO, or padding.
-        ///   - isDummy: Whether the slot is padding.
-        ///   - hash: The published hash.
-        ///   - ownerPublicKeyHash: The owner's Solana identity.
-        ///   - nullifierPublicKey: The owner's nullifier public key, or zero.
-        /// - Throws: ``ValidationError/invalidLength`` if a value isn't 32 bytes.
-        public init(utxo: UTXO, isDummy: Bool, hash: [UInt8], ownerPublicKeyHash: [UInt8], nullifierPublicKey: [UInt8])
-            throws {
-            try TransferProofRequest.validateFields([hash, ownerPublicKeyHash, nullifierPublicKey])
-            self.utxo = utxo
-            self.isDummy = isDummy
-            self.hash = hash
-            self.ownerPublicKeyHash = ownerPublicKeyHash
-            self.nullifierPublicKey = nullifierPublicKey
-        }
-
-        public var description: String { "TransferProofRequest.WitnessOutput" }
-
-        public var debugDescription: String { description }
-
-        public var customMirror: Mirror { Mirror(self, children: [:]) }
-    }
+    public typealias WitnessOutput = IndexedTransferProofRequest.Output
 
     /// The circuit's witness, without the tree slots and the public input hash.
     public struct Witness: Sendable, Equatable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {

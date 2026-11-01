@@ -7,7 +7,7 @@ struct HTTPClientTests {
         let value: Int
     }
 
-    private static let answerBody = Data(#"{"proof":"ok"}"#.utf8)
+    private static let answerBody = Data(#"{"value":9}"#.utf8)
 
     private let prover: TestProver
 
@@ -39,13 +39,13 @@ struct HTTPClientTests {
     }
 
     @Test
-    func `A sealed POST reaches the prover below the endpoint with the caller's headers and opens its answer`()
+    func `A sealed POST reaches the prover below the endpoint with the caller's headers and decodes its answer`()
         async throws {
         let transport = answering(Self.answerBody)
 
         let answer = try await post(through: transport)
 
-        #expect(answer == .init(status: 200, body: Self.answerBody))
+        #expect(answer == Reading(value: 9))
         let request = try #require(await transport.requests.first)
         #expect(request.httpMethod == "POST")
         #expect(request.url?.absoluteString == "https://prover.example.com/v1/zolana/prove/transfer_2_2/indexed")
@@ -69,6 +69,20 @@ struct HTTPClientTests {
         await #expect(throws: error) { try await post(through: transport) }
     }
 
+    @Test(arguments: [
+        (503, #"{"code":"prover_not_ready"}"#, RPCError.http(statusCode: 503, retryAfter: nil)),
+        (200, #"{"proof":"ok"}"#, .decoding),
+    ] as [(Int, String, RPCError)])
+    func `A sealed POST surfaces an unsuccessful decrypted status or an answer that doesn't decode`(
+        status: Int,
+        body: String,
+        error: RPCError
+    ) async throws {
+        await #expect(throws: error) {
+            try await post(through: answering(Data(body.utf8), status: status))
+        }
+    }
+
     @Test
     func `A sealed POST refuses an encrypted answer longer than the limit`() async throws {
         await #expect(throws: RPCError.invalidResponse(.oversized)) {
@@ -76,11 +90,11 @@ struct HTTPClientTests {
         }
     }
 
-    private func answering(_ body: Data) -> StubTransport {
-        StubTransport { [prover] request in try prover.open(request).answer(status: 200, body: body) }
+    private func answering(_ body: Data, status: Int = 200) -> StubTransport {
+        StubTransport { [prover] request in try prover.open(request).answer(status: status, body: body) }
     }
 
-    private func post(through transport: StubTransport) async throws -> SealedProverRequest.Answer {
+    private func post(through transport: StubTransport) async throws -> Reading {
         let client = HTTPClient(
             endpoint: try #require(URL(string: "https://prover.example.com/v1/zolana")),
             transport: transport,
@@ -91,7 +105,8 @@ struct HTTPClientTests {
             at: "prove/transfer_2_2/indexed",
             headers: ["X-Sync": "true"],
             maximumLength: 64,
-            to: prover.publicKey
+            to: prover.publicKey,
+            decoding: Reading.self
         )
     }
 }

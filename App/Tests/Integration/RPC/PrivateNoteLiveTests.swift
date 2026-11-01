@@ -65,7 +65,7 @@ struct PrivateNoteLiveTests {
     @Test(arguments: [Network.mainnet, .devnet])
     func `Reads of a random value find nothing`(network: Network) async throws {
         let provider = Zolana(network: network)
-        let value = Self.randomFieldElement()
+        let value = randomFieldElement()
 
         async let taggedRead = provider.shieldedTransactions(taggedWith: [value], after: nil)
         async let spendingRead = provider.shieldedTransactions(spending: [value])
@@ -78,14 +78,10 @@ struct PrivateNoteLiveTests {
     @Test(arguments: [Network.mainnet, .devnet])
     func `Non-inclusion proofs prove a random nullifier unspent`(network: Network) async throws {
         let provider = Zolana(network: network)
-        let nullifier = Self.randomFieldElement()
+        let nullifier = randomFieldElement()
 
         let proofs = try await provider.nonInclusionProofs(for: [nullifier], inTree: try ShieldedPool.tree(id: 0).value)
 
         #expect(proofs.map(\.nullifier) == [nullifier])
-    }
-
-    private static func randomFieldElement() -> [UInt8] {
-        [0] + (0..<31).map { _ in UInt8.random(in: .min ... .max) }
     }
 }

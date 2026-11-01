@@ -97,50 +97,10 @@ struct TransferProofBody: Encodable, Sendable {
     }
 
     /// One output slot.
-    struct Output: Encodable, Sendable {
-        let utxo: UTXO
-        let isDummy: String
-        let hash: String
-        let ownerPkHash: String
-        let nullifierPk: String
-
-        /// Creates an output slot's text.
-        ///
-        /// - Parameter output: The validated output slot.
-        init(_ output: TransferProofRequest.WitnessOutput) {
-            utxo = UTXO(output.utxo)
-            isDummy = FieldHex.encode(integer: output.isDummy ? 1 : 0)
-            hash = FieldHex.encode(output.hash)
-            ownerPkHash = FieldHex.encode(output.ownerPublicKeyHash)
-            nullifierPk = FieldHex.encode(output.nullifierPublicKey)
-        }
-    }
+    typealias Output = IndexedTransferProofBody.Output
 
     /// A UTXO's eight field elements.
-    struct UTXO: Encodable, Sendable {
-        let domain: String
-        let owner: String
-        let asset: String
-        let amount: String
-        let blinding: String
-        let dataHash: String
-        let ringDataHash: String
-        let ringProgramId: String
-
-        /// Creates a UTXO's text.
-        ///
-        /// - Parameter utxo: The validated UTXO.
-        init(_ utxo: TransferProofRequest.UTXO) {
-            domain = FieldHex.encode(utxo.domain)
-            owner = FieldHex.encode(utxo.owner)
-            asset = FieldHex.encode(utxo.asset)
-            amount = FieldHex.encode(utxo.amount)
-            blinding = FieldHex.encode(utxo.blinding)
-            dataHash = FieldHex.encode(utxo.dataHash)
-            ringDataHash = FieldHex.encode(utxo.ringDataHash)
-            ringProgramId = FieldHex.encode(utxo.ringProgramID)
-        }
-    }
+    typealias UTXO = IndexedTransferProofBody.UTXO
 }
 
 extension TransferProofBody.TreeSlot {

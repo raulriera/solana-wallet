@@ -87,8 +87,8 @@ struct HTTPClient: Sendable, CustomStringConvertible, CustomDebugStringConvertib
         return try decode(Response.self, from: data)
     }
 
-    /// Posts a JSON body encrypted to the Solana Rings prover's key to a path below the endpoint and decrypts the
-    /// prover's answer.
+    /// Posts a JSON body encrypted to the Solana Rings prover's key to a path below the endpoint, decrypts the
+    /// prover's answer, and decodes its body without a JSON-RPC envelope.
     ///
     /// - Parameters:
     ///   - body: The value to encrypt as the JSON request body.
@@ -96,31 +96,39 @@ struct HTTPClient: Sendable, CustomStringConvertible, CustomDebugStringConvertib
     ///   - headers: Header fields to add to the encrypted request.
     ///   - maximumLength: The longest response body, in bytes, to accept.
     ///   - key: The prover's attested HPKE key.
-    /// - Returns: The prover's decrypted status and body.
+    ///   - response: The type of the decoded answer body.
+    /// - Returns: The decoded answer body.
     /// - Throws: ``RPCError/encoding`` for a body or request that can't be encrypted,
-    ///   ``RPCError/InvalidResponse/oversized`` for a longer response body, an ``RPCError`` for an answer that
-    ///   doesn't decrypt or an unencrypted refusal, or `CancellationError`.
+    ///   ``RPCError/InvalidResponse/oversized`` for a longer response body, ``RPCError/http(statusCode:retryAfter:)``
+    ///   for an unsuccessful decrypted status, another ``RPCError`` for an answer that doesn't decrypt or decode or
+    ///   for an unencrypted refusal, or `CancellationError`.
     @concurrent
-    func post(
+    func post<Response: Decodable & Sendable>(
         sealing body: some Encodable & Sendable,
         at path: String,
         headers: [String: String],
         maximumLength: Int,
-        to key: Curve25519.KeyAgreement.PublicKey
-    ) async throws -> SealedProverRequest.Answer {
+        to key: Curve25519.KeyAgreement.PublicKey,
+        decoding response: Response.Type
+    ) async throws -> Response {
         try Task.checkCancellation()
         let request = try makeRequest(to: try url(at: path), body: body, headers: headers)
         let sealed = try SealedProverRequest(sealing: request, below: endpoint, to: key)
-        let (data, response) = try await transport.response(
+        let (data, httpResponse) = try await transport.response(
             for: sealed.request,
             maximumLength: maximumLength,
             redactor: redactor
         )
+        let answer: SealedProverRequest.Answer
         do {
-            return try sealed.open(data, response: response)
+            answer = try sealed.open(data, response: httpResponse)
         } catch {
             throw RPCError.sanitized(error, redactor: redactor)
         }
+        guard (200..<300).contains(answer.status) else {
+            throw RPCError.http(statusCode: answer.status, retryAfter: nil)
+        }
+        return try decode(Response.self, from: answer.body)
     }
 
     /// Sends one JSON-RPC request to a URL and validates its response envelope.

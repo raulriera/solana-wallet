@@ -31,4 +31,16 @@ struct FieldHexTests {
     func `Invalid text is rejected`(text: String) {
         #expect(FieldHex.decode(text) == nil)
     }
+
+    @Test(arguments: [
+        (ProofFixtures.fieldOrderMinusOne, true),
+        (ProofFixtures.fieldOrder, false),
+        ("30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000002", false),
+        (String(repeating: "ff", count: 32), false),
+        (String(repeating: "00", count: 31), false),
+        (String(repeating: "00", count: 33), false),
+    ])
+    func `Only 32 bytes below the BN254 scalar field's order are canonical`(hex: String, isCanonical: Bool) throws {
+        #expect(FieldHex.isCanonical(try fixtureBytes(hex)) == isCanonical)
+    }
 }
