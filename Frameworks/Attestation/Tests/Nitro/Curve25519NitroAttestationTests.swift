@@ -162,7 +162,7 @@ struct Curve25519NitroAttestationTests {
 
     @Test
     func `Report data binds the nonce and the key without a GPU verdict`() throws {
-        let vectors = try ReportDataVectors.load()
+        let vectors = try EncryptedProverVectors.load()
         let key = try Curve25519.KeyAgreement.PublicKey(rawRepresentation: fixtureBytes(vectors.hpkePublicKey))
         let nonce = try fixtureBytes(vectors.nonce)
 

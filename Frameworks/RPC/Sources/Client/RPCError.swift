@@ -26,6 +26,10 @@ public enum RPCError: Error, Sendable, Equatable {
         case mismatchedProofs
         /// The prover's attestation doesn't prove that the expected enclave holds its key.
         case untrustedProver
+        /// The prover's encrypted answer doesn't open under the request's key or holds no status.
+        case unauthenticatedAnswer
+        /// The prover can't decrypt the request because it no longer holds the attested key.
+        case staleProverKey
     }
 
     /// Whether the failure can clear without the person's action.
