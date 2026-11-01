@@ -1,3 +1,4 @@
+import CryptoKit
 import Encoding
 import Foundation
 import Testing
@@ -5,23 +6,33 @@ import Testing
 
 struct RecordedNitroAttestation: Decodable, Sendable {
     let capturedAt: Int
+    let nonce: String
     let attestation: Attestation
 
     private enum CodingKeys: String, CodingKey {
         case capturedAt = "captured_at"
+        case nonce
         case attestation
     }
 
     struct Attestation: Decodable, Sendable {
+        let hpkePublicKey: String
         let evidence: Evidence
+
+        private enum CodingKeys: String, CodingKey {
+            case hpkePublicKey = "hpke_public_key"
+            case evidence
+        }
     }
 
     struct Evidence: Decodable, Sendable {
         let document: String
     }
 
+    private static let loaded = Result { try fixture(named: "RecordedNitroAttestation") as Self }
+
     static func load() throws -> Self {
-        try fixture(named: "RecordedNitroAttestation")
+        try loaded.get()
     }
 
     var capturedDate: Date {
@@ -39,5 +50,15 @@ struct RecordedNitroAttestation: Decodable, Sendable {
             return bytes
         }
         return (message, certificate, bundle)
+    }
+
+    func publicKey(under policy: NitroPolicy, at date: Date? = nil) throws -> Curve25519.KeyAgreement.PublicKey {
+        try Curve25519.KeyAgreement.PublicKey(
+            rawRepresentation: fixtureBytes(attestation.hpkePublicKey),
+            attestedBy: fixtureBytes(attestation.evidence.document),
+            nonce: fixtureBytes(nonce),
+            policy: policy,
+            at: date ?? capturedDate
+        )
     }
 }
