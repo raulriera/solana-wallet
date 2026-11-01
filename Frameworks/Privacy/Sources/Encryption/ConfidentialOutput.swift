@@ -1,6 +1,7 @@
 import CryptoKit
 import Foundation
 import ModularArithmetic
+import RPC
 
 /// The published payload of a confidential output, with its recipient's viewing public key and sealed note.
 struct ConfidentialOutput: Sendable {
@@ -11,8 +12,6 @@ struct ConfidentialOutput: Sendable {
         case unsupportedScheme
         case invalidRecipientKey
     }
-
-    private static let encryptedEncoding: UInt8 = 1
 
     private static let confidentialScheme: UInt8 = 3
 
@@ -34,7 +33,7 @@ struct ConfidentialOutput: Sendable {
     let ciphertext: [UInt8]
 
     var encoded: [UInt8] {
-        var bytes = [Self.encryptedEncoding]
+        var bytes = [ShieldedOutput.Encoding.encrypted.rawValue]
         bytes.reserveCapacity(Self.payloadLength)
         bytes.appendLittleEndian(UInt32(Self.bodyLength))
         bytes.append(Self.confidentialScheme)
@@ -61,7 +60,7 @@ struct ConfidentialOutput: Sendable {
     ///   ``ValidationError/invalidRecipientKey`` if the recipient key isn't a tagged X25519 public key.
     init(decoding payload: [UInt8]) throws {
         guard payload.count > Self.headerLength else { throw ValidationError.invalidLength }
-        guard payload[0] == Self.encryptedEncoding else { throw ValidationError.unsupportedEncoding }
+        guard payload[0] == ShieldedOutput.Encoding.encrypted.rawValue else { throw ValidationError.unsupportedEncoding }
         let declaredLength: UInt32 = payload.littleEndian(at: 1)
         guard Int(declaredLength) == payload.count - Self.headerLength else { throw ValidationError.invalidLength }
         guard payload[Self.headerLength] == Self.confidentialScheme else { throw ValidationError.unsupportedScheme }

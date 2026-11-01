@@ -102,14 +102,11 @@ struct EncryptedOutput: Decodable, Sendable, Equatable {
     /// The note salt, or `nil` without encrypted notes.
     let salt: [UInt8]?
 
-    private static let plaintextEncoding: UInt8 = 0
-
     /// The output as a proofless deposit, or `nil` when its transaction has a transaction viewing key or a salt or
     /// its payload isn't plaintext.
     var deposit: ShieldedTransaction? {
-        guard transactionViewingKey == nil, salt == nil, output.payload.first == Self.plaintextEncoding else {
-            return nil
-        }
+        guard transactionViewingKey == nil, salt == nil,
+              output.payload.first == ShieldedOutput.Encoding.plaintext.rawValue else { return nil }
         return ShieldedTransaction(signature: signature, slot: slot, eventIndex: nil, transactionViewingKey: nil,
                                    salt: nil, outputs: [output], nullifiers: [], isProofless: true)
     }

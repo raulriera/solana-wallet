@@ -1,5 +1,11 @@
 /// One output of a shielded transaction.
 public struct ShieldedOutput: Sendable, Equatable {
+    /// The format of an output's payload, named by its first byte.
+    public enum Encoding: UInt8, Sendable {
+        case plaintext = 0
+        case encrypted = 1
+    }
+
     /// The 32-byte view tag that addresses the output.
     public let viewTag: [UInt8]
     /// The 32-byte UTXO hash, the output's leaf in its tree.
