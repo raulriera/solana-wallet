@@ -4,18 +4,7 @@ import Testing
 @testable import RPC
 
 struct ZolanaProofsTests {
-    enum Answer: Sendable {
-        case encrypted(status: Int, body: String)
-        case stale
-    }
-
     private typealias Fixture = ProofFixtures
-
-    private let prover: TestProver
-
-    init() throws {
-        prover = try TestProver(vectors: EncryptedProverVectors.load())
-    }
 
     @Test(arguments: [
         (Network.devnet, "dd73hh473h6ha.cloudfront.net", false, "/prove/transfer_confidential_1_2/indexed"),
@@ -28,9 +17,14 @@ struct ZolanaProofsTests {
         path: String
     ) async throws {
         let request = try hasTwoTrees ? Fixture.twoTreeRequest() : Fixture.indexedRequest()
-        let (zolana, transport) = zolana(on: network, answering: [.encrypted(status: 503, body: "{}")])
+        let opened = Mutex<Data?>(nil)
+        let prover = try StubProver { body in
+            opened.withLock { $0 = body }
+            return (503, "{}")
+        }
+        let transport = StubTransport { try #require(try prover.respond(to: $0)) }
 
-        _ = try? await zolana.proveTransfer(request)
+        _ = try? await StubProver.zolana(on: network, transport: transport).proveTransfer(request)
 
         let post = try #require(await transport.requests.last)
         let url = try #require(post.url)
@@ -39,15 +33,15 @@ struct ZolanaProofsTests {
         #expect(url.path() == path)
         #expect(url.query() == nil)
         #expect(post.value(forHTTPHeaderField: "X-Sync") == "true")
-        #expect(post.value(forHTTPHeaderField: "Zolana-Tee") == "v1")
-        let sent = try JSONSerialization.jsonObject(with: try prover.open(post).body) as? [String: AnyHashable]
+        let body = try #require(opened.withLock { $0 })
+        let sent = try JSONSerialization.jsonObject(with: body) as? [String: AnyHashable]
         #expect(sent == (try Fixture.json(IndexedTransferProofBody(request))))
     }
 
     @Test
     func `An encrypted success yields the decoded proof and resolution`() async throws {
         let json = Fixture.indexedResponse(trees: Fixture.resolvedTrees)
-        let (zolana, transport) = zolana(answering: [.encrypted(status: 200, body: json)])
+        let (zolana, transport) = try Self.zolana(body: json)
 
         let proof = try await zolana.proveTransfer(Fixture.twoTreeRequest())
 
@@ -71,7 +65,7 @@ struct ZolanaProofsTests {
     func `A resolution of other trees, in another order, or without a spent tree's state root is refused`(
         trees: [String]
     ) async throws {
-        let (zolana, _) = zolana(answering: [.encrypted(status: 200, body: Fixture.indexedResponse(trees: trees))])
+        let (zolana, _) = try Self.zolana(body: Fixture.indexedResponse(trees: trees))
 
         await #expect(throws: RPCError.invalidResponse(.mismatchedResolution)) {
             try await zolana.proveTransfer(Fixture.twoTreeRequest())
@@ -80,9 +74,8 @@ struct ZolanaProofsTests {
 
     @Test
     func `An encrypted refusal surfaces its status without a retry`() async throws {
-        let (zolana, transport) = zolana(answering: [
-            .encrypted(status: 502, body: #"{"code":"indexer_unavailable","message":"secret"}"#),
-        ])
+        let refusal = #"{"code":"indexer_unavailable","message":"secret"}"#
+        let (zolana, transport) = try Self.zolana(status: 502, body: refusal)
 
         await #expect(throws: RPCError.http(statusCode: 502, retryAfter: nil)) {
             try await zolana.proveTransfer(Fixture.indexedRequest())
@@ -92,16 +85,14 @@ struct ZolanaProofsTests {
 
     @Test
     func `An encrypted success that isn't a proof is a decoding error`() async throws {
-        let (zolana, _) = zolana(answering: [.encrypted(status: 200, body: Fixture.response())])
+        let (zolana, _) = try Self.zolana(body: Fixture.response())
 
         await #expect(throws: RPCError.decoding) { try await zolana.proveTransfer(Fixture.indexedRequest()) }
     }
 
     @Test
     func `A stale key attests again and resends the request once`() async throws {
-        let (zolana, transport) = zolana(answering: [
-            .stale, .encrypted(status: 200, body: Fixture.indexedResponse()),
-        ])
+        let (zolana, transport) = try Self.zolana(staleRefusals: 1, body: Fixture.indexedResponse())
 
         let proof = try await zolana.proveTransfer(Fixture.indexedRequest())
 
@@ -111,7 +102,7 @@ struct ZolanaProofsTests {
 
     @Test
     func `A key that is stale again after a new attestation surfaces as stale`() async throws {
-        let (zolana, transport) = zolana(answering: [.stale, .stale])
+        let (zolana, transport) = try Self.zolana(staleRefusals: 2, body: Fixture.indexedResponse())
 
         await #expect(throws: RPCError.invalidResponse(.staleProverKey)) {
             try await zolana.proveTransfer(Fixture.indexedRequest())
@@ -119,18 +110,18 @@ struct ZolanaProofsTests {
         #expect(await transport.requests.map(\.httpMethod) == ["GET", "POST", "GET", "POST"])
     }
 
-    private func zolana(on network: Network = .devnet, answering answers: [Answer]) -> (Zolana, StubTransport) {
-        let remaining = Mutex(answers)
-        let attestation = Fixture.attestation(of: prover.publicKey)
-        let transport = StubTransport { [prover] request in
-            guard request.httpMethod == "POST" else { return try httpReply(to: request, body: attestation) }
-            switch remaining.withLock({ $0.removeFirst() }) {
-            case .encrypted(let status, let body):
-                return try prover.open(request).answer(status: status, body: Data(body.utf8))
-            case .stale:
-                return try httpReply(to: request, body: #"{"code":"tee_decryption_failed"}"#, status: 400)
+    private static func zolana(staleRefusals: Int = 0, status: Int = 200, body: String) throws
+        -> (Zolana, StubTransport) {
+        let prover = try StubProver { _ in (status, body) }
+        let refusals = Mutex(staleRefusals)
+        let transport = StubTransport { request in
+            let isStale = request.httpMethod == "POST" && refusals.withLock { remaining in
+                defer { remaining -= 1 }
+                return remaining > 0
             }
+            guard isStale else { return try #require(try prover.respond(to: request)) }
+            return try httpReply(to: request, body: #"{"code":"tee_decryption_failed"}"#, status: 400)
         }
-        return (Zolana(network: network, transport: transport, verify: Fixture.claimedKey), transport)
+        return (StubProver.zolana(transport: transport), transport)
     }
 }

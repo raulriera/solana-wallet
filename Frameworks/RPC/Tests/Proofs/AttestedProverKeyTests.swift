@@ -115,9 +115,9 @@ struct AttestedProverKeyTests {
                 return count
             }
             if attempt > 1 { await gate.suspend() }
-            return try httpReply(to: request, body: ProofFixtures.attestation(of: attempt == 1 ? stale : fresh))
+            return try httpReply(to: request, body: StubProver.attestation(of: attempt == 1 ? stale : fresh))
         }
-        let key = Zolana(network: .devnet, transport: transport, verify: ProofFixtures.claimedKey).attestedKey
+        let key = StubProver.zolana(transport: transport).attestedKey
         _ = try await key.key()
 
         async let first = Self.attestAgain(key, forgetting: stale)

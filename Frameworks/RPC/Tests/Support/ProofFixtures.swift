@@ -1,4 +1,3 @@
-import CryptoKit
 import Encoding
 import Foundation
 import Testing
@@ -14,10 +13,6 @@ enum ProofFixtures {
     static let zeroAddress = String(repeating: "1", count: 32)
 
     static let zeroBytes = [UInt8](repeating: 0, count: 32)
-
-    static let claimedKey: AttestedProverKey.Verification = { attestation, _, _, _ in
-        try Curve25519.KeyAgreement.PublicKey(rawRepresentation: Hex.decode(attestation.hpkePublicKey) ?? [])
-    }
 
     static func field(_ value: UInt8) -> [UInt8] { Array(repeating: 0, count: 31) + [value] }
 
@@ -150,11 +145,6 @@ enum ProofFixtures {
     static func indexedResponse(trees: [String] = [resolvedTree()], publicInputHash: String = word(0x99)) -> String {
         String(response().dropLast())
             + #","resolution":{"trees":[\#(trees.joined(separator: ","))],"publicInputHash":\#(publicInputHash)}}"#
-    }
-
-    static func attestation(of key: Curve25519.KeyAgreement.PublicKey) -> String {
-        let hex = Hex.encode(Array(key.rawRepresentation))
-        return #"{"platform":"aws-nitro","hpke_public_key":"\#(hex)","gpu":null,"evidence":{"document":"00"}}"#
     }
 
     static func json(_ value: some Encodable) throws -> [String: AnyHashable] {

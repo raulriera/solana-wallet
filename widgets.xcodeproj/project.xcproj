@@ -111,7 +111,7 @@
           "children": [
             { "kind": "folder", "path": "Concurrency", "target-membership": [ "RPCTests", "StorageTests", "widgetsTests" ] },
             { "kind": "folder", "path": "Fields", "target-membership": [ "ModularArithmeticTests", "PrivacyTests" ] },
-            { "kind": "folder", "path": "Fixtures", "target-membership": [ "AttestationTests", "ModularArithmeticTests", "PrivacyTests", "RPCTests", "TransactionsTests", "WalletTests" ] },
+            { "kind": "folder", "path": "Fixtures", "target-membership": [ "AttestationTests", "ModularArithmeticTests", "PrivacyTests", "RPCTests", "TransactionsTests", "WalletTests", "widgetsTests" ] },
             {
               "kind": "folder",
               "path": "Networking",
@@ -135,14 +135,32 @@
               "path": "Prover",
               "target-membership": [
                 "AttestationTests",
+                "PrivacyTests",
                 "RPCTests",
+                "widgetsTests",
               ],
               "membership-exceptions": [
                 {
                   "target": "AttestationTests",
                   "exclusions": [
-                    "NOTICE.txt",
+                    "StubProver.swift",
+                    "TestProver.swift",
                     "zolana-LICENSE.txt",
+                  ],
+                }, {
+                  "target": "PrivacyTests",
+                  "exclusions": [
+                    "RecordedDevnetNitroAttestation.json",
+                    "RecordedMainnetNitroAttestation.json",
+                    "RecordedNitroAttestation.swift",
+                    "zolana-LICENSE.txt",
+                  ],
+                }, {
+                  "target": "widgetsTests",
+                  "exclusions": [
+                    "RecordedDevnetNitroAttestation.json",
+                    "RecordedMainnetNitroAttestation.json",
+                    "RecordedNitroAttestation.swift",
                   ],
                 },
               ],
