@@ -209,7 +209,7 @@ struct PrivateBalancesTests {
         #expect(await notes.value?[id] == saved)
         #expect(await PrivateBalanceFixtures.nonTreeAccountReads(of: responses) == 1)
         #expect(try await Self.methods(of: responses).filter { $0 == GetMerkleProofs.method }.count == 1)
-        #expect(try await Self.tagCursors(of: responses) == [nil, HTTPResponses.indexerPosition])
+        #expect(try await Self.tagCursors(of: responses) == [nil, IndexerReplies.scannedThrough])
     }
 
     @Test
@@ -375,12 +375,15 @@ struct PrivateBalancesTests {
     func `Recorded notes need keys, and notes before the first sync have no saved status`() async throws {
         let account = try await PrivateBalanceFixtures.account()
         let id = PrivateBalances.noteID(of: account, on: .devnet)
-        let keys = StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
-        let recorded = try await PrivateBalanceFixtures.pendingDeposit(of: account).notes
+        async let record = PrivateBalanceFixtures.keys(for: account)
+        async let deposit = PrivateBalanceFixtures.pendingDeposit(of: account)
+        let keys = StoredValue([account.address.value: try await record])
+        let recorded = try await deposit.notes
         let responses = HTTPResponses.privateNotes()
-        let withKeys = try await Self.balances(responses, keys: keys, notes: recorded)
-        let keyless = try await Self.balances(responses, notes: recorded)
-        let unsynced = try await Self.balances(responses, keys: keys, notes: StoredValue([id: NoteSyncState()]))
+        async let withKeysBalances = Self.balances(responses, keys: keys, notes: recorded)
+        async let keylessBalances = Self.balances(responses, notes: recorded)
+        async let unsyncedBalances = Self.balances(responses, keys: keys, notes: StoredValue([id: NoteSyncState()]))
+        let (withKeys, keyless, unsynced) = try await (withKeysBalances, keylessBalances, unsyncedBalances)
 
         async let saved = withKeys.savedStatus(of: account, on: .devnet)
         async let keylessStatus = keyless.savedStatus(of: account, on: .devnet)
@@ -428,9 +431,9 @@ struct PrivateBalancesTests {
         let record = try await PrivateBalanceFixtures.keys(for: account)
         let deposit = try PrivateBalanceFixtures.deposit(42, to: record.shieldedAccount(for: account.address), leafIndex: 1)
         let responses = HTTPResponses([
-            GetShieldedTransactionsByTags.method: ["null", HTTPResponses.indexerPage([], in: "transactions")],
-            GetEncryptedUtxosByTags.method: [HTTPResponses.indexerPage([deposit], in: "matches")],
-            GetShieldedTransactionsByNullifiers.method: [HTTPResponses.indexerPage([], in: "transactions")],
+            GetShieldedTransactionsByTags.method: ["null", IndexerReplies.page([], in: "transactions")],
+            GetEncryptedUtxosByTags.method: [IndexerReplies.page([deposit], in: "matches")],
+            GetShieldedTransactionsByNullifiers.method: [IndexerReplies.page([], in: "transactions")],
         ], trees: UTXOTrees(rows: [deposit]))
         let id = PrivateBalances.noteID(of: account, on: .devnet)
         let notes = StoredValue<PrivateBalances.Notes>([id: NoteSyncState()])

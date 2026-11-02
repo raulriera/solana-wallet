@@ -18,35 +18,28 @@ enum IndexerFixtures {
 
     static let salt = Data(repeating: 5, count: 16).base64EncodedString()
 
-    static func output(tag: UInt8, hash: UInt8, leafIndex: Int, payload: String = "AQID") -> String {
-        """
-        {"viewTag":"\(Self.hash(tag))","outputContext":{"hash":"\(Self.hash(hash))",\
-        "tree":"\(Self.hash(9))","treeId":0,"leafIndex":\(leafIndex)},"payload":"\(payload)"}
-        """
+    static func output(tag: UInt8, hash: UInt8, leafIndex: UInt64, payload: String = "AQID") -> String {
+        IndexerReplies.output(viewTag: Self.hash(tag), hash: Self.hash(hash), treeID: 0, leafIndex: leafIndex,
+                              payload: payload)
     }
 
-    static func transaction(signature: UInt8, slot: Int, eventIndex: Int = 0, proofless: Bool = false,
+    static func transaction(signature: UInt8, slot: Int, eventIndex: UInt16 = 0, proofless: Bool = false,
                             outputs: [String] = [], nullifiers: [UInt8] = []) -> String {
-        let keys = proofless ? #""txViewingPk":null,"salt":null"# : #""txViewingPk":"\#(viewingKey)","salt":"\#(salt)""#
-        return """
-            {"slot":\(slot),"txSignature":"\(Self.signature(signature))","eventIndex":\(eventIndex),\(keys),\
-            "outputSlots":[\(outputs.joined(separator: ","))],"messages":[],\
-            "nullifiers":[\(nullifiers.map { "\"\(hash($0))\"" }.joined(separator: ","))],"proofless":\(proofless)}
-            """
+        IndexerReplies.transaction(signature: Self.signature(signature), slot: UInt64(slot), eventIndex: eventIndex,
+                                   viewingKey: proofless ? nil : viewingKey, salt: proofless ? nil : salt,
+                                   outputs: outputs, nullifiers: nullifiers.map(hash), isProofless: proofless)
     }
 
     static func match(signature: UInt8, slot: Int, output: String, keyed: Bool = false) -> String {
-        let keys = keyed ? #""txViewingPk":"\#(viewingKey)","salt":"\#(salt)""# : #""txViewingPk":null,"salt":null"#
-        return #"{"slot":\#(slot),"txSignature":"\#(Self.signature(signature))","outputSlot":\#(output),\#(keys)}"#
+        IndexerReplies.match(signature: Self.signature(signature), slot: UInt64(slot), output: output,
+                             viewingKey: keyed ? viewingKey : nil, salt: keyed ? salt : nil)
     }
 
     static func page(_ items: [String] = [], in rows: String = "transactions", next: String? = nil,
-                     scanned: String? = nil, outputTreeID: Int? = nil) -> String {
-        var fields = [#""context":{"blockTime":1,"slot":2}"#, #""\#(rows)":[\#(items.joined(separator: ","))]"#,
-                      #""nextCursor":\#(next.map { "\"\($0)\"" } ?? "null")"#]
-        if let scanned { fields.append(#""scannedThrough":"\#(scanned)""#) }
-        if let outputTreeID { fields.append(#""outputTreeId":\#(outputTreeID)"#) }
-        return #""result":{\#(fields.joined(separator: ","))}"#
+                     scannedThrough: String? = IndexerReplies.scannedThrough, outputTreeID: UInt16? = nil) -> String {
+        let page = IndexerReplies.page(items, in: rows, next: next, scannedThrough: scannedThrough,
+                                       outputTreeID: outputTreeID)
+        return #""result":\#(page)"#
     }
 
     static func merkleProof(leaf: UInt8, tree: String = hash(9), treeType: Int = 1, pathCount: Int = 32,

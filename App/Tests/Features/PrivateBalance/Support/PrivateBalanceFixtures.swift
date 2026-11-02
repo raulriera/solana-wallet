@@ -14,7 +14,7 @@ import Wallet
 enum PrivateBalanceFixtures {
     static let recoveryID = UUID(uuidString: "2C4B8E7A-3F61-4D0B-9E25-6A7D1C3B5F80")!
 
-    static let unregistered = #"{"context":{"slot":7},"value":[null]}"#
+    static let unregistered = AccountReplies.accounts([nil])
 
     static func recovery() throws -> Recovery {
         try PublicWallet.recovery()
@@ -124,7 +124,7 @@ enum PrivateBalanceFixtures {
     }
 
     static func registry(publishing account: ShieldedAccount) throws -> String {
-        #"{"context":{"slot":7},"value":[\#(try registryRecord(publishing: account))]}"#
+        AccountReplies.accounts([try registryRecord(publishing: account)])
     }
 
     static func registryRecord(publishing account: ShieldedAccount) throws -> String {
@@ -132,8 +132,7 @@ enum PrivateBalanceFixtures {
         var data = [1] + owner + [try UserRegistry.record(of: account.signingAddress).bump]
         data += account.nullifierKey.publicKey.bigEndianBytes
         data += Array(account.viewingKey.publicKey.taggedRepresentation) + [0]
-        return #"{"owner":"\#(try UserRegistry.program.value)","lamports":1586880,"executable":false,"#
-            + #""data":["\#(Data(data).base64EncodedString())","base64"]}"#
+        return AccountReplies.account(owner: try UserRegistry.program.value, lamports: 1_586_880, data: data)
     }
 
     static func deposit(_ lamports: UInt64, to account: ShieldedAccount, leafIndex: UInt64) throws -> String {
@@ -144,18 +143,18 @@ enum PrivateBalanceFixtures {
         var payload: [UInt8] = [0]
         payload.appendLittleEndian(UInt32(body.count))
         payload += body
-        let output = #"{"viewTag":"\#(account.signingAddress.value)","outputContext":{"hash":"\#(Base58.encode(utxo.hash.bigEndianBytes))","#
-            + #""treeId":\#(utxo.treeID),"leafIndex":\#(leafIndex)},"payload":"\#(Data(payload).base64EncodedString())"}"#
+        let output = IndexerReplies.output(viewTag: account.signingAddress.value, hash: Base58.encode(utxo.hash.bigEndianBytes),
+                                           treeID: utxo.treeID, leafIndex: leafIndex,
+                                           payload: Data(payload).base64EncodedString())
         let signature = Base58.encode([UInt8](repeating: UInt8(truncatingIfNeeded: leafIndex + 1), count: 64))
-        return #"{"slot":3,"txSignature":"\#(signature)","outputSlot":\#(output),"txViewingPk":null,"salt":null}"#
+        return IndexerReplies.match(signature: signature, slot: 3, output: output)
     }
 
     static func spend(of lamports: UInt64, to account: ShieldedAccount, leafIndex: UInt64) throws -> String {
         let utxo = try utxo(lamports, of: account, leafIndex: leafIndex)
         let nullifier = Base58.encode(utxo.nullifier(using: account.nullifierKey).bigEndianBytes)
         let signature = Base58.encode([UInt8](repeating: UInt8(truncatingIfNeeded: leafIndex + 101), count: 64))
-        return #"{"slot":4,"txSignature":"\#(signature)","txViewingPk":null,"salt":null,"outputSlots":[],"#
-            + #""nullifiers":["\#(nullifier)"],"proofless":false}"#
+        return IndexerReplies.transaction(signature: signature, slot: 4, nullifiers: [nullifier])
     }
 
     static func proofRequest(spending account: ShieldedAccount) throws -> IndexedTransferProofRequest {

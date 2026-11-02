@@ -11,7 +11,7 @@ struct ShieldedPoolTreeFeeTests {
         let header: [UInt8] = [1, 1, 7, 0, 0xff, 0xff, 0xff, 0xff]
         let fee: [UInt8] = [0x6c, 0x01, 0, 0, 0, 0, 0, 0x02]
         let rest = [UInt8](repeating: 0xee, count: 40_080 - header.count - fee.count)
-        let transport = Self.transport(returning: Self.account(owner: Self.program, data: header + fee + rest))
+        let transport = Self.transport(returning: [AccountReplies.account(owner: Self.program, data: header + fee + rest)])
 
         let result = try await ShieldedPool.feePerNullifier(treeID: 7, using: Solana(network: .devnet, transport: transport))
 
@@ -23,20 +23,16 @@ struct ShieldedPoolTreeFeeTests {
 
     @Test
     func `Accounts shorter than a tree account fail`() async throws {
-        let transport = Self.transport(returning: Self.account(owner: Self.program, data: [UInt8](repeating: 0, count: 16)))
+        let transport = Self.transport(returning: [AccountReplies.account(owner: Self.program, data: [UInt8](repeating: 0, count: 16))])
 
         await #expect(throws: ShieldedPool.TreeError.invalidLength) {
             try await ShieldedPool.feePerNullifier(treeID: 0, using: Solana(network: .devnet, transport: transport))
         }
     }
 
-    static func account(owner: String, data: [UInt8]) -> String {
-        #"{"owner":"\#(owner)","lamports":1000000,"executable":false,"data":["\#(Data(data).base64EncodedString())","base64"]}"#
-    }
-
-    static func transport(returning accounts: String) -> StubTransport {
+    static func transport(returning accounts: [String?]) -> StubTransport {
         StubTransport { request in
-            try reply(to: request, payload: #""result":{"context":{"slot":7},"value":[\#(accounts)]}"#)
+            try reply(to: request, payload: #""result":\#(AccountReplies.accounts(accounts))"#)
         }
     }
 }

@@ -15,8 +15,7 @@ struct ShieldedPoolTreeAccountTests {
 
     @Test
     func `Tree accounts are read with one request in the trees' order`() async throws {
-        let accounts = [Fixture.account(owner: Fixture.program, data: Self.data(7)), Fixture.account(owner: Fixture.program, data: Self.data(0))]
-        let transport = Fixture.transport(returning: accounts.joined(separator: ","))
+        let transport = Fixture.transport(returning: [Self.account(Self.data(7)), Self.account(Self.data(0))])
 
         let data = try await ShieldedPool.treeAccountData(at: try Self.trees, using: Solana(network: .devnet, transport: transport))
 
@@ -29,22 +28,23 @@ struct ShieldedPoolTreeAccountTests {
     }
 
     @Test(arguments: [
-        ("\(Fixture.account(owner: Fixture.program, data: data(7))),null", ShieldedPool.TreeError.missingTree),
-        ("\(Fixture.account(owner: Fixture.program, data: data(7))),\(Fixture.account(owner: "11111111111111111111111111111111", data: data(0)))",
-         .foreignOwner),
-        (Fixture.account(owner: Fixture.program, data: data(7)), .mismatchedResponse),
-        ("null,null,null", .mismatchedResponse),
-        ("\(Fixture.account(owner: Fixture.program, data: data(7))),\(Fixture.account(owner: Fixture.program, data: Array(data(0).dropLast())))",
-         .invalidLength),
-        ("\(Fixture.account(owner: Fixture.program, data: data(7) + [0])),\(Fixture.account(owner: Fixture.program, data: data(0)))",
-         .invalidLength),
-    ])
-    func `Accounts that aren't the trees fail`(accounts: String, error: ShieldedPool.TreeError) async {
+        ([account(data(7)), nil], ShieldedPool.TreeError.missingTree),
+        ([account(data(7)), AccountReplies.account(owner: "11111111111111111111111111111111", data: data(0))], .foreignOwner),
+        ([account(data(7))], .mismatchedResponse),
+        ([nil, nil, nil], .mismatchedResponse),
+        ([account(data(7)), account(Array(data(0).dropLast()))], .invalidLength),
+        ([account(data(7) + [0]), account(data(0))], .invalidLength),
+    ] as [([String?], ShieldedPool.TreeError)])
+    func `Accounts that aren't the trees fail`(accounts: [String?], error: ShieldedPool.TreeError) async {
         let transport = Fixture.transport(returning: accounts)
 
         await #expect(throws: error) {
             try await ShieldedPool.treeAccountData(at: try Self.trees, using: Solana(network: .devnet, transport: transport))
         }
+    }
+
+    private static func account(_ data: [UInt8]) -> String {
+        AccountReplies.account(owner: Fixture.program, data: data)
     }
 
     private static func data(_ first: UInt8) -> [UInt8] {

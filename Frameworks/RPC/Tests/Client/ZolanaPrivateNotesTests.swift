@@ -41,7 +41,7 @@ struct ZolanaPrivateNotesTests {
             return switch params["cursor"] as? String {
             case nil: try reply(to: request, payload: Fixture.page([Fixture.transaction(signature: 1, slot: 10)], next: "AQ=="))
             case "AQ==": try reply(to: request, payload: Fixture.page([Fixture.transaction(signature: 2, slot: 11)], next: "Ag=="))
-            default: try reply(to: request, payload: Fixture.page(next: nil, scanned: "Aw=="))
+            default: try reply(to: request, payload: Fixture.page(scannedThrough: "Aw=="))
             }
         }
         let rpc = Zolana(network: .devnet, transport: transport)
@@ -66,7 +66,8 @@ struct ZolanaPrivateNotesTests {
         #expect(batch.moreComing)
         #expect(batch.transactions.map(\.slot) == [1, 2, 3, 4, 5, 6, 7, 8])
         let resumed = PageCursor.cursor(forPage: 8)
-        #expect(batch.position == NoteSyncPosition(tags: tags, transactionCursors: [resumed], outputCursors: [nil]))
+        #expect(batch.position == NoteSyncPosition(tags: tags, transactionCursors: [resumed],
+                                                   outputCursors: [IndexerReplies.scannedThrough]))
         let routes = await transport.requests.map { $0.url?.lastPathComponent }
         #expect(routes.filter { $0 == GetShieldedTransactionsByTags.method }.count == 8)
     }
@@ -82,8 +83,8 @@ struct ZolanaPrivateNotesTests {
         #expect(first.moreComing)
         #expect(!second.moreComing)
         #expect((first.transactions + second.transactions).map(\.slot) == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-        let resumed = PageCursor.cursor(forPage: 9)
-        #expect(second.position == NoteSyncPosition(tags: tags, transactionCursors: [resumed], outputCursors: [nil]))
+        #expect(second.position == NoteSyncPosition(tags: tags, transactionCursors: [IndexerReplies.scannedThrough],
+                                                    outputCursors: [IndexerReplies.scannedThrough]))
     }
 
     @Test(arguments: [
@@ -103,7 +104,7 @@ struct ZolanaPrivateNotesTests {
                 : Fixture.match(signature: 1, slot: 1, output: Fixture.output(tag: 1, hash: 1, leafIndex: 1))
             return try reply(to: request, payload: Fixture.page(page.0 == nil ? [] : [row],
                                                                 in: isTransactions ? "transactions" : "matches",
-                                                                next: page.0, scanned: page.1))
+                                                                next: page.0, scannedThrough: page.1))
         }
         let rpc = Zolana(network: .devnet, transport: transport)
         let tags = [Fixture.bytes(1)]
@@ -147,11 +148,11 @@ struct ZolanaPrivateNotesTests {
             let (route, params) = try Fixture.call(request)
             let tags = try #require(params["tags"] as? [String])
             guard route == GetShieldedTransactionsByTags.method else {
-                return try reply(to: request, payload: Fixture.page(in: "matches", scanned: tags.count == 1 ? "Ag==" : "AQ=="))
+                return try reply(to: request, payload: Fixture.page(in: "matches", scannedThrough: tags.count == 1 ? "Ag==" : "AQ=="))
             }
             let shared = Fixture.transaction(signature: 3, slot: 20)
             let own = tags.count == 1 ? Fixture.transaction(signature: 1, slot: 30) : Fixture.transaction(signature: 2, slot: 5)
-            return try reply(to: request, payload: Fixture.page([shared, own], scanned: tags.count == 1 ? "Ag==" : "AQ=="))
+            return try reply(to: request, payload: Fixture.page([shared, own], scannedThrough: tags.count == 1 ? "Ag==" : "AQ=="))
         }
         let rpc = Zolana(network: .devnet, transport: transport)
         let tags = (0..<1_001).map { [UInt8](repeating: 0, count: 30) + [UInt8($0 >> 8), UInt8($0 & 0xff)] }
@@ -167,9 +168,9 @@ struct ZolanaPrivateNotesTests {
         #expect(Set(groups.flatMap(\.self)) == Set(tags.map(Base58.encode)))
     }
 
-    @Test(arguments: [(Int?(2), Int?(3), UInt16?(2)), (nil, 3, 3), (nil, nil, nil)])
+    @Test(arguments: [(UInt16?(2), UInt16?(3), UInt16?(2)), (nil, 3, 3), (nil, nil, nil)])
     func `The output tree prefers the transaction stream's report`(
-        transactionTree: Int?, depositTree: Int?, expected: UInt16?
+        transactionTree: UInt16?, depositTree: UInt16?, expected: UInt16?
     ) async throws {
         let transport = StubTransport { request in
             let (route, _) = try Fixture.call(request)

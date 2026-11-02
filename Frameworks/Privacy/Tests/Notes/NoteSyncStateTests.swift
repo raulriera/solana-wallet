@@ -28,29 +28,23 @@ struct NoteSyncStateTests {
             if let reply = try trees.respond(to: request) { return reply }
             switch try #require(request.url?.lastPathComponent) {
             case GetShieldedTransactionsByTags.method:
-                return try reply(
-                    to: request,
-                    payload: IndexerResponses.page(transactions.map(IndexerResponses.row), in: "transactions", scanned: scanned, outputTreeID: outputTreeID)
-                )
+                let page = IndexerReplies.page(transactions.map(IndexerResponses.row), in: "transactions",
+                                               scannedThrough: scanned, outputTreeID: outputTreeID)
+                return try reply(to: request, payload: #""result":\#(page)"#)
             case GetEncryptedUtxosByTags.method:
-                let (rows, next) = try depositPage(answering: request)
-                let payload = IndexerResponses.page(rows.map(IndexerResponses.match), in: "matches", next: next,
-                                                    scanned: scanned, outputTreeID: outputTreeID)
-                return try reply(to: request, payload: payload)
+                let pages = PageCursor.pages(of: (deposits + forgedDeposits).map(IndexerResponses.match),
+                                             perPage: depositsPerPage)
+                let number = depositsPerPage == nil ? 0 : try PageCursor.page(of: request)
+                let matches = try #require(pages.indices.contains(number) ? pages[number] : nil)
+                let page = IndexerReplies.page(matches.rows, in: "matches", next: matches.next, scannedThrough: scanned,
+                                               outputTreeID: outputTreeID)
+                return try reply(to: request, payload: #""result":\#(page)"#)
             default:
                 let requested = Set(try NoteSyncStateTests.nullifiers(of: request))
                 let spending = spends.filter { $0.nullifiers.contains { requested.contains(Base58.encode($0)) } }
-                return try reply(to: request, payload: IndexerResponses.page(spending.map(IndexerResponses.row), in: "transactions", scanned: scanned))
+                let page = IndexerReplies.page(spending.map(IndexerResponses.row), in: "transactions", scannedThrough: scanned)
+                return try reply(to: request, payload: #""result":\#(page)"#)
             }
-        }
-
-        func depositPage(answering request: URLRequest) throws -> (deposits: [ShieldedTransaction], next: String?) {
-            let deposits = deposits + forgedDeposits
-            guard let depositsPerPage else { return (deposits, nil) }
-            let page = try PageCursor.page(of: request)
-            let start = page * depositsPerPage
-            let next = deposits.count > start + depositsPerPage ? PageCursor.cursor(forPage: page + 1) : nil
-            return (Array(deposits.dropFirst(start).prefix(depositsPerPage)), next)
         }
     }
 
@@ -487,8 +481,7 @@ struct NoteSyncStateTests {
                 return try Indexer().respond(to: request)
             }
             let next = PageCursor.cursor(forPage: try PageCursor.page(of: request) + 1)
-            let payload = IndexerResponses.page([filler], in: "matches", next: next, scanned: "AQ==")
-            return try reply(to: request, payload: payload)
+            return try reply(to: request, payload: #""result":\#(IndexerReplies.page([filler], in: "matches", next: next))"#)
         }
         await #expect(throws: RPCError.invalidResponse(.endlessStream)) {
             try await NoteSyncState().syncedToEnd(for: sender, rpc: Solana.devnet(transport: transport), indexer: Self.indexer(transport))

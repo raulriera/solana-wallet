@@ -22,7 +22,7 @@ enum RedeemCodeFixtures {
             switch try request.jsonBody()["method"] as? String {
             case GetMultipleAccounts.method?:
                 let addresses = try #require(try request.rpcParameters.first as? [String])
-                return #"{"context":{"slot":7},"value":[\#(addresses.map { accounts[$0] ?? "null" }.joined(separator: ","))]}"#
+                return AccountReplies.accounts(addresses.map { accounts[$0] })
             case GetMinimumBalanceForRentExemption.method?:
                 return String(rent)
             default:
@@ -32,7 +32,7 @@ enum RedeemCodeFixtures {
     }
 
     static func systemAccount(lamports: UInt64) -> String {
-        #"{"owner":"11111111111111111111111111111111","lamports":\#(lamports),"executable":false,"data":["","base64"]}"#
+        AccountReplies.account(owner: "11111111111111111111111111111111", lamports: lamports)
     }
 
     static func recordAddress(of account: widgets.Account) throws -> String {

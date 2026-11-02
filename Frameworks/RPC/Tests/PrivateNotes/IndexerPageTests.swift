@@ -10,9 +10,10 @@ struct IndexerPageTests {
         let json = page(Fixture.page([Fixture.transaction(signature: 1, slot: 9_007_199_254_740_993, eventIndex: 3,
                                                           outputs: [Fixture.output(tag: 1, hash: 2, leafIndex: 7)],
                                                           nullifiers: [4, 5])],
-                                     next: "AQ==", scanned: "Ag==", outputTreeID: 6))
+                                     next: "AQ==", outputTreeID: 6))
 
         let decoded = try JSONDecoder().decode(ShieldedTransactionPage.self, from: json)
+        let last = try JSONDecoder().decode(ShieldedTransactionPage.self, from: page(Fixture.page(scannedThrough: "Ag==")))
 
         #expect(decoded.items.map(\.isInRing) == [false])
         #expect(decoded.items.map(\.value) == [ShieldedTransaction(
@@ -23,8 +24,10 @@ struct IndexerPageTests {
             nullifiers: [Fixture.bytes(4), Fixture.bytes(5)], isProofless: false
         )])
         #expect(decoded.nextCursor == "AQ==")
-        #expect(decoded.scannedThrough == "Ag==")
+        #expect(decoded.scannedThrough == nil)
         #expect(decoded.outputTreeID == 6)
+        #expect(last.nextCursor == nil)
+        #expect(last.scannedThrough == "Ag==")
     }
 
     @Test
@@ -124,7 +127,7 @@ struct IndexerPageTests {
     func `Reading pages collects rows until no cursor remains`() async throws {
         let pages = [
             nil: Fixture.page([Fixture.transaction(signature: 1, slot: 1)], next: "AQ==", outputTreeID: 1),
-            "AQ==": Fixture.page(scanned: "Ag=="),
+            "AQ==": Fixture.page(scannedThrough: "Ag=="),
         ] as [String?: String]
 
         let read = try await ShieldedTransactionPage.read(from: nil, pageLimit: 8) { cursor in

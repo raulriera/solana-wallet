@@ -102,8 +102,8 @@ struct ReceivedNoteInclusionStatusTests {
         StubTransport { request in
             let body = try requestBody(request)
             guard body["method"] as? String == GetMerkleProofs.method else {
-                let values = accounts.map { ShieldedPoolTreeFeeTests.account(owner: ShieldedPool.programID, data: $0) }
-                return try reply(to: request, payload: #""result":{"context":{"slot":7},"value":[\#(values.joined(separator: ","))]}"#)
+                let values = accounts.map { AccountReplies.account(owner: ShieldedPool.programID, data: $0) }
+                return try reply(to: request, payload: #""result":\#(AccountReplies.accounts(values))"#)
             }
             let tree = try MerkleProofReplies.requestedLeaves(in: request).tree
             let entries = try #require(proofs[tree]).map(Self.entry(for:))

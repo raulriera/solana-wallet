@@ -92,8 +92,7 @@ struct UTXOTrees: Sendable {
             let trees = try trees()
             let read = addresses.compactMap { trees[$0] }
             guard !read.isEmpty, read.count == addresses.count else { return nil }
-            let accounts = read.map(account(of:)).joined(separator: ",")
-            return try reply(to: request, payload: #""result":{"context":{"slot":7},"value":[\#(accounts)]}"#)
+            return try reply(to: request, payload: #""result":\#(AccountReplies.accounts(read.map(account(of:))))"#)
         case GetTransaction.method?:
             let signature = try #require((body["params"] as? [Any])?.first as? String)
             let nullifiers = try rows.compactMap(Self.spend(in:)).first { $0.signature == signature }?.nullifiers
@@ -127,8 +126,7 @@ struct UTXOTrees: Sendable {
         let roots = [Self.zeros[Self.height]] + (isFinalized ? [tree.root] : [])
         let data = Self.account(cursor: UInt16(roots.count - 1), count: UInt16(roots.count), roots: roots.map(\.bigEndianBytes),
                                 feePerNullifier: feePerNullifier)
-        return #"{"owner":"\#(ShieldedPool.programID)","lamports":1,"executable":false,"#
-            + #""data":["\#(Data(data).base64EncodedString())","base64"]}"#
+        return AccountReplies.account(owner: ShieldedPool.programID, data: data)
     }
 
     private static func spend(in row: String) throws -> (signature: String, nullifiers: [[UInt8]])? {
