@@ -2,10 +2,6 @@ import ModularArithmetic
 import RPC
 
 extension TransactPlan {
-    private static let utxoRootHistoryCapacity: UInt16 = 500
-
-    private static let nullifierRootHistoryCapacity: UInt16 = 100
-
     /// Checks the roots that the prover proved the plan against and creates the instruction's tree contexts from them.
     ///
     /// - Parameters:
@@ -23,8 +19,8 @@ extension TransactPlan {
                   let nullifierRoot = Poseidon.Element(bigEndianBytes: tree.nullifierRoot) else {
                 throw ValidationError.invalidRoot
             }
-            guard tree.utxoRootIndex < Self.utxoRootHistoryCapacity,
-                  tree.nullifierRootIndex < Self.nullifierRootHistoryCapacity else {
+            guard Int(tree.utxoRootIndex) < ShieldedPool.TreeAccount.utxoRootCapacity,
+                  Int(tree.nullifierRootIndex) < ShieldedPool.TreeAccount.nullifierRootCapacity else {
                 throw ValidationError.rootIndexOutOfRange
             }
             return PublicInputs.TreeSlot(treeID: id, utxoRoot: utxoRoot, nullifierRoot: nullifierRoot)

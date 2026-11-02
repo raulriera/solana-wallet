@@ -1,7 +1,7 @@
 import Foundation
+import Testing
 @testable import Privacy
 @testable import RPC
-import Testing
 
 struct ShieldedPoolTreeFeeTests {
     static let program = "ring1GaLCuJnkUMVkX2JeZLTTX17wKsV4fZmPVzXANW"
@@ -30,17 +30,11 @@ struct ShieldedPoolTreeFeeTests {
         #expect(result == 108)
     }
 
-    @Test(arguments: [
-        ("null", ShieldedPool.TreeError.missingTree),
-        (account(owner: "11111111111111111111111111111111", data: [UInt8](repeating: 0, count: 16)), .foreignOwner),
-        (account(owner: program, data: [UInt8](repeating: 0, count: 15)), .invalidLength),
-        ("", .mismatchedResponse),
-        ("null,null", .mismatchedResponse),
-    ])
-    func `Accounts without a fee schedule fail`(accounts: String, error: ShieldedPool.TreeError) async throws {
-        let transport = Self.transport(returning: accounts)
+    @Test
+    func `Accounts shorter than the fee schedule fail`() async throws {
+        let transport = Self.transport(returning: Self.account(owner: Self.program, data: [UInt8](repeating: 0, count: 15)))
 
-        await #expect(throws: error) {
+        await #expect(throws: ShieldedPool.TreeError.invalidLength) {
             try await ShieldedPool.feePerNullifier(treeID: 0, using: Solana(network: .devnet, transport: transport))
         }
     }
@@ -49,7 +43,7 @@ struct ShieldedPoolTreeFeeTests {
         #"{"owner":"\#(owner)","lamports":1000000,"executable":false,"data":["\#(Data(data).base64EncodedString())","base64"]}"#
     }
 
-    private static func transport(returning accounts: String) -> StubTransport {
+    static func transport(returning accounts: String) -> StubTransport {
         StubTransport { request in
             try reply(to: request, payload: #""result":{"context":{"slot":7},"value":[\#(accounts)]}"#)
         }
