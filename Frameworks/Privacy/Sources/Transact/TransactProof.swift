@@ -5,6 +5,15 @@ struct TransactProof: Sendable, Equatable {
         case invalidLength
     }
 
+    /// The bytes of a compressed G1 point.
+    static let g1Length = 32
+
+    /// The bytes of a G2 point.
+    static let g2Length = 128
+
+    /// The bytes of a proof: its points `a`, `b`, and `c`.
+    static let length = 2 * g1Length + g2Length
+
     /// The compressed G1 point `a`.
     let a: [UInt8]
 
@@ -22,7 +31,7 @@ struct TransactProof: Sendable, Equatable {
     ///   - c: The 32-byte compressed G1 point `c`.
     /// - Throws: ``ValidationError/invalidLength`` if a point has another length.
     init(a: [UInt8], b: [UInt8], c: [UInt8]) throws {
-        guard a.count == 32, b.count == 128, c.count == 32 else { throw ValidationError.invalidLength }
+        guard a.count == Self.g1Length, b.count == Self.g2Length, c.count == Self.g1Length else { throw ValidationError.invalidLength }
         self.a = a
         self.b = b
         self.c = c

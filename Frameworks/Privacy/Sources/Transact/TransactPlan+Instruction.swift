@@ -4,7 +4,7 @@ import Transactions
 
 extension TransactPlan {
     /// The circuit ID of a transact that its owners sign.
-    private static let confidentialSignerCircuit: UInt16 = 0
+    static let confidentialSignerCircuit: UInt16 = 0
 
     private static let publicAssetSlots: UInt8 = 3
 

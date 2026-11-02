@@ -29,10 +29,11 @@ struct HTTPClient: Sendable, CustomStringConvertible, CustomDebugStringConvertib
     ///
     /// - Parameter request: The RPC method and its parameters.
     /// - Returns: The decoded result.
-    /// - Throws: An ``RPCError`` or `CancellationError`.
+    /// - Throws: ``RPCError/InvalidResponse/oversized`` for a response body longer than the request's
+    ///   ``RPCRequest/maximumResponseLength``, another ``RPCError``, or `CancellationError`.
     @concurrent
     func send<Request: RPCRequest>(_ request: Request) async throws -> Request.Response {
-        try await send(request, to: endpoint, maximumLength: nil)
+        try await send(request, to: endpoint, maximumLength: Request.maximumResponseLength)
     }
 
     /// Sends one request to a path below the endpoint and decodes its response.

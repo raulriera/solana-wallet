@@ -11,7 +11,7 @@ struct ExternalData: Sendable {
 
     private static let noExpiry = UInt64.max
 
-    private static let solWithdrawalVariant: UInt8 = 1
+    static let solWithdrawalVariant: UInt8 = 1
 
     /// The encoded prefix of the transact instruction's data, after its tag.
     let encoded: [UInt8]
@@ -42,7 +42,7 @@ struct ExternalData: Sendable {
         writer.append(Self.noExpiry)
         writer.append(array: Array(transactionViewingPublicKey.taggedRepresentation))
         writer.append(array: salt)
-        var accounts = [[UInt8]]()
+        var accounts: [[UInt8]] = []
         if let withdrawal {
             try writer.appendCount(1)
             writer.append(Self.solWithdrawalVariant)

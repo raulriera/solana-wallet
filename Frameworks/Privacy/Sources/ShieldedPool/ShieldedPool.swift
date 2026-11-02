@@ -7,6 +7,8 @@ public enum ShieldedPool {
 
     static let transactTag: UInt8 = 16
 
+    static let mergeTransactTag: UInt8 = 17
+
     private static let systemProgramID = "11111111111111111111111111111111"
 
     private static let solInterfaceSeeds = [Array("sol_interface".utf8), [0]]
@@ -34,7 +36,7 @@ public enum ShieldedPool {
     /// - Returns: The tree's account address.
     /// - Throws: A ``ValidationError`` if the derivation fails.
     static func tree(id: UInt16) throws -> Address {
-        var idBytes = [UInt8]()
+        var idBytes: [UInt8] = []
         idBytes.appendLittleEndian(id)
         return try ProgramAddress.find(seeds: [treeSeed, idBytes], program: program).address
     }
