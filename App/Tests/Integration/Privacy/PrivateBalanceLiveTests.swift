@@ -19,15 +19,9 @@ struct PrivateBalanceLiveTests {
 
     @Test(arguments: ShieldedPoolOwners.devnet)
     func `Deposits rebuild with the registry's owner hash`(owner: String) async throws {
-        let address = try Address(owner)
-        async let records = UserRegistry.recipients(of: [address], using: Solana(network: .devnet))
-        async let batch = Zolana(network: .devnet).shieldedTransactions(taggedWith: [address.bytes], after: nil)
-        let recipient = try #require(try await records.first ?? nil)
-        let deposits = try await batch.transactions.filter(\.isProofless).flatMap(\.outputs)
-            .filter { $0.viewTag == address.bytes }
-        try #require(!deposits.isEmpty, "The owner must have a deposit")
+        let (recipient, deposits) = try await ShieldedPoolOwners.deposits(of: owner)
 
-        let failures = try deposits.flatMap { output in
+        let failures = try deposits.flatMap(\.outputs).flatMap { output in
             let payload = try ProoflessOutput(decoding: output.payload)
             let blinding = ShieldedPool.depositBlinding(tree: try ShieldedPool.tree(id: output.treeID), leafIndex: output.leafIndex)
             let utxo = UTXO(owner: recipient.owner, mint: payload.mint, amount: payload.amount, blinding: blinding, treeID: output.treeID)
