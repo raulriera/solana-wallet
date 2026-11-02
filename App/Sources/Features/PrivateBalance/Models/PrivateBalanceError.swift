@@ -71,7 +71,7 @@ nonisolated enum PrivateBalanceError: TransactionReviewError, CaseIterable {
         case .insufficientPublicBalanceForFees:
             String(localized: "Your public balance must cover the fees. Add SOL to it, then try again.")
         case .preparationFailed:
-            String(localized: "The selected provider couldn't prepare this transaction. Try again.")
+            String(localized: "This transaction couldn't be prepared. Try again.")
         case .notSent:
             String(localized: "Nothing left your wallet. Try again in a moment.")
         case .invalidCode:

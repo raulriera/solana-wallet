@@ -35,10 +35,10 @@ struct PrivateBalanceSections: View {
             } footer: {
                 Group {
                     if isRegistered {
-                        Text("This account already uses private balances. Turn them on to see its private balance. Private balances hide amounts from others on the network. Addresses stay visible, and the selected provider, which makes the proofs, can see amounts.",
+                        Text("This account already uses private balances. Turn them on to see its private balance. Private balances hide amounts from others on the network. Addresses stay visible, and the service that finds your private payments can tell which ones are yours.",
                              comment: "Footer under the button that turns private balances on, for an account that turned them on before, such as before its wallet was imported again.")
                     } else {
-                        Text("Private balances hide amounts from others on the network. Addresses stay visible, and the selected provider, which makes the proofs, can see amounts.",
+                        Text("Private balances hide amounts from others on the network. Addresses stay visible, and the service that finds your private payments can tell which ones are yours.",
                              comment: "Footer under the button that turns private balances on.")
                     }
                 }
@@ -67,7 +67,7 @@ struct PrivateBalanceSections: View {
                 Group {
                     if isOutdated {
                         Text("Couldn't update private balance.",
-                             comment: "Footer under a private balance that the last read couldn't update, such as when the provider fails. The balance shown is the last one read or saved, if any.")
+                             comment: "Footer under a private balance that the last read couldn't update, such as when a network request fails. The balance shown is the last one read or saved, if any.")
                     } else if let lamports, lamports.pending > 0 {
                         Text("Pending SOL becomes available when the network reports it, usually within a minute.",
                              comment: "Footer under a private balance with pending SOL, such as a recent deposit.")
