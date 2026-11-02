@@ -16,8 +16,8 @@ let account = try ShieldedAccount(
 )
 let zolana = Zolana(network: .mainnet)
 let registration = try await account.registration(using: rpc)
-let notes = try await NoteSyncState().synced(for: account, using: zolana)
+let notes = try await NoteSyncState().syncedToEnd(for: account, using: zolana)
 let spend = try await notes.spend(lamports, to: .transfer(recipient), from: account, rpc: rpc, prover: zolana)
 ```
 
-`keys` comes from Wallet's `privateBalanceKeys`. `ShieldedAccount.register(paidBy:)` and `ShieldedPool.deposit` make instructions, and `NoteSyncState.spend` makes a proved private transfer, reading queued nullifiers through `rpc` and proving through `prover`.
+`keys` comes from Wallet's `privateBalanceKeys`. `NoteSyncState.synced` reads one batch from the state's position, so a saved state syncs a long backlog over several calls; `syncedToEnd` reads until the indexer has no more. `ShieldedAccount.register(paidBy:)` and `ShieldedPool.deposit` make instructions, and `NoteSyncState.spend` makes a proved private transfer, reading queued nullifiers through `rpc` and proving through `prover`.

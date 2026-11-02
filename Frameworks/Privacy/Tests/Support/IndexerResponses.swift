@@ -35,10 +35,11 @@ enum IndexerResponses {
         return #"{"slot":\#(deposit.slot),"txSignature":"\#(deposit.signature)","outputSlot":\#(output),"txViewingPk":null,"salt":null}"#
     }
 
-    static func page(_ rows: [String], in field: String, scanned: String, outputTreeID: UInt16? = nil) -> String {
+    static func page(_ rows: [String], in field: String, next: String? = nil, scanned: String,
+                     outputTreeID: UInt16? = nil) -> String {
         let tree = outputTreeID.map { #","outputTreeId":\#($0)"# } ?? ""
-        return #""result":{"context":{"slot":2},"\#(field)":[\#(rows.joined(separator: ","))],"nextCursor":null,"#
-            + #""scannedThrough":"\#(scanned)"\#(tree)}"#
+        let end = next.map { #""nextCursor":"\#($0)""# } ?? #""nextCursor":null,"scannedThrough":"\#(scanned)""#
+        return #""result":{"context":{"slot":2},"\#(field)":[\#(rows.joined(separator: ","))],\#(end)\#(tree)}"#
     }
 
     private static func output(_ output: ShieldedOutput) -> String {

@@ -4,6 +4,12 @@ extension Zolana {
     /// The longest indexer response body, in bytes, to accept.
     private static let maximumIndexerResponseLength = 1_048_576
 
+    /// The most pages that one read fetches from each tag or nullifier group's stream.
+    private static let indexerPageLimit = 8
+
+    /// The most nullifiers that one request of a spends read names.
+    private static let nullifierGroupSize = 400
+
     @concurrent
     public func shieldedTransactions(taggedWith tags: [[UInt8]], after position: NoteSyncPosition?) async throws
         -> ShieldedTransactionBatch {
@@ -43,14 +49,15 @@ extension Zolana {
             outputTreeID: transactions.lazy.compactMap(\.outputTreeID).first
                 ?? outputs.lazy.compactMap(\.outputTreeID).first,
             position: NoteSyncPosition(tags: tags, transactionCursors: transactions.map(\.resumeCursor),
-                                       outputCursors: outputs.map(\.resumeCursor))
+                                       outputCursors: outputs.map(\.resumeCursor)),
+            moreComing: !transactions.allSatisfy(\.isComplete) || !outputs.allSatisfy(\.isComplete)
         )
     }
 
     @concurrent
     public func shieldedTransactions(spending nullifiers: [[UInt8]]) async throws -> [ShieldedTransaction] {
         guard nullifiers.allSatisfy({ $0.count == 32 }) else { throw PrivateNoteError.invalidNullifier }
-        let groups = nullifiers.map(Base58.encode).batches(of: 1_000)
+        let groups = nullifiers.map(Base58.encode).batches(of: Self.nullifierGroupSize)
         let indexer = indexer
         let reads = try await Self.read(groups, after: Array(repeating: nil, count: groups.count)) { nullifiers, cursor in
             try await Self.page(GetShieldedTransactionsByNullifiers(nullifiers: nullifiers, cursor: cursor),
@@ -73,7 +80,7 @@ extension Zolana {
         try await indexer.send(request, at: Request.method, maximumLength: maximumIndexerResponseLength)
     }
 
-    /// Reads one stream for each group of values concurrently, each from its cursor to its end.
+    /// Reads one stream for each group of values concurrently, each from its cursor to its end or the page limit.
     ///
     /// - Parameters:
     ///   - groups: The values of each request.
@@ -89,7 +96,9 @@ extension Zolana {
         try await withThrowingTaskGroup(of: (Int, IndexerRead<Page.Item>).self) { group in
             for (index, values) in groups.enumerated() {
                 group.addTask {
-                    (index, try await Page.readAll(from: cursors[index]) { try await page(values, $0) })
+                    (index, try await Page.read(from: cursors[index], pageLimit: Self.indexerPageLimit) {
+                        try await page(values, $0)
+                    })
                 }
             }
             var reads = [IndexerRead<Page.Item>?](repeating: nil, count: groups.count)

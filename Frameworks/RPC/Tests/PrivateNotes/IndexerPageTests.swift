@@ -127,7 +127,7 @@ struct IndexerPageTests {
             "AQ==": Fixture.page(scanned: "Ag=="),
         ] as [String?: String]
 
-        let read = try await ShieldedTransactionPage.readAll(from: nil) { cursor in
+        let read = try await ShieldedTransactionPage.read(from: nil, pageLimit: 8) { cursor in
             try JSONDecoder().decode(ShieldedTransactionPage.self, from: page(try #require(pages[cursor])))
         }
 
@@ -137,25 +137,44 @@ struct IndexerPageTests {
     }
 
     @Test
+    func `A read that reaches the end of its stream is complete`() async throws {
+        var fetched = 0
+
+        let read = try await EndlessPage.read(from: nil, pageLimit: 2) { _ in
+            fetched += 1
+            return EndlessPage(items: [fetched], nextCursor: fetched == 2 ? nil : "\(fetched)")
+        }
+
+        #expect(read.items == [1, 2])
+        #expect(read.isComplete)
+        #expect(read.resumeCursor == "1")
+    }
+
+    @Test
     func `A cursor on a page without rows fails the read`() async {
         await #expect(throws: RPCError.invalidResponse(.invalidCursor)) {
-            try await ShieldedTransactionPage.readAll(from: nil) { _ in
+            try await ShieldedTransactionPage.read(from: nil, pageLimit: 8) { _ in
                 try JSONDecoder().decode(ShieldedTransactionPage.self, from: page(IndexerFixtures.page(next: "AQ==")))
             }
         }
     }
 
     @Test
-    func `A read that doesn't end within 1,024 pages fails`() async {
-        var fetched = 0
-
-        await #expect(throws: RPCError.invalidResponse(.invalidCursor)) {
-            try await EndlessPage.readAll(from: nil) { _ in
-                fetched += 1
-                return EndlessPage(items: [fetched], nextCursor: "\(fetched)")
-            }
+    func `A read stops at its page limit and resumes after its last page`() async throws {
+        var cursors: [String?] = []
+        let endless = { (cursor: String?) in
+            cursors.append(cursor)
+            return EndlessPage(items: [cursors.count], nextCursor: "\(cursors.count)")
         }
-        #expect(fetched == 1_024)
+
+        let first = try await EndlessPage.read(from: nil, pageLimit: 3, fetching: endless)
+        let second = try await EndlessPage.read(from: first.resumeCursor, pageLimit: 2, fetching: endless)
+
+        #expect(first.items == [1, 2, 3])
+        #expect(!first.isComplete)
+        #expect(first.resumeCursor == "3")
+        #expect(second.items == [4, 5])
+        #expect(cursors == [nil, "1", "2", "3", "4"])
     }
 
     private func page(_ member: String) -> Data {

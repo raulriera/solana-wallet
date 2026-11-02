@@ -32,6 +32,9 @@ nonisolated enum RedeemCodeScan {
     /// The first index outside the hardened range that one-time accounts use.
     private static let indexLimit: UInt32 = 1 << 31
 
+    /// The most tag reads that the fundings of one batch of indices make.
+    private static let maximumReadCount = 128
+
     /// Returns the next batch of indices to check.
     ///
     /// - Parameters:
@@ -94,7 +97,7 @@ nonisolated enum RedeemCodeScan {
             for funding in fundings {
                 group.addTask {
                     let account = try keys.oneTimeAccount(at: funding.index).shieldedAccount
-                    let state = try await NoteSyncState().synced(for: account, using: provider)
+                    let state = try await NoteSyncState().syncedToEnd(for: account, using: provider)
                     return (funding.index, state.lamports)
                 }
             }
@@ -125,27 +128,41 @@ nonisolated enum RedeemCodeScan {
         return statuses
     }
 
-    /// Reads which one-time accounts at indices shielded transactions paid, with one tag read.
+    /// Reads which one-time accounts at indices shielded transactions paid, with tag reads of one tag group until no
+    /// more transactions come.
     ///
     /// - Parameters:
     ///   - indices: The indices to check, at most 1,000.
     ///   - keys: The account's keys.
     ///   - provider: The indexer of the account's network.
     /// - Returns: The used one-time accounts, in the indices' order.
-    /// - Throws: A derivation, request, transport, response, or cancellation error.
+    /// - Throws: ``RPC/RPCError/InvalidResponse/invalidCursor`` if more transactions come after 128 reads, or a
+    ///   derivation, request, transport, response, or cancellation error.
     private static func fundings(ofBatch indices: [UInt32], from keys: PrivateBalanceKeyRecord,
                                  using provider: some PrivateNoteProviding) async throws -> [Funding] {
         guard !indices.isEmpty else { return [] }
         let addresses = try indices.map { try keys.oneTimeAddress(at: $0) }
-        let batch = try await provider.shieldedTransactions(taggedWith: addresses.map(\.bytes), after: nil)
-        var firstSignatures: [[UInt8]: String] = [:]
-        for transaction in batch.transactions {
-            for output in transaction.outputs where firstSignatures[output.viewTag] == nil {
-                firstSignatures[output.viewTag] = transaction.signature
+        let tags = addresses.map(\.bytes)
+        let requested = Set(tags)
+        var firsts: [[UInt8]: (slot: UInt64, signature: String)] = [:]
+        var position: NoteSyncPosition?
+        for _ in 0..<maximumReadCount {
+            try Task.checkCancellation()
+            let batch = try await provider.shieldedTransactions(taggedWith: tags, after: position)
+            for transaction in batch.transactions {
+                for output in transaction.outputs where requested.contains(output.viewTag) {
+                    if let first = firsts[output.viewTag],
+                       (first.slot, first.signature) <= (transaction.slot, transaction.signature) { continue }
+                    firsts[output.viewTag] = (transaction.slot, transaction.signature)
+                }
             }
+            guard batch.moreComing else {
+                return zip(indices, addresses).compactMap { index, address in
+                    firsts[address.bytes].map { Funding(index: index, address: address, signature: $0.signature) }
+                }
+            }
+            position = batch.position
         }
-        return zip(indices, addresses).compactMap { index, address in
-            firstSignatures[address.bytes].map { Funding(index: index, address: address, signature: $0) }
-        }
+        throw RPCError.invalidResponse(.invalidCursor)
     }
 }

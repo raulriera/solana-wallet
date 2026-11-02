@@ -133,7 +133,7 @@ extension PrivateBalances {
                             client: Client) async throws -> PreparedPrivateTransaction {
         let shielded = try keys.shieldedAccount(for: account.address)
         let code = try oneTime.shieldedAccount
-        async let codeNotes = NoteSyncState().synced(for: code, using: client)
+        async let codeNotes = NoteSyncState().syncedToEnd(for: code, using: client)
         async let synced = sharedSync(of: account, on: network)
         async let balances = Self.lamports(of: [code.signingAddress], using: client)
         async let cost = shielded.registrationCost(using: client)

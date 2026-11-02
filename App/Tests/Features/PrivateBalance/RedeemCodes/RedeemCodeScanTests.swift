@@ -1,8 +1,8 @@
 import Foundation
-@testable import RPC
 import Testing
 import Transactions
 import Wallet
+@testable import RPC
 @testable import widgets
 
 struct RedeemCodeScanTests {
@@ -42,6 +42,41 @@ struct RedeemCodeScanTests {
         #expect(fundings.map(\.address.value) == [try keys.oneTimeAccount(at: 4).address,
                                                   try keys.oneTimeAccount(at: 6).address])
         #expect(try await RedeemCodeFixtures.tagCounts(of: responses) == [3])
+    }
+
+    @Test
+    func `Fundings after the first read are found`() async throws {
+        let keys = try await Self.keys()
+        let early = try keys.oneTimeAccount(at: 3)
+        let late = try keys.oneTimeAccount(at: 4)
+        let firstRead = try (2..<10).map { try RedeemCodeFixtures.deposit(1, to: early, leafIndex: $0) }
+        let responses = HTTPResponses.privateNotes(
+            deposits: firstRead + [try RedeemCodeFixtures.deposit(1, to: late, leafIndex: 10)], depositsPerPage: 1
+        )
+
+        let fundings = try await RedeemCodeScan.fundings(of: [3, 4], from: keys, using: await Self.client(responses))
+
+        #expect(fundings.map(\.index) == [3, 4])
+        #expect(fundings.map(\.signature) == [RedeemCodeFixtures.signature(ofDepositAt: 2),
+                                              RedeemCodeFixtures.signature(ofDepositAt: 10)])
+        #expect(try await RedeemCodeFixtures.tagCounts(of: responses) == [2, 2])
+    }
+
+    @Test
+    func `Fundings that don't end within 128 reads fail`() async throws {
+        let keys = try await Self.keys()
+        let row = try RedeemCodeFixtures.deposit(1, to: keys.oneTimeAccount(at: 3), leafIndex: 2)
+        let transactions = [HTTPResponses.indexerPage([], in: "transactions")]
+        let responses = HTTPResponses([GetShieldedTransactionsByTags.method: transactions]) { request in
+            let page = try PageCursor.page(of: request)
+            return HTTPResponses.indexerPage([row], in: "matches", next: PageCursor.cursor(forPage: page + 1))
+        }
+        let client = await Self.client(responses)
+
+        await #expect(throws: RPCError.invalidResponse(.invalidCursor)) {
+            try await RedeemCodeScan.fundings(of: [3], from: keys, using: client)
+        }
+        #expect(try await RedeemCodeFixtures.tagCounts(of: responses).count == 128)
     }
 
     @Test

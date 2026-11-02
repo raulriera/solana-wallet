@@ -13,6 +13,7 @@ struct NoteSyncStateTests {
         var spends: [ShieldedTransaction] = []
         var scanned = "AQ=="
         var outputTreeID: UInt16?
+        var depositsPerPage: Int?
 
         func respond(to request: URLRequest) throws -> (Data, URLResponse) {
             switch try #require(request.url?.lastPathComponent) {
@@ -22,14 +23,23 @@ struct NoteSyncStateTests {
                     payload: IndexerResponses.page(transactions.map(IndexerResponses.row), in: "transactions", scanned: scanned, outputTreeID: outputTreeID)
                 )
             case GetEncryptedUtxosByTags.method:
-                return try reply(
-                    to: request, payload: IndexerResponses.page(deposits.map(IndexerResponses.match), in: "matches", scanned: scanned, outputTreeID: outputTreeID)
-                )
+                let (rows, next) = try depositPage(answering: request)
+                let payload = IndexerResponses.page(rows.map(IndexerResponses.match), in: "matches", next: next,
+                                                    scanned: scanned, outputTreeID: outputTreeID)
+                return try reply(to: request, payload: payload)
             default:
                 let requested = Set(try NoteSyncStateTests.nullifiers(of: request))
                 let spending = spends.filter { $0.nullifiers.contains { requested.contains(Base58.encode($0)) } }
                 return try reply(to: request, payload: IndexerResponses.page(spending.map(IndexerResponses.row), in: "transactions", scanned: scanned))
             }
+        }
+
+        func depositPage(answering request: URLRequest) throws -> (deposits: [ShieldedTransaction], next: String?) {
+            guard let depositsPerPage else { return (deposits, nil) }
+            let page = try PageCursor.page(of: request)
+            let start = page * depositsPerPage
+            let next = deposits.count > start + depositsPerPage ? PageCursor.cursor(forPage: page + 1) : nil
+            return (Array(deposits.dropFirst(start).prefix(depositsPerPage)), next)
         }
     }
 
@@ -137,6 +147,53 @@ struct NoteSyncStateTests {
 
         #expect(first.notes == (try notes(in: deposit)))
         #expect(state == first)
+    }
+
+    @Test
+    func `A backlog longer than one read syncs over several syncs`() async throws {
+        let indexer = Indexer(deposits: Array(repeating: foreignDeposit, count: 8) + [deposit], depositsPerPage: 1)
+
+        let (first, _) = try await sync(NoteSyncState(), with: indexer)
+        let (second, _) = try await sync(first, with: indexer)
+
+        let tags = sender.viewTags
+        #expect(first.notes.isEmpty)
+        let resumed = PageCursor.cursor(forPage: 8)
+        #expect(first.position == NoteSyncPosition(tags: tags, transactionCursors: ["AQ=="], outputCursors: [resumed]))
+        #expect(second.notes == (try notes(in: deposit)))
+        #expect(second.position == NoteSyncPosition(tags: tags, transactionCursors: ["AQ=="], outputCursors: ["AQ=="]))
+    }
+
+    @Test
+    func `Syncs to the end read every batch of a backlog`() async throws {
+        let indexer = Indexer(deposits: Array(repeating: foreignDeposit, count: 8) + [deposit], depositsPerPage: 1)
+        let provider = Zolana(network: .devnet, transport: StubTransport { try indexer.respond(to: $0) })
+
+        let state = try await NoteSyncState().syncedToEnd(for: sender, using: provider)
+
+        let tags = sender.viewTags
+        #expect(state.notes == (try notes(in: deposit)))
+        #expect(state.position == NoteSyncPosition(tags: tags, transactionCursors: ["AQ=="], outputCursors: ["AQ=="]))
+    }
+
+    @Test
+    func `A sync to the end that doesn't end within 128 batches fails`() async throws {
+        let filler = IndexerResponses.match(foreignDeposit)
+        let transport = StubTransport { request in
+            guard request.url?.lastPathComponent == GetEncryptedUtxosByTags.method else {
+                return try Indexer().respond(to: request)
+            }
+            let next = PageCursor.cursor(forPage: try PageCursor.page(of: request) + 1)
+            let payload = IndexerResponses.page([filler], in: "matches", next: next, scanned: "AQ==")
+            return try reply(to: request, payload: payload)
+        }
+        let provider = Zolana(network: .devnet, transport: transport)
+
+        await #expect(throws: RPCError.invalidResponse(.invalidCursor)) {
+            try await NoteSyncState().syncedToEnd(for: sender, using: provider)
+        }
+        let routes = await transport.requests.map { $0.url?.lastPathComponent }
+        #expect(routes.filter { $0 == GetShieldedTransactionsByTags.method }.count == 128)
     }
 
     @Test

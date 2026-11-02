@@ -20,7 +20,7 @@ public enum RPCError: Error, Sendable, Equatable {
         case mismatchedID
         /// The response contained both `result` and `error`, or neither.
         case invalidEnvelope
-        /// A page repeated a cursor or returned one without rows, or a stream didn't end within its page limit.
+        /// A page repeated a cursor or returned one without rows, or a read didn't end within its limit.
         case invalidCursor
         /// The response body is longer than the request accepts.
         case oversized

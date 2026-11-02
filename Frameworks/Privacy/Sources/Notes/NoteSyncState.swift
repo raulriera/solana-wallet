@@ -19,6 +19,9 @@ public struct NoteSyncState: Sendable, Equatable, Codable, CustomStringConvertib
     /// The length of a nullifier, in bytes.
     private static let nullifierLength = 32
 
+    /// The most batches that a sync to the end reads.
+    private static let maximumBatchCount = 128
+
     /// Where the next read resumes, or `nil` before the first sync.
     let position: NoteSyncPosition?
 
@@ -155,7 +158,7 @@ public struct NoteSyncState: Sendable, Equatable, Codable, CustomStringConvertib
         return lamports == 0 || isCounted ? pending : pending + [PendingAmount(signature: signature, lamports: lamports)]
     }
 
-    /// Reads the indexer for the account's new notes and spends and returns the next state.
+    /// Reads one batch of the account's new notes and spends from the indexer and returns the next state.
     ///
     /// - Parameters:
     ///   - account: The account of this state.
@@ -166,6 +169,44 @@ public struct NoteSyncState: Sendable, Equatable, Codable, CustomStringConvertib
     ///   error, or a request, transport, response, or cancellation error.
     @concurrent
     public func synced(for account: ShieldedAccount, using provider: some PrivateNoteProviding) async throws -> NoteSyncState {
+        try await syncedBatch(for: account, using: provider).state
+    }
+
+    /// Reads batches of the account's new notes and spends from the indexer until no more come, and returns the
+    /// final state.
+    ///
+    /// - Parameters:
+    ///   - account: The account of this state.
+    ///   - provider: The indexer of the account's network.
+    /// - Returns: The state with the unspent notes and the position of the next read.
+    /// - Throws: ``ValidationError/amountOverflow`` if the total exceeds a 64-bit integer, a
+    ///   ``RPC/PrivateNoteError`` if the position came from other view tags,
+    ///   ``RPC/RPCError/InvalidResponse/invalidCursor`` if more come after 128 batches, a cipher or key agreement
+    ///   error, or a request, transport, response, or cancellation error.
+    @concurrent
+    public func syncedToEnd(for account: ShieldedAccount, using provider: some PrivateNoteProviding) async throws
+        -> NoteSyncState {
+        var state = self
+        for _ in 0..<Self.maximumBatchCount {
+            try Task.checkCancellation()
+            let (next, moreComing) = try await state.syncedBatch(for: account, using: provider)
+            guard moreComing else { return next }
+            state = next
+        }
+        throw RPCError.invalidResponse(.invalidCursor)
+    }
+
+    /// Reads one batch of the account's new notes and spends from the indexer.
+    ///
+    /// - Parameters:
+    ///   - account: The account of this state.
+    ///   - provider: The indexer of the account's network.
+    /// - Returns: The next state, and whether the indexer holds more after its position.
+    /// - Throws: ``ValidationError/amountOverflow`` if the total exceeds a 64-bit integer, a
+    ///   ``RPC/PrivateNoteError`` if the position came from other view tags, a cipher or key agreement
+    ///   error, or a request, transport, response, or cancellation error.
+    private func syncedBatch(for account: ShieldedAccount, using provider: some PrivateNoteProviding) async throws
+        -> (state: NoteSyncState, moreComing: Bool) {
         let (position, notes, localSpends, tags) = (position, notes, localSpends, account.viewTags)
         let (batch, received, respent, spent) = try await withThrowingTaskGroup(of: SyncRead.self) { group in
             group.addTask {
@@ -196,13 +237,14 @@ public struct NoteSyncState: Sendable, Equatable, Codable, CustomStringConvertib
         let kept = (notes + received).filter { !spent.contains($0.nullifier.bigEndianBytes) }
             .sorted { ($0.slot, $0.signature, $0.leafIndex, $0.utxo.treeID) < ($1.slot, $1.signature, $1.leafIndex, $1.utxo.treeID) }
         let reported = Set((batch?.transactions.map(\.signature) ?? []) + kept.map(\.signature))
-        return try NoteSyncState(
+        let state = try NoteSyncState(
             position: batch?.position ?? position,
             notes: kept,
             outputTreeID: batch?.outputTreeID,
             pending: pending.filter { !reported.contains($0.signature) },
             localSpends: respent.subtracting(spent)
         )
+        return (state, batch?.moreComing ?? false)
     }
 
     /// Adds a read of the transactions that spent any of the notes.
