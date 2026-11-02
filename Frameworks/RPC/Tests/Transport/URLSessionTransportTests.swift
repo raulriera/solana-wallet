@@ -25,6 +25,10 @@ struct URLSessionTransportTests {
             }
             let body = URLSessionTransportTests.body(count: length)
             client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            if query.contains(URLQueryItem(name: "stalled", value: "true")) {
+                client?.urlProtocol(self, didLoad: body.prefix(16))
+                return
+            }
             for start in stride(from: 0, to: length, by: 16) {
                 client?.urlProtocol(self, didLoad: body.subdata(in: start..<min(start + 16, length)))
             }
@@ -32,6 +36,26 @@ struct URLSessionTransportTests {
         }
 
         override func stopLoading() {}
+    }
+
+    @Test(.timeLimit(.minutes(1)), arguments: [Int?.none, 64])
+    func `A response that doesn't finish within the resource timeout fails`(maximumLength: Int?) async throws {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [ServedBody.self]
+        configuration.timeoutIntervalForRequest = 120
+        let transport = URLSessionTransport(configuration: configuration, resourceTimeout: 0.5)
+        var request = try Self.request(length: 64, declared: false, stalled: true)
+        request.timeoutInterval = 120
+
+        let error = await #expect(throws: URLError.self) {
+            if let maximumLength {
+                _ = try await transport.data(for: request, maximumLength: maximumLength)
+            } else {
+                _ = try await transport.data(for: request)
+            }
+        }
+
+        #expect(error?.code == .timedOut)
     }
 
     @Test(arguments: [true, false])
@@ -57,8 +81,10 @@ struct URLSessionTransportTests {
         return URLSessionTransport(configuration: configuration)
     }
 
-    private static func request(length: Int, declared: Bool) throws -> URLRequest {
-        URLRequest(url: try #require(URL(string: "https://transport.test/body?length=\(length)&declared=\(declared)")))
+    private static func request(length: Int, declared: Bool, stalled: Bool = false) throws -> URLRequest {
+        URLRequest(url: try #require(URL(
+            string: "https://transport.test/body?length=\(length)&declared=\(declared)&stalled=\(stalled)"
+        )))
     }
 
     private static func body(count: Int) -> Data {

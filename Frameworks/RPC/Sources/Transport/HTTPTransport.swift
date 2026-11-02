@@ -38,10 +38,13 @@ extension HTTPTransport {
 struct URLSessionTransport: HTTPTransport {
     private let session: URLSession
 
-    /// Creates a transport with a session for a configuration.
+    /// Creates a transport with a session for a configuration that fails each request after a time limit.
     ///
-    /// - Parameter configuration: The session's configuration.
-    init(configuration: URLSessionConfiguration = .ephemeral) {
+    /// - Parameters:
+    ///   - configuration: The session's configuration, whose resource timeout the transport sets.
+    ///   - resourceTimeout: The longest time, in seconds, that a request and its whole response may take.
+    init(configuration: URLSessionConfiguration = .ephemeral, resourceTimeout: TimeInterval = 300) {
+        configuration.timeoutIntervalForResource = resourceTimeout
         session = URLSession(configuration: configuration)
     }
 
