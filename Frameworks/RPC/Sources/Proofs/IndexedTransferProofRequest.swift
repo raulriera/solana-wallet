@@ -139,10 +139,10 @@ public struct IndexedTransferProofRequest: Sendable, Equatable, CustomStringConv
     public let publishedOutputOwnerPublicKeyHashes: [[UInt8]]
 
     /// The hash of the instruction's external data, which the statement publishes.
-    public var externalDataHash: [UInt8] { publicInputs[Self.externalDataHashIndex] }
+    var externalDataHash: [UInt8] { publicInputs[Self.externalDataHashIndex] }
 
     /// The private transaction hash, which the statement publishes.
-    public var privateTransactionHash: [UInt8] { publicInputs[Self.privateTransactionHashIndex] }
+    var privateTransactionHash: [UInt8] { publicInputs[Self.privateTransactionHashIndex] }
 
     /// The hash chain of the read cache's empty reads, which the statement publishes.
     var cacheReadHashChain: [UInt8] { publicInputs[Self.cacheReadHashChainIndex] }

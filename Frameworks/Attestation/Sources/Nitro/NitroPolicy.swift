@@ -3,7 +3,7 @@ public import Foundation
 /// A reviewed AWS Nitro Enclaves deployment of the Solana Rings prover, which an attestation must match.
 public struct NitroPolicy: Sendable {
     /// An error that rejects an AWS Nitro attestation under a policy.
-    public enum ValidationError: Error, Equatable {
+    enum ValidationError: Error, Equatable {
         /// A message or document outside the strict CBOR subset, or with fields that are missing, of other types, or
         /// out of range.
         case malformed

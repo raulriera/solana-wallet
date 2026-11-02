@@ -19,6 +19,8 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
         case insufficientFunds
         case amountOverflow
         case invalidTreeContextCount
+        /// A resolved tree isn't the declared input tree at its position.
+        case mismatchedTree
         case foreignNullifierKey
         /// The proof's proving key isn't the one for the plan's shape.
         case unexpectedProvingKey

@@ -20,8 +20,8 @@ extension Curve25519.KeyAgreement.PublicKey {
     ///   - policy: The deployment the prover must run.
     ///   - date: The time the document's certificates must be valid at.
     /// - Throws: `CryptoKitError.incorrectKeySize` unless the key has 32 bytes,
-    ///   `CryptoKitError.incorrectParameterSize` unless the nonce has 32 bytes, or a ``NitroPolicy/ValidationError``
-    ///   for a document that fails a check.
+    ///   `CryptoKitError.incorrectParameterSize` unless the nonce has 32 bytes, or a validation error for a document
+    ///   that fails a check.
     public init(
         rawRepresentation: some ContiguousBytes,
         attestedBy bytes: some DataProtocol,

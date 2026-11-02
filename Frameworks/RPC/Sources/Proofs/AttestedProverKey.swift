@@ -80,15 +80,4 @@ actor AttestedProverKey {
         try Task.checkCancellation()
         return try result.get()
     }
-
-    /// Drops the latest attestation once it finishes if its key is the given key, even an attestation that started
-    /// later and returned the same key, so the next caller attests again.
-    ///
-    /// - Parameter key: The key of a request that the prover couldn't decrypt.
-    func forget(_ key: Curve25519.KeyAgreement.PublicKey) async {
-        guard let task = attestation?.task, case .success(let attested) = await task.result,
-            attestation?.task == task, attested.rawRepresentation == key.rawRepresentation
-        else { return }
-        attestation = nil
-    }
 }

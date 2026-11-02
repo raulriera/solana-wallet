@@ -107,7 +107,6 @@ struct SealedProverRequestTests {
 
     @Test(arguments: [
         (200, [:], #"{"proof":"ok"}"#, RPCError.invalidResponse(.unauthenticatedAnswer)),
-        (400, [:], #"{"code":"tee_decryption_failed"}"#, .invalidResponse(.staleProverKey)),
         (400, [:], #"{"code":"tee_request_malformed"}"#, .http(statusCode: 400, retryAfter: nil)),
         (429, ["Retry-After": "5"], #"{"code":"attestation_busy"}"#, .http(statusCode: 429, retryAfter: "5")),
     ] as [(Int, [String: String], String, RPCError)])

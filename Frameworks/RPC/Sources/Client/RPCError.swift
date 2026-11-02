@@ -30,10 +30,6 @@ public enum RPCError: Error, Sendable, Equatable {
         case untrustedProver
         /// The prover's encrypted answer doesn't open under the request's key or holds no status.
         case unauthenticatedAnswer
-        /// The prover can't decrypt the request because it no longer holds the attested key.
-        case staleProverKey
-        /// The prover's resolution doesn't name the request's trees in their order.
-        case mismatchedResolution
     }
 
     /// Whether the failure can clear without the person's action.

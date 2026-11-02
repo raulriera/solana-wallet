@@ -12,11 +12,6 @@ struct SealedProverRequest: Sendable {
         let body: Data
     }
 
-    /// The JSON body of a prover's unencrypted refusal.
-    private struct Refusal: Decodable {
-        let code: String
-    }
-
     private static let ciphersuite = HPKE.Ciphersuite(
         kem: .Curve25519_HKDF_SHA256,
         kdf: .HKDF_SHA256,
@@ -66,9 +61,8 @@ struct SealedProverRequest: Sendable {
     ///   - response: The prover's HTTP response.
     /// - Returns: The decrypted body.
     /// - Throws: ``RPCError/InvalidResponse/unauthenticatedAnswer`` for an encrypted answer that doesn't open under
-    ///   this request's key or a successful answer without encryption, ``RPCError/InvalidResponse/staleProverKey``
-    ///   when the prover can't decrypt the request, or ``RPCError/http(statusCode:retryAfter:)`` for an unsuccessful
-    ///   decrypted status or another unencrypted answer.
+    ///   this request's key or a successful answer without encryption, or ``RPCError/http(statusCode:retryAfter:)``
+    ///   for an unsuccessful decrypted status or another unencrypted answer.
     func open(_ body: Data, response: HTTPURLResponse) throws -> Data {
         if response.value(forHTTPHeaderField: Self.versionField) == Self.version {
             let answer = try Self.open(body, using: responseKey)
@@ -76,10 +70,6 @@ struct SealedProverRequest: Sendable {
                 throw RPCError.http(statusCode: answer.status, retryAfter: nil)
             }
             return answer.body
-        }
-        if response.statusCode == 400,
-            (try? JSONDecoder().decode(Refusal.self, from: body))?.code == "tee_decryption_failed" {
-            throw RPCError.invalidResponse(.staleProverKey)
         }
         throw RPCError(response: response) ?? RPCError.invalidResponse(.unauthenticatedAnswer)
     }

@@ -42,13 +42,14 @@ struct IndexedTransferProofResponseTests {
     @Test(arguments: ["utxoRoot", "nullifierRoot", "publicInputHash"], [
         "0xAB",
         .string("0x" + String(repeating: "0", count: 64) + "1"),
-        .string("0x" + ProofFixtures.fieldOrder),
         "71",
         "0x",
         113,
     ] as [JSONValue])
-    func `Roots and hashes that aren't canonical lowercase prover hex are refused`(field: String, value: JSONValue)
-        throws {
+    func `Roots and hashes that aren't lowercase prover hex of at most 64 digits are refused`(
+        field: String,
+        value: JSONValue
+    ) throws {
         let json =
             switch field {
             case "utxoRoot": try ProverAnswer.indexed(trees: [ProverAnswer.tree(utxoRoot: value)])

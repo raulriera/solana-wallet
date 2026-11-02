@@ -33,24 +33,15 @@ enum FieldHex {
         "0x" + String(value, radix: 16)
     }
 
-    /// Decodes `0x` and one or more hexadecimal digits, with or without leading zeros, as 32 big-endian bytes.
+    /// Decodes `0x` and one or more lowercase hexadecimal digits, with or without leading zeros, as 32 big-endian
+    /// bytes.
     ///
     /// - Parameter text: The value's text.
     /// - Returns: The value right-aligned in 32 bytes, or `nil` for invalid text or a value of more than 32 bytes.
     static func decode(_ text: String) -> [UInt8]? {
-        guard text.hasPrefix("0x") else { return nil }
-        var nibbles: [UInt8] = []
-        for character in text.utf8.dropFirst(2) {
-            switch character {
-            case UInt8(ascii: "0")...UInt8(ascii: "9"): nibbles.append(character - UInt8(ascii: "0"))
-            case UInt8(ascii: "a")...UInt8(ascii: "f"): nibbles.append(character - UInt8(ascii: "a") + 10)
-            case UInt8(ascii: "A")...UInt8(ascii: "F"): nibbles.append(character - UInt8(ascii: "A") + 10)
-            default: return nil
-            }
-        }
-        let significant = Array(nibbles.drop { $0 == 0 })
-        guard !nibbles.isEmpty, significant.count <= 64 else { return nil }
-        let padded = [UInt8](repeating: 0, count: 64 - significant.count) + significant
-        return stride(from: 0, to: 64, by: 2).map { padded[$0] << 4 | padded[$0 + 1] }
+        guard text.hasPrefix("0x"), text.utf8.count > 2 else { return nil }
+        let significant = text.dropFirst(2).drop { $0 == "0" }
+        guard significant.utf8.count <= 64 else { return nil }
+        return Hex.decode(String(repeating: "0", count: 64 - significant.utf8.count) + significant)
     }
 }

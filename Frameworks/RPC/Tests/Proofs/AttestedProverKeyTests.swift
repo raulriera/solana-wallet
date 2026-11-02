@@ -88,56 +88,6 @@ struct AttestedProverKeyTests {
         await #expect(throws: RPCError.invalidResponse(.oversized)) { try await key.key() }
     }
 
-    @Test(arguments: [(true, 2), (false, 1)])
-    func `Forgetting the attested key attests again, and forgetting another key keeps the attestation`(
-        forgetsAttestedKey: Bool,
-        requests: Int
-    ) async throws {
-        let (key, transport, recorded) = try Self.attestedKey()
-        let attested = try await key.key()
-
-        await key.forget(forgetsAttestedKey ? attested : Curve25519.KeyAgreement.PrivateKey().publicKey)
-        let next = try await key.key()
-
-        #expect(Array(next.rawRepresentation) == (try recorded.hpkePublicKey))
-        #expect(await transport.requests.count == requests)
-    }
-
-    @Test(.timeLimit(.minutes(1)))
-    func `Concurrent callers that forget a stale key share one new attestation`() async throws {
-        let stale = Curve25519.KeyAgreement.PrivateKey().publicKey
-        let fresh = Curve25519.KeyAgreement.PrivateKey().publicKey
-        let gate = Suspension()
-        let attempts = Mutex(0)
-        let transport = StubTransport { request in
-            let attempt = attempts.withLock { count in
-                count += 1
-                return count
-            }
-            if attempt > 1 { await gate.suspend() }
-            return try httpReply(to: request, body: StubProver.attestation(of: attempt == 1 ? stale : fresh))
-        }
-        let key = StubProver.zolana(transport: transport).attestedKey
-        _ = try await key.key()
-
-        async let first = Self.attestAgain(key, forgetting: stale)
-        await gate.waitUntilStarted()
-        async let second = Self.attestAgain(key, forgetting: stale)
-        gate.resume()
-        let keys = try await [first, second]
-
-        #expect(keys.map(\.rawRepresentation) == [fresh.rawRepresentation, fresh.rawRepresentation])
-        #expect(await transport.requests.count == 2)
-    }
-
-    private static func attestAgain(
-        _ key: AttestedProverKey,
-        forgetting stale: Curve25519.KeyAgreement.PublicKey
-    ) async throws -> Curve25519.KeyAgreement.PublicKey {
-        await key.forget(stale)
-        return try await key.key()
-    }
-
     static func attestedKey(
         on network: Network = .devnet,
         elapsed: @escaping @Sendable () -> TimeInterval = { 0 },

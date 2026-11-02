@@ -1029,6 +1029,7 @@
       "product": "Products/ModularArithmeticTests.xctest",
       "product-type": "bundle.unit-test",
       "dependencies": [
+        "Encoding",
         "ModularArithmetic",
       ],
       "build-phases": [

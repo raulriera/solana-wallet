@@ -27,29 +27,28 @@ struct IndexedTransferProofResponse: Decodable, Sendable {
 /// A resolution's trees and public input hash.
 private struct ResolutionBody: Decodable {
     let trees: [ResolvedTreeBody]
-    let publicInputHash: CanonicalField
+    let publicInputHash: HexField
 }
 
-/// A resolved tree with a base-58 address, 16-bit ID and root indexes, and canonical roots.
+/// A resolved tree with a base-58 address, 16-bit ID and root indexes, and 32-byte roots.
 private struct ResolvedTreeBody: Decodable {
     let tree: IndexedHash
     let id: UInt16
-    let utxoRoot: CanonicalField
-    let nullifierRoot: CanonicalField
+    let utxoRoot: HexField
+    let nullifierRoot: HexField
     let utxoRootIndex: UInt16
     let nullifierRootIndex: UInt16
 }
 
-/// A canonical BN254 scalar field element as `0x` and 1 to 64 lowercase hexadecimal digits.
-private struct CanonicalField: Decodable {
-    /// The element's 32 big-endian bytes.
+/// A 32-byte value as `0x` and 1 to 64 lowercase hexadecimal digits.
+private struct HexField: Decodable {
+    /// The value's 32 big-endian bytes.
     let bytes: [UInt8]
 
     init(from decoder: any Decoder) throws {
         let container = try decoder.singleValueContainer()
         let text = try container.decode(String.self)
-        guard text == text.lowercased(), (1...64).contains(text.utf8.count - 2), let bytes = FieldHex.decode(text),
-              FieldHex.isCanonical(bytes) else {
+        guard (1...64).contains(text.utf8.count - 2), let bytes = FieldHex.decode(text) else {
             throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid field element.")
         }
         self.bytes = bytes
