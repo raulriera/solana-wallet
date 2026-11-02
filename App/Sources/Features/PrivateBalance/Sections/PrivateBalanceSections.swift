@@ -35,10 +35,10 @@ struct PrivateBalanceSections: View {
             } footer: {
                 Group {
                     if isRegistered {
-                        Text("This account already uses private balances. Turn them on to see its private balance. Private balances hide amounts from others on the network. Addresses stay visible, and the service that finds your private payments can tell which ones are yours.",
+                        Text("This account already uses private balances. Turn them on to see its private balance. Private balances hide amounts from others on the network. Addresses stay visible, and the service that finds your private payments can tell which ones are yours and when you spend them.",
                              comment: "Footer under the button that turns private balances on, for an account that turned them on before, such as before its wallet was imported again.")
                     } else {
-                        Text("Private balances hide amounts from others on the network. Addresses stay visible, and the service that finds your private payments can tell which ones are yours.",
+                        Text("Private balances hide amounts from others on the network. Addresses stay visible, and the service that finds your private payments can tell which ones are yours and when you spend them.",
                              comment: "Footer under the button that turns private balances on.")
                     }
                 }
