@@ -7,7 +7,6 @@ import Wallet
 
 extension PrivateBalances {
     func outstandingCodes(of account: Account, on network: Network) async throws -> [OutstandingRedeemCode] {
-        guard ShieldedPool.networks.contains(network) else { throw PrivateBalanceError.unavailable }
         let generation = generation
         let client = client(for: network)
         let id = Self.noteID(of: account, on: network)
@@ -57,7 +56,7 @@ extension PrivateBalances {
     /// - Parameters:
     ///   - lamports: The code's private SOL, in lamports.
     ///   - account: The account that creates the code, signs, and pays.
-    ///   - network: A network with private balances.
+    ///   - network: The network of the account's private balance.
     ///   - client: The network's client.
     /// - Returns: The prepared spend.
     /// - Throws: A ``PrivateBalanceError``, or a validation, storage, provider, proof, or cancellation error.
@@ -88,7 +87,7 @@ extension PrivateBalances {
     /// - Parameters:
     ///   - code: The code to redeem.
     ///   - account: The account that receives the code's SOL.
-    ///   - network: A network with private balances.
+    ///   - network: The network of the account's private balance.
     ///   - client: The network's client.
     /// - Returns: The prepared sweep.
     /// - Throws: A ``PrivateBalanceError``, or a derivation, storage, provider, proof, or cancellation error.
@@ -106,7 +105,7 @@ extension PrivateBalances {
     /// - Parameters:
     ///   - index: The code's index under the account's code root.
     ///   - account: The account that created the code.
-    ///   - network: A network with private balances.
+    ///   - network: The network of the account's private balance.
     ///   - client: The network's client.
     /// - Returns: The prepared sweep.
     /// - Throws: A ``PrivateBalanceError``, or a derivation, storage, provider, proof, or cancellation error.
@@ -123,7 +122,7 @@ extension PrivateBalances {
     ///   - oneTime: The code's one-time account.
     ///   - account: The account that receives the code's SOL.
     ///   - keys: The receiving account's keys.
-    ///   - network: A network with private balances.
+    ///   - network: The network of the account's private balance.
     ///   - index: The index of the account's own code that this takes back, or `nil` for a redeem.
     ///   - client: The network's client.
     /// - Returns: The prepared sweep.

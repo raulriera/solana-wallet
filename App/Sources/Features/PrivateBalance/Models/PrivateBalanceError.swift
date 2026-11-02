@@ -7,7 +7,7 @@ nonisolated enum PrivateBalanceError: TransactionReviewError, CaseIterable {
     case registeredWithOtherKeys
     /// This device has no private-balance keys for the account.
     case turnedOff
-    /// The network has no private balances, or the selected provider doesn't serve the network.
+    /// The selected provider doesn't serve the network, or the pool has no tree for new notes.
     case unavailable
     case recipientUnregistered
     /// The account's spendable private balance doesn't cover the amount.

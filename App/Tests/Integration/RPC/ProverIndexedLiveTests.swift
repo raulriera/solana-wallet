@@ -7,8 +7,8 @@ import Transactions
 
 @Suite(.tags(.network), .timeLimit(.minutes(1)))
 struct ProverIndexedLiveTests {
-    @Test
-    func `A commitment outside the tree comes back from the devnet prover as an encrypted refusal`() async throws {
+    @Test(arguments: Network.allCases)
+    func `A commitment outside the tree comes back as an encrypted refusal`(network: Network) async throws {
         let answerVersions = Mutex<[String?]>([])
         let transport = StubTransport { request in
             let (data, response) = try await URLSessionTransport().data(for: request)
@@ -16,7 +16,7 @@ struct ProverIndexedLiveTests {
             answerVersions.withLock { $0.append(version) }
             return (data, response)
         }
-        let zolana = Zolana(network: .devnet, transport: transport)
+        let zolana = Zolana(network: network, transport: transport)
         let request = try Self.request()
 
         let error = await #expect(throws: RPCError.self) { try await zolana.proveTransfer(request) }

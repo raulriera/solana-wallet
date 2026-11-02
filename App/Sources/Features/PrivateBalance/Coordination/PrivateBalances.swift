@@ -98,8 +98,7 @@ actor PrivateBalances: PrivateBalancing {
     }
 
     func refresh(_ account: Account, on network: Network) async throws -> PrivateBalanceStatus {
-        guard ShieldedPool.networks.contains(network) else { return .unavailable }
-        return switch try await sharedSync(of: account, on: network) {
+        switch try await sharedSync(of: account, on: network) {
         case .off: .off(isRegistered: try await isRegistered(account, on: network))
         case .unavailable: .unavailable
         case .unregistered: .unregistered
@@ -121,7 +120,7 @@ actor PrivateBalances: PrivateBalancing {
     ///
     /// - Parameters:
     ///   - account: The account to look up.
-    ///   - network: A network with private balances.
+    ///   - network: The network of the account's private balance.
     /// - Returns: Whether the registry holds the account's record, or `false` if it can't be read.
     /// - Throws: `CancellationError` if cancelled.
     private func isRegistered(_ account: Account, on network: Network) async throws -> Bool {
@@ -138,7 +137,6 @@ actor PrivateBalances: PrivateBalancing {
     func prepare(_ request: PrivateTransactionRequest, from account: Account, on network: Network) async throws
         -> PreparedPrivateTransaction {
         if case .redeem(let code) = request, code.network != network { throw PrivateBalanceError.codeForOtherNetwork }
-        guard ShieldedPool.networks.contains(network) else { throw PrivateBalanceError.unavailable }
         let client = client(for: network)
         do {
             switch request {
@@ -208,7 +206,7 @@ actor PrivateBalances: PrivateBalancing {
     /// - Parameters:
     ///   - request: The deposit, send, or withdrawal.
     ///   - account: The account that signs and pays.
-    ///   - network: A network with private balances.
+    ///   - network: The network of the account's private balance.
     ///   - client: The network's client.
     /// - Returns: The prepared transaction.
     /// - Throws: A ``PrivateBalanceError``, or a validation, storage, provider, proof, or cancellation error.
@@ -257,7 +255,6 @@ actor PrivateBalances: PrivateBalancing {
     /// - Returns: The registration, or `nil` where the provider can't read it.
     /// - Throws: A provider or cancellation error.
     private func registration(of account: ShieldedAccount, on network: Network) async throws -> Registration? {
-        guard ShieldedPool.networks.contains(network) else { return nil }
         do {
             return try await account.registration(using: client(for: network))
         } catch ProviderClientError.unsupportedNetwork {
@@ -269,7 +266,7 @@ actor PrivateBalances: PrivateBalancing {
     ///
     /// - Parameters:
     ///   - account: The account whose notes to sync.
-    ///   - network: A network with private balances.
+    ///   - network: The network of the account's private balance.
     /// - Returns: What the sync found.
     /// - Throws: `CancellationError` if cancelled, or the sync's error.
     func sharedSync(of account: Account, on network: Network) async throws -> SyncOutcome {
