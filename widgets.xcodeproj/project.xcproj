@@ -146,7 +146,6 @@
                   "exclusions": [
                     "StubProver.swift",
                     "TestProver.swift",
-                    "zolana-LICENSE.txt",
                   ],
                 }, {
                   "target": "PrivacyTests",
@@ -154,7 +153,6 @@
                     "RecordedDevnetNitroAttestation.json",
                     "RecordedMainnetNitroAttestation.json",
                     "RecordedNitroAttestation.swift",
-                    "zolana-LICENSE.txt",
                   ],
                 }, {
                   "target": "widgetsTests",
