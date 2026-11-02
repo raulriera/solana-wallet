@@ -49,6 +49,22 @@ enum IndexerFixtures {
         return #""result":{\#(fields.joined(separator: ","))}"#
     }
 
+    static func merkleProof(leaf: UInt8, tree: String = hash(9), treeType: Int = 1, pathCount: Int = 32,
+                            leafIndex: Int = 6) -> String {
+        merkleProof(leafHash: hash(leaf), tree: tree, treeType: treeType, pathCount: pathCount, leafIndex: leafIndex)
+    }
+
+    static func merkleProof(leafHash: String, tree: String = hash(9), treeType: Int = 1, pathCount: Int = 32,
+                            leafIndex: Int = 6) -> String {
+        MerkleProofReplies.proof(leaf: leafHash, tree: tree, treeType: treeType,
+                                 path: (0..<pathCount).map { hash(0x10 + UInt8($0)) }, leafIndex: leafIndex,
+                                 root: hash(0xbb), rootIndex: 499)
+    }
+
+    static func proofs(_ proofs: [String]) -> String {
+        #""result":\#(MerkleProofReplies.result(proofs))"#
+    }
+
     static func call(_ request: URLRequest) throws -> (route: String, params: [String: Any]) {
         let route = try #require(request.url?.lastPathComponent)
         let params = try #require(try requestBody(request)["params"] as? [String: Any])

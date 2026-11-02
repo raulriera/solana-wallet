@@ -66,6 +66,10 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, SignatureEventPr
         try await performRings { try await $0.shieldedTransactions(spending: nullifiers) }
     }
 
+    func merkleProofs(for leaves: [[UInt8]], inTree tree: String) async throws -> [MerkleProof] {
+        try await performRings { try await $0.merkleProofs(for: leaves, inTree: tree) }
+    }
+
     /// Whether the client reads private notes, which it does where the selected provider serves this network.
     ///
     /// - Throws: The error of ``performRings(_:)`` other than ``ProviderClientError/unsupportedNetwork``.

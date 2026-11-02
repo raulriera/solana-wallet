@@ -6,4 +6,8 @@ public enum PrivateNoteError: Error, Sendable, Equatable {
     case invalidNullifier
     /// The position came from a read of other view tags.
     case mismatchedPosition
+    /// A UTXO hash isn't 32 bytes.
+    case invalidLeaf
+    /// A tree account isn't 32 bytes of base 58.
+    case invalidTree
 }

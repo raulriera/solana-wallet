@@ -24,6 +24,8 @@ public enum RPCError: Error, Sendable, Equatable {
         case invalidCursor
         /// The response body is longer than the request accepts.
         case oversized
+        /// The proofs don't match the requested leaves, their order, or the tree.
+        case mismatchedProofs
         /// The prover's attestation doesn't prove that the expected enclave holds its key.
         case untrustedProver
         /// The prover's encrypted answer doesn't open under the request's key or holds no status.

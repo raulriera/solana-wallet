@@ -10,6 +10,9 @@ extension Zolana {
     /// The most nullifiers that one request of a spends read names.
     private static let nullifierGroupSize = 400
 
+    /// The most leaves that one request of a proof read names, which keeps a response under the length limit.
+    private static let leafGroupSize = 400
+
     @concurrent
     public func shieldedTransactions(taggedWith tags: [[UInt8]], after position: NoteSyncPosition?) async throws
         -> ShieldedTransactionBatch {
@@ -67,6 +70,21 @@ extension Zolana {
             .uniqued(by: { TransactionKey(signature: $0.signature, eventIndex: $0.eventIndex) }))
     }
 
+    @concurrent
+    public func merkleProofs(for leaves: [[UInt8]], inTree tree: String) async throws -> [MerkleProof] {
+        guard leaves.allSatisfy({ $0.count == 32 }) else { throw PrivateNoteError.invalidLeaf }
+        guard let treeBytes = Base58.decode(tree, byteCount: 32) else { throw PrivateNoteError.invalidTree }
+        let indexer = indexer
+        return try await Self.map(leaves.batches(of: Self.leafGroupSize)) { batch in
+            let entries = try await Self.page(GetMerkleProofs(treeAccount: tree, leaves: batch.map(Base58.encode)),
+                                              from: indexer).proofs
+            guard entries.map(\.proof.leaf) == batch, entries.allSatisfy({ $0.tree == treeBytes }) else {
+                throw RPCError.invalidResponse(.mismatchedProofs)
+            }
+            return entries.map(\.proof)
+        }.flatMap(\.self)
+    }
+
     /// Sends an indexer request to its method's route.
     ///
     /// - Parameters:
@@ -93,17 +111,29 @@ extension Zolana {
         after cursors: [String?],
         page: @escaping @Sendable ([String], String?) async throws -> Page
     ) async throws -> [IndexerRead<Page.Item>] {
-        try await withThrowingTaskGroup(of: (Int, IndexerRead<Page.Item>).self) { group in
-            for (index, values) in groups.enumerated() {
-                group.addTask {
-                    (index, try await Page.read(from: cursors[index], pageLimit: Self.indexerPageLimit) {
-                        try await page(values, $0)
-                    })
-                }
+        try await Self.map(Array(zip(groups, cursors))) { values, cursor in
+            try await Page.read(from: cursor, pageLimit: Self.indexerPageLimit) { try await page(values, $0) }
+        }
+    }
+
+    /// Transforms each group concurrently.
+    ///
+    /// - Parameters:
+    ///   - groups: The groups to transform.
+    ///   - transform: The work for one group.
+    /// - Returns: Each group's result, in group order.
+    /// - Throws: The first error of any group.
+    private static func map<Group: Sendable, Result: Sendable>(
+        _ groups: [Group],
+        _ transform: @escaping @Sendable (Group) async throws -> Result
+    ) async throws -> [Result] {
+        try await withThrowingTaskGroup(of: (Int, Result).self) { group in
+            for (index, value) in groups.enumerated() {
+                group.addTask { (index, try await transform(value)) }
             }
-            var reads = [IndexerRead<Page.Item>?](repeating: nil, count: groups.count)
-            for try await (index, read) in group { reads[index] = read }
-            return reads.compactMap(\.self)
+            var results = [Result?](repeating: nil, count: groups.count)
+            for try await (index, result) in group { results[index] = result }
+            return results.compactMap(\.self)
         }
     }
 

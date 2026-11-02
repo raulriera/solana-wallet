@@ -1,4 +1,4 @@
-/// A provider that reads shielded transactions.
+/// A provider that reads shielded transactions and the Merkle proofs of their outputs.
 public protocol PrivateNoteProviding: Sendable {
     /// Reads one batch of the transactions with an output for any of the view tags, after a position.
     ///
@@ -19,6 +19,17 @@ public protocol PrivateNoteProviding: Sendable {
     /// - Throws: ``PrivateNoteError/invalidNullifier`` for a nullifier that isn't 32 bytes, or a request,
     ///   transport, response, or cancellation error.
     func shieldedTransactions(spending nullifiers: [[UInt8]]) async throws -> [ShieldedTransaction]
+
+    /// Reads the inclusion proofs of UTXO hashes in one tree.
+    ///
+    /// - Parameters:
+    ///   - leaves: The 32-byte UTXO hashes.
+    ///   - tree: The tree account's base-58 address.
+    /// - Returns: One proof per leaf, in order.
+    /// - Throws: ``PrivateNoteError/invalidLeaf`` or ``PrivateNoteError/invalidTree`` for an invalid leaf or tree,
+    ///   ``RPCError/InvalidResponse/mismatchedProofs`` for proofs of other leaves or another tree, or a request,
+    ///   transport, response, or cancellation error.
+    func merkleProofs(for leaves: [[UInt8]], inTree tree: String) async throws -> [MerkleProof]
 
     /// Whether the provider reads private notes on its network.
     var readsPrivateNotes: Bool { get async throws }

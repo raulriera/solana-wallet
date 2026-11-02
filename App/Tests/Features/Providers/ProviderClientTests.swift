@@ -1,3 +1,4 @@
+import Encoding
 import Foundation
 import Synchronization
 import Testing
@@ -165,7 +166,7 @@ struct ProviderClientTests {
     ) async throws {
         let account = try await PrivateBalanceFixtures.account()
         let shielded = try await PrivateBalanceFixtures.keys(for: account).shieldedAccount(for: account.address)
-        let responses = HTTPResponses.privateNotes(prover: try IndexedProofs.prover())
+        let responses = HTTPResponses.privateNotes(prover: try IndexedProofs.prover(), respond: Self.merkleProofs(answering:))
         let client = responses.providerClient(network: network,
                                               providers: .inMemory(selection: provider, key: "fixture-key"))
         let tag = [UInt8](repeating: 7, count: 32)
@@ -173,18 +174,20 @@ struct ProviderClientTests {
 
         async let tagged = client.shieldedTransactions(taggedWith: [tag], after: nil)
         async let spending = client.shieldedTransactions(spending: [tag])
+        async let included = client.merkleProofs(for: [tag], inTree: try ShieldedPool.tree(id: 1).value)
         async let proved = client.proveTransfer(request)
-        let (batch, spends, proof) = try await (tagged, spending, proved)
+        let (batch, spends, inclusionProofs, proof) = try await (tagged, spending, included, proved)
 
         #expect(batch.transactions.isEmpty)
         #expect(spends.isEmpty)
+        #expect(inclusionProofs.map(\.leaf) == [tag])
         #expect(proof.proof.provingKeyDigest == Shape(inputs: 1, outputs: 2).provingKeyDigest)
         #expect(proof.resolution.trees.map(\.id) == [1])
         let reads = await responses.requests.filter {
             $0.httpMethod == "POST" && $0.url?.path().hasSuffix("/indexed") != true
         }
         #expect(try reads.map { try $0.rpcMethod }.sorted() == [
-            GetEncryptedUtxosByTags.method, GetShieldedTransactionsByNullifiers.method,
+            GetEncryptedUtxosByTags.method, GetMerkleProofs.method, GetShieldedTransactionsByNullifiers.method,
             GetShieldedTransactionsByTags.method,
         ])
         #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 1)
@@ -209,6 +212,7 @@ struct ProviderClientTests {
 
         await #expect(throws: error) { _ = try await client.shieldedTransactions(taggedWith: [tag], after: nil) }
         await #expect(throws: error) { _ = try await client.shieldedTransactions(spending: [tag]) }
+        await #expect(throws: error) { _ = try await client.merkleProofs(for: [tag], inTree: try ShieldedPool.tree(id: 1).value) }
         await #expect(throws: error) { _ = try await client.proveTransfer(request) }
         #expect(await responses.requests.isEmpty)
     }
@@ -276,5 +280,16 @@ struct ProviderClientTests {
             _ = try await client.send(GetAsset(id: HTTPResponses.keyCheckAsset))
         }
         #expect(await responses.requests.isEmpty)
+    }
+
+    nonisolated private static func merkleProofs(answering request: URLRequest) throws -> String {
+        let params = try #require(try request.jsonBody()["params"] as? [String: Any])
+        let tree = try #require(params["treeAccount"] as? String)
+        let zero = Base58.encode([UInt8](repeating: 0, count: 32))
+        let proofs = try #require(params["leaves"] as? [String]).map { leaf in
+            MerkleProofReplies.proof(leaf: leaf, tree: tree, path: Array(repeating: zero, count: 32), leafIndex: 0, root: zero,
+                                     rootIndex: 0)
+        }
+        return MerkleProofReplies.result(proofs)
     }
 }
