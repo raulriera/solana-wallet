@@ -267,6 +267,26 @@ struct ZolanaPrivateNotesTests {
     }
 
     @Test
+    func `Indexer responses of up to 1 MiB are read`() async throws {
+        let rpc = Zolana(network: .devnet, transport: paddedReplies(length: 1_048_576))
+
+        _ = try await rpc.shieldedTransactions(taggedWith: [Fixture.bytes(1)], after: nil)
+        #expect(try await rpc.shieldedTransactions(spending: [Fixture.bytes(1)]).isEmpty)
+    }
+
+    @Test
+    func `Indexer responses longer than 1 MiB are refused`() async {
+        let rpc = Zolana(network: .devnet, transport: paddedReplies(length: 1_048_577))
+
+        await #expect(throws: RPCError.invalidResponse(.oversized)) {
+            try await rpc.shieldedTransactions(taggedWith: [Fixture.bytes(1)], after: nil)
+        }
+        await #expect(throws: RPCError.invalidResponse(.oversized)) {
+            try await rpc.shieldedTransactions(spending: [Fixture.bytes(1)])
+        }
+    }
+
+    @Test
     func `Nullifier reads refuse invalid nullifiers and skip empty ones`() async throws {
         let transport = StubTransport { try reply(to: $0, payload: Fixture.page()) }
         let rpc = Zolana(network: .devnet, transport: transport)
@@ -281,4 +301,11 @@ struct ZolanaPrivateNotesTests {
 
 private func rows(for request: URLRequest) -> String {
     request.url?.lastPathComponent == GetEncryptedUtxosByTags.method ? "matches" : "transactions"
+}
+
+private func paddedReplies(length: Int) -> StubTransport {
+    StubTransport { request in
+        let (data, response) = try reply(to: request, payload: IndexerFixtures.page(in: rows(for: request)))
+        return (data + Data(repeating: 0x20, count: length - data.count), response)
+    }
 }

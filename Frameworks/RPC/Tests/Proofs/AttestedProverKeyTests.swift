@@ -25,8 +25,8 @@ struct AttestedProverKeyTests {
         #expect((request.allHTTPHeaderFields ?? [:]).isEmpty)
     }
 
-    @Test(arguments: [(0, 1), (599, 1), (600, 2), (900, 2), (-1, 1)] as [(TimeInterval, Int)])
-    func `A key is reused until the policy's maximum age after its attestation started`(
+    @Test(arguments: [(0, 1), (599, 1), (600, 2), (900, 2), (-1, 2)] as [(TimeInterval, Int)])
+    func `A key is reused from its attestation's start until the policy's maximum age`(
         elapsed: TimeInterval,
         requests: Int
     ) async throws {

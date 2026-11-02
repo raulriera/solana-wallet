@@ -21,10 +21,12 @@ public struct DER: Hashable, Sendable {
 
         /// Creates an identifier.
         ///
+        /// - Precondition: `number` is below 31.
         /// - Parameters:
         ///   - number: The tag number.
         ///   - tagClass: The class of the tag.
         public init(tagWithNumber number: UInt8, tagClass: TagClass) {
+            precondition(number < 31, "The tag number must be below 31.")
             tagNumber = number
             self.tagClass = tagClass
         }
@@ -135,9 +137,11 @@ private extension ByteReader {
     ///   ``DER/ValidationError/malformed`` for truncated input.
     mutating func identifier() throws -> (identifier: DER.Identifier, isConstructed: Bool) {
         let octet: UInt8 = try integer()
-        let identifier = DER.Identifier(tagWithNumber: octet & 0x1f, tagClass: .init(identifierOctet: octet))
+        let number = octet & 0x1f
+        guard number != 0x1f else { throw DER.ValidationError.unsupportedTag }
+        let identifier = DER.Identifier(tagWithNumber: number, tagClass: .init(identifierOctet: octet))
         let isConstructed = octet & 0x20 != 0
-        guard identifier.tagNumber != 0x1f, identifier != DER.Identifier(tagWithNumber: 0, tagClass: .universal) else {
+        guard identifier != DER.Identifier(tagWithNumber: 0, tagClass: .universal) else {
             throw DER.ValidationError.unsupportedTag
         }
         guard

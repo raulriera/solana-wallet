@@ -145,7 +145,27 @@ struct IndexerPageTests {
         }
     }
 
+    @Test
+    func `A read that doesn't end within 1,024 pages fails`() async {
+        var fetched = 0
+
+        await #expect(throws: RPCError.invalidResponse(.invalidCursor)) {
+            try await EndlessPage.readAll(from: nil) { _ in
+                fetched += 1
+                return EndlessPage(items: [fetched], nextCursor: "\(fetched)")
+            }
+        }
+        #expect(fetched == 1_024)
+    }
+
     private func page(_ member: String) -> Data {
         Data(member.dropFirst(#""result":"#.count).utf8)
     }
+}
+
+private nonisolated struct EndlessPage: IndexerPage {
+    let items: [Int]
+    let nextCursor: String?
+    var outputTreeID: UInt16? { nil }
+    var scannedThrough: String? { nil }
 }

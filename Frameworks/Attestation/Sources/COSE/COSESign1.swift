@@ -26,8 +26,9 @@ struct COSESign1: Sendable {
     /// Decodes a message, with or without its leading tag.
     ///
     /// - Parameter bytes: The encoded message.
-    /// - Throws: ``ValidationError/malformed`` for a structure other than COSE_Sign1's or a signature other than
-    ///   96 bytes, ``ValidationError/unsupportedAlgorithm`` for a protected header that doesn't name ES384, or a
+    /// - Throws: ``ValidationError/malformed`` for a structure other than COSE_Sign1's, a protected header without
+    ///   the algorithm or with another label, or a signature other than 96 bytes,
+    ///   ``ValidationError/unsupportedAlgorithm`` for a protected header whose algorithm isn't ES384, or a
     ///   `CBOR.ValidationError` for a message or protected header outside the strict CBOR subset.
     init(decoding bytes: [UInt8]) throws {
         guard case .array(let fields) = try CBOR(decoding: bytes, allowingLeadingTag: Self.tag), fields.count == 4,
@@ -35,9 +36,11 @@ struct COSESign1: Sendable {
             case .map = fields[1],
             case .bytes(let payload) = fields[2],
             case .bytes(let signature) = fields[3],
-            case .map(let header) = try CBOR(decoding: protectedHeader)
+            case .map(let header) = try CBOR(decoding: protectedHeader),
+            header.count == 1,
+            let algorithm = header[Self.algorithmLabel]
         else { throw ValidationError.malformed }
-        guard header[Self.algorithmLabel] == Self.es384 else { throw ValidationError.unsupportedAlgorithm }
+        guard algorithm == Self.es384 else { throw ValidationError.unsupportedAlgorithm }
         guard let signature = try? P384.Signing.ECDSASignature(rawRepresentation: signature) else {
             throw ValidationError.malformed
         }

@@ -1,6 +1,9 @@
 import Encoding
 
 extension Zolana {
+    /// The longest indexer response body, in bytes, to accept.
+    private static let maximumIndexerResponseLength = 1_048_576
+
     @concurrent
     public func shieldedTransactions(taggedWith tags: [[UInt8]], after position: NoteSyncPosition?) async throws
         -> ShieldedTransactionBatch {
@@ -12,14 +15,12 @@ extension Zolana {
         let (transactions, outputs) = try await withThrowingTaskGroup(of: StreamReads.self) { group in
             group.addTask {
                 .transactions(try await Self.read(groups, after: start.transactionCursors) { tags, cursor in
-                    try await indexer.send(GetShieldedTransactionsByTags(tags: tags, cursor: cursor),
-                                           at: GetShieldedTransactionsByTags.method)
+                    try await Self.page(GetShieldedTransactionsByTags(tags: tags, cursor: cursor), from: indexer)
                 })
             }
             group.addTask {
                 .outputs(try await Self.read(groups, after: start.outputCursors) { tags, cursor in
-                    try await indexer.send(GetEncryptedUtxosByTags(tags: tags, cursor: cursor),
-                                           at: GetEncryptedUtxosByTags.method)
+                    try await Self.page(GetEncryptedUtxosByTags(tags: tags, cursor: cursor), from: indexer)
                 })
             }
             var transactions: [IndexerRead<IndexedTransaction>] = []
@@ -52,11 +53,24 @@ extension Zolana {
         let groups = nullifiers.map(Base58.encode).batches(of: 1_000)
         let indexer = indexer
         let reads = try await Self.read(groups, after: Array(repeating: nil, count: groups.count)) { nullifiers, cursor in
-            try await indexer.send(GetShieldedTransactionsByNullifiers(nullifiers: nullifiers, cursor: cursor),
-                                   at: GetShieldedTransactionsByNullifiers.method)
+            try await Self.page(GetShieldedTransactionsByNullifiers(nullifiers: nullifiers, cursor: cursor),
+                                from: indexer)
         }
         return Self.ordered(reads.flatMap(\.items).map(\.value)
             .uniqued(by: { TransactionKey(signature: $0.signature, eventIndex: $0.eventIndex) }))
+    }
+
+    /// Sends an indexer request to its method's route.
+    ///
+    /// - Parameters:
+    ///   - request: The indexer method and its parameters.
+    ///   - indexer: The indexer's client.
+    /// - Returns: The decoded page.
+    /// - Throws: ``RPCError/InvalidResponse/oversized`` for a response body longer than 1 MiB, another ``RPCError``,
+    ///   or `CancellationError`.
+    private static func page<Request: RPCRequest>(_ request: Request, from indexer: HTTPClient) async throws
+        -> Request.Response {
+        try await indexer.send(request, at: Request.method, maximumLength: maximumIndexerResponseLength)
     }
 
     /// Reads one stream for each group of values concurrently, each from its cursor to its end.

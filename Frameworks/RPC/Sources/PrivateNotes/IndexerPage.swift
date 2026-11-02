@@ -27,14 +27,17 @@ struct IndexerRead<Item: Sendable>: Sendable {
 }
 
 extension IndexerPage {
+    /// The most pages that one read fetches.
+    private static var maximumPageCount: Int { 1_024 }
+
     /// Reads pages from a cursor until a page has no next cursor.
     ///
     /// - Parameters:
     ///   - cursor: The cursor to start after, or `nil` to start at the beginning.
     ///   - page: The closure that fetches the page after a cursor.
     /// - Returns: Every row, the reported output tree, and the resume cursor.
-    /// - Throws: ``RPCError/InvalidResponse/invalidCursor`` if the indexer repeats a cursor or returns one on a page
-    ///   without rows, or an error from `page`.
+    /// - Throws: ``RPCError/InvalidResponse/invalidCursor`` if the indexer repeats a cursor, returns one on a page
+    ///   without rows, or doesn't end the stream within 1,024 pages, or an error from `page`.
     static func readAll(from cursor: String?, fetching page: (String?) async throws -> Self) async throws
         -> IndexerRead<Item> {
         var cursor = cursor
@@ -42,7 +45,7 @@ extension IndexerPage {
         var seen = Set([cursor].compactMap(\.self))
         var items: [Item] = []
         var outputTreeID: UInt16?
-        while true {
+        for _ in 0..<Self.maximumPageCount {
             try Task.checkCancellation()
             let current = try await page(cursor)
             items += current.items
@@ -56,6 +59,7 @@ extension IndexerPage {
             }
             cursor = next
         }
+        throw RPCError.invalidResponse(.invalidCursor)
     }
 }
 

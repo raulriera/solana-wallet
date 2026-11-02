@@ -32,7 +32,7 @@ struct HTTPClient: Sendable, CustomStringConvertible, CustomDebugStringConvertib
     /// - Throws: An ``RPCError`` or `CancellationError`.
     @concurrent
     func send<Request: RPCRequest>(_ request: Request) async throws -> Request.Response {
-        try await send(request, to: endpoint)
+        try await send(request, to: endpoint, maximumLength: nil)
     }
 
     /// Sends one request to a path below the endpoint and decodes its response.
@@ -40,11 +40,15 @@ struct HTTPClient: Sendable, CustomStringConvertible, CustomDebugStringConvertib
     /// - Parameters:
     ///   - request: The RPC method and its parameters.
     ///   - path: One or more path components without a leading slash.
+    ///   - maximumLength: The longest response body, in bytes, to accept.
     /// - Returns: The decoded result.
-    /// - Throws: An ``RPCError`` or `CancellationError`.
+    /// - Throws: ``RPCError/InvalidResponse/oversized`` for a longer response body, another ``RPCError``, or
+    ///   `CancellationError`.
     @concurrent
-    func send<Request: RPCRequest>(_ request: Request, at path: String) async throws -> Request.Response {
-        try await send(request, to: try url(at: path))
+    func send<Request: RPCRequest>(
+        _ request: Request, at path: String, maximumLength: Int
+    ) async throws -> Request.Response {
+        try await send(request, to: try url(at: path), maximumLength: maximumLength)
     }
 
     /// Gets a path below the endpoint with a query and decodes the response body without a JSON-RPC envelope.
@@ -116,15 +120,19 @@ struct HTTPClient: Sendable, CustomStringConvertible, CustomDebugStringConvertib
     /// - Parameters:
     ///   - request: The RPC method and its parameters.
     ///   - url: The endpoint, or a path below it.
+    ///   - maximumLength: The longest response body, in bytes, to accept, or `nil` for a body of any length.
     /// - Returns: The decoded result.
-    /// - Throws: An ``RPCError`` or `CancellationError`.
-    private func send<Request: RPCRequest>(_ request: Request, to url: URL) async throws -> Request.Response {
+    /// - Throws: ``RPCError/InvalidResponse/oversized`` for a longer response body, another ``RPCError``, or
+    ///   `CancellationError`.
+    private func send<Request: RPCRequest>(
+        _ request: Request, to url: URL, maximumLength: Int?
+    ) async throws -> Request.Response {
         try Task.checkCancellation()
         let id = UUID().uuidString
         let httpRequest = try makeRequest(to: url, body: JSONRPCRequest(id: id, params: request), headers: [:])
         try Task.checkCancellation()
 
-        let data = try await transport.responseData(for: httpRequest, redactor: redactor)
+        let data = try await transport.responseData(for: httpRequest, maximumLength: maximumLength, redactor: redactor)
 
         let reply = try decode(JSONRPCResponse<Request.Response>.self, from: data)
         switch reply.result {

@@ -41,8 +41,7 @@ struct COSESign1Tests {
 
     @Test
     func `A protected header that doesn't name ES384 is rejected`() {
-        let header = CBOR.map([.integer(1): .integer(-7)]).encoded
-        let message = CBOR.array([.bytes(header), .map([:]), .bytes([]), Self.signature])
+        let message = Self.message(protectedHeader: [.integer(1): .integer(-7)])
 
         #expect(throws: COSESign1.ValidationError.unsupportedAlgorithm) { try COSESign1(decoding: message.encoded) }
     }
@@ -55,8 +54,16 @@ struct COSESign1Tests {
         .array([.bytes(protectedHeader), .array([]), .bytes([]), signature]),
         .array([.bytes(protectedHeader), .map([:]), .text(""), signature]),
         .array([.bytes(protectedHeader), .map([:]), .bytes([]), .bytes([UInt8](repeating: 0x01, count: 64))]),
+        message(protectedHeader: [.integer(1): .integer(-35), .integer(2): .array([.integer(4)])]),
+        message(protectedHeader: [.integer(1): .integer(-35), .integer(4): .bytes([0x01])]),
+        message(protectedHeader: [.integer(2): .array([.integer(1)])]),
+        message(protectedHeader: [:]),
     ] as [CBOR])
     func `Structures other than COSE_Sign1 are rejected`(message: CBOR) {
         #expect(throws: COSESign1.ValidationError.malformed) { try COSESign1(decoding: message.encoded) }
+    }
+
+    private static func message(protectedHeader header: [CBOR.Key: CBOR]) -> CBOR {
+        .array([.bytes(CBOR.map(header).encoded), .map([:]), .bytes([]), signature])
     }
 }

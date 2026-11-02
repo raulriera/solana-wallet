@@ -50,7 +50,8 @@ actor AttestedProverKey {
         (0..<32).map { _ in UInt8.random(in: .min ... .max) }
     }
 
-    /// Returns the key of the attestation that started within the policy's maximum age, or of a new attestation.
+    /// Returns the key of the attestation that started within the policy's maximum age before now, or of a new
+    /// attestation.
     ///
     /// - Returns: The attested HPKE key.
     /// - Throws: ``RPCError/InvalidResponse/untrustedProver`` for an attestation that fails the policy,
@@ -59,7 +60,7 @@ actor AttestedProverKey {
     func key() async throws -> Curve25519.KeyAgreement.PublicKey {
         let date = now()
         let task: Task<Curve25519.KeyAgreement.PublicKey, any Error>
-        if let attestation, date < attestation.date.addingTimeInterval(policy.maximumAge) {
+        if let attestation, attestation.date <= date, date < attestation.date.addingTimeInterval(policy.maximumAge) {
             task = attestation.task
         } else {
             let nonce = makeNonce()
