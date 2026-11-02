@@ -1,10 +1,10 @@
 import Foundation
 import Privacy
-@testable import RPC
 import Testing
 import Transactions
 import Vault
 import Wallet
+@testable import RPC
 @testable import widgets
 
 @Suite(.serialized, .tags(.network), .timeLimit(.minutes(10)))
@@ -22,22 +22,18 @@ struct RedeemCodeLiveTests {
     @Test
     func `Codes are redeemed and taken back to exactly zero lamports`() async throws {
         let wallets = try await DevnetWallets.configured()
-        let apiKey = try LiveClients.heliusAPIKey()
-        let rpc = HeliusRPC(apiKey: apiKey, network: .devnet)
+        let providers = await ProviderStore.inMemory(selection: .helius, key: try LiveClients.heliusAPIKey())
+        let rpc = ProviderClient(network: .devnet, providers: providers)
         let sender = wallets.sender
         let recipient = wallets.recipient
-        try await Self.requireFunds(Self.feeLamports, in: sender, using: rpc)
+        try await wallets.requireFunds(Self.feeLamports, using: rpc)
         let coordinator = try TransactionCoordinator(rpc: rpc, store: SigningRecoveryStore(recovery: wallets.recovery),
                                                      strategy: .none)
         let notes = StoredValue<PrivateBalances.Notes>()
-        let settings = StoredValue(ProviderSettings(selection: .helius))
-        let providers = await ProviderStore.inMemory(settings, key: StoredValue(apiKey))
         let balances = PrivateBalances(
             recovery: SecurityRecoveryStore(records: [sender.recoveryID: wallets.recovery]), wallet: Wallet(),
             keys: StoredValue(), notes: notes, codes: StoredValue()
-        ) { network in
-            ProviderClient(network: network, providers: providers)
-        }
+        ) { _ in rpc }
         try await balances.enable(sender, on: .devnet)
         try await balances.enable(recipient, on: .devnet)
         try #require(try await balances.refresh(recipient, on: .devnet) != .unregistered,
@@ -47,7 +43,7 @@ struct RedeemCodeLiveTests {
         if try await Self.settledBalance(of: sender, in: balances) < Self.minimumPrivateLamports {
             let deposit = try await balances.prepare(.deposit(Self.depositLamports), from: sender, on: .devnet)
             try #require(!deposit.registers, "Run PrivateTransferLiveTests first so that account 0 is registered.")
-            try await Self.requireFunds(Self.depositLamports + Self.feeLamports, in: sender, using: rpc)
+            try await wallets.requireFunds(Self.depositLamports + Self.feeLamports, using: rpc)
             let (confirmation, _) = try await Self.run(deposit, through: coordinator)
             _ = try await balances.complete(deposit, with: confirmation)
             log.append("deposit \(confirmation.submission.signature)")
@@ -120,7 +116,7 @@ struct RedeemCodeLiveTests {
     }
 
     private static func lamports(of code: RedeemCode, after confirmation: widgets.Confirmation,
-                                 using rpc: HeliusRPC) async throws -> UInt64 {
+                                 using rpc: some RPC) async throws -> UInt64 {
         let address = try OneTimeAccount(secret: code.secret).address
         let slot = try await confirmation.executionSlot(through: rpc)
         let response = try await rpc.send(GetMultipleAccounts(addresses: [address], minContextSlot: slot))
@@ -130,12 +126,6 @@ struct RedeemCodeLiveTests {
     private static func redemption(in transaction: PreparedPrivateTransaction) -> Redemption? {
         guard case .redeem(let redemption) = transaction.effect else { return nil }
         return redemption
-    }
-
-    private static func requireFunds(_ lamports: UInt64, in sender: widgets.Account, using rpc: HeliusRPC) async throws {
-        let funds = try await rpc.send(GetMultipleAccounts(addresses: [sender.address.value]))
-        try #require((funds.value.first ?? nil)?.lamports ?? 0 >= lamports,
-                     "Account 0 must hold \(lamports) lamports of devnet SOL; fund \(sender.address.value)")
     }
 
     private static func settledBalance(of account: widgets.Account, in balances: PrivateBalances) async throws -> UInt64 {

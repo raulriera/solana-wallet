@@ -321,7 +321,8 @@ struct WalletPrivateBalanceTests {
         let balances = PrivateBalances(recovery: try PrivateBalanceFixtures.recoveryStore(), wallet: Wallet(),
                                        keys: StoredValue([account.address.value: record]), notes: StoredValue(),
                                        codes: StoredValue()) { network in
-            ProviderClient(network: network, providers: providers) { endpoint, network in
+            ProviderClient(network: network, providers: providers,
+                           rings: StubProver.zolana(on: network, transport: responses)) { endpoint, network in
                 (endpoint == .helius(key: "fixture-key") ? responses : otherResponses).client(for: endpoint, on: network)
             }
         }

@@ -47,7 +47,7 @@ extension PrivateBalances {
                     secret: keys.oneTimeAccount(at: record.index).secret, network: network
                 ))
             }
-        } catch ProviderClientError.unsupportedNetwork, ProviderClientError.privateNotesUnavailable {
+        } catch ProviderClientError.unsupportedNetwork {
             throw PrivateBalanceError.unavailable
         }
     }

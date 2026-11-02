@@ -1,10 +1,10 @@
 import Foundation
 import Privacy
-@testable import RPC
 import Testing
 import Transactions
 import Vault
 import Wallet
+@testable import RPC
 @testable import widgets
 
 @Suite(.serialized, .tags(.network), .timeLimit(.minutes(10)))
@@ -19,30 +19,29 @@ struct PrivateTransferLiveTests {
 
     private static let feeLamports: UInt64 = 100_000
 
-    @Test
-    func `Private deposits, sends, and withdrawals move SOL between the test accounts`() async throws {
+    @Test(arguments: [ProviderSettings.Provider.helius, .solana])
+    func `Private deposits, sends, and withdrawals move SOL between the test accounts`(
+        provider: ProviderSettings.Provider
+    ) async throws {
         let wallets = try await DevnetWallets.configured()
-        let apiKey = try LiveClients.heliusAPIKey()
-        let rpc = HeliusRPC(apiKey: apiKey, network: .devnet)
+        let apiKey = provider == .helius ? try LiveClients.heliusAPIKey() : nil
+        let providers = await ProviderStore.inMemory(selection: provider, key: apiKey)
+        let rpc = ProviderClient(network: .devnet, providers: providers)
         let sender = wallets.sender
         let recipient = wallets.recipient
-        try await Self.requireFunds(Self.feeLamports, in: sender, using: rpc)
+        try await wallets.requireFunds(Self.feeLamports, using: rpc)
         let coordinator = try TransactionCoordinator(rpc: rpc, store: SigningRecoveryStore(recovery: wallets.recovery),
                                                      strategy: .none)
         let notes = StoredValue<PrivateBalances.Notes>()
-        let settings = StoredValue(ProviderSettings(selection: .helius))
-        let providers = await ProviderStore.inMemory(settings, key: StoredValue(apiKey))
         let balances = PrivateBalances(
             recovery: SecurityRecoveryStore(records: [sender.recoveryID: wallets.recovery]), wallet: Wallet(),
             keys: StoredValue(), notes: notes, codes: StoredValue()
-        ) { network in
-            ProviderClient(network: network, providers: providers)
-        }
+        ) { _ in rpc }
 
         let recipientKeys = try await Self.keys(of: recipient, from: wallets)
         switch try await recipientKeys.registration(using: rpc) {
         case .unregistered:
-            try await Self.requireFunds(Self.registrationLamports + Self.feeLamports, in: sender, using: rpc)
+            try await wallets.requireFunds(Self.registrationLamports + Self.feeLamports, using: rpc)
             let confirmation = try await Self.run([try recipientKeys.register(paidBy: sender.address)],
                                                   signedBy: [sender, recipient], through: coordinator)
             try #require(confirmation.outcome == .succeeded)
@@ -60,7 +59,7 @@ struct PrivateTransferLiveTests {
         if privateLamports < Self.minimumPrivateLamports {
             let deposit = try await balances.prepare(.deposit(Self.depositLamports), from: sender, on: .devnet)
             let rent = deposit.registers ? Self.registrationLamports : 0
-            try await Self.requireFunds(Self.depositLamports + rent + Self.feeLamports, in: sender, using: rpc)
+            try await wallets.requireFunds(Self.depositLamports + rent + Self.feeLamports, using: rpc)
             let confirmation = try await Self.run(deposit.instructions, signedBy: [sender], through: coordinator)
             try #require(confirmation.outcome == .succeeded)
             #expect(try await balances.complete(deposit, with: confirmation) == .balance(available: privateLamports, pending: Self.depositLamports))
@@ -89,13 +88,7 @@ struct PrivateTransferLiveTests {
         #expect((after.value.first ?? nil)?.lamports == publicLamports + Self.transferLamports)
     }
 
-    private static func requireFunds(_ lamports: UInt64, in sender: widgets.Account, using rpc: HeliusRPC) async throws {
-        let funds = try await rpc.send(GetMultipleAccounts(addresses: [sender.address.value]))
-        try #require((funds.value.first ?? nil)?.lamports ?? 0 >= lamports,
-                     "Account 0 must hold \(lamports) lamports of devnet SOL; fund \(sender.address.value)")
-    }
-
-    private static func awaitRegistration(of account: ShieldedAccount, using rpc: HeliusRPC) async throws {
+    private static func awaitRegistration(of account: ShieldedAccount, using rpc: some RPC) async throws {
         for _ in 0..<30 {
             if try await account.registration(using: rpc) == .registered { return }
             try await Task.sleep(for: .seconds(2))

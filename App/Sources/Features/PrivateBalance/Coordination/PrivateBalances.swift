@@ -32,7 +32,7 @@ actor PrivateBalances: PrivateBalancing {
     nonisolated enum SyncOutcome: Sendable {
         /// This device has no keys for the account.
         case off
-        /// The selected provider doesn't read private notes on the network.
+        /// The selected provider doesn't serve the network.
         case unavailable
         case unregistered(ShieldedAccount)
         case synced(ShieldedAccount, NoteSyncState)
@@ -151,7 +151,7 @@ actor PrivateBalances: PrivateBalancing {
             case .takeBack(let index):
                 return try await preparedTakeBack(at: index, into: account, on: network, client: client)
             }
-        } catch ProviderClientError.unsupportedNetwork, ProviderClientError.privateNotesUnavailable {
+        } catch ProviderClientError.unsupportedNetwork {
             throw PrivateBalanceError.unavailable
         } catch PrivateSpend.ValidationError.insufficientFunds {
             throw PrivateBalanceError.insufficientBalance
@@ -386,7 +386,7 @@ actor PrivateBalances: PrivateBalancing {
             let synced = try await (saved ?? NoteSyncState()).synced(for: shielded, using: client)
             try await update(notes, .notes, from: generation) { $0[id] = synced }
             return .synced(shielded, synced)
-        } catch ProviderClientError.unsupportedNetwork, ProviderClientError.privateNotesUnavailable {
+        } catch ProviderClientError.unsupportedNetwork {
             return .unavailable
         }
     }

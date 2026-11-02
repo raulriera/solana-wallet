@@ -156,33 +156,72 @@ struct ProviderClientTests {
         #expect(await responses.requests.count == lookups)
     }
 
-    @Test
-    func `Helius reads private notes`() async throws {
-        let responses = HTTPResponses.privateNotes()
-        let client = responses.providerClient(network: .devnet,
-                                              providers: .inMemory(selection: .helius, key: "fixture-key"))
+    @Test(arguments: [
+        (ProviderSettings.Provider.solana, Network.devnet), (.helius, .devnet),
+        (.custom(URL(string: "https://rpc.example.com")!), .mainnet),
+    ])
+    func `Every usable provider reads private notes and proves private transfers without sending its key`(
+        provider: ProviderSettings.Provider, network: Network
+    ) async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let shielded = try await PrivateBalanceFixtures.keys(for: account).shieldedAccount(for: account.address)
+        let responses = HTTPResponses.privateNotes(prover: try IndexedProofs.prover())
+        let client = responses.providerClient(network: network,
+                                              providers: .inMemory(selection: provider, key: "fixture-key"))
         let tag = [UInt8](repeating: 7, count: 32)
+        let request = try PrivateBalanceFixtures.proofRequest(spending: shielded)
 
-        let batch = try await client.shieldedTransactions(taggedWith: [tag], after: nil)
-        let spends = try await client.shieldedTransactions(spending: [tag])
+        async let tagged = client.shieldedTransactions(taggedWith: [tag], after: nil)
+        async let spending = client.shieldedTransactions(spending: [tag])
+        async let proved = client.proveTransfer(request)
+        let (batch, spends, proof) = try await (tagged, spending, proved)
 
         #expect(batch.transactions.isEmpty)
         #expect(spends.isEmpty)
-        #expect(try await responses.requests.map { try $0.rpcMethod }.sorted() == [
-            GetEncryptedUtxosByTags.method, GetShieldedTransactionsByNullifiers.method, GetShieldedTransactionsByTags.method,
+        #expect(proof.proof.provingKeyDigest == Shape(inputs: 1, outputs: 2).provingKeyDigest)
+        #expect(proof.resolution.trees.map(\.id) == [1])
+        let reads = await responses.requests.filter {
+            $0.httpMethod == "POST" && $0.url?.path().hasSuffix("/indexed") != true
+        }
+        #expect(try reads.map { try $0.rpcMethod }.sorted() == [
+            GetEncryptedUtxosByTags.method, GetShieldedTransactionsByNullifiers.method,
+            GetShieldedTransactionsByTags.method,
         ])
-        #expect(await responses.requests.allSatisfy {
-            $0.url?.host() == "d34xe1hqb2ibg2.cloudfront.net" && $0.url?.query()?.contains("api-key") != true
-        })
+        #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 1)
+        #expect(await responses.requests.allSatisfy { $0.url?.query()?.contains("api-key") != true })
     }
 
     @Test(arguments: [
-        (ProviderSettings.Provider.helius, Network.devnet, true), (.helius, .mainnet, true), (.solana, .devnet, false),
-        (.custom(URL(string: "https://rpc.example.com")!), .devnet, false),
-        (.custom(URL(string: "https://rpc.example.com")!), .mainnet, false),
+        (ProviderSettings.Provider.custom(URL(string: "https://rpc.example.com")!), Network.devnet,
+         ProviderClientError.unsupportedNetwork),
+        (.helius, .devnet, .missingKey),
+        (.custom(URL(string: "http://rpc.example.com")!), .mainnet, .unusableEndpoint),
     ])
-    func `Only Helius reads private notes`(provider: ProviderSettings.Provider, network: Network,
-                                           reads: Bool) async throws {
+    func `Private-note reads and proofs fail before sending anything when the selected provider can't be used`(
+        provider: ProviderSettings.Provider, network: Network, error: ProviderClientError
+    ) async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let shielded = try await PrivateBalanceFixtures.keys(for: account).shieldedAccount(for: account.address)
+        let responses = HTTPResponses.privateNotes(prover: try IndexedProofs.prover())
+        let client = responses.providerClient(network: network, providers: .inMemory(selection: provider))
+        let tag = [UInt8](repeating: 7, count: 32)
+        let request = try PrivateBalanceFixtures.proofRequest(spending: shielded)
+
+        await #expect(throws: error) { _ = try await client.shieldedTransactions(taggedWith: [tag], after: nil) }
+        await #expect(throws: error) { _ = try await client.shieldedTransactions(spending: [tag]) }
+        await #expect(throws: error) { _ = try await client.proveTransfer(request) }
+        #expect(await responses.requests.isEmpty)
+    }
+
+    @Test(arguments: [
+        (ProviderSettings.Provider.solana, Network.devnet, true), (.solana, .mainnet, true),
+        (.helius, .devnet, true), (.helius, .mainnet, true),
+        (.custom(URL(string: "https://rpc.example.com")!), .devnet, false),
+        (.custom(URL(string: "https://rpc.example.com")!), .mainnet, true),
+    ])
+    func `Private notes read wherever the selected provider serves the network`(provider: ProviderSettings.Provider,
+                                                                              network: Network,
+                                                                              reads: Bool) async throws {
         let responses = HTTPResponses.privateNotes()
         let client = responses.providerClient(network: network,
                                               providers: .inMemory(selection: provider, key: "fixture-key"))
@@ -192,73 +231,39 @@ struct ProviderClientTests {
     }
 
     @Test
-    func `Other providers fail private-note reads before sending anything`() async {
-        let responses = HTTPResponses.privateNotes()
-        let client = responses.providerClient(network: .devnet, providers: .inMemory(selection: .solana))
-        let tag = [UInt8](repeating: 7, count: 32)
-
-        await #expect(throws: ProviderClientError.privateNotesUnavailable) {
-            _ = try await client.shieldedTransactions(taggedWith: [tag], after: nil)
-        }
-        await #expect(throws: ProviderClientError.privateNotesUnavailable) {
-            _ = try await client.shieldedTransactions(spending: [tag])
-        }
-        #expect(await responses.requests.isEmpty)
-    }
-
-    @Test
-    func `Helius proves private transfers`() async throws {
+    func `One Solana Rings provider serves every provider and key`() async throws {
         let account = try await PrivateBalanceFixtures.account()
         let shielded = try await PrivateBalanceFixtures.keys(for: account).shieldedAccount(for: account.address)
         let responses = HTTPResponses.privateNotes(prover: try IndexedProofs.prover())
-        let client = responses.providerClient(network: .devnet,
-                                              providers: .inMemory(selection: .helius, key: "fixture-key"))
+        let providers = ProviderStore.inMemory(selection: .solana)
+        let client = responses.providerClient(network: .devnet, providers: providers)
         let request = try PrivateBalanceFixtures.proofRequest(spending: shielded)
 
-        let proof = try await client.proveTransfer(request)
+        _ = try await client.proveTransfer(request)
+        try await providers.save(key: "first-key")
+        try await providers.select(.helius)
+        _ = try await client.proveTransfer(request)
+        try await providers.save(key: "second-key")
+        _ = try await client.proveTransfer(request)
 
-        #expect(proof.proof.provingKeyDigest == Shape(inputs: 1, outputs: 2).provingKeyDigest)
-        #expect(proof.resolution.trees.map(\.id) == [1])
-    }
-
-    @Test(arguments: [(false, .privateNotesUnavailable), (true, .unsupportedNetwork)] as [(Bool, ProviderClientError)])
-    func `Other providers fail proofs before sending anything`(isCustom: Bool, error: ProviderClientError) async throws {
-        let account = try await PrivateBalanceFixtures.account()
-        let shielded = try await PrivateBalanceFixtures.keys(for: account).shieldedAccount(for: account.address)
-        let responses = HTTPResponses.privateNotes()
-        let custom = try #require(URL(string: "https://rpc.example.com"))
-        let provider: ProviderSettings.Provider = isCustom ? .custom(custom) : .solana
-        let client = responses.providerClient(network: .devnet, providers: .inMemory(selection: provider))
-        let request = try PrivateBalanceFixtures.proofRequest(spending: shielded)
-
-        await #expect(throws: error) { _ = try await client.proveTransfer(request) }
-        #expect(await responses.requests.isEmpty)
-    }
-
-    @Test(arguments: [(Network.devnet, ProviderClientError.unsupportedNetwork), (.mainnet, .privateNotesUnavailable)])
-    func `A custom RPC fails private-note reads before sending anything`(network: Network,
-                                                                         error: ProviderClientError) async throws {
-        let responses = HTTPResponses.privateNotes()
-        let custom = try #require(URL(string: "https://rpc.example.com"))
-        let client = responses.providerClient(network: network, providers: .inMemory(selection: .custom(custom)))
-        let tag = [UInt8](repeating: 7, count: 32)
-
-        await #expect(throws: error) { _ = try await client.shieldedTransactions(taggedWith: [tag], after: nil) }
-        await #expect(throws: error) { _ = try await client.shieldedTransactions(spending: [tag]) }
-        #expect(await responses.requests.isEmpty)
+        #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 3)
+        #expect(await responses.requests.count { $0.url?.path().hasSuffix("/tee/v1/attestation") == true } == 1)
     }
 
     @Test(arguments: [401, 403])
-    func `A rejected Helius key on a private-note read is reported as a key error`(status: Int) async {
-        let responses = HTTPResponses.privateNotes(error: .http(statusCode: status, retryAfter: nil))
+    func `A Solana Rings rejection with Helius selected isn't reported as a key error`(status: Int) async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let shielded = try await PrivateBalanceFixtures.keys(for: account).shieldedAccount(for: account.address)
+        let responses = HTTPResponses.privateNotes(error: .http(statusCode: status, retryAfter: nil)) { _ in "" }
         let client = responses.providerClient(network: .devnet,
                                               providers: .inMemory(selection: .helius, key: "rejected-key"))
         let tag = [UInt8](repeating: 7, count: 32)
+        let request = try PrivateBalanceFixtures.proofRequest(spending: shielded)
+        let rejection = RPCError.http(statusCode: status, retryAfter: nil)
 
-        await #expect(throws: ProviderClientError.invalidKey) {
-            _ = try await client.shieldedTransactions(taggedWith: [tag], after: nil)
-        }
-        await #expect(throws: ProviderClientError.invalidKey) { _ = try await client.shieldedTransactions(spending: [tag]) }
+        await #expect(throws: rejection) { _ = try await client.shieldedTransactions(taggedWith: [tag], after: nil) }
+        await #expect(throws: rejection) { _ = try await client.shieldedTransactions(spending: [tag]) }
+        await #expect(throws: rejection) { _ = try await client.proveTransfer(request) }
     }
 
     @Test
