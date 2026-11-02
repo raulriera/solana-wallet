@@ -37,7 +37,7 @@ struct NitroPolicyFixture: Decodable, Sendable {
                     pcr2: try fixtureBytes(measurement.pcr2)
                 )
             },
-            hpkePublicKey: try hpkePublicKey.map(fixtureBytes),
+            publicKey: try hpkePublicKey.map(fixtureBytes),
             root: root,
             maximumAge: maximumAge
         )

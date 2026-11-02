@@ -1,6 +1,7 @@
 public import Foundation
 
-/// A reviewed AWS Nitro Enclaves deployment of the Solana Rings prover, which an attestation must match.
+/// The AWS Nitro Enclaves images and public key that an attestation document must match, and how long a passed
+/// attestation is reused.
 public struct NitroPolicy: Sendable {
     /// An error that rejects an AWS Nitro attestation under a policy.
     enum ValidationError: Error, Equatable {
@@ -25,22 +26,34 @@ public struct NitroPolicy: Sendable {
         case publicKeyMismatch
         /// A document whose nonce isn't the client's.
         case nonceMismatch
-        /// A document whose user data isn't the report data of the client's nonce and the claimed key.
-        case reportDataMismatch
+        /// A document whose user data isn't the caller's.
+        case userDataMismatch
     }
 
     /// PCR0 through PCR2 of an enclave image.
-    struct Measurement: Equatable, Sendable {
+    public struct Measurement: Equatable, Sendable {
         let pcr0: [UInt8]
         let pcr1: [UInt8]
         let pcr2: [UInt8]
+
+        /// Creates a measurement from an enclave image's registers.
+        ///
+        /// - Parameters:
+        ///   - pcr0: The 48-byte SHA-384 measurement of the enclave image file.
+        ///   - pcr1: The 48-byte SHA-384 measurement of the kernel and boot ramfs.
+        ///   - pcr2: The 48-byte SHA-384 measurement of the application.
+        public init(pcr0: [UInt8], pcr1: [UInt8], pcr2: [UInt8]) {
+            self.pcr0 = pcr0
+            self.pcr1 = pcr1
+            self.pcr2 = pcr2
+        }
     }
 
     /// The enclave images the policy allows.
     let measurements: [Measurement]
 
-    /// The only HPKE key the policy allows, or `nil` to allow any key.
-    let hpkePublicKey: [UInt8]?
+    /// The only public key the policy allows, or `nil` to allow any key.
+    let publicKey: [UInt8]?
 
     /// The DER of the root that a document's certificate chain must start at.
     let root: [UInt8]
@@ -48,75 +61,32 @@ public struct NitroPolicy: Sendable {
     /// How long a passed attestation is reused, in seconds.
     public let maximumAge: TimeInterval
 
-    /// Checks an enclave's measurement and a claimed HPKE key against the policy's pins.
+    /// Checks an enclave's measurement and a claimed public key against the policy's pins.
     ///
     /// - Parameters:
     ///   - measurement: The PCR0 through PCR2 that a verified document reports.
-    ///   - publicKey: The HPKE key the prover claims.
+    ///   - publicKey: The public key the enclave claims.
     /// - Throws: ``ValidationError/unexpectedMeasurement`` for a measurement other than the policy's, or
     ///   ``ValidationError/unexpectedPublicKey`` for a key other than the pinned one.
     func validate(_ measurement: Measurement, publicKey: [UInt8]) throws {
         guard measurements.contains(measurement) else { throw ValidationError.unexpectedMeasurement }
-        if let hpkePublicKey, hpkePublicKey != publicKey { throw ValidationError.unexpectedPublicKey }
+        if let pinned = self.publicKey, pinned != publicKey { throw ValidationError.unexpectedPublicKey }
     }
 }
 
 extension NitroPolicy {
-    /// The devnet prover's deployment.
-    public static let devnet = NitroPolicy(
-        measurements: [
-            Measurement(
-                pcr0: [
-                    0x30, 0xa5, 0xca, 0x7c, 0xda, 0xa6, 0x8a, 0xdc, 0x98, 0x02, 0xc5, 0x7c, 0x7e, 0xf5, 0x90, 0xcc,
-                    0x4e, 0xa3, 0xce, 0xe9, 0x81, 0x89, 0x8d, 0xe5, 0x5c, 0x2a, 0xa2, 0x08, 0x2d, 0x79, 0x80, 0xa7,
-                    0xca, 0x42, 0xc3, 0xda, 0xf6, 0xa0, 0x98, 0x8a, 0xff, 0x5e, 0x6d, 0xaa, 0xac, 0xd9, 0x49, 0xad,
-                ],
-                pcr1: [
-                    0x4b, 0x4d, 0x5b, 0x36, 0x61, 0xb3, 0xef, 0xc1, 0x29, 0x20, 0x90, 0x0c, 0x80, 0xe1, 0x26, 0xe4,
-                    0xce, 0x78, 0x3c, 0x52, 0x2d, 0xe6, 0xc0, 0x2a, 0x2a, 0x5b, 0xf7, 0xaf, 0x3a, 0x2b, 0x93, 0x27,
-                    0xb8, 0x67, 0x76, 0xf1, 0x88, 0xe4, 0xbe, 0x1c, 0x1c, 0x40, 0x4a, 0x12, 0x9d, 0xbd, 0xa4, 0x93,
-                ],
-                pcr2: [
-                    0xf3, 0x89, 0xa9, 0x46, 0xe6, 0x69, 0xe3, 0xbe, 0xf0, 0x11, 0xd9, 0x11, 0x89, 0xa5, 0x42, 0x61,
-                    0x9a, 0x4d, 0xc9, 0xfe, 0x85, 0x78, 0xf9, 0xaf, 0x66, 0xbc, 0x54, 0xf8, 0xf9, 0x34, 0x7e, 0x1c,
-                    0xf9, 0x79, 0xa5, 0x0a, 0x8c, 0x1f, 0x56, 0xe7, 0xa5, 0x95, 0xbd, 0x93, 0x5b, 0xf2, 0x9c, 0xab,
-                ]
-            )
-        ],
-        hpkePublicKey: [
-            0xcf, 0x22, 0x54, 0xcf, 0xf5, 0x68, 0xf3, 0x40, 0x12, 0x72, 0xb0, 0xb5, 0xfc, 0x96, 0x59, 0x17,
-            0x93, 0x84, 0x98, 0xe0, 0xae, 0x4a, 0x41, 0x39, 0x1b, 0x04, 0xf6, 0x92, 0x4a, 0x93, 0xe0, 0x33,
-        ],
-        root: NitroCertificateChain.awsNitroEnclavesRoot,
-        maximumAge: 600
-    )
-
-    /// The mainnet prover's deployment.
-    public static let mainnet = NitroPolicy(
-        measurements: [
-            Measurement(
-                pcr0: [
-                    0x89, 0xcd, 0xe9, 0xfc, 0xf7, 0x8e, 0xd0, 0xfe, 0x2e, 0x80, 0xc2, 0x55, 0x54, 0xad, 0x38, 0xb4,
-                    0x02, 0x2a, 0x33, 0x72, 0xe5, 0xf8, 0xbf, 0x4b, 0x1a, 0xb6, 0xb4, 0xb6, 0x9e, 0x72, 0x16, 0x99,
-                    0xa5, 0xd0, 0x22, 0xd7, 0x37, 0x0b, 0xbc, 0x88, 0x54, 0xc2, 0xc4, 0xf4, 0x6d, 0x63, 0x00, 0x97,
-                ],
-                pcr1: [
-                    0x4b, 0x4d, 0x5b, 0x36, 0x61, 0xb3, 0xef, 0xc1, 0x29, 0x20, 0x90, 0x0c, 0x80, 0xe1, 0x26, 0xe4,
-                    0xce, 0x78, 0x3c, 0x52, 0x2d, 0xe6, 0xc0, 0x2a, 0x2a, 0x5b, 0xf7, 0xaf, 0x3a, 0x2b, 0x93, 0x27,
-                    0xb8, 0x67, 0x76, 0xf1, 0x88, 0xe4, 0xbe, 0x1c, 0x1c, 0x40, 0x4a, 0x12, 0x9d, 0xbd, 0xa4, 0x93,
-                ],
-                pcr2: [
-                    0x82, 0x65, 0xae, 0x7a, 0x12, 0xc7, 0x46, 0x95, 0xe4, 0x48, 0x4a, 0xa5, 0xf0, 0x85, 0xf7, 0x30,
-                    0xdf, 0x8c, 0x5a, 0x47, 0x41, 0xfb, 0x2a, 0x33, 0x4e, 0xf8, 0x8f, 0x30, 0x6f, 0x47, 0xd3, 0x9a,
-                    0xe0, 0x13, 0x7a, 0x9b, 0xec, 0x2e, 0x8a, 0x49, 0x5c, 0xe7, 0xc6, 0xdb, 0x38, 0x41, 0xe1, 0xee,
-                ]
-            )
-        ],
-        hpkePublicKey: [
-            0xee, 0x82, 0x89, 0xb5, 0xaf, 0xa1, 0xd2, 0xe8, 0x85, 0x80, 0x9a, 0x91, 0xf4, 0xb2, 0x8b, 0x64,
-            0x58, 0x07, 0xdc, 0xfd, 0x5c, 0x94, 0x57, 0xdd, 0xf6, 0xa0, 0x31, 0xb3, 0xec, 0xb4, 0x58, 0x78,
-        ],
-        root: NitroCertificateChain.awsNitroEnclavesRoot,
-        maximumAge: 600
-    )
+    /// Creates a policy whose certificate chains start at the AWS Nitro Enclaves root.
+    ///
+    /// - Parameters:
+    ///   - measurements: The enclave images the policy allows.
+    ///   - publicKey: The only public key the policy allows, or `nil` to allow any key.
+    ///   - maximumAge: How long a passed attestation is reused, in seconds.
+    public init(measurements: [Measurement], publicKey: [UInt8]?, maximumAge: TimeInterval) {
+        self.init(
+            measurements: measurements,
+            publicKey: publicKey,
+            root: NitroCertificateChain.awsNitroEnclavesRoot,
+            maximumAge: maximumAge
+        )
+    }
 }

@@ -54,11 +54,16 @@ struct RecordedNitroAttestation: Decodable, Sendable {
         String(decoding: try JSONSerialization.data(withJSONObject: responseObject), as: UTF8.self)
     }
 
-    func publicKey(under policy: NitroPolicy, at date: Date? = nil) throws -> Curve25519.KeyAgreement.PublicKey {
+    func publicKey(
+        under policy: NitroPolicy,
+        userData: [UInt8],
+        at date: Date? = nil
+    ) throws -> Curve25519.KeyAgreement.PublicKey {
         try Curve25519.KeyAgreement.PublicKey(
             rawRepresentation: hpkePublicKey,
             attestedBy: fixtureBytes(attestation.evidence.document),
             nonce: fixtureBytes(nonce),
+            userData: userData,
             policy: policy,
             at: date ?? capturedDate
         )

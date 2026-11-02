@@ -10,6 +10,6 @@ struct ProverAttestationLiveTests {
     func `The network's prover attests its pinned key now`(network: Network, policy: NitroPolicy) async throws {
         let key = try await Zolana(network: network).attestedKey.key()
 
-        #expect(Array(key.rawRepresentation) == policy.hpkePublicKey)
+        #expect(Array(key.rawRepresentation) == policy.publicKey)
     }
 }

@@ -2,22 +2,17 @@ public import CryptoKit
 public import Foundation
 
 extension Curve25519.KeyAgreement.PublicKey {
-    /// The domain that separates report data from the prover protocol's other hashes.
-    private static let reportDomain = Array("zolana/prover-tee/v1/report".utf8)
-
-    /// The GPU digest of an attestation without a GPU verdict.
-    private static let absentGPUDigest = [UInt8](repeating: 0, count: 32)
-
     private static let nonceByteCount = 32
 
-    /// Creates an HPKE key from its raw representation once an AWS Nitro attestation document binds it to the
-    /// client's nonce under a policy.
+    /// Creates a key from its raw representation once an AWS Nitro attestation document binds it to the client's
+    /// nonce and user data under a policy.
     ///
     /// - Parameters:
-    ///   - rawRepresentation: The 32-byte key the prover claims.
-    ///   - bytes: The COSE_Sign1 attestation document the prover returned with the key.
+    ///   - rawRepresentation: The 32-byte key the enclave claims.
+    ///   - bytes: The COSE_Sign1 attestation document the enclave returned with the key.
     ///   - nonce: The 32-byte nonce the client sent with the attestation request.
-    ///   - policy: The deployment the prover must run.
+    ///   - userData: The user data the document must hold.
+    ///   - policy: The enclave images and key the document must match.
     ///   - date: The time the document's certificates must be valid at.
     /// - Throws: `CryptoKitError.incorrectKeySize` unless the key has 32 bytes,
     ///   `CryptoKitError.incorrectParameterSize` unless the nonce has 32 bytes, or a validation error for a document
@@ -26,6 +21,7 @@ extension Curve25519.KeyAgreement.PublicKey {
         rawRepresentation: some ContiguousBytes,
         attestedBy bytes: some DataProtocol,
         nonce: some DataProtocol,
+        userData: some DataProtocol,
         policy: NitroPolicy,
         at date: Date
     ) throws {
@@ -56,16 +52,6 @@ extension Curve25519.KeyAgreement.PublicKey {
         try policy.validate(document.measurement, publicKey: key)
         guard document.publicKey == key else { throw NitroPolicy.ValidationError.publicKeyMismatch }
         guard document.nonce == nonce else { throw NitroPolicy.ValidationError.nonceMismatch }
-        guard document.userData == reportData(nonce: nonce) else {
-            throw NitroPolicy.ValidationError.reportDataMismatch
-        }
-    }
-
-    /// Computes the report data that binds the key to a nonce with no GPU verdict.
-    ///
-    /// - Parameter nonce: The nonce the client sent with the attestation request.
-    /// - Returns: The 64-byte SHA-512 digest of the domain, the nonce, the key, and the absent GPU digest.
-    func reportData(nonce: [UInt8]) -> [UInt8] {
-        Array(SHA512.hash(data: Self.reportDomain + nonce + rawRepresentation + Self.absentGPUDigest))
+        guard document.userData == [UInt8](userData) else { throw NitroPolicy.ValidationError.userDataMismatch }
     }
 }

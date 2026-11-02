@@ -5,6 +5,12 @@ import Foundation
 
 /// The Solana Rings prover's AWS Nitro attestation: the key that requests are encrypted to and its evidence.
 struct ProverAttestation: Decodable, Sendable {
+    /// The domain that separates report data from the prover protocol's other hashes.
+    private static let reportDomain = Array("zolana/prover-tee/v1/report".utf8)
+
+    /// The GPU digest of an attestation without a GPU verdict.
+    private static let absentGPUDigest = [UInt8](repeating: 0, count: 32)
+
     /// The `evidence` field of an attestation.
     struct Evidence: Decodable, Sendable {
         /// The lowercase hexadecimal attestation document.
@@ -56,11 +62,22 @@ struct ProverAttestation: Decodable, Sendable {
                 rawRepresentation: key,
                 attestedBy: document,
                 nonce: nonce,
+                userData: Self.reportData(nonce: nonce, key: key),
                 policy: policy,
                 at: date
             )
         } catch {
             throw RPCError.invalidResponse(.untrustedProver)
         }
+    }
+
+    /// Computes the report data that binds a key to a nonce with no GPU verdict.
+    ///
+    /// - Parameters:
+    ///   - nonce: The nonce sent with the attestation request.
+    ///   - key: The raw HPKE key the prover claims.
+    /// - Returns: The 64-byte SHA-512 digest of the domain, the nonce, the key, and the absent GPU digest.
+    static func reportData(nonce: [UInt8], key: [UInt8]) -> [UInt8] {
+        Array(SHA512.hash(data: reportDomain + nonce + key + absentGPUDigest))
     }
 }

@@ -7,6 +7,7 @@ struct NitroCBORCases: Decodable, Sendable {
     let now: Int
     let nonce: String
     let hpkePublicKey: String
+    let userData: String
     let policy: NitroPolicyFixture
     let root: String
     let leafKey: String
@@ -16,6 +17,7 @@ struct NitroCBORCases: Decodable, Sendable {
         case now
         case nonce
         case hpkePublicKey = "hpke_public_key"
+        case userData = "user_data"
         case policy
         case root
         case leafKey = "leaf_key"

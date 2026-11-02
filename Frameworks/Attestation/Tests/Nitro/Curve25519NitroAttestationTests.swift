@@ -9,6 +9,7 @@ struct Curve25519NitroAttestationTests {
         var key: [UInt8]
         var message: [UInt8]
         var nonce: [UInt8]
+        var userData: [UInt8]
         var policy: NitroPolicy
         var date: Date
 
@@ -17,36 +18,10 @@ struct Curve25519NitroAttestationTests {
                 rawRepresentation: key,
                 attestedBy: message,
                 nonce: nonce,
+                userData: userData,
                 policy: policy,
                 at: date
             )
-        }
-    }
-
-    @Test(arguments: [
-        (NitroPolicy.devnet, "RecordedDevnetNitroAttestation"),
-        (.mainnet, "RecordedMainnetNitroAttestation"),
-    ])
-    func `A recorded attestation yields its HPKE key under its network's policy`(
-        policy: NitroPolicy,
-        file: String
-    ) throws {
-        let recorded = try RecordedNitroAttestation.load(named: file)
-
-        let key = try recorded.publicKey(under: policy)
-
-        #expect(Array(key.rawRepresentation) == (try fixtureBytes(recorded.attestation.hpkePublicKey)))
-    }
-
-    @Test(arguments: [
-        (NitroPolicy.mainnet, "RecordedDevnetNitroAttestation"),
-        (.devnet, "RecordedMainnetNitroAttestation"),
-    ])
-    func `A recorded attestation fails the other network's policy`(policy: NitroPolicy, file: String) throws {
-        let recorded = try RecordedNitroAttestation.load(named: file)
-
-        #expect(throws: NitroPolicy.ValidationError.unexpectedMeasurement) {
-            try recorded.publicKey(under: policy)
         }
     }
 
@@ -65,10 +40,14 @@ struct Curve25519NitroAttestationTests {
         #expect(throws: NitroPolicy.ValidationError.malformed) { try attempt.verified() }
     }
 
-    @Test(arguments: [NitroPolicy.devnet, .mainnet])
-    func `Pinned policies reject a chain to a root other than AWS's`(policy: NitroPolicy) throws {
+    @Test
+    func `A policy with the AWS root rejects a chain to another root`() throws {
         var attempt = try Self.attempt()
-        attempt.policy = policy
+        attempt.policy = NitroPolicy(
+            measurements: attempt.policy.measurements,
+            publicKey: nil,
+            maximumAge: attempt.policy.maximumAge
+        )
 
         #expect(throws: NitroPolicy.ValidationError.untrustedCertificateChain) { try attempt.verified() }
     }
@@ -76,9 +55,10 @@ struct Curve25519NitroAttestationTests {
     @Test
     func `A document whose certificates expired is rejected`() throws {
         let recorded = try RecordedNitroAttestation.load(named: "RecordedDevnetNitroAttestation")
+        let policy = NitroPolicy(measurements: [], publicKey: nil, maximumAge: 0)
 
         #expect(throws: NitroPolicy.ValidationError.untrustedCertificateChain) {
-            try recorded.publicKey(under: .devnet, at: .distantFuture)
+            try recorded.publicKey(under: policy, userData: [], at: .distantFuture)
         }
     }
 
@@ -104,7 +84,7 @@ struct Curve25519NitroAttestationTests {
         var attempt = try Self.attempt()
         attempt.policy = NitroPolicy(
             measurements: [],
-            hpkePublicKey: nil,
+            publicKey: nil,
             root: attempt.policy.root,
             maximumAge: attempt.policy.maximumAge
         )
@@ -118,7 +98,7 @@ struct Curve25519NitroAttestationTests {
         let other = [UInt8](repeating: 0x0f, count: 32)
         attempt.policy = NitroPolicy(
             measurements: attempt.policy.measurements,
-            hpkePublicKey: other,
+            publicKey: other,
             root: attempt.policy.root,
             maximumAge: attempt.policy.maximumAge
         )
@@ -130,7 +110,7 @@ struct Curve25519NitroAttestationTests {
         arguments: [
             ("public_key", .publicKeyMismatch),
             ("nonce", .nonceMismatch),
-            ("user_data", .reportDataMismatch),
+            ("user_data", .userDataMismatch),
         ] as [(field: String, error: NitroPolicy.ValidationError)],
         [.bytes([UInt8](repeating: 0x0f, count: 32)), .null, nil] as [CBOR?]
     )
@@ -160,21 +140,13 @@ struct Curve25519NitroAttestationTests {
         #expect(throws: CryptoKitError.incorrectParameterSize) { try attempt.verified() }
     }
 
-    @Test
-    func `Report data binds the nonce and the key without a GPU verdict`() throws {
-        let vectors = try EncryptedProverVectors.load()
-        let key = try Curve25519.KeyAgreement.PublicKey(rawRepresentation: fixtureBytes(vectors.hpkePublicKey))
-        let nonce = try fixtureBytes(vectors.nonce)
-
-        #expect(key.reportData(nonce: nonce) == (try fixtureBytes(vectors.reportDataWithoutGPU)))
-    }
-
     private static func attempt(message: [UInt8]) throws -> Attempt {
         let cases = try NitroCBORCases.load()
         return Attempt(
             key: try fixtureBytes(cases.hpkePublicKey),
             message: message,
             nonce: try fixtureBytes(cases.nonce),
+            userData: try fixtureBytes(cases.userData),
             policy: try cases.trustedPolicy(),
             date: Date(timeIntervalSince1970: TimeInterval(cases.now))
         )

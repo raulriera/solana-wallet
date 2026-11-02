@@ -150,6 +150,9 @@
                 }, {
                   "target": "PrivacyTests",
                   "exclusions": [
+                    "DevnetNitroPolicy.json",
+                    "MainnetNitroPolicy.json",
+                    "NitroPolicyFixture.swift",
                     "RecordedDevnetNitroAttestation.json",
                     "RecordedMainnetNitroAttestation.json",
                     "RecordedNitroAttestation.swift",
@@ -157,6 +160,9 @@
                 }, {
                   "target": "widgetsTests",
                   "exclusions": [
+                    "DevnetNitroPolicy.json",
+                    "MainnetNitroPolicy.json",
+                    "NitroPolicyFixture.swift",
                     "RecordedDevnetNitroAttestation.json",
                     "RecordedMainnetNitroAttestation.json",
                     "RecordedNitroAttestation.swift",

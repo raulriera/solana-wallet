@@ -4,19 +4,6 @@ import Testing
 struct NitroPolicyTests {
     private static let other = [UInt8](repeating: 0x0f, count: 48)
 
-    @Test(arguments: [(NitroPolicy.devnet, "DevnetNitroPolicy"), (.mainnet, "MainnetNitroPolicy")])
-    func `Pinned policies match their deployment files`(policy: NitroPolicy, file: String) throws {
-        let deployment = try NitroPolicyFixture.deployment(named: file)
-        let pinned = try deployment.policy(root: NitroCertificateChain.awsNitroEnclavesRoot)
-
-        #expect(deployment.platform == "aws-nitro")
-        #expect(deployment.gpu == "optional")
-        #expect(policy.measurements == pinned.measurements)
-        #expect(policy.hpkePublicKey == pinned.hpkePublicKey)
-        #expect(policy.root == pinned.root)
-        #expect(policy.maximumAge == pinned.maximumAge)
-    }
-
     @Test(arguments: [0, 1, 2])
     func `A measurement that differs in any PCR is rejected`(index: Int) throws {
         let policy = try NitroCBORCases.load().trustedPolicy()
@@ -36,7 +23,7 @@ struct NitroPolicyTests {
     @Test
     func `A policy without measurements rejects every measurement`() throws {
         let allowed = try #require(NitroCBORCases.load().trustedPolicy().measurements.first)
-        let policy = NitroPolicy(measurements: [], hpkePublicKey: nil, root: [], maximumAge: 0)
+        let policy = NitroPolicy(measurements: [], publicKey: nil, root: [], maximumAge: 0)
 
         #expect(throws: NitroPolicy.ValidationError.unexpectedMeasurement) {
             try policy.validate(allowed, publicKey: [])
@@ -48,7 +35,7 @@ struct NitroPolicyTests {
         let cases = try NitroCBORCases.load()
         let key = try fixtureBytes(cases.hpkePublicKey)
         let allowed = try #require(cases.trustedPolicy().measurements.first)
-        let policy = NitroPolicy(measurements: [allowed], hpkePublicKey: key, root: [], maximumAge: 0)
+        let policy = NitroPolicy(measurements: [allowed], publicKey: key, root: [], maximumAge: 0)
 
         #expect(throws: Never.self) { try policy.validate(allowed, publicKey: key) }
         #expect(throws: NitroPolicy.ValidationError.unexpectedPublicKey) {

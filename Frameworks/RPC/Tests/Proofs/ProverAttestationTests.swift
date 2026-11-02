@@ -33,4 +33,16 @@ struct ProverAttestationTests {
                 .publicKey(for: nonce, under: policy, at: recorded.capturedDate)
         }
     }
+
+    @Test
+    func `Report data binds the nonce and the key without a GPU verdict`() throws {
+        let vectors = try EncryptedProverVectors.load()
+
+        let reportData = ProverAttestation.reportData(
+            nonce: try fixtureBytes(vectors.nonce),
+            key: try fixtureBytes(vectors.hpkePublicKey)
+        )
+
+        #expect(reportData == (try fixtureBytes(vectors.reportDataWithoutGPU)))
+    }
 }
