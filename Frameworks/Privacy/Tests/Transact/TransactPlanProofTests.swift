@@ -44,7 +44,7 @@ struct TransactPlanProofTests {
     @Test
     func `Proofs against another public input hash are rejected`() async throws {
         let vector = try #require(try ProofRequestVectors.load().transacts.first)
-        let answer = try Self.answer(to: vector, publicInputHash: String(repeating: "0", count: 63) + "1")
+        let answer = try Self.answer(to: vector, publicInputHash: fieldElement(1))
         let transport = try StubProver { _ in (200, answer) }.transport()
 
         await #expect(throws: TransactPlan.ValidationError.mismatchedPublicInputHash) {
@@ -125,22 +125,22 @@ struct TransactPlanProofTests {
         #expect(request.inputs.allSatisfy { Mirror(reflecting: $0).children.isEmpty })
     }
 
-    private static func answer(to vector: ProofRequestVectors.Transact, publicInputHash: String? = nil) throws
+    private static func answer(to vector: ProofRequestVectors.Transact, publicInputHash: [UInt8]? = nil) throws
         -> String {
-        guard case .object(var fields) = vector.response else { return try #require(nil as String?) }
         let addresses = try addresses(of: vector)
-        let trees = vector.treeSlots.indices.map { index in
+        let trees = try vector.treeSlots.indices.map { index in
             let (slot, context) = (vector.treeSlots[index], vector.treeContexts[index])
-            return JSONValue.object([
-                "tree": addresses[index], "id": .number(Double(slot.id)),
-                "utxoRoot": .string("0x" + slot.utxoRoot), "nullifierRoot": .string("0x" + slot.nullifierRoot),
-                "utxoRootIndex": .number(Double(context[0])), "nullifierRootIndex": .number(Double(context[1])),
-            ])
+            return ProverAnswer.tree(
+                tree: addresses[index], id: .number(Double(slot.id)),
+                utxoRoot: ProverAnswer.word(try fixtureBytes(slot.utxoRoot)),
+                nullifierRoot: ProverAnswer.word(try fixtureBytes(slot.nullifierRoot)),
+                utxoRootIndex: .number(Double(context[0])), nullifierRootIndex: .number(Double(context[1]))
+            )
         }
-        fields["resolution"] = .object([
-            "trees": .array(trees), "publicInputHash": .string("0x" + (publicInputHash ?? vector.publicInputHash)),
-        ])
-        return String(decoding: try JSONValue.object(fields).data, as: UTF8.self)
+        return try ProverAnswer.indexed(
+            proof: vector.response, trees: .array(trees),
+            publicInputHash: ProverAnswer.word(publicInputHash ?? fixtureBytes(vector.publicInputHash))
+        ).json
     }
 
     private static func addresses(of vector: ProofRequestVectors.Transact) throws -> [JSONValue] {

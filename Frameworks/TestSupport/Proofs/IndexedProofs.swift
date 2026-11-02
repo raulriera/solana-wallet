@@ -19,9 +19,9 @@ enum IndexedProofs {
     }
 
     static func proof(for shape: Shape) -> TransferProof {
-        let point = TransferProof.G1Point(x: field(1), y: field(2))
-        return TransferProof(a: point, b: field(1) + field(2) + field(1) + field(2), c: point,
-                             provingKeyDigest: shape.provingKeyDigest)
+        let point = TransferProof.G1Point(x: fieldElement(1), y: fieldElement(2))
+        return TransferProof(a: point, b: fieldElement(1) + fieldElement(2) + fieldElement(1) + fieldElement(2),
+                             c: point, provingKeyDigest: shape.provingKeyDigest)
     }
 
     private static func answer(to body: Data) throws -> (status: Int, body: String) {
@@ -32,26 +32,27 @@ enum IndexedProofs {
         }
         let hash = PublicInputs.hash(elements: elements, treeSlots: slots)
         let proof = proof(for: Shape(inputs: request.prepared.nInputs, outputs: request.prepared.nOutputs))
-        let words = stride(from: 0, to: proof.b.count, by: 32).map { FieldHex.encode(Array(proof.b[$0..<$0 + 32])) }
-        let trees: [[String: Any]] = request.trees.map {
-            ["tree": $0.tree, "id": $0.id, "utxoRoot": FieldHex.encode(utxoRoot.bigEndianBytes),
-             "nullifierRoot": FieldHex.encode(nullifierRoot.bigEndianBytes), "utxoRootIndex": utxoRootIndex,
-             "nullifierRootIndex": nullifierRootIndex]
+        let words = stride(from: 0, to: proof.b.count, by: 32).map { ProverAnswer.word(Array(proof.b[$0..<$0 + 32])) }
+        let trees = request.trees.map {
+            ProverAnswer.tree(
+                tree: .string($0.tree), id: .number(Double($0.id)),
+                utxoRoot: ProverAnswer.word(utxoRoot.bigEndianBytes),
+                nullifierRoot: ProverAnswer.word(nullifierRoot.bigEndianBytes),
+                utxoRootIndex: .number(Double(utxoRootIndex)), nullifierRootIndex: .number(Double(nullifierRootIndex))
+            )
         }
-        let answer: [String: Any] = [
-            "ar": [FieldHex.encode(proof.a.x), FieldHex.encode(proof.a.y)],
-            "bs": [Array(words[0..<2]), Array(words[2..<4])],
-            "krs": [FieldHex.encode(proof.c.x), FieldHex.encode(proof.c.y)],
-            "provingKeySha256": Hex.encode(proof.provingKeyDigest),
-            "resolution": [
-                "trees": trees,
-                "publicInputHash": FieldHex.encode(hash.bigEndianBytes),
-            ] as [String: Any],
-        ]
-        return (200, String(decoding: try JSONSerialization.data(withJSONObject: answer), as: UTF8.self))
+        let answer = try ProverAnswer.indexed(
+            proof: ProverAnswer.proof(
+                a: [ProverAnswer.word(proof.a.x), ProverAnswer.word(proof.a.y)],
+                b: [.array(Array(words[0..<2])), .array(Array(words[2..<4]))],
+                c: [ProverAnswer.word(proof.c.x), ProverAnswer.word(proof.c.y)],
+                digest: .string(Hex.encode(proof.provingKeyDigest))
+            ),
+            trees: .array(trees),
+            publicInputHash: ProverAnswer.word(hash.bigEndianBytes)
+        )
+        return (200, try answer.json)
     }
-
-    private static func field(_ value: UInt8) -> [UInt8] { Array(repeating: 0, count: 31) + [value] }
 }
 
 private struct Request: Decodable {

@@ -11,7 +11,7 @@ struct HeliusRPCProofsTests {
         let opened = Mutex<[Data]>([])
         let prover = try StubProver { body in
             opened.withLock { $0.append(body) }
-            return (200, Fixture.indexedResponse())
+            return (200, try ProverAnswer.indexed().json)
         }
         let transport = prover.transport()
         let provider: any ProofProviding = HeliusRPC(
@@ -21,7 +21,7 @@ struct HeliusRPCProofsTests {
 
         let proof = try await provider.proveTransfer(Fixture.indexedRequest())
 
-        #expect(proof.resolution.publicInputHash == Fixture.field(0x99))
+        #expect(proof.resolution.publicInputHash == fieldElement(0x99))
         for request in await transport.requests {
             let url = try #require(request.url)
             let fields = (request.allHTTPHeaderFields ?? [:]).flatMap { [$0.key, $0.value] }

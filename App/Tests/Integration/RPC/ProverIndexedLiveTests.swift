@@ -28,14 +28,14 @@ struct ProverIndexedLiveTests {
     }
 
     private static func request() throws -> IndexedTransferProofRequest {
-        let zero = field(0)
+        let zero = fieldElement(0)
         let utxo = try IndexedTransferProofRequest.UTXO(
-            domain: field(3), owner: randomFieldElement(), asset: zero, amount: field(1),
+            domain: fieldElement(3), owner: randomFieldElement(), asset: zero, amount: fieldElement(1),
             blinding: randomFieldElement(), dataHash: zero, ringDataHash: zero, ringProgramID: zero
         )
         let padding = try IndexedTransferProofRequest.UTXO(
-            domain: field(1), owner: zero, asset: zero, amount: zero, blinding: randomFieldElement(), dataHash: zero,
-            ringDataHash: zero, ringProgramID: zero
+            domain: fieldElement(1), owner: zero, asset: zero, amount: zero, blinding: randomFieldElement(),
+            dataHash: zero, ringDataHash: zero, ringProgramID: zero
         )
         var publicInputs = (0..<17).map { _ in randomFieldElement() }
         publicInputs[15] = zero
@@ -59,12 +59,8 @@ struct ProverIndexedLiveTests {
             publicAmounts: [zero, zero, zero],
             ringProgramID: zero,
             signerPublicKeyHashes: [randomFieldElement(), zero],
-            inputFlags: field(1),
+            inputFlags: fieldElement(1),
             publishedOutputOwnerPublicKeyHashes: [randomFieldElement(), randomFieldElement()]
         )
-    }
-
-    private static func field(_ value: UInt8) -> [UInt8] {
-        Array(repeating: 0, count: 31) + [value]
     }
 }

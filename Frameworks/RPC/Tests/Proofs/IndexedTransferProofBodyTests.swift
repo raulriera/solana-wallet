@@ -9,7 +9,7 @@ struct IndexedTransferProofBodyTests {
     func `The envelope sends base 58 trees and commitments, null padding commitments, and prover hex public inputs`()
         throws {
         let request = try Fixture.twoTreeRequest(
-            publicInputs: Fixture.publicInputs(replacing: 16, with: Fixture.field(0x85))
+            publicInputs: Fixture.publicInputs(replacing: 16, with: fieldElement(0x85))
         )
 
         let body = try Fixture.json(IndexedTransferProofBody(request))
@@ -17,7 +17,7 @@ struct IndexedTransferProofBodyTests {
         #expect(Set(body.keys) == ["circuitType", "prepared", "trees", "inputs", "publicInputs"])
         #expect(body["circuitType"] as? String == "transfer-confidential")
         #expect(body["trees"] as? [[String: AnyHashable]] == [
-            ["tree": Fixture.tree, "id": 0], ["tree": Fixture.zeroAddress, "id": 7],
+            ["tree": ProverAnswer.treeAddress, "id": 0], ["tree": ProverAnswer.zeroAddress, "id": 7],
         ])
         #expect(body["inputs"] as? [[String: AnyHashable]] == [
             ["treeSlot": 0, "commitment": String(repeating: "1", count: 31) + "4t"],

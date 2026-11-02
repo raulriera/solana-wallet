@@ -19,7 +19,7 @@ struct IndexedTransferProofRequestTests {
         { try ProofFixtures.twoTreeRequest() },
         {
             try ProofFixtures.indexedRequest(
-                publicInputs: ProofFixtures.publicInputs(replacing: 16, with: ProofFixtures.field(0x85))
+                publicInputs: ProofFixtures.publicInputs(replacing: 16, with: fieldElement(0x85))
             )
         },
     ] as [@Sendable () throws -> IndexedTransferProofRequest])
@@ -34,15 +34,15 @@ struct IndexedTransferProofRequestTests {
         },
         Refusal(.invalidLength) {
             _ = try IndexedTransferProofRequest.UTXO(
-                domain: [3], owner: ProofFixtures.zeroBytes, asset: ProofFixtures.zeroBytes,
-                amount: ProofFixtures.zeroBytes, blinding: ProofFixtures.zeroBytes, dataHash: ProofFixtures.zeroBytes,
-                ringDataHash: ProofFixtures.zeroBytes, ringProgramID: ProofFixtures.zeroBytes
+                domain: [3], owner: fieldElement(0), asset: fieldElement(0),
+                amount: fieldElement(0), blinding: fieldElement(0), dataHash: fieldElement(0),
+                ringDataHash: fieldElement(0), ringProgramID: fieldElement(0)
             )
         },
         Refusal(.invalidLength) {
             _ = try IndexedTransferProofRequest.Output(
-                utxo: ProofFixtures.utxo(), isDummy: false, hash: [], ownerPublicKeyHash: ProofFixtures.field(1),
-                nullifierPublicKey: ProofFixtures.field(1)
+                utxo: ProofFixtures.utxo(), isDummy: false, hash: [], ownerPublicKeyHash: fieldElement(1),
+                nullifierPublicKey: fieldElement(1)
             )
         },
         Refusal(.invalidLength) { _ = try ProofFixtures.indexedRequest(blindingSeed: [1]) },
@@ -57,15 +57,15 @@ struct IndexedTransferProofRequestTests {
         Refusal(.invalidCount) {
             _ = try ProofFixtures.indexedRequest(publicInputs: Array(ProofFixtures.publicInputs().prefix(16)))
         },
-        Refusal(.zeroBlindingSeed) { _ = try ProofFixtures.indexedRequest(blindingSeed: ProofFixtures.zeroBytes) },
+        Refusal(.zeroBlindingSeed) { _ = try ProofFixtures.indexedRequest(blindingSeed: fieldElement(0)) },
         Refusal(.unsupportedCache) {
             _ = try ProofFixtures.indexedRequest(
-                publicInputs: ProofFixtures.publicInputs(replacing: 15, with: ProofFixtures.field(1))
+                publicInputs: ProofFixtures.publicInputs(replacing: 15, with: fieldElement(1))
             )
         },
         Refusal(.duplicateTree) {
             _ = try ProofFixtures.indexedRequest(
-                trees: [ProofFixtures.indexedTree(), ProofFixtures.indexedTree(address: ProofFixtures.field(9))],
+                trees: [ProofFixtures.indexedTree(), ProofFixtures.indexedTree(address: fieldElement(9))],
                 inputs: [ProofFixtures.indexedInput(), ProofFixtures.indexedInput(treeSlot: 1)]
             )
         },
@@ -85,11 +85,11 @@ struct IndexedTransferProofRequestTests {
         },
         Refusal(.unusedTree) {
             _ = try ProofFixtures.indexedRequest(
-                trees: [ProofFixtures.indexedTree(), ProofFixtures.indexedTree(id: 1, address: ProofFixtures.field(9))]
+                trees: [ProofFixtures.indexedTree(), ProofFixtures.indexedTree(id: 1, address: fieldElement(9))]
             )
         },
         Refusal(.invalidNullifier) {
-            _ = try ProofFixtures.indexedInput(isDummy: true, nullifier: ProofFixtures.zeroBytes, commitment: nil)
+            _ = try ProofFixtures.indexedInput(isDummy: true, nullifier: fieldElement(0), commitment: nil)
         },
         Refusal(.invalidNullifier) {
             _ = try ProofFixtures.indexedInput(nullifier: fixtureBytes(ProofFixtures.fieldOrder))

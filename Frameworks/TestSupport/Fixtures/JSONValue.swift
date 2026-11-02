@@ -41,12 +41,43 @@ indirect enum JSONValue: Codable, Sendable, Equatable {
         try JSONDecoder().decode(Self.self, from: data)
     }
 
-    func member(_ key: String) -> JSONValue? {
+    var members: [String: JSONValue]? {
         guard case .object(let members) = self else { return nil }
-        return members[key]
+        return members
+    }
+
+    func member(_ key: String) -> JSONValue? {
+        members?[key]
     }
 
     var data: Data {
         get throws { try JSONEncoder().encode(self) }
+    }
+
+    var json: String {
+        get throws { String(decoding: try data, as: UTF8.self) }
+    }
+}
+
+extension JSONValue: ExpressibleByStringLiteral, ExpressibleByIntegerLiteral, ExpressibleByFloatLiteral,
+    ExpressibleByArrayLiteral, ExpressibleByDictionaryLiteral {
+    init(stringLiteral value: String) {
+        self = .string(value)
+    }
+
+    init(integerLiteral value: Int) {
+        self = .number(Double(value))
+    }
+
+    init(floatLiteral value: Double) {
+        self = .number(value)
+    }
+
+    init(arrayLiteral elements: JSONValue...) {
+        self = .array(elements)
+    }
+
+    init(dictionaryLiteral elements: (String, JSONValue)...) {
+        self = .object(Dictionary(uniqueKeysWithValues: elements))
     }
 }
