@@ -27,14 +27,13 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, SignatureEventPr
     /// - Parameters:
     ///   - network: The network that receives every request and subscription.
     ///   - providers: The provider settings to read.
-    ///   - rings: The provider that reads the network's private notes and proves its private transfers, or `nil` for
-    ///     the network's keyless Solana Rings indexer and prover.
+    ///   - rings: The provider that reads the network's private notes and proves its private transfers.
     ///   - client: A function that creates the client for an endpoint on a network.
-    init(network: Network, providers: ProviderStore, rings: (any PrivateNoteProviding & ProofProviding)? = nil,
+    init(network: Network, providers: ProviderStore, rings: any PrivateNoteProviding & ProofProviding,
          client: @escaping @Sendable (Endpoint, Network) -> Client? = Self.client(for:on:)) {
         self.network = network
         self.providers = providers
-        self.rings = rings ?? Zolana(network: network)
+        self.rings = rings
         clients = Clients(network: network, make: client)
     }
 
@@ -68,19 +67,6 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, SignatureEventPr
 
     func merkleProofs(for leaves: [[UInt8]], inTree tree: String) async throws -> [MerkleProof] {
         try await performRings { try await $0.merkleProofs(for: leaves, inTree: tree) }
-    }
-
-    /// Whether the client reads private notes, which it does where the selected provider serves this network.
-    ///
-    /// - Throws: The error of ``performRings(_:)`` other than ``ProviderClientError/unsupportedNetwork``.
-    var readsPrivateNotes: Bool {
-        get async throws {
-            do {
-                return try await performRings { _ in true }
-            } catch ProviderClientError.unsupportedNetwork {
-                return false
-            }
-        }
     }
 
     func proveTransfer(_ request: IndexedTransferProofRequest) async throws -> IndexedTransferProof {

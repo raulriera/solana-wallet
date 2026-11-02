@@ -99,7 +99,7 @@ actor PrivateBalances: PrivateBalancing {
 
     func refresh(_ account: Account, on network: Network) async throws -> PrivateBalanceStatus {
         switch try await sharedSync(of: account, on: network) {
-        case .off: .off(isRegistered: try await isRegistered(account, on: network))
+        case .off: try await offStatus(of: account, on: network)
         case .unavailable: .unavailable
         case .unregistered: .unregistered
         case .synced(_, let state): .balance(of: state)
@@ -116,21 +116,28 @@ actor PrivateBalances: PrivateBalancing {
         return .balance(of: state)
     }
 
-    /// Reads whether the registry holds an account's record.
+    /// Reads the status of an account without keys on this device from the registry.
     ///
     /// - Parameters:
     ///   - account: The account to look up.
     ///   - network: The network of the account's private balance.
-    /// - Returns: Whether the registry holds the account's record, or `false` if it can't be read.
-    /// - Throws: `CancellationError` if cancelled.
-    private func isRegistered(_ account: Account, on network: Network) async throws -> Bool {
+    /// - Returns: ``PrivateBalanceStatus/unavailable`` where the selected provider doesn't serve the network, or
+    ///   ``PrivateBalanceStatus/off(isRegistered:)`` with whether the registry holds the account's record, `false` if
+    ///   it can't be read.
+    /// - Throws: A ``ProviderClientError`` other than ``ProviderClientError/invalidKey`` when the selected provider
+    ///   can't be used, or `CancellationError` if cancelled.
+    private func offStatus(of account: Account, on network: Network) async throws -> PrivateBalanceStatus {
         do {
             let recipients = try await Recipient.lookup([account.address], using: client(for: network))
-            return (recipients.first ?? nil) != nil
+            return .off(isRegistered: (recipients.first ?? nil) != nil)
+        } catch ProviderClientError.unsupportedNetwork {
+            return .unavailable
+        } catch let error as ProviderClientError where error != .invalidKey {
+            throw error
         } catch is CancellationError {
             throw CancellationError()
         } catch {
-            return false
+            return .off(isRegistered: false)
         }
     }
 
@@ -368,9 +375,7 @@ actor PrivateBalances: PrivateBalancing {
         await settle { completions[id] }
         async let savedKeys = rebuilding(keys, .keys, from: generation) { try await $0.load() }
         async let savedNotes = rebuilding(notes, .notes, from: generation) { try await $0.load() }
-        guard let record = try await savedKeys?[account.address.value] else {
-            return try await client.readsPrivateNotes ? .off : .unavailable
-        }
+        guard let record = try await savedKeys?[account.address.value] else { return .off }
         let shielded = try record.shieldedAccount(for: account.address)
         do {
             let saved = try await savedNotes?[id]

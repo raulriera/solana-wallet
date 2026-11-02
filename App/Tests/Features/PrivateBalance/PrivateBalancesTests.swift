@@ -151,10 +151,10 @@ struct PrivateBalancesTests {
         #expect(try await Self.methods(of: responses) == [GetMultipleAccounts.method])
     }
 
-    @Test
-    func `An unread registry shows private balances off`() async throws {
+    @Test(arguments: [429, 401])
+    func `An unread registry shows private balances off`(status: Int) async throws {
         let account = try await PrivateBalanceFixtures.account()
-        let responses = HTTPResponses.privateNotes(error: .http(statusCode: 429, retryAfter: "3"))
+        let responses = HTTPResponses.privateNotes(error: .http(statusCode: status, retryAfter: "3"))
 
         #expect(try await Self.balances(responses).refresh(account, on: .devnet) == .off(isRegistered: false))
     }
@@ -166,6 +166,20 @@ struct PrivateBalancesTests {
         let balances = try await Self.balances(responses, provider: try PrivateBalanceFixtures.customRPC())
 
         #expect(try await balances.refresh(account, on: .devnet) == .unavailable)
+        #expect(await responses.requests.isEmpty)
+    }
+
+    @Test
+    func `Refreshing an account without keys fails without a Helius key`() async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let responses = HTTPResponses.privateNotes()
+        let providers = await ProviderStore.inMemory(selection: .helius)
+        let balances = PrivateBalances(recovery: try PrivateBalanceFixtures.recoveryStore(), wallet: Wallet(),
+                                       keys: StoredValue(), notes: StoredValue(), codes: StoredValue()) { network in
+            responses.providerClient(network: network, providers: providers)
+        }
+
+        await #expect(throws: ProviderClientError.missingKey) { try await balances.refresh(account, on: .devnet) }
         #expect(await responses.requests.isEmpty)
     }
 

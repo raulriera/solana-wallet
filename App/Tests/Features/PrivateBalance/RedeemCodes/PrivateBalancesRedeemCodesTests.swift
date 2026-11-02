@@ -422,6 +422,23 @@ struct PrivateBalancesRedeemCodesTests {
     }
 
     @Test
+    func `A first discovery reads each code's fundings, notes, and lamports once`() async throws {
+        let sender = try await Self.sender()
+        let held = try sender.keys.oneTimeAccount(at: 0)
+        let responses = try RedeemCodeFixtures.responses(
+            accounts: [held.address: RedeemCodeFixtures.systemAccount(lamports: 1_400_000)],
+            deposits: [try RedeemCodeFixtures.deposit(700, to: held, leafIndex: 3)]
+        )
+        let balances = try await Self.balances(responses, keys: sender.storedKeys, notes: sender.notes)
+
+        let outstanding = try await balances.outstandingCodes(of: sender.account, on: .devnet)
+
+        #expect(outstanding.map(\.record.index) == [0])
+        #expect(try await RedeemCodeFixtures.tagCounts(of: responses) == [500, 500, 2])
+        #expect(await PrivateBalanceFixtures.nonTreeAccountReads(of: responses) == 1)
+    }
+
+    @Test
     func `Discovery runs again while a found code's notes aren't confirmed`() async throws {
         let sender = try await Self.sender()
         let held = try sender.keys.oneTimeAccount(at: 0)

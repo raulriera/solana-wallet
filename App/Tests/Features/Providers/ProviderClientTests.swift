@@ -19,7 +19,6 @@ struct ProviderClientTests {
         await #expect(throws: ProviderClientError.missingKey) { _ = try await client.changedSlots(for: [PublicWallet.address]) }
         await #expect(throws: ProviderClientError.missingKey) { _ = try await client.events(for: ExternalFixture.signature) }
         await #expect(throws: ProviderClientError.missingKey) { _ = try await client.logos(for: [HTTPResponses.keyCheckAsset]) }
-        await #expect(throws: ProviderClientError.missingKey) { _ = try await client.readsPrivateNotes }
         #expect(await responses.requests.isEmpty)
     }
 
@@ -53,7 +52,8 @@ struct ProviderClientTests {
         let providers = ProviderStore.inMemory()
         let custom = try #require(URL(string: "https://rpc.example.com/fixture-token"))
         let created = Mutex<[ProviderClient.Endpoint]>([])
-        let client = ProviderClient(network: .mainnet, providers: providers) { endpoint, network in
+        let rings = StubProver.zolana(on: .mainnet, transport: responses)
+        let client = ProviderClient(network: .mainnet, providers: providers, rings: rings) { endpoint, network in
             created.withLock { $0.append(endpoint) }
             return responses.client(for: endpoint, on: network)
         }
@@ -103,7 +103,8 @@ struct ProviderClientTests {
         let sockets = SocketSequence()
         let opened = Mutex<[URL]>([])
         let providers = ProviderStore.inMemory(selection: provider, key: "fixture-key")
-        let client = ProviderClient(network: .devnet, providers: providers) { endpoint, network in
+        let rings = StubProver.zolana(on: .devnet, transport: responses)
+        let client = ProviderClient(network: .devnet, providers: providers, rings: rings) { endpoint, network in
             responses.client(for: endpoint, on: network) { url in
                 opened.withLock { $0.append(url) }
                 return sockets.connect(url)
@@ -214,23 +215,6 @@ struct ProviderClientTests {
         await #expect(throws: error) { _ = try await client.shieldedTransactions(spending: [tag]) }
         await #expect(throws: error) { _ = try await client.merkleProofs(for: [tag], inTree: try ShieldedPool.tree(id: 1).value) }
         await #expect(throws: error) { _ = try await client.proveTransfer(request) }
-        #expect(await responses.requests.isEmpty)
-    }
-
-    @Test(arguments: [
-        (ProviderSettings.Provider.solana, Network.devnet, true), (.solana, .mainnet, true),
-        (.helius, .devnet, true), (.helius, .mainnet, true),
-        (.custom(URL(string: "https://rpc.example.com")!), .devnet, false),
-        (.custom(URL(string: "https://rpc.example.com")!), .mainnet, true),
-    ])
-    func `Private notes read wherever the selected provider serves the network`(provider: ProviderSettings.Provider,
-                                                                              network: Network,
-                                                                              reads: Bool) async throws {
-        let responses = HTTPResponses.privateNotes()
-        let client = responses.providerClient(network: network,
-                                              providers: .inMemory(selection: provider, key: "fixture-key"))
-
-        #expect(try await client.readsPrivateNotes == reads)
         #expect(await responses.requests.isEmpty)
     }
 

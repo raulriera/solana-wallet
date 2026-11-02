@@ -85,20 +85,21 @@ nonisolated enum RedeemCodeScan {
         }
     }
 
-    /// Reads the statuses of paid one-time accounts from their notes.
+    /// Reads the statuses of checked indices from the notes of their paid one-time accounts.
     ///
     /// - Parameters:
-    ///   - fundings: The paid one-time accounts.
+    ///   - indices: The checked indices.
+    ///   - fundings: The paid one-time accounts at the checked indices.
     ///   - keys: The account's keys.
     ///   - rpc: The client of the account's network, which reads the notes' trees.
     ///   - indexer: The indexer of the account's network.
-    /// - Returns: Each one-time account's status by index: ``Status/unconfirmed`` while any of its notes is
-    ///   unconfirmed, ``Status/unspent(lamports:signature:)`` while it holds unspent notes, and otherwise
+    /// - Returns: Each index's status: ``Status/unfunded`` without a funding, ``Status/unconfirmed`` while any of its
+    ///   notes is unconfirmed, ``Status/unspent(lamports:signature:)`` while it holds unspent notes, and otherwise
     ///   ``Status/spent``.
     /// - Throws: A derivation, sync, or cancellation error.
     @concurrent
-    static func statuses(of fundings: [Funding], from keys: PrivateBalanceKeyRecord, rpc: some RPC,
-                         indexer: some PrivateNoteProviding) async throws -> [UInt32: Status] {
+    static func statuses(of indices: [UInt32], funded fundings: [Funding], from keys: PrivateBalanceKeyRecord,
+                         rpc: some RPC, indexer: some PrivateNoteProviding) async throws -> [UInt32: Status] {
         try await withThrowingTaskGroup(of: (UInt32, Status).self) { group in
             for funding in fundings {
                 group.addTask {
@@ -114,7 +115,7 @@ nonisolated enum RedeemCodeScan {
                     return (funding.index, status)
                 }
             }
-            var statuses: [UInt32: Status] = [:]
+            var statuses = Dictionary(uniqueKeysWithValues: indices.map { ($0, Status.unfunded) })
             for try await (index, status) in group { statuses[index] = status }
             return statuses
         }
@@ -133,8 +134,7 @@ nonisolated enum RedeemCodeScan {
     static func statuses(of indices: [UInt32], from keys: PrivateBalanceKeyRecord, rpc: some RPC,
                          indexer: some PrivateNoteProviding) async throws -> [UInt32: Status] {
         let fundings = try await fundings(of: indices, from: keys, using: indexer)
-        let funded = try await statuses(of: fundings, from: keys, rpc: rpc, indexer: indexer)
-        return Dictionary(uniqueKeysWithValues: indices.map { ($0, Status.unfunded) }).merging(funded) { $1 }
+        return try await statuses(of: indices, funded: fundings, from: keys, rpc: rpc, indexer: indexer)
     }
 
     /// Reads which one-time accounts at indices shielded transactions paid, with tag reads of one tag group until no

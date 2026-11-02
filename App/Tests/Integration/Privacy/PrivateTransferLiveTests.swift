@@ -26,7 +26,7 @@ struct PrivateTransferLiveTests {
         let wallets = try await DevnetWallets.configured()
         let apiKey = provider == .helius ? try LiveClients.heliusAPIKey() : nil
         let providers = await ProviderStore.inMemory(selection: provider, key: apiKey)
-        let rpc = ProviderClient(network: .devnet, providers: providers)
+        let rpc = ProviderClient(network: .devnet, providers: providers, rings: Zolana(network: .devnet))
         let sender = wallets.sender
         let recipient = wallets.recipient
         try await wallets.requireFunds(Self.feeLamports, using: rpc)

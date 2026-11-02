@@ -15,22 +15,26 @@ extension PrivateBalances {
         do {
             guard let keys = try await savedKeys else { throw PrivateBalanceError.turnedOff }
             var ledger = try await savedCodes?[id]
+            var known: (statuses: [UInt32: RedeemCodeScan.Status], lamports: [UInt32: UInt64]) = ([:], [:])
             if ledger?.isDiscovered != true {
-                let discovered = try await discoveredLedger(from: keys, client: client)
+                let discovery = try await discovered(from: keys, client: client)
+                known = (discovery.statuses, discovery.lamports)
                 ledger = try await update(codes, .codes, from: generation) { entries in
                     var merged = entries[id] ?? RedeemCodeLedger(isDiscovered: false)
-                    merged.merge(discovered)
+                    merged.merge(discovery.ledger)
                     entries[id] = merged
                     return merged
                 }
             }
             guard var reconciled = ledger else { return [] }
             let indices = (reconciled.records.map(\.index) + reconciled.pending.map(\.index)).sorted()
-            let addresses = try indices.map { try keys.oneTimeAddress(at: $0) }
-            async let statuses = RedeemCodeScan.statuses(of: indices, from: keys, rpc: client, indexer: client)
+            let unread = indices.filter { known.statuses[$0] == nil }
+            let addresses = try unread.map { try keys.oneTimeAddress(at: $0) }
+            async let statuses = RedeemCodeScan.statuses(of: unread, from: keys, rpc: client, indexer: client)
             async let balances = Self.lamports(of: addresses, using: client)
-            let (found, read) = try await (statuses, balances)
-            let lamports = Dictionary(uniqueKeysWithValues: zip(indices, read))
+            let (read, readLamports) = try await (statuses, balances)
+            let found = known.statuses.merging(read) { $1 }
+            let lamports = known.lamports.merging(zip(unread, readLamports)) { $1 }
             let now = Date.now
             reconciled.reconcile(with: found, lamports: lamports, at: now)
             if reconciled != ledger {
@@ -139,7 +143,9 @@ extension PrivateBalances {
         let (state, outcome, lamports, registrationCost) = try await (codeNotes, synced, balances, cost)
         guard !state.hasUnconfirmedNotes else { throw PrivateBalanceError.codeNotReady }
         guard let balance = lamports.first, balance > 0 else { throw PrivateBalanceError.codeRedeemed }
-        guard !state.notes.isEmpty else { throw PrivateBalanceError.codeNotReady }
+        guard let largest = state.notes.max(by: { $0.lamports < $1.lamports }) else {
+            throw PrivateBalanceError.codeNotReady
+        }
         guard let outputTree = state.outputTreeID else { throw PrivateBalanceError.unavailable }
         let registers = switch outcome {
         case .off: throw PrivateBalanceError.turnedOff
@@ -148,11 +154,12 @@ extension PrivateBalances {
         case .synced: false
         }
         let recipient = try shielded.recipient
+        async let treeFee = ShieldedPool.feePerNullifier(treeID: largest.treeID, using: client)
         let spend = try await state.spend(state.spendableLamports, to: .transfer(recipient), from: code, rpc: client,
                                           prover: client)
-        let treeFee = try await ShieldedPool.feePerNullifier(treeID: spend.inputTreeID, using: client)
         let available = try Redemption.availableLamports(of: balance, registrationCost: registers ? registrationCost : 0,
-                                                         treeFee: treeFee, nullifierCount: spend.nullifierCount)
+                                                         treeFee: try await treeFee,
+                                                         nullifierCount: spend.nullifierCount)
         let registration = registers ? [try shielded.register(paidBy: code.signingAddress)] : []
         let redemption = try Redemption(instructions: registration + [spend.instruction], noteLamports: spend.lamports,
                                         availableLamports: available, source: code.signingAddress, recipient: recipient,
@@ -253,18 +260,23 @@ extension PrivateBalances {
     ///   - keys: The account's keys.
     ///   - client: The network's client.
     /// - Returns: A ledger with the codes that hold unspent notes and the index above the highest used one, which is
-    ///   discovered unless a code's notes aren't confirmed yet, so that a later scan runs again.
+    ///   discovered unless a code's notes aren't confirmed yet, so that a later scan runs again; the status of each
+    ///   checked index; and the lamports of each paid one-time account, by index.
     /// - Throws: A derivation, sync, or provider error.
-    private func discoveredLedger(from keys: PrivateBalanceKeyRecord, client: Client) async throws -> RedeemCodeLedger {
+    private func discovered(from keys: PrivateBalanceKeyRecord, client: Client) async throws
+        -> (ledger: RedeemCodeLedger, statuses: [UInt32: RedeemCodeScan.Status], lamports: [UInt32: UInt64]) {
         var fundings: [RedeemCodeScan.Funding] = []
+        var checked: [UInt32] = []
         var candidates = RedeemCodeScan.candidates(from: 0, count: RedeemCodeScan.discoveryBatchSize)
         while let last = candidates.last {
             let found = try await RedeemCodeScan.fundings(of: candidates, from: keys, using: client)
+            checked += candidates
             guard !found.isEmpty else { break }
             fundings += found
             candidates = RedeemCodeScan.candidates(from: last + 1, count: RedeemCodeScan.discoveryBatchSize)
         }
-        async let found = RedeemCodeScan.statuses(of: fundings, from: keys, rpc: client, indexer: client)
+        async let found = RedeemCodeScan.statuses(of: checked, funded: fundings, from: keys, rpc: client,
+                                                  indexer: client)
         async let balances = Self.lamports(of: fundings.map(\.address), using: client)
         let (statuses, reserves) = try await (found, balances)
         let records = zip(fundings, reserves).compactMap { funding, reserve -> RedeemCodeRecord? in
@@ -272,8 +284,9 @@ extension PrivateBalances {
             return RedeemCodeRecord(index: funding.index, amount: lamports, reserve: reserve, created: .now,
                                     fundingSignature: funding.signature)
         }
-        return RedeemCodeLedger(records: records, nextIndex: fundings.last.map { $0.index + 1 } ?? 0,
-                                isDiscovered: !statuses.values.contains(.unconfirmed))
+        let ledger = RedeemCodeLedger(records: records, nextIndex: fundings.last.map { $0.index + 1 } ?? 0,
+                                      isDiscovered: !statuses.values.contains(.unconfirmed))
+        return (ledger, statuses, Dictionary(uniqueKeysWithValues: zip(fundings.map(\.index), reserves)))
     }
 
     /// Reads an account's kept keys.

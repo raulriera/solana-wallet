@@ -29,11 +29,4 @@ public protocol PrivateNoteProviding: Sendable {
     /// - Throws: ``PrivateNoteError/invalidLeaf`` or ``PrivateNoteError/invalidTree`` for an invalid leaf or tree, or a
     ///   request, transport, response, or cancellation error.
     func merkleProofs(for leaves: [[UInt8]], inTree tree: String) async throws -> [MerkleProof]
-
-    /// Whether the provider reads private notes on its network.
-    var readsPrivateNotes: Bool { get async throws }
-}
-
-public extension PrivateNoteProviding {
-    var readsPrivateNotes: Bool { true }
 }
