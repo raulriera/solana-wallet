@@ -46,12 +46,13 @@ extension Zolana: ProofProviding {
         at path: String,
         to key: Curve25519.KeyAgreement.PublicKey
     ) async throws -> IndexedTransferProof {
-        try await prover.post(
-            sealing: body,
+        let sealed = try SealedProverRequest(sealing: body, at: path, to: key)
+        return try await prover.post(
+            sealed.body,
             at: path,
-            headers: ["X-Sync": "true"],
+            headers: sealed.headers.merging(["X-Sync": "true"]) { $1 },
             maximumLength: Self.maximumProofLength,
-            to: key,
+            reading: sealed.open,
             decoding: IndexedTransferProofResponse.self
         ).proof
     }

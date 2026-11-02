@@ -1,9 +1,6 @@
 import Encoding
 
 extension Zolana {
-    /// The longest indexer response body, in bytes, to accept.
-    private static let maximumIndexerResponseLength = 1_048_576
-
     /// The most pages that one read fetches from each tag or nullifier group's stream.
     private static let indexerPageLimit = 8
 
@@ -21,27 +18,13 @@ extension Zolana {
         let start = position ?? NoteSyncPosition(tags: tags, groupCount: groups.count)
         guard start.matches(tags, groupCount: groups.count) else { throw PrivateNoteError.mismatchedPosition }
         let indexer = indexer
-        let (transactions, outputs) = try await withThrowingTaskGroup(of: StreamReads.self) { group in
-            group.addTask {
-                .transactions(try await Self.read(groups, after: start.transactionCursors) { tags, cursor in
-                    try await Self.page(GetShieldedTransactionsByTags(tags: tags, cursor: cursor), from: indexer)
-                })
-            }
-            group.addTask {
-                .outputs(try await Self.read(groups, after: start.outputCursors) { tags, cursor in
-                    try await Self.page(GetEncryptedUtxosByTags(tags: tags, cursor: cursor), from: indexer)
-                })
-            }
-            var transactions: [IndexerRead<IndexedTransaction>] = []
-            var outputs: [IndexerRead<EncryptedOutput>] = []
-            for try await reads in group {
-                switch reads {
-                case .transactions(let reads): transactions = reads
-                case .outputs(let reads): outputs = reads
-                }
-            }
-            return (transactions, outputs)
+        async let transactionReads = Self.read(groups, after: start.transactionCursors) { tags, cursor in
+            try await Self.page(GetShieldedTransactionsByTags(tags: tags, cursor: cursor), from: indexer)
         }
+        async let outputReads = Self.read(groups, after: start.outputCursors) { tags, cursor in
+            try await Self.page(GetEncryptedUtxosByTags(tags: tags, cursor: cursor), from: indexer)
+        }
+        let (transactions, outputs) = try await (transactionReads, outputReads)
 
         let confidential = transactions.flatMap(\.items).filter { !$0.isInRing }.map(\.value)
             .filter { !$0.isProofless }
@@ -62,7 +45,8 @@ extension Zolana {
         guard nullifiers.allSatisfy({ $0.count == 32 }) else { throw PrivateNoteError.invalidNullifier }
         let groups = nullifiers.map(Base58.encode).batches(of: Self.nullifierGroupSize)
         let indexer = indexer
-        let reads = try await Self.read(groups, after: Array(repeating: nil, count: groups.count)) { nullifiers, cursor in
+        let cursors = [String?](repeating: nil, count: groups.count)
+        let reads = try await Self.read(groups, after: cursors) { nullifiers, cursor in
             try await Self.page(GetShieldedTransactionsByNullifiers(nullifiers: nullifiers, cursor: cursor),
                                 from: indexer)
         }
@@ -91,11 +75,11 @@ extension Zolana {
     ///   - request: The indexer method and its parameters.
     ///   - indexer: The indexer's client.
     /// - Returns: The decoded page.
-    /// - Throws: ``RPCError/InvalidResponse/oversized`` for a response body longer than 1 MiB, another ``RPCError``,
-    ///   or `CancellationError`.
+    /// - Throws: ``RPCError/InvalidResponse/oversized`` for a response body longer than the request's
+    ///   ``RPCRequest/maximumResponseLength``, another ``RPCError``, or `CancellationError`.
     private static func page<Request: RPCRequest>(_ request: Request, from indexer: HTTPClient) async throws
         -> Request.Response {
-        try await indexer.send(request, at: Request.method, maximumLength: maximumIndexerResponseLength)
+        try await indexer.send(request, at: Request.method)
     }
 
     /// Reads one stream for each group of values concurrently, each from its cursor to its end or the page limit.
@@ -144,12 +128,6 @@ extension Zolana {
     private static func ordered(_ transactions: [ShieldedTransaction]) -> [ShieldedTransaction] {
         transactions.sorted { ($0.slot, $0.signature) < ($1.slot, $1.signature) }
     }
-}
-
-/// The reads of one indexer stream for every tag group.
-private enum StreamReads: Sendable {
-    case transactions([IndexerRead<IndexedTransaction>])
-    case outputs([IndexerRead<EncryptedOutput>])
 }
 
 /// The identity of an indexed transaction event.

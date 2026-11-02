@@ -47,14 +47,7 @@ struct TestProver: Sendable {
     }
 
     static func authenticatedData(method: String, target: String) -> [UInt8] {
-        let parts = target.split(separator: "?", maxSplits: 1, omittingEmptySubsequences: false)
-        var route = parts[0]
-        if route.hasPrefix("/v1/zolana/") { route = route.dropFirst("/v1/zolana".count) }
-        let pairs = parts.dropFirst().flatMap { $0.split(separator: "&") }.filter { pair in
-            pair.prefix { $0 != "=" }.removingPercentEncoding != "api-key"
-        }
-        let query = pairs.isEmpty ? "" : "?" + pairs.joined(separator: "&")
-        return Array("\(method) \(route)\(query)".utf8)
+        Array("\(method) \(target)".utf8)
     }
 
     func open(_ request: URLRequest) throws -> Request {
@@ -62,10 +55,7 @@ struct TestProver: Sendable {
         let method = try #require(request.httpMethod)
         try #require(request.value(forHTTPHeaderField: "Zolana-Tee") == "v1")
         let encapsulatedKey = try Self.headerBytes("Zolana-Tee-Enc", of: request)
-        let ciphertext =
-            method == "GET"
-            ? try Self.headerBytes("Zolana-Tee-Ciphertext", of: request)
-            : Array(try #require(request.httpBody))
+        let ciphertext = try #require(request.httpBody)
         let path = url.path(percentEncoded: true)
         let target = (path.isEmpty ? "/" : path) + (url.query(percentEncoded: true).map { "?" + $0 } ?? "")
         var recipient = try HPKE.Recipient(

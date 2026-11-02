@@ -17,7 +17,8 @@ struct URLSessionTransportTests {
                     statusCode: 200,
                     httpVersion: "HTTP/1.1",
                     headerFields: query.contains(URLQueryItem(name: "declared", value: "true"))
-                        ? ["Content-Length": String(length)] : [:]
+                        ? ["Content-Type": "application/octet-stream", "Content-Length": String(length)]
+                        : ["Content-Type": "application/octet-stream"]
                 )
             else {
                 client?.urlProtocol(self, didFailWithError: URLError(.badURL))
@@ -73,6 +74,27 @@ struct URLSessionTransportTests {
         await #expect(throws: RPCError.invalidResponse(.oversized)) {
             try await Self.transport().data(for: Self.request(length: 65, declared: declared), maximumLength: 64)
         }
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func `A bounded read stops a body as soon as it grows longer than the limit`() async {
+        await #expect(throws: RPCError.invalidResponse(.oversized)) {
+            try await Self.transport().data(
+                for: Self.request(length: 64, declared: false, stalled: true),
+                maximumLength: 8
+            )
+        }
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func `A cancelled bounded read stops waiting for the body`() async throws {
+        let request = try Self.request(length: 64, declared: false, stalled: true)
+        let read = Task { try await Self.transport().data(for: request, maximumLength: 64) }
+
+        read.cancel()
+
+        let error = await #expect(throws: URLError.self) { try await read.value }
+        #expect(error?.code == .cancelled)
     }
 
     private static func transport() -> URLSessionTransport {

@@ -1,6 +1,6 @@
 Third-party test vectors in the shared Prover test support
 
-The prover test vectors below come from zolana, copied unchanged:
+The prover test vectors below come from zolana, copied unchanged except where noted:
 https://github.com/helius-labs/zolana
 Licensed under the Apache License, Version 2.0; a copy is in zolana-LICENSE.txt, identical to
 upstream LICENSE at the revision below. zolana ships no NOTICE file at it.
@@ -24,4 +24,5 @@ SHA-256: 9ae22d722f7fa9095de21466060e0c823c5ba8e868d3089fb0419592b64c7153
 
 https://github.com/helius-labs/zolana/blob/bb2337f05317aa245a345f47c68e434ffed62561/prover/tee/testdata/vectors.json
 SHA-256: f28e01eb4bdcfabf4eec4b8ec8237b14935832ba5128b8fcd47f2b64185addc2
-- EncryptedProverVectors.json: the whole file
+- EncryptedProverVectors.json: the whole file, changed: request_uri is the route that its ciphertext
+  authenticates, /prove/transfer_2_2, and aad_cases keeps only the targets that zolana authenticates unchanged

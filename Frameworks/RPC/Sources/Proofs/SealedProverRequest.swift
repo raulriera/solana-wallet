@@ -2,7 +2,8 @@ import CryptoKit
 import Encoding
 import Foundation
 
-/// A Solana Rings prover request encrypted to the prover's attested HPKE key, and the key that opens its answer.
+/// A Solana Rings prover request body encrypted to the prover's attested HPKE key, and the key that opens its
+/// answer.
 struct SealedProverRequest: Sendable {
     /// A prover's decrypted answer.
     struct Answer: Sendable, Equatable {
@@ -26,61 +27,55 @@ struct SealedProverRequest: Sendable {
     private static let versionField = "Zolana-Tee"
     private static let version = "v1"
     private static let encapsulatedKeyField = "Zolana-Tee-Enc"
-    private static let ciphertextField = "Zolana-Tee-Ciphertext"
 
-    /// The encrypted request, ready to send.
-    let request: URLRequest
+    /// The encrypted JSON body.
+    let body: Data
+
+    /// The header fields that mark the body as encrypted and carry its encapsulated key.
+    let headers: [String: String]
 
     private let responseKey: SymmetricKey
 
-    /// Encrypts a request's body to the prover's key, bound to its method, route, and query, as a `GET` header or an
-    /// octet-stream body.
+    /// Encrypts a JSON body to the prover's key, bound to a `POST` to a route on the prover's host.
     ///
     /// - Parameters:
-    ///   - request: The unencrypted request to a URL below the endpoint.
-    ///   - endpoint: The prover's base URL.
+    ///   - body: The value to encrypt as the JSON request body.
+    ///   - route: One or more path components without a leading slash.
     ///   - key: The prover's attested HPKE key.
-    /// - Throws: ``RPCError/encoding`` for a `HEAD` request, a URL outside the endpoint, or a failed encryption.
-    init(sealing request: URLRequest, below endpoint: URL, to key: Curve25519.KeyAgreement.PublicKey) throws {
-        let method = request.httpMethod ?? "GET"
-        guard method != "HEAD", let url = request.url else { throw RPCError.encoding }
-        let authenticatedData = try Self.authenticatedData(method: method, url: url, below: endpoint)
-        let encapsulatedKey: Data
-        let ciphertext: Data
+    /// - Throws: ``RPCError/encoding`` for a body that can't be encoded or encrypted.
+    init(sealing body: some Encodable, at route: String, to key: Curve25519.KeyAgreement.PublicKey) throws {
+        guard let plaintext = try? JSONEncoder().encode(body) else { throw RPCError.encoding }
         do {
             var sender = try HPKE.Sender(recipientKey: key, ciphersuite: Self.ciphersuite, info: Self.info)
-            ciphertext = try sender.seal(request.httpBody ?? Data(), authenticating: authenticatedData)
-            encapsulatedKey = sender.encapsulatedKey
+            self.body = try sender.seal(plaintext, authenticating: Array("POST /\(route)".utf8))
             responseKey = try sender.exportSecret(context: Self.responseContext, outputByteCount: 32)
+            headers = [
+                Self.versionField: Self.version,
+                Self.encapsulatedKeyField: Hex.encode(Array(sender.encapsulatedKey)),
+                "Content-Type": "application/octet-stream",
+            ]
         } catch {
             throw RPCError.encoding
         }
-        var sealed = request
-        sealed.setValue(Self.version, forHTTPHeaderField: Self.versionField)
-        sealed.setValue(Hex.encode(Array(encapsulatedKey)), forHTTPHeaderField: Self.encapsulatedKeyField)
-        if method == "GET" {
-            sealed.httpBody = nil
-            sealed.setValue(Hex.encode(Array(ciphertext)), forHTTPHeaderField: Self.ciphertextField)
-        } else {
-            sealed.httpBody = ciphertext
-            sealed.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
-        }
-        self.request = sealed
     }
 
-    /// Decrypts the prover's answer to this request.
+    /// Decrypts the prover's answer to this request and returns the body of a successful answer.
     ///
     /// - Parameters:
     ///   - body: The response body.
     ///   - response: The prover's HTTP response.
-    /// - Returns: The prover's status and body.
+    /// - Returns: The decrypted body.
     /// - Throws: ``RPCError/InvalidResponse/unauthenticatedAnswer`` for an encrypted answer that doesn't open under
     ///   this request's key or a successful answer without encryption, ``RPCError/InvalidResponse/staleProverKey``
-    ///   when the prover can't decrypt the request, or ``RPCError/http(statusCode:retryAfter:)`` for another
-    ///   unencrypted answer.
-    func open(_ body: Data, response: HTTPURLResponse) throws -> Answer {
+    ///   when the prover can't decrypt the request, or ``RPCError/http(statusCode:retryAfter:)`` for an unsuccessful
+    ///   decrypted status or another unencrypted answer.
+    func open(_ body: Data, response: HTTPURLResponse) throws -> Data {
         if response.value(forHTTPHeaderField: Self.versionField) == Self.version {
-            return try Self.open(body, using: responseKey)
+            let answer = try Self.open(body, using: responseKey)
+            guard (200..<300).contains(answer.status) else {
+                throw RPCError.http(statusCode: answer.status, retryAfter: nil)
+            }
+            return answer.body
         }
         if response.statusCode == 400,
             (try? JSONDecoder().decode(Refusal.self, from: body))?.code == "tee_decryption_failed" {
@@ -106,38 +101,5 @@ struct SealedProverRequest: Sendable {
             status: Int(plaintext[start]) << 8 | Int(plaintext[start + 1]),
             body: plaintext.subdata(in: (start + 2)..<plaintext.endIndex)
         )
-    }
-
-    /// Returns the authenticated data that binds a request to its method, its route below the endpoint, and its
-    /// query without API keys.
-    ///
-    /// - Parameters:
-    ///   - method: The HTTP method, such as `POST`.
-    ///   - url: The request's URL.
-    ///   - endpoint: The prover's base URL.
-    /// - Returns: The method, the URL's percent-encoded path without the endpoint's path, or `/` when none remains,
-    ///   and the query's non-empty pairs other than `api-key` pairs, in order.
-    /// - Throws: ``RPCError/encoding`` for a URL whose scheme, host, or port differs from the endpoint's, or whose
-    ///   path isn't below the endpoint's path.
-    static func authenticatedData(method: String, url: URL, below endpoint: URL) throws -> [UInt8] {
-        let endpointPath = endpoint.path(percentEncoded: true)
-        let basePath = endpointPath.hasSuffix("/") ? String(endpointPath.dropLast()) : endpointPath
-        let path = url.path(percentEncoded: true)
-        guard url.scheme == endpoint.scheme, url.host() == endpoint.host(), url.port == endpoint.port,
-            path.hasPrefix(basePath)
-        else { throw RPCError.encoding }
-        let route = path.dropFirst(basePath.count)
-        guard route.isEmpty || route.hasPrefix("/") else { throw RPCError.encoding }
-        let pairs = (url.query(percentEncoded: true) ?? "").split(separator: "&").filter { !isAPIKey($0) }
-        let query = pairs.isEmpty ? "" : "?" + pairs.joined(separator: "&")
-        return Array("\(method) \(route.isEmpty ? "/" : route)\(query)".utf8)
-    }
-
-    /// Returns whether a query pair's percent-decoded key is `api-key`.
-    ///
-    /// - Parameter pair: The query pair, with or without a value.
-    /// - Returns: `true` for an `api-key` pair; `false` for another key or one with an invalid percent escape.
-    private static func isAPIKey(_ pair: Substring) -> Bool {
-        pair.prefix { $0 != "=" }.removingPercentEncoding == "api-key"
     }
 }

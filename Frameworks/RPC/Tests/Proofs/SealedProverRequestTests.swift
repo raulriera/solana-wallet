@@ -5,6 +5,12 @@ import Testing
 @testable import RPC
 
 struct SealedProverRequestTests {
+    private struct Reading: Encodable {
+        let inputs: [String]
+    }
+
+    private static let reading = Reading(inputs: ["secret"])
+
     private static let body = Data(#"{"inputs":["secret"]}"#.utf8)
 
     @Test(arguments: try EncryptedProverVectors.load().authenticatedDataCases)
@@ -16,95 +22,27 @@ struct SealedProverRequestTests {
         #expect(authenticatedData == Array(vector.aad.utf8))
     }
 
-    @Test(arguments: [
-        ("GET", "https://prover.example", "https://prover.example/tee/v1/attestation?nonce=ab",
-         "GET /tee/v1/attestation?nonce=ab"),
-        ("POST", "https://prover.example/", "https://prover.example/prove/transfer_2_2/indexed",
-         "POST /prove/transfer_2_2/indexed"),
-        ("GET", "https://prover.example", "https://prover.example/prove/x/status?jobId=a1&&api-key=k",
-         "GET /prove/x/status?jobId=a1"),
-        ("GET", "https://gateway.example/v1/zolana?api-key=fixture-key",
-         "https://gateway.example/v1/zolana/tee/v1/attestation?api-key=fixture-key&nonce=ab",
-         "GET /tee/v1/attestation?nonce=ab"),
-        ("POST", "https://gateway.example/v1/zolana?api-key=fixture-key",
-         "https://gateway.example/v1/zolana/prove/transfer_2_2/indexed?api-key=fixture-key",
-         "POST /prove/transfer_2_2/indexed"),
-        ("GET", "https://gateway.example/v1/zolana?api-key=fixture-key",
-         "https://gateway.example/v1/zolana?api-key=fixture-key", "GET /"),
-    ] as [(String, String, String, String)])
-    func `A request authenticates its method, its route below the endpoint and its query without API keys`(
-        method: String,
-        endpoint: String,
-        url: String,
-        expected: String
-    ) throws {
-        let authenticatedData = try SealedProverRequest.authenticatedData(
-            method: method,
-            url: Self.url(url),
-            below: Self.url(endpoint)
-        )
+    @Test
+    func `A sealed body is ciphertext with headers that mark it as encrypted with an encapsulated key`() throws {
+        let prover = try TestProver(vectors: EncryptedProverVectors.load())
 
-        #expect(authenticatedData == Array(expected.utf8))
+        let sealed = try SealedProverRequest(sealing: Self.reading, at: "prove/transfer_2_2", to: prover.publicKey)
+
+        #expect(sealed.body.count == Self.body.count + 16)
+        #expect(sealed.body != Self.body)
+        #expect(sealed.headers.keys.sorted() == ["Content-Type", "Zolana-Tee", "Zolana-Tee-Enc"])
+        #expect(sealed.headers["Content-Type"] == "application/octet-stream")
+        #expect(sealed.headers["Zolana-Tee"] == "v1")
+        #expect(Hex.decode(sealed.headers["Zolana-Tee-Enc"] ?? "")?.count == 32)
     }
 
     @Test
-    func `A sealed POST request carries its ciphertext as an octet-stream body`() throws {
+    func `A sealed body doesn't open at another route`() throws {
         let prover = try TestProver(vectors: EncryptedProverVectors.load())
-        var request = try Self.request("POST", "https://prover.example/prove/transfer_2_2", body: Self.body)
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("fixture-key", forHTTPHeaderField: "X-API-Key")
+        let sealed = try SealedProverRequest(sealing: Self.reading, at: "prove/transfer_2_2", to: prover.publicKey)
 
-        let sealed = try SealedProverRequest(
-            sealing: request,
-            below: Self.url("https://prover.example"),
-            to: prover.publicKey
-        ).request
-
-        #expect(sealed.url == request.url)
-        #expect(sealed.httpMethod == "POST")
-        #expect(sealed.httpBody?.count == Self.body.count + 16)
-        #expect(sealed.httpBody != Self.body)
-        #expect(sealed.value(forHTTPHeaderField: "Content-Type") == "application/octet-stream")
-        #expect(sealed.value(forHTTPHeaderField: "X-API-Key") == "fixture-key")
-        #expect(sealed.value(forHTTPHeaderField: "Zolana-Tee") == "v1")
-        #expect(Hex.decode(sealed.value(forHTTPHeaderField: "Zolana-Tee-Enc") ?? "")?.count == 32)
-        #expect(sealed.value(forHTTPHeaderField: "Zolana-Tee-Ciphertext") == nil)
-    }
-
-    @Test
-    func `A sealed GET request carries its ciphertext in a header and has no body`() throws {
-        let prover = try TestProver(vectors: EncryptedProverVectors.load())
-        let request = try Self.request("GET", "https://prover.example/prove/transfer_2_2/status?jobId=a1")
-
-        let sealed = try SealedProverRequest(
-            sealing: request,
-            below: Self.url("https://prover.example"),
-            to: prover.publicKey
-        ).request
-
-        #expect(sealed.url == request.url)
-        #expect(sealed.httpBody == nil)
-        #expect(sealed.value(forHTTPHeaderField: "Content-Type") == nil)
-        #expect(sealed.value(forHTTPHeaderField: "Zolana-Tee") == "v1")
-        #expect(Hex.decode(sealed.value(forHTTPHeaderField: "Zolana-Tee-Enc") ?? "")?.count == 32)
-        #expect(Hex.decode(sealed.value(forHTTPHeaderField: "Zolana-Tee-Ciphertext") ?? "")?.count == 16)
-    }
-
-    @Test(arguments: [
-        ("HEAD", "https://gateway.example/v1/zolana/prove/x?api-key=fixture-key"),
-        ("POST", "http://gateway.example/v1/zolana/prove/x"),
-        ("POST", "https://other.example/v1/zolana/prove/x"),
-        ("POST", "https://gateway.example:8443/v1/zolana/prove/x"),
-        ("POST", "https://gateway.example/v1/zolanax/prove/x"),
-        ("POST", "https://gateway.example/prove/x"),
-    ])
-    func `A HEAD request or a URL outside the endpoint can't be sealed`(method: String, url: String) throws {
-        let prover = try TestProver(vectors: EncryptedProverVectors.load())
-        let request = try Self.request(method, url)
-        let endpoint = try Self.url("https://gateway.example/v1/zolana?api-key=fixture-key")
-
-        #expect(throws: RPCError.encoding) {
-            try SealedProverRequest(sealing: request, below: endpoint, to: prover.publicKey)
+        #expect(throws: CryptoKitError.self) {
+            try prover.open(Self.request(posting: sealed, at: "prove/transfer_2_1"))
         }
     }
 
@@ -139,46 +77,32 @@ struct SealedProverRequestTests {
         #expect(answer == .init(status: vectors.responseStatus, body: Data(vectors.responseBody.utf8)))
     }
 
-    @Test(arguments: [
-        ("POST", "https://prover.example", "https://prover.example/prove/transfer_2_2", #"{"inputs":["secret"]}"#),
-        ("GET", "https://prover.example", "https://prover.example/prove/transfer_2_2/status?jobId=a1", ""),
-        ("POST", "https://gateway.example/v1/zolana?api-key=fixture-key",
-         "https://gateway.example/v1/zolana/prove/transfer_2_2?api-key=fixture-key", #"{"inputs":["secret"]}"#),
-        ("GET", "https://gateway.example/v1/zolana?api-key=fixture-key",
-         "https://gateway.example/v1/zolana/tee/v1/attestation?api-key=fixture-key&nonce=ab", ""),
-    ])
-    func `A sealed request opens at the prover and the prover's answer opens with the request`(
-        method: String,
-        endpoint: String,
-        url: String,
-        body: String
+    @Test(arguments: ["prove/transfer_2_2", "prove/transfer_confidential_1_2/indexed"])
+    func `A sealed body opens at the prover at its route and the prover's answer opens with the request`(
+        route: String
     ) throws {
         let prover = try TestProver(vectors: EncryptedProverVectors.load())
         let answerBody = Data(#"{"proof":"ok"}"#.utf8)
-        let sealed = try SealedProverRequest(
-            sealing: Self.request(method, url, body: Data(body.utf8)),
-            below: Self.url(endpoint),
-            to: prover.publicKey
-        )
+        let sealed = try SealedProverRequest(sealing: Self.reading, at: route, to: prover.publicKey)
 
-        let opened = try prover.open(sealed.request)
+        let opened = try prover.open(Self.request(posting: sealed, at: route))
         let (answer, response) = try opened.answer(status: 200, body: answerBody)
         let decrypted = try sealed.open(answer, response: response)
 
-        #expect(opened.body == Data(body.utf8))
-        #expect(decrypted == .init(status: 200, body: answerBody))
+        #expect(opened.body == Self.body)
+        #expect(decrypted == answerBody)
     }
 
     @Test
-    func `An encrypted 503 answer opens into its status and body`() throws {
+    func `An encrypted unsuccessful answer surfaces its status`() throws {
         let prover = try TestProver(vectors: EncryptedProverVectors.load())
         let sealed = try Self.sealed(to: prover)
-        let answerBody = Data(#"{"code":"busy"}"#.utf8)
-        let (answer, response) = try prover.open(sealed.request).answer(status: 503, body: answerBody)
+        let (answer, response) = try prover.open(Self.request(posting: sealed)).answer(
+            status: 503,
+            body: Data(#"{"code":"busy"}"#.utf8)
+        )
 
-        let decrypted = try sealed.open(answer, response: response)
-
-        #expect(decrypted == .init(status: 503, body: answerBody))
+        #expect(throws: RPCError.http(statusCode: 503, retryAfter: nil)) { try sealed.open(answer, response: response) }
     }
 
     @Test(arguments: [
@@ -242,12 +166,9 @@ struct SealedProverRequestTests {
         let first = try Self.sealed(to: prover)
         let second = try Self.sealed(to: prover)
 
-        let (answer, response) = try prover.open(second.request).answer(status: 200, body: Data())
+        let (answer, response) = try prover.open(Self.request(posting: second)).answer(status: 200, body: Data())
 
-        #expect(
-            first.request.value(forHTTPHeaderField: "Zolana-Tee-Enc")
-                != second.request.value(forHTTPHeaderField: "Zolana-Tee-Enc")
-        )
+        #expect(first.headers["Zolana-Tee-Enc"] != second.headers["Zolana-Tee-Enc"])
         #expect(throws: RPCError.invalidResponse(.unauthenticatedAnswer)) { try first.open(answer, response: response) }
     }
 
@@ -262,11 +183,14 @@ struct SealedProverRequestTests {
         return request
     }
 
+    private static func request(posting sealed: SealedProverRequest, at route: String = "prove/transfer_2_2") throws
+        -> URLRequest {
+        var request = try Self.request("POST", "https://prover.example/" + route, body: sealed.body)
+        for (field, value) in sealed.headers { request.setValue(value, forHTTPHeaderField: field) }
+        return request
+    }
+
     private static func sealed(to prover: TestProver) throws -> SealedProverRequest {
-        try SealedProverRequest(
-            sealing: request("POST", "https://prover.example/prove/transfer_2_2", body: body),
-            below: url("https://prover.example"),
-            to: prover.publicKey
-        )
+        try SealedProverRequest(sealing: reading, at: "prove/transfer_2_2", to: prover.publicKey)
     }
 }
