@@ -17,10 +17,14 @@ struct NoteSyncStateTests {
         var outputTreeID: UInt16?
         var depositsPerPage: Int?
         var isFinalized = true
+        var onChain: [String: String] = [:]
 
         func respond(to request: URLRequest) throws -> (Data, URLResponse) {
-            let trees = UTXOTrees(rows: (earlier + transactions).map(IndexerResponses.row) + deposits.map(IndexerResponses.match),
-                                  forging: forgedDeposits.map(IndexerResponses.match), isFinalized: isFinalized)
+            if let signature = try NoteSyncStateTests.transactionRead(of: request), let result = onChain[signature] {
+                return try reply(to: request, payload: #""result":\#(result)"#)
+            }
+            let rows = (earlier + transactions + spends).map(IndexerResponses.row) + deposits.map(IndexerResponses.match)
+            let trees = UTXOTrees(rows: rows, forging: forgedDeposits.map(IndexerResponses.match), isFinalized: isFinalized)
             if let reply = try trees.respond(to: request) { return reply }
             switch try #require(request.url?.lastPathComponent) {
             case GetShieldedTransactionsByTags.method:
@@ -128,11 +132,14 @@ struct NoteSyncStateTests {
         let (unconfirmed, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit], isFinalized: false))
         let spender = spend(of: unconfirmed.unconfirmedNotes)
 
-        let (state, transport) = try await sync(unconfirmed, with: Indexer(earlier: [deposit], spends: [spender]))
+        let indexer = Indexer(earlier: [deposit], spends: [spender], onChain: [spender.signature: "null"])
+
+        let (state, transport) = try await sync(unconfirmed, with: indexer)
 
         #expect(state.notes.isEmpty)
         #expect(state.unconfirmedNotes.isEmpty)
         #expect(try await Self.nullifierReads(of: transport) == [unconfirmed.unconfirmedNotes.map { Base58.encode($0.nullifier.bigEndianBytes) }])
+        #expect(try await Self.transactionReads(of: transport).isEmpty)
     }
 
     @Test
@@ -177,6 +184,191 @@ struct NoteSyncStateTests {
 
         #expect(state.notes.isEmpty)
         #expect(try await Self.nullifierReads(of: transport) == [found.map { Base58.encode($0.nullifier.bigEndianBytes) }])
+        #expect(try await Self.transactionReads(of: transport).isEmpty)
+    }
+
+    @Test
+    func `Confirmed spend claims drop the note after one read of their transaction`() async throws {
+        let (first, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit]))
+        let spender = spend(of: first.notes)
+
+        let (state, transport) = try await sync(first, with: Indexer(transactions: [spender], spends: [spender]))
+
+        #expect(state.notes.isEmpty)
+        #expect(state.lamports == 0)
+        #expect(try await Self.transactionReads(of: transport) == [spender.signature])
+    }
+
+    @Test
+    func `Spend claims whose transaction isn't visible yet keep the note until a later sync confirms them`() async throws {
+        let (first, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit]))
+        let spender = spend(of: first.notes)
+
+        let (unconfirmed, _) = try await sync(first, with: Indexer(spends: [spender], onChain: [spender.signature: "null"]))
+        let (confirmed, transport) = try await sync(unconfirmed, with: Indexer(spends: [spender]))
+
+        #expect(unconfirmed.notes == first.notes)
+        #expect(unconfirmed.lamports == 1_000_000)
+        #expect(confirmed.notes.isEmpty)
+        #expect(confirmed.lamports == 0)
+        #expect(try await Self.transactionReads(of: transport) == [spender.signature])
+    }
+
+    @Test
+    func `Spend claims whose transaction failed keep the note`() async throws {
+        let (first, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit]))
+        let spender = spend(of: first.notes)
+        let failed = SpendTransactions.result(spending: spender.nullifiers, error: SpendTransactions.failure)
+
+        let (state, _) = try await sync(first, with: Indexer(spends: [spender], onChain: [spender.signature: failed]))
+
+        #expect(state.notes == first.notes)
+        #expect(state.lamports == 1_000_000)
+        #expect(state.rejectedSpends == [spender.signature])
+    }
+
+    @Test
+    func `Spend claims whose transaction spends other nullifiers keep the note`() async throws {
+        let (first, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit]))
+        let spender = spend(of: first.notes)
+        let unrelated = SpendTransactions.result(spending: [[UInt8](repeating: 9, count: 32)])
+
+        let (state, _) = try await sync(first, with: Indexer(spends: [spender], onChain: [spender.signature: unrelated]))
+
+        #expect(state.notes == first.notes)
+        #expect(state.lamports == 1_000_000)
+        #expect(state.rejectedSpends == [spender.signature])
+    }
+
+    @Test
+    func `Refuted spend claims aren't read again until no claim names them`() async throws {
+        let (first, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit]))
+        let spender = spend(of: first.notes)
+        let unrelated = SpendTransactions.result(spending: [[UInt8](repeating: 9, count: 32)])
+        let indexer = Indexer(spends: [spender], onChain: [spender.signature: unrelated])
+        let (refuted, _) = try await sync(first, with: indexer)
+
+        let (named, namedTransport) = try await sync(refuted, with: indexer)
+        let (forgotten, _) = try await sync(named, with: Indexer())
+
+        #expect(try await Self.transactionReads(of: namedTransport).isEmpty)
+        #expect(named.rejectedSpends == [spender.signature])
+        #expect(named.notes == first.notes)
+        #expect(forgotten.rejectedSpends.isEmpty)
+        #expect(forgotten.notes == first.notes)
+    }
+
+    @Test
+    func `One claim per nullifier is read in a sync, the oldest first`() async throws {
+        let (first, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit]))
+        let older = spend(of: first.notes, signature: 8, slot: 15)
+        let newer = spend(of: first.notes, signature: 7, slot: 16)
+        let unrelated = SpendTransactions.result(spending: [[UInt8](repeating: 9, count: 32)])
+        let indexer = Indexer(spends: [newer, older], onChain: [older.signature: unrelated])
+
+        let (refuted, firstTransport) = try await sync(first, with: indexer)
+        let (confirmed, secondTransport) = try await sync(refuted, with: indexer)
+
+        #expect(try await Self.transactionReads(of: firstTransport) == [older.signature])
+        #expect(refuted.notes == first.notes)
+        #expect(try await Self.transactionReads(of: secondTransport) == [newer.signature])
+        #expect(confirmed.notes.isEmpty)
+    }
+
+    @Test
+    func `A sync reads at most eight claimed spends, the oldest first, and a later sync reads the rest`() async throws {
+        let counted = (0..<10).map { Self.syntheticNote(at: UInt8($0)) }
+        let state = try NoteSyncState(
+            position: nil, notes: counted, unconfirmedNotes: [], outputTreeID: nil, pending: [], localSpends: [], rejectedSpends: []
+        )
+        let spenders = counted.enumerated().map { index, note in
+            spend(of: [note], signature: UInt8(40 + index), slot: UInt64(100 - index))
+        }
+        let oldest = spenders.sorted { $0.slot < $1.slot }.map(\.signature)
+
+        let (first, firstTransport) = try await sync(state, with: Indexer(spends: spenders))
+        let (second, secondTransport) = try await sync(first, with: Indexer(spends: spenders))
+
+        #expect(try await Self.transactionReads(of: firstTransport).sorted() == Array(oldest.prefix(8)).sorted())
+        #expect(first.notes == Array(counted.prefix(2)))
+        #expect(try await Self.transactionReads(of: secondTransport).sorted() == Array(oldest.suffix(2)).sorted())
+        #expect(second.notes.isEmpty)
+    }
+
+    @Test
+    func `Syncs to the end read each claimed spend once across their batches`() async throws {
+        let (first, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit]))
+        let held = try NoteSyncState(
+            position: nil, notes: first.notes, unconfirmedNotes: [], outputTreeID: nil, pending: [], localSpends: [], rejectedSpends: []
+        )
+        let spender = spend(of: first.notes)
+        let indexer = Indexer(
+            deposits: Array(repeating: foreignDeposit, count: 9), spends: [spender], depositsPerPage: 1,
+            onChain: [spender.signature: "null"]
+        )
+        let transport = StubTransport { try indexer.respond(to: $0) }
+
+        let state = try await held.syncedToEnd(for: sender, rpc: Solana.devnet(transport: transport), indexer: Self.indexer(transport))
+
+        #expect(state.notes == first.notes)
+        #expect(try await Self.nullifierReads(of: transport).count > 1)
+        #expect(try await Self.transactionReads(of: transport) == [spender.signature])
+    }
+
+    @Test
+    func `Forged spend claims in the tag stream keep stored notes`() async throws {
+        let (first, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit]))
+        let forged = spend(of: first.notes)
+        let unrelated = SpendTransactions.result(spending: [[UInt8](repeating: 9, count: 32)])
+
+        let (state, _) = try await sync(first, with: Indexer(transactions: [forged], onChain: [forged.signature: unrelated]))
+
+        #expect(state.notes == first.notes)
+        #expect(state.lamports == 1_000_000)
+    }
+
+    @Test
+    func `Spend claims about notes received in the same batch drop them without a transaction read`() async throws {
+        let spender = spend(of: try notes(in: deposit))
+        let unrelated = SpendTransactions.result(spending: [[UInt8](repeating: 9, count: 32)])
+        let indexer = Indexer(transactions: [spender], deposits: [deposit], onChain: [spender.signature: unrelated])
+
+        let (state, transport) = try await sync(NoteSyncState(), with: indexer)
+
+        #expect(state.notes.isEmpty)
+        #expect(state.unconfirmedNotes.isEmpty)
+        #expect(state.lamports == 0)
+        #expect(try await Self.transactionReads(of: transport).isEmpty)
+        #expect(try await Self.proofReads(of: transport).isEmpty)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func `Claimed spends' transactions are read at once`() async throws {
+        let (first, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit, laterDeposit]))
+        let spenders = [spend(of: [first.notes[0]], signature: 7), spend(of: [first.notes[1]], signature: 8)]
+        let (firstRead, firstContinuation) = AsyncStream.makeStream(of: Void.self)
+        let (secondRead, secondContinuation) = AsyncStream.makeStream(of: Void.self)
+        let indexer = Indexer(spends: spenders)
+        let transport = StubTransport { request in
+            switch try Self.transactionRead(of: request) {
+            case spenders[0].signature?:
+                firstContinuation.yield()
+                var signals = secondRead.makeAsyncIterator()
+                await signals.next()
+            case spenders[1].signature?:
+                secondContinuation.yield()
+                var signals = firstRead.makeAsyncIterator()
+                await signals.next()
+            default:
+                break
+            }
+            return try indexer.respond(to: request)
+        }
+
+        let state = try await first.synced(for: sender, rpc: Solana.devnet(transport: transport), indexer: Self.indexer(transport))
+
+        #expect(state.notes.isEmpty)
+        #expect(Set(try await Self.transactionReads(of: transport)) == Set(spenders.map(\.signature)))
     }
 
     @Test
@@ -440,6 +632,25 @@ struct NoteSyncStateTests {
     }
 
     @Test
+    func `Pending amounts end when a claimed spend of their transaction's unconfirmed notes is accepted without a read`() async throws {
+        let (first, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit]))
+        let recorded = try first.recording(privateSpend(of: first.notes, receiving: 6), signature: transfer.signature)
+        let spender = spend(of: try notes(in: transfer))
+        let (held, _) = try await sync(recorded, with: Indexer(transactions: [transfer], isFinalized: false))
+
+        let (claimed, transport) = try await sync(
+            held, with: Indexer(earlier: [transfer], spends: [spender], isFinalized: false, onChain: [spender.signature: "null"])
+        )
+
+        #expect(held.unconfirmedNotes == (try notes(in: transfer)))
+        #expect(held.pendingLamports == 6)
+        #expect(claimed.unconfirmedNotes.isEmpty)
+        #expect(claimed.pendingLamports == 0)
+        #expect(claimed.lamports == 0)
+        #expect(try await Self.transactionReads(of: transport).isEmpty)
+    }
+
+    @Test
     func `Recorded deposits are counted once`() async throws {
         let (synced, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit]))
 
@@ -491,7 +702,7 @@ struct NoteSyncStateTests {
         let (synced, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit]))
         let pending = try NoteSyncState(
             position: synced.position, notes: synced.notes, unconfirmedNotes: [], outputTreeID: nil,
-            pending: [PendingAmount(signature: deposit.signature, lamports: 1_000_000)], localSpends: []
+            pending: [PendingAmount(signature: deposit.signature, lamports: 1_000_000)], localSpends: [], rejectedSpends: []
         )
 
         let (state, _) = try await sync(pending, with: Indexer())
@@ -541,7 +752,7 @@ struct NoteSyncStateTests {
         #expect(!decoded.localSpends.isEmpty)
     }
 
-    @Test(arguments: ["notes", "unconfirmedNotes", "outputTreeID", "pending", "localSpends"])
+    @Test(arguments: ["notes", "unconfirmedNotes", "outputTreeID", "pending", "localSpends", "rejectedSpends"])
     func `Encoded states without a field are rejected`(key: String) async throws {
         var fields = try #require(try JSONSerialization.jsonObject(with: JSONEncoder().encode(NoteSyncState())) as? [String: Any])
         fields[key] = nil
@@ -615,7 +826,8 @@ struct NoteSyncStateTests {
 
     private func largestState() throws -> NoteSyncState {
         try NoteSyncState(
-            position: nil, notes: notes(in: largestDeposit), unconfirmedNotes: [], outputTreeID: nil, pending: [], localSpends: []
+            position: nil, notes: notes(in: largestDeposit), unconfirmedNotes: [], outputTreeID: nil, pending: [], localSpends: [],
+            rejectedSpends: []
         )
     }
 
@@ -623,9 +835,9 @@ struct NoteSyncStateTests {
         try ReceivedNote.notes(in: transaction, of: sender)
     }
 
-    private func spend(of notes: [ReceivedNote]) -> ShieldedTransaction {
+    private func spend(of notes: [ReceivedNote], signature: UInt8 = 7, slot: UInt64 = 20) -> ShieldedTransaction {
         ShieldedTransaction(
-            signature: IndexerResponses.signature(7), slot: 20, eventIndex: 0, transactionViewingKey: nil, salt: nil, outputs: [],
+            signature: IndexerResponses.signature(signature), slot: slot, eventIndex: 0, transactionViewingKey: nil, salt: nil, outputs: [],
             nullifiers: notes.map(\.nullifier.bigEndianBytes), isProofless: false
         )
     }
@@ -635,6 +847,27 @@ struct NoteSyncStateTests {
             instruction: Instruction(program: try ShieldedPool.program), lamports: 1, receivedLamports: lamports,
             nullifierCount: notes.count, inputTreeID: 0, nullifiers: notes.map(\.nullifier)
         )
+    }
+
+    private static func syntheticNote(at index: UInt8) -> ReceivedNote {
+        let utxo = UTXO(
+            owner: Poseidon.Element(UInt64(index) + 1), mint: [UInt8](repeating: 0, count: 32), amount: 1, blinding: Poseidon.Element(UInt64(7)),
+            treeID: 0
+        )
+        return ReceivedNote(
+            utxo: utxo, leafIndex: UInt64(index), signature: IndexerResponses.signature(index + 100), slot: UInt64(index),
+            nullifier: Poseidon.Element(UInt64(index) + 1_000)
+        )
+    }
+
+    private static func transactionRead(of request: URLRequest) throws -> String? {
+        let body = try requestBody(request)
+        guard body["method"] as? String == GetTransaction.method else { return nil }
+        return try #require((body["params"] as? [Any])?.first as? String)
+    }
+
+    private static func transactionReads(of transport: StubTransport) async throws -> [String] {
+        try await transport.requests.compactMap(transactionRead(of:))
     }
 
     private static func nullifiers(of request: URLRequest) throws -> [String] {

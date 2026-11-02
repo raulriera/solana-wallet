@@ -274,7 +274,7 @@ struct PrivateBalancesRedeemCodesTests {
     }
 
     @Test
-    func `Outstanding codes follow the indexer, not a lagging node`() async throws {
+    func `Outstanding codes follow the indexer once their reserves are swept`() async throws {
         let sender = try await Self.sender()
         let held = try sender.keys.oneTimeAccount(at: 0)
         let swept = try sender.keys.oneTimeAccount(at: 2)
@@ -296,7 +296,7 @@ struct PrivateBalancesRedeemCodesTests {
                                             try RedeemCode(secret: sender.keys.oneTimeAccount(at: 1).secret,
                                                            network: .devnet)])
         #expect(await codes.value?[sender.id]?.records == expected)
-        #expect(await PrivateBalanceFixtures.nonTreeAccountReads(of: responses) == 0)
+        #expect(await PrivateBalanceFixtures.nonTreeAccountReads(of: responses) == 1)
     }
 
     @Test
@@ -338,7 +338,7 @@ struct PrivateBalancesRedeemCodesTests {
     }
 
     @Test
-    func `Leftover lamports don't keep a spent code`() async throws {
+    func `Leftover lamports below the reserve don't keep a spent code`() async throws {
         let sender = try await Self.sender()
         let swept = try sender.keys.oneTimeAccount(at: 1)
         let responses = try RedeemCodeFixtures.responses(
@@ -351,6 +351,22 @@ struct PrivateBalancesRedeemCodesTests {
 
         #expect(try await balances.outstandingCodes(of: sender.account, on: .devnet).isEmpty)
         #expect(await codes.value?[sender.id]?.records.isEmpty == true)
+    }
+
+    @Test
+    func `A code that the indexer reports spent stays while its reserve is intact`() async throws {
+        let sender = try await Self.sender()
+        let swept = try sender.keys.oneTimeAccount(at: 1)
+        let responses = try RedeemCodeFixtures.responses(
+            accounts: [swept.address: RedeemCodeFixtures.systemAccount(lamports: RedeemCodeFixtures.reserve)],
+            deposits: [try RedeemCodeFixtures.deposit(500, to: swept, leafIndex: 4)],
+            spends: [try RedeemCodeFixtures.spend(of: 500, to: swept, leafIndex: 4)]
+        )
+        let codes = StoredValue([sender.id: RedeemCodeLedger(records: [Self.record(at: 1)], isDiscovered: true)])
+        let balances = try await Self.balances(responses, keys: sender.storedKeys, notes: sender.notes, codes: codes)
+
+        #expect(try await balances.outstandingCodes(of: sender.account, on: .devnet).map(\.record) == [Self.record(at: 1)])
+        #expect(await codes.value?[sender.id]?.records == [Self.record(at: 1)])
     }
 
     @Test

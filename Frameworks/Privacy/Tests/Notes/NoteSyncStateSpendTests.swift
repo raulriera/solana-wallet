@@ -55,7 +55,9 @@ struct NoteSyncStateSpendTests {
     @Test(arguments: spends)
     func `Spends prove a plan of the selected notes`(_ spend: Spend) async throws {
         let notes = try spend.notes.enumerated().map { try note($1, leaf: UInt64($0)) }
-        let state = try NoteSyncState(position: nil, notes: notes, unconfirmedNotes: [], outputTreeID: 0, pending: [], localSpends: [])
+        let state = try NoteSyncState(
+            position: nil, notes: notes, unconfirmedNotes: [], outputTreeID: 0, pending: [], localSpends: [], rejectedSpends: []
+        )
         let destination = try destination(spend.destination)
         let selected = spend.selected.map { notes[$0] }
         var planGenerator = SeededGenerator(seed: 7)
@@ -90,7 +92,9 @@ struct NoteSyncStateSpendTests {
     @Test
     func `Spends name the tree of their selected notes`() async throws {
         let notes = [try note(3, leaf: 0), try note(4, leaf: 1), try note(10, leaf: 2, treeID: 2)]
-        let state = try NoteSyncState(position: nil, notes: notes, unconfirmedNotes: [], outputTreeID: 0, pending: [], localSpends: [])
+        let state = try NoteSyncState(
+            position: nil, notes: notes, unconfirmedNotes: [], outputTreeID: 0, pending: [], localSpends: [], rejectedSpends: []
+        )
         let destination = PrivateSpend.Destination.transfer(try TransferVectors.recipient())
         let transport = try Self.transport()
         var spendGenerator = SeededGenerator(seed: 7)
@@ -108,7 +112,9 @@ struct NoteSyncStateSpendTests {
     func `Funded transfers withdraw to the recipient's signing address`() async throws {
         let recipient = try TransferVectors.recipient()
         let notes = try [10, 5].enumerated().map { try note($1, leaf: UInt64($0)) }
-        let state = try NoteSyncState(position: nil, notes: notes, unconfirmedNotes: [], outputTreeID: 0, pending: [], localSpends: [])
+        let state = try NoteSyncState(
+            position: nil, notes: notes, unconfirmedNotes: [], outputTreeID: 0, pending: [], localSpends: [], rejectedSpends: []
+        )
         let transport = try Self.transport()
         let solInterface = try ShieldedPool.solInterface
 
@@ -126,7 +132,9 @@ struct NoteSyncStateSpendTests {
     func `Spends leave out notes whose nullifiers are already queued`() async throws {
         let recipient = try TransferVectors.recipient()
         let notes = try [10, 5].enumerated().map { try note($1, leaf: UInt64($0)) }
-        let state = try NoteSyncState(position: nil, notes: notes, unconfirmedNotes: [], outputTreeID: 0, pending: [], localSpends: [])
+        let state = try NoteSyncState(
+            position: nil, notes: notes, unconfirmedNotes: [], outputTreeID: 0, pending: [], localSpends: [], rejectedSpends: []
+        )
         let queued = try ShieldedPool.nullifierAccount(tree: ShieldedPool.tree(id: 0), nullifier: notes[0].nullifier).value
         let transport = try Self.transport(queued: [queued])
 
@@ -142,7 +150,9 @@ struct NoteSyncStateSpendTests {
     func `Spends of only queued notes are insufficient`() async throws {
         let recipient = try TransferVectors.recipient()
         let notes = [try note(10, leaf: 0)]
-        let state = try NoteSyncState(position: nil, notes: notes, unconfirmedNotes: [], outputTreeID: 0, pending: [], localSpends: [])
+        let state = try NoteSyncState(
+            position: nil, notes: notes, unconfirmedNotes: [], outputTreeID: 0, pending: [], localSpends: [], rejectedSpends: []
+        )
         let queued = try ShieldedPool.nullifierAccount(tree: ShieldedPool.tree(id: 0), nullifier: notes[0].nullifier).value
         let transport = StubTransport { request in try IndexerResponses.spendReads(answering: request, queued: [queued]) }
 
@@ -161,7 +171,7 @@ struct NoteSyncStateSpendTests {
     func `Invalid amounts send no request`(lamports: UInt64, destination: Spend.Destination) async throws {
         let transport = StubTransport { _ in throw CancellationError() }
         let state = try NoteSyncState(position: nil, notes: [try note(10, leaf: 0)], unconfirmedNotes: [], outputTreeID: 0, pending: [],
-                                      localSpends: [])
+                                      localSpends: [], rejectedSpends: [])
         let destination = try self.destination(destination)
 
         await #expect(throws: ValidationError.invalidAmount) {
@@ -184,7 +194,8 @@ struct NoteSyncStateSpendTests {
         let state = try NoteSyncState(
             position: nil, notes: notes.enumerated().map { try note($1, leaf: UInt64($0)) }, unconfirmedNotes: [],
             outputTreeID: outputTreeID,
-            pending: pendingLamports.map { PendingAmount(signature: IndexerResponses.signature(1), lamports: $0) }, localSpends: []
+            pending: pendingLamports.map { PendingAmount(signature: IndexerResponses.signature(1), lamports: $0) }, localSpends: [],
+            rejectedSpends: []
         )
         let destination = try self.destination(destination)
 
@@ -199,7 +210,7 @@ struct NoteSyncStateSpendTests {
     func `Unconfirmed notes can't be spent`() async throws {
         let transport = StubTransport { _ in throw CancellationError() }
         let state = try NoteSyncState(position: nil, notes: [], unconfirmedNotes: [try note(10, leaf: 0)], outputTreeID: 0, pending: [],
-                                      localSpends: [])
+                                      localSpends: [], rejectedSpends: [])
 
         await #expect(throws: PrivateSpend.ValidationError.insufficientFunds) {
             try await state.spend(4, to: .transfer(try TransferVectors.recipient()), from: sender, rpc: Solana.devnet(transport: transport),

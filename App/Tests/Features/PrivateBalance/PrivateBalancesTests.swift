@@ -259,6 +259,7 @@ struct PrivateBalancesTests {
         #expect(later == .balance(available: 0, pending: 0))
         #expect(await notes.value?[id]?.notes.isEmpty == true)
         #expect(try await Self.methods(of: spent).contains(GetShieldedTransactionsByNullifiers.method))
+        #expect(try await !Self.methods(of: spent).contains(GetTransaction.method))
     }
 
     @Test

@@ -25,19 +25,18 @@ extension PrivateBalances {
                 }
             }
             guard var reconciled = ledger else { return [] }
-            let pending = reconciled.pending.map(\.index)
-            let addresses = try pending.map { try keys.oneTimeAddress(at: $0) }
-            let indices = (reconciled.records.map(\.index) + pending).sorted()
+            let indices = (reconciled.records.map(\.index) + reconciled.pending.map(\.index)).sorted()
+            let addresses = try indices.map { try keys.oneTimeAddress(at: $0) }
             async let statuses = RedeemCodeScan.statuses(of: indices, from: keys, rpc: client, indexer: client)
             async let balances = Self.lamports(of: addresses, using: client)
-            let (found, lamports) = try await (statuses, balances)
-            let reserves = Dictionary(uniqueKeysWithValues: zip(pending, lamports))
+            let (found, read) = try await (statuses, balances)
+            let lamports = Dictionary(uniqueKeysWithValues: zip(indices, read))
             let now = Date.now
-            reconciled.reconcile(with: found, reserves: reserves, at: now)
+            reconciled.reconcile(with: found, lamports: lamports, at: now)
             if reconciled != ledger {
                 let local = reconciled
                 reconciled = try await update(codes, .codes, from: generation) { entries in
-                    entries[id]?.reconcile(with: found, reserves: reserves, at: now)
+                    entries[id]?.reconcile(with: found, lamports: lamports, at: now)
                     return entries[id] ?? local
                 }
             }

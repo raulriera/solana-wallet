@@ -73,30 +73,33 @@ nonisolated struct RedeemCodeLedger: Codable, Equatable, Sendable {
         isDiscovered = isDiscovered || discovered.isDiscovered
     }
 
-    /// Applies what the indexer reports for the codes and pending indices.
+    /// Applies what the indexer reports for the codes and pending indices, keeping a spent code until its one-time
+    /// account holds less than its reserve.
     ///
     /// - Parameters:
     ///   - statuses: What the indexer reports, by index.
-    ///   - reserves: The public lamports of pending indices' one-time accounts.
+    ///   - lamports: The public lamports of the codes' and pending indices' one-time accounts, by index.
     ///   - date: The current date.
-    mutating func reconcile(with statuses: [UInt32: RedeemCodeScan.Status], reserves: [UInt32: UInt64],
+    mutating func reconcile(with statuses: [UInt32: RedeemCodeScan.Status], lamports: [UInt32: UInt64],
                             at date: Date) {
         for record in records {
             switch statuses[record.index] {
-            case .unspent(let lamports, _)?:
-                add(RedeemCodeRecord(index: record.index, amount: lamports, reserve: record.reserve,
+            case .unspent(let amount, _)?:
+                add(RedeemCodeRecord(index: record.index, amount: amount, reserve: record.reserve,
                                      created: record.created, fundingSignature: record.fundingSignature))
-            case .spent?:
+            case .spent? where lamports[record.index].map { $0 < record.reserve } == true:
                 remove([record.index])
-            case .unfunded?, .unconfirmed?, nil:
+            case .spent?, .unfunded?, .unconfirmed?, nil:
                 break
             }
         }
         for code in pending {
             switch statuses[code.index] {
-            case .unspent(let lamports, let signature)?:
-                add(RedeemCodeRecord(index: code.index, amount: lamports, reserve: reserves[code.index] ?? 0,
+            case .unspent(let amount, let signature)?:
+                add(RedeemCodeRecord(index: code.index, amount: amount, reserve: lamports[code.index] ?? 0,
                                      created: code.created, fundingSignature: signature))
+            case .spent? where lamports[code.index] != 0:
+                break
             case .unfunded?, .spent?:
                 if code.isExpired(at: date) { release(code.index) }
             case .unconfirmed?, nil:

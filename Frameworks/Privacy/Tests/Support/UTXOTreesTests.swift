@@ -60,6 +60,24 @@ struct UTXOTreesTests {
         }
     }
 
+    @Test
+    func `Spend rows answer reads of their transaction with a successful transact that spends their nullifiers`() async throws {
+        let nullifiers = [[UInt8](repeating: 0x21, count: 32), [UInt8](repeating: 0x22, count: 32)]
+        let spend = ShieldedTransaction(
+            signature: IndexerResponses.signature(7), slot: 20, eventIndex: 0, transactionViewingKey: nil, salt: nil, outputs: [],
+            nullifiers: nullifiers, isProofless: false
+        )
+        let trees = UTXOTrees(rows: [IndexerResponses.match(deposits[0]), IndexerResponses.row(spend)])
+        let rpc = Solana.devnet(transport: StubTransport { try #require(try trees.respond(to: $0)) })
+
+        let transaction = try #require(try await rpc.send(GetTransaction(signature: spend.signature)))
+        let other = try await rpc.send(GetTransaction(signature: deposits[0].signature))
+
+        #expect(transaction.error == nil)
+        #expect(ShieldedPool.nullifiers(spentBy: transaction) == Set(nullifiers))
+        #expect(other == nil)
+    }
+
     private func statuses(in trees: UTXOTrees) async throws -> [ReceivedNote.InclusionStatus] {
         let transport = StubTransport { try #require(try trees.respond(to: $0)) }
         let notes = try deposits.flatMap { try ReceivedNote.notes(in: $0, of: sender) }

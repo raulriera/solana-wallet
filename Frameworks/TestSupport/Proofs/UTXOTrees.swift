@@ -94,6 +94,10 @@ struct UTXOTrees: Sendable {
             guard !read.isEmpty, read.count == addresses.count else { return nil }
             let accounts = read.map(account(of:)).joined(separator: ",")
             return try reply(to: request, payload: #""result":{"context":{"slot":7},"value":[\#(accounts)]}"#)
+        case GetTransaction.method?:
+            let signature = try #require((body["params"] as? [Any])?.first as? String)
+            let nullifiers = try rows.compactMap(Self.spend(in:)).first { $0.signature == signature }?.nullifiers
+            return try reply(to: request, payload: #""result":\#(nullifiers.map { SpendTransactions.result(spending: $0) } ?? "null")"#)
         default:
             return nil
         }
@@ -125,6 +129,13 @@ struct UTXOTrees: Sendable {
                                 feePerNullifier: feePerNullifier)
         return #"{"owner":"\#(ShieldedPool.programID)","lamports":1,"executable":false,"#
             + #""data":["\#(Data(data).base64EncodedString())","base64"]}"#
+    }
+
+    private static func spend(in row: String) throws -> (signature: String, nullifiers: [[UInt8]])? {
+        let object = try #require(try JSONSerialization.jsonObject(with: Data(row.utf8)) as? [String: Any])
+        guard let signature = object["txSignature"] as? String, let nullifiers = object["nullifiers"] as? [String],
+              !nullifiers.isEmpty else { return nil }
+        return (signature, try nullifiers.map { try #require(Base58.decode($0, byteCount: 32)) })
     }
 
     private static func outputs(in row: String) throws -> [Output] {
