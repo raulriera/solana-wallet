@@ -1,5 +1,6 @@
 import ModularArithmetic
 import RPC
+import Transactions
 
 /// The UTXO roots that a tree's account holds on chain, the roots that a note's inclusion proof must lead to.
 struct UTXORootHistory: Sendable {
@@ -14,13 +15,14 @@ struct UTXORootHistory: Sendable {
     /// - Parameters:
     ///   - leaf: The note's UTXO hash.
     ///   - leafIndex: The note's position in its tree.
+    ///   - tree: The note's tree account, whose roots the history holds.
     ///   - proof: An inclusion proof of the leaf from the tree.
-    /// - Returns: ``ReceivedNote/InclusionStatus/refuted`` if the proof's leaf or leaf index isn't the note's, or its
-    ///   path doesn't lead the leaf to its root; ``ReceivedNote/InclusionStatus/included`` if the history holds that
-    ///   root at the proof's root index; otherwise ``ReceivedNote/InclusionStatus/unconfirmed``.
-    func inclusionStatus(of leaf: Poseidon.Element, at leafIndex: UInt64, provenBy proof: MerkleProof)
+    /// - Returns: ``ReceivedNote/InclusionStatus/refuted`` if the proof's leaf, leaf index, or tree isn't the note's,
+    ///   or its path doesn't lead the leaf to its root; ``ReceivedNote/InclusionStatus/included`` if the history holds
+    ///   that root at the proof's root index; otherwise ``ReceivedNote/InclusionStatus/unconfirmed``.
+    func inclusionStatus(of leaf: Poseidon.Element, at leafIndex: UInt64, in tree: Address, provenBy proof: MerkleProof)
         -> ReceivedNote.InclusionStatus {
-        guard proof.leaf == leaf.bigEndianBytes, proof.leafIndex == leafIndex,
+        guard proof.tree == tree.bytes, proof.leaf == leaf.bigEndianBytes, proof.leafIndex == leafIndex,
               Self.root(of: leaf, at: leafIndex, along: proof.path)?.bigEndianBytes == proof.root else {
             return .refuted
         }
@@ -59,13 +61,11 @@ struct UTXORootHistory: Sendable {
 extension UTXORootHistory {
     /// Reads the history from a tree account's data.
     ///
-    /// - Parameter data: The tree account's data.
-    /// - Throws: ``ShieldedPool/TreeError/invalidLength`` if the data isn't 40,080 bytes, or
-    ///   ``ShieldedPool/TreeError/invalidRootHistory`` if the history's capacity isn't 500 or its cursor and count
-    ///   don't describe written roots.
+    /// - Parameter data: The tree account's data, as ``ShieldedPool/treeAccountData(at:using:)`` returns it.
+    /// - Throws: ``ShieldedPool/TreeError/invalidRootHistory`` if the history's capacity isn't 500 or its cursor and
+    ///   count don't describe written roots.
     init(accountData data: [UInt8]) throws {
         typealias Layout = ShieldedPool.TreeAccount
-        guard data.count == Layout.length else { throw ShieldedPool.TreeError.invalidLength }
         let cursor = Int(data.littleEndian(at: Layout.utxoRootCursorOffset) as UInt16)
         let count = Int(data.littleEndian(at: Layout.utxoRootCountOffset) as UInt16)
         let capacity = Int(data.littleEndian(at: Layout.utxoRootCapacityOffset) as UInt16)

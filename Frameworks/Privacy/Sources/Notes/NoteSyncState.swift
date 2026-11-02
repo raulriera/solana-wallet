@@ -14,7 +14,7 @@ public struct NoteSyncState: Sendable, Equatable, Codable, CustomStringConvertib
 
     /// The keys of a state's encoded fields.
     private enum CodingKeys: String, CodingKey {
-        case position, notes, unconfirmedNotes, outputTreeID, pending, localSpends, rejectedSpends
+        case position, notes, unconfirmedNotes, outputTreeID, pending, localSpends, rejectedSpends, missingSpendReads
     }
 
     /// The length of a nullifier, in bytes.
@@ -25,6 +25,9 @@ public struct NoteSyncState: Sendable, Equatable, Codable, CustomStringConvertib
 
     /// The most transactions that a sync reads to confirm claimed spends of counted notes.
     private static let maximumSpendReads = 8
+
+    /// The number of reads in a row that find no transaction for a claimed spend before the claim counts as refuted.
+    private static let maximumMissingReads = 10
 
     /// Where the next read resumes, or `nil` before the first sync.
     let position: NoteSyncPosition?
@@ -45,14 +48,13 @@ public struct NoteSyncState: Sendable, Equatable, Codable, CustomStringConvertib
     /// The nullifiers of recorded spends whose notes a sync returned before it reported the spend.
     let localSpends: Set<[UInt8]>
 
-    /// The signatures of finalized transactions that the indexer names as spends of counted notes but that failed or
-    /// don't spend the claimed nullifiers, while a claim still names them.
+    /// The signatures of claimed spends of counted notes whose finalized transactions failed or don't spend the
+    /// claimed nullifiers, or whose transactions ten reads in a row didn't find, while a claim still names them.
     let rejectedSpends: Set<String>
 
-    /// The total of the unspent notes and the pending amounts, in lamports.
-    public var lamports: UInt64 {
-        spendableLamports + pendingLamports
-    }
+    /// The number of reads in a row that found no transaction for each claimed spend of counted notes, by signature,
+    /// while a claim still names it.
+    let missingSpendReads: [String: Int]
 
     public var pendingLamports: UInt64 {
         pending.reduce(0) { $0 + $1.lamports }
@@ -84,6 +86,7 @@ public struct NoteSyncState: Sendable, Equatable, Codable, CustomStringConvertib
         pending = []
         localSpends = []
         rejectedSpends = []
+        missingSpendReads = [:]
     }
 
     /// Creates a state and checks that its total fits a 64-bit integer.
@@ -95,7 +98,8 @@ public struct NoteSyncState: Sendable, Equatable, Codable, CustomStringConvertib
     ///   - outputTreeID: The ID of the tree that receives new outputs, if known.
     ///   - pending: The pending amounts.
     ///   - localSpends: The nullifiers of recorded spends to keep hiding.
-    ///   - rejectedSpends: The signatures of claimed spends that their finalized transactions refuted.
+    ///   - rejectedSpends: The signatures of claimed spends that count as refuted.
+    ///   - missingSpendReads: The number of reads in a row that found no transaction for each claimed spend.
     /// - Throws: ``ValidationError/amountOverflow`` if the total exceeds a 64-bit integer.
     init(
         position: NoteSyncPosition?,
@@ -104,7 +108,8 @@ public struct NoteSyncState: Sendable, Equatable, Codable, CustomStringConvertib
         outputTreeID: UInt16?,
         pending: [PendingAmount],
         localSpends: Set<[UInt8]>,
-        rejectedSpends: Set<String>
+        rejectedSpends: Set<String>,
+        missingSpendReads: [String: Int]
     ) throws {
         _ = try (notes.map(\.lamports) + pending.map(\.lamports)).reduce(UInt64(0)) { total, lamports in
             let (sum, overflow) = total.addingReportingOverflow(lamports)
@@ -118,6 +123,7 @@ public struct NoteSyncState: Sendable, Equatable, Codable, CustomStringConvertib
         self.pending = pending
         self.localSpends = localSpends
         self.rejectedSpends = rejectedSpends
+        self.missingSpendReads = missingSpendReads
     }
 
     public init(from decoder: any Decoder) throws {
@@ -132,10 +138,11 @@ public struct NoteSyncState: Sendable, Equatable, Codable, CustomStringConvertib
             throw DecodingError.dataCorruptedError(forKey: .localSpends, in: container, debugDescription: "A nullifier has 32 bytes.")
         }
         let rejectedSpends = try container.decode([String].self, forKey: .rejectedSpends)
+        let missingSpendReads = try container.decode([String: Int].self, forKey: .missingSpendReads)
         do {
             try self.init(
                 position: position, notes: notes, unconfirmedNotes: unconfirmedNotes, outputTreeID: outputTreeID, pending: pending,
-                localSpends: Set(localSpends), rejectedSpends: Set(rejectedSpends)
+                localSpends: Set(localSpends), rejectedSpends: Set(rejectedSpends), missingSpendReads: missingSpendReads
             )
         } catch {
             throw DecodingError.dataCorruptedError(forKey: .notes, in: container, debugDescription: "The total overflows.")
@@ -151,6 +158,7 @@ public struct NoteSyncState: Sendable, Equatable, Codable, CustomStringConvertib
         try container.encode(pending, forKey: .pending)
         try container.encode(localSpends.sorted { $0.lexicographicallyPrecedes($1) }.map { Data($0) }, forKey: .localSpends)
         try container.encode(rejectedSpends.sorted(), forKey: .rejectedSpends)
+        try container.encode(missingSpendReads, forKey: .missingSpendReads)
     }
 
     /// Records a spend's successful transaction.
@@ -167,7 +175,7 @@ public struct NoteSyncState: Sendable, Equatable, Codable, CustomStringConvertib
             position: position, notes: notes.filter { !spent.contains($0.nullifier.bigEndianBytes) },
             unconfirmedNotes: unconfirmedNotes, outputTreeID: outputTreeID,
             pending: isHeld ? pending(adding: spend.receivedLamports, signature: signature) : pending,
-            localSpends: localSpends.union(spent), rejectedSpends: rejectedSpends
+            localSpends: localSpends.union(spent), rejectedSpends: rejectedSpends, missingSpendReads: missingSpendReads
         )
     }
 
@@ -183,7 +191,8 @@ public struct NoteSyncState: Sendable, Equatable, Codable, CustomStringConvertib
         guard lamports > 0 else { throw Transactions.ValidationError.invalidAmount }
         return try NoteSyncState(
             position: position, notes: notes, unconfirmedNotes: unconfirmedNotes, outputTreeID: outputTreeID,
-            pending: pending(adding: lamports, signature: signature), localSpends: localSpends, rejectedSpends: rejectedSpends
+            pending: pending(adding: lamports, signature: signature), localSpends: localSpends, rejectedSpends: rejectedSpends,
+            missingSpendReads: missingSpendReads
         )
     }
 
@@ -213,7 +222,9 @@ public struct NoteSyncState: Sendable, Equatable, Codable, CustomStringConvertib
     ///   ``RPC/PrivateNoteError`` if the position came from other view tags,
     ///   ``RPC/RPCError/InvalidResponse/mismatchedProofs`` if the indexer doesn't return one proof per note, a
     ///   ``ShieldedPool/TreeError`` if a tree's account isn't valid, a ``Transactions/ValidationError`` if a tree's
-    ///   derivation fails, a cipher or key agreement error, or a request, transport, response, or cancellation error.
+    ///   derivation fails, ``ShieldedPool/InstructionError/unknownLayout`` if a claimed spend's successful
+    ///   transaction holds a spend instruction of an unknown layout, a cipher or key agreement error, or a request,
+    ///   transport, response, or cancellation error.
     @concurrent
     public func synced(
         for account: ShieldedAccount,
@@ -236,7 +247,7 @@ public struct NoteSyncState: Sendable, Equatable, Codable, CustomStringConvertib
     /// - Returns: The state with the unspent notes, the notes whose roots aren't on chain yet, and the position of the
     ///   next read.
     /// - Throws: An error as ``synced(for:rpc:indexer:)`` describes, or
-    ///   ``RPC/RPCError/InvalidResponse/invalidCursor`` if more come after 128 batches.
+    ///   ``RPC/RPCError/InvalidResponse/endlessStream`` if more come after 128 batches.
     @concurrent
     public func syncedToEnd(
         for account: ShieldedAccount,
@@ -251,7 +262,7 @@ public struct NoteSyncState: Sendable, Equatable, Codable, CustomStringConvertib
             guard moreComing else { return next }
             state = next
         }
-        throw RPCError.invalidResponse(.invalidCursor)
+        throw RPCError.invalidResponse(.endlessStream)
     }
 
     /// Reads one batch of the account's new notes and spends from the indexer, checks the received notes against
@@ -307,10 +318,11 @@ public struct NoteSyncState: Sendable, Equatable, Codable, CustomStringConvertib
         }
         let uncounted = Set((unconfirmedNotes + delivered).map(\.nullifier.bigEndianBytes))
         let counted = SpendClaim.claims(in: claims, of: Set(notes.map(\.nullifier.bigEndianBytes)))
-        let named = rejectedSpends.intersection(counted.map(\.signature))
-        let (proven, refuted) = try await Self.confirm(
-            counted.unread(by: reads, skipping: named, limit: Self.maximumSpendReads), recording: &reads, using: rpc
-        )
+        let claimed = Set(counted.map(\.signature))
+        let named = rejectedSpends.intersection(claimed)
+        let unread = counted.unread(by: reads, skipping: named, limit: Self.maximumSpendReads)
+        let (proven, refuted, missing) = try await Self.confirm(unread, recording: &reads, using: rpc)
+        let (missingReads, expired) = missingReads(adding: missing, read: Set(unread.map(\.signature)), claimed: claimed)
         let spent = proven.union(uncounted.intersection(claims.flatMap(\.nullifiers)))
         let confirmed = notes + checked.filter { $0.status == .included }.map(\.note)
         let seen = held + delivered
@@ -323,9 +335,25 @@ public struct NoteSyncState: Sendable, Equatable, Codable, CustomStringConvertib
             outputTreeID: batch?.outputTreeID,
             pending: pending.filter { !settled.contains($0.signature) },
             localSpends: respent.subtracting(spent),
-            rejectedSpends: named.union(refuted)
+            rejectedSpends: named.union(refuted).union(expired),
+            missingSpendReads: missingReads
         )
         return (state, batch?.moreComing ?? false)
+    }
+
+    /// Counts the reads in a row that found no transaction for each claimed spend that a claim still names.
+    ///
+    /// - Parameters:
+    ///   - missing: The signatures of the read claims whose transactions the client didn't find.
+    ///   - read: The signatures of the claims that the batch read.
+    ///   - claimed: The signatures of the claims of counted notes.
+    /// - Returns: The counts below the limit by signature, and the signatures whose count reached it.
+    private func missingReads(adding missing: Set<String>, read: Set<String>, claimed: Set<String>)
+        -> (counts: [String: Int], expired: Set<String>) {
+        var counts = missingSpendReads.filter { claimed.contains($0.key) && !read.contains($0.key) }
+        for signature in missing { counts[signature] = missingSpendReads[signature, default: 0] + 1 }
+        let expired = Set(counts.filter { $0.value >= Self.maximumMissingReads }.keys)
+        return (counts.filter { !expired.contains($0.key) }, expired)
     }
 
     /// Reads the transactions of claimed spends at once.
@@ -334,30 +362,36 @@ public struct NoteSyncState: Sendable, Equatable, Codable, CustomStringConvertib
     ///   - claims: The claims to read.
     ///   - reads: The claimed spends that the sync read, which this adds to.
     ///   - rpc: The client that reads the transactions at finalized commitment.
-    /// - Returns: The nullifiers that the transactions spent, and the signatures of the finalized transactions that
-    ///   failed or don't spend every nullifier that their claim names.
-    /// - Throws: A request, transport, response, or cancellation error.
+    /// - Returns: The nullifiers that the transactions spent, the signatures of the finalized transactions that
+    ///   failed or don't spend every nullifier that their claim names, and the signatures whose transactions the
+    ///   client didn't find.
+    /// - Throws: ``ShieldedPool/InstructionError/unknownLayout`` if a successful transaction holds a spend instruction
+    ///   of an unknown layout, or a request, transport, response, or cancellation error.
     private static func confirm(
         _ claims: [SpendClaim],
         recording reads: inout SpendReads,
         using rpc: some RPC
-    ) async throws -> (proven: Set<[UInt8]>, refuted: Set<String>) {
+    ) async throws -> (proven: Set<[UInt8]>, refuted: Set<String>, missing: Set<String>) {
         reads.record(claims)
         return try await withThrowingTaskGroup(of: (claim: SpendClaim, spent: Set<[UInt8]>?).self) { group in
             for claim in claims {
                 group.addTask {
                     guard let transaction = try await rpc.send(GetTransaction(signature: claim.signature)) else { return (claim, nil) }
-                    return (claim, transaction.error == nil ? ShieldedPool.nullifiers(spentBy: transaction) : [])
+                    return (claim, transaction.error == nil ? try ShieldedPool.nullifiers(spentBy: transaction) : [])
                 }
             }
             var proven = Set<[UInt8]>()
             var refuted = Set<String>()
+            var missing = Set<String>()
             for try await (claim, spent) in group {
-                guard let spent else { continue }
+                guard let spent else {
+                    missing.insert(claim.signature)
+                    continue
+                }
                 proven.formUnion(spent)
                 if !claim.nullifiers.isSubset(of: spent) { refuted.insert(claim.signature) }
             }
-            return (proven, refuted)
+            return (proven, refuted, missing)
         }
     }
 

@@ -2,6 +2,9 @@ import CryptoKit
 import Foundation
 
 extension Curve25519.KeyAgreement.PublicKey {
+    /// The number of bytes in a tagged representation.
+    static let taggedRepresentationLength = 33
+
     /// The first byte of a tagged representation.
     private static let tag: UInt8 = 4
 
@@ -15,7 +18,7 @@ extension Curve25519.KeyAgreement.PublicKey {
     ///   another tag or a `u` at or above the modulus.
     init(taggedRepresentation: some ContiguousBytes) throws {
         let bytes = taggedRepresentation.withUnsafeBytes { [UInt8]($0) }
-        guard bytes.count == 33 else { throw CryptoKitError.incorrectKeySize }
+        guard bytes.count == Self.taggedRepresentationLength else { throw CryptoKitError.incorrectKeySize }
         let u = bytes.dropFirst()
         guard bytes[0] == Self.tag, u.reversed().lexicographicallyPrecedes(Self.modulus.reversed()) else {
             throw CryptoKitError.invalidParameter

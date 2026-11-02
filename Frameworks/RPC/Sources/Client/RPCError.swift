@@ -20,11 +20,13 @@ public enum RPCError: Error, Sendable, Equatable {
         case mismatchedID
         /// The response contained both `result` and `error`, or neither.
         case invalidEnvelope
-        /// A page repeated a cursor or returned one without rows, or a read didn't end within its limit.
+        /// A page repeated a cursor or returned one without rows.
         case invalidCursor
+        /// A read to the end of a stream didn't reach it within its limit of reads.
+        case endlessStream
         /// The response body is longer than the request accepts.
         case oversized
-        /// The proofs don't match the requested leaves, their order, or the tree.
+        /// The provider returned another number of proofs than the request named leaves.
         case mismatchedProofs
         /// The prover's attestation doesn't prove that the expected enclave holds its key.
         case untrustedProver

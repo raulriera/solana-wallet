@@ -11,7 +11,7 @@ extension ReceivedNote {
         /// The proof leads to its root, but the account that was read doesn't hold that root at the proof's root
         /// index, as when the indexer is ahead of the read.
         case unconfirmed
-        /// The proof is of another leaf or leaf index, or its path doesn't lead to its root.
+        /// The proof is of another leaf, leaf index, or tree, or its path doesn't lead to its root.
         case refuted
     }
 
@@ -56,7 +56,8 @@ extension ReceivedNote {
         for (index, data) in accounts.enumerated() {
             let history = try UTXORootHistory(accountData: data)
             statuses += zip(positions[index], proofs[index]).map { position, proof in
-                (position, history.inclusionStatus(of: leaves[position], at: notes[position].leafIndex, provenBy: proof))
+                let leafIndex = notes[position].leafIndex
+                return (position, history.inclusionStatus(of: leaves[position], at: leafIndex, in: trees[index], provenBy: proof))
             }
         }
         return statuses.sorted { $0.position < $1.position }.map(\.status)

@@ -11,9 +11,9 @@ struct MerkleProofListTests {
 
         let first = try #require(list.proofs.first)
         #expect(list.proofs.map(\.proof.leaf) == [Fixture.bytes(7), Fixture.bytes(8)])
-        #expect(first.tree == Fixture.bytes(9))
-        #expect(first.proof == MerkleProof(leaf: Fixture.bytes(7), path: (0..<32).map { Fixture.bytes(0x10 + UInt8($0)) },
-                                           leafIndex: 6, root: Fixture.bytes(0xbb), rootIndex: 499))
+        #expect(first.proof == MerkleProof(tree: Fixture.bytes(9), leaf: Fixture.bytes(7),
+                                           path: (0..<32).map { Fixture.bytes(0x10 + UInt8($0)) }, leafIndex: 6,
+                                           root: Fixture.bytes(0xbb), rootIndex: 499))
     }
 
     @Test(arguments: [

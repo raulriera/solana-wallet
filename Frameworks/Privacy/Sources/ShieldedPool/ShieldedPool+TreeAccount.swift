@@ -40,15 +40,17 @@ extension ShieldedPool {
         static let nullifierRootCapacity = 100
     }
 
-    /// Reads the data of trees' accounts with one request after checking that the shielded-pool program owns each.
+    /// Reads the data of trees' accounts with one request after checking that the shielded-pool program owns each and
+    /// that each has a tree account's length.
     ///
     /// - Parameters:
     ///   - trees: One through 100 tree accounts.
     ///   - rpc: The client of the network whose trees to read.
-    /// - Returns: Each account's data, in the order of `trees`.
+    /// - Returns: Each account's 40,080 bytes of data, in the order of `trees`.
     /// - Throws: An RPC error, ``RPC/GetMultipleAccountsError/invalidAddressCount`` without trees or for more than
     ///   100, ``TreeError/mismatchedResponse`` if the provider returns another number of accounts,
-    ///   ``TreeError/missingTree`` without an account, or ``TreeError/foreignOwner`` if the program doesn't own one.
+    ///   ``TreeError/missingTree`` without an account, ``TreeError/foreignOwner`` if the program doesn't own one, or
+    ///   ``TreeError/invalidLength`` for data of another length.
     static func treeAccountData(at trees: [Address], using rpc: some RPC) async throws -> [[UInt8]] {
         let response = try await rpc.send(GetMultipleAccounts(addresses: trees.map(\.value)))
         guard response.value.count == trees.count else { throw TreeError.mismatchedResponse }
@@ -56,6 +58,7 @@ extension ShieldedPool {
         return try response.value.map { account in
             guard let account else { throw TreeError.missingTree }
             guard account.owner == owner else { throw TreeError.foreignOwner }
+            guard account.data.count == TreeAccount.length else { throw TreeError.invalidLength }
             return [UInt8](account.data)
         }
     }

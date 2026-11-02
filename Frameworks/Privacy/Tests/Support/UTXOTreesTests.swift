@@ -74,7 +74,7 @@ struct UTXOTreesTests {
         let other = try await rpc.send(GetTransaction(signature: deposits[0].signature))
 
         #expect(transaction.error == nil)
-        #expect(ShieldedPool.nullifiers(spentBy: transaction) == Set(nullifiers))
+        #expect(try ShieldedPool.nullifiers(spentBy: transaction) == Set(nullifiers))
         #expect(other == nil)
     }
 

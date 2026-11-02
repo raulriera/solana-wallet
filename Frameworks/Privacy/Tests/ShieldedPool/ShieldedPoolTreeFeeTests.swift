@@ -10,7 +10,8 @@ struct ShieldedPoolTreeFeeTests {
     func `Fees decode from the tree account`() async throws {
         let header: [UInt8] = [1, 1, 7, 0, 0xff, 0xff, 0xff, 0xff]
         let fee: [UInt8] = [0x6c, 0x01, 0, 0, 0, 0, 0, 0x02]
-        let transport = Self.transport(returning: Self.account(owner: Self.program, data: header + fee + [0xee, 0xee]))
+        let rest = [UInt8](repeating: 0xee, count: 40_080 - header.count - fee.count)
+        let transport = Self.transport(returning: Self.account(owner: Self.program, data: header + fee + rest))
 
         let result = try await ShieldedPool.feePerNullifier(treeID: 7, using: Solana(network: .devnet, transport: transport))
 
@@ -21,18 +22,8 @@ struct ShieldedPoolTreeFeeTests {
     }
 
     @Test
-    func `Sixteen bytes hold the fee`() async throws {
-        let data = [UInt8](repeating: 0, count: 8) + [108, 0, 0, 0, 0, 0, 0, 0]
-        let transport = Self.transport(returning: Self.account(owner: Self.program, data: data))
-
-        let result = try await ShieldedPool.feePerNullifier(treeID: 0, using: Solana(network: .devnet, transport: transport))
-
-        #expect(result == 108)
-    }
-
-    @Test
-    func `Accounts shorter than the fee schedule fail`() async throws {
-        let transport = Self.transport(returning: Self.account(owner: Self.program, data: [UInt8](repeating: 0, count: 15)))
+    func `Accounts shorter than a tree account fail`() async throws {
+        let transport = Self.transport(returning: Self.account(owner: Self.program, data: [UInt8](repeating: 0, count: 16)))
 
         await #expect(throws: ShieldedPool.TreeError.invalidLength) {
             try await ShieldedPool.feePerNullifier(treeID: 0, using: Solana(network: .devnet, transport: transport))

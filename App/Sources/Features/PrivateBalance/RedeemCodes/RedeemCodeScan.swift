@@ -145,7 +145,7 @@ nonisolated enum RedeemCodeScan {
     ///   - keys: The account's keys.
     ///   - provider: The indexer of the account's network.
     /// - Returns: The used one-time accounts, in the indices' order.
-    /// - Throws: ``RPC/RPCError/InvalidResponse/invalidCursor`` if more transactions come after 128 reads, or a
+    /// - Throws: ``RPC/RPCError/InvalidResponse/endlessStream`` if more transactions come after 128 reads, or a
     ///   derivation, request, transport, response, or cancellation error.
     private static func fundings(ofBatch indices: [UInt32], from keys: PrivateBalanceKeyRecord,
                                  using provider: some PrivateNoteProviding) async throws -> [Funding] {
@@ -172,6 +172,6 @@ nonisolated enum RedeemCodeScan {
             }
             position = batch.position
         }
-        throw RPCError.invalidResponse(.invalidCursor)
+        throw RPCError.invalidResponse(.endlessStream)
     }
 }

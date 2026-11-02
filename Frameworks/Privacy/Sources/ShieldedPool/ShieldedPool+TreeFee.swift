@@ -11,11 +11,10 @@ extension ShieldedPool {
     ///   ``TreeError/mismatchedResponse`` if the provider returns another
     ///   number of accounts, ``TreeError/missingTree`` without an account,
     ///   ``TreeError/foreignOwner`` if the program doesn't own it, or ``TreeError/invalidLength``
-    ///   if it's shorter than 16 bytes.
+    ///   if it isn't a tree account's length.
     @concurrent
     public static func feePerNullifier(treeID: UInt16, using rpc: some RPC) async throws -> UInt64 {
         let data = try await treeAccountData(at: [try tree(id: treeID)], using: rpc)[0]
-        guard data.count >= TreeAccount.feePerNullifierOffset + UInt64.bitWidth / 8 else { throw TreeError.invalidLength }
         return data.littleEndian(at: TreeAccount.feePerNullifierOffset)
     }
 }

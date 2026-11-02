@@ -21,7 +21,7 @@ struct ReceivedNoteInclusionStatusTests {
         let (valid, refutedNote) = try UTXORootHistoryTests.proofOfFifthLeaf(
             of: try PlanFixtures.utxo(lamports: 30, treeID: 0, blindingByte: 0xc3)
         )
-        let refuted = MerkleProof(leaf: valid.leaf, path: [UTXORootHistoryTests.root(1)] + valid.path.dropFirst(),
+        let refuted = MerkleProof(tree: valid.tree, leaf: valid.leaf, path: [UTXORootHistoryTests.root(1)] + valid.path.dropFirst(),
                                   leafIndex: valid.leafIndex, root: valid.root, rootIndex: valid.rootIndex)
         let proofs = [Self.firstTree: [included, refuted], Self.seventhTree: [unconfirmed]]
         let accounts = [
@@ -45,6 +45,33 @@ struct ReceivedNoteInclusionStatusTests {
             Self.seventhTree: [Base58.encode(unconfirmedNote.utxo.hash.bigEndianBytes)],
         ])
         #expect((bodies.last?["params"] as? [Any])?.first as? [String] == [Self.firstTree, Self.seventhTree])
+    }
+
+    @Test
+    func `Proofs of another leaf or tree refute only their notes`() async throws {
+        let (included, includedNote) = try UTXORootHistoryTests.proofOfFifthLeaf(
+            of: try PlanFixtures.utxo(lamports: 10, treeID: 0, blindingByte: 0xa1)
+        )
+        let (_, otherLeafNote) = try UTXORootHistoryTests.proofOfFifthLeaf(
+            of: try PlanFixtures.utxo(lamports: 20, treeID: 0, blindingByte: 0xb2)
+        )
+        let (valid, otherTreeNote) = try UTXORootHistoryTests.proofOfFifthLeaf(
+            of: try PlanFixtures.utxo(lamports: 30, treeID: 7, blindingByte: 0xc3)
+        )
+        let otherTree = MerkleProof(tree: included.tree, leaf: valid.leaf, path: valid.path, leafIndex: valid.leafIndex,
+                                    root: valid.root, rootIndex: valid.rootIndex)
+        let proofs = [Self.firstTree: [included, included], Self.seventhTree: [otherTree]]
+        let accounts = [included.root, valid.root].map { root in
+            UTXOTrees.account(cursor: 9, count: 10, roots: Array(repeating: UTXORootHistoryTests.root(2), count: 9) + [root])
+        }
+        let transport = Self.transport(proofs: proofs, accounts: accounts)
+
+        let statuses = try await ReceivedNote.inclusionStatuses(
+            of: [includedNote, otherLeafNote, otherTreeNote], rpc: Solana.devnet(transport: transport),
+            indexer: Zolana(network: .devnet, transport: transport)
+        )
+
+        #expect(statuses == [.included, .refuted, .refuted])
     }
 
     @Test
@@ -79,13 +106,13 @@ struct ReceivedNoteInclusionStatusTests {
                 return try reply(to: request, payload: #""result":{"context":{"slot":7},"value":[\#(values.joined(separator: ","))]}"#)
             }
             let tree = try MerkleProofReplies.requestedLeaves(in: request).tree
-            let entries = try #require(proofs[tree]).map { Self.entry(for: $0, tree: tree) }
+            let entries = try #require(proofs[tree]).map(Self.entry(for:))
             return try reply(to: request, payload: #""result":\#(MerkleProofReplies.result(entries))"#)
         }
     }
 
-    private static func entry(for proof: MerkleProof, tree: String) -> String {
-        MerkleProofReplies.proof(leaf: Base58.encode(proof.leaf), tree: tree, path: proof.path.map(Base58.encode),
+    private static func entry(for proof: MerkleProof) -> String {
+        MerkleProofReplies.proof(leaf: Base58.encode(proof.leaf), tree: Base58.encode(proof.tree), path: proof.path.map(Base58.encode),
                                  leafIndex: Int(proof.leafIndex), root: Base58.encode(proof.root),
                                  rootIndex: Int(proof.rootIndex))
     }

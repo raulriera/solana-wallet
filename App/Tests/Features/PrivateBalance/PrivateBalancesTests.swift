@@ -191,7 +191,7 @@ struct PrivateBalancesTests {
 
         #expect(first == .balance(available: 1_000_000, pending: 0))
         #expect(later == .balance(available: 1_000_000, pending: 0))
-        #expect(saved?.lamports == 1_000_000)
+        #expect(saved?.spendableLamports == 1_000_000)
         #expect(await notes.value?[id] == saved)
         #expect(await PrivateBalanceFixtures.nonTreeAccountReads(of: responses) == 1)
         #expect(try await Self.methods(of: responses).filter { $0 == GetMerkleProofs.method }.count == 1)
@@ -427,7 +427,7 @@ struct PrivateBalancesTests {
         #expect(await notes.value == [id: NoteSyncState()])
 
         #expect(try await balances.refresh(account, on: .devnet) == .balance(available: 42, pending: 0))
-        #expect(await notes.value?[id]?.lamports == 42)
+        #expect(await notes.value?[id]?.spendableLamports == 42)
         #expect(try await Self.methods(of: responses).filter { $0 == GetShieldedTransactionsByTags.method }.count == 2)
     }
 
@@ -451,7 +451,7 @@ struct PrivateBalancesTests {
         gate.resume()
 
         await #expect(throws: CancellationError.self) { try await refresh.value }
-        #expect(await notes.value?[id]?.lamports == 42)
+        #expect(await notes.value?[id]?.spendableLamports == 42)
         #expect(!(await responses.wasCancelled))
     }
 
@@ -520,8 +520,8 @@ struct PrivateBalancesTests {
         #expect(firstStatus == .balance(available: 1_000, pending: 0))
         #expect(secondStatus == .balance(available: 2_000, pending: 0))
         #expect(await notes.deletions == 1)
-        #expect(await notes.value?[firstID]?.lamports == 1_000)
-        #expect(await notes.value?[secondID]?.lamports == 2_000)
+        #expect(await notes.value?[firstID]?.spendableLamports == 1_000)
+        #expect(await notes.value?[secondID]?.spendableLamports == 2_000)
         #expect(await PrivateBalanceFixtures.nonTreeAccountReads(of: responses) == 2)
         #expect(try await Self.tagCursors(of: responses) == [nil, nil])
     }

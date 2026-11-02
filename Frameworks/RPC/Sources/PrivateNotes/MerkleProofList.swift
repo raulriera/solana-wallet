@@ -1,12 +1,10 @@
-/// The strict decoding of a `getMerkleProofs` result, one proof per requested leaf in request order.
+/// The strict decoding of a `getMerkleProofs` result's proofs, in the indexer's order.
 struct MerkleProofList: Decodable, Sendable {
-    /// A proof with the tree account that its context names.
+    /// A proof of a UTXO tree.
     struct Entry: Decodable, Sendable {
         /// The tree type of a UTXO tree.
         private static let utxoTreeType: UInt16 = 1
 
-        /// The tree account's 32 bytes.
-        let tree: [UInt8]
         let proof: MerkleProof
 
         init(from decoder: any Decoder) throws {
@@ -15,12 +13,12 @@ struct MerkleProofList: Decodable, Sendable {
             guard try context.decode(UInt16.self, forKey: .treeType) == Self.utxoTreeType else {
                 throw DecodingError.dataCorruptedError(forKey: .treeType, in: context, debugDescription: "Another tree type.")
             }
-            tree = try context.decode(IndexedHash.self, forKey: .tree).bytes
             let path = try entry.decode([IndexedHash].self, forKey: .path).map(\.bytes)
             guard path.count == MerkleProof.height else {
                 throw DecodingError.dataCorruptedError(forKey: .path, in: entry, debugDescription: "Path of another height.")
             }
             proof = MerkleProof(
+                tree: try context.decode(IndexedHash.self, forKey: .tree).bytes,
                 leaf: try entry.decode(IndexedHash.self, forKey: .leaf).bytes,
                 path: path,
                 leafIndex: try entry.decode(UInt64.self, forKey: .leafIndex),

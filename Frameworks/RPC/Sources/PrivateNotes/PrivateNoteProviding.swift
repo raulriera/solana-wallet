@@ -25,10 +25,9 @@ public protocol PrivateNoteProviding: Sendable {
     /// - Parameters:
     ///   - leaves: The 32-byte UTXO hashes.
     ///   - tree: The tree account's base-58 address.
-    /// - Returns: One proof per leaf, in order.
-    /// - Throws: ``PrivateNoteError/invalidLeaf`` or ``PrivateNoteError/invalidTree`` for an invalid leaf or tree,
-    ///   ``RPCError/InvalidResponse/mismatchedProofs`` for proofs of other leaves or another tree, or a request,
-    ///   transport, response, or cancellation error.
+    /// - Returns: The proofs that the provider returned for the leaves, in request order.
+    /// - Throws: ``PrivateNoteError/invalidLeaf`` or ``PrivateNoteError/invalidTree`` for an invalid leaf or tree, or a
+    ///   request, transport, response, or cancellation error.
     func merkleProofs(for leaves: [[UInt8]], inTree tree: String) async throws -> [MerkleProof]
 
     /// Whether the provider reads private notes on its network.

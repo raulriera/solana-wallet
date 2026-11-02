@@ -15,7 +15,7 @@ struct ShieldedPoolSpentNullifiersTests {
         let data = SpendTransactions.transactData(spending: Self.spent, tag: tag, circuit: circuit)
         let transaction = try SpendTransactions.transaction(of: [(SpendTransactions.program, data)])
 
-        #expect(ShieldedPool.nullifiers(spentBy: transaction) == Set(Self.spent))
+        #expect(try ShieldedPool.nullifiers(spentBy: transaction) == Set(Self.spent))
     }
 
     @Test(arguments: [nil, 2_000_000] as [UInt64?])
@@ -23,7 +23,7 @@ struct ShieldedPoolSpentNullifiersTests {
         let data = SpendTransactions.transactData(spending: Self.spent, withdrawing: withdrawal, includesOptionalFields: true)
         let transaction = try SpendTransactions.transaction(of: [(SpendTransactions.program, data)])
 
-        #expect(ShieldedPool.nullifiers(spentBy: transaction) == Set(Self.spent))
+        #expect(try ShieldedPool.nullifiers(spentBy: transaction) == Set(Self.spent))
     }
 
     @Test(arguments: [17, 20] as [UInt8], [nil, 3] as [UInt8?])
@@ -31,7 +31,7 @@ struct ShieldedPoolSpentNullifiersTests {
         let data = SpendTransactions.mergeData(spending: Self.spent, tag: tag, cacheSlot: cacheSlot)
         let transaction = try SpendTransactions.transaction(of: [(SpendTransactions.program, data)])
 
-        #expect(ShieldedPool.nullifiers(spentBy: transaction) == Set(Self.spent))
+        #expect(try ShieldedPool.nullifiers(spentBy: transaction) == Set(Self.spent))
     }
 
     @Test
@@ -44,7 +44,7 @@ struct ShieldedPoolSpentNullifiersTests {
             ]
         )
 
-        #expect(ShieldedPool.nullifiers(spentBy: transaction) == Set(Self.spent + [Self.other]))
+        #expect(try ShieldedPool.nullifiers(spentBy: transaction) == Set(Self.spent + [Self.other]))
     }
 
     @Test
@@ -54,7 +54,7 @@ struct ShieldedPoolSpentNullifiersTests {
             (SpendTransactions.program, SpendTransactions.mergeData(spending: [Self.other])),
         ])
 
-        #expect(ShieldedPool.nullifiers(spentBy: transaction) == Set(Self.spent + [Self.other]))
+        #expect(try ShieldedPool.nullifiers(spentBy: transaction) == Set(Self.spent + [Self.other]))
     }
 
     @Test(arguments: ["11111111111111111111111111111111", "ComputeBudget111111111111111111111111111111"])
@@ -64,25 +64,25 @@ struct ShieldedPoolSpentNullifiersTests {
             inner: [(program, SpendTransactions.mergeData(spending: Self.spent))]
         )
 
-        #expect(ShieldedPool.nullifiers(spentBy: transaction).isEmpty)
+        #expect(try ShieldedPool.nullifiers(spentBy: transaction).isEmpty)
     }
 
     @Test(arguments: [12, 13, 14, 15, 18] as [UInt8])
     func `Pool instructions that don't spend spend nothing`(tag: UInt8) throws {
         let data = [tag] + Array(SpendTransactions.transactData(spending: Self.spent).dropFirst())
-        let transaction = try SpendTransactions.transaction(of: [(SpendTransactions.program, data)])
+        let transaction = try SpendTransactions.transaction(of: [(SpendTransactions.program, data), (SpendTransactions.program, [])])
 
-        #expect(ShieldedPool.nullifiers(spentBy: transaction).isEmpty)
+        #expect(try ShieldedPool.nullifiers(spentBy: transaction).isEmpty)
     }
 
     @Test(arguments: malformedSpends())
-    func `Malformed spend data spends nothing and leaves the transaction's other spends`(data: [UInt8]) throws {
-        let transaction = try SpendTransactions.transaction(of: [
-            (SpendTransactions.program, data),
-            (SpendTransactions.program, SpendTransactions.transactData(spending: [Self.other])),
-        ])
+    func `Spend data of an unknown layout fails the read`(data: [UInt8]) throws {
+        let transaction = try SpendTransactions.transaction(
+            of: [(SpendTransactions.program, SpendTransactions.transactData(spending: [Self.other]))],
+            inner: [(SpendTransactions.program, data)]
+        )
 
-        #expect(ShieldedPool.nullifiers(spentBy: transaction) == [Self.other])
+        #expect(throws: ShieldedPool.InstructionError.unknownLayout) { try ShieldedPool.nullifiers(spentBy: transaction) }
     }
 
     @Test(arguments: try InstructionVectors.load().transacts)
@@ -100,7 +100,7 @@ struct ShieldedPoolSpentNullifiersTests {
         let instruction = try plan.instruction(proof: proof, treeContexts: contexts)
         let transaction = try SpendTransactions.transaction(of: [(instruction.program.value, [UInt8](instruction.data))])
 
-        let nullifiers = ShieldedPool.nullifiers(spentBy: transaction)
+        let nullifiers = try ShieldedPool.nullifiers(spentBy: transaction)
 
         #expect(nullifiers == Set(plan.inputs.map(\.nullifier.bigEndianBytes)))
     }
@@ -109,7 +109,6 @@ struct ShieldedPoolSpentNullifiersTests {
         let transact = SpendTransactions.transactData(spending: spent)
         let merge = SpendTransactions.mergeData(spending: spent)
         return [
-            [],
             Array(transact.dropLast()),
             transact + [0],
             transact.replacingSubrange(58..<59, with: [1, 4]),

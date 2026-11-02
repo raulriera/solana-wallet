@@ -36,7 +36,7 @@ struct ShieldedAccountLiveTests {
         #expect(first.notes.isEmpty)
         #expect(first != NoteSyncState())
         #expect(later.notes.isEmpty)
-        #expect(later.lamports == 0)
+        #expect(later.spendableLamports == 0)
     }
 
     private static func randomKeys(for address: Address) throws -> ShieldedAccount {

@@ -1,6 +1,7 @@
 import Foundation
 import ModularArithmetic
 import Testing
+import Transactions
 @testable import Privacy
 @testable import RPC
 
@@ -8,7 +9,7 @@ struct UTXORootHistoryTests {
     enum Change: Sendable {
         case unchanged, rootOutsideHistory, rootAtAnotherSlot, rootIndexBeyondWrittenRoots
         case leafOfOtherNote, otherLeaf, otherProofIndex, otherIndexOfBoth, leafBeyondHeight, otherSibling
-        case nonCanonicalSibling
+        case nonCanonicalSibling, otherTree
     }
 
     @Test
@@ -23,7 +24,7 @@ struct UTXORootHistoryTests {
 
     @Test(arguments: [
         Change.leafOfOtherNote, .otherLeaf, .otherProofIndex, .otherIndexOfBoth, .leafBeyondHeight, .otherSibling,
-        .nonCanonicalSibling,
+        .nonCanonicalSibling, .otherTree,
     ])
     func `Proofs that don't lead the note to their root are refuted`(change: Change) throws {
         #expect(try Self.status(after: change) == .refuted)
@@ -50,19 +51,17 @@ struct UTXORootHistoryTests {
     }
 
     @Test(arguments: [
-        (Array(UTXOTrees.account(cursor: 0, count: 1, roots: [root(1)]).dropLast()), ShieldedPool.TreeError.invalidLength),
-        (UTXOTrees.account(cursor: 0, count: 1, roots: [root(1)]) + [0], .invalidLength),
-        (UTXOTrees.account(cursor: 0, count: 1, capacity: 499, roots: [root(1)]), .invalidRootHistory),
-        (UTXOTrees.account(cursor: 0, count: 0, roots: []), .invalidRootHistory),
-        (UTXOTrees.account(cursor: 0, count: 501, roots: []), .invalidRootHistory),
-        (UTXOTrees.account(cursor: 500, count: 500, roots: []), .invalidRootHistory),
-        (UTXOTrees.account(cursor: 0, count: 2, roots: [root(1), root(2)]), .invalidRootHistory),
+        UTXOTrees.account(cursor: 0, count: 1, capacity: 499, roots: [root(1)]),
+        UTXOTrees.account(cursor: 0, count: 0, roots: []),
+        UTXOTrees.account(cursor: 0, count: 501, roots: []),
+        UTXOTrees.account(cursor: 500, count: 500, roots: []),
+        UTXOTrees.account(cursor: 0, count: 2, roots: [root(1), root(2)]),
     ])
-    func `Malformed tree accounts are refused`(data: [UInt8], error: ShieldedPool.TreeError) {
-        #expect(throws: error) { try UTXORootHistory(accountData: data) }
+    func `Malformed root histories are refused`(data: [UInt8]) {
+        #expect(throws: ShieldedPool.TreeError.invalidRootHistory) { try UTXORootHistory(accountData: data) }
     }
 
-    static func proofOfFifthLeaf(of utxo: UTXO, rootIndex: UInt16 = 9) -> (MerkleProof, ReceivedNote) {
+    static func proofOfFifthLeaf(of utxo: UTXO, rootIndex: UInt16 = 9) throws -> (MerkleProof, ReceivedNote) {
         let siblings = (1...32).map { Poseidon.Element(UInt64($0)) }
         var node = Poseidon.hash(siblings[0], utxo.hash)
         node = Poseidon.hash(node, siblings[1])
@@ -70,8 +69,9 @@ struct UTXORootHistoryTests {
         for sibling in siblings[3...] {
             node = Poseidon.hash(node, sibling)
         }
-        let proof = MerkleProof(leaf: utxo.hash.bigEndianBytes, path: siblings.map(\.bigEndianBytes), leafIndex: 5,
-                                root: node.bigEndianBytes, rootIndex: rootIndex)
+        let proof = MerkleProof(tree: try ShieldedPool.tree(id: utxo.treeID).bytes, leaf: utxo.hash.bigEndianBytes,
+                                path: siblings.map(\.bigEndianBytes), leafIndex: 5, root: node.bigEndianBytes,
+                                rootIndex: rootIndex)
         return (proof, ReceivedNote(utxo: utxo, leafIndex: 5, signature: "fixture", slot: 1, nullifier: .zero))
     }
 
@@ -82,6 +82,7 @@ struct UTXORootHistoryTests {
     private static func status(after change: Change) throws -> ReceivedNote.InclusionStatus {
         let (proof, note) = try proofOfFifthLeaf(of: try PlanFixtures.utxo(lamports: 10, treeID: 0, blindingByte: 161))
         var leaf = note.utxo.hash
+        var proofTree = proof.tree
         var proofLeaf = proof.leaf
         var path = proof.path
         var proofIndex = proof.leafIndex
@@ -116,9 +117,12 @@ struct UTXORootHistoryTests {
             path[5] = root(0x01)
         case .nonCanonicalSibling:
             path[0] = Array(repeating: 0xff, count: 32)
+        case .otherTree:
+            proofTree = try ShieldedPool.tree(id: 7).bytes
         }
         let history = try UTXORootHistory(accountData: UTXOTrees.account(cursor: UInt16(roots.count - 1), count: UInt16(roots.count), roots: roots))
-        let changedProof = MerkleProof(leaf: proofLeaf, path: path, leafIndex: proofIndex, root: proof.root, rootIndex: proof.rootIndex)
-        return history.inclusionStatus(of: leaf, at: noteIndex, provenBy: changedProof)
+        let changedProof = MerkleProof(tree: proofTree, leaf: proofLeaf, path: path, leafIndex: proofIndex, root: proof.root,
+                                       rootIndex: proof.rootIndex)
+        return history.inclusionStatus(of: leaf, at: noteIndex, in: try ShieldedPool.tree(id: 0), provenBy: changedProof)
     }
 }

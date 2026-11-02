@@ -3,6 +3,8 @@ public struct MerkleProof: Sendable, Equatable {
     /// The number of siblings in a path.
     static let height = 32
 
+    /// The 32-byte address of the tree account that the proof's context names.
+    public let tree: [UInt8]
     /// The 32-byte UTXO hash that the proof places in the tree.
     public let leaf: [UInt8]
     /// The leaf's 32-byte siblings, leaf level first.

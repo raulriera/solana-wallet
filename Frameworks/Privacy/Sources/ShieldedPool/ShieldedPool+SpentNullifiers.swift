@@ -1,7 +1,13 @@
-import Encoding
+import CryptoKit
 import RPC
 
 extension ShieldedPool {
+    /// An error that rejects a shielded-pool instruction.
+    public enum InstructionError: Error, Equatable {
+        /// A spend instruction's data doesn't follow a layout that the app reads.
+        case unknownLayout
+    }
+
     private static let ringTransactTag: UInt8 = 19
 
     private static let ringMergeTransactTag: UInt8 = 20
@@ -29,9 +35,6 @@ extension ShieldedPool {
     /// The merge output encryption scheme that the program accepts: Poseidon counter mode.
     private static let mergeEncryptionScheme: UInt8 = 1
 
-    /// The bytes of a tagged X25519 transaction viewing public key.
-    private static let taggedKeyLength = 33
-
     /// The bytes of a transact circuit's numbers of input and output slots and public asset slots.
     private static let shapeLength = 3
 
@@ -55,29 +58,27 @@ extension ShieldedPool {
     ///
     /// - Parameter transaction: The transaction whose top-level and invoked instructions to read.
     /// - Returns: The 32-byte nullifiers of each transact, ring transact, ring authority transact, merge transact, and
-    ///   ring merge transact instruction of the shielded-pool program whose data follows its layout; other instructions
-    ///   add none.
-    static func nullifiers(spentBy transaction: GetTransaction.Value) -> Set<[UInt8]> {
-        Set(transaction.instructionData(invoking: programID).flatMap { data in
-            (try? spentNullifiers(in: [UInt8](data))) ?? []
-        })
+    ///   ring merge transact instruction of the shielded-pool program; other instructions add none.
+    /// - Throws: ``InstructionError/unknownLayout`` if a spend instruction's data doesn't follow its layout.
+    static func nullifiers(spentBy transaction: GetTransaction.Value) throws -> Set<[UInt8]> {
+        Set(try transaction.instructionData(invoking: programID).flatMap { try spentNullifiers(in: [UInt8]($0)) })
     }
 
     /// Reads the nullifiers that a shielded-pool instruction's data spends.
     ///
     /// - Parameter data: The instruction data.
     /// - Returns: The 32-byte nullifiers in input order, or none for an instruction that doesn't spend.
-    /// - Throws: ``MalformedSpend`` for spend data that doesn't follow its layout.
+    /// - Throws: ``InstructionError/unknownLayout`` for spend data that doesn't follow its layout.
     private static func spentNullifiers(in data: [UInt8]) throws -> [[UInt8]] {
         guard let tag = data.first else { return [] }
-        var reader = ByteReader(data, at: 1, error: MalformedSpend())
+        var reader = WincodeReader(data, at: 1, error: InstructionError.unknownLayout)
         let nullifiers: [[UInt8]]
         switch tag {
         case transactTag, ringTransactTag, ringAuthorityTransactTag: nullifiers = try transactNullifiers(reading: &reader)
         case mergeTransactTag, ringMergeTransactTag: nullifiers = try mergeNullifiers(reading: &reader)
         default: return []
         }
-        guard reader.isAtEnd else { throw MalformedSpend() }
+        guard reader.isAtEnd else { throw InstructionError.unknownLayout }
         return nullifiers
     }
 
@@ -85,13 +86,15 @@ extension ShieldedPool {
     ///
     /// - Parameter reader: The reader, which ends after the data's last tree context.
     /// - Returns: The 32-byte input nullifiers, in input order.
-    /// - Throws: ``MalformedSpend`` for data that doesn't follow the transact layout.
-    private static func transactNullifiers(reading reader: inout ByteReader) throws -> [[UInt8]] {
+    /// - Throws: ``InstructionError/unknownLayout`` for data that doesn't follow the transact layout.
+    private static func transactNullifiers(reading reader: inout WincodeReader) throws -> [[UInt8]] {
         _ = try reader.integer() as UInt64
-        try reader.skip(taggedKeyLength + SlotCipher.saltLength)
+        try reader.skip(Curve25519.KeyAgreement.PublicKey.taggedRepresentationLength + SlotCipher.saltLength)
         for _ in 0..<(try reader.count()) {
             let kind: UInt8 = try reader.integer()
-            guard solTransferKinds.contains(kind) || splTransferKinds.contains(kind) else { throw MalformedSpend() }
+            guard solTransferKinds.contains(kind) || splTransferKinds.contains(kind) else {
+                throw InstructionError.unknownLayout
+            }
             _ = try reader.integer() as UInt64
             if splTransferKinds.contains(kind) { _ = try reader.integer() as UInt8 }
         }
@@ -103,7 +106,7 @@ extension ShieldedPool {
             switch try reader.integer() as UInt8 {
             case TransactOutput.inlineVariant: try reader.skip(hashLength)
             case TransactOutput.accountVariant: _ = try reader.integer() as UInt8
-            default: throw MalformedSpend()
+            default: throw InstructionError.unknownLayout
             }
             if try reader.isPresent() { try reader.skipVector() }
         }
@@ -113,13 +116,13 @@ extension ShieldedPool {
         }
         try reader.skip(hashLength)
         let circuit: UInt16 = try reader.integer()
-        guard transactCircuits.contains(circuit) else { throw MalformedSpend() }
+        guard transactCircuits.contains(circuit) else { throw InstructionError.unknownLayout }
         try reader.skip(shapeLength)
         if eddsaCircuits.contains(circuit) { try reader.skip(eddsaPayloadLength) }
         if cachedCircuits.contains(circuit) { try reader.skip(cachePayloadLength) }
         try reader.skip(TransactProof.length)
         let nullifiers = try (0..<(try reader.count())).map { _ in
-            let nullifier = [UInt8](try reader.read(count: hashLength))
+            let nullifier = try reader.array(count: hashLength)
             _ = try reader.integer() as UInt8
             return nullifier
         }
@@ -131,55 +134,15 @@ extension ShieldedPool {
     ///
     /// - Parameter reader: The reader, which ends after the data's cache slot.
     /// - Returns: The 32-byte nullifiers, in order.
-    /// - Throws: ``MalformedSpend`` for data that doesn't follow the merge layout.
-    private static func mergeNullifiers(reading reader: inout ByteReader) throws -> [[UInt8]] {
+    /// - Throws: ``InstructionError/unknownLayout`` for data that doesn't follow the merge layout.
+    private static func mergeNullifiers(reading reader: inout WincodeReader) throws -> [[UInt8]] {
         _ = try reader.integer() as UInt64
         try reader.skip(TransactProof.length + hashLength)
-        guard try reader.integer() as UInt8 == mergeEncryptionScheme else { throw MalformedSpend() }
+        guard try reader.integer() as UInt8 == mergeEncryptionScheme else { throw InstructionError.unknownLayout }
         try reader.skip(SlotCipher.saltLength + mergeCiphertextLength + hashLength)
-        let nullifiers = try (0..<(try reader.count())).map { _ in [UInt8](try reader.read(count: hashLength)) }
+        let nullifiers = try (0..<(try reader.count())).map { _ in try reader.array(count: hashLength) }
         try reader.skip(rootIndicesLength)
         if try reader.isPresent() { _ = try reader.integer() as UInt8 }
         return nullifiers
     }
 }
-
-extension ByteReader {
-    /// Reads past bytes.
-    ///
-    /// - Parameter count: The number of bytes.
-    /// - Throws: The reader's error if fewer bytes remain.
-    fileprivate mutating func skip(_ count: Int) throws {
-        _ = try read(count: count)
-    }
-
-    /// Reads a one-byte element count.
-    ///
-    /// - Returns: The count.
-    /// - Throws: The reader's error if no byte remains.
-    fileprivate mutating func count() throws -> Int {
-        Int(try integer() as UInt8)
-    }
-
-    /// Reads whether an option is present.
-    ///
-    /// - Returns: Whether the option's value follows.
-    /// - Throws: The reader's error if no byte remains, or ``MalformedSpend`` for a byte other than 0 or 1.
-    fileprivate mutating func isPresent() throws -> Bool {
-        switch try integer() as UInt8 {
-        case 0: false
-        case 1: true
-        default: throw MalformedSpend()
-        }
-    }
-
-    /// Reads past a byte vector: its little-endian 16-bit length and its bytes.
-    ///
-    /// - Throws: The reader's error if the vector is truncated.
-    fileprivate mutating func skipVector() throws {
-        try skip(Int(try integer() as UInt16))
-    }
-}
-
-/// Spend instruction data that doesn't follow the shielded-pool program's layout.
-private struct MalformedSpend: Error {}

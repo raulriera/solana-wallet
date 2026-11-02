@@ -57,15 +57,11 @@ extension Zolana {
     @concurrent
     public func merkleProofs(for leaves: [[UInt8]], inTree tree: String) async throws -> [MerkleProof] {
         guard leaves.allSatisfy({ $0.count == 32 }) else { throw PrivateNoteError.invalidLeaf }
-        guard let treeBytes = Base58.decode(tree, byteCount: 32) else { throw PrivateNoteError.invalidTree }
+        guard Base58.decode(tree, byteCount: 32) != nil else { throw PrivateNoteError.invalidTree }
         let indexer = indexer
         return try await Self.map(leaves.batches(of: Self.leafGroupSize)) { batch in
-            let entries = try await Self.page(GetMerkleProofs(treeAccount: tree, leaves: batch.map(Base58.encode)),
-                                              from: indexer).proofs
-            guard entries.map(\.proof.leaf) == batch, entries.allSatisfy({ $0.tree == treeBytes }) else {
-                throw RPCError.invalidResponse(.mismatchedProofs)
-            }
-            return entries.map(\.proof)
+            try await Self.page(GetMerkleProofs(treeAccount: tree, leaves: batch.map(Base58.encode)), from: indexer)
+                .proofs.map(\.proof)
         }.flatMap(\.self)
     }
 

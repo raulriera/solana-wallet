@@ -18,7 +18,7 @@ struct SpentNullifiersLiveTests {
             tags.formUnion(transaction.instructionData(invoking: ShieldedPool.programID).compactMap(\.first))
 
             #expect(transaction.error == nil)
-            #expect(ShieldedPool.nullifiers(spentBy: transaction) == Set(spend.nullifiers))
+            #expect(try ShieldedPool.nullifiers(spentBy: transaction) == Set(spend.nullifiers))
         }
 
         #expect(tags.isSuperset(of: [ShieldedPool.transactTag, ShieldedPool.mergeTransactTag]))

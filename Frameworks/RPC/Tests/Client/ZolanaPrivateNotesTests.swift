@@ -6,6 +6,15 @@ import Testing
 struct ZolanaPrivateNotesTests {
     private typealias Fixture = IndexerFixtures
 
+    private static let unansweredProofs: [([String], [(leaf: UInt8, tree: UInt8)])] = [
+        ([IndexerFixtures.merkleProof(leaf: 8), IndexerFixtures.merkleProof(leaf: 7)], [(8, 9), (7, 9)]),
+        ([IndexerFixtures.merkleProof(leaf: 7)], [(7, 9)]),
+        ([IndexerFixtures.merkleProof(leaf: 7), IndexerFixtures.merkleProof(leaf: 6), IndexerFixtures.merkleProof(leaf: 8)],
+         [(7, 9), (6, 9), (8, 9)]),
+        ([IndexerFixtures.merkleProof(leaf: 7), IndexerFixtures.merkleProof(leaf: 8, tree: IndexerFixtures.hash(4))],
+         [(7, 9), (8, 4)]),
+    ]
+
     @Test(arguments: IndexerFixtures.hosts)
     func `Tag reads post to each stream's route at the network's indexer`(network: Network, host: String) async throws {
         let transport = StubTransport { try reply(to: $0, payload: Fixture.page(in: rows(for: $0))) }
@@ -379,20 +388,18 @@ struct ZolanaPrivateNotesTests {
         ])
     }
 
-    @Test(arguments: [
-        [IndexerFixtures.merkleProof(leaf: 7), IndexerFixtures.merkleProof(leaf: 6)],
-        [IndexerFixtures.merkleProof(leaf: 8), IndexerFixtures.merkleProof(leaf: 7)],
-        [IndexerFixtures.merkleProof(leaf: 7)],
-        [IndexerFixtures.merkleProof(leaf: 7), IndexerFixtures.merkleProof(leaf: 8), IndexerFixtures.merkleProof(leaf: 8)],
-        [IndexerFixtures.merkleProof(leaf: 7), IndexerFixtures.merkleProof(leaf: 8, tree: IndexerFixtures.hash(4))],
-    ])
-    func `Merkle proofs that don't answer the request are rejected`(proofs: [String]) async throws {
+    @Test(arguments: unansweredProofs)
+    func `Merkle proofs that don't answer the request are returned as the indexer sent them`(
+        proofs: [String],
+        named: [(leaf: UInt8, tree: UInt8)]
+    ) async throws {
         let transport = StubTransport { try reply(to: $0, payload: Fixture.proofs(proofs)) }
         let rpc = Zolana(network: .devnet, transport: transport)
 
-        await #expect(throws: RPCError.invalidResponse(.mismatchedProofs)) {
-            try await rpc.merkleProofs(for: [Fixture.bytes(7), Fixture.bytes(8)], inTree: Fixture.hash(9))
-        }
+        let returned = try await rpc.merkleProofs(for: [Fixture.bytes(7), Fixture.bytes(8)], inTree: Fixture.hash(9))
+
+        #expect(returned.map(\.leaf) == named.map { Fixture.bytes($0.leaf) })
+        #expect(returned.map(\.tree) == named.map { Fixture.bytes($0.tree) })
     }
 
     @Test
@@ -424,13 +431,13 @@ struct ZolanaPrivateNotesTests {
     }
 
     @Test
-    func `A group of proofs that doesn't answer its leaves fails the read`() async {
-        let transport = Self.answeringProofs { $0.count == 1 ? [Fixture.hash(0xee)] : $0 }
+    func `A group of proofs that doesn't answer its leaves keeps its place in request order`() async throws {
+        let transport = Self.answeringProofs { $0.count == 1 ? [Fixture.hash(0xee), Fixture.hash(0xef)] : $0 }
         let rpc = Zolana(network: .devnet, transport: transport)
 
-        await #expect(throws: RPCError.invalidResponse(.mismatchedProofs)) {
-            try await rpc.merkleProofs(for: (0..<401).map(Self.leaf), inTree: Fixture.hash(9))
-        }
+        let proofs = try await rpc.merkleProofs(for: (0..<401).map(Self.leaf), inTree: Fixture.hash(9))
+
+        #expect(proofs.map(\.leaf) == (0..<400).map(Self.leaf) + [Fixture.bytes(0xee), Fixture.bytes(0xef)])
     }
 
     @Test

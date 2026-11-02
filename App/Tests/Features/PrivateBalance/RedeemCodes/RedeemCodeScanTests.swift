@@ -73,7 +73,7 @@ struct RedeemCodeScanTests {
         }
         let client = await Self.client(responses)
 
-        await #expect(throws: RPCError.invalidResponse(.invalidCursor)) {
+        await #expect(throws: RPCError.invalidResponse(.endlessStream)) {
             try await RedeemCodeScan.fundings(of: [3], from: keys, using: client)
         }
         #expect(try await RedeemCodeFixtures.tagCounts(of: responses).count == 128)

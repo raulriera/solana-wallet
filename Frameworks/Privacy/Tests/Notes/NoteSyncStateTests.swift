@@ -82,7 +82,7 @@ struct NoteSyncStateTests {
         let (state, _) = try await sync(NoteSyncState(), with: Indexer(transactions: [transfer], deposits: [deposit, foreignDeposit]))
 
         #expect(state.notes == (try notes(in: deposit) + notes(in: transfer)))
-        #expect(state.lamports == 1_000_006)
+        #expect(state.spendableLamports == 1_000_006)
         #expect(state.position == NoteSyncPosition(tags: sender.viewTags, transactionCursors: ["AQ=="], outputCursors: ["AQ=="]))
     }
 
@@ -92,7 +92,7 @@ struct NoteSyncStateTests {
 
         #expect(state.notes == (try notes(in: deposit) + notes(in: laterDeposit)))
         #expect(state.unconfirmedNotes.isEmpty)
-        #expect(state.lamports == 1_000_042)
+        #expect(state.spendableLamports == 1_000_042)
         #expect(Set(try await Self.proofReads(of: transport)) == Set(state.notes.map { [Base58.encode($0.utxo.hash.bigEndianBytes)] }))
         #expect(try await Self.treeReads(of: transport) == 1)
     }
@@ -106,11 +106,11 @@ struct NoteSyncStateTests {
         #expect(unconfirmed.notes.isEmpty)
         #expect(unconfirmed.unconfirmedNotes == (try notes(in: deposit)))
         #expect(unconfirmed.hasUnconfirmedNotes)
-        #expect(unconfirmed.lamports == 0)
+        #expect(unconfirmed.spendableLamports == 0)
         #expect(included.notes == (try notes(in: deposit)))
         #expect(included.unconfirmedNotes.isEmpty)
         #expect(!included.hasUnconfirmedNotes)
-        #expect(included.lamports == 1_000_000)
+        #expect(included.spendableLamports == 1_000_000)
         #expect(try await Self.proofReads(of: transport) == [[Base58.encode(try notes(in: deposit)[0].utxo.hash.bigEndianBytes)]])
     }
 
@@ -122,7 +122,7 @@ struct NoteSyncStateTests {
 
         #expect(state.notes == (try notes(in: deposit)))
         #expect(state.unconfirmedNotes.isEmpty)
-        #expect(state.lamports == 1_000_000)
+        #expect(state.spendableLamports == 1_000_000)
         #expect(later == state)
         #expect(try await Self.proofReads(of: transport).isEmpty)
     }
@@ -162,7 +162,7 @@ struct NoteSyncStateTests {
         let (state, _) = try await sync(first, with: Indexer(spends: [spend(of: first.notes)]))
 
         #expect(state.notes.isEmpty)
-        #expect(state.lamports == 0)
+        #expect(state.spendableLamports == 0)
     }
 
     @Test
@@ -195,7 +195,7 @@ struct NoteSyncStateTests {
         let (state, transport) = try await sync(first, with: Indexer(transactions: [spender], spends: [spender]))
 
         #expect(state.notes.isEmpty)
-        #expect(state.lamports == 0)
+        #expect(state.spendableLamports == 0)
         #expect(try await Self.transactionReads(of: transport) == [spender.signature])
     }
 
@@ -208,9 +208,9 @@ struct NoteSyncStateTests {
         let (confirmed, transport) = try await sync(unconfirmed, with: Indexer(spends: [spender]))
 
         #expect(unconfirmed.notes == first.notes)
-        #expect(unconfirmed.lamports == 1_000_000)
+        #expect(unconfirmed.spendableLamports == 1_000_000)
         #expect(confirmed.notes.isEmpty)
-        #expect(confirmed.lamports == 0)
+        #expect(confirmed.spendableLamports == 0)
         #expect(try await Self.transactionReads(of: transport) == [spender.signature])
     }
 
@@ -223,7 +223,7 @@ struct NoteSyncStateTests {
         let (state, _) = try await sync(first, with: Indexer(spends: [spender], onChain: [spender.signature: failed]))
 
         #expect(state.notes == first.notes)
-        #expect(state.lamports == 1_000_000)
+        #expect(state.spendableLamports == 1_000_000)
         #expect(state.rejectedSpends == [spender.signature])
     }
 
@@ -236,7 +236,7 @@ struct NoteSyncStateTests {
         let (state, _) = try await sync(first, with: Indexer(spends: [spender], onChain: [spender.signature: unrelated]))
 
         #expect(state.notes == first.notes)
-        #expect(state.lamports == 1_000_000)
+        #expect(state.spendableLamports == 1_000_000)
         #expect(state.rejectedSpends == [spender.signature])
     }
 
@@ -256,6 +256,54 @@ struct NoteSyncStateTests {
         #expect(named.notes == first.notes)
         #expect(forgotten.rejectedSpends.isEmpty)
         #expect(forgotten.notes == first.notes)
+    }
+
+    @Test
+    func `Spend claims whose transaction ten reads in a row don't find count as refuted`() async throws {
+        let (first, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit]))
+        let spender = spend(of: first.notes)
+        let indexer = Indexer(spends: [spender], onChain: [spender.signature: "null"])
+        var waiting = first
+        for _ in 0..<9 {
+            waiting = try await sync(waiting, with: indexer).0
+        }
+
+        let (refuted, transport) = try await sync(waiting, with: indexer)
+        let (later, laterTransport) = try await sync(refuted, with: indexer)
+
+        #expect(waiting.rejectedSpends.isEmpty)
+        #expect(waiting.notes == first.notes)
+        #expect(try await Self.transactionReads(of: transport) == [spender.signature])
+        #expect(refuted.rejectedSpends == [spender.signature])
+        #expect(refuted.notes == first.notes)
+        #expect(try await Self.transactionReads(of: laterTransport).isEmpty)
+        #expect(later.notes == first.notes)
+    }
+
+    @Test
+    func `Missing reads of a spend claim are saved until no claim names it`() async throws {
+        let (first, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit]))
+        let spender = spend(of: first.notes)
+
+        let (missing, _) = try await sync(first, with: Indexer(spends: [spender], onChain: [spender.signature: "null"]))
+        let decoded = try JSONDecoder().decode(NoteSyncState.self, from: JSONEncoder().encode(missing))
+        let (forgotten, _) = try await sync(decoded, with: Indexer())
+
+        #expect(decoded.missingSpendReads == [spender.signature: 1])
+        #expect(forgotten.missingSpendReads.isEmpty)
+        #expect(forgotten.notes == first.notes)
+    }
+
+    @Test
+    func `A successful spend claim with spend data of an unknown layout fails the sync`() async throws {
+        let (first, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit]))
+        let spender = spend(of: first.notes)
+        let data = Array(SpendTransactions.transactData(spending: spender.nullifiers).dropLast())
+        let unknown = SpendTransactions.result(of: [(SpendTransactions.program, data)])
+
+        await #expect(throws: ShieldedPool.InstructionError.unknownLayout) {
+            try await sync(first, with: Indexer(spends: [spender], onChain: [spender.signature: unknown]))
+        }
     }
 
     @Test
@@ -279,7 +327,8 @@ struct NoteSyncStateTests {
     func `A sync reads at most eight claimed spends, the oldest first, and a later sync reads the rest`() async throws {
         let counted = (0..<10).map { Self.syntheticNote(at: UInt8($0)) }
         let state = try NoteSyncState(
-            position: nil, notes: counted, unconfirmedNotes: [], outputTreeID: nil, pending: [], localSpends: [], rejectedSpends: []
+            position: nil, notes: counted, unconfirmedNotes: [], outputTreeID: nil, pending: [], localSpends: [],
+            rejectedSpends: [], missingSpendReads: [:]
         )
         let spenders = counted.enumerated().map { index, note in
             spend(of: [note], signature: UInt8(40 + index), slot: UInt64(100 - index))
@@ -299,7 +348,8 @@ struct NoteSyncStateTests {
     func `Syncs to the end read each claimed spend once across their batches`() async throws {
         let (first, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit]))
         let held = try NoteSyncState(
-            position: nil, notes: first.notes, unconfirmedNotes: [], outputTreeID: nil, pending: [], localSpends: [], rejectedSpends: []
+            position: nil, notes: first.notes, unconfirmedNotes: [], outputTreeID: nil, pending: [], localSpends: [],
+            rejectedSpends: [], missingSpendReads: [:]
         )
         let spender = spend(of: first.notes)
         let indexer = Indexer(
@@ -311,6 +361,7 @@ struct NoteSyncStateTests {
         let state = try await held.syncedToEnd(for: sender, rpc: Solana.devnet(transport: transport), indexer: Self.indexer(transport))
 
         #expect(state.notes == first.notes)
+        #expect(state.missingSpendReads == [spender.signature: 1])
         #expect(try await Self.nullifierReads(of: transport).count > 1)
         #expect(try await Self.transactionReads(of: transport) == [spender.signature])
     }
@@ -324,7 +375,7 @@ struct NoteSyncStateTests {
         let (state, _) = try await sync(first, with: Indexer(transactions: [forged], onChain: [forged.signature: unrelated]))
 
         #expect(state.notes == first.notes)
-        #expect(state.lamports == 1_000_000)
+        #expect(state.spendableLamports == 1_000_000)
     }
 
     @Test
@@ -337,7 +388,7 @@ struct NoteSyncStateTests {
 
         #expect(state.notes.isEmpty)
         #expect(state.unconfirmedNotes.isEmpty)
-        #expect(state.lamports == 0)
+        #expect(state.spendableLamports == 0)
         #expect(try await Self.transactionReads(of: transport).isEmpty)
         #expect(try await Self.proofReads(of: transport).isEmpty)
     }
@@ -439,7 +490,7 @@ struct NoteSyncStateTests {
             let payload = IndexerResponses.page([filler], in: "matches", next: next, scanned: "AQ==")
             return try reply(to: request, payload: payload)
         }
-        await #expect(throws: RPCError.invalidResponse(.invalidCursor)) {
+        await #expect(throws: RPCError.invalidResponse(.endlessStream)) {
             try await NoteSyncState().syncedToEnd(for: sender, rpc: Solana.devnet(transport: transport), indexer: Self.indexer(transport))
         }
         let routes = await transport.requests.map { $0.url?.lastPathComponent }
@@ -559,7 +610,7 @@ struct NoteSyncStateTests {
 
         #expect(state.notes == (try notes(in: laterDeposit)))
         #expect(state.pendingLamports == 5)
-        #expect(state.lamports == 47)
+        #expect(state.spendableLamports == 42)
     }
 
     @Test
@@ -595,11 +646,11 @@ struct NoteSyncStateTests {
         let (reported, _) = try await sync(unreported, with: Indexer(deposits: [deposit]))
 
         #expect(recorded.notes.isEmpty)
-        #expect(recorded.lamports == 1_000_000)
+        #expect(recorded.pendingLamports == 1_000_000)
         #expect(unreported.pendingLamports == 1_000_000)
         #expect(reported.pendingLamports == 0)
         #expect(reported.notes == (try notes(in: deposit)))
-        #expect(reported.lamports == 1_000_000)
+        #expect(reported.spendableLamports == 1_000_000)
     }
 
     @Test
@@ -611,10 +662,10 @@ struct NoteSyncStateTests {
 
         #expect(unconfirmed.notes.isEmpty)
         #expect(unconfirmed.pendingLamports == 1_000_000)
-        #expect(unconfirmed.lamports == 1_000_000)
+        #expect(unconfirmed.spendableLamports == 0)
         #expect(included.notes == (try notes(in: deposit)))
         #expect(included.pendingLamports == 0)
-        #expect(included.lamports == 1_000_000)
+        #expect(included.spendableLamports == 1_000_000)
     }
 
     @Test
@@ -627,7 +678,7 @@ struct NoteSyncStateTests {
         #expect(recorded.pendingLamports == 6)
         #expect(state.notes.isEmpty)
         #expect(state.pendingLamports == 0)
-        #expect(state.lamports == 0)
+        #expect(state.spendableLamports == 0)
         #expect(try await Self.proofReads(of: transport).isEmpty)
     }
 
@@ -646,7 +697,7 @@ struct NoteSyncStateTests {
         #expect(held.pendingLamports == 6)
         #expect(claimed.unconfirmedNotes.isEmpty)
         #expect(claimed.pendingLamports == 0)
-        #expect(claimed.lamports == 0)
+        #expect(claimed.spendableLamports == 0)
         #expect(try await Self.transactionReads(of: transport).isEmpty)
     }
 
@@ -659,9 +710,9 @@ struct NoteSyncStateTests {
             .recording(depositOf: 1_000_000, signature: deposit.signature)
 
         #expect(afterSync.pendingLamports == 0)
-        #expect(afterSync.lamports == 1_000_000)
+        #expect(afterSync.spendableLamports == 1_000_000)
         #expect(twice.pendingLamports == 1_000_000)
-        #expect(twice.lamports == 1_000_000)
+        #expect(twice.spendableLamports == 0)
     }
 
     @Test
@@ -674,9 +725,9 @@ struct NoteSyncStateTests {
             .recording(privateSpend(of: notes(in: deposit), receiving: 5), signature: IndexerResponses.signature(8))
 
         #expect(afterSync.pendingLamports == 0)
-        #expect(afterSync.lamports == 6)
+        #expect(afterSync.spendableLamports == 6)
         #expect(twice.pendingLamports == 5)
-        #expect(twice.lamports == 11)
+        #expect(twice.spendableLamports == 6)
     }
 
     @Test
@@ -691,10 +742,10 @@ struct NoteSyncStateTests {
 
         let state = try respent.recording(spend, signature: transfer.signature)
 
-        #expect(synced.lamports == 6)
+        #expect(synced.spendableLamports == 6)
         #expect(respent.notes.isEmpty)
         #expect(state.pendingLamports == 0)
-        #expect(state.lamports == 0)
+        #expect(state.spendableLamports == 0)
     }
 
     @Test
@@ -702,13 +753,14 @@ struct NoteSyncStateTests {
         let (synced, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit]))
         let pending = try NoteSyncState(
             position: synced.position, notes: synced.notes, unconfirmedNotes: [], outputTreeID: nil,
-            pending: [PendingAmount(signature: deposit.signature, lamports: 1_000_000)], localSpends: [], rejectedSpends: []
+            pending: [PendingAmount(signature: deposit.signature, lamports: 1_000_000)], localSpends: [],
+            rejectedSpends: [], missingSpendReads: [:]
         )
 
         let (state, _) = try await sync(pending, with: Indexer())
 
         #expect(state.pendingLamports == 0)
-        #expect(state.lamports == 1_000_000)
+        #expect(state.spendableLamports == 1_000_000)
     }
 
     @Test
@@ -752,7 +804,7 @@ struct NoteSyncStateTests {
         #expect(!decoded.localSpends.isEmpty)
     }
 
-    @Test(arguments: ["notes", "unconfirmedNotes", "outputTreeID", "pending", "localSpends", "rejectedSpends"])
+    @Test(arguments: ["notes", "unconfirmedNotes", "outputTreeID", "pending", "localSpends", "rejectedSpends", "missingSpendReads"])
     func `Encoded states without a field are rejected`(key: String) async throws {
         var fields = try #require(try JSONSerialization.jsonObject(with: JSONEncoder().encode(NoteSyncState())) as? [String: Any])
         fields[key] = nil
@@ -827,7 +879,7 @@ struct NoteSyncStateTests {
     private func largestState() throws -> NoteSyncState {
         try NoteSyncState(
             position: nil, notes: notes(in: largestDeposit), unconfirmedNotes: [], outputTreeID: nil, pending: [], localSpends: [],
-            rejectedSpends: []
+            rejectedSpends: [], missingSpendReads: [:]
         )
     }
 

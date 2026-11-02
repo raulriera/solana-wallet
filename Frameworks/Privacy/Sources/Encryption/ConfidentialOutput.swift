@@ -18,11 +18,9 @@ struct ConfidentialOutput: Sendable {
     /// The length of the encoding tag and the declared length, in bytes.
     private static let headerLength = 5
 
-    /// The length of a tagged X25519 public key, in bytes.
-    private static let publicKeyLength = 33
-
     /// The length of the scheme, the recipient key, and the ciphertext, in bytes.
-    private static let bodyLength = 1 + publicKeyLength + ConfidentialPlaintext.length
+    private static let bodyLength = 1 + Curve25519.KeyAgreement.PublicKey.taggedRepresentationLength
+        + ConfidentialPlaintext.length
 
     /// The length of a SOL output's payload, in bytes.
     static let payloadLength = headerLength + bodyLength
@@ -66,14 +64,13 @@ struct ConfidentialOutput: Sendable {
         guard payload[Self.headerLength] == Self.confidentialScheme else { throw ValidationError.unsupportedScheme }
         guard payload.count == Self.payloadLength else { throw ValidationError.invalidLength }
         let keyStart = Self.headerLength + 1
+        let keyEnd = keyStart + Curve25519.KeyAgreement.PublicKey.taggedRepresentationLength
         do {
-            recipientViewingPublicKey = try Curve25519.KeyAgreement.PublicKey(
-                taggedRepresentation: payload[keyStart..<keyStart + Self.publicKeyLength]
-            )
+            recipientViewingPublicKey = try Curve25519.KeyAgreement.PublicKey(taggedRepresentation: payload[keyStart..<keyEnd])
         } catch {
             throw ValidationError.invalidRecipientKey
         }
-        ciphertext = Array(payload[(keyStart + Self.publicKeyLength)...])
+        ciphertext = Array(payload[keyEnd...])
     }
 
     /// Seals a note for an output's recipient.
