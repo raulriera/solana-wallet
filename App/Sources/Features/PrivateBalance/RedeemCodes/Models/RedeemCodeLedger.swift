@@ -24,8 +24,8 @@ nonisolated struct RedeemCodeLedger: Codable, Equatable, Sendable {
         self.pending = []
         self.nextIndex = nextIndex
         self.isDiscovered = isDiscovered
-        pending.forEach { hold($0) }
-        records.forEach { add($0) }
+        for code in pending { hold(code) }
+        for record in records { add(record) }
     }
 
     /// Adds a code, replacing a record or a pending index at the same index, and moves the next index above it.
@@ -64,13 +64,13 @@ nonisolated struct RedeemCodeLedger: Codable, Equatable, Sendable {
     }
 
     /// Adds the codes that a scan of the chain found, keeping recorded codes at the same indices, and marks the ledger
-    /// as discovered.
+    /// as discovered once a scan is.
     ///
     /// - Parameter discovered: The ledger that the scan built.
     mutating func merge(_ discovered: RedeemCodeLedger) {
         for record in discovered.records where !records.contains(where: { $0.index == record.index }) { add(record) }
         nextIndex = max(nextIndex, discovered.nextIndex)
-        isDiscovered = true
+        isDiscovered = isDiscovered || discovered.isDiscovered
     }
 
     /// Applies what the indexer reports for the codes and pending indices.
@@ -88,16 +88,19 @@ nonisolated struct RedeemCodeLedger: Codable, Equatable, Sendable {
                                      created: record.created, fundingSignature: record.fundingSignature))
             case .spent?:
                 remove([record.index])
-            case .unfunded?, nil:
+            case .unfunded?, .unconfirmed?, nil:
                 break
             }
         }
         for code in pending {
-            if case .unspent(let lamports, let signature)? = statuses[code.index] {
+            switch statuses[code.index] {
+            case .unspent(let lamports, let signature)?:
                 add(RedeemCodeRecord(index: code.index, amount: lamports, reserve: reserves[code.index] ?? 0,
                                      created: code.created, fundingSignature: signature))
-            } else if statuses[code.index] != nil, code.isExpired(at: date) {
-                release(code.index)
+            case .unfunded?, .spent?:
+                if code.isExpired(at: date) { release(code.index) }
+            case .unconfirmed?, nil:
+                break
             }
         }
     }

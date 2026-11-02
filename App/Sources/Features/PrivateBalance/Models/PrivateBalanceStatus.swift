@@ -16,6 +16,6 @@ nonisolated enum PrivateBalanceStatus: Equatable, Sendable {
     /// - Parameter state: The account's notes.
     /// - Returns: The available and pending balance.
     static func balance(of state: NoteSyncState) -> PrivateBalanceStatus {
-        .balance(available: state.lamports - state.pendingLamports, pending: state.pendingLamports)
+        .balance(available: state.spendableLamports, pending: state.pendingLamports)
     }
 }

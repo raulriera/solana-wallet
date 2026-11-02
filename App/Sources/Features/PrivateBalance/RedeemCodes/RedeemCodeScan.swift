@@ -21,6 +21,9 @@ nonisolated enum RedeemCodeScan {
         case unspent(lamports: UInt64, signature: String)
         /// Every note that the one-time account received is spent.
         case spent
+        /// The one-time account received notes whose roots their trees' accounts don't hold yet, so its code stays as
+        /// it is.
+        case unconfirmed
     }
 
     /// The number of indices that one tag read of a discovery checks.
@@ -82,28 +85,38 @@ nonisolated enum RedeemCodeScan {
         }
     }
 
-    /// Reads the unspent lamports of paid one-time accounts.
+    /// Reads the statuses of paid one-time accounts from their notes.
     ///
     /// - Parameters:
     ///   - fundings: The paid one-time accounts.
     ///   - keys: The account's keys.
-    ///   - provider: The indexer of the account's network.
-    /// - Returns: The lamports of each one-time account's unspent notes, by index, for those that hold any.
+    ///   - rpc: The client of the account's network, which reads the notes' trees.
+    ///   - indexer: The indexer of the account's network.
+    /// - Returns: Each one-time account's status by index: ``Status/unconfirmed`` while any of its notes is
+    ///   unconfirmed, ``Status/unspent(lamports:signature:)`` while it holds unspent notes, and otherwise
+    ///   ``Status/spent``.
     /// - Throws: A derivation, sync, or cancellation error.
     @concurrent
-    static func unspentLamports(of fundings: [Funding], from keys: PrivateBalanceKeyRecord,
-                                using provider: some PrivateNoteProviding) async throws -> [UInt32: UInt64] {
-        try await withThrowingTaskGroup(of: (UInt32, UInt64).self) { group in
+    static func statuses(of fundings: [Funding], from keys: PrivateBalanceKeyRecord, rpc: some RPC,
+                         indexer: some PrivateNoteProviding) async throws -> [UInt32: Status] {
+        try await withThrowingTaskGroup(of: (UInt32, Status).self) { group in
             for funding in fundings {
                 group.addTask {
                     let account = try keys.oneTimeAccount(at: funding.index).shieldedAccount
-                    let state = try await NoteSyncState().syncedToEnd(for: account, using: provider)
-                    return (funding.index, state.lamports)
+                    let state = try await NoteSyncState().syncedToEnd(for: account, rpc: rpc, indexer: indexer)
+                    let status: Status = if state.hasUnconfirmedNotes {
+                        .unconfirmed
+                    } else if state.spendableLamports > 0 {
+                        .unspent(lamports: state.spendableLamports, signature: funding.signature)
+                    } else {
+                        .spent
+                    }
+                    return (funding.index, status)
                 }
             }
-            var unspent: [UInt32: UInt64] = [:]
-            for try await (index, lamports) in group where lamports > 0 { unspent[index] = lamports }
-            return unspent
+            var statuses: [UInt32: Status] = [:]
+            for try await (index, status) in group { statuses[index] = status }
+            return statuses
         }
     }
 
@@ -112,20 +125,16 @@ nonisolated enum RedeemCodeScan {
     /// - Parameters:
     ///   - indices: The indices to check, in ascending order.
     ///   - keys: The account's keys.
-    ///   - provider: The indexer of the account's network.
+    ///   - rpc: The client of the account's network, which reads the notes' trees.
+    ///   - indexer: The indexer of the account's network.
     /// - Returns: Each index's status.
     /// - Throws: A derivation, sync, request, transport, response, or cancellation error.
     @concurrent
-    static func statuses(of indices: [UInt32], from keys: PrivateBalanceKeyRecord,
-                         using provider: some PrivateNoteProviding) async throws -> [UInt32: Status] {
-        let fundings = try await fundings(of: indices, from: keys, using: provider)
-        let unspent = try await unspentLamports(of: fundings, from: keys, using: provider)
-        var statuses = Dictionary(uniqueKeysWithValues: indices.map { ($0, Status.unfunded) })
-        for funding in fundings {
-            statuses[funding.index] = unspent[funding.index].map { .unspent(lamports: $0, signature: funding.signature) }
-                ?? .spent
-        }
-        return statuses
+    static func statuses(of indices: [UInt32], from keys: PrivateBalanceKeyRecord, rpc: some RPC,
+                         indexer: some PrivateNoteProviding) async throws -> [UInt32: Status] {
+        let fundings = try await fundings(of: indices, from: keys, using: indexer)
+        let funded = try await statuses(of: fundings, from: keys, rpc: rpc, indexer: indexer)
+        return Dictionary(uniqueKeysWithValues: indices.map { ($0, Status.unfunded) }).merging(funded) { $1 }
     }
 
     /// Reads which one-time accounts at indices shielded transactions paid, with tag reads of one tag group until no

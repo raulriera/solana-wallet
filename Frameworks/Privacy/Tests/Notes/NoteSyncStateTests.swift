@@ -8,14 +8,20 @@ import Transactions
 
 struct NoteSyncStateTests {
     private struct Indexer: Sendable {
+        var earlier: [ShieldedTransaction] = []
         var transactions: [ShieldedTransaction] = []
         var deposits: [ShieldedTransaction] = []
+        var forgedDeposits: [ShieldedTransaction] = []
         var spends: [ShieldedTransaction] = []
         var scanned = "AQ=="
         var outputTreeID: UInt16?
         var depositsPerPage: Int?
+        var isFinalized = true
 
         func respond(to request: URLRequest) throws -> (Data, URLResponse) {
+            let trees = UTXOTrees(rows: (earlier + transactions).map(IndexerResponses.row) + deposits.map(IndexerResponses.match),
+                                  forging: forgedDeposits.map(IndexerResponses.match), isFinalized: isFinalized)
+            if let reply = try trees.respond(to: request) { return reply }
             switch try #require(request.url?.lastPathComponent) {
             case GetShieldedTransactionsByTags.method:
                 return try reply(
@@ -35,6 +41,7 @@ struct NoteSyncStateTests {
         }
 
         func depositPage(answering request: URLRequest) throws -> (deposits: [ShieldedTransaction], next: String?) {
+            let deposits = deposits + forgedDeposits
             guard let depositsPerPage else { return (deposits, nil) }
             let page = try PageCursor.page(of: request)
             let start = page * depositsPerPage
@@ -76,12 +83,65 @@ struct NoteSyncStateTests {
     }
 
     @Test
+    func `Received notes count once their proofs lead to roots that their trees' accounts hold`() async throws {
+        let (state, transport) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit, laterDeposit]))
+
+        #expect(state.notes == (try notes(in: deposit) + notes(in: laterDeposit)))
+        #expect(state.unconfirmedNotes.isEmpty)
+        #expect(state.lamports == 1_000_042)
+        #expect(Set(try await Self.proofReads(of: transport)) == Set(state.notes.map { [Base58.encode($0.utxo.hash.bigEndianBytes)] }))
+        #expect(try await Self.treeReads(of: transport) == 1)
+    }
+
+    @Test
+    func `Notes whose roots aren't on chain yet count after a later sync finds them`() async throws {
+        let (unconfirmed, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit], isFinalized: false))
+
+        let (included, transport) = try await sync(unconfirmed, with: Indexer(earlier: [deposit]))
+
+        #expect(unconfirmed.notes.isEmpty)
+        #expect(unconfirmed.unconfirmedNotes == (try notes(in: deposit)))
+        #expect(unconfirmed.hasUnconfirmedNotes)
+        #expect(unconfirmed.lamports == 0)
+        #expect(included.notes == (try notes(in: deposit)))
+        #expect(included.unconfirmedNotes.isEmpty)
+        #expect(!included.hasUnconfirmedNotes)
+        #expect(included.lamports == 1_000_000)
+        #expect(try await Self.proofReads(of: transport) == [[Base58.encode(try notes(in: deposit)[0].utxo.hash.bigEndianBytes)]])
+    }
+
+    @Test
+    func `Notes whose proofs don't lead to their roots are dropped`() async throws {
+        let (state, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit], forgedDeposits: [laterDeposit]))
+
+        let (later, transport) = try await sync(state, with: Indexer(earlier: [deposit]))
+
+        #expect(state.notes == (try notes(in: deposit)))
+        #expect(state.unconfirmedNotes.isEmpty)
+        #expect(state.lamports == 1_000_000)
+        #expect(later == state)
+        #expect(try await Self.proofReads(of: transport).isEmpty)
+    }
+
+    @Test
+    func `Spent unconfirmed notes are dropped`() async throws {
+        let (unconfirmed, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit], isFinalized: false))
+        let spender = spend(of: unconfirmed.unconfirmedNotes)
+
+        let (state, transport) = try await sync(unconfirmed, with: Indexer(earlier: [deposit], spends: [spender]))
+
+        #expect(state.notes.isEmpty)
+        #expect(state.unconfirmedNotes.isEmpty)
+        #expect(try await Self.nullifierReads(of: transport) == [unconfirmed.unconfirmedNotes.map { Base58.encode($0.nullifier.bigEndianBytes) }])
+    }
+
+    @Test
     func `Resumed syncs read after the stored position`() async throws {
         let (first, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit]))
 
         let (state, transport) = try await sync(first, with: Indexer(deposits: [laterDeposit], scanned: "Ag=="))
 
-        let cursors = try await transport.requests.filter { $0.url?.lastPathComponent != GetShieldedTransactionsByNullifiers.method }
+        let cursors = try await Self.tagReads(of: transport)
             .map { try #require(try requestBody($0)["params"] as? [String: Any])["cursor"] as? String }
         #expect(cursors == ["AQ==", "AQ=="])
         #expect(state.notes == (try notes(in: deposit) + notes(in: laterDeposit)))
@@ -167,9 +227,9 @@ struct NoteSyncStateTests {
     @Test
     func `Syncs to the end read every batch of a backlog`() async throws {
         let indexer = Indexer(deposits: Array(repeating: foreignDeposit, count: 8) + [deposit], depositsPerPage: 1)
-        let provider = Zolana(network: .devnet, transport: StubTransport { try indexer.respond(to: $0) })
+        let transport = StubTransport { try indexer.respond(to: $0) }
 
-        let state = try await NoteSyncState().syncedToEnd(for: sender, using: provider)
+        let state = try await NoteSyncState().syncedToEnd(for: sender, rpc: Solana.devnet(transport: transport), indexer: Self.indexer(transport))
 
         let tags = sender.viewTags
         #expect(state.notes == (try notes(in: deposit)))
@@ -187,10 +247,8 @@ struct NoteSyncStateTests {
             let payload = IndexerResponses.page([filler], in: "matches", next: next, scanned: "AQ==")
             return try reply(to: request, payload: payload)
         }
-        let provider = Zolana(network: .devnet, transport: transport)
-
         await #expect(throws: RPCError.invalidResponse(.invalidCursor)) {
-            try await NoteSyncState().syncedToEnd(for: sender, using: provider)
+            try await NoteSyncState().syncedToEnd(for: sender, rpc: Solana.devnet(transport: transport), indexer: Self.indexer(transport))
         }
         let routes = await transport.requests.map { $0.url?.lastPathComponent }
         #expect(routes.filter { $0 == GetShieldedTransactionsByTags.method }.count == 128)
@@ -198,8 +256,10 @@ struct NoteSyncStateTests {
 
     @Test
     func `Totals beyond 64 bits fail the sync`() async throws {
+        let largest = try largestState()
+
         await #expect(throws: NoteSyncState.ValidationError.amountOverflow) {
-            try await sync(NoteSyncState(), with: Indexer(deposits: [deposit, largestDeposit]))
+            try await sync(largest, with: Indexer(deposits: [deposit]))
         }
     }
 
@@ -225,7 +285,7 @@ struct NoteSyncStateTests {
             return try indexer.respond(to: request)
         }
 
-        let state = try await first.synced(for: sender, using: Zolana(network: .devnet, transport: transport))
+        let state = try await first.synced(for: sender, rpc: Solana.devnet(transport: transport), indexer: Self.indexer(transport))
 
         #expect(state.notes == first.notes)
     }
@@ -248,7 +308,7 @@ struct NoteSyncStateTests {
             return try indexer.respond(to: request)
         }
 
-        let state = try await first.synced(for: sender, using: Zolana(network: .devnet, transport: transport))
+        let state = try await first.synced(for: sender, rpc: Solana.devnet(transport: transport), indexer: Self.indexer(transport))
 
         #expect(state.notes == (try notes(in: deposit) + notes(in: laterDeposit)))
         #expect(try await Self.nullifierReads(of: transport).count == 2)
@@ -271,7 +331,7 @@ struct NoteSyncStateTests {
         }
 
         await #expect(throws: RPCError.server(code: -32603, message: "failed")) {
-            try await first.synced(for: sender, using: Zolana(network: .devnet, transport: transport))
+            try await first.synced(for: sender, rpc: Solana.devnet(transport: transport), indexer: Self.indexer(transport))
         }
         #expect(await transport.observedCancellation)
     }
@@ -283,7 +343,7 @@ struct NoteSyncStateTests {
 
         let (_, transport) = try await sync(NoteSyncState(), with: Indexer())
 
-        let tags = try await transport.requests.filter { $0.url?.lastPathComponent != GetShieldedTransactionsByNullifiers.method }
+        let tags = try await Self.tagReads(of: transport)
             .map { try #require(try requestBody($0)["params"] as? [String: Any])["tags"] as? [String] }
         let expected = [Base58.encode(sender.signingAddress.bytes), Base58.encode(viewingTag)]
         #expect(tags == [expected, expected])
@@ -351,6 +411,35 @@ struct NoteSyncStateTests {
     }
 
     @Test
+    func `Pending amounts stay until their transaction's notes are included`() async throws {
+        let recorded = try NoteSyncState().recording(depositOf: 1_000_000, signature: deposit.signature)
+
+        let (unconfirmed, _) = try await sync(recorded, with: Indexer(deposits: [deposit], isFinalized: false))
+        let (included, _) = try await sync(unconfirmed, with: Indexer(earlier: [deposit]))
+
+        #expect(unconfirmed.notes.isEmpty)
+        #expect(unconfirmed.pendingLamports == 1_000_000)
+        #expect(unconfirmed.lamports == 1_000_000)
+        #expect(included.notes == (try notes(in: deposit)))
+        #expect(included.pendingLamports == 0)
+        #expect(included.lamports == 1_000_000)
+    }
+
+    @Test
+    func `Pending amounts end when their transaction's notes are spent in the same batch`() async throws {
+        let (first, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit]))
+        let recorded = try first.recording(privateSpend(of: first.notes, receiving: 6), signature: transfer.signature)
+
+        let (state, transport) = try await sync(recorded, with: Indexer(transactions: [transfer, spend(of: notes(in: transfer))]))
+
+        #expect(recorded.pendingLamports == 6)
+        #expect(state.notes.isEmpty)
+        #expect(state.pendingLamports == 0)
+        #expect(state.lamports == 0)
+        #expect(try await Self.proofReads(of: transport).isEmpty)
+    }
+
+    @Test
     func `Recorded deposits are counted once`() async throws {
         let (synced, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit]))
 
@@ -401,7 +490,7 @@ struct NoteSyncStateTests {
     func `Pending amounts end when a kept note comes from their transaction`() async throws {
         let (synced, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit]))
         let pending = try NoteSyncState(
-            position: synced.position, notes: synced.notes, outputTreeID: nil,
+            position: synced.position, notes: synced.notes, unconfirmedNotes: [], outputTreeID: nil,
             pending: [PendingAmount(signature: deposit.signature, lamports: 1_000_000)], localSpends: []
         )
 
@@ -419,21 +508,24 @@ struct NoteSyncStateTests {
     }
 
     @Test
-    func `Records beyond 64 bits are rejected`() async throws {
-        let (largest, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [largestDeposit]))
+    func `Records beyond 64 bits are rejected`() throws {
+        let largest = try largestState()
 
         #expect(throws: NoteSyncState.ValidationError.amountOverflow) {
             try largest.recording(depositOf: 1_000_000, signature: IndexerResponses.signature(8))
         }
     }
 
-    @Test
-    func `States survive encoding`() async throws {
-        let (state, _) = try await sync(NoteSyncState(), with: Indexer(transactions: [transfer], deposits: [deposit]))
+    @Test(arguments: [true, false])
+    func `States survive encoding`(isFinalized: Bool) async throws {
+        let indexer = Indexer(transactions: [transfer], deposits: [deposit], isFinalized: isFinalized)
+        let (state, _) = try await sync(NoteSyncState(), with: indexer)
 
         let decoded = try JSONDecoder().decode(NoteSyncState.self, from: JSONEncoder().encode(state))
 
         #expect(decoded == state)
+        #expect(decoded.notes.isEmpty == !isFinalized)
+        #expect(decoded.unconfirmedNotes.isEmpty == isFinalized)
     }
 
     @Test
@@ -449,7 +541,7 @@ struct NoteSyncStateTests {
         #expect(!decoded.localSpends.isEmpty)
     }
 
-    @Test(arguments: ["notes", "outputTreeID", "pending", "localSpends"])
+    @Test(arguments: ["notes", "unconfirmedNotes", "outputTreeID", "pending", "localSpends"])
     func `Encoded states without a field are rejected`(key: String) async throws {
         var fields = try #require(try JSONSerialization.jsonObject(with: JSONEncoder().encode(NoteSyncState())) as? [String: Any])
         fields[key] = nil
@@ -485,7 +577,7 @@ struct NoteSyncStateTests {
 
     @Test
     func `Encoded totals beyond 64 bits are rejected`() async throws {
-        let (largest, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [largestDeposit]))
+        let largest = try largestState()
         let (small, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit]))
         var fields = try #require(try JSONSerialization.jsonObject(with: JSONEncoder().encode(largest)) as? [String: Any])
         let notes = try #require(fields["notes"] as? [Any])
@@ -517,8 +609,14 @@ struct NoteSyncStateTests {
 
     private func sync(_ state: NoteSyncState, with indexer: Indexer) async throws -> (NoteSyncState, StubTransport) {
         let transport = StubTransport { try indexer.respond(to: $0) }
-        let synced = try await state.synced(for: sender, using: Zolana(network: .devnet, transport: transport))
+        let synced = try await state.synced(for: sender, rpc: Solana.devnet(transport: transport), indexer: Self.indexer(transport))
         return (synced, transport)
+    }
+
+    private func largestState() throws -> NoteSyncState {
+        try NoteSyncState(
+            position: nil, notes: notes(in: largestDeposit), unconfirmedNotes: [], outputTreeID: nil, pending: [], localSpends: []
+        )
     }
 
     private func notes(in transaction: ShieldedTransaction) throws -> [ReceivedNote] {
@@ -546,5 +644,25 @@ struct NoteSyncStateTests {
 
     private static func nullifierReads(of transport: StubTransport) async throws -> [[String]] {
         try await transport.requests.filter { $0.url?.lastPathComponent == GetShieldedTransactionsByNullifiers.method }.map(nullifiers)
+    }
+
+    private static func proofReads(of transport: StubTransport) async throws -> [[String]] {
+        try await transport.requests.filter { $0.url?.lastPathComponent == GetMerkleProofs.method }.map {
+            try MerkleProofReplies.requestedLeaves(in: $0).leaves
+        }
+    }
+
+    private static func treeReads(of transport: StubTransport) async throws -> Int {
+        try await transport.requests.count { try requestBody($0)["method"] as? String == GetMultipleAccounts.method }
+    }
+
+    private static func tagReads(of transport: StubTransport) async -> [URLRequest] {
+        await transport.requests.filter {
+            [GetShieldedTransactionsByTags.method, GetEncryptedUtxosByTags.method].contains($0.url?.lastPathComponent)
+        }
+    }
+
+    private static func indexer(_ transport: StubTransport) -> Zolana {
+        Zolana(network: .devnet, transport: transport)
     }
 }

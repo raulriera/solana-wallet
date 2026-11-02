@@ -85,7 +85,7 @@ struct PrivateBalanceStoreTests {
         _ = await (first, second)
 
         #expect(store.balance(for: account, on: .devnet)?.status == .unregistered)
-        #expect(await PrivateBalanceFixtures.registryReads(of: responses) == 1)
+        #expect(await PrivateBalanceFixtures.nonTreeAccountReads(of: responses) == 1)
     }
 
     @Test

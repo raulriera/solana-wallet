@@ -46,6 +46,16 @@ struct RedeemCodeLedgerTests {
     }
 
     @Test
+    func `Merging a scan that isn't discovered keeps the ledger undiscovered`() {
+        var ledger = RedeemCodeLedger(isDiscovered: false)
+
+        ledger.merge(RedeemCodeLedger(nextIndex: 4, isDiscovered: false))
+
+        #expect(!ledger.isDiscovered)
+        #expect(ledger.nextIndex == 4)
+    }
+
+    @Test
     func `The highest index keeps the next index`() {
         var ledger = RedeemCodeLedger(nextIndex: 3, isDiscovered: true)
 
@@ -118,6 +128,17 @@ struct RedeemCodeLedgerTests {
         #expect(ledger.pending == [Self.pending(at: 4)])
         #expect(ledger.records.isEmpty)
         #expect(ledger.nextIndex == 7)
+    }
+
+    @Test
+    func `Codes and pending indices with unconfirmed notes stay`() {
+        let expired = PendingRedeemCode(index: 5, created: Self.now.addingTimeInterval(-3_601))
+        let ledger = RedeemCodeLedger(records: [Self.record(at: 1)], pending: [expired], isDiscovered: true)
+        var reconciled = ledger
+
+        reconciled.reconcile(with: [1: .unconfirmed, 5: .unconfirmed], reserves: [:], at: Self.now)
+
+        #expect(reconciled == ledger)
     }
 
     @Test

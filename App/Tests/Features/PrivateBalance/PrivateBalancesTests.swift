@@ -193,8 +193,94 @@ struct PrivateBalancesTests {
         #expect(later == .balance(available: 1_000_000, pending: 0))
         #expect(saved?.lamports == 1_000_000)
         #expect(await notes.value?[id] == saved)
-        #expect(try await Self.methods(of: responses).filter { $0 == GetMultipleAccounts.method }.count == 1)
+        #expect(await PrivateBalanceFixtures.nonTreeAccountReads(of: responses) == 1)
+        #expect(try await Self.methods(of: responses).filter { $0 == GetMerkleProofs.method }.count == 1)
         #expect(try await Self.tagCursors(of: responses) == [nil, HTTPResponses.indexerPosition])
+    }
+
+    @Test
+    func `Notes whose roots aren't on chain yet count after a later refresh finds them`() async throws {
+        let registered = try await Self.registeredAccount(index: 0, lamports: 1_000_000)
+        let keys = StoredValue([registered.account.address.value: registered.keys])
+        let id = PrivateBalances.noteID(of: registered.account, on: .devnet)
+        let notes = StoredValue<PrivateBalances.Notes>([id: NoteSyncState()])
+        let lagging = HTTPResponses.privateNotes(deposits: [registered.deposit],
+                                                 trees: UTXOTrees(rows: [registered.deposit], isFinalized: false))
+        let finalized = HTTPResponses.privateNotes(trees: UTXOTrees(rows: [registered.deposit]))
+
+        let first = try await Self.balances(lagging, keys: keys, notes: notes).refresh(registered.account, on: .devnet)
+        let unconfirmed = await notes.value?[id]
+        let later = try await Self.balances(finalized, keys: keys, notes: notes).refresh(registered.account, on: .devnet)
+
+        #expect(first == .balance(available: 0, pending: 0))
+        #expect(unconfirmed?.notes.isEmpty == true)
+        #expect(later == .balance(available: 1_000_000, pending: 0))
+        #expect(await notes.value?[id]?.notes.map(\.signature) == [RedeemCodeFixtures.signature(ofDepositAt: 1)])
+        #expect(try await Self.methods(of: finalized).contains(GetMerkleProofs.method))
+    }
+
+    @Test
+    func `Notes whose proofs don't lead to their roots never count`() async throws {
+        let registered = try await Self.registeredAccount(index: 0, lamports: 1_000_000)
+        let shielded = try registered.keys.shieldedAccount(for: registered.account.address)
+        let forged = try PrivateBalanceFixtures.deposit(5_000_000, to: shielded, leafIndex: 7)
+        let keys = StoredValue([registered.account.address.value: registered.keys])
+        let id = PrivateBalances.noteID(of: registered.account, on: .devnet)
+        let notes = StoredValue<PrivateBalances.Notes>([id: NoteSyncState()])
+        let responses = HTTPResponses.privateNotes(deposits: [registered.deposit, forged],
+                                                   trees: UTXOTrees(rows: [registered.deposit], forging: [forged]))
+        let later = HTTPResponses.privateNotes()
+
+        let first = try await Self.balances(responses, keys: keys, notes: notes).refresh(registered.account, on: .devnet)
+        let second = try await Self.balances(later, keys: keys, notes: notes).refresh(registered.account, on: .devnet)
+
+        #expect(first == .balance(available: 1_000_000, pending: 0))
+        #expect(second == .balance(available: 1_000_000, pending: 0))
+        #expect(await notes.value?[id]?.notes.map(\.signature) == [RedeemCodeFixtures.signature(ofDepositAt: 1)])
+        #expect(try await !Self.methods(of: later).contains(GetMerkleProofs.method))
+    }
+
+    @Test
+    func `Spent unconfirmed notes never count`() async throws {
+        let registered = try await Self.registeredAccount(index: 0, lamports: 1_000_000)
+        let shielded = try registered.keys.shieldedAccount(for: registered.account.address)
+        let keys = StoredValue([registered.account.address.value: registered.keys])
+        let id = PrivateBalances.noteID(of: registered.account, on: .devnet)
+        let notes = StoredValue<PrivateBalances.Notes>([id: NoteSyncState()])
+        let lagging = HTTPResponses.privateNotes(deposits: [registered.deposit],
+                                                 trees: UTXOTrees(rows: [registered.deposit], isFinalized: false))
+        let spent = HTTPResponses.privateNotes(spends: [try PrivateBalanceFixtures.spend(of: 1_000_000, to: shielded, leafIndex: 1)],
+                                               trees: UTXOTrees(rows: [registered.deposit]))
+
+        let first = try await Self.balances(lagging, keys: keys, notes: notes).refresh(registered.account, on: .devnet)
+        let later = try await Self.balances(spent, keys: keys, notes: notes).refresh(registered.account, on: .devnet)
+
+        #expect(first == .balance(available: 0, pending: 0))
+        #expect(later == .balance(available: 0, pending: 0))
+        #expect(await notes.value?[id]?.notes.isEmpty == true)
+        #expect(try await Self.methods(of: spent).contains(GetShieldedTransactionsByNullifiers.method))
+    }
+
+    @Test
+    func `A completed deposit stays pending until its notes are included`() async throws {
+        let registered = try await Self.registeredAccount(index: 0, lamports: 1_000_000)
+        let keys = StoredValue([registered.account.address.value: registered.keys])
+        let id = PrivateBalances.noteID(of: registered.account, on: .devnet)
+        let notes = StoredValue<PrivateBalances.Notes>([id: NoteSyncState()])
+        let lagging = HTTPResponses.privateNotes(deposits: [registered.deposit],
+                                                 trees: UTXOTrees(rows: [registered.deposit], isFinalized: false))
+        let finalized = HTTPResponses.privateNotes(trees: UTXOTrees(rows: [registered.deposit]))
+        let balances = try await Self.balances(lagging, keys: keys, notes: notes)
+        let confirmation = PrivateBalanceFixtures.confirmation(.succeeded, signature: RedeemCodeFixtures.signature(ofDepositAt: 1))
+        let completed = try await balances.complete(PrivateBalanceFixtures.preparedDeposit(1_000_000, from: registered.account),
+                                                    with: confirmation)
+
+        let reported = try await balances.refresh(registered.account, on: .devnet)
+        let included = try await Self.balances(finalized, keys: keys, notes: notes).refresh(registered.account, on: .devnet)
+
+        #expect(completed == .balance(available: 0, pending: 1_000_000))
+        #expect(reported == .balance(available: 0, pending: 1_000_000))
+        #expect(included == .balance(available: 1_000_000, pending: 0))
     }
 
     @Test
@@ -330,7 +416,7 @@ struct PrivateBalancesTests {
             GetShieldedTransactionsByTags.method: ["null", HTTPResponses.indexerPage([], in: "transactions")],
             GetEncryptedUtxosByTags.method: [HTTPResponses.indexerPage([deposit], in: "matches")],
             GetShieldedTransactionsByNullifiers.method: [HTTPResponses.indexerPage([], in: "transactions")],
-        ])
+        ], trees: UTXOTrees(rows: [deposit]))
         let id = PrivateBalances.noteID(of: account, on: .devnet)
         let notes = StoredValue<PrivateBalances.Notes>([id: NoteSyncState()])
         let balances = try await Self.balances(responses, keys: StoredValue([account.address.value: record]),
@@ -435,7 +521,7 @@ struct PrivateBalancesTests {
         #expect(await notes.deletions == 1)
         #expect(await notes.value?[firstID]?.lamports == 1_000)
         #expect(await notes.value?[secondID]?.lamports == 2_000)
-        #expect(try await Self.methods(of: responses).filter { $0 == GetMultipleAccounts.method }.count == 2)
+        #expect(await PrivateBalanceFixtures.nonTreeAccountReads(of: responses) == 2)
         #expect(try await Self.tagCursors(of: responses) == [nil, nil])
     }
 

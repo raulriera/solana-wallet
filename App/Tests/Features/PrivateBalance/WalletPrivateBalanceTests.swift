@@ -187,7 +187,7 @@ struct WalletPrivateBalanceTests {
         await running.value
         await settling.value
 
-        #expect(await PrivateBalanceFixtures.registryReads(of: responses) == 2)
+        #expect(await PrivateBalanceFixtures.nonTreeAccountReads(of: responses) == 2)
         #expect(balance.status == .balance(available: 0, pending: 0))
     }
 
@@ -249,7 +249,7 @@ struct WalletPrivateBalanceTests {
 
         await balance.poll()
 
-        #expect(await PrivateBalanceFixtures.registryReads(of: responses) == 2)
+        #expect(await PrivateBalanceFixtures.nonTreeAccountReads(of: responses) == 2)
     }
 
     @Test

@@ -28,10 +28,10 @@ struct ShieldedAccountLiveTests {
     @Test
     func `Syncs with other keys find no notes and resume`() async throws {
         let account = try Self.randomKeys(for: Address(ShieldedPoolOwners.devnet[0]))
-        let provider = Zolana(network: .devnet)
+        let (rpc, indexer) = (Solana(network: .devnet), Zolana(network: .devnet))
 
-        let first = try await NoteSyncState().synced(for: account, using: provider)
-        let later = try await first.synced(for: account, using: provider)
+        let first = try await NoteSyncState().synced(for: account, rpc: rpc, indexer: indexer)
+        let later = try await first.synced(for: account, rpc: rpc, indexer: indexer)
 
         #expect(first.notes.isEmpty)
         #expect(first != NoteSyncState())

@@ -33,7 +33,7 @@ struct UTXORootHistoryTests {
     func `Histories hold the written roots in slot order`(cursor: UInt16, count: UInt16) throws {
         let roots = (0..<Int(count)).map { Self.root(UInt8($0 % 251), salt: UInt8($0 / 251)) }
 
-        let history = try UTXORootHistory(accountData: Self.account(cursor: cursor, count: count, roots: roots))
+        let history = try UTXORootHistory(accountData: UTXOTrees.account(cursor: cursor, count: count, roots: roots))
 
         #expect(history.count == Int(count))
         #expect((0..<Int(count)).map { history.root(at: $0).map(Array.init) } == roots)
@@ -41,7 +41,7 @@ struct UTXORootHistoryTests {
 
     @Test
     func `Unwritten slots of a partial history aren't roots`() throws {
-        let data = Self.account(cursor: 1, count: 2, roots: [Self.root(1), Self.root(2), Self.root(3)])
+        let data = UTXOTrees.account(cursor: 1, count: 2, roots: [Self.root(1), Self.root(2), Self.root(3)])
 
         let history = try UTXORootHistory(accountData: data)
 
@@ -50,13 +50,13 @@ struct UTXORootHistoryTests {
     }
 
     @Test(arguments: [
-        (Array(account(cursor: 0, count: 1, roots: [root(1)]).dropLast()), ShieldedPool.TreeError.invalidLength),
-        (account(cursor: 0, count: 1, roots: [root(1)]) + [0], .invalidLength),
-        (account(cursor: 0, count: 1, capacity: 499, roots: [root(1)]), .invalidRootHistory),
-        (account(cursor: 0, count: 0, roots: []), .invalidRootHistory),
-        (account(cursor: 0, count: 501, roots: []), .invalidRootHistory),
-        (account(cursor: 500, count: 500, roots: []), .invalidRootHistory),
-        (account(cursor: 0, count: 2, roots: [root(1), root(2)]), .invalidRootHistory),
+        (Array(UTXOTrees.account(cursor: 0, count: 1, roots: [root(1)]).dropLast()), ShieldedPool.TreeError.invalidLength),
+        (UTXOTrees.account(cursor: 0, count: 1, roots: [root(1)]) + [0], .invalidLength),
+        (UTXOTrees.account(cursor: 0, count: 1, capacity: 499, roots: [root(1)]), .invalidRootHistory),
+        (UTXOTrees.account(cursor: 0, count: 0, roots: []), .invalidRootHistory),
+        (UTXOTrees.account(cursor: 0, count: 501, roots: []), .invalidRootHistory),
+        (UTXOTrees.account(cursor: 500, count: 500, roots: []), .invalidRootHistory),
+        (UTXOTrees.account(cursor: 0, count: 2, roots: [root(1), root(2)]), .invalidRootHistory),
     ])
     func `Malformed tree accounts are refused`(data: [UInt8], error: ShieldedPool.TreeError) {
         #expect(throws: error) { try UTXORootHistory(accountData: data) }
@@ -77,15 +77,6 @@ struct UTXORootHistoryTests {
 
     static func root(_ byte: UInt8, salt: UInt8 = 0) -> [UInt8] {
         [salt] + Array(repeating: byte, count: 31)
-    }
-
-    static func account(cursor: UInt16, count: UInt16, capacity: UInt16 = 500, roots: [[UInt8]]) -> [UInt8] {
-        var data = [1] + [UInt8](repeating: 0, count: 111)
-        data.appendLittleEndian(cursor)
-        data.appendLittleEndian(count)
-        data.appendLittleEndian(capacity)
-        data += [UInt8](repeating: 0, count: 1_152 - data.count) + roots.joined()
-        return data + [UInt8](repeating: 0, count: 40_080 - data.count)
     }
 
     private static func status(after change: Change) throws -> ReceivedNote.InclusionStatus {
@@ -126,7 +117,7 @@ struct UTXORootHistoryTests {
         case .nonCanonicalSibling:
             path[0] = Array(repeating: 0xff, count: 32)
         }
-        let history = try UTXORootHistory(accountData: account(cursor: UInt16(roots.count - 1), count: UInt16(roots.count), roots: roots))
+        let history = try UTXORootHistory(accountData: UTXOTrees.account(cursor: UInt16(roots.count - 1), count: UInt16(roots.count), roots: roots))
         let changedProof = MerkleProof(leaf: proofLeaf, path: path, leafIndex: proofIndex, root: proof.root, rootIndex: proof.rootIndex)
         return history.inclusionStatus(of: leaf, at: noteIndex, provenBy: changedProof)
     }

@@ -1,10 +1,10 @@
 import CryptoKit
 import Foundation
 import Privacy
-@testable import RPC
 import Testing
 import Transactions
 import Wallet
+@testable import RPC
 @testable import widgets
 
 @Suite(.timeLimit(.minutes(1)))
@@ -296,7 +296,45 @@ struct PrivateBalancesRedeemCodesTests {
                                             try RedeemCode(secret: sender.keys.oneTimeAccount(at: 1).secret,
                                                            network: .devnet)])
         #expect(await codes.value?[sender.id]?.records == expected)
-        #expect(try await !Self.methods(of: responses).contains(GetMultipleAccounts.method))
+        #expect(await PrivateBalanceFixtures.nonTreeAccountReads(of: responses) == 0)
+    }
+
+    @Test
+    func `A funded code whose notes aren't confirmed keeps its record until a later scan confirms them`() async throws {
+        let sender = try await Self.sender()
+        let deposits = [try RedeemCodeFixtures.deposit(700, to: sender.keys.oneTimeAccount(at: 0), leafIndex: 3)]
+        let codes = StoredValue([sender.id: RedeemCodeLedger(records: [Self.record(at: 0)], isDiscovered: true)])
+        let lagging = try RedeemCodeFixtures.responses(accounts: [:], deposits: deposits, isFinalized: false)
+        let finalized = try RedeemCodeFixtures.responses(accounts: [:], deposits: deposits)
+
+        let unconfirmed = try await Self.balances(lagging, keys: sender.storedKeys, notes: sender.notes, codes: codes)
+            .outstandingCodes(of: sender.account, on: .devnet)
+        let kept = await codes.value?[sender.id]?.records
+        let confirmed = try await Self.balances(finalized, keys: sender.storedKeys, notes: sender.notes, codes: codes)
+            .outstandingCodes(of: sender.account, on: .devnet)
+
+        #expect(unconfirmed.map(\.record) == [Self.record(at: 0)])
+        #expect(kept == [Self.record(at: 0)])
+        #expect(confirmed.map(\.record) == [Self.record(at: 0, amount: 700)])
+        #expect(await codes.value?[sender.id]?.records == [Self.record(at: 0, amount: 700)])
+    }
+
+    @Test(arguments: [(false, UInt64(0)), (false, RedeemCodeFixtures.reserve), (true, 0)])
+    func `Codes whose notes aren't confirmed aren't ready to redeem or take back`(takesBack: Bool, reserve: UInt64) async throws {
+        let sender = try await Self.sender()
+        let oneTime = try sender.keys.oneTimeAccount(at: 1)
+        var accounts = [try RedeemCodeFixtures.recordAddress(of: sender.account): sender.record]
+        if reserve > 0 { accounts[oneTime.address] = RedeemCodeFixtures.systemAccount(lamports: reserve) }
+        let deposits = [sender.deposit, try RedeemCodeFixtures.deposit(1_000, to: oneTime, leafIndex: 3)]
+        let responses = try RedeemCodeFixtures.responses(accounts: accounts, deposits: deposits, isFinalized: false)
+        let request: PrivateTransactionRequest = takesBack
+            ? .takeBack(index: 1) : .redeem(try RedeemCode(secret: oneTime.secret, network: .devnet))
+
+        await #expect(throws: PrivateBalanceError.codeNotReady) {
+            try await Self.balances(responses, keys: sender.storedKeys, notes: sender.notes)
+                .prepare(request, from: sender.account, on: .devnet)
+        }
+        #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 0)
     }
 
     @Test
@@ -364,6 +402,33 @@ struct PrivateBalancesRedeemCodesTests {
         #expect(record.reserve == 1_400_000)
         #expect(record.fundingSignature == RedeemCodeFixtures.signature(ofDepositAt: 4))
         #expect(await codes.value?[sender.id]?.nextIndex == 3)
+        #expect(await codes.value?[sender.id]?.isDiscovered == true)
+    }
+
+    @Test
+    func `Discovery runs again while a found code's notes aren't confirmed`() async throws {
+        let sender = try await Self.sender()
+        let held = try sender.keys.oneTimeAccount(at: 0)
+        let deposits = [try RedeemCodeFixtures.deposit(700, to: held, leafIndex: 3)]
+        let accounts = [held.address: RedeemCodeFixtures.systemAccount(lamports: 1_400_000)]
+        let lagging = try RedeemCodeFixtures.responses(accounts: accounts, deposits: deposits, isFinalized: false)
+        let finalized = try RedeemCodeFixtures.responses(accounts: accounts, deposits: deposits)
+        let codes = StoredValue<PrivateBalances.Codes>()
+
+        let unconfirmed = try await Self.balances(lagging, keys: sender.storedKeys, notes: sender.notes, codes: codes)
+            .outstandingCodes(of: sender.account, on: .devnet)
+        let undiscovered = await codes.value?[sender.id]
+        let confirmed = try await Self.balances(finalized, keys: sender.storedKeys, notes: sender.notes, codes: codes)
+            .outstandingCodes(of: sender.account, on: .devnet)
+
+        #expect(unconfirmed.isEmpty)
+        #expect(undiscovered?.records.isEmpty == true)
+        #expect(undiscovered?.isDiscovered == false)
+        #expect(undiscovered?.nextIndex == 1)
+        #expect(confirmed.map(\.record.index) == [0])
+        #expect(confirmed.map(\.record.amount) == [700])
+        #expect(confirmed.map(\.record.reserve) == [1_400_000])
+        #expect(confirmed.map(\.record.fundingSignature) == [RedeemCodeFixtures.signature(ofDepositAt: 3)])
         #expect(await codes.value?[sender.id]?.isDiscovered == true)
     }
 
@@ -459,9 +524,5 @@ struct PrivateBalancesRedeemCodesTests {
     private static func index(of transaction: PreparedPrivateTransaction) -> UInt32? {
         guard case .createCode(_, let index, _) = transaction.effect else { return nil }
         return index
-    }
-
-    private static func methods(of responses: HTTPResponses) async throws -> [String] {
-        try await responses.requests.map { try $0.rpcMethod }
     }
 }

@@ -112,8 +112,11 @@ enum PrivateBalanceFixtures {
         try Task.checkCancellation()
     }
 
-    static func registryReads(of responses: HTTPResponses) async -> Int {
-        await responses.requests.count { (try? $0.jsonBody()["method"] as? String) == GetMultipleAccounts.method }
+    static func nonTreeAccountReads(of responses: HTTPResponses) async -> Int {
+        let trees = (try? ShieldedPool.tree(id: 1).value).map { [$0] }
+        return await responses.requests.count { request in
+            (try? request.rpcMethod) == GetMultipleAccounts.method && (try? request.rpcParameters.first as? [String]) != trees
+        }
     }
 
     static func proofRequests(of responses: HTTPResponses) async -> Int {
@@ -134,18 +137,25 @@ enum PrivateBalanceFixtures {
     }
 
     static func deposit(_ lamports: UInt64, to account: ShieldedAccount, leafIndex: UInt64) throws -> String {
-        let treeID: UInt16 = 1
-        let owner = try account.recipient.owner
-        let blinding = ShieldedPool.depositBlinding(tree: try ShieldedPool.tree(id: treeID), leafIndex: leafIndex)
-        let mint = [UInt8](repeating: 0, count: 32)
-        let hash = UTXO(owner: owner, mint: mint, amount: lamports, blinding: blinding, treeID: treeID).hash
-        let body = [0] + owner.bigEndianBytes + blinding.bigEndianBytes + mint + littleEndian(lamports)
-            + [UInt8](repeating: 0, count: 5) + [0]
-        let payload = [0] + littleEndian(UInt32(body.count)) + body
-        let output = #"{"viewTag":"\#(account.signingAddress.value)","outputContext":{"hash":"\#(Base58.encode(hash.bigEndianBytes))","#
-            + #""treeId":\#(treeID),"leafIndex":\#(leafIndex)},"payload":"\#(Data(payload).base64EncodedString())"}"#
+        let utxo = try utxo(lamports, of: account, leafIndex: leafIndex)
+        var body = [0] + utxo.owner.bigEndianBytes + utxo.blinding.bigEndianBytes + utxo.mint
+        body.appendLittleEndian(lamports)
+        body += [UInt8](repeating: 0, count: 5) + [0]
+        var payload: [UInt8] = [0]
+        payload.appendLittleEndian(UInt32(body.count))
+        payload += body
+        let output = #"{"viewTag":"\#(account.signingAddress.value)","outputContext":{"hash":"\#(Base58.encode(utxo.hash.bigEndianBytes))","#
+            + #""treeId":\#(utxo.treeID),"leafIndex":\#(leafIndex)},"payload":"\#(Data(payload).base64EncodedString())"}"#
         let signature = Base58.encode([UInt8](repeating: UInt8(truncatingIfNeeded: leafIndex + 1), count: 64))
         return #"{"slot":3,"txSignature":"\#(signature)","outputSlot":\#(output),"txViewingPk":null,"salt":null}"#
+    }
+
+    static func spend(of lamports: UInt64, to account: ShieldedAccount, leafIndex: UInt64) throws -> String {
+        let utxo = try utxo(lamports, of: account, leafIndex: leafIndex)
+        let nullifier = Base58.encode(utxo.nullifier(using: account.nullifierKey).bigEndianBytes)
+        let signature = Base58.encode([UInt8](repeating: UInt8(truncatingIfNeeded: leafIndex + 101), count: 64))
+        return #"{"slot":4,"txSignature":"\#(signature)","txViewingPk":null,"salt":null,"outputSlots":[],"#
+            + #""nullifiers":["\#(nullifier)"],"proofless":false}"#
     }
 
     static func proofRequest(spending account: ShieldedAccount) throws -> IndexedTransferProofRequest {
@@ -158,7 +168,9 @@ enum PrivateBalanceFixtures {
         return try plan.proofRequest(nullifierKey: account.nullifierKey)
     }
 
-    private static func littleEndian<Value: FixedWidthInteger>(_ value: Value) -> [UInt8] {
-        withUnsafeBytes(of: value.littleEndian, Array.init)
+    private static func utxo(_ lamports: UInt64, of account: ShieldedAccount, leafIndex: UInt64) throws -> UTXO {
+        let blinding = ShieldedPool.depositBlinding(tree: try ShieldedPool.tree(id: 1), leafIndex: leafIndex)
+        return UTXO(owner: try account.recipient.owner, mint: [UInt8](repeating: 0, count: 32), amount: lamports,
+                    blinding: blinding, treeID: 1)
     }
 }

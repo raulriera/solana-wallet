@@ -10,6 +10,7 @@ actor HTTPResponses: HTTPTransport {
     private var responses: [String: [String]]
     private let respond: Responder?
     private let prover: StubProver?
+    private let trees: UTXOTrees?
     private let error: RPCError?
     private let failingMethod: String?
     private let gate: Suspension?
@@ -22,10 +23,12 @@ actor HTTPResponses: HTTPTransport {
     }
 
     init(_ responses: [String: [String]], error: RPCError? = nil, failingMethod: String? = nil,
-         gate: Suspension? = nil, heldMethod: String? = nil, prover: StubProver? = nil, respond: Responder? = nil) {
+         gate: Suspension? = nil, heldMethod: String? = nil, prover: StubProver? = nil, trees: UTXOTrees? = nil,
+         respond: Responder? = nil) {
         self.responses = responses
         self.respond = respond
         self.prover = prover
+        self.trees = trees
         self.error = error
         self.failingMethod = failingMethod
         self.gate = gate
@@ -45,6 +48,7 @@ actor HTTPResponses: HTTPTransport {
         wasCancelled = Task.isCancelled
         try Task.checkCancellation()
         if let reply = try prover?.respond(to: request) { return reply }
+        if let reply = try trees?.respond(to: request) { return reply }
         let error = failingMethod == nil || failingMethod == method ? self.error : nil
         if case .transport(let code) = error { throw URLError(code) }
         let status: Int

@@ -1,4 +1,5 @@
-/// Lamports that a confirmed transaction gave the account and that the indexer hasn't reported yet.
+/// Lamports that a confirmed transaction gave the account, until a sync finds one of the transaction's notes included
+/// or all of them spent.
 struct PendingAmount: Sendable, Equatable, Codable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
     let signature: String
 

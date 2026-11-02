@@ -299,7 +299,7 @@ actor PrivateBalances: PrivateBalancing {
             throw PrivateBalanceError.unavailable
         case .unregistered(let shielded):
             guard case .deposit = request else { throw PrivateBalanceError.insufficientBalance }
-            return (shielded, try await NoteSyncState().synced(for: shielded, using: client), true)
+            return (shielded, try await NoteSyncState().synced(for: shielded, rpc: client, indexer: client), true)
         case .synced(let shielded, let state):
             return (shielded, state, false)
         }
@@ -382,7 +382,7 @@ actor PrivateBalances: PrivateBalancing {
                     try await update(notes, .notes, from: generation) { $0[id] = $0[id] ?? NoteSyncState() }
                 }
             }
-            let synced = try await (saved ?? NoteSyncState()).synced(for: shielded, using: client)
+            let synced = try await (saved ?? NoteSyncState()).synced(for: shielded, rpc: client, indexer: client)
             try await update(notes, .notes, from: generation) { $0[id] = synced }
             return .synced(shielded, synced)
         } catch ProviderClientError.unsupportedNetwork {

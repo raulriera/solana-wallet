@@ -25,23 +25,21 @@ struct ReceivedNoteInclusionStatusTests {
                                   leafIndex: valid.leafIndex, root: valid.root, rootIndex: valid.rootIndex)
         let proofs = [Self.firstTree: [included, refuted], Self.seventhTree: [unconfirmed]]
         let accounts = [
-            UTXORootHistoryTests.account(cursor: 9, count: 10, roots: Array(repeating: UTXORootHistoryTests.root(2), count: 9) + [included.root]),
-            UTXORootHistoryTests.account(cursor: 0, count: 1, roots: [UTXORootHistoryTests.root(2)]),
+            UTXOTrees.account(cursor: 9, count: 10, roots: Array(repeating: UTXORootHistoryTests.root(2), count: 9) + [included.root]),
+            UTXOTrees.account(cursor: 0, count: 1, roots: [UTXORootHistoryTests.root(2)]),
         ]
         let transport = Self.transport(proofs: proofs, accounts: accounts)
 
         let statuses = try await ReceivedNote.inclusionStatuses(
-            of: [includedNote, unconfirmedNote, refutedNote], rpc: Solana(network: .devnet, transport: transport),
+            of: [includedNote, unconfirmedNote, refutedNote], rpc: Solana.devnet(transport: transport),
             indexer: Zolana(network: .devnet, transport: transport)
         )
 
         #expect(statuses == [.included, .unconfirmed, .refuted])
-        let bodies = try await transport.requests.map(requestBody)
+        let requests = await transport.requests
+        let bodies = try requests.map(requestBody)
         #expect(bodies.map { $0["method"] as? String } == ["getMerkleProofs", "getMerkleProofs", "getMultipleAccounts"])
-        let proofReads = Dictionary(uniqueKeysWithValues: try bodies.prefix(2).map { body in
-            let params = try #require(body["params"] as? [String: Any])
-            return (try #require(params["treeAccount"] as? String), try #require(params["leaves"] as? [String]))
-        })
+        let proofReads = Dictionary(uniqueKeysWithValues: try requests.prefix(2).map(MerkleProofReplies.requestedLeaves(in:)))
         #expect(proofReads == [
             Self.firstTree: [includedNote, refutedNote].map { Base58.encode($0.utxo.hash.bigEndianBytes) },
             Self.seventhTree: [Base58.encode(unconfirmedNote.utxo.hash.bigEndianBytes)],
@@ -54,7 +52,7 @@ struct ReceivedNoteInclusionStatusTests {
         let transport = StubTransport { _ in throw CancellationError() }
 
         let statuses = try await ReceivedNote.inclusionStatuses(
-            of: [], rpc: Solana(network: .devnet, transport: transport), indexer: Zolana(network: .devnet, transport: transport)
+            of: [], rpc: Solana.devnet(transport: transport), indexer: Zolana(network: .devnet, transport: transport)
         )
 
         #expect(statuses.isEmpty)
@@ -67,7 +65,7 @@ struct ReceivedNoteInclusionStatusTests {
         let transport = StubTransport { _ in throw CancellationError() }
 
         await #expect(throws: RPCError.invalidResponse(.mismatchedProofs)) {
-            try await ReceivedNote.inclusionStatuses(of: [note], rpc: Solana(network: .devnet, transport: transport),
+            try await ReceivedNote.inclusionStatuses(of: [note], rpc: Solana.devnet(transport: transport),
                                                      indexer: ProoflessIndexer())
         }
         #expect(await transport.requests.isEmpty)
@@ -80,7 +78,7 @@ struct ReceivedNoteInclusionStatusTests {
                 let values = accounts.map { ShieldedPoolTreeFeeTests.account(owner: ShieldedPool.programID, data: $0) }
                 return try reply(to: request, payload: #""result":{"context":{"slot":7},"value":[\#(values.joined(separator: ","))]}"#)
             }
-            let tree = try #require((body["params"] as? [String: Any])?["treeAccount"] as? String)
+            let tree = try MerkleProofReplies.requestedLeaves(in: request).tree
             let entries = try #require(proofs[tree]).map { Self.entry(for: $0, tree: tree) }
             return try reply(to: request, payload: #""result":\#(MerkleProofReplies.result(entries))"#)
         }
