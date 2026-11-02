@@ -31,8 +31,6 @@ A provider is a type in this module that conforms to [`RPC`](Sources/Client/RPC.
 | [`AccountChangeProviding`](Sources/Subscriptions/AccountChangeProviding.swift) | Finalized account change subscriptions |
 | [`SignatureEventProviding`](Sources/Subscriptions/SignatureEventProviding.swift) | Signature and root subscriptions |
 | [`LogoProviding`](Sources/Assets/LogoProviding.swift) | HTTPS token logos hosted by the provider |
-| [`PrivateNoteProviding`](Sources/PrivateNotes/PrivateNoteProviding.swift) | Solana Rings indexer reads |
-| [`ProofProviding`](Sources/Proofs/ProofProviding.swift) | Solana Rings transfer proofs |
 | [`PriceProviding`](Sources/Pricing/PriceProviding.swift) | Token prices keyed by mint |
 | [`ExchangeRateProviding`](Sources/Pricing/ExchangeRateProviding.swift) | Currency exchange rates |
 

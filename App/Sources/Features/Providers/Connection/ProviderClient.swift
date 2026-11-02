@@ -66,7 +66,7 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, SignatureEventPr
         try await performRings { try await $0.shieldedTransactions(spending: nullifiers) }
     }
 
-    /// Whether the selected provider serves this network.
+    /// Whether the client reads private notes, which it does where the selected provider serves this network.
     ///
     /// - Throws: The error of ``performRings(_:)`` other than ``ProviderClientError/unsupportedNetwork``.
     var readsPrivateNotes: Bool {

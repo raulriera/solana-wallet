@@ -235,10 +235,12 @@ actor PrivateBalances: PrivateBalancing {
             effect = .deposit(lamports)
         case .send(let lamports, _):
             guard let recipient else { throw PrivateBalanceError.recipientUnregistered }
-            let spend = try await state.spend(lamports, to: .transfer(recipient), from: shielded, provider: client)
+            let spend = try await state.spend(lamports, to: .transfer(recipient), from: shielded, rpc: client,
+                                              prover: client)
             (instructions, effect) = ([spend.instruction], .spend(spend))
         case .withdraw(let lamports, let destination):
-            let spend = try await state.spend(lamports, to: .withdrawal(destination), from: shielded, provider: client)
+            let spend = try await state.spend(lamports, to: .withdrawal(destination), from: shielded, rpc: client,
+                                              prover: client)
             (instructions, effect) = ([spend.instruction], .spend(spend))
         case .createCode, .redeem, .takeBack:
             throw Transactions.ValidationError.invalidTransaction

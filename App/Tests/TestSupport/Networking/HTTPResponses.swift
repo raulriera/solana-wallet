@@ -33,8 +33,7 @@ actor HTTPResponses: HTTPTransport {
     }
 
     nonisolated func client(socket: @escaping @Sendable (URL) -> any WebSocketConnection) -> HeliusRPC {
-        HeliusRPC(apiKey: "fixture-key", network: .devnet, transport: self, socket: socket,
-                  zolana: StubProver.zolana(transport: self))
+        HeliusRPC(apiKey: "fixture-key", network: .devnet, transport: self, socket: socket)
     }
 
     func data(for request: URLRequest) async throws -> (Data, URLResponse) {

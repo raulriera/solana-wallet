@@ -76,7 +76,7 @@ extension PrivateBalances {
         let index = try await chosenIndex
         let recipient = try keys.oneTimeAccount(at: index).shieldedAccount.recipient
         let spend = try await state.spend(lamports, to: .fundedTransfer(recipient, publicLamports: reserve),
-                                          from: shielded, provider: client)
+                                          from: shielded, rpc: client, prover: client)
         return PreparedPrivateTransaction(instructions: [spend.instruction], account: account, network: network,
                                           effect: .createCode(spend, index: index, reserve: reserve), registers: false,
                                           authorities: [.account(account)])
@@ -148,7 +148,8 @@ extension PrivateBalances {
         case .synced: false
         }
         let recipient = try shielded.recipient
-        let spend = try await state.spend(state.lamports, to: .transfer(recipient), from: code, provider: client)
+        let spend = try await state.spend(state.lamports, to: .transfer(recipient), from: code, rpc: client,
+                                          prover: client)
         let treeFee = try await ShieldedPool.feePerNullifier(treeID: spend.inputTreeID, using: client)
         let available = try Redemption.availableLamports(of: balance, registrationCost: registers ? registrationCost : 0,
                                                          treeFee: treeFee, nullifierCount: spend.nullifierCount)

@@ -71,12 +71,13 @@ struct NoteSyncStateSpendTests {
         var spendGenerator = SeededGenerator(seed: 7)
 
         let result = try await state.spend(
-            spend.lamports, to: destination, from: sender, provider: Self.provider(transport), using: &spendGenerator
+            spend.lamports, to: destination, from: sender, rpc: Self.rpc(transport), prover: Self.prover(transport),
+            using: &spendGenerator
         )
 
         let routes = await transport.requests.compactMap { $0.url?.path() }
         let route = "/prove/transfer_confidential_\(plan.shape.inputs)_\(plan.shape.outputs)/indexed"
-        #expect(routes == ["/", "/tee/v1/attestation", route])
+        #expect(routes == ["", "/tee/v1/attestation", route])
         #expect(result.instruction == (try plan.instruction(proof: proof, treeContexts: [context])))
         #expect(result.nullifiers == selected.map(\.nullifier))
         #expect(result.lamports == spend.lamports)
@@ -95,7 +96,8 @@ struct NoteSyncStateSpendTests {
         var spendGenerator = SeededGenerator(seed: 7)
 
         let result = try await state.spend(
-            9, to: destination, from: sender, provider: Self.provider(transport), using: &spendGenerator
+            9, to: destination, from: sender, rpc: Self.rpc(transport), prover: Self.prover(transport),
+            using: &spendGenerator
         )
 
         #expect(result.inputTreeID == 2)
@@ -111,7 +113,8 @@ struct NoteSyncStateSpendTests {
         let solInterface = try ShieldedPool.solInterface
 
         let result = try await state.spend(
-            6, to: .fundedTransfer(recipient, publicLamports: 5), from: sender, provider: Self.provider(transport)
+            6, to: .fundedTransfer(recipient, publicLamports: 5), from: sender, rpc: Self.rpc(transport),
+            prover: Self.prover(transport)
         )
 
         #expect(result.instruction.accounts.suffix(2).map(\.address) == [solInterface, recipient.signingAddress])
@@ -128,7 +131,7 @@ struct NoteSyncStateSpendTests {
         let transport = try Self.transport(queued: [queued])
 
         let result = try await state.spend(
-            4, to: .transfer(recipient), from: sender, provider: Self.provider(transport)
+            4, to: .transfer(recipient), from: sender, rpc: Self.rpc(transport), prover: Self.prover(transport)
         )
 
         #expect(result.nullifiers == [notes[1].nullifier])
@@ -142,12 +145,12 @@ struct NoteSyncStateSpendTests {
         let state = try NoteSyncState(position: nil, notes: notes, outputTreeID: 0, pending: [], localSpends: [])
         let queued = try ShieldedPool.nullifierAccount(tree: ShieldedPool.tree(id: 0), nullifier: notes[0].nullifier).value
         let transport = StubTransport { request in try IndexerResponses.spendReads(answering: request, queued: [queued]) }
-        let provider = HeliusRPC(apiKey: "fixture-key", network: .devnet, transport: transport)
 
         await #expect(throws: PrivateSpend.ValidationError.insufficientFunds) {
-            try await state.spend(4, to: .transfer(recipient), from: sender, provider: provider)
+            try await state.spend(4, to: .transfer(recipient), from: sender, rpc: Self.rpc(transport),
+                                  prover: Self.prover(transport))
         }
-        #expect(await transport.requests.compactMap { $0.url?.lastPathComponent } == ["/"])
+        #expect(await transport.requests.compactMap { $0.url?.host() } == ["api.devnet.solana.com"])
     }
 
     @Test(arguments: [
@@ -157,12 +160,12 @@ struct NoteSyncStateSpendTests {
     ])
     func `Invalid amounts send no request`(lamports: UInt64, destination: Spend.Destination) async throws {
         let transport = StubTransport { _ in throw CancellationError() }
-        let provider = HeliusRPC(apiKey: "fixture-key", network: .devnet, transport: transport)
         let state = try NoteSyncState(position: nil, notes: [try note(10, leaf: 0)], outputTreeID: 0, pending: [], localSpends: [])
         let destination = try self.destination(destination)
 
         await #expect(throws: ValidationError.invalidAmount) {
-            try await state.spend(lamports, to: destination, from: sender, provider: provider)
+            try await state.spend(lamports, to: destination, from: sender, rpc: Self.rpc(transport),
+                                  prover: Self.prover(transport))
         }
         #expect(await transport.requests.isEmpty)
     }
@@ -177,7 +180,6 @@ struct NoteSyncStateSpendTests {
         error: PrivateSpend.ValidationError
     ) async throws {
         let transport = StubTransport { _ in throw CancellationError() }
-        let provider = HeliusRPC(apiKey: "fixture-key", network: .devnet, transport: transport)
         let state = try NoteSyncState(
             position: nil, notes: notes.enumerated().map { try note($1, leaf: UInt64($0)) }, outputTreeID: outputTreeID,
             pending: pendingLamports.map { PendingAmount(signature: IndexerResponses.signature(1), lamports: $0) }, localSpends: []
@@ -185,7 +187,8 @@ struct NoteSyncStateSpendTests {
         let destination = try self.destination(destination)
 
         await #expect(throws: error) {
-            try await state.spend(lamports, to: destination, from: sender, provider: provider)
+            try await state.spend(lamports, to: destination, from: sender, rpc: Self.rpc(transport),
+                                  prover: Self.prover(transport))
         }
         #expect(await transport.requests.isEmpty)
     }
@@ -228,8 +231,11 @@ struct NoteSyncStateSpendTests {
         }
     }
 
-    private static func provider(_ transport: StubTransport) -> HeliusRPC {
-        HeliusRPC(apiKey: "fixture-key", network: .devnet, transport: transport,
-                  zolana: StubProver.zolana(transport: transport))
+    private static func rpc(_ transport: StubTransport) -> Solana {
+        Solana(network: .devnet, transport: transport)
+    }
+
+    private static func prover(_ transport: StubTransport) -> Zolana {
+        StubProver.zolana(transport: transport)
     }
 }

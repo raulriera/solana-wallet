@@ -1,10 +1,10 @@
 import Encoding
 import Foundation
 import ModularArithmetic
-@testable import Privacy
-@testable import RPC
 import Testing
 import Transactions
+@testable import Privacy
+@testable import RPC
 
 struct NoteSyncStateTests {
     private struct Indexer: Sendable {
@@ -168,7 +168,7 @@ struct NoteSyncStateTests {
             return try indexer.respond(to: request)
         }
 
-        let state = try await first.synced(for: sender, using: HeliusRPC(apiKey: "fixture-key", network: .devnet, transport: transport))
+        let state = try await first.synced(for: sender, using: Zolana(network: .devnet, transport: transport))
 
         #expect(state.notes == first.notes)
     }
@@ -191,7 +191,7 @@ struct NoteSyncStateTests {
             return try indexer.respond(to: request)
         }
 
-        let state = try await first.synced(for: sender, using: HeliusRPC(apiKey: "fixture-key", network: .devnet, transport: transport))
+        let state = try await first.synced(for: sender, using: Zolana(network: .devnet, transport: transport))
 
         #expect(state.notes == (try notes(in: deposit) + notes(in: laterDeposit)))
         #expect(try await Self.nullifierReads(of: transport).count == 2)
@@ -214,7 +214,7 @@ struct NoteSyncStateTests {
         }
 
         await #expect(throws: RPCError.server(code: -32603, message: "failed")) {
-            try await first.synced(for: sender, using: HeliusRPC(apiKey: "fixture-key", network: .devnet, transport: transport))
+            try await first.synced(for: sender, using: Zolana(network: .devnet, transport: transport))
         }
         #expect(await transport.observedCancellation)
     }
@@ -460,7 +460,7 @@ struct NoteSyncStateTests {
 
     private func sync(_ state: NoteSyncState, with indexer: Indexer) async throws -> (NoteSyncState, StubTransport) {
         let transport = StubTransport { try indexer.respond(to: $0) }
-        let synced = try await state.synced(for: sender, using: HeliusRPC(apiKey: "fixture-key", network: .devnet, transport: transport))
+        let synced = try await state.synced(for: sender, using: Zolana(network: .devnet, transport: transport))
         return (synced, transport)
     }
 

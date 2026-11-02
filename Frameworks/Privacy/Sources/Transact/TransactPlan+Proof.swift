@@ -35,16 +35,16 @@ extension TransactPlan {
     ///
     /// - Parameters:
     ///   - nullifierKey: The sender's nullifier key.
-    ///   - provider: The prover.
+    ///   - prover: The prover.
     /// - Returns: The transact instruction.
     /// - Throws: An error from ``proofRequest(nullifierKey:)``, the prover, ``treeContexts(from:statement:)``,
     ///   ``proof(from:)``, or ``instruction(proof:treeContexts:)``.
     @concurrent
-    func instruction(nullifierKey: NullifierKey, provider: some ProofProviding) async throws -> Instruction {
+    func instruction(nullifierKey: NullifierKey, prover: some ProofProviding) async throws -> Instruction {
         try check(nullifierKey)
         let statement = publicInputs
         let request = try proofRequest(nullifierKey: nullifierKey, statement: statement)
-        let response = try await provider.proveTransfer(request)
+        let response = try await prover.proveTransfer(request)
         let treeContexts = try treeContexts(from: response.resolution, statement: statement)
         return try instruction(proof: proof(from: response.proof), treeContexts: treeContexts)
     }

@@ -1,8 +1,8 @@
 import ModularArithmetic
-@testable import Privacy
 import RPC
 import Testing
 import Transactions
+@testable import Privacy
 
 @Suite(.tags(.network), .timeLimit(.minutes(1)))
 struct PrivateBalanceLiveTests {
@@ -20,11 +20,11 @@ struct PrivateBalanceLiveTests {
     @Test(arguments: ShieldedPoolOwners.devnet)
     func `Deposits rebuild with the registry's owner hash`(owner: String) async throws {
         let address = try Address(owner)
-        let records = try await UserRegistry.recipients(of: [address], using: Solana(network: .devnet))
-        let recipient = try #require(records.first ?? nil)
-        let batch = try await HeliusRPC(apiKey: try LiveClients.heliusAPIKey(), network: .devnet)
-            .shieldedTransactions(taggedWith: [address.bytes], after: nil)
-        let deposits = batch.transactions.filter(\.isProofless).flatMap(\.outputs).filter { $0.viewTag == address.bytes }
+        async let records = UserRegistry.recipients(of: [address], using: Solana(network: .devnet))
+        async let batch = Zolana(network: .devnet).shieldedTransactions(taggedWith: [address.bytes], after: nil)
+        let recipient = try #require(try await records.first ?? nil)
+        let deposits = try await batch.transactions.filter(\.isProofless).flatMap(\.outputs)
+            .filter { $0.viewTag == address.bytes }
         try #require(!deposits.isEmpty, "The owner must have a deposit")
 
         let failures = try deposits.flatMap { output in

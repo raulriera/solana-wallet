@@ -19,7 +19,7 @@ public protocol PrivateNoteProviding: Sendable {
     ///   transport, response, or cancellation error.
     func shieldedTransactions(spending nullifiers: [[UInt8]]) async throws -> [ShieldedTransaction]
 
-    /// Whether the provider reads private notes and proves private transfers.
+    /// Whether the provider reads private notes on its network.
     var readsPrivateNotes: Bool { get async throws }
 }
 

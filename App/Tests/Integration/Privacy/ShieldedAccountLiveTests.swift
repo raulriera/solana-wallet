@@ -28,7 +28,7 @@ struct ShieldedAccountLiveTests {
     @Test
     func `Syncs with other keys find no notes and resume`() async throws {
         let account = try Self.randomKeys(for: Address(ShieldedPoolOwners.devnet[0]))
-        let provider = HeliusRPC(apiKey: try LiveClients.heliusAPIKey(), network: .devnet)
+        let provider = Zolana(network: .devnet)
 
         let first = try await NoteSyncState().synced(for: account, using: provider)
         let later = try await first.synced(for: account, using: provider)

@@ -26,9 +26,7 @@ extension HTTPResponses {
         -> (any RPC & AccountChangeProviding & SignatureEventProviding)? {
         switch endpoint {
         case .solana: Solana(network: network, transport: self, socket: socket)
-        case .helius(let key):
-            HeliusRPC(apiKey: key, network: network, transport: self, socket: socket,
-                      zolana: StubProver.zolana(on: network, transport: self))
+        case .helius(let key): HeliusRPC(apiKey: key, network: network, transport: self, socket: socket)
         case .custom(let url): Solana(endpoint: url, network: network, transport: self, socket: socket)
         }
     }

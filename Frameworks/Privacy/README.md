@@ -14,8 +14,10 @@ let account = try ShieldedAccount(
     nullifierSecret: keys.nullifierSecret,
     viewingKey: keys.viewingKey
 )
+let zolana = Zolana(network: .mainnet)
 let registration = try await account.registration(using: rpc)
-let notes = try await NoteSyncState().synced(for: account, using: helius)
+let notes = try await NoteSyncState().synced(for: account, using: zolana)
+let spend = try await notes.spend(lamports, to: .transfer(recipient), from: account, rpc: rpc, prover: zolana)
 ```
 
-`keys` comes from Wallet's `privateBalanceKeys`. `ShieldedAccount.register(paidBy:)` and `ShieldedPool.deposit` make instructions, and `NoteSyncState.spend` makes a proved private transfer.
+`keys` comes from Wallet's `privateBalanceKeys`. `ShieldedAccount.register(paidBy:)` and `ShieldedPool.deposit` make instructions, and `NoteSyncState.spend` makes a proved private transfer, reading queued nullifiers through `rpc` and proving through `prover`.

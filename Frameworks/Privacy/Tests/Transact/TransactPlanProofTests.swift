@@ -26,7 +26,7 @@ struct TransactPlanProofTests {
         let complete = try JSONDecoder().decode(CompleteBody.self, from: vector.request.data)
 
         let instruction = try await plan.instruction(
-            nullifierKey: TransferVectors.sender().nullifierKey, provider: StubProver.zolana(transport: transport)
+            nullifierKey: TransferVectors.sender().nullifierKey, prover: StubProver.zolana(transport: transport)
         )
 
         let sent = try #require(opened.withLock { $0 })
@@ -49,7 +49,7 @@ struct TransactPlanProofTests {
 
         await #expect(throws: TransactPlan.ValidationError.mismatchedPublicInputHash) {
             try await vector.plan().instruction(
-                nullifierKey: TransferVectors.sender().nullifierKey, provider: StubProver.zolana(transport: transport)
+                nullifierKey: TransferVectors.sender().nullifierKey, prover: StubProver.zolana(transport: transport)
             )
         }
     }
@@ -108,7 +108,7 @@ struct TransactPlanProofTests {
             try plan.proofRequest(nullifierKey: otherKey)
         }
         await #expect(throws: TransactPlan.ValidationError.foreignNullifierKey) {
-            try await plan.instruction(nullifierKey: otherKey, provider: StubProver.zolana(transport: transport))
+            try await plan.instruction(nullifierKey: otherKey, prover: StubProver.zolana(transport: transport))
         }
         #expect(await transport.requests.isEmpty)
     }
