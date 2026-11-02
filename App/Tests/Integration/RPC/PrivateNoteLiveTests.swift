@@ -1,7 +1,6 @@
 import RPC
 import Testing
 import Transactions
-@testable import Privacy
 
 @Suite(.tags(.network), .timeLimit(.minutes(1)))
 struct PrivateNoteLiveTests {
@@ -47,21 +46,6 @@ struct PrivateNoteLiveTests {
         #expect(spending.allSatisfy { !nullifiers.isDisjoint(with: $0.nullifiers) })
     }
 
-    @Test
-    func `Merkle proofs prove an owner's output at its leaf`() async throws {
-        let provider = Zolana(network: .devnet)
-        let tag = try Address(ShieldedPoolOwners.devnet[0]).bytes
-        let batch = try await provider.shieldedTransactions(taggedWith: [tag], after: nil)
-        let output = try #require(batch.transactions.flatMap(\.outputs).first { $0.viewTag == tag },
-                                  "The owner must have an output")
-
-        let proofs = try await provider.merkleProofs(for: [output.utxoHash],
-                                                     inTree: try ShieldedPool.tree(id: output.treeID).value)
-
-        #expect(proofs.map(\.leaf) == [output.utxoHash])
-        #expect(proofs.map(\.leafIndex) == [output.leafIndex])
-    }
-
     @Test(arguments: [Network.mainnet, .devnet])
     func `Reads of a random value find nothing`(network: Network) async throws {
         let provider = Zolana(network: network)
@@ -73,15 +57,5 @@ struct PrivateNoteLiveTests {
 
         #expect(tagged.transactions.isEmpty)
         #expect(spending.isEmpty)
-    }
-
-    @Test(arguments: [Network.mainnet, .devnet])
-    func `Non-inclusion proofs prove a random nullifier unspent`(network: Network) async throws {
-        let provider = Zolana(network: network)
-        let nullifier = randomFieldElement()
-
-        let proofs = try await provider.nonInclusionProofs(for: [nullifier], inTree: try ShieldedPool.tree(id: 0).value)
-
-        #expect(proofs.map(\.nullifier) == [nullifier])
     }
 }

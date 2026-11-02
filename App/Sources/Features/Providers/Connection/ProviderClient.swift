@@ -60,14 +60,6 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, SignatureEventPr
         try await performPrivateNotes { try await $0.shieldedTransactions(spending: nullifiers) }
     }
 
-    func merkleProofs(for leaves: [[UInt8]], inTree tree: String) async throws -> [MerkleProof] {
-        try await performPrivateNotes { try await $0.merkleProofs(for: leaves, inTree: tree) }
-    }
-
-    func nonInclusionProofs(for nullifiers: [[UInt8]], inTree tree: String) async throws -> [NonInclusionProof] {
-        try await performPrivateNotes { try await $0.nonInclusionProofs(for: nullifiers, inTree: tree) }
-    }
-
     var readsPrivateNotes: Bool {
         get async throws {
             do {

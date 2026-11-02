@@ -1,6 +1,6 @@
 import ModularArithmetic
-@testable import Privacy
 import Testing
+@testable import Privacy
 
 struct ProofRequestVectors: Decodable, Sendable {
     let transacts: [Transact]
@@ -17,7 +17,6 @@ struct ProofRequestVectors: Decodable, Sendable {
         let publicInputs: [String]
         let publicInputHash: String
         let merkleProofs: [[JSONValue]]
-        let nonInclusionProofs: [[JSONValue]]
         let request: JSONValue
         let response: JSONValue
         let proof: String

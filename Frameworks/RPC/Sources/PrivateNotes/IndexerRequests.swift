@@ -18,26 +18,6 @@ struct GetEncryptedUtxosByTags: RPCRequest {
     let cursor: String?
 }
 
-/// An indexer read of the inclusion proofs of UTXO hashes in one tree, all against one root.
-struct GetMerkleProofs: RPCRequest {
-    static let method = "getMerkleProofs"
-    typealias Response = MerkleProofList
-    /// The tree account's base-58 address.
-    let treeAccount: String
-    /// One to 1,000 base-58 UTXO hashes.
-    let leaves: [String]
-}
-
-/// An indexer read of the non-inclusion proofs of nullifiers in one tree, all against one root.
-struct GetNonInclusionProofs: RPCRequest {
-    static let method = "getNonInclusionProofs"
-    typealias Response = NonInclusionProofList
-    /// The tree account's base-58 address.
-    let treeAccount: String
-    /// One to 1,000 base-58 nullifiers.
-    let leaves: [String]
-}
-
 /// An indexer read of the transactions that spent any of the nullifiers.
 struct GetShieldedTransactionsByNullifiers: RPCRequest {
     static let method = "getShieldedTransactionsByNullifiers"

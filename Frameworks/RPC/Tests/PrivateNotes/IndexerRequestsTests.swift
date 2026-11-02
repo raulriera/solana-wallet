@@ -10,8 +10,6 @@ struct IndexerRequestsTests {
         (GetEncryptedUtxosByTags(tags: ["a"], cursor: "AQ=="), #"{"cursor":"AQ==","tags":["a"]}"#),
         (GetShieldedTransactionsByNullifiers(nullifiers: ["n"], cursor: nil), #"{"nullifiers":["n"]}"#),
         (GetShieldedTransactionsByNullifiers(nullifiers: ["n"], cursor: "AQ=="), #"{"cursor":"AQ==","nullifiers":["n"]}"#),
-        (GetMerkleProofs(treeAccount: "t", leaves: ["a", "b"]), #"{"leaves":["a","b"],"treeAccount":"t"}"#),
-        (GetNonInclusionProofs(treeAccount: "t", leaves: ["n"]), #"{"leaves":["n"],"treeAccount":"t"}"#),
     ])
     func `Requests send their values and an optional cursor`(request: any RPCRequest, expected: String) throws {
         let encoder = JSONEncoder()

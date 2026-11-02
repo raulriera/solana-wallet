@@ -49,30 +49,6 @@ enum IndexerFixtures {
         return #""result":{\#(fields.joined(separator: ","))}"#
     }
 
-    static func merkleProof(leaf: UInt8, tree: String = hash(9), treeType: Int = 1, pathCount: Int = 32,
-                            leafIndex: Int = 6) -> String {
-        """
-        {"leaf":"\(hash(leaf))","merkleContext":{"treeType":\(treeType),"tree":"\(tree)"},\
-        "path":[\(path(count: pathCount))],"leafIndex":\(leafIndex),"root":"\(hash(0xbb))","rootSeq":1234,"rootIndex":499}
-        """
-    }
-
-    static func nonInclusionProof(leaf: UInt8, tree: String = hash(9), treeType: Int = 2, pathCount: Int = 40) -> String {
-        """
-        {"leaf":"\(hash(leaf))","merkleContext":{"treeType":\(treeType),"tree":"\(tree)"},\
-        "path":[\(path(count: pathCount))],"lowElement":"\(hash(1))","lowElementIndex":3,"highElement":"\(hash(0xfe))",\
-        "highElementIndex":4,"root":"\(hash(0xcc))","rootSeq":2,"rootIndex":99}
-        """
-    }
-
-    static func path(count: Int) -> String {
-        (0..<count).map { "\"\(hash(0x10 + UInt8($0)))\"" }.joined(separator: ",")
-    }
-
-    static func proofs(_ proofs: [String]) -> String {
-        #""result":{"context":{"blockTime":1,"slot":2},"proofs":[\#(proofs.joined(separator: ","))]}"#
-    }
-
     static func call(_ request: URLRequest) throws -> (route: String, params: [String: Any]) {
         let route = try #require(request.url?.lastPathComponent)
         let params = try #require(try requestBody(request)["params"] as? [String: Any])

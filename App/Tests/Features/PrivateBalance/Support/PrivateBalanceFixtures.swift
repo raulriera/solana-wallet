@@ -144,32 +144,6 @@ enum PrivateBalanceFixtures {
         return #"{"slot":3,"txSignature":"\#(signature)","outputSlot":\#(output),"txViewingPk":null,"salt":null}"#
     }
 
-    static let utxoRootIndex: UInt16 = 3
-
-    static let nullifierRootIndex: UInt16 = 4
-
-    static func treeProofs(answering request: URLRequest) throws -> String {
-        let body = try request.jsonBody()
-        let method = try #require(body["method"] as? String)
-        let params = try #require(body["params"] as? [String: Any])
-        let tree = try #require(params["treeAccount"] as? String)
-        let leaves = try #require(params["leaves"] as? [String]).map { try #require(Base58.decode($0, byteCount: 32)) }
-        let proofs: [[String: Any]] = try leaves.map { leaf in
-            let context: [String: Any] = ["treeType": method == GetMerkleProofs.method ? 1 : 2, "tree": tree]
-            if method == GetMerkleProofs.method {
-                let proof = try inclusionProof(of: leaf)
-                return ["leaf": Base58.encode(proof.leaf), "merkleContext": context, "path": proof.path.map(Base58.encode),
-                        "leafIndex": proof.leafIndex, "root": Base58.encode(proof.root), "rootSeq": 1, "rootIndex": proof.rootIndex]
-            }
-            let proof = try nonInclusionProof(of: leaf)
-            return ["leaf": Base58.encode(proof.nullifier), "merkleContext": context, "path": proof.path.map(Base58.encode),
-                    "lowElement": Base58.encode(proof.lowElement), "lowElementIndex": proof.lowElementIndex,
-                    "highElement": Base58.encode(proof.highElement), "highElementIndex": 1, "root": Base58.encode(proof.root),
-                    "rootSeq": 1, "rootIndex": proof.rootIndex]
-        }
-        return try HTTPResponses.json(["context": ["slot": 1], "proofs": proofs] as [String: Any])
-    }
-
     static func proofRequest(spending account: ShieldedAccount) throws -> IndexedTransferProofRequest {
         var generator = SystemRandomNumberGenerator()
         let utxo = UTXO(owner: try account.recipient.owner, mint: [UInt8](repeating: 0, count: 32), amount: 10,
@@ -179,20 +153,6 @@ enum PrivateBalanceFixtures {
                                     outputTreeID: 1, using: &generator)
         return try plan.proofRequest(nullifierKey: account.nullifierKey)
     }
-
-    private static func inclusionProof(of leaf: [UInt8]) throws -> MerkleProof {
-        try MerkleProof(leaf: leaf, path: Array(repeating: field(0), count: MerkleProof.height), leafIndex: 0, root: field(1),
-                        rootIndex: utxoRootIndex)
-    }
-
-    private static func nonInclusionProof(of nullifier: [UInt8]) throws -> NonInclusionProof {
-        let highest = try #require(FieldHex.decode("0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000000"))
-        return try NonInclusionProof(nullifier: nullifier, lowElement: field(0), lowElementIndex: 0, highElement: highest,
-                                     path: Array(repeating: field(0), count: NonInclusionProof.height), root: field(2),
-                                     rootIndex: nullifierRootIndex)
-    }
-
-    private static func field(_ value: UInt8) -> [UInt8] { Array(repeating: 0, count: 31) + [value] }
 
     private static func littleEndian<Value: FixedWidthInteger>(_ value: Value) -> [UInt8] {
         withUnsafeBytes(of: value.littleEndian, Array.init)

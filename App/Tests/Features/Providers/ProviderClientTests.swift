@@ -203,33 +203,7 @@ struct ProviderClientTests {
         await #expect(throws: ProviderClientError.privateNotesUnavailable) {
             _ = try await client.shieldedTransactions(spending: [tag])
         }
-        await #expect(throws: ProviderClientError.privateNotesUnavailable) {
-            _ = try await client.merkleProofs(for: [tag], inTree: ShieldedPool.tree(id: 1).value)
-        }
-        await #expect(throws: ProviderClientError.privateNotesUnavailable) {
-            _ = try await client.nonInclusionProofs(for: [tag], inTree: ShieldedPool.tree(id: 1).value)
-        }
         #expect(await responses.requests.isEmpty)
-    }
-
-    @Test
-    func `Helius reads tree proofs`() async throws {
-        let responses = HTTPResponses.privateNotes(respond: PrivateBalanceFixtures.treeProofs(answering:))
-        let client = responses.providerClient(network: .devnet,
-                                              providers: .inMemory(selection: .helius, key: "fixture-key"))
-        let tree = try ShieldedPool.tree(id: 1).value
-        let leaf = [UInt8](repeating: 7, count: 32)
-
-        async let included = client.merkleProofs(for: [leaf], inTree: tree)
-        async let excluded = client.nonInclusionProofs(for: [leaf], inTree: tree)
-        let (inclusionProofs, nonInclusionProofs) = try await (included, excluded)
-
-        #expect(inclusionProofs.map(\.leaf) == [leaf])
-        #expect(nonInclusionProofs.map(\.nullifier) == [leaf])
-        #expect(try await responses.requests.map { try $0.rpcMethod }.sorted() == [GetMerkleProofs.method, GetNonInclusionProofs.method])
-        #expect(await responses.requests.allSatisfy {
-            $0.url?.host() == "d34xe1hqb2ibg2.cloudfront.net" && $0.url?.query()?.contains("api-key") != true
-        })
     }
 
     @Test
