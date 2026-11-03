@@ -117,6 +117,27 @@ struct RedeemCodeLedgerTests {
         #expect(reconciled == ledger)
     }
 
+    @Test(arguments: [[1: 0], [:]] as [[UInt32: UInt64]])
+    func `Spent codes without a reserve leave`(lamports: [UInt32: UInt64]) {
+        var ledger = RedeemCodeLedger(records: [Self.record(at: 1, reserve: 0), Self.record(at: 2)],
+                                      isDiscovered: true)
+
+        ledger.reconcile(with: [1: .spent, 2: .spent], lamports: lamports, at: Self.now)
+
+        #expect(ledger.records == [Self.record(at: 2)])
+    }
+
+    @Test(arguments: [[4: 0], [:]] as [[UInt32: UInt64]])
+    func `Pending indices with unspent notes wait for their reserve`(lamports: [UInt32: UInt64]) {
+        let ledger = RedeemCodeLedger(pending: [Self.pending(at: 4)], isDiscovered: true)
+        var reconciled = ledger
+
+        reconciled.reconcile(with: [4: .unspent(lamports: 900, signature: "landed")], lamports: lamports,
+                             at: Self.now)
+
+        #expect(reconciled == ledger)
+    }
+
     @Test
     func `Pending indices with unspent notes become codes`() {
         var ledger = RedeemCodeLedger(pending: [Self.pending(at: 4)], isDiscovered: true)
@@ -177,8 +198,8 @@ struct RedeemCodeLedgerTests {
         PendingRedeemCode(index: index, created: now)
     }
 
-    private static func record(at index: UInt32, amount: UInt64 = 1_000) -> RedeemCodeRecord {
-        RedeemCodeRecord(index: index, amount: amount, reserve: 10, created: Date(timeIntervalSince1970: 0),
+    private static func record(at index: UInt32, amount: UInt64 = 1_000, reserve: UInt64 = 10) -> RedeemCodeRecord {
+        RedeemCodeRecord(index: index, amount: amount, reserve: reserve, created: Date(timeIntervalSince1970: 0),
                          fundingSignature: "funding")
     }
 }

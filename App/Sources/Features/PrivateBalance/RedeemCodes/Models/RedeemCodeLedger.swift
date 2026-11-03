@@ -74,7 +74,8 @@ nonisolated struct RedeemCodeLedger: Codable, Equatable, Sendable {
     }
 
     /// Applies what the indexer reports for the codes and pending indices, keeping a spent code until its one-time
-    /// account holds less than its reserve.
+    /// account holds less than its reserve, and keeping a funded index pending until its one-time account holds
+    /// lamports.
     ///
     /// - Parameters:
     ///   - statuses: What the indexer reports, by index.
@@ -87,7 +88,7 @@ nonisolated struct RedeemCodeLedger: Codable, Equatable, Sendable {
             case .unspent(let amount, _)?:
                 add(RedeemCodeRecord(index: record.index, amount: amount, reserve: record.reserve,
                                      created: record.created, fundingSignature: record.fundingSignature))
-            case .spent? where lamports[record.index].map { $0 < record.reserve } == true:
+            case .spent? where record.reserve == 0 || lamports[record.index].map { $0 < record.reserve } == true:
                 remove([record.index])
             case .spent?, .unfunded?, .unconfirmed?, nil:
                 break
@@ -96,8 +97,10 @@ nonisolated struct RedeemCodeLedger: Codable, Equatable, Sendable {
         for code in pending {
             switch statuses[code.index] {
             case .unspent(let amount, let signature)?:
-                add(RedeemCodeRecord(index: code.index, amount: amount, reserve: lamports[code.index] ?? 0,
-                                     created: code.created, fundingSignature: signature))
+                if let reserve = lamports[code.index], reserve > 0 {
+                    add(RedeemCodeRecord(index: code.index, amount: amount, reserve: reserve, created: code.created,
+                                         fundingSignature: signature))
+                }
             case .spent? where lamports[code.index] != 0:
                 break
             case .unfunded?, .spent?:
