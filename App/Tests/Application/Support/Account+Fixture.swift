@@ -5,7 +5,9 @@ import Wallet
 @testable import widgets
 
 extension widgets.Account {
-    static func fixture(index: UInt8, recoveryID: UUID = UUID()) throws -> widgets.Account {
+    static let fixtureRecoveryID = UUID()
+
+    static func fixture(index: UInt8, recoveryID: UUID = fixtureRecoveryID) throws -> widgets.Account {
         Account(id: UUID(), recoveryID: recoveryID,
             address: try Address(Base58.encode(Array(repeating: index, count: 32))), path: .solana(account: UInt32(index)))
     }

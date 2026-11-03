@@ -41,7 +41,7 @@ final class AccountAdditionModel {
         guard let attempt, self.attempt == attempt, let recoveryID = request.take() else { return }
         defer { self.attempt = nil }
         do {
-            let account = try await creation.account(at: store.nextPath(inWallet: recoveryID), inWallet: recoveryID)
+            let account = try await creation.account(at: store.nextPath, inWallet: recoveryID)
             try await store.add(account)
             added = account
         } catch is CancellationError {

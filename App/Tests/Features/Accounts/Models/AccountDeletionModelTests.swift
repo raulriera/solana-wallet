@@ -9,7 +9,7 @@ struct AccountDeletionModelTests {
     @Test
     func `A deletion removes the account`() async throws {
         let first = try widgets.Account.fixture(index: 0)
-        let second = try widgets.Account.fixture(index: 1, recoveryID: first.recoveryID)
+        let second = try widgets.Account.fixture(index: 1)
         let storage = StoredValue([first, second])
         let store = AccountStore.inMemory(storage)
         await store.load()
@@ -27,7 +27,7 @@ struct AccountDeletionModelTests {
     @Test
     func `A deletion erases the account's records`() async throws {
         let first = try widgets.Account.fixture(index: 0)
-        let second = try widgets.Account.fixture(index: 1, recoveryID: first.recoveryID)
+        let second = try widgets.Account.fixture(index: 1)
         let store = AccountStore.inMemory(StoredValue([first, second]))
         await store.load()
         let records = Self.records(of: [first, second])
@@ -45,7 +45,7 @@ struct AccountDeletionModelTests {
     @Test
     func `Confirmations while a deletion waits are ignored`() async throws {
         let first = try widgets.Account.fixture(index: 0)
-        let second = try widgets.Account.fixture(index: 1, recoveryID: first.recoveryID)
+        let second = try widgets.Account.fixture(index: 1)
         let store = AccountStore.inMemory(StoredValue([first, second]))
         await store.load()
         let model = AccountDeletionModel()

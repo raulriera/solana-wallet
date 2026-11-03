@@ -23,7 +23,7 @@ struct ContactsSplitView: View {
     @State private var entry: RecipientEntryModel?
 
     var body: some View {
-        let lists = contacts.lists(for: account, on: network, in: accounts.accounts(inWallet: account.recoveryID),
+        let lists = contacts.lists(for: account, on: network, in: accounts.accounts,
                                    store: store, transactions: transactions)
         let isEmpty = lists.isEmpty && selection == nil
         ZStack {

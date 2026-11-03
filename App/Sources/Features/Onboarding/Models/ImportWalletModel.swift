@@ -72,6 +72,7 @@ final class ImportWalletModel: ImportSubmitting {
             guard isPresented, self.attempt == attempt else { throw CancellationError() }
             isPreparing = false
             _ = try await coordinator.complete()
+        } catch OnboardingCoordinatorError.walletAlreadySaved {
         } catch {
             guard isPresented, !Task.isCancelled, !(error is CancellationError) else { return }
             self.error = switch error {

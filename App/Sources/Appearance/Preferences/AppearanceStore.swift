@@ -23,10 +23,10 @@ nonisolated struct AppearanceStore: AppearanceStoring {
     }
 
     @concurrent
-    func select(_ themeID: UUID?, for scope: AppearancePreferences.Scope) async throws -> AppearanceSnapshot {
+    func select(_ themeID: UUID?) async throws -> AppearanceSnapshot {
         try await update { preferences, entries in
             if let themeID, entries[themeID] == nil { throw ThemeCatalogError.changed }
-            preferences.select(themeID, for: scope)
+            preferences.themeID = themeID
         }
     }
 

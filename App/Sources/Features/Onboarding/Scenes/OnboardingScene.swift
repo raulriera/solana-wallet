@@ -75,6 +75,7 @@ struct OnboardingScene: View {
         }
         .onChange(of: coordinator.account?.id) { showProviders() }
         .onChange(of: coordinator.finishedAccount) { _, finishedAccount in account = finishedAccount }
+        .onChange(of: coordinator.savedWalletAccount) { _, saved in if let saved { account = saved } }
         .onChange(of: navigation.path.last) { showProviders() }
         .onDisappear {
             if !coordinator.isWorking, !walletImport.isPending { walletSetup.discardDraft() }

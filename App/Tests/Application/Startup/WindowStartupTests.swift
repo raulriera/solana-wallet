@@ -30,29 +30,17 @@ struct WindowStartupTests {
         let saved = try [Account.fixture(index: 0), Account.fixture(index: 1)]
         let window = WindowModel(accounts: .inMemory(StoredValue(saved)))
 
-        await window.restore(preferring: .init(saved[1]))
+        await window.restore(preferring: saved[1].id)
 
         #expect(window.destination == .wallet(saved[1]))
     }
 
     @Test
-    func `A restored account that is no longer saved opens its wallet's first account`() async throws {
-        let other = try Account.fixture(index: 0)
-        let walletFirst = try Account.fixture(index: 1)
-        let deleted = try Account.fixture(index: 2, recoveryID: walletFirst.recoveryID)
-        let window = WindowModel(accounts: .inMemory(StoredValue([other, walletFirst])))
-
-        await window.restore(preferring: .init(deleted))
-
-        #expect(window.destination == .wallet(walletFirst))
-    }
-
-    @Test
-    func `A restored wallet that is no longer saved opens the first saved account`() async throws {
+    func `A restored account that is no longer saved opens the first saved account`() async throws {
         let saved = try [Account.fixture(index: 0), Account.fixture(index: 1)]
         let window = WindowModel(accounts: .inMemory(StoredValue(saved)))
 
-        await window.restore(preferring: .init(accountID: UUID(), walletID: UUID()))
+        await window.restore(preferring: UUID())
 
         #expect(window.destination == .wallet(saved[0]))
     }

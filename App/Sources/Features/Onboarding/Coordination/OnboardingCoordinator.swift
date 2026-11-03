@@ -14,6 +14,11 @@ final class OnboardingCoordinator: OnboardingCoordinating {
     private(set) var finishedAccount: Account?
     private(set) var isWorking = false
 
+    var savedWalletAccount: Account? {
+        guard !isWorking, account == nil else { return nil }
+        return accountStore.accounts.first
+    }
+
     private let wallet: any WalletProviding
     private let discovery: any AccountDiscovering
     private let recoveryStore: any RecoveryStoring
@@ -53,13 +58,18 @@ final class OnboardingCoordinator: OnboardingCoordinating {
         try Task.checkCancellation()
         isWorking = true
         defer { isWorking = false }
+        guard accountStore.accounts.isEmpty else { try await releaseForSavedWallet(preparedAccount.recoveryID) }
 
         if !recoverySaved {
             try await saveRecovery(recovery, for: preparedAccount.recoveryID)
             recoverySaved = true
         }
         try Task.checkCancellation()
-        try await saveAccount(preparedAccount)
+        do {
+            try await saveAccount(preparedAccount)
+        } catch AccountStoreError.anotherWallet {
+            try await releaseForSavedWallet(preparedAccount.recoveryID)
+        }
 
         account = preparedAccount
         self.preparedAccount = nil
@@ -158,6 +168,19 @@ final class OnboardingCoordinator: OnboardingCoordinating {
         } catch {
             throw OnboardingCoordinatorError.recoveryStorageFailed
         }
+    }
+
+    /// Deletes this draft's saved recovery and releases the draft because another window saved the wallet.
+    ///
+    /// - Parameter id: The draft's recovery identifier.
+    /// - Throws: ``OnboardingCoordinatorError/walletAlreadySaved``, or a Keychain error when the recovery can't be
+    ///   deleted.
+    private func releaseForSavedWallet(_ id: UUID) async throws -> Never {
+        if recoverySaved { try await recoveryStore.deleteRecovery(for: id) }
+        recovery = nil
+        preparedAccount = nil
+        recoverySaved = false
+        throw OnboardingCoordinatorError.walletAlreadySaved
     }
 
     /// Saves the prepared account.

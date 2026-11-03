@@ -42,9 +42,9 @@ import Observation
         try await reload()
     }
 
-    func select(_ themeID: UUID?, for scope: AppearancePreferences.Scope) async throws {
+    func select(_ themeID: UUID?) async throws {
         if let activation { try await activation.value }
-        publish(try await store.select(themeID, for: scope))
+        publish(try await store.select(themeID))
     }
 
     func forget(_ themeID: UUID) async throws {

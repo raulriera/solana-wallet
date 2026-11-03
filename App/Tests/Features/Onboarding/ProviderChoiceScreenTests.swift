@@ -13,9 +13,9 @@ struct ProviderChoiceScreenTests {
         let settings = StoredValue(ProviderSettings(selection: .solana))
         let providerStore = ProviderStore.inMemory(settings)
         let providers = ProvidersCoordinator.inMemory(providerStore)
+        let accounts = AccountStore.inMemory()
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client),
-                                                wallet: Wallet(), recovery: recovery,
-                                                accounts: AccountStore.inMemory())
+                                                wallet: Wallet(), recovery: recovery, accounts: accounts)
         let window = OpenedAccount()
         let scene = OnboardingScene(account: Bindable(window).account, coordinator: coordinator, providers: providers,
                                     pasteboard: NoPasteboard())
@@ -26,6 +26,8 @@ struct ProviderChoiceScreenTests {
         let account = try await coordinator.complete()
         providers.select(.helius)
         try #require(try await hosted.presentsViewController())
+        #expect(accounts.accounts.map(\.id) == [account.id])
+        #expect(window.account == nil)
         let keyEntry = try #require(providers.keyEntry)
 
         keyEntry.submit("fixture-key")
@@ -34,10 +36,4 @@ struct ProviderChoiceScreenTests {
         #expect(hosted.host.presentedViewController == nil)
         #expect(await settings.value?.selection == .helius)
     }
-}
-
-@MainActor
-@Observable
-private final class OpenedAccount {
-    var account: widgets.Account?
 }

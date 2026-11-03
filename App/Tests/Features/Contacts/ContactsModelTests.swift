@@ -60,17 +60,14 @@ struct ContactsModelTests {
         #expect(tab.store.addressBook == ContactsFixtures.addressBook)
     }
 
-    @Test func `The wallet's other saved accounts are listed`() async throws {
+    @Test func `The other saved accounts are listed`() async throws {
         let main = widgets.Account(id: UUID(), recoveryID: ContactsFixtures.wallet, address: ContactsFixtures.sending,
                                    path: .solana)
         let savings = widgets.Account(id: UUID(), recoveryID: ContactsFixtures.wallet, address: ContactsFixtures.savings,
                                       path: try DerivationPath("m/44'/501'/1'/0'"))
-        let otherWallet = widgets.Account(id: UUID(), recoveryID: UUID(), address: ContactsFixtures.bruno, path: .solana)
-        let accounts = AccountStore.inMemory(StoredValue([main, otherWallet, savings]))
-        await accounts.load()
         let addressBook = StoredValue<AddressBook>()
         var tab = ContactsTab(store: ContactsFixtures.store(addressBook), transactions: .unused, network: .mainnet)
-        tab.wallet = accounts.accounts(inWallet: ContactsFixtures.wallet)
+        tab.wallet = [main, savings]
         await tab.load()
 
         let listed = try #require(tab.lists.accounts.first)

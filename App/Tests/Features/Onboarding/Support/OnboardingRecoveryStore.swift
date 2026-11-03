@@ -10,6 +10,7 @@ actor OnboardingRecoveryStore: RecoveryStoring {
     private let gate: Suspension?
     private(set) var saves: [UUID] = []
     private(set) var reads: [UUID] = []
+    private(set) var deletions: [UUID] = []
 
     init(firstError: (any Error)? = nil, commitBeforeError: Bool = false,
          replacement: Recovery? = nil, gate: Suspension? = nil) {
@@ -37,7 +38,8 @@ actor OnboardingRecoveryStore: RecoveryStoring {
     func contains(_ id: UUID) -> Bool { records[id] != nil }
 
     func deleteRecovery(for recoveryID: UUID) async throws {
-        Issue.record("Onboarding must not delete retained recovery.")
+        deletions.append(recoveryID)
+        records[recoveryID] = nil
     }
 
     func deleteAllRecovery() async throws {

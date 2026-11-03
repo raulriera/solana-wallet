@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-/// An observable source of the app's and wallets' theme selections.
+/// An observable source of the app's theme selection.
 @MainActor protocol AppearanceCoordinating: AnyObject, Observable {
     var snapshot: AppearanceSnapshot? { get }
 
@@ -20,15 +20,13 @@ import Observation
     /// - Throws: A storage or cancellation error.
     func restart() async throws
 
-    /// Saves and publishes the theme of the app or a wallet.
+    /// Saves and publishes the theme of the app.
     ///
-    /// - Parameters:
-    ///   - themeID: The theme, or `nil` to clear the selection.
-    ///   - scope: The app or wallet to change.
+    /// - Parameter themeID: The theme, or `nil` to clear the selection.
     /// - Throws: A selection, storage, or cancellation error.
-    func select(_ themeID: UUID?, for scope: AppearancePreferences.Scope) async throws
+    func select(_ themeID: UUID?) async throws
 
-    /// Clears and publishes every selection of a theme.
+    /// Clears and publishes the selection of a theme.
     ///
     /// - Parameter themeID: The theme to clear.
     /// - Throws: A storage or cancellation error.

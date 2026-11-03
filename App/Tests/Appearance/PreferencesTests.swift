@@ -10,7 +10,7 @@ nonisolated struct PreferencesTests {
         defer { fixture.remove() }
         let snapshot = try await AppearanceStore(directory: fixture.directory).load()
         #expect(snapshot.preferences == AppearancePreferences())
-        #expect(snapshot.theme(for: UUID()) == nil)
+        #expect(snapshot.theme == nil)
         #expect(!FileManager.default.fileExists(atPath: fixture.directory.path))
     }
 
@@ -40,44 +40,21 @@ nonisolated struct PreferencesTests {
         #expect(removed.orderedEntryIDs == [builtIn.entry.id, z.id])
     }
 
-    @Test func `Wallet overrides persist and clear back to application default`() async throws {
+    @Test func `The app theme persists and clears back to original appearance`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let catalog = ThemeCatalog(directory: fixture.directory)
         let a = try await catalog.install(PackService().read(from: fixture.source()))
         let b = try await catalog.install(PackService().read(from: fixture.source()))
         let store = AppearanceStore(directory: fixture.directory)
-        let wallet = UUID()
-        _ = try await store.select(a.id, for: .application)
-        _ = try await store.select(a.id, for: .wallet(wallet))
-        _ = try await store.select(b.id, for: .application)
+        _ = try await store.select(a.id)
+        _ = try await store.select(b.id)
         let reopened = AppearanceStore(directory: fixture.directory)
         let saved = try await reopened.load()
-        #expect(saved.theme(for: wallet) == a)
-        #expect(saved.theme(for: UUID()) == b)
-        #expect(saved.theme(for: nil) == b)
-        let cleared = try await reopened.select(nil, for: .wallet(wallet))
-        #expect(cleared.theme(for: wallet) == b)
-        #expect(cleared.preferences.walletThemeIDs[wallet] == nil)
-    }
-
-    @Test func `Concurrent wallet edits do not overwrite each other`() async throws {
-        let fixture = try CatalogFixture()
-        defer { fixture.remove() }
-        let catalog = ThemeCatalog(directory: fixture.directory)
-        let entry = try await catalog.install(PackService().read(from: fixture.source()))
-        let wallets = (0..<20).map { _ in UUID() }
-        try await withThrowingTaskGroup(of: Void.self) { group in
-            for wallet in wallets {
-                group.addTask {
-                    let store = AppearanceStore(directory: fixture.directory)
-                    _ = try await store.select(entry.id, for: .wallet(wallet))
-                }
-            }
-            try await group.waitForAll()
-        }
-        let saved = try await AppearanceStore(directory: fixture.directory).load()
-        #expect(saved.preferences.walletThemeIDs == Dictionary(uniqueKeysWithValues: wallets.map { ($0, entry.id) }))
+        #expect(saved.theme == b)
+        let cleared = try await reopened.select(nil)
+        #expect(cleared.theme == nil)
+        #expect(cleared.preferences == AppearancePreferences())
     }
 
     @Test func `Preference edits during import survive catalog commit`() async throws {
@@ -97,13 +74,13 @@ nonisolated struct PreferencesTests {
         defer { importing.cancel() }
         for await _ in staged.stream {}
         let store = AppearanceStore(directory: fixture.directory)
-        let selected = try await store.select(entry.id, for: .application)
+        let selected = try await store.select(entry.id)
         release.continuation.finish()
         let imported = try await importing.value
         let current = try await store.load()
         #expect(current.preferences == selected.preferences)
         #expect(current.entries[imported.id] == imported)
-        #expect(current.theme(for: nil) == entry)
+        #expect(current.theme == entry)
     }
 
     @Test(arguments: [false, true]) func `Deleting theme commits selection fallbacks`(selectedAsDefault: Bool) async throws {
@@ -114,17 +91,12 @@ nonisolated struct PreferencesTests {
         let removed = try await catalog.install(pack)
         let kept = try await catalog.install(PackService().read(from: fixture.source()))
         let store = AppearanceStore(directory: fixture.directory)
-        let wallet = UUID(), otherWallet = UUID()
-        _ = try await store.select(selectedAsDefault ? removed.id : kept.id, for: .application)
-        _ = try await store.select(removed.id, for: .wallet(wallet))
-        _ = try await store.select(kept.id, for: .wallet(otherWallet))
+        _ = try await store.select(selectedAsDefault ? removed.id : kept.id)
         let before = try await store.load()
         try await catalog.remove(removed)
         let after = try await store.load()
         #expect(after.revision == before.revision + 1)
-        #expect(after.theme(for: wallet) == (selectedAsDefault ? nil : kept))
-        #expect(after.theme(for: otherWallet) == kept)
-        #expect(after.preferences.walletThemeIDs[wallet] == nil)
+        #expect(after.theme == (selectedAsDefault ? nil : kept))
         #expect(after.entries[removed.id] == nil)
         _ = try await catalog.install(pack)
         #expect(try await store.load().preferences == after.preferences)
@@ -137,32 +109,27 @@ nonisolated struct PreferencesTests {
         let pack = try await PackService().read(from: fixture.source())
         let old = try await catalog.install(pack)
         let store = AppearanceStore(directory: fixture.directory)
-        let selected = try await store.select(old.id, for: .application)
+        let selected = try await store.select(old.id)
         let updated = try await catalog.install(pack, replacing: old)
         let loaded = try await store.load()
         #expect(loaded.preferences == selected.preferences)
-        #expect(loaded.theme(for: nil) == updated)
+        #expect(loaded.theme == updated)
         #expect(loaded.revision > selected.revision)
         #expect(loaded.orderedEntryIDs == selected.orderedEntryIDs)
     }
 
-    @Test func `Forgetting a theme clears only its selections`() async throws {
+    @Test(arguments: [false, true]) func `Forgetting a theme clears only its selection`(isSelected: Bool) async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let catalog = ThemeCatalog(directory: fixture.directory)
         let forgotten = try await catalog.install(PackService().read(from: fixture.source()))
         let kept = try await catalog.install(PackService().read(from: fixture.source()))
         let store = AppearanceStore(directory: fixture.directory)
-        let (wallet, other) = (UUID(), UUID())
-        _ = try await store.select(forgotten.id, for: .application)
-        _ = try await store.select(forgotten.id, for: .wallet(wallet))
-        _ = try await store.select(kept.id, for: .wallet(other))
+        _ = try await store.select(isSelected ? forgotten.id : kept.id)
 
         let snapshot = try await store.forget(forgotten.id)
 
-        #expect(snapshot.theme(for: nil) == nil)
-        #expect(snapshot.theme(for: wallet) == nil)
-        #expect(snapshot.theme(for: other) == kept)
+        #expect(snapshot.theme == (isSelected ? nil : kept))
         #expect(snapshot.entries[forgotten.id] == forgotten)
         #expect(try await store.load() == snapshot)
     }
@@ -174,8 +141,7 @@ nonisolated struct PreferencesTests {
         let catalog = ThemeCatalog(directory: fixture.directory, builtIns: [builtIn])
         let custom = try await catalog.install(PackService().read(from: fixture.source()))
         let store = AppearanceStore(directory: fixture.directory, builtIns: [builtIn])
-        let selected = try await store.select(builtIn.entry.id, for: .application)
-        _ = try await store.select(custom.id, for: .wallet(UUID()))
+        let selected = try await store.select(custom.id)
         let reset = try await store.reset()
         #expect(reset.preferences == AppearancePreferences())
         #expect(Set(reset.entries.keys) == [builtIn.entry.id, custom.id])
@@ -190,8 +156,8 @@ nonisolated struct PreferencesTests {
         let catalog = ThemeCatalog(directory: fixture.directory)
         let entry = try await catalog.install(PackService().read(from: fixture.source()))
         let store = AppearanceStore(directory: fixture.directory)
-        let before = try await store.select(entry.id, for: .application)
-        await #expect(throws: ThemeCatalogError.changed) { try await store.select(UUID(), for: .application) }
+        let before = try await store.select(entry.id)
+        await #expect(throws: ThemeCatalogError.changed) { try await store.select(UUID()) }
         #expect(try await store.load() == before)
     }
 
@@ -201,7 +167,7 @@ nonisolated struct PreferencesTests {
         let catalog = ThemeCatalog(directory: fixture.directory)
         let entry = try await catalog.install(PackService().read(from: fixture.source()))
         let store = AppearanceStore(directory: fixture.directory)
-        let before = try await store.select(entry.id, for: .application)
+        let before = try await store.select(entry.id)
         try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: fixture.directory.path)
         defer { try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: fixture.directory.path) }
         await #expect(throws: (any Error).self) { try await catalog.remove(entry) }
@@ -216,7 +182,7 @@ nonisolated struct PreferencesTests {
         let pack = try await PackService().read(from: fixture.source())
         let entry = try await catalog.install(pack)
         let store = AppearanceStore(directory: fixture.directory)
-        let before = try await store.select(entry.id, for: .application)
+        let before = try await store.select(entry.id)
         let replacement = try await PackService().read(from: fixture.source(id: pack.id, name: "Replacement"))
         let failing = ThemeCatalog(directory: fixture.directory, packages: InterceptedPackages {
             try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: fixture.directory.path)
@@ -236,12 +202,12 @@ nonisolated struct PreferencesTests {
         let catalog = ThemeCatalog(directory: fixture.directory)
         let entry = try await catalog.install(PackService().read(from: fixture.source()))
         let store = AppearanceStore(directory: fixture.directory)
-        let before = try await store.select(entry.id, for: .application)
+        let before = try await store.select(entry.id)
         let metadata = fixture.directory.appendingPathComponent(CatalogFiles.metadataName)
         try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: fixture.directory.path)
         defer { try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: fixture.directory.path) }
         let data = try Data(contentsOf: metadata)
-        #expect(try await store.select(entry.id, for: .application) == before)
+        #expect(try await store.select(entry.id) == before)
         #expect(try Data(contentsOf: metadata) == data)
     }
 
@@ -251,7 +217,7 @@ nonisolated struct PreferencesTests {
         let catalog = ThemeCatalog(directory: fixture.directory)
         let entry = try await catalog.install(PackService().read(from: fixture.source()))
         let store = AppearanceStore(directory: fixture.directory)
-        _ = try await store.select(entry.id, for: .application)
+        _ = try await store.select(entry.id)
         try Data("invalid".utf8).write(to: fixture.directory.appendingPathComponent(CatalogFiles.metadataName))
 
         #expect(try await store.load().preferences == AppearancePreferences())
@@ -263,8 +229,7 @@ nonisolated struct PreferencesTests {
         defer { fixture.remove() }
         let builtIn = BundledTheme(id: UUID(), name: "Bundled", url: fixture.root)
         let old = AppearanceStore(directory: fixture.directory, builtIns: [builtIn])
-        _ = try await old.select(builtIn.entry.id, for: .application)
-        let before = try await old.select(builtIn.entry.id, for: .wallet(UUID()))
+        let before = try await old.select(builtIn.entry.id)
         let current = AppearanceStore(directory: fixture.directory)
         let reconciled = try await current.load()
         #expect(reconciled.preferences == AppearancePreferences())

@@ -1,6 +1,6 @@
 import Foundation
 
-/// The theme selections and catalog entries at one revision.
+/// The theme selection and catalog entries at one revision.
 nonisolated struct AppearanceSnapshot: Sendable, Equatable {
     let revision: UInt64
     let preferences: AppearancePreferences
@@ -13,7 +13,7 @@ nonisolated struct AppearanceSnapshot: Sendable, Equatable {
     ///
     /// - Parameters:
     ///   - revision: The revision of the saved state.
-    ///   - preferences: The app and wallet theme selections.
+    ///   - preferences: The app's theme selection.
     ///   - entries: The bundled and installed entries, keyed by identity.
     init(revision: UInt64, preferences: AppearancePreferences, entries: [UUID: ThemeEntry]) {
         self.revision = revision
@@ -27,11 +27,6 @@ nonisolated struct AppearanceSnapshot: Sendable, Equatable {
         orderedEntryIDs = orderedEntries.map(\.id)
     }
 
-    /// Returns the theme selected for a wallet or the app.
-    ///
-    /// - Parameter recoveryID: The wallet's recovery identifier, or `nil` for the app.
-    /// - Returns: The selected entry, or `nil` for the original appearance.
-    func theme(for recoveryID: UUID?) -> ThemeEntry? {
-        preferences.themeID(for: recoveryID).flatMap { entries[$0] }
-    }
+    /// The app's selected theme, or `nil` for the original appearance.
+    var theme: ThemeEntry? { preferences.themeID.flatMap { entries[$0] } }
 }

@@ -39,8 +39,12 @@ final class AccountStore: Erasable {
     /// Saves an account after the saved ones.
     ///
     /// - Parameter account: The account to save.
-    /// - Throws: ``AccountStoreError/duplicateAccount`` for a duplicate account, or a storage error.
+    /// - Throws: ``AccountStoreError/anotherWallet`` for an account of another wallet,
+    ///   ``AccountStoreError/duplicateAccount`` for a duplicate account, or a storage error.
     func add(_ account: Account) async throws {
+        guard accounts.allSatisfy({ $0.recoveryID == account.recoveryID }) else {
+            throw AccountStoreError.anotherWallet
+        }
         guard !accounts.contains(where: { $0.isDuplicate(of: account) }) else {
             throw AccountStoreError.duplicateAccount
         }
@@ -70,20 +74,9 @@ final class AccountStore: Erasable {
         try await list.update { accounts in accounts.removeAll { $0.id == id } }
     }
 
-    /// Returns the saved accounts of a wallet.
-    ///
-    /// - Parameter recoveryID: The wallet's recovery identifier.
-    /// - Returns: The wallet's accounts, in the order they were added.
-    func accounts(inWallet recoveryID: UUID) -> [Account] {
-        accounts.filter { $0.recoveryID == recoveryID }
-    }
-
-    /// Returns the path of a wallet's next account at the lowest account index that its accounts don't use.
-    ///
-    /// - Parameter recoveryID: The wallet's recovery identifier.
-    /// - Returns: The path `m/44'/501'/i'/0'` for the new account.
-    func nextPath(inWallet recoveryID: UUID) -> DerivationPath {
-        let used = Set(accounts(inWallet: recoveryID).compactMap(\.path.accountIndex))
+    /// The path `m/44'/501'/i'/0'` of the next account, at the lowest account index that the saved accounts don't use.
+    var nextPath: DerivationPath {
+        let used = Set(accounts.compactMap(\.path.accountIndex))
         var index: UInt32 = 0
         while used.contains(index) { index += 1 }
         return .solana(account: index)

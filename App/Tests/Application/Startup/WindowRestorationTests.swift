@@ -39,10 +39,10 @@ struct WindowRestorationTests {
     }
 
     @Test
-    func `A window whose account is deleted chooses its wallet's first account`() async throws {
-        let walletFirst = try Account.fixture(index: 0)
-        let deleted = try Account.fixture(index: 1, recoveryID: walletFirst.recoveryID)
-        let accounts = AccountStore.inMemory(StoredValue([walletFirst, deleted]))
+    func `A window whose account is deleted chooses the first saved account`() async throws {
+        let first = try Account.fixture(index: 0)
+        let deleted = try Account.fixture(index: 1)
+        let accounts = AccountStore.inMemory(StoredValue([first, deleted]))
         let window = WindowModel(accounts: accounts)
         window.account = deleted
         let hosted = try HostedWindow(WindowRestorationRoot(choices: WindowChoices(network: .mainnet, section: .portfolio),
@@ -53,7 +53,7 @@ struct WindowRestorationTests {
 
         try await accounts.remove(deleted.id)
 
-        for await selection in Observations({ window.selection }) where selection == .init(walletFirst) { break }
-        #expect(window.destination == .wallet(walletFirst))
+        for await accountID in Observations({ window.accountID }) where accountID == first.id { break }
+        #expect(window.destination == .wallet(first))
     }
 }

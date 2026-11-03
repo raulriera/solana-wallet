@@ -8,10 +8,9 @@ private struct WindowAppearance: ViewModifier {
     @State private var rendered = RenderedAppearance()
     @State private var error: ThemeError?
     let services: AppearanceServices
-    let recoveryID: UUID?
 
     private var palette: RenderedPalette { rendered.palette(scheme: colorScheme, contrast: contrast) }
-    private var selectedTheme: ThemeEntry? { services.appearance.snapshot?.theme(for: recoveryID) }
+    private var selectedTheme: ThemeEntry? { services.appearance.snapshot?.theme }
 
     func body(content: Content) -> some View {
         content
@@ -50,11 +49,9 @@ private struct WindowAppearance: ViewModifier {
 extension View {
     /// Loads a window's theme and provides its colors to this view's hierarchy.
     ///
-    /// - Parameters:
-    ///   - services: The shared appearance services.
-    ///   - recoveryID: The recovery identifier of the window's wallet, or `nil` for the app's theme.
+    /// - Parameter services: The shared appearance services.
     /// - Returns: A view with the window's theme colors.
-    func windowAppearance(services: AppearanceServices, recoveryID: UUID? = nil) -> some View {
-        modifier(WindowAppearance(services: services, recoveryID: recoveryID))
+    func windowAppearance(services: AppearanceServices) -> some View {
+        modifier(WindowAppearance(services: services))
     }
 }

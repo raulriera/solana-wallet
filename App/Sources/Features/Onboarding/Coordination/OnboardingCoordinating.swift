@@ -12,6 +12,8 @@ protocol OnboardingCoordinating: AnyObject, Observable {
     var finishedAccount: Account? { get }
     /// Whether a preparation or save is running.
     var isWorking: Bool { get }
+    /// The wallet's first account that another window saved while this workflow is idle, or `nil`.
+    var savedWalletAccount: Account? { get }
 
     /// Prepares a new twelve-word recovery and its first account without saving them.
     ///
@@ -29,7 +31,8 @@ protocol OnboardingCoordinating: AnyObject, Observable {
     /// Saves the prepared recovery and account.
     ///
     /// - Returns: The saved account.
-    /// - Throws: A storage, cancellation, or invalid-state error.
+    /// - Throws: ``OnboardingCoordinatorError/walletAlreadySaved`` after releasing the draft when another window
+    ///   saved the wallet, or a storage, cancellation, or invalid-state error.
     func complete() async throws -> Account
 
     /// Ends onboarding with the saved account.

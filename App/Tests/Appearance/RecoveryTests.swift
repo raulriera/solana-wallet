@@ -22,7 +22,7 @@ struct AppearanceRecoveryTests {
         let catalog = ThemeCatalog(directory: files.directory)
         let entry = try await catalog.install(PackService().read(from: files.source()))
         let store = AppearanceStore(directory: files.directory)
-        let before = try await store.select(entry.id, for: .application)
+        let before = try await store.select(entry.id)
         let request = SettingsRecoveryRequest(suiteName: preferences.suiteName)
         let coordinator = AppearanceCoordinator(store: store, recovery: request)
         try await coordinator.activate()
@@ -37,8 +37,7 @@ struct AppearanceRecoveryTests {
         let catalog = ThemeCatalog(directory: files.directory)
         let entry = try await catalog.install(PackService().read(from: files.source()))
         let store = AppearanceStore(directory: files.directory)
-        _ = try await store.select(entry.id, for: .application)
-        _ = try await store.select(entry.id, for: .wallet(UUID()))
+        _ = try await store.select(entry.id)
         let manifest = CatalogFiles.package(for: entry, in: files.directory).appendingPathComponent("manifest.json")
         try Data("invalid".utf8).write(to: manifest)
         let request = SettingsRecoveryRequest(suiteName: preferences.suiteName)
@@ -50,7 +49,7 @@ struct AppearanceRecoveryTests {
         #expect(try await request.isRequested() == false)
         #expect(FileManager.default.fileExists(atPath: manifest.path))
 
-        try await coordinator.select(entry.id, for: .application)
+        try await coordinator.select(entry.id)
         let selected = coordinator.snapshot
         let relaunched = AppearanceCoordinator(store: store, recovery: request)
         try await relaunched.activate()
@@ -68,7 +67,7 @@ struct AppearanceRecoveryTests {
         let catalog = ThemeCatalog(directory: files.directory)
         let entry = try await catalog.install(PackService().read(from: files.source()))
         let store = AppearanceStore(directory: files.directory)
-        let before = try await store.select(entry.id, for: .application)
+        let before = try await store.select(entry.id)
         let request = SettingsRecoveryRequest(suiteName: preferences.suiteName)
         let coordinator = AppearanceCoordinator(store: store, recovery: request)
         try await coordinator.activate()
@@ -142,7 +141,7 @@ struct AppearanceRecoveryTests {
         for await _ in entered.stream {}
         let selecting = Task {
             selectionEntered.continuation.finish()
-            try await coordinator.select(entry.id, for: .application)
+            try await coordinator.select(entry.id)
         }
         defer { selecting.cancel() }
         for await _ in selectionEntered.stream {}
@@ -150,7 +149,7 @@ struct AppearanceRecoveryTests {
         release.continuation.finish()
         try await activating.value
         try await selecting.value
-        #expect(coordinator.snapshot?.theme(for: nil) == entry)
+        #expect(coordinator.snapshot?.theme == entry)
         #expect(try await store.load() == coordinator.snapshot)
     }
 }

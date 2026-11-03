@@ -11,14 +11,14 @@ struct AccountsScene: View {
     @Binding var account: Account
 
     var body: some View {
-        let accounts = store.accounts(inWallet: account.recoveryID)
         NavigationStack(path: $path) {
-            AccountsScreen(accounts: accounts, selection: $account, addition: addition, deletion: deletion, path: $path)
+            AccountsScreen(accounts: store.accounts, selection: $account, addition: addition, deletion: deletion,
+                           path: $path)
                 .accountsLifecycle()
                 .navigationDestination(for: AccountsRoute.self) { route in
                     switch route {
                     case .account(let id):
-                        if let shown = accounts.first(where: { $0.id == id }) {
+                        if let shown = store.accounts.first(where: { $0.id == id }) {
                             AccountScreen(account: shown, canDelete: shown.id != account.id, rename: rename,
                                           deletion: deletion)
                                 .accountRenameLifecycle()
@@ -26,8 +26,8 @@ struct AccountsScene: View {
                     }
                 }
         }
-        .onChange(of: accounts.count) {
-            let saved = Set(store.accounts(inWallet: account.recoveryID).map(\.id))
+        .onChange(of: store.accounts.count) {
+            let saved = Set(store.accounts.map(\.id))
             path.removeAll { route in
                 switch route {
                 case .account(let id): !saved.contains(id)

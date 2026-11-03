@@ -40,8 +40,8 @@ import Themes
 
     var canStartOperation: Bool { operation == nil && export == nil && replacement == nil }
 
-    func select(_ id: UUID?, for scope: AppearancePreferences.Scope) {
-        run(defaultingTo: .saveFailed) { try await self.appearance.select(id, for: scope) }
+    func select(_ id: UUID?) {
+        run(defaultingTo: .saveFailed) { try await self.appearance.select(id) }
     }
 
     /// Imports a theme package without selecting it.

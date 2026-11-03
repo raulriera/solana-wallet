@@ -65,9 +65,24 @@ struct AccountStoreTests {
     }
 
     @Test
+    func `An account of another wallet is not saved`() async throws {
+        let first = try widgets.Account.fixture(index: 0)
+        let storage = StoredValue([first])
+        let accounts = AccountStore.inMemory(storage)
+        await accounts.load()
+
+        await #expect(throws: AccountStoreError.anotherWallet) {
+            try await accounts.add(widgets.Account.fixture(index: 1, recoveryID: UUID()))
+        }
+
+        #expect(accounts.accounts == [first])
+        #expect(await storage.value == [first])
+    }
+
+    @Test
     func `Adding saves after the saved accounts`() async throws {
         let first = try widgets.Account.fixture(index: 0)
-        let second = try widgets.Account.fixture(index: 1, recoveryID: first.recoveryID)
+        let second = try widgets.Account.fixture(index: 1)
         let storage = StoredValue([first])
         let accounts = AccountStore.inMemory(storage)
         await accounts.load()
@@ -98,7 +113,7 @@ struct AccountStoreTests {
     @Test(arguments: ["id", "address", "path"])
     func `Duplicate accounts are rejected`(_ field: String) async throws {
         let first = try widgets.Account.fixture(index: 0)
-        let other = try widgets.Account.fixture(index: 1, recoveryID: first.recoveryID)
+        let other = try widgets.Account.fixture(index: 1)
         let storage = StoredValue([first])
         let accounts = AccountStore.inMemory(storage)
         await accounts.load()
@@ -159,18 +174,6 @@ struct AccountStoreTests {
     }
 
     @Test
-    func `A wallet lists only its own accounts`() async throws {
-        let first = try widgets.Account.fixture(index: 0)
-        let other = try widgets.Account.fixture(index: 1)
-        let second = try widgets.Account.fixture(index: 2, recoveryID: first.recoveryID)
-        let accounts = AccountStore.inMemory(StoredValue([first, other, second]))
-        await accounts.load()
-
-        #expect(accounts.accounts(inWallet: first.recoveryID) == [first, second])
-        #expect(accounts.accounts(inWallet: UUID()).isEmpty)
-    }
-
-    @Test
     func `Erasing forgets every account`() async throws {
         let storage = StoredValue(try [widgets.Account.fixture(index: 0)])
         let accounts = AccountStore.inMemory(storage)
@@ -187,7 +190,7 @@ struct AccountStoreTests {
     @Test
     func `A rename saves the new name`() async throws {
         let first = try widgets.Account.fixture(index: 0)
-        let second = try widgets.Account.fixture(index: 1, recoveryID: first.recoveryID)
+        let second = try widgets.Account.fixture(index: 1)
         let storage = StoredValue([first, second])
         let accounts = AccountStore.inMemory(storage)
         await accounts.load()
@@ -223,17 +226,16 @@ struct AccountStoreTests {
                                 address: widgets.Account.fixture(index: UInt8(offset)).address,
                                 path: DerivationPath(path))
         }
-        let other = try widgets.Account.fixture(index: 9)
-        let accounts = AccountStore.inMemory(StoredValue(saved + [other]))
+        let accounts = AccountStore.inMemory(StoredValue(saved))
         await accounts.load()
 
-        #expect(accounts.nextPath(inWallet: recoveryID) == .solana(account: index))
+        #expect(accounts.nextPath == .solana(account: index))
     }
 
     @Test
     func `Deleting removes the account`() async throws {
         let first = try widgets.Account.fixture(index: 0)
-        let second = try widgets.Account.fixture(index: 1, recoveryID: first.recoveryID)
+        let second = try widgets.Account.fixture(index: 1)
         let storage = StoredValue([first, second])
         let accounts = AccountStore.inMemory(storage)
         await accounts.load()
@@ -247,13 +249,13 @@ struct AccountStoreTests {
     @Test
     func `A deleted account's index is used again`() async throws {
         let first = try widgets.Account.fixture(index: 0)
-        let second = try widgets.Account.fixture(index: 1, recoveryID: first.recoveryID)
+        let second = try widgets.Account.fixture(index: 1)
         let accounts = AccountStore.inMemory(StoredValue([first, second]))
         await accounts.load()
 
         try await accounts.remove(second.id)
 
-        #expect(accounts.nextPath(inWallet: first.recoveryID) == .solana(account: 1))
+        #expect(accounts.nextPath == .solana(account: 1))
     }
 
     @Test(arguments: Change.allCases)

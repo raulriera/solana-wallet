@@ -42,7 +42,7 @@ struct SettingsSplitView: View {
                 SecurityScene(coordinator: security, account: account)
             case .appearance:
                 NavigationStack {
-                    AppearanceView(settings: settings, wallet: nil)
+                    AppearanceView(settings: settings)
                 }
             case .currency:
                 CurrencyScene()

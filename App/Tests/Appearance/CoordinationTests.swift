@@ -21,12 +21,12 @@ struct AppearanceCoordinationTests {
         let pending = Task { try await coordinator.reload() }
         defer { pending.cancel() }
         for await _ in loaded.stream {}
-        try await coordinator.select(entry.id, for: .application)
+        try await coordinator.select(entry.id)
         let current = try #require(coordinator.snapshot)
         release.continuation.finish()
         try await pending.value
         #expect(coordinator.snapshot == current)
-        #expect(coordinator.snapshot?.theme(for: nil) == entry)
+        #expect(coordinator.snapshot?.theme == entry)
     }
 
     @Test func `Forgetting a theme publishes its cleared selection`() async throws {
@@ -35,11 +35,11 @@ struct AppearanceCoordinationTests {
         let catalog = ThemeCatalog(directory: fixture.directory)
         let entry = try await catalog.install(PackService().read(from: fixture.source()))
         let coordinator = AppearanceCoordinator(store: AppearanceStore(directory: fixture.directory), recovery: nil)
-        try await coordinator.select(entry.id, for: .application)
+        try await coordinator.select(entry.id)
 
         try await coordinator.forget(entry.id)
 
-        #expect(coordinator.snapshot?.theme(for: nil) == nil)
+        #expect(coordinator.snapshot?.theme == nil)
     }
 
     @Test func `Restarting after the folder is deleted drops the cached selection`() async throws {
@@ -48,14 +48,14 @@ struct AppearanceCoordinationTests {
         let catalog = ThemeCatalog(directory: fixture.directory)
         let entry = try await catalog.install(PackService().read(from: fixture.source()))
         let coordinator = AppearanceCoordinator(store: AppearanceStore(directory: fixture.directory), recovery: nil)
-        try await coordinator.select(entry.id, for: .application)
+        try await coordinator.select(entry.id)
         try FileManager.default.removeItem(at: fixture.directory)
 
         try await coordinator.reload()
-        #expect(coordinator.snapshot?.theme(for: nil) == entry)
+        #expect(coordinator.snapshot?.theme == entry)
         try await coordinator.restart()
 
-        #expect(coordinator.snapshot?.theme(for: nil) == nil)
+        #expect(coordinator.snapshot?.theme == nil)
         #expect(coordinator.snapshot?.entries.isEmpty == true)
     }
 
@@ -66,7 +66,7 @@ struct AppearanceCoordinationTests {
         let coordinator = AppearanceCoordinator(store: store, recovery: nil)
         try await coordinator.reload()
         let before = coordinator.snapshot
-        await #expect(throws: ThemeCatalogError.changed) { try await coordinator.select(UUID(), for: .application) }
+        await #expect(throws: ThemeCatalogError.changed) { try await coordinator.select(UUID()) }
         #expect(coordinator.snapshot == before)
     }
 
@@ -76,13 +76,11 @@ struct AppearanceCoordinationTests {
         let catalog = ThemeCatalog(directory: fixture.directory)
         let entry = try await catalog.install(PackService().read(from: fixture.source()))
         let coordinator = AppearanceCoordinator(store: AppearanceStore(directory: fixture.directory), recovery: nil)
-        let wallet = UUID()
-        try await coordinator.select(entry.id, for: .wallet(wallet))
+        try await coordinator.select(entry.id)
         try await catalog.remove(entry)
-        #expect(coordinator.snapshot?.theme(for: wallet) == entry)
+        #expect(coordinator.snapshot?.theme == entry)
         try await coordinator.reload()
-        #expect(coordinator.snapshot?.theme(for: wallet) == nil)
-        #expect(coordinator.snapshot?.preferences.walletThemeIDs.isEmpty == true)
+        #expect(coordinator.snapshot?.theme == nil)
         try await coordinator.reset()
         #expect(coordinator.snapshot?.preferences == AppearancePreferences())
     }

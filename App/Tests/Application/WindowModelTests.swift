@@ -27,7 +27,7 @@ struct WindowModelTests {
     @Test
     func `Choosing another account shows it in the window only`() async throws {
         let first = try Account.fixture(index: 1)
-        let second = try Account.fixture(index: 2, recoveryID: first.recoveryID)
+        let second = try Account.fixture(index: 2)
         let accounts = AccountStore.inMemory(StoredValue([first, second]))
         let window = await makeWindow(over: accounts)
         let otherWindow = await makeWindow(over: accounts)

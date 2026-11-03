@@ -17,13 +17,13 @@ struct AppearanceSettingsModelTests {
         let entry = try #require(settings.entries.first)
         let before = settings.appearance.snapshot
 
-        settings.select(entry.id, for: .application)
+        settings.select(entry.id)
         #expect(!settings.canStartOperation)
         #expect(settings.appearance.snapshot == before)
-        settings.select(nil, for: .application)
+        settings.select(nil)
         await settings.waitForOperation()
 
-        #expect(settings.appearance.snapshot?.preferences.appThemeID == entry.id)
+        #expect(settings.appearance.snapshot?.preferences.themeID == entry.id)
         #expect(settings.error == nil)
         #expect(settings.canStartOperation)
     }
@@ -47,7 +47,7 @@ struct AppearanceSettingsModelTests {
         settings.importPack(from: try fixture.source())
         await settings.waitForOperation()
         let entry = try #require(settings.entries.first)
-        settings.select(entry.id, for: .application)
+        settings.select(entry.id)
         await settings.waitForOperation()
         let before = settings.appearance.snapshot
         let invalid = try fixture.source()
@@ -85,9 +85,7 @@ struct AppearanceSettingsModelTests {
         settings.importPack(from: try fixture.source())
         await settings.waitForOperation()
         let entry = try #require(settings.entries.first)
-        settings.select(entry.id, for: .application)
-        await settings.waitForOperation()
-        settings.select(entry.id, for: .wallet(UUID()))
+        settings.select(entry.id)
         await settings.waitForOperation()
         settings.remove(entry)
         await settings.waitForOperation()
@@ -171,27 +169,6 @@ struct AppearanceSettingsModelTests {
         await settings.waitForOperation()
         #expect(shared.snapshot?.entries.values.first?.name == "Committed")
         #expect(settings.error == nil)
-    }
-
-    @Test func `Original wallet override remains independent`() async throws {
-        let fixture = try CatalogFixture()
-        defer { fixture.remove() }
-        let nativeURL = try fixture.source(id: OriginalAppearance.id, name: "Original")
-        let bundled = [BundledTheme(id: OriginalAppearance.id, name: "Original", url: nativeURL)]
-        let catalog = ThemeCatalog(directory: fixture.directory, builtIns: bundled)
-        let appearance = AppearanceCoordinator(store: AppearanceStore(directory: fixture.directory, builtIns: bundled), recovery: nil)
-        let settings = AppearanceSettingsModel(appearance: appearance, catalog: catalog, packages: PackService())
-        let entry = try await catalog.install(PackService().read(from: fixture.source()))
-        let wallet = UUID()
-        settings.select(entry.id, for: .application)
-        await settings.waitForOperation()
-        settings.select(OriginalAppearance.id, for: .wallet(wallet))
-        await settings.waitForOperation()
-        #expect(appearance.snapshot?.theme(for: wallet)?.id == OriginalAppearance.id)
-        #expect(appearance.snapshot?.theme(for: UUID())?.id == entry.id)
-        settings.select(nil, for: .wallet(wallet))
-        await settings.waitForOperation()
-        #expect(appearance.snapshot?.theme(for: wallet)?.id == entry.id)
     }
 
     @Test(arguments: [false, true])

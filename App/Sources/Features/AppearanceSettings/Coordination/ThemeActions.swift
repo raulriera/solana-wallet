@@ -2,12 +2,10 @@ import Foundation
 
 /// Actions that select and remove themes.
 @MainActor protocol ThemeActions: AnyObject {
-    /// Selects the theme of the app or a wallet.
+    /// Selects the theme of the app.
     ///
-    /// - Parameters:
-    ///   - id: The theme, or `nil` to clear the selection.
-    ///   - scope: The app or wallet to change.
-    func select(_ id: UUID?, for scope: AppearancePreferences.Scope)
+    /// - Parameter id: The theme, or `nil` to clear the selection.
+    func select(_ id: UUID?)
 
     /// Removes an installed theme.
     ///

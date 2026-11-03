@@ -72,6 +72,7 @@ final class WalletSetupModel {
         }
         do {
             _ = try await coordinator.complete()
+        } catch OnboardingCoordinatorError.walletAlreadySaved {
         } catch {
             guard !Task.isCancelled, !(error is CancellationError) else { return }
             self.error = .saveFailed

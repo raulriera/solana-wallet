@@ -8,8 +8,8 @@ struct ThemeRow: View {
     @State private var removal: ThemeEntry?
 
     var body: some View {
-        ThemeChoiceRow(themeID: entry.id, name: entry.name, isSelected: isSelected, scope: .application,
-                       actions: actions)
+        Button(entry.name, action: select)
+            .buttonStyle(.choice(isSelected: isSelected))
             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                 if entry.origin == .custom {
                     SwipeDeleteButton(removal: $removal, item: entry)
@@ -22,5 +22,10 @@ struct ThemeRow: View {
                 Text("\(approved.name) will be deleted from this device.",
                      comment: "The Delete Theme alert's message. The variable is the theme's name.")
             }
+    }
+
+    /// Selects the row's theme, or the original appearance.
+    private func select() {
+        actions.select(entry.id == OriginalAppearance.id ? nil : entry.id)
     }
 }

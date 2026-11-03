@@ -9,4 +9,5 @@ nonisolated enum OnboardingCoordinatorError: Error, Equatable {
     case recoveryStorageFailed
     case recoveryMismatch
     case accountStorageFailed
+    case walletAlreadySaved
 }

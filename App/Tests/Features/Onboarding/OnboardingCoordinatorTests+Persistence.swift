@@ -20,22 +20,88 @@ extension OnboardingCoordinatorTests {
     }
 
     @Test
-    func `A duplicate account keeps its typed error and the draft`() async throws {
+    func `A wallet saved before completing releases the draft without saving recovery`() async throws {
         let recovery = OnboardingRecoveryStore()
-        let saved = widgets.Account(id: UUID(), recoveryID: UUID(),
-                                    address: try Address("7zSmbu6gKkb6HB7UDPtHYjwCWuBHU1D4TpNZFm4sndQe"),
-                                    path: .solana)
+        let saved = try widgets.Account.fixture(index: 1)
         let storage = StoredValue([saved])
         let accounts = AccountStore.inMemory(storage)
         await accounts.load()
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts)
         try await coordinator.importRecovery(Self.phrase, passphrase: "TREZOR")
 
-        await #expect(throws: AccountStoreError.duplicateAccount) { try await coordinator.complete() }
+        await #expect(throws: OnboardingCoordinatorError.walletAlreadySaved) { try await coordinator.complete() }
 
         #expect(coordinator.account == nil)
-        #expect(coordinator.recovery != nil)
-        #expect(coordinator.finishedAccount == nil)
+        #expect(coordinator.recovery == nil)
+        #expect(!coordinator.isWorking)
+        #expect(await recovery.saves.isEmpty)
+        #expect(await storage.value == [saved])
+    }
+
+    @Test
+    func `An idle window reports the wallet that another window saved`() async throws {
+        let accounts = AccountStore.inMemory()
+        await accounts.load()
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: OnboardingRecoveryStore(), accounts: accounts)
+        #expect(coordinator.savedWalletAccount == nil)
+        let saved = try widgets.Account.fixture(index: 1)
+
+        try await accounts.add(saved)
+
+        #expect(coordinator.savedWalletAccount == saved)
+    }
+
+    @Test
+    func `A window that saved the wallet reports no other saved wallet`() async throws {
+        let accounts = AccountStore.inMemory()
+        await accounts.load()
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: OnboardingRecoveryStore(), accounts: accounts)
+        try await coordinator.importRecovery(Self.phrase, passphrase: "TREZOR")
+
+        _ = try await coordinator.complete()
+
+        #expect(coordinator.savedWalletAccount == nil)
+    }
+
+    @Test
+    func `The same phrase saved by another window releases this window's draft`() async throws {
+        let recovery = OnboardingRecoveryStore()
+        let accounts = AccountStore.inMemory()
+        await accounts.load()
+        let first = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts)
+        let second = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts)
+        try await first.importRecovery(Self.phrase, passphrase: "TREZOR")
+        try await second.importRecovery(Self.phrase, passphrase: "TREZOR")
+        let saved = try await first.complete()
+
+        await #expect(throws: OnboardingCoordinatorError.walletAlreadySaved) { try await second.complete() }
+
+        #expect(second.recovery == nil)
+        #expect(accounts.accounts == [saved])
+    }
+
+    @Test
+    func `A wallet saved while recovery saves deletes that recovery and releases the draft`() async throws {
+        let gate = Suspension()
+        let recovery = OnboardingRecoveryStore(gate: gate)
+        let storage = StoredValue<[widgets.Account]>()
+        let accounts = AccountStore.inMemory(storage)
+        await accounts.load()
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client), wallet: Wallet(), recovery: recovery, accounts: accounts)
+        try await coordinator.importRecovery(Self.phrase, passphrase: "TREZOR")
+        let completion = Task { try await coordinator.complete() }
+        await gate.waitUntilStarted()
+        let saved = try widgets.Account.fixture(index: 1)
+
+        try await accounts.add(saved)
+        gate.resume()
+
+        await #expect(throws: OnboardingCoordinatorError.walletAlreadySaved) { try await completion.value }
+        let recoveryID = try #require(await recovery.saves.first)
+        #expect(await recovery.deletions == [recoveryID])
+        #expect(!(await recovery.contains(recoveryID)))
+        #expect(coordinator.recovery == nil)
+        #expect(accounts.accounts == [saved])
         #expect(await storage.value == [saved])
     }
 

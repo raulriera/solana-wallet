@@ -18,8 +18,8 @@ nonisolated struct InterceptedAppearanceStore: AppearanceStoring {
         return snapshot
     }
 
-    func select(_ themeID: UUID?, for scope: AppearancePreferences.Scope) async throws -> AppearanceSnapshot {
-        try await base.select(themeID, for: scope)
+    func select(_ themeID: UUID?) async throws -> AppearanceSnapshot {
+        try await base.select(themeID)
     }
 
     func forget(_ themeID: UUID) async throws -> AppearanceSnapshot {

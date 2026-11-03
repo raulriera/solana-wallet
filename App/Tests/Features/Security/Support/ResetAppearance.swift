@@ -19,7 +19,7 @@ final class ResetAppearance: AppearanceCoordinating {
 
     func restart() async throws { try await storage.delete(.appearance) }
 
-    func select(_ themeID: UUID?, for scope: AppearancePreferences.Scope) async throws {
+    func select(_ themeID: UUID?) async throws {
         Issue.record("A reset must not select a theme.")
     }
 

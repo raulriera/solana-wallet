@@ -6,18 +6,16 @@ import Storage
 @MainActor
 @Observable
 final class WindowModel {
-    /// The account that the window chose and its wallet, or `nil` for onboarding.
-    private(set) var selection: Selection?
+    /// The identity of the account that the window chose, or `nil` for onboarding.
+    private(set) var accountID: Account.ID?
     private var isStarted = false
     private let accounts: AccountStore
 
     var destination: WindowDestination {
         guard isStarted else { return .restoringWallets }
         guard accounts.phase == .loaded else { return .walletRestorationFailed }
-        guard let selection else { return .onboarding }
-        let account = accounts.accounts.first { $0.id == selection.accountID }
-            ?? accounts.accounts(inWallet: selection.walletID).first
-            ?? accounts.accounts.first
+        guard let accountID else { return .onboarding }
+        let account = accounts.accounts.first { $0.id == accountID } ?? accounts.accounts.first
         return account.map(WindowDestination.wallet) ?? .onboarding
     }
 
@@ -27,7 +25,7 @@ final class WindowModel {
             guard case .wallet(let account) = destination else { return nil }
             return account
         }
-        set { selection = newValue.map(Selection.init) }
+        set { accountID = newValue?.id }
     }
 
     /// Accesses the account that the window shows, or a fallback when it shows none.
@@ -48,38 +46,12 @@ final class WindowModel {
 
     /// Loads the saved accounts and chooses the window's account.
     ///
-    /// - Parameter restored: The account that the window showed last, if any.
-    func restore(preferring restored: Selection?) async {
+    /// - Parameter restored: The identity of the account that the window showed last, if any.
+    func restore(preferring restored: Account.ID?) async {
         guard !isStarted || accounts.phase != .loaded else { return }
         await accounts.load()
         guard !Task.isCancelled else { return }
-        if selection == nil { selection = restored ?? accounts.accounts.first.map(Selection.init) }
+        if accountID == nil { accountID = restored ?? accounts.accounts.first?.id }
         isStarted = true
-    }
-}
-
-extension WindowModel {
-    /// The identities of a window's chosen account and its wallet.
-    nonisolated struct Selection: Equatable, Sendable {
-        let accountID: Account.ID
-        /// The recovery identifier of the account's wallet.
-        let walletID: UUID
-
-        /// Creates a selection from an account's identities.
-        ///
-        /// - Parameters:
-        ///   - accountID: The account's identity.
-        ///   - walletID: The recovery identifier of the account's wallet.
-        init(accountID: Account.ID, walletID: UUID) {
-            self.accountID = accountID
-            self.walletID = walletID
-        }
-
-        /// Creates a selection of a saved account.
-        ///
-        /// - Parameter account: The account to select.
-        init(_ account: Account) {
-            self.init(accountID: account.id, walletID: account.recoveryID)
-        }
     }
 }
