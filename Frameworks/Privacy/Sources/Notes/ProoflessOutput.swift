@@ -1,4 +1,5 @@
 import ModularArithmetic
+import RPC
 
 /// The payload of a proofless deposit's output, with the UTXO in the clear.
 struct ProoflessOutput: Sendable, Equatable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
@@ -15,8 +16,6 @@ struct ProoflessOutput: Sendable, Equatable, CustomStringConvertible, CustomDebu
 
     /// The length of the encoding tag and the declared length, in bytes.
     private static let headerLength = 5
-
-    private static let plaintextEncoding: UInt8 = 0
 
     private static let prooflessScheme: UInt8 = 0
 
@@ -49,7 +48,7 @@ struct ProoflessOutput: Sendable, Equatable, CustomStringConvertible, CustomDebu
     ///   ``ValidationError/unsupportedData`` if an option before the memo is present.
     init(decoding payload: [UInt8]) throws {
         guard payload.count > Self.headerLength else { throw ValidationError.invalidLength }
-        guard payload[0] == Self.plaintextEncoding else { throw ValidationError.unsupportedEncoding }
+        guard payload[0] == ShieldedOutput.Encoding.plaintext.rawValue else { throw ValidationError.unsupportedEncoding }
         let declaredLength: UInt32 = payload.littleEndian(at: 1)
         guard Int(declaredLength) == payload.count - Self.headerLength else { throw ValidationError.invalidLength }
         guard payload[Self.headerLength] == Self.prooflessScheme else { throw ValidationError.unsupportedScheme }

@@ -10,9 +10,10 @@ struct IndexerPageTests {
         let json = page(Fixture.page([Fixture.transaction(signature: 1, slot: 9_007_199_254_740_993, eventIndex: 3,
                                                           outputs: [Fixture.output(tag: 1, hash: 2, leafIndex: 7)],
                                                           nullifiers: [4, 5])],
-                                     next: "AQ==", scanned: "Ag==", outputTreeID: 6))
+                                     next: "AQ==", outputTreeID: 6))
 
         let decoded = try JSONDecoder().decode(ShieldedTransactionPage.self, from: json)
+        let last = try JSONDecoder().decode(ShieldedTransactionPage.self, from: page(Fixture.page(scannedThrough: "Ag==")))
 
         #expect(decoded.items.map(\.isInRing) == [false])
         #expect(decoded.items.map(\.value) == [ShieldedTransaction(
@@ -23,8 +24,10 @@ struct IndexerPageTests {
             nullifiers: [Fixture.bytes(4), Fixture.bytes(5)], isProofless: false
         )])
         #expect(decoded.nextCursor == "AQ==")
-        #expect(decoded.scannedThrough == "Ag==")
+        #expect(decoded.scannedThrough == nil)
         #expect(decoded.outputTreeID == 6)
+        #expect(last.nextCursor == nil)
+        #expect(last.scannedThrough == "Ag==")
     }
 
     @Test
@@ -92,7 +95,7 @@ struct IndexerPageTests {
 
     @Test
     func `Encrypted outputs are deposits only without a viewing key and salt`() throws {
-        let output = Fixture.output(tag: 1, hash: 2, leafIndex: 7)
+        let output = Fixture.output(tag: 1, hash: 2, leafIndex: 7, payload: "AAID")
         let json = page(Fixture.page([Fixture.match(signature: 1, slot: 10, output: output),
                                       Fixture.match(signature: 2, slot: 11, output: output, keyed: true)],
                                      in: "matches", outputTreeID: 3))
@@ -100,7 +103,7 @@ struct IndexerPageTests {
         let decoded = try JSONDecoder().decode(EncryptedOutputPage.self, from: json)
 
         let expected = ShieldedOutput(viewTag: Fixture.bytes(1), utxoHash: Fixture.bytes(2), treeID: 0, leafIndex: 7,
-                                      payload: [1, 2, 3])
+                                      payload: [0, 2, 3])
         #expect(decoded.items.map(\.output) == [expected, expected])
         #expect(decoded.items.map(\.deposit) == [
             ShieldedTransaction(signature: Fixture.signature(1), slot: 10, eventIndex: nil, transactionViewingKey: nil,
@@ -110,14 +113,24 @@ struct IndexerPageTests {
         #expect(decoded.outputTreeID == 3)
     }
 
+    @Test(arguments: ["AQID", "AgID", ""])
+    func `Unkeyed outputs without a plaintext payload aren't deposits`(payload: String) throws {
+        let output = Fixture.output(tag: 1, hash: 2, leafIndex: 7, payload: payload)
+        let json = page(Fixture.page([Fixture.match(signature: 1, slot: 10, output: output)], in: "matches"))
+
+        let decoded = try JSONDecoder().decode(EncryptedOutputPage.self, from: json)
+
+        #expect(decoded.items.map(\.deposit) == [nil])
+    }
+
     @Test
     func `Reading pages collects rows until no cursor remains`() async throws {
         let pages = [
             nil: Fixture.page([Fixture.transaction(signature: 1, slot: 1)], next: "AQ==", outputTreeID: 1),
-            "AQ==": Fixture.page(scanned: "Ag=="),
+            "AQ==": Fixture.page(scannedThrough: "Ag=="),
         ] as [String?: String]
 
-        let read = try await ShieldedTransactionPage.readAll(from: nil) { cursor in
+        let read = try await ShieldedTransactionPage.read(from: nil, pageLimit: 8) { cursor in
             try JSONDecoder().decode(ShieldedTransactionPage.self, from: page(try #require(pages[cursor])))
         }
 
@@ -127,15 +140,54 @@ struct IndexerPageTests {
     }
 
     @Test
+    func `A read that reaches the end of its stream is complete`() async throws {
+        var fetched = 0
+
+        let read = try await EndlessPage.read(from: nil, pageLimit: 2) { _ in
+            fetched += 1
+            return EndlessPage(items: [fetched], nextCursor: fetched == 2 ? nil : "\(fetched)")
+        }
+
+        #expect(read.items == [1, 2])
+        #expect(read.isComplete)
+        #expect(read.resumeCursor == "1")
+    }
+
+    @Test
     func `A cursor on a page without rows fails the read`() async {
         await #expect(throws: RPCError.invalidResponse(.invalidCursor)) {
-            try await ShieldedTransactionPage.readAll(from: nil) { _ in
+            try await ShieldedTransactionPage.read(from: nil, pageLimit: 8) { _ in
                 try JSONDecoder().decode(ShieldedTransactionPage.self, from: page(IndexerFixtures.page(next: "AQ==")))
             }
         }
     }
 
+    @Test
+    func `A read stops at its page limit and resumes after its last page`() async throws {
+        var cursors: [String?] = []
+        let endless = { (cursor: String?) in
+            cursors.append(cursor)
+            return EndlessPage(items: [cursors.count], nextCursor: "\(cursors.count)")
+        }
+
+        let first = try await EndlessPage.read(from: nil, pageLimit: 3, fetching: endless)
+        let second = try await EndlessPage.read(from: first.resumeCursor, pageLimit: 2, fetching: endless)
+
+        #expect(first.items == [1, 2, 3])
+        #expect(!first.isComplete)
+        #expect(first.resumeCursor == "3")
+        #expect(second.items == [4, 5])
+        #expect(cursors == [nil, "1", "2", "3", "4"])
+    }
+
     private func page(_ member: String) -> Data {
         Data(member.dropFirst(#""result":"#.count).utf8)
     }
+}
+
+private nonisolated struct EndlessPage: IndexerPage {
+    let items: [Int]
+    let nextCursor: String?
+    var outputTreeID: UInt16? { nil }
+    var scannedThrough: String? { nil }
 }

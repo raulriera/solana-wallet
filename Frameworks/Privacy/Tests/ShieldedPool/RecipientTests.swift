@@ -16,7 +16,7 @@ struct RecipientTests {
         )
 
         #expect(recipient.owner == (try rail.ownerHash()))
-        #expect(recipient.viewTag == (try fixtureBytes(#require(rail.signerPubkey))))
+        #expect(recipient.viewTag == (try fixtureBytes(rail.signerPubkey)))
     }
 
     @Test(arguments: TransferVectors.transfers)
@@ -35,7 +35,7 @@ struct RecipientTests {
 
     @Test
     func `Off-curve signing addresses are rejected`() throws {
-        let viewingKey = P256.KeyAgreement.PrivateKey()
+        let viewingKey = Curve25519.KeyAgreement.PrivateKey()
 
         #expect(throws: Recipient.ValidationError.offCurveSigningAddress) {
             try Recipient(signingAddress: ShieldedPool.solInterface, nullifierPublicKey: .one, viewingPublicKey: viewingKey.publicKey)
@@ -46,7 +46,7 @@ struct RecipientTests {
     func `Lookups return registered owners in order`() async throws {
         let vectors = try RegistryVectors.load().records
         let owners = try [vectors[1].owner, vectors[0].owner].map(Address.init)
-        let record = #"{"owner":"regyS5rkAcw2YzDJCmTwCTHs2s246FXxbmuRZ42u2PD","lamports":1,"executable":false,"#
+        let record = #"{"owner":"\#(try RegistryVectors.load().program)","lamports":1,"executable":false,"#
             + #""data":["\#(Data(try fixtureBytes(vectors[1].data)).base64EncodedString())","base64"]}"#
         let transport = StubTransport { request in
             try reply(to: request, payload: #""result":{"context":{"slot":7},"value":[\#(record),null]}"#)

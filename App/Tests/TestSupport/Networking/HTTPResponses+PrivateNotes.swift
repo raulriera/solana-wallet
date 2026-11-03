@@ -1,25 +1,21 @@
 @testable import RPC
 
 extension HTTPResponses {
-    nonisolated static let indexerPosition = "AQ=="
-
-    static func privateNotes(registry: [String] = [], deposits: [String] = [], spends: [String] = [],
-                             error: RPCError? = nil,
+    static func privateNotes(registry: [String] = [], deposits: [String] = [], depositsPerPage: Int? = nil,
+                             spends: [String] = [], error: RPCError? = nil,
                              failingMethod: String? = nil, gate: Suspension? = nil, heldMethod: String? = nil,
-                             outputTreeID: UInt16? = nil, prove: Responder? = nil) -> HTTPResponses {
+                             outputTreeID: UInt16? = nil, prover: StubProver? = nil, trees: UTXOTrees? = nil,
+                             respond: Responder? = nil) -> HTTPResponses {
+        let depositPages = PageCursor.pages(of: deposits, perPage: depositsPerPage).map { page in
+            IndexerReplies.page(page.rows, in: "matches", next: page.next, outputTreeID: outputTreeID)
+        }
         var responses = [
-            GetShieldedTransactionsByTags.method: [indexerPage([], in: "transactions", outputTreeID: outputTreeID)],
-            GetEncryptedUtxosByTags.method: [indexerPage(deposits, in: "matches", outputTreeID: outputTreeID)],
-            GetShieldedTransactionsByNullifiers.method: [indexerPage(spends, in: "transactions")],
+            GetShieldedTransactionsByTags.method: [IndexerReplies.page([], in: "transactions", outputTreeID: outputTreeID)],
+            GetEncryptedUtxosByTags.method: depositPages,
+            GetShieldedTransactionsByNullifiers.method: [IndexerReplies.page(spends, in: "transactions")],
         ]
         if !registry.isEmpty { responses[GetMultipleAccounts.method] = registry }
         return HTTPResponses(responses, error: error, failingMethod: failingMethod, gate: gate, heldMethod: heldMethod,
-                             respond: prove)
-    }
-
-    nonisolated static func indexerPage(_ rows: [String], in field: String, outputTreeID: UInt16? = nil) -> String {
-        let tree = outputTreeID.map { #","outputTreeId":\#($0)"# } ?? ""
-        return #"{"context":{"slot":2},"\#(field)":[\#(rows.joined(separator: ","))],"nextCursor":null,"#
-            + #""scannedThrough":"\#(indexerPosition)"\#(tree)}"#
+                             prover: prover, trees: trees ?? UTXOTrees(rows: deposits + spends), respond: respond)
     }
 }

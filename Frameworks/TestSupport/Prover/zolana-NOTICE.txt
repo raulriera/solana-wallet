@@ -1,0 +1,141 @@
+Third-party test vectors from zolana
+
+The test vectors and values below come from zolana, copied unchanged except where noted:
+https://github.com/helius-labs/zolana
+Licensed under the Apache License, Version 2.0; a copy is in zolana-LICENSE.txt, identical to
+upstream LICENSE at every revision below. zolana ships no NOTICE file at any of them.
+Paths are relative to Frameworks.
+
+Fixtures
+- Attestation/Tests/Support/NitroCBORCases.json: AWS Nitro attestation CBOR cases
+- Privacy/Tests/Support/CommitmentVectors.json: Solana Rings commitment vectors
+- Privacy/Tests/Support/DummyOwnerTagVectors.json: Solana Rings padding owner tag vectors
+- Privacy/Tests/Support/EncryptionVectors.json: Solana Rings encryption vectors
+- Privacy/Tests/Support/HashChainVectors.json: Solana Rings hash chain vectors
+- Privacy/Tests/Support/NonzeroHashChainVectors.json: Solana Rings nonzero hash chain vectors
+- Privacy/Tests/Support/PoseidonParity.json: Poseidon parity vectors
+- Privacy/Tests/Support/PrivateTransactionHashVectors.json: Solana Rings private transaction hash vectors
+- Privacy/Tests/Support/ProvingKeyVectors.json: Solana Rings proving-key digests
+- Privacy/Tests/Support/PublicInputVectors.json: Solana Rings public input vectors
+- TestSupport/Prover/DevnetNitroPolicy.json: the devnet prover's AWS Nitro deployment policy
+- TestSupport/Prover/EncryptedProverVectors.json: encrypted prover report_data and HPKE request and
+  response vectors
+- TestSupport/Prover/MainnetNitroPolicy.json: the mainnet prover's AWS Nitro deployment policy
+
+Tag: v0.4.0-alpha
+Commit: 0fde5f1
+License: https://github.com/helius-labs/zolana/blob/v0.4.0-alpha/LICENSE
+
+https://github.com/helius-labs/zolana/blob/v0.4.0-alpha/test-vectors/hash_bytes.json
+SHA-256: 779296ef6b6d879c6f4c252c5b99f020726d2ea65a7f8b63e57c88fff00d3f14
+- Privacy/Tests/Support/CommitmentVectors.json hash_bytes: the whole array
+
+https://github.com/helius-labs/zolana/blob/v0.4.0-alpha/test-vectors/transact_derivation.json
+SHA-256: 833d9389851d39a567b77b41f6c152bfd20e8f0df759ffedf9c190b21b2a62d0
+- Privacy/Tests/Support/CommitmentVectors.json owner_identity, blinding_seed, dummy_utxo_hash: sections
+- Privacy/Tests/Support/HashChainVectors.json tree_slots: a section
+
+https://github.com/helius-labs/zolana/blob/v0.4.0-alpha/test-vectors/hash_chain_4.json
+SHA-256: 6b33b41f3af55d0b1fe98a2ecf28944ce3afa7361221b7af7f27d3fd74dd24a7
+- Privacy/Tests/Support/HashChainVectors.json hash_chain_4: the vectors array
+
+https://github.com/helius-labs/zolana/blob/v0.4.0-alpha/test-vectors/right_hash_chain_4.json
+SHA-256: 0296f50b49879c094c9a17107e059a0e1a189d8a6063818d473f6ca7d37e6247
+- Privacy/Tests/Support/HashChainVectors.json right_hash_chain_4: the vectors array
+
+https://github.com/helius-labs/zolana/blob/v0.4.0-alpha/test-vectors/nonzero_hash_chain.json
+SHA-256: 7be1f853313dcd51eb0dde84d2d15d349fdcfabd6d2e03c36955873fd8f975ae
+- Privacy/Tests/Support/NonzeroHashChainVectors.json: the whole file
+
+https://github.com/helius-labs/zolana/blob/v0.4.0-alpha/test-vectors/private_tx_hash.json
+SHA-256: d2d4a6eef543fbcce33844ddc9f44b2f0f10368842a6bf3e86c5ce48e5dc5535
+- Privacy/Tests/Support/PrivateTransactionHashVectors.json: the whole file
+
+https://github.com/helius-labs/zolana/blob/v0.4.0-alpha/test-vectors/input_flags.json
+SHA-256: 9d1ca49ba36757510a2ffb96ddce5c5382154601250f53d9b97b3c5a7f1b2d21
+- Privacy/Tests/Support/PublicInputVectors.json input_flags: the vectors array
+
+https://github.com/helius-labs/zolana/blob/v0.4.0-alpha/test-vectors/public_input_hash.json
+SHA-256: 09647d5124d88b1f86a85b357279c2df4accf1a0916d8123ddde5b5b9a7f61e1
+- Privacy/Tests/Support/PublicInputVectors.json transfers: the transfers array
+
+https://github.com/helius-labs/zolana/blob/v0.4.0-alpha/sdk-libs/fixtures/indexed-proof.json
+SHA-256: 24071c531b4c03f2a8cbfe287fc04c735388aff13bfbc3f14ad47e10ba378c6d
+- Privacy/Tests/Support/PublicInputVectors.json indexed_proof: the whole file
+
+https://github.com/helius-labs/zolana/blob/v0.4.0-alpha/sdk-libs/ts/vectors/poseidon-parity-v1.json
+SHA-256: 4f5db50ef6c571ae63e0dbb76462480a40d6c0de9841d80211f230e4b27fca58
+- Privacy/Tests/Support/PoseidonParity.json: the whole file
+
+https://github.com/helius-labs/zolana/blob/v0.4.0-alpha/sdk-libs/ts/test/seed-based-keypair.test.ts
+SHA-256: 16242d1b1b1af87da1a8986af0fa9ca6f9665dee2865a704d3fa7b8c7a9161f2
+- Privacy/Tests/Commitments/OwnerIdentityTests.swift: GOLDEN signing, nullifier, and owner-hash values of
+  accounts 0 and 1
+
+https://github.com/helius-labs/zolana/blob/v0.4.0-alpha/sdk-libs/ts/test/ring-policy.test.ts
+SHA-256: 2d3413474c2f250ed7dced5391a33028a10fad4a52edea86c759a4e20e9cbafd
+- Privacy/Tests/Commitments/NullifierKeyTests.swift: ALLOW_PRESENT and BLOCK_CLEARED UTXO hashes, blindings,
+  and nullifiers
+
+https://github.com/helius-labs/zolana/blob/v0.4.0-alpha/sdk-libs/client/tests/assembly_vectors.rs
+SHA-256: df217702ce1ac812d3009227ef29e2f5187eba1417adfe1ff6baf765d45ce13b
+- Privacy/Tests/Proof/PublicInputsTests.swift: PUBLIC_INPUT_HASH, DUMMY_OUTPUT_PUBLIC_INPUT_HASH, and the
+  hashes, nullifiers, and fixture inputs they derive from
+
+https://github.com/helius-labs/zolana/blob/v0.4.0-alpha/program-libs/interface/src/instruction/instruction_data/deposit.rs
+SHA-256: 371e49a26b92c5ba7772cef5ba7bc192195c77a4df006c2d2bdc32ac2ae63ceb
+- Privacy/Tests/ShieldedPool/ShieldedPoolDepositTests.swift: the value of deposit_blinding_is_pinned
+
+Branch: main
+Commit: f163d0f
+License: https://github.com/helius-labs/zolana/blob/f163d0f0c824381a7a6ebf8701bff1e8266aee7e/LICENSE
+
+https://github.com/helius-labs/zolana/blob/f163d0f0c824381a7a6ebf8701bff1e8266aee7e/test-vectors/dummy_owner_tags.json
+SHA-256: 2bba54587059a4f3b18d8fb9ca0bfdca728c61db4533f70e65385d7c103bb94b
+- Privacy/Tests/Support/DummyOwnerTagVectors.json: the whole file
+
+Release: 0.7.0-alpha
+Commit: bb2337f
+License: https://github.com/helius-labs/zolana/blob/bb2337f05317aa245a345f47c68e434ffed62561/LICENSE
+
+https://github.com/helius-labs/zolana/blob/bb2337f05317aa245a345f47c68e434ffed62561/prover/tee/testdata/nitro_cbor_cases.json
+SHA-256: 2222ecc174d1fcc0f2ab7d40b57fa0d56f43581dab15561b7160794c27d1871e
+- Attestation/Tests/Support/NitroCBORCases.json: the whole file
+
+https://github.com/helius-labs/zolana/blob/bb2337f05317aa245a345f47c68e434ffed62561/program-libs/interface/tests/pda.rs
+SHA-256: 536152c956610a1166dbab6459b1d3c7f512b6f552523b028a3d0f3592caf270
+- Privacy/Tests/ShieldedPool/ShieldedPoolTests.swift: the nullifier account of
+  nullifier_pda_matches_typescript_vector
+
+https://github.com/helius-labs/zolana/blob/bb2337f05317aa245a345f47c68e434ffed62561/test-vectors/key_derivation.json
+SHA-256: ab5a2d28d0d7a0772ac7a593e5260c00039a57e4926e4fbf1c55490f9723e55d
+- Privacy/Tests/Support/CommitmentVectors.json eddsa_rail: a section
+- Privacy/Tests/Support/EncryptionVectors.json tx_viewing, hpke_utxo: sections
+- Privacy/Tests/Encryption/Curve25519TaggedRepresentationTests.swift: eddsa_rail viewing_secret and
+  viewing_pubkey, and tx_viewing tx_viewing_secret and tx_viewing_pubkey
+
+https://github.com/helius-labs/zolana/blob/bb2337f05317aa245a345f47c68e434ffed62561/sdk-libs/transaction/tests/hash_vectors.rs
+SHA-256: 7d0807d07c8665f5107bf7dbb4643d56d13662ed924f4ac48d1a034c4db74e35
+- Privacy/Tests/Support/TransferVectors.swift: the default-ring SOL transfer values
+
+Tag: ts-sdk-v0.8.0-alpha
+Commit: 6bb4f70
+License: https://github.com/helius-labs/zolana/blob/6bb4f7008294695ebe614f08affb215d4321a538/LICENSE
+
+https://github.com/helius-labs/zolana/blob/6bb4f7008294695ebe614f08affb215d4321a538/prover/tee/deployments/devnet-e-v0.6.0-alpha-tee-3.json
+SHA-256: 855a158207ff6225914ee22d6dfd06aec5b9e91dc713ccc5ce4eef2952d6162d
+- TestSupport/Prover/DevnetNitroPolicy.json: the whole file
+
+https://github.com/helius-labs/zolana/blob/6bb4f7008294695ebe614f08affb215d4321a538/prover/tee/deployments/mainnet-v0.6.0-alpha-tee-4.json
+SHA-256: 5216ec2fd3f926838d823d4e3f4942a908a81fb97e8b003c9595c58dd915fd01
+- TestSupport/Prover/MainnetNitroPolicy.json: the whole file
+
+https://github.com/helius-labs/zolana/blob/6bb4f7008294695ebe614f08affb215d4321a538/prover/tee/testdata/vectors.json
+SHA-256: 1e77d78eba40b33e9f1388b23c010e3583cc109928360dd23b2b38e1d823bbbe
+- TestSupport/Prover/EncryptedProverVectors.json: the whole file, changed: request_uri is the route that its
+  ciphertext authenticates, /prove/transfer_2_2, and aad_cases keeps only the targets that zolana
+  authenticates unchanged
+
+https://github.com/helius-labs/zolana/blob/6bb4f7008294695ebe614f08affb215d4321a538/prover/server/prover/provingkeys/proving-keys.lock
+SHA-256: 9416e0b92aebb438fb34e26281f369664b48e8acfe0d6c0ea35724586bcc4313
+- Privacy/Tests/Support/ProvingKeyVectors.json: the whole file

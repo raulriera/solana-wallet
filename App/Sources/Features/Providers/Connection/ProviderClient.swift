@@ -1,7 +1,8 @@
 import Foundation
 import RPC
 
-/// Sends one network's requests through the selected RPC provider.
+/// Sends one network's requests through the selected RPC provider, and its private-note reads and proofs through the
+/// network's Solana Rings provider.
 nonisolated struct ProviderClient: RPC, AccountChangeProviding, SignatureEventProviding, LogoProviding,
     PrivateNoteProviding, ProofProviding {
     /// A provider that receives requests, with what it needs to accept them.
@@ -18,17 +19,21 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, SignatureEventPr
     let network: Network
     private let providers: ProviderStore
     private let clients: Clients
+    /// The Solana Rings indexer and prover of the network, kept across provider and key changes.
+    private let rings: any PrivateNoteProviding & ProofProviding
 
     /// Creates a client that reads the selected provider before every request.
     ///
     /// - Parameters:
     ///   - network: The network that receives every request and subscription.
     ///   - providers: The provider settings to read.
+    ///   - rings: The provider that reads the network's private notes and proves its private transfers.
     ///   - client: A function that creates the client for an endpoint on a network.
-    init(network: Network, providers: ProviderStore,
+    init(network: Network, providers: ProviderStore, rings: any PrivateNoteProviding & ProofProviding,
          client: @escaping @Sendable (Endpoint, Network) -> Client? = Self.client(for:on:)) {
         self.network = network
         self.providers = providers
+        self.rings = rings
         clients = Clients(network: network, make: client)
     }
 
@@ -53,50 +58,32 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, SignatureEventPr
 
     func shieldedTransactions(taggedWith tags: [[UInt8]], after position: NoteSyncPosition?) async throws
         -> ShieldedTransactionBatch {
-        try await performPrivateNotes { try await $0.shieldedTransactions(taggedWith: tags, after: position) }
+        try await performRings { try await $0.shieldedTransactions(taggedWith: tags, after: position) }
     }
 
     func shieldedTransactions(spending nullifiers: [[UInt8]]) async throws -> [ShieldedTransaction] {
-        try await performPrivateNotes { try await $0.shieldedTransactions(spending: nullifiers) }
+        try await performRings { try await $0.shieldedTransactions(spending: nullifiers) }
     }
 
     func merkleProofs(for leaves: [[UInt8]], inTree tree: String) async throws -> [MerkleProof] {
-        try await performPrivateNotes { try await $0.merkleProofs(for: leaves, inTree: tree) }
+        try await performRings { try await $0.merkleProofs(for: leaves, inTree: tree) }
     }
 
-    func nonInclusionProofs(for nullifiers: [[UInt8]], inTree tree: String) async throws -> [NonInclusionProof] {
-        try await performPrivateNotes { try await $0.nonInclusionProofs(for: nullifiers, inTree: tree) }
+    func proveTransfer(_ request: IndexedTransferProofRequest) async throws -> IndexedTransferProof {
+        try await performRings { try await $0.proveTransfer(request) }
     }
 
-    var readsPrivateNotes: Bool {
-        get async throws {
-            do {
-                return try await perform { $0 is any PrivateNoteProviding & ProofProviding }
-            } catch ProviderClientError.unsupportedNetwork {
-                return false
-            }
-        }
-    }
-
-    func proveTransfer(_ request: TransferProofRequest) async throws -> TransferProof {
-        try await performPrivateNotes { try await $0.proveTransfer(request) }
-    }
-
-    /// Runs a private-note read or proof on the selected provider's client.
+    /// Runs a private-note read or proof on the Solana Rings provider once the selected provider serves this network.
     ///
-    /// - Parameter operation: The request to send to the provider.
-    /// - Returns: The request's result.
-    /// - Throws: ``ProviderClientError/privateNotesUnavailable`` when the selected provider doesn't read private notes
-    ///   and prove private transfers, or the error of ``perform(_:)``.
-    private func performPrivateNotes<Value: Sendable>(
+    /// - Parameter operation: The read or proof.
+    /// - Returns: The operation's result.
+    /// - Throws: The error of ``endpoint()``, ``ProviderClientError/unusableEndpoint`` for a saved endpoint that can't
+    ///   be used, or the operation's error unchanged.
+    private func performRings<Value: Sendable>(
         _ operation: (any PrivateNoteProviding & ProofProviding) async throws -> Value
     ) async throws -> Value {
-        try await perform { client in
-            guard let client = client as? any PrivateNoteProviding & ProofProviding else {
-                throw ProviderClientError.privateNotesUnavailable
-            }
-            return try await operation(client)
-        }
+        _ = try await clients.client(for: endpoint())
+        return try await operation(rings)
     }
 
     /// Runs an operation on the selected provider's client.

@@ -4,7 +4,7 @@ import Privacy
 nonisolated enum PrivateBalanceStatus: Equatable, Sendable {
     /// This device has no keys for the account, where `isRegistered` is whether the registry holds the account.
     case off(isRegistered: Bool)
-    /// The network has no private balances, or the selected provider doesn't read them.
+    /// The selected provider doesn't serve the network.
     case unavailable
     /// The account has keys, but hasn't registered them on the network.
     case unregistered
@@ -16,6 +16,6 @@ nonisolated enum PrivateBalanceStatus: Equatable, Sendable {
     /// - Parameter state: The account's notes.
     /// - Returns: The available and pending balance.
     static func balance(of state: NoteSyncState) -> PrivateBalanceStatus {
-        .balance(available: state.lamports - state.pendingLamports, pending: state.pendingLamports)
+        .balance(available: state.spendableLamports, pending: state.pendingLamports)
     }
 }

@@ -12,7 +12,7 @@ struct ShieldedAccountRegisterTests {
         let instruction = try sender.register(paidBy: Address(payer))
 
         #expect(instruction.program == (try Address(RegistryVectors.load().program)))
-        #expect(Array(instruction.data) == (try fixtureBytes("0000" + vector.nullifierPublicKey + vector.viewingPublicKey)))
+        #expect(Array(instruction.data) == (try fixtureBytes("00" + vector.nullifierPublicKey + vector.viewingPublicKey)))
         #expect(instruction.accounts == [
             .init(address: try Address(vector.record), isSigner: false, isWritable: true),
             .init(address: sender.signingAddress, isSigner: true, isWritable: false),

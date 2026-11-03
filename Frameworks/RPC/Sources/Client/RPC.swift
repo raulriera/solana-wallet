@@ -24,4 +24,11 @@ public protocol RPCRequest: Encodable, Sendable {
 
     /// The JSON-RPC method name.
     static var method: String { get }
+
+    /// The longest response body, in bytes, to accept, or `nil` for a body of any length.
+    static var maximumResponseLength: Int? { get }
+}
+
+extension RPCRequest {
+    public static var maximumResponseLength: Int? { nil }
 }

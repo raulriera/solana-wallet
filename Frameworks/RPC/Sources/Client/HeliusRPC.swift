@@ -7,9 +7,6 @@ public struct HeliusRPC: RPC, AccountChangeProviding, SignatureEventProviding, L
 
     private let rpc: Solana
 
-    /// The client for the Solana Rings indexer and prover.
-    let gateway: HTTPClient
-
     /// Creates a client for the selected network.
     ///
     /// - Parameters:
@@ -42,13 +39,9 @@ public struct HeliusRPC: RPC, AccountChangeProviding, SignatureEventProviding, L
         // swift-format-ignore: NeverForceUnwrap
         let socketEndpoint = URL(string: "wss://\(host)/")!
             .appending(queryItems: [URLQueryItem(name: "api-key", value: apiKey)])
-        // swift-format-ignore: NeverForceUnwrap
-        let gatewayEndpoint = URL(string: "https://\(host)/v1/zolana")!
-            .appending(queryItems: [URLQueryItem(name: "api-key", value: apiKey)])
         let redactor = SecretRedactor(urls: [endpoint, socketEndpoint])
         rpc = Solana(network: network, endpoint: endpoint, socketEndpoint: socketEndpoint,
                      redactor: redactor, transport: transport, socket: socket)
-        gateway = HTTPClient(endpoint: gatewayEndpoint, transport: transport, redactor: redactor)
     }
 
     public var description: String { "HeliusRPC(\(network))" }

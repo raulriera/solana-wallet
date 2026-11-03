@@ -16,46 +16,53 @@ protocol IndexerPage: Decodable, Sendable {
     var scannedThrough: String? { get }
 }
 
-/// The rows of a stream read to its end, and where a later read resumes.
+/// The rows of a stream's pages up to a page limit, whether the stream ended, and where a later read resumes.
 struct IndexerRead<Item: Sendable>: Sendable {
     /// The rows of every page in stream order.
     let items: [Item]
     /// The ID of the newest tree that isn't paused, from the latest page that reports one.
     let outputTreeID: UInt16?
-    /// The last scanned position or next cursor that a page reported, else the starting cursor.
+    /// The last page's next cursor when the read stopped at its page limit, else the last scanned position or next
+    /// cursor that a page reported, else the starting cursor.
     let resumeCursor: String?
+    /// Whether a page without a next cursor ended the stream.
+    let isComplete: Bool
 }
 
 extension IndexerPage {
-    /// Reads pages from a cursor until a page has no next cursor.
+    /// Reads pages from a cursor until a page has no next cursor or the read reaches its page limit.
     ///
     /// - Parameters:
     ///   - cursor: The cursor to start after, or `nil` to start at the beginning.
+    ///   - pageLimit: The most pages to fetch.
     ///   - page: The closure that fetches the page after a cursor.
-    /// - Returns: Every row, the reported output tree, and the resume cursor.
+    /// - Returns: The rows of the fetched pages, the reported output tree, the resume cursor, and whether the stream
+    ///   ended.
     /// - Throws: ``RPCError/InvalidResponse/invalidCursor`` if the indexer repeats a cursor or returns one on a page
     ///   without rows, or an error from `page`.
-    static func readAll(from cursor: String?, fetching page: (String?) async throws -> Self) async throws
+    static func read(from cursor: String?, pageLimit: Int, fetching page: (String?) async throws -> Self) async throws
         -> IndexerRead<Item> {
         var cursor = cursor
         var resumeCursor = cursor
         var seen = Set([cursor].compactMap(\.self))
         var items: [Item] = []
         var outputTreeID: UInt16?
-        while true {
+        for _ in 0..<pageLimit {
             try Task.checkCancellation()
             let current = try await page(cursor)
             items += current.items
             outputTreeID = current.outputTreeID ?? outputTreeID
             resumeCursor = current.scannedThrough ?? current.nextCursor ?? resumeCursor
             guard let next = current.nextCursor else {
-                return IndexerRead(items: items, outputTreeID: outputTreeID, resumeCursor: resumeCursor)
+                return IndexerRead(items: items, outputTreeID: outputTreeID, resumeCursor: resumeCursor,
+                                   isComplete: true)
             }
             guard !current.items.isEmpty, seen.insert(next).inserted else {
                 throw RPCError.invalidResponse(.invalidCursor)
             }
             cursor = next
         }
+        return IndexerRead(items: items, outputTreeID: outputTreeID, resumeCursor: cursor, isComplete: false)
     }
 }
 
@@ -102,9 +109,11 @@ struct EncryptedOutput: Decodable, Sendable, Equatable {
     /// The note salt, or `nil` without encrypted notes.
     let salt: [UInt8]?
 
-    /// The output as a proofless deposit, or `nil` when its transaction has a transaction viewing key or a salt.
+    /// The output as a proofless deposit, or `nil` when its transaction has a transaction viewing key or a salt or
+    /// its payload isn't plaintext.
     var deposit: ShieldedTransaction? {
-        guard transactionViewingKey == nil, salt == nil else { return nil }
+        guard transactionViewingKey == nil, salt == nil,
+              output.payload.first == ShieldedOutput.Encoding.plaintext.rawValue else { return nil }
         return ShieldedTransaction(signature: signature, slot: slot, eventIndex: nil, transactionViewingKey: nil,
                                    salt: nil, outputs: [output], nullifiers: [], isProofless: true)
     }

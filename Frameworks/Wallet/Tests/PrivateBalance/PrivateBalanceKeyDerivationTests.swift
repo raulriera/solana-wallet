@@ -4,7 +4,7 @@ import Wallet
 
 struct PrivateBalanceKeyDerivationTests {
     @Test(arguments: try PrivateBalanceVectors.load().accounts)
-    func `Golden accounts derive the published private-balance keys`(_ vector: PrivateBalanceVectors.Account) async throws {
+    func `Golden accounts derive their private-balance keys`(_ vector: PrivateBalanceVectors.Account) async throws {
         let deriver: any PrivateBalanceKeyDeriving = Wallet()
 
         let keys = try await deriver.privateBalanceKeys(
@@ -14,8 +14,8 @@ struct PrivateBalanceKeyDerivationTests {
         )
 
         #expect(keys.nullifierSecret.withUnsafeBytes { Array($0) } == (try fixtureBytes(vector.nullifierSecret)))
-        #expect(Array(keys.viewingKey.rawRepresentation) == (try fixtureBytes(vector.viewingSecret)))
-        #expect(Array(keys.viewingKey.publicKey.compressedRepresentation) == (try fixtureBytes(vector.viewingPubkey)))
+        #expect([UInt8](keys.viewingKey.rawRepresentation) == (try fixtureBytes(vector.viewingSecret)))
+        #expect([4] + Array(keys.viewingKey.publicKey.rawRepresentation) == (try fixtureBytes(vector.viewingPubkey)))
     }
 
     @Test(arguments: [

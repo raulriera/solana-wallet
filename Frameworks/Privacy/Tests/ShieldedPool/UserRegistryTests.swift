@@ -21,7 +21,7 @@ struct UserRegistryTests {
 
         #expect(recipient.signingAddress.value == vector.owner)
         #expect(recipient.nullifierPublicKey.bigEndianBytes == (try fixtureBytes(vector.nullifierPublicKey)))
-        #expect(Array(recipient.viewingPublicKey.compressedRepresentation) == (try fixtureBytes(vector.viewingPublicKey)))
+        #expect([UInt8](recipient.viewingPublicKey.taggedRepresentation) == (try fixtureBytes(vector.viewingPublicKey)))
         #expect(recipient.owner.bigEndianBytes == (try fixtureBytes(vector.ownerHash)))
     }
 
@@ -36,15 +36,14 @@ struct UserRegistryTests {
     }
 
     @Test(arguments: [
-        (133..<134, [], .invalidLength),
+        (99..<100, [], .invalidLength),
         (0..<1, [2], .invalidDiscriminator),
         (1..<2, [0x00], .ownerMismatch),
         (33..<34, [254], .nonCanonicalBump),
-        (34..<35, [1], .unsupportedP256Owner),
-        (34..<35, [2], .invalidOptionTag),
-        (35..<67, [UInt8](repeating: 0xff, count: 32), .invalidNullifierPublicKey),
-        (67..<68, [4], .invalidViewingPublicKey),
-        (100..<101, [2], .invalidMergingFlag),
+        (34..<66, [UInt8](repeating: 0xff, count: 32), .invalidNullifierPublicKey),
+        (66..<67, [2], .invalidViewingPublicKey),
+        (67..<99, X25519Fixtures.modulus, .invalidViewingPublicKey),
+        (99..<100, [2], .invalidMergingFlag),
     ] as [(Range<Int>, [UInt8], UserRegistry.ValidationError)])
     func `Invalid records are rejected`(range: Range<Int>, bytes: [UInt8], error: UserRegistry.ValidationError) throws {
         let vector = try #require(try RegistryVectors.load().records.first)
@@ -61,7 +60,7 @@ struct UserRegistryTests {
         let owners = try [vectors[0].owner, vectors[1].owner, vectors[0].owner].map(Address.init)
         let record = try fixtureBytes(vectors[0].data)
         let accounts = [
-            #"{"owner":"regyS5rkAcw2YzDJCmTwCTHs2s246FXxbmuRZ42u2PD","lamports":1,"executable":false,"#
+            #"{"owner":"\#(try RegistryVectors.load().program)","lamports":1,"executable":false,"#
                 + #""data":["\#(Data(record).base64EncodedString())","base64"]}"#,
             "null",
             #"{"owner":"11111111111111111111111111111111","lamports":1,"executable":false,"data":["","base64"]}"#,
@@ -94,7 +93,7 @@ struct UserRegistryTests {
         }
     }
 
-    private static func account(_ data: [UInt8]) -> Account {
-        Account(owner: "regyS5rkAcw2YzDJCmTwCTHs2s246FXxbmuRZ42u2PD", lamports: 1_823_520, executable: false, data: Data(data))
+    private static func account(_ data: [UInt8]) throws -> Account {
+        Account(owner: try RegistryVectors.load().program, lamports: 1, executable: false, data: Data(data))
     }
 }

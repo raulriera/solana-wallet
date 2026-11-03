@@ -20,15 +20,27 @@ struct FieldHexTests {
     @Test(arguments: [
         ("0x0", [0, 0]),
         ("0x1a2", [0x01, 0xa2]),
-        ("0x" + String(repeating: "0", count: 61) + "1A2", [0x01, 0xa2]),
+        ("0x" + String(repeating: "0", count: 61) + "1a2", [0x01, 0xa2]),
         ("0x" + String(repeating: "0", count: 70) + "ff", [0, 0xff]),
     ] as [(String, [UInt8])])
     func `Padded and unpadded text decode`(text: String, last: [UInt8]) {
         #expect(FieldHex.decode(text) == Array(repeating: 0, count: 30) + last)
     }
 
-    @Test(arguments: ["1", "0x", "0xg", "0x 1", "-0x1", "0x1" + String(repeating: "0", count: 64)])
+    @Test(arguments: ["1", "0x", "0xg", "0x1A2", "0X1", "0x 1", "-0x1", "0x1" + String(repeating: "0", count: 64)])
     func `Invalid text is rejected`(text: String) {
         #expect(FieldHex.decode(text) == nil)
+    }
+
+    @Test(arguments: [
+        (ProofFixtures.fieldOrderMinusOne, true),
+        (ProofFixtures.fieldOrder, false),
+        ("30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000002", false),
+        (String(repeating: "ff", count: 32), false),
+        (String(repeating: "00", count: 31), false),
+        (String(repeating: "00", count: 33), false),
+    ])
+    func `Only 32 bytes below the BN254 scalar field's order are canonical`(hex: String, isCanonical: Bool) throws {
+        #expect(FieldHex.isCanonical(try fixtureBytes(hex)) == isCanonical)
     }
 }

@@ -1,3 +1,4 @@
+import Encoding
 public import Foundation
 
 /// A token's display name and ticker symbol, read from its on-chain metadata.

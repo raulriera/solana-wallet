@@ -3,18 +3,18 @@ import Encoding
 import Foundation
 import ModularArithmetic
 import Observation
-@testable import Privacy
-@testable import RPC
 import Testing
 import Transactions
 import Vault
 import Wallet
+@testable import Privacy
+@testable import RPC
 @testable import widgets
 
 enum PrivateBalanceFixtures {
     static let recoveryID = UUID(uuidString: "2C4B8E7A-3F61-4D0B-9E25-6A7D1C3B5F80")!
 
-    static let unregistered = #"{"context":{"slot":7},"value":[null]}"#
+    static let unregistered = AccountReplies.accounts([nil])
 
     static func recovery() throws -> Recovery {
         try PublicWallet.recovery()
@@ -28,6 +28,10 @@ enum PrivateBalanceFixtures {
         try await PublicWallet.account(index: index, recoveryID: recoveryID)
     }
 
+    static func customRPC() throws -> ProviderSettings.Provider {
+        .custom(try #require(URL(string: "https://rpc.example.com")))
+    }
+
     static func keys(for account: widgets.Account) async throws -> PrivateBalanceKeyRecord {
         let recovery = try recovery()
         return PrivateBalanceKeyRecord(try await Wallet().privateBalanceKeys(
@@ -38,7 +42,7 @@ enum PrivateBalanceFixtures {
 
     static func otherKeys(for address: Address) throws -> ShieldedAccount {
         try ShieldedAccount(signingAddress: address, nullifierSecret: SymmetricKey(size: SymmetricKeySize(bitCount: 248)),
-                            viewingKey: P256.KeyAgreement.PrivateKey())
+                            viewingKey: Curve25519.KeyAgreement.PrivateKey())
     }
 
     static func confirmation(_ outcome: widgets.Confirmation.Outcome,
@@ -108,105 +112,64 @@ enum PrivateBalanceFixtures {
         try Task.checkCancellation()
     }
 
-    static func registryReads(of responses: HTTPResponses) async -> Int {
-        await responses.requests.count { (try? $0.jsonBody()["method"] as? String) == GetMultipleAccounts.method }
+    static func nonTreeAccountReads(of responses: HTTPResponses) async -> Int {
+        let trees = (try? ShieldedPool.tree(id: 1).value).map { [$0] }
+        return await responses.requests.count { request in
+            (try? request.rpcMethod) == GetMultipleAccounts.method && (try? request.rpcParameters.first as? [String]) != trees
+        }
     }
 
     static func proofRequests(of responses: HTTPResponses) async -> Int {
-        await responses.requests.count { $0.url?.path().hasSuffix("/prove") == true }
+        await responses.requests.count { $0.url?.path().hasSuffix("/indexed") == true }
     }
 
     static func registry(publishing account: ShieldedAccount) throws -> String {
-        #"{"context":{"slot":7},"value":[\#(try registryRecord(publishing: account))]}"#
+        AccountReplies.accounts([try registryRecord(publishing: account)])
     }
 
     static func registryRecord(publishing account: ShieldedAccount) throws -> String {
         let owner = account.signingAddress.bytes
-        var data = [1] + owner + [try UserRegistry.record(of: account.signingAddress).bump, 0]
+        var data = [1] + owner + [try UserRegistry.record(of: account.signingAddress).bump]
         data += account.nullifierKey.publicKey.bigEndianBytes
-        data += Array(account.viewingKey.publicKey.compressedRepresentation) + [0]
-        data += [UInt8](repeating: 0, count: 134 - data.count)
-        return #"{"owner":"\#(try UserRegistry.program.value)","lamports":1823520,"executable":false,"#
-            + #""data":["\#(Data(data).base64EncodedString())","base64"]}"#
+        data += Array(account.viewingKey.publicKey.taggedRepresentation) + [0]
+        return AccountReplies.account(owner: try UserRegistry.program.value, lamports: 1_586_880, data: data)
     }
 
     static func deposit(_ lamports: UInt64, to account: ShieldedAccount, leafIndex: UInt64) throws -> String {
-        let treeID: UInt16 = 1
-        let owner = try account.recipient.owner
-        let blinding = ShieldedPool.depositBlinding(tree: try ShieldedPool.tree(id: treeID), leafIndex: leafIndex)
-        let mint = [UInt8](repeating: 0, count: 32)
-        let hash = UTXO(owner: owner, mint: mint, amount: lamports, blinding: blinding, treeID: treeID).hash
-        let body = [0] + owner.bigEndianBytes + blinding.bigEndianBytes + mint + littleEndian(lamports)
-            + [UInt8](repeating: 0, count: 5) + [0]
-        let payload = [0] + littleEndian(UInt32(body.count)) + body
-        let output = #"{"viewTag":"\#(account.signingAddress.value)","outputContext":{"hash":"\#(Base58.encode(hash.bigEndianBytes))","#
-            + #""treeId":\#(treeID),"leafIndex":\#(leafIndex)},"payload":"\#(Data(payload).base64EncodedString())"}"#
+        let utxo = try utxo(lamports, of: account, leafIndex: leafIndex)
+        var body = [0] + utxo.owner.bigEndianBytes + utxo.blinding.bigEndianBytes + utxo.mint
+        body.appendLittleEndian(lamports)
+        body += [UInt8](repeating: 0, count: 5) + [0]
+        var payload: [UInt8] = [0]
+        payload.appendLittleEndian(UInt32(body.count))
+        payload += body
+        let output = IndexerReplies.output(viewTag: account.signingAddress.value, hash: Base58.encode(utxo.hash.bigEndianBytes),
+                                           treeID: utxo.treeID, leafIndex: leafIndex,
+                                           payload: Data(payload).base64EncodedString())
         let signature = Base58.encode([UInt8](repeating: UInt8(truncatingIfNeeded: leafIndex + 1), count: 64))
-        return #"{"slot":3,"txSignature":"\#(signature)","outputSlot":\#(output),"txViewingPk":null,"salt":null}"#
+        return IndexerReplies.match(signature: signature, slot: 3, output: output)
     }
 
-    static let utxoRootIndex: UInt16 = 3
-
-    static let nullifierRootIndex: UInt16 = 4
-
-    static func proof(answering request: URLRequest) throws -> String {
-        let body = try request.jsonBody()
-        guard let method = body["method"] as? String else {
-            let shape = Shape(inputs: try #require(body["nInputs"] as? Int), outputs: try #require(body["nOutputs"] as? Int))
-            let point = ["0x1", "0x2"]
-            return try HTTPResponses.json([
-                "ar": point, "bs": [point, point], "krs": point,
-                "provingKeySha256": shape.provingKeyDigest.map { String(format: "%02x", $0) }.joined(),
-            ] as [String: Any])
-        }
-        let params = try #require(body["params"] as? [String: Any])
-        let tree = try #require(params["treeAccount"] as? String)
-        let leaves = try #require(params["leaves"] as? [String]).map { try #require(Base58.decode($0, byteCount: 32)) }
-        let proofs: [[String: Any]] = try leaves.map { leaf in
-            let context: [String: Any] = ["treeType": method == GetMerkleProofs.method ? 1 : 2, "tree": tree]
-            if method == GetMerkleProofs.method {
-                let proof = try inclusionProof(of: leaf)
-                return ["leaf": Base58.encode(proof.leaf), "merkleContext": context, "path": proof.path.map(Base58.encode),
-                        "leafIndex": proof.leafIndex, "root": Base58.encode(proof.root), "rootSeq": 1, "rootIndex": proof.rootIndex]
-            }
-            let proof = try nonInclusionProof(of: leaf)
-            return ["leaf": Base58.encode(proof.nullifier), "merkleContext": context, "path": proof.path.map(Base58.encode),
-                    "lowElement": Base58.encode(proof.lowElement), "lowElementIndex": proof.lowElementIndex,
-                    "highElement": Base58.encode(proof.highElement), "highElementIndex": 1, "root": Base58.encode(proof.root),
-                    "rootSeq": 1, "rootIndex": proof.rootIndex]
-        }
-        return try HTTPResponses.json(["context": ["slot": 1], "proofs": proofs] as [String: Any])
+    static func spend(of lamports: UInt64, to account: ShieldedAccount, leafIndex: UInt64) throws -> String {
+        let utxo = try utxo(lamports, of: account, leafIndex: leafIndex)
+        let nullifier = Base58.encode(utxo.nullifier(using: account.nullifierKey).bigEndianBytes)
+        let signature = Base58.encode([UInt8](repeating: UInt8(truncatingIfNeeded: leafIndex + 101), count: 64))
+        return IndexerReplies.transaction(signature: signature, slot: 4, nullifiers: [nullifier])
     }
 
-    static func proofRequest(spending account: ShieldedAccount) throws -> TransferProofRequest {
+    static func proofRequest(spending account: ShieldedAccount) throws -> IndexedTransferProofRequest {
         var generator = SystemRandomNumberGenerator()
         let utxo = UTXO(owner: try account.recipient.owner, mint: [UInt8](repeating: 0, count: 32), amount: 10,
                         blinding: Poseidon.Element(UInt64(7)), treeID: 1)
         let plan = try TransactPlan(spending: [utxo], sender: account, transfer: nil,
                                     withdrawal: ExternalData.Withdrawal(recipient: account.signingAddress, lamports: 10),
                                     outputTreeID: 1, using: &generator)
-        let tree = try TransactPlan.TreeWitness(
-            treeID: 1, inclusionProofs: plan.inputs.filter { $0.utxo != nil }.map { try inclusionProof(of: $0.hash.bigEndianBytes) },
-            nonInclusionProofs: plan.inputs.map { try nonInclusionProof(of: $0.nullifier.bigEndianBytes) }
-        )
-        return try plan.proofRequest(nullifierKey: account.nullifierKey, trees: [tree])
+        return try plan.proofRequest(nullifierKey: account.nullifierKey)
     }
 
-    private static func inclusionProof(of leaf: [UInt8]) throws -> MerkleProof {
-        try MerkleProof(leaf: leaf, path: Array(repeating: field(0), count: MerkleProof.height), leafIndex: 0, root: field(1),
-                        rootIndex: utxoRootIndex)
-    }
-
-    private static func nonInclusionProof(of nullifier: [UInt8]) throws -> NonInclusionProof {
-        let highest = try #require(FieldHex.decode("0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000000"))
-        return try NonInclusionProof(nullifier: nullifier, lowElement: field(0), lowElementIndex: 0, highElement: highest,
-                                     path: Array(repeating: field(0), count: NonInclusionProof.height), root: field(2),
-                                     rootIndex: nullifierRootIndex)
-    }
-
-    private static func field(_ value: UInt8) -> [UInt8] { Array(repeating: 0, count: 31) + [value] }
-
-    private static func littleEndian<Value: FixedWidthInteger>(_ value: Value) -> [UInt8] {
-        withUnsafeBytes(of: value.littleEndian, Array.init)
+    private static func utxo(_ lamports: UInt64, of account: ShieldedAccount, leafIndex: UInt64) throws -> UTXO {
+        let blinding = ShieldedPool.depositBlinding(tree: try ShieldedPool.tree(id: 1), leafIndex: leafIndex)
+        return UTXO(owner: try account.recipient.owner, mint: [UInt8](repeating: 0, count: 32), amount: lamports,
+                    blinding: blinding, treeID: 1)
     }
 }

@@ -1,7 +1,7 @@
 import Foundation
-@testable import RPC
 import Testing
 import Transactions
+@testable import RPC
 @testable import widgets
 
 @MainActor
@@ -63,7 +63,7 @@ struct BalanceMoveProposalTests {
 
     @Test
     func `A preparation error reaches the review unchanged`() async throws {
-        let deposit = try await LocalBalanceMove.deposit(provider: .solana)
+        let deposit = try await LocalBalanceMove.deposit(provider: try PrivateBalanceFixtures.customRPC())
         let model = deposit.model
 
         model.prepareReview()

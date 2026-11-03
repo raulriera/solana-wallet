@@ -5,7 +5,7 @@ public struct ShieldedTransaction: Sendable, Equatable {
     public let slot: UInt64
     /// The position of the shielded-pool event within the transaction, or `nil` when unknown.
     public let eventIndex: UInt16?
-    /// The 33-byte compressed P-256 transaction viewing public key, or `nil` without encrypted notes.
+    /// The 33-byte tagged X25519 transaction viewing public key, or `nil` without encrypted notes.
     public let transactionViewingKey: [UInt8]?
     /// The 16-byte salt that the transaction's note ciphertexts share, or `nil` without encrypted notes.
     public let salt: [UInt8]?

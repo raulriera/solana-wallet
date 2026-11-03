@@ -25,7 +25,7 @@ struct OneTimeAccountTests {
             publicKey: "83c9d93274ebcf4d946c92de4109681d7f077e2c0dce7850cc64b4995b72cbb0",
             address: "9sSvbwENS9A8HmYD9Jfe6vSemnWdsiy2KSRpxYscFXom",
             nullifierSecret: "37f6efceca52679ab628d59aea6730d18037ffa41c2b79582062041ab1eb59",
-            viewingPublicKey: "03011d6f5dd2b2f490c0f27f9a8781583f6e2dc70e6a540625f507c9f10cbea453",
+            viewingPublicKey: "04f0776fc28ac8bc7595f0f49a982b2bd2d6bfc54194dc6b1b7ecc2c9984759129",
             codeRoot: "c0b84e396a8827aa1bc9b601525c49b06ae889db2868e1f83b383c4a7c5b8cd5"
         ),
         Vector(
@@ -34,7 +34,7 @@ struct OneTimeAccountTests {
             publicKey: "27560def591723ac551a0d23d3e112b6052d6453b6ef83c73a7cf587b0388145",
             address: "3eZ1RBpo1ZMXNMokUZZjP5haaWkx2HqTF4dhatDZB9ba",
             nullifierSecret: "dbc9767939315b30430a0dbeed64b64982acb7122b4f0d46c8c264119e35fd",
-            viewingPublicKey: "0245ff6235ea9224e1fd9ea404d0dd77d6266c986e3686990d48e4f2258ebaea6c",
+            viewingPublicKey: "04bb6fb47d63fd39e4041b5f48f769109f4276620aa1b685c3322db55f18e58d29",
             codeRoot: "daa3901dd7ab7e54e3be35f25b5f3b693329b377e687c1ed3f20564ec56167f7"
         ),
         Vector(
@@ -43,7 +43,7 @@ struct OneTimeAccountTests {
             publicKey: "4c8152bdd8f197ebbf49f04ea84a07c8746d2bd541a0e8ec8827954ad62650ae",
             address: "69eMq7vQwvW538JRTJc8R1eGv1NXbj77JSvatv3rQhwj",
             nullifierSecret: "38ad7206c1178874134b00f3a5853dd75b4e2e0d6dd97a2a5ea89d2f21d04d",
-            viewingPublicKey: "02c454fcc72991143711ec007f7ea16387e1c8b687a9a230e14f8bb339de9df475",
+            viewingPublicKey: "047dcd06cbf36d43a7afed4516eb000f0c2320ab3b4891f7d0799b9bb398229158",
             codeRoot: "0994dcc75af74d259e4d9af01437c2334fbfd0afc6e9a1bda235cc232db9043b"
         ),
     ]
@@ -63,7 +63,7 @@ struct OneTimeAccountTests {
 
         #expect(account.address == vector.address)
         #expect(keys.nullifierSecret.withUnsafeBytes { Array($0) } == (try fixtureBytes(vector.nullifierSecret)))
-        #expect(Array(keys.viewingKey.publicKey.compressedRepresentation) == (try fixtureBytes(vector.viewingPublicKey)))
+        #expect([4] + Array(keys.viewingKey.publicKey.rawRepresentation) == (try fixtureBytes(vector.viewingPublicKey)))
         #expect(keys.codeRoot.withUnsafeBytes { Array($0) } == (try fixtureBytes(vector.codeRoot)))
     }
 

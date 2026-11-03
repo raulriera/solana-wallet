@@ -3,7 +3,7 @@
 - Add an RPC method only for an agreed wallet feature; a test or a possible future use doesn't justify one. General account exploration, token ownership, address history, and node-version queries are out of scope. Agree on confidential transfers before adding them.
 - Connect directly to providers; no app-owned backend or proxy. Provider endpoints, authentication, batching, and response transforms stay inside RPC; consumers depend on provider-neutral protocols and values.
 - Built-in providers: public Solana RPC (no key) and Helius (one key for mainnet and devnet); QuickNode is planned. Custom HTTPS RPC URLs serve mainnet only; with one selected, devnet requests fail with a typed error and never use another provider. Before saving a custom RPC, the app checks `GetMultipleAccounts`, `accountSubscribe`, `signatureSubscribe`, and `rootSubscribe` at its URL.
-- Every wallet feature works on every provider. Only optional capabilities differ: Helius adds CDN logos and Solana Rings indexing and proofs.
+- Every wallet feature works on every provider. Only optional capabilities differ: Helius adds CDN logos. On every provider, Solana Rings note reads and proofs go through zolana's keyless hosts.
 - Read, simulate, and subscribe at `finalized`; Alpenglow makes `confirmed` and `finalized` equivalent ([Alpenglow](https://solana.com/upgrades/alpenglow)).
 - Results and attributed errors require matching response IDs; keep sanitized server errors that have null IDs.
 

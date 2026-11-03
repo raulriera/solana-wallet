@@ -1,57 +1,57 @@
 import CryptoKit
 import Foundation
 import ModularArithmetic
-@testable import Privacy
-@testable import RPC
+import Synchronization
 import Testing
 import Transactions
+@testable import Privacy
+@testable import RPC
 
 struct TransactPlanProofTests {
-    enum WitnessEdit: CaseIterable, CustomTestStringConvertible {
-        case reordered
-        case missingTree
-        case crossedProofs
-
-        var testDescription: String { "\(self)" }
-    }
+    private static let pathKeys: Set = [
+        "statePathElements", "statePathIndex", "nullifierLowValue", "nullifierNextValue", "nullifierLowPathElements",
+        "nullifierLowPathIndex",
+    ]
 
     @Test(arguments: try ProofRequestVectors.load().transacts)
     func `Proved instructions match the independent reference`(_ vector: ProofRequestVectors.Transact) async throws {
         let plan = try vector.plan()
-        let transport = StubTransport { request in
-            switch request.url?.lastPathComponent {
-            case GetMerkleProofs.method: return try IndexerResponses.proofs(from: vector.merkleProofs, answering: request)
-            case GetNonInclusionProofs.method: return try IndexerResponses.proofs(from: vector.nonInclusionProofs, answering: request)
-            default:
-                let url = try #require(request.url)
-                return (try vector.response.data,
-                        try #require(HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)))
-            }
+        let answer = try Self.answer(to: vector)
+        let opened = Mutex<Data?>(nil)
+        let prover = try StubProver { body in
+            opened.withLock { $0 = body }
+            return (200, answer)
         }
+        let transport = prover.transport()
+        let complete = try JSONDecoder().decode(CompleteBody.self, from: vector.request.data)
 
         let instruction = try await plan.instruction(
-            nullifierKey: TransferVectors.sender().nullifierKey, provider: HeliusRPC(apiKey: "fixture-key", network: .devnet, transport: transport)
+            nullifierKey: TransferVectors.sender().nullifierKey, prover: StubProver.zolana(transport: transport)
         )
 
-        let requests = await transport.requests
-        let proofRequests = requests.filter { $0.url?.path() == "/v1/zolana/prove" }
-        let request = try #require(proofRequests.first)
-        #expect(proofRequests.count == 1)
-        #expect(requests.count == 1 + 2 * vector.treeSlots.count)
-        #expect(request.value(forHTTPHeaderField: "X-Sync") == "true")
-        #expect(try JSONValue.decode(#require(request.httpBody)) == vector.request)
+        let sent = try #require(opened.withLock { $0 })
+        let body = try JSONValue.decode(sent)
+        let route = "/prove/transfer_confidential_\(plan.shape.inputs)_\(plan.shape.outputs)/indexed"
+        #expect(await transport.requests.last?.url?.path() == route)
+        #expect(body.member("prepared") == (try Self.prepared(from: vector.request)))
+        #expect(body.member("trees") == (try Self.trees(of: vector)))
+        #expect(body.member("inputs") == (try Self.lookups(of: vector, inputs: complete.inputs)))
+        let publicInputs = try JSONDecoder().decode(Envelope.self, from: sent).publicInputs.map(FieldHex.decode)
+        #expect(publicInputs == (try vector.publicInputs.map(fixtureBytes)))
         #expect(Array(instruction.data) == (try fixtureBytes(vector.instructionData)))
     }
 
-    @Test(arguments: try ProofRequestVectors.load().transacts)
-    func `Tree witnesses match the independent reference`(_ vector: ProofRequestVectors.Transact) throws {
-        let plan = try vector.plan()
+    @Test
+    func `Proofs against another public input hash are rejected`() async throws {
+        let vector = try #require(try ProofRequestVectors.load().transacts.first)
+        let answer = try Self.answer(to: vector, publicInputHash: fieldElement(1))
+        let transport = try StubProver { _ in (200, answer) }.transport()
 
-        let trees = try Self.witnesses(of: vector)
-
-        #expect(trees.map(\.slot) == (try vector.treeSlots.map { try $0.slot() }))
-        #expect(trees.map { [$0.context.utxoTreeRootIndex, $0.context.nullifierTreeRootIndex] } == vector.treeContexts)
-        #expect(plan.publicInputs.hash(treeSlots: trees.map(\.slot)) == (try Poseidon.Element(hex: vector.publicInputHash)))
+        await #expect(throws: TransactPlan.ValidationError.mismatchedPublicInputHash) {
+            try await vector.plan().instruction(
+                nullifierKey: TransferVectors.sender().nullifierKey, prover: StubProver.zolana(transport: transport)
+            )
+        }
     }
 
     @Test(arguments: try ProofRequestVectors.load().transacts)
@@ -73,7 +73,9 @@ struct TransactPlanProofTests {
         digest[0] ^= 1
 
         #expect(throws: TransactPlan.ValidationError.unexpectedProvingKey) {
-            try vector.plan().proof(from: TransferProof(a: response.a, b: response.b, c: response.c, provingKeyDigest: digest))
+            try vector.plan().proof(
+                from: TransferProof(a: response.a, b: response.b, c: response.c, provingKeyDigest: digest)
+            )
         }
     }
 
@@ -95,27 +97,6 @@ struct TransactPlanProofTests {
         }
     }
 
-    @Test(arguments: WitnessEdit.allCases)
-    func `Witnesses of other inputs are rejected`(_ edit: WitnessEdit) throws {
-        let vector = try #require(try ProofRequestVectors.load().transacts.first { $0.treeSlots.count == 2 })
-        let plan = try vector.plan()
-        let key = try TransferVectors.sender().nullifierKey
-        let trees = try Self.witnesses(of: vector)
-        let edited: [TransactPlan.TreeWitness] = switch edit {
-        case .reordered: trees.reversed()
-        case .missingTree: [trees[0]]
-        case .crossedProofs: [
-            try TransactPlan.TreeWitness(treeID: trees[0].slot.treeID, inclusionProofs: trees[1].inclusionProofs,
-                                         nonInclusionProofs: trees[0].nonInclusionProofs),
-            trees[1],
-        ]
-        }
-
-        #expect(throws: TransactPlan.ValidationError.inconsistentProofs) {
-            try plan.proofRequest(nullifierKey: key, trees: edited)
-        }
-    }
-
     @Test
     func `Other nullifier keys are rejected`() async throws {
         let vector = try #require(try ProofRequestVectors.load().transacts.first)
@@ -124,10 +105,10 @@ struct TransactPlanProofTests {
         let transport = StubTransport { _ in throw CancellationError() }
 
         #expect(throws: TransactPlan.ValidationError.foreignNullifierKey) {
-            try plan.proofRequest(nullifierKey: otherKey, trees: Self.witnesses(of: vector))
+            try plan.proofRequest(nullifierKey: otherKey)
         }
         await #expect(throws: TransactPlan.ValidationError.foreignNullifierKey) {
-            try await plan.instruction(nullifierKey: otherKey, provider: HeliusRPC(apiKey: "fixture-key", network: .devnet, transport: transport))
+            try await plan.instruction(nullifierKey: otherKey, prover: StubProver.zolana(transport: transport))
         }
         #expect(await transport.requests.isEmpty)
     }
@@ -135,24 +116,82 @@ struct TransactPlanProofTests {
     @Test
     func `Request diagnostics omit the witness`() throws {
         let vector = try #require(try ProofRequestVectors.load().transacts.first)
-        let request = try vector.plan().proofRequest(nullifierKey: TransferVectors.sender().nullifierKey, trees: Self.witnesses(of: vector))
+        let request = try vector.plan().proofRequest(nullifierKey: TransferVectors.sender().nullifierKey)
         var output = ""
         dump(request, to: &output)
 
-        #expect(String(reflecting: request) == "TransferProofRequest")
-        #expect(output == "- TransferProofRequest\n")
-        #expect(Mirror(reflecting: request.witness).children.isEmpty)
+        #expect(String(reflecting: request) == "IndexedTransferProofRequest")
+        #expect(output == "- IndexedTransferProofRequest\n")
+        #expect(request.inputs.allSatisfy { Mirror(reflecting: $0).children.isEmpty })
     }
 
-    private static func witnesses(of vector: ProofRequestVectors.Transact) throws -> [TransactPlan.TreeWitness] {
-        try zip(vector.treeSlots, zip(vector.merkleProofs, vector.nonInclusionProofs)).map { slot, proofs in
-            try TransactPlan.TreeWitness(
-                treeID: slot.id,
-                inclusionProofs: JSONDecoder().decode(MerkleProofList.self, from: JSONValue.object(["proofs": .array(proofs.0)]).data)
-                    .proofs.map(\.proof),
-                nonInclusionProofs: JSONDecoder().decode(NonInclusionProofList.self, from: JSONValue.object(["proofs": .array(proofs.1)]).data)
-                    .proofs.map(\.proof)
+    private static func answer(to vector: ProofRequestVectors.Transact, publicInputHash: [UInt8]? = nil) throws
+        -> String {
+        let addresses = try addresses(of: vector)
+        let trees = try vector.treeSlots.indices.map { index in
+            let (slot, context) = (vector.treeSlots[index], vector.treeContexts[index])
+            return ProverAnswer.tree(
+                tree: addresses[index], id: .number(Double(slot.id)),
+                utxoRoot: ProverAnswer.word(try fixtureBytes(slot.utxoRoot)),
+                nullifierRoot: ProverAnswer.word(try fixtureBytes(slot.nullifierRoot)),
+                utxoRootIndex: .number(Double(context[0])), nullifierRootIndex: .number(Double(context[1]))
             )
         }
+        return try ProverAnswer.indexed(
+            proof: vector.response, trees: .array(trees),
+            publicInputHash: ProverAnswer.word(publicInputHash ?? fixtureBytes(vector.publicInputHash))
+        ).json
     }
+
+    private static func addresses(of vector: ProofRequestVectors.Transact) throws -> [JSONValue] {
+        try vector.merkleProofs.map { try #require($0.first?.member("merkleContext")?.member("tree")) }
+    }
+
+    private static func trees(of vector: ProofRequestVectors.Transact) throws -> JSONValue {
+        .array(zip(vector.treeSlots, try addresses(of: vector)).map { slot, tree in
+            .object(["tree": tree, "id": .number(Double(slot.id))])
+        })
+    }
+
+    private static func lookups(of vector: ProofRequestVectors.Transact, inputs: [CompleteBody.Input]) throws
+        -> JSONValue {
+        var leaves = vector.merkleProofs.map { $0.compactMap { $0.member("leaf") }[...] }
+        return .array(try inputs.map { input in
+            let slot = try #require(Int(input.treeSlot.dropFirst(2), radix: 16))
+            let commitment: JSONValue
+            if input.isDummy == "0x1" {
+                commitment = .null
+            } else {
+                let leaf = leaves[slot].popFirst()
+                commitment = try #require(leaf)
+            }
+            return .object(["treeSlot": .number(Double(slot)), "commitment": commitment])
+        })
+    }
+
+    private static func prepared(from request: JSONValue) throws -> JSONValue {
+        guard case .object(var fields) = request, case .array(let inputs)? = fields["inputs"] else {
+            return try #require(nil as JSONValue?)
+        }
+        fields["treeSlots"] = nil
+        fields["publicInputHash"] = nil
+        fields["inputs"] = .array(inputs.map { input in
+            guard case .object(let members) = input else { return input }
+            return .object(members.filter { !pathKeys.contains($0.key) })
+        })
+        return .object(fields)
+    }
+}
+
+private struct CompleteBody: Decodable {
+    struct Input: Decodable {
+        let isDummy: String
+        let treeSlot: String
+    }
+
+    let inputs: [Input]
+}
+
+private struct Envelope: Decodable {
+    let publicInputs: [String]
 }

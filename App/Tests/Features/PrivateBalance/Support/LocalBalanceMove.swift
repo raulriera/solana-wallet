@@ -1,7 +1,7 @@
 import Foundation
 import Privacy
-@testable import RPC
 import Transactions
+@testable import RPC
 @testable import widgets
 
 @MainActor
@@ -10,7 +10,7 @@ struct LocalBalanceMove {
     static let privateLamports: UInt64 = 2_000_000_000
     static let lamports: UInt64 = 1_000_000_000
     static let networkFee: UInt64 = 10_000
-    static let registrationRent: UInt64 = 1_823_520
+    static let registrationRent: UInt64 = 1_586_880
 
     let move: BalanceMove
     let model: TransactionReviewModel<BalanceMoveProposal>
@@ -65,7 +65,7 @@ struct LocalBalanceMove {
                 notes: StoredValue([PrivateBalances.noteID(of: account, on: .devnet): NoteSyncState()]),
                 recovery: try PrivateBalanceFixtures.recoveryStore(),
                 responses: HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered], deposits: [note],
-                                                      outputTreeID: 1, prove: PrivateBalanceFixtures.proof(answering:))
+                                                      outputTreeID: 1, prover: try IndexedProofs.prover())
             )
         }
         let fixture = try SigningFixture()

@@ -7,7 +7,7 @@ nonisolated enum PrivateBalanceError: TransactionReviewError, CaseIterable {
     case registeredWithOtherKeys
     /// This device has no private-balance keys for the account.
     case turnedOff
-    /// The network has no private balances, or the selected provider doesn't support them.
+    /// The selected provider doesn't serve the network, or the pool has no tree for new notes.
     case unavailable
     case recipientUnregistered
     /// The account's spendable private balance doesn't cover the amount.
@@ -71,7 +71,7 @@ nonisolated enum PrivateBalanceError: TransactionReviewError, CaseIterable {
         case .insufficientPublicBalanceForFees:
             String(localized: "Your public balance must cover the fees. Add SOL to it, then try again.")
         case .preparationFailed:
-            String(localized: "The selected provider couldn't prepare this transaction. Try again.")
+            String(localized: "This transaction couldn't be prepared. Try again.")
         case .notSent:
             String(localized: "Nothing left your wallet. Try again in a moment.")
         case .invalidCode:

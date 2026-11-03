@@ -94,17 +94,17 @@ struct LimbsTests {
             FieldFixture.bn254Base, 0, "60c89ce5c263405370a08b6d0302b0bb2f02d522d0e3951a7841182db0f9fa8d",
             FieldFixture.bn254Base.modulusMinusOne
         ),
-        (FieldFixture.p256, 0, FieldFixture.p256.modulusMinusOne, FieldFixture.p256.modulusMinusOne),
-        (FieldFixture.p256, 0, FieldFixture.p256.modulus, FieldFixture.zero),
-        (FieldFixture.p256, 0, FieldFixture.p256.modulusPlusOne, FieldFixture.one),
-        (FieldFixture.p256, 0, FieldFixture.maximum, FieldFixture.p256.maximumRemainder),
+        (FieldFixture.wide, 0, FieldFixture.wide.modulusMinusOne, FieldFixture.wide.modulusMinusOne),
+        (FieldFixture.wide, 0, FieldFixture.wide.modulus, FieldFixture.zero),
+        (FieldFixture.wide, 0, FieldFixture.wide.modulusPlusOne, FieldFixture.one),
+        (FieldFixture.wide, 0, FieldFixture.maximum, FieldFixture.wide.maximumRemainder),
         (
-            FieldFixture.p256, 1, FieldFixture.zero,
+            FieldFixture.wide, 1, FieldFixture.zero,
             "00000000ffffffff00000000000000004319055258e8617b0c46353d039cdaaf"
         ),
         (
-            FieldFixture.p256, 1, "fffffffe00000001ffffffffffffffff79cdf55b4e2f3d09e7739585f8c64aa1",
-            FieldFixture.p256.modulusMinusOne
+            FieldFixture.wide, 1, "fffffffe00000001ffffffffffffffff79cdf55b4e2f3d09e7739585f8c64aa1",
+            FieldFixture.wide.modulusMinusOne
         ),
     ] as [(FieldFixture, UInt64, String, String)])
     func `Reduction leaves values below twice the modulus at their remainder`(

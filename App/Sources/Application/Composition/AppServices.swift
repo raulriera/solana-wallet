@@ -55,6 +55,15 @@ struct AppServices {
                                                coding: .json(PrivateBalances.Codes.self))
         let providerStore = ProviderStore(service: providerService)
         self.providerStore = providerStore
+        let mainnetRings = Zolana(network: .mainnet)
+        let devnetRings = Zolana(network: .devnet)
+        let providerClient: @Sendable (Network) -> ProviderClient = { network in
+            let rings = switch network {
+            case .mainnet: mainnetRings
+            case .devnet: devnetRings
+            }
+            return ProviderClient(network: network, providers: providerStore, rings: rings)
+        }
         providerConnection = HeliusConnection(providers: providerStore)
         customRPCConnection = CustomRPCConnection(providers: providerStore)
         let rates: [CurrencySettings.RateSource: any ExchangeRateProviding] = [.europeanCentralBank: EuropeanCentralBank(),
@@ -66,7 +75,7 @@ struct AppServices {
         let prices = CurrencyPrices(prices: Jupiter(), currency: currencyStore)
         let portfolios = PortfolioStore(prices: prices, currency: currencyStore,
                                         providers: providerStore) { network, prices in
-            Portfolio(rpc: ProviderClient(network: network, providers: providerStore),
+            Portfolio(rpc: providerClient(network),
                       prices: prices,
                       tokenListDirectory: .persistentDirectory.appending(path: "TokenLists", directoryHint: .isDirectory),
                       cacheDirectory: .ephemeralDirectory.appending(path: "Portfolio", directoryHint: .isDirectory))
@@ -75,14 +84,13 @@ struct AppServices {
         let transactionStore = TransactionStore(
             directory: .persistentDirectory.appending(path: "Transactions", directoryHint: .isDirectory)
         ) { [recovery] network in
-            let provider = ProviderClient(network: network, providers: providerStore)
+            let provider = providerClient(network)
             return try TransactionCoordinator(rpc: provider, store: recovery, rpcs: [provider, Solana(network: network)])
         }
         self.transactionStore = transactionStore
         let privateBalances = PrivateBalances(recovery: recovery, wallet: wallet, keys: privateBalanceKeys,
-                                              notes: privateBalanceNotes, codes: privateBalanceCodes) { network in
-            ProviderClient(network: network, providers: providerStore)
-        }
+                                              notes: privateBalanceNotes, codes: privateBalanceCodes,
+                                              client: providerClient)
         self.privateBalances = privateBalances
         let privateBalanceStore = PrivateBalanceStore(balances: privateBalances, transactions: transactionStore,
                                                       providers: providerStore)

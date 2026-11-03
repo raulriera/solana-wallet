@@ -4,8 +4,9 @@ import ModularArithmetic
 import Testing
 
 struct NullifierKeyTests {
-    @Test(arguments: try CommitmentVectors.load().rails)
-    func `Public keys match the published nullifier public keys`(_ rail: CommitmentVectors.Rail) throws {
+    @Test
+    func `The public key matches the published nullifier public key`() throws {
+        let rail = try CommitmentVectors.load().ed25519Rail
         let key = try rail.nullifierKey()
 
         #expect(key.publicKey.bigEndianBytes == (try fixtureBytes(rail.nullifierPubkey)))

@@ -10,9 +10,9 @@ struct TransactOutput: Sendable, Equatable {
         case payer
     }
 
-    private static let inlineVariant: UInt8 = 0
+    static let inlineVariant: UInt8 = 0
 
-    private static let accountVariant: UInt8 = 1
+    static let accountVariant: UInt8 = 1
 
     private static let payerAccountIndex: UInt8 = 0
 

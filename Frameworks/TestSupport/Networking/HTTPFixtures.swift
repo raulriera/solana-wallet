@@ -24,6 +24,12 @@ actor StubTransport: HTTPTransport {
     }
 }
 
+extension Solana {
+    static func devnet(transport: StubTransport) -> Solana {
+        Solana(network: .devnet, transport: transport)
+    }
+}
+
 func requestBody(_ request: URLRequest) throws -> [String: Any] {
     let data = try #require(request.httpBody)
     return try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])

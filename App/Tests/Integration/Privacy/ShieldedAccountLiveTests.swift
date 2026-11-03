@@ -28,21 +28,21 @@ struct ShieldedAccountLiveTests {
     @Test
     func `Syncs with other keys find no notes and resume`() async throws {
         let account = try Self.randomKeys(for: Address(ShieldedPoolOwners.devnet[0]))
-        let provider = HeliusRPC(apiKey: try LiveClients.heliusAPIKey(), network: .devnet)
+        let (rpc, indexer) = (Solana(network: .devnet), Zolana(network: .devnet))
 
-        let first = try await NoteSyncState().synced(for: account, using: provider)
-        let later = try await first.synced(for: account, using: provider)
+        let first = try await NoteSyncState().synced(for: account, rpc: rpc, indexer: indexer)
+        let later = try await first.synced(for: account, rpc: rpc, indexer: indexer)
 
         #expect(first.notes.isEmpty)
         #expect(first != NoteSyncState())
         #expect(later.notes.isEmpty)
-        #expect(later.lamports == 0)
+        #expect(later.spendableLamports == 0)
     }
 
     private static func randomKeys(for address: Address) throws -> ShieldedAccount {
         try ShieldedAccount(
             signingAddress: address, nullifierSecret: SymmetricKey(size: SymmetricKeySize(bitCount: 248)),
-            viewingKey: P256.KeyAgreement.PrivateKey()
+            viewingKey: Curve25519.KeyAgreement.PrivateKey()
         )
     }
 }

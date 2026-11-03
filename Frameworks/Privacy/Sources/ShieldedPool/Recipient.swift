@@ -14,7 +14,7 @@ public struct Recipient: Sendable {
 
     let nullifierPublicKey: Poseidon.Element
 
-    let viewingPublicKey: P256.KeyAgreement.PublicKey
+    let viewingPublicKey: Curve25519.KeyAgreement.PublicKey
 
     /// The owner hash that the owner's UTXOs commit to.
     let owner: Poseidon.Element
@@ -29,7 +29,7 @@ public struct Recipient: Sendable {
     ///   - viewingPublicKey: The owner's viewing public key.
     /// - Throws: ``ValidationError/offCurveSigningAddress`` if the signing address isn't an Ed25519
     ///   point.
-    init(signingAddress: Address, nullifierPublicKey: Poseidon.Element, viewingPublicKey: P256.KeyAgreement.PublicKey) throws {
+    init(signingAddress: Address, nullifierPublicKey: Poseidon.Element, viewingPublicKey: Curve25519.KeyAgreement.PublicKey) throws {
         guard signingAddress.isOnCurve else { throw ValidationError.offCurveSigningAddress }
         self.signingAddress = signingAddress
         self.nullifierPublicKey = nullifierPublicKey

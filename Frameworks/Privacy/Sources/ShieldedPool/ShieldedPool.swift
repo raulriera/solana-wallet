@@ -1,15 +1,13 @@
 import ModularArithmetic
-public import RPC
 import Transactions
 
 /// The shielded-pool program and the accounts that its instructions use.
 public enum ShieldedPool {
-    /// The networks where the shielded-pool and user-registry programs are deployed.
-    public static let networks: Set<Network> = [.devnet]
-
-    private static let programID = "sppU489D7A4U1exNo1oeMGZtLEofq3a6o2fR7UeoWB6"
+    public static let programID = "ring1GaLCuJnkUMVkX2JeZLTTX17wKsV4fZmPVzXANW"
 
     static let transactTag: UInt8 = 16
+
+    static let mergeTransactTag: UInt8 = 17
 
     private static let systemProgramID = "11111111111111111111111111111111"
 
@@ -38,7 +36,7 @@ public enum ShieldedPool {
     /// - Returns: The tree's account address.
     /// - Throws: A ``ValidationError`` if the derivation fails.
     static func tree(id: UInt16) throws -> Address {
-        var idBytes = [UInt8]()
+        var idBytes: [UInt8] = []
         idBytes.appendLittleEndian(id)
         return try ProgramAddress.find(seeds: [treeSeed, idBytes], program: program).address
     }

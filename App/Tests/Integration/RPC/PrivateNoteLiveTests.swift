@@ -6,7 +6,7 @@ import Transactions
 struct PrivateNoteLiveTests {
     @Test(arguments: ShieldedPoolOwners.devnet)
     func `Tag reads return an owner's transactions and resume after them`(owner: String) async throws {
-        let provider = HeliusRPC(apiKey: try LiveClients.heliusAPIKey(), network: .devnet)
+        let provider = Zolana(network: .devnet)
         let tags = [try Address(owner).bytes]
 
         let batch = try await provider.shieldedTransactions(taggedWith: tags, after: nil)
@@ -20,9 +20,11 @@ struct PrivateNoteLiveTests {
         #expect(deposits.allSatisfy {
             $0.outputs.count == 1 && $0.transactionViewingKey == nil && $0.salt == nil && $0.nullifiers.isEmpty
         })
-        #expect(deposits.allSatisfy { $0.outputs[0].viewTag == tags[0] })
+        #expect(deposits.allSatisfy { $0.outputs[0].viewTag == tags[0] && $0.outputs[0].payload.first == 0 })
         let confidential = batch.transactions.filter { !$0.isProofless }
-        #expect(confidential.allSatisfy { $0.transactionViewingKey?.count == 33 && $0.salt?.count == 16 })
+        #expect(confidential.allSatisfy {
+            [[33, 16], [nil, nil]].contains([$0.transactionViewingKey?.count, $0.salt?.count])
+        })
 
         let later = try await provider.shieldedTransactions(taggedWith: tags, after: batch.position)
 
@@ -31,7 +33,7 @@ struct PrivateNoteLiveTests {
 
     @Test
     func `Nullifier reads return the transactions that spent them`() async throws {
-        let provider = HeliusRPC(apiKey: try LiveClients.heliusAPIKey(), network: .devnet)
+        let provider = Zolana(network: .devnet)
         let batch = try await provider.shieldedTransactions(taggedWith: try ShieldedPoolOwners.devnet.map { try Address($0).bytes },
                                                             after: nil)
         let spenders = batch.transactions.filter { !$0.nullifiers.isEmpty }
@@ -42,5 +44,18 @@ struct PrivateNoteLiveTests {
 
         #expect(Set(spenders.map(\.signature)).isSubset(of: spending.map(\.signature)))
         #expect(spending.allSatisfy { !nullifiers.isDisjoint(with: $0.nullifiers) })
+    }
+
+    @Test(arguments: [Network.mainnet, .devnet])
+    func `Reads of a random value find nothing`(network: Network) async throws {
+        let provider = Zolana(network: network)
+        let value = randomFieldElement()
+
+        async let taggedRead = provider.shieldedTransactions(taggedWith: [value], after: nil)
+        async let spendingRead = provider.shieldedTransactions(spending: [value])
+        let (tagged, spending) = try await (taggedRead, spendingRead)
+
+        #expect(tagged.transactions.isEmpty)
+        #expect(spending.isEmpty)
     }
 }

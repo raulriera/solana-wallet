@@ -13,13 +13,13 @@ struct EncryptionVectors: Decodable, Sendable {
     struct TransactionViewing: Decodable, Sendable {
         let viewingSecret: String
         let firstNullifier: String
-        let transactionViewingScalar: String
+        let transactionViewingSecret: String
         let transactionViewingPublicKey: String
 
         private enum CodingKeys: String, CodingKey {
             case viewingSecret = "viewing_secret"
             case firstNullifier = "first_nullifier"
-            case transactionViewingScalar = "tx_viewing_secret"
+            case transactionViewingSecret = "tx_viewing_secret"
             case transactionViewingPublicKey = "tx_viewing_pubkey"
         }
     }

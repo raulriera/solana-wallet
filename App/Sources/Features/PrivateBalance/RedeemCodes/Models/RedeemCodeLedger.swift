@@ -24,8 +24,8 @@ nonisolated struct RedeemCodeLedger: Codable, Equatable, Sendable {
         self.pending = []
         self.nextIndex = nextIndex
         self.isDiscovered = isDiscovered
-        pending.forEach { hold($0) }
-        records.forEach { add($0) }
+        for code in pending { hold(code) }
+        for record in records { add(record) }
     }
 
     /// Adds a code, replacing a record or a pending index at the same index, and moves the next index above it.
@@ -64,40 +64,49 @@ nonisolated struct RedeemCodeLedger: Codable, Equatable, Sendable {
     }
 
     /// Adds the codes that a scan of the chain found, keeping recorded codes at the same indices, and marks the ledger
-    /// as discovered.
+    /// as discovered once a scan is.
     ///
     /// - Parameter discovered: The ledger that the scan built.
     mutating func merge(_ discovered: RedeemCodeLedger) {
         for record in discovered.records where !records.contains(where: { $0.index == record.index }) { add(record) }
         nextIndex = max(nextIndex, discovered.nextIndex)
-        isDiscovered = true
+        isDiscovered = isDiscovered || discovered.isDiscovered
     }
 
-    /// Applies what the indexer reports for the codes and pending indices.
+    /// Applies what the indexer reports for the codes and pending indices, keeping a spent code until its one-time
+    /// account holds less than its reserve, and keeping a funded index pending until its one-time account holds
+    /// lamports.
     ///
     /// - Parameters:
     ///   - statuses: What the indexer reports, by index.
-    ///   - reserves: The public lamports of pending indices' one-time accounts.
+    ///   - lamports: The public lamports of the codes' and pending indices' one-time accounts, by index.
     ///   - date: The current date.
-    mutating func reconcile(with statuses: [UInt32: RedeemCodeScan.Status], reserves: [UInt32: UInt64],
+    mutating func reconcile(with statuses: [UInt32: RedeemCodeScan.Status], lamports: [UInt32: UInt64],
                             at date: Date) {
         for record in records {
             switch statuses[record.index] {
-            case .unspent(let lamports, _)?:
-                add(RedeemCodeRecord(index: record.index, amount: lamports, reserve: record.reserve,
+            case .unspent(let amount, _)?:
+                add(RedeemCodeRecord(index: record.index, amount: amount, reserve: record.reserve,
                                      created: record.created, fundingSignature: record.fundingSignature))
-            case .spent?:
+            case .spent? where record.reserve == 0 || lamports[record.index].map { $0 < record.reserve } == true:
                 remove([record.index])
-            case .unfunded?, nil:
+            case .spent?, .unfunded?, .unconfirmed?, nil:
                 break
             }
         }
         for code in pending {
-            if case .unspent(let lamports, let signature)? = statuses[code.index] {
-                add(RedeemCodeRecord(index: code.index, amount: lamports, reserve: reserves[code.index] ?? 0,
-                                     created: code.created, fundingSignature: signature))
-            } else if statuses[code.index] != nil, code.isExpired(at: date) {
-                release(code.index)
+            switch statuses[code.index] {
+            case .unspent(let amount, let signature)?:
+                if let reserve = lamports[code.index], reserve > 0 {
+                    add(RedeemCodeRecord(index: code.index, amount: amount, reserve: reserve, created: code.created,
+                                         fundingSignature: signature))
+                }
+            case .spent? where lamports[code.index] != 0:
+                break
+            case .unfunded?, .spent?:
+                if code.isExpired(at: date) { release(code.index) }
+            case .unconfirmed?, nil:
+                break
             }
         }
     }

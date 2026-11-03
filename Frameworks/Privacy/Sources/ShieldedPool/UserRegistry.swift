@@ -12,12 +12,9 @@ public enum UserRegistry {
         case invalidDiscriminator
         case ownerMismatch
         case nonCanonicalBump
-        case unsupportedP256Owner
-        /// The record's optional P-256 owner has an invalid tag.
-        case invalidOptionTag
         /// The record's nullifier public key isn't a canonical field element.
         case invalidNullifierPublicKey
-        /// The record's viewing public key isn't a compressed P-256 point.
+        /// The record's viewing public key isn't a tagged X25519 public key.
         case invalidViewingPublicKey
         /// The record's merging flag isn't 0 or 1.
         case invalidMergingFlag
@@ -25,12 +22,12 @@ public enum UserRegistry {
         case mismatchedResponse
     }
 
-    private static let programID = "regyS5rkAcw2YzDJCmTwCTHs2s246FXxbmuRZ42u2PD"
+    private static let programID = "regy3WAeRXMYuMYxr5iK3Bf9Arr3PcxGxyzAddbiqDQ"
 
     private static let recordSeed = Array("zolana/registry/v0".utf8)
 
     /// The length of a record's account, in bytes.
-    static let recordLength = 134
+    static let recordLength = 100
 
     private static let discriminator: UInt8 = 1
 
@@ -38,16 +35,11 @@ public enum UserRegistry {
 
     private static let bumpIndex = 33
 
-    private static let optionTagIndex = 34
+    private static let nullifierPublicKeyRange = 34..<66
 
-    /// The position of an Ed25519 owner's nullifier public key in its record.
-    private static let nullifierPublicKeyRange = 35..<67
+    private static let viewingPublicKeyRange = 66..<99
 
-    /// The position of an Ed25519 owner's viewing public key in its record.
-    private static let viewingPublicKeyRange = 67..<100
-
-    /// The position of an Ed25519 owner's merging flag in its record.
-    private static let mergingFlagIndex = 100
+    private static let mergingFlagIndex = 99
 
     static var program: Address {
         get throws { try Address(programID) }
@@ -77,17 +69,12 @@ public enum UserRegistry {
         guard data[0] == discriminator else { throw ValidationError.invalidDiscriminator }
         guard Array(data[ownerRange]) == owner.bytes else { throw ValidationError.ownerMismatch }
         guard data[bumpIndex] == (try record(of: owner)).bump else { throw ValidationError.nonCanonicalBump }
-        switch data[optionTagIndex] {
-        case 0: break
-        case 1: throw ValidationError.unsupportedP256Owner
-        default: throw ValidationError.invalidOptionTag
-        }
         guard let nullifierPublicKey = Poseidon.Element(bigEndianBytes: Array(data[nullifierPublicKeyRange])) else {
             throw ValidationError.invalidNullifierPublicKey
         }
-        let viewingPublicKey: P256.KeyAgreement.PublicKey
+        let viewingPublicKey: Curve25519.KeyAgreement.PublicKey
         do {
-            viewingPublicKey = try P256.KeyAgreement.PublicKey(compressedRepresentation: data[viewingPublicKeyRange])
+            viewingPublicKey = try Curve25519.KeyAgreement.PublicKey(taggedRepresentation: data[viewingPublicKeyRange])
         } catch {
             throw ValidationError.invalidViewingPublicKey
         }

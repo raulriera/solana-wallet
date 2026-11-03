@@ -14,15 +14,12 @@ struct CommitmentVectors: Decodable, Sendable {
 
     let ed25519Rail: Rail
 
-    let p256Rail: Rail
-
     private enum CodingKeys: String, CodingKey {
         case hashBytes = "hash_bytes"
         case ownerIdentity = "owner_identity"
         case blindingSeed = "blinding_seed"
         case dummyUTXOHash = "dummy_utxo_hash"
-        case ed25519Rail = "ed25519_rail"
-        case p256Rail = "p256_rail"
+        case ed25519Rail = "eddsa_rail"
     }
 
     struct ByteHash: Decodable, Sendable, CustomTestStringConvertible {
@@ -78,8 +75,8 @@ struct CommitmentVectors: Decodable, Sendable {
         }
     }
 
-    struct Rail: Decodable, Sendable, CustomTestStringConvertible {
-        let signerPubkey: String?
+    struct Rail: Decodable, Sendable {
+        let signerPubkey: String
         let nullifierSecret: String
         let nullifierPubkey: String
         let viewingSecret: String
@@ -93,7 +90,6 @@ struct CommitmentVectors: Decodable, Sendable {
             case viewingPubkey = "viewing_pubkey"
         }
 
-        var testDescription: String { "Nullifier public key \(nullifierPubkey)" }
 
         func nullifierSecretKey() throws -> SymmetricKey {
             SymmetricKey(data: try fixtureBytes(nullifierSecret))
@@ -103,18 +99,16 @@ struct CommitmentVectors: Decodable, Sendable {
             try NullifierKey(secret: nullifierSecretKey())
         }
 
-        func viewingKey() throws -> P256.KeyAgreement.PrivateKey {
-            try P256.KeyAgreement.PrivateKey(rawRepresentation: fixtureBytes(viewingSecret))
+        func viewingKey() throws -> Curve25519.KeyAgreement.PrivateKey {
+            try Curve25519.KeyAgreement.PrivateKey(rawRepresentation: fixtureBytes(viewingSecret))
         }
 
         func ownerHash() throws -> Poseidon.Element {
             OwnerIdentity.ownerHash(
-                signingPublicKey: try fixtureBytes(#require(signerPubkey)), nullifierPublicKey: try nullifierKey().publicKey
+                signingPublicKey: try fixtureBytes(signerPubkey), nullifierPublicKey: try nullifierKey().publicKey
             )
         }
     }
-
-    var rails: [Rail] { [ed25519Rail, p256Rail] }
 
     static func load() throws -> Self {
         try fixture(named: "CommitmentVectors")

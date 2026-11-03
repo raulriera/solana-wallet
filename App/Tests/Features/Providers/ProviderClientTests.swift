@@ -1,9 +1,10 @@
+import Encoding
 import Foundation
-@testable import Privacy
-@testable import RPC
 import Synchronization
 import Testing
 import Transactions
+@testable import Privacy
+@testable import RPC
 @testable import widgets
 
 @MainActor
@@ -18,7 +19,6 @@ struct ProviderClientTests {
         await #expect(throws: ProviderClientError.missingKey) { _ = try await client.changedSlots(for: [PublicWallet.address]) }
         await #expect(throws: ProviderClientError.missingKey) { _ = try await client.events(for: ExternalFixture.signature) }
         await #expect(throws: ProviderClientError.missingKey) { _ = try await client.logos(for: [HTTPResponses.keyCheckAsset]) }
-        await #expect(throws: ProviderClientError.missingKey) { _ = try await client.readsPrivateNotes }
         #expect(await responses.requests.isEmpty)
     }
 
@@ -52,7 +52,8 @@ struct ProviderClientTests {
         let providers = ProviderStore.inMemory()
         let custom = try #require(URL(string: "https://rpc.example.com/fixture-token"))
         let created = Mutex<[ProviderClient.Endpoint]>([])
-        let client = ProviderClient(network: .mainnet, providers: providers) { endpoint, network in
+        let rings = StubProver.zolana(on: .mainnet, transport: responses)
+        let client = ProviderClient(network: .mainnet, providers: providers, rings: rings) { endpoint, network in
             created.withLock { $0.append(endpoint) }
             return responses.client(for: endpoint, on: network)
         }
@@ -102,7 +103,8 @@ struct ProviderClientTests {
         let sockets = SocketSequence()
         let opened = Mutex<[URL]>([])
         let providers = ProviderStore.inMemory(selection: provider, key: "fixture-key")
-        let client = ProviderClient(network: .devnet, providers: providers) { endpoint, network in
+        let rings = StubProver.zolana(on: .devnet, transport: responses)
+        let client = ProviderClient(network: .devnet, providers: providers, rings: rings) { endpoint, network in
             responses.client(for: endpoint, on: network) { url in
                 opened.withLock { $0.append(url) }
                 return sockets.connect(url)
@@ -156,137 +158,100 @@ struct ProviderClientTests {
         #expect(await responses.requests.count == lookups)
     }
 
-    @Test
-    func `Helius reads private notes`() async throws {
-        let responses = HTTPResponses.privateNotes()
-        let client = responses.providerClient(network: .devnet,
-                                              providers: .inMemory(selection: .helius, key: "fixture-key"))
+    @Test(arguments: [
+        (ProviderSettings.Provider.solana, Network.devnet), (.helius, .devnet),
+        (.custom(URL(string: "https://rpc.example.com")!), .mainnet),
+    ])
+    func `Every usable provider reads private notes and proves private transfers without sending its key`(
+        provider: ProviderSettings.Provider, network: Network
+    ) async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let shielded = try await PrivateBalanceFixtures.keys(for: account).shieldedAccount(for: account.address)
+        let responses = HTTPResponses.privateNotes(prover: try IndexedProofs.prover(), respond: Self.merkleProofs(answering:))
+        let client = responses.providerClient(network: network,
+                                              providers: .inMemory(selection: provider, key: "fixture-key"))
         let tag = [UInt8](repeating: 7, count: 32)
+        let request = try PrivateBalanceFixtures.proofRequest(spending: shielded)
 
-        let batch = try await client.shieldedTransactions(taggedWith: [tag], after: nil)
-        let spends = try await client.shieldedTransactions(spending: [tag])
+        async let tagged = client.shieldedTransactions(taggedWith: [tag], after: nil)
+        async let spending = client.shieldedTransactions(spending: [tag])
+        async let included = client.merkleProofs(for: [tag], inTree: try ShieldedPool.tree(id: 1).value)
+        async let proved = client.proveTransfer(request)
+        let (batch, spends, inclusionProofs, proof) = try await (tagged, spending, included, proved)
 
         #expect(batch.transactions.isEmpty)
         #expect(spends.isEmpty)
-        #expect(try await responses.requests.map { try $0.rpcMethod }.sorted() == [
-            GetEncryptedUtxosByTags.method, GetShieldedTransactionsByNullifiers.method, GetShieldedTransactionsByTags.method,
+        #expect(inclusionProofs.map(\.leaf) == [tag])
+        #expect(proof.proof.provingKeyDigest == Shape(inputs: 1, outputs: 2).provingKeyDigest)
+        #expect(proof.resolution.trees.map(\.id) == [1])
+        let reads = await responses.requests.filter {
+            $0.httpMethod == "POST" && $0.url?.path().hasSuffix("/indexed") != true
+        }
+        #expect(try reads.map { try $0.rpcMethod }.sorted() == [
+            GetEncryptedUtxosByTags.method, GetMerkleProofs.method, GetShieldedTransactionsByNullifiers.method,
+            GetShieldedTransactionsByTags.method,
         ])
-        #expect(await responses.requests.allSatisfy { $0.url?.host() == "devnet.helius-rpc.com" })
+        #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 1)
+        #expect(await responses.requests.allSatisfy { $0.url?.query()?.contains("api-key") != true })
     }
 
     @Test(arguments: [
-        (ProviderSettings.Provider.helius, Network.devnet, true), (.helius, .mainnet, true), (.solana, .devnet, false),
-        (.custom(URL(string: "https://rpc.example.com")!), .devnet, false),
-        (.custom(URL(string: "https://rpc.example.com")!), .mainnet, false),
+        (ProviderSettings.Provider.custom(URL(string: "https://rpc.example.com")!), Network.devnet,
+         ProviderClientError.unsupportedNetwork),
+        (.helius, .devnet, .missingKey),
+        (.custom(URL(string: "http://rpc.example.com")!), .mainnet, .unusableEndpoint),
     ])
-    func `Only Helius reads private notes`(provider: ProviderSettings.Provider, network: Network,
-                                           reads: Bool) async throws {
-        let responses = HTTPResponses.privateNotes()
-        let client = responses.providerClient(network: network,
-                                              providers: .inMemory(selection: provider, key: "fixture-key"))
-
-        #expect(try await client.readsPrivateNotes == reads)
-        #expect(await responses.requests.isEmpty)
-    }
-
-    @Test
-    func `Other providers fail private-note reads before sending anything`() async {
-        let responses = HTTPResponses.privateNotes()
-        let client = responses.providerClient(network: .devnet, providers: .inMemory(selection: .solana))
+    func `Private-note reads and proofs fail before sending anything when the selected provider can't be used`(
+        provider: ProviderSettings.Provider, network: Network, error: ProviderClientError
+    ) async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let shielded = try await PrivateBalanceFixtures.keys(for: account).shieldedAccount(for: account.address)
+        let responses = HTTPResponses.privateNotes(prover: try IndexedProofs.prover())
+        let client = responses.providerClient(network: network, providers: .inMemory(selection: provider))
         let tag = [UInt8](repeating: 7, count: 32)
-
-        await #expect(throws: ProviderClientError.privateNotesUnavailable) {
-            _ = try await client.shieldedTransactions(taggedWith: [tag], after: nil)
-        }
-        await #expect(throws: ProviderClientError.privateNotesUnavailable) {
-            _ = try await client.shieldedTransactions(spending: [tag])
-        }
-        await #expect(throws: ProviderClientError.privateNotesUnavailable) {
-            _ = try await client.merkleProofs(for: [tag], inTree: ShieldedPool.tree(id: 1).value)
-        }
-        await #expect(throws: ProviderClientError.privateNotesUnavailable) {
-            _ = try await client.nonInclusionProofs(for: [tag], inTree: ShieldedPool.tree(id: 1).value)
-        }
-        #expect(await responses.requests.isEmpty)
-    }
-
-    @Test
-    func `Helius reads tree proofs`() async throws {
-        let responses = HTTPResponses.privateNotes(prove: PrivateBalanceFixtures.proof(answering:))
-        let client = responses.providerClient(network: .devnet,
-                                              providers: .inMemory(selection: .helius, key: "fixture-key"))
-        let tree = try ShieldedPool.tree(id: 1).value
-        let leaf = [UInt8](repeating: 7, count: 32)
-
-        async let included = client.merkleProofs(for: [leaf], inTree: tree)
-        async let excluded = client.nonInclusionProofs(for: [leaf], inTree: tree)
-        let (inclusionProofs, nonInclusionProofs) = try await (included, excluded)
-
-        #expect(inclusionProofs.map(\.leaf) == [leaf])
-        #expect(nonInclusionProofs.map(\.nullifier) == [leaf])
-        #expect(try await responses.requests.map { try $0.rpcMethod }.sorted() == [GetMerkleProofs.method, GetNonInclusionProofs.method])
-        #expect(await responses.requests.allSatisfy { $0.url?.host() == "devnet.helius-rpc.com" })
-    }
-
-    @Test
-    func `Helius proves private transfers`() async throws {
-        let account = try await PrivateBalanceFixtures.account()
-        let shielded = try await PrivateBalanceFixtures.keys(for: account).shieldedAccount(for: account.address)
-        let responses = HTTPResponses.privateNotes(prove: PrivateBalanceFixtures.proof(answering:))
-        let client = responses.providerClient(network: .devnet,
-                                              providers: .inMemory(selection: .helius, key: "fixture-key"))
         let request = try PrivateBalanceFixtures.proofRequest(spending: shielded)
 
-        let proof = try await client.proveTransfer(request)
-
-        let sent = try #require(await responses.requests.first)
-        let body = try sent.jsonBody()
-        let shape = Shape(inputs: try #require(body["nInputs"] as? Int), outputs: try #require(body["nOutputs"] as? Int))
-        #expect(shape == Shape(inputs: 1, outputs: 2))
-        #expect(proof.provingKeyDigest == shape.provingKeyDigest)
-        #expect(await responses.requests.count == 1)
-        #expect(sent.url?.host() == "devnet.helius-rpc.com")
-        #expect(sent.url?.path() == "/v1/zolana/prove")
-    }
-
-    @Test(arguments: [(false, .privateNotesUnavailable), (true, .unsupportedNetwork)] as [(Bool, ProviderClientError)])
-    func `Other providers fail proofs before sending anything`(isCustom: Bool, error: ProviderClientError) async throws {
-        let account = try await PrivateBalanceFixtures.account()
-        let shielded = try await PrivateBalanceFixtures.keys(for: account).shieldedAccount(for: account.address)
-        let responses = HTTPResponses.privateNotes()
-        let custom = try #require(URL(string: "https://rpc.example.com"))
-        let provider: ProviderSettings.Provider = isCustom ? .custom(custom) : .solana
-        let client = responses.providerClient(network: .devnet, providers: .inMemory(selection: provider))
-        let request = try PrivateBalanceFixtures.proofRequest(spending: shielded)
-
+        await #expect(throws: error) { _ = try await client.shieldedTransactions(taggedWith: [tag], after: nil) }
+        await #expect(throws: error) { _ = try await client.shieldedTransactions(spending: [tag]) }
+        await #expect(throws: error) { _ = try await client.merkleProofs(for: [tag], inTree: try ShieldedPool.tree(id: 1).value) }
         await #expect(throws: error) { _ = try await client.proveTransfer(request) }
         #expect(await responses.requests.isEmpty)
     }
 
-    @Test(arguments: [(Network.devnet, ProviderClientError.unsupportedNetwork), (.mainnet, .privateNotesUnavailable)])
-    func `A custom RPC fails private-note reads before sending anything`(network: Network,
-                                                                         error: ProviderClientError) async throws {
-        let responses = HTTPResponses.privateNotes()
-        let custom = try #require(URL(string: "https://rpc.example.com"))
-        let client = responses.providerClient(network: network, providers: .inMemory(selection: .custom(custom)))
-        let tag = [UInt8](repeating: 7, count: 32)
+    @Test
+    func `One Solana Rings provider serves every provider and key`() async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let shielded = try await PrivateBalanceFixtures.keys(for: account).shieldedAccount(for: account.address)
+        let responses = HTTPResponses.privateNotes(prover: try IndexedProofs.prover())
+        let providers = ProviderStore.inMemory(selection: .solana)
+        let client = responses.providerClient(network: .devnet, providers: providers)
+        let request = try PrivateBalanceFixtures.proofRequest(spending: shielded)
 
-        await #expect(throws: error) { _ = try await client.shieldedTransactions(taggedWith: [tag], after: nil) }
-        await #expect(throws: error) { _ = try await client.shieldedTransactions(spending: [tag]) }
-        #expect(await responses.requests.isEmpty)
+        _ = try await client.proveTransfer(request)
+        try await providers.save(key: "first-key")
+        try await providers.select(.helius)
+        _ = try await client.proveTransfer(request)
+        try await providers.save(key: "second-key")
+        _ = try await client.proveTransfer(request)
+
+        #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 3)
+        #expect(await responses.requests.count { $0.url?.path().hasSuffix("/attestation") == true } == 1)
     }
 
     @Test(arguments: [401, 403])
-    func `A rejected Helius key on a private-note read is reported as a key error`(status: Int) async {
-        let responses = HTTPResponses.privateNotes(error: .http(statusCode: status, retryAfter: nil))
+    func `A Solana Rings rejection with Helius selected isn't reported as a key error`(status: Int) async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let shielded = try await PrivateBalanceFixtures.keys(for: account).shieldedAccount(for: account.address)
+        let responses = HTTPResponses.privateNotes(error: .http(statusCode: status, retryAfter: nil)) { _ in "" }
         let client = responses.providerClient(network: .devnet,
                                               providers: .inMemory(selection: .helius, key: "rejected-key"))
         let tag = [UInt8](repeating: 7, count: 32)
+        let request = try PrivateBalanceFixtures.proofRequest(spending: shielded)
+        let rejection = RPCError.http(statusCode: status, retryAfter: nil)
 
-        await #expect(throws: ProviderClientError.invalidKey) {
-            _ = try await client.shieldedTransactions(taggedWith: [tag], after: nil)
-        }
-        await #expect(throws: ProviderClientError.invalidKey) { _ = try await client.shieldedTransactions(spending: [tag]) }
+        await #expect(throws: rejection) { _ = try await client.shieldedTransactions(taggedWith: [tag], after: nil) }
+        await #expect(throws: rejection) { _ = try await client.shieldedTransactions(spending: [tag]) }
+        await #expect(throws: rejection) { _ = try await client.proveTransfer(request) }
     }
 
     @Test
@@ -299,5 +264,16 @@ struct ProviderClientTests {
             _ = try await client.send(GetAsset(id: HTTPResponses.keyCheckAsset))
         }
         #expect(await responses.requests.isEmpty)
+    }
+
+    nonisolated private static func merkleProofs(answering request: URLRequest) throws -> String {
+        let params = try #require(try request.jsonBody()["params"] as? [String: Any])
+        let tree = try #require(params["treeAccount"] as? String)
+        let zero = Base58.encode([UInt8](repeating: 0, count: 32))
+        let proofs = try #require(params["leaves"] as? [String]).map { leaf in
+            MerkleProofReplies.proof(leaf: leaf, tree: tree, path: Array(repeating: zero, count: 32), leafIndex: 0, root: zero,
+                                     rootIndex: 0)
+        }
+        return MerkleProofReplies.result(proofs)
     }
 }

@@ -6,8 +6,6 @@ nonisolated enum ProviderClientError: Error, Equatable {
     case unusableEndpoint
     /// The selected custom RPC doesn't serve the requested network.
     case unsupportedNetwork
-    /// The selected provider doesn't read private notes or prove private transfers.
-    case privateNotesUnavailable
     /// The provider choice or its key can't be read.
     case settingsUnreadable
 }

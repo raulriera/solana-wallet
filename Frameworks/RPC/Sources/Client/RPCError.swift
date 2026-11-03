@@ -22,14 +22,24 @@ public enum RPCError: Error, Sendable, Equatable {
         case invalidEnvelope
         /// A page repeated a cursor or returned one without rows.
         case invalidCursor
-        /// The proofs don't match the requested leaves, their order, or the tree.
+        /// A read to the end of a stream didn't reach it within its limit of reads.
+        case endlessStream
+        /// The response body is longer than the request accepts.
+        case oversized
+        /// The provider returned another number of proofs than the request named leaves.
         case mismatchedProofs
+        /// The prover's attestation doesn't prove that the expected enclave holds its key.
+        case untrustedProver
+        /// The prover's encrypted answer doesn't open under the request's key or holds no status.
+        case unauthenticatedAnswer
     }
 
     /// Whether the failure can clear without the person's action.
     public var isRecoverable: Bool {
         switch self {
-        case .transport, .http(statusCode: 500..<600, retryAfter: _), .server(code: -32005, message: _): true
+        case .transport, .http(statusCode: 408, retryAfter: _), .http(statusCode: 500..<600, retryAfter: _),
+            .server(code: -32005, message: _):
+            true
         case .encoding, .decoding, .http, .server, .preflight, .invalidResponse: false
         }
     }

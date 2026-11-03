@@ -1,5 +1,5 @@
-import Testing
 import RPC
+import Testing
 
 struct PrivateNoteErrorTests {
     @Test(arguments: [
@@ -7,9 +7,7 @@ struct PrivateNoteErrorTests {
         (.invalidNullifier, .mismatchedPosition),
         (.mismatchedPosition, .invalidLeaf),
         (.invalidLeaf, .invalidTree),
-        (.invalidTree, .tooManyLeaves),
-        (.tooManyLeaves, .invalidProof),
-        (.invalidProof, .invalidTag),
+        (.invalidTree, .invalidTag),
     ])
     func `Refusals are distinct`(error: PrivateNoteError, other: PrivateNoteError) {
         #expect(error == error)

@@ -32,30 +32,39 @@ public enum Base58 {
     ///   - byteCount: The number of bytes to decode.
     /// - Returns: Exactly `byteCount` bytes, or `nil` for malformed text or a width mismatch.
     public static func decode(_ value: String, byteCount: Int) -> [UInt8]? {
-        guard byteCount >= 0 else { return nil }
-        var bytes = [UInt8](repeating: 0, count: byteCount)
-        var leadingZeros = 0
-        var hasSignificantDigit = false
+        guard let bytes = decode(value, maximumCount: byteCount), bytes.count == byteCount else { return nil }
+        return bytes
+    }
 
+    /// Decodes Base58 text into as many bytes as it encodes, stopping once they exceed a limit.
+    ///
+    /// - Parameters:
+    ///   - value: The Base58 text.
+    ///   - maximumCount: The most bytes to decode.
+    /// - Returns: The bytes, with one zero byte for each leading `1`, or `nil` for malformed text or more than
+    ///   `maximumCount` bytes.
+    public static func decode(_ value: String, maximumCount: Int) -> [UInt8]? {
+        guard maximumCount >= 0 else { return nil }
+        var littleEndian: [UInt8] = []
+        var leadingZeros = 0
         for character in value.utf8 {
             guard let digit = alphabet.firstIndex(of: character) else { return nil }
-            if !hasSignificantDigit && digit == 0 {
-                guard leadingZeros < byteCount else { return nil }
+            if littleEndian.isEmpty && digit == 0 {
                 leadingZeros += 1
-                continue
+            } else {
+                var carry = digit
+                for index in littleEndian.indices {
+                    carry += Int(littleEndian[index]) * 58
+                    littleEndian[index] = UInt8(carry & 0xff)
+                    carry >>= 8
+                }
+                while carry > 0 {
+                    littleEndian.append(UInt8(carry & 0xff))
+                    carry >>= 8
+                }
             }
-            hasSignificantDigit = true
-            var carry = digit
-            for index in bytes.indices {
-                carry += Int(bytes[index]) * 58
-                bytes[index] = UInt8(carry & 0xff)
-                carry >>= 8
-            }
-            guard carry == 0 else { return nil }
+            guard leadingZeros + littleEndian.count <= maximumCount else { return nil }
         }
-
-        let significantBytes = bytes.lastIndex(where: { $0 != 0 }).map { $0 + 1 } ?? 0
-        guard significantBytes == byteCount - leadingZeros else { return nil }
-        return Array(bytes.reversed())
+        return [UInt8](repeating: 0, count: leadingZeros) + littleEndian.reversed()
     }
 }

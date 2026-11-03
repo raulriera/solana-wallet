@@ -187,7 +187,7 @@ struct WalletPrivateBalanceTests {
         await running.value
         await settling.value
 
-        #expect(await PrivateBalanceFixtures.registryReads(of: responses) == 2)
+        #expect(await PrivateBalanceFixtures.nonTreeAccountReads(of: responses) == 2)
         #expect(balance.status == .balance(available: 0, pending: 0))
     }
 
@@ -249,7 +249,7 @@ struct WalletPrivateBalanceTests {
 
         await balance.poll()
 
-        #expect(await PrivateBalanceFixtures.registryReads(of: responses) == 2)
+        #expect(await PrivateBalanceFixtures.nonTreeAccountReads(of: responses) == 2)
     }
 
     @Test
@@ -321,7 +321,8 @@ struct WalletPrivateBalanceTests {
         let balances = PrivateBalances(recovery: try PrivateBalanceFixtures.recoveryStore(), wallet: Wallet(),
                                        keys: StoredValue([account.address.value: record]), notes: StoredValue(),
                                        codes: StoredValue()) { network in
-            ProviderClient(network: network, providers: providers) { endpoint, network in
+            ProviderClient(network: network, providers: providers,
+                           rings: StubProver.zolana(on: network, transport: responses)) { endpoint, network in
                 (endpoint == .helius(key: "fixture-key") ? responses : otherResponses).client(for: endpoint, on: network)
             }
         }

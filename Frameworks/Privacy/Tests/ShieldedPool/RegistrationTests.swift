@@ -55,8 +55,8 @@ struct RegistrationTests {
         }
     }
 
-    private static func record(_ data: [UInt8]) -> String {
-        #"{"owner":"regyS5rkAcw2YzDJCmTwCTHs2s246FXxbmuRZ42u2PD","lamports":1823520,"executable":false,"#
+    private static func record(_ data: [UInt8]) throws -> String {
+        #"{"owner":"\#(try RegistryVectors.load().program)","lamports":1,"executable":false,"#
             + #""data":["\#(Data(data).base64EncodedString())","base64"]}"#
     }
 

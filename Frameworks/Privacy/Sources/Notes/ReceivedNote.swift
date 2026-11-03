@@ -124,14 +124,14 @@ public struct ReceivedNote: Sendable, Equatable, Codable, CustomStringConvertibl
     ///   - account: The account that receives the outputs.
     ///   - owner: The account's owner hash.
     /// - Returns: Each output that the account received, with its UTXO.
-    /// - Throws: A cipher or key agreement error.
+    /// - Throws: ``SlotCipher/CipherError/cryptorFailed`` if CommonCrypto fails.
     private static func confidentialUTXOs(
         in transaction: ShieldedTransaction,
         of account: ShieldedAccount,
         owner: Poseidon.Element
     ) throws -> [(ShieldedOutput, UTXO)] {
         guard let viewingKeyBytes = transaction.transactionViewingKey, let salt = transaction.salt,
-              let transactionViewingPublicKey = try? P256.KeyAgreement.PublicKey(compressedRepresentation: viewingKeyBytes) else {
+              let transactionViewingPublicKey = try? Curve25519.KeyAgreement.PublicKey(taggedRepresentation: viewingKeyBytes) else {
             return []
         }
         let viewTags = account.viewTags

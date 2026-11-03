@@ -143,7 +143,7 @@ enum TransferVectors {
 
     static let recipientNullifierPublicKey = "07f313f2ef546c5ac079f4591e978eaaa944e2ffee4dd5c5fa2156ff39e84856"
 
-    static let recipientViewingSecret = "e1eba2fc69ef567562725af78342749ef7af2a63251ae2343c7e789522dccfa2"
+    static let recipientViewingSecret = "a8369644de220446321de5410792cfb005042b47f9a76465491fc989b93e7559"
 
     static let senderSigningAddress = "GmaDrppBC7P5ARKV8g3djiwP89vz1jLK23V2GBjuAEGB"
 
@@ -153,7 +153,7 @@ enum TransferVectors {
             spentInputs: [spentInputs[0]], paddingInputs: [paddingInputs[0]], recipientAmount: 4,
             recipientCommitment: "2e594a80158648b6dab780fd6e3cb9562df793ba52fcae62da52bcfd71db4360",
             senderOutputs: Array(outputs[0..<3]), payer: senderSigningAddress,
-            externalDataHash: "00dbaa00ad37765ac297258d4c5ee6ed81efea1beea765f593835efb20755e1f",
+            externalDataHash: "002a88dc591199db4a5fbff4d3ca4b5a91a03e3e7725b7941493266f6d4baec0",
             privateTransactionHash: "2fc2151ff99263248e517ea9b1c64907b45cae11ceea497833051a7ab6582174"
         ),
         Transfer(
@@ -161,13 +161,13 @@ enum TransferVectors {
             spentInputs: Array(spentInputs[1...2]), paddingInputs: Array(paddingInputs[1...2]), recipientAmount: 4,
             recipientCommitment: "1923c73dd6386bc75c4a72a75ca31185928a174f0206d9fc71b0af597b8f7219",
             senderOutputs: Array(outputs[3..<6]), payer: "CktRuQ2mttgRGkXJtyksdKHjUdc2C4TgDzyB98oEzy8",
-            externalDataHash: "00eaf658e5b067715f37535419f0de68b3438045ee9943c6fcff06437b2404d2",
+            externalDataHash: "008b0b53cde788829f896d8d4d45fbca6f5f9228e2079e9b7806c92f0f36a519",
             privateTransactionHash: "09237d093e2622323e34fb3cd86e1ae0f26e20078c0d82a82be86b6c607c854a"
         ),
     ]
 
-    static func recipientViewingKey() throws -> P256.KeyAgreement.PrivateKey {
-        try P256.KeyAgreement.PrivateKey(rawRepresentation: fixtureBytes(recipientViewingSecret))
+    static func recipientViewingKey() throws -> Curve25519.KeyAgreement.PrivateKey {
+        try Curve25519.KeyAgreement.PrivateKey(rawRepresentation: fixtureBytes(recipientViewingSecret))
     }
 
     static func recipient() throws -> Recipient {

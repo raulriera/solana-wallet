@@ -5,8 +5,8 @@ import Testing
 
 struct ConfidentialOutputTests {
     private static let payloadHex = """
-        0154000000030299cff79e0e9e5a109e998f3868a1c358eb82e30ee4737ce8271c1e3a473ea0f658586f6ab7254704\
-        531d88b97a02449955861b69a9595a07a5dbcf55b2f8983afc2bbd7a731cb45b4fe74a7a909073fbc3ed
+        0154000000030419078976c68ba992eb10aae97df1e453731a022d6c46eb8a0a4f1c976a0cc20abf2715a575e535cc\
+        d901ae5d80c0b60b088d998281a9271eb0163177b6752c8f5e984fd9b12db27536feb60a12b3bd70b015
         """
 
     private static let amountPosition = 47
@@ -19,13 +19,13 @@ struct ConfidentialOutputTests {
 
     private let utxoHash: Poseidon.Element
 
-    private let viewingKey: P256.KeyAgreement.PrivateKey
+    private let viewingKey: Curve25519.KeyAgreement.PrivateKey
 
     private let owner: Poseidon.Element
 
     private let note: ConfidentialPlaintext
 
-    private let transactionViewingKey: P256.KeyAgreement.PrivateKey
+    private let transactionViewingKey: Curve25519.KeyAgreement.PrivateKey
 
     private let salt = [UInt8](0..<16)
 
@@ -36,7 +36,7 @@ struct ConfidentialOutputTests {
         decodedPayload = try ConfidentialOutput(decoding: payload)
         utxoHash = try Poseidon.Element(hex: output.commitment)
         viewingKey = try rail.viewingKey()
-        try #require(Array(viewingKey.publicKey.compressedRepresentation) == (try fixtureBytes(rail.viewingPubkey)))
+        try #require([UInt8](viewingKey.publicKey.taggedRepresentation) == (try fixtureBytes(rail.viewingPubkey)))
         owner = try rail.ownerHash()
         note = ConfidentialPlaintext(asset: .sol, amount: output.amount, blinding: try output.blinding())
         transactionViewingKey = try TransactionViewingKey.derive(
@@ -57,7 +57,7 @@ struct ConfidentialOutputTests {
     func `Payloads decode and encode unchanged`() throws {
         let decoded = try ConfidentialOutput(decoding: payload)
 
-        #expect(decoded.recipientViewingPublicKey.compressedRepresentation == viewingKey.publicKey.compressedRepresentation)
+        #expect(decoded.recipientViewingPublicKey.rawRepresentation == viewingKey.publicKey.rawRepresentation)
         #expect(decoded.encoded == payload)
     }
 
@@ -93,7 +93,7 @@ struct ConfidentialOutputTests {
 
     @Test
     func `Payloads for another viewing key aren't addressed to it`() throws {
-        let otherKey = try CommitmentVectors.load().p256Rail.viewingKey()
+        let otherKey = try TransferVectors.recipientViewingKey()
 
         let opened = try decodedPayload.openAsRecipient(
             viewingKey: otherKey, transactionViewingPublicKey: transactionViewingKey.publicKey, salt: salt, slot: output.index
@@ -138,6 +138,21 @@ struct ConfidentialOutputTests {
         #expect(received == nil)
     }
 
+    @Test(arguments: X25519Fixtures.lowOrderCoordinates)
+    func `Notes under a low-order transaction viewing key aren't received`(u: [UInt8]) throws {
+        let lowOrderKey = try Curve25519.KeyAgreement.PublicKey(taggedRepresentation: [4] + u)
+
+        let received = try decodedPayload.receive(
+            viewingKey: viewingKey, owner: owner, transactionViewingPublicKey: lowOrderKey,
+            salt: salt, slot: output.index, treeID: output.treeID, utxoHash: utxoHash
+        )
+
+        #expect(throws: SlotCipher.ValidationError.lowOrderPublicKey) {
+            try decodedPayload.openAsRecipient(viewingKey: viewingKey, transactionViewingPublicKey: lowOrderKey, salt: salt, slot: output.index)
+        }
+        #expect(received == nil)
+    }
+
     @Test(arguments: try ConfidentialOutputTests.unsupportedPayloads())
     func `Unsupported payloads are rejected`(bytes: [UInt8], error: ConfidentialOutput.ValidationError) {
         #expect(throws: error) {
@@ -159,8 +174,8 @@ struct ConfidentialOutputTests {
             (bytes + [0], .invalidLength),
             (bytes.replacingSubrange(5..<6, with: [1]), .unsupportedScheme),
             (bytes.replacingSubrange(5..<6, with: [4]), .unsupportedScheme),
-            (bytes.replacingSubrange(6..<7, with: [4]), .invalidRecipientKey),
-            (bytes.replacingSubrange(6..<39, with: [2] + [UInt8](repeating: 0, count: 31) + [1]), .invalidRecipientKey),
+            (bytes.replacingSubrange(6..<7, with: [2]), .invalidRecipientKey),
+            (bytes.replacingSubrange(7..<39, with: X25519Fixtures.modulus), .invalidRecipientKey),
         ]
     }
 }

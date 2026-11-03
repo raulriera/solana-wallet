@@ -1,6 +1,7 @@
 import CryptoKit
 import Foundation
 import ModularArithmetic
+import RPC
 
 /// The published payload of a confidential output, with its recipient's viewing public key and sealed note.
 struct ConfidentialOutput: Sendable {
@@ -12,33 +13,29 @@ struct ConfidentialOutput: Sendable {
         case invalidRecipientKey
     }
 
-    private static let encryptedEncoding: UInt8 = 1
-
     private static let confidentialScheme: UInt8 = 3
 
     /// The length of the encoding tag and the declared length, in bytes.
     private static let headerLength = 5
 
-    /// The length of a compressed P-256 public key, in bytes.
-    private static let publicKeyLength = 33
-
     /// The length of the scheme, the recipient key, and the ciphertext, in bytes.
-    private static let bodyLength = 1 + publicKeyLength + ConfidentialPlaintext.length
+    private static let bodyLength = 1 + Curve25519.KeyAgreement.PublicKey.taggedRepresentationLength
+        + ConfidentialPlaintext.length
 
     /// The length of a SOL output's payload, in bytes.
     static let payloadLength = headerLength + bodyLength
 
-    let recipientViewingPublicKey: P256.KeyAgreement.PublicKey
+    let recipientViewingPublicKey: Curve25519.KeyAgreement.PublicKey
 
     /// The sealed note.
     let ciphertext: [UInt8]
 
     var encoded: [UInt8] {
-        var bytes = [Self.encryptedEncoding]
+        var bytes = [ShieldedOutput.Encoding.encrypted.rawValue]
         bytes.reserveCapacity(Self.payloadLength)
         bytes.appendLittleEndian(UInt32(Self.bodyLength))
         bytes.append(Self.confidentialScheme)
-        bytes += recipientViewingPublicKey.compressedRepresentation
+        bytes += recipientViewingPublicKey.taggedRepresentation
         bytes += ciphertext
         return bytes
     }
@@ -47,8 +44,8 @@ struct ConfidentialOutput: Sendable {
     ///
     /// - Parameters:
     ///   - recipientViewingPublicKey: The recipient's viewing public key.
-    ///   - ciphertext: The sealed note.
-    private init(recipientViewingPublicKey: P256.KeyAgreement.PublicKey, ciphertext: [UInt8]) {
+    ///   - ciphertext: The sealed 50-byte note.
+    private init(recipientViewingPublicKey: Curve25519.KeyAgreement.PublicKey, ciphertext: [UInt8]) {
         self.recipientViewingPublicKey = recipientViewingPublicKey
         self.ciphertext = ciphertext
     }
@@ -58,23 +55,22 @@ struct ConfidentialOutput: Sendable {
     /// - Parameter payload: The output's data slot.
     /// - Throws: ``ValidationError/invalidLength`` for another length, ``ValidationError/unsupportedEncoding``
     ///   or ``ValidationError/unsupportedScheme`` for another encoding or scheme, or
-    ///   ``ValidationError/invalidRecipientKey`` if the recipient key isn't a compressed P-256 point.
+    ///   ``ValidationError/invalidRecipientKey`` if the recipient key isn't a tagged X25519 public key.
     init(decoding payload: [UInt8]) throws {
         guard payload.count > Self.headerLength else { throw ValidationError.invalidLength }
-        guard payload[0] == Self.encryptedEncoding else { throw ValidationError.unsupportedEncoding }
+        guard payload[0] == ShieldedOutput.Encoding.encrypted.rawValue else { throw ValidationError.unsupportedEncoding }
         let declaredLength: UInt32 = payload.littleEndian(at: 1)
         guard Int(declaredLength) == payload.count - Self.headerLength else { throw ValidationError.invalidLength }
         guard payload[Self.headerLength] == Self.confidentialScheme else { throw ValidationError.unsupportedScheme }
         guard payload.count == Self.payloadLength else { throw ValidationError.invalidLength }
         let keyStart = Self.headerLength + 1
+        let keyEnd = keyStart + Curve25519.KeyAgreement.PublicKey.taggedRepresentationLength
         do {
-            recipientViewingPublicKey = try P256.KeyAgreement.PublicKey(
-                compressedRepresentation: payload[keyStart..<keyStart + Self.publicKeyLength]
-            )
+            recipientViewingPublicKey = try Curve25519.KeyAgreement.PublicKey(taggedRepresentation: payload[keyStart..<keyEnd])
         } catch {
             throw ValidationError.invalidRecipientKey
         }
-        ciphertext = Array(payload[(keyStart + Self.publicKeyLength)...])
+        ciphertext = Array(payload[keyEnd...])
     }
 
     /// Seals a note for an output's recipient.
@@ -87,12 +83,12 @@ struct ConfidentialOutput: Sendable {
     ///   - slot: The output's position in the transaction.
     /// - Returns: The output's payload.
     /// - Throws: ``SlotCipher/ValidationError/invalidSaltLength`` for a salt of another length,
-    ///   ``SlotCipher/CipherError/cryptorFailed`` if CommonCrypto fails, or a CryptoKit error if the
-    ///   key agreement fails.
+    ///   ``SlotCipher/ValidationError/lowOrderPublicKey`` for a low-order recipient key, or
+    ///   ``SlotCipher/CipherError/cryptorFailed`` if CommonCrypto fails.
     static func seal(
         _ plaintext: ConfidentialPlaintext,
-        for recipientViewingPublicKey: P256.KeyAgreement.PublicKey,
-        transactionViewingKey: P256.KeyAgreement.PrivateKey,
+        for recipientViewingPublicKey: Curve25519.KeyAgreement.PublicKey,
+        transactionViewingKey: Curve25519.KeyAgreement.PrivateKey,
         salt: [UInt8],
         slot: UInt32
     ) throws -> Self {
@@ -116,12 +112,12 @@ struct ConfidentialOutput: Sendable {
     ///   ``SlotCipher/CipherError/cryptorFailed`` if CommonCrypto fails, or a CryptoKit error if the
     ///   key agreement fails.
     func openAsRecipient(
-        viewingKey: P256.KeyAgreement.PrivateKey,
-        transactionViewingPublicKey: P256.KeyAgreement.PublicKey,
+        viewingKey: Curve25519.KeyAgreement.PrivateKey,
+        transactionViewingPublicKey: Curve25519.KeyAgreement.PublicKey,
         salt: [UInt8],
         slot: UInt32
     ) throws -> ConfidentialPlaintext? {
-        guard recipientViewingPublicKey.compressedRepresentation == viewingKey.publicKey.compressedRepresentation else { return nil }
+        guard recipientViewingPublicKey.rawRepresentation == viewingKey.publicKey.rawRepresentation else { return nil }
         return try ConfidentialPlaintext(decoding: SlotCipher.applyAsRecipient(
             to: ciphertext, viewingKey: viewingKey, transactionViewingPublicKey: transactionViewingPublicKey,
             salt: salt, slot: slot
@@ -135,11 +131,11 @@ struct ConfidentialOutput: Sendable {
     ///   - salt: The transaction's 16-byte salt.
     ///   - slot: The output's position in the transaction.
     /// - Returns: The note.
-    /// - Throws: ``SlotCipher/ValidationError/invalidSaltLength`` for a salt of another length, a
-    ///   ``ConfidentialPlaintext/ValidationError`` if the opened note isn't a supported note,
-    ///   ``SlotCipher/CipherError/cryptorFailed`` if CommonCrypto fails, or a CryptoKit error if the
-    ///   key agreement fails.
-    func openAsSender(transactionViewingKey: P256.KeyAgreement.PrivateKey, salt: [UInt8], slot: UInt32) throws -> ConfidentialPlaintext {
+    /// - Throws: ``SlotCipher/ValidationError/invalidSaltLength`` for a salt of another length,
+    ///   ``SlotCipher/ValidationError/lowOrderPublicKey`` for a low-order recipient key, a
+    ///   ``ConfidentialPlaintext/ValidationError`` if the opened note isn't a supported note, or
+    ///   ``SlotCipher/CipherError/cryptorFailed`` if CommonCrypto fails.
+    func openAsSender(transactionViewingKey: Curve25519.KeyAgreement.PrivateKey, salt: [UInt8], slot: UInt32) throws -> ConfidentialPlaintext {
         try ConfidentialPlaintext(decoding: SlotCipher.applyAsSender(
             to: ciphertext, transactionViewingKey: transactionViewingKey,
             recipientViewingPublicKey: recipientViewingPublicKey, salt: salt, slot: slot
@@ -161,9 +157,9 @@ struct ConfidentialOutput: Sendable {
     ///   ``SlotCipher/CipherError/cryptorFailed`` if CommonCrypto fails, or a CryptoKit error if the
     ///   key agreement fails.
     func receive(
-        viewingKey: P256.KeyAgreement.PrivateKey,
+        viewingKey: Curve25519.KeyAgreement.PrivateKey,
         owner: Poseidon.Element,
-        transactionViewingPublicKey: P256.KeyAgreement.PublicKey,
+        transactionViewingPublicKey: Curve25519.KeyAgreement.PublicKey,
         salt: [UInt8],
         slot: UInt32,
         treeID: UInt16,
@@ -173,6 +169,8 @@ struct ConfidentialOutput: Sendable {
         do {
             opened = try openAsRecipient(viewingKey: viewingKey, transactionViewingPublicKey: transactionViewingPublicKey, salt: salt, slot: slot)
         } catch is ConfidentialPlaintext.ValidationError {
+            return nil
+        } catch SlotCipher.ValidationError.lowOrderPublicKey {
             return nil
         }
         guard let plaintext = opened else { return nil }

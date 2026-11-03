@@ -1,23 +1,23 @@
 import Foundation
 import Privacy
-@testable import RPC
 import Storage
 import Testing
 import Transactions
 import Wallet
+@testable import RPC
 @testable import widgets
 
 @Suite(.timeLimit(.minutes(1)))
 struct PrivateBalancesTests {
-    @Test
-    func `Enabling keeps the keys of an unregistered account`() async throws {
+    @Test(arguments: Network.allCases)
+    func `Enabling keeps the keys of an unregistered account`(network: Network) async throws {
         let account = try await PrivateBalanceFixtures.account()
         let recovery = try PrivateBalanceFixtures.recoveryStore()
         let responses = HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered])
         let keys = StoredValue<PrivateBalances.Keys>()
         let notes = StoredValue<PrivateBalances.Notes>()
 
-        try await Self.balances(responses, recovery: recovery, keys: keys, notes: notes).enable(account, on: .devnet)
+        try await Self.balances(responses, recovery: recovery, keys: keys, notes: notes).enable(account, on: network)
 
         #expect(await keys.value == [account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
         #expect(await notes.value == nil)
@@ -38,18 +38,6 @@ struct PrivateBalancesTests {
 
         #expect(await keys.value == [first.address.value: firstKeys,
                                      second.address.value: try await PrivateBalanceFixtures.keys(for: second)])
-    }
-
-    @Test
-    func `Enabling off devnet checks no registration`() async throws {
-        let account = try await PrivateBalanceFixtures.account()
-        let responses = HTTPResponses.privateNotes()
-        let keys = StoredValue<PrivateBalances.Keys>()
-
-        try await Self.balances(responses, keys: keys).enable(account, on: .mainnet)
-
-        #expect(await keys.value?[account.address.value] != nil)
-        #expect(await responses.requests.isEmpty)
     }
 
     @Test
@@ -75,7 +63,7 @@ struct PrivateBalancesTests {
         let keys = StoredValue<PrivateBalances.Keys>()
         let notes = StoredValue<PrivateBalances.Notes>()
 
-        try await Self.balances(responses, provider: try Self.customRPC(), keys: keys, notes: notes)
+        try await Self.balances(responses, provider: try PrivateBalanceFixtures.customRPC(), keys: keys, notes: notes)
             .enable(account, on: .devnet)
 
         #expect(await keys.value == [account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
@@ -163,36 +151,42 @@ struct PrivateBalancesTests {
         #expect(try await Self.methods(of: responses) == [GetMultipleAccounts.method])
     }
 
-    @Test
-    func `An unread registry shows private balances off`() async throws {
+    @Test(arguments: [429, 401])
+    func `An unread registry shows private balances off`(status: Int) async throws {
         let account = try await PrivateBalanceFixtures.account()
-        let responses = HTTPResponses.privateNotes(error: .http(statusCode: 429, retryAfter: "3"))
+        let responses = HTTPResponses.privateNotes(error: .http(statusCode: status, retryAfter: "3"))
 
         #expect(try await Self.balances(responses).refresh(account, on: .devnet) == .off(isRegistered: false))
     }
 
-    @Test(arguments: [false, true])
-    func `An account without keys is unavailable with a provider that doesn't read private notes`(isCustom: Bool) async throws {
+    @Test
+    func `An account without keys is unavailable with a custom RPC off mainnet`() async throws {
         let account = try await PrivateBalanceFixtures.account()
         let responses = HTTPResponses.privateNotes()
-        let provider = isCustom ? try Self.customRPC() : .solana
+        let balances = try await Self.balances(responses, provider: try PrivateBalanceFixtures.customRPC())
 
-        #expect(try await Self.balances(responses, provider: provider).refresh(account, on: .devnet) == .unavailable)
+        #expect(try await balances.refresh(account, on: .devnet) == .unavailable)
         #expect(await responses.requests.isEmpty)
     }
 
     @Test
-    func `Refreshing off devnet is unavailable`() async throws {
+    func `Refreshing an account without keys fails without a Helius key`() async throws {
         let account = try await PrivateBalanceFixtures.account()
         let responses = HTTPResponses.privateNotes()
-        let keys = StoredValue<PrivateBalances.Keys>([account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
+        let providers = await ProviderStore.inMemory(selection: .helius)
+        let balances = PrivateBalances(recovery: try PrivateBalanceFixtures.recoveryStore(), wallet: Wallet(),
+                                       keys: StoredValue(), notes: StoredValue(), codes: StoredValue()) { network in
+            responses.providerClient(network: network, providers: providers)
+        }
 
-        #expect(try await Self.balances(responses, keys: keys).refresh(account, on: .mainnet) == .unavailable)
+        await #expect(throws: ProviderClientError.missingKey) { try await balances.refresh(account, on: .devnet) }
         #expect(await responses.requests.isEmpty)
     }
 
-    @Test
-    func `A registered account syncs and saves its notes, checking registration once`() async throws {
+    @Test(arguments: zip([ProviderSettings.Provider.helius, .solana], [Network.devnet, .mainnet]))
+    func `A registered account syncs and saves its notes, checking registration once`(
+        provider: ProviderSettings.Provider, network: Network
+    ) async throws {
         let account = try await PrivateBalanceFixtures.account()
         let record = try await PrivateBalanceFixtures.keys(for: account)
         let shielded = try record.shieldedAccount(for: account.address)
@@ -201,20 +195,107 @@ struct PrivateBalancesTests {
             deposits: [try PrivateBalanceFixtures.deposit(1_000_000, to: shielded, leafIndex: 4)]
         )
         let notes = StoredValue<PrivateBalances.Notes>()
-        let balances = try await Self.balances(responses, keys: StoredValue([account.address.value: record]),
-                                               notes: notes)
-        let id = PrivateBalances.noteID(of: account, on: .devnet)
+        let balances = try await Self.balances(responses, provider: provider,
+                                               keys: StoredValue([account.address.value: record]), notes: notes)
+        let id = PrivateBalances.noteID(of: account, on: network)
 
-        let first = try await balances.refresh(account, on: .devnet)
+        let first = try await balances.refresh(account, on: network)
         let saved = await notes.value?[id]
-        let later = try await balances.refresh(account, on: .devnet)
+        let later = try await balances.refresh(account, on: network)
 
         #expect(first == .balance(available: 1_000_000, pending: 0))
         #expect(later == .balance(available: 1_000_000, pending: 0))
-        #expect(saved?.lamports == 1_000_000)
+        #expect(saved?.spendableLamports == 1_000_000)
         #expect(await notes.value?[id] == saved)
-        #expect(try await Self.methods(of: responses).filter { $0 == GetMultipleAccounts.method }.count == 1)
-        #expect(try await Self.tagCursors(of: responses) == [nil, HTTPResponses.indexerPosition])
+        #expect(await PrivateBalanceFixtures.nonTreeAccountReads(of: responses) == 1)
+        #expect(try await Self.methods(of: responses).filter { $0 == GetMerkleProofs.method }.count == 1)
+        #expect(try await Self.tagCursors(of: responses) == [nil, IndexerReplies.scannedThrough])
+    }
+
+    @Test
+    func `Notes whose roots aren't on chain yet count after a later refresh finds them`() async throws {
+        let registered = try await Self.registeredAccount(index: 0, lamports: 1_000_000)
+        let keys = StoredValue([registered.account.address.value: registered.keys])
+        let id = PrivateBalances.noteID(of: registered.account, on: .devnet)
+        let notes = StoredValue<PrivateBalances.Notes>([id: NoteSyncState()])
+        let lagging = HTTPResponses.privateNotes(deposits: [registered.deposit],
+                                                 trees: UTXOTrees(rows: [registered.deposit], isFinalized: false))
+        let finalized = HTTPResponses.privateNotes(trees: UTXOTrees(rows: [registered.deposit]))
+
+        let first = try await Self.balances(lagging, keys: keys, notes: notes).refresh(registered.account, on: .devnet)
+        let unconfirmed = await notes.value?[id]
+        let later = try await Self.balances(finalized, keys: keys, notes: notes).refresh(registered.account, on: .devnet)
+
+        #expect(first == .balance(available: 0, pending: 0))
+        #expect(unconfirmed?.notes.isEmpty == true)
+        #expect(later == .balance(available: 1_000_000, pending: 0))
+        #expect(await notes.value?[id]?.notes.map(\.signature) == [RedeemCodeFixtures.signature(ofDepositAt: 1)])
+        #expect(try await Self.methods(of: finalized).contains(GetMerkleProofs.method))
+    }
+
+    @Test
+    func `Notes whose proofs don't lead to their roots never count`() async throws {
+        let registered = try await Self.registeredAccount(index: 0, lamports: 1_000_000)
+        let shielded = try registered.keys.shieldedAccount(for: registered.account.address)
+        let forged = try PrivateBalanceFixtures.deposit(5_000_000, to: shielded, leafIndex: 7)
+        let keys = StoredValue([registered.account.address.value: registered.keys])
+        let id = PrivateBalances.noteID(of: registered.account, on: .devnet)
+        let notes = StoredValue<PrivateBalances.Notes>([id: NoteSyncState()])
+        let responses = HTTPResponses.privateNotes(deposits: [registered.deposit, forged],
+                                                   trees: UTXOTrees(rows: [registered.deposit], forging: [forged]))
+        let later = HTTPResponses.privateNotes()
+
+        let first = try await Self.balances(responses, keys: keys, notes: notes).refresh(registered.account, on: .devnet)
+        let second = try await Self.balances(later, keys: keys, notes: notes).refresh(registered.account, on: .devnet)
+
+        #expect(first == .balance(available: 1_000_000, pending: 0))
+        #expect(second == .balance(available: 1_000_000, pending: 0))
+        #expect(await notes.value?[id]?.notes.map(\.signature) == [RedeemCodeFixtures.signature(ofDepositAt: 1)])
+        #expect(try await !Self.methods(of: later).contains(GetMerkleProofs.method))
+    }
+
+    @Test
+    func `Spent unconfirmed notes never count`() async throws {
+        let registered = try await Self.registeredAccount(index: 0, lamports: 1_000_000)
+        let shielded = try registered.keys.shieldedAccount(for: registered.account.address)
+        let keys = StoredValue([registered.account.address.value: registered.keys])
+        let id = PrivateBalances.noteID(of: registered.account, on: .devnet)
+        let notes = StoredValue<PrivateBalances.Notes>([id: NoteSyncState()])
+        let lagging = HTTPResponses.privateNotes(deposits: [registered.deposit],
+                                                 trees: UTXOTrees(rows: [registered.deposit], isFinalized: false))
+        let spent = HTTPResponses.privateNotes(spends: [try PrivateBalanceFixtures.spend(of: 1_000_000, to: shielded, leafIndex: 1)],
+                                               trees: UTXOTrees(rows: [registered.deposit]))
+
+        let first = try await Self.balances(lagging, keys: keys, notes: notes).refresh(registered.account, on: .devnet)
+        let later = try await Self.balances(spent, keys: keys, notes: notes).refresh(registered.account, on: .devnet)
+
+        #expect(first == .balance(available: 0, pending: 0))
+        #expect(later == .balance(available: 0, pending: 0))
+        #expect(await notes.value?[id]?.notes.isEmpty == true)
+        #expect(try await Self.methods(of: spent).contains(GetShieldedTransactionsByNullifiers.method))
+        #expect(try await !Self.methods(of: spent).contains(GetTransaction.method))
+    }
+
+    @Test
+    func `A completed deposit stays pending until its notes are included`() async throws {
+        let registered = try await Self.registeredAccount(index: 0, lamports: 1_000_000)
+        let keys = StoredValue([registered.account.address.value: registered.keys])
+        let id = PrivateBalances.noteID(of: registered.account, on: .devnet)
+        let notes = StoredValue<PrivateBalances.Notes>([id: NoteSyncState()])
+        let lagging = HTTPResponses.privateNotes(deposits: [registered.deposit],
+                                                 trees: UTXOTrees(rows: [registered.deposit], isFinalized: false))
+        let finalized = HTTPResponses.privateNotes(trees: UTXOTrees(rows: [registered.deposit]))
+        let balances = try await Self.balances(lagging, keys: keys, notes: notes)
+        let confirmation = PrivateBalanceFixtures.confirmation(.succeeded, signature: RedeemCodeFixtures.signature(ofDepositAt: 1))
+        let completed = try await balances.complete(PrivateBalanceFixtures.preparedDeposit(1_000_000, from: registered.account),
+                                                    with: confirmation)
+
+        let reported = try await balances.refresh(registered.account, on: .devnet)
+        let included = try await Self.balances(finalized, keys: keys, notes: notes).refresh(registered.account, on: .devnet)
+
+        #expect(completed == .balance(available: 0, pending: 1_000_000))
+        #expect(reported == .balance(available: 0, pending: 1_000_000))
+        #expect(included == .balance(available: 1_000_000, pending: 0))
     }
 
     @Test
@@ -244,38 +325,6 @@ struct PrivateBalancesTests {
         #expect(await notes.value == nil)
     }
 
-    @Test
-    func `A provider without private notes is unavailable`() async throws {
-        let account = try await PrivateBalanceFixtures.account()
-        let responses = HTTPResponses.privateNotes()
-        let id = PrivateBalances.noteID(of: account, on: .devnet)
-        let notes = StoredValue<PrivateBalances.Notes>([id: NoteSyncState()])
-        let keys = StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
-
-        let status = try await Self.balances(responses, provider: .solana, keys: keys, notes: notes).refresh(account,
-                                             on: .devnet)
-
-        #expect(status == .unavailable)
-        #expect(await notes.value == [id: NoteSyncState()])
-        #expect(await responses.requests.isEmpty)
-    }
-
-    @Test
-    func `Solana's public RPC without a notes entry is unavailable`() async throws {
-        let account = try await PrivateBalanceFixtures.account()
-        let record = try await PrivateBalanceFixtures.keys(for: account)
-        let registry = try PrivateBalanceFixtures.registry(publishing: record.shieldedAccount(for: account.address))
-        let responses = HTTPResponses.privateNotes(registry: [registry])
-        let notes = StoredValue<PrivateBalances.Notes>()
-        let balances = try await Self.balances(responses, provider: .solana,
-                                               keys: StoredValue([account.address.value: record]),
-                                               notes: notes)
-
-        #expect(try await balances.refresh(account, on: .devnet) == .unavailable)
-        #expect(await notes.value == [PrivateBalances.noteID(of: account, on: .devnet): NoteSyncState()])
-        #expect(try await Self.methods(of: responses) == [GetMultipleAccounts.method])
-    }
-
     @Test(arguments: [false, true])
     func `A custom RPC off mainnet is unavailable`(hasNotes: Bool) async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -284,7 +333,8 @@ struct PrivateBalancesTests {
         let notes = StoredValue(saved)
         let keys = StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
 
-        let status = try await Self.balances(responses, provider: try Self.customRPC(), keys: keys, notes: notes)
+        let status = try await Self.balances(responses, provider: try PrivateBalanceFixtures.customRPC(), keys: keys,
+                                             notes: notes)
             .refresh(account, on: .devnet)
 
         #expect(status == .unavailable)
@@ -325,12 +375,15 @@ struct PrivateBalancesTests {
     func `Recorded notes need keys, and notes before the first sync have no saved status`() async throws {
         let account = try await PrivateBalanceFixtures.account()
         let id = PrivateBalances.noteID(of: account, on: .devnet)
-        let keys = StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
-        let recorded = try await PrivateBalanceFixtures.pendingDeposit(of: account).notes
+        async let record = PrivateBalanceFixtures.keys(for: account)
+        async let deposit = PrivateBalanceFixtures.pendingDeposit(of: account)
+        let keys = StoredValue([account.address.value: try await record])
+        let recorded = try await deposit.notes
         let responses = HTTPResponses.privateNotes()
-        let withKeys = try await Self.balances(responses, keys: keys, notes: recorded)
-        let keyless = try await Self.balances(responses, notes: recorded)
-        let unsynced = try await Self.balances(responses, keys: keys, notes: StoredValue([id: NoteSyncState()]))
+        async let withKeysBalances = Self.balances(responses, keys: keys, notes: recorded)
+        async let keylessBalances = Self.balances(responses, notes: recorded)
+        async let unsyncedBalances = Self.balances(responses, keys: keys, notes: StoredValue([id: NoteSyncState()]))
+        let (withKeys, keyless, unsynced) = try await (withKeysBalances, keylessBalances, unsyncedBalances)
 
         async let saved = withKeys.savedStatus(of: account, on: .devnet)
         async let keylessStatus = keyless.savedStatus(of: account, on: .devnet)
@@ -340,6 +393,13 @@ struct PrivateBalancesTests {
         #expect(try await keylessStatus == nil)
         #expect(try await unsyncedStatus == nil)
         #expect(await responses.requests.isEmpty)
+    }
+
+    @Test
+    func `Note IDs name the shielded-pool program`() async throws {
+        let account = try await PrivateBalanceFixtures.account()
+
+        #expect(PrivateBalances.noteID(of: account, on: .devnet).contains(ShieldedPool.programID))
     }
 
     @Test
@@ -371,10 +431,10 @@ struct PrivateBalancesTests {
         let record = try await PrivateBalanceFixtures.keys(for: account)
         let deposit = try PrivateBalanceFixtures.deposit(42, to: record.shieldedAccount(for: account.address), leafIndex: 1)
         let responses = HTTPResponses([
-            GetShieldedTransactionsByTags.method: ["null", HTTPResponses.indexerPage([], in: "transactions")],
-            GetEncryptedUtxosByTags.method: [HTTPResponses.indexerPage([deposit], in: "matches")],
-            GetShieldedTransactionsByNullifiers.method: [HTTPResponses.indexerPage([], in: "transactions")],
-        ])
+            GetShieldedTransactionsByTags.method: ["null", IndexerReplies.page([], in: "transactions")],
+            GetEncryptedUtxosByTags.method: [IndexerReplies.page([deposit], in: "matches")],
+            GetShieldedTransactionsByNullifiers.method: [IndexerReplies.page([], in: "transactions")],
+        ], trees: UTXOTrees(rows: [deposit]))
         let id = PrivateBalances.noteID(of: account, on: .devnet)
         let notes = StoredValue<PrivateBalances.Notes>([id: NoteSyncState()])
         let balances = try await Self.balances(responses, keys: StoredValue([account.address.value: record]),
@@ -384,7 +444,7 @@ struct PrivateBalancesTests {
         #expect(await notes.value == [id: NoteSyncState()])
 
         #expect(try await balances.refresh(account, on: .devnet) == .balance(available: 42, pending: 0))
-        #expect(await notes.value?[id]?.lamports == 42)
+        #expect(await notes.value?[id]?.spendableLamports == 42)
         #expect(try await Self.methods(of: responses).filter { $0 == GetShieldedTransactionsByTags.method }.count == 2)
     }
 
@@ -408,7 +468,7 @@ struct PrivateBalancesTests {
         gate.resume()
 
         await #expect(throws: CancellationError.self) { try await refresh.value }
-        #expect(await notes.value?[id]?.lamports == 42)
+        #expect(await notes.value?[id]?.spendableLamports == 42)
         #expect(!(await responses.wasCancelled))
     }
 
@@ -477,9 +537,9 @@ struct PrivateBalancesTests {
         #expect(firstStatus == .balance(available: 1_000, pending: 0))
         #expect(secondStatus == .balance(available: 2_000, pending: 0))
         #expect(await notes.deletions == 1)
-        #expect(await notes.value?[firstID]?.lamports == 1_000)
-        #expect(await notes.value?[secondID]?.lamports == 2_000)
-        #expect(try await Self.methods(of: responses).filter { $0 == GetMultipleAccounts.method }.count == 2)
+        #expect(await notes.value?[firstID]?.spendableLamports == 1_000)
+        #expect(await notes.value?[secondID]?.spendableLamports == 2_000)
+        #expect(await PrivateBalanceFixtures.nonTreeAccountReads(of: responses) == 2)
         #expect(try await Self.tagCursors(of: responses) == [nil, nil])
     }
 
@@ -644,7 +704,7 @@ struct PrivateBalancesTests {
     @Test
     func `Preparing a withdrawal without an output tree is unavailable`() async throws {
         let sender = try await Self.fundedAccount(lamports: 1_000_000)
-        let responses = HTTPResponses.privateNotes(deposits: [sender.deposit], prove: PrivateBalanceFixtures.proof(answering:))
+        let responses = HTTPResponses.privateNotes(deposits: [sender.deposit], prover: try IndexedProofs.prover())
 
         await #expect(throws: PrivateBalanceError.unavailable) {
             try await Self.balances(responses, keys: sender.keys, notes: sender.notes)
@@ -660,27 +720,22 @@ struct PrivateBalancesTests {
         let (sender, recipient) = try await (funded, derivedRecipient)
 
         await #expect(throws: PrivateBalanceError.unavailable) {
-            try await Self.balances(HTTPResponses.privateNotes(), provider: try Self.customRPC(), keys: sender.keys,
-                                    notes: sender.notes)
+            try await Self.balances(HTTPResponses.privateNotes(), provider: try PrivateBalanceFixtures.customRPC(),
+                                    keys: sender.keys, notes: sender.notes)
                 .prepare(.send(400_000, to: recipient.address), from: sender.account, on: .devnet)
         }
     }
 
-    @Test(arguments: [
-        (Network.devnet, ProviderSettings.Provider.helius, false, widgets.PrivateBalanceError.turnedOff),
-        (.mainnet, .helius, true, .unavailable),
-        (.devnet, .solana, true, .unavailable),
-    ])
-    func `Preparing without private balances is rejected`(network: Network, provider: ProviderSettings.Provider, hasKeys: Bool,
-                                                          error: widgets.PrivateBalanceError) async throws {
+    @Test
+    func `Preparing without keys is turned off`() async throws {
         let account = try await PrivateBalanceFixtures.account()
-        let id = PrivateBalances.noteID(of: account, on: network)
-        let saved: PrivateBalances.Keys? = hasKeys ? [account.address.value: try await PrivateBalanceFixtures.keys(for: account)] : nil
-        let balances = try await Self.balances(HTTPResponses.privateNotes(outputTreeID: 1), provider: provider,
-                                               keys: StoredValue(saved),
+        let id = PrivateBalances.noteID(of: account, on: .devnet)
+        let balances = try await Self.balances(HTTPResponses.privateNotes(outputTreeID: 1),
                                                notes: StoredValue([id: NoteSyncState()]))
 
-        await #expect(throws: error) { try await balances.prepare(.deposit(5_000), from: account, on: network) }
+        await #expect(throws: PrivateBalanceError.turnedOff) {
+            try await balances.prepare(.deposit(5_000), from: account, on: .devnet)
+        }
     }
 
     @Test
@@ -689,7 +744,7 @@ struct PrivateBalancesTests {
         async let derivedRecipient = PrivateBalanceFixtures.account(index: 1)
         let (sender, recipient) = try await (funded, derivedRecipient)
         let responses = HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered], deposits: [sender.deposit],
-                                                   outputTreeID: 1, prove: PrivateBalanceFixtures.proof(answering:))
+                                                   outputTreeID: 1, prover: try IndexedProofs.prover())
 
         await #expect(throws: PrivateBalanceError.recipientUnregistered) {
             try await Self.balances(responses, keys: sender.keys, notes: sender.notes)
@@ -698,8 +753,8 @@ struct PrivateBalancesTests {
         #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 0)
     }
 
-    @Test
-    func `Preparing a send proves a private transfer`() async throws {
+    @Test(arguments: [ProviderSettings.Provider.helius, .solana])
+    func `Preparing a send proves a private transfer`(provider: ProviderSettings.Provider) async throws {
         async let funded = Self.fundedAccount(lamports: 1_000_000)
         async let derivedRecipient = PrivateBalanceFixtures.account(index: 1)
         let (sender, recipient) = try await (funded, derivedRecipient)
@@ -707,8 +762,8 @@ struct PrivateBalancesTests {
         let registry = try PrivateBalanceFixtures.registry(publishing: recipientKeys.shieldedAccount(for: recipient.address))
         let responses = HTTPResponses.privateNotes(registry: [registry, PrivateBalanceFixtures.unregistered],
                                                    deposits: [sender.deposit], outputTreeID: 1,
-                                                   prove: PrivateBalanceFixtures.proof(answering:))
-        let balances = try await Self.balances(responses, keys: sender.keys, notes: sender.notes)
+                                                   prover: try IndexedProofs.prover())
+        let balances = try await Self.balances(responses, provider: provider, keys: sender.keys, notes: sender.notes)
 
         let prepared = try await balances.prepare(.send(400_000, to: recipient.address), from: sender.account, on: .devnet)
 
@@ -731,7 +786,7 @@ struct PrivateBalancesTests {
         let (sender, destination) = try await (funded, derivedDestination)
         let responses = HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered], deposits: [sender.deposit],
                                                    outputTreeID: 1,
-                                                   prove: PrivateBalanceFixtures.proof(answering:))
+                                                   prover: try IndexedProofs.prover())
 
         let prepared = try await Self.balances(responses, keys: sender.keys, notes: sender.notes)
             .prepare(.withdraw(1_000_000, to: destination.address), from: sender.account, on: .devnet)
@@ -750,7 +805,7 @@ struct PrivateBalancesTests {
         let sender = try await Self.fundedAccount(lamports: 1_000_000)
         let responses = HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered],
                                                    deposits: isRegistered ? [sender.deposit] : [], outputTreeID: 1,
-                                                   prove: PrivateBalanceFixtures.proof(answering:))
+                                                   prover: try IndexedProofs.prover())
         let notes = isRegistered ? sender.notes : StoredValue<PrivateBalances.Notes>()
 
         await #expect(throws: PrivateBalanceError.insufficientBalance) {
@@ -904,7 +959,8 @@ struct PrivateBalancesTests {
         let sender = try await Self.fundedAccount(lamports: 1)
         let shielded = try await PrivateBalanceFixtures.keys(for: sender.account).shieldedAccount(for: sender.account.address)
         let deposits = try (1...41).map { try PrivateBalanceFixtures.deposit(1, to: shielded, leafIndex: UInt64($0)) }
-        let responses = HTTPResponses.privateNotes(deposits: deposits, outputTreeID: 1, prove: PrivateBalanceFixtures.proof(answering:))
+        let responses = HTTPResponses.privateNotes(deposits: deposits, outputTreeID: 1,
+                                                   prover: try IndexedProofs.prover())
 
         await #expect(throws: PrivateBalanceError.tooManyNotes) {
             try await Self.balances(responses, keys: sender.keys, notes: sender.notes)
@@ -955,10 +1011,6 @@ struct PrivateBalancesTests {
         PrivateBalances.inMemory(keys: keys, notes: notes,
                                  recovery: try recovery ?? PrivateBalanceFixtures.recoveryStore(), responses: responses,
                                  provider: provider)
-    }
-
-    private static func customRPC() throws -> ProviderSettings.Provider {
-        .custom(try #require(URL(string: "https://rpc.example.com")))
     }
 
     private static func registeredAccount(index: UInt32, lamports: UInt64) async throws

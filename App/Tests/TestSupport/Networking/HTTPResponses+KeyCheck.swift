@@ -32,6 +32,8 @@ extension HTTPResponses {
     }
 
     nonisolated func providerClient(network: Network = .mainnet, providers: ProviderStore) -> ProviderClient {
-        ProviderClient(network: network, providers: providers) { self.client(for: $0, on: $1) }
+        ProviderClient(network: network, providers: providers, rings: StubProver.zolana(on: network, transport: self)) {
+            self.client(for: $0, on: $1)
+        }
     }
 }

@@ -4,7 +4,7 @@ import Foundation
 import Testing
 
 struct ShieldedAccountRegistrationCostTests {
-    static let rent: UInt64 = 1_823_520
+    static let rent: UInt64 = 1_586_880
 
     @Test(arguments: [
         ("null", rent),

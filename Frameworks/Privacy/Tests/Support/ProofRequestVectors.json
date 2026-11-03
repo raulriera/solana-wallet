@@ -26,7 +26,7 @@
         "06898023aea29ea52df110ed41eea218474368d8f8ca074c328861b6558f9cd0",
         "0000000000000000000000000000000000000000000000000000000000000000",
         "2e47f8df8d173ec1d307022ace691b84006b4e21f7224232fd8c3aff1ec64d7d",
-        "00192756e63554c0ba90e0ef7b2612d95d90d5e347b1e067bcf1a61846375e49",
+        "0074d7d7dd64ab1d517451ffa64108518e80151cfccec1549196a89847ae1e7d",
         "0000000000000000000000000000000000000000000000000000000000000000",
         "0000000000000000000000000000000000000000000000000000000000000000",
         "0000000000000000000000000000000000000000000000000000000000000000",
@@ -40,14 +40,14 @@
         "0000000000000000000000000000000000000000000000000000000000000000",
         "0000000000000000000000000000000000000000000000000000000000000000"
       ],
-      "publicInputHash": "020f044bb38bab836a16b39a5e94143d89de7944ea5802565436285f0e4c11f5",
+      "publicInputHash": "1a8ff449620e018db2d445c024f37ed048de09aabaf6d60657d9d97c68e26813",
       "merkleProofs": [
         [
           {
             "leaf": "2CAiEdHtQyCP24ATe5v6He1aSMJd1VbcmZPeKfyudhTc",
             "merkleContext": {
               "treeType": 1,
-              "tree": "33KVhbT4QtdQDrrrGwwThqD47Dh4Q6tA443t9jMNcWFN"
+              "tree": "777pvSGe5LaBd9nCczvE2FXEauiwtfGJ5XRpjKyniGor"
             },
             "path": [
               "3NFbnKLAPzTvS5tBVknUPXrYf9iYMJrqEtvE8dc5AwLy",
@@ -96,7 +96,7 @@
             "leaf": "LsaDWcbfaGds39UTqL9gtjbK2iP3aZn7L7SGdok8Q2B",
             "merkleContext": {
               "treeType": 2,
-              "tree": "33KVhbT4QtdQDrrrGwwThqD47Dh4Q6tA443t9jMNcWFN"
+              "tree": "777pvSGe5LaBd9nCczvE2FXEauiwtfGJ5XRpjKyniGor"
             },
             "path": [
               "2M3BUvdQqt2gcWkzxnK48irWUnKUMfAwZ6ePsWYrwgyc",
@@ -190,7 +190,7 @@
         ],
         "outputTreeId": "0x0",
         "blindingSeed": "0x42424242424242424242424242424242424242424242424242424242424242",
-        "externalDataHash": "0x192756e63554c0ba90e0ef7b2612d95d90d5e347b1e067bcf1a61846375e49",
+        "externalDataHash": "0x74d7d7dd64ab1d517451ffa64108518e80151cfccec1549196a89847ae1e7d",
         "privateTxHash": "0x2e47f8df8d173ec1d307022ace691b84006b4e21f7224232fd8c3aff1ec64d7d",
         "publicAssets": [
           "0x0",
@@ -343,7 +343,7 @@
             "nullifierRoot": "0x0"
           }
         ],
-        "publicInputHash": "0x20f044bb38bab836a16b39a5e94143d89de7944ea5802565436285f0e4c11f5"
+        "publicInputHash": "0x1a8ff449620e018db2d445c024f37ed048de09aabaf6d60657d9d97c68e26813"
       },
       "response": {
         "ar": [
@@ -364,7 +364,7 @@
           "0x0234fa40be74f101eafd70318abda9ef8a7cf53ed632e2556e3df309dee5a132",
           "0x1d3621c1652fb959b040f5e14b548173d258412d1834bb76e44fb4bdc6180041"
         ],
-        "provingKeySha256": "7ef987966b0dfba5d86eab7c67068be00dbe581d823d45cdbbf6d338bfacb640"
+        "provingKeySha256": "c0b5c1a1081136911a6ad5496fb989ed26d85b09e983a4d5048cff96e0833d85"
       },
       "proof": "925a835ae1ef52a531cdba4d31795d20c8e637b1a9b17c6af8e4856eb310605226a6fd6480381de40f74a8c358e4b89f6baf298fa2fda8186e5b33891ed99506209c64978e540a7f39279a1979952ee7073c953cb490044ea92fa52b3b41f8b515e1ad58a16efc064e2f360ac32a33d528baa50e1f371e21dca7640d230441d503701a9ca09b9fad9af9ea03990ccf81587e95517700c5c91c4c0673a0f6cf048234fa40be74f101eafd70318abda9ef8a7cf53ed632e2556e3df309dee5a132",
       "treeContexts": [
@@ -373,7 +373,7 @@
           87
         ]
       ],
-      "instructionData": "10ffffffffffffffff031bcd477c8e4a44aa0fa3c96e073abd93e9cca0d626d50531298fd71b684cff625a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a000000022e594a80158648b6dab780fd6e3cb9562df793ba52fcae62da52bcfd71db436000fd1724385aa0c75b64fb78cd602fa1d991fdebf76b13c58ed702eac835e9f6180159000154000000030210982b83d5bf7d5f08599fbddc77d1cb7f72e02adae8017ec2118f40c46a3a9b410a642b4290c54633c8adcfe26e1095b16b5d1628b8277005d81d23bd0d6be6c13cb5539c755ba55959d56d0eb0ae2f726d10cd42ef147850211fffccf582240529c2ad01d3977d117b802bc287cac6cf9601000159000154000000030299cff79e0e9e5a109e998f3868a1c358eb82e30ee4737ce8271c1e3a473ea0f6f1b9afe9cef3d373a89375208864c38b500383de726c6281045f2dbc45c1d70d19ac921844340c64cfe7fa39b0b7bc850961002e47f8df8d173ec1d307022ace691b84006b4e21f7224232fd8c3aff1ec64d7d0000010203925a835ae1ef52a531cdba4d31795d20c8e637b1a9b17c6af8e4856eb310605226a6fd6480381de40f74a8c358e4b89f6baf298fa2fda8186e5b33891ed99506209c64978e540a7f39279a1979952ee7073c953cb490044ea92fa52b3b41f8b515e1ad58a16efc064e2f360ac32a33d528baa50e1f371e21dca7640d230441d503701a9ca09b9fad9af9ea03990ccf81587e95517700c5c91c4c0673a0f6cf048234fa40be74f101eafd70318abda9ef8a7cf53ed632e2556e3df309dee5a13201051737d4af5d70f1ccaeeefce207746efde8659fdaba87e213891592014fd98800011f005700"
+      "instructionData": "10ffffffffffffffff046cd494021cc3acba3bcc49331d7afe0e161574e1a9d0c837ed568c0c006fff465a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a000000022e594a80158648b6dab780fd6e3cb9562df793ba52fcae62da52bcfd71db436000fd1724385aa0c75b64fb78cd602fa1d991fdebf76b13c58ed702eac835e9f61801590001540000000304920828ac6abb2b932db3f36e31a9fca2e202309fa156df3e05a1d976ff3b8b6d2af38bd0081fd7ed7831880ef7dd06f99ade333810e1cd2cd49ef4136ab151c1210b3f2af4a2e7221024a41b438d4a9aab4310cd42ef147850211fffccf582240529c2ad01d3977d117b802bc287cac6cf9601000159000154000000030419078976c68ba992eb10aae97df1e453731a022d6c46eb8a0a4f1c976a0cc20a75abb55151688ada67fb6b3bd357e32202be2b983860f106f829ad8dd83e1d24aa3d195fb42e755bdf034d5af2ea38b48525002e47f8df8d173ec1d307022ace691b84006b4e21f7224232fd8c3aff1ec64d7d0000010203925a835ae1ef52a531cdba4d31795d20c8e637b1a9b17c6af8e4856eb310605226a6fd6480381de40f74a8c358e4b89f6baf298fa2fda8186e5b33891ed99506209c64978e540a7f39279a1979952ee7073c953cb490044ea92fa52b3b41f8b515e1ad58a16efc064e2f360ac32a33d528baa50e1f371e21dca7640d230441d503701a9ca09b9fad9af9ea03990ccf81587e95517700c5c91c4c0673a0f6cf048234fa40be74f101eafd70318abda9ef8a7cf53ed632e2556e3df309dee5a13201051737d4af5d70f1ccaeeefce207746efde8659fdaba87e213891592014fd98800011f005700"
     },
     {
       "name": "withdrawal with change",
@@ -411,7 +411,7 @@
         "2489ccfd3e4770c4c3e30458a7a1750fee071ac6765655a500072b47db0efa4c",
         "0000000000000000000000000000000000000000000000000000000000000002",
         "13e3d897e51610250514a79251840e287bef57957ffce9654e4f1ce44af0eff4",
-        "0084ac09b94c8971d18ed4cb83cc4600dfeff034784b14de1775f13f9a2cc3dc",
+        "00fbb33139007bc7102e15835a3c7053ff8aeed1485447632c38dd09ec7f80ec",
         "2098f5fb9e239eab3ceac3f27b81e481dc3124d55ffed523a839ee8446b64864",
         "30644e72e131a029b85045b68181585d2833e84879b9709143e1f593effffffc",
         "0000000000000000000000000000000000000000000000000000000000000000",
@@ -425,14 +425,14 @@
         "0000000000000000000000000000000000000000000000000000000000000000",
         "0532fd436e19c70e51209694d9c215250937921b8b79060488c1206db73e9946"
       ],
-      "publicInputHash": "1257f07e2526f04445162dcb5e5421968163560fc14b6a82b5755dbbc253c9cc",
+      "publicInputHash": "17272cb8e55d14af058d52eaad11fa8ba422bc046837b9bf765a216f30015d0b",
       "merkleProofs": [
         [
           {
             "leaf": "mSsKhsXAgmsv522Pm2jbkrkEHug8WuyUUZeZd33W3it",
             "merkleContext": {
               "treeType": 1,
-              "tree": "G5m6Y2MaHdQyim3W86k1Fpt85YsLH4cEYrcBhK3paZr8"
+              "tree": "5J4S6CM25MBLcV14Y7CBJj8VkJYLLpmivZxjTQYbZove"
             },
             "path": [
               "FmLsb4xBeRXZ2zThWTy5G7MMQmLG4TQRVQAawZsTmuJ",
@@ -479,7 +479,7 @@
             "leaf": "1qoPq23iKyeMVivD6jVEVjqV9c3PLgp2pvU26iYbvmR",
             "merkleContext": {
               "treeType": 1,
-              "tree": "Cqu55AjGprSHJKs65Sw3P4zi1ZtJGy56jz91TyKmw3Cn"
+              "tree": "6kmoyYDZ7ECi8USmHVaePETKgyhLeiMEKMasGHSKqD13"
             },
             "path": [
               "31dGyM7CeGKdd8mgUG73L2Lbfvp5K4CypQcbCPMjHjSF",
@@ -528,7 +528,7 @@
             "leaf": "3C1NunB6u1usfmJpNcaX3cBYC2LrcNFufFiPb3wpPrCw",
             "merkleContext": {
               "treeType": 2,
-              "tree": "G5m6Y2MaHdQyim3W86k1Fpt85YsLH4cEYrcBhK3paZr8"
+              "tree": "5J4S6CM25MBLcV14Y7CBJj8VkJYLLpmivZxjTQYbZove"
             },
             "path": [
               "4AsnD1aiVmGB98t1ohy4TcTR9Qsn862qnfZXcigbh5HV",
@@ -586,7 +586,7 @@
             "leaf": "2eDK44w9Q1wnieyif6PpvudwrGg9TykbdSyBw45KqcmK",
             "merkleContext": {
               "treeType": 2,
-              "tree": "Cqu55AjGprSHJKs65Sw3P4zi1ZtJGy56jz91TyKmw3Cn"
+              "tree": "6kmoyYDZ7ECi8USmHVaePETKgyhLeiMEKMasGHSKqD13"
             },
             "path": [
               "25X9tdMQUpyqpnwftqhx4Wb9D6GZySWNp77yWoJBb7A5",
@@ -680,7 +680,7 @@
         ],
         "outputTreeId": "0x2",
         "blindingSeed": "0x42424242424242424242424242424242424242424242424242424242424242",
-        "externalDataHash": "0x84ac09b94c8971d18ed4cb83cc4600dfeff034784b14de1775f13f9a2cc3dc",
+        "externalDataHash": "0xfbb33139007bc7102e15835a3c7053ff8aeed1485447632c38dd09ec7f80ec",
         "privateTxHash": "0x13e3d897e51610250514a79251840e287bef57957ffce9654e4f1ce44af0eff4",
         "publicAssets": [
           "0x2098f5fb9e239eab3ceac3f27b81e481dc3124d55ffed523a839ee8446b64864",
@@ -931,7 +931,7 @@
             "nullifierRoot": "0x0"
           }
         ],
-        "publicInputHash": "0x1257f07e2526f04445162dcb5e5421968163560fc14b6a82b5755dbbc253c9cc"
+        "publicInputHash": "0x17272cb8e55d14af058d52eaad11fa8ba422bc046837b9bf765a216f30015d0b"
       },
       "response": {
         "ar": [
@@ -952,7 +952,7 @@
           "0x1f2e130e0a28decdcb849694313ccca1d15fcaa77bfd280bd220c02cadc844d3",
           "0x1f9958fa563371def5232e8d8a3dd68012248e3010ced82b15e0986d13da9929"
         ],
-        "provingKeySha256": "e810d52962f4558b0bd50b768a89490759e15a0623d4c2c43318f541b8cc61ff"
+        "provingKeySha256": "51380b1264737ebd4d31f40ebf6874db039078ce998d4fa187c049ace99798bb"
       },
       "proof": "0644d9ef56e7945113e0cda067cec23ec637420c184e609e8f59e20d2a98922d0f456dacbda6d8c0a10162ef9188c572b0bceea4a1652ee4d9cb6c763b51ff3f13a8321a8c96ccdc9d14fdd63793612f09167f428f19052bcd9bcbf0dcedeb862c80c72d86a6e7644d8a8dfe6dfeb4f999e85b7c7e7fb32168aba87995b103ec1998205fb06b58f4f8e94176cd012277bc2d3937a6e71270d0b0388e8356b3ba9f2e130e0a28decdcb849694313ccca1d15fcaa77bfd280bd220c02cadc844d3",
       "treeContexts": [
@@ -965,7 +965,7 @@
           60
         ]
       ],
-      "instructionData": "10ffffffffffffffff02de6e1215f7c76756079cf66e8e25baaac6f43d99fdc2e1a739e7811f036ea2715a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a0101050000000000000000000204abeee2d1075cda3a8f88d8ec5d1f8c5ec990dc99e3e246146d07894f9c987301000159000154000000030299cff79e0e9e5a109e998f3868a1c358eb82e30ee4737ce8271c1e3a473ea0f61db3dd8bfc79cb5155bb0be7deaf5adc5c352a0e42e1583ff167ad75819d2d714271c5f891fc81af5fa79c3ff70bea30a66a2d32173323f9a1bfd7c1394ba6dcdffd4ad1e0ecf84a8fe81cb1829017ac07410100015900e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e00013e3d897e51610250514a79251840e287bef57957ffce9654e4f1ce44af0eff400000202030644d9ef56e7945113e0cda067cec23ec637420c184e609e8f59e20d2a98922d0f456dacbda6d8c0a10162ef9188c572b0bceea4a1652ee4d9cb6c763b51ff3f13a8321a8c96ccdc9d14fdd63793612f09167f428f19052bcd9bcbf0dcedeb862c80c72d86a6e7644d8a8dfe6dfeb4f999e85b7c7e7fb32168aba87995b103ec1998205fb06b58f4f8e94176cd012277bc2d3937a6e71270d0b0388e8356b3ba9f2e130e0a28decdcb849694313ccca1d15fcaa77bfd280bd220c02cadc844d3022089309c50ba3a3d0061019331631a29efb6b1901eedfef33fe6b49a346c153800186418e504de218f2483df940e5b11a6773a566bf0ff1bff2ff8a262bd54c6d60102c50112007c003c00"
+      "instructionData": "10ffffffffffffffff04a0e05bc634adf3188918c3f93647fc1e9b02a3a5d26c6780eec8e58673a0c7025a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a0101050000000000000000000204abeee2d1075cda3a8f88d8ec5d1f8c5ec990dc99e3e246146d07894f9c987301000159000154000000030419078976c68ba992eb10aae97df1e453731a022d6c46eb8a0a4f1c976a0cc20a9684d2cec85c469f2ba9f969cbc53ba7b8451813c4ad50c1acbe4af45bd646262b4c16e06304d35b0019d2f00ed9adac4fe72d32173323f9a1bfd7c1394ba6dcdffd4ad1e0ecf84a8fe81cb1829017ac07410100015900e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e00013e3d897e51610250514a79251840e287bef57957ffce9654e4f1ce44af0eff400000202030644d9ef56e7945113e0cda067cec23ec637420c184e609e8f59e20d2a98922d0f456dacbda6d8c0a10162ef9188c572b0bceea4a1652ee4d9cb6c763b51ff3f13a8321a8c96ccdc9d14fdd63793612f09167f428f19052bcd9bcbf0dcedeb862c80c72d86a6e7644d8a8dfe6dfeb4f999e85b7c7e7fb32168aba87995b103ec1998205fb06b58f4f8e94176cd012277bc2d3937a6e71270d0b0388e8356b3ba9f2e130e0a28decdcb849694313ccca1d15fcaa77bfd280bd220c02cadc844d3022089309c50ba3a3d0061019331631a29efb6b1901eedfef33fe6b49a346c153800186418e504de218f2483df940e5b11a6773a566bf0ff1bff2ff8a262bd54c6d60102c50112007c003c00"
     },
     {
       "name": "full send without change",
@@ -993,7 +993,7 @@
         "1cacbbca15fb9fab42a4f452c738c352b8d72e9f06a00061b0d9118cc418e75c",
         "0000000000000000000000000000000000000000000000000000000000000005",
         "243372895c80e12151e838de22708a2b1c3927cfe01e32b198d84977ec89e423",
-        "00524019febffabeb576a7d5d6db8990c9bf819f06605010a40428323f06d9aa",
+        "0064b4fa4cad98e40972b01031bd772d2c39ea5518d4e0f2a53f1f2989642c23",
         "0000000000000000000000000000000000000000000000000000000000000000",
         "0000000000000000000000000000000000000000000000000000000000000000",
         "0000000000000000000000000000000000000000000000000000000000000000",
@@ -1007,14 +1007,14 @@
         "0000000000000000000000000000000000000000000000000000000000000000",
         "0000000000000000000000000000000000000000000000000000000000000000"
       ],
-      "publicInputHash": "0837e12ba7a36a443d01d7082b2b15bcf892b99589a6f2d8792fcdf1bb6cc422",
+      "publicInputHash": "28468956475778b967ce86524c5182d31917c236527239c525ed389258c55d1d",
       "merkleProofs": [
         [
           {
             "leaf": "2CAiEdHtQyCP24ATe5v6He1aSMJd1VbcmZPeKfyudhTc",
             "merkleContext": {
               "treeType": 1,
-              "tree": "33KVhbT4QtdQDrrrGwwThqD47Dh4Q6tA443t9jMNcWFN"
+              "tree": "777pvSGe5LaBd9nCczvE2FXEauiwtfGJ5XRpjKyniGor"
             },
             "path": [
               "zStgMsva4qdHzSMVEm2bKz8APM3tGixbTEFzCAeUajb",
@@ -1063,7 +1063,7 @@
             "leaf": "LsaDWcbfaGds39UTqL9gtjbK2iP3aZn7L7SGdok8Q2B",
             "merkleContext": {
               "treeType": 2,
-              "tree": "33KVhbT4QtdQDrrrGwwThqD47Dh4Q6tA443t9jMNcWFN"
+              "tree": "777pvSGe5LaBd9nCczvE2FXEauiwtfGJ5XRpjKyniGor"
             },
             "path": [
               "5XGovHcygXXbFgPQYv2uUQcrQLQpamSaGmZcAfnBXge",
@@ -1157,7 +1157,7 @@
         ],
         "outputTreeId": "0x5",
         "blindingSeed": "0x42424242424242424242424242424242424242424242424242424242424242",
-        "externalDataHash": "0x524019febffabeb576a7d5d6db8990c9bf819f06605010a40428323f06d9aa",
+        "externalDataHash": "0x64b4fa4cad98e40972b01031bd772d2c39ea5518d4e0f2a53f1f2989642c23",
         "privateTxHash": "0x243372895c80e12151e838de22708a2b1c3927cfe01e32b198d84977ec89e423",
         "publicAssets": [
           "0x0",
@@ -1310,7 +1310,7 @@
             "nullifierRoot": "0x0"
           }
         ],
-        "publicInputHash": "0x837e12ba7a36a443d01d7082b2b15bcf892b99589a6f2d8792fcdf1bb6cc422"
+        "publicInputHash": "0x28468956475778b967ce86524c5182d31917c236527239c525ed389258c55d1d"
       },
       "response": {
         "ar": [
@@ -1331,7 +1331,7 @@
           "0x20b9c3935f5695c3cc26647626ea4fc2c7bb8ac14f5385fe9ba1bd8ddd3cb5d9",
           "0x146cafb902b2ee27424d8740a8d47ef9b0f1cb5002dd9a1bffa7382dd829e826"
         ],
-        "provingKeySha256": "7ef987966b0dfba5d86eab7c67068be00dbe581d823d45cdbbf6d338bfacb640"
+        "provingKeySha256": "c0b5c1a1081136911a6ad5496fb989ed26d85b09e983a4d5048cff96e0833d85"
       },
       "proof": "06e0675926fea8f3600e1b58619b634e6874d6ea40351102eb56bfa59b98ee131480766e1171a286199af2b4c476a84ffedd0d3faf9ce0ac03617f451b70485a2247815fe9a08774911f915d06009d4af4f3176708363f4e5c4519f0daedea870e7343845bfaab85be000f59c0fdbabd12dc1cb4e3960ae26d6f6064c30621c5282d75595277dd685ab9be0bfde0d8753aeead994b3c9e6e7c6975e12798db3320b9c3935f5695c3cc26647626ea4fc2c7bb8ac14f5385fe9ba1bd8ddd3cb5d9",
       "treeContexts": [
@@ -1340,7 +1340,7 @@
           88
         ]
       ],
-      "instructionData": "10ffffffffffffffff031bcd477c8e4a44aa0fa3c96e073abd93e9cca0d626d50531298fd71b684cff625a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a000000021b16e67d22bc29e6c359aecd48f8084c6beafc8730f7c1c430ce5226789e8d6400fd1724385aa0c75b64fb78cd602fa1d991fdebf76b13c58ed702eac835e9f6180159000154000000030210982b83d5bf7d5f08599fbddc77d1cb7f72e02adae8017ec2118f40c46a3a9b410a642b4290c5463dc8adcfe26e1095b16b5d1628b8277005d81d23bd0d6be6c13cb5539c755ba55959d56d0eb0ae2f726d0ce43be887aa48690aef38e84afa0431727e84d4581fa8a68ba568c2c525d8fb00fd1724385aa0c75b64fb78cd602fa1d991fdebf76b13c58ed702eac835e9f618015900e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e000243372895c80e12151e838de22708a2b1c3927cfe01e32b198d84977ec89e423000001020306e0675926fea8f3600e1b58619b634e6874d6ea40351102eb56bfa59b98ee131480766e1171a286199af2b4c476a84ffedd0d3faf9ce0ac03617f451b70485a2247815fe9a08774911f915d06009d4af4f3176708363f4e5c4519f0daedea870e7343845bfaab85be000f59c0fdbabd12dc1cb4e3960ae26d6f6064c30621c5282d75595277dd685ab9be0bfde0d8753aeead994b3c9e6e7c6975e12798db3320b9c3935f5695c3cc26647626ea4fc2c7bb8ac14f5385fe9ba1bd8ddd3cb5d901051737d4af5d70f1ccaeeefce207746efde8659fdaba87e213891592014fd9880001da005800"
+      "instructionData": "10ffffffffffffffff046cd494021cc3acba3bcc49331d7afe0e161574e1a9d0c837ed568c0c006fff465a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a000000021b16e67d22bc29e6c359aecd48f8084c6beafc8730f7c1c430ce5226789e8d6400fd1724385aa0c75b64fb78cd602fa1d991fdebf76b13c58ed702eac835e9f61801590001540000000304920828ac6abb2b932db3f36e31a9fca2e202309fa156df3e05a1d976ff3b8b6d2af38bd0081fd7ed7631880ef7dd06f99ade333810e1cd2cd49ef4136ab151c1210b3f2af4a2e7221024a41b438d4a9aab430ce43be887aa48690aef38e84afa0431727e84d4581fa8a68ba568c2c525d8fb00fd1724385aa0c75b64fb78cd602fa1d991fdebf76b13c58ed702eac835e9f618015900e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e000243372895c80e12151e838de22708a2b1c3927cfe01e32b198d84977ec89e423000001020306e0675926fea8f3600e1b58619b634e6874d6ea40351102eb56bfa59b98ee131480766e1171a286199af2b4c476a84ffedd0d3faf9ce0ac03617f451b70485a2247815fe9a08774911f915d06009d4af4f3176708363f4e5c4519f0daedea870e7343845bfaab85be000f59c0fdbabd12dc1cb4e3960ae26d6f6064c30621c5282d75595277dd685ab9be0bfde0d8753aeead994b3c9e6e7c6975e12798db3320b9c3935f5695c3cc26647626ea4fc2c7bb8ac14f5385fe9ba1bd8ddd3cb5d901051737d4af5d70f1ccaeeefce207746efde8659fdaba87e213891592014fd9880001da005800"
     },
     {
       "name": "transfer and withdrawal with padding inputs",
@@ -1403,7 +1403,7 @@
         "14865d6c6cac72df0661ea3c109691bedf53737e6ce24063823f229bd98a2a9a",
         "0000000000000000000000000000000000000000000000000000000000000001",
         "28096cd707518410b8b0d4cb47301e7f5051dbae059e1cfe2fdcc58b1c8b2cf3",
-        "0020bfb3ee8d6188edd688b2c682548d04a9c468f761483ebd44ea6a12cb5412",
+        "0019b4b09ac123c34da5ec2a5c116917451714ee610dd7e3d079e87d19e8f3c7",
         "2098f5fb9e239eab3ceac3f27b81e481dc3124d55ffed523a839ee8446b64864",
         "30644e72e131a029b85045b68181585d2833e84879b9709143e1f593efffffff",
         "0000000000000000000000000000000000000000000000000000000000000000",
@@ -1417,14 +1417,14 @@
         "0000000000000000000000000000000000000000000000000000000000000000",
         "05ffd3791fc65890b6cdd82c6ca36e3b897c1996cab034019ff01a683d462054"
       ],
-      "publicInputHash": "131b6f3cfc78e39b4a168830cd05858ea981969d2b07f03c087cd9629d2f0b3f",
+      "publicInputHash": "299d8a5c045574cdff24a38ce1d3f0f5dc659d00bc346872809c4611357dd5b6",
       "merkleProofs": [
         [
           {
             "leaf": "3GEnfAvtPAt9GFvLoku8QaVY4KGqrvmrZt8A4WXdKbEE",
             "merkleContext": {
               "treeType": 1,
-              "tree": "G5m6Y2MaHdQyim3W86k1Fpt85YsLH4cEYrcBhK3paZr8"
+              "tree": "5J4S6CM25MBLcV14Y7CBJj8VkJYLLpmivZxjTQYbZove"
             },
             "path": [
               "3FfJ6UHcQiviodDcnLU9nd33cCML6izLv8vRHr41V9zy",
@@ -1469,7 +1469,7 @@
             "leaf": "3B5jwDZ36PZmqfe8mPkuHBaXNtzdTEoHtXa4LapRw85N",
             "merkleContext": {
               "treeType": 1,
-              "tree": "G5m6Y2MaHdQyim3W86k1Fpt85YsLH4cEYrcBhK3paZr8"
+              "tree": "5J4S6CM25MBLcV14Y7CBJj8VkJYLLpmivZxjTQYbZove"
             },
             "path": [
               "3wT9Y4M3dfpf6ffPH3rjqbZJ7MpcEVVSng7B9LFgQWFh",
@@ -1514,7 +1514,7 @@
             "leaf": "2oCSTLokfc2mBbN9qpJ1CB8frWULtAfcPMtKH1aShRjL",
             "merkleContext": {
               "treeType": 1,
-              "tree": "G5m6Y2MaHdQyim3W86k1Fpt85YsLH4cEYrcBhK3paZr8"
+              "tree": "5J4S6CM25MBLcV14Y7CBJj8VkJYLLpmivZxjTQYbZove"
             },
             "path": [
               "2K8VNi9A1B55pigTX1BzxMLVvcWzwze2hve3a4Es5AiG",
@@ -1561,7 +1561,7 @@
             "leaf": "28LDMVemhFADpsETma45EGJeDnPgRNZeiTbwQAbieciU",
             "merkleContext": {
               "treeType": 1,
-              "tree": "Cqu55AjGprSHJKs65Sw3P4zi1ZtJGy56jz91TyKmw3Cn"
+              "tree": "6kmoyYDZ7ECi8USmHVaePETKgyhLeiMEKMasGHSKqD13"
             },
             "path": [
               "31tvUvhf5MJ7fcz1YsV6jQ8vU2mvHHGiJnc5qgZXe1iG",
@@ -1606,7 +1606,7 @@
             "leaf": "E2P67rXLhuWbjdzT951UYRCjwCPpYm2p7PFzy1T8Xh1",
             "merkleContext": {
               "treeType": 1,
-              "tree": "Cqu55AjGprSHJKs65Sw3P4zi1ZtJGy56jz91TyKmw3Cn"
+              "tree": "6kmoyYDZ7ECi8USmHVaePETKgyhLeiMEKMasGHSKqD13"
             },
             "path": [
               "3QZ18jskwHhtiUzdjKu94eofgvkHvAgXkGdjezkGp3qE",
@@ -1651,7 +1651,7 @@
             "leaf": "3RcD5AjJADgMVjNRM69KXqURKR9CNjb4mKxMpjVPod8J",
             "merkleContext": {
               "treeType": 1,
-              "tree": "Cqu55AjGprSHJKs65Sw3P4zi1ZtJGy56jz91TyKmw3Cn"
+              "tree": "6kmoyYDZ7ECi8USmHVaePETKgyhLeiMEKMasGHSKqD13"
             },
             "path": [
               "6AoMv2dby98AoNebFSbzygxoKsT1WRzEqYmGDm7oTVN",
@@ -1696,7 +1696,7 @@
             "leaf": "41P4Ns14g9hb2kbd2oKokMZuBwRzRmAxCMWG9Y6N1Hvi",
             "merkleContext": {
               "treeType": 1,
-              "tree": "Cqu55AjGprSHJKs65Sw3P4zi1ZtJGy56jz91TyKmw3Cn"
+              "tree": "6kmoyYDZ7ECi8USmHVaePETKgyhLeiMEKMasGHSKqD13"
             },
             "path": [
               "2mwkyGFV7f4FzEPTcmnQ7szRFXm7N4L8xQ23U2rhyUG6",
@@ -1745,7 +1745,7 @@
             "leaf": "3XfMJWQ8XQDJH5S4khuxZ9QvTD2ChsGsDEFzTGCAMATy",
             "merkleContext": {
               "treeType": 2,
-              "tree": "G5m6Y2MaHdQyim3W86k1Fpt85YsLH4cEYrcBhK3paZr8"
+              "tree": "5J4S6CM25MBLcV14Y7CBJj8VkJYLLpmivZxjTQYbZove"
             },
             "path": [
               "7segA5mCLwrkrynniVCBAFNoziEjo6ibsaAinpga7Ug",
@@ -1801,7 +1801,7 @@
             "leaf": "3eRFvkAvLq5CMTDKyY75XDH1TUuLjiW1iFL7KQFofM46",
             "merkleContext": {
               "treeType": 2,
-              "tree": "G5m6Y2MaHdQyim3W86k1Fpt85YsLH4cEYrcBhK3paZr8"
+              "tree": "5J4S6CM25MBLcV14Y7CBJj8VkJYLLpmivZxjTQYbZove"
             },
             "path": [
               "THxy5nQuaBHTdnsQ4uNzcPaMLKvvjnLBc1ykzXbSxhc",
@@ -1857,7 +1857,7 @@
             "leaf": "25eNfZJHRD27aErBsWSuV4irLmVnDHCp5ABKA1JncbHq",
             "merkleContext": {
               "treeType": 2,
-              "tree": "G5m6Y2MaHdQyim3W86k1Fpt85YsLH4cEYrcBhK3paZr8"
+              "tree": "5J4S6CM25MBLcV14Y7CBJj8VkJYLLpmivZxjTQYbZove"
             },
             "path": [
               "2BEj4JE4Hs6GeXg1dUxVbDkofWufrKdQ8Cfd8YYBaNZD",
@@ -1915,7 +1915,7 @@
             "leaf": "3DsyuNJujfN1WoTKgePpYuoDPbQfugkaRRybJcJ8Uk3z",
             "merkleContext": {
               "treeType": 2,
-              "tree": "Cqu55AjGprSHJKs65Sw3P4zi1ZtJGy56jz91TyKmw3Cn"
+              "tree": "6kmoyYDZ7ECi8USmHVaePETKgyhLeiMEKMasGHSKqD13"
             },
             "path": [
               "2EXuVkx1wpMv3b3Dp9F1FPo5juK7KGCVFSSc5AS61d6c",
@@ -1971,7 +1971,7 @@
             "leaf": "2QZ1bG8xVXBo4BrbghhKanJK7tvUCg8HWYc8K4nHNCKA",
             "merkleContext": {
               "treeType": 2,
-              "tree": "Cqu55AjGprSHJKs65Sw3P4zi1ZtJGy56jz91TyKmw3Cn"
+              "tree": "6kmoyYDZ7ECi8USmHVaePETKgyhLeiMEKMasGHSKqD13"
             },
             "path": [
               "sJuqvTU2GYMokCHLP3ijprMd33m95eXiHehhZdeBcPw",
@@ -2027,7 +2027,7 @@
             "leaf": "2DwJFkypxg9wiYtb7W8NeqS5sAh56xtQPjknCvQStcGH",
             "merkleContext": {
               "treeType": 2,
-              "tree": "Cqu55AjGprSHJKs65Sw3P4zi1ZtJGy56jz91TyKmw3Cn"
+              "tree": "6kmoyYDZ7ECi8USmHVaePETKgyhLeiMEKMasGHSKqD13"
             },
             "path": [
               "H8pzYFwfeBCPLTb4ju3JKyGCHGys1JYtzQJRBqsYzTL",
@@ -2083,7 +2083,7 @@
             "leaf": "1SDFiwXTkwAydbAL38gJTwvi2kdn2DSnk9w5NxgDrUJ",
             "merkleContext": {
               "treeType": 2,
-              "tree": "Cqu55AjGprSHJKs65Sw3P4zi1ZtJGy56jz91TyKmw3Cn"
+              "tree": "6kmoyYDZ7ECi8USmHVaePETKgyhLeiMEKMasGHSKqD13"
             },
             "path": [
               "3hVQipRrbaDLwRWoxnK6QmnNt7s2ytuxKh3j4AVQgQV9",
@@ -2139,7 +2139,7 @@
             "leaf": "3sHXD5ibD9wS84jiBpg1xfz6DjRqwrQaJkBzrFy7DW8n",
             "merkleContext": {
               "treeType": 2,
-              "tree": "Cqu55AjGprSHJKs65Sw3P4zi1ZtJGy56jz91TyKmw3Cn"
+              "tree": "6kmoyYDZ7ECi8USmHVaePETKgyhLeiMEKMasGHSKqD13"
             },
             "path": [
               "3jcZc7xFB4tqLfXxq6HVdgvPyEt3qtAUV1v4TvYzcyRi",
@@ -2233,7 +2233,7 @@
         ],
         "outputTreeId": "0x1",
         "blindingSeed": "0x42424242424242424242424242424242424242424242424242424242424242",
-        "externalDataHash": "0x20bfb3ee8d6188edd688b2c682548d04a9c468f761483ebd44ea6a12cb5412",
+        "externalDataHash": "0x19b4b09ac123c34da5ec2a5c116917451714ee610dd7e3d079e87d19e8f3c7",
         "privateTxHash": "0x28096cd707518410b8b0d4cb47301e7f5051dbae059e1cfe2fdcc58b1c8b2cf3",
         "publicAssets": [
           "0x2098f5fb9e239eab3ceac3f27b81e481dc3124d55ffed523a839ee8446b64864",
@@ -3072,7 +3072,7 @@
             "nullifierRoot": "0x0"
           }
         ],
-        "publicInputHash": "0x131b6f3cfc78e39b4a168830cd05858ea981969d2b07f03c087cd9629d2f0b3f"
+        "publicInputHash": "0x299d8a5c045574cdff24a38ce1d3f0f5dc659d00bc346872809c4611357dd5b6"
       },
       "response": {
         "ar": [
@@ -3093,7 +3093,7 @@
           "0x14146e1e6a1fd8bd40b0e2c6424cce1df8e2e4069601ea4648315d18ecf43722",
           "0x202dbdcde5a26ac1e125822ea9498a08d777d4d758646c9fe4315f6227ac0ac9"
         ],
-        "provingKeySha256": "24250fd74a86f1a07847e9dbb769cf9b2bebf20d29f18018186ea7900f69bbe4"
+        "provingKeySha256": "b64dcce8e5a55ae0f120bd32118f5bfdaf88f48bb3a3860e9cae9bac1611135e"
       },
       "proof": "a60d3470f4ec3c6384fbd09c0ee8b9c2d5cabafeb49034e2d1099ab467bac2c611d8e16bbca6a7880a6b809271b5683cd005ced5e32955455a987e0d5d27fed01c525c8eb828f0a01afe311906bd7a341b4f46c1ef988eb7374371e924743fb81b85ffef2bd6a09e68f68623138410d0aaa65cdb21ad764e4958228a823304a629a8cbb6acdbb53d628a35a21f076665011a475aaf0651c4ac68226af8353c8194146e1e6a1fd8bd40b0e2c6424cce1df8e2e4069601ea4648315d18ecf43722",
       "treeContexts": [
@@ -3106,7 +3106,7 @@
           74
         ]
       ],
-      "instructionData": "10ffffffffffffffff03972c695797a7a49a498b83d7985b557f49bf8b34b1b91c145136e8613ae77e035a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a0101020000000000000000000211047d296fee1596429b277df0e1a3387ef2aaba7e7715150d353115f692170800fd1724385aa0c75b64fb78cd602fa1d991fdebf76b13c58ed702eac835e9f6180159000154000000030210982b83d5bf7d5f08599fbddc77d1cb7f72e02adae8017ec2118f40c46a3a9be7e95c7984fb310995f0e9addd60f4c73437a3668d9078b350e91994d5b069db8b365ac5548bb82016ebbbc9afb9fdb1dfa624afe87f980714f6036abb64d4877e3c583b70edd7965e39fc770e9a4d4b164300fd1724385aa0c75b64fb78cd602fa1d991fdebf76b13c58ed702eac835e9f618015900e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e00028096cd707518410b8b0d4cb47301e7f5051dbae059e1cfe2fdcc58b1c8b2cf30000080203a60d3470f4ec3c6384fbd09c0ee8b9c2d5cabafeb49034e2d1099ab467bac2c611d8e16bbca6a7880a6b809271b5683cd005ced5e32955455a987e0d5d27fed01c525c8eb828f0a01afe311906bd7a341b4f46c1ef988eb7374371e924743fb81b85ffef2bd6a09e68f68623138410d0aaa65cdb21ad764e4958228a823304a629a8cbb6acdbb53d628a35a21f076665011a475aaf0651c4ac68226af8353c8194146e1e6a1fd8bd40b0e2c6424cce1df8e2e4069601ea4648315d18ecf43722082592291ff91cf30a0e97c83b653d0d297017b74552863c1b77f087b93327b2b0002103fcf153487ff91c2014af9f2c0845cf1d074f85a50cdf37d7e0e3cdf8524101274d4aaabfdbf8c55b0cf836dab023626d3967e772869fb3f081cd24a0c831d30014e43d5435bc41b055f05afe96b52a02e00f6eedde6b061bd952ff990718e0d101100c44bf967b705e9194005d2dfa6d696f4f4b1b366e0570986a50dd115f3a0000122c0d0e91dc15895360afb641c800630e3a30e17ca703d84ff3a7e780a04f0a01001c81a8828b579450c0404117ccb1ffef65a2d8e94632b0ede590952a8e1e03012a99182f4a35cc8247a05f8bacefb30b30e4b79b0b417b42e11d57f215803d1701029b012900b1014a00"
+      "instructionData": "10ffffffffffffffff04c6fa66ea3f1f3c591c23eab654773742e8d62c203832efa576046c0d8c6c2d475a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a0101020000000000000000000211047d296fee1596429b277df0e1a3387ef2aaba7e7715150d353115f692170800fd1724385aa0c75b64fb78cd602fa1d991fdebf76b13c58ed702eac835e9f61801590001540000000304920828ac6abb2b932db3f36e31a9fca2e202309fa156df3e05a1d976ff3b8b6d9a8c2f46af16b3d3830c816e72493c4f12efaf61170edb6659f5d234aaf6cf1cd9d6867a0b336ce57a1b7c280564faa95f1924afe87f980714f6036abb64d4877e3c583b70edd7965e39fc770e9a4d4b164300fd1724385aa0c75b64fb78cd602fa1d991fdebf76b13c58ed702eac835e9f618015900e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e00028096cd707518410b8b0d4cb47301e7f5051dbae059e1cfe2fdcc58b1c8b2cf30000080203a60d3470f4ec3c6384fbd09c0ee8b9c2d5cabafeb49034e2d1099ab467bac2c611d8e16bbca6a7880a6b809271b5683cd005ced5e32955455a987e0d5d27fed01c525c8eb828f0a01afe311906bd7a341b4f46c1ef988eb7374371e924743fb81b85ffef2bd6a09e68f68623138410d0aaa65cdb21ad764e4958228a823304a629a8cbb6acdbb53d628a35a21f076665011a475aaf0651c4ac68226af8353c8194146e1e6a1fd8bd40b0e2c6424cce1df8e2e4069601ea4648315d18ecf43722082592291ff91cf30a0e97c83b653d0d297017b74552863c1b77f087b93327b2b0002103fcf153487ff91c2014af9f2c0845cf1d074f85a50cdf37d7e0e3cdf8524101274d4aaabfdbf8c55b0cf836dab023626d3967e772869fb3f081cd24a0c831d30014e43d5435bc41b055f05afe96b52a02e00f6eedde6b061bd952ff990718e0d101100c44bf967b705e9194005d2dfa6d696f4f4b1b366e0570986a50dd115f3a0000122c0d0e91dc15895360afb641c800630e3a30e17ca703d84ff3a7e780a04f0a01001c81a8828b579450c0404117ccb1ffef65a2d8e94632b0ede590952a8e1e03012a99182f4a35cc8247a05f8bacefb30b30e4b79b0b417b42e11d57f215803d1701029b012900b1014a00"
     },
     {
       "name": "withdrawal of every lamport",
@@ -3134,7 +3134,7 @@
         "298ee90059a3fa1e95f005eae6470bc472c7bfe98daa5a7bd5122a7e11e5bdb9",
         "0000000000000000000000000000000000000000000000000000000000000000",
         "1ce8afe9061014a3f8624108c27281fe386e3769b95fa4e3572f919e84bea027",
-        "00aad23c64cc60134aa5d3b8709fd6eb5760990b8c200043b8f5728202ad483e",
+        "00c85ddf1d9d42800a5be997dc8ce2b0b44a85f0811fd0ba9a0effc74855206b",
         "2098f5fb9e239eab3ceac3f27b81e481dc3124d55ffed523a839ee8446b64864",
         "30644e72e131a029b85045b68181585d2833e84879b9709143e1f593effffff7",
         "0000000000000000000000000000000000000000000000000000000000000000",
@@ -3148,14 +3148,14 @@
         "0000000000000000000000000000000000000000000000000000000000000000",
         "0000000000000000000000000000000000000000000000000000000000000000"
       ],
-      "publicInputHash": "03982042e6b88af699d54d4abc75e6f7d15d3dc466432366e71c071ca2e879ef",
+      "publicInputHash": "2269dbcbb63df336f02eb4b63f3de34ceca2856104520b38884088019cd79cf1",
       "merkleProofs": [
         [
           {
             "leaf": "2CAiEdHtQyCP24ATe5v6He1aSMJd1VbcmZPeKfyudhTc",
             "merkleContext": {
               "treeType": 1,
-              "tree": "33KVhbT4QtdQDrrrGwwThqD47Dh4Q6tA443t9jMNcWFN"
+              "tree": "777pvSGe5LaBd9nCczvE2FXEauiwtfGJ5XRpjKyniGor"
             },
             "path": [
               "2k1q7RFzPTLoQtb2aUoMVNujzFNGbqg2GmSvrStQ5xHs",
@@ -3204,7 +3204,7 @@
             "leaf": "LsaDWcbfaGds39UTqL9gtjbK2iP3aZn7L7SGdok8Q2B",
             "merkleContext": {
               "treeType": 2,
-              "tree": "33KVhbT4QtdQDrrrGwwThqD47Dh4Q6tA443t9jMNcWFN"
+              "tree": "777pvSGe5LaBd9nCczvE2FXEauiwtfGJ5XRpjKyniGor"
             },
             "path": [
               "45XsN2K3a7f2j841R99CCgyciRe5u2LTrgPKornyxd5Z",
@@ -3298,7 +3298,7 @@
         ],
         "outputTreeId": "0x0",
         "blindingSeed": "0x42424242424242424242424242424242424242424242424242424242424242",
-        "externalDataHash": "0xaad23c64cc60134aa5d3b8709fd6eb5760990b8c200043b8f5728202ad483e",
+        "externalDataHash": "0xc85ddf1d9d42800a5be997dc8ce2b0b44a85f0811fd0ba9a0effc74855206b",
         "privateTxHash": "0x1ce8afe9061014a3f8624108c27281fe386e3769b95fa4e3572f919e84bea027",
         "publicAssets": [
           "0x2098f5fb9e239eab3ceac3f27b81e481dc3124d55ffed523a839ee8446b64864",
@@ -3451,7 +3451,7 @@
             "nullifierRoot": "0x0"
           }
         ],
-        "publicInputHash": "0x3982042e6b88af699d54d4abc75e6f7d15d3dc466432366e71c071ca2e879ef"
+        "publicInputHash": "0x2269dbcbb63df336f02eb4b63f3de34ceca2856104520b38884088019cd79cf1"
       },
       "response": {
         "ar": [
@@ -3472,7 +3472,7 @@
           "0x1d06e0c5608158117297b745d1d7790c35b8e5d74df48cf2f412cf16b79330ab",
           "0x2ed0c9a608844e8eed0bd11e17ed619a7764d71f3a59bf8dd4dcc03d41c343ca"
         ],
-        "provingKeySha256": "7ef987966b0dfba5d86eab7c67068be00dbe581d823d45cdbbf6d338bfacb640"
+        "provingKeySha256": "c0b5c1a1081136911a6ad5496fb989ed26d85b09e983a4d5048cff96e0833d85"
       },
       "proof": "0e21efd4bc1aa574fdc08f550405e52fd26fc37ae1bae1cb650a6c7e2973e5ea002500d3b2e78f5929f0ffa48aa480ad4b63beed3529b13559abb8bc350a6e7b2d76b5d032cc45ae16373caa15af6f2fffe85d01a007ae9886821dbdd4cea75b0d918b09ee327491afa31f5cec3bf1e69eb45bb6d4f4c7cf31ca3aa2497d77c61f72699bbe46aba5d952fa9a27fbe6b729608f3b4333a0f435264552b81753329d06e0c5608158117297b745d1d7790c35b8e5d74df48cf2f412cf16b79330ab",
       "treeContexts": [
@@ -3481,7 +3481,7 @@
           3
         ]
       ],
-      "instructionData": "10ffffffffffffffff031bcd477c8e4a44aa0fa3c96e073abd93e9cca0d626d50531298fd71b684cff625a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a01010a0000000000000000000220cc3dde0d5398960f5313362d4273d4e6e631238cfdbe0a352997b0ad65039501000159000154000000030299cff79e0e9e5a109e998f3868a1c358eb82e30ee4737ce8271c1e3a473ea0f6f8543d5eb23d79125bd1075d7bbd3b60d9983be4235f931d68a33d891ea957276e3d6854232e6e00bd5844fa1fa3fe69326c12d2bd553bb4b14d5f27c4165c2a70a21c33dd6af13b9e842f3c122ff9a1917b0100015900e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0001ce8afe9061014a3f8624108c27281fe386e3769b95fa4e3572f919e84bea02700000102030e21efd4bc1aa574fdc08f550405e52fd26fc37ae1bae1cb650a6c7e2973e5ea002500d3b2e78f5929f0ffa48aa480ad4b63beed3529b13559abb8bc350a6e7b2d76b5d032cc45ae16373caa15af6f2fffe85d01a007ae9886821dbdd4cea75b0d918b09ee327491afa31f5cec3bf1e69eb45bb6d4f4c7cf31ca3aa2497d77c61f72699bbe46aba5d952fa9a27fbe6b729608f3b4333a0f435264552b81753329d06e0c5608158117297b745d1d7790c35b8e5d74df48cf2f412cf16b79330ab01051737d4af5d70f1ccaeeefce207746efde8659fdaba87e213891592014fd9880001ab010300"
+      "instructionData": "10ffffffffffffffff046cd494021cc3acba3bcc49331d7afe0e161574e1a9d0c837ed568c0c006fff465a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a01010a0000000000000000000220cc3dde0d5398960f5313362d4273d4e6e631238cfdbe0a352997b0ad65039501000159000154000000030419078976c68ba992eb10aae97df1e453731a022d6c46eb8a0a4f1c976a0cc20a3d32bba34e78dc0f5dc931b7aa5fba47611ce894221de6033d40a1304561de6f6da6f5b81c34dd67ff5b93e62d22517293d712d2bd553bb4b14d5f27c4165c2a70a21c33dd6af13b9e842f3c122ff9a1917b0100015900e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0001ce8afe9061014a3f8624108c27281fe386e3769b95fa4e3572f919e84bea02700000102030e21efd4bc1aa574fdc08f550405e52fd26fc37ae1bae1cb650a6c7e2973e5ea002500d3b2e78f5929f0ffa48aa480ad4b63beed3529b13559abb8bc350a6e7b2d76b5d032cc45ae16373caa15af6f2fffe85d01a007ae9886821dbdd4cea75b0d918b09ee327491afa31f5cec3bf1e69eb45bb6d4f4c7cf31ca3aa2497d77c61f72699bbe46aba5d952fa9a27fbe6b729608f3b4333a0f435264552b81753329d06e0c5608158117297b745d1d7790c35b8e5d74df48cf2f412cf16b79330ab01051737d4af5d70f1ccaeeefce207746efde8659fdaba87e213891592014fd9880001ab010300"
     },
     {
       "name": "random 1: 5 inputs, 1 trees, transfer",
@@ -3529,7 +3529,7 @@
         "1c86b2afb5113516b40acd48224c354be8acd5c2ce95e58ccbc49ceaad0dc4eb",
         "0000000000000000000000000000000000000000000000000000000000000002",
         "060b6dc8ee20d875b2aea855e1e5c51aaa34a02be69439a682fd7df23387d4a5",
-        "005013114cbee7dbc5d83c8c4783c8c6a9e10a14afdfe23a55869132e3088b32",
+        "00f2e5e0f963c8e0fbcacf7668257494f843548892d93d2a0533cd227e2946b3",
         "0000000000000000000000000000000000000000000000000000000000000000",
         "0000000000000000000000000000000000000000000000000000000000000000",
         "0000000000000000000000000000000000000000000000000000000000000000",
@@ -3543,14 +3543,14 @@
         "0000000000000000000000000000000000000000000000000000000000000000",
         "222cfa7d71f774d4487b280c0cc08e3cd2b9a86ef55ead0c0b795c3ff18b1218"
       ],
-      "publicInputHash": "2d37d5828cc25b84a55b1210ccef31937ed868a84dd825358ca3c38b5ddaa7b9",
+      "publicInputHash": "02582c7d79449f277e1d327f363663f6af022376ce54d5c075541448a5f21850",
       "merkleProofs": [
         [
           {
             "leaf": "3tyf7W1p55DpqGNAy34DerkMjuiGkoD7iLY7QsJuyHjV",
             "merkleContext": {
               "treeType": 1,
-              "tree": "G5m6Y2MaHdQyim3W86k1Fpt85YsLH4cEYrcBhK3paZr8"
+              "tree": "5J4S6CM25MBLcV14Y7CBJj8VkJYLLpmivZxjTQYbZove"
             },
             "path": [
               "3HgEbzARhqDmqHnvN5WMQBcj5gz7LuwdtWBe1eewbSH4",
@@ -3595,7 +3595,7 @@
             "leaf": "3DQUgqz96oCvPPgR83Qnxavj6Vh1x5Y8Q62z3RJLWoeg",
             "merkleContext": {
               "treeType": 1,
-              "tree": "G5m6Y2MaHdQyim3W86k1Fpt85YsLH4cEYrcBhK3paZr8"
+              "tree": "5J4S6CM25MBLcV14Y7CBJj8VkJYLLpmivZxjTQYbZove"
             },
             "path": [
               "3nLnRaJ6wGdXTXRhWynSCQxx922FnARWSbgwkT4mYCJh",
@@ -3640,7 +3640,7 @@
             "leaf": "U5KRWhqV2ud5G9FA5gWqwK6iUuVtf9jdg1WdxmYBgig",
             "merkleContext": {
               "treeType": 1,
-              "tree": "G5m6Y2MaHdQyim3W86k1Fpt85YsLH4cEYrcBhK3paZr8"
+              "tree": "5J4S6CM25MBLcV14Y7CBJj8VkJYLLpmivZxjTQYbZove"
             },
             "path": [
               "2pM5NFcjgav8xYHrb6vyrAUM9m1CHB68zRxjhqhZwbWo",
@@ -3685,7 +3685,7 @@
             "leaf": "o56aUdMDz59QeinQYpENor5EDFyRCMwgvGPWRisQdSk",
             "merkleContext": {
               "treeType": 1,
-              "tree": "G5m6Y2MaHdQyim3W86k1Fpt85YsLH4cEYrcBhK3paZr8"
+              "tree": "5J4S6CM25MBLcV14Y7CBJj8VkJYLLpmivZxjTQYbZove"
             },
             "path": [
               "25oN4jCaRijPfiMjgVfdgqwZBySh1QyxhSoPkv79jSuN",
@@ -3730,7 +3730,7 @@
             "leaf": "3zV3h3PtHq6rsNBnHLJTN7VTkKUyJoBNd46bk5Hb1Loq",
             "merkleContext": {
               "treeType": 1,
-              "tree": "G5m6Y2MaHdQyim3W86k1Fpt85YsLH4cEYrcBhK3paZr8"
+              "tree": "5J4S6CM25MBLcV14Y7CBJj8VkJYLLpmivZxjTQYbZove"
             },
             "path": [
               "GCDCbSp8R9oFddJ7iTx1v4Quv9jSicVMVP56KjCChMY",
@@ -3779,7 +3779,7 @@
             "leaf": "3CySbnS1ZaR4zA9VjZZYNE5eMBqNNvsBCcEz3GkJhYeu",
             "merkleContext": {
               "treeType": 2,
-              "tree": "G5m6Y2MaHdQyim3W86k1Fpt85YsLH4cEYrcBhK3paZr8"
+              "tree": "5J4S6CM25MBLcV14Y7CBJj8VkJYLLpmivZxjTQYbZove"
             },
             "path": [
               "QfhvyHCMfru5ka2jcW3vp3UwgWX89nr8btkWUBZ9xia",
@@ -3835,7 +3835,7 @@
             "leaf": "23yUYHsn35uKbbNnBAs8cohUtQY995AVE9LyxsXcgCwG",
             "merkleContext": {
               "treeType": 2,
-              "tree": "G5m6Y2MaHdQyim3W86k1Fpt85YsLH4cEYrcBhK3paZr8"
+              "tree": "5J4S6CM25MBLcV14Y7CBJj8VkJYLLpmivZxjTQYbZove"
             },
             "path": [
               "3GN1D2wsWJfya6YRAD22867vgyFkkjDWKyn29YnCx1ZD",
@@ -3891,7 +3891,7 @@
             "leaf": "3c34o5bQ5BuXZj55smtWMTzZmihxRjNeMEJuZbiEv58p",
             "merkleContext": {
               "treeType": 2,
-              "tree": "G5m6Y2MaHdQyim3W86k1Fpt85YsLH4cEYrcBhK3paZr8"
+              "tree": "5J4S6CM25MBLcV14Y7CBJj8VkJYLLpmivZxjTQYbZove"
             },
             "path": [
               "2QVWq4p2aZVeVpJ14LyFCPiXrcKCL4ZFND7C2ifAKhq3",
@@ -3947,7 +3947,7 @@
             "leaf": "3o2vkNb4keLLsxa4yCd6FB5AEcVKaEZwbbMZBEhYrcDK",
             "merkleContext": {
               "treeType": 2,
-              "tree": "G5m6Y2MaHdQyim3W86k1Fpt85YsLH4cEYrcBhK3paZr8"
+              "tree": "5J4S6CM25MBLcV14Y7CBJj8VkJYLLpmivZxjTQYbZove"
             },
             "path": [
               "XkFAheoxDS1F4uPyhLTTB2pPfNKkBhpmRfKvEQPwKRv",
@@ -4003,7 +4003,7 @@
             "leaf": "3CMFNMeXFWqvhbAM3ybzRT9UsJtt3EBfYRyQVwxxzf6m",
             "merkleContext": {
               "treeType": 2,
-              "tree": "G5m6Y2MaHdQyim3W86k1Fpt85YsLH4cEYrcBhK3paZr8"
+              "tree": "5J4S6CM25MBLcV14Y7CBJj8VkJYLLpmivZxjTQYbZove"
             },
             "path": [
               "wLmhKUD7anDf9XmmCGuqxCNjvSHgTKoS4CxEZpW15UX",
@@ -4097,7 +4097,7 @@
         ],
         "outputTreeId": "0x2",
         "blindingSeed": "0x42424242424242424242424242424242424242424242424242424242424242",
-        "externalDataHash": "0x5013114cbee7dbc5d83c8c4783c8c6a9e10a14afdfe23a55869132e3088b32",
+        "externalDataHash": "0xf2e5e0f963c8e0fbcacf7668257494f843548892d93d2a0533cd227e2946b3",
         "privateTxHash": "0x60b6dc8ee20d875b2aea855e1e5c51aaa34a02be69439a682fd7df23387d4a5",
         "publicAssets": [
           "0x0",
@@ -4642,7 +4642,7 @@
             "nullifierRoot": "0x0"
           }
         ],
-        "publicInputHash": "0x2d37d5828cc25b84a55b1210ccef31937ed868a84dd825358ca3c38b5ddaa7b9"
+        "publicInputHash": "0x2582c7d79449f277e1d327f363663f6af022376ce54d5c075541448a5f21850"
       },
       "response": {
         "ar": [
@@ -4663,7 +4663,7 @@
           "0x4b24ed6a46a5061f544384479050db86f6caedc8a6b7799302fdfd426f62f0b",
           "0x20785b6f9ed380769524bf8432dc1d7d7a202697ac9d37698f1b1fe497779a2e"
         ],
-        "provingKeySha256": "ae6699a19d810a7e0ef663dff3fc32e0b8e4bdeae9089c583746f95ae3b0e1e9"
+        "provingKeySha256": "c5dfa2067fec93936aef24b748378516c40ef0a4f6987118e36285893864d45a"
       },
       "proof": "ac28093b0beb35b7390e27666f5e4161b88bfcad7a55f830312048db25a488fc0d10a7618de7d313aca7d3a5a9d52baa730e6eef132871f847364b4afc73269e081c710cc39b32c7d89c6c7caf133154026c40ed221d60a0b626c53ee910539825a4c9fb7e19ca2c445c5fcde9539dd32a38306ddca7f6a9bcddf20eaa288f531fa422570c6fb7f889bd0bdd40dde45227bfaa7d152114ca0c59d5b228b590ff84b24ed6a46a5061f544384479050db86f6caedc8a6b7799302fdfd426f62f0b",
       "treeContexts": [
@@ -4672,7 +4672,7 @@
           41
         ]
       ],
-      "instructionData": "10ffffffffffffffff0310541e5cb353ed744bf7688bd64394e6eebf167a46bc86d523df529b0e0a273d5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a000000022f3f384c4cfd512da8fc0b1831ba8a81864479103e40e0ab5fc1e6e4b540d5b700fd1724385aa0c75b64fb78cd602fa1d991fdebf76b13c58ed702eac835e9f6180159000154000000030210982b83d5bf7d5f08599fbddc77d1cb7f72e02adae8017ec2118f40c46a3a9b7dde5b7e5c6ab4eeafe29dbce5a006c57658d3e2b003af1c7908c79c5f2b962d9c10428abca62086ce7eac5777018f90d3601d1bb5fdfb123287a8dffb7fc0a37ed3f07ad0c40e85d22502f132ec8e3e3a8701000159000154000000030299cff79e0e9e5a109e998f3868a1c358eb82e30ee4737ce8271c1e3a473ea0f6d770966f453271f19799161550e4fcea5f6c9e31d62d8ee24dd7088c7057228307c9ebfd5a8693b08b07d67555b15406112900060b6dc8ee20d875b2aea855e1e5c51aaa34a02be69439a682fd7df23387d4a50000050203ac28093b0beb35b7390e27666f5e4161b88bfcad7a55f830312048db25a488fc0d10a7618de7d313aca7d3a5a9d52baa730e6eef132871f847364b4afc73269e081c710cc39b32c7d89c6c7caf133154026c40ed221d60a0b626c53ee910539825a4c9fb7e19ca2c445c5fcde9539dd32a38306ddca7f6a9bcddf20eaa288f531fa422570c6fb7f889bd0bdd40dde45227bfaa7d152114ca0c59d5b228b590ff84b24ed6a46a5061f544384479050db86f6caedc8a6b7799302fdfd426f62f0b0520c894cab33c6c3b68cbf4d0cd14c42a6184bc1dd836d039cae1cefeb49e97e2000f9eb46f77d986b0a62be5cba189565a0a9769b60df6c32f712396d8a60a92df0026b1099ce55aa81466585c91d22ac3f9a2d4f8bd24df3e0521d2d7e15be4f78d002982450344ccb8a01c4c4c5411dd44f866d8cd07332348e6ce3da83e7edf808e00209fa82ca51bdafb0391d262328ff1a32e7ae5e2f3e1fc3524205657046451de00015b012900"
+      "instructionData": "10ffffffffffffffff04a84415a03ca2a40f44d226603aff32652bff92e1421fc637e31e1f7249fb133f5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a000000022f3f384c4cfd512da8fc0b1831ba8a81864479103e40e0ab5fc1e6e4b540d5b700fd1724385aa0c75b64fb78cd602fa1d991fdebf76b13c58ed702eac835e9f61801590001540000000304920828ac6abb2b932db3f36e31a9fca2e202309fa156df3e05a1d976ff3b8b6d34f304c2748cc14c1bb6e3e019357c8335d6fc9f520d9bad778025f178be2854102873a713d20e7a9c3ed0cd30f36a93d7ba1d1bb5fdfb123287a8dffb7fc0a37ed3f07ad0c40e85d22502f132ec8e3e3a8701000159000154000000030419078976c68ba992eb10aae97df1e453731a022d6c46eb8a0a4f1c976a0cc20a6ecf33bb104b90856eac723d5091502a2bc32b59c94fe3dd1284324eccd5b1a068b37a23280b1013e4fb03db916592821f9100060b6dc8ee20d875b2aea855e1e5c51aaa34a02be69439a682fd7df23387d4a50000050203ac28093b0beb35b7390e27666f5e4161b88bfcad7a55f830312048db25a488fc0d10a7618de7d313aca7d3a5a9d52baa730e6eef132871f847364b4afc73269e081c710cc39b32c7d89c6c7caf133154026c40ed221d60a0b626c53ee910539825a4c9fb7e19ca2c445c5fcde9539dd32a38306ddca7f6a9bcddf20eaa288f531fa422570c6fb7f889bd0bdd40dde45227bfaa7d152114ca0c59d5b228b590ff84b24ed6a46a5061f544384479050db86f6caedc8a6b7799302fdfd426f62f0b0520c894cab33c6c3b68cbf4d0cd14c42a6184bc1dd836d039cae1cefeb49e97e2000f9eb46f77d986b0a62be5cba189565a0a9769b60df6c32f712396d8a60a92df0026b1099ce55aa81466585c91d22ac3f9a2d4f8bd24df3e0521d2d7e15be4f78d002982450344ccb8a01c4c4c5411dd44f866d8cd07332348e6ce3da83e7edf808e00209fa82ca51bdafb0391d262328ff1a32e7ae5e2f3e1fc3524205657046451de00015b012900"
     },
     {
       "name": "random 2: 2 inputs, 2 trees, withdrawal",
@@ -4710,7 +4710,7 @@
         "131a7104fad2bcb4ed270dc351388856e53cb10b0f96d89877e60e674f3c8706",
         "0000000000000000000000000000000000000000000000000000000000000004",
         "03a78ba4460fff8b2e35b9216e8a0c0248c10d1178c6302fb22e4a642d67f625",
-        "0036d0f0cc0a1d0964599339526cb4c75760da3ac2a25e1a38c0ae204e710050",
+        "000e9cee46f2d57cac235b7572880724abc996596969b15278f1c922e5f58f4b",
         "2098f5fb9e239eab3ceac3f27b81e481dc3124d55ffed523a839ee8446b64864",
         "30644e72e131a029b85045b68181585d2833e84879b9709143e1f593d3d699e4",
         "0000000000000000000000000000000000000000000000000000000000000000",
@@ -4724,14 +4724,14 @@
         "0000000000000000000000000000000000000000000000000000000000000000",
         "0532fd436e19c70e51209694d9c215250937921b8b79060488c1206db73e9946"
       ],
-      "publicInputHash": "155b0347266827e4c09f488ef6cd68a1c0d4710fc0c724c938cf000d9797c8ae",
+      "publicInputHash": "00b313c34efc8faadc2a5838a18796e007570fde50518d41ff7552f96c063d77",
       "merkleProofs": [
         [
           {
             "leaf": "31q8V6vRcp7tPMadfFHcQayLjnTbxxYV9LK9zLWNnsfG",
             "merkleContext": {
               "treeType": 1,
-              "tree": "GV6pLVQLDs7bpUiEhgiK9gjXfZf5y9gKbn7QKt3HEJTs"
+              "tree": "G6hy8nFqbALaKE4UwcvdxsPmS8xaFcZWmfGDALPa8gHR"
             },
             "path": [
               "3zQFQPuRjpwMyBzWaqzKsXqMtpBGAMtQH1Ya12mCddwH",
@@ -4778,7 +4778,7 @@
             "leaf": "oL6reN2yR6MCpq6nCNK3mgcJXVe7wCfiajgZ2r4sYkA",
             "merkleContext": {
               "treeType": 1,
-              "tree": "Cqu55AjGprSHJKs65Sw3P4zi1ZtJGy56jz91TyKmw3Cn"
+              "tree": "6kmoyYDZ7ECi8USmHVaePETKgyhLeiMEKMasGHSKqD13"
             },
             "path": [
               "yeTstLeEYzahRzyujkL5EP3cq9hh9cpkx5UQGjTvwcr",
@@ -4827,7 +4827,7 @@
             "leaf": "2ovgGmJ18ASrL1JY3ZB5H8fweWTopEAf4DwgSzxn7Qqn",
             "merkleContext": {
               "treeType": 2,
-              "tree": "GV6pLVQLDs7bpUiEhgiK9gjXfZf5y9gKbn7QKt3HEJTs"
+              "tree": "G6hy8nFqbALaKE4UwcvdxsPmS8xaFcZWmfGDALPa8gHR"
             },
             "path": [
               "mAWd2RW2aPrWK8QFaw69kCs3m6cBDGyfbGqHnvwg5cA",
@@ -4885,7 +4885,7 @@
             "leaf": "3S1MZ3gHz7Yx24nqVxPURFCU5ii6hV8NmHRZ9M1rWDdx",
             "merkleContext": {
               "treeType": 2,
-              "tree": "Cqu55AjGprSHJKs65Sw3P4zi1ZtJGy56jz91TyKmw3Cn"
+              "tree": "6kmoyYDZ7ECi8USmHVaePETKgyhLeiMEKMasGHSKqD13"
             },
             "path": [
               "kdNgwGrndBwZKnPBg4yXK3r9KRcVqHxv1EyLmrL6wYZ",
@@ -4979,7 +4979,7 @@
         ],
         "outputTreeId": "0x4",
         "blindingSeed": "0x42424242424242424242424242424242424242424242424242424242424242",
-        "externalDataHash": "0x36d0f0cc0a1d0964599339526cb4c75760da3ac2a25e1a38c0ae204e710050",
+        "externalDataHash": "0xe9cee46f2d57cac235b7572880724abc996596969b15278f1c922e5f58f4b",
         "privateTxHash": "0x3a78ba4460fff8b2e35b9216e8a0c0248c10d1178c6302fb22e4a642d67f625",
         "publicAssets": [
           "0x2098f5fb9e239eab3ceac3f27b81e481dc3124d55ffed523a839ee8446b64864",
@@ -5230,7 +5230,7 @@
             "nullifierRoot": "0x0"
           }
         ],
-        "publicInputHash": "0x155b0347266827e4c09f488ef6cd68a1c0d4710fc0c724c938cf000d9797c8ae"
+        "publicInputHash": "0xb313c34efc8faadc2a5838a18796e007570fde50518d41ff7552f96c063d77"
       },
       "response": {
         "ar": [
@@ -5251,7 +5251,7 @@
           "0x1a477ffa412ae1c653102dfc0f72b0ff60e3187bf972522730ae8fc00442b816",
           "0x1857fb18e10df4eb3992345ddedd056eab229d22ae45ce1fb8b0d540e01e5e98"
         ],
-        "provingKeySha256": "e810d52962f4558b0bd50b768a89490759e15a0623d4c2c43318f541b8cc61ff"
+        "provingKeySha256": "51380b1264737ebd4d31f40ebf6874db039078ce998d4fa187c049ace99798bb"
       },
       "proof": "11c37d02be2e63502c7b65480419ca3a97ca39a4d3609f355225e1a5b33b7a41228a8d21fcbb0b44a739f1f7ad1b06a0f4753502236a4b36588008113af2fbd42a8adb1c01d40f074b519544194e3f850504894af4ac8cf924985752d029157d261c6fac44f970b7283f70a5095ac1e72b9f3cd8ae6a433639c3d05d544ae8011d2d6edd5d0cae91745254f86ed2c0d5261335046ae99968e196a44b3212a0609a477ffa412ae1c653102dfc0f72b0ff60e3187bf972522730ae8fc00442b816",
       "treeContexts": [
@@ -5264,7 +5264,7 @@
           67
         ]
       ],
-      "instructionData": "10ffffffffffffffff02146965f708a98471b0bc86cb36dc6e2c6122e9564c5e70d68a04773f2f1469855a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a01011d66291c0000000000000229de7fe18edcac22c5bdcd707899971b4a5c95328b24ca0a5f0b015b021234ac01000159000154000000030299cff79e0e9e5a109e998f3868a1c358eb82e30ee4737ce8271c1e3a473ea0f69039d5d4027515a67d7253702e071c86bb169b576ede7e347b575ac1c169c38ffc2c50c9fdc3e2069ef032cc73baf5b3b6f60273de864455d2653fcf85bc0c18e06ae02a20cb1c4626edec17e2cc9c96e7040100015900e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e00003a78ba4460fff8b2e35b9216e8a0c0248c10d1178c6302fb22e4a642d67f625000002020311c37d02be2e63502c7b65480419ca3a97ca39a4d3609f355225e1a5b33b7a41228a8d21fcbb0b44a739f1f7ad1b06a0f4753502236a4b36588008113af2fbd42a8adb1c01d40f074b519544194e3f850504894af4ac8cf924985752d029157d261c6fac44f970b7283f70a5095ac1e72b9f3cd8ae6a433639c3d05d544ae8011d2d6edd5d0cae91745254f86ed2c0d5261335046ae99968e196a44b3212a0609a477ffa412ae1c653102dfc0f72b0ff60e3187bf972522730ae8fc00442b816021ae118d738c1befb07e2899d4d6cbb8b53a9dec190f196394e4aa01b640a5d2900241f4b74a67d318b3489847295625a7699bb06ccd1c3504e35379d2b69e6cda70102ea002800da014300"
+      "instructionData": "10ffffffffffffffff0476ad143e2445f2f55cf01cb8232f28466bf98915019f44b1c148b375017851235a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a01011d66291c0000000000000229de7fe18edcac22c5bdcd707899971b4a5c95328b24ca0a5f0b015b021234ac01000159000154000000030419078976c68ba992eb10aae97df1e453731a022d6c46eb8a0a4f1c976a0cc20a7390788f467140dd04fcce0c161845b6b90a7de295a5fc3beab5405d15b49900ddb1a371bd16b63ad013ff53b5ec040a21f80273de864455d2653fcf85bc0c18e06ae02a20cb1c4626edec17e2cc9c96e7040100015900e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e00003a78ba4460fff8b2e35b9216e8a0c0248c10d1178c6302fb22e4a642d67f625000002020311c37d02be2e63502c7b65480419ca3a97ca39a4d3609f355225e1a5b33b7a41228a8d21fcbb0b44a739f1f7ad1b06a0f4753502236a4b36588008113af2fbd42a8adb1c01d40f074b519544194e3f850504894af4ac8cf924985752d029157d261c6fac44f970b7283f70a5095ac1e72b9f3cd8ae6a433639c3d05d544ae8011d2d6edd5d0cae91745254f86ed2c0d5261335046ae99968e196a44b3212a0609a477ffa412ae1c653102dfc0f72b0ff60e3187bf972522730ae8fc00442b816021ae118d738c1befb07e2899d4d6cbb8b53a9dec190f196394e4aa01b640a5d2900241f4b74a67d318b3489847295625a7699bb06ccd1c3504e35379d2b69e6cda70102ea002800da014300"
     },
     {
       "name": "random 3: 1 inputs, 1 trees, both",
@@ -5292,7 +5292,7 @@
         "244b9c3824fcabf5bd7e0477cfa0c95c92714e1c3edb4e1653307f35f4bd107c",
         "0000000000000000000000000000000000000000000000000000000000000003",
         "006c4fb601c7c3dc98d704f055e00945c20a6cc77b78a5c27e12426f42c4f8db",
-        "0070ce1691a11716308365d72a52d9d9536012530885c162d01b6b469611b8ab",
+        "007b64cd3e9097458b614eb5c67c226aeff00766e389a8690c171c550c97197f",
         "2098f5fb9e239eab3ceac3f27b81e481dc3124d55ffed523a839ee8446b64864",
         "30644e72e131a029b85045b68181585d2833e84879b9709143e1f593da3d1461",
         "0000000000000000000000000000000000000000000000000000000000000000",
@@ -5306,14 +5306,14 @@
         "0000000000000000000000000000000000000000000000000000000000000000",
         "0000000000000000000000000000000000000000000000000000000000000000"
       ],
-      "publicInputHash": "2c297ceab048c6855036932b303b671654613d1773b0bd244d1b3252484f1fd8",
+      "publicInputHash": "0f16f1aca1165df916e50b9aeaabbfa8b7642e0a928aa7f7f5585c7a75d0a00d",
       "merkleProofs": [
         [
           {
             "leaf": "3DWEFWYtvtACVS1EUidK59YovPDFNhQKcZFMuRDTHS8w",
             "merkleContext": {
               "treeType": 1,
-              "tree": "33KVhbT4QtdQDrrrGwwThqD47Dh4Q6tA443t9jMNcWFN"
+              "tree": "777pvSGe5LaBd9nCczvE2FXEauiwtfGJ5XRpjKyniGor"
             },
             "path": [
               "2Vdqndmpgi9EKggxkHZTPGibRsDwnSrwecAvpwzNxw4Z",
@@ -5362,7 +5362,7 @@
             "leaf": "yZU8K7bCUqgwsZtX27gvtXXmTu78rWJdGuf1r7cfxcU",
             "merkleContext": {
               "treeType": 2,
-              "tree": "33KVhbT4QtdQDrrrGwwThqD47Dh4Q6tA443t9jMNcWFN"
+              "tree": "777pvSGe5LaBd9nCczvE2FXEauiwtfGJ5XRpjKyniGor"
             },
             "path": [
               "3gU2HEp4cvRD5vgkddMxLy5cJZRr84yxGCdL9CyCKQMa",
@@ -5456,7 +5456,7 @@
         ],
         "outputTreeId": "0x3",
         "blindingSeed": "0x42424242424242424242424242424242424242424242424242424242424242",
-        "externalDataHash": "0x70ce1691a11716308365d72a52d9d9536012530885c162d01b6b469611b8ab",
+        "externalDataHash": "0x7b64cd3e9097458b614eb5c67c226aeff00766e389a8690c171c550c97197f",
         "privateTxHash": "0x6c4fb601c7c3dc98d704f055e00945c20a6cc77b78a5c27e12426f42c4f8db",
         "publicAssets": [
           "0x2098f5fb9e239eab3ceac3f27b81e481dc3124d55ffed523a839ee8446b64864",
@@ -5609,7 +5609,7 @@
             "nullifierRoot": "0x0"
           }
         ],
-        "publicInputHash": "0x2c297ceab048c6855036932b303b671654613d1773b0bd244d1b3252484f1fd8"
+        "publicInputHash": "0xf16f1aca1165df916e50b9aeaabbfa8b7642e0a928aa7f7f5585c7a75d0a00d"
       },
       "response": {
         "ar": [
@@ -5630,7 +5630,7 @@
           "0x275c089433f8015a9b9c1ad64e13fd6a7a1b0ead0de43492c692b91f8238f67b",
           "0x140248e3d0a9a9e857830313a6bf9734dda4cb920b49a31f3520c8f2b8b6a728"
         ],
-        "provingKeySha256": "7ef987966b0dfba5d86eab7c67068be00dbe581d823d45cdbbf6d338bfacb640"
+        "provingKeySha256": "c0b5c1a1081136911a6ad5496fb989ed26d85b09e983a4d5048cff96e0833d85"
       },
       "proof": "04760e7d2669e42166c462372674b2d2e7de6e0752f112fe0ea228176ad17e262844e42bd93058e019918418739633e01791bd759782ae95aee6a2b4375d4cfc0e0e88d88c5c7680d55de3dc518a11abee7df1d40705cc54997171dccaf0f9ad2cb91022a2369a22cacf25d439555b306d125f7a70673775103b71b1d05dda941f11aa546e9b519fb2609f232c863f4a6b0631267ba303f720bbc4624c9845a0275c089433f8015a9b9c1ad64e13fd6a7a1b0ead0de43492c692b91f8238f67b",
       "treeContexts": [
@@ -5639,7 +5639,7 @@
           65
         ]
       ],
-      "instructionData": "10ffffffffffffffff0365e6974f875cbae7af4f29c2832f1c304ee597b50e40f680f6ebc083258ef9c45a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a0101a0ebc2150000000000000206ac62b0d85cedc185f49296b7b0a0b87b9c7a95e93191a7a373d5aba58a39df00fd1724385aa0c75b64fb78cd602fa1d991fdebf76b13c58ed702eac835e9f6180159000154000000030210982b83d5bf7d5f08599fbddc77d1cb7f72e02adae8017ec2118f40c46a3a9be915fc01005fd45dd2bf29437ac642784c77081a16f189d154b54182f0c66f3578cfa00126ac0248540e610229be920ceac214966537d822215c199b6d5bae40be330cf0b03a36d7e3224fc98a37b1f6947e01000159000154000000030299cff79e0e9e5a109e998f3868a1c358eb82e30ee4737ce8271c1e3a473ea0f634d6723593c00f090be06c4721661fe672ccad8cedbb0a23f50acc4be8eeb744be072959a72289e9403281a95f645628c77600006c4fb601c7c3dc98d704f055e00945c20a6cc77b78a5c27e12426f42c4f8db000001020304760e7d2669e42166c462372674b2d2e7de6e0752f112fe0ea228176ad17e262844e42bd93058e019918418739633e01791bd759782ae95aee6a2b4375d4cfc0e0e88d88c5c7680d55de3dc518a11abee7df1d40705cc54997171dccaf0f9ad2cb91022a2369a22cacf25d439555b306d125f7a70673775103b71b1d05dda941f11aa546e9b519fb2609f232c863f4a6b0631267ba303f720bbc4624c9845a0275c089433f8015a9b9c1ad64e13fd6a7a1b0ead0de43492c692b91f8238f67b010e7d3c94a9182e8a2e4873ee29f6e636cfacfb8e640cf2a34710de4b899213e50001ba004100"
+      "instructionData": "10ffffffffffffffff048e30b2af41a1a00298722530e942de1bc63c48a6fd7c14652f1fde0c89cd42165a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a0101a0ebc2150000000000000206ac62b0d85cedc185f49296b7b0a0b87b9c7a95e93191a7a373d5aba58a39df00fd1724385aa0c75b64fb78cd602fa1d991fdebf76b13c58ed702eac835e9f61801590001540000000304920828ac6abb2b932db3f36e31a9fca2e202309fa156df3e05a1d976ff3b8b6d6c923d9c6153fc489352700903a62d2f2e512704cee0f0c6ad598730ba94b3fa3a3265fb9bf2ead89214d40a36853265cd1414966537d822215c199b6d5bae40be330cf0b03a36d7e3224fc98a37b1f6947e01000159000154000000030419078976c68ba992eb10aae97df1e453731a022d6c46eb8a0a4f1c976a0cc20a2c3d481f74ba120f5b37156a12ad4725ebf55fca6ad20db3ada80e5158844b049bd4ab35f727da36b57fb1061a043c38824200006c4fb601c7c3dc98d704f055e00945c20a6cc77b78a5c27e12426f42c4f8db000001020304760e7d2669e42166c462372674b2d2e7de6e0752f112fe0ea228176ad17e262844e42bd93058e019918418739633e01791bd759782ae95aee6a2b4375d4cfc0e0e88d88c5c7680d55de3dc518a11abee7df1d40705cc54997171dccaf0f9ad2cb91022a2369a22cacf25d439555b306d125f7a70673775103b71b1d05dda941f11aa546e9b519fb2609f232c863f4a6b0631267ba303f720bbc4624c9845a0275c089433f8015a9b9c1ad64e13fd6a7a1b0ead0de43492c692b91f8238f67b010e7d3c94a9182e8a2e4873ee29f6e636cfacfb8e640cf2a34710de4b899213e50001ba004100"
     },
     {
       "name": "random 4: 1 inputs, 1 trees, transfer all",
@@ -5667,7 +5667,7 @@
         "193722e62dc018ab92045069d0d56a5e094d3831902e479b44157bfb1f7748b1",
         "0000000000000000000000000000000000000000000000000000000000000005",
         "0f16331e9e9ef957d15e688acf77677445a22440e373833d1d9513c215520a59",
-        "0061da8a73cfbeac377f0c7973998aba8c19a0a6f67eac0d0e26a6b69a956b81",
+        "00347387085f4f4915e6929549b8127be123d93a83b4486ca745e1d1ed673561",
         "0000000000000000000000000000000000000000000000000000000000000000",
         "0000000000000000000000000000000000000000000000000000000000000000",
         "0000000000000000000000000000000000000000000000000000000000000000",
@@ -5681,14 +5681,14 @@
         "0000000000000000000000000000000000000000000000000000000000000000",
         "0000000000000000000000000000000000000000000000000000000000000000"
       ],
-      "publicInputHash": "067849c5152cf76597e3e5477ca1a225d02b67d64a5c40368ee53afcc1dcb564",
+      "publicInputHash": "1aaa0d4c4c36348f558c832ba179c99292b453abf62c40236815cb89484a0ae2",
       "merkleProofs": [
         [
           {
             "leaf": "36sJkx1SCBFJwDh8MkVyGK7q4kZS5V9n2EWkyA3cF5Fh",
             "merkleContext": {
               "treeType": 1,
-              "tree": "Cqu55AjGprSHJKs65Sw3P4zi1ZtJGy56jz91TyKmw3Cn"
+              "tree": "6kmoyYDZ7ECi8USmHVaePETKgyhLeiMEKMasGHSKqD13"
             },
             "path": [
               "2sEmxBikTzrHcYX3oGaJfKC3B5B1Ux5yuRjSnArwWQdY",
@@ -5737,7 +5737,7 @@
             "leaf": "3KRT2J51Eymq5fStjTWBAh4rRvobpacUgip3cNGHu2L3",
             "merkleContext": {
               "treeType": 2,
-              "tree": "Cqu55AjGprSHJKs65Sw3P4zi1ZtJGy56jz91TyKmw3Cn"
+              "tree": "6kmoyYDZ7ECi8USmHVaePETKgyhLeiMEKMasGHSKqD13"
             },
             "path": [
               "2ym113wd6azaiPkGc1Xt73yaiZHZEqWL49SgbfWw9Dtf",
@@ -5831,7 +5831,7 @@
         ],
         "outputTreeId": "0x5",
         "blindingSeed": "0x42424242424242424242424242424242424242424242424242424242424242",
-        "externalDataHash": "0x61da8a73cfbeac377f0c7973998aba8c19a0a6f67eac0d0e26a6b69a956b81",
+        "externalDataHash": "0x347387085f4f4915e6929549b8127be123d93a83b4486ca745e1d1ed673561",
         "privateTxHash": "0xf16331e9e9ef957d15e688acf77677445a22440e373833d1d9513c215520a59",
         "publicAssets": [
           "0x0",
@@ -5984,7 +5984,7 @@
             "nullifierRoot": "0x0"
           }
         ],
-        "publicInputHash": "0x67849c5152cf76597e3e5477ca1a225d02b67d64a5c40368ee53afcc1dcb564"
+        "publicInputHash": "0x1aaa0d4c4c36348f558c832ba179c99292b453abf62c40236815cb89484a0ae2"
       },
       "response": {
         "ar": [
@@ -6005,7 +6005,7 @@
           "0x250d49c6e08e7ef4e475f9d692ab440692fa54599af0832e72029b9c83d1a886",
           "0x29ada12f813ce9320f9a1f8e6c96bb47bb87860ea924e328fa4d3daf89efd32c"
         ],
-        "provingKeySha256": "7ef987966b0dfba5d86eab7c67068be00dbe581d823d45cdbbf6d338bfacb640"
+        "provingKeySha256": "c0b5c1a1081136911a6ad5496fb989ed26d85b09e983a4d5048cff96e0833d85"
       },
       "proof": "00c418613de8017a8efd7e9bd39d73f724f2370a02161d578a4b1de73ec0295f292e21d42536a659c6ca056ea5014165ca5e40afdff0e96e7e28e03498ef7fa20bb5b6090a68cdf9c030af16728cf4944d3e7aa7586745c0f823446b2dd3afd1100b92a2196e1948f7865fda8d0c0365be8f00f86f385a6aae917f4c33716e382c8b12fbfcd626f66cc3d62636fed22d6f1ad0f5cc434e8ae703c2f4a7492824a50d49c6e08e7ef4e475f9d692ab440692fa54599af0832e72029b9c83d1a886",
       "treeContexts": [
@@ -6014,7 +6014,7 @@
           57
         ]
       ],
-      "instructionData": "10ffffffffffffffff02de4bd0fdf72e499802d1fcae5bfe00cbcaa3d1860857c5ecb0ca6c1fa2a963245a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a00000002293bea5d3c03a74969dc5ad03a92b0500ceda15906025eee29425c658f96113100fd1724385aa0c75b64fb78cd602fa1d991fdebf76b13c58ed702eac835e9f6180159000154000000030210982b83d5bf7d5f08599fbddc77d1cb7f72e02adae8017ec2118f40c46a3a9b67772d4a3b4c82f75fc6817178bc04c3765fdf320915af1205dde0e8edf54add317cdf6a509ba0f94a38238b2e205befcb7c2c53d4d9d2c069c41617fe3ec6ba8829890d60d0595b32f8fe87cc7e412fd09b00fd1724385aa0c75b64fb78cd602fa1d991fdebf76b13c58ed702eac835e9f618015900e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0000f16331e9e9ef957d15e688acf77677445a22440e373833d1d9513c215520a59000001020300c418613de8017a8efd7e9bd39d73f724f2370a02161d578a4b1de73ec0295f292e21d42536a659c6ca056ea5014165ca5e40afdff0e96e7e28e03498ef7fa20bb5b6090a68cdf9c030af16728cf4944d3e7aa7586745c0f823446b2dd3afd1100b92a2196e1948f7865fda8d0c0365be8f00f86f385a6aae917f4c33716e382c8b12fbfcd626f66cc3d62636fed22d6f1ad0f5cc434e8ae703c2f4a7492824a50d49c6e08e7ef4e475f9d692ab440692fa54599af0832e72029b9c83d1a88601226f78fc9fc987f3c616e0bf0b699a774774d60c99be8eed2f2baa7574839db4000121013900"
+      "instructionData": "10ffffffffffffffff04788a4b5572088912ea9b8e101c2095b345abdc5071d179fb7f00f58f770cf51a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a00000002293bea5d3c03a74969dc5ad03a92b0500ceda15906025eee29425c658f96113100fd1724385aa0c75b64fb78cd602fa1d991fdebf76b13c58ed702eac835e9f61801590001540000000304920828ac6abb2b932db3f36e31a9fca2e202309fa156df3e05a1d976ff3b8b6dd6328cbb8fba8d09442fd188dc35f8ba2646558dc06d778265f2d3b4c85085ad1875df36f68968d0e5c5c4c8d064a90edcc52c53d4d9d2c069c41617fe3ec6ba8829890d60d0595b32f8fe87cc7e412fd09b00fd1724385aa0c75b64fb78cd602fa1d991fdebf76b13c58ed702eac835e9f618015900e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0000f16331e9e9ef957d15e688acf77677445a22440e373833d1d9513c215520a59000001020300c418613de8017a8efd7e9bd39d73f724f2370a02161d578a4b1de73ec0295f292e21d42536a659c6ca056ea5014165ca5e40afdff0e96e7e28e03498ef7fa20bb5b6090a68cdf9c030af16728cf4944d3e7aa7586745c0f823446b2dd3afd1100b92a2196e1948f7865fda8d0c0365be8f00f86f385a6aae917f4c33716e382c8b12fbfcd626f66cc3d62636fed22d6f1ad0f5cc434e8ae703c2f4a7492824a50d49c6e08e7ef4e475f9d692ab440692fa54599af0832e72029b9c83d1a88601226f78fc9fc987f3c616e0bf0b699a774774d60c99be8eed2f2baa7574839db4000121013900"
     },
     {
       "name": "random 5: 3 inputs, 1 trees, withdraw all",
@@ -6052,7 +6052,7 @@
         "1291894e1d220873680f07254a9616a5fbfeb50b3693b41534051e2317e076a4",
         "0000000000000000000000000000000000000000000000000000000000000000",
         "1b7cf2f5085e17c6d009f202f1971d6d2f0a4d12ab5fc1724a6d8699889675ba",
-        "00a19c21b7ef179ee094ee14dc4f0984179165b51b7291fafea9e751b8bd7006",
+        "003ed77bc7f7b6714ed5ca6a445682a156ccaad56ee33642ea72065ae0517eb8",
         "2098f5fb9e239eab3ceac3f27b81e481dc3124d55ffed523a839ee8446b64864",
         "30644e72e131a029b85045b68181585d2833e84879b9709143e1f59361c37aa2",
         "0000000000000000000000000000000000000000000000000000000000000000",
@@ -6066,14 +6066,14 @@
         "0000000000000000000000000000000000000000000000000000000000000000",
         "0532fd436e19c70e51209694d9c215250937921b8b79060488c1206db73e9946"
       ],
-      "publicInputHash": "01975f63f6dbdc4e1ea2f279ee58c30f62ed35153724d1ca78631f2d274b7aaa",
+      "publicInputHash": "0a90176085cf35f399ed62b69674f9522f2cc70c4f31b8fa1ced535678e44f4e",
       "merkleProofs": [
         [
           {
             "leaf": "3YcqMvpwCLauY6WMWM69kf7BvYfm6dzE83m3kTv1b9cx",
             "merkleContext": {
               "treeType": 1,
-              "tree": "Bd8kJkRY6ZPmEX3QX6PiCfsoGNDxkqrDZE8UtUWQyos6"
+              "tree": "5u31cLB9RkVmXX1bToZrs1X6vhBJytdsCtjpxqov5T7v"
             },
             "path": [
               "2uRqEooXR9ZGZPMmRaoA6LQhr1heZUDGTZzF3oeHcA2Z",
@@ -6118,7 +6118,7 @@
             "leaf": "2YEq9dgt5a5JYnBrZvFhjue7N2bQoExMg1Ubo8YpSJC3",
             "merkleContext": {
               "treeType": 1,
-              "tree": "Bd8kJkRY6ZPmEX3QX6PiCfsoGNDxkqrDZE8UtUWQyos6"
+              "tree": "5u31cLB9RkVmXX1bToZrs1X6vhBJytdsCtjpxqov5T7v"
             },
             "path": [
               "31Lpxqb3Fz38X9FaHLL3Nqa95pjqbjt1f7a6n5fZu7Hk",
@@ -6163,7 +6163,7 @@
             "leaf": "Fw7QxpuTu2wYAYjW5HfUcqozBU8eKPZujMXi6osbvqq",
             "merkleContext": {
               "treeType": 1,
-              "tree": "Bd8kJkRY6ZPmEX3QX6PiCfsoGNDxkqrDZE8UtUWQyos6"
+              "tree": "5u31cLB9RkVmXX1bToZrs1X6vhBJytdsCtjpxqov5T7v"
             },
             "path": [
               "s8XCNhEnDYtYmu91Nv9kSU1SrkPG8QY2BrqbKDcQ5sP",
@@ -6212,7 +6212,7 @@
             "leaf": "2v14emzBEsorX9tRMWpobfdanvmC8vTQvz7sgCPw6YMJ",
             "merkleContext": {
               "treeType": 2,
-              "tree": "Bd8kJkRY6ZPmEX3QX6PiCfsoGNDxkqrDZE8UtUWQyos6"
+              "tree": "5u31cLB9RkVmXX1bToZrs1X6vhBJytdsCtjpxqov5T7v"
             },
             "path": [
               "2uwVGAt4G9zg73qNweyPRJeEGQD2THSqkKChxThs5bME",
@@ -6268,7 +6268,7 @@
             "leaf": "2X8bJeiFMjRA7rC8MFS5TUrPxFk1KMfjFCP31yQRL7zY",
             "merkleContext": {
               "treeType": 2,
-              "tree": "Bd8kJkRY6ZPmEX3QX6PiCfsoGNDxkqrDZE8UtUWQyos6"
+              "tree": "5u31cLB9RkVmXX1bToZrs1X6vhBJytdsCtjpxqov5T7v"
             },
             "path": [
               "374zbbajtbeRf5rVaWZ8nvFcroQ3BLiZfeoSFZJvpJdo",
@@ -6324,7 +6324,7 @@
             "leaf": "3EpR5q97Sqeh86hqeHXJthaYU3PrRsBC6xGji43w4HNa",
             "merkleContext": {
               "treeType": 2,
-              "tree": "Bd8kJkRY6ZPmEX3QX6PiCfsoGNDxkqrDZE8UtUWQyos6"
+              "tree": "5u31cLB9RkVmXX1bToZrs1X6vhBJytdsCtjpxqov5T7v"
             },
             "path": [
               "ChzwYi727KURkVMpUJPJ5UufGSyLw9c5g95P1zBnZwf",
@@ -6418,7 +6418,7 @@
         ],
         "outputTreeId": "0x0",
         "blindingSeed": "0x42424242424242424242424242424242424242424242424242424242424242",
-        "externalDataHash": "0xa19c21b7ef179ee094ee14dc4f0984179165b51b7291fafea9e751b8bd7006",
+        "externalDataHash": "0x3ed77bc7f7b6714ed5ca6a445682a156ccaad56ee33642ea72065ae0517eb8",
         "privateTxHash": "0x1b7cf2f5085e17c6d009f202f1971d6d2f0a4d12ab5fc1724a6d8699889675ba",
         "publicAssets": [
           "0x2098f5fb9e239eab3ceac3f27b81e481dc3124d55ffed523a839ee8446b64864",
@@ -6767,7 +6767,7 @@
             "nullifierRoot": "0x0"
           }
         ],
-        "publicInputHash": "0x1975f63f6dbdc4e1ea2f279ee58c30f62ed35153724d1ca78631f2d274b7aaa"
+        "publicInputHash": "0xa90176085cf35f399ed62b69674f9522f2cc70c4f31b8fa1ced535678e44f4e"
       },
       "response": {
         "ar": [
@@ -6788,7 +6788,7 @@
           "0x15fd79a5632ae353d59d6b2b1c8064853bb937df3ffec001df1adcd4c81a1f6d",
           "0x25366b4e53d1b5ae5a8423cb06035fc1f26611a4fb827c048866218686593bd4"
         ],
-        "provingKeySha256": "0537e6669e6dae3304648bd427bf3f9ec3e5aaa66134d15e0ff142794f2e966b"
+        "provingKeySha256": "72379691c3b515ff939a9e57fa52204489bdae376642a4e675c0b8830118b097"
       },
       "proof": "a90176ffbd8c662655efe4125224e0fae2eafa4b2520b2a4d2f151375593e8930a031d5eb9da8a780c68fab38e3715ca7ee85c76acf738038d19a1f6acc0184a0014036b1d95ce3c1983966ea0e3753da681561b68086655f67df47067fbcb801519450198e7403e6ec65b4928b9dfc2341b086abc8b28faaa70499ccfcfe244031c5cc4fbb16c27d1f8b889927ead290dff72d12b538b3d5ccf238fc705f08c95fd79a5632ae353d59d6b2b1c8064853bb937df3ffec001df1adcd4c81a1f6d",
       "treeContexts": [
@@ -6797,7 +6797,7 @@
           42
         ]
       ],
-      "instructionData": "10ffffffffffffffff0355f34fa344e7fc5618f8cd8776014325e23c7431eeb4eff7c115b00ffa40737e5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a01015f853c8e000000000000022485a5862202f3f22d898c05b8fa3bb81a53bd72cac1065c0c313c63f56c841b01000159000154000000030299cff79e0e9e5a109e998f3868a1c358eb82e30ee4737ce8271c1e3a473ea0f602501b3fbc794b5063504d743e3f6392853feab922bbbe97d24e3a421abbfe2d03f54687d6d5ef4830ea547f5570457783822a7945fde705dc53343ba5e83f4bbd8105315dcbe79005ab9c4db8fbb40246430100015900e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0001b7cf2f5085e17c6d009f202f1971d6d2f0a4d12ab5fc1724a6d8699889675ba0000030203a90176ffbd8c662655efe4125224e0fae2eafa4b2520b2a4d2f151375593e8930a031d5eb9da8a780c68fab38e3715ca7ee85c76acf738038d19a1f6acc0184a0014036b1d95ce3c1983966ea0e3753da681561b68086655f67df47067fbcb801519450198e7403e6ec65b4928b9dfc2341b086abc8b28faaa70499ccfcfe244031c5cc4fbb16c27d1f8b889927ead290dff72d12b538b3d5ccf238fc705f08c95fd79a5632ae353d59d6b2b1c8064853bb937df3ffec001df1adcd4c81a1f6d031c6f8a7e42dff9292f8c41ca75f5a5cbb113a58b45b5cc4f350be41bac06c41d001693b1e3d44cc2040c69dfcdda90a379de06ad1a5a8564a7111103a17431afb90021418974f59f1827eea1e4a7afc272de16bc2fe364ea4f79b852ffc6389f777b000173002a00"
+      "instructionData": "10ffffffffffffffff048cf3ec561cfb5ea46432d16ac16d395feb98d75841793bfb70c0abdc3ea0cd795a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a01015f853c8e000000000000022485a5862202f3f22d898c05b8fa3bb81a53bd72cac1065c0c313c63f56c841b01000159000154000000030419078976c68ba992eb10aae97df1e453731a022d6c46eb8a0a4f1c976a0cc20ae25915058a4095f5785232ef0d6956adc85492e414541e6aa91e1ee1e38bfceeada170d027ddebe67888382e1c5a2579ea7f2a7945fde705dc53343ba5e83f4bbd8105315dcbe79005ab9c4db8fbb40246430100015900e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0001b7cf2f5085e17c6d009f202f1971d6d2f0a4d12ab5fc1724a6d8699889675ba0000030203a90176ffbd8c662655efe4125224e0fae2eafa4b2520b2a4d2f151375593e8930a031d5eb9da8a780c68fab38e3715ca7ee85c76acf738038d19a1f6acc0184a0014036b1d95ce3c1983966ea0e3753da681561b68086655f67df47067fbcb801519450198e7403e6ec65b4928b9dfc2341b086abc8b28faaa70499ccfcfe244031c5cc4fbb16c27d1f8b889927ead290dff72d12b538b3d5ccf238fc705f08c95fd79a5632ae353d59d6b2b1c8064853bb937df3ffec001df1adcd4c81a1f6d031c6f8a7e42dff9292f8c41ca75f5a5cbb113a58b45b5cc4f350be41bac06c41d001693b1e3d44cc2040c69dfcdda90a379de06ad1a5a8564a7111103a17431afb90021418974f59f1827eea1e4a7afc272de16bc2fe364ea4f79b852ffc6389f777b000173002a00"
     },
     {
       "name": "random 6: 12 inputs, 2 trees, both",
@@ -6885,7 +6885,7 @@
         "06f441f9d3a9c2c65e5d5fcdc2a46bcc7f70b1350a9dec6b7ddd83a5d41acddb",
         "0000000000000000000000000000000000000000000000000000000000000000",
         "29e674b433a3fbd11a8d7dd6e0a51032d9c405d4338f6e33ab1dd00e91c193c4",
-        "000f91b8d30e5dcdfc7efbc568ca5041e86fd60914e54de1f40c0574dbf78c2d",
+        "001a970d81dc178c1e1f8308d82cc74645a6fd2e85539cd698d07738eb6b772c",
         "2098f5fb9e239eab3ceac3f27b81e481dc3124d55ffed523a839ee8446b64864",
         "30644e72e131a029b85045b68181585d2833e84879b9709143e1f59370ace716",
         "0000000000000000000000000000000000000000000000000000000000000000",
@@ -6899,14 +6899,14 @@
         "0000000000000000000000000000000000000000000000000000000000000000",
         "0ba4c4ef2b93cc95e67e42deedfc2d44128cc7824ab372524da35d9058abb8df"
       ],
-      "publicInputHash": "03ef47bb518c543f73982f3312726f4a13714007a911d4eddc181bda337132da",
+      "publicInputHash": "03ee8bd9624e12685e7c7d27faea5f8df2a0be80babd8e7a228e1cb8e48ebe85",
       "merkleProofs": [
         [
           {
             "leaf": "2sFr9Nu3bKAhtdAuP4ica9HNx1RpM8xrforQvfwMXnRV",
             "merkleContext": {
               "treeType": 1,
-              "tree": "33KVhbT4QtdQDrrrGwwThqD47Dh4Q6tA443t9jMNcWFN"
+              "tree": "777pvSGe5LaBd9nCczvE2FXEauiwtfGJ5XRpjKyniGor"
             },
             "path": [
               "3m39SqREGkBQtx7QnRbrXco5M9XisB2ALnyqeodwQ7gi",
@@ -6951,7 +6951,7 @@
             "leaf": "3s9v1DXmtbYfdwAoxVuWeGBLXfZDJE1ihKY2pMvUKYp9",
             "merkleContext": {
               "treeType": 1,
-              "tree": "33KVhbT4QtdQDrrrGwwThqD47Dh4Q6tA443t9jMNcWFN"
+              "tree": "777pvSGe5LaBd9nCczvE2FXEauiwtfGJ5XRpjKyniGor"
             },
             "path": [
               "9cnruNmZBHKFsz7QUDW9oip1GadYvzuYwzTTvXsPdy7",
@@ -6996,7 +6996,7 @@
             "leaf": "37zaHwRfbESC1fdii3tnfy2Q3mPep2k9jWYfgjh4NoPj",
             "merkleContext": {
               "treeType": 1,
-              "tree": "33KVhbT4QtdQDrrrGwwThqD47Dh4Q6tA443t9jMNcWFN"
+              "tree": "777pvSGe5LaBd9nCczvE2FXEauiwtfGJ5XRpjKyniGor"
             },
             "path": [
               "2BTPLXzS3yCgkEF1AG9UvTnQeaKHSqtKkEX9fDQZDFBU",
@@ -7041,7 +7041,7 @@
             "leaf": "1Xp9dL6Jh4M83r4VUhec2Je3Taq9qVchUKeSk9KBA6h",
             "merkleContext": {
               "treeType": 1,
-              "tree": "33KVhbT4QtdQDrrrGwwThqD47Dh4Q6tA443t9jMNcWFN"
+              "tree": "777pvSGe5LaBd9nCczvE2FXEauiwtfGJ5XRpjKyniGor"
             },
             "path": [
               "3UTGkKwDwVbcx12HbdjMaVMJSPRee92Lq6QxTQynAH6Z",
@@ -7086,7 +7086,7 @@
             "leaf": "25wngbLsZtBWxddTNGxrNk44AdymZp4CRssWTmm65UzV",
             "merkleContext": {
               "treeType": 1,
-              "tree": "33KVhbT4QtdQDrrrGwwThqD47Dh4Q6tA443t9jMNcWFN"
+              "tree": "777pvSGe5LaBd9nCczvE2FXEauiwtfGJ5XRpjKyniGor"
             },
             "path": [
               "2xGdU6fV1hzQsMpP9GLPvcepbLzEkaTmEX3zn7hMaaUU",
@@ -7131,7 +7131,7 @@
             "leaf": "29YXEDSiSHhcztqEAo82m3Hn3XkmvqfWsQr1WqgtJogB",
             "merkleContext": {
               "treeType": 1,
-              "tree": "33KVhbT4QtdQDrrrGwwThqD47Dh4Q6tA443t9jMNcWFN"
+              "tree": "777pvSGe5LaBd9nCczvE2FXEauiwtfGJ5XRpjKyniGor"
             },
             "path": [
               "2jetcvrhkCGbuVhAZkFDXCV1jZkqE8CVo6W6urDphzUY",
@@ -7176,7 +7176,7 @@
             "leaf": "31ZToPtBs9E4bahL8WMKR2fYG8QuvowuSPX2YH6E681h",
             "merkleContext": {
               "treeType": 1,
-              "tree": "33KVhbT4QtdQDrrrGwwThqD47Dh4Q6tA443t9jMNcWFN"
+              "tree": "777pvSGe5LaBd9nCczvE2FXEauiwtfGJ5XRpjKyniGor"
             },
             "path": [
               "2xJ9MrxtM4Pj38GgVEkndJmjsFVj6bQCu75GyhnWXmyq",
@@ -7221,7 +7221,7 @@
             "leaf": "14GeAT7UonUWjLkifUauc2LD5yiepM5EHnirTt9M83xo",
             "merkleContext": {
               "treeType": 1,
-              "tree": "33KVhbT4QtdQDrrrGwwThqD47Dh4Q6tA443t9jMNcWFN"
+              "tree": "777pvSGe5LaBd9nCczvE2FXEauiwtfGJ5XRpjKyniGor"
             },
             "path": [
               "FRjEQhQG9CczMnMmZ3hxQ5bGJgnXGQEioiwxApLwXTL",
@@ -7268,7 +7268,7 @@
             "leaf": "22y4CxWrtfoQDWnqLeDuGBC5hK3XkR2qsXfuR5uJ4vDA",
             "merkleContext": {
               "treeType": 1,
-              "tree": "Bd8kJkRY6ZPmEX3QX6PiCfsoGNDxkqrDZE8UtUWQyos6"
+              "tree": "5u31cLB9RkVmXX1bToZrs1X6vhBJytdsCtjpxqov5T7v"
             },
             "path": [
               "2sYhy2DB18GL7mHb4RjuErwPA3n54uWUeUceQdLstWxG",
@@ -7313,7 +7313,7 @@
             "leaf": "35KpsQ4jDXhhNgU7JHR4vg6NF4TRtsVGcSEb2N1E1jbQ",
             "merkleContext": {
               "treeType": 1,
-              "tree": "Bd8kJkRY6ZPmEX3QX6PiCfsoGNDxkqrDZE8UtUWQyos6"
+              "tree": "5u31cLB9RkVmXX1bToZrs1X6vhBJytdsCtjpxqov5T7v"
             },
             "path": [
               "4Cd8mATBfdsz4MNzCQUGwvrnk6Mmpphs3zQS5Hp2zc6X",
@@ -7358,7 +7358,7 @@
             "leaf": "3NAqatiXHmZZEYevxp3pBkekMHMraToAtgKH6waZYJhY",
             "merkleContext": {
               "treeType": 1,
-              "tree": "Bd8kJkRY6ZPmEX3QX6PiCfsoGNDxkqrDZE8UtUWQyos6"
+              "tree": "5u31cLB9RkVmXX1bToZrs1X6vhBJytdsCtjpxqov5T7v"
             },
             "path": [
               "2VKMSs8omHUA8A16KA9AKVYh86F4iuaiLBN5SASa4mp5",
@@ -7403,7 +7403,7 @@
             "leaf": "4C3Qt2mHsJuRFUsdbS92XJEds5m5mwzTw27hn94NrgqR",
             "merkleContext": {
               "treeType": 1,
-              "tree": "Bd8kJkRY6ZPmEX3QX6PiCfsoGNDxkqrDZE8UtUWQyos6"
+              "tree": "5u31cLB9RkVmXX1bToZrs1X6vhBJytdsCtjpxqov5T7v"
             },
             "path": [
               "4CWCZ2uGX67uSWDWaG9dtofA3bgpvuZ5fy8pUpc9Xk4p",
@@ -7452,7 +7452,7 @@
             "leaf": "3D9Fa946SkMZgy4yiwe2oQVBAnzefDgAg8CVsWCNfBPx",
             "merkleContext": {
               "treeType": 2,
-              "tree": "33KVhbT4QtdQDrrrGwwThqD47Dh4Q6tA443t9jMNcWFN"
+              "tree": "777pvSGe5LaBd9nCczvE2FXEauiwtfGJ5XRpjKyniGor"
             },
             "path": [
               "3d9pFfwtqAPUZYoP9QpzQbszg1rq7w69pm3evFMgYnxq",
@@ -7508,7 +7508,7 @@
             "leaf": "3WFV9UmAt6XMTeFqPWw1XCmL2bmQGQZrZbDL293W1oZn",
             "merkleContext": {
               "treeType": 2,
-              "tree": "33KVhbT4QtdQDrrrGwwThqD47Dh4Q6tA443t9jMNcWFN"
+              "tree": "777pvSGe5LaBd9nCczvE2FXEauiwtfGJ5XRpjKyniGor"
             },
             "path": [
               "2Hx4JYS1wApWmMrb4uor7yFTAWwTghXmBvTYNdPZwBak",
@@ -7564,7 +7564,7 @@
             "leaf": "3ve8SccYnBJmYza8MfmBFCSL2tzhBSbwtFKK74ZpP2Y3",
             "merkleContext": {
               "treeType": 2,
-              "tree": "33KVhbT4QtdQDrrrGwwThqD47Dh4Q6tA443t9jMNcWFN"
+              "tree": "777pvSGe5LaBd9nCczvE2FXEauiwtfGJ5XRpjKyniGor"
             },
             "path": [
               "33td2CXyrC6kiJzKwrdgEH8KUUvH9c7ifBSrcheHmMqT",
@@ -7620,7 +7620,7 @@
             "leaf": "35pWkZCsznABv2NzPa1j9D23bFb4oPWaHWQ7Zx7xTNhJ",
             "merkleContext": {
               "treeType": 2,
-              "tree": "33KVhbT4QtdQDrrrGwwThqD47Dh4Q6tA443t9jMNcWFN"
+              "tree": "777pvSGe5LaBd9nCczvE2FXEauiwtfGJ5XRpjKyniGor"
             },
             "path": [
               "3GHfnnP2dD6dpevgZ4YhMRyrULARjcPJn2Wj9Q9XKeAN",
@@ -7676,7 +7676,7 @@
             "leaf": "3mpBRQjFanueT4KSSTiQR7fRrkWBAe955kUmG8BBJiXx",
             "merkleContext": {
               "treeType": 2,
-              "tree": "33KVhbT4QtdQDrrrGwwThqD47Dh4Q6tA443t9jMNcWFN"
+              "tree": "777pvSGe5LaBd9nCczvE2FXEauiwtfGJ5XRpjKyniGor"
             },
             "path": [
               "PCdTZZTT6tiy1JMaRAeJEr5xdzUSE248es5SqLKgF3U",
@@ -7732,7 +7732,7 @@
             "leaf": "3VpXb5T8jGeeeT2paZRaKwyj2TiEU3vs5aYyJRuuDf8F",
             "merkleContext": {
               "treeType": 2,
-              "tree": "33KVhbT4QtdQDrrrGwwThqD47Dh4Q6tA443t9jMNcWFN"
+              "tree": "777pvSGe5LaBd9nCczvE2FXEauiwtfGJ5XRpjKyniGor"
             },
             "path": [
               "trfZn2KTK54AUGeoN4BXLTRJfsBKpFSq2kqrLPb2xkV",
@@ -7788,7 +7788,7 @@
             "leaf": "CrbxMRr3xDbBiSfrknPBzcaTs2dj7ekpkuFjpNfdS3f",
             "merkleContext": {
               "treeType": 2,
-              "tree": "33KVhbT4QtdQDrrrGwwThqD47Dh4Q6tA443t9jMNcWFN"
+              "tree": "777pvSGe5LaBd9nCczvE2FXEauiwtfGJ5XRpjKyniGor"
             },
             "path": [
               "RmKPbAT2dtJWvebb2T3puV8r4c68y6Winur8HNrcykB",
@@ -7844,7 +7844,7 @@
             "leaf": "4Dysvzvfj4vaEewFq9VZzUg8oi68g9fCATUHE24D16YQ",
             "merkleContext": {
               "treeType": 2,
-              "tree": "33KVhbT4QtdQDrrrGwwThqD47Dh4Q6tA443t9jMNcWFN"
+              "tree": "777pvSGe5LaBd9nCczvE2FXEauiwtfGJ5XRpjKyniGor"
             },
             "path": [
               "QUGSJbWmAdpjCaVsmxsCwswT8CCQQcKXwhRJKN1qVTF",
@@ -7902,7 +7902,7 @@
             "leaf": "3bXjUUxk79hybJP4pRsCwjWv8ZkxPfY9cvyyugKjRfGy",
             "merkleContext": {
               "treeType": 2,
-              "tree": "Bd8kJkRY6ZPmEX3QX6PiCfsoGNDxkqrDZE8UtUWQyos6"
+              "tree": "5u31cLB9RkVmXX1bToZrs1X6vhBJytdsCtjpxqov5T7v"
             },
             "path": [
               "3YQ6ucQHfSbvihBqh7PV1hHaXuYHNWgjE915uFEE2aeW",
@@ -7958,7 +7958,7 @@
             "leaf": "2dgNWgZ5Snj6U93k6rxQ33Nb9kgR5xS35xQgVvsbauyU",
             "merkleContext": {
               "treeType": 2,
-              "tree": "Bd8kJkRY6ZPmEX3QX6PiCfsoGNDxkqrDZE8UtUWQyos6"
+              "tree": "5u31cLB9RkVmXX1bToZrs1X6vhBJytdsCtjpxqov5T7v"
             },
             "path": [
               "2doA5bBBxgDwyjzckwRkg3gVzd3CJrmuttus3QqQtCbQ",
@@ -8014,7 +8014,7 @@
             "leaf": "2V9mw2mLBghts6vKwaDFH2giLbHwSyRgABSihKvunABw",
             "merkleContext": {
               "treeType": 2,
-              "tree": "Bd8kJkRY6ZPmEX3QX6PiCfsoGNDxkqrDZE8UtUWQyos6"
+              "tree": "5u31cLB9RkVmXX1bToZrs1X6vhBJytdsCtjpxqov5T7v"
             },
             "path": [
               "46zZPy429KH3YGDcPDfe6KQVVXcFM9ZgGHBXxL3HX8yc",
@@ -8070,7 +8070,7 @@
             "leaf": "26ApfPrJcFnBEmMtZx6xt6J5LLdR17XYjd9vJ24P34xi",
             "merkleContext": {
               "treeType": 2,
-              "tree": "Bd8kJkRY6ZPmEX3QX6PiCfsoGNDxkqrDZE8UtUWQyos6"
+              "tree": "5u31cLB9RkVmXX1bToZrs1X6vhBJytdsCtjpxqov5T7v"
             },
             "path": [
               "Xbkpkvx2pvsGFtBr5iSLtadXqmHyntoQzmDKWfeDXcs",
@@ -8164,7 +8164,7 @@
         ],
         "outputTreeId": "0x0",
         "blindingSeed": "0x42424242424242424242424242424242424242424242424242424242424242",
-        "externalDataHash": "0xf91b8d30e5dcdfc7efbc568ca5041e86fd60914e54de1f40c0574dbf78c2d",
+        "externalDataHash": "0x1a970d81dc178c1e1f8308d82cc74645a6fd2e85539cd698d07738eb6b772c",
         "privateTxHash": "0x29e674b433a3fbd11a8d7dd6e0a51032d9c405d4338f6e33ab1dd00e91c193c4",
         "publicAssets": [
           "0x2098f5fb9e239eab3ceac3f27b81e481dc3124d55ffed523a839ee8446b64864",
@@ -9395,7 +9395,7 @@
             "nullifierRoot": "0x0"
           }
         ],
-        "publicInputHash": "0x3ef47bb518c543f73982f3312726f4a13714007a911d4eddc181bda337132da"
+        "publicInputHash": "0x3ee8bd9624e12685e7c7d27faea5f8df2a0be80babd8e7a228e1cb8e48ebe85"
       },
       "response": {
         "ar": [
@@ -9416,7 +9416,7 @@
           "0x094359f1722e96ef05a92a7e122bf67d698b7e8147bbb0713f913e8a8c55d8bd",
           "0x18e0e5968fd3d890b4a686bd2092ad7de3bbab88db83a50be963873904c99bf6"
         ],
-        "provingKeySha256": "3415363ec3ae33b730c7445aeb7850aa1bc044443e6ef8a7731e2c56fd1df6e7"
+        "provingKeySha256": "663d0de50bc0e6947492cad785ea5d34db51bfddeb59a5ed22d4722cf16a9190"
       },
       "proof": "0da036af4b1bf60265bcdc696e8cdee57d1797855dae971fdb33abd12811dc4d1f604a24be15e3042ae5859ec4dd13b126e588f8b4fe1578424f06ad4171403c16eaf11ceeaa86cf4a8a9c1a1544fe0524a35c9c64b7ee1eadbfb342391f78c329d0264e0ccbc078eda7672c21912c4ad705d35abeb5994a6d36e5bc9fd303e110aa495451fac789fd8a46be042c7a9d169c3755842baa9d061b135893ac9c25894359f1722e96ef05a92a7e122bf67d698b7e8147bbb0713f913e8a8c55d8bd",
       "treeContexts": [
@@ -9429,7 +9429,7 @@
           33
         ]
       ],
-      "instructionData": "10ffffffffffffffff0379e36d6656b39068a6e0c37d8c92f1f1429b4ae3af784aad8454b495594b41b65a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a0101eb18537f000000000000021d5015ffa39de57206b131889ff4200e76d7fd9c1e326b66cd356b0987b6adb100fd1724385aa0c75b64fb78cd602fa1d991fdebf76b13c58ed702eac835e9f6180159000154000000030210982b83d5bf7d5f08599fbddc77d1cb7f72e02adae8017ec2118f40c46a3a9bd1b9bcc48a169533a32cce283e210075925f5e0be6e108b23b283b574f14a632bb8d9bfa75955225006f744f2a5732bbe5061c9fcb1cad6dff047d04381db400f32f6929f624644ea3c9cd266420e6597ce001000159000154000000030299cff79e0e9e5a109e998f3868a1c358eb82e30ee4737ce8271c1e3a473ea0f6e83a05b16c047e8f58dd8f2442fe117b4d8e596fbf52dfd59a1b4df1179fcc3b6ed3275a01cb8dacc9632af4fe071c1476000029e674b433a3fbd11a8d7dd6e0a51032d9c405d4338f6e33ab1dd00e91c193c400000c02030da036af4b1bf60265bcdc696e8cdee57d1797855dae971fdb33abd12811dc4d1f604a24be15e3042ae5859ec4dd13b126e588f8b4fe1578424f06ad4171403c16eaf11ceeaa86cf4a8a9c1a1544fe0524a35c9c64b7ee1eadbfb342391f78c329d0264e0ccbc078eda7672c21912c4ad705d35abeb5994a6d36e5bc9fd303e110aa495451fac789fd8a46be042c7a9d169c3755842baa9d061b135893ac9c25894359f1722e96ef05a92a7e122bf67d698b7e8147bbb0713f913e8a8c55d8bd0c20d3ac5a9a54bbe4cc49c0df64430938d0df1b0bd966c5d2f1d938ad55222afb00268fded89088fd855f5b4a7eb6accf4f11b9189d4c75c80064ceaaa4908fbe560118411ce496a9538973a9bc1fec353e9412628030a3900dbc9f65c342acd5d6e3012535988b2395bdcfb9a4a261e52dee0b4cab80bd3257098a1a8394fb369d0975002b752349862596eeccf72b894d725ff151d17d860aa84e1bf96f961e73da354c001ef36b8ef2cbefa652e3fcd8dbd54046390c14af201db273488cd281cac0fd15001611df035d28548d7a6a3876ca8e2f2e0ecdb670b7eb08e1ee4de99979aa7aa601293246929dc888c05b48138baa54b656bf2c54833b187657e0f961403c61588f00102eb24bc9883a67a29c5f9f7aede3b481604648d6e807b70479c764161c165b01251960397572c67655d9db77ade52eb45e8d11db69f10c8860bfdb0b3df7a51c000309798cfe21231184f24550063e5c175f17826356d730a8c582a0a836ad55fe002fe657c0b61a96046c3e4c999d6646445c6e2a3cf37127505291fbc04de2c33100020b003e0052012100"
+      "instructionData": "10ffffffffffffffff041f299bf4e40ca901e85b970f455ba3578e94cba3ad87fd7d542c6b24744c7b095a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a0101eb18537f000000000000021d5015ffa39de57206b131889ff4200e76d7fd9c1e326b66cd356b0987b6adb100fd1724385aa0c75b64fb78cd602fa1d991fdebf76b13c58ed702eac835e9f61801590001540000000304920828ac6abb2b932db3f36e31a9fca2e202309fa156df3e05a1d976ff3b8b6ddd6a8e6f99740d00a92875ff33f176ed7da20c6e36acd10677d4390e85e551522d1b1e3659a7ea01ac0fd38aac8469b58e521c9fcb1cad6dff047d04381db400f32f6929f624644ea3c9cd266420e6597ce001000159000154000000030419078976c68ba992eb10aae97df1e453731a022d6c46eb8a0a4f1c976a0cc20a1000a9cfdae2b2e03ab6a61c0b75338ca292ed2339f9084471b7b8cbd84ec4f45252c3676ea2d875d910e23c92c92b77575d0029e674b433a3fbd11a8d7dd6e0a51032d9c405d4338f6e33ab1dd00e91c193c400000c02030da036af4b1bf60265bcdc696e8cdee57d1797855dae971fdb33abd12811dc4d1f604a24be15e3042ae5859ec4dd13b126e588f8b4fe1578424f06ad4171403c16eaf11ceeaa86cf4a8a9c1a1544fe0524a35c9c64b7ee1eadbfb342391f78c329d0264e0ccbc078eda7672c21912c4ad705d35abeb5994a6d36e5bc9fd303e110aa495451fac789fd8a46be042c7a9d169c3755842baa9d061b135893ac9c25894359f1722e96ef05a92a7e122bf67d698b7e8147bbb0713f913e8a8c55d8bd0c20d3ac5a9a54bbe4cc49c0df64430938d0df1b0bd966c5d2f1d938ad55222afb00268fded89088fd855f5b4a7eb6accf4f11b9189d4c75c80064ceaaa4908fbe560118411ce496a9538973a9bc1fec353e9412628030a3900dbc9f65c342acd5d6e3012535988b2395bdcfb9a4a261e52dee0b4cab80bd3257098a1a8394fb369d0975002b752349862596eeccf72b894d725ff151d17d860aa84e1bf96f961e73da354c001ef36b8ef2cbefa652e3fcd8dbd54046390c14af201db273488cd281cac0fd15001611df035d28548d7a6a3876ca8e2f2e0ecdb670b7eb08e1ee4de99979aa7aa601293246929dc888c05b48138baa54b656bf2c54833b187657e0f961403c61588f00102eb24bc9883a67a29c5f9f7aede3b481604648d6e807b70479c764161c165b01251960397572c67655d9db77ade52eb45e8d11db69f10c8860bfdb0b3df7a51c000309798cfe21231184f24550063e5c175f17826356d730a8c582a0a836ad55fe002fe657c0b61a96046c3e4c999d6646445c6e2a3cf37127505291fbc04de2c33100020b003e0052012100"
     }
   ]
 }
