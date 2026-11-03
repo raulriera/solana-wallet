@@ -248,7 +248,7 @@ struct ProvidersCoordinatorTests {
                                                                   key: StoredValue(failsLoading: true)))
 
         coordinator.select(.solana)
-        await coordinator.run(try #require(coordinator.attempt))
+        await coordinator.run(coordinator.attempt)
 
         #expect(coordinator.error == .selectionUnreadable)
         #expect(coordinator.attempt == nil)

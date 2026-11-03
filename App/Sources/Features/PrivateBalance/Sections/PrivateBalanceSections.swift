@@ -8,10 +8,9 @@ struct PrivateBalanceSections: View {
     let turnOn: PrivateBalanceTurnOnAction
     /// The account's private balance, or `nil` before the first read.
     let status: PrivateBalanceStatus?
-    /// Whether the last read failed.
-    let isOutdated: Bool
-    let canMakePublic: Bool
     let symbol: String
+    /// Whether the last read failed.
+    let isStale: Bool
 
     var body: some View {
         switch status {
@@ -45,48 +44,17 @@ struct PrivateBalanceSections: View {
                 .foregroundStyle(palette.secondaryText)
             }
             .listRowBackground(palette.surface)
-        case .unregistered?, .balance?, nil where isOutdated:
-            Section {
-                if let lamports {
-                    LabeledContent("Available") {
-                        TokenBalance(amount: Amount(lamports: lamports.available), symbol: symbol)
-                            .textSelection(.enabled)
-                    }
-                    if lamports.pending > 0 {
-                        LabeledContent("Pending") {
-                            TokenBalance(amount: Amount(lamports: lamports.pending), symbol: symbol)
-                                .foregroundStyle(palette.secondaryText)
-                        }
-                    }
-                    PrivateBalanceActions(canMakePublic: canMakePublic)
-                        .disabled(isOutdated)
-                }
-            } header: {
-                Text("Private Balance")
-            } footer: {
-                Group {
-                    if isOutdated {
-                        Text("Couldn't update private balance.",
-                             comment: "Footer under a private balance that the last read couldn't update, such as when a network request fails. The balance shown is the last one read or saved, if any.")
-                    } else if let lamports, lamports.pending > 0 {
-                        Text("Pending SOL becomes available when the network reports it, usually within a minute.",
-                             comment: "Footer under a private balance with pending SOL, such as a recent deposit.")
-                    }
-                }
-                .foregroundStyle(palette.secondaryText)
-            }
-            .listRowBackground(palette.surface)
+        case .balance(let available, let pending)?:
+            PrivateBalanceAmountSection(available: Amount(lamports: available), pending: Amount(lamports: pending),
+                                        symbol: symbol, isStale: isStale)
+        case .unregistered?:
+            PrivateBalanceAmountSection(available: Amount(lamports: 0), pending: Amount(lamports: 0),
+                                        symbol: symbol, isStale: isStale)
+        case nil where isStale:
+            PrivateBalanceAmountSection(available: nil, pending: nil,
+                                        symbol: symbol, isStale: isStale)
         case .unavailable?, nil:
             EmptyView()
-        }
-    }
-
-    /// The available and pending SOL, or `nil` without a balance.
-    private var lamports: (available: UInt64, pending: UInt64)? {
-        switch status {
-        case .balance(let available, let pending)?: (available, pending)
-        case .unregistered?: (0, 0)
-        case .off?, .unavailable?, nil: nil
         }
     }
 }

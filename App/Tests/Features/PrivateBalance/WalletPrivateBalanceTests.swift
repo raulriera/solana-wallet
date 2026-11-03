@@ -39,18 +39,18 @@ struct WalletPrivateBalanceTests {
         let responses = HTTPResponses.privateNotes(error: .http(statusCode: 429, retryAfter: nil))
         let store = try PrivateBalanceStore.fixture(responses, keys: keys)
         let balance = try await PrivateBalanceFixtures.read(account, in: store)
-        let wasOutdated = balance.isOutdated
+        let wasStale = balance.isStale
         try await keys.save([account.address.value: PrivateBalanceFixtures.keys(for: account)])
 
         await balance.refresh()
 
-        #expect(!wasOutdated)
+        #expect(!wasStale)
         #expect(balance.status == .off(isRegistered: false))
-        #expect(balance.isOutdated)
+        #expect(balance.isStale)
     }
 
     @Test
-    func `A failed first read shows the saved balance as outdated`() async throws {
+    func `A failed first read shows the saved balance as stale`() async throws {
         let account = try await PrivateBalanceFixtures.account()
         let failing = HTTPResponses.privateNotes(error: .http(statusCode: 500, retryAfter: nil))
         let store = try await PrivateBalanceFixtures.pendingDeposit(of: account, responses: failing).store
@@ -58,11 +58,11 @@ struct WalletPrivateBalanceTests {
         let balance = try await PrivateBalanceFixtures.read(account, in: store)
 
         #expect(balance.status == .balance(available: 0, pending: 1_000_000))
-        #expect(balance.isOutdated)
+        #expect(balance.isStale)
     }
 
     @Test
-    func `Keys that another app registered aren't an outdated balance`() async throws {
+    func `Keys that another app registered aren't a stale balance`() async throws {
         let account = try await PrivateBalanceFixtures.account()
         let keys = StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
         let other = try PrivateBalanceFixtures.otherKeys(for: account.address)
@@ -72,7 +72,7 @@ struct WalletPrivateBalanceTests {
         let balance = try await PrivateBalanceFixtures.read(account, in: store)
 
         #expect(balance.status == nil)
-        #expect(!balance.isOutdated)
+        #expect(!balance.isStale)
     }
 
     @Test
@@ -86,15 +86,15 @@ struct WalletPrivateBalanceTests {
         )
         await balance.refresh()
         let failedStatus = balance.status
-        let wasOutdated = balance.isOutdated
+        let wasStale = balance.isStale
 
         try await providers.save(key: "fixture-key")
         await balance.poll()
 
         #expect(failedStatus == nil)
-        #expect(wasOutdated)
+        #expect(wasStale)
         #expect(balance.status == .unregistered)
-        #expect(!balance.isOutdated)
+        #expect(!balance.isStale)
     }
 
     @Test

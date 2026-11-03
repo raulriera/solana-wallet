@@ -10,7 +10,6 @@ struct SubmissionTests {
     @Test
     func `One rate-limited route does not prevent another route accepting the transaction`() async throws {
         let signed = try ExternalFixture.signedResult()
-        let checks = try HTTPResponses.signing(fee: 15_000)
         let limited = HTTPResponses([:], error: .http(statusCode: 429, retryAfter: "3"))
         let accepted = HTTPResponses(["sendTransaction": [try HTTPResponses.json(ExternalFixture.signature)]])
 
@@ -40,7 +39,6 @@ struct SubmissionTests {
     @Test
     func `Failed routes retain rate-limit details and reject a mismatched acknowledgment`() async throws {
         let signed = try ExternalFixture.signedResult()
-        let checks = try HTTPResponses.signing(fee: 15_000)
         let limited = HTTPResponses([:], error: .http(statusCode: 429, retryAfter: "3"))
         let mismatched = HTTPResponses(["sendTransaction": [#""another-signature""#]])
 

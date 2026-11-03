@@ -16,7 +16,7 @@ struct TokenDetailScreen: View {
     var body: some View {
         let walletPrivateBalance = holding.id == .nativeSOL ? privateBalances.balance(for: account, on: network) : nil
         let privateStatus = walletPrivateBalance?.status
-        let isPrivateBalanceOutdated = walletPrivateBalance?.isOutdated ?? false
+        let isPrivateBalanceStale = walletPrivateBalance?.isStale ?? false
         Form {
             Section {
                 TokenTitleCard(symbol: holding.displaySymbol, name: holding.displayName, logoURL: holding.logoURL)
@@ -85,9 +85,8 @@ struct TokenDetailScreen: View {
                 PrivateBalanceSections(isTurningOn: privateBalance.isTurningOn,
                                        turnOn: PrivateBalanceTurnOnAction(model: privateBalance),
                                        status: privateStatus,
-                                       isOutdated: isPrivateBalanceOutdated,
-                                       canMakePublic: walletPrivateBalance?.availableLamports != nil,
-                                       symbol: holding.displaySymbol)
+                                       symbol: holding.displaySymbol,
+                                       isStale: isPrivateBalanceStale)
                     .environment(\.moveBalance,
                                  PrivateBalanceMoveAction(model: privateBalance, privateBalances: privateBalances,
                                                           account: account, network: network,
@@ -95,7 +94,7 @@ struct TokenDetailScreen: View {
             }
         }
         .animation(.default, value: privateStatus)
-        .animation(.default, value: isPrivateBalanceOutdated)
+        .animation(.default, value: isPrivateBalanceStale)
         .task(id: holding.id) {
             if holding.id == .nativeSOL { await privateBalances.refresh(account, on: network) }
         }

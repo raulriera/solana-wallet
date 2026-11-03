@@ -14,7 +14,7 @@ final class WalletPrivateBalance {
     /// Whether the account holds any available or pending private SOL.
     private(set) var hasBalance = false
     /// Whether the last read failed.
-    private(set) var isOutdated = false
+    private(set) var isStale = false
     /// Whether polls wait for a refresh after a failure that reading again can't fix.
     private(set) var isPollingPaused = false
     /// The quick reads left in a follow-up on pending SOL.
@@ -148,7 +148,7 @@ final class WalletPrivateBalance {
         reading = nil
         lastReadStarted = nil
         status = nil
-        isOutdated = false
+        isStale = false
     }
 
     private var key: TransactionRecord.Key {
@@ -191,7 +191,7 @@ final class WalletPrivateBalance {
         polling = nil
     }
 
-    /// Reads the balance once, marking it outdated if the read fails.
+    /// Reads the balance once, marking it stale if the read fails.
     private func read() async {
         let settled = lastSettledMove?.settled
         let started = Date.now
@@ -212,7 +212,7 @@ final class WalletPrivateBalance {
                 guard !Task.isCancelled, status == nil else { return }
                 status = saved
             }
-            isOutdated = true
+            isStale = true
         }
     }
 
@@ -225,7 +225,7 @@ final class WalletPrivateBalance {
     private func receive(_ status: PrivateBalanceStatus, settled: Date?, started: Date) {
         guard !isStale(started) else { return }
         self.status = status
-        isOutdated = false
+        isStale = false
         isPollingPaused = false
         let settledSinceRead = if let lastReadStarted, let settled { settled > lastReadStarted } else { false }
         lastReadStarted = started
