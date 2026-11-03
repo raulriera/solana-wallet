@@ -47,7 +47,7 @@ nonisolated protocol PrivateBalancing: Sendable {
     ///   - transaction: The prepared transaction.
     ///   - confirmation: The transaction's settled outcome on the same network.
     /// - Returns: The account's balance afterward, or why it has none.
-    /// - Throws: A validation error for a confirmation from another network, or a storage or cancellation error.
+    /// - Throws: A storage or cancellation error.
     func complete(_ transaction: PreparedPrivateTransaction, with confirmation: Confirmation) async throws
         -> PrivateBalanceStatus
 

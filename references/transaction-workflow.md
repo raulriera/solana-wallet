@@ -4,7 +4,7 @@
 
 - Program helpers produce instructions. Views never assemble wire bytes, blockhashes, signature slots, or submission requests.
 - Imported transactions keep their original message and cosignatures and are never rebuilt. `sign(simulation)` returns signed bytes without sending them.
-- Each review allows one signing attempt. Before wallet access, submission checks the message, signatures, network, fee, and lifetime again; a changed or expired message needs a new simulation and approval. Recovery stays local to signing.
+- Each review allows one signing attempt. Before wallet access, submission checks the message, signatures, fee, and lifetime again; a changed or expired message needs a new simulation and approval. Recovery stays local to signing.
 - Explicit resource and fee configuration is never changed silently.
 
 ## Submission and observation

@@ -401,21 +401,6 @@ struct ConfirmationTests {
         await sockets.waitUntilClosed()
     }
 
-    @Test
-    func `Confirmation rejects another network before subscribing or reading`() async throws {
-        let http = try HTTPResponses.confirmation(statuses: [])
-        let sockets = SocketSequence()
-
-        await #expect(throws: ConfirmerError.networkMismatch) {
-            try await confirmer(http, sockets).confirm(Submission(
-                signature: submission.signature, network: .mainnet, lastValidBlockHeight: submission.lastValidBlockHeight
-            ))
-        }
-
-        #expect(await http.requests.isEmpty)
-        #expect(sockets.sockets.isEmpty)
-    }
-
     @Test(.timeLimit(.minutes(1)))
     func `Cancelling a subscription closes its connection before any read`() async throws {
         let http = try HTTPResponses.confirmation(statuses: [])

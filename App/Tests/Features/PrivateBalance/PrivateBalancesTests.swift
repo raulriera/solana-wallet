@@ -859,21 +859,6 @@ struct PrivateBalancesTests {
     }
 
     @Test
-    func `Completing with another network's confirmation is rejected`() async throws {
-        let account = try await PrivateBalanceFixtures.account()
-        let id = PrivateBalances.noteID(of: account, on: .devnet)
-        let notes = StoredValue<PrivateBalances.Notes>([id: NoteSyncState()])
-        let confirmation = widgets.Confirmation(submission: Submission(signature: "mainnet", network: .mainnet, lastValidBlockHeight: 1),
-                                        slot: 5, outcome: .succeeded)
-
-        await #expect(throws: Transactions.ValidationError.invalidTransaction) {
-            try await Self.balances(HTTPResponses.privateNotes(), notes: notes)
-                .complete(PrivateBalanceFixtures.preparedDeposit(5_000, from: account), with: confirmation)
-        }
-        #expect(await notes.value == [id: NoteSyncState()])
-    }
-
-    @Test
     func `Completing waits for a running sync`() async throws {
         let account = try await PrivateBalanceFixtures.account()
         let id = PrivateBalances.noteID(of: account, on: .devnet)

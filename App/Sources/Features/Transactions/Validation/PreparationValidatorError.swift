@@ -1,7 +1,5 @@
 /// An error for a preparation that must be prepared and reviewed again.
 nonisolated enum PreparationValidatorError: Error, Sendable, Equatable {
-    /// The provider serves a different network than the preparation.
-    case networkMismatch
     /// The encoded message differs from the reviewed one.
     case messageMismatch
     case simulationFailed

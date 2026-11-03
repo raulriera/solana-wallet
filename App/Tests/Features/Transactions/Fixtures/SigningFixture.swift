@@ -12,7 +12,7 @@ struct SigningFixture {
     let oneTime: OneTimeAccount
     var transfer: Instruction
     var configuration: Configuration
-    var network: Network
+    let network: Network
     let inspection: Transaction
     var message: Data
     var blockhash: GetLatestBlockhash.Response

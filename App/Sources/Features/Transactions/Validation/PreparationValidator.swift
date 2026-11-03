@@ -47,7 +47,6 @@ nonisolated struct PreparationValidator: PreparationValidating {
     /// - Parameter preparation: The preparation to check.
     /// - Throws: A ``PreparationValidatorError``, or an encoding error.
     private func validateReview(_ preparation: Preparation) throws {
-        guard preparation.network == rpc.network else { throw PreparationValidatorError.networkMismatch }
         guard preparation.simulation.value.error == nil else { throw PreparationValidatorError.simulationFailed }
         guard let fee = preparation.fee.value else { throw PreparationValidatorError.feeUnavailable }
         guard fee >= (preparation.transaction.requests.priorityFeeLamports ?? 0),

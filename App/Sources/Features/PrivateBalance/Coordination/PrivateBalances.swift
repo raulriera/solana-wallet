@@ -171,9 +171,6 @@ actor PrivateBalances: PrivateBalancing {
 
     func complete(_ transaction: PreparedPrivateTransaction, with confirmation: Confirmation) async throws
         -> PrivateBalanceStatus {
-        guard confirmation.submission.network == transaction.network else {
-            throw Transactions.ValidationError.invalidTransaction
-        }
         let generation = generation
         let id = Self.noteID(of: transaction.account, on: transaction.network)
         await settle { syncs[id] }

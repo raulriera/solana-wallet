@@ -118,22 +118,6 @@ struct SigningTests {
         #expect(await http.requests.isEmpty)
     }
 
-    @Test
-    func `A network mismatch rejects signing before wallet access`() async throws {
-        var fixture = try SigningFixture()
-        fixture.network = .mainnet
-        let http = try HTTPResponses.signing()
-        let store = SigningRecoveryStore(recovery: fixture.recovery)
-        let signer = Signer(validator: PreparationValidator(rpc: http.client), store: store)
-
-        await #expect(throws: PreparationValidatorError.networkMismatch) {
-            try await signer.sign(fixture.preparation, for: .account(fixture.account), reason: "Approve transfer")
-        }
-
-        #expect(await store.reads.isEmpty)
-        #expect(await http.requests.isEmpty)
-    }
-
     @Test(arguments: [false, true])
     func `Expired preparations never yield a signature`(expiresDuringAuthentication: Bool) async throws {
         let fixture = try SigningFixture()

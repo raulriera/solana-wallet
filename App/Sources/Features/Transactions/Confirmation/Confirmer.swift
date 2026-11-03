@@ -25,7 +25,6 @@ nonisolated struct Confirmer: TransactionConfirming {
     @concurrent
     func confirm(_ submission: Submission) async throws -> Confirmation {
         try Task.checkCancellation()
-        guard rpc.network == submission.network else { throw ConfirmerError.networkMismatch }
         var schedule = Schedule()
         while true {
             do {
