@@ -18,7 +18,7 @@ struct SimulationNetworkFeeTests {
         let fixture = try SigningFixture()
         let responses = try HTTPResponses.preparation(fixture: fixture.preparation)
         let rpc = try #require(responses.client(for: .solana, on: .mainnet))
-        let requirements = try #require(Sender(tier: .standard).submissionRequirements)
+        let requirements = Sender(tier: .standard).submissionRequirements
 
         let simulation = try await Self.transfer(fixture, preparer: Preparer(rpc: rpc, requirements: requirements))
 

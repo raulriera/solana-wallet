@@ -14,20 +14,19 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
         /// Submits only through Sender's broader routes, with a higher tip.
         case premium
 
-        /// Returns the RPC that submits with this strategy.
+        /// Returns the paid submission service of this strategy on a network.
         ///
-        /// - Parameter rpc: The provider.
-        /// - Returns: The provider, or a Sender client.
-        /// - Throws: ``TransactionCoordinatorError/unsupportedNetwork`` if the strategy has no route on the
-        ///   provider's network.
-        func client(for rpc: any RPC) throws -> any RPC {
-            let client: any RPC = switch self {
-            case .none: rpc
+        /// - Parameter network: The provider's network.
+        /// - Returns: The submission service, or `nil` for `.none`, which submits through the provider.
+        /// - Throws: ``TransactionCoordinatorError/unsupportedNetwork`` if the service doesn't serve the network.
+        func service(on network: Network) throws -> (any SubmissionProviding)? {
+            let service: (any SubmissionProviding)? = switch self {
+            case .none: nil
             case .standard: Sender(tier: .standard)
             case .premium: Sender(tier: .premium)
             }
-            guard client.network == rpc.network else { throw TransactionCoordinatorError.unsupportedNetwork }
-            return client
+            if let service, service.network != network { throw TransactionCoordinatorError.unsupportedNetwork }
+            return service
         }
     }
 
@@ -50,11 +49,11 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
     ///   network.
     init(rpc: any RPC & SignatureEventProviding, store: any RecoveryStoring, strategy: Strategy = .none,
          configuration: Configuration? = nil) throws {
-        let client = try strategy.client(for: rpc)
+        let service = try strategy.service(on: rpc.network)
         self.init(rpc: rpc, configuration: configuration,
-                  preparer: Preparer(rpc: rpc, requirements: client.submissionRequirements),
+                  preparer: Preparer(rpc: rpc, requirements: service?.submissionRequirements),
                   signer: Signer(validator: PreparationValidator(rpc: rpc), store: store),
-                  submitter: Submitter(rpc: client), confirmer: Confirmer(rpc: rpc))
+                  submitter: Submitter(rpc: service ?? rpc), confirmer: Confirmer(rpc: rpc))
     }
 
     /// Creates a coordinator with the given transaction services.

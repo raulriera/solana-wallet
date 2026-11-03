@@ -11,7 +11,7 @@ public struct SubmissionRequirements: Sendable {
     ///   - tipRecipient: The address that receives the tip.
     ///   - tipLamports: The tip in lamports.
     ///   - minimumPriorityFeeLamports: The minimum total priority fee in lamports.
-    public init(tipRecipient: String, tipLamports: UInt64, minimumPriorityFeeLamports: UInt64) {
+    init(tipRecipient: String, tipLamports: UInt64, minimumPriorityFeeLamports: UInt64) {
         self.tipRecipient = tipRecipient
         self.tipLamports = tipLamports
         self.minimumPriorityFeeLamports = minimumPriorityFeeLamports

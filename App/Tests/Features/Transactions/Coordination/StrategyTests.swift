@@ -9,10 +9,7 @@ import Vault
 struct StrategyTests {
     @Test
     func `None submits through the provider`() throws {
-        let client = try TransactionCoordinator.Strategy.none.client(for: HeliusRPC(apiKey: "test-key", network: .mainnet))
-
-        #expect(client is HeliusRPC)
-        #expect(client.submissionRequirements == nil)
+        #expect(try TransactionCoordinator.Strategy.none.service(on: .mainnet) == nil)
     }
 
     @Test(arguments: [
@@ -20,9 +17,8 @@ struct StrategyTests {
         (.premium, .premium),
     ])
     func `Sender strategies replace the provider with one selected tier`(strategy: TransactionCoordinator.Strategy, tier: Sender.Tier) throws {
-        let client = try strategy.client(for: HeliusRPC(apiKey: "test-key", network: .mainnet))
+        let sender = try #require(strategy.service(on: .mainnet) as? Sender)
 
-        let sender = try #require(client as? Sender)
         #expect(sender.tier == tier)
     }
 

@@ -1,7 +1,5 @@
 /// A provider of finalized account changes.
 public protocol AccountChangeProviding: Sendable {
-    var network: Network { get }
-
     /// Subscribes to each account's changes at finalized commitment on one connection.
     ///
     /// - Parameter addresses: The accounts to watch.

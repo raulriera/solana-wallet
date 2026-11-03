@@ -1,7 +1,5 @@
 /// A provider of a sent transaction's landing and of new roots.
 public protocol SignatureEventProviding: Sendable {
-    var network: Network { get }
-
     /// Subscribes to one signature at finalized commitment and to new roots on one connection.
     ///
     /// - Parameter signature: The base-58 encoded signature of a sent transaction.

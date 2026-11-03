@@ -1,7 +1,7 @@
 import Foundation
 
 /// A client for Helius Sender's mainnet transaction-submission service.
-public struct Sender: RPC {
+public struct Sender: SubmissionProviding {
     /// A Sender routing tier.
     public enum Tier: Sendable {
         /// Delivery through stake-weighted routing with a lower tip.
@@ -12,7 +12,7 @@ public struct Sender: RPC {
 
     public let network: Network = .mainnet
     public let tier: Tier
-    public let submissionRequirements: SubmissionRequirements?
+    public let submissionRequirements: SubmissionRequirements
 
     private let client: HTTPClient
 

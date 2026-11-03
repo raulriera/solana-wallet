@@ -12,7 +12,7 @@ let response = try await client.send(GetLatestBlockhash())
 let blockhash = response.value.blockhash
 ```
 
-The module includes `Solana`, `HeliusRPC`, and `Sender` for RPC and submission, `Zolana` for Solana Rings indexer reads and encrypted proofs, `Jupiter` for prices, and `EuropeanCentralBank` and `Coinbase` for exchange rates.
+The module includes `Solana` and `HeliusRPC` for RPC, `Sender` for paid transaction submission, `Zolana` for Solana Rings indexer reads and encrypted proofs, `Jupiter` for prices, and `EuropeanCentralBank` and `Coinbase` for exchange rates.
 
 ## Use a custom RPC URL
 
@@ -33,5 +33,6 @@ A provider is a type in this module that conforms to [`RPC`](Sources/Client/RPC.
 | [`LogoProviding`](Sources/Assets/LogoProviding.swift) | HTTPS token logos hosted by the provider |
 | [`PriceProviding`](Sources/Pricing/PriceProviding.swift) | Token prices keyed by mint |
 | [`ExchangeRateProviding`](Sources/Pricing/ExchangeRateProviding.swift) | Currency exchange rates |
+| [`SubmissionProviding`](Sources/Client/SubmissionProviding.swift) | Transaction submission for a tip and a minimum priority fee |
 
 Throw `RPCError` for failures, and send each request once: callers handle rate limits and retries.

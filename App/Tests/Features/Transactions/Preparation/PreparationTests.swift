@@ -88,7 +88,7 @@ struct PreparationTests {
         let transfer = try PreparationFixture.source(fixture).instruction
         let payer = transfer.accounts[0].address
         let memo = try MemoProgram.memo("widgets tip order", signers: [payer])
-        let requirements = try #require(Sender(tier: .standard).submissionRequirements)
+        let requirements = Sender(tier: .standard).submissionRequirements
         let tip = try SystemProgram.transfer(from: payer, to: Address(requirements.tipRecipient),
                                              lamports: requirements.tipLamports)
         let http = try HTTPResponses.preparation(fixture: fixture)
