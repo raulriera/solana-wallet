@@ -23,12 +23,6 @@ public struct NoteSyncState: Sendable, Equatable, Codable, CustomStringConvertib
     /// The most batches that a sync to the end reads.
     private static let maximumBatchCount = 128
 
-    /// The most transactions that a sync reads to confirm claimed spends of counted notes.
-    private static let maximumSpendReads = 8
-
-    /// The number of reads in a row that find no transaction for a claimed spend before the claim counts as refuted.
-    private static let maximumMissingReads = 10
-
     /// Where the next read resumes, or `nil` before the first sync.
     let position: NoteSyncPosition?
 
@@ -316,13 +310,8 @@ public struct NoteSyncState: Sendable, Equatable, Codable, CustomStringConvertib
             }
             return (batch, delivered, checked, respent, claims)
         }
+        let (proven, rejected, missingReads) = try await confirmedSpends(in: claims, reads: &reads, using: rpc)
         let uncounted = Set((unconfirmedNotes + delivered).map(\.nullifier.bigEndianBytes))
-        let counted = SpendClaim.claims(in: claims, of: Set(notes.map(\.nullifier.bigEndianBytes)))
-        let claimed = Set(counted.map(\.signature))
-        let named = rejectedSpends.intersection(claimed)
-        let unread = counted.unread(by: reads, skipping: named, limit: Self.maximumSpendReads)
-        let (proven, refuted, missing) = try await Self.confirm(unread, recording: &reads, using: rpc)
-        let (missingReads, expired) = missingReads(adding: missing, read: Set(unread.map(\.signature)), claimed: claimed)
         let spent = proven.union(uncounted.intersection(claims.flatMap(\.nullifiers)))
         let confirmed = notes + checked.filter { $0.status == .included }.map(\.note)
         let seen = held + delivered
@@ -335,64 +324,10 @@ public struct NoteSyncState: Sendable, Equatable, Codable, CustomStringConvertib
             outputTreeID: batch?.outputTreeID,
             pending: pending.filter { !settled.contains($0.signature) },
             localSpends: respent.subtracting(spent),
-            rejectedSpends: named.union(refuted).union(expired),
+            rejectedSpends: rejected,
             missingSpendReads: missingReads
         )
         return (state, batch?.moreComing ?? false)
-    }
-
-    /// Counts the reads in a row that found no transaction for each claimed spend that a claim still names.
-    ///
-    /// - Parameters:
-    ///   - missing: The signatures of the read claims whose transactions the client didn't find.
-    ///   - read: The signatures of the claims that the batch read.
-    ///   - claimed: The signatures of the claims of counted notes.
-    /// - Returns: The counts below the limit by signature, and the signatures whose count reached it.
-    private func missingReads(adding missing: Set<String>, read: Set<String>, claimed: Set<String>)
-        -> (counts: [String: Int], expired: Set<String>) {
-        var counts = missingSpendReads.filter { claimed.contains($0.key) && !read.contains($0.key) }
-        for signature in missing { counts[signature] = missingSpendReads[signature, default: 0] + 1 }
-        let expired = Set(counts.filter { $0.value >= Self.maximumMissingReads }.keys)
-        return (counts.filter { !expired.contains($0.key) }, expired)
-    }
-
-    /// Reads the transactions of claimed spends at once.
-    ///
-    /// - Parameters:
-    ///   - claims: The claims to read.
-    ///   - reads: The claimed spends that the sync read, which this adds to.
-    ///   - rpc: The client that reads the transactions at finalized commitment.
-    /// - Returns: The nullifiers that the transactions spent, the signatures of the finalized transactions that
-    ///   failed or don't spend every nullifier that their claim names, and the signatures whose transactions the
-    ///   client didn't find.
-    /// - Throws: ``ShieldedPool/InstructionError/unknownLayout`` if a successful transaction holds a spend instruction
-    ///   of an unknown layout, or a request, transport, response, or cancellation error.
-    private static func confirm(
-        _ claims: [SpendClaim],
-        recording reads: inout SpendReads,
-        using rpc: some RPC
-    ) async throws -> (proven: Set<[UInt8]>, refuted: Set<String>, missing: Set<String>) {
-        reads.record(claims)
-        return try await withThrowingTaskGroup(of: (claim: SpendClaim, spent: Set<[UInt8]>?).self) { group in
-            for claim in claims {
-                group.addTask {
-                    guard let transaction = try await rpc.send(GetTransaction(signature: claim.signature)) else { return (claim, nil) }
-                    return (claim, transaction.error == nil ? try ShieldedPool.nullifiers(spentBy: transaction) : [])
-                }
-            }
-            var proven = Set<[UInt8]>()
-            var refuted = Set<String>()
-            var missing = Set<String>()
-            for try await (claim, spent) in group {
-                guard let spent else {
-                    missing.insert(claim.signature)
-                    continue
-                }
-                proven.formUnion(spent)
-                if !claim.nullifiers.isSubset(of: spent) { refuted.insert(claim.signature) }
-            }
-            return (proven, refuted, missing)
-        }
     }
 
     /// Returns the notes that no nullifier spent, in slot, signature, leaf, and tree order.
@@ -448,67 +383,4 @@ private enum SyncRead: Sendable {
     case tagged(ShieldedTransactionBatch)
     case spends([ShieldedTransaction])
     case inclusion([(note: ReceivedNote, status: ReceivedNote.InclusionStatus)])
-}
-
-/// An indexer's claim that a transaction spent counted notes.
-private struct SpendClaim: Sendable {
-    let signature: String
-    let slot: UInt64
-    /// The counted notes' nullifiers that the claim names.
-    let nullifiers: Set<[UInt8]>
-
-    /// Collects the claims that name counted notes, one per transaction.
-    ///
-    /// - Parameters:
-    ///   - transactions: The indexer's transactions, with the nullifiers that each claims to spend.
-    ///   - counted: The nullifiers of the counted notes.
-    /// - Returns: One claim per signature that names a counted note, with every counted nullifier that the
-    ///   transactions with that signature name, oldest first.
-    static func claims(in transactions: [ShieldedTransaction], of counted: Set<[UInt8]>) -> [SpendClaim] {
-        let named = Dictionary(grouping: transactions.filter { !counted.isDisjoint(with: $0.nullifiers) }, by: \.signature)
-        return named.map { signature, transactions in
-            SpendClaim(
-                signature: signature, slot: transactions.map(\.slot).min() ?? 0,
-                nullifiers: counted.intersection(transactions.flatMap(\.nullifiers))
-            )
-        }.sorted { ($0.slot, $0.signature) < ($1.slot, $1.signature) }
-    }
-}
-
-extension [SpendClaim] {
-    /// Chooses the claims to read: for each nullifier that the sync hasn't read a claim of, its oldest claim that isn't
-    /// skipped, oldest first, until the sync has read a number of claims.
-    ///
-    /// - Parameters:
-    ///   - reads: The claimed spends that the sync already read.
-    ///   - skipped: The signatures of claims not to read.
-    ///   - limit: The most claims that one sync reads.
-    /// - Returns: The claims to read, oldest first.
-    fileprivate func unread(by reads: SpendReads, skipping skipped: Set<String>, limit: Int) -> [SpendClaim] {
-        var covered = reads.nullifiers
-        var chosen: [SpendClaim] = []
-        for claim in self where reads.signatures.count + chosen.count < limit {
-            guard !skipped.contains(claim.signature), !reads.signatures.contains(claim.signature),
-                  !claim.nullifiers.isSubset(of: covered) else { continue }
-            chosen.append(claim)
-            covered.formUnion(claim.nullifiers)
-        }
-        return chosen
-    }
-}
-
-/// The claimed spends that one sync read, across the batches of a sync to the end.
-private struct SpendReads {
-    /// The signatures of the transactions that the sync read.
-    private(set) var signatures: Set<String> = []
-    /// The nullifiers whose claims the sync read.
-    private(set) var nullifiers: Set<[UInt8]> = []
-
-    /// Adds claims that the sync reads.
-    ///
-    /// - Parameter claims: The claims.
-    mutating func record(_ claims: [SpendClaim]) {
-        signatures.formUnion(claims.map(\.signature))
-        nullifiers.formUnion(claims.flatMap(\.nullifiers))
-    }
 }

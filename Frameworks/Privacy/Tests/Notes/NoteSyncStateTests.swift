@@ -319,7 +319,7 @@ struct NoteSyncStateTests {
 
     @Test
     func `A sync reads at most eight claimed spends, the oldest first, and a later sync reads the rest`() async throws {
-        let counted = (0..<10).map { Self.syntheticNote(at: UInt8($0)) }
+        let counted = (0..<10).map { NoteFixtures.note(at: UInt8($0)) }
         let state = try NoteSyncState(
             position: nil, notes: counted, unconfirmedNotes: [], outputTreeID: nil, pending: [], localSpends: [],
             rejectedSpends: [], missingSpendReads: [:]
@@ -891,17 +891,6 @@ struct NoteSyncStateTests {
         PrivateSpend(
             instruction: Instruction(program: try ShieldedPool.program), lamports: 1, receivedLamports: lamports,
             nullifierCount: notes.count, inputTreeID: 0, nullifiers: notes.map(\.nullifier)
-        )
-    }
-
-    private static func syntheticNote(at index: UInt8) -> ReceivedNote {
-        let utxo = UTXO(
-            owner: Poseidon.Element(UInt64(index) + 1), mint: [UInt8](repeating: 0, count: 32), amount: 1, blinding: Poseidon.Element(UInt64(7)),
-            treeID: 0
-        )
-        return ReceivedNote(
-            utxo: utxo, leafIndex: UInt64(index), signature: IndexerResponses.signature(index + 100), slot: UInt64(index),
-            nullifier: Poseidon.Element(UInt64(index) + 1_000)
         )
     }
 
