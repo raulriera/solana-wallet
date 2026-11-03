@@ -12,6 +12,7 @@ Xcode mirrors the folder layout in [AGENTS.md](../AGENTS.md); target and module 
 | [Encoding](../Frameworks/Encoding/README.md) | Shared codecs. |
 | [Storage](../Frameworks/Storage/README.md) | Device-only values saved as one file or Keychain item each. |
 | [ModularArithmetic](../Frameworks/ModularArithmetic/README.md) | Prime-field arithmetic for BN254. |
+| [Attestation](../Frameworks/Attestation/README.md) | AWS Nitro Enclaves attestation documents checked against a caller's policy. |
 | [Privacy](../Frameworks/Privacy/README.md) | Solana Rings private balances; it reads through RPC. |
 | [Themes](../Frameworks/Themes/README.md) | Theme packages, validation, and resolution against app defaults. |
 | App services and coordinators | Shared stores and every workflow: review, approval, authentication, signing, submission, and confirmation. |
