@@ -3,13 +3,13 @@
     "platform": "aws-nitro",
     "measurements": [
       {
-        "pcr0": "89cde9fcf78ed0fe2e80c25554ad38b4022a3372e5f8bf4b1ab6b4b69e721699a5d022d7370bbc8854c2c4f46d630097",
+        "pcr0": "de01051f48dec20d40d3666a99dbe14917b2e350f500981d77c85d5fc6a0a21917e8f695d6a4465d68a21e7eef942121",
         "pcr1": "4b4d5b3661b3efc12920900c80e126e4ce783c522de6c02a2a5bf7af3a2b9327b86776f188e4be1c1c404a129dbda493",
-        "pcr2": "8265ae7a12c74695e4484aa5f085f730df8c5a4741fb2a334ef88f306f47d39ae0137a9bec2e8a495ce7c6db3841e1ee"
+        "pcr2": "d2d4d066c3226e4cf89fdd143362dc63611978bb81a244db011c74623d3d9a37c5b8f275ca6363fe71c0df3245e50d4b"
       }
     ],
+    "hpke_public_key": "82153768292687c251ac3bd37bfa264f21429b1606afa544749561547c02b251",
     "gpu": "optional",
-    "max_age_secs": 600,
-    "hpke_public_key": "ee8289b5afa1d2e885809a91f4b28b645807dcfd5c9457ddf6a031b3ecb45878"
+    "max_age_secs": 600
   }
 }

@@ -80,7 +80,7 @@ struct NoteSyncStateSpendTests {
 
         let routes = await transport.requests.compactMap { $0.url?.path() }
         let route = "/prove/transfer_confidential_\(plan.shape.inputs)_\(plan.shape.outputs)/indexed"
-        #expect(routes == ["", "/tee/v1/attestation", route])
+        #expect(routes == ["", "/attestation", route])
         #expect(result.instruction == (try plan.instruction(proof: proof, treeContexts: [context])))
         #expect(result.nullifiers == selected.map(\.nullifier))
         #expect(result.lamports == spend.lamports)

@@ -33,12 +33,12 @@ struct StubProver: Sendable {
     }
 
     func respond(to request: URLRequest) throws -> (Data, URLResponse)? {
-        if request.value(forHTTPHeaderField: "Zolana-Tee") != nil {
+        if request.value(forHTTPHeaderField: "Spr-Tee") != nil {
             let sealed = try prover.open(request)
             let (status, body) = try answer(sealed.body)
             return try sealed.answer(status: status, body: Data(body.utf8))
         }
-        guard request.httpMethod == "GET", request.url?.path().hasSuffix("/tee/v1/attestation") == true else {
+        guard request.httpMethod == "GET", request.url?.path().hasSuffix("/attestation") == true else {
             return nil
         }
         return try httpReply(to: request, body: Self.attestation(of: prover.publicKey))

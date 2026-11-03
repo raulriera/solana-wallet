@@ -15,7 +15,7 @@ struct AttestedProverKeyTests {
         let request = try #require(await transport.requests.first)
         let url = try #require(request.url)
         #expect(request.httpMethod == "GET")
-        #expect(url.path() == "/tee/v1/attestation")
+        #expect(url.path() == "/attestation")
         #expect(
             URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems == [
                 URLQueryItem(name: "nonce", value: recorded.nonce)

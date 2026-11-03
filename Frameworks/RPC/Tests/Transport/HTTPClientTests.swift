@@ -13,7 +13,7 @@ struct HTTPClientTests {
         let transport = StubTransport { try httpReply(to: $0, body: #"{"value":7}"#) }
 
         let reading = try await Self.client(transport).get(
-            at: "tee/v1/attestation",
+            at: "attestation",
             query: [URLQueryItem(name: "nonce", value: "0a1b")],
             maximumLength: 64,
             decoding: Reading.self
@@ -22,7 +22,7 @@ struct HTTPClientTests {
         #expect(reading == Reading(value: 7))
         let request = try #require(await transport.requests.first)
         #expect(request.httpMethod == "GET")
-        #expect(request.url?.absoluteString == "https://prover.example.com/tee/v1/attestation?nonce=0a1b")
+        #expect(request.url?.absoluteString == "https://prover.example.com/attestation?nonce=0a1b")
         #expect(request.httpBody == nil)
     }
 

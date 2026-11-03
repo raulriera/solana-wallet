@@ -1326,8 +1326,8 @@
   ],
   "recorded": [
     {
-      "notValidBefore": 1793229504,
-      "notValidAfter": 1793240307,
+      "notValidBefore": 1793678456,
+      "notValidAfter": 1793689259,
       "basicConstraints": {
         "certificateAuthority": false,
         "maxPathLength": null
@@ -1350,8 +1350,8 @@
       }
     },
     {
-      "notValidBefore": 1792817902,
-      "notValidAfter": 1794549502,
+      "notValidBefore": 1793246700,
+      "notValidAfter": 1794978300,
       "basicConstraints": {
         "certificateAuthority": true,
         "maxPathLength": 2
@@ -1362,8 +1362,8 @@
       }
     },
     {
-      "notValidBefore": 1793218874,
-      "notValidAfter": 1793737273,
+      "notValidBefore": 1793636150,
+      "notValidAfter": 1794158149,
       "basicConstraints": {
         "certificateAuthority": true,
         "maxPathLength": 1
@@ -1374,8 +1374,8 @@
       }
     },
     {
-      "notValidBefore": 1793229440,
-      "notValidAfter": 1793315840,
+      "notValidBefore": 1793662216,
+      "notValidAfter": 1793748616,
       "basicConstraints": {
         "certificateAuthority": true,
         "maxPathLength": 0

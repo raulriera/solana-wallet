@@ -7,8 +7,6 @@ upstream LICENSE at every revision below. zolana ships no NOTICE file at any of 
 Paths are relative to Frameworks.
 
 Fixtures
-- Attestation/Tests/Support/DevnetNitroPolicy.json: the devnet prover's AWS Nitro deployment policy
-- Attestation/Tests/Support/MainnetNitroPolicy.json: the mainnet prover's AWS Nitro deployment policy
 - Attestation/Tests/Support/NitroCBORCases.json: AWS Nitro attestation CBOR cases
 - Privacy/Tests/Support/CommitmentVectors.json: Solana Rings commitment vectors
 - Privacy/Tests/Support/DummyOwnerTagVectors.json: Solana Rings padding owner tag vectors
@@ -19,10 +17,10 @@ Fixtures
 - Privacy/Tests/Support/PrivateTransactionHashVectors.json: Solana Rings private transaction hash vectors
 - Privacy/Tests/Support/ProvingKeyVectors.json: Solana Rings proving-key digests
 - Privacy/Tests/Support/PublicInputVectors.json: Solana Rings public input vectors
+- TestSupport/Prover/DevnetNitroPolicy.json: the devnet prover's AWS Nitro deployment policy
 - TestSupport/Prover/EncryptedProverVectors.json: encrypted prover report_data and HPKE request and
   response vectors
-- TestSupport/Prover/RecordedDevnetNitroAttestation.json: a recorded AWS Nitro attestation of the devnet prover
-- TestSupport/Prover/RecordedMainnetNitroAttestation.json: a recorded AWS Nitro attestation of the mainnet prover
+- TestSupport/Prover/MainnetNitroPolicy.json: the mainnet prover's AWS Nitro deployment policy
 
 Tag: v0.4.0-alpha
 Commit: 0fde5f1
@@ -100,31 +98,9 @@ Release: 0.7.0-alpha
 Commit: bb2337f
 License: https://github.com/helius-labs/zolana/blob/bb2337f05317aa245a345f47c68e434ffed62561/LICENSE
 
-https://github.com/helius-labs/zolana/blob/bb2337f05317aa245a345f47c68e434ffed62561/prover/tee/deployments/devnet-e-v0.6.0-alpha.json
-SHA-256: 470f709cc81ca23718af574a48bd5525e84a3ad68d94c5f02fbc065b9ce852ad
-- Attestation/Tests/Support/DevnetNitroPolicy.json: the whole file
-
-https://github.com/helius-labs/zolana/blob/bb2337f05317aa245a345f47c68e434ffed62561/prover/tee/deployments/mainnet-v0.6.0-alpha.json
-SHA-256: 56299c6067c5f29ab9b658ebf49294892a33905ca19e8a6744d65d4b38b16698
-- Attestation/Tests/Support/MainnetNitroPolicy.json: the whole file
-
 https://github.com/helius-labs/zolana/blob/bb2337f05317aa245a345f47c68e434ffed62561/prover/tee/testdata/nitro_cbor_cases.json
 SHA-256: 2222ecc174d1fcc0f2ab7d40b57fa0d56f43581dab15561b7160794c27d1871e
 - Attestation/Tests/Support/NitroCBORCases.json: the whole file
-
-https://github.com/helius-labs/zolana/blob/bb2337f05317aa245a345f47c68e434ffed62561/prover/tee/testdata/devnet_e_tee_1_attestation.json
-SHA-256: aa32339621fb9ec645029741940bac2a5d382e494d2d33f71d7cfe07d0d83b5f
-- TestSupport/Prover/RecordedDevnetNitroAttestation.json: the whole file
-
-https://github.com/helius-labs/zolana/blob/bb2337f05317aa245a345f47c68e434ffed62561/prover/tee/testdata/mainnet_tee_2_attestation.json
-SHA-256: 9ae22d722f7fa9095de21466060e0c823c5ba8e868d3089fb0419592b64c7153
-- TestSupport/Prover/RecordedMainnetNitroAttestation.json: the whole file
-
-https://github.com/helius-labs/zolana/blob/bb2337f05317aa245a345f47c68e434ffed62561/prover/tee/testdata/vectors.json
-SHA-256: f28e01eb4bdcfabf4eec4b8ec8237b14935832ba5128b8fcd47f2b64185addc2
-- TestSupport/Prover/EncryptedProverVectors.json: the whole file, changed: request_uri is the route that its
-  ciphertext authenticates, /prove/transfer_2_2, and aad_cases keeps only the targets that zolana
-  authenticates unchanged
 
 https://github.com/helius-labs/zolana/blob/bb2337f05317aa245a345f47c68e434ffed62561/program-libs/interface/tests/pda.rs
 SHA-256: 536152c956610a1166dbab6459b1d3c7f512b6f552523b028a3d0f3592caf270
@@ -145,6 +121,20 @@ SHA-256: 7d0807d07c8665f5107bf7dbb4643d56d13662ed924f4ac48d1a034c4db74e35
 Tag: ts-sdk-v0.8.0-alpha
 Commit: 6bb4f70
 License: https://github.com/helius-labs/zolana/blob/6bb4f7008294695ebe614f08affb215d4321a538/LICENSE
+
+https://github.com/helius-labs/zolana/blob/6bb4f7008294695ebe614f08affb215d4321a538/prover/tee/deployments/devnet-e-v0.6.0-alpha-tee-3.json
+SHA-256: 855a158207ff6225914ee22d6dfd06aec5b9e91dc713ccc5ce4eef2952d6162d
+- TestSupport/Prover/DevnetNitroPolicy.json: the whole file
+
+https://github.com/helius-labs/zolana/blob/6bb4f7008294695ebe614f08affb215d4321a538/prover/tee/deployments/mainnet-v0.6.0-alpha-tee-4.json
+SHA-256: 5216ec2fd3f926838d823d4e3f4942a908a81fb97e8b003c9595c58dd915fd01
+- TestSupport/Prover/MainnetNitroPolicy.json: the whole file
+
+https://github.com/helius-labs/zolana/blob/6bb4f7008294695ebe614f08affb215d4321a538/prover/tee/testdata/vectors.json
+SHA-256: 1e77d78eba40b33e9f1388b23c010e3583cc109928360dd23b2b38e1d823bbbe
+- TestSupport/Prover/EncryptedProverVectors.json: the whole file, changed: request_uri is the route that its
+  ciphertext authenticates, /prove/transfer_2_2, and aad_cases keeps only the targets that zolana
+  authenticates unchanged
 
 https://github.com/helius-labs/zolana/blob/6bb4f7008294695ebe614f08affb215d4321a538/prover/server/prover/provingkeys/proving-keys.lock
 SHA-256: 9416e0b92aebb438fb34e26281f369664b48e8acfe0d6c0ea35724586bcc4313

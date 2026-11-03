@@ -235,7 +235,7 @@ struct ProviderClientTests {
         _ = try await client.proveTransfer(request)
 
         #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 3)
-        #expect(await responses.requests.count { $0.url?.path().hasSuffix("/tee/v1/attestation") == true } == 1)
+        #expect(await responses.requests.count { $0.url?.path().hasSuffix("/attestation") == true } == 1)
     }
 
     @Test(arguments: [401, 403])

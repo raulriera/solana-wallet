@@ -12,7 +12,7 @@ struct ProverIndexedLiveTests {
         let answerVersions = Mutex<[String?]>([])
         let transport = StubTransport { request in
             let (data, response) = try await URLSessionTransport().data(for: request)
-            let version = (response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Zolana-Tee")
+            let version = (response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Spr-Tee")
             answerVersions.withLock { $0.append(version) }
             return (data, response)
         }

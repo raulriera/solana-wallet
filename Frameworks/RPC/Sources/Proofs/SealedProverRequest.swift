@@ -19,9 +19,9 @@ struct SealedProverRequest: Sendable {
     )
     private static let info = Data("zolana/prover-tee/v1".utf8)
     private static let responseContext = Data("zolana/prover-tee/v1/response".utf8)
-    private static let versionField = "Zolana-Tee"
+    private static let versionField = "Spr-Tee"
     private static let version = "v1"
-    private static let encapsulatedKeyField = "Zolana-Tee-Enc"
+    private static let encapsulatedKeyField = "Spr-Tee-Enc"
 
     /// The encrypted JSON body.
     let body: Data

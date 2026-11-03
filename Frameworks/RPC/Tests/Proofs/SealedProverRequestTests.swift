@@ -30,10 +30,10 @@ struct SealedProverRequestTests {
 
         #expect(sealed.body.count == Self.body.count + 16)
         #expect(sealed.body != Self.body)
-        #expect(sealed.headers.keys.sorted() == ["Content-Type", "Zolana-Tee", "Zolana-Tee-Enc"])
+        #expect(sealed.headers.keys.sorted() == ["Content-Type", "Spr-Tee", "Spr-Tee-Enc"])
         #expect(sealed.headers["Content-Type"] == "application/octet-stream")
-        #expect(sealed.headers["Zolana-Tee"] == "v1")
-        #expect(Hex.decode(sealed.headers["Zolana-Tee-Enc"] ?? "")?.count == 32)
+        #expect(sealed.headers["Spr-Tee"] == "v1")
+        #expect(Hex.decode(sealed.headers["Spr-Tee-Enc"] ?? "")?.count == 32)
     }
 
     @Test
@@ -55,8 +55,8 @@ struct SealedProverRequestTests {
             "https://prover.example" + vectors.requestURI,
             body: Data(fixtureBytes(vectors.ciphertext))
         )
-        request.setValue("v1", forHTTPHeaderField: "Zolana-Tee")
-        request.setValue(vectors.encapsulatedKey, forHTTPHeaderField: "Zolana-Tee-Enc")
+        request.setValue("v1", forHTTPHeaderField: "Spr-Tee")
+        request.setValue(vectors.encapsulatedKey, forHTTPHeaderField: "Spr-Tee-Enc")
         let responseKey = SymmetricKey(data: try fixtureBytes(vectors.responseKey))
 
         let opened = try prover.open(request)
@@ -167,7 +167,7 @@ struct SealedProverRequestTests {
 
         let (answer, response) = try prover.open(Self.request(posting: second)).answer(status: 200, body: Data())
 
-        #expect(first.headers["Zolana-Tee-Enc"] != second.headers["Zolana-Tee-Enc"])
+        #expect(first.headers["Spr-Tee-Enc"] != second.headers["Spr-Tee-Enc"])
         #expect(throws: RPCError.invalidResponse(.unauthenticatedAnswer)) { try first.open(answer, response: response) }
     }
 

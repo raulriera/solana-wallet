@@ -23,13 +23,13 @@
     },
     {
       "method": "POST",
-      "request_target": "/v1/zolanax/prove/x",
-      "aad": "POST /v1/zolanax/prove/x"
+      "request_target": "/v1/sprx/prove/x",
+      "aad": "POST /v1/sprx/prove/x"
     },
     {
       "method": "GET",
-      "request_target": "/v1/zolana?jobId=a",
-      "aad": "GET /v1/zolana?jobId=a"
+      "request_target": "/v1/spr?jobId=a",
+      "aad": "GET /v1/spr?jobId=a"
     },
     {
       "method": "GET",

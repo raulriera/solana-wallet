@@ -66,7 +66,7 @@ actor AttestedProverKey {
             let nonce = makeNonce()
             task = Task { @concurrent [prover, policy, verify] in
                 let attestation = try await prover.get(
-                    at: "tee/v1/attestation",
+                    at: "attestation",
                     query: [URLQueryItem(name: "nonce", value: Hex.encode(nonce))],
                     maximumLength: Self.maximumAttestationLength,
                     decoding: ProverAttestation.self

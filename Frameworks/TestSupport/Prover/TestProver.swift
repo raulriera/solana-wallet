@@ -13,7 +13,7 @@ struct TestProver: Sendable {
             let plaintext = Data([UInt8(status >> 8), UInt8(status & 0xff)]) + body
             let answer = try #require(try AES.GCM.seal(plaintext, using: responseKey).combined)
             let response = try #require(
-                HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: ["Zolana-Tee": "v1"])
+                HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: ["Spr-Tee": "v1"])
             )
             return (answer, response)
         }
@@ -53,8 +53,8 @@ struct TestProver: Sendable {
     func open(_ request: URLRequest) throws -> Request {
         let url = try #require(request.url)
         let method = try #require(request.httpMethod)
-        try #require(request.value(forHTTPHeaderField: "Zolana-Tee") == "v1")
-        let encapsulatedKey = try Self.headerBytes("Zolana-Tee-Enc", of: request)
+        try #require(request.value(forHTTPHeaderField: "Spr-Tee") == "v1")
+        let encapsulatedKey = try Self.headerBytes("Spr-Tee-Enc", of: request)
         let ciphertext = try #require(request.httpBody)
         let path = url.path(percentEncoded: true)
         let target = (path.isEmpty ? "/" : path) + (url.query(percentEncoded: true).map { "?" + $0 } ?? "")
