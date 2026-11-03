@@ -126,10 +126,6 @@ SHA-256: f28e01eb4bdcfabf4eec4b8ec8237b14935832ba5128b8fcd47f2b64185addc2
   ciphertext authenticates, /prove/transfer_2_2, and aad_cases keeps only the targets that zolana
   authenticates unchanged
 
-https://github.com/helius-labs/zolana/blob/bb2337f05317aa245a345f47c68e434ffed62561/prover/server/prover/provingkeys/proving-keys.lock
-SHA-256: 2c1dcfb16d93e0e40352a2c3f3806fac536a58effc49021d76e50edcf7b1dcd1
-- Privacy/Tests/Support/ProvingKeyVectors.json: the whole file
-
 https://github.com/helius-labs/zolana/blob/bb2337f05317aa245a345f47c68e434ffed62561/program-libs/interface/tests/pda.rs
 SHA-256: 536152c956610a1166dbab6459b1d3c7f512b6f552523b028a3d0f3592caf270
 - Privacy/Tests/ShieldedPool/ShieldedPoolTests.swift: the nullifier account of
@@ -145,3 +141,11 @@ SHA-256: ab5a2d28d0d7a0772ac7a593e5260c00039a57e4926e4fbf1c55490f9723e55d
 https://github.com/helius-labs/zolana/blob/bb2337f05317aa245a345f47c68e434ffed62561/sdk-libs/transaction/tests/hash_vectors.rs
 SHA-256: 7d0807d07c8665f5107bf7dbb4643d56d13662ed924f4ac48d1a034c4db74e35
 - Privacy/Tests/Support/TransferVectors.swift: the default-ring SOL transfer values
+
+Tag: ts-sdk-v0.8.0-alpha
+Commit: 6bb4f70
+License: https://github.com/helius-labs/zolana/blob/6bb4f7008294695ebe614f08affb215d4321a538/LICENSE
+
+https://github.com/helius-labs/zolana/blob/6bb4f7008294695ebe614f08affb215d4321a538/prover/server/prover/provingkeys/proving-keys.lock
+SHA-256: 9416e0b92aebb438fb34e26281f369664b48e8acfe0d6c0ea35724586bcc4313
+- Privacy/Tests/Support/ProvingKeyVectors.json: the whole file
