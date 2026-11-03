@@ -7,53 +7,48 @@ import Wallet
 
 @Suite(.serialized)
 struct SubmissionTests {
+    private static let rateLimit = RPCError.http(statusCode: 429, retryAfter: "3")
+
     @Test
-    func `One rate-limited route does not prevent another route accepting the transaction`() async throws {
+    func `Submission sends the signed bytes once with finalized preflight`() async throws {
         let signed = try ExternalFixture.signedResult()
-        let limited = HTTPResponses([:], error: .http(statusCode: 429, retryAfter: "3"))
         let accepted = HTTPResponses(["sendTransaction": [try HTTPResponses.json(ExternalFixture.signature)]])
 
-        let result = try await Submitter(rpcs: [limited.client, accepted.client]).submit(signed)
+        let result = try await Submitter(rpc: accepted.client).submit(signed)
 
         #expect(result.signature == ExternalFixture.signature)
-        for transport in [limited, accepted] {
-            let requests = await transport.requests
-            try #require(requests.count == 1)
-            #expect(try requests[0].rpcParameters[0] as? String == signed.transaction.serializedRepresentation.base64EncodedString())
-            #expect(try (requests[0].rpcParameters[1] as? [String: Any])?["preflightCommitment"] as? String == "finalized")
+        let requests = await accepted.requests
+        try #require(requests.count == 1)
+        #expect(try requests[0].rpcMethod == "sendTransaction")
+        #expect(try requests[0].rpcParameters[0] as? String == signed.transaction.serializedRepresentation.base64EncodedString())
+        #expect(try (requests[0].rpcParameters[1] as? [String: Any])?["preflightCommitment"] as? String == "finalized")
+    }
+
+    @Test
+    func `A rate-limited submission keeps its receipt and rate-limit details`() async throws {
+        let signed = try ExternalFixture.signedResult()
+        let limited = HTTPResponses([:], error: Self.rateLimit)
+
+        let error = try await #require(throws: DeliveryError.self) {
+            try await Submitter(rpc: limited.client).submit(signed)
         }
+
+        #expect(error.submission.signature == ExternalFixture.signature)
+        #expect(error.submission.network == .devnet)
+        #expect(error.cause as? RPCError == Self.rateLimit)
+        #expect(await limited.requests.count == 1)
     }
 
     @Test
-    func `Sending reads nothing before dispatch`() async throws {
+    func `A mismatched acknowledgment is rejected`() async throws {
         let signed = try ExternalFixture.signedResult()
-        let reads = HTTPResponses([:])
-        let accepted = HTTPResponses(["sendTransaction": [try HTTPResponses.json(ExternalFixture.signature)]])
-
-        _ = try await Submitter(rpcs: [accepted.client]).submit(signed)
-
-        #expect(await reads.requests.isEmpty)
-        #expect(try await accepted.requests.map { try $0.rpcMethod } == ["sendTransaction"])
-    }
-
-    @Test
-    func `Failed routes retain rate-limit details and reject a mismatched acknowledgment`() async throws {
-        let signed = try ExternalFixture.signedResult()
-        let limited = HTTPResponses([:], error: .http(statusCode: 429, retryAfter: "3"))
         let mismatched = HTTPResponses(["sendTransaction": [#""another-signature""#]])
 
         let error = try await #require(throws: DeliveryError.self) {
-            try await Submitter(rpcs: [limited.client, mismatched.client]).submit(signed)
+            try await Submitter(rpc: mismatched.client).submit(signed)
         }
-        let rejection = try #require(error.cause as? Submitter.Rejection)
-        #expect(error.submission.signature == ExternalFixture.signature)
-        #expect(error.submission.network == .devnet)
-        #expect(rejection.errors.count == 2)
-        #expect(rejection.errors.contains { $0 as? RPCError == .http(statusCode: 429, retryAfter: "3") })
-        #expect(rejection.errors.contains {
-            $0 as? SubmitterError == .responseMismatch(expectedSignature: ExternalFixture.signature)
-        })
-        #expect(await limited.requests.count == 1)
+
+        #expect(error.cause as? SubmitterError == .responseMismatch(expectedSignature: ExternalFixture.signature))
         #expect(await mismatched.requests.count == 1)
     }
 
@@ -66,7 +61,7 @@ struct SubmissionTests {
         let signature = try #require(signed.signature)
         let accepted = HTTPResponses(["sendTransaction": [try HTTPResponses.json(signature)]])
 
-        let receipt = try await Submitter(rpcs: [accepted.client]).submit(signed)
+        let receipt = try await Submitter(rpc: accepted.client).submit(signed)
 
         #expect(receipt == Submission(signature: signature, network: .devnet, lastValidBlockHeight: 550))
     }
@@ -80,7 +75,7 @@ struct SubmissionTests {
         let store = SigningRecoveryStore(recovery: try SigningFixture().recovery)
         let coordinator: any TransactionCoordinating = TransactionCoordinator(
             rpc: preparationHTTP.client, preparer: Preparer(rpc: preparationHTTP.client),
-            signer: Signer(validator: PreparationValidator(rpc: checks.client), store: store), submitter: Submitter(rpcs: [accepted.client]),
+            signer: Signer(validator: PreparationValidator(rpc: checks.client), store: store), submitter: Submitter(rpc: accepted.client),
             confirmer: Confirmer(rpc: checks.client)
         )
         let simulation = try await coordinator.simulate(expected.transaction, using: SigningFixture().account)
@@ -94,14 +89,14 @@ struct SubmissionTests {
 
     @Test(.tags(.network), .timeLimit(.minutes(3)))
     func `Devnet submission delivers 0.001 SOL to the configured recipient`() async throws {
-        let rpcs = try LiveClients.devnetRPCs()
+        let rpc = try LiveClients.client(network: .devnet)
         let wallets = try await DevnetWallets.configured()
         let sender = wallets.sender.address
         let recipient = wallets.recipient.address
-        try await fund(sender.value, using: rpcs)
+        try await wallets.requireFunds(1_100_000, using: rpc)
         let coordinator: any TransactionCoordinating = try TransactionCoordinator(
-            rpc: rpcs[0], store: SigningRecoveryStore(recovery: wallets.recovery), rpcs: rpcs)
-        let initialAccounts = try await rpcs[0].send(GetMultipleAccounts(addresses: [sender.value, recipient.value]))
+            rpc: rpc, store: SigningRecoveryStore(recovery: wallets.recovery))
+        let initialAccounts = try await rpc.send(GetMultipleAccounts(addresses: [sender.value, recipient.value]))
         let senderBalance = try #require(initialAccounts.value[0]).lamports
         let recipientBalance = initialAccounts.value[1]?.lamports ?? 0
         let simulation = try await coordinator.simulate([
@@ -121,24 +116,20 @@ struct SubmissionTests {
         let submission = try await coordinator.submit(simulation)
         let result = try await coordinator.confirm(submission)
         try #require(result.outcome == .succeeded)
-        for rpc in rpcs {
-            let confirmation = try await Confirmer(rpc: rpc).confirm(submission)
-            try #require(confirmation.outcome == .succeeded)
-            let slot = try await confirmation.executionSlot(through: rpc)
-            let accounts = try await rpc.send(GetMultipleAccounts(addresses: [sender.value, recipient.value], minContextSlot: slot))
-            #expect(accounts.value[0]?.lamports == senderBalance - 1_000_000 - fee)
-            #expect(accounts.value[1]?.lamports == recipientBalance + 1_000_000)
-        }
+        let slot = try await result.executionSlot(through: rpc)
+        let accounts = try await rpc.send(GetMultipleAccounts(addresses: [sender.value, recipient.value], minContextSlot: slot))
+        #expect(accounts.value[0]?.lamports == senderBalance - 1_000_000 - fee)
+        #expect(accounts.value[1]?.lamports == recipientBalance + 1_000_000)
     }
 
     @Test(.tags(.network), .timeLimit(.minutes(2)))
-    func `Devnet RPCs reject a signed transaction from an unfunded wallet`() async throws {
-        let rpcs = try LiveClients.devnetRPCs()
+    func `A devnet RPC rejects a signed transaction from an unfunded wallet`() async throws {
+        let rpc = try LiveClients.client(network: .devnet)
         let wallet = Wallet()
         let phrase = try wallet.recoveryPhrase(wordCount: .twelve)
         let account = try #require(try await wallet.accounts(for: phrase, passphrase: "", paths: [.solana]).first)
         let address = try Address(account.address)
-        let blockhash = try await rpcs[0].send(GetLatestBlockhash())
+        let blockhash = try await rpc.send(GetLatestBlockhash())
         let message = try MessageBuilder().message(
             instructions: [SystemProgram.transfer(from: address, to: address, lamports: 1)], payer: address,
             recentBlockhash: blockhash.value.blockhash, configuration: configuration()
@@ -148,13 +139,11 @@ struct SubmissionTests {
         let bytes = try TransactionBuilder().transaction(byAdding: signature, for: address,
             to: TransactionBuilder().simulationTransaction(for: message)).serializedRepresentation
 
-        for rpc in rpcs {
-            do {
-                _ = try await rpc.send(SendTransaction(transaction: bytes))
-                Issue.record("An unfunded transaction unexpectedly passed preflight")
-            } catch let RPCError.preflight(_, simulation) {
-                #expect(simulation.error != nil)
-            }
+        do {
+            _ = try await rpc.send(SendTransaction(transaction: bytes))
+            Issue.record("An unfunded transaction unexpectedly passed preflight")
+        } catch let RPCError.preflight(_, simulation) {
+            #expect(simulation.error != nil)
         }
     }
 
@@ -164,7 +153,7 @@ struct SubmissionTests {
         let rpc = Solana(network: .devnet)
 
         await #expect(throws: SubmitterError.missingSignatures) {
-            try await Submitter(rpcs: [rpc]).submit(signed)
+            try await Submitter(rpc: rpc).submit(signed)
         }
     }
 
@@ -179,46 +168,12 @@ struct SubmissionTests {
         let input = SignedTransaction(preparation: signed.preparation, transaction: altered)
 
         let error = try await #require(throws: DeliveryError.self) {
-            try await Submitter(rpcs: [Solana(network: .devnet)]).submit(input)
+            try await Submitter(rpc: Solana(network: .devnet)).submit(input)
         }
         #expect(error.cause as? SubmitterError == .transactionMismatch)
     }
 
     private func configuration() throws -> Configuration {
         try Configuration(priorityFeeLamports: 0, computeUnitLimit: 20_000, loadedAccountsDataSizeLimit: 65_536)
-    }
-
-    private func fund(_ address: String, using rpcs: [any RPC & SignatureEventProviding]) async throws {
-        let current = try await rpcs[0].send(GetMultipleAccounts(addresses: [address]))
-        if let account = current.value.first ?? nil, account.lamports >= 1_010_000 { return }
-        for rpc in rpcs {
-            do {
-                let signature = try await rpc.send(Airdrop(address: address))
-                let blockhash = try await rpc.send(GetLatestBlockhash())
-                let receipt = Submission(signature: signature, network: .devnet,
-                                         lastValidBlockHeight: blockhash.value.lastValidBlockHeight + 150)
-                let confirmation = try await Confirmer(rpc: rpc).confirm(receipt)
-                if confirmation.outcome == .succeeded { return }
-            } catch is CancellationError {
-                throw CancellationError()
-            } catch {
-                continue
-            }
-        }
-        throw SetupError.fundingUnavailable(address: address)
-    }
-
-    private enum SetupError: Error { case fundingUnavailable(address: String) }
-
-    private struct Airdrop: RPCRequest {
-        static let method = "requestAirdrop"
-        typealias Response = String
-        let address: String
-
-        func encode(to encoder: any Encoder) throws {
-            var values = encoder.unkeyedContainer()
-            try values.encode(address)
-            try values.encode(UInt64(10_000_000))
-        }
     }
 }

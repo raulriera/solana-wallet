@@ -9,7 +9,7 @@
 
 ## Submission and observation
 
-- `none` sends identical signed bytes once, concurrently, through the configured same-network ordinary RPCs. `standard` and `premium` use Helius Sender only, mainnet only, with no ordinary broadcast or fallback. Changing strategy needs a new coordinator and review.
+- Each transaction goes through one RPC, once. `none` sends through the selected provider. `standard` and `premium` send through Helius Sender only, mainnet only, with no fallback. Changing strategy needs a new coordinator and review.
 - Sender tips are ordinary instructions added before estimation and review, ahead of the caller's instructions so a payment can stay last. Standard tips 5,000 lamports; premium tips 1,000,000 lamports with at least 5,000 priority-fee lamports. These are minimum bids, not landing guarantees.
 - Preflight runs at `finalized` with zero node retries. Nothing rebuilds, signs again, or resubmits. An error after signing keeps its receipt in `DeliveryError`, so the transaction can be watched again.
 - `confirm` reports succeeded, failed (the fee is still paid), or dropped once a finalized block height passes the blockhash's last valid height. There is no timeout and no unknown result.

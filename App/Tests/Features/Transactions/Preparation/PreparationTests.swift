@@ -88,14 +88,13 @@ struct PreparationTests {
         let transfer = try PreparationFixture.source(fixture).instruction
         let payer = transfer.accounts[0].address
         let memo = try MemoProgram.memo("widgets tip order", signers: [payer])
-        let sender = Sender(tier: .standard)
-        let requirements = try #require(sender.submissionRequirements)
+        let requirements = try #require(Sender(tier: .standard).submissionRequirements)
         let tip = try SystemProgram.transfer(from: payer, to: Address(requirements.tipRecipient),
                                              lamports: requirements.tipLamports)
         let http = try HTTPResponses.preparation(fixture: fixture)
         let rpc = try #require(http.client(for: .solana, on: .mainnet))
 
-        let result = try await Preparer(rpc: rpc, rpcs: [sender]).prepare([memo, transfer], payer: payer, signer: payer,
+        let result = try await Preparer(rpc: rpc, requirements: requirements).prepare([memo, transfer], payer: payer, signer: payer,
             configuration: PreparationFixture.configuration())
 
         let expected = [tip, memo, transfer]

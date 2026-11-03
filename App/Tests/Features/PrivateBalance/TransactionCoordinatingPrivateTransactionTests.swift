@@ -73,7 +73,7 @@ struct TransactionCoordinatingPrivateTransactionTests {
         return TransactionCoordinator(
             rpc: signing.client, configuration: fixture.configuration, preparer: Preparer(rpc: responses.client),
             signer: Signer(validator: PreparationValidator(rpc: signing.client), store: UnavailableRecoveryStore()),
-            submitter: Submitter(rpcs: []), confirmer: Confirmer(rpc: signing.client)
+            submitter: Submitter(rpc: signing.client), confirmer: Confirmer(rpc: signing.client)
         )
     }
 

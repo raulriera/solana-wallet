@@ -35,8 +35,8 @@ nonisolated struct Preparation: Sendable {
     /// The network fee with its context; the fee is `nil` if unknown.
     let fee: GetFeeForMessage.Response
     let simulation: SimulateTransaction.Response
-    /// The services whose tips the transaction pays.
-    let tips: [SubmissionRequirements]
+    /// The submitting service's requirements, whose tip the transaction pays, or `nil` for none.
+    let requirements: SubmissionRequirements?
 
     var message: Data { transaction.message }
 
@@ -55,16 +55,16 @@ nonisolated struct Preparation: Sendable {
     ///   - network: The network of every read.
     ///   - fee: The network fee and its context.
     ///   - simulation: The simulation and its context.
-    ///   - tips: The services whose tips the transaction pays.
+    ///   - requirements: The submitting service's requirements, whose tip the transaction pays, or `nil` for none.
     init(source: Source, signer: Address, transaction: Transaction, network: Network,
          fee: GetFeeForMessage.Response, simulation: SimulateTransaction.Response,
-         tips: [SubmissionRequirements] = []) {
+         requirements: SubmissionRequirements? = nil) {
         self.source = source
         self.signer = signer
         self.transaction = transaction
         self.network = network
         self.fee = fee
         self.simulation = simulation
-        self.tips = tips
+        self.requirements = requirements
     }
 }

@@ -6,6 +6,8 @@ import Wallet
 @testable import widgets
 
 struct ApprovalTests {
+    private static let rateLimit = RPCError.http(statusCode: 429, retryAfter: "3")
+
     @Test
     func `A review from another coordinator cannot unlock recovery`() async throws {
         let fixture = try SigningFixture()
@@ -55,7 +57,7 @@ struct ApprovalTests {
         let coordinator: any TransactionCoordinating = TransactionCoordinator(
             rpc: http.client, configuration: fixture.configuration,
             preparer: Preparer(rpc: (try HTTPResponses.preparation(fixture: fixture.preparation)).client),
-            signer: Signer(validator: PreparationValidator(rpc: http.client), store: store), submitter: Submitter(rpcs: [http.client]), confirmer: Confirmer(rpc: http.client)
+            signer: Signer(validator: PreparationValidator(rpc: http.client), store: store), submitter: Submitter(rpc: http.client), confirmer: Confirmer(rpc: http.client)
         )
         let review = try await coordinator.simulate([fixture.transfer],
             using: fixture.account)
@@ -87,7 +89,7 @@ struct ApprovalTests {
         let coordinator: any TransactionCoordinating = TransactionCoordinator(
             rpc: http.client, configuration: fixture.configuration,
             preparer: Preparer(rpc: (try HTTPResponses.preparation(fixture: fixture.preparation)).client),
-            signer: Signer(validator: PreparationValidator(rpc: http.client), store: store), submitter: Submitter(rpcs: []),
+            signer: Signer(validator: PreparationValidator(rpc: http.client), store: store), submitter: Submitter(rpc: HTTPResponses([:], error: Self.rateLimit).client),
             confirmer: Confirmer(rpc: http.client)
         )
         let review = try await coordinator.simulate([fixture.transfer],
@@ -98,7 +100,7 @@ struct ApprovalTests {
         #expect(error.submission.network == .devnet)
         #expect(error.submission.signature.isEmpty == false)
         #expect(error.submission.lastValidBlockHeight == 550)
-        #expect((error.cause as? SubmitterError) == .noProviders)
+        #expect((error.cause as? RPCError) == Self.rateLimit)
         #expect(await store.reads.count == 1)
     }
 }

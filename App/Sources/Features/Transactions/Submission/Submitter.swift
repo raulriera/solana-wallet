@@ -1,21 +1,16 @@
 import RPC
 import Transactions
 
-/// A submitter that sends a reviewed transaction through ordinary RPCs without retrying.
+/// A submitter that sends a reviewed transaction once through one RPC, without retrying.
 nonisolated struct Submitter: TransactionSubmitting {
-    /// An error for a transaction that no RPC acknowledged.
-    struct Rejection: Error, Sendable {
-        let errors: [any Error]
-    }
-
-    private let rpcs: [any RPC]
+    private let rpc: any RPC
     private let transactionBuilder: any TransactionBuilding = TransactionBuilder()
 
     /// Creates a submitter.
     ///
-    /// - Parameter rpcs: The RPCs to submit through.
-    init(rpcs: [any RPC]) {
-        self.rpcs = rpcs
+    /// - Parameter rpc: The RPC to submit through.
+    init(rpc: any RPC) {
+        self.rpc = rpc
     }
 
     @concurrent
@@ -30,16 +25,14 @@ nonisolated struct Submitter: TransactionSubmitting {
         }
     }
 
-    /// Checks a signed transaction against its review, then sends it through every RPC on its network at once.
+    /// Checks a signed transaction against its review, then sends it through the RPC.
     ///
     /// - Parameters:
     ///   - signed: The signed transaction.
-    ///   - signature: The fee payer's signature, which every RPC must acknowledge.
-    /// - Throws: A prerequisite, signature, ``Rejection``, or cancellation error.
+    ///   - signature: The fee payer's signature, which the RPC must acknowledge.
+    /// - Throws: A prerequisite, signature, RPC, or cancellation error.
     private func send(_ signed: SignedTransaction, signature: String) async throws {
         try Task.checkCancellation()
-        let rpcs = rpcs.filter { $0.network == signed.preparation.network }
-        guard !rpcs.isEmpty else { throw SubmitterError.noProviders }
         let bytes = signed.transaction.serializedRepresentation
         let transaction = try transactionBuilder.validateSignatures(in: bytes)
         guard transaction == signed.transaction, transaction.message == signed.preparation.message else {
@@ -51,30 +44,9 @@ nonisolated struct Submitter: TransactionSubmitting {
             guard original == current else { throw SubmitterError.transactionMismatch }
         }
         try Task.checkCancellation()
-        let request = SendTransaction(transaction: bytes, minContextSlot: signed.preparation.minimumSlot)
-        let errors = await withTaskGroup(of: Result<Void, any Error>.self) { group in
-            for rpc in rpcs {
-                group.addTask {
-                    do {
-                        try Task.checkCancellation()
-                        let acknowledged = try await rpc.send(request)
-                        try Task.checkCancellation()
-                        guard acknowledged == signature else {
-                            throw SubmitterError.responseMismatch(expectedSignature: signature)
-                        }
-                        return .success(())
-                    } catch {
-                        return .failure(error)
-                    }
-                }
-            }
-            var errors: [any Error] = []
-            for await result in group {
-                if case .failure(let error) = result { errors.append(error) }
-            }
-            return errors
-        }
+        let acknowledged = try await rpc.send(SendTransaction(transaction: bytes,
+                                                              minContextSlot: signed.preparation.minimumSlot))
         try Task.checkCancellation()
-        guard errors.count < rpcs.count else { throw Rejection(errors: errors) }
+        guard acknowledged == signature else { throw SubmitterError.responseMismatch(expectedSignature: signature) }
     }
 }

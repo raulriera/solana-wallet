@@ -22,10 +22,10 @@ extension TransactionCoordinating {
         return (simulation, charged)
     }
 
-    /// Reads a simulation's network fee, including service tips.
+    /// Reads a simulation's network fee, including the service tip.
     ///
     /// - Parameter simulation: The simulation.
-    /// - Returns: The network fee and service tips, in lamports.
+    /// - Returns: The network fee and the service tip, in lamports.
     /// - Throws: ``Redemption/FeeError/unknown`` without a fee.
     private static func networkFee(of simulation: Simulation) throws -> UInt64 {
         guard let fee = simulation.networkFee else { throw Redemption.FeeError.unknown }

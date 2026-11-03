@@ -87,7 +87,7 @@ struct BalanceMoveProposal: TransactionProposal {
     ///   - account: The account whose public SOL pays.
     ///   - paid: The SOL that the public balance pays into the private balance, in lamports.
     ///   - received: The SOL that the public balance receives from the private balance, in lamports.
-    ///   - networkFee: The network fee and service tips, in lamports.
+    ///   - networkFee: The network fee and the service tip, in lamports.
     /// - Returns: The other fees, in lamports.
     /// - Throws: ``PrivateBalanceError/preparationFailed`` if the simulation doesn't report the account's SOL or
     ///   reports too little.

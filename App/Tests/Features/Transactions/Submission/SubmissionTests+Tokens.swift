@@ -8,12 +8,11 @@ import Wallet
 extension SubmissionTests {
     @Test(.tags(.network), .timeLimit(.minutes(3)), arguments: TokenProgram.allCases)
     func `Devnet token transfers deliver balances to the configured recipient`(_ program: TokenProgram) async throws {
-        let rpcs = try LiveClients.devnetRPCs()
-        let rpc = rpcs[0]
+        let rpc = try LiveClients.client(network: .devnet)
         let wallets = try await DevnetWallets.configured()
         let sender = wallets.sender
         let recipient = wallets.recipient
-        let coordinator = try TransactionCoordinator(rpc: rpc, store: SigningRecoveryStore(recovery: wallets.recovery), rpcs: rpcs)
+        let coordinator = try TransactionCoordinator(rpc: rpc, store: SigningRecoveryStore(recovery: wallets.recovery))
         let mintAddress = try Address(program == .token ? "So11111111111111111111111111111111111111112"
                                                       : "9pan9bMn5HatX4EJdBwg9VgCa7Uz5HL8N1m5D3NdXejP")
         let mintRead = try await rpc.send(GetMultipleAccounts(addresses: [mintAddress.value]))
@@ -65,28 +64,19 @@ extension SubmissionTests {
         #expect(changes.contains(BalanceChange(owner: recipient.address, asset: token, before: 0, after: amount)))
         let delivered = try await coordinator.confirm(coordinator.submit(review))
         try #require(delivered.outcome == .succeeded)
-        let balances = try await tokenBalances([source, destination], through: rpcs, after: delivered, program: program)
+        let balances = try await tokenBalances([source, destination], through: rpc, after: delivered, program: program)
         #expect(balances == [0, amount])
     }
 
-    private func tokenBalances(_ addresses: [Address], through rpcs: [any RPC & SignatureEventProviding],
-                               after receipt: widgets.Confirmation,
+    private func tokenBalances(_ addresses: [Address], through rpc: some RPC, after confirmation: widgets.Confirmation,
                                program: TokenProgram) async throws -> [UInt64] {
-        var expected: [UInt64]?
-        for rpc in rpcs {
-            let confirmation = try await Confirmer(rpc: rpc).confirm(receipt.submission)
-            try #require(confirmation.outcome == .succeeded)
-            let slot = try await confirmation.executionSlot(through: rpc)
-            let response = try await rpc.send(GetMultipleAccounts(addresses: addresses.map(\.value), minContextSlot: slot))
-            let values = try zip(addresses, response.value).map { address, value in
-                let account = try #require(value)
-                #expect(account.owner == program.rawValue)
-                return try TokenAccount(address: address, programOwner: Address(account.owner), data: account.data).amount
-            }
-            if let expected { #expect(values == expected) }
-            expected = values
+        let slot = try await confirmation.executionSlot(through: rpc)
+        let response = try await rpc.send(GetMultipleAccounts(addresses: addresses.map(\.value), minContextSlot: slot))
+        return try zip(addresses, response.value).map { address, value in
+            let account = try #require(value)
+            #expect(account.owner == program.rawValue)
+            return try TokenAccount(address: address, programOwner: Address(account.owner), data: account.data).amount
         }
-        return try #require(expected)
     }
 
     private func createAssociatedAccount(_ address: Address, owner: Address, mint: Address,

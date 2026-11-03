@@ -146,7 +146,7 @@ struct TokenDetailScreen: View {
 
 private extension TransactionStore {
     static var preview: TransactionStore {
-        TransactionStore(directory: .temporaryDirectory) { _ in throw SubmitterError.noProviders }
+        TransactionStore(directory: .temporaryDirectory) { _ in throw TransactionCoordinatorError.unsupportedNetwork }
     }
 }
 

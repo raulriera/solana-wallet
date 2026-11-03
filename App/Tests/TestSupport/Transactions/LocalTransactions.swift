@@ -19,7 +19,7 @@ struct LocalTransactions {
             rpc: preparation.client, configuration: fixture.configuration, preparer: Preparer(rpc: preparation.client),
             signer: Signer(validator: PreparationValidator(rpc: signing.client),
                            store: recovery ?? SigningRecoveryStore(recovery: fixture.recovery)),
-            submitter: Submitter(rpcs: [sent.client]),
+            submitter: Submitter(rpc: sent.client),
             confirmer: Confirmer(rpc: confirmation.client(socket: { sockets.connect($0) }))
         )
     }

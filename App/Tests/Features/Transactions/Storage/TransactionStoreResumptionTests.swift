@@ -93,7 +93,7 @@ struct TransactionStoreResumptionTests {
             attempted.yield()
             guard failures == 0 else {
                 failures -= 1
-                throw SubmitterError.noProviders
+                throw TransactionCoordinatorError.unsupportedNetwork
             }
             return coordinator
         }
@@ -103,7 +103,7 @@ struct TransactionStoreResumptionTests {
         _ = await attemptsMade.next()
         await store.resume()
 
-        await #expect(throws: SubmitterError.noProviders) { try await store.watch(record.id, for: record.key) }
+        await #expect(throws: TransactionCoordinatorError.unsupportedNetwork) { try await store.watch(record.id, for: record.key) }
         await store.resume()
         _ = await attemptsMade.next()
         await store.resume(replacingFailedWatches: true)

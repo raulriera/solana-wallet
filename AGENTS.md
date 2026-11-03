@@ -71,7 +71,7 @@
 - Keep the app decentralized: no app-owned backend or proxy. Connect directly to Solana RPC providers.
 - Never ship provider API keys in the app bundle or source; users enter them in the app. Ignored local configuration supplies keys to tests only.
 - Offer two built-in providers: public Solana RPC (no key) and Helius; QuickNode is planned as the third. People can also add custom HTTPS RPC URLs that serve standard requests, account subscriptions, and signature and root subscriptions. Each supports every wallet feature; they differ only in optional capabilities, such as CDN logos.
-- Use one submission strategy: `none` sends identical signed bytes concurrently through configured same-network ordinary RPCs; `standard` and `premium` use Sender exclusively. Follow [references/transaction-workflow.md](references/transaction-workflow.md).
+- Use one submission strategy: `none` sends through the selected provider; `standard` and `premium` use Sender with its tip. Send each transaction through one RPC only. Follow [references/transaction-workflow.md](references/transaction-workflow.md).
 - Show a manual token list for each account; read its balances with standard RPC and use DAS only to look up logos on the selected provider's CDN, loaded over HTTPS. Never request creator-hosted or off-chain artwork URLs, which expose the user's IP address. Follow [references/portfolio.md](references/portfolio.md).
 - Keep wallet recovery material device-only, excluded from iCloud sync and backups; follow [references/wallet.md](references/wallet.md).
 - Never drop saved wallets during launch, app updates, or validation. Preserve stored metadata and recovery; treat loading errors as failures, not an empty wallet.

@@ -5,6 +5,4 @@ nonisolated enum SubmitterError: Error, Sendable, Equatable {
     case transactionMismatch
     /// The provider acknowledged a different signature.
     case responseMismatch(expectedSignature: String)
-    /// No RPC serves the transaction's network.
-    case noProviders
 }

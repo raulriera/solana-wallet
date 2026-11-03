@@ -39,7 +39,7 @@ struct TransactionResumptionTests {
             attempted.yield()
             guard !fails else {
                 fails = false
-                throw SubmitterError.noProviders
+                throw TransactionCoordinatorError.unsupportedNetwork
             }
             return coordinator
         }

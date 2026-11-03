@@ -19,7 +19,7 @@ nonisolated struct Redemption: Sendable {
     let noteLamports: UInt64
     /// The one-time account's lamports less the registration and the tree fees.
     let availableLamports: UInt64
-    /// The network fee and service tips, in lamports.
+    /// The network fee and the service tip, in lamports.
     let networkFee: UInt64
     /// The one-time account's address.
     let source: Address
@@ -92,7 +92,7 @@ nonisolated struct Redemption: Sendable {
 
     /// Charges the network fee to the trailing deposit, replacing any fee charged before.
     ///
-    /// - Parameter fee: The network fee and service tips, in lamports.
+    /// - Parameter fee: The network fee and the service tip, in lamports.
     /// - Returns: The redemption whose deposit is the available lamports less the fee.
     /// - Throws: ``PrivateBalanceError/codeUnderfunded`` if the fee exceeds the available lamports.
     func charging(_ fee: UInt64) throws -> Redemption {

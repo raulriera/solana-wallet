@@ -261,7 +261,7 @@ struct TransactionStoreTests {
         let key = TransactionRecord.Key(account: account, network: .devnet)
         let saved = StoredValue([TransactionRecord.fixture(try LocalSending.payment(), signature: "saved",
                                                            account: account)])
-        let store = TransactionStore.inMemory(saved) { _ in throw SubmitterError.noProviders }
+        let store = TransactionStore.inMemory(saved) { _ in throw TransactionCoordinatorError.unsupportedNetwork }
         #expect(store.phase(for: key) == .unloaded)
 
         await store.load(key)
@@ -306,10 +306,11 @@ struct TransactionStoreTests {
         var attempts = 0
         let store = TransactionStore.inMemory { network in
             attempts += 1
-            return try TransactionCoordinator.unused(on: network, routes: attempts == 1 ? [] : nil)
+            if attempts == 1 { throw TransactionCoordinatorError.unsupportedNetwork }
+            return try TransactionCoordinator.unused(on: network)
         }
 
-        #expect(throws: SubmitterError.noProviders) { _ = try store.coordinator(for: .devnet) }
+        #expect(throws: TransactionCoordinatorError.unsupportedNetwork) { _ = try store.coordinator(for: .devnet) }
         _ = try store.coordinator(for: .devnet)
 
         #expect(attempts == 2)

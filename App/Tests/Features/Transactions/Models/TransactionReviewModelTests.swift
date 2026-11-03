@@ -41,7 +41,7 @@ struct TransactionReviewModelTests {
         let limited = HTTPResponses([:], error: Self.rateLimit)
         let transactions = TransactionStore.inMemory { network in
             try TransactionCoordinator(rpc: Solana(network: network, transport: limited),
-                                       store: UnavailableRecoveryStore(), rpcs: nil)
+                                       store: UnavailableRecoveryStore())
         }
         let model = try TransactionReviewModel(payment.model.proposal, from: payment.account, on: .devnet,
                                                transactions: transactions)

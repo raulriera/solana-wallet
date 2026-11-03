@@ -18,12 +18,11 @@ struct SimulationNetworkFeeTests {
         let fixture = try SigningFixture()
         let responses = try HTTPResponses.preparation(fixture: fixture.preparation)
         let rpc = try #require(responses.client(for: .solana, on: .mainnet))
-        let sender = Sender(tier: .standard)
-        let tip = try #require(sender.submissionRequirements).tipLamports
+        let requirements = try #require(Sender(tier: .standard).submissionRequirements)
 
-        let simulation = try await Self.transfer(fixture, preparer: Preparer(rpc: rpc, rpcs: [sender]))
+        let simulation = try await Self.transfer(fixture, preparer: Preparer(rpc: rpc, requirements: requirements))
 
-        #expect(simulation.networkFee == 10_000 + tip)
+        #expect(simulation.networkFee == 10_000 + requirements.tipLamports)
     }
 
     @Test func `An unknown fee leaves the network fee unknown`() async throws {
@@ -46,7 +45,7 @@ struct SimulationNetworkFeeTests {
         let coordinator = TransactionCoordinator(
             rpc: signing.client, configuration: fixture.configuration, preparer: preparer,
             signer: Signer(validator: PreparationValidator(rpc: signing.client), store: UnavailableRecoveryStore()),
-            submitter: Submitter(rpcs: []), confirmer: Confirmer(rpc: signing.client)
+            submitter: Submitter(rpc: signing.client), confirmer: Confirmer(rpc: signing.client)
         )
         return try await coordinator.transfer(1, using: fixture.account, to: fixture.transfer.accounts[1].address)
     }

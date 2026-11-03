@@ -488,7 +488,7 @@ struct ConfirmationTests {
                              store: SigningRecoveryStore) -> any TransactionCoordinating {
         let rpc = http.client(socket: { sockets.connect($0) })
         return TransactionCoordinator(rpc: rpc, preparer: Preparer(rpc: rpc), signer: Signer(validator: PreparationValidator(rpc: rpc), store: store),
-                                      submitter: Submitter(rpcs: [rpc]), confirmer: confirmer(http, sockets))
+                                      submitter: Submitter(rpc: rpc), confirmer: confirmer(http, sockets))
     }
 
     private func clock(stall: @escaping ControlledClock.Sleep = { _ in try await Task.sleep(for: .seconds(3_600)) },

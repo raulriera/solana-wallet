@@ -35,7 +35,7 @@ nonisolated struct PreparedPrivateTransaction: Sendable, CustomStringConvertible
 
     /// Returns the transaction with a redeem or take-back's network fee charged to its trailing deposit.
     ///
-    /// - Parameter fee: The network fee and service tips, in lamports.
+    /// - Parameter fee: The network fee and the service tip, in lamports.
     /// - Returns: The charged transaction.
     /// - Throws: ``PrivateBalanceError/codeUnderfunded`` if the fee exceeds the SOL left for it, or a validation
     ///   error.

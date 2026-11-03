@@ -34,9 +34,9 @@ struct BalanceMoveTests {
 
     @Test
     func `A review fails without a transaction coordinator`() async throws {
-        let move = try await Self.move(.toPrivate, transactions: .inMemory { _ in throw SubmitterError.noProviders })
+        let move = try await Self.move(.toPrivate, transactions: .inMemory { _ in throw TransactionCoordinatorError.unsupportedNetwork })
 
-        #expect(throws: SubmitterError.noProviders) { try move.review() }
+        #expect(throws: TransactionCoordinatorError.unsupportedNetwork) { try move.review() }
     }
 
     private static func move(_ direction: BalanceMoveProposal.Direction,

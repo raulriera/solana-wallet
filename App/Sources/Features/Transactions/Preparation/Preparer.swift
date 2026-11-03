@@ -7,31 +7,32 @@ nonisolated struct Preparer: TransactionPreparing {
     private let rpc: any RPC
     private let messageBuilder: any MessageBuilding = MessageBuilder()
     private let transactionBuilder: any TransactionBuilding = TransactionBuilder()
-    private let requirements: [SubmissionRequirements]
+    private let requirements: SubmissionRequirements?
 
     /// Creates a preparer.
     ///
     /// - Parameters:
     ///   - rpc: The provider that reads the blockhash, fee, and simulation.
-    ///   - rpcs: The RPCs that submit, whose tips on the provider's network the transaction pays, or `nil` for `rpc`.
-    init(rpc: any RPC, rpcs: [any RPC]? = nil) {
+    ///   - requirements: The submitting service's requirements, whose tip the transaction pays, or `nil` for none.
+    init(rpc: any RPC, requirements: SubmissionRequirements? = nil) {
         self.rpc = rpc
-        requirements = (rpcs ?? [rpc]).filter { $0.network == rpc.network }.compactMap(\.submissionRequirements)
+        self.requirements = requirements
     }
 
     @concurrent
     func prepare(_ instructions: [Instruction], payer: Address, signer: Address,
                  configuration: Configuration? = nil, minimumSlot: UInt64? = nil) async throws -> Preparation {
         try Task.checkCancellation()
-        let minimumFee = requirements.map(\.minimumPriorityFeeLamports).max() ?? 0
+        let minimumFee = requirements?.minimumPriorityFeeLamports ?? 0
         var requests = try configuration ?? resourceRequests(priorityFee: minimumFee)
         guard requests.priorityFeeLamports >= minimumFee else {
             throw PreparerError.priorityFeeTooLow(minimumLamports: minimumFee)
         }
-        let tips = try requirements.map {
-            try SystemProgram.transfer(from: payer, to: Address($0.tipRecipient), lamports: $0.tipLamports)
+        var invocations = instructions
+        if let requirements {
+            invocations.insert(try SystemProgram.transfer(from: payer, to: Address(requirements.tipRecipient),
+                                                          lamports: requirements.tipLamports), at: 0)
         }
-        let invocations = tips + instructions
         let blockhash = try await rpc.send(GetLatestBlockhash(minContextSlot: minimumSlot))
         try Task.checkCancellation()
         guard blockhash.context.slot >= (minimumSlot ?? 0) else { throw PreparerError.inconsistentResponse }
@@ -56,7 +57,7 @@ nonisolated struct Preparer: TransactionPreparing {
             }
         }
         return try await evaluate(transaction, source: .local(invocations, payer, requests, blockhash),
-                                  signer: signer, network: rpc.network, minimumSlot: context, tips: requirements)
+                                  signer: signer, network: rpc.network, minimumSlot: context, requirements: requirements)
     }
 
     /// Returns a priority fee with the network's resource limits, or with a tenth more than the measured usage.
@@ -82,7 +83,7 @@ nonisolated struct Preparer: TransactionPreparing {
     /// Compiles instructions into an unsigned transaction for simulation.
     ///
     /// - Parameters:
-    ///   - invocations: The instructions, service tips first.
+    ///   - invocations: The instructions, the service tip first.
     ///   - payer: The account that pays the fees.
     ///   - blockhash: The recent blockhash.
     ///   - requests: The priority fee and resource requests.
@@ -122,12 +123,12 @@ nonisolated struct Preparer: TransactionPreparing {
     ///   - signer: The account that signs.
     ///   - network: The provider's network.
     ///   - minimumSlot: The earliest slot for the reads, or `nil` for the source's context.
-    ///   - tips: The services whose tips the transaction pays.
+    ///   - requirements: The submitting service's requirements, whose tip the transaction pays, or `nil` for none.
     /// - Returns: The preparation.
     /// - Throws: An RPC, response, or cancellation error.
     private func evaluate(_ transaction: Transaction, source: Preparation.Source, signer: Address,
                   network: Network, minimumSlot: UInt64? = nil,
-                  tips: [SubmissionRequirements] = []) async throws -> Preparation {
+                  requirements: SubmissionRequirements? = nil) async throws -> Preparation {
         try Task.checkCancellation()
         async let fee = rpc.send(GetFeeForMessage(
             message: transaction.message, minContextSlot: minimumSlot ?? source.context.slot
@@ -142,7 +143,7 @@ nonisolated struct Preparer: TransactionPreparing {
               observations.1.value.replacementBlockhash == nil else { throw PreparerError.inconsistentResponse }
         return Preparation(
             source: source, signer: signer, transaction: transaction, network: network,
-            fee: observations.0, simulation: observations.1, tips: tips
+            fee: observations.0, simulation: observations.1, requirements: requirements
         )
     }
 }

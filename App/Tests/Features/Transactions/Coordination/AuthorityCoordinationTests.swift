@@ -1,6 +1,7 @@
 import CryptoKit
 import Encoding
 import Foundation
+import RPC
 import Testing
 import Transactions
 import Vault
@@ -8,6 +9,8 @@ import Wallet
 @testable import widgets
 
 struct AuthorityCoordinationTests {
+    private static let rateLimit = RPCError.http(statusCode: 429, retryAfter: "3")
+
     @Test(arguments: [true, false])
     func `The first authority pays and every authority signs its own slot`(oneTimePays: Bool) async throws {
         let fixture = try SigningFixture()
@@ -68,7 +71,7 @@ struct AuthorityCoordinationTests {
 
         let error = try await #require(throws: DeliveryError.self) { try await coordinator.submit(review) }
 
-        #expect((error.cause as? SubmitterError) == .noProviders)
+        #expect((error.cause as? RPCError) == Self.rateLimit)
         #expect(!error.submission.signature.isEmpty)
         #expect(await store.reads.count == 1)
     }
@@ -79,7 +82,7 @@ struct AuthorityCoordinationTests {
         let coordinator = TransactionCoordinator(
             rpc: signing.client, configuration: fixture.configuration, preparer: Preparer(rpc: preparation.client),
             signer: Signer(validator: PreparationValidator(rpc: signing.client), store: store),
-            submitter: Submitter(rpcs: []), confirmer: Confirmer(rpc: signing.client)
+            submitter: Submitter(rpc: HTTPResponses([:], error: Self.rateLimit).client), confirmer: Confirmer(rpc: signing.client)
         )
         return (coordinator, preparation)
     }

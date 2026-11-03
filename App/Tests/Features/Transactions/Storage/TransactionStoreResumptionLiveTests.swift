@@ -16,12 +16,11 @@ struct TransactionStoreResumptionLiveTests {
         let directory = URL.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
         defer { try? FileManager.default.removeItem(at: directory) }
         let wallets = try await DevnetWallets.configured()
-        let rpcs = try LiveClients.devnetRPCs()
-        let balance = try await rpcs[0].send(GetMultipleAccounts(addresses: [wallets.sender.address.value]))
+        let rpc = try LiveClients.client(network: .devnet)
+        let balance = try await rpc.send(GetMultipleAccounts(addresses: [wallets.sender.address.value]))
         try #require((balance.value.first ?? nil)?.lamports ?? 0 >= Self.lamports + 10_000_000,
                      "Account 0 of DEVNET_TEST_SEED needs at least 0.011 devnet SOL")
-        let coordinator = try TransactionCoordinator(rpc: rpcs[0],
-                                                     store: SigningRecoveryStore(recovery: wallets.recovery), rpcs: rpcs)
+        let coordinator = try TransactionCoordinator(rpc: rpc, store: SigningRecoveryStore(recovery: wallets.recovery))
         let simulation = try await coordinator.transfer(Self.lamports, using: wallets.sender,
                                                         to: wallets.recipient.address)
         try #require(simulation.diagnostics.value.error == nil)

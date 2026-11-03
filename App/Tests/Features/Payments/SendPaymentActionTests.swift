@@ -75,7 +75,7 @@ struct SendPaymentActionTests {
         payment.press(.digit(1))
 
         try Self.action(payment: payment, presented: presented,
-                        transactions: .inMemory { _ in throw SubmitterError.noProviders })()
+                        transactions: .inMemory { _ in throw TransactionCoordinatorError.unsupportedNetwork })()
 
         #expect(presented.review == nil)
         #expect(presented.presented == nil)

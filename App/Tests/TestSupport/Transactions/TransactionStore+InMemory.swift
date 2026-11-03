@@ -29,8 +29,8 @@ extension TransactionStore {
 }
 
 extension TransactionCoordinator {
-    static func unused(on network: Network, routes: [any RPC]? = nil) throws -> TransactionCoordinator {
+    static func unused(on network: Network) throws -> TransactionCoordinator {
         try TransactionCoordinator(rpc: Solana(network: network, transport: HTTPResponses([:])),
-                                   store: UnavailableRecoveryStore(), rpcs: routes)
+                                   store: UnavailableRecoveryStore())
     }
 }

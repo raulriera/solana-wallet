@@ -7,29 +7,27 @@ import Vault
 nonisolated struct TransactionCoordinator: TransactionCoordinating {
     /// A way to submit transactions.
     enum Strategy: Sendable {
-        /// Submits through every configured ordinary RPC, without a Sender tip.
+        /// Submits through the provider, without a Sender tip.
         case none
         /// Submits only through Sender's lower-cost route.
         case standard
         /// Submits only through Sender's broader routes, with a higher tip.
         case premium
 
-        /// Returns the RPCs that submit with this strategy on a network.
+        /// Returns the RPC that submits with this strategy.
         ///
-        /// - Parameters:
-        ///   - network: The network to submit on.
-        ///   - rpcs: The ordinary RPCs to choose from.
-        /// - Returns: The ordinary RPCs on the network, or one Sender client.
-        /// - Throws: ``SubmitterError/noProviders`` if the strategy has no route on the network.
-        func clients(for network: Network, from rpcs: [any RPC]) throws -> [any RPC] {
-            let candidates: [any RPC] = switch self {
-            case .none: rpcs.filter { $0.submissionRequirements == nil }
-            case .standard: [Sender(tier: .standard)]
-            case .premium: [Sender(tier: .premium)]
+        /// - Parameter rpc: The provider.
+        /// - Returns: The provider, or a Sender client.
+        /// - Throws: ``TransactionCoordinatorError/unsupportedNetwork`` if the strategy has no route on the
+        ///   provider's network.
+        func client(for rpc: any RPC) throws -> any RPC {
+            let client: any RPC = switch self {
+            case .none: rpc
+            case .standard: Sender(tier: .standard)
+            case .premium: Sender(tier: .premium)
             }
-            let clients = candidates.filter { $0.network == network }
-            guard !clients.isEmpty else { throw SubmitterError.noProviders }
-            return clients
+            guard client.network == rpc.network else { throw TransactionCoordinatorError.unsupportedNetwork }
+            return client
         }
     }
 
@@ -44,17 +42,19 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
     /// Creates a coordinator with a provider and a recovery store.
     ///
     /// - Parameters:
-    ///   - rpc: The provider that reads, simulates, and watches transactions.
+    ///   - rpc: The provider that reads, simulates, and watches transactions, and submits them for `.none`.
     ///   - store: The recovery store that authenticates access to saved accounts.
-    ///   - rpcs: The ordinary RPCs for `.none`, or `nil` to use `rpc` alone.
     ///   - strategy: The submission strategy.
     ///   - configuration: The priority fee and resource limits, or `nil` to estimate them.
-    /// - Throws: ``SubmitterError/noProviders`` if no route serves the provider's network.
-    init(rpc: any RPC & SignatureEventProviding, store: any RecoveryStoring, rpcs: [any RPC]? = nil,
-         strategy: Strategy = .none, configuration: Configuration? = nil) throws {
-        let clients = try strategy.clients(for: rpc.network, from: rpcs ?? [rpc])
-        self.init(rpc: rpc, configuration: configuration, preparer: Preparer(rpc: rpc, rpcs: clients), signer: Signer(validator: PreparationValidator(rpc: rpc), store: store),
-                  submitter: Submitter(rpcs: clients), confirmer: Confirmer(rpc: rpc))
+    /// - Throws: ``TransactionCoordinatorError/unsupportedNetwork`` if the strategy has no route on the provider's
+    ///   network.
+    init(rpc: any RPC & SignatureEventProviding, store: any RecoveryStoring, strategy: Strategy = .none,
+         configuration: Configuration? = nil) throws {
+        let client = try strategy.client(for: rpc)
+        self.init(rpc: rpc, configuration: configuration,
+                  preparer: Preparer(rpc: rpc, requirements: client.submissionRequirements),
+                  signer: Signer(validator: PreparationValidator(rpc: rpc), store: store),
+                  submitter: Submitter(rpc: client), confirmer: Confirmer(rpc: rpc))
     }
 
     /// Creates a coordinator with the given transaction services.
@@ -139,7 +139,8 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
         for authority in simulation.authorities {
             let original = simulation.preparation
             let preparation = Preparation(source: original.source, signer: try authority.address, transaction: transaction,
-                network: original.network, fee: original.fee, simulation: original.simulation, tips: original.tips)
+                network: original.network, fee: original.fee, simulation: original.simulation,
+                requirements: original.requirements)
             transaction = try await signer.sign(preparation, for: authority,
                 reason: String(localized: "Approve transaction")).transaction
         }
@@ -215,8 +216,8 @@ nonisolated struct Simulation: Sendable {
     var diagnostics: SimulateTransaction.Response { preparation.simulation }
     /// The balances that the simulation changed, or `nil` if unknown.
     var balanceChanges: [BalanceChange]? { BalanceChange.changes(in: transaction, from: diagnostics.value) }
-    /// The services whose tips the transaction pays.
-    var tips: [SubmissionRequirements] { preparation.tips }
+    /// The submitting service's requirements, whose tip the transaction pays, or `nil` for none.
+    var requirements: SubmissionRequirements? { preparation.requirements }
 
     /// Creates a simulation.
     ///

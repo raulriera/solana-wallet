@@ -22,7 +22,7 @@ struct SenderTests {
         let fee: UInt64 = strategy == .standard ? 5_001 : 10_000
         let tip: UInt64 = strategy == .standard ? 5_000 : 1_000_000
         try #require(review.fee == fee, "A changed quote requires another cost review")
-        try #require(review.tips.map(\.tipLamports) == [tip])
+        try #require(review.requirements?.tipLamports == tip)
         try #require(review.diagnostics.value.error == nil)
         try #require(initial >= fee + tip, "The configured test wallet's mainnet sender must already cover the approved cost")
         let submission = try await coordinator.submit(review)

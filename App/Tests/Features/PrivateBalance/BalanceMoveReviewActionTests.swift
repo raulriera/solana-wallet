@@ -57,7 +57,7 @@ struct BalanceMoveReviewActionTests {
 
     @Test func `Unavailable transactions explain the failure`() async throws {
         let presented = Presented()
-        let move = try await Self.move(transactions: .inMemory { _ in throw SubmitterError.noProviders })
+        let move = try await Self.move(transactions: .inMemory { _ in throw TransactionCoordinatorError.unsupportedNetwork })
         move.payment.press(.digit(1))
 
         Self.action(for: move, presented: presented)()

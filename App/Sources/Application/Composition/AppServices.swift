@@ -85,7 +85,7 @@ struct AppServices {
             directory: .persistentDirectory.appending(path: "Transactions", directoryHint: .isDirectory)
         ) { [recovery] network in
             let provider = providerClient(network)
-            return try TransactionCoordinator(rpc: provider, store: recovery, rpcs: [provider, Solana(network: network)])
+            return try TransactionCoordinator(rpc: provider, store: recovery)
         }
         self.transactionStore = transactionStore
         let privateBalances = PrivateBalances(recovery: recovery, wallet: wallet, keys: privateBalanceKeys,

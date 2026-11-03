@@ -1,6 +1,6 @@
 /// A type that submits a reviewed, signed transaction.
 nonisolated protocol TransactionSubmitting: Sendable {
-    /// Checks a signed transaction, then submits it through every supplied RPC at once.
+    /// Checks a signed transaction, then submits it once through its RPC.
     ///
     /// - Parameter signed: The signed transaction.
     /// - Returns: The transaction's receipt.

@@ -25,7 +25,7 @@ actor ResetStorage: RecoveryStoring {
     @MainActor var stores: [any Erasable] {
         let transactions = TransactionStore(storage: { _ in ResetValue(storage: self, step: .transactions) },
                                             pending: ResetValue(storage: self, step: .pendingTransactions),
-                                            coordinators: { _ in throw SubmitterError.noProviders })
+                                            coordinators: { _ in throw TransactionCoordinatorError.unsupportedNetwork })
         _ = transactions.records(for: TransactionRecord.Key(account: UUID(), network: .devnet))
         return [ContactStore(storage: ResetValue<AddressBook>(storage: self, step: .contacts)),
                 transactions,

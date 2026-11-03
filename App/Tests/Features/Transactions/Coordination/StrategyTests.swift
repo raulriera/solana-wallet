@@ -8,28 +8,21 @@ import Vault
 
 struct StrategyTests {
     @Test
-    func `None selects all ordinary RPCs on the transaction network`() throws {
-        let clients = try TransactionCoordinator.Strategy.none.clients(for: .mainnet, from: [
-            Solana(), HeliusRPC(apiKey: "test-key", network: .mainnet), Solana(network: .devnet), Sender(tier: .premium),
-        ])
+    func `None submits through the provider`() throws {
+        let client = try TransactionCoordinator.Strategy.none.client(for: HeliusRPC(apiKey: "test-key", network: .mainnet))
 
-        try #require(clients.count == 2)
-        #expect(clients[0] is Solana)
-        #expect(clients[1] is HeliusRPC)
-        #expect(clients.allSatisfy { $0.network == .mainnet && $0.submissionRequirements == nil })
+        #expect(client is HeliusRPC)
+        #expect(client.submissionRequirements == nil)
     }
 
     @Test(arguments: [
         (TransactionCoordinator.Strategy.standard, Sender.Tier.standard),
         (.premium, .premium),
     ])
-    func `Sender strategies replace ordinary RPCs with one selected tier`(strategy: TransactionCoordinator.Strategy, tier: Sender.Tier) throws {
-        let clients = try strategy.clients(for: .mainnet, from: [
-            Solana(), HeliusRPC(apiKey: "test-key", network: .mainnet), Sender(tier: .premium),
-        ])
+    func `Sender strategies replace the provider with one selected tier`(strategy: TransactionCoordinator.Strategy, tier: Sender.Tier) throws {
+        let client = try strategy.client(for: HeliusRPC(apiKey: "test-key", network: .mainnet))
 
-        try #require(clients.count == 1)
-        let sender = try #require(clients[0] as? Sender)
+        let sender = try #require(client as? Sender)
         #expect(sender.tier == tier)
     }
 
@@ -45,7 +38,7 @@ struct StrategyTests {
                                                computeUnitLimit: 20_000, loadedAccountsDataSizeLimit: 65_536)
 
         let coordinator = try TransactionCoordinator(rpc: rpc,
-            store: KeychainStore(service: "widgetsTests.Strategy"), rpcs: [rpc], strategy: strategy, configuration: configuration)
+            store: KeychainStore(service: "widgetsTests.Strategy"), strategy: strategy, configuration: configuration)
 
         await #expect(throws: PreparerError.priorityFeeTooLow(minimumLamports: minimumFee)) {
             try await coordinator.simulate([transfer], using: Account(id: UUID(), recoveryID: UUID(), address: transfer.accounts[0].address, path: .solana))
@@ -55,11 +48,11 @@ struct StrategyTests {
     @Test(arguments: [
         TransactionCoordinator.Strategy.standard, .premium,
     ])
-    func `Sender strategies reject devnet without falling back to ordinary RPCs`(strategy: TransactionCoordinator.Strategy) throws {
+    func `Sender strategies reject devnet without falling back to the provider`(strategy: TransactionCoordinator.Strategy) throws {
         let rpc = Solana(network: .devnet)
-        #expect(throws: SubmitterError.noProviders) {
+        #expect(throws: TransactionCoordinatorError.unsupportedNetwork) {
             try TransactionCoordinator(rpc: rpc, store: KeychainStore(service: "widgetsTests.Strategy"),
-                                       rpcs: [rpc], strategy: strategy)
+                                       strategy: strategy)
         }
     }
 }
