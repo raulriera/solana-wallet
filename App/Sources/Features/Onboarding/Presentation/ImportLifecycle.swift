@@ -10,7 +10,7 @@ private struct ImportLifecycle: ViewModifier {
         content
             .task(id: attempt) { await submission.run(attempt) }
             .onDisappear { submission.leave(presentationID) }
-            .errorAlert($submission.error)
+            .alert(error: $submission.error)
     }
 }
 

@@ -23,7 +23,7 @@ struct ProvidersDestination: View {
         case .customRPCDetails:
             if let url = coordinator.details {
                 CustomRPCDetailsScreen(url: url, isListed: providers.settings?.customRPCs.contains(url) == true,
-                                       removal: $coordinator.removal)
+                                       removal: $coordinator.removal, actions: coordinator)
             }
         }
     }

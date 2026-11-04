@@ -9,6 +9,7 @@ struct CustomRPCDetailsScreen: View {
     let isListed: Bool
     /// The custom RPC waiting for the person to confirm its deletion.
     @Binding var removal: URL?
+    let actions: any ProviderActions
 
     var body: some View {
         Form {
@@ -26,6 +27,7 @@ struct CustomRPCDetailsScreen: View {
             Section {
                 Button("Delete RPC", systemImage: "trash", role: .destructive) { removal = url }
                     .labelStyle(.warning)
+                    .rpcDeletion(of: url, removal: $removal, actions: actions)
             }
         }
         .navigationTitle(Text(ProviderSettings.Provider.custom(url).name))

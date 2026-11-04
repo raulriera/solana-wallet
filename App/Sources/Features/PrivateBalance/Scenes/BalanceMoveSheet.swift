@@ -32,6 +32,6 @@ struct BalanceMoveSheet: View {
         .onChange(of: presentedReview == nil && review?.isCommitted == true) { _, isCommittedAndClosed in
             if isCommittedAndClosed { dismiss() }
         }
-        .errorAlert($reviewError)
+        .alert(error: $reviewError)
     }
 }

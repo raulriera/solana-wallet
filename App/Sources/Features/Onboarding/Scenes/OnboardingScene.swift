@@ -81,7 +81,7 @@ struct OnboardingScene: View {
             if !coordinator.isWorking, !walletImport.isPending { walletSetup.discardDraft() }
         }
         .modifier(ProvidersLifecycle(coordinator: providers))
-        .errorAlert($walletSetup.error)
+        .alert(error: $walletSetup.error)
     }
 
     /// Pushes the provider choice once the wallet is saved.

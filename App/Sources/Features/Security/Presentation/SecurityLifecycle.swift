@@ -8,6 +8,6 @@ struct SecurityLifecycle: ViewModifier {
         let attempt = coordinator.attempt
         content
             .task(id: attempt) { await coordinator.run(attempt) }
-            .errorAlert($coordinator.error, retry: coordinator.reset)
+            .alert(error: $coordinator.error, retry: coordinator.reset)
     }
 }

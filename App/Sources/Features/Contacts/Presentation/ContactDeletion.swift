@@ -10,26 +10,16 @@ private struct ContactDeletion: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .confirmationDialog("Delete Contact?", isPresented: $removal[isRemoving: contact],
-                                presenting: contact) { contact in
-                Button("Delete Contact", role: .destructive) {
-                    withAnimation { contactDeletion?(contact) }
-                }
-            } message: { contact in
+            .confirmation("Delete Contact?", action: "Delete Contact", isPresented: $removal[isPresenting: contact],
+                          perform: delete) {
                 Text("\(contact.name) will be removed from your contacts.",
                      comment: "Message when deleting a contact. The variable is the contact's name.")
             }
     }
-}
 
-private extension Optional where Wrapped == Contact {
-    /// Accesses whether a contact's deletion waits for confirmation, and stops the wait when set to `false`.
-    ///
-    /// - Parameter contact: The contact that a view deletes.
-    /// - Returns: `true` when the contact's deletion waits for confirmation.
-    subscript(isRemoving contact: Contact) -> Bool {
-        get { self?.id == contact.id }
-        set { if !newValue, self?.id == contact.id { self = nil } }
+    /// Deletes the contact with animation.
+    private func delete() {
+        withAnimation { contactDeletion?(contact) }
     }
 }
 

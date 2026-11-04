@@ -1,3 +1,5 @@
+import Foundation
+
 /// The commands that provider controls run.
 @MainActor protocol ProviderActions: AnyObject {
     /// Chooses the provider in use, asking for its key first when none is saved.
@@ -15,4 +17,9 @@
 
     /// Opens the screen that checks and adds a custom RPC.
     func addCustomRPC()
+
+    /// Deletes a confirmed custom RPC.
+    ///
+    /// - Parameter url: The RPC to delete.
+    func remove(_ url: URL)
 }

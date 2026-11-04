@@ -15,7 +15,7 @@ private struct ProviderSetupLifecycle<EntryError: ProviderEntryError>: ViewModif
                 guard let rejection = submission.rejection else { return }
                 AccessibilityNotification.Announcement(String(localized: rejection.message)).post()
             }
-            .errorAlert($submission.error)
+            .alert(error: $submission.error)
             .onChange(of: submission.isSaved) { dismiss() }
     }
 }

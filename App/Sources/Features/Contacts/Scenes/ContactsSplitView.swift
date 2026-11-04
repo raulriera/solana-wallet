@@ -82,7 +82,7 @@ struct ContactsSplitView: View {
         .task(id: Load(attempt: loadAttempt, keys: lists.keys)) {
             await contacts.load(lists.keys, from: store, transactions: transactions)
         }
-        .errorAlert($contacts.error)
+        .alert(error: $contacts.error)
         .environment(\.contactEntry, ContactEntryAction(lists: lists, entry: $entry))
         .environment(\.contactFavorite, ContactFavoriteAction(contacts: contacts, lists: lists, store: store))
         .environment(\.contactDeletion,

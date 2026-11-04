@@ -13,6 +13,6 @@ struct AccountAdditionLifecycle: ViewModifier {
                 guard let creation else { return }
                 await addition.run(attempt, creation: creation, store: store)
             }
-            .errorAlert($addition.error, retry: addition.retry)
+            .alert(error: $addition.error, retry: addition.retry)
     }
 }

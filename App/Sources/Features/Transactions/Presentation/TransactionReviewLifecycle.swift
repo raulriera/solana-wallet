@@ -20,7 +20,7 @@ private struct TransactionReviewLifecycle<Proposal: TransactionProposal>: ViewMo
                 case nil: nil
                 }
             }
-            .errorAlert($review.error, retry: review.retry)
+            .alert(error: $review.error, retry: review.retry)
     }
 }
 

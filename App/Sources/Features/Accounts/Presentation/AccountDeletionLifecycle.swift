@@ -10,6 +10,6 @@ struct AccountDeletionLifecycle: ViewModifier {
         let attempt = deletion.attempt
         content
             .task(id: attempt) { await deletion.run(attempt, store: store, transactions: transactions) }
-            .errorAlert($deletion.error)
+            .alert(error: $deletion.error)
     }
 }

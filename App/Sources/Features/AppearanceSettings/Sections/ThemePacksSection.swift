@@ -16,9 +16,8 @@ struct ThemePacksSection: View {
             }
                 .foregroundStyle(palette.primary)
                 .fileImporter(isPresented: $isImporting, allowedContentTypes: [.themePack], onCompletion: completeImport)
-                .confirmationDialog("Replace Theme?", item: $settings.replacement) { replacement in
-                    Button("Replace", role: .destructive) { settings.replace(replacement) }
-                } message: { replacement in
+                .confirmation("Replace Theme?", action: "Replace", item: $settings.replacement,
+                              perform: settings.replace) { replacement in
                     Text("Replace \(replacement.existing.name) with \(replacement.pack.name)? Windows using this theme will update.")
                 }
             Button("Export Default Template…", systemImage: "square.and.arrow.up") { settings.prepareExport() }

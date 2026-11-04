@@ -13,5 +13,6 @@ struct CustomRPCRow: View {
             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                 SwipeDeleteButton(removal: $removal, item: url)
             }
+            .rpcDeletion(of: url, removal: $removal, actions: actions)
     }
 }

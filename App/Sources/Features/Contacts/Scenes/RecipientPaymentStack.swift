@@ -52,7 +52,7 @@ struct RecipientPaymentStack<Details: View>: View {
                             .transactionReviewLifecycle()
                             .navigationTransition(.zoom(sourceID: ObjectIdentifier(payment), in: reviewTransition))
                     }
-                    .errorAlert($sendError)
+                    .alert(error: $sendError)
                 } else {
                     UnavailableScreen(title: "Nothing to Send",
                                       message: "This account has no tokens with a balance on this network.",

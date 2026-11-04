@@ -12,7 +12,7 @@ private struct TokenRemovalLifecycle: ViewModifier {
         let attempt = removal.attempt
         content
             .task(id: attempt) { await removal.run(attempt, in: portfolios, for: account, on: network) }
-            .errorAlert($removal.error, retry: removal.retry)
+            .alert(error: $removal.error, retry: removal.retry)
     }
 }
 

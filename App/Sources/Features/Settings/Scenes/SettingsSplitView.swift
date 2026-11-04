@@ -62,6 +62,6 @@ struct SettingsSplitView: View {
         .onChange(of: horizontalSizeClass, initial: true) { _, sizeClass in
             if sizeClass == .regular, selection == nil { selection = .accounts }
         }
-        .errorAlert($settings.error)
+        .alert(error: $settings.error)
     }
 }

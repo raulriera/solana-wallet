@@ -54,16 +54,14 @@ struct RecoveryPhraseScreen: View {
             Section {
                 Button("Continue") { isConfirmingBackup = true }
                     .foregroundStyle(palette.primary)
+                    .confirmation("Have you saved your recovery words?", action: "Yes", role: .confirm,
+                                  isPresented: $isConfirmingBackup, perform: continueSetup) {
+                        Text("Make sure you've written down all the words in order and stored them somewhere safe.")
+                    }
             }
         }
         .navigationTitle("Recovery Phrase")
         .navigationBarTitleDisplayMode(.inline)
-        .alert("Have you saved your recovery words?", isPresented: $isConfirmingBackup) {
-            Button("Yes", role: .confirm, action: continueSetup)
-            Button("No", role: .cancel) {}
-        } message: {
-            Text("Make sure you've written down all the words in order and stored them somewhere safe.")
-        }
         .onDisappear {
             if isSaved { phrase = nil }
         }

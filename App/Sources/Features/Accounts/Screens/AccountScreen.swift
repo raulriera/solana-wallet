@@ -60,9 +60,8 @@ struct AccountScreen: View {
                         .labelStyle(.warning)
                         .lineLimit(1)
                         .disabled(isRenaming)
-                        .confirmationDialog("Delete Account?", isPresented: $isConfirmingDeletion) {
-                            Button("Delete Account", role: .destructive, action: delete)
-                        } message: {
+                        .confirmation("Delete Account?", action: "Delete Account", isPresented: $isConfirmingDeletion,
+                                      perform: delete) {
                             Text("\(account.name) will be removed from this device. Its funds stay at its address, and your recovery phrase can bring it back.",
                                  comment: "Message when deleting an account in Settings > Accounts. The variable is its name, such as Account 2.")
                         }

@@ -14,6 +14,7 @@ private struct WindowAppearance: ViewModifier {
 
     func body(content: Content) -> some View {
         content
+            .alert(error: $error)
             .environment(\.palette, palette)
             .tint(palette.primary)
             .formStyle(.themed)
@@ -23,7 +24,6 @@ private struct WindowAppearance: ViewModifier {
                 catch { report(error, as: .settingsUnreadable) }
             }
             .task(id: selectedTheme?.revision) { await loadSelectedTheme() }
-            .errorAlert($error)
     }
 
     /// Loads the colors of the selected theme.

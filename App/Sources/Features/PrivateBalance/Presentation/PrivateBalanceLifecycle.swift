@@ -12,7 +12,7 @@ private struct PrivateBalanceLifecycle: ViewModifier {
         let attempt = model.attempt
         content
             .task(id: attempt) { await model.run(attempt, in: privateBalances, for: account, on: network) }
-            .errorAlert($model.error)
+            .alert(error: $model.error)
             .sheet(item: $model.move) { BalanceMoveSheet(move: $0) }
             .sensoryFeedback(.success, trigger: model.isTurnedOn) { _, isTurnedOn in isTurnedOn }
             .onChange(of: model.isTurnedOn) { _, isTurnedOn in

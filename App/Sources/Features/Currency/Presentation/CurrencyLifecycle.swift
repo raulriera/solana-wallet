@@ -13,7 +13,7 @@ private struct CurrencyLifecycle: ViewModifier {
             .task { await choice.load(from: store) }
             .task(id: CurrenciesRequest(source: source, retry: list.retry)) { await list.load(source, from: store) }
             .task(id: attempt) { await choice.run(attempt, with: store) }
-            .errorAlert($choice.error)
+            .alert(error: $choice.error)
     }
 
     /// The rate source and retry count that the currencies load for.

@@ -16,12 +16,14 @@ struct TokenActionsMenu: View {
                 .tint(palette.destructive)
         }
         .tint(.primary)
-        .alert("Remove \(symbol)?", item: $pending) { token in
-            Button("Remove", role: .destructive) {
-                removeToken?(token)
-                dismiss()
-            }
-            Button("Cancel", role: .cancel) {}
-        }
+        .confirmation("Remove \(symbol)?", action: "Remove", item: $pending, perform: remove)
+    }
+
+    /// Removes the token and closes its screen.
+    ///
+    /// - Parameter token: The token to remove.
+    private func remove(_ token: Holding.Identity) {
+        removeToken?(token)
+        dismiss()
     }
 }

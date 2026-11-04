@@ -9,7 +9,7 @@ private struct AccountRenameLifecycle: ViewModifier {
         let attempt = rename.attempt
         content
             .task(id: attempt) { await rename.run(attempt, store: store) }
-            .errorAlert($rename.error)
+            .alert(error: $rename.error)
     }
 }
 

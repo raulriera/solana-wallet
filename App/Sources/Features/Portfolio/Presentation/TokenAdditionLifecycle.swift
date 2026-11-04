@@ -25,7 +25,7 @@ private struct TokenAdditionLifecycle: ViewModifier {
                 guard isFound, let preview = addition.preview else { return }
                 AccessibilityNotification.Announcement(String(localized: Self.announcement(for: preview))).post()
             }
-            .errorAlert($addition.error, retry: addition.retry)
+            .alert(error: $addition.error, retry: addition.retry)
     }
 
     /// Returns the announcement for a found token.
