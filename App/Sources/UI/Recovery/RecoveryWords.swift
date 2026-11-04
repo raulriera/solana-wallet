@@ -24,7 +24,7 @@ struct RecoveryWords: View {
                 }
             }
         }
-        .foregroundStyle(palette.primaryText)
+        .foregroundStyle(palette.text)
         .privacySensitive()
         .transaction { transaction in transaction.animation = nil }
     }

@@ -16,7 +16,7 @@ struct ProviderDetailsScreen: View {
             Section {
                 if let keyPreview {
                     Text(verbatim: keyPreview)
-                        .foregroundStyle(palette.primaryText)
+                        .foregroundStyle(palette.text)
                         .accessibilityLabel(Text(keyPreview, format: .spokenMasked))
                 } else {
                     Text("None", comment: "Shown in place of the RPC API key when no key is saved.")
@@ -28,18 +28,12 @@ struct ProviderDetailsScreen: View {
                 Text(footer)
                     .foregroundStyle(palette.secondaryText)
             }
-            .listRowBackground(palette.surface)
 
             Section {
                 Button(ProviderEntryPurpose(keyPreview: keyPreview).title, action: actions.changeKey)
-                    .foregroundStyle(palette.accent)
+                    .foregroundStyle(palette.primary)
             }
-            .listRowBackground(palette.surface)
         }
-        .foregroundStyle(palette.primaryText, palette.secondaryText)
-        .scrollContentBackground(.hidden)
-        .readableContentWidth()
-        .background(palette.background)
         .navigationTitle(Text(ProviderSettings.Provider.helius.name))
         .navigationBarTitleDisplayMode(.inline)
     }

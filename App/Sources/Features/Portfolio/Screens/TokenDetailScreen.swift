@@ -21,7 +21,6 @@ struct TokenDetailScreen: View {
             Section {
                 TokenTitleCard(symbol: holding.displaySymbol, name: holding.displayName, logoURL: holding.logoURL)
             }
-            .listRowBackground(palette.surface)
 
             Section {
                 if let amount = holding.amount {
@@ -79,7 +78,6 @@ struct TokenDetailScreen: View {
                 }
                 .foregroundStyle(palette.secondaryText)
             }
-            .listRowBackground(palette.surface)
 
             if holding.id == .nativeSOL {
                 PrivateBalanceSections(isTurningOn: privateBalance.isTurningOn,
@@ -99,10 +97,6 @@ struct TokenDetailScreen: View {
             if holding.id == .nativeSOL { await privateBalances.refresh(account, on: network) }
         }
         .monospacedDigit()
-        .foregroundStyle(palette.primaryText, palette.secondaryText)
-        .scrollContentBackground(.hidden)
-        .readableContentWidth()
-        .background(palette.background)
         .navigationTitle(holding.displayName)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

@@ -38,8 +38,6 @@ struct CurrencyListScreen: View {
                             }
                             .buttonStyle(.choice(isSelected: isRead && chosen == nil))
                         }
-                        .listRowBackground(palette.surface)
-                        .listRowSeparatorTint(palette.separator)
                     }
 
                     Section {
@@ -57,11 +55,7 @@ struct CurrencyListScreen: View {
                             .buttonStyle(.choice(isSelected: chosen == code))
                         }
                     }
-                    .listRowBackground(palette.surface)
-                    .listRowSeparatorTint(palette.separator)
                 }
-                .scrollContentBackground(.hidden)
-                .readableContentWidth()
                 .searchable(text: $list.search)
                 .overlay {
                     if list.listed.isEmpty, !list.search.isEmpty { ContentUnavailableView.search(text: list.search) }
@@ -72,7 +66,7 @@ struct CurrencyListScreen: View {
         }
         .navigationTitle("Currency")
         .navigationBarTitleDisplayMode(.inline)
-        .foregroundStyle(palette.primaryText, palette.secondaryText)
+        .foregroundStyle(palette.text, palette.secondaryText)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(palette.background)
     }

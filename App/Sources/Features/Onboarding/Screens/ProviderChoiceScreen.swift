@@ -11,9 +11,8 @@ struct ProviderChoiceScreen: View {
         ProvidersScreen(coordinator: coordinator) {
             Section {
                 Button("Continue", action: continueSetup)
-                    .foregroundStyle(palette.accent)
+                    .foregroundStyle(palette.primary)
             }
-            .listRowBackground(palette.surface)
         }
         .onChange(of: coordinator.completedKeyChoice) { _, choice in
             if choice != nil { continueSetup() }

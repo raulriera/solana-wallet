@@ -16,7 +16,7 @@ struct ResolutionTests {
     func `Overrides stay within their appearance`(appearance: String) async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
-        try fixture.manifest(##""tokens":{"colors":{"\##(appearance)":{"accent":{"srgb":"#12aB34"}}}}"##)
+        try fixture.manifest(##""tokens":{"colors":{"\##(appearance)":{"primary":{"srgb":"#12aB34"}}}}"##)
         let service = PackService()
         let result = service.resolve(try await service.read(from: fixture.source), defaults: Fixture.defaults)
         let actual = ["light": result.light, "dark": result.dark,
@@ -28,9 +28,11 @@ struct ResolutionTests {
         for (key, palette) in actual {
             let baseline = try #require(defaults[key])
             let expected = key == appearance
-                ? Palette(background: baseline.background, surface: baseline.surface, primaryText: baseline.primaryText,
+                ? Palette(background: baseline.background, surface: baseline.surface, text: baseline.text,
                           secondaryText: baseline.secondaryText, separator: baseline.separator,
-                          accent: .srgb(red: 18, green: 171, blue: 52), onAccent: baseline.onAccent)
+                          primary: .srgb(red: 18, green: 171, blue: 52), onPrimary: baseline.onPrimary,
+                          secondary: baseline.secondary, onSecondary: baseline.onSecondary,
+                          destructive: baseline.destructive, onDestructive: baseline.onDestructive)
                 : baseline
             #expect(palette == expected)
         }
@@ -40,18 +42,18 @@ struct ResolutionTests {
     func `System references remain symbolic`(color: Themes.Color.System) async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
-        try fixture.manifest(#""tokens":{"colors":{"light":{"accent":{"system":"\#(color.rawValue)"}}}}"#)
+        try fixture.manifest(#""tokens":{"colors":{"light":{"primary":{"system":"\#(color.rawValue)"}}}}"#)
         let service = PackService()
         let result = service.resolve(try await service.read(from: fixture.source), defaults: Fixture.defaults)
-        #expect(result.light.accent == .system(color))
+        #expect(result.light.primary == .system(color))
     }
 
     @Test func `Matching foreground and background are accepted`() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
-        try fixture.manifest(##""tokens":{"colors":{"light":{"background":{"srgb":"#000000"},"primaryText":{"srgb":"#000000"}}}}"##)
+        try fixture.manifest(##""tokens":{"colors":{"light":{"background":{"srgb":"#000000"},"text":{"srgb":"#000000"}}}}"##)
         let service = PackService()
         let result = service.resolve(try await service.read(from: fixture.source), defaults: Fixture.defaults)
-        #expect(result.light.background == result.light.primaryText)
+        #expect(result.light.background == result.light.text)
     }
 }

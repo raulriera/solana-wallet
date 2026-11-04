@@ -34,7 +34,6 @@ struct RecoveryPhraseScreen: View {
                     systemImage: "key.fill"
                 )
             }
-            .listRowBackground(palette.surface)
 
             Section {
                 if let phrase {
@@ -51,17 +50,12 @@ struct RecoveryPhraseScreen: View {
                 )
                 .foregroundStyle(palette.secondaryText)
             }
-            .listRowBackground(palette.surface)
 
             Section {
                 Button("Continue") { isConfirmingBackup = true }
-                    .foregroundStyle(palette.accent)
+                    .foregroundStyle(palette.primary)
             }
-            .listRowBackground(palette.surface)
         }
-        .scrollContentBackground(.hidden)
-        .readableContentWidth()
-        .background(palette.background)
         .navigationTitle("Recovery Phrase")
         .navigationBarTitleDisplayMode(.inline)
         .alert("Have you saved your recovery words?", isPresented: $isConfirmingBackup) {
@@ -84,7 +78,7 @@ struct RecoveryPhraseScreen: View {
             RecoveryPhraseScreen(initialPhrase: phrase, isSaved: false, pasteboard: PreviewRecoveryPasteboard(),
                                  continueSetup: {})
         }
-        .tint(RenderedPalette(OriginalAppearance.palette).accent)
+        .tint(RenderedPalette(OriginalAppearance.palette).primary)
     }
 }
 

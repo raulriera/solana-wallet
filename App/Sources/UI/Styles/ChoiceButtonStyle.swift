@@ -31,7 +31,7 @@ struct ChoiceButtonStyle: PrimitiveButtonStyle {
                         configuration.label
                     } icon: {
                         Image(systemName: "checkmark")
-                            .foregroundStyle(palette.accent)
+                            .foregroundStyle(palette.primary)
                             .opacity(isSelected ? 1 : 0)
                             .accessibilityHidden(true)
                     }
@@ -40,10 +40,10 @@ struct ChoiceButtonStyle: PrimitiveButtonStyle {
                 }
                 Spacer()
                 if placement == .trailing, isSelected {
-                    Image(systemName: "checkmark").foregroundStyle(palette.accent).accessibilityHidden(true)
+                    Image(systemName: "checkmark").foregroundStyle(palette.primary).accessibilityHidden(true)
                 }
             }
-            .foregroundStyle(palette.primaryText)
+            .foregroundStyle(palette.text)
             .contentShape(.rect)
         }
         .buttonStyle(.automatic)

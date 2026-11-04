@@ -11,13 +11,13 @@ struct TitleCardContent<Icon: View>: View {
         VStack(alignment: .leading, spacing: 8) {
             icon
                 .font(.largeTitle)
-                .foregroundStyle(palette.accent)
+                .foregroundStyle(palette.primary)
                 .padding(.bottom, 8)
                 .accessibilityHidden(true)
 
             Text(title)
                 .font(.title2.bold())
-                .foregroundStyle(palette.primaryText)
+                .foregroundStyle(palette.text)
                 .accessibilityAddTraits(.isHeader)
 
             Text(message)

@@ -13,10 +13,10 @@ struct AppearanceRenderingTests {
         let manifestURL = source.appendingPathComponent("manifest.json")
         var manifest = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: manifestURL)) as? [String: Any])
         manifest["tokens"] = ["colors": [
-            "light": ["accent": ["srgb": "#FF0000"]],
-            "dark": ["accent": ["srgb": "#00FF00"]],
-            "lightIncreasedContrast": ["accent": ["srgb": "#0000FF"]],
-            "darkIncreasedContrast": ["accent": ["srgb": "#FFFFFF"]]
+            "light": ["primary": ["srgb": "#FF0000"]],
+            "dark": ["primary": ["srgb": "#00FF00"]],
+            "lightIncreasedContrast": ["primary": ["srgb": "#0000FF"]],
+            "darkIncreasedContrast": ["primary": ["srgb": "#FFFFFF"]]
         ]]
         try JSONSerialization.data(withJSONObject: manifest).write(to: manifestURL)
         let catalog = ThemeCatalog(directory: fixture.directory)
@@ -25,11 +25,11 @@ struct AppearanceRenderingTests {
         try await rendered.load(entry, catalog: catalog, packages: PackService())
         fixture.remove()
         let environment = EnvironmentValues()
-        #expect(rendered.palette(scheme: .light, contrast: .standard).accent.resolve(in: environment).red == 1)
-        #expect(rendered.palette(scheme: .light, contrast: .standard).accent.resolve(in: environment).green == 0)
-        #expect(rendered.palette(scheme: .dark, contrast: .standard).accent.resolve(in: environment).green == 1)
-        #expect(rendered.palette(scheme: .light, contrast: .increased).accent.resolve(in: environment).blue == 1)
-        #expect(rendered.palette(scheme: .dark, contrast: .increased).accent.resolve(in: environment).red == 1)
+        #expect(rendered.palette(scheme: .light, contrast: .standard).primary.resolve(in: environment).red == 1)
+        #expect(rendered.palette(scheme: .light, contrast: .standard).primary.resolve(in: environment).green == 0)
+        #expect(rendered.palette(scheme: .dark, contrast: .standard).primary.resolve(in: environment).green == 1)
+        #expect(rendered.palette(scheme: .light, contrast: .increased).primary.resolve(in: environment).blue == 1)
+        #expect(rendered.palette(scheme: .dark, contrast: .increased).primary.resolve(in: environment).red == 1)
     }
 
     @Test func `Unreadable theme falls back to original`() async throws {
@@ -39,16 +39,16 @@ struct AppearanceRenderingTests {
         let id = UUID()
         let source = try fixture.source(id: id)
         let json: [String: Any] = ["version": 1, "id": id.uuidString, "name": "Custom",
-                                   "tokens": ["colors": ["light": ["accent": ["srgb": "#FF0000"]]]]]
+                                   "tokens": ["colors": ["light": ["primary": ["srgb": "#FF0000"]]]]]
         try JSONSerialization.data(withJSONObject: json).write(to: source.appendingPathComponent("manifest.json"))
         let entry = try await catalog.install(PackService().read(from: source))
         let rendered = RenderedAppearance()
         try await rendered.load(entry, catalog: catalog, packages: PackService())
-        #expect(rendered.palette(scheme: .light, contrast: .standard).accent != RenderedPalette(OriginalAppearance.palette).accent)
+        #expect(rendered.palette(scheme: .light, contrast: .standard).primary != RenderedPalette(OriginalAppearance.palette).primary)
         try await catalog.remove(entry)
         await #expect(throws: ThemeCatalogError.changed) {
             try await rendered.load(entry, catalog: catalog, packages: PackService())
         }
-        #expect(rendered.palette(scheme: .light, contrast: .standard).accent == RenderedPalette(OriginalAppearance.palette).accent)
+        #expect(rendered.palette(scheme: .light, contrast: .standard).primary == RenderedPalette(OriginalAppearance.palette).primary)
     }
 }

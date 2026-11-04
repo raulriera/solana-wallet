@@ -20,7 +20,6 @@ struct CurrencyScreen: View {
                     systemImage: "banknote.fill"
                 )
             }
-            .listRowBackground(palette.surface)
 
             Section {
                 ForEach(CurrencySettings.RateSource.allCases, id: \.self) { rateSource in
@@ -36,8 +35,6 @@ struct CurrencyScreen: View {
                      comment: "Footer under the rate source choices in Settings > Currency.")
                     .foregroundStyle(palette.secondaryText)
             }
-            .listRowBackground(palette.surface)
-            .listRowSeparatorTint(palette.separator)
 
             if source != nil {
                 Section {
@@ -49,16 +46,11 @@ struct CurrencyScreen: View {
                         }
                     }
                 }
-                .listRowBackground(palette.surface)
             }
         }
         .animation(.default, value: source != nil)
         .navigationTitle("Currency")
         .navigationBarTitleDisplayMode(.inline)
-        .foregroundStyle(palette.primaryText, palette.secondaryText)
-        .scrollContentBackground(.hidden)
-        .readableContentWidth()
-        .background(palette.background)
     }
 
     private var automaticName: String {

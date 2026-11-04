@@ -46,7 +46,7 @@ To start, export a template from the app: it holds every default value and a new
   "tokens": {
     "colors": {
       "light": {
-        "accent": { "srgb": "#26643E" }
+        "primary": { "srgb": "#26643E" }
       }
     }
   },
@@ -59,7 +59,8 @@ To start, export a template from the app: it holds every default value and a new
 ### Colors
 
 - Appearances under `tokens.colors`: `light`, `dark`, `lightIncreasedContrast`, and `darkIncreasedContrast`.
-- Roles in each appearance: `background`, `surface`, `primaryText`, `secondaryText`, `separator`, `accent`, and `onAccent`.
+- Roles in each appearance: `background`, `surface`, `text`, `secondaryText`, `separator`, `primary`, `onPrimary`, `secondary`, `onSecondary`, `destructive`, and `onDestructive`.
+- `primary`, `secondary`, and `destructive` fill their buttons. Each `on` role colors the text and symbols on that fill. `primary` also colors links and controls without a fill, and `destructive` colors destructive text without a fill.
 - Each color is a [system color](Sources/Colors/Color.swift), such as `{ "system": "systemBackground" }`, or an opaque sRGB color, such as `{ "srgb": "#26643E" }`.
 
 ### Assets

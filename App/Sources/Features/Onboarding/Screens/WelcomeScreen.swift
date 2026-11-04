@@ -31,5 +31,5 @@ struct WelcomeScreen: View {
 
 #Preview {
     WelcomeScreen(createWallet: {}, importWallet: {})
-        .tint(RenderedPalette(OriginalAppearance.palette).accent)
+        .tint(RenderedPalette(OriginalAppearance.palette).primary)
 }

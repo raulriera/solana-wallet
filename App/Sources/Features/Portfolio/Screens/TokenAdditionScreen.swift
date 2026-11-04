@@ -19,7 +19,7 @@ struct TokenAdditionScreen: View {
                                 .monospaced()
                                 .lineLimit(1)
                                 .truncationMode(.middle)
-                                .foregroundStyle(palette.primaryText)
+                                .foregroundStyle(palette.text)
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -37,7 +37,6 @@ struct TokenAdditionScreen: View {
                 Text("Copy a token's mint address, then paste it here.")
                     .foregroundStyle(palette.secondaryText)
             }
-            .listRowBackground(palette.surface)
 
             if let preview = addition.preview {
                 let token = Holding(preview: preview)
@@ -47,15 +46,11 @@ struct TokenAdditionScreen: View {
                     Text("Anyone can name a token anything. Add only addresses you trust.")
                         .foregroundStyle(palette.secondaryText)
                 }
-                .listRowBackground(palette.surface)
             }
         }
         .animation(.default, value: addition.rejection)
         .animation(.default, value: addition.preview != nil)
-        .scrollContentBackground(.hidden)
-        .readableContentWidth()
         .confirmationAction("Add Token", isEnabled: addition.preview != nil, action: addition.add)
-        .background(palette.background)
         .navigationTitle("Add Token")
         .navigationBarTitleDisplayMode(.inline)
     }

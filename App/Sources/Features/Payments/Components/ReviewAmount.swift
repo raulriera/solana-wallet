@@ -21,7 +21,7 @@ struct ReviewAmount: View {
                     .foregroundStyle(palette.secondaryText)
             }
         }
-        .foregroundStyle(palette.primaryText)
+        .foregroundStyle(palette.text)
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .combine)
     }

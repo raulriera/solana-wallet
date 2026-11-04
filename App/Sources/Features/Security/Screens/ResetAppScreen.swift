@@ -26,23 +26,18 @@ struct ResetAppScreen: View {
             if mode == .standard {
                 Section {
                     Button("Show Recovery Phrase") { coordinator.showRecovery(for: account) }
-                        .foregroundStyle(palette.accent)
+                        .foregroundStyle(palette.primary)
                 } footer: {
                     Text("Make sure you've written down your recovery phrase before you continue.")
                         .foregroundStyle(palette.secondaryText)
                 }
-                .listRowBackground(palette.surface)
             }
 
             Section {
                 Button("Continue") { coordinator.confirmReset() }
-                    .foregroundStyle(palette.accent)
+                    .foregroundStyle(palette.primary)
             }
-            .listRowBackground(palette.surface)
         }
-        .scrollContentBackground(.hidden)
-        .readableContentWidth()
-        .background(palette.background)
         .navigationTitle("Reset App")
         .navigationBarTitleDisplayMode(.inline)
     }

@@ -11,7 +11,7 @@ struct AmountCaption: View {
             switch (payment.exceedsBalance, payment.unit, payment.value) {
             case (true, _, _):
                 Text(payment.source.warning)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(palette.destructive)
                     .minimumScaleFactor(0.5)
             case (false, .currency, _):
                 Text(payment.quantity, format: .quantity(of: token))

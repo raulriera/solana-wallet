@@ -8,13 +8,13 @@ struct ValidationTests {
         (#""tokens":[]"#, "tokens"),
         (#""tokens":{"colors":null}"#, "tokens.colors"),
         (#""tokens":{"colors":{"light":null}}"#, "tokens.colors.light"),
-        (#""tokens":{"colors":{"light":{"accent":null}}}"#, "tokens.colors.light.accent"),
-        (#""tokens":{"colors":{"light":{"accent":{}}}}"#, "tokens.colors.light.accent"),
-        (##""tokens":{"colors":{"light":{"accent":{"system":"label","srgb":"#123456"}}}}"##, "tokens.colors.light.accent"),
-        (#""tokens":{"colors":{"light":{"accent":{"system":null}}}}"#, "tokens.colors.light.accent.system"),
-        (#""tokens":{"colors":{"light":{"accent":{"system":"invented"}}}}"#, "tokens.colors.light.accent.system"),
-        (#""tokens":{"colors":{"light":{"accent":{"srgb":42}}}}"#, "tokens.colors.light.accent.srgb"),
-        (##""tokens":{"colors":{"light":{"accent":{"rgb":"#123456"}}}}"##, "tokens.colors.light.accent.rgb"),
+        (#""tokens":{"colors":{"light":{"primary":null}}}"#, "tokens.colors.light.primary"),
+        (#""tokens":{"colors":{"light":{"primary":{}}}}"#, "tokens.colors.light.primary"),
+        (##""tokens":{"colors":{"light":{"primary":{"system":"label","srgb":"#123456"}}}}"##, "tokens.colors.light.primary"),
+        (#""tokens":{"colors":{"light":{"primary":{"system":null}}}}"#, "tokens.colors.light.primary.system"),
+        (#""tokens":{"colors":{"light":{"primary":{"system":"invented"}}}}"#, "tokens.colors.light.primary.system"),
+        (#""tokens":{"colors":{"light":{"primary":{"srgb":42}}}}"#, "tokens.colors.light.primary.srgb"),
+        (##""tokens":{"colors":{"light":{"primary":{"rgb":"#123456"}}}}"##, "tokens.colors.light.primary.rgb"),
         (#""tokens":{"colors":{"light":{"invented":{"system":"label"}}}}"#, "tokens.colors.light.invented"),
         (#""tokens":{"colors":{"invented":{}}}"#, "tokens.colors.invented"),
         (#""tokens":{"typography":{}}"#, "tokens.typography"),
@@ -53,9 +53,9 @@ struct ValidationTests {
     func `Invalid hex is rejected`(hex: String) async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
-        try fixture.manifest(#""tokens":{"colors":{"light":{"accent":{"srgb":"\#(hex)"}}}}"#)
+        try fixture.manifest(#""tokens":{"colors":{"light":{"primary":{"srgb":"\#(hex)"}}}}"#)
         await #expect { try await PackService().read(from: fixture.source) } throws: { error in
-            (error as? ValidationError)?.path == "tokens.colors.light.accent.srgb"
+            (error as? ValidationError)?.path == "tokens.colors.light.primary.srgb"
         }
     }
 

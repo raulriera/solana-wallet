@@ -45,7 +45,6 @@ struct AccountScreen: View {
                      comment: "Footer under an account's name field. The variable is its numbered name, such as Account 2.")
                     .foregroundStyle(palette.secondaryText)
             }
-            .listRowBackground(palette.surface)
 
             FullAddressSection(address: account.address)
 
@@ -54,7 +53,6 @@ struct AccountScreen: View {
                     Text(verbatim: account.path.description)
                 }
             }
-            .listRowBackground(palette.surface)
 
             if canDelete {
                 Section {
@@ -69,14 +67,9 @@ struct AccountScreen: View {
                                  comment: "Message when deleting an account in Settings > Accounts. The variable is its name, such as Account 2.")
                         }
                 }
-                .listRowBackground(palette.surface)
             }
         }
-        .foregroundStyle(palette.primaryText, palette.secondaryText)
-        .scrollContentBackground(.hidden)
-        .readableContentWidth()
         .confirmationAction("Save Name", isEnabled: canSave, isPending: isRenaming, action: save)
-        .background(palette.background)
         .navigationTitle(account.name)
         .navigationBarTitleDisplayMode(.inline)
         .onChange(of: account.customName, initial: true) { _, saved in

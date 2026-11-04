@@ -44,6 +44,5 @@ struct PrivateBalanceAmountSection: View {
             }
             .foregroundStyle(palette.secondaryText)
         }
-        .listRowBackground(palette.surface)
     }
 }

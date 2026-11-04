@@ -15,7 +15,6 @@ struct BalanceMoveResultScreen: TransactionResultContent {
                     .accessibilityElement(children: .combine)
                     .accessibilityFocused($isFocused)
             }
-            .listRowBackground(palette.surface)
 
             if let submission = review.submission {
                 Section {
@@ -24,14 +23,9 @@ struct BalanceMoveResultScreen: TransactionResultContent {
                     }
                     Link("View in Explorer", destination: submission.explorerURL)
                 }
-                .foregroundStyle(palette.accent)
-                .listRowBackground(palette.surface)
+                .foregroundStyle(palette.primary)
             }
         }
-        .foregroundStyle(palette.primaryText, palette.secondaryText)
-        .scrollContentBackground(.hidden)
-        .readableContentWidth()
-        .background(palette.background)
         .navigationTitle(Text(review.proposal.direction.title))
         .navigationBarTitleDisplayMode(.inline)
         .onChange(of: outcome, initial: true) { isFocused = true }

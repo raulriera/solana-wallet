@@ -4,11 +4,15 @@ import SwiftUI
 nonisolated enum PaletteRole: Equatable, Sendable {
     case background
     case surface
-    case primaryText
+    case text
     case secondaryText
     case separator
-    case accent
-    case onAccent
+    case primary
+    case onPrimary
+    case secondary
+    case onSecondary
+    case destructive
+    case onDestructive
 
     /// Returns the role's color in a palette.
     ///
@@ -19,11 +23,15 @@ nonisolated enum PaletteRole: Equatable, Sendable {
         switch self {
         case .background: palette.background
         case .surface: palette.surface
-        case .primaryText: palette.primaryText
+        case .text: palette.text
         case .secondaryText: palette.secondaryText
         case .separator: palette.separator
-        case .accent: palette.accent
-        case .onAccent: palette.onAccent
+        case .primary: palette.primary
+        case .onPrimary: palette.onPrimary
+        case .secondary: palette.secondary
+        case .onSecondary: palette.onSecondary
+        case .destructive: palette.destructive
+        case .onDestructive: palette.onDestructive
         }
     }
 }

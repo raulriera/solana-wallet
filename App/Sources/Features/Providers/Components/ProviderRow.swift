@@ -15,7 +15,7 @@ struct ProviderRow: View {
             if provider.hasDetails {
                 Button("More Info", systemImage: "info.circle") { actions.showDetails(for: provider) }
                     .labelStyle(.iconOnly)
-                    .foregroundStyle(palette.accent)
+                    .foregroundStyle(palette.primary)
                     .buttonStyle(.borderless)
             }
         }

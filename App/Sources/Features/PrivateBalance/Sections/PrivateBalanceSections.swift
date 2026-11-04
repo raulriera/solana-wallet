@@ -27,7 +27,7 @@ struct PrivateBalanceSections: View {
                         }
                     }
                 }
-                .foregroundStyle(palette.accent)
+                .foregroundStyle(palette.primary)
                 .disabled(isTurningOn)
             } header: {
                 Text("Private Balance")
@@ -43,7 +43,6 @@ struct PrivateBalanceSections: View {
                 }
                 .foregroundStyle(palette.secondaryText)
             }
-            .listRowBackground(palette.surface)
         case .balance(let available, let pending)?:
             PrivateBalanceAmountSection(available: Amount(lamports: available), pending: Amount(lamports: pending),
                                         symbol: symbol, isStale: isStale)

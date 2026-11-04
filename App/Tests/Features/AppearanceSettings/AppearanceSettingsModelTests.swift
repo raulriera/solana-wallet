@@ -108,7 +108,7 @@ struct AppearanceSettingsModelTests {
         let tokens = try #require(manifest["tokens"] as? [String: Any])
         let colors = try #require(tokens["colors"] as? [String: [String: Any]])
         #expect(colors.count == 4)
-        #expect(colors.values.allSatisfy { $0.count == 7 })
+        #expect(colors.values.allSatisfy { $0.count == 11 })
     }
 
     @Test func `Theme Packs opens an export staged before it appeared`() async throws {
@@ -208,7 +208,7 @@ struct AppearanceSettingsModelTests {
         if changesColors {
             let url = source.appendingPathComponent("manifest.json")
             var manifest = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
-            manifest["tokens"] = ["colors": ["light": ["accent": ["srgb": "#123456"]]]]
+            manifest["tokens"] = ["colors": ["light": ["primary": ["srgb": "#123456"]]]]
             try JSONSerialization.data(withJSONObject: manifest).write(to: url)
         }
         let second = try await PackService().read(from: source)

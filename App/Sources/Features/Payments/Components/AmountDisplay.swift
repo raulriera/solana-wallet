@@ -49,11 +49,11 @@ struct AmountDisplay: View {
     private var fill: AnyShapeStyle {
         switch style.amountLook {
         case .chrome:
-            AnyShapeStyle(LinearGradient(colors: [palette.primaryText, palette.secondaryText, palette.primaryText],
+            AnyShapeStyle(LinearGradient(colors: [palette.text, palette.secondaryText, palette.text],
                                          startPoint: UnitPoint(x: 0.25, y: 0.25),
                                          endPoint: UnitPoint(x: 0.75, y: 0.75)))
         case .plain:
-            AnyShapeStyle(palette.primaryText)
+            AnyShapeStyle(palette.text)
         }
     }
 }

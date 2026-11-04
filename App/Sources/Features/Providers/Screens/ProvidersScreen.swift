@@ -2,7 +2,6 @@ import SwiftUI
 
 /// Lists the RPC providers with a checkmark on the one in use.
 struct ProvidersScreen<Actions: View>: View {
-    @Environment(\.palette) private var palette
     @Environment(ProviderStore.self) private var providers
     @Bindable var coordinator: ProvidersCoordinator
     private let actions: Actions
@@ -28,7 +27,6 @@ struct ProvidersScreen<Actions: View>: View {
                     systemImage: "point.3.filled.connected.trianglepath.dotted"
                 )
             }
-            .listRowBackground(palette.surface)
 
             ProviderSelectionSection(selection: settings?.selection,
                                      customRPCs: customRPCs,
@@ -40,10 +38,6 @@ struct ProvidersScreen<Actions: View>: View {
         .animation(.default, value: customRPCs.count)
         .navigationTitle("Providers")
         .navigationBarTitleDisplayMode(.inline)
-        .foregroundStyle(palette.primaryText, palette.secondaryText)
-        .scrollContentBackground(.hidden)
-        .readableContentWidth()
-        .background(palette.background)
     }
 }
 

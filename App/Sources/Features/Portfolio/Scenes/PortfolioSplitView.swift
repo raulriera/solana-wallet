@@ -71,7 +71,7 @@ struct PortfolioSplitView: View {
                                                description: Text("Select a token to see its balance and value.")
                                                 .foregroundStyle(palette.secondaryText))
                             .drawOnAppear()
-                            .foregroundStyle(palette.primaryText, palette.secondaryText)
+                            .foregroundStyle(palette.text, palette.secondaryText)
                             .background(palette.background)
                             .navigationBarTitleDisplayMode(.inline)
                     }

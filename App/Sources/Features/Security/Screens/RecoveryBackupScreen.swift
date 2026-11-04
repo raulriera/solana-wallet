@@ -23,7 +23,6 @@ struct RecoveryBackupScreen: View {
                         Text("Write down these words in order and keep them somewhere safe. Anyone with them can control your wallet. Copied words stay on this device and clear from the clipboard after \(coordinator.pasteboard.lifetime, format: .units(allowed: [.minutes, .seconds], width: .wide)).")
                             .foregroundStyle(palette.secondaryText)
                     }
-                    .listRowBackground(palette.surface)
 
                     Section {
                         if !backup.passphrase.isEmpty {
@@ -40,13 +39,8 @@ struct RecoveryBackupScreen: View {
                         Text("You need these details with your words to restore this wallet.")
                             .foregroundStyle(palette.secondaryText)
                     }
-                    .foregroundStyle(palette.primaryText, palette.secondaryText)
-                    .listRowBackground(palette.surface)
-                    .listRowSeparatorTint(palette.separator)
+                    .foregroundStyle(palette.text, palette.secondaryText)
                 }
-                .scrollContentBackground(.hidden)
-                .readableContentWidth()
-                .background(palette.background)
             case .unavailable:
                 UnavailableScreen(title: "Recovery Phrase Unavailable",
                                   message: "This device no longer has this wallet's recovery phrase. Reset the app and import your written backup.",

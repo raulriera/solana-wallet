@@ -22,15 +22,12 @@ struct AccountsScreen: View {
                     systemImage: "wallet.bifold.fill"
                 )
             }
-            .listRowBackground(palette.surface)
 
             Section {
                 ForEach(accounts) { account in
                     AccountRow(account: account, selection: $selection, path: $path)
                 }
             }
-            .listRowBackground(palette.surface)
-            .listRowSeparatorTint(palette.separator)
 
             Section {
                 Button { addition.add(to: selection.recoveryID) } label: {
@@ -42,7 +39,7 @@ struct AccountsScreen: View {
                         }
                     }
                 }
-                .foregroundStyle(palette.accent)
+                .foregroundStyle(palette.primary)
                 .lineLimit(1)
                 .disabled(isAdding)
             } footer: {
@@ -50,15 +47,10 @@ struct AccountsScreen: View {
                      comment: "Footer under Add Account in Settings > Accounts. Adding asks for Face ID, Touch ID, or the passcode.")
                     .foregroundStyle(palette.secondaryText)
             }
-            .listRowBackground(palette.surface)
         }
         .animation(.default, value: accounts.count)
         .navigationTitle("Accounts")
         .navigationBarTitleDisplayMode(.inline)
-        .foregroundStyle(palette.primaryText, palette.secondaryText)
-        .scrollContentBackground(.hidden)
-        .readableContentWidth()
-        .background(palette.background)
         .sensoryFeedback(.success, trigger: addition.added)
         .onChange(of: addition.added) { _, added in
             guard let added else { return }

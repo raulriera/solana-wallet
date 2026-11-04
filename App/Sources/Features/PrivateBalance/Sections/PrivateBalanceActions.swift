@@ -15,7 +15,7 @@ struct PrivateBalanceActions: View {
                 Button("Make SOL Public", systemImage: "eye") { moveBalance?(.toPublic) }
             }
         }
-        .foregroundStyle(palette.accent)
+        .foregroundStyle(palette.primary)
         .lineLimit(1)
     }
 }

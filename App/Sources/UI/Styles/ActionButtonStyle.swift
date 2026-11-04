@@ -4,19 +4,19 @@ import SwiftUI
 struct ActionButtonStyle<Base: PrimitiveButtonStyle>: PrimitiveButtonStyle {
     @Environment(\.palette) private var palette
     private let base: Base
-    private let tint: ActionColor
-    private let foreground: ActionColor
+    private let fill: PaletteRole
+    private let content: PaletteRole
 
     /// Creates an action style.
     ///
     /// - Parameters:
     ///   - base: The native style.
-    ///   - tint: The button's color.
-    ///   - foreground: The label's color.
-    fileprivate init(base: Base, tint: ActionColor, foreground: ActionColor) {
+    ///   - fill: The button's color.
+    ///   - content: The color of the label on the button's color.
+    fileprivate init(base: Base, fill: PaletteRole, content: PaletteRole) {
         self.base = base
-        self.tint = tint
-        self.foreground = foreground
+        self.fill = fill
+        self.content = content
     }
 
     func makeBody(configuration: Configuration) -> some View {
@@ -26,44 +26,23 @@ struct ActionButtonStyle<Base: PrimitiveButtonStyle>: PrimitiveButtonStyle {
         .buttonSizing(.flexible)
         .buttonStyle(base)
         .controlSize(.large)
-        .tint(tint.resolved(in: palette))
-        .foregroundStyle(foreground.resolved(in: palette))
+        .tint(fill.color(in: palette))
+        .foregroundStyle(content.color(in: palette))
     }
 }
 
 extension PrimitiveButtonStyle where Self == ActionButtonStyle<BorderedProminentButtonStyle> {
-    /// A prominent action in the window's text color.
-    static var primary: Self { Self(base: .borderedProminent, tint: .palette(.primaryText), foreground: .palette(.background)) }
+    /// A prominent action in the theme's primary colors.
+    static var primary: Self { Self(base: .borderedProminent, fill: .primary, content: .onPrimary) }
 
-    /// A prominent destructive action in red.
-    static var destructive: Self { Self(base: .borderedProminent, tint: .fixed(.red), foreground: .fixed(.white)) }
+    /// A less prominent action in the theme's secondary colors.
+    static var secondary: Self { Self(base: .borderedProminent, fill: .secondary, content: .onSecondary) }
+
+    /// A prominent destructive action in the theme's destructive colors.
+    static var destructive: Self { Self(base: .borderedProminent, fill: .destructive, content: .onDestructive) }
 }
 
 extension PrimitiveButtonStyle where Self == ActionButtonStyle<GlassProminentButtonStyle> {
-    /// A prominent glass action in the window's accent color.
-    static var glassPrimary: Self {
-        Self(base: .glassProminent, tint: .palette(.accent), foreground: .palette(.onAccent))
-    }
-}
-
-extension PrimitiveButtonStyle where Self == ActionButtonStyle<BorderedButtonStyle> {
-    /// A bordered action with a label in the window's text color.
-    static var secondary: Self { Self(base: .bordered, tint: .palette(.primaryText), foreground: .palette(.primaryText)) }
-}
-
-/// An action's color: a palette role or a fixed color.
-fileprivate enum ActionColor {
-    case palette(PaletteRole)
-    case fixed(Color)
-
-    /// Returns the color in a palette.
-    ///
-    /// - Parameter palette: The window's palette.
-    /// - Returns: The role's color in the palette, or the fixed color.
-    func resolved(in palette: RenderedPalette) -> Color {
-        switch self {
-        case .palette(let role): role.color(in: palette)
-        case .fixed(let color): color
-        }
-    }
+    /// A prominent glass action in the theme's primary colors.
+    static var glassPrimary: Self { Self(base: .glassProminent, fill: .primary, content: .onPrimary) }
 }

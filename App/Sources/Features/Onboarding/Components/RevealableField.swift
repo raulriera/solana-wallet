@@ -51,7 +51,7 @@ struct RevealableField<Revealed: View, Hidden: View>: View {
                     }
                 }
                 .accessibilityLabel(label)
-                .foregroundStyle(palette.primaryText)
+                .foregroundStyle(palette.text)
                 .focused($focusedField, equals: field)
                 .transition(.opacity)
             }

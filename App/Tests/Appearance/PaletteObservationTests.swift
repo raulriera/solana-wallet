@@ -28,7 +28,8 @@ struct PaletteObservationTests {
         #expect(!notified)
     }
 
-    @Test(arguments: ["background", "surface", "primaryText", "secondaryText", "separator", "accent", "onAccent"],
+    @Test(arguments: ["background", "surface", "text", "secondaryText", "separator", "primary", "onPrimary",
+                      "secondary", "onSecondary", "destructive", "onDestructive"],
           [true, false])
     func `Changing color only notifies affected variant`(role: String, observesChangedVariant: Bool) async throws {
         let fixture = try CatalogFixture()

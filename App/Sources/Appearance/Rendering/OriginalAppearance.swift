@@ -8,8 +8,10 @@ nonisolated enum OriginalAppearance {
     static let packageURL = Bundle.main.url(forResource: "Original", withExtension: "xtheme", subdirectory: "Themes.bundle")
     static let palette = Palette(
         background: .system(.systemGroupedBackground), surface: .system(.secondarySystemGroupedBackground),
-        primaryText: .system(.label), secondaryText: .system(.secondaryLabel),
-        separator: .system(.separator), accent: .system(.systemBlue), onAccent: .system(.white)
+        text: .system(.label), secondaryText: .system(.secondaryLabel), separator: .system(.separator),
+        primary: .system(.systemBlue), onPrimary: .system(.white),
+        secondary: .system(.tertiarySystemFill), onSecondary: .system(.systemBlue),
+        destructive: .system(.systemRed), onDestructive: .system(.white)
     )
     static let colors = Colors(light: palette, dark: palette,
                                lightIncreasedContrast: palette, darkIncreasedContrast: palette)

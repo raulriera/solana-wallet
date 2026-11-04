@@ -17,7 +17,6 @@ struct ImportWalletScreen: View {
                     systemImage: "wallet.bifold.fill"
                 )
             }
-            .listRowBackground(palette.surface)
 
             Section {
                 RecoveryPhraseEntry(input: input, focusedField: $focusedField)
@@ -36,7 +35,6 @@ struct ImportWalletScreen: View {
                 Text("Use your recovery words in their original order, separated by spaces. Keep your original words and any BIP-39 passphrase safe. Neither this app nor iCloud can recover them. You'll need your backup if you lose this device or remove its passcode.")
                     .foregroundStyle(palette.secondaryText)
             }
-            .listRowBackground(palette.surface)
 
             Section {
                 RecoveryPassphraseEntry(input: input, focusedField: $focusedField)
@@ -48,7 +46,6 @@ struct ImportWalletScreen: View {
                 Text("Enter this only if your original wallet used one. This is separate from your app password or PIN. Capital letters and spaces matter. A different passphrase opens a different wallet.")
                     .foregroundStyle(palette.secondaryText)
             }
-            .listRowBackground(palette.surface)
         }
         .animation(.default, value: input.rejection)
         .textInputAutocapitalization(.never)
@@ -64,12 +61,9 @@ struct ImportWalletScreen: View {
                     .foregroundStyle(palette.secondaryText)
             }
         }
-        .scrollContentBackground(.hidden)
-        .readableContentWidth()
         .scrollDismissesKeyboard(.interactively)
         .confirmationAction("Import Wallet", isEnabled: input.hasPhrase && canDisplayRecovery,
                             isPending: submission.isPending, action: submit)
-        .background(palette.background)
         .navigationTitle("Import Wallet")
         .navigationBarTitleDisplayMode(.inline)
         .onChange(of: focusedField?.rawValue ?? 0) { oldValue, newValue in
@@ -106,7 +100,7 @@ struct ImportWalletScreen: View {
     NavigationStack {
         ImportWalletScreen(submission: PreviewImportSubmission())
     }
-    .tint(RenderedPalette(OriginalAppearance.palette).accent)
+    .tint(RenderedPalette(OriginalAppearance.palette).primary)
 }
 
 /// An import workflow for previews that imports nothing.

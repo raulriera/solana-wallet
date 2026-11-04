@@ -27,10 +27,9 @@ struct RecipientScreen: View {
                         AddContactButton(address: address)
                     }
                 }
-                .foregroundStyle(palette.accent)
+                .foregroundStyle(palette.primary)
                 .lineLimit(1)
             }
-            .listRowBackground(palette.surface)
 
             if let contact {
                 Section {
@@ -39,13 +38,9 @@ struct RecipientScreen: View {
                         .lineLimit(1)
                         .contactDeletion(of: contact, removal: $removal)
                 }
-                .listRowBackground(palette.surface)
             }
         }
         .animation(.default, value: saved?.id)
-        .scrollContentBackground(.hidden)
-        .readableContentWidth()
-        .background(palette.background)
         .navigationTitle(lists.recipient(for: address).title)
         .navigationBarTitleDisplayMode(.inline)
     }

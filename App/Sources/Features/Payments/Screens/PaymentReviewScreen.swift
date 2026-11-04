@@ -29,7 +29,6 @@ struct PaymentReviewScreen: TransactionReviewContent {
                     Text("To")
                 }
             }
-            .listRowBackground(palette.surface)
 
             Section {
                 LabeledContent("Pay With") {
@@ -48,13 +47,8 @@ struct PaymentReviewScreen: TransactionReviewContent {
                         .foregroundStyle(palette.secondaryText)
                 }
             }
-            .listRowBackground(palette.surface)
         }
         .monospacedDigit()
-        .foregroundStyle(palette.primaryText, palette.secondaryText)
-        .scrollContentBackground(.hidden)
-        .readableContentWidth()
-        .background(palette.background)
         .animation(.default, value: costs)
         .navigationTitle("Review")
         .navigationBarTitleDisplayMode(.inline)

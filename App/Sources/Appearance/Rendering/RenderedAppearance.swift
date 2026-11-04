@@ -6,11 +6,15 @@ import Themes
 struct RenderedPalette: Equatable {
     let background: SwiftUI.Color
     let surface: SwiftUI.Color
-    let primaryText: SwiftUI.Color
+    let text: SwiftUI.Color
     let secondaryText: SwiftUI.Color
     let separator: SwiftUI.Color
-    let accent: SwiftUI.Color
-    let onAccent: SwiftUI.Color
+    let primary: SwiftUI.Color
+    let onPrimary: SwiftUI.Color
+    let secondary: SwiftUI.Color
+    let onSecondary: SwiftUI.Color
+    let destructive: SwiftUI.Color
+    let onDestructive: SwiftUI.Color
 
     /// Creates SwiftUI colors from a theme palette.
     ///
@@ -18,11 +22,15 @@ struct RenderedPalette: Equatable {
     init(_ palette: Palette) {
         background = Self.color(palette.background)
         surface = Self.color(palette.surface)
-        primaryText = Self.color(palette.primaryText)
+        text = Self.color(palette.text)
         secondaryText = Self.color(palette.secondaryText)
         separator = Self.color(palette.separator)
-        accent = Self.color(palette.accent)
-        onAccent = Self.color(palette.onAccent)
+        primary = Self.color(palette.primary)
+        onPrimary = Self.color(palette.onPrimary)
+        secondary = Self.color(palette.secondary)
+        onSecondary = Self.color(palette.onSecondary)
+        destructive = Self.color(palette.destructive)
+        onDestructive = Self.color(palette.onDestructive)
     }
 
     /// Converts a theme color to a SwiftUI color.

@@ -39,8 +39,9 @@ struct Fixture {
     }
 
     static func palette(_ color: Themes.Color) -> Palette {
-        Palette(background: color, surface: color, primaryText: color, secondaryText: color,
-                separator: color, accent: color, onAccent: color)
+        Palette(background: color, surface: color, text: color, secondaryText: color,
+                separator: color, primary: color, onPrimary: color, secondary: color, onSecondary: color,
+                destructive: color, onDestructive: color)
     }
 
     static func image(type: String = "public.png", width: Int = 2, height: Int = 2) throws -> Data {

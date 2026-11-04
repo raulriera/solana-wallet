@@ -9,13 +9,12 @@ struct FullAddressSection: View {
     var body: some View {
         Section {
             FullAddress(text: address.value)
-                .foregroundStyle(palette.primaryText)
+                .foregroundStyle(palette.text)
         } header: {
             Text("Address")
         } footer: {
             Text("Touch and hold the address to copy it.")
                 .foregroundStyle(palette.secondaryText)
         }
-        .listRowBackground(palette.surface)
     }
 }

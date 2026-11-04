@@ -25,7 +25,7 @@ struct AccountRow: View {
 
             Button("More Info", systemImage: "info.circle") { path.append(.account(account.id)) }
                 .labelStyle(.iconOnly)
-                .foregroundStyle(palette.accent)
+                .foregroundStyle(palette.primary)
                 .buttonStyle(.borderless)
         }
     }

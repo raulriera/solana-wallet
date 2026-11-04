@@ -19,7 +19,7 @@ struct RecipientEntryScreen: View {
                                 .foregroundStyle(palette.secondaryText)
                         } else {
                             FullAddress(text: entry.text)
-                                .foregroundStyle(palette.primaryText)
+                                .foregroundStyle(palette.text)
                                 .accessibilityLabel(Text("Address"))
                                 .accessibilityValue(Text(entry.text).speechSpellsOutCharacters())
                         }
@@ -43,7 +43,6 @@ struct RecipientEntryScreen: View {
                 Text("Copy an address, then paste it here.")
                     .foregroundStyle(palette.secondaryText)
             }
-            .listRowBackground(palette.surface)
 
             Section {
                 if entry.purpose == .payment, let saved = entry.saved {
@@ -62,15 +61,11 @@ struct RecipientEntryScreen: View {
                         .foregroundStyle(palette.secondaryText)
                 }
             }
-            .listRowBackground(palette.surface)
         }
         .animation(.default, value: rejection)
         .animation(.default, value: warnings)
-        .scrollContentBackground(.hidden)
-        .readableContentWidth()
         .confirmationAction(entry.purpose.confirmationTitle, isEnabled: entry.canConfirm, action: entry.confirm)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(palette.background)
         .navigationTitle(Text(entry.purpose.title))
         .navigationBarTitleDisplayMode(.inline)
         .sensoryFeedback(.error, trigger: entry.rejectionCount)

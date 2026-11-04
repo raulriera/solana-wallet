@@ -14,7 +14,7 @@ struct CustomRPCDetailsScreen: View {
         Form {
             Section {
                 Text(url, format: .maskedURL)
-                    .foregroundStyle(palette.primaryText)
+                    .foregroundStyle(palette.text)
                     .accessibilityLabel(Text(url, format: .spokenMaskedURL))
             } header: {
                 Text("URL")
@@ -22,18 +22,12 @@ struct CustomRPCDetailsScreen: View {
                 Text("Your wallets use this RPC for balances and live updates. Part of its URL is hidden because it can contain a key.")
                     .foregroundStyle(palette.secondaryText)
             }
-            .listRowBackground(palette.surface)
 
             Section {
                 Button("Delete RPC", systemImage: "trash", role: .destructive) { removal = url }
                     .labelStyle(.warning)
             }
-            .listRowBackground(palette.surface)
         }
-        .foregroundStyle(palette.primaryText, palette.secondaryText)
-        .scrollContentBackground(.hidden)
-        .readableContentWidth()
-        .background(palette.background)
         .navigationTitle(Text(ProviderSettings.Provider.custom(url).name))
         .navigationBarTitleDisplayMode(.inline)
         .onChange(of: isListed) { dismiss() }

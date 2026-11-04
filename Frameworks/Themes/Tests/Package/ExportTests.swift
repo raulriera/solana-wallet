@@ -7,7 +7,7 @@ struct ExportTests {
         let fixture = try Fixture()
         defer { fixture.remove() }
         try fixture.asset(Fixture.image())
-        try fixture.manifest(##""tokens":{"colors":{"light":{"accent":{"srgb":"#12AB34"}}}},"assets":{"image":"Assets/image.png"}"##)
+        try fixture.manifest(##""tokens":{"colors":{"light":{"primary":{"srgb":"#12AB34"}}}},"assets":{"image":"Assets/image.png"}"##)
         let service: any PackServicing = PackService()
         let original = try await service.read(from: fixture.source)
         try FileManager.default.removeItem(at: fixture.source)
@@ -24,7 +24,7 @@ struct ExportTests {
         let tokens = try #require(json["tokens"] as? [String: Any])
         let colors = try #require(tokens["colors"] as? [String: [String: [String: String]]])
         #expect(Set(colors.keys) == ["light"])
-        #expect(Set(try #require(colors["light"]).keys) == ["accent"])
+        #expect(Set(try #require(colors["light"]).keys) == ["primary"])
     }
 
     @Test func `Template exports complete defaults with new identities`() async throws {
@@ -50,7 +50,8 @@ struct ExportTests {
         let colors = try #require(tokens["colors"] as? [String: [String: [String: String]]])
         #expect(Set(colors.keys) == ["light", "dark", "lightIncreasedContrast", "darkIncreasedContrast"])
         for palette in colors.values {
-            #expect(Set(palette.keys) == ["background", "surface", "primaryText", "secondaryText", "separator", "accent", "onAccent"])
+            #expect(Set(palette.keys) == ["background", "surface", "text", "secondaryText", "separator", "primary",
+                                           "onPrimary", "secondary", "onSecondary", "destructive", "onDestructive"])
         }
         #expect(colors["light"]?["background"] == ["system": "systemBackground"])
     }
@@ -62,7 +63,7 @@ struct ExportTests {
         let jpeg = try Fixture.image(type: "public.jpeg")
         try fixture.asset(png, path: "Assets/nested/texture.png")
         try fixture.asset(jpeg, path: "Assets/background.jpg")
-        try fixture.manifest(##""tokens":{"colors":{"light":{"accent":{"srgb":"#12aB34"}}}},"assets":{"texture":"Assets/nested/texture.png","background":"Assets/background.jpg","shared":"Assets/nested/texture.png"}"##)
+        try fixture.manifest(##""tokens":{"colors":{"light":{"primary":{"srgb":"#12aB34"}}}},"assets":{"texture":"Assets/nested/texture.png","background":"Assets/background.jpg","shared":"Assets/nested/texture.png"}"##)
         let service = PackService()
         let original = try await service.read(from: fixture.source)
         let expected = service.resolve(original, defaults: Fixture.defaults)
@@ -77,7 +78,7 @@ struct ExportTests {
         let manifest = try Fixture.exportedJSON(at: destination)
         let tokens = try #require(manifest["tokens"] as? [String: Any])
         let colors = try #require(tokens["colors"] as? [String: [String: [String: String]]])
-        #expect(colors["light"]?["accent"] == ["srgb": "#12AB34"])
+        #expect(colors["light"]?["primary"] == ["srgb": "#12AB34"])
     }
 
     @Test func `Replacement writes one complete package`() async throws {

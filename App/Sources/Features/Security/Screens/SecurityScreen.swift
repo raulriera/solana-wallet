@@ -15,16 +15,13 @@ struct SecurityScreen: View {
                     systemImage: "hand.raised.fill"
                 )
             }
-            .listRowBackground(palette.surface)
 
             Section {
                 Button("Show Recovery Phrase") { coordinator.showRecovery(for: account) }
-                    .foregroundStyle(palette.accent)
+                    .foregroundStyle(palette.primary)
             } header: {
                 Text("Recovery Phrase")
             }
-            .listRowBackground(palette.surface)
-            .listRowSeparatorTint(palette.separator)
 
             Section {
                 Button("Reset App", systemImage: "trash", role: .destructive) { coordinator.startReset(.standard) }
@@ -33,13 +30,8 @@ struct SecurityScreen: View {
                 Text("Deletes every wallet, recovery phrase, theme, your RPC API key, and custom RPCs from this device.")
                     .foregroundStyle(palette.secondaryText)
             }
-            .listRowBackground(palette.surface)
         }
         .navigationTitle("Security & Privacy")
         .navigationBarTitleDisplayMode(.inline)
-        .foregroundStyle(palette.primaryText, palette.secondaryText)
-        .scrollContentBackground(.hidden)
-        .readableContentWidth()
-        .background(palette.background)
     }
 }

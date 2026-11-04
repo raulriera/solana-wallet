@@ -8,6 +8,6 @@ struct PasteTextButton: View {
     var body: some View {
         PasteButton(payloadType: String.self) { paste($0.first ?? "") }
             .buttonBorderShape(.capsule)
-            .tint(palette.accent)
+            .tint(palette.primary)
     }
 }

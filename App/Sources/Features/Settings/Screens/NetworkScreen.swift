@@ -15,7 +15,6 @@ struct NetworkScreen: View {
                     systemImage: "network"
                 )
             }
-            .listRowBackground(palette.surface)
 
             Section {
                 NetworkRow(name: LocalizedStringResource("Mainnet",
@@ -29,15 +28,9 @@ struct NetworkScreen: View {
                      comment: "Footer under the Mainnet and Devnet choices in Settings > Network. Each app window has its own network.")
                     .foregroundStyle(palette.secondaryText)
             }
-            .listRowBackground(palette.surface)
-            .listRowSeparatorTint(palette.separator)
         }
         .navigationTitle("Network")
         .navigationBarTitleDisplayMode(.inline)
-        .foregroundStyle(palette.primaryText, palette.secondaryText)
-        .scrollContentBackground(.hidden)
-        .readableContentWidth()
-        .background(palette.background)
     }
 }
 

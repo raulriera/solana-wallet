@@ -18,7 +18,6 @@ struct ProviderSetupScreen<Submission: ProviderSubmitting>: View {
                         systemImage: "point.3.filled.connected.trianglepath.dotted"
                     )
                 }
-                .listRowBackground(palette.surface)
             }
 
             Section {
@@ -56,16 +55,12 @@ struct ProviderSetupScreen<Submission: ProviderSubmitting>: View {
                 }
                 .font(.footnote)
             }
-            .listRowBackground(palette.surface)
         }
         .animation(.default, value: submission.rejection)
         .textInputAutocapitalization(.never)
         .autocorrectionDisabled()
-        .scrollContentBackground(.hidden)
-        .readableContentWidth()
         .confirmationAction(purpose.action, isEnabled: input.hasText, isPending: submission.isPending,
                             action: submitEntry)
-        .background(palette.background)
         .navigationTitle(Text(purpose.title))
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -81,42 +76,42 @@ struct ProviderSetupScreen<Submission: ProviderSubmitting>: View {
     NavigationStack {
         ProviderSetupScreen(purpose: .connect, submission: PreviewSubmission<ProviderConnectionError>(rejection: nil))
     }
-    .tint(RenderedPalette(OriginalAppearance.palette).accent)
+    .tint(RenderedPalette(OriginalAppearance.palette).primary)
 }
 
 #Preview("Rejected key") {
     NavigationStack {
         ProviderSetupScreen(purpose: .connect, submission: PreviewSubmission(rejection: ProviderConnectionError.invalidKey))
     }
-    .tint(RenderedPalette(OriginalAppearance.palette).accent)
+    .tint(RenderedPalette(OriginalAppearance.palette).primary)
 }
 
 #Preview("Add") {
     NavigationStack {
         ProviderSetupScreen(purpose: .add, submission: PreviewSubmission<ProviderConnectionError>(rejection: nil))
     }
-    .tint(RenderedPalette(OriginalAppearance.palette).accent)
+    .tint(RenderedPalette(OriginalAppearance.palette).primary)
 }
 
 #Preview("Change") {
     NavigationStack {
         ProviderSetupScreen(purpose: .change, submission: PreviewSubmission<ProviderConnectionError>(rejection: nil))
     }
-    .tint(RenderedPalette(OriginalAppearance.palette).accent)
+    .tint(RenderedPalette(OriginalAppearance.palette).primary)
 }
 
 #Preview("Add Custom RPC") {
     NavigationStack {
         ProviderSetupScreen(purpose: .customRPC, submission: PreviewSubmission<CustomRPCError>(rejection: nil))
     }
-    .tint(RenderedPalette(OriginalAppearance.palette).accent)
+    .tint(RenderedPalette(OriginalAppearance.palette).primary)
 }
 
 #Preview("No live updates") {
     NavigationStack {
         ProviderSetupScreen(purpose: .customRPC, submission: PreviewSubmission(rejection: CustomRPCError.noLiveUpdates))
     }
-    .tint(RenderedPalette(OriginalAppearance.palette).accent)
+    .tint(RenderedPalette(OriginalAppearance.palette).primary)
 }
 
 /// A submission for previews that shows a fixed rejection.

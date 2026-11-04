@@ -20,7 +20,7 @@ nonisolated struct KeypadStyle: Equatable, Sendable {
 
     var keyBackground = KeyBackground.glass
     /// The color of the keys' digits and symbols.
-    var keyText = PaletteRole.primaryText
+    var keyText = PaletteRole.text
     /// The color of filled key backgrounds.
     var keyFill = PaletteRole.surface
     var amountLook = AmountLook.chrome

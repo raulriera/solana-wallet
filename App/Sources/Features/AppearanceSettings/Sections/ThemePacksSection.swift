@@ -14,7 +14,7 @@ struct ThemePacksSection: View {
                 guard settings.canStartOperation else { return }
                 isImporting = true
             }
-                .foregroundStyle(palette.accent)
+                .foregroundStyle(palette.primary)
                 .fileImporter(isPresented: $isImporting, allowedContentTypes: [.themePack], onCompletion: completeImport)
                 .confirmationDialog("Replace Theme?", item: $settings.replacement) { replacement in
                     Button("Replace", role: .destructive) { settings.replace(replacement) }
@@ -22,13 +22,11 @@ struct ThemePacksSection: View {
                     Text("Replace \(replacement.existing.name) with \(replacement.pack.name)? Windows using this theme will update.")
                 }
             Button("Export Default Template…", systemImage: "square.and.arrow.up") { settings.prepareExport() }
-                .foregroundStyle(palette.accent)
+                .foregroundStyle(palette.primary)
                 .onChange(of: settings.export != nil, initial: true) { _, isReady in isExporting = isReady }
                 .fileExporter(isPresented: $isExporting, item: settings.export, defaultFilename: "Theme.xtheme",
                               onCompletion: completeExport, onCancellation: settings.finishExport)
         }
-        .listRowBackground(palette.surface)
-        .listRowSeparatorTint(palette.separator)
     }
 
     /// Imports the picked file or reports the picker's error.

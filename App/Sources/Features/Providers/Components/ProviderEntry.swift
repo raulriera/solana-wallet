@@ -10,7 +10,7 @@ struct ProviderEntry<Field: View>: View {
     var body: some View {
         HStack(spacing: 16) {
             field($input.text)
-                .foregroundStyle(palette.primaryText)
+                .foregroundStyle(palette.text)
                 .focused($isFocused)
                 .submitLabel(.done)
                 .onSubmit { isFocused = false }

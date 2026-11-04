@@ -15,7 +15,8 @@ private struct WindowAppearance: ViewModifier {
     func body(content: Content) -> some View {
         content
             .environment(\.palette, palette)
-            .tint(palette.accent)
+            .tint(palette.primary)
+            .formStyle(.themed)
             .task(id: scenePhase) {
                 guard scenePhase == .active else { return }
                 do { try await services.appearance.activate() }
