@@ -31,10 +31,12 @@ struct AppServices {
     init() {
         let recoveryService = "com.raulriera.widgets.recovery"
         let providerService = "com.raulriera.widgets.provider"
+        let priceService = "com.raulriera.widgets.price"
         let privateBalanceService = "com.raulriera.widgets.private-balance"
         let directories: [URL] = [.persistentDirectory, .ephemeralDirectory]
         #if DEBUG && targetEnvironment(simulator)
-        do { try UITestReset.runIfRequested(keychainServices: [recoveryService, providerService, privateBalanceService],
+        do { try UITestReset.runIfRequested(keychainServices: [recoveryService, providerService, priceService,
+                                                               privateBalanceService],
                                             directories: directories) }
         catch { preconditionFailure("The UI-test reset couldn't clear the app's saved data.") }
         #endif
@@ -72,9 +74,10 @@ struct AppServices {
                                                                                     directoryHint: .isDirectory),
                                           rates: rates)
         self.currencyStore = currencyStore
-        let prices = CurrencyPrices(prices: SelectedPriceProvider(providers: providerStore), currency: currencyStore)
-        let portfolios = PortfolioStore(prices: prices, currency: currencyStore,
-                                        providers: providerStore) { network, prices in
+        let priceStore = PriceStore(service: priceService)
+        let prices = CurrencyPrices(prices: SelectedPriceProvider(prices: priceStore), currency: currencyStore)
+        let portfolios = PortfolioStore(prices: prices, currency: currencyStore, providers: providerStore,
+                                        priceChoice: priceStore) { network, prices in
             Portfolio(rpc: providerClient(network),
                       prices: prices,
                       tokenListDirectory: .persistentDirectory.appending(path: "TokenLists", directoryHint: .isDirectory),
@@ -104,8 +107,8 @@ struct AppServices {
             owner: DeviceOwnerAuthentication(),
             reset: AppReset(recovery: recovery, privateBalances: privateBalances,
                             directories: directories, appearance: appearance.appearance,
-                            stores: [contactStore, transactionStore, currencyStore, providerStore, portfolios,
-                                     privateBalanceStore],
+                            stores: [contactStore, transactionStore, currencyStore, providerStore, priceStore,
+                                     portfolios, privateBalanceStore],
                             accounts: accountStore),
             pasteboard: recoveryPasteboard
         )

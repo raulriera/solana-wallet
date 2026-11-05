@@ -31,8 +31,8 @@ actor ResetStorage: RecoveryStoring {
                 transactions,
                 CurrencyStore(storage: ResetValue<CurrencySettings>(storage: self, step: .currency), rates: [:]),
                 ProviderStore(settings: ResetValue<ProviderSettings>(storage: self, step: .settings),
-                              key: ResetValue<String>(storage: self, step: .key),
-                              prices: ResetValue<PriceSettings>(storage: self, step: .prices))]
+                              key: ResetValue<String>(storage: self, step: .key)),
+                PriceStore(storage: ResetValue<PriceSettings>(storage: self, step: .prices))]
     }
 
     @MainActor var accounts: AccountStore {

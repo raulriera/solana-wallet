@@ -24,90 +24,26 @@ struct ProviderStoreTests {
     }
 
     @Test
-    func `Nothing saved reads as Solana without a key and Jupiter for prices`() async throws {
+    func `Nothing saved reads as Solana without a key`() async throws {
         let store = ProviderStore.inMemory()
 
         #expect(try await store.loadedConnection() == .solana)
 
         #expect(store.settings == ProviderSettings())
-        #expect(store.priceSettings == PriceSettings())
         #expect(store.keyPreview == nil)
     }
 
-    @Test
-    func `Loading reads the saved price choice`() async throws {
-        let server = try #require(URL(string: "https://prices.example.com/v1?key=fixture-key"))
-        let saved = PriceSettings(selection: .custom(server), customServers: [server])
-        let prices = StoredValue(saved)
-        let store = ProviderStore.inMemory(prices: prices)
-        #expect(store.priceSettings == nil)
-
-        #expect(try await store.loadedPriceSettings() == saved)
-
-        #expect(await prices.loads == 1)
-    }
-
-    @Test(arguments: Item.allCases)
-    func `Unreadable settings explain why`(unreadable: Item) async {
-        let store = ProviderStore.inMemory(StoredValue(failsLoading: unreadable == .settings),
-                                           key: StoredValue(failsLoading: unreadable == .key),
-                                           prices: StoredValue(failsLoading: unreadable == .prices))
+    @Test(arguments: [false, true])
+    func `Unreadable settings explain why`(isKeyUnreadable: Bool) async {
+        let store = ProviderStore.inMemory(StoredValue(failsLoading: !isKeyUnreadable),
+                                           key: StoredValue(failsLoading: isKeyUnreadable))
 
         await #expect(throws: ProviderClientError.settingsUnreadable) { try await store.loadedConnection() }
-        await #expect(throws: ProviderClientError.settingsUnreadable) { try await store.loadedPriceSettings() }
 
         #expect(store.phase == .unreadable)
         #expect(store.isRead)
         #expect(store.settings == nil)
-        #expect(store.priceSettings == nil)
         #expect(store.connection == nil)
-    }
-
-    @Test
-    func `A new price choice is saved without changing the RPC`() async throws {
-        let settings = StoredValue(ProviderSettings(selection: .helius))
-        let prices = StoredValue<PriceSettings>()
-        let store = ProviderStore.inMemory(settings, key: StoredValue("fixture-key"), prices: prices)
-
-        try await store.select(prices: .off)
-
-        #expect(await prices.value == PriceSettings(selection: .off))
-        #expect(await settings.value == ProviderSettings(selection: .helius))
-        #expect(store.connection == .helius(key: "fixture-key"))
-    }
-
-    @Test
-    func `A new price server is saved and chosen`() async throws {
-        let server = try #require(URL(string: "https://prices.example.com"))
-        let prices = StoredValue(PriceSettings(selection: .off))
-        let store = ProviderStore.inMemory(prices: prices)
-
-        try await store.add(priceServer: server)
-
-        #expect(await prices.value == PriceSettings(selection: .custom(server), customServers: [server]))
-        #expect(store.priceSettings == PriceSettings(selection: .custom(server), customServers: [server]))
-    }
-
-    @Test
-    func `Deleting the price server in use switches to Jupiter`() async throws {
-        let server = try #require(URL(string: "https://prices.example.com"))
-        let prices = StoredValue(PriceSettings(selection: .custom(server), customServers: [server]))
-        let store = ProviderStore.inMemory(prices: prices)
-
-        try await store.remove(priceServer: server)
-
-        #expect(await prices.value == PriceSettings())
-    }
-
-    @Test
-    func `A price choice that can't be saved changes nothing`() async {
-        let prices = StoredValue(PriceSettings(selection: .off), failsSaving: true)
-        let store = ProviderStore.inMemory(prices: prices)
-
-        await #expect(throws: CocoaError.self) { try await store.select(prices: .jupiter) }
-
-        #expect(await prices.value == PriceSettings(selection: .off))
-        #expect(store.priceSettings == PriceSettings(selection: .off))
     }
 
     @Test
@@ -298,8 +234,7 @@ struct ProviderStoreTests {
         let custom = try #require(URL(string: "https://rpc.example.com"))
         let settings = StoredValue(ProviderSettings(selection: .helius, customRPCs: [custom]))
         let key = StoredValue("fixture-key")
-        let prices = StoredValue(PriceSettings(selection: .off))
-        let store = ProviderStore.inMemory(settings, key: key, prices: prices)
+        let store = ProviderStore.inMemory(settings, key: key)
         await store.load()
 
         try await store.erase()
@@ -307,13 +242,10 @@ struct ProviderStoreTests {
         #expect(store.phase == .unloaded)
         #expect(!store.isRead)
         #expect(store.settings == nil)
-        #expect(store.priceSettings == nil)
         #expect(store.connection == nil)
         #expect(await settings.value == nil)
         #expect(await key.value == nil)
-        #expect(await prices.value == nil)
         #expect(try await store.loadedConnection() == .solana)
-        #expect(store.priceSettings == PriceSettings())
         #expect(store.keyPreview == nil)
     }
 
@@ -340,9 +272,5 @@ struct ProviderStoreTests {
 
         #expect(store.phase == .loaded)
         #expect(store.keyPreview == "fixt•••••••••")
-    }
-
-    enum Item: CaseIterable {
-        case settings, key, prices
     }
 }

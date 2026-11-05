@@ -14,7 +14,7 @@ struct SelectedPriceProviderTests {
     func `Nothing saved looks up Jupiter's prices`() async throws {
         let jupiter = FixedPrices(currency: "USD")
         let custom = FixedPrices(currency: "EUR")
-        let prices = SelectedPriceProvider(providers: .inMemory(), jupiter: jupiter) { _ in custom }
+        let prices = SelectedPriceProvider(prices: .inMemory(), jupiter: jupiter) { _ in custom }
 
         let quotes = try await prices.prices(for: ["mint"])
 
@@ -27,8 +27,8 @@ struct SelectedPriceProviderTests {
     func `A chosen server answers every lookup through one provider`() async throws {
         let custom = FixedPrices(currency: "EUR")
         let made = Mutex<[URL]>([])
-        let providers = ProviderStore.inMemory(prices: .custom(Self.server))
-        let prices = SelectedPriceProvider(providers: providers, jupiter: FixedPrices(currency: "USD")) { url in
+        let store = PriceStore.inMemory(selection: .custom(Self.server))
+        let prices = SelectedPriceProvider(prices: store, jupiter: FixedPrices(currency: "USD")) { url in
             made.withLock { $0.append(url) }
             return custom
         }
@@ -45,7 +45,7 @@ struct SelectedPriceProviderTests {
     func `Prices that are off ask no provider`() async throws {
         let jupiter = FixedPrices(currency: "USD")
         let custom = FixedPrices(currency: "EUR")
-        let prices = SelectedPriceProvider(providers: .inMemory(prices: .off), jupiter: jupiter) { _ in custom }
+        let prices = SelectedPriceProvider(prices: .inMemory(selection: .off), jupiter: jupiter) { _ in custom }
 
         #expect(try await prices.prices(for: ["mint"]).isEmpty)
 
@@ -56,11 +56,11 @@ struct SelectedPriceProviderTests {
     @Test
     func `Each lookup reads the choice in use`() async throws {
         let jupiter = FixedPrices(currency: "USD")
-        let providers = ProviderStore.inMemory()
-        let prices = SelectedPriceProvider(providers: providers, jupiter: jupiter) { _ in FixedPrices(currency: "EUR") }
+        let store = PriceStore.inMemory()
+        let prices = SelectedPriceProvider(prices: store, jupiter: jupiter) { _ in FixedPrices(currency: "EUR") }
         _ = try await prices.prices(for: ["mint"])
 
-        try await providers.select(prices: .off)
+        try await store.select(.off)
 
         #expect(try await prices.prices(for: ["mint"]).isEmpty)
         #expect(await jupiter.lookups.value == [["mint"]])
@@ -68,19 +68,19 @@ struct SelectedPriceProviderTests {
 
     @Test
     func `A saved server that can't be used fails the lookup`() async {
-        let providers = ProviderStore.inMemory(prices: .custom(Self.server))
-        let prices = SelectedPriceProvider(providers: providers, jupiter: FixedPrices(currency: "USD")) { _ in nil }
+        let store = PriceStore.inMemory(selection: .custom(Self.server))
+        let prices = SelectedPriceProvider(prices: store, jupiter: FixedPrices(currency: "USD")) { _ in nil }
 
-        await #expect(throws: ProviderClientError.unusableEndpoint) { try await prices.prices(for: ["mint"]) }
+        await #expect(throws: PricesError.unusableServer) { try await prices.prices(for: ["mint"]) }
     }
 
     @Test
     func `Unreadable settings fail the lookup without a request`() async {
         let jupiter = FixedPrices(currency: "USD")
-        let providers = ProviderStore.inMemory(prices: StoredValue(failsLoading: true))
-        let prices = SelectedPriceProvider(providers: providers, jupiter: jupiter) { _ in nil }
+        let store = PriceStore.inMemory(StoredValue(failsLoading: true))
+        let prices = SelectedPriceProvider(prices: store, jupiter: jupiter) { _ in nil }
 
-        await #expect(throws: ProviderClientError.settingsUnreadable) { try await prices.prices(for: ["mint"]) }
+        await #expect(throws: PricesError.settingsUnreadable) { try await prices.prices(for: ["mint"]) }
 
         #expect(await jupiter.lookups.value.isEmpty)
     }

@@ -77,7 +77,7 @@ struct AppResetTests {
                                 store: FileSnapshotStore(directory: storage.directory),
                                 tokenLists: FileTokenListStore(directory: storage.directory.appending(path: "TokenLists")))
         let portfolios = PortfolioStore(prices: Jupiter(transport: responses), currency: .inMemory(),
-                                        providers: providers) { _, _ in service }
+                                        providers: providers, priceChoice: .inMemory()) { _, _ in service }
         let account = try Account.publicWallet()
         let viewing = Task { await portfolios.observe(account, on: .devnet) }
         defer { viewing.cancel() }

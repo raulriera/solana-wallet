@@ -5,26 +5,29 @@ import RPC
 nonisolated struct SelectedPriceProvider: PriceProviding {
     let network: Network = .mainnet
 
-    private let providers: ProviderStore
+    private let store: PriceStore
     private let jupiter: any PriceProviding
     private let servers: ClientCache<URL, any PriceProviding>
 
     /// Creates a price provider that reads the price provider choice before every lookup.
     ///
     /// - Parameters:
-    ///   - providers: The provider settings to read.
+    ///   - prices: The price provider choice to read.
     ///   - jupiter: The provider for Jupiter's prices.
     ///   - server: A function that creates the provider for a custom price server.
-    init(providers: ProviderStore, jupiter: any PriceProviding = Jupiter(),
+    init(prices: PriceStore, jupiter: any PriceProviding = Jupiter(),
          server: @escaping @Sendable (URL) -> (any PriceProviding)? = Self.server(at:)) {
-        self.providers = providers
+        store = prices
         self.jupiter = jupiter
-        servers = ClientCache(make: server)
+        servers = ClientCache { url in
+            guard let provider = server(url) else { throw PricesError.unusableServer }
+            return provider
+        }
     }
 
     @concurrent
     func response(for mints: [String]) async throws -> [String: Quote] {
-        switch try await providers.loadedPriceSettings().selection {
+        switch try await store.loadedSettings().selection {
         case .jupiter: try await jupiter.prices(for: mints)
         case .custom(let url): try await servers.client(for: url).prices(for: mints)
         case .off: [:]

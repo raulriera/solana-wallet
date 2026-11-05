@@ -5,17 +5,17 @@ import RPC
 nonisolated struct CustomPriceConnection: ProviderConnecting {
     typealias EntryError = CustomPriceError
 
-    private let providers: ProviderStore
+    private let store: PriceStore
     private let server: @Sendable (URL) -> (any PriceProviding)?
 
-    /// Creates a connection that adds accepted price servers to the provider settings.
+    /// Creates a connection that adds accepted price servers to the price provider choice.
     ///
     /// - Parameters:
-    ///   - providers: The provider settings that list, save, and choose custom price servers.
+    ///   - prices: The price provider choice that lists, saves, and chooses custom price servers.
     ///   - server: A function that creates the provider for a candidate URL.
-    init(providers: ProviderStore,
+    init(prices: PriceStore,
          server: @escaping @Sendable (URL) -> (any PriceProviding)? = SelectedPriceProvider.server(at:)) {
-        self.providers = providers
+        store = prices
         self.server = server
     }
 
@@ -23,7 +23,7 @@ nonisolated struct CustomPriceConnection: ProviderConnecting {
         guard let url = URL(string: entry), let prices = server(url) else { throw CustomPriceError.notHTTPS }
         let listed: [URL]
         do {
-            listed = try await providers.loadedPriceSettings().customServers
+            listed = try await store.loadedSettings().customServers
         } catch {
             try Task.checkCancellation()
             throw CustomPriceError.unavailable
@@ -39,7 +39,7 @@ nonisolated struct CustomPriceConnection: ProviderConnecting {
         guard quotes[Self.checkedAccount] != nil else { throw CustomPriceError.unreachable }
         try Task.checkCancellation()
         do {
-            try await providers.add(priceServer: url)
+            try await store.add(url)
         } catch {
             try Task.checkCancellation()
             throw CustomPriceError.storageFailed

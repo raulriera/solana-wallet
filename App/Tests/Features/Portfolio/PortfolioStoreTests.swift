@@ -15,7 +15,8 @@ struct PortfolioStoreTests {
         var made: [Network] = []
         let devnet = PortfolioChanges()
         let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])),
-                                        currency: .inMemory(), providers: .inMemory()) { network, _ in
+                                        currency: .inMemory(), providers: .inMemory(),
+                                        priceChoice: .inMemory()) { network, _ in
             made.append(network)
             return network == .mainnet ? PortfolioChanges() : devnet
         }
@@ -34,7 +35,8 @@ struct PortfolioStoreTests {
         var priced: [Network: Bool] = [:]
         let devnet = PortfolioChanges()
         let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])),
-                                        currency: .inMemory(), providers: .inMemory()) { network, prices in
+                                        currency: .inMemory(), providers: .inMemory(),
+                                        priceChoice: .inMemory()) { network, prices in
             priced[network] = prices is Jupiter
             return network == .mainnet ? PortfolioChanges() : devnet
         }
@@ -48,11 +50,12 @@ struct PortfolioStoreTests {
     @Test
     func `Each currency change has every service read its prices once`() async throws {
         let currency = CurrencyStore.inMemory(StoredValue(CurrencySettings(rateSource: .coinbase)))
-        let providers = ProviderStore.inMemory()
+        let priceChoice = PriceStore.inMemory()
         let mainnet = PortfolioChanges(currency: currency)
         let devnet = PortfolioChanges(currency: currency)
         let prices = Jupiter(transport: HTTPResponses([:]))
-        let portfolios = PortfolioStore(prices: prices, currency: currency, providers: providers) { network, _ in
+        let portfolios = PortfolioStore(prices: prices, currency: currency, providers: .inMemory(),
+                                        priceChoice: priceChoice) { network, _ in
             network == .mainnet ? mainnet : devnet
         }
         let viewing = try await Self.observe(.fixture(index: 1), on: .devnet, of: portfolios, through: devnet)
@@ -60,7 +63,7 @@ struct PortfolioStoreTests {
         var mainnetReads = mainnet.priceReads.makeAsyncIterator()
         var devnetReads = devnet.priceReads.makeAsyncIterator()
 
-        await providers.load()
+        await priceChoice.load()
         await currency.load()
         try await currency.select(.coinbase)
         for code in ["EUR", "JPY"] {
@@ -79,14 +82,14 @@ struct PortfolioStoreTests {
     func `An unsaved currency change ends with the saved choice`() async throws {
         let saved = CurrencySettings(rateSource: .coinbase)
         let currency = CurrencyStore.inMemory(StoredValue(saved, failsSaving: true))
-        let providers = ProviderStore.inMemory()
+        let priceChoice = PriceStore.inMemory()
         let portfolio = PortfolioChanges(currency: currency)
         let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])), currency: currency,
-                                        providers: providers) { _, _ in
+                                        providers: .inMemory(), priceChoice: priceChoice) { _, _ in
             portfolio
         }
         var reads = portfolio.priceReads.makeAsyncIterator()
-        await providers.load()
+        await priceChoice.load()
         await currency.load()
 
         await #expect(throws: CocoaError.self) { try await currency.select(currencyCode: "EUR") }
@@ -100,14 +103,14 @@ struct PortfolioStoreTests {
     @Test
     func `Erasing the currency choice reads no prices`() async throws {
         let currency = CurrencyStore.inMemory(StoredValue(CurrencySettings(rateSource: .coinbase, currencyCode: "EUR")))
-        let providers = ProviderStore.inMemory()
+        let priceChoice = PriceStore.inMemory()
         let portfolio = PortfolioChanges(currency: currency)
         let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])), currency: currency,
-                                        providers: providers) { _, _ in
+                                        providers: .inMemory(), priceChoice: priceChoice) { _, _ in
             portfolio
         }
         var reads = portfolio.priceReads.makeAsyncIterator()
-        await providers.load()
+        await priceChoice.load()
         await currency.load()
 
         try await currency.erase()
@@ -122,23 +125,23 @@ struct PortfolioStoreTests {
 
     @Test
     func `Each new price provider has every service read its prices once`() async throws {
-        let providers = ProviderStore.inMemory()
+        let priceChoice = PriceStore.inMemory()
         let currency = CurrencyStore.inMemory()
         let mainnet = PortfolioChanges(currency: currency)
         let devnet = PortfolioChanges(currency: currency)
         let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])), currency: currency,
-                                        providers: providers) { network, _ in
+                                        providers: .inMemory(), priceChoice: priceChoice) { network, _ in
             network == .mainnet ? mainnet : devnet
         }
         let viewing = try await Self.observe(.fixture(index: 1), on: .devnet, of: portfolios, through: devnet)
         defer { viewing.cancel() }
         var mainnetReads = mainnet.priceReads.makeAsyncIterator()
         var devnetReads = devnet.priceReads.makeAsyncIterator()
-        await providers.load()
+        await priceChoice.load()
         await currency.load()
 
         for provider in [PriceSettings.Provider.off, .jupiter] {
-            try await providers.select(prices: provider)
+            try await priceChoice.select(provider)
             _ = await mainnetReads.next()
             _ = await devnetReads.next()
         }
@@ -153,7 +156,7 @@ struct PortfolioStoreTests {
         let responses = HTTPResponses(["getMultipleAccounts": [#"{"context":{"slot":1},"value":[null]}"#]])
         let providers = ProviderStore.inMemory()
         let portfolios = PortfolioStore(prices: Jupiter(transport: responses), currency: .inMemory(),
-                                        providers: providers) { network, prices in
+                                        providers: providers, priceChoice: .inMemory()) { network, prices in
             Portfolio(rpc: responses.providerClient(network: network, providers: providers),
                       store: FileSnapshotStore(directory: directory),
                       tokenLists: tokenLists(in: directory), prices: prices)
@@ -183,7 +186,7 @@ struct PortfolioStoreTests {
         let mainnet = PortfolioChanges(gate: gate)
         let devnet = PortfolioChanges()
         let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])), currency: .inMemory(),
-                                        providers: providers) { network, _ in
+                                        providers: providers, priceChoice: .inMemory()) { network, _ in
             network == .mainnet ? mainnet : devnet
         }
         let account = try Account.fixture(index: 1)
@@ -206,7 +209,7 @@ struct PortfolioStoreTests {
         let providers = ProviderStore.inMemory(selection: .helius, key: "fixture-key")
         var made: [Network: PortfolioChanges] = [:]
         let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])), currency: .inMemory(),
-                                        providers: providers) { network, _ in
+                                        providers: providers, priceChoice: .inMemory()) { network, _ in
             let portfolio = PortfolioChanges(providers: providers)
             made[network] = portfolio
             return portfolio
@@ -228,7 +231,7 @@ struct PortfolioStoreTests {
         let failing = PortfolioChanges(error: CocoaError(.fileWriteOutOfSpace))
         let other = PortfolioChanges(providers: providers)
         let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])), currency: .inMemory(),
-                                        providers: providers) { network, _ in
+                                        providers: providers, priceChoice: .inMemory()) { network, _ in
             network == .mainnet ? failing : other
         }
         let viewing = try await Self.observe(.fixture(index: 1), on: .devnet, of: portfolios, through: other)
@@ -246,7 +249,7 @@ struct PortfolioStoreTests {
         let providers = ProviderStore.inMemory(selection: .helius, key: "fixture-key")
         let portfolio = PortfolioChanges(providers: providers)
         let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])), currency: .inMemory(),
-                                        providers: providers) { _, _ in portfolio }
+                                        providers: providers, priceChoice: .inMemory()) { _, _ in portfolio }
         await providers.load()
 
         try await providers.save(key: "fixture-key-2")
@@ -263,7 +266,7 @@ struct PortfolioStoreTests {
                                                key: StoredValue("fixture-key"))
         let portfolio = PortfolioChanges(providers: providers)
         let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])), currency: .inMemory(),
-                                        providers: providers) { _, _ in portfolio }
+                                        providers: providers, priceChoice: .inMemory()) { _, _ in portfolio }
         await providers.load()
 
         try await providers.save(key: "fixture-key-2")
@@ -280,7 +283,7 @@ struct PortfolioStoreTests {
         let providers = ProviderStore.inMemory(selection: .helius, key: "fixture-key")
         let portfolio = PortfolioChanges(providers: providers)
         let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])), currency: .inMemory(),
-                                        providers: providers) { _, _ in portfolio }
+                                        providers: providers, priceChoice: .inMemory()) { _, _ in portfolio }
         var reads = portfolio.connectionReads.makeAsyncIterator()
         await providers.load()
 
@@ -299,7 +302,7 @@ struct PortfolioStoreTests {
         let providers = ProviderStore.inMemory(selection: .helius, key: "fixture-key")
         let portfolio = PortfolioChanges()
         let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])), currency: .inMemory(),
-                                        providers: providers) { _, _ in portfolio }
+                                        providers: providers, priceChoice: .inMemory()) { _, _ in portfolio }
         var observed = portfolio.observedOwners.makeAsyncIterator()
         let account = try Account.fixture(index: 1)
         let first = Task { await portfolios.observe(account, on: .mainnet) }

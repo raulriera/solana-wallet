@@ -24,8 +24,8 @@ struct ClientCacheTests {
 
     @Test
     func `An endpoint without a client can't be used`() async {
-        let cache = ClientCache<String, UUID> { _ in nil }
+        let cache = ClientCache<String, UUID> { _ in throw CocoaError(.fileNoSuchFile) }
 
-        await #expect(throws: ProviderClientError.unusableEndpoint) { try await cache.client(for: "one") }
+        await #expect(throws: CocoaError(.fileNoSuchFile)) { try await cache.client(for: "one") }
     }
 }

@@ -34,7 +34,10 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, SignatureEventPr
         self.network = network
         self.providers = providers
         self.rings = rings
-        clients = ClientCache { client($0, network) }
+        clients = ClientCache { endpoint in
+            guard let made = client(endpoint, network) else { throw ProviderClientError.unusableEndpoint }
+            return made
+        }
     }
 
     func send<Request: RPCRequest>(_ request: Request) async throws -> Request.Response {

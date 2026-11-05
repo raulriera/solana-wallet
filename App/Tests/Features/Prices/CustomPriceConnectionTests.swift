@@ -138,7 +138,7 @@ struct CustomPriceConnectionTests {
     }
 
     private func makeConnection(prices: StoredValue<PriceSettings>, transport: StubTransport) -> CustomPriceConnection {
-        CustomPriceConnection(providers: .inMemory(prices: prices)) { CustomPrices(endpoint: $0, transport: transport) }
+        CustomPriceConnection(prices: .inMemory(prices)) { CustomPrices(endpoint: $0, transport: transport) }
     }
 
     private static func pricedTransport() -> StubTransport {
