@@ -1,5 +1,15 @@
 {
   "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$(jq -r .cwd)\" || exit 0; changes=$(git status --short | head -30); [ -z \"$changes\" ] || printf 'Branch: %s\\nUncommitted changes:\\n%s\\n' \"$(git branch --show-current)\" \"$changes\""
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write",
