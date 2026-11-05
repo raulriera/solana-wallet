@@ -194,7 +194,7 @@ actor RefreshCoordinator {
             var snapshot = try await balances
             if let found = await logoLookup { snapshot = snapshot.replacingLogos(with: found) }
             if let pricer, let quotes = try await quoteLookup {
-                snapshot = try pricer.snapshot(pricing: snapshot, with: quotes)
+                snapshot = pricer.snapshot(pricing: snapshot, with: quotes)
             }
             try Task.checkCancellation()
             guard flights[key]?.generation == generation else { return }

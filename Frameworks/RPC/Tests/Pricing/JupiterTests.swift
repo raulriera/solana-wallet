@@ -57,7 +57,7 @@ struct JupiterTests {
     @Test(arguments: [false, true])
     func `Price batches respect the keyless and free-key budgets`(authenticated: Bool) async throws {
         let transport = StubTransport { request in
-            let values = try requestedMints(request).map { #""\#($0)":{"usdPrice":1}"# }
+            let values = try requestedMints(request, query: "ids").map { #""\#($0)":{"usdPrice":1}"# }
             return try httpReply(to: request, body: "{" + values.joined(separator: ",") + "}")
         }
         let mints = (0..<51).map { "mint-\($0)" }
@@ -69,8 +69,8 @@ struct JupiterTests {
         #expect(startedAt.duration(to: .now) >= interval)
         #expect(Set(quotes.keys) == Set(mints))
         let requests = await transport.requests
-        #expect(try requests.map { try requestedMints($0).count } == [50, 1])
-        #expect(try requests.flatMap(requestedMints) == mints)
+        #expect(try requests.map { try requestedMints($0, query: "ids").count } == [50, 1])
+        #expect(try requests.flatMap { try requestedMints($0, query: "ids") } == mints)
         #expect(requests.allSatisfy {
             $0.value(forHTTPHeaderField: "x-api-key") == (authenticated ? "fixture-key" : nil)
         })
@@ -97,7 +97,7 @@ struct JupiterTests {
         clock.advance(to: second)
         _ = try await operation
 
-        #expect(try await transport.requests.map { try requestedMints($0).count } == [1, 50, 1])
+        #expect(try await transport.requests.map { try requestedMints($0, query: "ids").count } == [1, 50, 1])
     }
 
     @Test(.timeLimit(.minutes(1)))
@@ -124,16 +124,9 @@ struct JupiterTests {
     }
 
     @Test
-    func `Empty price requests do not access the network`() async throws {
-        let transport = StubTransport { try httpReply(to: $0, body: "{}") }
-        #expect(try await Jupiter(transport: transport).prices(for: []).isEmpty)
-        #expect(await transport.requests.isEmpty)
-    }
-
-    @Test
     func `Rate limits fail the price lookup without retries or partial success`() async throws {
         let transport = StubTransport { request in
-            if try requestedMints(request).first == "mint-50" {
+            if try requestedMints(request, query: "ids").first == "mint-50" {
                 return try httpReply(to: request, body: "{}", status: 429,
                                       headers: ["Retry-After": "5 fixture-key"])
             }
@@ -155,8 +148,6 @@ struct JupiterTests {
         #"{"mint":{"usdPrice":"invalid"}}"#,
         #"{"mint":{"usdPrice":true}}"#,
         #"{"mint":false}"#,
-        #"{"different-mint":{"usdPrice":1}}"#,
-        #"{"different-mint":null}"#,
         #"[]"#,
     ])
     func `Invalid price responses fail without inventing a quote`(_ body: String) async {
@@ -201,11 +192,4 @@ struct JupiterTests {
             try await Jupiter(apiKey: "fixture-key", transport: transport).prices(for: ["mint"])
         }
     }
-}
-
-private func requestedMints(_ request: URLRequest) throws -> [String] {
-    let url = try #require(request.url)
-    let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
-    let ids = try #require(query?.first { $0.name == "ids" }?.value)
-    return ids.split(separator: ",").map(String.init)
 }

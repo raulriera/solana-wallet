@@ -22,18 +22,13 @@ struct SnapshotPricer: Sendable {
     ///   - snapshot: The snapshot to value.
     ///   - quotes: The quotes, keyed by mint.
     /// - Returns: The snapshot with new valuations.
-    /// - Throws: ``PriceError/invalidQuote`` for an invalid price or currency.
-    func snapshot(pricing snapshot: Snapshot, with quotes: [String: Quote]) throws -> Snapshot {
+    func snapshot(pricing snapshot: Snapshot, with quotes: [String: Quote]) -> Snapshot {
         var priced = snapshot
         for index in priced.holdings.indices {
             let holding = priced.holdings[index]
             guard let amount = holding.amount, let quote = quotes[mint(for: holding.id)] else {
                 priced.holdings[index].valuation = nil
                 continue
-            }
-            guard !quote.pricePerUnit.isNaN, quote.pricePerUnit >= 0,
-                  !quote.currency.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                throw PriceError.invalidQuote
             }
             priced.holdings[index].valuation = Valuation(
                 pricePerUnit: quote.pricePerUnit,

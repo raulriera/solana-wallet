@@ -50,8 +50,7 @@ public struct Solana: RPC, AccountChangeProviding, SignatureEventProviding, Cust
     ///   - socket: The factory for a subscription connection.
     init?(endpoint: URL, network: Network, transport: any HTTPTransport,
           socket: @escaping @Sendable (URL) -> any WebSocketConnection = { URLSessionSocket(endpoint: $0) }) {
-        let endpoint = endpoint.absoluteURL
-        guard endpoint.scheme?.lowercased() == "https", endpoint.host()?.isEmpty == false,
+        guard let endpoint = endpoint.httpsEndpoint,
               var components = URLComponents(url: endpoint, resolvingAgainstBaseURL: false) else { return nil }
         components.scheme = "wss"
         guard let socketEndpoint = components.url else { return nil }
