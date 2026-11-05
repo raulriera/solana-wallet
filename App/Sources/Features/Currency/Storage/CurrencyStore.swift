@@ -9,7 +9,6 @@ import Storage
 final class CurrencyStore: Erasable {
     private let choice: PersistentValue<CurrencySettings>
     private nonisolated let sources: [CurrencySettings.RateSource: any ExchangeRateProviding]
-    private var isErased = false
 
     /// Creates a store without reading the choice.
     ///
@@ -34,12 +33,11 @@ final class CurrencyStore: Erasable {
     /// The currency choice, or `nil` until it's read.
     var settings: CurrencySettings? { phase == .loaded ? choice.value : nil }
 
-    var phase: PersistentValuePhase { isErased ? .unloaded : choice.phase }
+    var phase: PersistentValuePhase { choice.phase }
 
     /// Loads the choice unless it's already loaded.
     func load() async {
         await choice.load()
-        isErased = false
     }
 
     /// Returns the choice, loading it first when needed.
@@ -47,9 +45,7 @@ final class CurrencyStore: Erasable {
     /// - Returns: The currency choice.
     /// - Throws: ``CurrencyError/settingsUnreadable`` when the choice can't be read.
     func loadedSettings() async throws -> CurrencySettings {
-        if settings == nil { await load() }
-        guard let settings else { throw CurrencyError.settingsUnreadable }
-        return settings
+        try await choice.loadedValue(orThrow: CurrencyError.settingsUnreadable)
     }
 
     /// Looks up a rate source's exchange rates from a currency.
@@ -101,12 +97,6 @@ final class CurrencyStore: Erasable {
     }
 
     func erase() async throws {
-        isErased = true
-        do {
-            try await choice.erase()
-        } catch {
-            isErased = false
-            throw error
-        }
+        try await choice.forget()
     }
 }

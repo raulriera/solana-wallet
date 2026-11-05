@@ -6,7 +6,10 @@ public import Observation
 public final class PersistentValue<Value: Equatable & Sendable> {
     /// The value with every change made so far, including changes still being saved.
     public private(set) var value: Value
-    public private(set) var phase = PersistentValuePhase.unloaded
+    public var phase: PersistentValuePhase { isForgotten ? .unloaded : readPhase }
+    private var readPhase = PersistentValuePhase.unloaded
+    /// Whether the value was forgotten since it was last read.
+    private var isForgotten = false
     @ObservationIgnored private let storage: any ValueStoring<Value>
     @ObservationIgnored private let empty: Value
     /// The saved value, without the changes still being saved.
@@ -30,17 +33,29 @@ public final class PersistentValue<Value: Equatable & Sendable> {
 
     /// Reads the saved value unless it was already read.
     public func load() async {
-        if phase == .unloaded || phase == .unreadable {
-            phase = .loading
+        if readPhase == .unloaded || readPhase == .unreadable {
+            readPhase = .loading
             enqueue { [storage, empty] in
                 do {
                     self.settle(try await storage.load() ?? empty)
                 } catch {
-                    self.phase = .unreadable
+                    self.readPhase = .unreadable
                 }
             }
         }
         _ = await latest?.result
+        isForgotten = false
+    }
+
+    /// Returns the value, reading it first if needed.
+    ///
+    /// - Parameter error: The error to throw when the value can't be read.
+    /// - Returns: The value with every change made so far.
+    /// - Throws: `error` when the value can't be read.
+    public func loadedValue(orThrow error: some Error) async throws -> Value {
+        if phase != .loaded { await load() }
+        guard phase == .loaded else { throw error }
+        return value
     }
 
     /// Changes the value at once and saves the change after the changes made before it.
@@ -68,7 +83,7 @@ public final class PersistentValue<Value: Equatable & Sendable> {
         }.value
     }
 
-    /// Deletes the saved value and returns to the empty value.
+    /// Deletes the saved value and stays loaded with the empty value.
     ///
     /// - Throws: A storage error.
     public func erase() async throws {
@@ -76,6 +91,19 @@ public final class PersistentValue<Value: Equatable & Sendable> {
             try await storage.delete()
             self.settle(empty)
         }.value
+    }
+
+    /// Deletes the saved value and reads as unloaded at once, until the next read.
+    ///
+    /// - Throws: A storage error, after showing the value again.
+    public func forget() async throws {
+        isForgotten = true
+        do {
+            try await erase()
+        } catch {
+            isForgotten = false
+            throw error
+        }
     }
 
     /// Runs an operation after every operation queued before it.
@@ -106,7 +134,7 @@ public final class PersistentValue<Value: Equatable & Sendable> {
     /// - Parameter saved: The value that's saved.
     private func settle(_ saved: Value) {
         self.saved = saved
-        if phase != .loaded { phase = .loaded }
+        if readPhase != .loaded { readPhase = .loaded }
         showPending()
     }
 

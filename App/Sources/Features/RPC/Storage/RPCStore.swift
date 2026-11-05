@@ -9,8 +9,6 @@ final class RPCStore: Erasable {
     private let choice: PersistentValue<RPCSettings>
     /// Helius's accepted key, or an empty key before one is saved.
     private let apiKey: PersistentValue<String>
-    /// Whether the settings were erased since they were last read.
-    private var isErased = false
 
     /// Creates a store over the storage for the choice and the key, without reading either.
     ///
@@ -32,8 +30,7 @@ final class RPCStore: Erasable {
 
     /// The read phase of the choice and the key together.
     var phase: PersistentValuePhase {
-        if isErased { return .unloaded }
-        return switch (choice.phase, apiKey.phase) {
+        switch (choice.phase, apiKey.phase) {
         case (.unreadable, _), (_, .unreadable): .unreadable
         case (.loaded, .loaded): .loaded
         case (.loading, _), (_, .loading): .loading
@@ -71,7 +68,6 @@ final class RPCStore: Erasable {
         async let settings: Void = choice.load()
         async let key: Void = apiKey.load()
         _ = await (settings, key)
-        isErased = false
     }
 
     /// Returns the settings, reading them first if needed.
@@ -151,13 +147,7 @@ final class RPCStore: Erasable {
     }
 
     func erase() async throws {
-        isErased = true
-        do {
-            try await apiKey.erase()
-            try await choice.erase()
-        } catch {
-            isErased = false
-            throw error
-        }
+        try await apiKey.forget()
+        try await choice.forget()
     }
 }

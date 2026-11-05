@@ -250,6 +250,20 @@ struct RPCStoreTests {
     }
 
     @Test
+    func `Settings that can't be erased after the key read again`() async throws {
+        let saved = RPCSettings(selection: .solana)
+        let store = RPCStore.inMemory(StoredValue(saved, failsFirstDeletion: true), key: StoredValue("fixture-key"))
+        await store.load()
+
+        await #expect(throws: CocoaError.self) { try await store.erase() }
+
+        #expect(store.settings == nil)
+        #expect(!store.isRead)
+        #expect(try await store.loadedSettings() == saved)
+        #expect(store.keyPreview == nil)
+    }
+
+    @Test
     func `An erasure that fails keeps the settings`() async {
         let saved = RPCSettings(selection: .helius)
         let store = RPCStore.inMemory(StoredValue(saved),

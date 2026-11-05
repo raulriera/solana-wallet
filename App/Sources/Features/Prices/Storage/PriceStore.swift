@@ -7,8 +7,6 @@ import Storage
 @Observable
 final class PriceStore: Erasable {
     private let choice: PersistentValue<PriceSettings>
-    /// Whether the choice was erased since it was last read.
-    private var isErased = false
 
     /// Creates a store without reading the choice.
     ///
@@ -27,12 +25,11 @@ final class PriceStore: Erasable {
     /// The choice and custom price servers with every change made so far, or `nil` until they're read.
     var settings: PriceSettings? { phase == .loaded ? choice.value : nil }
 
-    var phase: PersistentValuePhase { isErased ? .unloaded : choice.phase }
+    var phase: PersistentValuePhase { choice.phase }
 
     /// Reads the choice unless it was already read.
     func load() async {
         await choice.load()
-        isErased = false
     }
 
     /// Returns the choice, reading it first if needed.
@@ -40,9 +37,7 @@ final class PriceStore: Erasable {
     /// - Returns: The price provider choice and custom price servers.
     /// - Throws: ``PricesError/settingsUnreadable`` when the choice can't be read.
     func loadedSettings() async throws -> PriceSettings {
-        if settings == nil { await load() }
-        guard let settings else { throw PricesError.settingsUnreadable }
-        return settings
+        try await choice.loadedValue(orThrow: PricesError.settingsUnreadable)
     }
 
     /// Chooses the price provider in use.
@@ -73,13 +68,7 @@ final class PriceStore: Erasable {
     }
 
     func erase() async throws {
-        isErased = true
-        do {
-            try await choice.erase()
-        } catch {
-            isErased = false
-            throw error
-        }
+        try await choice.forget()
     }
 
     /// Changes the choice or the custom price servers, reading them first if needed.
