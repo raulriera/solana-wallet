@@ -18,7 +18,7 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, SignatureEventPr
 
     let network: Network
     private let providers: ProviderStore
-    private let clients: Clients
+    private let clients: ClientCache<Endpoint, Client>
     /// The Solana Rings indexer and prover of the network, kept across provider and key changes.
     private let rings: any PrivateNoteProviding & ProofProviding
 
@@ -34,7 +34,7 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, SignatureEventPr
         self.network = network
         self.providers = providers
         self.rings = rings
-        clients = Clients(network: network, make: client)
+        clients = ClientCache { client($0, network) }
     }
 
     func send<Request: RPCRequest>(_ request: Request) async throws -> Request.Response {
@@ -128,35 +128,6 @@ nonisolated struct ProviderClient: RPC, AccountChangeProviding, SignatureEventPr
         case .solana: Solana(network: network)
         case .helius(let key): HeliusRPC(apiKey: key, network: network)
         case .custom(let url): Solana(endpoint: url, network: network)
-        }
-    }
-
-    /// Keeps the client for the most recent endpoint and replaces it when the endpoint changes.
-    private actor Clients {
-        private let network: Network
-        private let make: @Sendable (Endpoint, Network) -> Client?
-        private var current: (endpoint: Endpoint, client: Client)?
-
-        /// Creates an empty cache.
-        ///
-        /// - Parameters:
-        ///   - network: The network that every created client serves.
-        ///   - make: A function that creates the client for an endpoint on a network.
-        init(network: Network, make: @escaping @Sendable (Endpoint, Network) -> Client?) {
-            self.network = network
-            self.make = make
-        }
-
-        /// Returns the kept client for this endpoint, or creates one for a new endpoint.
-        ///
-        /// - Parameter endpoint: The endpoint for the request.
-        /// - Returns: A client that sends requests to this endpoint.
-        /// - Throws: ``ProviderClientError/unusableEndpoint`` for a saved endpoint that can't be used.
-        func client(for endpoint: Endpoint) throws -> Client {
-            if let current, current.endpoint == endpoint { return current.client }
-            guard let client = make(endpoint, network) else { throw ProviderClientError.unusableEndpoint }
-            current = (endpoint, client)
-            return client
         }
     }
 }

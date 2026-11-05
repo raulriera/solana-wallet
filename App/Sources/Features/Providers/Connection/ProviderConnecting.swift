@@ -1,4 +1,4 @@
-/// Checks and saves what a person entered for an RPC provider, such as an API key or an RPC URL.
+/// Checks and saves what a person entered for a provider, such as an API key, an RPC URL, or a price server URL.
 nonisolated protocol ProviderConnecting<EntryError>: Sendable {
     /// The error for a rejected or failed entry.
     associatedtype EntryError: ProviderEntryError

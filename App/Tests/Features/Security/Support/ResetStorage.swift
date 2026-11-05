@@ -5,7 +5,7 @@ import Vault
 @testable import widgets
 
 actor ResetStorage: RecoveryStoring {
-    nonisolated enum Step: String, Sendable, CaseIterable { case recovery, privateBalances, contacts, transactions, pendingTransactions, currency, key, settings, appearance, accounts }
+    nonisolated enum Step: String, Sendable, CaseIterable { case recovery, privateBalances, contacts, transactions, pendingTransactions, currency, key, settings, prices, appearance, accounts }
 
     nonisolated let directory = URL.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
     private var failing: Step?
@@ -31,7 +31,8 @@ actor ResetStorage: RecoveryStoring {
                 transactions,
                 CurrencyStore(storage: ResetValue<CurrencySettings>(storage: self, step: .currency), rates: [:]),
                 ProviderStore(settings: ResetValue<ProviderSettings>(storage: self, step: .settings),
-                              key: ResetValue<String>(storage: self, step: .key))]
+                              key: ResetValue<String>(storage: self, step: .key),
+                              prices: ResetValue<PriceSettings>(storage: self, step: .prices))]
     }
 
     @MainActor var accounts: AccountStore {

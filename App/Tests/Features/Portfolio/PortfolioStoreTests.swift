@@ -48,10 +48,11 @@ struct PortfolioStoreTests {
     @Test
     func `Each currency change has every service read its prices once`() async throws {
         let currency = CurrencyStore.inMemory(StoredValue(CurrencySettings(rateSource: .coinbase)))
+        let providers = ProviderStore.inMemory()
         let mainnet = PortfolioChanges(currency: currency)
         let devnet = PortfolioChanges(currency: currency)
         let prices = Jupiter(transport: HTTPResponses([:]))
-        let portfolios = PortfolioStore(prices: prices, currency: currency, providers: .inMemory()) { network, _ in
+        let portfolios = PortfolioStore(prices: prices, currency: currency, providers: providers) { network, _ in
             network == .mainnet ? mainnet : devnet
         }
         let viewing = try await Self.observe(.fixture(index: 1), on: .devnet, of: portfolios, through: devnet)
@@ -59,6 +60,7 @@ struct PortfolioStoreTests {
         var mainnetReads = mainnet.priceReads.makeAsyncIterator()
         var devnetReads = devnet.priceReads.makeAsyncIterator()
 
+        await providers.load()
         await currency.load()
         try await currency.select(.coinbase)
         for code in ["EUR", "JPY"] {
@@ -77,12 +79,14 @@ struct PortfolioStoreTests {
     func `An unsaved currency change ends with the saved choice`() async throws {
         let saved = CurrencySettings(rateSource: .coinbase)
         let currency = CurrencyStore.inMemory(StoredValue(saved, failsSaving: true))
+        let providers = ProviderStore.inMemory()
         let portfolio = PortfolioChanges(currency: currency)
         let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])), currency: currency,
-                                        providers: .inMemory()) { _, _ in
+                                        providers: providers) { _, _ in
             portfolio
         }
         var reads = portfolio.priceReads.makeAsyncIterator()
+        await providers.load()
         await currency.load()
 
         await #expect(throws: CocoaError.self) { try await currency.select(currencyCode: "EUR") }
@@ -96,12 +100,14 @@ struct PortfolioStoreTests {
     @Test
     func `Erasing the currency choice reads no prices`() async throws {
         let currency = CurrencyStore.inMemory(StoredValue(CurrencySettings(rateSource: .coinbase, currencyCode: "EUR")))
+        let providers = ProviderStore.inMemory()
         let portfolio = PortfolioChanges(currency: currency)
         let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])), currency: currency,
-                                        providers: .inMemory()) { _, _ in
+                                        providers: providers) { _, _ in
             portfolio
         }
         var reads = portfolio.priceReads.makeAsyncIterator()
+        await providers.load()
         await currency.load()
 
         try await currency.erase()
@@ -111,6 +117,32 @@ struct PortfolioStoreTests {
 
         let read = await reads.next()
         #expect(read == CurrencySettings(currencyCode: "JPY"))
+        withExtendedLifetime(portfolios) {}
+    }
+
+    @Test
+    func `Each new price provider has every service read its prices once`() async throws {
+        let providers = ProviderStore.inMemory()
+        let currency = CurrencyStore.inMemory()
+        let mainnet = PortfolioChanges(currency: currency)
+        let devnet = PortfolioChanges(currency: currency)
+        let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])), currency: currency,
+                                        providers: providers) { network, _ in
+            network == .mainnet ? mainnet : devnet
+        }
+        let viewing = try await Self.observe(.fixture(index: 1), on: .devnet, of: portfolios, through: devnet)
+        defer { viewing.cancel() }
+        var mainnetReads = mainnet.priceReads.makeAsyncIterator()
+        var devnetReads = devnet.priceReads.makeAsyncIterator()
+        await providers.load()
+        await currency.load()
+
+        for provider in [PriceSettings.Provider.off, .jupiter] {
+            try await providers.select(prices: provider)
+            _ = await mainnetReads.next()
+            _ = await devnetReads.next()
+        }
+
         withExtendedLifetime(portfolios) {}
     }
 

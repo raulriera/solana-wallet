@@ -72,7 +72,7 @@ struct AppServices {
                                                                                     directoryHint: .isDirectory),
                                           rates: rates)
         self.currencyStore = currencyStore
-        let prices = CurrencyPrices(prices: Jupiter(), currency: currencyStore)
+        let prices = CurrencyPrices(prices: SelectedPriceProvider(providers: providerStore), currency: currencyStore)
         let portfolios = PortfolioStore(prices: prices, currency: currencyStore,
                                         providers: providerStore) { network, prices in
             Portfolio(rpc: providerClient(network),

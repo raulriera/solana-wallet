@@ -1,6 +1,6 @@
 import Foundation
 
-/// An error from checking what a person entered for an RPC provider, such as an API key or an RPC URL.
+/// An error from checking what a person entered for a provider, such as an API key, an RPC URL, or a price server URL.
 nonisolated protocol ProviderEntryError: LocalizedError, Equatable, Sendable {
     /// The error for any unexpected failure.
     static var unavailable: Self { get }

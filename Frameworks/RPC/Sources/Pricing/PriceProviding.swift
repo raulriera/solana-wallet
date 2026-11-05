@@ -45,7 +45,8 @@ extension PriceProviding {
         for batch in mints.uniqued().batches(of: batchSize) {
             try Task.checkCancellation()
             let quotes = try await quotes(from: response(for: batch))
-            guard quotes.allSatisfy({ batch.contains($0.key) && $0.value.isValid }) else { throw RPCError.decoding }
+            let requested = Set(batch)
+            guard quotes.allSatisfy({ requested.contains($0.key) && $0.value.isValid }) else { throw RPCError.decoding }
             result.merge(quotes) { $1 }
         }
         try Task.checkCancellation()
