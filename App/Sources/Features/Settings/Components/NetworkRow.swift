@@ -9,6 +9,6 @@ struct NetworkRow: View {
 
     var body: some View {
         Button(name) { selection = network }
-            .buttonStyle(.choice(isSelected: selection == network))
+            .checked(selection == network)
     }
 }

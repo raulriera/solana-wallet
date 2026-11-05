@@ -24,10 +24,10 @@ struct CurrencyScreen: View {
             Section {
                 ForEach(CurrencySettings.RateSource.allCases, id: \.self) { rateSource in
                     Button(rateSource.name) { choice.select(rateSource) }
-                        .buttonStyle(.choice(isSelected: isRead && source == rateSource))
+                        .checked(isRead && source == rateSource)
                 }
                 Button("USD Only") { choice.select(nil) }
-                    .buttonStyle(.choice(isSelected: isRead && source == nil))
+                    .checked(isRead && source == nil)
             } header: {
                 Text("Exchange Rate Source", comment: "Header of the rate source choices in Settings > Currency.")
             } footer: {
@@ -48,6 +48,7 @@ struct CurrencyScreen: View {
                 }
             }
         }
+        .formStyle(.choices)
         .animation(.default, value: source != nil)
         .navigationTitle("Currency")
         .navigationBarTitleDisplayMode(.inline)

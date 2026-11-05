@@ -35,6 +35,7 @@ struct ProvidersScreen<Actions: View>: View {
 
             actions
         }
+        .formStyle(.choices(checkmark: .leading))
         .animation(.default, value: customRPCs.count)
         .navigationTitle("Providers")
         .navigationBarTitleDisplayMode(.inline)

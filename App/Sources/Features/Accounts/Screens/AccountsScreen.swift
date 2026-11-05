@@ -48,6 +48,7 @@ struct AccountsScreen: View {
                     .foregroundStyle(palette.secondaryText)
             }
         }
+        .formStyle(.choices(checkmark: .leading, descriptionSpacing: 2))
         .animation(.default, value: accounts.count)
         .navigationTitle("Accounts")
         .navigationBarTitleDisplayMode(.inline)

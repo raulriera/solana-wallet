@@ -28,15 +28,11 @@ struct CurrencyListScreen: View {
                             Button {
                                 choice.select(currencyCode: nil)
                             } label: {
-                                VStack(alignment: .leading) {
-                                    Text("Automatic", comment: "The currency choice that follows the device's region.")
-                                    Text(locale.localizedString(forCurrencyCode: list.automaticCurrency)
-                                         ?? list.automaticCurrency)
-                                        .font(.subheadline)
-                                        .foregroundStyle(palette.secondaryText)
-                                }
+                                Text("Automatic", comment: "The currency choice that follows the device's region.")
+                                Text(locale.localizedString(forCurrencyCode: list.automaticCurrency)
+                                     ?? list.automaticCurrency)
                             }
-                            .buttonStyle(.choice(isSelected: isRead && chosen == nil))
+                            .checked(isRead && chosen == nil)
                         }
                     }
 
@@ -45,17 +41,14 @@ struct CurrencyListScreen: View {
                             Button {
                                 choice.select(currencyCode: code)
                             } label: {
-                                VStack(alignment: .leading) {
-                                    Text(locale.localizedString(forCurrencyCode: code) ?? code)
-                                    Text(code)
-                                        .font(.subheadline)
-                                        .foregroundStyle(palette.secondaryText)
-                                }
+                                Text(locale.localizedString(forCurrencyCode: code) ?? code)
+                                Text(code)
                             }
-                            .buttonStyle(.choice(isSelected: chosen == code))
+                            .checked(chosen == code)
                         }
                     }
                 }
+                .formStyle(.choices)
                 .searchable(text: $list.search)
                 .overlay {
                     if list.listed.isEmpty, !list.search.isEmpty { ContentUnavailableView.search(text: list.search) }

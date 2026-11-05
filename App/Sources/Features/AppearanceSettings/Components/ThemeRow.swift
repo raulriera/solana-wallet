@@ -9,7 +9,7 @@ struct ThemeRow: View {
 
     var body: some View {
         Button(entry.name, action: select)
-            .buttonStyle(.choice(isSelected: isSelected))
+            .checked(isSelected)
             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                 if entry.origin == .custom {
                     SwipeDeleteButton(removal: $removal, item: entry)

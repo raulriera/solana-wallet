@@ -29,6 +29,7 @@ struct NetworkScreen: View {
                     .foregroundStyle(palette.secondaryText)
             }
         }
+        .formStyle(.choices)
         .navigationTitle("Network")
         .navigationBarTitleDisplayMode(.inline)
     }

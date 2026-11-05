@@ -1,6 +1,8 @@
 import SwiftUI
 
-/// A button style for a list choice that shows a checkmark while it's selected.
+/// A button style that shows a checkmark on a button marked `checked(_:)`, and leaves other buttons plain.
+///
+/// A choice's label is its name, and any views after the first are its description.
 struct ChoiceButtonStyle: PrimitiveButtonStyle {
     /// The position of a choice's checkmark.
     enum CheckmarkPlacement {
@@ -10,55 +12,79 @@ struct ChoiceButtonStyle: PrimitiveButtonStyle {
     }
 
     @Environment(\.palette) private var palette
-    private let isSelected: Bool
+    @Environment(\.isChecked) private var isChecked
     private let placement: CheckmarkPlacement
+    private let descriptionSpacing: CGFloat?
 
     /// Creates a choice style.
     ///
     /// - Parameters:
-    ///   - isSelected: Whether the choice is selected.
     ///   - placement: Where the checkmark goes.
-    fileprivate init(isSelected: Bool, placement: CheckmarkPlacement) {
-        self.isSelected = isSelected
+    ///   - descriptionSpacing: The distance between the name and the description, or `nil` for the default.
+    fileprivate init(placement: CheckmarkPlacement, descriptionSpacing: CGFloat?) {
         self.placement = placement
+        self.descriptionSpacing = descriptionSpacing
     }
 
     func makeBody(configuration: Configuration) -> some View {
-        Button(role: configuration.role, action: configuration.trigger) {
-            HStack {
-                if placement == .leading {
-                    Label {
-                        configuration.label
-                    } icon: {
-                        Image(systemName: "checkmark")
-                            .foregroundStyle(palette.primary)
-                            .opacity(isSelected ? 1 : 0)
-                            .accessibilityHidden(true)
-                    }
-                } else {
-                    configuration.label
-                }
-                Spacer()
-                if placement == .trailing, isSelected {
-                    Image(systemName: "checkmark").foregroundStyle(palette.primary).accessibilityHidden(true)
+        if let isChecked {
+            let label = Group(subviews: configuration.label) { subviews in
+                VStack(alignment: .leading, spacing: descriptionSpacing) {
+                    subviews.first
+                    subviews.dropFirst()
+                        .font(.subheadline)
+                        .foregroundStyle(palette.secondaryText)
                 }
             }
-            .foregroundStyle(palette.text)
-            .contentShape(.rect)
+            Button(role: configuration.role, action: configuration.trigger) {
+                HStack {
+                    if placement == .leading {
+                        Label {
+                            label
+                        } icon: {
+                            Image(systemName: "checkmark")
+                                .foregroundStyle(palette.primary)
+                                .opacity(isChecked ? 1 : 0)
+                                .accessibilityHidden(true)
+                        }
+                    } else {
+                        label
+                    }
+                    Spacer()
+                    if placement == .trailing, isChecked {
+                        Image(systemName: "checkmark").foregroundStyle(palette.primary).accessibilityHidden(true)
+                    }
+                }
+                .foregroundStyle(palette.text)
+                .contentShape(.rect)
+            }
+            .buttonStyle(.automatic)
+            .accessibilityAddTraits(isChecked ? [.isSelected] : [])
+        } else {
+            Button(configuration)
+                .buttonStyle(.automatic)
         }
-        .buttonStyle(.automatic)
-        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 }
 
 extension PrimitiveButtonStyle where Self == ChoiceButtonStyle {
-    /// Returns a style for a list choice that shows a checkmark while it's selected.
+    /// Returns a style that shows a checkmark on a button marked `checked(_:)`.
     ///
     /// - Parameters:
-    ///   - isSelected: Whether the choice is selected.
     ///   - placement: Where the checkmark goes.
+    ///   - descriptionSpacing: The distance between the name and the description, or `nil` for the default.
     /// - Returns: The choice style.
-    static func choice(isSelected: Bool, placement: ChoiceButtonStyle.CheckmarkPlacement = .trailing) -> Self {
-        Self(isSelected: isSelected, placement: placement)
+    static func choice(placement: ChoiceButtonStyle.CheckmarkPlacement, descriptionSpacing: CGFloat?) -> Self {
+        Self(placement: placement, descriptionSpacing: descriptionSpacing)
+    }
+}
+
+extension View {
+    /// Makes a button a choice in a form that uses the choice style.
+    ///
+    /// - Parameter isChecked: Whether the choice shows its checkmark.
+    /// - Returns: A view that is a choice with the given state.
+    func checked(_ isChecked: Bool) -> some View {
+        environment(\.isChecked, isChecked)
     }
 }

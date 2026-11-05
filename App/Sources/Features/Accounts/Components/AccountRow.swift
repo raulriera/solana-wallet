@@ -4,7 +4,6 @@ import Wallet
 
 /// A row that selects an account, with a button that opens the account's screen.
 struct AccountRow: View {
-    @Environment(\.palette) private var palette
     let account: Account
     @Binding var selection: Account
     @Binding var path: [AccountsRoute]
@@ -14,19 +13,13 @@ struct AccountRow: View {
             Button {
                 selection = account
             } label: {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(account.name)
-                    ShortAddress(address: account.address)
-                        .font(.subheadline)
-                        .foregroundStyle(palette.secondaryText)
-                }
+                Text(account.name)
+                ShortAddress(address: account.address)
             }
-            .buttonStyle(.choice(isSelected: selection.id == account.id, placement: .leading))
+            .checked(selection.id == account.id)
 
             Button("More Info", systemImage: "info.circle") { path.append(.account(account.id)) }
-                .labelStyle(.iconOnly)
-                .foregroundStyle(palette.primary)
-                .buttonStyle(.borderless)
+                .buttonStyle(.moreInfo)
         }
     }
 }
@@ -39,6 +32,7 @@ struct AccountRow: View {
             Form {
                 AccountRow(account: account, selection: .constant(account), path: $path)
             }
+            .formStyle(.choices(checkmark: .leading, descriptionSpacing: 2))
         }
     }
 }

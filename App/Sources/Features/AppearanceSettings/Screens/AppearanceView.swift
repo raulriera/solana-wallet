@@ -19,6 +19,7 @@ struct AppearanceView: View {
                                   actions: settings)
             ThemePacksSection(settings: settings)
         }
+        .formStyle(.choices)
         .animation(.default, value: settings.entryIDs)
         .navigationTitle("Appearance")
         .navigationBarTitleDisplayMode(.inline)
