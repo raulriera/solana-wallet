@@ -1,6 +1,6 @@
 import Foundation
 
-/// Formats a custom RPC's URL with its host in full and each path part and query value masked.
+/// Formats a URL with its host in full and each path part and query value masked.
 nonisolated struct MaskedURLFormatStyle: FormatStyle {
     /// Whether the output says each masked part's rest is hidden instead of showing dots.
     var isSpoken = false

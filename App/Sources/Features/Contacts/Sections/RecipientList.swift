@@ -54,9 +54,7 @@ struct RecipientList: View {
                                 FavoriteButton(contact: contact)
                                     .swipeActionTint(.yellow)
                             }
-                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                SwipeDeleteButton(removal: $removal, item: contact)
-                            }
+                            .swipeDelete(contact, removal: $removal)
                             .contactDeletion(of: contact, removal: $removal)
                     }
                 }

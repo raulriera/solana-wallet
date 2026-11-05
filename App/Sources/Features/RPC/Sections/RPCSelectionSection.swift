@@ -15,10 +15,13 @@ struct RPCSelectionSection: View {
             RPCRow(provider: .solana, isSelected: selection == .solana, actions: actions)
             RPCRow(provider: .helius, isSelected: selection == .helius, actions: actions)
             ForEach(customRPCs, id: \.self) { url in
-                CustomRPCRow(url: url, isSelected: selection == .custom(url), removal: $removal, actions: actions)
+                RPCRow(provider: .custom(url), isSelected: selection == .custom(url), actions: actions)
+                    .swipeDelete(url, removal: $removal)
+                    .rpcDeletion(of: url, removal: $removal, actions: actions)
             }
             Button("Add Custom RPC…", systemImage: "plus", action: actions.addCustomRPC)
                 .foregroundStyle(palette.primary)
+                .lineLimit(1)
         } header: {
             Text("RPC Provider")
         } footer: {

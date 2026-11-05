@@ -1,4 +1,4 @@
-/// Accepts a provider entry, such as an API key or an RPC URL, that the person submits.
+/// Accepts a provider entry, such as an API key or a URL, that the person submits.
 @MainActor
 protocol ProviderSubmitting<EntryError> {
     /// The error for a rejected or failed entry.

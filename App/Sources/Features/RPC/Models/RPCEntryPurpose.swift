@@ -45,6 +45,15 @@ nonisolated enum RPCEntryPurpose: Hashable, Sendable {
         }
     }
 
+    /// The label of the entry's field.
+    var label: LocalizedStringResource {
+        self == .customRPC ? "RPC URL" : "RPC API key"
+    }
+
+    var kind: ProviderEntry.Kind {
+        self == .customRPC ? .url : .key
+    }
+
     /// The title of the action that checks and saves the entry.
     var action: LocalizedStringResource {
         switch self {

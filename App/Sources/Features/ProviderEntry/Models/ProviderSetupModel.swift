@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-/// Checks and saves a provider entry, such as an API key or an RPC URL.
+/// Checks and saves a provider entry, such as an API key or a URL.
 @MainActor
 @Observable
 final class ProviderSetupModel<EntryError: ProviderEntryError>: ProviderSubmitting, Identifiable, Equatable {

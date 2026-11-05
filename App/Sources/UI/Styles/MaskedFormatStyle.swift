@@ -10,7 +10,7 @@ nonisolated struct MaskedFormatStyle: FormatStyle {
         let hidden = text.count - shown.count
         guard hidden > 0 else { return shown }
         return isSpoken
-            ? String(localized: "\(shown), rest hidden", comment: "VoiceOver text for a key, or part of an RPC URL, that shows only its first characters. The variable is those characters.")
+            ? String(localized: "\(shown), rest hidden", comment: "VoiceOver text for a key, or part of a URL, that shows only its first characters. The variable is those characters.")
             : shown + String(repeating: "•", count: hidden)
     }
 }
