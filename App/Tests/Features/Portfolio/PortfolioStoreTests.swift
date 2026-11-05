@@ -154,17 +154,17 @@ struct PortfolioStoreTests {
                                         providers: providers) { network, _ in
             network == .mainnet ? mainnet : devnet
         }
-        let viewing = try await Self.observe(.fixture(index: 1), on: .devnet, of: portfolios, through: devnet)
+        let account = try Account.fixture(index: 1)
+        let viewing = await Self.observe(account, on: .devnet, of: portfolios, through: devnet)
         defer { viewing.cancel() }
+        var observed = devnet.observedOwners.makeAsyncIterator()
         await providers.load()
-        try await Self.connection(of: portfolios, becomes: .solana)
 
         try await providers.select(.helius)
         await gate.waitUntilStarted()
-        #expect(portfolios.connection == .solana)
         gate.resume()
-        try await Self.connection(of: portfolios, becomes: .helius(key: "fixture-key"))
 
+        #expect(await observed.next() == account.address.value)
         #expect(await mainnet.providerChanges == 1)
         #expect(await devnet.providerChanges == 1)
     }
@@ -175,25 +175,26 @@ struct PortfolioStoreTests {
         var made: [Network: PortfolioChanges] = [:]
         let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])), currency: .inMemory(),
                                         providers: providers) { network, _ in
-            let portfolio = PortfolioChanges()
+            let portfolio = PortfolioChanges(providers: providers)
             made[network] = portfolio
             return portfolio
         }
         await providers.load()
-        try await Self.connection(of: portfolios, becomes: .helius(key: "fixture-key"))
 
         try await providers.select(.solana)
-        try await Self.connection(of: portfolios, becomes: .solana)
+        let mainnet = try #require(made[.mainnet])
+        try await Self.change(of: mainnet, becomes: .solana)
 
         #expect(Set(made.keys) == [.mainnet])
-        #expect(await made[.mainnet]?.providerChanges == 1)
+        #expect(await mainnet.providerChanges == 1)
+        withExtendedLifetime(portfolios) {}
     }
 
     @Test
     func `A service that can't remove logos keeps no other from ending its work`() async throws {
         let providers = ProviderStore.inMemory(selection: .helius, key: "fixture-key")
         let failing = PortfolioChanges(error: CocoaError(.fileWriteOutOfSpace))
-        let other = PortfolioChanges()
+        let other = PortfolioChanges(providers: providers)
         let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])), currency: .inMemory(),
                                         providers: providers) { network, _ in
             network == .mainnet ? failing : other
@@ -201,10 +202,9 @@ struct PortfolioStoreTests {
         let viewing = try await Self.observe(.fixture(index: 1), on: .devnet, of: portfolios, through: other)
         defer { viewing.cancel() }
         await providers.load()
-        try await Self.connection(of: portfolios, becomes: .helius(key: "fixture-key"))
 
         try await providers.select(.solana)
-        try await Self.connection(of: portfolios, becomes: .solana)
+        try await Self.change(of: other, becomes: .solana)
 
         #expect(await other.providerChanges == 1)
     }
@@ -212,16 +212,16 @@ struct PortfolioStoreTests {
     @Test
     func `A new Helius key ends the previous key's work`() async throws {
         let providers = ProviderStore.inMemory(selection: .helius, key: "fixture-key")
-        let portfolio = PortfolioChanges()
+        let portfolio = PortfolioChanges(providers: providers)
         let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])), currency: .inMemory(),
                                         providers: providers) { _, _ in portfolio }
         await providers.load()
-        try await Self.connection(of: portfolios, becomes: .helius(key: "fixture-key"))
 
         try await providers.save(key: "fixture-key-2")
-        try await Self.connection(of: portfolios, becomes: .helius(key: "fixture-key-2"))
+        try await Self.change(of: portfolio, becomes: .helius(key: "fixture-key-2"))
 
         #expect(await portfolio.providerChanges == 1)
+        withExtendedLifetime(portfolios) {}
     }
 
     @Test
@@ -229,35 +229,37 @@ struct PortfolioStoreTests {
         let unused = try #require(URL(string: "https://rpc.example.com"))
         let providers = ProviderStore.inMemory(StoredValue(ProviderSettings(customRPCs: [unused])),
                                                key: StoredValue("fixture-key"))
-        let portfolio = PortfolioChanges()
+        let portfolio = PortfolioChanges(providers: providers)
         let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])), currency: .inMemory(),
                                         providers: providers) { _, _ in portfolio }
         await providers.load()
-        try await Self.connection(of: portfolios, becomes: .solana)
 
         try await providers.save(key: "fixture-key-2")
         try await providers.remove(unused)
         try await providers.select(.helius)
-        try await Self.connection(of: portfolios, becomes: .helius(key: "fixture-key-2"))
+        try await Self.change(of: portfolio, becomes: .helius(key: "fixture-key-2"))
 
         #expect(await portfolio.providerChanges == 1)
+        withExtendedLifetime(portfolios) {}
     }
 
     @Test
     func `Erasing the provider settings ends no work`() async throws {
         let providers = ProviderStore.inMemory(selection: .helius, key: "fixture-key")
-        let portfolio = PortfolioChanges()
+        let portfolio = PortfolioChanges(providers: providers)
         let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])), currency: .inMemory(),
                                         providers: providers) { _, _ in portfolio }
+        var reads = portfolio.connectionReads.makeAsyncIterator()
         await providers.load()
-        try await Self.connection(of: portfolios, becomes: .helius(key: "fixture-key"))
 
         try await providers.erase()
-        try await Self.connection(of: portfolios, becomes: nil)
         await providers.load()
-        try await Self.connection(of: portfolios, becomes: .solana)
+        try await providers.save(key: "fixture-key-2")
+        try await providers.select(.helius)
 
-        #expect(await portfolio.providerChanges == 0)
+        #expect(await reads.next() == .helius(key: "fixture-key-2"))
+        #expect(await portfolio.providerChanges == 1)
+        withExtendedLifetime(portfolios) {}
     }
 
     @Test
@@ -276,12 +278,10 @@ struct PortfolioStoreTests {
         }
         #expect(await observed.next() == account.address.value)
         await providers.load()
-        try await Self.connection(of: portfolios, becomes: .helius(key: "fixture-key"))
 
         try await providers.select(.solana)
 
         #expect(await observed.next() == account.address.value)
-        try await Self.connection(of: portfolios, becomes: .solana)
         #expect(await portfolio.providerChanges == 1)
     }
 
@@ -390,9 +390,9 @@ struct PortfolioStoreTests {
         return viewing
     }
 
-    private static func connection(of portfolios: PortfolioStore,
-                                   becomes connection: ProviderClient.Endpoint?) async throws {
-        for await served in Observations({ portfolios.connection }) where served == connection { return }
+    private static func change(of service: PortfolioChanges,
+                               becomes connection: ProviderClient.Endpoint) async throws {
+        for await read in service.connectionReads where read == connection { return }
         try Task.checkCancellation()
     }
 }

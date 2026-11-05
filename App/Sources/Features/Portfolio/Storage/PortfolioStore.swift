@@ -10,8 +10,6 @@ final class PortfolioStore: Erasable {
     /// A network's portfolio and token-list service.
     typealias Service = any PortfolioProviding & TokenListProviding
 
-    /// The provider connection that the services read through, or `nil` before the provider settings are read.
-    private(set) var connection: ProviderClient.Endpoint?
     private var portfolios: [Key: WalletPortfolio] = [:]
     private let prices: any PriceProviding
     private let make: (Network, (any PriceProviding)?) -> Service
@@ -29,8 +27,18 @@ final class PortfolioStore: Erasable {
         self.prices = prices
         self.make = make
         _ = service(for: .mainnet)
-        watch(currency)
-        watch(providers)
+        Task { [weak self] in
+            for await _ in Observations({ currency.settings }).changes() {
+                guard let self else { return }
+                await pricesDidChange()
+            }
+        }
+        Task { [weak self] in
+            for await _ in Observations({ providers.connection }).changes() {
+                guard let self else { return }
+                await providerDidChange()
+            }
+        }
     }
 
     /// Returns an account's portfolio on a network.
@@ -115,39 +123,15 @@ final class PortfolioStore: Erasable {
         return portfolio
     }
 
-    /// Has every created service read its prices again after each change to the currency choice.
-    ///
-    /// - Parameter currency: The currency choice to watch.
-    private func watch(_ currency: CurrencyStore) {
-        let choices = Observations { currency.settings }
-        Task { [weak self] in
-            var isRead = false
-            for await choice in choices {
-                let wasRead = isRead
-                isRead = choice != nil
-                guard wasRead, isRead else { continue }
-                guard let self else { return }
-                await forEachService { await $0.pricesDidChange() }
-            }
-        }
+    /// Has every created service read its prices again after a change to the currency choice.
+    private func pricesDidChange() async {
+        await forEachService { await $0.pricesDidChange() }
     }
 
-    /// Restarts the services' work and the wallets' observations for each new provider connection.
-    ///
-    /// - Parameter providers: The provider settings to watch.
-    private func watch(_ providers: ProviderStore) {
-        let connections = Observations { providers.connection }
-        Task { [weak self] in
-            for await connection in connections {
-                guard let self else { return }
-                guard connection != self.connection else { continue }
-                if ProviderClient.Endpoint.isNew(connection, after: self.connection) {
-                    await forEachService { try? await $0.providerDidChange() }
-                    for portfolio in portfolios.values { portfolio.observeAgain() }
-                }
-                self.connection = connection
-            }
-        }
+    /// Restarts the services' work and the wallets' observations after a change to the provider connection.
+    private func providerDidChange() async {
+        await forEachService { try? await $0.providerDidChange() }
+        for portfolio in portfolios.values { portfolio.observeAgain() }
     }
 
     /// Runs work on every created service concurrently.

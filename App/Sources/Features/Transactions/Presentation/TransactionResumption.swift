@@ -14,8 +14,7 @@ private struct TransactionResumption: ViewModifier {
         content
             .task(id: trigger) {
                 guard trigger.isActive else { return }
-                let isNewConnection = ProviderClient.Endpoint.isNew(trigger.providerConnection,
-                                                                    after: resumedConnection)
+                let isNewConnection = resumedConnection != nil && trigger.providerConnection != resumedConnection
                 resumedConnection = trigger.providerConnection
                 await transactions.resume(replacingFailedWatches: isNewConnection)
             }

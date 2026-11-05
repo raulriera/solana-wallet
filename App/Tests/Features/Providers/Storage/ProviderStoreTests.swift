@@ -273,16 +273,4 @@ struct ProviderStoreTests {
         #expect(store.phase == .loaded)
         #expect(store.keyPreview == "fixt•••••••••")
     }
-
-    @Test(arguments: [
-        (nil, .solana, false),
-        (.solana, nil, false),
-        (.solana, .solana, false),
-        (.helius(key: "fixture-key"), .helius(key: "fixture-key-2"), true),
-        (.solana, .helius(key: "fixture-key"), true),
-    ] as [(ProviderClient.Endpoint?, ProviderClient.Endpoint?, Bool)])
-    func `Only a change between known connections is new`(previous: ProviderClient.Endpoint?,
-                                                         connection: ProviderClient.Endpoint?, isNew: Bool) {
-        #expect(ProviderClient.Endpoint.isNew(connection, after: previous) == isNew)
-    }
 }

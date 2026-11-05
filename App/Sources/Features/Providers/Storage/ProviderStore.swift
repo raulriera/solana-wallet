@@ -161,16 +161,3 @@ final class ProviderStore: Erasable {
         }
     }
 }
-
-nonisolated extension ProviderClient.Endpoint {
-    /// Returns whether a connection replaces one that requests already went through.
-    ///
-    /// - Parameters:
-    ///   - connection: The current connection, or `nil` while the settings aren't read.
-    ///   - previous: The connection before, or `nil` while the settings weren't read.
-    /// - Returns: Whether both connections are known and differ.
-    static func isNew(_ connection: Self?, after previous: Self?) -> Bool {
-        guard let connection, let previous else { return false }
-        return connection != previous
-    }
-}

@@ -11,8 +11,6 @@ final class PrivateBalanceStore: Erasable {
     private let transactions: TransactionStore
     private let pollInterval: Duration
     private let followUpInterval: Duration
-    /// The provider connection that the balances last read through, or `nil` before the settings are read.
-    @ObservationIgnored private var connection: ProviderClient.Endpoint?
 
     /// Creates a store.
     ///
@@ -28,7 +26,12 @@ final class PrivateBalanceStore: Erasable {
         self.transactions = transactions
         self.pollInterval = pollInterval
         self.followUpInterval = followUpInterval
-        watch(providers)
+        Task { [weak self] in
+            for await _ in Observations({ providers.connection }).changes() {
+                guard let self else { return }
+                providerDidChange()
+            }
+        }
     }
 
     /// Returns an account's private balance on a network.
@@ -116,20 +119,9 @@ final class PrivateBalanceStore: Erasable {
         return balance
     }
 
-    /// Reads every observed balance again after each new provider connection.
-    ///
-    /// - Parameter providers: The provider settings.
-    private func watch(_ providers: ProviderStore) {
-        let connections = Observations { providers.connection }
-        Task { [weak self] in
-            for await connection in connections {
-                guard let self else { return }
-                if ProviderClient.Endpoint.isNew(connection, after: self.connection) {
-                    for balance in balances.values { balance.observeAgain() }
-                }
-                self.connection = connection
-            }
-        }
+    /// Reads every observed balance again after a change to the provider connection.
+    private func providerDidChange() {
+        for balance in balances.values { balance.observeAgain() }
     }
 
     /// The identifier of an account's balance on a network.

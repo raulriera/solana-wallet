@@ -6,6 +6,8 @@ import Transactions
 
 actor PortfolioChanges: PortfolioProviding {
     private(set) var providerChanges = 0
+    nonisolated let connectionReads: AsyncStream<ProviderClient.Endpoint?>
+    private let connectionReadsContinuation: AsyncStream<ProviderClient.Endpoint?>.Continuation
     nonisolated let priceReads: AsyncStream<CurrencySettings?>
     private let priceReadsContinuation: AsyncStream<CurrencySettings?>.Continuation
     nonisolated let observedOwners: AsyncStream<String>
@@ -13,17 +15,22 @@ actor PortfolioChanges: PortfolioProviding {
     private let gate: Suspension?
     private let error: (any Error)?
     private let currency: CurrencyStore?
+    private let providers: ProviderStore?
 
-    init(gate: Suspension? = nil, error: (any Error)? = nil, currency: CurrencyStore? = nil) {
+    init(gate: Suspension? = nil, error: (any Error)? = nil, currency: CurrencyStore? = nil,
+         providers: ProviderStore? = nil) {
         self.gate = gate
         self.error = error
         self.currency = currency
+        self.providers = providers
+        (connectionReads, connectionReadsContinuation) = AsyncStream.makeStream()
         (priceReads, priceReadsContinuation) = AsyncStream.makeStream()
         (observedOwners, observedOwnersContinuation) = AsyncStream.makeStream()
     }
 
     func providerDidChange() async throws {
         providerChanges += 1
+        if let providers { connectionReadsContinuation.yield(await providers.connection) }
         await gate?.suspend()
         if let error { throw error }
     }

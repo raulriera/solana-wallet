@@ -21,7 +21,7 @@
 - Keep the shared appearance catalog, preferences, coordination, storage, recovery, and per-window rendering in `Appearance`; keep appearance editing UI and workflows in `Features/AppearanceSettings`. Put UI and layout used across features in `UI`; group shared views, view modifiers, and styles by kind in `Components`, `Modifiers`, and `Styles`. Declare every custom environment value in `UI/Environment`, one file each; the value's type stays with its owner.
 - Group `App/Tests` by the same ownership under `Application`, `Features`, and `Appearance`; keep UI tests in `UI`, grouped by feature, and app-hosted framework integration checks in `Integration/<Framework>`. Keep feature-specific fixtures with their tests and helpers used across app concerns in `App/Tests/TestSupport`, grouped by responsibility and actual consumers.
 - Give every framework a concise, factual `README.md` for third-party readers; omit project history, progress reports, and agent-only guidance.
-- Prioritize simplicity, readability, and ease of extension throughout the app and tests; follow Don't Repeat Yourself and Single Concern.
+- Prioritize simplicity, readability, and ease of extension throughout the app and tests; follow Don't Repeat Yourself and Single Concern. Before you write a second copy of a code shape, extract it into one generic, non-product helper, such as an extension, operator, or small type; a ban on product-specific helpers never covers generic ones.
 - Prioritize developer experience: express intent with typed APIs and encapsulate serialization and transport details inside services.
 - Learn how Apple solves a problem and mirror its API shape and naming before inventing your own: extend the Apple type as Apple would, such as `URL.persistentDirectory` beside `URL.cachesDirectory`, instead of adding a wrapper type.
 - Use protocol-oriented programming throughout: depend on protocols and inject concrete implementations.
@@ -62,6 +62,7 @@
 - Verify live integrations with real RPC clients: mainnet for read-only behavior, devnet for tests that fund wallets, submit transactions, or incur fees. Keep mainnet-only delivery tests explicitly opt-in with approved spending limits. Do not add fake RPC implementations for tests.
 - Devnet tests that move funds use the test wallet seed from ignored local configuration, never create wallets, and leave transferred funds with the recipient.
 - Document production code only, with Apple DocC conventions: a summary of what each function, initializer, and type does, and its parameters, return value, and thrown errors. Document properties and cases only when their names are not enough. Write no other comments: no inline comments, no comments in tests, and never history, sources, versions, rationale, or what other code does.
+- Keep the license header of code copied from open-source projects; it is the only comment allowed besides DocC.
 - Solana V1 transactions only; compose ordered instructions through one shared transaction pipeline. Transfers are instruction helpers, not a separate transaction model.
 - Support SPL Token and Token-2022 together through shared token-transfer APIs. Review and agree on each Token-2022 extension with the user before implementing it.
 - Separate frameworks by concern; all Solana RPC, DAS, and price communication belongs in the RPC/API framework.

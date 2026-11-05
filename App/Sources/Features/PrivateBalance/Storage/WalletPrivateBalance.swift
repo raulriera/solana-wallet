@@ -161,11 +161,8 @@ final class WalletPrivateBalance {
         let key = key
         watching = Task { [weak self] in
             await transactions.load(key)
-            let moves = Observations { [weak self] in self?.lastSettledMove?.id }
-            var polledMove: TransactionRecord.ID??
-            for await move in moves where move != polledMove {
+            for await _ in Observations({ [weak self] in self?.lastSettledMove?.id }).removeDuplicates() {
                 guard let self, !Task.isCancelled else { return }
-                polledMove = move
                 startPolling()
             }
         }
