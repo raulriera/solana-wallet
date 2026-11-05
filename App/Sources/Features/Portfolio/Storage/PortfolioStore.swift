@@ -20,10 +20,10 @@ final class PortfolioStore: Erasable {
     /// - Parameters:
     ///   - prices: The price provider.
     ///   - currency: The currency choice that prices convert to.
-    ///   - providers: The provider settings that the services read through.
+    ///   - rpcStore: The provider settings that the services read through.
     ///   - priceChoice: The price provider choice that prices follow.
     ///   - make: A function that creates a network's service with its price provider, if any.
-    init(prices: any PriceProviding, currency: CurrencyStore, providers: ProviderStore, priceChoice: PriceStore,
+    init(prices: any PriceProviding, currency: CurrencyStore, rpcStore: RPCStore, priceChoice: PriceStore,
          make: @escaping (Network, (any PriceProviding)?) -> Service) {
         self.prices = prices
         self.make = make
@@ -36,7 +36,7 @@ final class PortfolioStore: Erasable {
             }
         }
         Task { [weak self] in
-            for await _ in Observations({ providers.connection }).changes() {
+            for await _ in Observations({ rpcStore.connection }).changes() {
                 guard let self else { return }
                 await providerDidChange()
             }

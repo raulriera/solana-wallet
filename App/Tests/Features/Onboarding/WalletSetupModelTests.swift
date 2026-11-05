@@ -168,12 +168,12 @@ struct WalletSetupModelTests {
         await setup.complete(setup.completion)
         let account = try #require(fixture.coordinator.account)
 
-        fixture.providers.select(.solana)
-        let change = try #require(fixture.providers.attempt)
+        fixture.rpcCoordinator.select(.solana)
+        let change = try #require(fixture.rpcCoordinator.attempt)
         setup.open()
         #expect(fixture.coordinator.finishedAccount == nil)
 
-        await fixture.providers.run(change)
+        await fixture.rpcCoordinator.run(change)
         setup.open()
         #expect(fixture.coordinator.finishedAccount == account)
         #expect(setup.error == nil)
@@ -193,7 +193,7 @@ struct WalletSetupModelTests {
     private struct Fixture {
         let recovery: OnboardingRecoveryStore
         let accounts: StoredValue<[widgets.Account]>
-        let providers: ProvidersCoordinator
+        let rpcCoordinator: RPCCoordinator
         let coordinator: OnboardingCoordinator
         let setup: WalletSetupModel
 
@@ -201,11 +201,11 @@ struct WalletSetupModelTests {
              accounts: StoredValue<[widgets.Account]> = StoredValue()) {
             recovery = OnboardingRecoveryStore(gate: recoveryGate)
             self.accounts = accounts
-            providers = ProvidersCoordinator.inMemory(.inMemory())
+            rpcCoordinator = RPCCoordinator.inMemory(.inMemory())
             coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client),
                                                 wallet: wallet, recovery: recovery,
                                                 accounts: .inMemory(accounts))
-            setup = WalletSetupModel(coordinator: coordinator, providers: providers)
+            setup = WalletSetupModel(coordinator: coordinator, rpcCoordinator: rpcCoordinator)
         }
     }
 }

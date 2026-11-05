@@ -11,7 +11,7 @@ final class RecoveryPhraseUITests: XCTestCase {
         try flow.enterPhrase()
         try flow.enterPassphrase(" TrEzOr ")
         try flow.tap(flow.submitImport)
-        try flow.expectProviders()
+        try flow.expectRPC()
         try flow.openWallet()
 
         try flow.openSecurity()

@@ -64,10 +64,10 @@ struct PrivateBalanceObservationTests {
         let account = try await PrivateBalanceFixtures.account()
         let responses = HTTPResponses.privateNotes()
         let store = try PrivateBalanceStore.fixture(responses)
-        let providers = ProviderStore.inMemory()
-        await providers.load()
+        let rpcStore = RPCStore.inMemory()
+        await rpcStore.load()
         let hosted = try HostedWindow(PrivateBalanceObservationRoot(store: store, account: account, scenePhase: .background,
-                                                                    providers: providers))
+                                                                    rpcStore: rpcStore))
         defer { hosted.close() }
         try #require(try await hosted.appears())
 

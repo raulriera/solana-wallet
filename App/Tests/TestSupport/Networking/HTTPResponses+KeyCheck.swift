@@ -10,18 +10,18 @@ extension HTTPResponses {
         return HTTPResponses(["getAsset": [asset]], error: error, gate: gate)
     }
 
-    nonisolated static func connection(providers: ProviderStore,
+    nonisolated static func connection(rpcStore: RPCStore,
                                        responding responses: @escaping @Sendable (String) -> HTTPResponses) -> HeliusConnection {
-        HeliusConnection(providers: providers) {
+        HeliusConnection(rpcStore: rpcStore) {
             HeliusRPC(apiKey: $0, network: .mainnet, transport: responses($0))
         }
     }
 
-    nonisolated func connection(providers: ProviderStore) -> HeliusConnection {
-        Self.connection(providers: providers) { _ in self }
+    nonisolated func connection(rpcStore: RPCStore) -> HeliusConnection {
+        Self.connection(rpcStore: rpcStore) { _ in self }
     }
 
-    nonisolated func client(for endpoint: ProviderClient.Endpoint, on network: Network,
+    nonisolated func client(for endpoint: SelectedRPCProvider.Endpoint, on network: Network,
                             socket: @escaping @Sendable (URL) -> any WebSocketConnection = { _ in SocketFixture() })
         -> (any RPC & AccountChangeProviding & SignatureEventProviding)? {
         switch endpoint {
@@ -31,8 +31,9 @@ extension HTTPResponses {
         }
     }
 
-    nonisolated func providerClient(network: Network = .mainnet, providers: ProviderStore) -> ProviderClient {
-        ProviderClient(network: network, providers: providers, rings: StubProver.zolana(on: network, transport: self)) {
+    nonisolated func rpcProvider(network: Network = .mainnet, rpcStore: RPCStore) -> SelectedRPCProvider {
+        SelectedRPCProvider(network: network, rpcStore: rpcStore,
+                            rings: StubProver.zolana(on: network, transport: self)) {
             self.client(for: $0, on: $1)
         }
     }

@@ -8,9 +8,9 @@ import Testing
 
 struct PortfolioErrorTests {
     @Test(arguments: [
-        (ProviderClientError.missingKey as any Error, PortfolioError.missingKey),
-        (ProviderClientError.invalidKey, .invalidKey),
-        (ProviderClientError.unsupportedNetwork, .unsupportedNetwork),
+        (RPCProviderError.missingKey as any Error, PortfolioError.missingKey),
+        (RPCProviderError.invalidKey, .invalidKey),
+        (RPCProviderError.unsupportedNetwork, .unsupportedNetwork),
         (RPCError.http(statusCode: 401, retryAfter: nil), .unavailable),
         (RPCError.http(statusCode: 403, retryAfter: nil), .unavailable),
         (RPCError.http(statusCode: 429, retryAfter: "3"), .rateLimited),
@@ -26,15 +26,15 @@ struct PortfolioErrorTests {
 
     @MainActor
     @Test(.timeLimit(.minutes(1)), arguments: [
-        (Network.mainnet, ProviderSettings.Provider.helius, PortfolioError.missingKey),
+        (Network.mainnet, RPCSettings.Provider.helius, PortfolioError.missingKey),
         (.devnet, .custom(URL(string: "https://rpc.example.com")!), .unsupportedNetwork),
-    ] as [(Network, ProviderSettings.Provider, PortfolioError)])
-    func `A provider failure reaches the portfolio as a typed failure`(network: Network, provider: ProviderSettings.Provider,
+    ] as [(Network, RPCSettings.Provider, PortfolioError)])
+    func `A provider failure reaches the portfolio as a typed failure`(network: Network, provider: RPCSettings.Provider,
                                                                       expected: PortfolioError) async throws {
         let directory = URL.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
-        let client = HTTPResponses.keyCheck().providerClient(network: network,
-                                                              providers: .inMemory(selection: provider))
+        let client = HTTPResponses.keyCheck().rpcProvider(network: network,
+                                                              rpcStore: .inMemory(selection: provider))
         let portfolios = PortfolioStore.serving(Portfolio(
             rpc: client, store: FileSnapshotStore(directory: directory),
             tokenLists: FileTokenListStore(directory: directory.appendingPathComponent("TokenLists"))))

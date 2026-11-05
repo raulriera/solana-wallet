@@ -13,16 +13,16 @@ final class WalletSetupModel {
     /// Whether a new wallet's recovery words are ready to back up.
     private(set) var isPrepared = false
     private let coordinator: any OnboardingCoordinating
-    private let providers: ProvidersCoordinator
+    private let rpcCoordinator: RPCCoordinator
 
     /// Creates a setup model.
     ///
     /// - Parameters:
     ///   - coordinator: The window's onboarding coordinator.
-    ///   - providers: The window's provider coordinator.
-    init(coordinator: any OnboardingCoordinating, providers: ProvidersCoordinator) {
+    ///   - rpcCoordinator: The window's RPC coordinator.
+    init(coordinator: any OnboardingCoordinating, rpcCoordinator: RPCCoordinator) {
         self.coordinator = coordinator
-        self.providers = providers
+        self.rpcCoordinator = rpcCoordinator
     }
 
     /// Whether a new wallet is being prepared, waits for its backup, or is being saved.
@@ -88,7 +88,7 @@ final class WalletSetupModel {
 
     /// Opens the saved wallet unless a provider change waits.
     func open() {
-        guard providers.attempt == nil else { return }
+        guard rpcCoordinator.attempt == nil else { return }
         do {
             try coordinator.finish()
         } catch {

@@ -11,14 +11,14 @@ struct OnboardingSavedWalletTests {
     func `A welcome window opens the wallet that another window saves`() async throws {
         let accounts = AccountStore.inMemory()
         await accounts.load()
-        let providerStore = ProviderStore.inMemory()
+        let rpcStore = RPCStore.inMemory()
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client),
                                                 wallet: Wallet(), recovery: OnboardingRecoveryStore(),
                                                 accounts: accounts)
         let window = OpenedAccount()
         let scene = OnboardingScene(account: Bindable(window).account, coordinator: coordinator,
-                                    providers: .inMemory(providerStore), pasteboard: NoPasteboard())
-        let hosted = try HostedWindow(scene.environment(providerStore))
+                                    rpcCoordinator: .inMemory(rpcStore), pasteboard: NoPasteboard())
+        let hosted = try HostedWindow(scene.environment(rpcStore))
         defer { hosted.close() }
         try #require(try await hosted.appears())
         let saved = try widgets.Account.fixture(index: 1)

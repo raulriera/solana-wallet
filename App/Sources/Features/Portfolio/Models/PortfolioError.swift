@@ -18,9 +18,9 @@ nonisolated enum PortfolioError: Error, Equatable {
     /// - Parameter error: The failed update's error.
     init(_ error: any Error) {
         switch error {
-        case ProviderClientError.missingKey: self = .missingKey
-        case ProviderClientError.invalidKey: self = .invalidKey
-        case ProviderClientError.unsupportedNetwork: self = .unsupportedNetwork
+        case RPCProviderError.missingKey: self = .missingKey
+        case RPCProviderError.invalidKey: self = .invalidKey
+        case RPCProviderError.unsupportedNetwork: self = .unsupportedNetwork
         case let error as RPCError where error.isRateLimited: self = .rateLimited
         case TokenListError.unreadable: self = .listUnreadable
         default: self = .unavailable

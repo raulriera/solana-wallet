@@ -124,15 +124,15 @@ actor PrivateBalances: PrivateBalancing {
     /// - Returns: ``PrivateBalanceStatus/unavailable`` where the selected provider doesn't serve the network, or
     ///   ``PrivateBalanceStatus/off(isRegistered:)`` with whether the registry holds the account's record, `false` if
     ///   it can't be read.
-    /// - Throws: A ``ProviderClientError`` other than ``ProviderClientError/invalidKey`` when the selected provider
+    /// - Throws: An ``RPCProviderError`` other than ``RPCProviderError/invalidKey`` when the selected provider
     ///   can't be used, or `CancellationError` if cancelled.
     private func offStatus(of account: Account, on network: Network) async throws -> PrivateBalanceStatus {
         do {
             let recipients = try await Recipient.lookup([account.address], using: client(for: network))
             return .off(isRegistered: (recipients.first ?? nil) != nil)
-        } catch ProviderClientError.unsupportedNetwork {
+        } catch RPCProviderError.unsupportedNetwork {
             return .unavailable
-        } catch let error as ProviderClientError where error != .invalidKey {
+        } catch let error as RPCProviderError where error != .invalidKey {
             throw error
         } catch is CancellationError {
             throw CancellationError()
@@ -156,7 +156,7 @@ actor PrivateBalances: PrivateBalancing {
             case .takeBack(let index):
                 return try await preparedTakeBack(at: index, into: account, on: network, client: client)
             }
-        } catch ProviderClientError.unsupportedNetwork {
+        } catch RPCProviderError.unsupportedNetwork {
             throw PrivateBalanceError.unavailable
         } catch PrivateSpend.ValidationError.insufficientFunds {
             throw PrivateBalanceError.insufficientBalance
@@ -263,7 +263,7 @@ actor PrivateBalances: PrivateBalancing {
     private func registration(of account: ShieldedAccount, on network: Network) async throws -> Registration? {
         do {
             return try await account.registration(using: client(for: network))
-        } catch ProviderClientError.unsupportedNetwork {
+        } catch RPCProviderError.unsupportedNetwork {
             return nil
         }
     }
@@ -387,7 +387,7 @@ actor PrivateBalances: PrivateBalancing {
             let synced = try await (saved ?? NoteSyncState()).synced(for: shielded, rpc: client, indexer: client)
             try await update(notes, .notes, from: generation) { $0[id] = synced }
             return .synced(shielded, synced)
-        } catch ProviderClientError.unsupportedNetwork {
+        } catch RPCProviderError.unsupportedNetwork {
             return .unavailable
         }
     }

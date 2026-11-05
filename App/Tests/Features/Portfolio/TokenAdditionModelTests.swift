@@ -218,10 +218,10 @@ struct TokenAdditionModelTests {
     }
 
     @Test(arguments: [
-        (ProviderClientError.invalidKey, TokenAdditionError.keyRejected),
+        (RPCProviderError.invalidKey, TokenAdditionError.keyRejected),
         (.unsupportedNetwork, .unsupportedNetwork),
     ])
-    func `A provider setup failure offers no retry until the address is pasted again`(error: ProviderClientError,
+    func `A provider setup failure offers no retry until the address is pasted again`(error: RPCProviderError,
                                                                                       expected: TokenAdditionError) async throws {
         let preview = try Self.preview(Self.bonk)
         let service = PortfolioResponses(preview: preview)

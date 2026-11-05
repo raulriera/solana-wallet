@@ -19,7 +19,7 @@ A truly open and decentralized Solana wallet for iPhone and iPad. The app connec
 3. Choose the `widgets` scheme and an iPhone or iPad simulator.
 4. Press ⌘R.
 
-The app uses Solana's public RPC by default, so it needs no API key. To use Helius or a custom RPC URL, open Settings > Providers.
+The app uses Solana's public RPC by default, so it needs no API key. To use Helius or a custom RPC URL, open Settings > RPC.
 
 To run on a device, choose your team and a unique bundle identifier in the `widgets` target's Signing & Capabilities settings.
 

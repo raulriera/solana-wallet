@@ -36,7 +36,7 @@ final class CreateWalletUITests: XCTestCase {
 
         try flow.tap(flow.backupConfirmation.buttons["Yes"])
 
-        try flow.expectProviders()
+        try flow.expectRPC()
         try flow.openWallet()
         flow.relaunch()
         try flow.expectWallet()

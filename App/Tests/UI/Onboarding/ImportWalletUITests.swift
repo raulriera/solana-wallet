@@ -114,7 +114,7 @@ final class ImportWalletUITests: XCTestCase {
 
         try flow.tap(flow.submitImport)
 
-        try flow.expectProviders()
+        try flow.expectRPC()
         XCTAssertFalse(flow.backupConfirmation.exists)
         try flow.openWallet()
         flow.relaunch()

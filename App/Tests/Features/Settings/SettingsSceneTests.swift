@@ -12,8 +12,8 @@ struct SettingsSceneTests {
     func `The tab runs its first workflows' changes after the window shows it again`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
-        let providerStore = ProviderStore.inMemory(selection: .helius)
-        let first = ProvidersCoordinator.inMemory(providerStore)
+        let rpcStore = RPCStore.inMemory(selection: .helius)
+        let first = RPCCoordinator.inMemory(rpcStore)
         let settings = AppearanceSettingsModel(
             appearance: AppearanceCoordinator(store: AppearanceStore(directory: fixture.directory), recovery: nil),
             catalog: ThemeCatalog(directory: fixture.directory), packages: PackService()
@@ -22,8 +22,8 @@ struct SettingsSceneTests {
         let rendered = AsyncStream<Int>.makeStream()
         let hosted = try HostedWindow(SettingsSceneRoot(
             scene: SettingsScene(settings: settings, account: .constant(wallet.first), network: .constant(.mainnet),
-                                 security: makeSecurity(), providers: first),
-            generation: 0, rendered: rendered.continuation, providers: providerStore, wallet: wallet))
+                                 security: makeSecurity(), rpcCoordinator: first),
+            generation: 0, rendered: rendered.continuation, rpcStore: rpcStore, wallet: wallet))
         defer {
             hosted.close()
             rendered.continuation.finish()
@@ -31,16 +31,16 @@ struct SettingsSceneTests {
         var renders = rendered.stream.makeAsyncIterator()
         try #require(await renders.next() == 0)
 
-        let second = ProvidersCoordinator.inMemory(providerStore)
+        let second = RPCCoordinator.inMemory(rpcStore)
         hosted.host.rootView = SettingsSceneRoot(
             scene: SettingsScene(settings: settings, account: .constant(wallet.first), network: .constant(.mainnet),
-                                 security: makeSecurity(), providers: second),
-            generation: 1, rendered: rendered.continuation, providers: providerStore, wallet: wallet)
+                                 security: makeSecurity(), rpcCoordinator: second),
+            generation: 1, rendered: rendered.continuation, rpcStore: rpcStore, wallet: wallet)
         try #require(await renders.next() == 1)
         first.select(.solana)
 
         for await attempt in Observations({ first.attempt }) where attempt == nil { break }
-        #expect(providerStore.settings?.selection == .solana)
+        #expect(rpcStore.settings?.selection == .solana)
     }
 
     private func makeSecurity() -> SecurityCoordinator {
@@ -57,12 +57,12 @@ private struct SettingsSceneRoot: View {
     let scene: SettingsScene
     let generation: Int
     let rendered: AsyncStream<Int>.Continuation
-    let providers: ProviderStore
+    let rpcStore: RPCStore
     let wallet: PublicWalletAccounts
 
     var body: some View {
         scene
-            .environment(providers)
+            .environment(rpcStore)
             .environment(wallet)
             .onChange(of: generation, initial: true) {
                 rendered.yield(generation)

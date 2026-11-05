@@ -72,12 +72,12 @@ struct AppResetTests {
         let gate = Suspension()
         let responses = HTTPResponses(["getMultipleAccounts": [#"{"context":{"slot":1},"value":[null]}"#]],
                                       gate: gate, heldMethod: "getMultipleAccounts")
-        let providers = ProviderStore.inMemory()
-        let service = Portfolio(rpc: responses.providerClient(network: .devnet, providers: providers),
+        let rpcStore = RPCStore.inMemory()
+        let service = Portfolio(rpc: responses.rpcProvider(network: .devnet, rpcStore: rpcStore),
                                 store: FileSnapshotStore(directory: storage.directory),
                                 tokenLists: FileTokenListStore(directory: storage.directory.appending(path: "TokenLists")))
         let portfolios = PortfolioStore(prices: Jupiter(transport: responses), currency: .inMemory(),
-                                        providers: providers, priceChoice: .inMemory()) { _, _ in service }
+                                        rpcStore: rpcStore, priceChoice: .inMemory()) { _, _ in service }
         let account = try Account.publicWallet()
         let viewing = Task { await portfolios.observe(account, on: .devnet) }
         defer { viewing.cancel() }

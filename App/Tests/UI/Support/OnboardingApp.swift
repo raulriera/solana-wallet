@@ -43,8 +43,8 @@ struct OnboardingApp {
         try expectSetupOutcome(portfolioTab, label: "Portfolio", file: file, line: line)
     }
 
-    func expectProviders(file: StaticString = #filePath, line: UInt = #line) throws {
-        try expectSetupOutcome(app.navigationBars["Providers"], label: "Providers", file: file, line: line)
+    func expectRPC(file: StaticString = #filePath, line: UInt = #line) throws {
+        try expectSetupOutcome(app.navigationBars["RPC"], label: "RPC", file: file, line: line)
         try waitFor(app.staticTexts["Step 2 of 2"], file: file, line: line)
         try waitForAbsence(app.buttons["BackButton"], file: file, line: line)
     }
@@ -55,7 +55,7 @@ struct OnboardingApp {
         try tap(app.buttons["Continue"])
         try waitFor(backupConfirmation)
         try tap(backupConfirmation.buttons["Yes"])
-        try expectProviders()
+        try expectRPC()
         try waitForAbsence(app.staticTexts[Self.recoveryGuidance])
     }
 

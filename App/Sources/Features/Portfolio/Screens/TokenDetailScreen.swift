@@ -147,7 +147,7 @@ private extension TransactionStore {
 private extension PrivateBalanceStore {
     static var preview: PrivateBalanceStore {
         PrivateBalanceStore(balances: PreviewPrivateBalances(), transactions: .preview,
-                            providers: ProviderStore(service: "preview"))
+                            rpcStore: RPCStore(service: "preview"))
     }
 }
 

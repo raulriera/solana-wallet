@@ -10,11 +10,11 @@ struct PortfolioSplitView: View {
     @Environment(PrivateBalanceStore.self) private var privateBalances
     @State private var selection: Holding.Identity?
     @State private var preferredColumn = NavigationSplitViewColumn.sidebar
-    @State private var providerSetup: ProviderSetupModel<ProviderConnectionError>?
+    @State private var providerSetup: ProviderSetupModel<RPCConnectionError>?
     @State private var tokenAddition: TokenAdditionModel?
     let account: Account
     let network: Network
-    let connection: any ProviderConnecting<ProviderConnectionError>
+    let connection: any ProviderConnecting<RPCConnectionError>
     let removal: TokenRemovalModel
     let privateBalance: PrivateBalanceModel
 
@@ -81,7 +81,7 @@ struct PortfolioSplitView: View {
         }
         .animation(.default, value: presentation)
         .environment(\.removeToken, TokenRemovalAction(removal: removal))
-        .sheet(item: $providerSetup) { ProviderSetupSheet(submission: $0) }
+        .sheet(item: $providerSetup) { APIKeySheet(submission: $0) }
         .sheet(item: $tokenAddition) { TokenAdditionSheet(addition: $0, account: account, network: network) }
     }
 

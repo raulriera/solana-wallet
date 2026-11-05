@@ -30,8 +30,8 @@ actor ResetStorage: RecoveryStoring {
         return [ContactStore(storage: ResetValue<AddressBook>(storage: self, step: .contacts)),
                 transactions,
                 CurrencyStore(storage: ResetValue<CurrencySettings>(storage: self, step: .currency), rates: [:]),
-                ProviderStore(settings: ResetValue<ProviderSettings>(storage: self, step: .settings),
-                              key: ResetValue<String>(storage: self, step: .key)),
+                RPCStore(settings: ResetValue<RPCSettings>(storage: self, step: .settings),
+                         key: ResetValue<String>(storage: self, step: .key)),
                 PriceStore(storage: ResetValue<PriceSettings>(storage: self, step: .prices))]
     }
 

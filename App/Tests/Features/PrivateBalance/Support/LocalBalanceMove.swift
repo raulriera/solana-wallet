@@ -22,7 +22,7 @@ struct LocalBalanceMove {
     var account: widgets.Account { move.account }
 
     static func deposit(registered: Bool = true, simulation: SimulateTransaction.Value? = nil,
-                        provider: ProviderSettings.Provider = .helius, statuses: [GetSignatureStatuses.Response] = [],
+                        provider: RPCSettings.Provider = .helius, statuses: [GetSignatureStatuses.Response] = [],
                         height: UInt64 = 500,
                         sockets: SocketSequence = SocketSequence()) async throws -> LocalBalanceMove {
         let account = try await PrivateBalanceFixtures.account()

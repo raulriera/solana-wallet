@@ -173,19 +173,19 @@ struct PrivateBalancesTests {
     func `Refreshing an account without keys fails without a Helius key`() async throws {
         let account = try await PrivateBalanceFixtures.account()
         let responses = HTTPResponses.privateNotes()
-        let providers = await ProviderStore.inMemory(selection: .helius)
+        let rpcStore = await RPCStore.inMemory(selection: .helius)
         let balances = PrivateBalances(recovery: try PrivateBalanceFixtures.recoveryStore(), wallet: Wallet(),
                                        keys: StoredValue(), notes: StoredValue(), codes: StoredValue()) { network in
-            responses.providerClient(network: network, providers: providers)
+            responses.rpcProvider(network: network, rpcStore: rpcStore)
         }
 
-        await #expect(throws: ProviderClientError.missingKey) { try await balances.refresh(account, on: .devnet) }
+        await #expect(throws: RPCProviderError.missingKey) { try await balances.refresh(account, on: .devnet) }
         #expect(await responses.requests.isEmpty)
     }
 
-    @Test(arguments: zip([ProviderSettings.Provider.helius, .solana], [Network.devnet, .mainnet]))
+    @Test(arguments: zip([RPCSettings.Provider.helius, .solana], [Network.devnet, .mainnet]))
     func `A registered account syncs and saves its notes, checking registration once`(
-        provider: ProviderSettings.Provider, network: Network
+        provider: RPCSettings.Provider, network: Network
     ) async throws {
         let account = try await PrivateBalanceFixtures.account()
         let record = try await PrivateBalanceFixtures.keys(for: account)
@@ -753,8 +753,8 @@ struct PrivateBalancesTests {
         #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 0)
     }
 
-    @Test(arguments: [ProviderSettings.Provider.helius, .solana])
-    func `Preparing a send proves a private transfer`(provider: ProviderSettings.Provider) async throws {
+    @Test(arguments: [RPCSettings.Provider.helius, .solana])
+    func `Preparing a send proves a private transfer`(provider: RPCSettings.Provider) async throws {
         async let funded = Self.fundedAccount(lamports: 1_000_000)
         async let derivedRecipient = PrivateBalanceFixtures.account(index: 1)
         let (sender, recipient) = try await (funded, derivedRecipient)
@@ -989,7 +989,7 @@ struct PrivateBalancesTests {
 
     @MainActor
     private static func balances(
-        _ responses: HTTPResponses, provider: ProviderSettings.Provider = .helius,
+        _ responses: HTTPResponses, provider: RPCSettings.Provider = .helius,
         recovery: SecurityRecoveryStore? = nil, keys: StoredValue<PrivateBalances.Keys> = StoredValue(),
         notes: StoredValue<PrivateBalances.Notes> = StoredValue()
     ) throws -> PrivateBalances {

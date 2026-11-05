@@ -35,7 +35,7 @@ struct KeypadPaymentObservationTests {
         try await withKeypad { _, observation, received in
             let isLoading = Observations { received.payment.isLoading }
 
-            observation.continuation.yield(Update(snapshot: nil, phase: .failed(ProviderClientError.invalidKey),
+            observation.continuation.yield(Update(snapshot: nil, phase: .failed(RPCProviderError.invalidKey),
                                                   revision: 1))
 
             for await loading in isLoading where !loading { break }
