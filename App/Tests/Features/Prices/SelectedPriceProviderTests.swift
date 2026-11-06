@@ -71,7 +71,7 @@ struct SelectedPriceProviderTests {
         let store = PriceStore.inMemory(selection: .custom(Self.server))
         let prices = SelectedPriceProvider(prices: store, jupiter: FixedPrices(currency: "USD")) { _ in nil }
 
-        await #expect(throws: PricesError.unusableServer) { try await prices.prices(for: ["mint"]) }
+        await #expect(throws: PriceProviderError.unusableServer) { try await prices.prices(for: ["mint"]) }
     }
 
     @Test

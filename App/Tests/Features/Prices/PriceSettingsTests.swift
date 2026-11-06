@@ -13,6 +13,18 @@ struct PriceSettingsTests {
     }
 
     @Test
+    func `A custom server shows only its host`() {
+        #expect(String(localized: PriceSettings.Provider.custom(Self.server).name) == "prices.example.com")
+    }
+
+    @Test
+    func `Only a custom server has a custom URL`() {
+        #expect(PriceSettings.Provider.custom(Self.server).customURL == Self.server)
+        #expect(PriceSettings.Provider.jupiter.customURL == nil)
+        #expect(PriceSettings.Provider.off.customURL == nil)
+    }
+
+    @Test
     func `Adding a server lists and chooses it`() throws {
         let listed = try #require(URL(string: "https://one.example.com"))
         let added = try #require(URL(string: "https://two.example.com"))

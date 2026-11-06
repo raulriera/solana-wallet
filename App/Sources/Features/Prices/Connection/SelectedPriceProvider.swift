@@ -20,7 +20,7 @@ nonisolated struct SelectedPriceProvider: PriceProviding {
         store = prices
         self.jupiter = jupiter
         servers = ClientCache { url in
-            guard let provider = server(url) else { throw PricesError.unusableServer }
+            guard let provider = server(url) else { throw PriceProviderError.unusableServer }
             return provider
         }
     }

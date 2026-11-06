@@ -9,6 +9,21 @@ nonisolated struct PriceSettings: Codable, Equatable, Sendable {
         case custom(URL)
         /// No price provider, so prices make no network requests.
         case off
+
+        /// The provider's name, or a custom server's host.
+        var name: LocalizedStringResource {
+            switch self {
+            case .jupiter: "Jupiter"
+            case .off: LocalizedStringResource("None", comment: "The price provider choice that turns prices off.")
+            case .custom(let url):
+                LocalizedStringResource("\(url.host() ?? "")", comment: "A custom price server's host, shown exactly as entered.")
+            }
+        }
+
+        /// A custom price server's URL, or `nil` for a built-in provider.
+        var customURL: URL? {
+            if case .custom(let url) = self { url } else { nil }
+        }
     }
 
     /// The provider in use.
