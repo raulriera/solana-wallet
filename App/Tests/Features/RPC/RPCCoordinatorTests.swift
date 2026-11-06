@@ -284,17 +284,14 @@ struct RPCCoordinatorTests {
     }
 
     @Test
-    func `Leaving RPC closes its screens and any waiting deletion`() throws {
-        let url = try #require(URL(string: "https://rpc.example.com"))
+    func `Leaving RPC closes its screens`() throws {
         let coordinator = RPCCoordinator.inMemory(.inMemory())
 
         coordinator.addCustomRPC()
         try #require(coordinator.path == [.customRPCSetup])
-        coordinator.removal = url
         coordinator.leave()
 
         #expect(coordinator.path.isEmpty)
-        #expect(coordinator.removal == nil)
     }
 
     @Test

@@ -5,9 +5,10 @@ struct CustomRPCDetailsScreen: View {
     let url: URL
     /// Whether the RPC is still in the list.
     let isListed: Bool
-    /// The custom RPC waiting for the person to confirm its deletion.
-    @Binding var removal: URL?
+    /// Whether the RPC is the provider in use.
+    let isSelected: Bool
     let actions: any RPCActions
+    @State private var removal: URL?
 
     var body: some View {
         MaskedURLDetails(
@@ -19,7 +20,9 @@ struct CustomRPCDetailsScreen: View {
             Button("Delete RPC", systemImage: "trash", role: .destructive) { removal = url }
                 .labelStyle(.warning)
                 .lineLimit(1)
-                .rpcDeletion(of: url, removal: $removal, actions: actions)
+                .confirmation("Delete RPC?", action: "Delete", item: $removal, perform: actions.remove) { url in
+                    CustomRPCDeletionMessage(url: url, isSelected: isSelected)
+                }
         }
     }
 }

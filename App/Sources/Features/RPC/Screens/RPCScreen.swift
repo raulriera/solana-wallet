@@ -3,7 +3,7 @@ import SwiftUI
 /// Lists the RPC providers with a checkmark on the one in use.
 struct RPCScreen<Actions: View>: View {
     @Environment(RPCStore.self) private var rpcStore
-    @Bindable var coordinator: RPCCoordinator
+    let coordinator: RPCCoordinator
     private let actions: Actions
 
     /// Creates the provider list with sections of actions after it.
@@ -30,7 +30,6 @@ struct RPCScreen<Actions: View>: View {
 
             RPCSelectionSection(selection: settings?.selection,
                                 customRPCs: customRPCs,
-                                removal: $coordinator.removal,
                                 actions: coordinator)
 
             actions

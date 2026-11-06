@@ -20,6 +20,15 @@ struct RPCSettingsTests {
     }
 
     @Test
+    func `Only a custom RPC has a custom URL`() throws {
+        let custom = try #require(URL(string: "https://rpc.example.com"))
+
+        #expect(RPCSettings.Provider.custom(custom).customURL == custom)
+        #expect(RPCSettings.Provider.solana.customURL == nil)
+        #expect(RPCSettings.Provider.helius.customURL == nil)
+    }
+
+    @Test
     func `Adding a listed RPC only chooses it`() throws {
         let listed = try #require(URL(string: "https://one.example.com"))
         var settings = RPCSettings(customRPCs: [listed])

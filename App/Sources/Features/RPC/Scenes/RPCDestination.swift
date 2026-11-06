@@ -3,7 +3,7 @@ import SwiftUI
 /// Shows a screen that RPC pushes.
 struct RPCDestination: View {
     @Environment(RPCStore.self) private var rpcStore
-    @Bindable var coordinator: RPCCoordinator
+    let coordinator: RPCCoordinator
     let route: RPCRoute
 
     var body: some View {
@@ -23,7 +23,8 @@ struct RPCDestination: View {
         case .customRPCDetails:
             if let url = coordinator.details {
                 CustomRPCDetailsScreen(url: url, isListed: rpcStore.settings?.customRPCs.contains(url) == true,
-                                       removal: $coordinator.removal, actions: coordinator)
+                                       isSelected: rpcStore.settings?.selection == .custom(url),
+                                       actions: coordinator)
             }
         }
     }

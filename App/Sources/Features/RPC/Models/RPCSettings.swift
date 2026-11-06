@@ -20,6 +20,11 @@ nonisolated struct RPCSettings: Codable, Equatable, Sendable {
         }
 
         var hasDetails: Bool { self != .solana }
+
+        /// A custom RPC's URL, or `nil` for a built-in provider.
+        var customURL: URL? {
+            if case .custom(let url) = self { url } else { nil }
+        }
     }
 
     /// The provider in use.

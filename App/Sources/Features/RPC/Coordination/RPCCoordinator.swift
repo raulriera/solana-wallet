@@ -14,8 +14,6 @@ final class RPCCoordinator: RPCActions {
     private(set) var details: URL?
     /// The new key's checks of the last opened key screen.
     private(set) var newKey: ProviderSetupModel<RPCConnectionError>?
-    /// The custom RPC waiting for the person to confirm its deletion.
-    var removal: URL?
     /// The key sheet's checks while a choice waits for a key.
     var keyEntry: ProviderSetupModel<RPCConnectionError>?
     var error: RPCSettingsError?
@@ -105,9 +103,8 @@ final class RPCCoordinator: RPCActions {
         error = .selectionUnreadable
     }
 
-    /// Closes the screens pushed above RPC and any deletion waiting for confirmation.
+    /// Closes the screens pushed above RPC.
     func leave() {
-        removal = nil
         path = []
     }
 
