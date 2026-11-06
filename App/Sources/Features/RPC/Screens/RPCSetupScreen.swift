@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Collects an entry for an RPC provider, such as Helius's API key or a custom RPC URL.
-struct RPCSetupScreen<Submission: ProviderSubmitting>: View {
+struct RPCSetupScreen<Submission: ProviderSubmitting>: ProviderSetupScreen {
     let purpose: RPCEntryPurpose
     let submission: Submission
 
@@ -23,16 +23,6 @@ struct RPCSetupScreen<Submission: ProviderSubmitting>: View {
                 Link("Get an API key from Helius", destination: URL(string: "https://dashboard.helius.dev")!)
             }
         }
-    }
-}
-
-extension RPCSetupScreen {
-    /// Runs the screen's accepted entry checks and closes it once the entry is saved.
-    ///
-    /// - Returns: The screen with managed entry checks.
-    func providerSetupLifecycle<EntryError: ProviderEntryError>() -> some View
-    where Submission == ProviderSetupModel<EntryError> {
-        modifier(ProviderSetupLifecycle(submission: submission))
     }
 }
 

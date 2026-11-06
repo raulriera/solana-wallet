@@ -12,7 +12,7 @@ struct RPCRow: View {
                 .checked(isSelected)
 
             if provider.hasDetails {
-                Button("More Info", systemImage: "info.circle") { actions.showDetails(for: provider) }
+                Button(moreInfoAbout: provider.name) { actions.showDetails(for: provider) }
                     .buttonStyle(.moreInfo)
             }
         }

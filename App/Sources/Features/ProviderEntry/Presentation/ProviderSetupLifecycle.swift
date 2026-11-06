@@ -2,7 +2,7 @@ import Accessibility
 import SwiftUI
 
 /// Runs a screen's accepted entry checks, announces rejections, and closes the screen once the entry is saved.
-struct ProviderSetupLifecycle<EntryError: ProviderEntryError>: ViewModifier {
+private struct ProviderSetupLifecycle<EntryError: ProviderEntryError>: ViewModifier {
     @Environment(\.dismiss) private var dismiss
     @Bindable var submission: ProviderSetupModel<EntryError>
 
@@ -17,5 +17,24 @@ struct ProviderSetupLifecycle<EntryError: ProviderEntryError>: ViewModifier {
             }
             .alert(error: $submission.error)
             .onChange(of: submission.isSaved) { dismiss() }
+    }
+}
+
+/// A screen that collects a provider entry through a submission.
+protocol ProviderSetupScreen: View {
+    /// The type that accepts the entry.
+    associatedtype Submission: ProviderSubmitting
+
+    /// The submission that accepts the entry.
+    var submission: Submission { get }
+}
+
+extension ProviderSetupScreen {
+    /// Runs the screen's accepted entry checks and closes it once the entry is saved.
+    ///
+    /// - Returns: The screen with managed entry checks.
+    func providerSetupLifecycle<EntryError: ProviderEntryError>() -> some View
+    where Submission == ProviderSetupModel<EntryError> {
+        modifier(ProviderSetupLifecycle(submission: submission))
     }
 }
