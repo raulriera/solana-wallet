@@ -6,16 +6,14 @@ private struct ActionConfirmation<Item, Message: View>: ViewModifier {
     let title: LocalizedStringResource
     let action: LocalizedStringResource
     let role: ButtonRole
-    @Binding var isPresented: Bool
-    let item: Item?
+    @Binding var item: Item?
     let perform: (Item) -> Void
     let message: (Item) -> Message
 
     func body(content: Content) -> some View {
         content
             .tint(palette.primary)
-            .confirmationDialog(Text(title), isPresented: $isPresented, titleVisibility: .visible,
-                                presenting: item) { item in
+            .confirmationDialog(title, item: $item, titleVisibility: .visible) { item in
                 Button(role: role) { perform(item) } label: { Text(action) }
             } message: { item in
                 message(item)
@@ -40,8 +38,8 @@ extension View {
         item: Binding<Item?>, perform: @escaping (Item) -> Void,
         @ViewBuilder message: @escaping (Item) -> Message
     ) -> some View {
-        modifier(ActionConfirmation(title: title, action: action, role: role, isPresented: item.isPresented,
-                                    item: item.wrappedValue, perform: perform, message: message))
+        modifier(ActionConfirmation(title: title, action: action, role: role, item: item, perform: perform,
+                                    message: message))
     }
 
     /// Asks the person to confirm an action on an item before performing it, with no message.
@@ -75,7 +73,7 @@ extension View {
         isPresented: Binding<Bool>, perform: @escaping () -> Void,
         @ViewBuilder message: @escaping () -> Message
     ) -> some View {
-        modifier(ActionConfirmation(title: title, action: action, role: role, isPresented: isPresented, item: (),
+        modifier(ActionConfirmation(title: title, action: action, role: role, item: isPresented.presented,
                                     perform: { perform() }, message: { message() }))
     }
 }

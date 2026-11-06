@@ -16,3 +16,11 @@ nonisolated extension Optional where Wrapped: Equatable {
         set { if !newValue, self == value { self = nil } }
     }
 }
+
+nonisolated extension Bool {
+    /// An empty value while `true` and `nil` while `false`; setting it stores whether a value is present.
+    var presented: Void? {
+        get { self ? () : nil }
+        set { self = newValue != nil }
+    }
+}
