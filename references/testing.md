@@ -16,7 +16,7 @@
 Pass the existing regular iPhone simulator to every command, such as `-destination 'platform=iOS Simulator,id=<UUID>'`.
 
 - `Unit`, the `widgets` scheme's default plan, runs the app and framework test bundles offline. Run it for every change: `xcodebuild test -scheme widgets`. Add every new test bundle to it.
-- `Integration` runs only `.network` tests: `xcodebuild test -scheme widgets -testPlan Integration -parallel-testing-enabled NO`. Run it when a change touches RPC, Transactions, Portfolio, or the app's provider, discovery, portfolio, or transaction workflows.
+- `Integration` runs only `.network` tests: `xcodebuild test -scheme widgets -testPlan Integration -parallel-testing-enabled NO`. Run it when a change touches the RPC framework, Transactions, Portfolio, or the app's RPC, price, discovery, portfolio, or transaction workflows.
 - `UI` runs `widgetsUITests`. Only the user runs it, on request.
 - Tag every test that reaches a real provider with `.network`. Framework bundles stay offline; their live checks go in `App/Tests/Integration/<Framework>`.
 
