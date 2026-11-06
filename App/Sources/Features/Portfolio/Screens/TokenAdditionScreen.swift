@@ -52,7 +52,7 @@ struct TokenAdditionScreen: View {
         .animation(.default, value: addition.preview != nil)
         .confirmationAction("Add Token", isEnabled: addition.preview != nil, action: addition.add)
         .navigationTitle("Add Token")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
     }
 
     /// Takes pasted text with animation.

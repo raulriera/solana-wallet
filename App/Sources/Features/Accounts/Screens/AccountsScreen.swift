@@ -51,7 +51,7 @@ struct AccountsScreen: View {
         .formStyle(.choices(checkmark: .leading, descriptionSpacing: 2))
         .animation(.default, value: accounts.count)
         .navigationTitle("Accounts")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .sensoryFeedback(.success, trigger: addition.added)
         .onChange(of: addition.added) { _, added in
             guard let added else { return }

@@ -49,7 +49,7 @@ struct ProviderEntryForm<Submission: ProviderSubmitting, Intro: View, Help: View
         .autocorrectionDisabled()
         .confirmationAction(action, isEnabled: input.hasText, isPending: submission.isPending, action: submitEntry)
         .navigationTitle(Text(title))
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
     }
 
     /// Dismisses the keyboard and submits the entry.

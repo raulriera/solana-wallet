@@ -35,6 +35,6 @@ struct APIKeyDetailsScreen: View {
             }
         }
         .navigationTitle(Text(RPCSettings.Provider.helius.name))
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
     }
 }

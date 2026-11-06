@@ -51,7 +51,7 @@ struct PaymentReviewScreen: TransactionReviewContent {
         .monospacedDigit()
         .animation(.default, value: costs)
         .navigationTitle("Review")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .confirmationAction("Send", isEnabled: review.canApprove, isPending: review.isSending,
                             action: review.approve)
     }

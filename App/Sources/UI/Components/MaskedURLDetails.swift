@@ -30,7 +30,7 @@ struct MaskedURLDetails<Actions: View>: View {
             }
         }
         .navigationTitle(Text(title))
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .onChange(of: isListed) { dismiss() }
     }
 }

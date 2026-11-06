@@ -98,7 +98,7 @@ struct TokenDetailScreen: View {
         }
         .monospacedDigit()
         .navigationTitle(holding.displayName)
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .toolbar {
             if holding.id != .nativeSOL {
                 ToolbarItem(placement: .primaryAction) {

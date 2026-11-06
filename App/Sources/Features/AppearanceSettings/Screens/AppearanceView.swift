@@ -22,7 +22,7 @@ struct AppearanceView: View {
         .formStyle(.choices)
         .animation(.default, value: settings.entryIDs)
         .navigationTitle("Appearance")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .disabled(settings.appearance.snapshot == nil)
     }
 }

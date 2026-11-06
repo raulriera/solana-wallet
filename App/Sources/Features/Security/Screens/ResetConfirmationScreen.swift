@@ -21,6 +21,6 @@ struct ResetConfirmationScreen: View {
             }
         }
         .navigationTitle("Reset App")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
     }
 }

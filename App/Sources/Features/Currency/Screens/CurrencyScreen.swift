@@ -51,7 +51,7 @@ struct CurrencyScreen: View {
         .formStyle(.choices)
         .animation(.default, value: source != nil)
         .navigationTitle("Currency")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
     }
 
     private var automaticName: String {

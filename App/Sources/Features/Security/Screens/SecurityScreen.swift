@@ -32,6 +32,6 @@ struct SecurityScreen: View {
             }
         }
         .navigationTitle("Security & Privacy")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
     }
 }

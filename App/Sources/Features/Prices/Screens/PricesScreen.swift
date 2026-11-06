@@ -22,6 +22,6 @@ struct PricesScreen: View {
         .formStyle(.choices(checkmark: .leading))
         .animation(.default, value: customServers.count)
         .navigationTitle("Prices")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
     }
 }

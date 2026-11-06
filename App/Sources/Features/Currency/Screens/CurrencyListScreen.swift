@@ -58,7 +58,7 @@ struct CurrencyListScreen: View {
             }
         }
         .navigationTitle("Currency")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .foregroundStyle(palette.text, palette.secondaryText)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(palette.background)

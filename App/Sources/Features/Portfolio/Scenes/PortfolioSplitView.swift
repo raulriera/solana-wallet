@@ -73,7 +73,7 @@ struct PortfolioSplitView: View {
                             .drawOnAppear()
                             .foregroundStyle(palette.text, palette.secondaryText)
                             .background(palette.background)
-                            .navigationBarTitleDisplayMode(.inline)
+                            .toolbarTitleDisplayMode(.inline)
                     }
                 }
                 .navigationSplitViewStyle(.tabSection)

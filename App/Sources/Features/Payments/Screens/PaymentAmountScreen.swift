@@ -50,7 +50,7 @@ struct PaymentAmountScreen<Action: View>: View {
         .background(palette.background)
         .navigationTitle(title)
         .navigationSubtitle(subtitle)
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .onKeyPress(phases: [.down, .repeat], action: type)
     }
 

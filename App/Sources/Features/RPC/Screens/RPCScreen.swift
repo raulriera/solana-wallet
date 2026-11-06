@@ -37,7 +37,7 @@ struct RPCScreen<Actions: View>: View {
         .formStyle(.choices(checkmark: .leading))
         .animation(.default, value: customRPCs.count)
         .navigationTitle("RPC")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
     }
 }
 
