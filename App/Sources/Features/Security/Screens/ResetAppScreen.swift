@@ -10,9 +10,9 @@ struct ResetAppScreen: View {
     private var message: LocalizedStringResource {
         switch mode {
         case .standard:
-            "Resetting deletes every wallet, recovery phrase, theme, your RPC API key, and custom RPCs from this device. Every window returns to Welcome. Only your written recovery phrase can restore your wallets."
+            "Resetting deletes every wallet, recovery phrase, theme, your RPC API key, custom RPCs, and custom price servers from this device. Every window returns to Welcome. Only your written recovery phrase can restore your wallets."
         case .recoveryUnavailable:
-            "This device no longer has your wallet's recovery phrase, so resetting is the only fix. Resetting deletes every wallet, your RPC API key, and custom RPCs from this device. Every window returns to Welcome. Then import your written backup."
+            "This device no longer has your wallet's recovery phrase, so resetting is the only fix. Resetting deletes every wallet, your RPC API key, custom RPCs, and custom price servers from this device. Every window returns to Welcome. Then import your written backup."
         }
     }
 

@@ -27,7 +27,7 @@ struct SecurityScreen: View {
                 Button("Reset App", systemImage: "trash", role: .destructive) { coordinator.startReset(.standard) }
                     .labelStyle(.warning)
             } footer: {
-                Text("Deletes every wallet, recovery phrase, theme, your RPC API key, and custom RPCs from this device.")
+                Text("Deletes every wallet, recovery phrase, theme, your RPC API key, custom RPCs, and custom price servers from this device.")
                     .foregroundStyle(palette.secondaryText)
             }
         }

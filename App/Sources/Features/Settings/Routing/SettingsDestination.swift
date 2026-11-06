@@ -6,4 +6,5 @@ enum SettingsDestination: Hashable {
     case network
     case rpc
     case currency
+    case prices
 }

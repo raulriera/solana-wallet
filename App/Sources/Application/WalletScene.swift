@@ -39,7 +39,8 @@ struct WalletScene: View {
             Tab("Settings", systemImage: "gearshape", value: .settings) {
                 SettingsScene(settings: settings, account: $account, network: $network,
                               security: services.makeSecurityCoordinator(),
-                              rpcCoordinator: services.makeRPCCoordinator())
+                              rpcCoordinator: services.makeRPCCoordinator(),
+                              pricesCoordinator: services.makePricesCoordinator())
             }
         }
         .tabViewStyle(.tabBarOnly)

@@ -32,6 +32,10 @@ struct SettingsSidebar: View {
                     Label("Currency", systemImage: "banknote.fill")
                         .labelStyle(.sidebar(tint: .green))
                 }
+                NavigationLink(value: SettingsDestination.prices) {
+                    Label("Prices", systemImage: "chart.line.uptrend.xyaxis")
+                        .labelStyle(.sidebar(tint: .orange))
+                }
             }
         }
         .labelStyle(.sidebar)

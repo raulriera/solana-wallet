@@ -1,5 +1,6 @@
 import Observation
 import RPC
+import Storage
 import SwiftUI
 import Testing
 import Themes
@@ -14,15 +15,12 @@ struct SettingsSceneTests {
         defer { fixture.remove() }
         let rpcStore = RPCStore.inMemory(selection: .helius)
         let first = RPCCoordinator.inMemory(rpcStore)
-        let settings = AppearanceSettingsModel(
-            appearance: AppearanceCoordinator(store: AppearanceStore(directory: fixture.directory), recovery: nil),
-            catalog: ThemeCatalog(directory: fixture.directory), packages: PackService()
-        )
+        let settings = makeSettings(in: fixture)
         let wallet = try await PublicWalletAccounts()
         let rendered = AsyncStream<Int>.makeStream()
         let hosted = try HostedWindow(SettingsSceneRoot(
             scene: SettingsScene(settings: settings, account: .constant(wallet.first), network: .constant(.mainnet),
-                                 security: makeSecurity(), rpcCoordinator: first),
+                                 security: makeSecurity(), rpcCoordinator: first, pricesCoordinator: .inMemory()),
             generation: 0, rendered: rendered.continuation, rpcStore: rpcStore, wallet: wallet))
         defer {
             hosted.close()
@@ -34,13 +32,53 @@ struct SettingsSceneTests {
         let second = RPCCoordinator.inMemory(rpcStore)
         hosted.host.rootView = SettingsSceneRoot(
             scene: SettingsScene(settings: settings, account: .constant(wallet.first), network: .constant(.mainnet),
-                                 security: makeSecurity(), rpcCoordinator: second),
+                                 security: makeSecurity(), rpcCoordinator: second, pricesCoordinator: .inMemory()),
             generation: 1, rendered: rendered.continuation, rpcStore: rpcStore, wallet: wallet)
         try #require(await renders.next() == 1)
         first.select(.solana)
 
         for await attempt in Observations({ first.attempt }) where attempt == nil { break }
         #expect(rpcStore.settings?.selection == .solana)
+    }
+
+    @Test
+    func `An RPC read error shows its alert`() async throws {
+        let rpc = RPCCoordinator.inMemory(.inMemory(StoredValue(failsLoading: true)))
+
+        #expect(try await presentsAlert(rpc: rpc, prices: .inMemory()))
+        #expect(rpc.error == .selectionUnreadable)
+    }
+
+    @Test
+    func `A Prices read error shows its alert`() async throws {
+        let prices = PricesCoordinator.inMemory(.inMemory(StoredValue(failsLoading: true)))
+
+        #expect(try await presentsAlert(rpc: .inMemory(.inMemory()), prices: prices))
+        #expect(prices.error == .settingsUnreadable)
+    }
+
+    private func presentsAlert(rpc: RPCCoordinator, prices: PricesCoordinator) async throws -> Bool {
+        let fixture = try CatalogFixture()
+        defer { fixture.remove() }
+        let wallet = try await PublicWalletAccounts()
+        let rendered = AsyncStream<Int>.makeStream()
+        let hosted = try HostedWindow(SettingsSceneRoot(
+            scene: SettingsScene(settings: makeSettings(in: fixture), account: .constant(wallet.first),
+                                 network: .constant(.mainnet), security: makeSecurity(), rpcCoordinator: rpc,
+                                 pricesCoordinator: prices),
+            generation: 0, rendered: rendered.continuation, rpcStore: .inMemory(), wallet: wallet))
+        defer {
+            hosted.close()
+            rendered.continuation.finish()
+        }
+        return try await hosted.presentsViewController()
+    }
+
+    private func makeSettings(in fixture: CatalogFixture) -> AppearanceSettingsModel {
+        AppearanceSettingsModel(
+            appearance: AppearanceCoordinator(store: AppearanceStore(directory: fixture.directory), recovery: nil),
+            catalog: ThemeCatalog(directory: fixture.directory), packages: PackService()
+        )
     }
 
     private func makeSecurity() -> SecurityCoordinator {

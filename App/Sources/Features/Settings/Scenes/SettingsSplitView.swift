@@ -10,6 +10,7 @@ struct SettingsSplitView: View {
     @Binding var account: Account
     let security: SecurityCoordinator
     let rpcCoordinator: RPCCoordinator
+    let pricesCoordinator: PricesCoordinator
 
     /// Creates the Settings split view.
     ///
@@ -19,13 +20,16 @@ struct SettingsSplitView: View {
     ///   - network: The window's network.
     ///   - security: The Security & Privacy workflow.
     ///   - rpcCoordinator: The RPC provider workflow.
+    ///   - pricesCoordinator: The price provider workflow.
     init(settings: AppearanceSettingsModel, account: Binding<Account>,
-         network: Binding<Network>, security: SecurityCoordinator, rpcCoordinator: RPCCoordinator) {
+         network: Binding<Network>, security: SecurityCoordinator, rpcCoordinator: RPCCoordinator,
+         pricesCoordinator: PricesCoordinator) {
         _network = network
         self.settings = settings
         _account = account
         self.security = security
         self.rpcCoordinator = rpcCoordinator
+        self.pricesCoordinator = pricesCoordinator
     }
 
     var body: some View {
@@ -52,12 +56,15 @@ struct SettingsSplitView: View {
                 RPCScene(coordinator: rpcCoordinator)
             case .currency:
                 CurrencyScene()
+            case .prices:
+                PricesScene(coordinator: pricesCoordinator)
             }
         }
         .navigationSplitViewStyle(.tabSection)
         .onChange(of: selection) { _, selection in
             if selection != .security { security.close() }
             if selection != .rpc { rpcCoordinator.leave() }
+            if selection != .prices { pricesCoordinator.leave() }
         }
         .onChange(of: horizontalSizeClass, initial: true) { _, sizeClass in
             if sizeClass == .regular, selection == nil { selection = .accounts }

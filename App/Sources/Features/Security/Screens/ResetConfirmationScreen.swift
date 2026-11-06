@@ -13,10 +13,10 @@ struct ResetConfirmationScreen: View {
                     .labelStyle(.warning)
                     .confirmation("Reset App?", action: "Reset App", isPresented: $isConfirming,
                                   perform: coordinator.reset) {
-                        Text("Every wallet, recovery phrase, your RPC API key, and custom RPCs will be deleted from this device. Every window will return to Welcome.")
+                        Text("Every wallet, recovery phrase, your RPC API key, custom RPCs, and custom price servers will be deleted from this device. Every window will return to Welcome.")
                     }
             } footer: {
-                Text("This can't be undone. Every wallet, recovery phrase, your RPC API key, and custom RPCs will be deleted from this device. Every window will return to Welcome.")
+                Text("This can't be undone. Every wallet, recovery phrase, your RPC API key, custom RPCs, and custom price servers will be deleted from this device. Every window will return to Welcome.")
                     .foregroundStyle(palette.secondaryText)
             }
         }

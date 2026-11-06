@@ -5,6 +5,7 @@ import SwiftUI
 struct SettingsScene: View {
     @State private var security: SecurityCoordinator
     @State private var rpcCoordinator: RPCCoordinator
+    @State private var pricesCoordinator: PricesCoordinator
     @Binding var network: Network
     let settings: AppearanceSettingsModel
     @Binding var account: Account
@@ -17,10 +18,13 @@ struct SettingsScene: View {
     ///   - network: The window's network.
     ///   - security: The Security & Privacy workflow.
     ///   - rpcCoordinator: The RPC provider workflow.
+    ///   - pricesCoordinator: The price provider workflow.
     init(settings: AppearanceSettingsModel, account: Binding<Account>,
-         network: Binding<Network>, security: SecurityCoordinator, rpcCoordinator: RPCCoordinator) {
+         network: Binding<Network>, security: SecurityCoordinator, rpcCoordinator: RPCCoordinator,
+         pricesCoordinator: PricesCoordinator) {
         self.security = security
         self.rpcCoordinator = rpcCoordinator
+        self.pricesCoordinator = pricesCoordinator
         _network = network
         self.settings = settings
         _account = account
@@ -28,7 +32,7 @@ struct SettingsScene: View {
 
     var body: some View {
         SettingsSplitView(settings: settings, account: $account, network: $network, security: security,
-                          rpcCoordinator: rpcCoordinator)
+                          rpcCoordinator: rpcCoordinator, pricesCoordinator: pricesCoordinator)
             .settingsLifecycle()
     }
 }

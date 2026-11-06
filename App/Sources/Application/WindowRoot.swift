@@ -31,6 +31,7 @@ struct WindowRoot: View {
         .environment(services.portfolios)
         .environment(services.privateBalanceStore)
         .environment(services.rpcStore)
+        .environment(services.priceStore)
         .environment(services.transactionStore)
     }
 }

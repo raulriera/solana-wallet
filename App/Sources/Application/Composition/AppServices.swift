@@ -15,6 +15,7 @@ struct AppServices {
     let rpcConnection: any ProviderConnecting<RPCConnectionError>
     let portfolios: PortfolioStore
     let customRPCConnection: any ProviderConnecting<CustomRPCError>
+    let customPriceConnection: any ProviderConnecting<CustomPriceError>
     let artworkColors: any ArtworkColorProviding = ArtworkColors()
     let recoveryPasteboard: any RecoveryCopying
     let privateBalances: any PrivateBalancing
@@ -22,6 +23,7 @@ struct AppServices {
     let security: SecurityServices
     let currencyStore: CurrencyStore
     let rpcStore: RPCStore
+    let priceStore: PriceStore
     let contactStore: ContactStore
     let accountStore: AccountStore
     let accountCreation: AccountCreation
@@ -75,6 +77,8 @@ struct AppServices {
                                           rates: rates)
         self.currencyStore = currencyStore
         let priceStore = PriceStore(service: priceService)
+        self.priceStore = priceStore
+        customPriceConnection = CustomPriceConnection(prices: priceStore)
         let prices = CurrencyPrices(prices: SelectedPriceProvider(prices: priceStore), currency: currencyStore)
         let portfolios = PortfolioStore(prices: prices, currency: currencyStore, rpcStore: rpcStore,
                                         priceChoice: priceStore) { network, prices in
@@ -133,6 +137,13 @@ struct AppServices {
     func makeRPCCoordinator() -> RPCCoordinator {
         RPCCoordinator(rpcStore: rpcStore, connection: rpcConnection,
                        customRPCConnection: customRPCConnection)
+    }
+
+    /// Creates a Prices coordinator.
+    ///
+    /// - Returns: A new Prices coordinator.
+    func makePricesCoordinator() -> PricesCoordinator {
+        PricesCoordinator(prices: priceStore, connection: customPriceConnection)
     }
 
     /// Creates an appearance settings model.
