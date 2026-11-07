@@ -30,7 +30,7 @@ struct AmountCaption: View {
             }
         }
         .font(.title3)
-        .lineLimit(1)
+        .lineLimit(1, reservesSpace: true)
         .truncationMode(.middle)
         .foregroundStyle(palette.secondaryText)
         .contentTransition(.numericText())

@@ -14,7 +14,7 @@ struct AmountDisplay: View {
         Text(text)
             .font(.system(size: size, weight: .bold, design: .rounded))
             .monospacedDigit()
-            .lineLimit(1)
+            .lineLimit(1, reservesSpace: true)
             .minimumScaleFactor(0.3)
             .foregroundStyle(palette.background)
             .contentTransition(.numericText())
