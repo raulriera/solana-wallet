@@ -6,7 +6,6 @@ struct RPCRow: View {
     let provider: RPCSettings.Provider
     let isSelected: Bool
     let actions: any RPCActions
-    @State private var removal: URL?
 
     var body: some View {
         HStack {
@@ -18,8 +17,7 @@ struct RPCRow: View {
                     .buttonStyle(.moreInfo)
             }
         }
-        .swipeDelete(provider.customURL, removal: $removal)
-        .confirmation("Delete RPC?", action: "Delete", item: $removal, perform: actions.remove) { url in
+        .swipeDelete(provider.customURL, title: "Delete RPC?", perform: actions.remove) { url in
             CustomRPCDeletionMessage(url: url, isSelected: isSelected)
         }
     }

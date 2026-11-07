@@ -6,7 +6,6 @@ struct PriceProviderRow: View {
     let provider: PriceSettings.Provider
     let isSelected: Bool
     let actions: any PriceActions
-    @State private var removal: URL?
 
     var body: some View {
         HStack {
@@ -18,8 +17,7 @@ struct PriceProviderRow: View {
                     .buttonStyle(.moreInfo)
             }
         }
-        .swipeDelete(provider.customURL, removal: $removal)
-        .confirmation("Delete Price Server?", action: "Delete", item: $removal, perform: actions.remove) { url in
+        .swipeDelete(provider.customURL, title: "Delete Price Server?", perform: actions.remove) { url in
             PriceServerDeletionMessage(url: url, isSelected: isSelected)
         }
     }
