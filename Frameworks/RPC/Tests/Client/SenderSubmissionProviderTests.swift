@@ -1,7 +1,7 @@
 import Testing
 @testable import RPC
 
-struct SenderTests {
+struct SenderSubmissionProviderTests {
     @Test(arguments: [
         (SenderSubmissionProvider.Tier.standard, UInt64(5_000)),
         (.premium, UInt64(1_000_000)),

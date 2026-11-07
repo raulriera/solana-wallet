@@ -297,7 +297,7 @@ struct ObservationTests {
     }
 
     @Test(.timeLimit(.minutes(1)), arguments: [200, 429])
-    func `A change during a balance read leads to another read`(priceStatus: Int) async throws {
+    func `A change during a balance read leads to another read even when prices fail`(priceStatus: Int) async throws {
         let fixture = ObservationFixture()
         defer { fixture.cleanUp() }
         let ledger = ObservedLedger()

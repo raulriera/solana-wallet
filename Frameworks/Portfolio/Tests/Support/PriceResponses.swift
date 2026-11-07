@@ -16,9 +16,7 @@ actor PriceResponses: HTTPTransport {
 
     func data(for request: URLRequest) async throws -> (Data, URLResponse) {
         let url = try #require(request.url)
-        let components = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false))
-        let ids = try #require(components.queryItems?.first { $0.name == "ids" }?.value)
-        let mints = ids.split(separator: ",").map(String.init)
+        let mints = try requestedMints(request, query: "ids")
         requests.append(mints)
         let body = try await respond(mints)
         return (body, try #require(HTTPURLResponse(url: url, statusCode: status, httpVersion: nil,
