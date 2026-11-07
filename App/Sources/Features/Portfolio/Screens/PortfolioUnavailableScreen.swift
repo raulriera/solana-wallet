@@ -29,7 +29,7 @@ struct PortfolioUnavailableScreen: View {
         switch error {
         case .missingKey: "Your provider needs an API key to load your balances."
         case .invalidKey: "Your provider didn't accept your saved API key. Enter a new key to load your balances."
-        case .unsupportedNetwork: "Choose another provider or switch this window to Mainnet in Settings."
+        case .unsupportedNetwork: "Choose another RPC or switch this window to Mainnet in Settings."
         case .rateLimited: "Your provider is limiting requests. Wait a moment, then try again."
         case .unavailable: "Your balances couldn't be loaded. Check your connection, then try again."
         case .listUnreadable: "Your token list can't be read, so your balances can't load."

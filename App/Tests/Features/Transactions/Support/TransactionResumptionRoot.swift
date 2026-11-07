@@ -9,8 +9,8 @@ struct TransactionResumptionRoot: View {
         Color.clear
             .transactionResumption()
             .environment(transactions)
-            .environment(scene.providers)
-            .task { await scene.providers.load() }
+            .environment(scene.rpcStore)
+            .task { await scene.rpcStore.load() }
             .environment(\.scenePhase, scene.phase)
     }
 }

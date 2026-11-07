@@ -12,7 +12,7 @@ struct PrivateBalanceLiveTests {
     func `Registry lookups decode every owner's record`() async throws {
         let addresses = try (ShieldedPoolOwners.devnet + [Self.unregistered]).map(Address.init)
 
-        let recipients = try await UserRegistry.recipients(of: addresses, using: Solana(network: .devnet))
+        let recipients = try await UserRegistry.recipients(of: addresses, using: SolanaRPC(network: .devnet))
 
         #expect(recipients.map { $0?.signingAddress.value } == ShieldedPoolOwners.devnet + [nil])
     }

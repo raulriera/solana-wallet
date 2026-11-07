@@ -14,7 +14,7 @@ struct OnboardingNavigationTests {
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery(gate: gate).client),
                                                 wallet: Wallet(), recovery: recovery, accounts: accounts)
         let submission = ImportWalletModel(coordinator: coordinator)
-        let navigation = OnboardingNavigation(walletImport: submission, providers: .inMemory(.inMemory()))
+        let navigation = OnboardingNavigation(walletImport: submission, rpcCoordinator: .inMemory(.inMemory()))
         navigation.showImport()
         try #require(navigation.path == [.importWallet])
         submission.submit(OnboardingCoordinatorTests.phrase, passphrase: "TREZOR")
@@ -36,20 +36,20 @@ struct OnboardingNavigationTests {
 
     @Test
     func `The provider choice's screens show above onboarding's steps`() throws {
-        let providers = ProvidersCoordinator.inMemory(.inMemory())
-        let navigation = OnboardingNavigation(walletImport: Self.submission(), providers: providers)
-        navigation.path = [.recovery, .providers]
+        let rpcStore = RPCCoordinator.inMemory(.inMemory())
+        let navigation = OnboardingNavigation(walletImport: Self.submission(), rpcCoordinator: rpcStore)
+        navigation.path = [.recovery, .rpc]
 
-        providers.addCustomRPC()
-        try #require(navigation.stack == [.recovery, .providers, .providersRoute(.customRPCSetup)])
+        rpcStore.addCustomRPC()
+        try #require(navigation.stack == [.recovery, .rpc, .rpcRoute(.customRPCSetup)])
         navigation.stack.removeLast()
 
-        #expect(providers.path.isEmpty)
-        #expect(navigation.path == [.recovery, .providers])
-        #expect(navigation.stack == [.recovery, .providers])
+        #expect(rpcStore.path.isEmpty)
+        #expect(navigation.path == [.recovery, .rpc])
+        #expect(navigation.stack == [.recovery, .rpc])
     }
 
-    @Test(arguments: [OnboardingStep.providers, .providersRoute(.customRPCSetup), .providersRoute(.providerDetails)])
+    @Test(arguments: [OnboardingStep.rpc, .rpcRoute(.customRPCSetup), .rpcRoute(.apiKeyDetails)])
     func `The provider choice's screens are the last step`(step: OnboardingStep) {
         #expect(step.number == OnboardingStep.total)
     }

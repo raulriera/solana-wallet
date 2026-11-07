@@ -78,7 +78,7 @@ struct OnboardingDiscoveryTests {
     func `A real mainnet lookup prepares an import without persisting it`() async throws {
         let recovery = OnboardingRecoveryStore()
         let accounts = AccountStore.inMemory()
-        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: Solana(network: .mainnet)),
+        let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: SolanaRPC(network: .mainnet)),
             wallet: Wallet(), recovery: recovery, accounts: accounts)
 
         try await coordinator.importRecovery(OnboardingCoordinatorTests.phrase, passphrase: "")

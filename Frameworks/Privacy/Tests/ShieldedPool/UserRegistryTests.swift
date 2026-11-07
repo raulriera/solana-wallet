@@ -68,7 +68,7 @@ struct UserRegistryTests {
         let payload = #""result":{"context":{"slot":7},"value":[\#(accounts.joined(separator: ","))]}"#
         let transport = StubTransport { request in try reply(to: request, payload: payload) }
 
-        let recipients = try await UserRegistry.recipients(of: owners, using: Solana(network: .devnet, transport: transport))
+        let recipients = try await UserRegistry.recipients(of: owners, using: SolanaRPC(network: .devnet, transport: transport))
 
         let requests = await transport.requests
         let request = try #require(requests.first)
@@ -89,7 +89,7 @@ struct UserRegistryTests {
         }
 
         await #expect(throws: UserRegistry.ValidationError.mismatchedResponse) {
-            try await UserRegistry.recipients(of: [owner], using: Solana(network: .devnet, transport: transport))
+            try await UserRegistry.recipients(of: [owner], using: SolanaRPC(network: .devnet, transport: transport))
         }
     }
 

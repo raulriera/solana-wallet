@@ -24,9 +24,9 @@ actor StubTransport: HTTPTransport {
     }
 }
 
-extension Solana {
-    static func devnet(transport: StubTransport) -> Solana {
-        Solana(network: .devnet, transport: transport)
+extension SolanaRPC {
+    static func devnet(transport: StubTransport) -> SolanaRPC {
+        SolanaRPC(network: .devnet, transport: transport)
     }
 }
 
@@ -54,4 +54,11 @@ func httpReply(to request: URLRequest, body: String, status: Int = 200,
     let url = try #require(request.url)
     let response = try #require(HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: headers))
     return (Data(body.utf8), response)
+}
+
+func requestedMints(_ request: URLRequest, query name: String) throws -> [String] {
+    let url = try #require(request.url)
+    let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
+    let mints = try #require(query?.first { $0.name == name }?.value)
+    return mints.split(separator: ",").map(String.init)
 }

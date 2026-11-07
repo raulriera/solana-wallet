@@ -70,7 +70,7 @@ struct AccountScreen: View {
         }
         .confirmationAction("Save Name", isEnabled: canSave, isPending: isRenaming, action: save)
         .navigationTitle(account.name)
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .onChange(of: account.customName, initial: true) { _, saved in
             name = saved ?? ""
         }

@@ -16,24 +16,34 @@ struct SnapshotPricer: Sendable {
         return try await provider.prices(for: holdings.map { mint(for: $0) })
     }
 
+    /// Returns the quotes that valued a snapshot's holdings.
+    ///
+    /// - Parameter snapshot: The snapshot to read, or `nil` for none.
+    /// - Returns: Quotes keyed by mint.
+    func quotes(in snapshot: Snapshot?) -> [String: Quote] {
+        var quotes: [String: Quote] = [:]
+        for holding in snapshot?.holdings ?? [] {
+            guard let valuation = holding.valuation, let price = valuation.pricePerUnit,
+                  let currency = valuation.currency else { continue }
+            quotes[mint(for: holding.id)] = Quote(pricePerUnit: price, currency: currency,
+                                                  dayChange: valuation.dayChange)
+        }
+        return quotes
+    }
+
     /// Returns a copy of a snapshot valued with the given quotes.
     ///
     /// - Parameters:
     ///   - snapshot: The snapshot to value.
     ///   - quotes: The quotes, keyed by mint.
     /// - Returns: The snapshot with new valuations.
-    /// - Throws: ``PriceError/invalidQuote`` for an invalid price or currency.
-    func snapshot(pricing snapshot: Snapshot, with quotes: [String: Quote]) throws -> Snapshot {
+    func snapshot(pricing snapshot: Snapshot, with quotes: [String: Quote]) -> Snapshot {
         var priced = snapshot
         for index in priced.holdings.indices {
             let holding = priced.holdings[index]
             guard let amount = holding.amount, let quote = quotes[mint(for: holding.id)] else {
                 priced.holdings[index].valuation = nil
                 continue
-            }
-            guard !quote.pricePerUnit.isNaN, quote.pricePerUnit >= 0,
-                  !quote.currency.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                throw PriceError.invalidQuote
             }
             priced.holdings[index].valuation = Valuation(
                 pricePerUnit: quote.pricePerUnit,

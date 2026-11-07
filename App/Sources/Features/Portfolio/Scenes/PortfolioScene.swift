@@ -7,7 +7,7 @@ struct PortfolioScene: View {
     @State private var privateBalance = PrivateBalanceModel()
     let account: Account
     let network: Network
-    let connection: any ProviderConnecting<ProviderConnectionError>
+    let connection: any ProviderConnecting<RPCConnectionError>
 
     var body: some View {
         PortfolioSplitView(account: account, network: network, connection: connection, removal: removal,

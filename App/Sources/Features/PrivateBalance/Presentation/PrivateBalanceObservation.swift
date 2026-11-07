@@ -5,13 +5,13 @@ import SwiftUI
 private struct PrivateBalanceObservation: ViewModifier {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(PrivateBalanceStore.self) private var privateBalances
-    @Environment(ProviderStore.self) private var providers
+    @Environment(RPCStore.self) private var rpcStore
     let account: Account
     let network: Network
 
     func body(content: Content) -> some View {
         let session = Session(accountID: account.id, network: network,
-                              isActive: scenePhase == .active && providers.isRead)
+                              isActive: scenePhase == .active && rpcStore.isRead)
         content
             .task(id: session) {
                 guard session.isActive else { return }

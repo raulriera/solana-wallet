@@ -67,7 +67,7 @@ struct RecipientEntryScreen: View {
         .confirmationAction(entry.purpose.confirmationTitle, isEnabled: entry.canConfirm, action: entry.confirm)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle(Text(entry.purpose.title))
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .sensoryFeedback(.error, trigger: entry.rejectionCount)
         .onChange(of: entry.rejectionCount) {
             guard let rejection = entry.rejection else { return }

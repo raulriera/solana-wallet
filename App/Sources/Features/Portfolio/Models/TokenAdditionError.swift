@@ -42,7 +42,7 @@ nonisolated enum TokenAdditionError: RetryableError, Equatable {
         case .rateLimited: String(localized: "Too many requests. Try again in a moment.")
         case .keyRejected: String(localized: "Your RPC API key wasn't accepted.")
         case .unsupportedNetwork:
-            String(localized: "Custom RPCs use mainnet. Choose another provider or switch this window to Mainnet in Settings.")
+            String(localized: "Custom RPCs use mainnet. Choose another RPC or switch this window to Mainnet in Settings.")
         case .lookupUnavailable: String(localized: "Couldn't check this address. Check your connection and try again.")
         case .limitReached:
             String(localized: "You can add up to \(Portfolio::TokenList.addedTokenLimit) tokens. Remove one to add another.")

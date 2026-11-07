@@ -10,8 +10,8 @@ actor LookupResponses: HTTPTransport {
     private(set) var requests: [[String]] = []
     private(set) var logoRequests: [[String]] = []
 
-    nonisolated var client: Solana {
-        Solana(network: .mainnet, transport: self)
+    nonisolated var client: SolanaRPC {
+        SolanaRPC(network: .mainnet, transport: self)
     }
 
     nonisolated var heliusClient: HeliusRPC {

@@ -18,7 +18,7 @@ struct WindowContent: View {
                 WalletUnavailableScreen(retry: { startupAttempt += 1 })
             case .onboarding:
                 OnboardingScene(account: $window.account, coordinator: services.makeOnboardingCoordinator(),
-                                providers: services.makeProvidersCoordinator(), pasteboard: services.recoveryPasteboard)
+                                rpcCoordinator: services.makeRPCCoordinator(), pasteboard: services.recoveryPasteboard)
             case .wallet(let account):
                 WalletScene(section: $section, network: $network, account: $window[account: account],
                             services: services)

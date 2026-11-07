@@ -43,7 +43,7 @@ struct UTXOTreesTests {
         let trees = UTXOTrees(rows: [IndexerResponses.match(deposits[0])], feePerNullifier: 108)
         let transport = StubTransport { try #require(try trees.respond(to: $0)) }
 
-        let fee = try await ShieldedPool.feePerNullifier(treeID: 0, using: Solana.devnet(transport: transport))
+        let fee = try await ShieldedPool.feePerNullifier(treeID: 0, using: SolanaRPC.devnet(transport: transport))
 
         #expect(fee == 108)
     }
@@ -56,7 +56,7 @@ struct UTXOTreesTests {
         }
 
         await #expect(throws: ShieldedPool.TreeError.missingTree) {
-            try await ShieldedPool.feePerNullifier(treeID: 5, using: Solana.devnet(transport: transport))
+            try await ShieldedPool.feePerNullifier(treeID: 5, using: SolanaRPC.devnet(transport: transport))
         }
     }
 
@@ -68,7 +68,7 @@ struct UTXOTreesTests {
             nullifiers: nullifiers, isProofless: false
         )
         let trees = UTXOTrees(rows: [IndexerResponses.match(deposits[0]), IndexerResponses.row(spend)])
-        let rpc = Solana.devnet(transport: StubTransport { try #require(try trees.respond(to: $0)) })
+        let rpc = SolanaRPC.devnet(transport: StubTransport { try #require(try trees.respond(to: $0)) })
 
         let transaction = try #require(try await rpc.send(GetTransaction(signature: spend.signature)))
         let other = try await rpc.send(GetTransaction(signature: deposits[0].signature))
@@ -82,7 +82,8 @@ struct UTXOTreesTests {
         let transport = StubTransport { try #require(try trees.respond(to: $0)) }
         let notes = try deposits.flatMap { try ReceivedNote.notes(in: $0, of: sender) }
         return try await ReceivedNote.inclusionStatuses(
-            of: notes, rpc: Solana.devnet(transport: transport), indexer: Zolana(network: .devnet, transport: transport)
+            of: notes, rpc: SolanaRPC.devnet(transport: transport),
+            indexer: Zolana(network: .devnet, transport: transport)
         )
     }
 }

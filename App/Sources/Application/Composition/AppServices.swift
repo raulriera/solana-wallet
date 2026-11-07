@@ -12,16 +12,18 @@ struct AppServices {
     let wallet: any WalletProviding
     let discovery: any AccountDiscovering
     let recovery: any RecoveryStoring
-    let providerConnection: any ProviderConnecting<ProviderConnectionError>
+    let rpcConnection: any ProviderConnecting<RPCConnectionError>
     let portfolios: PortfolioStore
     let customRPCConnection: any ProviderConnecting<CustomRPCError>
+    let customPriceConnection: any ProviderConnecting<CustomPriceError>
     let artworkColors: any ArtworkColorProviding = ArtworkColors()
     let recoveryPasteboard: any RecoveryCopying
     let privateBalances: any PrivateBalancing
     let privateBalanceStore: PrivateBalanceStore
     let security: SecurityServices
     let currencyStore: CurrencyStore
-    let providerStore: ProviderStore
+    let rpcStore: RPCStore
+    let priceStore: PriceStore
     let contactStore: ContactStore
     let accountStore: AccountStore
     let accountCreation: AccountCreation
@@ -30,11 +32,13 @@ struct AppServices {
     /// Creates the production services.
     init() {
         let recoveryService = "com.raulriera.widgets.recovery"
-        let providerService = "com.raulriera.widgets.provider"
+        let rpcService = "com.raulriera.widgets.rpc"
+        let priceService = "com.raulriera.widgets.price"
         let privateBalanceService = "com.raulriera.widgets.private-balance"
         let directories: [URL] = [.persistentDirectory, .ephemeralDirectory]
         #if DEBUG && targetEnvironment(simulator)
-        do { try UITestReset.runIfRequested(keychainServices: [recoveryService, providerService, privateBalanceService],
+        do { try UITestReset.runIfRequested(keychainServices: [recoveryService, rpcService, priceService,
+                                                               privateBalanceService],
                                             directories: directories) }
         catch { preconditionFailure("The UI-test reset couldn't clear the app's saved data.") }
         #endif
@@ -44,7 +48,7 @@ struct AppServices {
                                                                               directoryHint: .isDirectory))
         let wallet = Wallet()
         self.wallet = wallet
-        discovery = AccountDiscovery(rpc: Solana(network: .mainnet), wallet: wallet)
+        discovery = AccountDiscovery(rpc: SolanaRPC(network: .mainnet), wallet: wallet)
         recovery = KeychainStore(service: recoveryService)
         accountCreation = AccountCreation(recovery: recovery, wallet: wallet)
         let privateBalanceKeys = KeychainItem(service: privateBalanceService, account: "keys",
@@ -53,29 +57,34 @@ struct AppServices {
                                                coding: .json(PrivateBalances.Notes.self))
         let privateBalanceCodes = KeychainItem(service: privateBalanceService, account: "codes",
                                                coding: .json(PrivateBalances.Codes.self))
-        let providerStore = ProviderStore(service: providerService)
-        self.providerStore = providerStore
+        let rpcStore = RPCStore(service: rpcService)
+        self.rpcStore = rpcStore
         let mainnetRings = Zolana(network: .mainnet)
         let devnetRings = Zolana(network: .devnet)
-        let providerClient: @Sendable (Network) -> ProviderClient = { network in
+        let rpcProvider: @Sendable (Network) -> SelectedRPCProvider = { network in
             let rings = switch network {
             case .mainnet: mainnetRings
             case .devnet: devnetRings
             }
-            return ProviderClient(network: network, providers: providerStore, rings: rings)
+            return SelectedRPCProvider(network: network, rpcStore: rpcStore, rings: rings)
         }
-        providerConnection = HeliusConnection(providers: providerStore)
-        customRPCConnection = CustomRPCConnection(providers: providerStore)
-        let rates: [CurrencySettings.RateSource: any ExchangeRateProviding] = [.europeanCentralBank: EuropeanCentralBank(),
-                                                                                 .coinbase: Coinbase()]
+        rpcConnection = HeliusConnection(rpcStore: rpcStore)
+        customRPCConnection = CustomRPCConnection(rpcStore: rpcStore)
+        let rates: [CurrencySettings.RateSource: any ExchangeRateProviding] = [
+            .europeanCentralBank: EuropeanCentralBankExchangeRateProvider(),
+            .coinbase: CoinbaseExchangeRateProvider(),
+        ]
         let currencyStore = CurrencyStore(directory: .persistentDirectory.appending(path: "Currency",
                                                                                     directoryHint: .isDirectory),
                                           rates: rates)
         self.currencyStore = currencyStore
-        let prices = CurrencyPrices(prices: Jupiter(), currency: currencyStore)
-        let portfolios = PortfolioStore(prices: prices, currency: currencyStore,
-                                        providers: providerStore) { network, prices in
-            Portfolio(rpc: providerClient(network),
+        let priceStore = PriceStore(service: priceService)
+        self.priceStore = priceStore
+        customPriceConnection = CustomPriceConnection(prices: priceStore)
+        let prices = CurrencyPriceProvider(prices: SelectedPriceProvider(prices: priceStore), currency: currencyStore)
+        let portfolios = PortfolioStore(prices: prices, currency: currencyStore, rpcStore: rpcStore,
+                                        priceStore: priceStore) { network, prices in
+            Portfolio(rpc: rpcProvider(network),
                       prices: prices,
                       tokenListDirectory: .persistentDirectory.appending(path: "TokenLists", directoryHint: .isDirectory),
                       cacheDirectory: .ephemeralDirectory.appending(path: "Portfolio", directoryHint: .isDirectory))
@@ -84,16 +93,15 @@ struct AppServices {
         let transactionStore = TransactionStore(
             directory: .persistentDirectory.appending(path: "Transactions", directoryHint: .isDirectory)
         ) { [recovery] network in
-            let provider = providerClient(network)
-            return try TransactionCoordinator(rpc: provider, store: recovery)
+            try TransactionCoordinator(rpc: rpcProvider(network), store: recovery)
         }
         self.transactionStore = transactionStore
         let privateBalances = PrivateBalances(recovery: recovery, wallet: wallet, keys: privateBalanceKeys,
                                               notes: privateBalanceNotes, codes: privateBalanceCodes,
-                                              client: providerClient)
+                                              client: rpcProvider)
         self.privateBalances = privateBalances
         let privateBalanceStore = PrivateBalanceStore(balances: privateBalances, transactions: transactionStore,
-                                                      providers: providerStore)
+                                                      rpcStore: rpcStore)
         self.privateBalanceStore = privateBalanceStore
         let accounts = AccountStore.file(in: .persistentDirectory.appending(path: "Accounts", directoryHint: .isDirectory))
         accountStore = AccountStore(storage: accounts, cleanup: RecoveryCleanup(accounts: accounts, recovery: recovery,
@@ -104,8 +112,8 @@ struct AppServices {
             owner: DeviceOwnerAuthentication(),
             reset: AppReset(recovery: recovery, privateBalances: privateBalances,
                             directories: directories, appearance: appearance.appearance,
-                            stores: [contactStore, transactionStore, currencyStore, providerStore, portfolios,
-                                     privateBalanceStore],
+                            stores: [contactStore, transactionStore, currencyStore, rpcStore, priceStore,
+                                     portfolios, privateBalanceStore],
                             accounts: accountStore),
             pasteboard: recoveryPasteboard
         )
@@ -128,9 +136,16 @@ struct AppServices {
     /// Creates an RPC provider coordinator.
     ///
     /// - Returns: A new RPC provider coordinator.
-    func makeProvidersCoordinator() -> ProvidersCoordinator {
-        ProvidersCoordinator(providers: providerStore, connection: providerConnection,
-                             customRPCConnection: customRPCConnection)
+    func makeRPCCoordinator() -> RPCCoordinator {
+        RPCCoordinator(rpcStore: rpcStore, connection: rpcConnection,
+                       customRPCConnection: customRPCConnection)
+    }
+
+    /// Creates a Prices coordinator.
+    ///
+    /// - Returns: A new Prices coordinator.
+    func makePricesCoordinator() -> PricesCoordinator {
+        PricesCoordinator(prices: priceStore, connection: customPriceConnection)
     }
 
     /// Creates an appearance settings model.

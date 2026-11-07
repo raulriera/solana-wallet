@@ -19,14 +19,14 @@ struct PrivateTransferLiveTests {
 
     private static let feeLamports: UInt64 = 100_000
 
-    @Test(arguments: [ProviderSettings.Provider.helius, .solana])
+    @Test(arguments: [RPCSettings.Provider.helius, .solana])
     func `Private deposits, sends, and withdrawals move SOL between the test accounts`(
-        provider: ProviderSettings.Provider
+        provider: RPCSettings.Provider
     ) async throws {
         let wallets = try await DevnetWallets.configured()
         let apiKey = provider == .helius ? try LiveClients.heliusAPIKey() : nil
-        let providers = await ProviderStore.inMemory(selection: provider, key: apiKey)
-        let rpc = ProviderClient(network: .devnet, providers: providers, rings: Zolana(network: .devnet))
+        let rpcStore = await RPCStore.inMemory(selection: provider, key: apiKey)
+        let rpc = SelectedRPCProvider(network: .devnet, rpcStore: rpcStore, rings: Zolana(network: .devnet))
         let sender = wallets.sender
         let recipient = wallets.recipient
         try await wallets.requireFunds(Self.feeLamports, using: rpc)

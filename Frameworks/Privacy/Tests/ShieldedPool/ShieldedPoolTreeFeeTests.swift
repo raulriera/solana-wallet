@@ -13,7 +13,7 @@ struct ShieldedPoolTreeFeeTests {
         let rest = [UInt8](repeating: 0xee, count: 40_080 - header.count - fee.count)
         let transport = Self.transport(returning: [AccountReplies.account(owner: Self.program, data: header + fee + rest)])
 
-        let result = try await ShieldedPool.feePerNullifier(treeID: 7, using: Solana(network: .devnet, transport: transport))
+        let result = try await ShieldedPool.feePerNullifier(treeID: 7, using: SolanaRPC(network: .devnet, transport: transport))
 
         let requests = try await transport.requests.map(requestBody)
         #expect(result == 0x0200_0000_0000_016c)
@@ -26,7 +26,7 @@ struct ShieldedPoolTreeFeeTests {
         let transport = Self.transport(returning: [AccountReplies.account(owner: Self.program, data: [UInt8](repeating: 0, count: 16))])
 
         await #expect(throws: ShieldedPool.TreeError.invalidLength) {
-            try await ShieldedPool.feePerNullifier(treeID: 0, using: Solana(network: .devnet, transport: transport))
+            try await ShieldedPool.feePerNullifier(treeID: 0, using: SolanaRPC(network: .devnet, transport: transport))
         }
     }
 

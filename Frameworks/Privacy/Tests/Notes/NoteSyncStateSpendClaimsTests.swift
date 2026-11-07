@@ -13,7 +13,7 @@ struct NoteSyncStateSpendClaimsTests {
         var reads = SpendReads()
 
         let confirmed = try await state.confirmedSpends(in: [Self.claim("spender", of: [note])], reads: &reads,
-                                                        using: Solana.devnet(transport: transport))
+                                                        using: SolanaRPC.devnet(transport: transport))
 
         #expect(confirmed.proven == [note.nullifier.bigEndianBytes])
         #expect(confirmed.rejected.isEmpty)
@@ -34,7 +34,7 @@ struct NoteSyncStateSpendClaimsTests {
 
         let confirmed = try await Self.state(holding: notes).confirmedSpends(
             in: [Self.claim("failed", of: [notes[0]]), Self.claim("unrelated", of: [notes[1]], slot: 6)], reads: &reads,
-            using: Solana.devnet(transport: transport)
+            using: SolanaRPC.devnet(transport: transport)
         )
 
         #expect(confirmed.proven == [other])
@@ -49,7 +49,7 @@ struct NoteSyncStateSpendClaimsTests {
 
         let confirmed = try await state.confirmedSpends(
             in: [Self.claim("new", of: [notes[0]]), Self.claim("late", of: [notes[1]], slot: 6)], reads: &reads,
-            using: Solana.devnet(transport: Self.transport([:]))
+            using: SolanaRPC.devnet(transport: Self.transport([:]))
         )
 
         #expect(confirmed.proven.isEmpty)
@@ -65,7 +65,7 @@ struct NoteSyncStateSpendClaimsTests {
         var reads = SpendReads()
 
         let confirmed = try await state.confirmedSpends(in: [Self.claim("named", of: [note])], reads: &reads,
-                                                        using: Solana.devnet(transport: transport))
+                                                        using: SolanaRPC.devnet(transport: transport))
 
         #expect(confirmed.rejected == ["named"])
         #expect(reads.signatures.isEmpty)
@@ -79,7 +79,7 @@ struct NoteSyncStateSpendClaimsTests {
 
         let confirmed = try await Self.state(holding: [NoteFixtures.note(at: 1)]).confirmedSpends(
             in: [Self.claim("other", of: [NoteFixtures.note(at: 2)])], reads: &reads,
-            using: Solana.devnet(transport: transport)
+            using: SolanaRPC.devnet(transport: transport)
         )
 
         #expect(confirmed.proven.isEmpty)

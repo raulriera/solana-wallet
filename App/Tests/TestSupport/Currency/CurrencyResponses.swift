@@ -14,8 +14,8 @@ enum CurrencyResponses {
         switch url.path() {
         case pricePath:
             let quotes = ["sol": #""sol":{"usdPrice":150,"priceChange24h":1.29}"#, "usdc": #""usdc":{"usdPrice":1}"#]
-            let ids = try #require(query?.first { $0.name == "ids" }?.value).split(separator: ",")
-            return "{" + ids.compactMap { quotes[String($0)] }.joined(separator: ",") + "}"
+            let ids = try requestedMints(request, query: "ids")
+            return "{" + ids.compactMap { quotes[$0] }.joined(separator: ",") + "}"
         case referencePath:
             return "<Cube><Cube currency='USD' rate='1.25'/><Cube currency='JPY' rate='150'/></Cube>"
         case coinbasePath:
@@ -30,6 +30,9 @@ enum CurrencyResponses {
 
     static func rates(_ http: HTTPResponses = .currency())
     -> [CurrencySettings.RateSource: any ExchangeRateProviding] {
-        [.europeanCentralBank: EuropeanCentralBank(transport: http), .coinbase: Coinbase(transport: http)]
+        [
+            .europeanCentralBank: EuropeanCentralBankExchangeRateProvider(transport: http),
+            .coinbase: CoinbaseExchangeRateProvider(transport: http),
+        ]
     }
 }

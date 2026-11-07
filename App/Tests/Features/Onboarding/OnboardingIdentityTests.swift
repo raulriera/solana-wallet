@@ -12,20 +12,21 @@ struct OnboardingIdentityTests {
     func `An onboarding scene keeps its draft when the window passes a new one`() async throws {
         let accounts = AccountStore.inMemory()
         let recovery = OnboardingRecoveryStore()
-        let providerStore = ProviderStore.inMemory()
+        let rpcStore = RPCStore.inMemory()
         let gate = Suspension()
         let http = HTTPResponses.discovery(gate: gate)
         let coordinator = OnboardingCoordinator(discovery: AccountDiscovery(rpc: http.client), wallet: Wallet(),
                                                 recovery: recovery, accounts: accounts)
-        let providers = ProvidersCoordinator.inMemory(providerStore)
-        let original = OnboardingScene(account: .constant(nil), coordinator: coordinator, providers: providers,
+        let rpcCoordinator = RPCCoordinator.inMemory(rpcStore)
+        let original = OnboardingScene(account: .constant(nil), coordinator: coordinator,
+                                       rpcCoordinator: rpcCoordinator,
                                        pasteboard: NoPasteboard())
         let navigation: OnboardingNavigation = try initialState("_navigation", in: original)
         let submission: ImportWalletModel = try initialState("_walletImport", in: original)
         let rendered = AsyncStream<Int>.makeStream()
         let hosted = try HostedWindow(OnboardingIdentityRoot(scene: original, generation: 0,
                                                              rendered: rendered.continuation,
-                                                             providers: providerStore))
+                                                             rpcStore: rpcStore))
         defer {
             gate.resume()
             hosted.close()
@@ -43,9 +44,10 @@ struct OnboardingIdentityTests {
             let replacement = OnboardingCoordinator(discovery: AccountDiscovery(rpc: HTTPResponses.discovery().client),
                                                     wallet: Wallet(), recovery: recovery, accounts: accounts)
             hosted.host.rootView = OnboardingIdentityRoot(
-                scene: OnboardingScene(account: .constant(nil), coordinator: replacement, providers: providers,
+                scene: OnboardingScene(account: .constant(nil), coordinator: replacement,
+                                       rpcCoordinator: rpcCoordinator,
                                        pasteboard: NoPasteboard()),
-                generation: 1, rendered: rendered.continuation, providers: providerStore)
+                generation: 1, rendered: rendered.continuation, rpcStore: rpcStore)
             try #require(await renders.next() == 1)
             gate.resume()
             await waitForCompletion(submission)

@@ -3,9 +3,9 @@ nonisolated enum OnboardingStep: Hashable, Sendable {
     /// The backup of a new recovery phrase.
     case recovery
     case importWallet
-    case providers
+    case rpc
     /// A screen that the provider choice pushes.
-    case providersRoute(ProvidersRoute)
+    case rpcRoute(RPCRoute)
 
     /// The number of steps in every flow.
     static let total = 2
@@ -14,7 +14,7 @@ nonisolated enum OnboardingStep: Hashable, Sendable {
     var number: Int {
         switch self {
         case .recovery, .importWallet: 1
-        case .providers, .providersRoute: 2
+        case .rpc, .rpcRoute: 2
         }
     }
 }

@@ -14,8 +14,9 @@ struct PortfolioStoreTests {
     func `Devnet's service is created for its first window and then reused`() async throws {
         var made: [Network] = []
         let devnet = PortfolioChanges()
-        let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])),
-                                        currency: .inMemory(), providers: .inMemory()) { network, _ in
+        let portfolios = PortfolioStore(prices: JupiterPriceProvider(transport: HTTPResponses([:])),
+                                        currency: .inMemory(), rpcStore: .inMemory(),
+                                        priceStore: .inMemory()) { network, _ in
             made.append(network)
             return network == .mainnet ? PortfolioChanges() : devnet
         }
@@ -33,9 +34,10 @@ struct PortfolioStoreTests {
     func `Only mainnet's service gets the price provider`() async throws {
         var priced: [Network: Bool] = [:]
         let devnet = PortfolioChanges()
-        let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])),
-                                        currency: .inMemory(), providers: .inMemory()) { network, prices in
-            priced[network] = prices is Jupiter
+        let portfolios = PortfolioStore(prices: JupiterPriceProvider(transport: HTTPResponses([:])),
+                                        currency: .inMemory(), rpcStore: .inMemory(),
+                                        priceStore: .inMemory()) { network, prices in
+            priced[network] = prices is JupiterPriceProvider
             return network == .mainnet ? PortfolioChanges() : devnet
         }
 
@@ -48,10 +50,12 @@ struct PortfolioStoreTests {
     @Test
     func `Each currency change has every service read its prices once`() async throws {
         let currency = CurrencyStore.inMemory(StoredValue(CurrencySettings(rateSource: .coinbase)))
+        let priceStore = PriceStore.inMemory()
         let mainnet = PortfolioChanges(currency: currency)
         let devnet = PortfolioChanges(currency: currency)
-        let prices = Jupiter(transport: HTTPResponses([:]))
-        let portfolios = PortfolioStore(prices: prices, currency: currency, providers: .inMemory()) { network, _ in
+        let prices = JupiterPriceProvider(transport: HTTPResponses([:]))
+        let portfolios = PortfolioStore(prices: prices, currency: currency, rpcStore: .inMemory(),
+                                        priceStore: priceStore) { network, _ in
             network == .mainnet ? mainnet : devnet
         }
         let viewing = try await Self.observe(.fixture(index: 1), on: .devnet, of: portfolios, through: devnet)
@@ -59,6 +63,7 @@ struct PortfolioStoreTests {
         var mainnetReads = mainnet.priceReads.makeAsyncIterator()
         var devnetReads = devnet.priceReads.makeAsyncIterator()
 
+        await priceStore.load()
         await currency.load()
         try await currency.select(.coinbase)
         for code in ["EUR", "JPY"] {
@@ -77,12 +82,14 @@ struct PortfolioStoreTests {
     func `An unsaved currency change ends with the saved choice`() async throws {
         let saved = CurrencySettings(rateSource: .coinbase)
         let currency = CurrencyStore.inMemory(StoredValue(saved, failsSaving: true))
+        let priceStore = PriceStore.inMemory()
         let portfolio = PortfolioChanges(currency: currency)
-        let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])), currency: currency,
-                                        providers: .inMemory()) { _, _ in
+        let portfolios = PortfolioStore(prices: JupiterPriceProvider(transport: HTTPResponses([:])), currency: currency,
+                                        rpcStore: .inMemory(), priceStore: priceStore) { _, _ in
             portfolio
         }
         var reads = portfolio.priceReads.makeAsyncIterator()
+        await priceStore.load()
         await currency.load()
 
         await #expect(throws: CocoaError.self) { try await currency.select(currencyCode: "EUR") }
@@ -96,12 +103,14 @@ struct PortfolioStoreTests {
     @Test
     func `Erasing the currency choice reads no prices`() async throws {
         let currency = CurrencyStore.inMemory(StoredValue(CurrencySettings(rateSource: .coinbase, currencyCode: "EUR")))
+        let priceStore = PriceStore.inMemory()
         let portfolio = PortfolioChanges(currency: currency)
-        let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])), currency: currency,
-                                        providers: .inMemory()) { _, _ in
+        let portfolios = PortfolioStore(prices: JupiterPriceProvider(transport: HTTPResponses([:])), currency: currency,
+                                        rpcStore: .inMemory(), priceStore: priceStore) { _, _ in
             portfolio
         }
         var reads = portfolio.priceReads.makeAsyncIterator()
+        await priceStore.load()
         await currency.load()
 
         try await currency.erase()
@@ -114,15 +123,47 @@ struct PortfolioStoreTests {
         withExtendedLifetime(portfolios) {}
     }
 
+    @Test(.timeLimit(.minutes(1)))
+    func `Each new price provider has every service read its prices once`() async throws {
+        let priceStore = PriceStore.inMemory()
+        let currency = CurrencyStore.inMemory(StoredValue(CurrencySettings(rateSource: .coinbase)))
+        let mainnet = PortfolioChanges(currency: currency)
+        let devnet = PortfolioChanges(currency: currency)
+        let portfolios = PortfolioStore(prices: JupiterPriceProvider(transport: HTTPResponses([:])), currency: currency,
+                                        rpcStore: .inMemory(), priceStore: priceStore) { network, _ in
+            network == .mainnet ? mainnet : devnet
+        }
+        let viewing = try await Self.observe(.fixture(index: 1), on: .devnet, of: portfolios, through: devnet)
+        defer { viewing.cancel() }
+        var mainnetReads = mainnet.priceReads.makeAsyncIterator()
+        var devnetReads = devnet.priceReads.makeAsyncIterator()
+        await priceStore.load()
+        await currency.load()
+
+        for provider in [PriceSettings.Provider.off, .jupiter] {
+            try await priceStore.select(provider)
+            _ = await mainnetReads.next()
+            _ = await devnetReads.next()
+        }
+        try await currency.select(currencyCode: "JPY")
+
+        let expected = CurrencySettings(rateSource: .coinbase, currencyCode: "JPY")
+        let mainnetRead = await mainnetReads.next()
+        let devnetRead = await devnetReads.next()
+        #expect(mainnetRead == expected)
+        #expect(devnetRead == expected)
+        withExtendedLifetime(portfolios) {}
+    }
+
     @Test
     func `A devnet window reads devnet balances without value`() async throws {
         let directory = URL.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
         let responses = HTTPResponses(["getMultipleAccounts": [#"{"context":{"slot":1},"value":[null]}"#]])
-        let providers = ProviderStore.inMemory()
-        let portfolios = PortfolioStore(prices: Jupiter(transport: responses), currency: .inMemory(),
-                                        providers: providers) { network, prices in
-            Portfolio(rpc: responses.providerClient(network: network, providers: providers),
+        let rpcStore = RPCStore.inMemory()
+        let portfolios = PortfolioStore(prices: JupiterPriceProvider(transport: responses), currency: .inMemory(),
+                                        rpcStore: rpcStore, priceStore: .inMemory()) { network, prices in
+            Portfolio(rpc: responses.rpcProvider(network: network, rpcStore: rpcStore),
                       store: FileSnapshotStore(directory: directory),
                       tokenLists: tokenLists(in: directory), prices: prices)
         }
@@ -146,21 +187,21 @@ struct PortfolioStoreTests {
 
     @Test
     func `A new provider ends every service's work before windows observe again`() async throws {
-        let providers = ProviderStore.inMemory(key: StoredValue("fixture-key"))
+        let rpcStore = RPCStore.inMemory(key: StoredValue("fixture-key"))
         let gate = Suspension()
         let mainnet = PortfolioChanges(gate: gate)
         let devnet = PortfolioChanges()
-        let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])), currency: .inMemory(),
-                                        providers: providers) { network, _ in
+        let portfolios = PortfolioStore(prices: JupiterPriceProvider(transport: HTTPResponses([:])), currency: .inMemory(),
+                                        rpcStore: rpcStore, priceStore: .inMemory()) { network, _ in
             network == .mainnet ? mainnet : devnet
         }
         let account = try Account.fixture(index: 1)
         let viewing = await Self.observe(account, on: .devnet, of: portfolios, through: devnet)
         defer { viewing.cancel() }
         var observed = devnet.observedOwners.makeAsyncIterator()
-        await providers.load()
+        await rpcStore.load()
 
-        try await providers.select(.helius)
+        try await rpcStore.select(.helius)
         await gate.waitUntilStarted()
         gate.resume()
 
@@ -171,17 +212,17 @@ struct PortfolioStoreTests {
 
     @Test
     func `A new provider creates no devnet service`() async throws {
-        let providers = ProviderStore.inMemory(selection: .helius, key: "fixture-key")
+        let rpcStore = RPCStore.inMemory(selection: .helius, key: "fixture-key")
         var made: [Network: PortfolioChanges] = [:]
-        let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])), currency: .inMemory(),
-                                        providers: providers) { network, _ in
-            let portfolio = PortfolioChanges(providers: providers)
+        let portfolios = PortfolioStore(prices: JupiterPriceProvider(transport: HTTPResponses([:])), currency: .inMemory(),
+                                        rpcStore: rpcStore, priceStore: .inMemory()) { network, _ in
+            let portfolio = PortfolioChanges(rpcStore: rpcStore)
             made[network] = portfolio
             return portfolio
         }
-        await providers.load()
+        await rpcStore.load()
 
-        try await providers.select(.solana)
+        try await rpcStore.select(.solana)
         let mainnet = try #require(made[.mainnet])
         try await Self.change(of: mainnet, becomes: .solana)
 
@@ -192,18 +233,18 @@ struct PortfolioStoreTests {
 
     @Test
     func `A service that can't remove logos keeps no other from ending its work`() async throws {
-        let providers = ProviderStore.inMemory(selection: .helius, key: "fixture-key")
+        let rpcStore = RPCStore.inMemory(selection: .helius, key: "fixture-key")
         let failing = PortfolioChanges(error: CocoaError(.fileWriteOutOfSpace))
-        let other = PortfolioChanges(providers: providers)
-        let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])), currency: .inMemory(),
-                                        providers: providers) { network, _ in
+        let other = PortfolioChanges(rpcStore: rpcStore)
+        let portfolios = PortfolioStore(prices: JupiterPriceProvider(transport: HTTPResponses([:])), currency: .inMemory(),
+                                        rpcStore: rpcStore, priceStore: .inMemory()) { network, _ in
             network == .mainnet ? failing : other
         }
         let viewing = try await Self.observe(.fixture(index: 1), on: .devnet, of: portfolios, through: other)
         defer { viewing.cancel() }
-        await providers.load()
+        await rpcStore.load()
 
-        try await providers.select(.solana)
+        try await rpcStore.select(.solana)
         try await Self.change(of: other, becomes: .solana)
 
         #expect(await other.providerChanges == 1)
@@ -211,13 +252,13 @@ struct PortfolioStoreTests {
 
     @Test
     func `A new Helius key ends the previous key's work`() async throws {
-        let providers = ProviderStore.inMemory(selection: .helius, key: "fixture-key")
-        let portfolio = PortfolioChanges(providers: providers)
-        let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])), currency: .inMemory(),
-                                        providers: providers) { _, _ in portfolio }
-        await providers.load()
+        let rpcStore = RPCStore.inMemory(selection: .helius, key: "fixture-key")
+        let portfolio = PortfolioChanges(rpcStore: rpcStore)
+        let portfolios = PortfolioStore(prices: JupiterPriceProvider(transport: HTTPResponses([:])), currency: .inMemory(),
+                                        rpcStore: rpcStore, priceStore: .inMemory()) { _, _ in portfolio }
+        await rpcStore.load()
 
-        try await providers.save(key: "fixture-key-2")
+        try await rpcStore.save(key: "fixture-key-2")
         try await Self.change(of: portfolio, becomes: .helius(key: "fixture-key-2"))
 
         #expect(await portfolio.providerChanges == 1)
@@ -227,16 +268,16 @@ struct PortfolioStoreTests {
     @Test
     func `Edits that keep the connection end no work`() async throws {
         let unused = try #require(URL(string: "https://rpc.example.com"))
-        let providers = ProviderStore.inMemory(StoredValue(ProviderSettings(customRPCs: [unused])),
-                                               key: StoredValue("fixture-key"))
-        let portfolio = PortfolioChanges(providers: providers)
-        let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])), currency: .inMemory(),
-                                        providers: providers) { _, _ in portfolio }
-        await providers.load()
+        let rpcStore = RPCStore.inMemory(StoredValue(RPCSettings(customRPCs: [unused])),
+                                         key: StoredValue("fixture-key"))
+        let portfolio = PortfolioChanges(rpcStore: rpcStore)
+        let portfolios = PortfolioStore(prices: JupiterPriceProvider(transport: HTTPResponses([:])), currency: .inMemory(),
+                                        rpcStore: rpcStore, priceStore: .inMemory()) { _, _ in portfolio }
+        await rpcStore.load()
 
-        try await providers.save(key: "fixture-key-2")
-        try await providers.remove(unused)
-        try await providers.select(.helius)
+        try await rpcStore.save(key: "fixture-key-2")
+        try await rpcStore.remove(unused)
+        try await rpcStore.select(.helius)
         try await Self.change(of: portfolio, becomes: .helius(key: "fixture-key-2"))
 
         #expect(await portfolio.providerChanges == 1)
@@ -245,17 +286,17 @@ struct PortfolioStoreTests {
 
     @Test
     func `Erasing the provider settings ends no work`() async throws {
-        let providers = ProviderStore.inMemory(selection: .helius, key: "fixture-key")
-        let portfolio = PortfolioChanges(providers: providers)
-        let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])), currency: .inMemory(),
-                                        providers: providers) { _, _ in portfolio }
+        let rpcStore = RPCStore.inMemory(selection: .helius, key: "fixture-key")
+        let portfolio = PortfolioChanges(rpcStore: rpcStore)
+        let portfolios = PortfolioStore(prices: JupiterPriceProvider(transport: HTTPResponses([:])), currency: .inMemory(),
+                                        rpcStore: rpcStore, priceStore: .inMemory()) { _, _ in portfolio }
         var reads = portfolio.connectionReads.makeAsyncIterator()
-        await providers.load()
+        await rpcStore.load()
 
-        try await providers.erase()
-        await providers.load()
-        try await providers.save(key: "fixture-key-2")
-        try await providers.select(.helius)
+        try await rpcStore.erase()
+        await rpcStore.load()
+        try await rpcStore.save(key: "fixture-key-2")
+        try await rpcStore.select(.helius)
 
         #expect(await reads.next() == .helius(key: "fixture-key-2"))
         #expect(await portfolio.providerChanges == 1)
@@ -264,10 +305,10 @@ struct PortfolioStoreTests {
 
     @Test
     func `A new provider observes the observed wallets again`() async throws {
-        let providers = ProviderStore.inMemory(selection: .helius, key: "fixture-key")
+        let rpcStore = RPCStore.inMemory(selection: .helius, key: "fixture-key")
         let portfolio = PortfolioChanges()
-        let portfolios = PortfolioStore(prices: Jupiter(transport: HTTPResponses([:])), currency: .inMemory(),
-                                        providers: providers) { _, _ in portfolio }
+        let portfolios = PortfolioStore(prices: JupiterPriceProvider(transport: HTTPResponses([:])), currency: .inMemory(),
+                                        rpcStore: rpcStore, priceStore: .inMemory()) { _, _ in portfolio }
         var observed = portfolio.observedOwners.makeAsyncIterator()
         let account = try Account.fixture(index: 1)
         let first = Task { await portfolios.observe(account, on: .mainnet) }
@@ -277,9 +318,9 @@ struct PortfolioStoreTests {
             second.cancel()
         }
         #expect(await observed.next() == account.address.value)
-        await providers.load()
+        await rpcStore.load()
 
-        try await providers.select(.solana)
+        try await rpcStore.select(.solana)
 
         #expect(await observed.next() == account.address.value)
         #expect(await portfolio.providerChanges == 1)
@@ -327,7 +368,7 @@ struct PortfolioStoreTests {
         let responses = HTTPResponses(["getMultipleAccounts": [#"{"context":{"slot":1},"value":[null]}"#]])
         let snapshots = FileSnapshotStore(directory: directory)
         let portfolios = PortfolioStore.serving(Portfolio(
-            rpc: responses.providerClient(network: .devnet, providers: .inMemory()), store: snapshots,
+            rpc: responses.rpcProvider(network: .devnet, rpcStore: .inMemory()), store: snapshots,
             tokenLists: tokenLists(in: directory)))
         let account = try Account.publicWallet()
         let viewing = Task { await portfolios.observe(account, on: .devnet) }
@@ -370,7 +411,7 @@ struct PortfolioStoreTests {
     }
 
     private func filePortfolio(in directory: URL) -> Portfolio {
-        Portfolio(rpc: Solana(network: .mainnet), store: FileSnapshotStore(directory: directory),
+        Portfolio(rpc: SolanaRPC(network: .mainnet), store: FileSnapshotStore(directory: directory),
                   tokenLists: tokenLists(in: directory))
     }
 
@@ -391,7 +432,7 @@ struct PortfolioStoreTests {
     }
 
     private static func change(of service: PortfolioChanges,
-                               becomes connection: ProviderClient.Endpoint) async throws {
+                               becomes connection: SelectedRPCProvider.Endpoint) async throws {
         for await read in service.connectionReads where read == connection { return }
         try Task.checkCancellation()
     }

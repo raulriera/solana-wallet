@@ -6,7 +6,7 @@ enum LiveClients {
     static func client(helius: Bool = true, network: Network = .mainnet,
                        transport: any HTTPTransport = URLSessionTransport()) throws
         -> any RPC & AccountChangeProviding & SignatureEventProviding {
-        guard helius else { return Solana(network: network, transport: transport) }
+        guard helius else { return SolanaRPC(network: network, transport: transport) }
         return HeliusRPC(apiKey: try heliusAPIKey(), network: network, transport: transport)
     }
 

@@ -27,7 +27,7 @@ struct WalletScene: View {
     var body: some View {
         TabView(selection: $section) {
             Tab("Portfolio", systemImage: "wallet.bifold", value: .portfolio) {
-                PortfolioScene(account: account, network: network, connection: services.providerConnection)
+                PortfolioScene(account: account, network: network, connection: services.rpcConnection)
                     .id(network)
                     .id(account.id)
             }
@@ -39,7 +39,8 @@ struct WalletScene: View {
             Tab("Settings", systemImage: "gearshape", value: .settings) {
                 SettingsScene(settings: settings, account: $account, network: $network,
                               security: services.makeSecurityCoordinator(),
-                              providers: services.makeProvidersCoordinator())
+                              rpcCoordinator: services.makeRPCCoordinator(),
+                              pricesCoordinator: services.makePricesCoordinator())
             }
         }
         .tabViewStyle(.tabBarOnly)

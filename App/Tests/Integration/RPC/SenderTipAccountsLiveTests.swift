@@ -11,9 +11,9 @@ struct SenderTipAccountsLiveTests {
         try #require((response as? HTTPURLResponse)?.statusCode == 200)
         let page = String(decoding: data, as: UTF8.self)
 
-        let missing = Sender.tipAccounts.filter { !page.contains($0) }
+        let missing = SenderSubmissionProvider.tipAccounts.filter { !page.contains($0) }
 
         #expect(missing.isEmpty, "Helius no longer lists these tip accounts: \(missing)")
-        #expect(!Sender.tipAccounts.isEmpty)
+        #expect(!SenderSubmissionProvider.tipAccounts.isEmpty)
     }
 }

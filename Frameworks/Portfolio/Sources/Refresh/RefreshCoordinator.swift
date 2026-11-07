@@ -114,9 +114,11 @@ actor RefreshCoordinator {
     ///   - phase: The refresh's phase.
     ///   - snapshotRevision: The snapshot's revision, or zero for a snapshot read from disk.
     /// - Returns: The new update.
-    private func makeUpdate(snapshot: Snapshot?, phase: Update.Phase, snapshotRevision: UInt64) -> Update {
+    private func makeUpdate(snapshot: Snapshot?, phase: Update.Phase, snapshotRevision: UInt64,
+                            priceError: (any Error)? = nil) -> Update {
         revision += 1
-        return Update(snapshot: snapshot, phase: phase, revision: revision, snapshotRevision: snapshotRevision)
+        return Update(snapshot: snapshot, phase: phase, revision: revision, snapshotRevision: snapshotRevision,
+                      priceError: priceError)
     }
 
     /// Removes a consumer and cancels the refresh when none remain.
@@ -171,6 +173,9 @@ actor RefreshCoordinator {
 
     /// Sends the cached state, then reads balances, logos, and prices and saves and sends the result.
     ///
+    /// A failed price lookup values the new balances at the cached prices and sets the update's
+    /// ``Update/priceError``.
+    ///
     /// - Parameters:
     ///   - key: The wallet and network.
     ///   - generation: The refresh's generation.
@@ -193,8 +198,16 @@ actor RefreshCoordinator {
             async let quoteLookup = pricer?.quotes(for: holdings)
             var snapshot = try await balances
             if let found = await logoLookup { snapshot = snapshot.replacingLogos(with: found) }
-            if let pricer, let quotes = try await quoteLookup {
-                snapshot = try pricer.snapshot(pricing: snapshot, with: quotes)
+            var priceError: (any Error)?
+            if let pricer {
+                let quotes: [String: Quote]
+                do {
+                    quotes = try await quoteLookup ?? [:]
+                } catch {
+                    quotes = pricer.quotes(in: cached)
+                    priceError = error
+                }
+                snapshot = pricer.snapshot(pricing: snapshot, with: quotes)
             }
             try Task.checkCancellation()
             guard flights[key]?.generation == generation else { return }
@@ -204,7 +217,8 @@ actor RefreshCoordinator {
             try store.save(snapshot, for: key)
             snapshotRevisions[key] = availableRevision
             finish(key: key, generation: generation,
-                   update: makeUpdate(snapshot: snapshot, phase: .ready, snapshotRevision: availableRevision))
+                   update: makeUpdate(snapshot: snapshot, phase: .ready, snapshotRevision: availableRevision,
+                                      priceError: priceError))
         } catch {
             let update = Task.isCancelled ? nil
                 : makeUpdate(snapshot: available, phase: .failed(error), snapshotRevision: availableRevision)

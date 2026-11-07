@@ -20,17 +20,21 @@ struct SettingsSidebar: View {
                 NavigationLink(value: SettingsDestination.appearance) {
                     Label("Appearance", systemImage: "paintpalette.fill")
                 }
+                NavigationLink(value: SettingsDestination.network) {
+                    Label("Network", systemImage: "network")
+                }
+            }
+            Section {
+                NavigationLink(value: SettingsDestination.rpc) {
+                    Label("RPC", systemImage: "point.3.filled.connected.trianglepath.dotted")
+                }
                 NavigationLink(value: SettingsDestination.currency) {
                     Label("Currency", systemImage: "banknote.fill")
                         .labelStyle(.sidebar(tint: .green))
                 }
-            }
-            Section {
-                NavigationLink(value: SettingsDestination.network) {
-                    Label("Network", systemImage: "network")
-                }
-                NavigationLink(value: SettingsDestination.providers) {
-                    Label("Providers", systemImage: "point.3.filled.connected.trianglepath.dotted")
+                NavigationLink(value: SettingsDestination.prices) {
+                    Label("Prices", systemImage: "chart.line.uptrend.xyaxis")
+                        .labelStyle(.sidebar(tint: .orange))
                 }
             }
         }

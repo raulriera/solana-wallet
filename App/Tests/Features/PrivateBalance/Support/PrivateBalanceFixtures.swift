@@ -28,7 +28,7 @@ enum PrivateBalanceFixtures {
         try await PublicWallet.account(index: index, recoveryID: recoveryID)
     }
 
-    static func customRPC() throws -> ProviderSettings.Provider {
+    static func customRPC() throws -> RPCSettings.Provider {
         .custom(try #require(URL(string: "https://rpc.example.com")))
     }
 

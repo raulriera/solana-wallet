@@ -205,6 +205,84 @@ struct PersistentValueTests {
     }
 
     @Test
+    func `Forgetting reads as unloaded until the next read`() async throws {
+        let storage = StoredValue(["saved"])
+        let persistent = PersistentValue(storage: storage, empty: [String]())
+        await persistent.load()
+
+        try await persistent.forget()
+
+        #expect(persistent.phase == .unloaded)
+        #expect(await storage.value == nil)
+        await persistent.load()
+        #expect(persistent.phase == .loaded)
+        #expect(persistent.value.isEmpty)
+    }
+
+    @Test
+    func `Forgetting hides the value before the deletion finishes`() async throws {
+        let persistent = PersistentValue(storage: StoredValue(["saved"]), empty: [String]())
+        await persistent.load()
+
+        let forgetting = Task.immediate { try await persistent.forget() }
+
+        #expect(persistent.phase == .unloaded)
+        try await forgetting.value
+    }
+
+    @Test
+    func `A read that started before forgetting keeps the value hidden`() async throws {
+        let gate = Suspension()
+        let storage = StoredValue(["saved"], gate: gate)
+        let persistent = PersistentValue(storage: storage, empty: [String]())
+        await persistent.load()
+        let change = Task.immediate { try await persistent.update { $0.append("change") } }
+        await gate.waitUntilStarted()
+        let load = Task.immediate { await persistent.load() }
+
+        let forgetting = Task.immediate { try await persistent.forget() }
+        gate.resume()
+        await load.value
+
+        #expect(persistent.phase == .unloaded)
+        try await change.value
+        try await forgetting.value
+        #expect(persistent.phase == .unloaded)
+    }
+
+    @Test
+    func `A failed forget shows the value again`() async {
+        let storage = StoredValue(["saved"], failsFirstDeletion: true)
+        let persistent = PersistentValue(storage: storage, empty: [String]())
+        await persistent.load()
+
+        await #expect(throws: CocoaError.self) { try await persistent.forget() }
+
+        #expect(persistent.phase == .loaded)
+        #expect(persistent.value == ["saved"])
+    }
+
+    @Test
+    func `A loaded read returns the saved value`() async throws {
+        let storage = StoredValue(["saved"])
+        let persistent = PersistentValue(storage: storage, empty: [String]())
+
+        #expect(try await persistent.loadedValue(orThrow: CocoaError(.fileReadUnknown)) == ["saved"])
+        #expect(try await persistent.loadedValue(orThrow: CocoaError(.fileReadUnknown)) == ["saved"])
+
+        #expect(await storage.loads == 1)
+    }
+
+    @Test
+    func `A loaded read of an unreadable value throws the error`() async {
+        let persistent = PersistentValue(storage: StoredValue(["saved"], unreadable: true), empty: [String]())
+
+        await #expect(throws: CocoaError(.fileReadUnknown)) {
+            try await persistent.loadedValue(orThrow: CocoaError(.fileReadUnknown))
+        }
+    }
+
+    @Test
     func `A failed erase keeps the value`() async throws {
         let storage = StoredValue(["saved"], failsFirstDeletion: true)
         let persistent = PersistentValue(storage: storage, empty: [String]())

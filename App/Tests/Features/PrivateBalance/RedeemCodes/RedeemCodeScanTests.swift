@@ -135,7 +135,7 @@ struct RedeemCodeScanTests {
     }
 
     @MainActor
-    private static func client(_ responses: HTTPResponses) -> ProviderClient {
-        responses.providerClient(network: .devnet, providers: .inMemory(selection: .helius, key: "fixture-key"))
+    private static func client(_ responses: HTTPResponses) -> SelectedRPCProvider {
+        responses.rpcProvider(network: .devnet, rpcStore: .inMemory(selection: .helius, key: "fixture-key"))
     }
 }

@@ -65,7 +65,7 @@ struct ImportWalletScreen: View {
         .confirmationAction("Import Wallet", isEnabled: input.hasPhrase && canDisplayRecovery,
                             isPending: submission.isPending, action: submit)
         .navigationTitle("Import Wallet")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .onChange(of: focusedField?.rawValue ?? 0) { oldValue, newValue in
             let oldField = RecoveryEntryModel.Field(rawValue: oldValue)
             let newField = RecoveryEntryModel.Field(rawValue: newValue)

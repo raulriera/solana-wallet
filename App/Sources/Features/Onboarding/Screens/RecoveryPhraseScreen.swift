@@ -61,7 +61,7 @@ struct RecoveryPhraseScreen: View {
             }
         }
         .navigationTitle("Recovery Phrase")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .onDisappear {
             if isSaved { phrase = nil }
         }

@@ -17,17 +17,17 @@ final class PrivateBalanceStore: Erasable {
     /// - Parameters:
     ///   - balances: The private balances of every account.
     ///   - transactions: The transaction store.
-    ///   - providers: The provider settings.
+    ///   - rpcStore: The provider settings.
     ///   - pollInterval: The time between polls.
     ///   - followUpInterval: The time between polls that follow up on pending SOL.
-    init(balances: any PrivateBalancing, transactions: TransactionStore, providers: ProviderStore,
+    init(balances: any PrivateBalancing, transactions: TransactionStore, rpcStore: RPCStore,
          pollInterval: Duration = .seconds(30), followUpInterval: Duration = .seconds(3)) {
         privateBalances = balances
         self.transactions = transactions
         self.pollInterval = pollInterval
         self.followUpInterval = followUpInterval
         Task { [weak self] in
-            for await _ in Observations({ providers.connection }).changes() {
+            for await _ in Observations({ rpcStore.connection }).changes() {
                 guard let self else { return }
                 providerDidChange()
             }

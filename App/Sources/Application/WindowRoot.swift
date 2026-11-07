@@ -15,7 +15,7 @@ struct WindowRoot: View {
             } else {
                 Color.clear
                     .task {
-                        await services.providerStore.load()
+                        await services.rpcStore.load()
                         guard !Task.isCancelled else { return }
                         window = WindowModel(accounts: services.accountStore)
                     }
@@ -30,7 +30,8 @@ struct WindowRoot: View {
         .environment(\.accountCreation, services.accountCreation)
         .environment(services.portfolios)
         .environment(services.privateBalanceStore)
-        .environment(services.providerStore)
+        .environment(services.rpcStore)
+        .environment(services.priceStore)
         .environment(services.transactionStore)
     }
 }

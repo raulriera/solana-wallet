@@ -21,8 +21,8 @@ struct PortfolioPresentationTests {
         #expect(PortfolioPresentation(Update(snapshot: snapshot, phase: phase, revision: 1)) == .holdings)
     }
 
-    @Test(arguments: [ProviderClientError.missingKey, .invalidKey, .unsupportedNetwork], [false, true])
-    func `Provider setup failures replace holdings`(error: ProviderClientError, hasHoldings: Bool) {
+    @Test(arguments: [RPCProviderError.missingKey, .invalidKey, .unsupportedNetwork], [false, true])
+    func `Provider setup failures replace holdings`(error: RPCProviderError, hasHoldings: Bool) {
         let update = Update(snapshot: hasHoldings ? snapshot : nil, phase: .failed(error), revision: 1)
         #expect(PortfolioPresentation(update) == .unavailable(PortfolioError(error)))
     }

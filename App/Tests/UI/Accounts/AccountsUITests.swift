@@ -97,7 +97,7 @@ final class AccountsUITests: XCTestCase {
     }
 
     private func info(_ name: String, in flow: OnboardingApp) -> XCUIElement {
-        flow.app.cells.containing(Self.rowLabel(beginningWith: name)).buttons["More Info"].firstMatch
+        flow.app.buttons["More Info About \(name)"].firstMatch
     }
 
     private static func rowLabel(beginningWith name: String) -> NSPredicate {

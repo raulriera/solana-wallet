@@ -27,7 +27,7 @@ struct PaymentResultScreen: TransactionResultContent {
             }
         }
         .navigationTitle(Text(verbatim: review.proposal.recipient.title))
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .onChange(of: outcome, initial: true) { isFocused = true }
     }
 

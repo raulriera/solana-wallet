@@ -1,10 +1,11 @@
 import RPC
 import SwiftUI
 
-/// Shows a window's Settings tab with its Security & Privacy and Providers workflows.
+/// Shows a window's Settings tab with its Security & Privacy and RPC workflows.
 struct SettingsScene: View {
     @State private var security: SecurityCoordinator
-    @State private var providers: ProvidersCoordinator
+    @State private var rpcCoordinator: RPCCoordinator
+    @State private var pricesCoordinator: PricesCoordinator
     @Binding var network: Network
     let settings: AppearanceSettingsModel
     @Binding var account: Account
@@ -16,11 +17,14 @@ struct SettingsScene: View {
     ///   - account: The window's account.
     ///   - network: The window's network.
     ///   - security: The Security & Privacy workflow.
-    ///   - providers: The RPC provider workflow.
+    ///   - rpcCoordinator: The RPC provider workflow.
+    ///   - pricesCoordinator: The price provider workflow.
     init(settings: AppearanceSettingsModel, account: Binding<Account>,
-         network: Binding<Network>, security: SecurityCoordinator, providers: ProvidersCoordinator) {
+         network: Binding<Network>, security: SecurityCoordinator, rpcCoordinator: RPCCoordinator,
+         pricesCoordinator: PricesCoordinator) {
         self.security = security
-        self.providers = providers
+        self.rpcCoordinator = rpcCoordinator
+        self.pricesCoordinator = pricesCoordinator
         _network = network
         self.settings = settings
         _account = account
@@ -28,7 +32,7 @@ struct SettingsScene: View {
 
     var body: some View {
         SettingsSplitView(settings: settings, account: $account, network: $network, security: security,
-                          providers: providers)
+                          rpcCoordinator: rpcCoordinator, pricesCoordinator: pricesCoordinator)
             .settingsLifecycle()
     }
 }

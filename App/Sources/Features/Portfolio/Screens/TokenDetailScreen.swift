@@ -98,7 +98,7 @@ struct TokenDetailScreen: View {
         }
         .monospacedDigit()
         .navigationTitle(holding.displayName)
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .toolbar {
             if holding.id != .nativeSOL {
                 ToolbarItem(placement: .primaryAction) {
@@ -147,7 +147,7 @@ private extension TransactionStore {
 private extension PrivateBalanceStore {
     static var preview: PrivateBalanceStore {
         PrivateBalanceStore(balances: PreviewPrivateBalances(), transactions: .preview,
-                            providers: ProviderStore(service: "preview"))
+                            rpcStore: RPCStore(service: "preview"))
     }
 }
 

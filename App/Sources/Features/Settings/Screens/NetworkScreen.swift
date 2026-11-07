@@ -31,7 +31,7 @@ struct NetworkScreen: View {
         }
         .formStyle(.choices)
         .navigationTitle("Network")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
     }
 }
 

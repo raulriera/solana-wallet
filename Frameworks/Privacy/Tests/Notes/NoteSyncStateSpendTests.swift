@@ -74,7 +74,7 @@ struct NoteSyncStateSpendTests {
         var spendGenerator = SeededGenerator(seed: 7)
 
         let result = try await state.spend(
-            spend.lamports, to: destination, from: sender, rpc: Solana.devnet(transport: transport), prover: Self.prover(transport),
+            spend.lamports, to: destination, from: sender, rpc: SolanaRPC.devnet(transport: transport), prover: Self.prover(transport),
             using: &spendGenerator
         )
 
@@ -102,8 +102,8 @@ struct NoteSyncStateSpendTests {
         var spendGenerator = SeededGenerator(seed: 7)
 
         let result = try await state.spend(
-            9, to: destination, from: sender, rpc: Solana.devnet(transport: transport), prover: Self.prover(transport),
-            using: &spendGenerator
+            9, to: destination, from: sender, rpc: SolanaRPC.devnet(transport: transport),
+            prover: Self.prover(transport), using: &spendGenerator
         )
 
         #expect(result.inputTreeID == 2)
@@ -122,7 +122,7 @@ struct NoteSyncStateSpendTests {
         let solInterface = try ShieldedPool.solInterface
 
         let result = try await state.spend(
-            6, to: .fundedTransfer(recipient, publicLamports: 5), from: sender, rpc: Solana.devnet(transport: transport),
+            6, to: .fundedTransfer(recipient, publicLamports: 5), from: sender, rpc: SolanaRPC.devnet(transport: transport),
             prover: Self.prover(transport)
         )
 
@@ -143,7 +143,7 @@ struct NoteSyncStateSpendTests {
         let transport = try Self.transport(queued: [queued])
 
         let result = try await state.spend(
-            4, to: .transfer(recipient), from: sender, rpc: Solana.devnet(transport: transport), prover: Self.prover(transport)
+            4, to: .transfer(recipient), from: sender, rpc: SolanaRPC.devnet(transport: transport), prover: Self.prover(transport)
         )
 
         #expect(result.nullifiers == [notes[1].nullifier])
@@ -162,8 +162,8 @@ struct NoteSyncStateSpendTests {
         let transport = StubTransport { request in try IndexerResponses.spendReads(answering: request, queued: [queued]) }
 
         await #expect(throws: PrivateSpend.ValidationError.insufficientFunds) {
-            try await state.spend(4, to: .transfer(recipient), from: sender, rpc: Solana.devnet(transport: transport),
-                                  prover: Self.prover(transport))
+            try await state.spend(4, to: .transfer(recipient), from: sender,
+                                  rpc: SolanaRPC.devnet(transport: transport), prover: Self.prover(transport))
         }
         #expect(await transport.requests.compactMap { $0.url?.host() } == ["api.devnet.solana.com"])
     }
@@ -180,7 +180,7 @@ struct NoteSyncStateSpendTests {
         let destination = try self.destination(destination)
 
         await #expect(throws: ValidationError.invalidAmount) {
-            try await state.spend(lamports, to: destination, from: sender, rpc: Solana.devnet(transport: transport),
+            try await state.spend(lamports, to: destination, from: sender, rpc: SolanaRPC.devnet(transport: transport),
                                   prover: Self.prover(transport))
         }
         #expect(await transport.requests.isEmpty)
@@ -205,7 +205,7 @@ struct NoteSyncStateSpendTests {
         let destination = try self.destination(destination)
 
         await #expect(throws: error) {
-            try await state.spend(lamports, to: destination, from: sender, rpc: Solana.devnet(transport: transport),
+            try await state.spend(lamports, to: destination, from: sender, rpc: SolanaRPC.devnet(transport: transport),
                                   prover: Self.prover(transport))
         }
         #expect(await transport.requests.isEmpty)
@@ -218,7 +218,7 @@ struct NoteSyncStateSpendTests {
                                       localSpends: [], rejectedSpends: [], missingSpendReads: [:])
 
         await #expect(throws: PrivateSpend.ValidationError.insufficientFunds) {
-            try await state.spend(4, to: .transfer(try TransferVectors.recipient()), from: sender, rpc: Solana.devnet(transport: transport),
+            try await state.spend(4, to: .transfer(try TransferVectors.recipient()), from: sender, rpc: SolanaRPC.devnet(transport: transport),
                                   prover: Self.prover(transport))
         }
         #expect(state.spendableLamports == 0)

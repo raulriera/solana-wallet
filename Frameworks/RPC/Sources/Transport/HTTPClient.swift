@@ -62,10 +62,26 @@ struct HTTPClient: Sendable, CustomStringConvertible, CustomDebugStringConvertib
     func get<Response: Decodable & Sendable>(
         at path: String, query: [URLQueryItem], maximumLength: Int, decoding response: Response.Type
     ) async throws -> Response {
+        try Self.decode(Response.self, from: await get(at: path, query: query, maximumLength: maximumLength))
+    }
+
+    /// Gets the endpoint, or a path below it, with a query and returns the response body.
+    ///
+    /// - Parameters:
+    ///   - path: One or more path components without a leading slash, or `nil` for the endpoint itself.
+    ///   - query: The query items.
+    ///   - headers: The request's header fields.
+    ///   - maximumLength: The longest response body, in bytes, to accept.
+    /// - Returns: The response body.
+    /// - Throws: ``RPCError/InvalidResponse/oversized`` for a longer response body, another ``RPCError``, or
+    ///   `CancellationError`.
+    @concurrent
+    func get(at path: String? = nil, query: [URLQueryItem], headers: [String: String] = [:],
+             maximumLength: Int) async throws -> Data {
         try Task.checkCancellation()
-        let request = makeRequest(to: endpoint.appending(path: path).appending(queryItems: query), method: "GET")
-        let data = try await transport.responseData(for: request, maximumLength: maximumLength, redactor: redactor)
-        return try decode(Response.self, from: data)
+        let url = path.map { endpoint.appending(path: $0) } ?? endpoint
+        let request = makeRequest(to: url.appending(queryItems: query), method: "GET", headers: headers)
+        return try await transport.responseData(for: request, maximumLength: maximumLength, redactor: redactor)
     }
 
     /// Posts a body to a path below the endpoint, reads a JSON body from the response with any status, and decodes
@@ -91,8 +107,7 @@ struct HTTPClient: Sendable, CustomStringConvertible, CustomDebugStringConvertib
         decoding response: Response.Type
     ) async throws -> Response {
         try Task.checkCancellation()
-        var request = makeRequest(to: endpoint.appending(path: path), method: "POST")
-        for (field, value) in headers { request.setValue(value, forHTTPHeaderField: field) }
+        var request = makeRequest(to: endpoint.appending(path: path), method: "POST", headers: headers)
         request.httpBody = body
         let (data, httpResponse) = try await transport.response(
             for: request,
@@ -105,7 +120,7 @@ struct HTTPClient: Sendable, CustomStringConvertible, CustomDebugStringConvertib
         } catch {
             throw RPCError.sanitized(error, redactor: redactor)
         }
-        return try decode(Response.self, from: json)
+        return try Self.decode(Response.self, from: json)
     }
 
     /// Sends one JSON-RPC request to a URL and validates its response envelope.
@@ -128,7 +143,7 @@ struct HTTPClient: Sendable, CustomStringConvertible, CustomDebugStringConvertib
             redactor: redactor
         )
 
-        let reply = try decode(JSONRPCResponse<Request.Response>.self, from: data)
+        let reply = try Self.decode(JSONRPCResponse<Request.Response>.self, from: data)
         switch reply.result {
         case .success(let value):
             guard reply.id == id else { throw RPCError.invalidResponse(.mismatchedID) }
@@ -152,7 +167,7 @@ struct HTTPClient: Sendable, CustomStringConvertible, CustomDebugStringConvertib
     ///   - data: The response body.
     /// - Returns: The decoded value.
     /// - Throws: ``RPCError/decoding``, an ``RPCError`` that the value's decoding throws, or `CancellationError`.
-    private func decode<Value: Decodable>(_ type: Value.Type, from data: Data) throws -> Value {
+    static func decode<Value: Decodable>(_ type: Value.Type, from data: Data) throws -> Value {
         let value: Value
         do {
             value = try JSONDecoder().decode(Value.self, from: data)
@@ -189,10 +204,12 @@ struct HTTPClient: Sendable, CustomStringConvertible, CustomDebugStringConvertib
     /// - Parameters:
     ///   - url: The request's URL.
     ///   - method: The HTTP method.
+    ///   - headers: The request's header fields.
     /// - Returns: The request.
-    private func makeRequest(to url: URL, method: String) -> URLRequest {
+    private func makeRequest(to url: URL, method: String, headers: [String: String] = [:]) -> URLRequest {
         var request = URLRequest(url: url, timeoutInterval: 30)
         request.httpMethod = method
+        for (field, value) in headers { request.setValue(value, forHTTPHeaderField: field) }
         return request
     }
 }

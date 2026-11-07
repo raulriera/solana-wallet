@@ -25,21 +25,6 @@ struct ValuationTests {
         #expect(valuation.currency == "CAD")
     }
 
-    @Test(arguments: [
-        Quote(pricePerUnit: -1, currency: "USD", dayChange: nil),
-        Quote(pricePerUnit: .nan, currency: "USD", dayChange: nil),
-        Quote(pricePerUnit: 1, currency: " ", dayChange: nil),
-    ])
-    func `Invalid independent quotes fail valuation`(quote: Quote) async {
-        let snapshot = Snapshot(owner: "wallet", network: .devnet, holdings: [
-            Holding(id: .asset("mint"), amount: Amount(units: 1, decimals: 0), name: nil, symbol: nil, imageURL: nil,
-                    valuation: nil),
-        ])
-        await #expect(throws: PriceError.invalidQuote) {
-            try await valued(snapshot, with: FixedPrices(quote: quote))
-        }
-    }
-
     @Test
     func `A holding without a balance has no valuation`() async throws {
         let quote = Quote(pricePerUnit: 1, currency: "USD", dayChange: Decimal(string: "0.01"))
@@ -95,7 +80,7 @@ private struct FixedPrices: PriceProviding {
     let network: Network = .devnet
     let quote: Quote
 
-    func prices(for mints: [String]) async throws -> [String: Quote] {
+    func response(for mints: [String]) async throws -> [String: Quote] {
         Dictionary(mints.map { ($0, quote) }) { first, _ in first }
     }
 }

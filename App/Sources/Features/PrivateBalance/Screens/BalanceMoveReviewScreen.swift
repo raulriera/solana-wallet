@@ -54,7 +54,7 @@ struct BalanceMoveReviewScreen: TransactionReviewContent {
         .monospacedDigit()
         .animation(.default, value: costs)
         .navigationTitle("Review")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .confirmationAction(move.direction.title, systemImage: move.direction == .toPrivate ? "eye.slash" : "eye",
                             isEnabled: review.canApprove, isPending: review.attempt != nil || review.isSending,
                             action: review.approve)

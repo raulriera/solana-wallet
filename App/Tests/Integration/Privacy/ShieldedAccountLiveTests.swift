@@ -11,7 +11,7 @@ struct ShieldedAccountLiveTests {
     func `Registered owners read as registered with other keys`(owner: String) async throws {
         let account = try Self.randomKeys(for: Address(owner))
 
-        let registration = try await account.registration(using: Solana(network: .devnet))
+        let registration = try await account.registration(using: SolanaRPC(network: .devnet))
 
         #expect(registration == .registeredWithOtherKeys)
     }
@@ -20,7 +20,7 @@ struct ShieldedAccountLiveTests {
     func `Random addresses are unregistered`() async throws {
         let address = try Address(Base58.encode(Array(Curve25519.Signing.PrivateKey().publicKey.rawRepresentation)))
 
-        let registration = try await Self.randomKeys(for: address).registration(using: Solana(network: .devnet))
+        let registration = try await Self.randomKeys(for: address).registration(using: SolanaRPC(network: .devnet))
 
         #expect(registration == .unregistered)
     }
@@ -28,7 +28,7 @@ struct ShieldedAccountLiveTests {
     @Test
     func `Syncs with other keys find no notes and resume`() async throws {
         let account = try Self.randomKeys(for: Address(ShieldedPoolOwners.devnet[0]))
-        let (rpc, indexer) = (Solana(network: .devnet), Zolana(network: .devnet))
+        let (rpc, indexer) = (SolanaRPC(network: .devnet), Zolana(network: .devnet))
 
         let first = try await NoteSyncState().synced(for: account, rpc: rpc, indexer: indexer)
         let later = try await first.synced(for: account, rpc: rpc, indexer: indexer)

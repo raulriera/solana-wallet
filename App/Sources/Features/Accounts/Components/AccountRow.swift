@@ -18,7 +18,7 @@ struct AccountRow: View {
             }
             .checked(selection.id == account.id)
 
-            Button("More Info", systemImage: "info.circle") { path.append(.account(account.id)) }
+            Button(moreInfoAbout: "\(account.name)") { path.append(.account(account.id)) }
                 .buttonStyle(.moreInfo)
         }
     }

@@ -5,15 +5,15 @@ struct PortfolioObservationRoot: View {
     let portfolios: PortfolioStore
     let shown: ShownWallet
     var transactions = TransactionStore.unused
-    var providers = ProviderStore.inMemory()
+    var rpcStore = RPCStore.inMemory()
 
     var body: some View {
         Color.clear
             .portfolioObservation(of: shown.account, on: shown.network)
             .environment(portfolios)
             .environment(transactions)
-            .environment(providers)
-            .task { await providers.load() }
+            .environment(rpcStore)
+            .task { await rpcStore.load() }
             .environment(\.scenePhase, shown.phase)
     }
 }

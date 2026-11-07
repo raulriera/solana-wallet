@@ -31,8 +31,8 @@ actor AccountResponses: HTTPTransport {
     private let respond: Responder
     private let logos: LogoResponder
 
-    nonisolated var client: Solana {
-        Solana(network: network, transport: self)
+    nonisolated var client: SolanaRPC {
+        SolanaRPC(network: network, transport: self)
     }
 
     nonisolated var heliusClient: HeliusRPC {

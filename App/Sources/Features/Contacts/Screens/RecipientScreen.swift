@@ -42,6 +42,6 @@ struct RecipientScreen: View {
         }
         .animation(.default, value: saved?.id)
         .navigationTitle(lists.recipient(for: address).title)
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
     }
 }

@@ -5,17 +5,12 @@ struct ThemeRow: View {
     let entry: ThemeEntry
     let isSelected: Bool
     let actions: any ThemeActions
-    @State private var removal: ThemeEntry?
 
     var body: some View {
         Button(entry.name, action: select)
             .checked(isSelected)
-            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                if entry.origin == .custom {
-                    SwipeDeleteButton(removal: $removal, item: entry)
-                }
-            }
-            .confirmation("Delete Theme?", action: "Delete", item: $removal, perform: actions.remove) { approved in
+            .swipeDelete(entry.origin == .custom ? entry : nil, title: "Delete Theme?",
+                         perform: actions.remove) { approved in
                 Text("\(approved.name) will be deleted from this device.",
                      comment: "The Delete Theme confirmation's message. The variable is the theme's name.")
             }

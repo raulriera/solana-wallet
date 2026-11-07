@@ -15,7 +15,7 @@ struct UTXORootHistoryLiveTests {
                                 nullifier: .zero)
         }
 
-        let statuses = try await ReceivedNote.inclusionStatuses(of: notes, rpc: Solana(network: .devnet),
+        let statuses = try await ReceivedNote.inclusionStatuses(of: notes, rpc: SolanaRPC(network: .devnet),
                                                                 indexer: Zolana(network: .devnet))
 
         #expect(statuses == Array(repeating: .included, count: notes.count))

@@ -78,9 +78,9 @@ struct WalletPrivateBalanceTests {
     @Test
     func `A failed first read without saved notes polls until a read succeeds`() async throws {
         let account = try await PrivateBalanceFixtures.account()
-        let providers = ProviderStore.inMemory(selection: .helius, key: "failing-key")
+        let rpcStore = RPCStore.inMemory(selection: .helius, key: "failing-key")
         let balance = try await Self.balance(
-            of: account, providers: providers,
+            of: account, rpcStore: rpcStore,
             responses: HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered]),
             otherResponses: HTTPResponses.privateNotes(error: .http(statusCode: 500, retryAfter: nil))
         )
@@ -88,7 +88,7 @@ struct WalletPrivateBalanceTests {
         let failedStatus = balance.status
         let wasStale = balance.isStale
 
-        try await providers.save(key: "fixture-key")
+        try await rpcStore.save(key: "fixture-key")
         await balance.poll()
 
         #expect(failedStatus == nil)
@@ -269,17 +269,17 @@ struct WalletPrivateBalanceTests {
     func `Paused polling waits for a refresh that succeeds`() async throws {
         let account = try await PrivateBalanceFixtures.account()
         let responses = HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered])
-        let providers = ProviderStore.inMemory(selection: .helius, key: "fixture-key")
+        let rpcStore = RPCStore.inMemory(selection: .helius, key: "fixture-key")
         let balance = try await Self.balance(
-            of: account, providers: providers, responses: responses,
+            of: account, rpcStore: rpcStore, responses: responses,
             otherResponses: HTTPResponses.privateNotes(error: .http(statusCode: 401, retryAfter: nil))
         )
         await balance.refresh()
 
-        try await providers.save(key: "rejected-key")
+        try await rpcStore.save(key: "rejected-key")
         await balance.poll()
         let isPaused = balance.isPollingPaused
-        try await providers.save(key: "fixture-key")
+        try await rpcStore.save(key: "fixture-key")
         let pausedRequests = await responses.requests.count
         await balance.poll()
         let pausedPollRequests = await responses.requests.count - pausedRequests
@@ -315,14 +315,14 @@ struct WalletPrivateBalanceTests {
         #expect(balance.isPollingPaused)
     }
 
-    private static func balance(of account: widgets.Account, providers: ProviderStore, responses: HTTPResponses,
+    private static func balance(of account: widgets.Account, rpcStore: RPCStore, responses: HTTPResponses,
                                 otherResponses: HTTPResponses) async throws -> WalletPrivateBalance {
         let record = try await PrivateBalanceFixtures.keys(for: account)
         let balances = PrivateBalances(recovery: try PrivateBalanceFixtures.recoveryStore(), wallet: Wallet(),
                                        keys: StoredValue([account.address.value: record]), notes: StoredValue(),
                                        codes: StoredValue()) { network in
-            ProviderClient(network: network, providers: providers,
-                           rings: StubProver.zolana(on: network, transport: responses)) { endpoint, network in
+            SelectedRPCProvider(network: network, rpcStore: rpcStore,
+                                rings: StubProver.zolana(on: network, transport: responses)) { endpoint, network in
                 (endpoint == .helius(key: "fixture-key") ? responses : otherResponses).client(for: endpoint, on: network)
             }
         }

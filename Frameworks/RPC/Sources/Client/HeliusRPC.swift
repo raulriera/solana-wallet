@@ -5,7 +5,7 @@ public struct HeliusRPC: RPC, AccountChangeProviding, SignatureEventProviding, L
                          CustomStringConvertible, CustomDebugStringConvertible {
     public var network: Network { rpc.network }
 
-    private let rpc: Solana
+    private let rpc: SolanaRPC
 
     /// Creates a client for the selected network.
     ///
@@ -40,7 +40,7 @@ public struct HeliusRPC: RPC, AccountChangeProviding, SignatureEventProviding, L
         let socketEndpoint = URL(string: "wss://\(host)/")!
             .appending(queryItems: [URLQueryItem(name: "api-key", value: apiKey)])
         let redactor = SecretRedactor(urls: [endpoint, socketEndpoint])
-        rpc = Solana(network: network, endpoint: endpoint, socketEndpoint: socketEndpoint,
+        rpc = SolanaRPC(network: network, endpoint: endpoint, socketEndpoint: socketEndpoint,
                      redactor: redactor, transport: transport, socket: socket)
     }
 

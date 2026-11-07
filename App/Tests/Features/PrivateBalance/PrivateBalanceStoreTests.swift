@@ -60,15 +60,15 @@ struct PrivateBalanceStoreTests {
         let record = try await PrivateBalanceFixtures.keys(for: account)
         let registry = try PrivateBalanceFixtures.registry(publishing: record.shieldedAccount(for: account.address))
         let responses = HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered, registry])
-        let providers = ProviderStore.inMemory(selection: .helius, key: "fixture-key")
-        await providers.load()
+        let rpcStore = RPCStore.inMemory(selection: .helius, key: "fixture-key")
+        await rpcStore.load()
         let store = try PrivateBalanceStore.fixture(responses, keys: StoredValue([account.address.value: record]),
-                                                    providers: providers, pollInterval: .seconds(3_600))
+                                                    rpcStore: rpcStore, pollInterval: .seconds(3_600))
         let viewing = Task { await store.observe(account, on: .devnet) }
         defer { viewing.cancel() }
         try await PrivateBalanceFixtures.status(of: account, in: store, becomes: .unregistered)
 
-        try await providers.select(.solana)
+        try await rpcStore.select(.solana)
 
         try await PrivateBalanceFixtures.status(of: account, in: store, becomes: .balance(available: 0, pending: 0))
     }

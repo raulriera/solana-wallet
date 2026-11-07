@@ -51,6 +51,6 @@ struct RecoveryBackupScreen: View {
             }
         }
         .navigationTitle("Recovery Phrase")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
     }
 }

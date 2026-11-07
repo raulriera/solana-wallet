@@ -20,21 +20,23 @@ final class PortfolioStore: Erasable {
     /// - Parameters:
     ///   - prices: The price provider.
     ///   - currency: The currency choice that prices convert to.
-    ///   - providers: The provider settings that the services read through.
+    ///   - rpcStore: The provider settings that the services read through.
+    ///   - priceStore: The price provider choice that prices follow.
     ///   - make: A function that creates a network's service with its price provider, if any.
-    init(prices: any PriceProviding, currency: CurrencyStore, providers: ProviderStore,
+    init(prices: any PriceProviding, currency: CurrencyStore, rpcStore: RPCStore, priceStore: PriceStore,
          make: @escaping (Network, (any PriceProviding)?) -> Service) {
         self.prices = prices
         self.make = make
         _ = service(for: .mainnet)
         Task { [weak self] in
-            for await _ in Observations({ currency.settings }).changes() {
+            for await _ in Observations({ Pricing(currency: currency.settings,
+                                                  provider: priceStore.settings?.selection) }).changes() {
                 guard let self else { return }
                 await pricesDidChange()
             }
         }
         Task { [weak self] in
-            for await _ in Observations({ providers.connection }).changes() {
+            for await _ in Observations({ rpcStore.connection }).changes() {
                 guard let self else { return }
                 await providerDidChange()
             }
@@ -123,7 +125,7 @@ final class PortfolioStore: Erasable {
         return portfolio
     }
 
-    /// Has every created service read its prices again after a change to the currency choice.
+    /// Has every created service read its prices again after a change to the currency or the price provider.
     private func pricesDidChange() async {
         await forEachService { await $0.pricesDidChange() }
     }
@@ -153,6 +155,23 @@ final class PortfolioStore: Erasable {
         let service = make(network, prices.network == network ? prices : nil)
         services[network] = service
         return service
+    }
+
+    /// The choices that portfolio prices depend on.
+    nonisolated private struct Pricing: Equatable, Sendable {
+        let currency: CurrencySettings
+        let provider: PriceSettings.Provider
+
+        /// Creates the choices that prices depend on, or `nil` until both are read.
+        ///
+        /// - Parameters:
+        ///   - currency: The currency choice, or `nil` while it isn't read.
+        ///   - provider: The price provider in use, or `nil` while it isn't read.
+        init?(currency: CurrencySettings?, provider: PriceSettings.Provider?) {
+            guard let currency, let provider else { return nil }
+            self.currency = currency
+            self.provider = provider
+        }
     }
 
     /// A wallet's address and network, which identify its shared portfolio.

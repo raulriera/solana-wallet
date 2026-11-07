@@ -22,7 +22,7 @@ struct GetTransactionTests {
     func `Transaction reads ask for finalized V1 transactions as JSON`() async throws {
         let transport = StubTransport { try reply(to: $0, payload: #""result":null"#) }
 
-        _ = try await Solana.devnet(transport: transport).send(GetTransaction(signature: Self.signature))
+        _ = try await SolanaRPC.devnet(transport: transport).send(GetTransaction(signature: Self.signature))
 
         let body = try requestBody(try #require(await transport.requests.first))
         #expect(body["method"] as? String == "getTransaction")
@@ -133,7 +133,7 @@ struct GetTransactionTests {
 
     private func read(_ result: String) async throws -> GetTransaction.Value? {
         let transport = StubTransport { try reply(to: $0, payload: #""result":\#(result)"#) }
-        return try await Solana.devnet(transport: transport).send(GetTransaction(signature: Self.signature))
+        return try await SolanaRPC.devnet(transport: transport).send(GetTransaction(signature: Self.signature))
     }
 
     private static func transaction(

@@ -16,7 +16,7 @@ struct ShieldedAccountRegistrationCostTests {
         let vector = try #require(try RegistryVectors.load().records.first)
         let transport = Self.transport(returning: account)
 
-        let cost = try await TransferVectors.sender().registrationCost(using: Solana(network: .devnet, transport: transport))
+        let cost = try await TransferVectors.sender().registrationCost(using: SolanaRPC(network: .devnet, transport: transport))
 
         let requests = try await transport.requests.map(requestBody)
         let read = try #require(requests.first { $0["method"] as? String == "getMultipleAccounts" })
@@ -30,7 +30,8 @@ struct ShieldedAccountRegistrationCostTests {
         let transport = Self.transport(returning: "null,null")
 
         await #expect(throws: UserRegistry.ValidationError.mismatchedResponse) {
-            try await TransferVectors.sender().registrationCost(using: Solana(network: .devnet, transport: transport))
+            try await TransferVectors.sender()
+                .registrationCost(using: SolanaRPC(network: .devnet, transport: transport))
         }
     }
 

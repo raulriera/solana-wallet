@@ -14,29 +14,29 @@ final class OnboardingNavigation {
     }
     /// Every screen above welcome, including the screens that the provider choice pushes.
     var stack: [OnboardingStep] {
-        get { path + providers.path.map(OnboardingStep.providersRoute) }
+        get { path + rpcCoordinator.path.map(OnboardingStep.rpcRoute) }
         set {
             let steps = newValue.filter { step in
-                if case .providersRoute = step { false } else { true }
+                if case .rpcRoute = step { false } else { true }
             }
-            let routes = newValue.compactMap { step -> ProvidersRoute? in
-                if case .providersRoute(let route) = step { route } else { nil }
+            let routes = newValue.compactMap { step -> RPCRoute? in
+                if case .rpcRoute(let route) = step { route } else { nil }
             }
             if path != steps { path = steps }
-            if providers.path != routes { providers.path = routes }
+            if rpcCoordinator.path != routes { rpcCoordinator.path = routes }
         }
     }
     private let walletImport: ImportWalletModel
-    private let providers: ProvidersCoordinator
+    private let rpcCoordinator: RPCCoordinator
 
     /// Creates an empty navigation path.
     ///
     /// - Parameters:
     ///   - walletImport: The window's import model.
-    ///   - providers: The window's provider coordinator.
-    init(walletImport: ImportWalletModel, providers: ProvidersCoordinator) {
+    ///   - rpcCoordinator: The window's RPC coordinator.
+    init(walletImport: ImportWalletModel, rpcCoordinator: RPCCoordinator) {
         self.walletImport = walletImport
-        self.providers = providers
+        self.rpcCoordinator = rpcCoordinator
     }
 
     /// Pushes phrase entry when the import can start.

@@ -59,7 +59,7 @@ struct RecipientPaymentStack<Details: View>: View {
                                       systemImage: "wallet.bifold") {}
                         .navigationTitle(Text(verbatim: recipient.title))
                         .navigationSubtitle(Text(verbatim: recipient.subtitle))
-                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbarTitleDisplayMode(.inline)
                 }
             }
             .toolbar {

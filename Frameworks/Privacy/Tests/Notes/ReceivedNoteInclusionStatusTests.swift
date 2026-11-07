@@ -31,7 +31,7 @@ struct ReceivedNoteInclusionStatusTests {
         let transport = Self.transport(proofs: proofs, accounts: accounts)
 
         let statuses = try await ReceivedNote.inclusionStatuses(
-            of: [includedNote, unconfirmedNote, refutedNote], rpc: Solana.devnet(transport: transport),
+            of: [includedNote, unconfirmedNote, refutedNote], rpc: SolanaRPC.devnet(transport: transport),
             indexer: Zolana(network: .devnet, transport: transport)
         )
 
@@ -67,7 +67,7 @@ struct ReceivedNoteInclusionStatusTests {
         let transport = Self.transport(proofs: proofs, accounts: accounts)
 
         let statuses = try await ReceivedNote.inclusionStatuses(
-            of: [includedNote, otherLeafNote, otherTreeNote], rpc: Solana.devnet(transport: transport),
+            of: [includedNote, otherLeafNote, otherTreeNote], rpc: SolanaRPC.devnet(transport: transport),
             indexer: Zolana(network: .devnet, transport: transport)
         )
 
@@ -79,7 +79,7 @@ struct ReceivedNoteInclusionStatusTests {
         let transport = StubTransport { _ in throw CancellationError() }
 
         let statuses = try await ReceivedNote.inclusionStatuses(
-            of: [], rpc: Solana.devnet(transport: transport), indexer: Zolana(network: .devnet, transport: transport)
+            of: [], rpc: SolanaRPC.devnet(transport: transport), indexer: Zolana(network: .devnet, transport: transport)
         )
 
         #expect(statuses.isEmpty)
@@ -92,7 +92,7 @@ struct ReceivedNoteInclusionStatusTests {
         let transport = StubTransport { _ in throw CancellationError() }
 
         await #expect(throws: RPCError.invalidResponse(.mismatchedProofs)) {
-            try await ReceivedNote.inclusionStatuses(of: [note], rpc: Solana.devnet(transport: transport),
+            try await ReceivedNote.inclusionStatuses(of: [note], rpc: SolanaRPC.devnet(transport: transport),
                                                      indexer: ProoflessIndexer())
         }
         #expect(await transport.requests.isEmpty)

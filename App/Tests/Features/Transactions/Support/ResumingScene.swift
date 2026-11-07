@@ -6,7 +6,7 @@ import SwiftUI
 @Observable
 final class ResumingScene {
     var phase: ScenePhase
-    @ObservationIgnored let providers = ProviderStore.inMemory(key: StoredValue("fixture-key"))
+    @ObservationIgnored let rpcStore = RPCStore.inMemory(key: StoredValue("fixture-key"))
 
     init(_ phase: ScenePhase) {
         self.phase = phase

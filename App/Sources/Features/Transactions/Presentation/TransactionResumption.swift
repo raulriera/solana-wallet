@@ -4,18 +4,18 @@ import SwiftUI
 private struct TransactionResumption: ViewModifier {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(TransactionStore.self) private var transactions
-    @Environment(ProviderStore.self) private var providers
+    @Environment(RPCStore.self) private var rpcStore
     /// The provider connection at the last resumption, or `nil` before the first.
-    @State private var resumedConnection: ProviderClient.Endpoint?
+    @State private var resumedConnection: SelectedRPCProvider.Endpoint?
 
     func body(content: Content) -> some View {
-        let trigger = Trigger(isActive: scenePhase == .active && providers.isRead,
-                              providerConnection: providers.connection)
+        let trigger = Trigger(isActive: scenePhase == .active && rpcStore.isRead,
+                              rpcConnection: rpcStore.connection)
         content
             .task(id: trigger) {
                 guard trigger.isActive else { return }
-                let isNewConnection = resumedConnection != nil && trigger.providerConnection != resumedConnection
-                resumedConnection = trigger.providerConnection
+                let isNewConnection = resumedConnection != nil && trigger.rpcConnection != resumedConnection
+                resumedConnection = trigger.rpcConnection
                 await transactions.resume(replacingFailedWatches: isNewConnection)
             }
     }
@@ -23,7 +23,7 @@ private struct TransactionResumption: ViewModifier {
     /// The state whose changes resume the watches.
     private struct Trigger: Equatable {
         let isActive: Bool
-        let providerConnection: ProviderClient.Endpoint?
+        let rpcConnection: SelectedRPCProvider.Endpoint?
     }
 }
 

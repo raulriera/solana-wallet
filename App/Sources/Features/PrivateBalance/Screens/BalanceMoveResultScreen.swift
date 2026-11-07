@@ -27,7 +27,7 @@ struct BalanceMoveResultScreen: TransactionResultContent {
             }
         }
         .navigationTitle(Text(review.proposal.direction.title))
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .onChange(of: outcome, initial: true) { isFocused = true }
     }
 

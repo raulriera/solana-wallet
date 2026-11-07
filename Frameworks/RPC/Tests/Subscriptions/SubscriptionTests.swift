@@ -177,7 +177,7 @@ struct SubscriptionTests {
                 return socket
             })
         }
-        return Solana(network: .devnet, transport: http, socket: { url in
+        return SolanaRPC(network: .devnet, transport: http, socket: { url in
             #expect(url.scheme == "wss" && url.host() == "api.devnet.solana.com")
             connected()
             return socket
