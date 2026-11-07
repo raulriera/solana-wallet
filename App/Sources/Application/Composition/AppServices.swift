@@ -83,7 +83,7 @@ struct AppServices {
         customPriceConnection = CustomPriceConnection(prices: priceStore)
         let prices = CurrencyPriceProvider(prices: SelectedPriceProvider(prices: priceStore), currency: currencyStore)
         let portfolios = PortfolioStore(prices: prices, currency: currencyStore, rpcStore: rpcStore,
-                                        priceChoice: priceStore) { network, prices in
+                                        priceStore: priceStore) { network, prices in
             Portfolio(rpc: rpcProvider(network),
                       prices: prices,
                       tokenListDirectory: .persistentDirectory.appending(path: "TokenLists", directoryHint: .isDirectory),
