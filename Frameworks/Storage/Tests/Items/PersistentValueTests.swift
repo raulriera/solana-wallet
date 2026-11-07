@@ -231,6 +231,26 @@ struct PersistentValueTests {
     }
 
     @Test
+    func `A read that started before forgetting keeps the value hidden`() async throws {
+        let gate = Suspension()
+        let storage = StoredValue(["saved"], gate: gate)
+        let persistent = PersistentValue(storage: storage, empty: [String]())
+        await persistent.load()
+        let change = Task.immediate { try await persistent.update { $0.append("change") } }
+        await gate.waitUntilStarted()
+        let load = Task.immediate { await persistent.load() }
+
+        let forgetting = Task.immediate { try await persistent.forget() }
+        gate.resume()
+        await load.value
+
+        #expect(persistent.phase == .unloaded)
+        try await change.value
+        try await forgetting.value
+        #expect(persistent.phase == .unloaded)
+    }
+
+    @Test
     func `A failed forget shows the value again`() async {
         let storage = StoredValue(["saved"], failsFirstDeletion: true)
         let persistent = PersistentValue(storage: storage, empty: [String]())

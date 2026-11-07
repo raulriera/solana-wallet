@@ -43,8 +43,9 @@ public final class PersistentValue<Value: Equatable & Sendable> {
                 }
             }
         }
-        _ = await latest?.result
-        isForgotten = false
+        let awaited = latest
+        _ = await awaited?.result
+        if latest == awaited { isForgotten = false }
     }
 
     /// Returns the value, reading it first if needed.
@@ -87,10 +88,7 @@ public final class PersistentValue<Value: Equatable & Sendable> {
     ///
     /// - Throws: A storage error.
     public func erase() async throws {
-        try await enqueue { [storage, empty] in
-            try await storage.delete()
-            self.settle(empty)
-        }.value
+        try await deletion().value
     }
 
     /// Deletes the saved value and reads as unloaded at once, until the next read.
@@ -98,11 +96,22 @@ public final class PersistentValue<Value: Equatable & Sendable> {
     /// - Throws: A storage error, after showing the value again.
     public func forget() async throws {
         isForgotten = true
+        let deletion = deletion()
         do {
-            try await erase()
+            try await deletion.value
         } catch {
-            isForgotten = false
+            if latest == deletion { isForgotten = false }
             throw error
+        }
+    }
+
+    /// Queues the deletion of the saved value, after which the value is loaded and empty.
+    ///
+    /// - Returns: The deletion's task.
+    private func deletion() -> Task<Void, any Error> {
+        enqueue { [storage, empty] in
+            try await storage.delete()
+            self.settle(empty)
         }
     }
 
