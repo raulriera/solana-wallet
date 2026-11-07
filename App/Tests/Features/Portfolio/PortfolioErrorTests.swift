@@ -52,7 +52,7 @@ struct PortfolioErrorTests {
     }
 
     @Test
-    func `Only refresh failures explain stale balances`() {
+    func `Only refresh failures explain stale balances and prices`() {
         let rateLimited = PortfolioError.rateLimited.staleStatus?.key
         let unavailable = PortfolioError.unavailable.staleStatus?.key
 

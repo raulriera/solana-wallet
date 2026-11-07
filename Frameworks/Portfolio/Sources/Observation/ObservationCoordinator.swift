@@ -263,7 +263,7 @@ actor ObservationCoordinator {
                     watches[owner]?.reconnectDelay = Self.firstReconnectDelay
                 }
                 publish(update, owner: owner, generation: generation)
-                if update.error != nil { requestFailed = true }
+                if case .failed = update.phase { requestFailed = true }
             }
         } catch {
             requestFailed = true

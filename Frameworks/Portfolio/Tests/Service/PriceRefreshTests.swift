@@ -71,21 +71,34 @@ struct PriceRefreshTests {
         #expect(await prices.requests.count == 1)
     }
 
-    @Test
-    func `Price failures preserve the cached snapshot without retrying`() async throws {
+    @Test(arguments: [
+        (Valuation(pricePerUnit: 2, total: 2, currency: "USD", dayChange: 0.5),
+         [nil, Valuation(pricePerUnit: 2, total: 6, currency: "USD", dayChange: 0.5), nil]),
+        (nil, [nil, nil, nil]),
+    ] as [(Valuation?, [Valuation?])])
+    func `A price failure saves new balances at their cached prices without retrying`(
+        cachedPrice: Valuation?, valuations: [Valuation?]
+    ) async throws {
         let fixture = PricingFixture()
         defer { fixture.removeFiles() }
-        let cached = pricingSnapshot()
-        try fixture.store.save(cached, for: fixture.key)
+        if let cachedPrice {
+            try fixture.store.save(Snapshot(owner: testWallet, network: .mainnet, holdings: [
+                Holding(id: .asset(usdcMint), amount: Amount(units: 1_000_000, decimals: 6), name: "USD Coin",
+                        symbol: "USDC", imageURL: nil, valuation: cachedPrice),
+            ]), for: fixture.key)
+        }
         let accounts = AccountResponses { _ in freshLedger }
         let prices = PriceResponses(status: 429) { _ in Data("{}".utf8) }
         let service = fixture.portfolio(rpc: accounts.client, prices: prices.client)
         var updates = await service.updates(for: testWallet).makeAsyncIterator()
         _ = try #require(await updates.next())
         let failed = try #require(await updates.next())
+
         #expect(failed.error as? RPCError == .http(statusCode: 429, retryAfter: "2"))
-        #expect(failed.snapshot == cached)
-        #expect(fixture.store.snapshot(for: fixture.key) == cached)
+        let snapshot = try #require(failed.snapshot)
+        #expect(snapshot.holdings.map(\.amount?.units) == [1_000_000_000, 3_000_000, 0])
+        #expect(snapshot.holdings.map(\.valuation) == valuations)
+        #expect(fixture.store.snapshot(for: fixture.key) == snapshot)
         #expect(await prices.requests.count == 1)
         #expect(await accounts.requests.count == 1)
     }

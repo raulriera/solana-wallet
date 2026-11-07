@@ -11,6 +11,8 @@ public struct Update: Sendable {
     /// The latest complete snapshot, or `nil` if there's none yet.
     public let snapshot: Snapshot?
     public let phase: Phase
+    /// The error of a failed price lookup when the refresh saved new balances at their last known prices.
+    public let priceError: (any Error)?
     /// The state's position in the provider's increasing order across all its streams.
     public let revision: UInt64
     /// The revision at which the snapshot became available, or `nil` without a snapshot.
@@ -24,9 +26,10 @@ public struct Update: Sendable {
         return false
     }
 
+    /// The refresh's error, or the price lookup's error when the refresh saved new balances.
     public var error: (any Error)? {
         if case .failed(let error) = phase { return error }
-        return nil
+        return priceError
     }
 
     /// Creates an update.
@@ -36,9 +39,12 @@ public struct Update: Sendable {
     ///   - phase: The refresh's phase.
     ///   - revision: The state's position in the provider's increasing order.
     ///   - snapshotRevision: The revision at which the snapshot became available, or `nil` to use `revision`.
-    public init(snapshot: Snapshot?, phase: Phase, revision: UInt64, snapshotRevision: UInt64? = nil) {
+    ///   - priceError: The error of a failed price lookup in a saved refresh, or `nil` for none.
+    public init(snapshot: Snapshot?, phase: Phase, revision: UInt64, snapshotRevision: UInt64? = nil,
+                priceError: (any Error)? = nil) {
         self.snapshot = snapshot
         self.phase = phase
+        self.priceError = priceError
         self.revision = revision
         self.snapshotRevision = snapshot == nil ? nil : (snapshotRevision ?? revision)
     }

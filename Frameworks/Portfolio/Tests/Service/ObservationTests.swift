@@ -296,15 +296,16 @@ struct ObservationTests {
         await fixture.socket.waitUntilCancelled()
     }
 
-    @Test(.timeLimit(.minutes(1)))
-    func `A change during a balance read leads to another read`() async throws {
+    @Test(.timeLimit(.minutes(1)), arguments: [200, 429])
+    func `A change during a balance read leads to another read`(priceStatus: Int) async throws {
         let fixture = ObservationFixture()
         defer { fixture.cleanUp() }
         let ledger = ObservedLedger()
         let (pending, release) = AsyncStream<Void>.makeStream()
         let (started, announce) = AsyncStream<Void>.makeStream()
         defer { release.finish(); announce.finish() }
-        let service = fixture.service { accounts in
+        let prices = PriceResponses(status: priceStatus) { _ in Data("{}".utf8) }
+        let http = AccountResponses { accounts in
             let reading = try await ledger.response(for: accounts)
             if await ledger.readCount == 2 {
                 announce.yield(())
@@ -312,6 +313,7 @@ struct ObservationTests {
             }
             return reading
         }
+        let service = fixture.service(http: http, prices: prices.client)
         var updates = await service.observations(for: testWallet).makeAsyncIterator()
         try await nextResult(&updates)
         await ledger.set(lamports: 200)

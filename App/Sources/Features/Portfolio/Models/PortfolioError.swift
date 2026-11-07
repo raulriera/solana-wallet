@@ -30,11 +30,11 @@ nonisolated enum PortfolioError: Error, Equatable {
     /// Whether the person must enter a new key or choose another provider.
     var requiresProviderSetup: Bool { self == .missingKey || self == .invalidKey || self == .unsupportedNetwork }
 
-    /// Why the shown balances may be out of date, or `nil` when the error hides them.
+    /// Why the shown balances or prices may be out of date, or `nil` when the error hides them.
     var staleStatus: LocalizedStringResource? {
         switch self {
         case .rateLimited: "Too many requests"
-        case .unavailable, .listUnreadable: "Couldn't update balances"
+        case .unavailable, .listUnreadable: "Couldn't update"
         case .missingKey, .invalidKey, .unsupportedNetwork: nil
         }
     }
