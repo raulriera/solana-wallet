@@ -12,8 +12,8 @@ struct ExchangeRateLiveTests {
 
         var provider: any ExchangeRateProviding {
             switch self {
-            case .europeanCentralBank: EuropeanCentralBank()
-            case .coinbase: Coinbase()
+            case .europeanCentralBank: EuropeanCentralBankExchangeRateProvider()
+            case .coinbase: CoinbaseExchangeRateProvider()
             }
         }
     }

@@ -2,7 +2,7 @@ import Foundation
 import RPC
 
 /// A price provider that converts another provider's quotes to the chosen currency.
-nonisolated struct CurrencyPrices: PriceProviding {
+nonisolated struct CurrencyPriceProvider: PriceProviding {
     private let prices: any PriceProviding
     private let currency: CurrencyStore
     private let locale: Locale

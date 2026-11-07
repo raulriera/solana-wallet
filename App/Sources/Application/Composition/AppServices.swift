@@ -70,8 +70,10 @@ struct AppServices {
         }
         rpcConnection = HeliusConnection(rpcStore: rpcStore)
         customRPCConnection = CustomRPCConnection(rpcStore: rpcStore)
-        let rates: [CurrencySettings.RateSource: any ExchangeRateProviding] = [.europeanCentralBank: EuropeanCentralBank(),
-                                                                                 .coinbase: Coinbase()]
+        let rates: [CurrencySettings.RateSource: any ExchangeRateProviding] = [
+            .europeanCentralBank: EuropeanCentralBankExchangeRateProvider(),
+            .coinbase: CoinbaseExchangeRateProvider(),
+        ]
         let currencyStore = CurrencyStore(directory: .persistentDirectory.appending(path: "Currency",
                                                                                     directoryHint: .isDirectory),
                                           rates: rates)
@@ -79,7 +81,7 @@ struct AppServices {
         let priceStore = PriceStore(service: priceService)
         self.priceStore = priceStore
         customPriceConnection = CustomPriceConnection(prices: priceStore)
-        let prices = CurrencyPrices(prices: SelectedPriceProvider(prices: priceStore), currency: currencyStore)
+        let prices = CurrencyPriceProvider(prices: SelectedPriceProvider(prices: priceStore), currency: currencyStore)
         let portfolios = PortfolioStore(prices: prices, currency: currencyStore, rpcStore: rpcStore,
                                         priceChoice: priceStore) { network, prices in
             Portfolio(rpc: rpcProvider(network),

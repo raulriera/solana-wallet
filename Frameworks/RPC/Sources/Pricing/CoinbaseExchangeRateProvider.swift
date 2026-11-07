@@ -1,7 +1,7 @@
 public import Foundation
 
 /// An exchange-rate provider backed by Coinbase's public rates.
-public struct Coinbase: ExchangeRateProviding {
+public struct CoinbaseExchangeRateProvider: ExchangeRateProviding {
     private let transport: any HTTPTransport
 
     /// Creates a rate provider.

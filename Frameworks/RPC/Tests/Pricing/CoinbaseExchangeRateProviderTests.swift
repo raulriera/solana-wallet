@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import RPC
 
-struct CoinbaseTests {
+struct CoinbaseExchangeRateProviderTests {
     @Test func `Rates keep ISO currencies at their exact values`() async throws {
         let transport = StubTransport { request in
             try httpReply(to: request, body: #"""
@@ -10,7 +10,7 @@ struct CoinbaseTests {
                  "USD":"1.0","BTC":"0.0000091","SOL":"0.0052"}}}
                 """#)
         }
-        let source: any ExchangeRateProviding = Coinbase(transport: transport)
+        let source: any ExchangeRateProviding = CoinbaseExchangeRateProvider(transport: transport)
 
         let rates = try await source.rates(from: "USD")
 
@@ -20,7 +20,7 @@ struct CoinbaseTests {
 
     @Test func `Rates come from one request for the currency`() async throws {
         let transport = StubTransport { try httpReply(to: $0, body: #"{"data":{"currency":"USD","rates":{}}}"#) }
-        _ = try await Coinbase(transport: transport).rates(from: "USD")
+        _ = try await CoinbaseExchangeRateProvider(transport: transport).rates(from: "USD")
 
         let request = try #require(await transport.requests.first)
         #expect(await transport.requests.count == 1)
@@ -30,7 +30,7 @@ struct CoinbaseTests {
 
     @Test func `A currency outside ISO codes has no rates`() async throws {
         let transport = StubTransport { try httpReply(to: $0, body: "{}") }
-        #expect(try await Coinbase(transport: transport).rates(from: "SOL").isEmpty)
+        #expect(try await CoinbaseExchangeRateProvider(transport: transport).rates(from: "SOL").isEmpty)
         #expect(await transport.requests.isEmpty)
     }
 
@@ -46,7 +46,7 @@ struct CoinbaseTests {
     func `Invalid responses fail without inventing a rate`(_ body: String) async {
         let transport = StubTransport { try httpReply(to: $0, body: body) }
         await #expect(throws: RPCError.decoding) {
-            try await Coinbase(transport: transport).rates(from: "USD")
+            try await CoinbaseExchangeRateProvider(transport: transport).rates(from: "USD")
         }
     }
 }

@@ -1,7 +1,7 @@
 public import Foundation
 
 /// An exchange-rate provider backed by the European Central Bank's daily euro reference rates.
-public struct EuropeanCentralBank: ExchangeRateProviding {
+public struct EuropeanCentralBankExchangeRateProvider: ExchangeRateProviding {
     private let transport: any HTTPTransport
 
     /// Creates a rate provider.

@@ -30,6 +30,9 @@ enum CurrencyResponses {
 
     static func rates(_ http: HTTPResponses = .currency())
     -> [CurrencySettings.RateSource: any ExchangeRateProviding] {
-        [.europeanCentralBank: EuropeanCentralBank(transport: http), .coinbase: Coinbase(transport: http)]
+        [
+            .europeanCentralBank: EuropeanCentralBankExchangeRateProvider(transport: http),
+            .coinbase: CoinbaseExchangeRateProvider(transport: http),
+        ]
     }
 }

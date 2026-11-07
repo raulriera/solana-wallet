@@ -11,8 +11,8 @@ struct ExchangeRateProvidingTests {
 
         func provider(transport: StubTransport) -> any ExchangeRateProviding {
             switch self {
-            case .europeanCentralBank: EuropeanCentralBank(transport: transport)
-            case .coinbase: Coinbase(transport: transport)
+            case .europeanCentralBank: EuropeanCentralBankExchangeRateProvider(transport: transport)
+            case .coinbase: CoinbaseExchangeRateProvider(transport: transport)
             }
         }
     }

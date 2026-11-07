@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import RPC
 
-struct EuropeanCentralBankTests {
+struct EuropeanCentralBankExchangeRateProviderTests {
     private static let referenceRates = """
         <?xml version="1.0" encoding="UTF-8"?>
         <gesmes:Envelope xmlns:gesmes="http://www.gesmes.org/xml/2002-08-01" \
@@ -23,14 +23,14 @@ struct EuropeanCentralBankTests {
     ])
     func `Rates convert through the euro`(currency: String, expected: [String: Decimal]) async throws {
         let transport = StubTransport { try httpReply(to: $0, body: Self.referenceRates) }
-        let source: any ExchangeRateProviding = EuropeanCentralBank(transport: transport)
+        let source: any ExchangeRateProviding = EuropeanCentralBankExchangeRateProvider(transport: transport)
 
         #expect(try await source.rates(from: currency) == expected)
     }
 
     @Test func `Rates come from the daily reference file`() async throws {
         let transport = StubTransport { try httpReply(to: $0, body: Self.referenceRates) }
-        _ = try await EuropeanCentralBank(transport: transport).rates(from: "USD")
+        _ = try await EuropeanCentralBankExchangeRateProvider(transport: transport).rates(from: "USD")
 
         let request = try #require(await transport.requests.first)
         #expect(await transport.requests.count == 1)
@@ -40,7 +40,7 @@ struct EuropeanCentralBankTests {
 
     @Test func `An unpublished currency has no rates`() async throws {
         let transport = StubTransport { try httpReply(to: $0, body: Self.referenceRates) }
-        #expect(try await EuropeanCentralBank(transport: transport).rates(from: "ARS").isEmpty)
+        #expect(try await EuropeanCentralBankExchangeRateProvider(transport: transport).rates(from: "ARS").isEmpty)
     }
 
     @Test(arguments: [
@@ -55,7 +55,7 @@ struct EuropeanCentralBankTests {
     func `Invalid responses fail without inventing a rate`(_ body: String) async {
         let transport = StubTransport { try httpReply(to: $0, body: body) }
         await #expect(throws: RPCError.decoding) {
-            try await EuropeanCentralBank(transport: transport).rates(from: "USD")
+            try await EuropeanCentralBankExchangeRateProvider(transport: transport).rates(from: "USD")
         }
     }
 }
