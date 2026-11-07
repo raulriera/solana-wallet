@@ -7,7 +7,7 @@ actor PriceResponses: HTTPTransport {
     private let status: Int
     private let respond: @Sendable ([String]) async throws -> Data
 
-    nonisolated var client: Jupiter { Jupiter(transport: self) }
+    nonisolated var client: JupiterPriceProvider { JupiterPriceProvider(transport: self) }
 
     init(status: Int = 200, respond: @escaping @Sendable ([String]) async throws -> Data) {
         self.status = status

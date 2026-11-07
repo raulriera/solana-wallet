@@ -4,7 +4,7 @@ public import Foundation
 ///
 /// The provider sends `GET <endpoint>?mints=<mint>,<mint>` with at most fifty mints, three seconds apart. The server
 /// answers with a JSON object of ``Quote`` values keyed by mint, and leaves out mints it can't price.
-public struct CustomPrices: PriceProviding, CustomStringConvertible, CustomDebugStringConvertible {
+public struct CustomPriceProvider: PriceProviding, CustomStringConvertible, CustomDebugStringConvertible {
     public let network: Network = .mainnet
 
     private let client: HTTPClient
@@ -30,7 +30,7 @@ public struct CustomPrices: PriceProviding, CustomStringConvertible, CustomDebug
         self.pacer = pacer
     }
 
-    public var description: String { "CustomPrices(mainnet)" }
+    public var description: String { "CustomPriceProvider(mainnet)" }
     public var debugDescription: String { description }
 
     public var batchSize: Int { 50 }

@@ -76,7 +76,7 @@ struct AppResetTests {
         let service = Portfolio(rpc: responses.rpcProvider(network: .devnet, rpcStore: rpcStore),
                                 store: FileSnapshotStore(directory: storage.directory),
                                 tokenLists: FileTokenListStore(directory: storage.directory.appending(path: "TokenLists")))
-        let portfolios = PortfolioStore(prices: Jupiter(transport: responses), currency: .inMemory(),
+        let portfolios = PortfolioStore(prices: JupiterPriceProvider(transport: responses), currency: .inMemory(),
                                         rpcStore: rpcStore, priceChoice: .inMemory()) { _, _ in service }
         let account = try Account.publicWallet()
         let viewing = Task { await portfolios.observe(account, on: .devnet) }

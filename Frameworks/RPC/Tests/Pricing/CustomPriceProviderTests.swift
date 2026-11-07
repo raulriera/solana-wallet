@@ -2,13 +2,13 @@ import Foundation
 import Testing
 @testable import RPC
 
-struct CustomPricesTests {
+struct CustomPriceProviderTests {
     private static let endpoint = URL(string: "https://prices.example.com/v1/quotes?key=fixture-key")!
 
     @Test(arguments: ["http://prices.example.com", "https://", "ftp://prices.example.com", "prices.example.com"])
     func `Only HTTPS endpoints with a host make a provider`(_ text: String) throws {
         let transport = StubTransport { try httpReply(to: $0, body: "{}") }
-        #expect(CustomPrices(endpoint: try #require(URL(string: text)), transport: transport) == nil)
+        #expect(CustomPriceProvider(endpoint: try #require(URL(string: text)), transport: transport) == nil)
     }
 
     @Test
@@ -19,7 +19,7 @@ struct CustomPricesTests {
                  "mint-b":{"pricePerUnit":0,"currency":"EUR"},"mint-c":{"pricePerUnit":2,"currency":"USD","dayChange":"soon"}}
                 """#)
         }
-        let source = try #require(CustomPrices(endpoint: Self.endpoint, transport: transport))
+        let source = try #require(CustomPriceProvider(endpoint: Self.endpoint, transport: transport))
 
         let quotes = try await source.prices(for: ["mint-a", "mint-b", "mint-c", "unpriced"])
 
@@ -45,7 +45,7 @@ struct CustomPricesTests {
         let clock = ManualClock()
         let startedAt = clock.now
         let transport = StubTransport { try httpReply(to: $0, body: "{}") }
-        let source = try #require(CustomPrices(endpoint: Self.endpoint, transport: transport,
+        let source = try #require(CustomPriceProvider(endpoint: Self.endpoint, transport: transport,
                                                pacer: RequestPacer(interval: .seconds(3), clock: clock)))
         let mints = (0..<51).map { "mint-\($0)" }
         async let operation = source.prices(for: mints)
@@ -71,14 +71,14 @@ struct CustomPricesTests {
     ])
     func `Invalid answers fail without inventing a quote`(_ body: String) async throws {
         let transport = StubTransport { try httpReply(to: $0, body: body) }
-        let source = try #require(CustomPrices(endpoint: Self.endpoint, transport: transport))
+        let source = try #require(CustomPriceProvider(endpoint: Self.endpoint, transport: transport))
         await #expect(throws: RPCError.decoding) { try await source.prices(for: ["mint"]) }
     }
 
     @Test
     func `Answers longer than one mebibyte fail`() async throws {
         let transport = StubTransport { try httpReply(to: $0, body: "{" + String(repeating: " ", count: 1_048_576) + "}") }
-        let source = try #require(CustomPrices(endpoint: Self.endpoint, transport: transport))
+        let source = try #require(CustomPriceProvider(endpoint: Self.endpoint, transport: transport))
         await #expect(throws: RPCError.invalidResponse(.oversized)) { try await source.prices(for: ["mint"]) }
     }
 
@@ -87,7 +87,7 @@ struct CustomPricesTests {
         let transport = StubTransport { request in
             try httpReply(to: request, body: "{}", status: 429, headers: ["Retry-After": "5 fixture-key"])
         }
-        let source = try #require(CustomPrices(endpoint: Self.endpoint, transport: transport))
+        let source = try #require(CustomPriceProvider(endpoint: Self.endpoint, transport: transport))
 
         await #expect(throws: RPCError.http(statusCode: 429, retryAfter: "5 [redacted]")) {
             try await source.prices(for: ["mint"])

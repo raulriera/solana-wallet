@@ -15,7 +15,7 @@ nonisolated struct SelectedPriceProvider: PriceProviding {
     ///   - prices: The price provider choice to read.
     ///   - jupiter: The provider for Jupiter's prices.
     ///   - server: A function that creates the provider for a custom price server.
-    init(prices: PriceStore, jupiter: any PriceProviding = Jupiter(),
+    init(prices: PriceStore, jupiter: any PriceProviding = JupiterPriceProvider(),
          server: @escaping @Sendable (URL) -> (any PriceProviding)? = Self.server(at:)) {
         store = prices
         self.jupiter = jupiter
@@ -43,6 +43,6 @@ nonisolated struct SelectedPriceProvider: PriceProviding {
     /// - Parameter url: The price server URL.
     /// - Returns: The server's provider, or `nil` for a URL that isn't HTTPS with a host.
     static func server(at url: URL) -> (any PriceProviding)? {
-        CustomPrices(endpoint: url)
+        CustomPriceProvider(endpoint: url)
     }
 }

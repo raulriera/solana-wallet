@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import RPC
 
-struct JupiterTests {
+struct JupiterPriceProviderTests {
     @Test
     func `Prices preserve decimal precision and keep unavailable quotes absent`() async throws {
         let transport = StubTransport { request in
@@ -12,7 +12,7 @@ struct JupiterTests {
                  "null-price":{"usdPrice":null},"null-record":null}
                 """#)
         }
-        let source: any PriceProviding = Jupiter(apiKey: "fixture-key", transport: transport)
+        let source: any PriceProviding = JupiterPriceProvider(apiKey: "fixture-key", transport: transport)
 
         let quotes = try await source.prices(for: ["mint-a", "mint-b", "metadata-only", "null-price", "null-record", "unpriced"])
 
@@ -42,7 +42,7 @@ struct JupiterTests {
                  "missing":{"usdPrice":4},"malformed":{"usdPrice":5,"priceChange24h":"soon"}}
                 """#)
         }
-        let quotes = try await Jupiter(transport: transport).prices(for: ["rising", "falling", "missing", "malformed"])
+        let quotes = try await JupiterPriceProvider(transport: transport).prices(for: ["rising", "falling", "missing", "malformed"])
 
         #expect(quotes["rising"]?.dayChange == Decimal(string: "0.0129"))
         #expect(quotes["falling"]?.dayChange == Decimal(string: "-0.0347"))
@@ -62,7 +62,7 @@ struct JupiterTests {
         }
         let mints = (0..<51).map { "mint-\($0)" }
         let startedAt = ContinuousClock.now
-        let source = Jupiter(apiKey: authenticated ? "fixture-key" : nil, transport: transport)
+        let source = JupiterPriceProvider(apiKey: authenticated ? "fixture-key" : nil, transport: transport)
         let quotes = try await source.prices(for: mints + mints)
 
         let interval: Duration = authenticated ? .milliseconds(1_500) : .seconds(3)
@@ -81,7 +81,7 @@ struct JupiterTests {
         let clock = ManualClock()
         let startedAt = clock.now
         let transport = StubTransport { try httpReply(to: $0, body: "{}") }
-        let source = Jupiter(transport: transport, pacer: RequestPacer(interval: .seconds(3), clock: clock))
+        let source = JupiterPriceProvider(transport: transport, pacer: RequestPacer(interval: .seconds(3), clock: clock))
         _ = try await source.prices(for: ["initial"])
         let copy = source
         async let operation = copy.prices(for: (0..<51).map { "mint-\($0)" })
@@ -104,7 +104,7 @@ struct JupiterTests {
     func `Cancelling a waiting batch stops without consuming a price request`() async throws {
         let clock = ManualClock()
         let transport = StubTransport { try httpReply(to: $0, body: "{}") }
-        let source = Jupiter(transport: transport, pacer: RequestPacer(interval: .seconds(3), clock: clock))
+        let source = JupiterPriceProvider(transport: transport, pacer: RequestPacer(interval: .seconds(3), clock: clock))
         let operation = Task { try await source.prices(for: (0..<51).map { "mint-\($0)" }) }
         defer { operation.cancel() }
         var waits = clock.waits.makeAsyncIterator()
@@ -132,7 +132,7 @@ struct JupiterTests {
             }
             return try httpReply(to: request, body: #"{"mint-0":{"usdPrice":2}}"#)
         }
-        let source = Jupiter(apiKey: "fixture-key", transport: transport)
+        let source = JupiterPriceProvider(apiKey: "fixture-key", transport: transport)
 
         await #expect(throws: RPCError.http(statusCode: 429, retryAfter: "5 [redacted]")) {
             try await source.prices(for: (0..<101).map { "mint-\($0)" })
@@ -153,7 +153,7 @@ struct JupiterTests {
     func `Invalid price responses fail without inventing a quote`(_ body: String) async {
         let transport = StubTransport { try httpReply(to: $0, body: body) }
         await #expect(throws: RPCError.decoding) {
-            try await Jupiter(transport: transport).prices(for: ["mint"])
+            try await JupiterPriceProvider(transport: transport).prices(for: ["mint"])
         }
     }
 
@@ -168,7 +168,7 @@ struct JupiterTests {
             try Task.checkCancellation()
             return try httpReply(to: request, body: "{}")
         }
-        let source = Jupiter(transport: transport)
+        let source = JupiterPriceProvider(transport: transport)
         let operation = Task {
             try await source.prices(for: (0..<51).map { "mint-\($0)" })
         }
@@ -189,7 +189,7 @@ struct JupiterTests {
             throw URLError(.notConnectedToInternet, userInfo: [NSLocalizedDescriptionKey: "fixture-key"])
         }
         await #expect(throws: RPCError.transport(.notConnectedToInternet)) {
-            try await Jupiter(apiKey: "fixture-key", transport: transport).prices(for: ["mint"])
+            try await JupiterPriceProvider(apiKey: "fixture-key", transport: transport).prices(for: ["mint"])
         }
     }
 }

@@ -7,7 +7,7 @@ import Testing
 struct CurrencyPricesTests {
     private static func prices(_ settings: CurrencySettings?, locale: String = "en_US",
                                http: HTTPResponses) -> CurrencyPrices {
-        CurrencyPrices(prices: Jupiter(transport: http), currency: .inMemory(StoredValue(settings), http: http),
+        CurrencyPrices(prices: JupiterPriceProvider(transport: http), currency: .inMemory(StoredValue(settings), http: http),
                        locale: Locale(identifier: locale))
     }
 
@@ -56,7 +56,7 @@ struct CurrencyPricesTests {
     }
 
     @Test func `An unreadable choice fails the lookup`() async throws {
-        let prices = CurrencyPrices(prices: Jupiter(transport: HTTPResponses.currency()),
+        let prices = CurrencyPrices(prices: JupiterPriceProvider(transport: HTTPResponses.currency()),
                                     currency: .inMemory(StoredValue(failsLoading: true)))
 
         await #expect(throws: CurrencyError.settingsUnreadable) { try await prices.prices(for: ["sol"]) }

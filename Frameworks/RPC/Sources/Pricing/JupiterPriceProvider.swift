@@ -1,7 +1,7 @@
 public import Foundation
 
 /// A price provider that supplies Jupiter's mainnet USD quotes.
-public struct Jupiter: PriceProviding, CustomStringConvertible, CustomDebugStringConvertible {
+public struct JupiterPriceProvider: PriceProviding, CustomStringConvertible, CustomDebugStringConvertible {
     public let network: Network = .mainnet
 
     private let apiKey: String?
@@ -31,7 +31,7 @@ public struct Jupiter: PriceProviding, CustomStringConvertible, CustomDebugStrin
         )
     }
 
-    public var description: String { "Jupiter(mainnet)" }
+    public var description: String { "JupiterPriceProvider(mainnet)" }
     public var debugDescription: String { description }
 
     public var batchSize: Int { 50 }

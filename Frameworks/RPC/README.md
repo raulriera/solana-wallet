@@ -12,7 +12,7 @@ let response = try await client.send(GetLatestBlockhash())
 let blockhash = response.value.blockhash
 ```
 
-The module includes `Solana` and `HeliusRPC` for RPC, `Sender` for paid transaction submission, `Zolana` for Solana Rings indexer reads and encrypted proofs, `Jupiter` and `CustomPrices` for prices, and `EuropeanCentralBank` and `Coinbase` for exchange rates.
+The module includes `Solana` and `HeliusRPC` for RPC, `Sender` for paid transaction submission, `Zolana` for Solana Rings indexer reads and encrypted proofs, `JupiterPriceProvider` and `CustomPriceProvider` for prices, and `EuropeanCentralBank` and `Coinbase` for exchange rates.
 
 ## Use a custom RPC URL
 
@@ -20,7 +20,7 @@ The module includes `Solana` and `HeliusRPC` for RPC, `Sender` for paid transact
 
 ```swift
 let client = Solana(endpoint: URL(string: "https://rpc.example.com")!, network: .mainnet)
-let prices = CustomPrices(endpoint: URL(string: "https://prices.example.com")!)
+let prices = CustomPriceProvider(endpoint: URL(string: "https://prices.example.com")!)
 ```
 
 ## Add a provider
