@@ -83,8 +83,4 @@ private struct FixedPrices: PriceProviding {
     func response(for mints: [String]) async throws -> [String: Quote] {
         Dictionary(mints.map { ($0, quote) }) { first, _ in first }
     }
-
-    func quotes(from response: [String: Quote]) throws -> [String: Quote] {
-        response
-    }
 }

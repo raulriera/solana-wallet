@@ -16,7 +16,7 @@ struct PriceProvidingTests {
 
     @Test
     func `Providers without a batch size answer every mint at once`() async throws {
-        let source = EchoPrices()
+        let source = UnbatchedPrices()
 
         _ = try await source.prices(for: (0..<120).map { "mint-\($0)" })
 
@@ -93,5 +93,15 @@ private struct EchoPrices: PriceProviding {
 
     func quotes(from response: [String]) throws -> [String: Quote] {
         Dictionary(uniqueKeysWithValues: response.map { ($0, quote) })
+    }
+}
+
+private struct UnbatchedPrices: PriceProviding {
+    let network: Network = .mainnet
+    let batches = Batches()
+
+    func response(for mints: [String]) async -> [String: Quote] {
+        await batches.append(mints)
+        return [:]
     }
 }

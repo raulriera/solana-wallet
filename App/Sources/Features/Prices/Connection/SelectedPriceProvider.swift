@@ -16,7 +16,7 @@ nonisolated struct SelectedPriceProvider: PriceProviding {
     ///   - jupiter: The provider for Jupiter's prices.
     ///   - server: A function that creates the provider for a custom price server.
     init(prices: PriceStore, jupiter: any PriceProviding = JupiterPriceProvider(),
-         server: @escaping @Sendable (URL) -> (any PriceProviding)? = Self.server(at:)) {
+         server: @escaping @Sendable (URL) -> (any PriceProviding)? = { CustomPriceProvider(endpoint: $0) }) {
         store = prices
         self.jupiter = jupiter
         servers = ClientCache { url in
@@ -32,17 +32,5 @@ nonisolated struct SelectedPriceProvider: PriceProviding {
         case .custom(let url): try await servers.client(for: url).prices(for: mints)
         case .off: [:]
         }
-    }
-
-    func quotes(from response: [String: Quote]) -> [String: Quote] {
-        response
-    }
-
-    /// Creates the provider for a custom price server.
-    ///
-    /// - Parameter url: The price server URL.
-    /// - Returns: The server's provider, or `nil` for a URL that isn't HTTPS with a host.
-    static func server(at url: URL) -> (any PriceProviding)? {
-        CustomPriceProvider(endpoint: url)
     }
 }

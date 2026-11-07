@@ -14,7 +14,7 @@ nonisolated struct CustomPriceConnection: ProviderConnecting {
     ///   - prices: The price provider choice that lists, saves, and chooses custom price servers.
     ///   - server: A function that creates the provider for a candidate URL.
     init(prices: PriceStore,
-         server: @escaping @Sendable (URL) -> (any PriceProviding)? = SelectedPriceProvider.server(at:)) {
+         server: @escaping @Sendable (URL) -> (any PriceProviding)? = { CustomPriceProvider(endpoint: $0) }) {
         store = prices
         self.server = server
     }

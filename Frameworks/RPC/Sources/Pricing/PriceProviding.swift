@@ -75,3 +75,13 @@ extension PriceProviding {
 
 /// The longest price response body, in bytes, to accept.
 private let maximumResponseLength = 1_048_576
+
+extension PriceProviding where Response == [String: Quote] {
+    /// Returns a response that is already quotes.
+    ///
+    /// - Parameter response: The provider's quotes keyed by mint address.
+    /// - Returns: The same quotes.
+    public func quotes(from response: [String: Quote]) -> [String: Quote] {
+        response
+    }
+}

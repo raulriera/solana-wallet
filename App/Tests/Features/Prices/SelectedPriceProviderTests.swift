@@ -104,8 +104,4 @@ private struct FixedPrices: PriceProviding {
         let quote = Quote(pricePerUnit: 1, currency: currency, dayChange: nil)
         return Dictionary(uniqueKeysWithValues: mints.map { ($0, quote) })
     }
-
-    func quotes(from response: [String: Quote]) -> [String: Quote] {
-        response
-    }
 }
