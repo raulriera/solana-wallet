@@ -128,9 +128,9 @@ nonisolated struct SelectedRPCProvider: RPC, AccountChangeProviding, SignatureEv
     static func client(for endpoint: Endpoint,
                        on network: Network) -> Client? {
         switch endpoint {
-        case .solana: Solana(network: network)
+        case .solana: SolanaRPC(network: network)
         case .helius(let key): HeliusRPC(apiKey: key, network: network)
-        case .custom(let url): Solana(endpoint: url, network: network)
+        case .custom(let url): SolanaRPC(endpoint: url, network: network)
         }
     }
 }

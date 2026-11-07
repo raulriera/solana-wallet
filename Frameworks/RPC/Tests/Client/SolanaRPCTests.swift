@@ -2,13 +2,13 @@ import Foundation
 import Testing
 @testable import RPC
 
-struct SolanaTests {
+struct SolanaRPCTests {
     @Test(arguments: [
         (Network.mainnet, "api.mainnet.solana.com"), (.devnet, "api.devnet.solana.com")
     ])
     func `Public Solana endpoints submit signed bytes without a DAS interface`(network: Network, host: String) async throws {
         let transport = StubTransport { try reply(to: $0, payload: #""result":"accepted-signature""#) }
-        let rpc: any RPC = Solana(network: network, transport: transport)
+        let rpc: any RPC = SolanaRPC(network: network, transport: transport)
         let bytes = Data([1, 2, 3])
 
         let signature = try await rpc.send(SendTransaction(transaction: bytes))
@@ -35,7 +35,7 @@ struct SolanaTests {
         let transport = StubTransport { try reply(to: $0, payload: #""result":12345"#) }
         let socket = SocketFixture()
         defer { socket.cancel() }
-        let client = Solana(endpoint: endpoint, network: .mainnet, transport: transport) { url in
+        let client = SolanaRPC(endpoint: endpoint, network: .mainnet, transport: transport) { url in
             #expect(url.absoluteString == "wss://rpc.example.com:8443/fixture-token/?api-key=fixture-key")
             return socket
         }
@@ -53,7 +53,7 @@ struct SolanaTests {
     func `Custom endpoints require HTTPS and a host`(url: String) throws {
         let endpoint = try #require(URL(string: url))
 
-        #expect(Solana(endpoint: endpoint, network: .mainnet) == nil)
+        #expect(SolanaRPC(endpoint: endpoint, network: .mainnet) == nil)
     }
 
     @Test
@@ -63,13 +63,13 @@ struct SolanaTests {
             let url = try #require(request.url?.absoluteString)
             return try reply(to: request, payload: #""error":{"code":-32603,"message":"\#(url) fixture-user fixture-pass path-token query-key bare-key"}"#)
         }
-        let rpc = try #require(Solana(endpoint: endpoint, network: .mainnet, transport: transport))
+        let rpc = try #require(SolanaRPC(endpoint: endpoint, network: .mainnet, transport: transport))
 
         let message = Array(repeating: "[redacted]", count: 6).joined(separator: " ")
         await #expect(throws: RPCError.server(code: -32603, message: message)) {
             try await rpc.send(GetBlockHeight())
         }
-        #expect(String(describing: rpc) == "Solana(mainnet)")
-        #expect(String(reflecting: rpc) == "Solana(mainnet)")
+        #expect(String(describing: rpc) == "SolanaRPC(mainnet)")
+        #expect(String(reflecting: rpc) == "SolanaRPC(mainnet)")
     }
 }

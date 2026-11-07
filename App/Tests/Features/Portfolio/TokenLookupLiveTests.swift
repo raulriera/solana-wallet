@@ -8,7 +8,7 @@ import Transactions
 struct TokenLookupLiveTests {
     @Test(.timeLimit(.minutes(1)))
     func `Live lookups read on-chain names for both token programs`() async throws {
-        let portfolio = Portfolio(rpc: Solana(network: .mainnet), tokenListDirectory: .temporaryDirectory,
+        let portfolio = Portfolio(rpc: SolanaRPC(network: .mainnet), tokenListDirectory: .temporaryDirectory,
                                   cacheDirectory: .temporaryDirectory)
 
         let bonk = try await portfolio.token(at: Address("DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"))

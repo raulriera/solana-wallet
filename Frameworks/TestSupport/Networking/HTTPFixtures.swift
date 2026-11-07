@@ -24,9 +24,9 @@ actor StubTransport: HTTPTransport {
     }
 }
 
-extension Solana {
-    static func devnet(transport: StubTransport) -> Solana {
-        Solana(network: .devnet, transport: transport)
+extension SolanaRPC {
+    static func devnet(transport: StubTransport) -> SolanaRPC {
+        SolanaRPC(network: .devnet, transport: transport)
     }
 }
 

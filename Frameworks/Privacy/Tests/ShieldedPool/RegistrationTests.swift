@@ -12,7 +12,7 @@ struct RegistrationTests {
         let vector = try #require(try RegistryVectors.load().records.first)
         let transport = try Self.transport(returning: Self.record(fixtureBytes(vector.data)))
 
-        let registration = try await TransferVectors.sender().registration(using: Solana(network: .devnet, transport: transport))
+        let registration = try await TransferVectors.sender().registration(using: SolanaRPC(network: .devnet, transport: transport))
 
         let requests = try await transport.requests.map(requestBody)
         #expect(registration == .registered)
@@ -24,7 +24,7 @@ struct RegistrationTests {
     func `Accounts without a record are unregistered`() async throws {
         let transport = Self.transport(returning: "null")
 
-        let registration = try await TransferVectors.sender().registration(using: Solana(network: .devnet, transport: transport))
+        let registration = try await TransferVectors.sender().registration(using: SolanaRPC(network: .devnet, transport: transport))
 
         #expect(registration == .unregistered)
     }
@@ -40,7 +40,7 @@ struct RegistrationTests {
         )
         let transport = try Self.transport(returning: Self.record(fixtureBytes(vector.data)))
 
-        let registration = try await account.registration(using: Solana(network: .devnet, transport: transport))
+        let registration = try await account.registration(using: SolanaRPC(network: .devnet, transport: transport))
 
         #expect(registration == .registeredWithOtherKeys)
     }
@@ -51,7 +51,7 @@ struct RegistrationTests {
         let transport = try Self.transport(returning: Self.record(Array(fixtureBytes(vector.data).dropLast())))
 
         await #expect(throws: UserRegistry.ValidationError.invalidLength) {
-            try await TransferVectors.sender().registration(using: Solana(network: .devnet, transport: transport))
+            try await TransferVectors.sender().registration(using: SolanaRPC(network: .devnet, transport: transport))
         }
     }
 

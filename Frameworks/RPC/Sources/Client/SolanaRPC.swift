@@ -1,7 +1,7 @@
 public import Foundation
 
 /// A client for standard Solana RPC at a public or custom endpoint.
-public struct Solana: RPC, AccountChangeProviding, SignatureEventProviding, CustomStringConvertible,
+public struct SolanaRPC: RPC, AccountChangeProviding, SignatureEventProviding, CustomStringConvertible,
                       CustomDebugStringConvertible {
     public let network: Network
 
@@ -74,7 +74,7 @@ public struct Solana: RPC, AccountChangeProviding, SignatureEventProviding, Cust
         subscriptions = SubscriptionClient(endpoint: socketEndpoint, connect: socket, redactor: redactor)
     }
 
-    public var description: String { "Solana(\(network))" }
+    public var description: String { "SolanaRPC(\(network))" }
 
     public var debugDescription: String { description }
 

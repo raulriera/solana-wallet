@@ -7,25 +7,25 @@ Typed Solana RPC, DAS asset queries, prices, exchange rates, and account and sig
 ```swift
 import RPC
 
-let client: any RPC = Solana(network: .devnet)
+let client: any RPC = SolanaRPC(network: .devnet)
 let response = try await client.send(GetLatestBlockhash())
 let blockhash = response.value.blockhash
 ```
 
-The module includes `Solana` and `HeliusRPC` for RPC, `Sender` for paid transaction submission, `Zolana` for Solana Rings indexer reads and encrypted proofs, `JupiterPriceProvider` and `CustomPriceProvider` for prices, and `EuropeanCentralBankExchangeRateProvider` and `CoinbaseExchangeRateProvider` for exchange rates.
+The module includes `SolanaRPC` and `HeliusRPC` for RPC, `SenderSubmissionProvider` for paid transaction submission, `Zolana` for Solana Rings indexer reads and encrypted proofs, `JupiterPriceProvider` and `CustomPriceProvider` for prices, and `EuropeanCentralBankExchangeRateProvider` and `CoinbaseExchangeRateProvider` for exchange rates.
 
 ## Use a custom RPC URL
 
-`Solana(endpoint:network:)` accepts an HTTPS URL with a host and returns `nil` otherwise. The server must serve standard JSON-RPC requests at that URL, and `accountSubscribe`, `signatureSubscribe`, and `rootSubscribe` over WSS at the same URL.
+`SolanaRPC(endpoint:network:)` accepts an HTTPS URL with a host and returns `nil` otherwise. The server must serve standard JSON-RPC requests at that URL, and `accountSubscribe`, `signatureSubscribe`, and `rootSubscribe` over WSS at the same URL.
 
 ```swift
-let client = Solana(endpoint: URL(string: "https://rpc.example.com")!, network: .mainnet)
+let client = SolanaRPC(endpoint: URL(string: "https://rpc.example.com")!, network: .mainnet)
 let prices = CustomPriceProvider(endpoint: URL(string: "https://prices.example.com")!)
 ```
 
 ## Add a provider
 
-A provider is a type in this module that conforms to [`RPC`](Sources/Client/RPC.swift) and sends each `RPCRequest` to its endpoint. Wrap a `Solana` client for an endpoint that speaks standard Solana RPC, as `HeliusRPC` does. Add the optional capabilities that the provider serves:
+A provider is a type in this module that conforms to [`RPC`](Sources/Client/RPC.swift) and sends each `RPCRequest` to its endpoint. Wrap a `SolanaRPC` client for an endpoint that speaks standard Solana RPC, as `HeliusRPC` does. Add the optional capabilities that the provider serves:
 
 | Protocol | Capability |
 | --- | --- |

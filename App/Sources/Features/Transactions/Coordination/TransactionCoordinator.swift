@@ -22,8 +22,8 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
         func service(on network: Network) throws -> (any SubmissionProviding)? {
             let service: (any SubmissionProviding)? = switch self {
             case .none: nil
-            case .standard: Sender(tier: .standard)
-            case .premium: Sender(tier: .premium)
+            case .standard: SenderSubmissionProvider(tier: .standard)
+            case .premium: SenderSubmissionProvider(tier: .premium)
             }
             if let service, service.network != network { throw TransactionCoordinatorError.unsupportedNetwork }
             return service

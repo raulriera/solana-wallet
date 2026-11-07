@@ -405,7 +405,7 @@ struct PortfolioStoreTests {
     }
 
     private func filePortfolio(in directory: URL) -> Portfolio {
-        Portfolio(rpc: Solana(network: .mainnet), store: FileSnapshotStore(directory: directory),
+        Portfolio(rpc: SolanaRPC(network: .mainnet), store: FileSnapshotStore(directory: directory),
                   tokenLists: tokenLists(in: directory))
     }
 

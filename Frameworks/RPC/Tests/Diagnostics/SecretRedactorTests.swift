@@ -37,7 +37,7 @@ struct SecretRedactorTests {
     @Test
     func `Dumps of clients reveal no key`() throws {
         let endpoint = try #require(URL(string: "https://rpc.example.com/fixture-key"))
-        let custom = try #require(Solana(endpoint: endpoint, network: .mainnet))
+        let custom = try #require(SolanaRPC(endpoint: endpoint, network: .mainnet))
         var text = ""
         dump(HeliusRPC(apiKey: "fixture-key", network: .devnet), to: &text)
         dump(custom, to: &text)

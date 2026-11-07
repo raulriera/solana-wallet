@@ -150,7 +150,7 @@ struct SubmissionTests {
     @Test
     func `Partially signed transactions are rejected before submission`() async throws {
         let signed = try ExternalFixture.signedResult(hasPayerSignature: false)
-        let rpc = Solana(network: .devnet)
+        let rpc = SolanaRPC(network: .devnet)
 
         await #expect(throws: SubmitterError.missingSignatures) {
             try await Submitter(rpc: rpc).submit(signed)
@@ -168,7 +168,7 @@ struct SubmissionTests {
         let input = SignedTransaction(preparation: signed.preparation, transaction: altered)
 
         let error = try await #require(throws: DeliveryError.self) {
-            try await Submitter(rpc: Solana(network: .devnet)).submit(input)
+            try await Submitter(rpc: SolanaRPC(network: .devnet)).submit(input)
         }
         #expect(error.cause as? SubmitterError == .transactionMismatch)
     }

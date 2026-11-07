@@ -10,7 +10,7 @@ struct SpentNullifiersLiveTests {
         let owner = try Address(ShieldedPoolOwners.devnet[0])
         let batch = try await Zolana(network: .devnet).shieldedTransactions(taggedWith: [owner.bytes], after: nil)
         let spends = batch.transactions.filter { !$0.isProofless && !$0.nullifiers.isEmpty }.prefix(4)
-        let rpc = Solana(network: .devnet)
+        let rpc = SolanaRPC(network: .devnet)
         var tags = Set<UInt8>()
 
         for spend in spends {

@@ -5,7 +5,7 @@ import Testing
 struct RentLiveTests {
     @Test(.timeLimit(.minutes(1)))
     func `Mainnet rejects rent queries for an impossible allocation`() async throws {
-        let rpc = Solana(network: .mainnet)
+        let rpc = SolanaRPC(network: .mainnet)
 
         await #expect {
             try await rpc.send(GetMinimumBalanceForRentExemption(dataLength: .max))

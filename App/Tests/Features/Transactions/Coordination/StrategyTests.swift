@@ -13,11 +13,11 @@ struct StrategyTests {
     }
 
     @Test(arguments: [
-        (TransactionCoordinator.Strategy.standard, Sender.Tier.standard),
+        (TransactionCoordinator.Strategy.standard, SenderSubmissionProvider.Tier.standard),
         (.premium, .premium),
     ])
-    func `Sender strategies replace the provider with one selected tier`(strategy: TransactionCoordinator.Strategy, tier: Sender.Tier) throws {
-        let sender = try #require(strategy.service(on: .mainnet) as? Sender)
+    func `Sender strategies replace the provider with one selected tier`(strategy: TransactionCoordinator.Strategy, tier: SenderSubmissionProvider.Tier) throws {
+        let sender = try #require(strategy.service(on: .mainnet) as? SenderSubmissionProvider)
 
         #expect(sender.tier == tier)
     }
@@ -28,7 +28,7 @@ struct StrategyTests {
     ])
     func `Sender preparation rejects a priority fee below its requirement`(strategy: TransactionCoordinator.Strategy,
                                           requestedFee: UInt64, minimumFee: UInt64) async throws {
-        let rpc = Solana()
+        let rpc = SolanaRPC()
         let transfer = try SystemProgram.transfer(from: Address("4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T"), to: Address("9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM"), lamports: 1)
         let configuration = try Configuration(priorityFeeLamports: requestedFee,
                                                computeUnitLimit: 20_000, loadedAccountsDataSizeLimit: 65_536)
@@ -45,7 +45,7 @@ struct StrategyTests {
         TransactionCoordinator.Strategy.standard, .premium,
     ])
     func `Sender strategies reject devnet without falling back to the provider`(strategy: TransactionCoordinator.Strategy) throws {
-        let rpc = Solana(network: .devnet)
+        let rpc = SolanaRPC(network: .devnet)
         #expect(throws: TransactionCoordinatorError.unsupportedNetwork) {
             try TransactionCoordinator(rpc: rpc, store: KeychainStore(service: "widgetsTests.Strategy"),
                                        strategy: strategy)

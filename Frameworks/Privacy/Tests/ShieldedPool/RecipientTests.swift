@@ -52,7 +52,7 @@ struct RecipientTests {
             try reply(to: request, payload: #""result":{"context":{"slot":7},"value":[\#(record),null]}"#)
         }
 
-        let recipients = try await Recipient.lookup(owners, using: Solana(network: .devnet, transport: transport))
+        let recipients = try await Recipient.lookup(owners, using: SolanaRPC(network: .devnet, transport: transport))
 
         let recipient = try #require(recipients.first ?? nil)
         #expect(await transport.requests.count == 1)

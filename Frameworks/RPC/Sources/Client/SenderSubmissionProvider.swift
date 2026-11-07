@@ -1,7 +1,7 @@
 import Foundation
 
 /// A client for Helius Sender's mainnet transaction-submission service.
-public struct Sender: SubmissionProviding {
+public struct SenderSubmissionProvider: SubmissionProviding {
     /// A Sender routing tier.
     public enum Tier: Sendable {
         /// Delivery through stake-weighted routing with a lower tip.

@@ -156,7 +156,7 @@ private struct TokenListFixture {
     var snapshots: FileSnapshotStore { FileSnapshotStore(directory: directory.appendingPathComponent("Snapshots")) }
 
     func portfolio(network: Network = .mainnet) -> Portfolio {
-        Portfolio(rpc: Solana(network: network), store: snapshots, tokenLists: store)
+        Portfolio(rpc: SolanaRPC(network: network), store: snapshots, tokenLists: store)
     }
 
     func list(for owner: String, network: Network = .mainnet) async throws -> TokenList {

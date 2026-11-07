@@ -9,7 +9,7 @@ import Portfolio
 import RPC
 
 let portfolio: any PortfolioProviding = Portfolio(
-    rpc: Solana(network: .mainnet),
+    rpc: SolanaRPC(network: .mainnet),
     tokenListDirectory: .applicationSupportDirectory.appending(path: "TokenLists", directoryHint: .isDirectory),
     cacheDirectory: .cachesDirectory.appending(path: "Portfolio", directoryHint: .isDirectory)
 )

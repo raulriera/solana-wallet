@@ -905,7 +905,7 @@ private struct ObservationFixture: Sendable {
 
     func service(http: AccountResponses, prices: (any PriceProviding)? = nil,
                  connect: (@Sendable (URL) -> any WebSocketConnection)? = nil) -> Portfolio {
-        let rpc = Solana(network: .mainnet, transport: http, socket: connect ?? { _ in socket })
+        let rpc = SolanaRPC(network: .mainnet, transport: http, socket: connect ?? { _ in socket })
         return Portfolio(rpc: rpc, store: store, tokenLists: isolatedTokenLists(), prices: prices,
                          pause: { try await gate.pause($0) })
     }

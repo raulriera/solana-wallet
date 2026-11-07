@@ -17,7 +17,7 @@ struct ShieldedPoolTreeAccountTests {
     func `Tree accounts are read with one request in the trees' order`() async throws {
         let transport = Fixture.transport(returning: [Self.account(Self.data(7)), Self.account(Self.data(0))])
 
-        let data = try await ShieldedPool.treeAccountData(at: try Self.trees, using: Solana(network: .devnet, transport: transport))
+        let data = try await ShieldedPool.treeAccountData(at: try Self.trees, using: SolanaRPC(network: .devnet, transport: transport))
 
         let requests = try await transport.requests.map(requestBody)
         #expect(data == [Self.data(7), Self.data(0)])
@@ -39,7 +39,7 @@ struct ShieldedPoolTreeAccountTests {
         let transport = Fixture.transport(returning: accounts)
 
         await #expect(throws: error) {
-            try await ShieldedPool.treeAccountData(at: try Self.trees, using: Solana(network: .devnet, transport: transport))
+            try await ShieldedPool.treeAccountData(at: try Self.trees, using: SolanaRPC(network: .devnet, transport: transport))
         }
     }
 

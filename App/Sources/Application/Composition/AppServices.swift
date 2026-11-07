@@ -48,7 +48,7 @@ struct AppServices {
                                                                               directoryHint: .isDirectory))
         let wallet = Wallet()
         self.wallet = wallet
-        discovery = AccountDiscovery(rpc: Solana(network: .mainnet), wallet: wallet)
+        discovery = AccountDiscovery(rpc: SolanaRPC(network: .mainnet), wallet: wallet)
         recovery = KeychainStore(service: recoveryService)
         accountCreation = AccountCreation(recovery: recovery, wallet: wallet)
         let privateBalanceKeys = KeychainItem(service: privateBalanceService, account: "keys",

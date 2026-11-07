@@ -25,9 +25,9 @@ extension HTTPResponses {
                             socket: @escaping @Sendable (URL) -> any WebSocketConnection = { _ in SocketFixture() })
         -> (any RPC & AccountChangeProviding & SignatureEventProviding)? {
         switch endpoint {
-        case .solana: Solana(network: network, transport: self, socket: socket)
+        case .solana: SolanaRPC(network: network, transport: self, socket: socket)
         case .helius(let key): HeliusRPC(apiKey: key, network: network, transport: self, socket: socket)
-        case .custom(let url): Solana(endpoint: url, network: network, transport: self, socket: socket)
+        case .custom(let url): SolanaRPC(endpoint: url, network: network, transport: self, socket: socket)
         }
     }
 

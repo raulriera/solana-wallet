@@ -9,7 +9,7 @@ struct ShieldedPoolRegistryRentTests {
         let record = try #require(try RegistryVectors.load().records.first)
         let transport = StubTransport { request in try reply(to: request, payload: #""result":1586880"#) }
 
-        let rent = try await ShieldedPool.registryRecordRent(using: Solana(network: .devnet, transport: transport))
+        let rent = try await ShieldedPool.registryRecordRent(using: SolanaRPC(network: .devnet, transport: transport))
 
         let requests = try await transport.requests.map(requestBody)
         let parameters = try #require(requests.first?["params"] as? [Any])

@@ -352,7 +352,7 @@ struct NoteSyncStateTests {
         )
         let transport = StubTransport { try indexer.respond(to: $0) }
 
-        let state = try await held.syncedToEnd(for: sender, rpc: Solana.devnet(transport: transport), indexer: Self.indexer(transport))
+        let state = try await held.syncedToEnd(for: sender, rpc: SolanaRPC.devnet(transport: transport), indexer: Self.indexer(transport))
 
         #expect(state.notes == first.notes)
         #expect(state.missingSpendReads == [spender.signature: 1])
@@ -410,7 +410,7 @@ struct NoteSyncStateTests {
             return try indexer.respond(to: request)
         }
 
-        let state = try await first.synced(for: sender, rpc: Solana.devnet(transport: transport), indexer: Self.indexer(transport))
+        let state = try await first.synced(for: sender, rpc: SolanaRPC.devnet(transport: transport), indexer: Self.indexer(transport))
 
         #expect(state.notes.isEmpty)
         #expect(Set(try await Self.transactionReads(of: transport)) == Set(spenders.map(\.signature)))
@@ -466,7 +466,7 @@ struct NoteSyncStateTests {
         let indexer = Indexer(deposits: Array(repeating: foreignDeposit, count: 8) + [deposit], depositsPerPage: 1)
         let transport = StubTransport { try indexer.respond(to: $0) }
 
-        let state = try await NoteSyncState().syncedToEnd(for: sender, rpc: Solana.devnet(transport: transport), indexer: Self.indexer(transport))
+        let state = try await NoteSyncState().syncedToEnd(for: sender, rpc: SolanaRPC.devnet(transport: transport), indexer: Self.indexer(transport))
 
         let tags = sender.viewTags
         #expect(state.notes == (try notes(in: deposit)))
@@ -484,7 +484,7 @@ struct NoteSyncStateTests {
             return try reply(to: request, payload: #""result":\#(IndexerReplies.page([filler], in: "matches", next: next))"#)
         }
         await #expect(throws: RPCError.invalidResponse(.endlessStream)) {
-            try await NoteSyncState().syncedToEnd(for: sender, rpc: Solana.devnet(transport: transport), indexer: Self.indexer(transport))
+            try await NoteSyncState().syncedToEnd(for: sender, rpc: SolanaRPC.devnet(transport: transport), indexer: Self.indexer(transport))
         }
         let routes = await transport.requests.map { $0.url?.lastPathComponent }
         #expect(routes.filter { $0 == GetShieldedTransactionsByTags.method }.count == 128)
@@ -521,7 +521,7 @@ struct NoteSyncStateTests {
             return try indexer.respond(to: request)
         }
 
-        let state = try await first.synced(for: sender, rpc: Solana.devnet(transport: transport), indexer: Self.indexer(transport))
+        let state = try await first.synced(for: sender, rpc: SolanaRPC.devnet(transport: transport), indexer: Self.indexer(transport))
 
         #expect(state.notes == first.notes)
     }
@@ -544,7 +544,7 @@ struct NoteSyncStateTests {
             return try indexer.respond(to: request)
         }
 
-        let state = try await first.synced(for: sender, rpc: Solana.devnet(transport: transport), indexer: Self.indexer(transport))
+        let state = try await first.synced(for: sender, rpc: SolanaRPC.devnet(transport: transport), indexer: Self.indexer(transport))
 
         #expect(state.notes == (try notes(in: deposit) + notes(in: laterDeposit)))
         #expect(try await Self.nullifierReads(of: transport).count == 2)
@@ -567,7 +567,7 @@ struct NoteSyncStateTests {
         }
 
         await #expect(throws: RPCError.server(code: -32603, message: "failed")) {
-            try await first.synced(for: sender, rpc: Solana.devnet(transport: transport), indexer: Self.indexer(transport))
+            try await first.synced(for: sender, rpc: SolanaRPC.devnet(transport: transport), indexer: Self.indexer(transport))
         }
         #expect(await transport.observedCancellation)
     }
@@ -865,7 +865,7 @@ struct NoteSyncStateTests {
 
     private func sync(_ state: NoteSyncState, with indexer: Indexer) async throws -> (NoteSyncState, StubTransport) {
         let transport = StubTransport { try indexer.respond(to: $0) }
-        let synced = try await state.synced(for: sender, rpc: Solana.devnet(transport: transport), indexer: Self.indexer(transport))
+        let synced = try await state.synced(for: sender, rpc: SolanaRPC.devnet(transport: transport), indexer: Self.indexer(transport))
         return (synced, transport)
     }
 
