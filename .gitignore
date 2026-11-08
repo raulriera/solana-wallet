@@ -4,7 +4,8 @@
 xcuserdata/
 
 # Claude Code: ignore local agent state, such as worktrees, settings, and tool output.
-# Keep the shared project settings and hooks.
+# Keep the shared project settings, hooks, and skills.
 /.claude/*
 !/.claude/settings.json
 !/.claude/hooks/
+!/.claude/skills/

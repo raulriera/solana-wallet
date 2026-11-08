@@ -23,6 +23,6 @@
 ## Verification
 
 - Use published vectors and public test phrases only. Verify signatures cryptographically; CryptoKit may randomize them.
-- Use the [biometric-tests skill](../.agents/skills/biometric-tests/SKILL.md) for Keychain checks. Simulator reads can skip the authentication prompt, so authentication needs a physical device.
+- Use the [biometric-tests skill](../.claude/skills/biometric-tests/SKILL.md) for Keychain checks. Simulator reads can skip the authentication prompt, so authentication needs a physical device.
 
 Sources: [BIP-39](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki), [SLIP-0010](https://github.com/satoshilabs/slips/blob/master/slip-0010.md), [user presence](https://developer.apple.com/documentation/security/secaccesscontrolcreateflags/userpresence.md).
