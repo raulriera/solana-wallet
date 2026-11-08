@@ -12,10 +12,11 @@ nonisolated struct CatalogFixture {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
     }
 
-    func source(id: UUID = UUID(), name: String = "Example") throws -> URL {
+    func source(id: UUID = UUID(), name: String = "Example", tokens: [String: Any]? = nil) throws -> URL {
         let source = root.appendingPathComponent(UUID().uuidString + ".xtheme")
         try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
-        let json: [String: Any] = ["version": 1, "id": id.uuidString, "name": name]
+        var json: [String: Any] = ["version": 1, "id": id.uuidString, "name": name]
+        json["tokens"] = tokens
         try JSONSerialization.data(withJSONObject: json).write(to: source.appendingPathComponent("manifest.json"))
         return source
     }
@@ -37,9 +38,7 @@ nonisolated struct InterceptedPackages: PackServicing {
         try await afterSave()
     }
 
-    func resolve(_ pack: Pack, defaults: Colors) -> Colors { PackService().resolve(pack, defaults: defaults) }
-
-    func exportTemplate(named name: String, defaults: Colors, to url: URL) async throws {
+    func exportTemplate(named name: String, defaults: Tokens, to url: URL) async throws {
         try await PackService().exportTemplate(named: name, defaults: defaults, to: url)
     }
 }

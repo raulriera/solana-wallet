@@ -28,7 +28,7 @@
 
 ## Theme packs
 
-The [Themes framework](../Frameworks/Themes/README.md) defines the package format. Packs support color tokens and images; typography and component tokens are deferred.
+The [Themes framework](../Frameworks/Themes/README.md) defines the package format. Packs support color tokens, a font design, and images; other typography and component tokens are deferred.
 
 - Packs are data and assets, never executable UI. The app owns rendering, adaptation, navigation, action meanings, Dynamic Type, accessibility, and transaction review; a theme can't remove required transaction information or approval controls.
 - Built-in themes can't be edited or removed; custom themes can. One app-wide theme applies to every window.

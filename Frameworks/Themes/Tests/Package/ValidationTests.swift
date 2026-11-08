@@ -18,6 +18,9 @@ struct ValidationTests {
         (#""tokens":{"colors":{"light":{"invented":{"system":"label"}}}}"#, "tokens.colors.light.invented"),
         (#""tokens":{"colors":{"invented":{}}}"#, "tokens.colors.invented"),
         (#""tokens":{"typography":{}}"#, "tokens.typography"),
+        (#""tokens":{"fontDesign":null}"#, "tokens.fontDesign"),
+        (#""tokens":{"fontDesign":1}"#, "tokens.fontDesign"),
+        (#""tokens":{"fontDesign":"Menlo"}"#, "tokens.fontDesign"),
         (#""formatVersion":1"#, "formatVersion"),
         (#""assets":null"#, "assets"),
         (#""assets":{"background":null}"#, "assets.background")

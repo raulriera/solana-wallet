@@ -1,6 +1,6 @@
 # Themes
 
-Theme packs: reading, validating, saving, and resolving their colors, and exporting templates to start a new one.
+Theme packs: reading, validating, and saving them, applying their colors and font design over app defaults, and exporting templates to start a new one.
 
 ## Usage
 
@@ -9,11 +9,11 @@ import Themes
 
 let service: any PackServicing = PackService()
 let pack = try await service.read(from: packURL)
-let colors = service.resolve(pack, defaults: defaults)
+let tokens = defaults.applying(pack)
 try await service.exportTemplate(named: "My Theme", defaults: defaults, to: templateURL)
 ```
 
-`defaults` is a `Colors` value with a complete `Palette` for each appearance.
+`defaults` is the app's `Tokens`: a complete `Palette` for each appearance and a `FontDesign`. `applying(_:)` keeps every default the pack omits.
 
 ## Build a theme pack
 
@@ -26,7 +26,7 @@ Example.xtheme/
     └── background.png
 ```
 
-To start, export a template from the app: it holds every default value and a new ID. Edit it, then import the pack through Files.
+To start, export a template from the app: it holds every default color, the default font design, and a new ID. Edit it, then import the pack through Files.
 
 ### Manifest
 
@@ -35,7 +35,7 @@ To start, export a template from the app: it holds every default value and a new
 | `version` | Required. `1`. |
 | `id` | Required UUID string. Use a new one for each theme, and keep it when you update or rename the theme. |
 | `name` | Required, nonempty display name. |
-| `tokens` | Optional colors. Omitted values use the app's defaults. |
+| `tokens` | Optional colors and font design. Omitted values use the app's defaults. |
 | `assets` | Optional map of asset names to paths inside `Assets/`. |
 
 ```json
@@ -48,7 +48,8 @@ To start, export a template from the app: it holds every default value and a new
       "light": {
         "primary": { "srgb": "#26643E" }
       }
-    }
+    },
+    "fontDesign": "monospaced"
   },
   "assets": {
     "background": "Assets/background.png"
@@ -58,10 +59,14 @@ To start, export a template from the app: it holds every default value and a new
 
 ### Colors
 
-- Appearances under `tokens.colors`: `light`, `dark`, `lightIncreasedContrast`, and `darkIncreasedContrast`.
-- Roles in each appearance: `background`, `surface`, `text`, `secondaryText`, `separator`, `primary`, `onPrimary`, `secondary`, `onSecondary`, `destructive`, and `onDestructive`.
-- `primary`, `secondary`, and `destructive` fill their buttons. Each `on` role colors the text and symbols on that fill. `primary` also colors links and controls without a fill, and `destructive` colors destructive text without a fill.
+- Appearances under `tokens.colors`: `light` and `dark`.
+- Roles in each appearance: `background`, `surface`, `text`, `secondaryText`, `separator`, `primary`, `onPrimary`, `secondary`, `onSecondary`, `destructive`, `onDestructive`, and `border`.
+- `primary`, `secondary`, and `destructive` fill their buttons. Each `on` role colors the text and symbols on that fill. `primary` also colors links and controls without a fill, and `destructive` colors destructive text without a fill. `border` outlines buttons; use `clear` for none.
 - Each color is a [system color](Sources/Colors/Color.swift), such as `{ "system": "systemBackground" }`, or an opaque sRGB color, such as `{ "srgb": "#26643E" }`.
+
+### Font design
+
+`tokens.fontDesign` sets the design of the system font: `default`, `rounded`, `serif`, or `monospaced`. Text keeps its sizes and weights. Omitted, it uses the app's default.
 
 ### Assets
 

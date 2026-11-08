@@ -63,12 +63,10 @@ enum PackageFiles {
     private static func validateExportSize(_ manifest: Manifest, byteLimit: Int) throws {
         // swift-format-ignore: NeverForceUnwrap
         let longest = Color.System.allCases.max { $0.rawValue.utf8.count < $1.rawValue.utf8.count }!
-        let complete = Dictionary(uniqueKeysWithValues: Appearance.allCases.map { appearance in
-            (appearance, Dictionary(uniqueKeysWithValues: Role.allCases.map { role in
-                (role, manifest.colors[appearance]?[role] ?? .system(longest))
-            }))
-        })
-        let exported = Manifest(id: manifest.id, name: manifest.name, colors: complete, assets: manifest.assets)
+        let longestPalette = Palette { _ in .system(longest) }
+        var tokens = manifest.tokens
+        tokens.colors = Colors(light: longestPalette, dark: longestPalette).applying(manifest.tokens.colors).values
+        let exported = Manifest(id: manifest.id, name: manifest.name, tokens: tokens, assets: manifest.assets)
         try ResourceLimits.checkBytes(Int64(try exported.encode().count), limit: byteLimit, path: "manifest.json")
     }
 

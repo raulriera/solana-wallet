@@ -1,6 +1,6 @@
 public import Foundation
 
-/// A type that reads, saves, and resolves packs and exports templates.
+/// A type that reads and saves packs and exports templates.
 public protocol PackServicing: Sendable {
     /// Loads and validates a directory package, including every declared image.
     ///
@@ -17,20 +17,12 @@ public protocol PackServicing: Sendable {
     /// - Throws: A file-access or cancellation error.
     func save(_ pack: Pack, to url: URL) async throws
 
-    /// Fills a pack's omitted colors from default palettes.
-    ///
-    /// - Parameters:
-    ///   - pack: A validated pack.
-    ///   - defaults: The complete default palettes.
-    /// - Returns: The complete colors.
-    func resolve(_ pack: Pack, defaults: Colors) -> Colors
-
-    /// Exports default palettes as a new theme with a new identifier.
+    /// Exports default tokens as a new theme with a new identifier.
     ///
     /// - Parameters:
     ///   - name: A nonempty display name for the theme.
-    ///   - defaults: The complete default palettes.
+    ///   - defaults: The complete default tokens.
     ///   - url: The destination package URL.
     /// - Throws: A validation, file-access, or cancellation error.
-    func exportTemplate(named name: String, defaults: Colors, to url: URL) async throws
+    func exportTemplate(named name: String, defaults: Tokens, to url: URL) async throws
 }

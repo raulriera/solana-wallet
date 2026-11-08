@@ -1,4 +1,3 @@
-import Foundation
 import Observation
 import SwiftUI
 import Synchronization
@@ -8,51 +7,43 @@ import Themes
 
 @MainActor @Suite(.timeLimit(.minutes(1)))
 struct PaletteObservationTests {
-    @Test(arguments: [ColorScheme.light, .dark], [ColorSchemeContrast.standard, .increased])
-    func `Reloading identical colors does not notify`(scheme: ColorScheme, contrast: ColorSchemeContrast) async throws {
+    @Test(arguments: [ColorScheme.light, .dark])
+    func `Reloading identical colors does not notify`(scheme: ColorScheme) async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
         let catalog = ThemeCatalog(directory: fixture.directory)
         let rendered = RenderedAppearance()
-        let palettes: any PaletteProviding = rendered
         let changed = Mutex(false)
         withObservationTracking {
-            _ = palettes.palette(scheme: scheme, contrast: contrast)
+            _ = rendered.palette(scheme: scheme)
         } onChange: {
             changed.withLock { $0 = true }
         }
 
-        try await rendered.load(nil, catalog: catalog, packages: PackService())
+        try await rendered.load(nil, catalog: catalog)
 
         let notified = changed.withLock(\.self)
         #expect(!notified)
     }
 
-    @Test(arguments: ["background", "surface", "text", "secondaryText", "separator", "primary", "onPrimary",
-                      "secondary", "onSecondary", "destructive", "onDestructive"],
-          [true, false])
-    func `Changing color only notifies affected variant`(role: String, observesChangedVariant: Bool) async throws {
+    @Test(arguments: Palette.Role.allCases, [ColorScheme.light, .dark])
+    func `Changing a dark color only notifies dark observers`(role: Palette.Role, scheme: ColorScheme) async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }
-        let source = try fixture.source()
-        let manifestURL = source.appendingPathComponent("manifest.json")
-        var manifest = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: manifestURL)) as? [String: Any])
-        manifest["tokens"] = ["colors": ["darkIncreasedContrast": [role: ["srgb": "#123456"]]]]
-        try JSONSerialization.data(withJSONObject: manifest).write(to: manifestURL)
+        let source = try fixture.source(tokens: ["colors": ["dark": [role.rawValue: ["srgb": "#123456"]]]])
         let catalog = ThemeCatalog(directory: fixture.directory)
         let entry = try await catalog.install(PackService().read(from: source))
         let rendered = RenderedAppearance()
-        let palettes: any PaletteProviding = rendered
         let changed = Mutex(false)
         withObservationTracking {
-            _ = palettes.palette(scheme: .dark, contrast: observesChangedVariant ? .increased : .standard)
+            _ = rendered.palette(scheme: scheme)
         } onChange: {
             changed.withLock { $0 = true }
         }
 
-        try await rendered.load(entry, catalog: catalog, packages: PackService())
+        try await rendered.load(entry, catalog: catalog)
 
         let notified = changed.withLock(\.self)
-        #expect(notified == observesChangedVariant)
+        #expect(notified == (scheme == .dark))
     }
 }

@@ -7,7 +7,7 @@ struct ExportTests {
         let fixture = try Fixture()
         defer { fixture.remove() }
         try fixture.asset(Fixture.image())
-        try fixture.manifest(##""tokens":{"colors":{"light":{"primary":{"srgb":"#12AB34"}}}},"assets":{"image":"Assets/image.png"}"##)
+        try fixture.manifest(##""tokens":{"colors":{"light":{"primary":{"srgb":"#12AB34"}}},"fontDesign":"monospaced"},"assets":{"image":"Assets/image.png"}"##)
         let service: any PackServicing = PackService()
         let original = try await service.read(from: fixture.source)
         try FileManager.default.removeItem(at: fixture.source)
@@ -17,14 +17,17 @@ struct ExportTests {
         #expect(installed.id == original.id)
         #expect(installed.assets == original.assets)
         let palette = Fixture.palette(.system(.systemRed))
-        let different = Colors(light: palette, dark: palette, lightIncreasedContrast: palette, darkIncreasedContrast: palette)
-        #expect(service.resolve(installed, defaults: different) == service.resolve(original, defaults: different))
-        #expect(service.resolve(installed, defaults: different).light.background == .system(.systemRed))
+        let different = Tokens(colors: Colors(light: palette, dark: palette), fontDesign: .rounded)
+        let resolved = different.applying(installed)
+        #expect(resolved == different.applying(original))
+        #expect(resolved.colors.light[.background] == .system(.systemRed))
+        #expect(resolved.fontDesign == .monospaced)
         let json = try Fixture.exportedJSON(at: destination)
         let tokens = try #require(json["tokens"] as? [String: Any])
         let colors = try #require(tokens["colors"] as? [String: [String: [String: String]]])
         #expect(Set(colors.keys) == ["light"])
         #expect(Set(try #require(colors["light"]).keys) == ["primary"])
+        #expect(tokens["fontDesign"] as? String == "monospaced")
     }
 
     @Test func `Template exports complete defaults with new identities`() async throws {
@@ -35,25 +38,37 @@ struct ExportTests {
         let second = fixture.directory.appendingPathComponent("Second")
         try await service.exportTemplate(named: "Template", defaults: Fixture.defaults, to: first)
         try await service.exportTemplate(named: "Template", defaults: Fixture.defaults, to: second)
-        let a = try await service.read(from: first)
-        let b = try await service.read(from: second)
+        async let firstPack = service.read(from: first)
+        async let secondPack = service.read(from: second)
+        let (a, b) = try await (firstPack, secondPack)
         #expect(a.id != b.id)
         #expect(a.name == "Template")
         #expect(a.assets.isEmpty)
-        let alternate = Colors(light: Fixture.defaults.dark, dark: Fixture.defaults.light,
-                               lightIncreasedContrast: Fixture.defaults.dark, darkIncreasedContrast: Fixture.defaults.light)
-        #expect(service.resolve(a, defaults: alternate) == Fixture.defaults)
+        let alternate = Tokens(colors: Colors(light: Fixture.defaults.colors.dark, dark: Fixture.defaults.colors.light),
+                               fontDesign: .rounded)
+        #expect(alternate.applying(a) == Fixture.defaults)
         let json = try Fixture.exportedJSON(at: first)
         #expect(json["version"] as? Int == 1)
         #expect(json["formatVersion"] == nil)
         let tokens = try #require(json["tokens"] as? [String: Any])
         let colors = try #require(tokens["colors"] as? [String: [String: [String: String]]])
-        #expect(Set(colors.keys) == ["light", "dark", "lightIncreasedContrast", "darkIncreasedContrast"])
+        #expect(Set(colors.keys) == ["light", "dark"])
         for palette in colors.values {
-            #expect(Set(palette.keys) == ["background", "surface", "text", "secondaryText", "separator", "primary",
-                                           "onPrimary", "secondary", "onSecondary", "destructive", "onDestructive"])
+            #expect(Set(palette.keys) == Set(Palette.Role.allCases.map(\.rawValue)))
         }
         #expect(colors["light"]?["background"] == ["system": "systemBackground"])
+        #expect(tokens["fontDesign"] as? String == "serif")
+    }
+
+    @Test func `Saving keeps an omitted font design omitted`() async throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        try fixture.manifest()
+        let service = PackService()
+        let destination = fixture.directory.appendingPathComponent("Saved")
+        try await service.save(service.read(from: fixture.source), to: destination)
+        let tokens = try #require(Fixture.exportedJSON(at: destination)["tokens"] as? [String: Any])
+        #expect(tokens["fontDesign"] == nil)
     }
 
     @Test func `Saved copy preserves shared assets and identity`() async throws {
@@ -66,7 +81,7 @@ struct ExportTests {
         try fixture.manifest(##""tokens":{"colors":{"light":{"primary":{"srgb":"#12aB34"}}}},"assets":{"texture":"Assets/nested/texture.png","background":"Assets/background.jpg","shared":"Assets/nested/texture.png"}"##)
         let service = PackService()
         let original = try await service.read(from: fixture.source)
-        let expected = service.resolve(original, defaults: Fixture.defaults)
+        let expected = Fixture.defaults.applying(original)
         try FileManager.default.removeItem(at: fixture.source)
         let destination = fixture.directory.appendingPathComponent("Renamed")
         try await service.save(original, to: destination)
@@ -74,7 +89,7 @@ struct ExportTests {
         #expect(saved.id == Fixture.id)
         #expect(saved.name == original.name)
         #expect(saved.assets == original.assets)
-        #expect(service.resolve(saved, defaults: Fixture.defaults) == expected)
+        #expect(Fixture.defaults.applying(saved) == expected)
         let manifest = try Fixture.exportedJSON(at: destination)
         let tokens = try #require(manifest["tokens"] as? [String: Any])
         let colors = try #require(tokens["colors"] as? [String: [String: [String: String]]])

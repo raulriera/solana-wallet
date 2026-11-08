@@ -33,7 +33,8 @@ struct ProviderEntry: View {
             .submitLabel(.done)
             .onSubmit { isFocused = false }
 
-            PasteTextButton { text = $0 }
+            PasteButton(payloadType: String.self) { text = $0.first ?? "" }
+                .themedButtonBorder()
         }
     }
 }

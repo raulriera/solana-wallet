@@ -1,15 +1,14 @@
 import SwiftUI
 
-/// Loads a window's theme and provides its colors to the window's views.
+/// Loads a window's theme and applies it to the window's views.
 private struct WindowAppearance: ViewModifier {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.colorSchemeContrast) private var contrast
     @State private var rendered = RenderedAppearance()
     @State private var error: ThemeError?
     let services: AppearanceServices
 
-    private var palette: RenderedPalette { rendered.palette(scheme: colorScheme, contrast: contrast) }
+    private var palette: RenderedPalette { rendered.palette(scheme: colorScheme) }
     private var selectedTheme: ThemeEntry? { services.appearance.snapshot?.theme }
 
     func body(content: Content) -> some View {
@@ -17,6 +16,7 @@ private struct WindowAppearance: ViewModifier {
             .alert(error: $error)
             .environment(\.palette, palette)
             .tint(palette.primary)
+            .fontDesign(rendered.fontDesign)
             .formStyle(.themed)
             .task(id: scenePhase) {
                 guard scenePhase == .active else { return }
@@ -26,10 +26,10 @@ private struct WindowAppearance: ViewModifier {
             .task(id: selectedTheme?.revision) { await loadSelectedTheme() }
     }
 
-    /// Loads the colors of the selected theme.
+    /// Loads the selected theme.
     private func loadSelectedTheme() async {
         let theme = selectedTheme
-        do { try await rendered.load(theme, catalog: services.catalog, packages: services.packages) }
+        do { try await rendered.load(theme, catalog: services.catalog) }
         catch {
             report(error, as: .themeUnreadable)
             if let theme, !Task.isCancelled { try? await services.appearance.forget(theme.id) }
@@ -48,10 +48,10 @@ private struct WindowAppearance: ViewModifier {
 }
 
 extension View {
-    /// Loads a window's theme and provides its colors to this view's hierarchy.
+    /// Loads a window's theme and applies it to this view's hierarchy.
     ///
     /// - Parameter services: The shared appearance services.
-    /// - Returns: A view with the window's theme colors.
+    /// - Returns: A view in the window's theme.
     func windowAppearance(services: AppearanceServices) -> some View {
         modifier(WindowAppearance(services: services))
     }

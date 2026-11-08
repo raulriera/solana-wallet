@@ -24,7 +24,8 @@ struct TokenAdditionScreen: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                    PasteTextButton(paste: paste)
+                    PasteButton(payloadType: String.self) { paste($0.first ?? "") }
+                        .themedButtonBorder()
                 }
 
                 if let rejection = addition.rejection {

@@ -1,11 +1,12 @@
 import SwiftUI
+import Themes
 
-/// A large, full-width button style that adds theme colors to a native style.
+/// A full-width button style that adds theme colors and a border to a native style.
 struct ActionButtonStyle<Base: PrimitiveButtonStyle>: PrimitiveButtonStyle {
     @Environment(\.palette) private var palette
     private let base: Base
-    private let fill: PaletteRole
-    private let content: PaletteRole
+    private let fill: Palette.Role
+    private let content: Palette.Role
 
     /// Creates an action style.
     ///
@@ -13,7 +14,7 @@ struct ActionButtonStyle<Base: PrimitiveButtonStyle>: PrimitiveButtonStyle {
     ///   - base: The native style.
     ///   - fill: The button's color.
     ///   - content: The color of the label on the button's color.
-    fileprivate init(base: Base, fill: PaletteRole, content: PaletteRole) {
+    fileprivate init(base: Base, fill: Palette.Role, content: Palette.Role) {
         self.base = base
         self.fill = fill
         self.content = content
@@ -22,12 +23,13 @@ struct ActionButtonStyle<Base: PrimitiveButtonStyle>: PrimitiveButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         Button(role: configuration.role, action: configuration.trigger) {
             configuration.label
+                .padding(.vertical, 6)
         }
         .buttonSizing(.flexible)
         .buttonStyle(base)
-        .controlSize(.large)
-        .tint(fill.color(in: palette))
-        .foregroundStyle(content.color(in: palette))
+        .tint(palette[fill])
+        .foregroundStyle(palette[content])
+        .themedButtonBorder()
     }
 }
 

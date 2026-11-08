@@ -88,7 +88,7 @@ import Themes
                 try await CatalogIO.perform { _ in
                     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
                 }
-                try await self.packages.exportTemplate(named: "My Theme", defaults: OriginalAppearance.colors, to: url)
+                try await self.packages.exportTemplate(named: "My Theme", defaults: OriginalAppearance.tokens, to: url)
                 try Task.checkCancellation()
                 self.export = ThemeExport(url: url)
             } catch {

@@ -17,15 +17,11 @@ public struct PackService: PackServicing {
         try await Self.write(assets: pack.assets, to: url) { pack.manifest }
     }
 
-    public func resolve(_ pack: Pack, defaults: Colors) -> Colors {
-        defaults.applying(pack.manifest.colors)
-    }
-
     @concurrent
-    public func exportTemplate(named name: String, defaults: Colors, to url: URL) async throws {
+    public func exportTemplate(named name: String, defaults: Tokens, to url: URL) async throws {
         try await Self.write(assets: [:], to: url) {
             try Manifest.validateName(name)
-            return Manifest(id: UUID(), name: name, colors: defaults.values, assets: [:])
+            return Manifest(id: UUID(), name: name, tokens: defaults.overrides, assets: [:])
         }
     }
 

@@ -98,7 +98,8 @@ struct ConcurrencyTests {
             switch operation {
             case "read": _ = try await service.read(from: fixture.source)
             case "save": try await service.save(pack, to: fixture.source)
-            default: try await service.exportTemplate(named: "Cancelled", defaults: Fixture.defaults, to: fixture.source)
+            default:
+                try await service.exportTemplate(named: "Cancelled", defaults: Fixture.defaults, to: fixture.source)
             }
         }
         for await _ in presenter.requested.stream {}
@@ -146,7 +147,8 @@ struct ConcurrencyTests {
             for index in 0..<8 {
                 group.addTask {
                     let destination = directory.appendingPathComponent("Export-\(index)")
-                    try await service.exportTemplate(named: "Theme \(index)", defaults: Fixture.defaults, to: destination)
+                    try await service.exportTemplate(named: "Theme \(index)", defaults: Fixture.defaults,
+                                                     to: destination)
                     return (index, try await service.read(from: destination))
                 }
             }
@@ -158,7 +160,7 @@ struct ConcurrencyTests {
         #expect(Set(results.map { $0.1.id }).count == 8)
         for (index, pack) in results {
             #expect(pack.name == "Theme \(index)")
-            #expect(service.resolve(pack, defaults: Fixture.defaults) == Fixture.defaults)
+            #expect(Fixture.defaults.applying(pack) == Fixture.defaults)
         }
     }
 }

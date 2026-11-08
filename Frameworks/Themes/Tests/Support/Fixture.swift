@@ -9,10 +9,9 @@ struct Fixture {
     let source: URL
     static let id = UUID(uuidString: "A416C5BC-E1F3-4614-929A-CEF0B40AF7D0")!
     static let header = #""version":1,"id":"\#(id.uuidString)","name":"Example""#
-    static let defaults = Colors(light: palette(.system(.systemBackground)),
-                                 dark: palette(.system(.label)),
-                                 lightIncreasedContrast: palette(.system(.white)),
-                                 darkIncreasedContrast: palette(.system(.black)))
+    static let defaults = Tokens(colors: Colors(light: palette(.system(.systemBackground)),
+                                                dark: palette(.system(.label))),
+                                 fontDesign: .serif)
 
     init() throws {
         directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -22,6 +21,10 @@ struct Fixture {
 
     func remove() {
         try? FileManager.default.removeItem(at: directory)
+    }
+
+    func resolved() async throws -> Tokens {
+        Self.defaults.applying(try await PackService().read(from: source))
     }
 
     func manifest(_ fields: String = "") throws {
@@ -39,9 +42,7 @@ struct Fixture {
     }
 
     static func palette(_ color: Themes.Color) -> Palette {
-        Palette(background: color, surface: color, text: color, secondaryText: color,
-                separator: color, primary: color, onPrimary: color, secondary: color, onSecondary: color,
-                destructive: color, onDestructive: color)
+        Palette { _ in color }
     }
 
     static func image(type: String = "public.png", width: Int = 2, height: Int = 2) throws -> Data {

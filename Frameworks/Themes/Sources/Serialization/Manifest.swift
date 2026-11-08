@@ -5,22 +5,10 @@ import CoreFoundation
 struct Manifest: Sendable, Equatable {
     let id: UUID
     let name: String
-    let colors: [Appearance: [Role: Color]]
+    /// The token values the theme sets, complete or partial.
+    let tokens: Tokens.Overrides
+    /// The package-relative image paths, keyed by name.
     let assets: [String: String]
-
-    /// Creates a manifest.
-    ///
-    /// - Parameters:
-    ///   - id: The theme's identifier.
-    ///   - name: A validated display name.
-    ///   - colors: The colors by appearance and role, complete or partial.
-    ///   - assets: The package-relative image paths, keyed by name.
-    init(id: UUID, name: String, colors: [Appearance: [Role: Color]], assets: [String: String]) {
-        self.id = id
-        self.name = name
-        self.colors = colors
-        self.assets = assets
-    }
 
     /// Decodes and validates a manifest.
     ///
@@ -35,9 +23,8 @@ struct Manifest: Sendable, Equatable {
             throw ValidationError(path: "manifest.json", reason: "Expected valid JSON.")
         }
         let root = try object(json, at: "manifest.json", keys: ["version", "id", "name", "tokens", "assets"])
-        guard let version = root["version"] as? NSNumber,
-              CFGetTypeID(version) != CFBooleanGetTypeID(),
-              version.doubleValue.rounded(.towardZero) == version.doubleValue else {
+        let version = try number(root["version"], at: "version")
+        guard version.doubleValue.rounded(.towardZero) == version.doubleValue else {
             throw ValidationError(path: "version", reason: "Expected an integer.")
         }
         guard version == 1 else {
@@ -49,24 +36,27 @@ struct Manifest: Sendable, Equatable {
         }
         let name = try string(root["name"], at: "name")
         try validateName(name)
-        var colors: [Appearance: [Role: Color]] = [:]
+        var overrides = Tokens.Overrides()
         if let suppliedTokens = root["tokens"] {
-            let tokens = try object(suppliedTokens, at: "tokens", keys: ["colors"])
+            let tokens = try object(suppliedTokens, at: "tokens", keys: ["colors", "fontDesign"])
             if let suppliedColors = tokens["colors"] {
                 let appearances = try object(suppliedColors, at: "tokens.colors",
                                              keys: Appearance.allCases.map(\.rawValue))
                 for appearance in Appearance.allCases {
                     guard let suppliedPalette = appearances[appearance.rawValue] else { continue }
                     let path = "tokens.colors.\(appearance.rawValue)"
-                    let palette = try object(suppliedPalette, at: path, keys: Role.allCases.map(\.rawValue))
-                    var values: [Role: Color] = [:]
-                    for role in Role.allCases {
+                    let palette = try object(suppliedPalette, at: path, keys: Palette.Role.allCases.map(\.rawValue))
+                    var values: [Palette.Role: Color] = [:]
+                    for role in Palette.Role.allCases {
                         if let value = palette[role.rawValue] {
                             values[role] = try color(value, at: "\(path).\(role.rawValue)")
                         }
                     }
-                    colors[appearance] = values
+                    overrides.colors[appearance] = values
                 }
+            }
+            if let suppliedDesign = tokens["fontDesign"] {
+                overrides.fontDesign = try supported(suppliedDesign, at: "tokens.fontDesign", kind: "font design")
             }
         }
         var assets: [String: String] = [:]
@@ -76,7 +66,7 @@ struct Manifest: Sendable, Equatable {
                 assets[key] = try string(declarations[key], at: "assets.\(key)")
             }
         }
-        return Manifest(id: id, name: name, colors: colors, assets: assets)
+        return Manifest(id: id, name: name, tokens: overrides, assets: assets)
     }
 
     /// Encodes the manifest as JSON.
@@ -84,7 +74,7 @@ struct Manifest: Sendable, Equatable {
     /// - Returns: Readable JSON with sorted keys.
     /// - Throws: A JSON serialization error.
     func encode() throws -> Data {
-        let palettes = Dictionary(uniqueKeysWithValues: colors.map { appearance, palette in
+        let palettes = Dictionary(uniqueKeysWithValues: tokens.colors.map { appearance, palette in
             (appearance.rawValue, Dictionary(uniqueKeysWithValues: palette.map { role, value in
                 let encoded: [String: String]
                 switch value {
@@ -95,8 +85,9 @@ struct Manifest: Sendable, Equatable {
                 return (role.rawValue, encoded)
             }))
         })
-        let json: [String: Any] = ["version": 1, "id": id.uuidString, "name": name,
-                                   "tokens": ["colors": palettes], "assets": assets]
+        var encoded: [String: Any] = ["colors": palettes]
+        encoded["fontDesign"] = tokens.fontDesign?.rawValue
+        let json: [String: Any] = ["version": 1, "id": id.uuidString, "name": name, "tokens": encoded, "assets": assets]
         var data = try JSONSerialization.data(withJSONObject: json, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])
         data.append(0x0A)
         return data
@@ -145,6 +136,36 @@ struct Manifest: Sendable, Equatable {
         return value
     }
 
+    /// Reads a required JSON number.
+    ///
+    /// - Parameters:
+    ///   - value: The decoded value, or `nil` if the field is missing.
+    ///   - path: The value's manifest location.
+    /// - Returns: The number.
+    /// - Throws: A validation error for a missing, Boolean, or non-number value.
+    private static func number(_ value: Any?, at path: String) throws -> NSNumber {
+        guard let number = value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID() else {
+            throw ValidationError(path: path, reason: "Expected a number.")
+        }
+        return number
+    }
+
+    /// Reads a JSON string as one of a type's supported raw values.
+    ///
+    /// - Parameters:
+    ///   - value: The decoded value, or `nil` if the field is missing.
+    ///   - path: The value's manifest location.
+    ///   - kind: The name of the value's kind for the error message, such as "font design".
+    /// - Returns: The value for the string.
+    /// - Throws: A validation error for a missing, non-string, or unsupported value.
+    private static func supported<Value: RawRepresentable<String>>(_ value: Any?, at path: String, kind: String) throws -> Value {
+        let name = try string(value, at: path)
+        guard let supported = Value(rawValue: name) else {
+            throw ValidationError(path: path, reason: "Unsupported \(kind): \(name).")
+        }
+        return supported
+    }
+
     /// Decodes a color.
     ///
     /// - Parameters:
@@ -158,11 +179,7 @@ struct Manifest: Sendable, Equatable {
             throw ValidationError(path: path, reason: "Expected exactly one of system or srgb.")
         }
         if let system = object["system"] {
-            let name = try string(system, at: "\(path).system")
-            guard let color = Color.System(rawValue: name) else {
-                throw ValidationError(path: "\(path).system", reason: "Unsupported system color: \(name).")
-            }
-            return .system(color)
+            return .system(try supported(system, at: "\(path).system", kind: "system color"))
         }
         let hex = try string(object["srgb"], at: "\(path).srgb")
         let digits = hex.dropFirst()

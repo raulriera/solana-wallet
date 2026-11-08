@@ -107,8 +107,9 @@ struct AppearanceSettingsModelTests {
         let manifest = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: templateURL.appendingPathComponent("manifest.json"))) as? [String: Any])
         let tokens = try #require(manifest["tokens"] as? [String: Any])
         let colors = try #require(tokens["colors"] as? [String: [String: Any]])
-        #expect(colors.count == 4)
-        #expect(colors.values.allSatisfy { $0.count == 11 })
+        #expect(Set(colors.keys) == ["light", "dark"])
+        #expect(colors.values.allSatisfy { $0.count == Palette.Role.allCases.count })
+        #expect(tokens["fontDesign"] as? String == "default")
     }
 
     @Test func `Theme Packs opens an export staged before it appeared`() async throws {
