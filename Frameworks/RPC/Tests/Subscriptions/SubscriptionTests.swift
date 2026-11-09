@@ -2,8 +2,9 @@ import Foundation
 import Testing
 @testable import RPC
 
+@Suite(.timeLimit(.minutes(1)))
 struct SubscriptionTests {
-    @Test(.timeLimit(.minutes(1)))
+    @Test
     func `Discarding an unconsumed subscription closes its connection`() async throws {
         let socket = SocketFixture()
         defer { socket.cancel() }
@@ -12,7 +13,7 @@ struct SubscriptionTests {
         #expect(socket.isCancelled)
     }
 
-    @Test(.timeLimit(.minutes(1)), arguments: [false, true])
+    @Test(arguments: [false, true])
     func `Each account gets one finalized subscription`(helius: Bool) async throws {
         let socket = SocketFixture()
         let source = client(socket: socket, helius: helius)
@@ -54,7 +55,7 @@ struct SubscriptionTests {
         #expect(delivered == [10, nil, nil, 12, nil, nil, 13])
     }
 
-    @Test(.timeLimit(.minutes(1)))
+    @Test
     func `Subscription setup retains early notifications`() async throws {
         let socket = SocketFixture { data, ordinal in
             var frames = [try SocketFixture.acknowledgment(of: data, ordinal: ordinal)]
@@ -69,7 +70,7 @@ struct SubscriptionTests {
         #expect(try await iterator.next() == 99)
     }
 
-    @Test(.timeLimit(.minutes(1)))
+    @Test
     func `Unrelated subscription IDs terminate the stream`() async throws {
         let socket = SocketFixture()
         let stream = try await client(socket: socket).changedSlots(for: ["wallet"])
@@ -80,7 +81,7 @@ struct SubscriptionTests {
         #expect(socket.isCancelled)
     }
 
-    @Test(.timeLimit(.minutes(1)), arguments: [
+    @Test(arguments: [
         (#"{"jsonrpc":"2.0","method":"rootNotification","params":{"subscription":1,"result":{"context":{"slot":5},"value":{}}}}"#,
          RPCError.invalidResponse(.mismatchedID)),
         (#"{"jsonrpc":"2.0","method":"accountNotification","params":{"subscription":1,"result":{"context":{},"value":{}}}}"#,
@@ -132,7 +133,7 @@ struct SubscriptionTests {
         #expect(socket.requests.count == 1)
     }
 
-    @Test(.timeLimit(.minutes(1)))
+    @Test
     func `Subscription disconnects end the stream without reconnecting`() async throws {
         let socket = SocketFixture()
         let stream = try await client(socket: socket).changedSlots(for: ["wallet"])
@@ -143,19 +144,44 @@ struct SubscriptionTests {
         #expect(socket.requests.count == 1)
     }
 
-    @Test(.timeLimit(.minutes(1)))
+    @Test
+    func `Subscription setup without acknowledgments times out`() async throws {
+        let socket = SocketFixture { _, _ in [] }
+        let clock = ManualClock()
+        var waits = clock.waits.makeAsyncIterator()
+        let subscriptions = try client(socket: socket, clock: clock)
+        let opening = Task { try await subscriptions.changedSlots(for: ["wallet"]) }
+        defer { opening.cancel() }
+
+        #expect(try await clock.advanceToNextWait(&waits) == .seconds(30))
+
+        await #expect(throws: RPCError.transport(.timedOut)) { try await opening.value }
+        #expect(socket.isCancelled)
+    }
+
+    @Test
     func `A ping without a pong ends the stream with a timeout`() async throws {
-        let socket = SocketFixture(answersPings: false)
-        let subscriptions = SubscriptionClient(endpoint: URL(string: "wss://fixture.invalid")!, connect: { _ in socket },
-                                               redactor: SecretRedactor(secrets: []),
-                                               pingInterval: .milliseconds(10), pongTimeout: .milliseconds(10))
-        let stream = try await subscriptions.changedSlots(for: ["wallet"])
+        let socket = SocketFixture(answersPings: false) { _, _ in [] }
+        let clock = ManualClock()
+        var waits = clock.waits.makeAsyncIterator()
+        var sent = socket.sent.makeAsyncIterator()
+        let subscriptions = try client(socket: socket, clock: clock)
+        let opening = Task { try await subscriptions.changedSlots(for: ["wallet"]) }
+        defer { opening.cancel() }
+        _ = try #require(await clock.nextDeadline(&waits))
+        let request = try #require(await sent.next())
+        try socket.acknowledge(request, ordinal: 1)
+        let stream = try await opening.value
+
+        #expect(try await clock.advanceToNextWait(&waits) == .seconds(30))
+        #expect(try await clock.advanceToNextWait(&waits) == .seconds(10))
+
         var iterator = stream.makeAsyncIterator()
         await #expect(throws: RPCError.transport(.timedOut)) { try await iterator.next() }
         #expect(socket.isCancelled)
     }
 
-    @Test(.timeLimit(.minutes(1)))
+    @Test
     func `Cancelling subscription setup closes its connection`() async throws {
         let socket = SocketFixture { _, _ in [] }
         let task = Task { try await client(socket: socket).changedSlots(for: ["wallet"]) }
@@ -167,18 +193,25 @@ struct SubscriptionTests {
         #expect(socket.isCancelled)
     }
 
+    func client(socket: SocketFixture, clock: ManualClock) throws -> SubscriptionClient {
+        SubscriptionClient(endpoint: try #require(URL(string: "wss://fixture.invalid")), connect: { _ in socket },
+                           redactor: SecretRedactor(secrets: []), clock: clock)
+    }
+
     func client(socket: SocketFixture, helius: Bool = true,
                 connected: @escaping @Sendable () -> Void = {}) -> any AccountChangeProviding & SignatureEventProviding {
         let http = StubTransport { _ in throw URLError(.notConnectedToInternet) }
         if helius {
             return HeliusRPC(apiKey: "fixture-key", network: .devnet, transport: http, socket: { url in
-                #expect(url.scheme == "wss" && url.host() == "devnet.helius-rpc.com")
+                #expect(url.scheme == "wss")
+                #expect(url.host() == "devnet.helius-rpc.com")
                 connected()
                 return socket
             })
         }
         return SolanaRPC(network: .devnet, transport: http, socket: { url in
-            #expect(url.scheme == "wss" && url.host() == "api.devnet.solana.com")
+            #expect(url.scheme == "wss")
+            #expect(url.host() == "api.devnet.solana.com")
             connected()
             return socket
         })

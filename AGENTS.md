@@ -52,7 +52,7 @@
   - `device-interaction`: simulator verification.
   - `accessibility-dynamic-type-specialist`, `accessibility-voiceover-specialist`, and `accessibility-sufficient-contrast-specialist`: accessibility audits.
   - `app-intents-specialist` and `app-intents-whats-new-27`: App Intents.
-  - `modernize-tests`: test modernization.
+  - `modernize-tests`, with `swift-testing-expert`: every test change, before review.
   - `xctrace`: Instruments profiling and trace analysis.
   - `translation` and `translation-coordinator`: String Catalogs.
   - `audit-xcode-security-settings`: build settings.

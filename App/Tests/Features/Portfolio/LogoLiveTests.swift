@@ -28,6 +28,7 @@ struct LogoLiveTests {
         let logos = try await provider.logos(for: [usdc, bonk, PublicWallet.address])
 
         #expect(Set(logos.keys) == [usdc, bonk])
-        #expect(logos.values.allSatisfy { $0.scheme == "https" && $0.host() == "cdn.helius-rpc.com" })
+        #expect(Set(logos.values.map(\.scheme)) == ["https"])
+        #expect(Set(logos.values.map { $0.host() }) == ["cdn.helius-rpc.com"])
     }
 }

@@ -15,9 +15,9 @@ struct DiscoveryLiveTests {
 
         let responses = await transport.responses
         try #require(responses.count == 1)
-        let observed = try #require(responses.first)
+        let observed = responses[0]
         #expect(observed.value.count == 20)
-        #expect(accounts.count == observed.value.filter { ($0?.lamports ?? 0) > 0 }.count)
+        #expect(accounts.count == observed.value.count { ($0?.lamports ?? 0) > 0 })
         #expect(Set(accounts.map(\.address)).count == accounts.count)
     }
 }

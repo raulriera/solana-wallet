@@ -7,11 +7,9 @@ struct RentLiveTests {
     func `Mainnet rejects rent queries for an impossible allocation`() async throws {
         let rpc = SolanaRPC(network: .mainnet)
 
-        await #expect {
+        let error = try await #require(throws: RPCError.self) {
             try await rpc.send(GetMinimumBalanceForRentExemption(dataLength: .max))
-        } throws: { error in
-            guard case RPCError.server(code: -32600, message: _) = error else { return false }
-            return true
         }
+        #expect(error.serverCode == -32600, "Received \(error)")
     }
 }

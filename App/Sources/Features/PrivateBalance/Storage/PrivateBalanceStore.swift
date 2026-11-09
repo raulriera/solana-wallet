@@ -9,8 +9,7 @@ final class PrivateBalanceStore: Erasable {
     private var balances: [Key: WalletPrivateBalance] = [:]
     private let privateBalances: any PrivateBalancing
     private let transactions: TransactionStore
-    private let pollInterval: Duration
-    private let followUpInterval: Duration
+    private let clock: any Clock<Duration>
 
     /// Creates a store.
     ///
@@ -18,14 +17,12 @@ final class PrivateBalanceStore: Erasable {
     ///   - balances: The private balances of every account.
     ///   - transactions: The transaction store.
     ///   - rpcStore: The provider settings.
-    ///   - pollInterval: The time between polls.
-    ///   - followUpInterval: The time between polls that follow up on pending SOL.
+    ///   - clock: The clock that times polls.
     init(balances: any PrivateBalancing, transactions: TransactionStore, rpcStore: RPCStore,
-         pollInterval: Duration = .seconds(30), followUpInterval: Duration = .seconds(3)) {
+         clock: any Clock<Duration> = ContinuousClock()) {
         privateBalances = balances
         self.transactions = transactions
-        self.pollInterval = pollInterval
-        self.followUpInterval = followUpInterval
+        self.clock = clock
         Task { [weak self] in
             for await _ in Observations({ rpcStore.connection }).changes() {
                 guard let self else { return }
@@ -113,8 +110,7 @@ final class PrivateBalanceStore: Erasable {
         let key = Key(account, on: network)
         if let balance = balances[key] { return balance }
         let balance = WalletPrivateBalance(account: account, network: network, balances: privateBalances,
-                                           transactions: transactions, pollInterval: pollInterval,
-                                           followUpInterval: followUpInterval)
+                                           transactions: transactions, clock: clock)
         balances[key] = balance
         return balance
     }

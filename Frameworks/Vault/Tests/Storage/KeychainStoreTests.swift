@@ -105,17 +105,19 @@ struct KeychainStoreTests {
     @Test
     func `An authentication prompt that never appears frees the read as a retryable error`() async throws {
         let keychain = KeychainStub()
-        let store = KeychainStore(
-            service: "test.recovery", keychain: keychain, authenticationTimeout: .milliseconds(200)
-        )
+        let clock = ManualClock()
+        let store = KeychainStore(service: "test.recovery", keychain: keychain, clock: clock)
         let id = UUID()
         try await store.save(Fixtures.recovery(), for: id)
         let original = keychain.state.withLock(\.items)
         keychain.state.withLock { $0.blocksReads = true }
+        var waits = clock.waits.makeAsyncIterator()
 
-        await #expect(throws: KeychainStoreError.interactionNotAllowed) {
-            try await store.recovery(for: id, reason: "Recover wallet")
-        }
+        let read = Task { @concurrent in try await store.recovery(for: id, reason: "Recover wallet") }
+        defer { read.cancel() }
+        try await clock.advanceToNextWait(&waits)
+
+        await #expect(throws: KeychainStoreError.interactionNotAllowed) { try await read.value }
         keychain.state.withLock { $0.blocksReads = false }
         let recovered = try await store.recovery(for: id, reason: "Try recovery again")
 
@@ -128,33 +130,34 @@ struct KeychainStoreTests {
 
     @Test
     func `A read waiting behind another read gets its full time bound`() async throws {
-        let (started, signal) = AsyncStream<Void>.makeStream()
-        let reads = Mutex(0)
-        let keychain = KeychainStub(beforeRead: {
-            let count = reads.withLock {
-                $0 += 1
-                return $0
-            }
-            if count == 1 { signal.yield(()) } else { Thread.sleep(forTimeInterval: 0.15) }
+        let (contexts, madeContext) = AsyncStream<Void>.makeStream()
+        let keychain = KeychainStub(contextFactory: {
+            madeContext.yield(())
+            return TestContext()
         })
-        let store = KeychainStore(
-            service: "test.recovery", keychain: keychain, authenticationTimeout: .milliseconds(300)
-        )
+        let clock = ManualClock()
+        let store = KeychainStore(service: "test.recovery", keychain: keychain, clock: clock)
         let id = UUID()
         try await store.save(Fixtures.recovery(), for: id)
         keychain.state.withLock { $0.blocksReads = true }
-        let first = Task { @concurrent in try await store.recovery(for: id, reason: "Recover wallet") }
-        defer {
-            first.cancel()
-            signal.finish()
-        }
-        for await _ in started { break }
-        keychain.state.withLock { $0.blocksReads = false }
+        var created = contexts.dropFirst(2).makeAsyncIterator()
+        var waits = clock.waits.makeAsyncIterator()
 
-        let second = try await store.recovery(for: id, reason: "Recover wallet in another window")
+        let first = Task { @concurrent in try await store.recovery(for: id, reason: "Recover wallet") }
+        defer { first.cancel() }
+        let firstDeadline = try #require(await clock.nextDeadline(&waits))
+        let second = Task { @concurrent in
+            try await store.recovery(for: id, reason: "Recover wallet in another window")
+        }
+        defer { second.cancel() }
+        _ = await created.next()
+        keychain.state.withLock { $0.blocksReads = false }
+        clock.advance(to: firstDeadline)
+        let secondDeadline = try #require(await clock.nextDeadline(&waits))
 
         await #expect(throws: KeychainStoreError.interactionNotAllowed) { try await first.value }
-        #expect(second.passphrase == " TREZOR ")
+        #expect(secondDeadline == firstDeadline.advanced(by: .seconds(30)))
+        #expect(try await second.value.passphrase == " TREZOR ")
     }
 
     @Test

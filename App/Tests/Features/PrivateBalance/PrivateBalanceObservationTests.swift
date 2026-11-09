@@ -26,11 +26,15 @@ struct PrivateBalanceObservationTests {
         let record = try await PrivateBalanceFixtures.keys(for: account)
         let registry = try PrivateBalanceFixtures.registry(publishing: record.shieldedAccount(for: account.address))
         let responses = HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered, registry])
+        let clock = ManualClock()
+        var waits = clock.waits.makeAsyncIterator()
         let store = try PrivateBalanceStore.fixture(responses, keys: StoredValue([account.address.value: record]),
-                                                    pollInterval: .milliseconds(10))
+                                                    clock: clock)
         let hosted = try HostedWindow(PrivateBalanceObservationRoot(store: store, account: account, scenePhase: .active))
         defer { hosted.close() }
         try #require(try await hosted.appears())
+
+        #expect(try await clock.advanceToNextWait(&waits) == .seconds(30))
 
         try await PrivateBalanceFixtures.status(of: account, in: store, becomes: .balance(available: 0, pending: 0))
     }
@@ -39,10 +43,11 @@ struct PrivateBalanceObservationTests {
     func `Pending SOL after a settled private move is read again quickly`() async throws {
         let account = try await PrivateBalanceFixtures.account()
         let sent = try PendingMove(from: account.id)
+        let clock = ManualClock()
+        var waits = clock.waits.makeAsyncIterator()
         let (store, notes) = try await PrivateBalanceFixtures.pendingDeposit(of: account,
                                                                              transactions: sent.transactions,
-                                                                             pollInterval: .seconds(3_600),
-                                                                             followUpInterval: .milliseconds(500))
+                                                                             clock: clock)
         let hosted = try HostedWindow(PrivateBalanceObservationRoot(store: store, account: account, scenePhase: .active))
         defer { hosted.close() }
         try #require(try await hosted.appears())
@@ -50,11 +55,13 @@ struct PrivateBalanceObservationTests {
                                                 becomes: .balance(available: 0, pending: 1_000_000))
         let balance = try #require(store.balance(for: account, on: .devnet))
         #expect(!balance.isFollowingUp)
+        #expect(try await clock.durationToNextWait(&waits) == .seconds(30))
 
         #expect(try await sent.settle() == .succeeded)
 
         for await isFollowingUp in Observations({ balance.isFollowingUp }) where isFollowingUp { break }
         try await notes.save([PrivateBalances.noteID(of: account, on: .devnet): NoteSyncState()])
+        #expect(try await clock.advanceToNextWait(&waits) == .seconds(3))
         for await status in Observations({ balance.status }) where status == .balance(available: 0, pending: 0) { break }
         #expect(!balance.isFollowingUp)
     }

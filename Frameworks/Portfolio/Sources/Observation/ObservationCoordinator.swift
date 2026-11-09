@@ -4,16 +4,13 @@ import Transactions
 
 /// An actor that shares each wallet's finalized subscription and reloads its balances after finalized changes.
 actor ObservationCoordinator {
-    /// A cancellable wait of a given duration.
-    typealias Pause = @Sendable (Duration) async throws -> Void
-
     private static let firstReconnectDelay = Duration.seconds(2)
     private static let longestReconnectDelay = Duration.seconds(60)
 
     private let refresh: RefreshCoordinator
     private let tokenLists: TokenListCoordinator
     private let changes: (any AccountChangeProviding)?
-    private let pause: Pause
+    private let clock: any Clock<Duration>
     private var watches: [String: Watch] = [:]
 
     /// Creates an observation coordinator.
@@ -22,13 +19,13 @@ actor ObservationCoordinator {
     ///   - refresh: The refresh coordinator.
     ///   - tokenLists: The token lists whose accounts each subscription watches.
     ///   - changes: The provider of finalized account changes, or `nil` if none.
-    ///   - pause: The cancellable wait for coalescing changes and spacing reconnections.
+    ///   - clock: The clock that times change coalescing and reconnection waits.
     init(refresh: RefreshCoordinator, tokenLists: TokenListCoordinator, changes: (any AccountChangeProviding)?,
-         pause: @escaping Pause) {
+         clock: any Clock<Duration>) {
         self.refresh = refresh
         self.tokenLists = tokenLists
         self.changes = changes
-        self.pause = pause
+        self.clock = clock
     }
 
     /// Adds a consumer and starts or joins the wallet's observation.
@@ -205,7 +202,7 @@ actor ObservationCoordinator {
         guard let watch = watches[owner], watch.generation == generation else { return false }
         watches[owner]?.reconnectDelay = min(watch.reconnectDelay * 2, Self.longestReconnectDelay)
         do {
-            try await pause(watch.reconnectDelay)
+            try await clock.sleep(for: watch.reconnectDelay)
         } catch {
             return false
         }
@@ -251,7 +248,7 @@ actor ObservationCoordinator {
             }
         }
         do {
-            if delayed { try await pause(.seconds(2)) }
+            if delayed { try await clock.sleep(for: .seconds(2)) }
             try Task.checkCancellation()
             guard watches[owner]?.generation == generation else { return }
             handledRevision = watches[owner]?.revision

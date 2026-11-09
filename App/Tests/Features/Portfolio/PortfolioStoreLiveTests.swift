@@ -8,16 +8,17 @@ import Transactions
 
 @Suite(.tags(.network))
 struct PortfolioStoreLiveTests {
+    private let temporary = IsolatedDirectory()
+
     @MainActor
     @Test(.timeLimit(.minutes(1)))
     func `The shared portfolios observe and reload a public mainnet wallet`() async throws {
         let rpc = try LiveClients.client()
         let account = try Account.publicWallet()
         let owner = account.address.value
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        defer { try? FileManager.default.removeItem(at: directory) }
-        let service = Portfolio(rpc: rpc, store: FileSnapshotStore(directory: directory),
-                                tokenLists: FileTokenListStore(directory: directory.appendingPathComponent("TokenLists")))
+        let directory = temporary.url
+        let service = Portfolio(rpc: rpc, tokenListDirectory: directory.appending(path: "TokenLists"),
+                                cacheDirectory: directory)
         let portfolios = PortfolioStore.serving(service)
         let reloaded = try await withThrowingTaskGroup(of: Void.self) { group in
             group.addTask { await portfolios.observe(account, on: .mainnet) }
@@ -41,8 +42,9 @@ struct PortfolioStoreLiveTests {
             #expect(reloaded.network == .mainnet)
             return reloaded
         }
-        let portfolio = portfolios.portfolio(for: account, on: .mainnet)
-        #expect(portfolio?.update?.snapshot == reloaded)
-        #expect(portfolio?.update?.isRefreshing == false)
+        let portfolio = try #require(portfolios.portfolio(for: account, on: .mainnet))
+        let update = try #require(portfolio.update)
+        #expect(update.snapshot == reloaded)
+        #expect(!update.isRefreshing)
     }
 }

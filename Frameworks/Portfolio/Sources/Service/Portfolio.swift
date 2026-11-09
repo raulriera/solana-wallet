@@ -28,11 +28,11 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
     ///   - store: The snapshot store.
     ///   - tokenLists: The token-list store.
     ///   - prices: The price provider, or `nil` for no prices.
-    ///   - pause: The cancellable wait for coalescing changes and spacing reconnections.
+    ///   - clock: The clock that times change coalescing and reconnection waits.
     init(rpc: any RPC, store: any SnapshotStoring,
          tokenLists: any TokenListStoring,
          prices: (any PriceProviding)? = nil,
-         pause: @escaping ObservationCoordinator.Pause = { try await Task.sleep(for: $0) }) {
+         clock: any Clock<Duration> = ContinuousClock()) {
         precondition(prices.map { $0.network == rpc.network } ?? true, "Prices must describe the RPC client's network.")
         let lists = TokenListCoordinator(store: tokenLists, network: rpc.network)
         let logos = rpc as? any LogoProviding
@@ -41,7 +41,7 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
         coordinator = RefreshCoordinator(source: BalanceReader(rpc: rpc), tokenLists: lists, store: store,
                                          prices: prices, logos: logos)
         observer = ObservationCoordinator(refresh: coordinator, tokenLists: lists,
-                                          changes: rpc as? any AccountChangeProviding, pause: pause)
+                                          changes: rpc as? any AccountChangeProviding, clock: clock)
     }
 
     public func updates(for owner: String) async -> AsyncStream<Update> {

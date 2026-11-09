@@ -22,12 +22,11 @@ public struct CustomPriceProvider: PriceProviding, CustomStringConvertible, Cust
     /// - Parameters:
     ///   - endpoint: An HTTPS URL with a host.
     ///   - transport: The transport that performs HTTP requests.
-    ///   - pacer: The request pacer.
-    init?(endpoint: URL, transport: any HTTPTransport,
-          pacer: any RequestPacing = RequestPacer(interval: .seconds(3), clock: ContinuousClock())) {
+    ///   - clock: The clock that paces requests.
+    init?(endpoint: URL, transport: any HTTPTransport, clock: some Clock<Duration> = ContinuousClock()) {
         guard let endpoint = endpoint.httpsEndpoint else { return nil }
         client = HTTPClient(endpoint: endpoint, transport: transport, redactor: SecretRedactor(urls: [endpoint]))
-        self.pacer = pacer
+        pacer = RequestPacer(interval: .seconds(3), clock: clock)
     }
 
     public var description: String { "CustomPriceProvider(mainnet)" }

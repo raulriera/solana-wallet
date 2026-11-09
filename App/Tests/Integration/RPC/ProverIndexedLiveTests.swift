@@ -19,10 +19,9 @@ struct ProverIndexedLiveTests {
         let zolana = Zolana(network: network, transport: transport)
         let request = try Self.request()
 
-        let error = await #expect(throws: RPCError.self) { try await zolana.proveTransfer(request) }
+        let error = try await #require(throws: RPCError.self) { try await zolana.proveTransfer(request) }
 
-        let statusCode: Int? = if case .http(let statusCode, _) = error { statusCode } else { nil }
-        #expect(statusCode.map { (400..<600).contains($0) } == true)
+        #expect(error.statusCode.map((400..<600).contains) == true, "Received \(String(describing: error))")
         #expect(await transport.requests.last?.url?.path() == "/prove/transfer_confidential_1_2/indexed")
         #expect(answerVersions.withLock { $0.last } == "v1")
     }

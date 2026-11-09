@@ -11,20 +11,22 @@ struct PrivateNoteLiveTests {
 
         let batch = try await provider.shieldedTransactions(taggedWith: tags, after: nil)
 
-        #expect(!batch.transactions.isEmpty)
+        try #require(!batch.transactions.isEmpty)
         #expect(batch.outputTreeID != nil)
         let outputs = batch.transactions.flatMap(\.outputs)
-        #expect(outputs.allSatisfy { $0.viewTag.count == 32 && $0.utxoHash.count == 32 })
-        #expect(batch.transactions.flatMap(\.nullifiers).allSatisfy { $0.count == 32 })
+        #expect(Set(outputs.map(\.viewTag.count)).isSubset(of: [32]))
+        #expect(Set(outputs.map(\.utxoHash.count)).isSubset(of: [32]))
+        #expect(Set(batch.transactions.flatMap(\.nullifiers).map(\.count)).isSubset(of: [32]))
         let deposits = batch.transactions.filter(\.isProofless)
-        #expect(deposits.allSatisfy {
-            $0.outputs.count == 1 && $0.transactionViewingKey == nil && $0.salt == nil && $0.nullifiers.isEmpty
-        })
-        #expect(deposits.allSatisfy { $0.outputs[0].viewTag == tags[0] && $0.outputs[0].payload.first == 0 })
+        try #require(Set(deposits.map(\.outputs.count)).isSubset(of: [1]))
+        #expect(deposits.compactMap(\.transactionViewingKey) == [])
+        #expect(deposits.compactMap(\.salt) == [])
+        #expect(deposits.flatMap(\.nullifiers) == [])
+        #expect(Set(deposits.map { $0.outputs[0].viewTag }).isSubset(of: [tags[0]]))
+        #expect(Set(deposits.map { $0.outputs[0].payload.first }).isSubset(of: [0]))
         let confidential = batch.transactions.filter { !$0.isProofless }
-        #expect(confidential.allSatisfy {
-            [[33, 16], [nil, nil]].contains([$0.transactionViewingKey?.count, $0.salt?.count])
-        })
+        let keySizes = Set(confidential.map { [$0.transactionViewingKey?.count, $0.salt?.count] })
+        #expect(keySizes.isSubset(of: [[33, 16], [nil, nil]]))
 
         let later = try await provider.shieldedTransactions(taggedWith: tags, after: batch.position)
 
@@ -43,7 +45,7 @@ struct PrivateNoteLiveTests {
         let spending = try await provider.shieldedTransactions(spending: Array(nullifiers))
 
         #expect(Set(spenders.map(\.signature)).isSubset(of: spending.map(\.signature)))
-        #expect(spending.allSatisfy { !nullifiers.isDisjoint(with: $0.nullifiers) })
+        #expect(spending.filter { nullifiers.isDisjoint(with: $0.nullifiers) }.map(\.signature) == [])
     }
 
     @Test(arguments: [Network.mainnet, .devnet])

@@ -42,7 +42,7 @@ struct BiometricStorageTests {
 
     private func recovery() throws -> Recovery {
         try Recovery(
-            phrase: RecoveryPhrase(Array(repeating: "abandon", count: 11).joined(separator: " ") + " about"),
+            phrase: RecoveryPhrase(PublicWallet.words),
             passphrase: "biometric-test"
         )
     }

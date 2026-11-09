@@ -5,8 +5,12 @@ struct SubscriptionClient: Sendable, CustomReflectable {
     let endpoint: URL
     let connect: @Sendable (URL) -> any WebSocketConnection
     let redactor: any TextRedactor
-    var pingInterval: Duration = .seconds(30)
-    var pongTimeout: Duration = .seconds(10)
+    /// The clock that times setup, pings, and pongs.
+    var clock: any Clock<Duration> = ContinuousClock()
+
+    private static let setupTimeout = Duration.seconds(30)
+    private static let pingInterval = Duration.seconds(30)
+    private static let pongTimeout = Duration.seconds(10)
 
     var customMirror: Mirror { Mirror(self, children: [:]) }
 
@@ -39,7 +43,7 @@ struct SubscriptionClient: Sendable, CustomReflectable {
         try Task.checkCancellation()
         let socket = connect(endpoint)
         do {
-            let (state, setupEvents) = try await withTimeout(.seconds(30)) {
+            let (state, setupEvents) = try await withTimeout(Self.setupTimeout) {
                 try await withTaskCancellationHandler {
                     try await handshake(subscriptions, socket: socket)
                 } onCancel: { socket.cancel() }
@@ -65,8 +69,8 @@ struct SubscriptionClient: Sendable, CustomReflectable {
                         group.addTask {
                             try await withTaskCancellationHandler {
                                 while !Task.isCancelled {
-                                    try await Task.sleep(for: pingInterval)
-                                    try await withTimeout(pongTimeout) { try await socket.ping() }
+                                    try await clock.sleep(for: Self.pingInterval)
+                                    try await withTimeout(Self.pongTimeout) { try await socket.ping() }
                                 }
                             } onCancel: { socket.cancel() }
                         }
@@ -96,7 +100,7 @@ struct SubscriptionClient: Sendable, CustomReflectable {
         try await withThrowingTaskGroup(of: Value.self) { group in
             group.addTask { try await operation() }
             group.addTask {
-                try await Task.sleep(for: limit)
+                try await clock.sleep(for: limit)
                 throw RPCError.transport(.timedOut)
             }
             defer { group.cancelAll() }

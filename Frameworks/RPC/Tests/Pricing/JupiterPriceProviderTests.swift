@@ -26,12 +26,13 @@ struct JupiterPriceProviderTests {
         #expect(quotes["null-price"] == nil)
         #expect(quotes["null-record"] == nil)
         let request = try #require(await transport.requests.first)
+        let url = try #require(request.url)
         #expect(request.httpMethod == "GET")
         #expect(request.httpBody == nil)
-        #expect(request.url?.host() == "api.jup.ag")
-        #expect(request.url?.path() == "/price/v3")
+        #expect(url.host() == "api.jup.ag")
+        #expect(url.path() == "/price/v3")
         #expect(request.value(forHTTPHeaderField: "x-api-key") == "fixture-key")
-        #expect(request.url?.absoluteString.contains("fixture-key") == false)
+        #expect(!url.absoluteString.contains("fixture-key"))
     }
 
     @Test
@@ -54,26 +55,30 @@ struct JupiterPriceProviderTests {
         #expect(malformed.dayChange == nil)
     }
 
-    @Test(arguments: [false, true])
-    func `Price batches respect the keyless and free-key budgets`(authenticated: Bool) async throws {
+    @Test(.timeLimit(.minutes(1)), arguments: [(false, Duration.seconds(3)), (true, .milliseconds(1_500))])
+    func `Price batches respect the keyless and free-key budgets`(
+        authenticated: Bool, interval: Duration
+    ) async throws {
         let transport = StubTransport { request in
             let values = try requestedMints(request, query: "ids").map { #""\#($0)":{"usdPrice":1}"# }
             return try httpReply(to: request, body: "{" + values.joined(separator: ",") + "}")
         }
         let mints = (0..<51).map { "mint-\($0)" }
-        let startedAt = ContinuousClock.now
-        let source = JupiterPriceProvider(apiKey: authenticated ? "fixture-key" : nil, transport: transport)
-        let quotes = try await source.prices(for: mints + mints)
+        let clock = ManualClock()
+        let source = JupiterPriceProvider(apiKey: authenticated ? "fixture-key" : nil, transport: transport,
+                                          clock: clock)
+        async let pricing = source.prices(for: mints + mints)
+        var waits = clock.waits.makeAsyncIterator()
 
-        let interval: Duration = authenticated ? .milliseconds(1_500) : .seconds(3)
-        #expect(startedAt.duration(to: .now) >= interval)
+        #expect(try await clock.advanceToNextWait(&waits) == interval)
+        let quotes = try await pricing
+
         #expect(Set(quotes.keys) == Set(mints))
         let requests = await transport.requests
         #expect(try requests.map { try requestedMints($0, query: "ids").count } == [50, 1])
         #expect(try requests.flatMap { try requestedMints($0, query: "ids") } == mints)
-        #expect(requests.allSatisfy {
-            $0.value(forHTTPHeaderField: "x-api-key") == (authenticated ? "fixture-key" : nil)
-        })
+        let key: String? = authenticated ? "fixture-key" : nil
+        #expect(requests.map { $0.value(forHTTPHeaderField: "x-api-key") } == [key, key])
     }
 
     @Test(.timeLimit(.minutes(1)))
@@ -81,17 +86,17 @@ struct JupiterPriceProviderTests {
         let clock = ManualClock()
         let startedAt = clock.now
         let transport = StubTransport { try httpReply(to: $0, body: "{}") }
-        let source = JupiterPriceProvider(transport: transport, pacer: RequestPacer(interval: .seconds(3), clock: clock))
+        let source = JupiterPriceProvider(transport: transport, clock: clock)
         _ = try await source.prices(for: ["initial"])
         let copy = source
         async let operation = copy.prices(for: (0..<51).map { "mint-\($0)" })
         var waits = clock.waits.makeAsyncIterator()
 
-        let first = try #require(await waits.next())
+        let first = try #require(await clock.nextDeadline(&waits))
         #expect(first == startedAt.advanced(by: .seconds(3)))
         #expect(await transport.requests.count == 1)
         clock.advance(to: first)
-        let second = try #require(await waits.next())
+        let second = try #require(await clock.nextDeadline(&waits))
         #expect(second == first.advanced(by: .seconds(3)))
         #expect(await transport.requests.count == 2)
         clock.advance(to: second)
@@ -104,11 +109,11 @@ struct JupiterPriceProviderTests {
     func `Cancelling a waiting batch stops without consuming a price request`() async throws {
         let clock = ManualClock()
         let transport = StubTransport { try httpReply(to: $0, body: "{}") }
-        let source = JupiterPriceProvider(transport: transport, pacer: RequestPacer(interval: .seconds(3), clock: clock))
+        let source = JupiterPriceProvider(transport: transport, clock: clock)
         let operation = Task { try await source.prices(for: (0..<51).map { "mint-\($0)" }) }
         defer { operation.cancel() }
         var waits = clock.waits.makeAsyncIterator()
-        let deadline = try #require(await waits.next())
+        let deadline = try #require(await clock.nextDeadline(&waits))
         #expect(await transport.requests.count == 1)
 
         operation.cancel()
@@ -117,13 +122,13 @@ struct JupiterPriceProviderTests {
 
         #expect(try await source.prices(for: []).isEmpty)
         async let next = source.prices(for: ["next"])
-        #expect(await waits.next() == deadline)
+        #expect(await clock.nextDeadline(&waits) == deadline)
         clock.advance(to: deadline)
         _ = try await next
         #expect(await transport.requests.count == 2)
     }
 
-    @Test
+    @Test(.timeLimit(.minutes(1)))
     func `Rate limits fail the price lookup without retries or partial success`() async throws {
         let transport = StubTransport { request in
             if try requestedMints(request, query: "ids").first == "mint-50" {
@@ -132,10 +137,15 @@ struct JupiterPriceProviderTests {
             }
             return try httpReply(to: request, body: #"{"mint-0":{"usdPrice":2}}"#)
         }
-        let source = JupiterPriceProvider(apiKey: "fixture-key", transport: transport)
+        let clock = ManualClock()
+        let source = JupiterPriceProvider(apiKey: "fixture-key", transport: transport, clock: clock)
+        let pricing = Task { try await source.prices(for: (0..<101).map { "mint-\($0)" }) }
+        defer { pricing.cancel() }
+        var waits = clock.waits.makeAsyncIterator()
+        try await clock.advanceToNextWait(&waits)
 
         await #expect(throws: RPCError.http(statusCode: 429, retryAfter: "5 [redacted]")) {
-            try await source.prices(for: (0..<101).map { "mint-\($0)" })
+            try await pricing.value
         }
 
         #expect(await transport.requests.count == 2)

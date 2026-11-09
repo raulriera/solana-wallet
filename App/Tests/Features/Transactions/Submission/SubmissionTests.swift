@@ -87,66 +87,6 @@ struct SubmissionTests {
         #expect(try await checks.requests.allSatisfy { try $0.rpcMethod != "getSignatureStatuses" })
     }
 
-    @Test(.tags(.network), .timeLimit(.minutes(3)))
-    func `Devnet submission delivers 0.001 SOL to the configured recipient`() async throws {
-        let rpc = try LiveClients.client(network: .devnet)
-        let wallets = try await DevnetWallets.configured()
-        let sender = wallets.sender.address
-        let recipient = wallets.recipient.address
-        try await wallets.requireFunds(1_100_000, using: rpc)
-        let coordinator: any TransactionCoordinating = try TransactionCoordinator(
-            rpc: rpc, store: SigningRecoveryStore(recovery: wallets.recovery))
-        let initialAccounts = try await rpc.send(GetMultipleAccounts(addresses: [sender.value, recipient.value]))
-        let senderBalance = try #require(initialAccounts.value[0]).lamports
-        let recipientBalance = initialAccounts.value[1]?.lamports ?? 0
-        let simulation = try await coordinator.simulate([
-            SystemProgram.transfer(from: sender, to: recipient, lamports: 1_000_000),
-            MemoProgram.memo("widgets devnet composition verification", signers: [recipient]),
-        ], using: [wallets.sender, wallets.recipient])
-        try #require(simulation.diagnostics.value.error == nil)
-        let fee = try #require(simulation.fee)
-        try #require(fee < 1_000_000)
-        #expect(simulation.transaction.instructions.count == 2)
-        #expect(simulation.transaction.signatures.count == 2)
-        #expect(simulation.balanceChanges == [
-            BalanceChange(owner: sender, asset: .sol, before: senderBalance, after: senderBalance - 1_000_000 - fee),
-            BalanceChange(owner: recipient, asset: .sol, before: recipientBalance, after: recipientBalance + 1_000_000),
-        ])
-
-        let submission = try await coordinator.submit(simulation)
-        let result = try await coordinator.confirm(submission)
-        try #require(result.outcome == .succeeded)
-        let slot = try await result.executionSlot(through: rpc)
-        let accounts = try await rpc.send(GetMultipleAccounts(addresses: [sender.value, recipient.value], minContextSlot: slot))
-        #expect(accounts.value[0]?.lamports == senderBalance - 1_000_000 - fee)
-        #expect(accounts.value[1]?.lamports == recipientBalance + 1_000_000)
-    }
-
-    @Test(.tags(.network), .timeLimit(.minutes(2)))
-    func `A devnet RPC rejects a signed transaction from an unfunded wallet`() async throws {
-        let rpc = try LiveClients.client(network: .devnet)
-        let wallet = Wallet()
-        let phrase = try wallet.recoveryPhrase(wordCount: .twelve)
-        let account = try #require(try await wallet.accounts(for: phrase, passphrase: "", paths: [.solana]).first)
-        let address = try Address(account.address)
-        let blockhash = try await rpc.send(GetLatestBlockhash())
-        let message = try MessageBuilder().message(
-            instructions: [SystemProgram.transfer(from: address, to: address, lamports: 1)], payer: address,
-            recentBlockhash: blockhash.value.blockhash, configuration: configuration()
-        )
-        let signature = try await wallet.signature(for: message, using: phrase, expectedAddress: address.value,
-                                                   passphrase: "", path: .solana)
-        let bytes = try TransactionBuilder().transaction(byAdding: signature, for: address,
-            to: TransactionBuilder().simulationTransaction(for: message)).serializedRepresentation
-
-        do {
-            _ = try await rpc.send(SendTransaction(transaction: bytes))
-            Issue.record("An unfunded transaction unexpectedly passed preflight")
-        } catch let RPCError.preflight(_, simulation) {
-            #expect(simulation.error != nil)
-        }
-    }
-
     @Test
     func `Partially signed transactions are rejected before submission`() async throws {
         let signed = try ExternalFixture.signedResult(hasPayerSignature: false)

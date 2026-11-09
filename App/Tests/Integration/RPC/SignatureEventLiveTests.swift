@@ -9,9 +9,7 @@ struct SignatureEventLiveTests {
         let events = try await source.events(for: String(repeating: "1", count: 64))
         var iterator = events.makeAsyncIterator()
         let event = try #require(try await iterator.next())
-        guard case .rooted = event else {
-            Issue.record("Expected a root, received \(event)")
-            return
-        }
+        let isRooted = if case .rooted = event { true } else { false }
+        #expect(isRooted, "Expected a root, received \(event)")
     }
 }

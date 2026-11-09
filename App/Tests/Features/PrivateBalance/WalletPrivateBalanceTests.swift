@@ -202,7 +202,7 @@ struct WalletPrivateBalanceTests {
         try #require(await sent.settle() == .succeeded)
         await balance.refresh()
 
-        #expect(balance.followUpReadsLeft == WalletPrivateBalance.followUpReads)
+        #expect(balance.followUpReadsLeft == 10)
     }
 
     @Test
@@ -228,10 +228,10 @@ struct WalletPrivateBalanceTests {
         let balance = try await PrivateBalanceFixtures.read(account, in: store)
         try #require(await sent.settle() == .succeeded)
         await balance.refresh()
-        try #require(balance.followUpReadsLeft == WalletPrivateBalance.followUpReads)
+        try #require(balance.followUpReadsLeft == 10)
 
         await balance.poll()
-        #expect(balance.followUpReadsLeft == WalletPrivateBalance.followUpReads - 1)
+        #expect(balance.followUpReadsLeft == 9)
         try await notes.save([PrivateBalances.noteID(of: account, on: .devnet): NoteSyncState()])
         await balance.poll()
 
@@ -327,7 +327,7 @@ struct WalletPrivateBalanceTests {
             }
         }
         return WalletPrivateBalance(account: account, network: .devnet, balances: balances, transactions: .unused,
-                                    pollInterval: .seconds(30), followUpInterval: .seconds(3))
+                                    clock: ManualClock())
     }
 
     private static func otherPathAccount() async throws -> widgets.Account {

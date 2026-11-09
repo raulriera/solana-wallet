@@ -55,7 +55,10 @@ final class SocketFixture: WebSocketConnection {
     func ping() async throws {
         try Task.checkCancellation()
         guard !answersPings else { return }
-        try await Task.sleep(for: .seconds(3_600))
+        let (pongs, pong) = AsyncStream<Void>.makeStream()
+        for await _ in pongs {}
+        pong.finish()
+        throw CancellationError()
     }
 
     func cancel() {
@@ -82,6 +85,10 @@ final class SocketFixture: WebSocketConnection {
 
     func notify(root: UInt64, subscription: UInt64 = 2) {
         incoming.yield(Self.rootNotification(root, subscription: subscription))
+    }
+
+    func acknowledge(_ request: Data, ordinal: Int) throws {
+        incoming.yield(try Self.acknowledgment(of: request, ordinal: ordinal))
     }
 
     static func acknowledgment(of request: Data, ordinal: Int) throws -> Data {

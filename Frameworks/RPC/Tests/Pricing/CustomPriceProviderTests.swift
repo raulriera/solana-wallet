@@ -45,13 +45,12 @@ struct CustomPriceProviderTests {
         let clock = ManualClock()
         let startedAt = clock.now
         let transport = StubTransport { try httpReply(to: $0, body: "{}") }
-        let source = try #require(CustomPriceProvider(endpoint: Self.endpoint, transport: transport,
-                                               pacer: RequestPacer(interval: .seconds(3), clock: clock)))
+        let source = try #require(CustomPriceProvider(endpoint: Self.endpoint, transport: transport, clock: clock))
         let mints = (0..<51).map { "mint-\($0)" }
         async let operation = source.prices(for: mints)
         var waits = clock.waits.makeAsyncIterator()
 
-        let deadline = try #require(await waits.next())
+        let deadline = try #require(await clock.nextDeadline(&waits))
         #expect(deadline == startedAt.advanced(by: .seconds(3)))
         #expect(await transport.requests.count == 1)
         clock.advance(to: deadline)

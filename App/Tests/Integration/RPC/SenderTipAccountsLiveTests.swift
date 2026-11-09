@@ -6,7 +6,7 @@ import Testing
 struct SenderTipAccountsLiveTests {
     @Test
     func `Bundled Sender tip accounts match the published list`() async throws {
-        let url = URL(string: "https://www.helius.dev/docs/sending-transactions/sender.md")!
+        let url = try #require(URL(string: "https://www.helius.dev/docs/sending-transactions/sender.md"))
         let (data, response) = try await URLSession(configuration: .ephemeral).data(from: url)
         try #require((response as? HTTPURLResponse)?.statusCode == 200)
         let page = String(decoding: data, as: UTF8.self)

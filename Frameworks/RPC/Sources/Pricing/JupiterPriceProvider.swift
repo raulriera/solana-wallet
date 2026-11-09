@@ -20,15 +20,13 @@ public struct JupiterPriceProvider: PriceProviding, CustomStringConvertible, Cus
     /// - Parameters:
     ///   - apiKey: A Jupiter API key, or `nil` for keyless access.
     ///   - transport: The transport that performs HTTP requests.
-    ///   - pacer: The request pacer, or `nil` for the default pace of the access type.
-    init(apiKey: String? = nil, transport: any HTTPTransport, pacer: (any RequestPacing)? = nil) {
+    ///   - clock: The clock that paces requests.
+    init(apiKey: String? = nil, transport: any HTTPTransport, clock: some Clock<Duration> = ContinuousClock()) {
         self.apiKey = apiKey
         // swift-format-ignore: NeverForceUnwrap
         client = HTTPClient(endpoint: URL(string: "https://api.jup.ag/price/v3")!, transport: transport,
                             redactor: SecretRedactor(secrets: apiKey.map { [$0] } ?? []))
-        self.pacer = pacer ?? RequestPacer(
-            interval: apiKey == nil ? .seconds(3) : .milliseconds(1_500), clock: ContinuousClock()
-        )
+        pacer = RequestPacer(interval: apiKey == nil ? .seconds(3) : .milliseconds(1_500), clock: clock)
     }
 
     public var description: String { "JupiterPriceProvider(mainnet)" }

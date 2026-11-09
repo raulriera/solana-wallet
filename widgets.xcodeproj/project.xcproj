@@ -109,7 +109,7 @@
           "kind": "group",
           "path": "TestSupport",
           "children": [
-            { "kind": "folder", "path": "Concurrency", "target-membership": [ "RPCTests", "StorageTests", "widgetsTests" ] },
+            { "kind": "folder", "path": "Concurrency", "target-membership": [ "PortfolioTests", "RPCTests", "StorageTests", "VaultTests", "widgetsTests" ] },
             { "kind": "folder", "path": "Fields", "target-membership": [ "ModularArithmeticTests", "PrivacyTests" ] },
             { "kind": "folder", "path": "Fixtures", "target-membership": [ "AttestationTests", "ModularArithmeticTests", "PrivacyTests", "RPCTests", "TransactionsTests", "WalletTests", "widgetsTests" ] },
             {

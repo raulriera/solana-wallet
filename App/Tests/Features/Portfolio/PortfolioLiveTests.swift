@@ -6,17 +6,19 @@ import Transactions
 
 @Suite(.tags(.network))
 struct PortfolioLiveTests {
+    private let temporary = IsolatedDirectory()
+
     @Test(.timeLimit(.minutes(1)))
     func `Mainnet portfolio persists listed balances and shows them while reading again`() async throws {
         let transport = LiveResponses<GetMultipleAccounts>()
         let rpc = try LiveClients.client(transport: transport)
         let owner = PublicWallet.address
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        defer { try? FileManager.default.removeItem(at: directory) }
+        let directory = temporary.url
         let store = FileSnapshotStore(directory: directory)
-        let tokenLists = FileTokenListStore(directory: directory.appendingPathComponent("TokenLists"))
+        let tokenListDirectory = directory.appending(path: "TokenLists")
         let key = CacheKey(owner: owner, network: .mainnet)
-        let service: any PortfolioProviding = Portfolio(rpc: rpc, store: store, tokenLists: tokenLists)
+        let service: any PortfolioProviding = Portfolio(rpc: rpc, tokenListDirectory: tokenListDirectory,
+                                                        cacheDirectory: directory)
         var updates = await service.updates(for: owner).makeAsyncIterator()
 
         let initial = try #require(await updates.next())
@@ -26,25 +28,27 @@ struct PortfolioLiveTests {
         if let error = completed.error { throw error }
         let snapshot = try #require(completed.snapshot)
         let read = try #require(await transport.responses.first)
+        let lamports = try #require(read.value.first??.lamports)
         #expect(!completed.isRefreshing)
         #expect(snapshot.owner == owner)
         #expect(snapshot.network == .mainnet)
         #expect(snapshot.holdings.map(\.symbol) == ["SOL", "USDC", "USDT"])
-        #expect(snapshot.holdings.first?.amount == Amount(units: read.value.first??.lamports ?? 0, decimals: 9))
-        #expect(snapshot.holdings.allSatisfy { $0.amount != nil })
+        #expect(snapshot.holdings.first?.amount == Amount(units: lamports, decimals: 9))
+        #expect(snapshot.holdings.filter { $0.amount == nil }.map(\.symbol) == [])
         #expect(store.snapshot(for: key) == snapshot)
         #expect(await updates.next() == nil)
 
-        let recreated: any PortfolioProviding = Portfolio(rpc: rpc, store: FileSnapshotStore(directory: directory),
-                                                          tokenLists: tokenLists)
+        let recreated: any PortfolioProviding = Portfolio(rpc: rpc, tokenListDirectory: tokenListDirectory,
+                                                          cacheDirectory: directory)
         var reloaded = await recreated.updates(for: owner).makeAsyncIterator()
         let cached = try #require(await reloaded.next())
         #expect(cached.isRefreshing)
         #expect(cached.snapshot == snapshot)
         let refreshed = try #require(await reloaded.next())
         if let error = refreshed.error { throw error }
-        #expect(refreshed.snapshot?.owner == owner)
-        #expect(refreshed.snapshot?.network == .mainnet)
+        let refreshedSnapshot = try #require(refreshed.snapshot)
+        #expect(refreshedSnapshot.owner == owner)
+        #expect(refreshedSnapshot.network == .mainnet)
         #expect(await reloaded.next() == nil)
 
         try await recreated.removeData(for: owner)

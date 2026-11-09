@@ -11,12 +11,12 @@ struct RequestPacerTests {
         async let first: Void = pacer.wait()
         async let second: Void = pacer.wait()
         var waits = clock.waits.makeAsyncIterator()
-        let deadline = try #require(await waits.next())
+        let deadline = try #require(await clock.nextDeadline(&waits))
         #expect(deadline == startedAt.advanced(by: .seconds(3)))
-        #expect(await waits.next() == deadline)
+        #expect(await clock.nextDeadline(&waits) == deadline)
 
         clock.advance(to: deadline)
-        let next = try #require(await waits.next())
+        let next = try #require(await clock.nextDeadline(&waits))
         #expect(next == deadline.advanced(by: .seconds(3)))
         clock.advance(to: next)
 
@@ -34,7 +34,7 @@ struct RequestPacerTests {
         let resumedAt = clock.now
         async let next: Void = pacer.wait()
         var waits = clock.waits.makeAsyncIterator()
-        let deadline = try #require(await waits.next())
+        let deadline = try #require(await clock.nextDeadline(&waits))
         #expect(deadline == resumedAt.advanced(by: .seconds(3)))
         clock.advance(to: deadline)
         try await next
@@ -48,12 +48,12 @@ struct RequestPacerTests {
         let cancelled = Task { try await pacer.wait() }
         defer { cancelled.cancel() }
         var waits = clock.waits.makeAsyncIterator()
-        let deadline = try #require(await waits.next())
+        let deadline = try #require(await clock.nextDeadline(&waits))
         cancelled.cancel()
         await #expect(throws: CancellationError.self) { try await cancelled.value }
 
         async let replacement: Void = pacer.wait()
-        #expect(await waits.next() == deadline)
+        #expect(await clock.nextDeadline(&waits) == deadline)
         clock.advance(to: deadline)
         try await replacement
     }

@@ -867,7 +867,9 @@ private actor ObservedLedger {
     }
 }
 
-private struct PauseGate: Sendable {
+private struct PauseGate: Clock, Sendable {
+    let now = ContinuousClock.now
+    let minimumResolution = Duration.nanoseconds(1)
     let delays: AsyncStream<Duration>
     private let scheduled: AsyncStream<Duration>.Continuation
     private let releases: AsyncStream<Void>
@@ -876,6 +878,10 @@ private struct PauseGate: Sendable {
     init() {
         (delays, scheduled) = AsyncStream.makeStream()
         (releases, release) = AsyncStream.makeStream()
+    }
+
+    func sleep(until deadline: ContinuousClock.Instant, tolerance: Duration?) async throws {
+        try await pause(now.duration(to: deadline))
     }
 
     func pause(_ duration: Duration) async throws {
@@ -907,7 +913,7 @@ private struct ObservationFixture: Sendable {
                  connect: (@Sendable (URL) -> any WebSocketConnection)? = nil) -> Portfolio {
         let rpc = SolanaRPC(network: .mainnet, transport: http, socket: connect ?? { _ in socket })
         return Portfolio(rpc: rpc, store: store, tokenLists: isolatedTokenLists(), prices: prices,
-                         pause: { try await gate.pause($0) })
+                         clock: gate)
     }
 
     func service(ledger: ObservedLedger, connect: (@Sendable (URL) -> any WebSocketConnection)? = nil) -> Portfolio {

@@ -21,8 +21,7 @@ struct PrivateBalanceStoreTests {
     @Test
     func `Windows on the same account and network share one balance`() async throws {
         let account = try await PrivateBalanceFixtures.account()
-        let store = try PrivateBalanceStore.fixture(HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered]),
-                                                    pollInterval: .seconds(3_600))
+        let store = try PrivateBalanceStore.fixture(HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered]))
         let first = Task { await store.observe(account, on: .devnet) }
         defer { first.cancel() }
         try await PrivateBalanceFixtures.status(of: account, in: store, becomes: .off(isRegistered: false))
@@ -42,7 +41,7 @@ struct PrivateBalanceStoreTests {
         let responses = HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered, registry])
         let sent = try PendingMove(from: account.id)
         let store = try PrivateBalanceStore.fixture(responses, keys: StoredValue([account.address.value: record]),
-                                                    transactions: sent.transactions, pollInterval: .seconds(3_600))
+                                                    transactions: sent.transactions)
         let first = Task { await store.observe(account, on: .devnet) }
         defer { first.cancel() }
         let second = Task { await store.observe(account, on: .devnet) }
@@ -63,7 +62,7 @@ struct PrivateBalanceStoreTests {
         let rpcStore = RPCStore.inMemory(selection: .helius, key: "fixture-key")
         await rpcStore.load()
         let store = try PrivateBalanceStore.fixture(responses, keys: StoredValue([account.address.value: record]),
-                                                    rpcStore: rpcStore, pollInterval: .seconds(3_600))
+                                                    rpcStore: rpcStore)
         let viewing = Task { await store.observe(account, on: .devnet) }
         defer { viewing.cancel() }
         try await PrivateBalanceFixtures.status(of: account, in: store, becomes: .unregistered)

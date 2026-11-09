@@ -6,7 +6,8 @@ import Testing
 struct SolanaRPCLiveTests {
     @Test
     func `A custom endpoint reads accounts and acknowledges subscriptions`() async throws {
-        let rpc = try #require(SolanaRPC(endpoint: URL(string: "https://api.mainnet.solana.com")!, network: .mainnet))
+        let endpoint = try #require(URL(string: "https://api.mainnet.solana.com"))
+        let rpc = try #require(SolanaRPC(endpoint: endpoint, network: .mainnet))
         let nativeMint = "So11111111111111111111111111111111111111112"
 
         let response = try await rpc.send(GetMultipleAccounts(addresses: [nativeMint]))

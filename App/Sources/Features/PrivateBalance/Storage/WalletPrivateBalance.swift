@@ -24,8 +24,7 @@ final class WalletPrivateBalance {
     private let network: Network
     private let balances: any PrivateBalancing
     private let transactions: TransactionStore
-    private let pollInterval: Duration
-    private let followUpInterval: Duration
+    private let clock: any Clock<Duration>
     /// When the last successful read started, or `nil` before one.
     @ObservationIgnored private var lastReadStarted: Date?
     /// The running read, or `nil` when none runs.
@@ -58,7 +57,10 @@ final class WalletPrivateBalance {
     }
 
     /// The most quick reads that follow up on pending SOL.
-    static let followUpReads = 10
+    private static let followUpReads = 10
+
+    private static let pollInterval = Duration.seconds(30)
+    private static let followUpInterval = Duration.seconds(3)
 
     /// Creates a balance with no status.
     ///
@@ -67,16 +69,14 @@ final class WalletPrivateBalance {
     ///   - network: The network that the balance belongs to.
     ///   - balances: The private balances of every account.
     ///   - transactions: The transaction store.
-    ///   - pollInterval: The time between polls.
-    ///   - followUpInterval: The time between polls that follow up on pending SOL.
+    ///   - clock: The clock that times polls.
     init(account: Account, network: Network, balances: any PrivateBalancing, transactions: TransactionStore,
-         pollInterval: Duration, followUpInterval: Duration) {
+         clock: any Clock<Duration>) {
         self.account = account
         self.network = network
         self.balances = balances
         self.transactions = transactions
-        self.pollInterval = pollInterval
-        self.followUpInterval = followUpInterval
+        self.clock = clock
     }
 
     /// Reads and polls the balance until the calling task is cancelled.
@@ -171,10 +171,10 @@ final class WalletPrivateBalance {
     /// Restarts the loop that reads the balance and then polls it after each interval.
     private func startPolling() {
         polling?.cancel()
-        polling = Task { [weak self, pollInterval, followUpInterval] in
+        polling = Task { [weak self, clock] in
             await self?.readAfterSettling()
-            while let interval = self.map({ $0.isFollowingUp ? followUpInterval : pollInterval }),
-                  (try? await Task.sleep(for: interval)) != nil {
+            while let interval = self.map({ $0.isFollowingUp ? Self.followUpInterval : Self.pollInterval }),
+                  (try? await clock.sleep(for: interval)) != nil {
                 await self?.poll()
             }
         }

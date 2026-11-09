@@ -58,8 +58,7 @@ enum PrivateBalanceFixtures {
 
     @MainActor
     static func pendingDeposit(of account: widgets.Account, responses: HTTPResponses = HTTPResponses.privateNotes(),
-                               transactions: TransactionStore = .unused, pollInterval: Duration = .seconds(30),
-                               followUpInterval: Duration = .seconds(3))
+                               transactions: TransactionStore = .unused, clock: ManualClock = ManualClock())
         async throws -> (store: PrivateBalanceStore, notes: StoredValue<PrivateBalances.Notes>) {
         let keys = StoredValue([account.address.value: try await keys(for: account)])
         let notes = StoredValue<PrivateBalances.Notes>([PrivateBalances.noteID(of: account, on: .devnet): NoteSyncState()])
@@ -67,8 +66,7 @@ enum PrivateBalanceFixtures {
                                                 responses: HTTPResponses.privateNotes())
         _ = try await balances.complete(preparedDeposit(1_000_000, from: account), with: confirmation(.succeeded))
         let store = try PrivateBalanceStore.fixture(responses, keys: keys, notes: notes,
-                                                    transactions: transactions, pollInterval: pollInterval,
-                                                    followUpInterval: followUpInterval)
+                                                    transactions: transactions, clock: clock)
         return (store, notes)
     }
 

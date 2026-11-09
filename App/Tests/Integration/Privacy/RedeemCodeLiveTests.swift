@@ -7,7 +7,7 @@ import Wallet
 @testable import RPC
 @testable import widgets
 
-@Suite(.serialized, .tags(.network), .timeLimit(.minutes(10)))
+@Suite(.tags(.network), .timeLimit(.minutes(10)))
 struct RedeemCodeLiveTests {
     private static let depositLamports: UInt64 = 10_000_000
 
@@ -27,23 +27,21 @@ struct RedeemCodeLiveTests {
         let sender = wallets.sender
         let recipient = wallets.recipient
         try await wallets.requireFunds(Self.feeLamports, using: rpc)
-        let coordinator = try TransactionCoordinator(rpc: rpc, store: SigningRecoveryStore(recovery: wallets.recovery),
-                                                     strategy: .none)
+        let recovery = SigningRecoveryStore(recovery: wallets.recovery)
+        let coordinator = try TransactionCoordinator(rpc: rpc, store: recovery, strategy: .none)
         let notes = StoredValue<PrivateBalances.Notes>()
         let balances = PrivateBalances(
-            recovery: SecurityRecoveryStore(records: [sender.recoveryID: wallets.recovery]), wallet: Wallet(),
+            recovery: recovery, wallet: Wallet(),
             keys: StoredValue(), notes: notes, codes: StoredValue()
         ) { _ in rpc }
         try await balances.enable(sender, on: .devnet)
         try await balances.enable(recipient, on: .devnet)
-        try #require(try await balances.refresh(recipient, on: .devnet) != .unregistered,
-                     "Run PrivateTransferLiveTests first so that account 1 is registered.")
         var log: [String] = []
 
-        if try await Self.settledBalance(of: sender, in: balances) < Self.minimumPrivateLamports {
+        if try await balances.settledBalance(of: sender, on: .devnet) < Self.minimumPrivateLamports {
             let deposit = try await balances.prepare(.deposit(Self.depositLamports), from: sender, on: .devnet)
-            try #require(!deposit.registers, "Run PrivateTransferLiveTests first so that account 0 is registered.")
-            try await wallets.requireFunds(Self.depositLamports + Self.feeLamports, using: rpc)
+            let rent = deposit.registers ? PrivateBalances.registrationLamports : 0
+            try await wallets.requireFunds(Self.depositLamports + rent + Self.feeLamports, using: rpc)
             let (confirmation, _) = try await Self.run(deposit, through: coordinator)
             _ = try await balances.complete(deposit, with: confirmation)
             log.append("deposit \(confirmation.submission.signature)")
@@ -51,10 +49,10 @@ struct RedeemCodeLiveTests {
 
         let redeemed = try await Self.createCode(of: Self.redeemedLamports, from: sender, in: balances, through: coordinator,
                                                  log: &log)
-        let recipientLamports = try await Self.settledBalance(of: recipient, in: balances)
+        let recipientLamports = try await balances.settledBalance(of: recipient, on: .devnet)
         let redemption = try await Self.preparedWhenIndexed(.redeem(redeemed.code), into: recipient, in: balances)
         let (redeemedConfirmation, charged) = try await Self.run(redemption, through: coordinator)
-        let swept = try #require(Self.redemption(in: charged))
+        let swept = try #require(charged.effect.redemption)
         #expect(try await balances.complete(charged, with: redeemedConfirmation) == .balance(available: recipientLamports, pending: swept.lamports))
         let redeemedFinal = try await Self.lamports(of: redeemed.code, after: redeemedConfirmation, using: rpc)
         log.append("redeem \(redeemedConfirmation.submission.signature) one-time final lamports \(redeemedFinal)")
@@ -84,9 +82,7 @@ struct RedeemCodeLiveTests {
                                    through coordinator: TransactionCoordinator,
                                    log: inout [String]) async throws -> OutstandingRedeemCode {
         let prepared = try await balances.prepare(.createCode(lamports), from: sender, on: .devnet)
-        guard case .createCode(_, let index, _) = prepared.effect else {
-            return try #require(nil as OutstandingRedeemCode?, "Expected a code's creation.")
-        }
+        let index = try #require(prepared.effect.codeCreation?.index)
         let (confirmation, _) = try await run(prepared, through: coordinator)
         _ = try await balances.complete(prepared, with: confirmation)
         log.append("create \(lamports) at index \(index) \(confirmation.submission.signature)")
@@ -96,14 +92,14 @@ struct RedeemCodeLiveTests {
 
     private static func preparedWhenIndexed(_ request: PrivateTransactionRequest, into account: widgets.Account,
                                             in balances: PrivateBalances) async throws -> PreparedPrivateTransaction {
-        for _ in 0..<30 {
+        let prepared: PreparedPrivateTransaction? = try await poll {
             do {
                 return try await balances.prepare(request, from: account, on: .devnet)
             } catch let error as widgets.PrivateBalanceError where error == .codeNotReady {
-                try await Task.sleep(for: .seconds(2))
+                return nil
             }
         }
-        return try #require(nil as PreparedPrivateTransaction?, "The indexer didn't report the code within a minute.")
+        return try #require(prepared, "The indexer didn't report the code within a minute.")
     }
 
     private static func run(_ transaction: PreparedPrivateTransaction, through coordinator: TransactionCoordinator)
@@ -121,20 +117,5 @@ struct RedeemCodeLiveTests {
         let slot = try await confirmation.executionSlot(through: rpc)
         let response = try await rpc.send(GetMultipleAccounts(addresses: [address], minContextSlot: slot))
         return (response.value.first ?? nil)?.lamports ?? 0
-    }
-
-    private static func redemption(in transaction: PreparedPrivateTransaction) -> Redemption? {
-        guard case .redeem(let redemption) = transaction.effect else { return nil }
-        return redemption
-    }
-
-    private static func settledBalance(of account: widgets.Account, in balances: PrivateBalances) async throws -> UInt64 {
-        for _ in 0..<30 {
-            if case .balance(let available, pending: 0) = try await balances.refresh(account, on: .devnet) {
-                return available
-            }
-            try await Task.sleep(for: .seconds(2))
-        }
-        return try #require(nil as UInt64?, "The indexer didn't report the recorded transactions within a minute.")
     }
 }

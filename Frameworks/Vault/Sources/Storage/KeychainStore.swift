@@ -11,11 +11,11 @@ public struct KeychainStore: RecoveryStoring {
 
     private let service: String
     private let keychain: any KeychainAccessing
-    private let authenticationTimeout: Duration
+    private let clock: any Clock<Duration>
     private let queue = DispatchQueue(label: "Vault.Keychain", qos: .userInitiated)
 
     /// The longest a recovery read waits for authentication once it starts.
-    static let defaultAuthenticationTimeout = Duration.seconds(30)
+    private static let authenticationTimeout = Duration.seconds(30)
 
     /// Creates device-only storage in the app's Keychain access group.
     ///
@@ -29,12 +29,11 @@ public struct KeychainStore: RecoveryStoring {
     /// - Parameters:
     ///   - service: The app-specific Keychain service name.
     ///   - keychain: The Keychain operations.
-    ///   - authenticationTimeout: The longest a recovery read waits for authentication once it starts.
-    init(service: String, keychain: any KeychainAccessing,
-         authenticationTimeout: Duration = KeychainStore.defaultAuthenticationTimeout) {
+    ///   - clock: The clock that times authentication.
+    init(service: String, keychain: any KeychainAccessing, clock: any Clock<Duration> = ContinuousClock()) {
         self.service = service
         self.keychain = keychain
-        self.authenticationTimeout = authenticationTimeout
+        self.clock = clock
     }
 
     public func save(_ recovery: Recovery, for recoveryID: UUID) async throws {
@@ -58,7 +57,7 @@ public struct KeychainStore: RecoveryStoring {
     }
 
     public func recovery(for recoveryID: UUID, reason: String) async throws -> Recovery {
-        try await perform(reason: reason, timeout: authenticationTimeout) { context in
+        try await perform(reason: reason, timeout: Self.authenticationTimeout) { context in
             var query = identity(for: recoveryID)
             query[kSecMatchLimit as String] = kSecMatchLimitOne
             query[kSecReturnData as String] = true
@@ -128,7 +127,7 @@ public struct KeychainStore: RecoveryStoring {
                 queue.async {
                     let timer = timeout.map { timeout in
                         Task { @concurrent in
-                            try await Task.sleep(for: timeout)
+                            try await clock.sleep(for: timeout)
                             authentication.timeOut()
                             do { try authentication.checkRunning() } catch { resume(.failure(error)) }
                         }
