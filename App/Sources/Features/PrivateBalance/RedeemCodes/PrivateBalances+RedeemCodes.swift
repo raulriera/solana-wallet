@@ -74,7 +74,7 @@ extension PrivateBalances {
         async let chosenIndex = heldIndex(of: id, from: keys, generation: generation, client: client)
         let (shielded, state, _) = try await notes(after: synced, for: .createCode(lamports), client: client)
         guard let treeID = state.outputTreeID else { throw PrivateBalanceError.unavailable }
-        async let treeFee = ShieldedPool.feePerNullifier(treeID: treeID, using: client)
+        async let treeFee = ShieldedPool.treeFee(of: [treeID], using: client)
         let reserve = try Redemption.reserve(rent: try await rent, treeFee: try await treeFee)
         let index = try await chosenIndex
         let recipient = try keys.oneTimeAccount(at: index).shieldedAccount.recipient
@@ -143,9 +143,7 @@ extension PrivateBalances {
         let (state, outcome, lamports, registrationCost) = try await (codeNotes, synced, balances, cost)
         guard !state.hasUnconfirmedNotes else { throw PrivateBalanceError.codeNotReady }
         guard let balance = lamports.first, balance > 0 else { throw PrivateBalanceError.codeRedeemed }
-        guard let largest = state.notes.max(by: { $0.lamports < $1.lamports }) else {
-            throw PrivateBalanceError.codeNotReady
-        }
+        guard !state.notes.isEmpty else { throw PrivateBalanceError.codeNotReady }
         guard let outputTree = state.outputTreeID else { throw PrivateBalanceError.unavailable }
         let registers = switch outcome {
         case .off: throw PrivateBalanceError.turnedOff
@@ -154,12 +152,11 @@ extension PrivateBalances {
         case .synced: false
         }
         let recipient = try shielded.recipient
-        async let treeFee = ShieldedPool.feePerNullifier(treeID: largest.treeID, using: client)
         let spend = try await state.spend(state.spendableLamports, to: .transfer(recipient), from: code, rpc: client,
                                           prover: client)
+        let treeFee = try await ShieldedPool.treeFee(of: spend.treeIDs, using: client)
         let available = try Redemption.availableLamports(of: balance, registrationCost: registers ? registrationCost : 0,
-                                                         treeFee: try await treeFee,
-                                                         nullifierCount: spend.nullifierCount)
+                                                         treeFee: treeFee)
         let registration = registers ? [try shielded.register(paidBy: code.signingAddress)] : []
         let redemption = try Redemption(instructions: registration + [spend.instruction], noteLamports: spend.lamports,
                                         availableLamports: available, source: code.signingAddress, recipient: recipient,

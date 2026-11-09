@@ -66,10 +66,10 @@ struct RedeemCodeScanTests {
     func `Fundings that don't end within 128 reads fail`() async throws {
         let keys = try await Self.keys()
         let row = try RedeemCodeFixtures.deposit(1, to: keys.oneTimeAccount(at: 3), leafIndex: 2)
-        let transactions = [IndexerReplies.page([], in: "transactions")]
+        let transactions = [IndexerReplies.page([], in: "events")]
         let responses = HTTPResponses([GetShieldedTransactionsByTags.method: transactions]) { request in
             let page = try PageCursor.page(of: request)
-            return IndexerReplies.page([row], in: "matches", next: PageCursor.cursor(forPage: page + 1))
+            return IndexerReplies.page([row], in: "outputs", next: PageCursor.cursor(forPage: page + 1))
         }
         let client = await Self.client(responses)
 

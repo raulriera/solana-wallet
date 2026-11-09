@@ -1,9 +1,9 @@
 import CryptoKit
 import Foundation
-import Privacy
 import Testing
 import Transactions
 import Wallet
+@testable import Privacy
 @testable import RPC
 @testable import widgets
 
@@ -163,6 +163,28 @@ struct PrivateBalancesRedeemCodesTests {
     }
 
     @Test
+    func `Redeeming a code of several notes pays its tree's fee once`() async throws {
+        let recipient = try await Self.recipient(registered: true)
+        let oneTime = try Self.giftedAccount()
+        let deposits = try (3...5).map { try RedeemCodeFixtures.deposit(1_000_000, to: oneTime, leafIndex: $0) }
+        let responses = try RedeemCodeFixtures.responses(accounts: [
+            oneTime.address: RedeemCodeFixtures.systemAccount(lamports: RedeemCodeFixtures.reserve),
+            try RedeemCodeFixtures.recordAddress(of: recipient.account): recipient.record,
+        ], deposits: deposits)
+        let balances = try await Self.balances(responses, keys: recipient.storedKeys, notes: recipient.notes)
+        let code = try RedeemCode(secret: oneTime.secret, network: .devnet)
+
+        let prepared = try await balances.prepare(.redeem(code), from: recipient.account, on: .devnet)
+
+        guard case .redeem(let redemption) = prepared.effect else {
+            Issue.record("Expected a redemption.")
+            return
+        }
+        #expect(redemption.noteLamports == 3_000_000)
+        #expect(redemption.availableLamports == RedeemCodeFixtures.reserve - RedeemCodeFixtures.treeFee)
+    }
+
+    @Test
     func `Redeeming into an unregistered account registers it`() async throws {
         let recipient = try await Self.recipient(registered: false)
         let oneTime = try Self.giftedAccount()
@@ -175,13 +197,34 @@ struct PrivateBalancesRedeemCodesTests {
                                                   from: recipient.account, on: .devnet)
         let charged = try prepared.withNetworkFee(2 * Redemption.signatureFee)
 
+        let deposited = 1_000_000 + RedeemCodeFixtures.treeFee
         #expect(prepared.registers)
         #expect(try prepared.authorities.map { try $0.address } == [Address(oneTime.address), recipient.account.address])
         #expect(prepared.instructions.first == (try recipient.shielded.register(paidBy: Address(oneTime.address))))
         #expect(prepared.instructions.count == 3)
-        #expect(charged.instructions == Array(prepared.instructions.prefix(2)))
-        #expect(try await balances.complete(charged, with: PrivateBalanceFixtures.confirmation(.succeeded)) == .balance(available: 0, pending: 1_000_000))
-        #expect(await recipient.notes.value?[recipient.id]?.pendingLamports == 1_000_000)
+        #expect(try await balances.complete(charged, with: PrivateBalanceFixtures.confirmation(.succeeded)) == .balance(available: 0, pending: deposited))
+        #expect(await recipient.notes.value?[recipient.id]?.pendingLamports == deposited)
+    }
+
+    @Test
+    func `Redeeming into another output tree pays both trees' fees from the reserve`() async throws {
+        let recipient = try await Self.recipient(registered: false)
+        let oneTime = try Self.giftedAccount()
+        let responses = try RedeemCodeFixtures.responses(accounts: [
+            oneTime.address: RedeemCodeFixtures.systemAccount(lamports: RedeemCodeFixtures.reserve),
+            try ShieldedPool.tree(id: 0).value: UTXOTrees.emptyTree(feePerTree: 100),
+            try ShieldedPool.tree(id: 1).value: UTXOTrees.emptyTree(feePerTree: RedeemCodeFixtures.treeFee),
+        ], deposits: [try RedeemCodeFixtures.deposit(1_000_000, to: oneTime, leafIndex: 3)], outputTreeID: 0)
+        let balances = try await Self.balances(responses, keys: recipient.storedKeys, notes: recipient.notes)
+
+        let prepared = try await balances.prepare(.redeem(RedeemCode(secret: oneTime.secret, network: .devnet)),
+                                                  from: recipient.account, on: .devnet)
+
+        guard case .redeem(let redemption) = prepared.effect else {
+            Issue.record("Expected a redemption.")
+            return
+        }
+        #expect(redemption.availableLamports == 2 * Redemption.signatureFee + RedeemCodeFixtures.treeFee - 100)
     }
 
     @Test

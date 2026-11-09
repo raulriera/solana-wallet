@@ -44,7 +44,7 @@ struct ShieldedPoolTreeAccountTests {
     }
 
     private static func account(_ data: [UInt8]) -> String {
-        AccountReplies.account(owner: Fixture.program, data: data)
+        AccountReplies.account(owner: ShieldedPool.programID, data: data)
     }
 
     private static func data(_ first: UInt8) -> [UInt8] {

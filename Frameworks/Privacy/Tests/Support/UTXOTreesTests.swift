@@ -39,11 +39,11 @@ struct UTXOTreesTests {
     }
 
     @Test
-    func `Tree accounts hold the fee per nullifier`() async throws {
-        let trees = UTXOTrees(rows: [IndexerResponses.match(deposits[0])], feePerNullifier: 108)
+    func `Tree accounts hold the fee per tree`() async throws {
+        let trees = UTXOTrees(rows: [IndexerResponses.match(deposits[0])], feePerTree: 108)
         let transport = StubTransport { try #require(try trees.respond(to: $0)) }
 
-        let fee = try await ShieldedPool.feePerNullifier(treeID: 0, using: SolanaRPC.devnet(transport: transport))
+        let fee = try await ShieldedPool.treeFee(of: [0], using: SolanaRPC.devnet(transport: transport))
 
         #expect(fee == 108)
     }
@@ -56,7 +56,7 @@ struct UTXOTreesTests {
         }
 
         await #expect(throws: ShieldedPool.TreeError.missingTree) {
-            try await ShieldedPool.feePerNullifier(treeID: 5, using: SolanaRPC.devnet(transport: transport))
+            try await ShieldedPool.treeFee(of: [5], using: SolanaRPC.devnet(transport: transport))
         }
     }
 

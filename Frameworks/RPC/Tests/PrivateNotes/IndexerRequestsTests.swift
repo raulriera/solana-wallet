@@ -4,18 +4,30 @@ import Testing
 
 struct IndexerRequestsTests {
     @Test(arguments: [
-        (GetShieldedTransactionsByTags(tags: ["a"], cursor: nil) as any RPCRequest, #"{"tags":["a"]}"#),
-        (GetShieldedTransactionsByTags(tags: ["a"], cursor: "AQ=="), #"{"cursor":"AQ==","tags":["a"]}"#),
-        (GetEncryptedUtxosByTags(tags: ["a", "b"], cursor: nil), #"{"tags":["a","b"]}"#),
-        (GetEncryptedUtxosByTags(tags: ["a"], cursor: "AQ=="), #"{"cursor":"AQ==","tags":["a"]}"#),
-        (GetShieldedTransactionsByNullifiers(nullifiers: ["n"], cursor: nil), #"{"nullifiers":["n"]}"#),
-        (GetShieldedTransactionsByNullifiers(nullifiers: ["n"], cursor: "AQ=="), #"{"cursor":"AQ==","nullifiers":["n"]}"#),
+        (IndexerPageRequest(query: GetShieldedTransactionsByTags(tags: ["a"]), checkpoint: .start, limit: 250)
+            as any RPCRequest, #"{"limit":250,"tags":["a"]}"#),
+        (IndexerPageRequest(query: GetEncryptedUtxosByTags(tags: ["a", "b"]),
+                            checkpoint: IndexerCheckpoint(afterSlot: 9, paginationToken: nil), limit: 125),
+         #"{"filters":{"slot":{"gt":9}},"limit":125,"tags":["a","b"]}"#),
+        (IndexerPageRequest(query: GetShieldedTransactionsByNullifiers(nullifiers: ["n"]),
+                            checkpoint: IndexerCheckpoint(afterSlot: 9, paginationToken: "1:10:s"), limit: 1),
+         #"{"filters":{"slot":{"gt":9}},"limit":1,"nullifiers":["n"],"paginationToken":"1:10:s"}"#),
         (GetMerkleProofs(treeAccount: "t", leaves: ["a", "b"]), #"{"leaves":["a","b"],"treeAccount":"t"}"#),
     ])
-    func `Requests send their values and an optional cursor`(request: any RPCRequest, expected: String) throws {
+    func `Requests send their values with their checkpoint and limit`(request: any RPCRequest, expected: String) throws {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
 
         #expect(String(decoding: try encoder.encode(request), as: UTF8.self) == expected)
+    }
+
+    @Test(arguments: [
+        (GetShieldedTransactionsByTags.method, "getShieldedTransactionsByTags"),
+        (GetEncryptedUtxosByTags.method, "getEncryptedUtxosByTags"),
+        (GetShieldedTransactionsByNullifiers.method, "getShieldedTransactionsByNullifiers"),
+        (IndexerPageRequest<GetEncryptedUtxosByTags>.method, "getEncryptedUtxosByTags"),
+    ])
+    func `Page requests take their query's method`(method: String, expected: String) {
+        #expect(method == expected)
     }
 }

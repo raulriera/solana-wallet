@@ -56,25 +56,29 @@ struct UTXOTrees: Sendable {
     private let rows: [String]
     private let forgedRows: [String]
     private let isFinalized: Bool
-    private let feePerNullifier: UInt64
+    private let feePerTree: UInt64
 
-    init(rows: [String], forging forgedRows: [String] = [], isFinalized: Bool = true, feePerNullifier: UInt64 = 0) {
+    init(rows: [String], forging forgedRows: [String] = [], isFinalized: Bool = true, feePerTree: UInt64 = 0) {
         self.rows = rows
         self.forgedRows = forgedRows
         self.isFinalized = isFinalized
-        self.feePerNullifier = feePerNullifier
+        self.feePerTree = feePerTree
     }
 
     static func account(cursor: UInt16, count: UInt16, capacity: UInt16 = 500, roots: [[UInt8]],
-                        feePerNullifier: UInt64 = 0) -> [UInt8] {
+                        feePerTree: UInt64 = 0) -> [UInt8] {
         var data = [1] + [UInt8](repeating: 0, count: 7)
-        data.appendLittleEndian(feePerNullifier)
+        data.appendLittleEndian(feePerTree)
         data += [UInt8](repeating: 0, count: 96)
         data.appendLittleEndian(cursor)
         data.appendLittleEndian(count)
         data.appendLittleEndian(capacity)
         data += [UInt8](repeating: 0, count: 1_152 - data.count) + roots.joined()
         return data + [UInt8](repeating: 0, count: 40_080 - data.count)
+    }
+
+    static func emptyTree(feePerTree: UInt64) -> String {
+        AccountReplies.account(owner: ShieldedPool.programID, data: account(cursor: 0, count: 0, roots: [], feePerTree: feePerTree))
     }
 
     func respond(to request: URLRequest) throws -> (Data, URLResponse)? {
@@ -125,7 +129,7 @@ struct UTXOTrees: Sendable {
     private func account(of tree: Tree) -> String {
         let roots = [Self.zeros[Self.height]] + (isFinalized ? [tree.root] : [])
         let data = Self.account(cursor: UInt16(roots.count - 1), count: UInt16(roots.count), roots: roots.map(\.bigEndianBytes),
-                                feePerNullifier: feePerNullifier)
+                                feePerTree: feePerTree)
         return AccountReplies.account(owner: ShieldedPool.programID, data: data)
     }
 

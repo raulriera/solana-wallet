@@ -13,7 +13,7 @@ struct NoteSyncStateTests {
         var deposits: [ShieldedTransaction] = []
         var forgedDeposits: [ShieldedTransaction] = []
         var spends: [ShieldedTransaction] = []
-        var scanned = "AQ=="
+        var contextSlot: UInt64 = 1
         var outputTreeID: UInt16?
         var depositsPerPage: Int?
         var isFinalized = true
@@ -28,21 +28,21 @@ struct NoteSyncStateTests {
             if let reply = try trees.respond(to: request) { return reply }
             switch try #require(request.url?.lastPathComponent) {
             case GetShieldedTransactionsByTags.method:
-                let page = IndexerReplies.page(transactions.map(IndexerResponses.row), in: "transactions",
-                                               scannedThrough: scanned, outputTreeID: outputTreeID)
+                let page = IndexerReplies.page(transactions.map(IndexerResponses.row), in: "events",
+                                               contextSlot: contextSlot, outputTreeID: outputTreeID)
                 return try reply(to: request, payload: #""result":\#(page)"#)
             case GetEncryptedUtxosByTags.method:
                 let pages = PageCursor.pages(of: (deposits + forgedDeposits).map(IndexerResponses.match),
                                              perPage: depositsPerPage)
                 let number = depositsPerPage == nil ? 0 : try PageCursor.page(of: request)
                 let matches = try #require(pages.indices.contains(number) ? pages[number] : nil)
-                let page = IndexerReplies.page(matches.rows, in: "matches", next: matches.next, scannedThrough: scanned,
+                let page = IndexerReplies.page(matches.rows, in: "outputs", next: matches.next, contextSlot: contextSlot,
                                                outputTreeID: outputTreeID)
                 return try reply(to: request, payload: #""result":\#(page)"#)
             default:
                 let requested = Set(try NoteSyncStateTests.nullifiers(of: request))
                 let spending = spends.filter { $0.nullifiers.contains { requested.contains(Base58.encode($0)) } }
-                let page = IndexerReplies.page(spending.map(IndexerResponses.row), in: "transactions", scannedThrough: scanned)
+                let page = IndexerReplies.page(spending.map(IndexerResponses.row), in: "events", contextSlot: contextSlot)
                 return try reply(to: request, payload: #""result":\#(page)"#)
             }
         }
@@ -77,7 +77,7 @@ struct NoteSyncStateTests {
 
         #expect(state.notes == (try notes(in: deposit) + notes(in: transfer)))
         #expect(state.spendableLamports == 1_000_006)
-        #expect(state.position == NoteSyncPosition(tags: sender.viewTags, transactionCursors: ["AQ=="], outputCursors: ["AQ=="]))
+        #expect(state.position == Self.caughtUpPosition(sender.viewTags, at: 1))
     }
 
     @Test
@@ -140,13 +140,13 @@ struct NoteSyncStateTests {
     func `Resumed syncs read after the stored position`() async throws {
         let (first, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit]))
 
-        let (state, transport) = try await sync(first, with: Indexer(deposits: [laterDeposit], scanned: "Ag=="))
+        let (state, transport) = try await sync(first, with: Indexer(deposits: [laterDeposit], contextSlot: 2))
 
-        let cursors = try await Self.tagReads(of: transport)
-            .map { try #require(try requestBody($0)["params"] as? [String: Any])["cursor"] as? String }
-        #expect(cursors == ["AQ==", "AQ=="])
+        let filters = try await Self.tagReads(of: transport)
+            .map { try #require(try requestBody($0)["params"] as? [String: Any])["filters"] as? [String: [String: Int]] }
+        #expect(filters == [["slot": ["gt": 1]], ["slot": ["gt": 1]]])
         #expect(state.notes == (try notes(in: deposit) + notes(in: laterDeposit)))
-        #expect(state.position == NoteSyncPosition(tags: sender.viewTags, transactionCursors: ["Ag=="], outputCursors: ["Ag=="]))
+        #expect(state.position == Self.caughtUpPosition(sender.viewTags, at: 2))
     }
 
     @Test
@@ -455,10 +455,11 @@ struct NoteSyncStateTests {
 
         let tags = sender.viewTags
         #expect(first.notes.isEmpty)
-        let resumed = PageCursor.cursor(forPage: 8)
-        #expect(first.position == NoteSyncPosition(tags: tags, transactionCursors: ["AQ=="], outputCursors: [resumed]))
+        let resumed = IndexerCheckpoint(afterSlot: nil, paginationToken: PageCursor.cursor(forPage: 8))
+        #expect(first.position == NoteSyncPosition(tags: tags, transactionCheckpoints: [Self.caughtUp(at: 1)],
+                                                   outputCheckpoints: [resumed]))
         #expect(second.notes == (try notes(in: deposit)))
-        #expect(second.position == NoteSyncPosition(tags: tags, transactionCursors: ["AQ=="], outputCursors: ["AQ=="]))
+        #expect(second.position == Self.caughtUpPosition(tags, at: 1))
     }
 
     @Test
@@ -468,9 +469,8 @@ struct NoteSyncStateTests {
 
         let state = try await NoteSyncState().syncedToEnd(for: sender, rpc: SolanaRPC.devnet(transport: transport), indexer: Self.indexer(transport))
 
-        let tags = sender.viewTags
         #expect(state.notes == (try notes(in: deposit)))
-        #expect(state.position == NoteSyncPosition(tags: tags, transactionCursors: ["AQ=="], outputCursors: ["AQ=="]))
+        #expect(state.position == Self.caughtUpPosition(sender.viewTags, at: 1))
     }
 
     @Test
@@ -481,7 +481,7 @@ struct NoteSyncStateTests {
                 return try Indexer().respond(to: request)
             }
             let next = PageCursor.cursor(forPage: try PageCursor.page(of: request) + 1)
-            return try reply(to: request, payload: #""result":\#(IndexerReplies.page([filler], in: "matches", next: next))"#)
+            return try reply(to: request, payload: #""result":\#(IndexerReplies.page([filler], in: "outputs", next: next))"#)
         }
         await #expect(throws: RPCError.invalidResponse(.endlessStream)) {
             try await NoteSyncState().syncedToEnd(for: sender, rpc: SolanaRPC.devnet(transport: transport), indexer: Self.indexer(transport))
@@ -729,8 +729,8 @@ struct NoteSyncStateTests {
         let (respent, _) = try await sync(synced, with: Indexer(transactions: [transfer], spends: [spend(of: synced.notes)]))
         let spent = try transfer.nullifiers.prefix(1).map { try #require(Poseidon.Element(bigEndianBytes: $0)) }
         let spend = PrivateSpend(
-            instruction: Instruction(program: try ShieldedPool.program), lamports: 4, receivedLamports: 6, nullifierCount: spent.count,
-            inputTreeID: 0, nullifiers: spent
+            instruction: Instruction(program: try ShieldedPool.program), lamports: 4, receivedLamports: 6, treeIDs: [0],
+            nullifiers: spent
         )
 
         let state = try respent.recording(spend, signature: transfer.signature)
@@ -890,7 +890,7 @@ struct NoteSyncStateTests {
     private func privateSpend(of notes: [ReceivedNote], receiving lamports: UInt64) throws -> PrivateSpend {
         PrivateSpend(
             instruction: Instruction(program: try ShieldedPool.program), lamports: 1, receivedLamports: lamports,
-            nullifierCount: notes.count, inputTreeID: 0, nullifiers: notes.map(\.nullifier)
+            treeIDs: [0], nullifiers: notes.map(\.nullifier)
         )
     }
 
@@ -921,6 +921,14 @@ struct NoteSyncStateTests {
 
     private static func treeReads(of transport: StubTransport) async throws -> Int {
         try await transport.requests.count { try requestBody($0)["method"] as? String == GetMultipleAccounts.method }
+    }
+
+    private static func caughtUp(at slot: UInt64) -> IndexerCheckpoint {
+        IndexerCheckpoint(afterSlot: slot, paginationToken: nil)
+    }
+
+    private static func caughtUpPosition(_ tags: [[UInt8]], at slot: UInt64) -> NoteSyncPosition {
+        NoteSyncPosition(tags: tags, transactionCheckpoints: [caughtUp(at: slot)], outputCheckpoints: [caughtUp(at: slot)])
     }
 
     private static func tagReads(of transport: StubTransport) async -> [URLRequest] {

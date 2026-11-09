@@ -151,6 +151,15 @@ struct TransactPlanTests {
     }
 
     @Test(arguments: [
+        ([0], 0, [0]), ([1], 0, [0, 1]), ([1, 2], 0, [0, 1, 2]), ([0, 1], 1, [0, 1]),
+    ] as [([UInt16], UInt16, Set<UInt16>)])
+    func `Written trees are the input trees and the output tree, each once`(
+        inputs: [UInt16], output: UInt16, written: Set<UInt16>
+    ) {
+        #expect(TransactPlan.writtenTreeIDs(inputs: inputs, output: output) == written)
+    }
+
+    @Test(arguments: [
         ([], 1, nil, .noInputs),
         (Array(repeating: (1, 0), count: 41), 1, nil, .tooManyInputs),
         ([(10, 0), (10, 1), (10, 2)], 1, nil, .tooManyInputTrees),

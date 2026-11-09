@@ -1,7 +1,7 @@
 import Encoding
 import Foundation
 
-/// One page of an indexer stream that a cursor orders.
+/// One page of an indexer history stream that a pagination token continues.
 protocol IndexerPage: Decodable, Sendable {
     /// The type of the page's rows.
     associatedtype Item: Sendable
@@ -10,10 +10,21 @@ protocol IndexerPage: Decodable, Sendable {
     var items: [Item] { get }
     /// The ID of the newest tree that isn't paused, or `nil` when the indexer reports none.
     var outputTreeID: UInt16? { get }
-    /// The cursor after the page's last row, or `nil` at the end of the stream.
-    var nextCursor: String? { get }
-    /// The position that the scan reached, on a page that the limit didn't fill.
-    var scannedThrough: String? { get }
+    /// The token of the next page, or `nil` at the end of the stream.
+    var paginationToken: String? { get }
+    /// The highest slot that the indexer had stored when it answered.
+    var contextSlot: UInt64 { get }
+}
+
+/// Where a read of an indexer history stream starts.
+struct IndexerCheckpoint: Sendable, Hashable, Codable {
+    /// The slot after which the read's rows start, or `nil` for the stream's first slot.
+    let afterSlot: UInt64?
+    /// The token of the page that continues an unfinished read, or `nil` for its first page.
+    let paginationToken: String?
+
+    /// The checkpoint at the stream's beginning.
+    static let start = IndexerCheckpoint(afterSlot: nil, paginationToken: nil)
 }
 
 /// The rows of a stream's pages up to a page limit, whether the stream ended, and where a later read resumes.
@@ -22,47 +33,61 @@ struct IndexerRead<Item: Sendable>: Sendable {
     let items: [Item]
     /// The ID of the newest tree that isn't paused, from the latest page that reports one.
     let outputTreeID: UInt16?
-    /// The last page's next cursor when the read stopped at its page limit, else the last scanned position or next
-    /// cursor that a page reported, else the starting cursor.
-    let resumeCursor: String?
-    /// Whether a page without a next cursor ended the stream.
+    /// The checkpoint after the last page's slot when the stream ended, else the checkpoint of the next page.
+    let resume: IndexerCheckpoint
+    /// Whether a page without a pagination token ended the stream.
     let isComplete: Bool
 }
 
 extension IndexerPage {
-    /// Reads pages from a cursor until a page has no next cursor or the read reaches its page limit.
+    /// Reads pages from a checkpoint until a page has no pagination token or the read reaches its page limit, halving
+    /// the page size for the rest of the read whenever a page is too long.
     ///
     /// - Parameters:
-    ///   - cursor: The cursor to start after, or `nil` to start at the beginning.
+    ///   - checkpoint: The checkpoint to start at.
     ///   - pageLimit: The most pages to fetch.
-    ///   - page: The closure that fetches the page after a cursor.
-    /// - Returns: The rows of the fetched pages, the reported output tree, the resume cursor, and whether the stream
-    ///   ended.
-    /// - Throws: ``RPCError/InvalidResponse/invalidCursor`` if the indexer repeats a cursor or returns one on a page
-    ///   without rows, or an error from `page`.
-    static func read(from cursor: String?, pageLimit: Int, fetching page: (String?) async throws -> Self) async throws
-        -> IndexerRead<Item> {
-        var cursor = cursor
-        var resumeCursor = cursor
-        var seen = Set([cursor].compactMap(\.self))
+    ///   - pageSize: The most transactions to ask for in each page.
+    ///   - page: The closure that fetches the page at a checkpoint with a page size.
+    /// - Returns: The rows of the fetched pages, the reported output tree, the checkpoint to resume at, and whether
+    ///   the stream ended.
+    /// - Throws: ``RPCError/InvalidResponse/invalidCursor`` if the indexer repeats a pagination token or returns one
+    ///   on a page without rows, ``RPCError/InvalidResponse/oversized`` for a one-transaction page that is too long,
+    ///   or another error from `page`.
+    static func read(
+        from checkpoint: IndexerCheckpoint,
+        pageLimit: Int,
+        pageSize: Int,
+        fetching page: (IndexerCheckpoint, Int) async throws -> Self
+    ) async throws -> IndexerRead<Item> {
+        var checkpoint = checkpoint
+        var pageSize = pageSize
+        var seen = Set([checkpoint.paginationToken].compactMap(\.self))
         var items: [Item] = []
         var outputTreeID: UInt16?
-        for _ in 0..<pageLimit {
+        var fetched = 0
+        while fetched < pageLimit {
             try Task.checkCancellation()
-            let current = try await page(cursor)
+            let current: Self
+            do {
+                current = try await page(checkpoint, pageSize)
+            } catch RPCError.invalidResponse(.oversized) where pageSize > 1 {
+                pageSize /= 2
+                continue
+            }
+            fetched += 1
             items += current.items
             outputTreeID = current.outputTreeID ?? outputTreeID
-            resumeCursor = current.scannedThrough ?? current.nextCursor ?? resumeCursor
-            guard let next = current.nextCursor else {
-                return IndexerRead(items: items, outputTreeID: outputTreeID, resumeCursor: resumeCursor,
+            guard let next = current.paginationToken else {
+                return IndexerRead(items: items, outputTreeID: outputTreeID,
+                                   resume: IndexerCheckpoint(afterSlot: current.contextSlot, paginationToken: nil),
                                    isComplete: true)
             }
             guard !current.items.isEmpty, seen.insert(next).inserted else {
                 throw RPCError.invalidResponse(.invalidCursor)
             }
-            cursor = next
+            checkpoint = IndexerCheckpoint(afterSlot: checkpoint.afterSlot, paginationToken: next)
         }
-        return IndexerRead(items: items, outputTreeID: outputTreeID, resumeCursor: cursor, isComplete: false)
+        return IndexerRead(items: items, outputTreeID: outputTreeID, resume: checkpoint, isComplete: false)
     }
 }
 
@@ -70,15 +95,15 @@ extension IndexerPage {
 struct ShieldedTransactionPage: IndexerPage {
     let items: [IndexedTransaction]
     let outputTreeID: UInt16?
-    let nextCursor: String?
-    let scannedThrough: String?
+    let paginationToken: String?
+    let contextSlot: UInt64
 
     init(from decoder: any Decoder) throws {
         let page = try decoder.container(keyedBy: IndexerKey.self)
-        items = try page.decode([IndexedTransaction].self, forKey: .transactions)
+        items = try page.decodeRows(of: IndexedTransaction.self, forKey: .events)
         outputTreeID = try page.decodeIfPresent(UInt16.self, forKey: .outputTreeId)
-        nextCursor = try page.decodeCursor(forKey: .nextCursor)
-        scannedThrough = try page.decodeCursor(forKey: .scannedThrough)
+        paginationToken = try page.decodePaginationToken()
+        contextSlot = try page.decodeContextSlot()
     }
 }
 
@@ -86,15 +111,15 @@ struct ShieldedTransactionPage: IndexerPage {
 struct EncryptedOutputPage: IndexerPage {
     let items: [EncryptedOutput]
     let outputTreeID: UInt16?
-    let nextCursor: String?
-    let scannedThrough: String?
+    let paginationToken: String?
+    let contextSlot: UInt64
 
     init(from decoder: any Decoder) throws {
         let page = try decoder.container(keyedBy: IndexerKey.self)
-        items = try page.decode([EncryptedOutput].self, forKey: .matches)
+        items = try page.decodeRows(of: EncryptedOutput.self, forKey: .outputs)
         outputTreeID = try page.decodeIfPresent(UInt16.self, forKey: .outputTreeId)
-        nextCursor = try page.decodeCursor(forKey: .nextCursor)
-        scannedThrough = try page.decodeCursor(forKey: .scannedThrough)
+        paginationToken = try page.decodePaginationToken()
+        contextSlot = try page.decodeContextSlot()
     }
 }
 
@@ -184,7 +209,7 @@ struct IndexedHash: Decodable, Sendable {
 
 /// The field names of indexer pages and their rows.
 private enum IndexerKey: String, CodingKey {
-    case transactions, matches, outputTreeId, nextCursor, scannedThrough
+    case data, events, outputs, outputTreeId, paginationToken, context
     case slot, txSignature, eventIndex, txViewingPk, salt, outputSlots, outputSlot, nullifiers, proofless
     case viewTag, outputContext, payload, hash, treeId, leafIndex, ringConfig, ringProgramId
 }
@@ -245,15 +270,42 @@ extension KeyedDecodingContainer {
         }
         return bytes
     }
+}
 
-    /// Decodes an optional canonical base-64 cursor, treating `null` as absent.
+extension KeyedDecodingContainer where K == IndexerKey {
+    /// Decodes the rows of a page's transactions, in transaction order.
     ///
-    /// - Parameter key: The field's key.
-    /// - Returns: The cursor as received, or `nil` when the field is absent or `null`.
-    /// - Throws: A decoding error for a non-canonical encoding.
-    fileprivate func decodeCursor(forKey key: Key) throws -> String? {
-        guard contains(key), try !decodeNil(forKey: key) else { return nil }
-        _ = try decodeBase64(forKey: key)
-        return try decode(String.self, forKey: key)
+    /// - Parameters:
+    ///   - type: The type of the rows.
+    ///   - key: The key of each transaction's rows.
+    /// - Returns: The rows of every transaction in `data`.
+    /// - Throws: A decoding error for a missing or malformed `data` or row.
+    fileprivate func decodeRows<Row: Decodable>(of type: Row.Type, forKey key: IndexerKey) throws -> [Row] {
+        var transactions = try nestedUnkeyedContainer(forKey: .data)
+        var rows: [Row] = []
+        while !transactions.isAtEnd {
+            rows += try transactions.nestedContainer(keyedBy: IndexerKey.self).decode([Row].self, forKey: key)
+        }
+        return rows
+    }
+
+    /// Decodes the token of the next page, treating `null` as the stream's end.
+    ///
+    /// - Returns: The token as received, or `nil` when the field is `null`.
+    /// - Throws: A decoding error for a missing field or an empty token.
+    fileprivate func decodePaginationToken() throws -> String? {
+        guard let token = try decode(String?.self, forKey: .paginationToken) else { return nil }
+        guard !token.isEmpty else {
+            throw DecodingError.dataCorruptedError(forKey: .paginationToken, in: self, debugDescription: "Empty token.")
+        }
+        return token
+    }
+
+    /// Decodes the highest slot that the indexer had stored when it answered.
+    ///
+    /// - Returns: The page's context slot.
+    /// - Throws: A decoding error for a missing context or slot.
+    fileprivate func decodeContextSlot() throws -> UInt64 {
+        try nestedContainer(keyedBy: IndexerKey.self, forKey: .context).decode(UInt64.self, forKey: .slot)
     }
 }

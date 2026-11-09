@@ -209,7 +209,7 @@ struct PrivateBalancesTests {
         #expect(await notes.value?[id] == saved)
         #expect(await PrivateBalanceFixtures.nonTreeAccountReads(of: responses) == 1)
         #expect(try await Self.methods(of: responses).filter { $0 == GetMerkleProofs.method }.count == 1)
-        #expect(try await Self.tagCursors(of: responses) == [nil, IndexerReplies.scannedThrough])
+        #expect(try await Self.tagReadStarts(of: responses) == [nil, Int(IndexerReplies.contextSlot)])
     }
 
     @Test
@@ -431,9 +431,9 @@ struct PrivateBalancesTests {
         let record = try await PrivateBalanceFixtures.keys(for: account)
         let deposit = try PrivateBalanceFixtures.deposit(42, to: record.shieldedAccount(for: account.address), leafIndex: 1)
         let responses = HTTPResponses([
-            GetShieldedTransactionsByTags.method: ["null", IndexerReplies.page([], in: "transactions")],
-            GetEncryptedUtxosByTags.method: [IndexerReplies.page([deposit], in: "matches")],
-            GetShieldedTransactionsByNullifiers.method: [IndexerReplies.page([], in: "transactions")],
+            GetShieldedTransactionsByTags.method: ["null", IndexerReplies.page([], in: "events")],
+            GetEncryptedUtxosByTags.method: [IndexerReplies.page([deposit], in: "outputs")],
+            GetShieldedTransactionsByNullifiers.method: [IndexerReplies.page([], in: "events")],
         ], trees: UTXOTrees(rows: [deposit]))
         let id = PrivateBalances.noteID(of: account, on: .devnet)
         let notes = StoredValue<PrivateBalances.Notes>([id: NoteSyncState()])
@@ -540,7 +540,7 @@ struct PrivateBalancesTests {
         #expect(await notes.value?[firstID]?.spendableLamports == 1_000)
         #expect(await notes.value?[secondID]?.spendableLamports == 2_000)
         #expect(await PrivateBalanceFixtures.nonTreeAccountReads(of: responses) == 2)
-        #expect(try await Self.tagCursors(of: responses) == [nil, nil])
+        #expect(try await Self.tagReadStarts(of: responses) == [nil, nil])
     }
 
     @Test
@@ -1015,9 +1015,10 @@ struct PrivateBalancesTests {
                 StoredValue([id: NoteSyncState()]), id, registered.deposit)
     }
 
-    private static func tagCursors(of responses: HTTPResponses) async throws -> [String?] {
+    private static func tagReadStarts(of responses: HTTPResponses) async throws -> [Int?] {
         try await responses.requests.filter { try $0.rpcMethod == GetShieldedTransactionsByTags.method }
-            .map { try #require($0.jsonBody()["params"] as? [String: Any])["cursor"] as? String }
+            .map { try #require($0.jsonBody()["params"] as? [String: Any])["filters"] as? [String: [String: Int]] }
+            .map { $0?["slot"]?["gt"] }
     }
 
     private static func methods(of responses: HTTPResponses) async throws -> [String] {

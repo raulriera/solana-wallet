@@ -35,10 +35,9 @@ enum IndexerFixtures {
                              viewingKey: keyed ? viewingKey : nil, salt: keyed ? salt : nil)
     }
 
-    static func page(_ items: [String] = [], in rows: String = "transactions", next: String? = nil,
-                     scannedThrough: String? = IndexerReplies.scannedThrough, outputTreeID: UInt16? = nil) -> String {
-        let page = IndexerReplies.page(items, in: rows, next: next, scannedThrough: scannedThrough,
-                                       outputTreeID: outputTreeID)
+    static func page(_ items: [String] = [], in rows: String = "events", next: String? = nil,
+                     contextSlot: UInt64 = IndexerReplies.contextSlot, outputTreeID: UInt16? = nil) -> String {
+        let page = IndexerReplies.page(items, in: rows, next: next, contextSlot: contextSlot, outputTreeID: outputTreeID)
         return #""result":\#(page)"#
     }
 

@@ -4,29 +4,46 @@ import Testing
 @testable import RPC
 
 struct ShieldedPoolTreeFeeTests {
-    static let program = "ring1GaLCuJnkUMVkX2JeZLTTX17wKsV4fZmPVzXANW"
-
     @Test
     func `Fees decode from the tree account`() async throws {
-        let header: [UInt8] = [1, 1, 7, 0, 0xff, 0xff, 0xff, 0xff]
-        let fee: [UInt8] = [0x6c, 0x01, 0, 0, 0, 0, 0, 0x02]
-        let rest = [UInt8](repeating: 0xee, count: 40_080 - header.count - fee.count)
-        let transport = Self.transport(returning: [AccountReplies.account(owner: Self.program, data: header + fee + rest)])
+        let transport = Self.transport(returning: [UTXOTrees.emptyTree(feePerTree: 0x0f_016c)])
 
-        let result = try await ShieldedPool.feePerNullifier(treeID: 7, using: SolanaRPC(network: .devnet, transport: transport))
+        let result = try await ShieldedPool.treeFee(of: [7], using: SolanaRPC(network: .devnet, transport: transport))
 
         let requests = try await transport.requests.map(requestBody)
-        #expect(result == 0x0200_0000_0000_016c)
+        #expect(result == 0x0f_016c)
         #expect(requests.map { $0["method"] as? String } == ["getMultipleAccounts"])
         #expect(requests.first.flatMap { ($0["params"] as? [Any])?.first as? [String] } == ["2jBVxLnY4tDYJqV34EptnNkXQJtB1yuDfW3mYiApaUa7"])
     }
 
     @Test
+    func `The fees of several trees add up from one read`() async throws {
+        let transport = Self.transport(returning: [UTXOTrees.emptyTree(feePerTree: 5_000), UTXOTrees.emptyTree(feePerTree: 7)])
+
+        let result = try await ShieldedPool.treeFee(of: [0, 1], using: SolanaRPC(network: .devnet, transport: transport))
+
+        let requests = try await transport.requests.map(requestBody)
+        #expect(result == 5_007)
+        #expect(requests.map { (($0["params"] as? [Any])?.first as? [String])?.count } == [2])
+    }
+
+    @Test
+    func `Fees above the program's cap fail`() async throws {
+        let transport = Self.transport(returning: [UTXOTrees.emptyTree(feePerTree: 1_000_001)])
+
+        await #expect(throws: ShieldedPool.TreeError.invalidFee) {
+            try await ShieldedPool.treeFee(of: [0], using: SolanaRPC(network: .devnet, transport: transport))
+        }
+    }
+
+    @Test
     func `Accounts shorter than a tree account fail`() async throws {
-        let transport = Self.transport(returning: [AccountReplies.account(owner: Self.program, data: [UInt8](repeating: 0, count: 16))])
+        let transport = Self.transport(returning: [
+            AccountReplies.account(owner: ShieldedPool.programID, data: [UInt8](repeating: 0, count: 16)),
+        ])
 
         await #expect(throws: ShieldedPool.TreeError.invalidLength) {
-            try await ShieldedPool.feePerNullifier(treeID: 0, using: SolanaRPC(network: .devnet, transport: transport))
+            try await ShieldedPool.treeFee(of: [0], using: SolanaRPC(network: .devnet, transport: transport))
         }
     }
 

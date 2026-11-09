@@ -12,7 +12,7 @@ struct NitroPolicyProverTests {
         #expect(deployment.platform == "aws-nitro")
         #expect(deployment.gpu == "optional")
         #expect(policy.measurements == pinned.measurements)
-        #expect(policy.publicKey == pinned.publicKey)
+        #expect(policy.publicKey == nil)
         #expect(policy.root == pinned.root)
         #expect(policy.maximumAge == pinned.maximumAge)
     }

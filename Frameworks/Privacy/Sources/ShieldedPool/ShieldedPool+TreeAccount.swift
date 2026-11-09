@@ -12,6 +12,8 @@ extension ShieldedPool {
         case mismatchedResponse
         /// The account's UTXO root history doesn't have the program's capacity or a consistent cursor and length.
         case invalidRootHistory
+        /// The account's fee per tree exceeds the program's cap.
+        case invalidFee
     }
 
     /// The layout of a tree account's data.
@@ -19,7 +21,10 @@ extension ShieldedPool {
         /// The length of a tree account, in bytes.
         static let length = 40_080
 
-        static let feePerNullifierOffset = 8
+        static let feePerTreeOffset = 8
+
+        /// The most that a tree charges each transact that writes it, in lamports.
+        static let maximumFeePerTree: UInt64 = 1_000_000
 
         /// The offset of the UTXO root history's 16-bit index of its newest root.
         static let utxoRootCursorOffset = 112

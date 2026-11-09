@@ -1,10 +1,10 @@
 Solana Rings program-derived address constants from zolana, copied unchanged
 ProgramAddressTests.swift: SHIELDED_POOL_CPI_AUTHORITY, SOL_INTERFACE, and their bumps in
-https://github.com/helius-labs/zolana/blob/v0.4.0-alpha/program-libs/interface/src/lib.rs
+https://github.com/helius-labs/privacy-rings/blob/v0.4.0-alpha/program-libs/interface/src/lib.rs
 SHA-256: 8926c4f0e9ff2342de6310ec7b910896939a40243e478c2db3de9cafade3e224
 Tag: v0.4.0-alpha
 Commit: 0fde5f1
-License: https://github.com/helius-labs/zolana/blob/v0.4.0-alpha/LICENSE
+License: https://github.com/helius-labs/privacy-rings/blob/v0.4.0-alpha/LICENSE
 
                                  Apache License
                            Version 2.0, January 2004

@@ -7,12 +7,12 @@ extension HTTPResponses {
                              outputTreeID: UInt16? = nil, prover: StubProver? = nil, trees: UTXOTrees? = nil,
                              respond: Responder? = nil) -> HTTPResponses {
         let depositPages = PageCursor.pages(of: deposits, perPage: depositsPerPage).map { page in
-            IndexerReplies.page(page.rows, in: "matches", next: page.next, outputTreeID: outputTreeID)
+            IndexerReplies.page(page.rows, in: "outputs", next: page.next, outputTreeID: outputTreeID)
         }
         var responses = [
-            GetShieldedTransactionsByTags.method: [IndexerReplies.page([], in: "transactions", outputTreeID: outputTreeID)],
+            GetShieldedTransactionsByTags.method: [IndexerReplies.page([], in: "events", outputTreeID: outputTreeID)],
             GetEncryptedUtxosByTags.method: depositPages,
-            GetShieldedTransactionsByNullifiers.method: [IndexerReplies.page(spends, in: "transactions")],
+            GetShieldedTransactionsByNullifiers.method: [IndexerReplies.page(spends, in: "events")],
         ]
         if !registry.isEmpty { responses[GetMultipleAccounts.method] = registry }
         return HTTPResponses(responses, error: error, failingMethod: failingMethod, gate: gate, heldMethod: heldMethod,

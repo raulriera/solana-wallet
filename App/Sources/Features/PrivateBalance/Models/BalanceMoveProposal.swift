@@ -24,7 +24,7 @@ struct BalanceMoveProposal: TransactionProposal {
         let networkFee: UInt64
         /// The fee of the account's first registration, in lamports, or `nil` when it's registered.
         let registrationFee: UInt64?
-        /// The pool's fee for the spent notes, in lamports, or `nil` when there's none.
+        /// The pool's fee for the trees that the spend writes, in lamports, or `nil` when there's none.
         let privacyFee: UInt64?
         /// The change returned to the private balance, in lamports, or `nil` when there's none.
         let pendingChange: UInt64?

@@ -17,7 +17,7 @@ public struct PrivateSpend: Sendable, CustomStringConvertible, CustomDebugString
 
     /// A spend that can't be built.
     public enum ValidationError: Error, Equatable {
-        /// No one tree's unspent notes hold enough lamports for the spend.
+        /// The trees that one transaction spends from don't hold enough unspent lamports for the spend.
         case insufficientFunds
         /// The spend needs more than the 40 notes that one transaction spends.
         case tooManyNotes
@@ -32,10 +32,8 @@ public struct PrivateSpend: Sendable, CustomStringConvertible, CustomDebugString
     /// The lamports of the outputs that the account owns: the change, and a transfer to its own shielded address.
     public let receivedLamports: UInt64
 
-    /// The number of nullifiers that the transact publishes, padding included.
-    public let nullifierCount: Int
-
-    public let inputTreeID: UInt16
+    /// The IDs of the distinct trees that the transact writes.
+    public let treeIDs: Set<UInt16>
 
     /// The nullifiers of the spent notes, in input order.
     let nullifiers: [Poseidon.Element]

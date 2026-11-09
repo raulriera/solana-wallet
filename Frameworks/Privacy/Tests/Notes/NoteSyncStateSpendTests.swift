@@ -20,29 +20,26 @@ struct NoteSyncStateSpendTests {
         let destination: Destination
         let selected: [Int]
         let receivedLamports: UInt64
-        let nullifierCount: Int
     }
 
     static let spends = [
         Spend(
             testDescription: "transfer with change", notes: [3, 10, 5], lamports: 12, destination: .recipient, selected: [1, 2],
-            receivedLamports: 3, nullifierCount: 2
+            receivedLamports: 3
         ),
         Spend(
-            testDescription: "exact withdrawal", notes: [3, 10], lamports: 10, destination: .withdrawal, selected: [1], receivedLamports: 0,
-            nullifierCount: 1
+            testDescription: "exact withdrawal", notes: [3, 10], lamports: 10, destination: .withdrawal, selected: [1], receivedLamports: 0
         ),
         Spend(
-            testDescription: "transfer to the sender", notes: [10], lamports: 4, destination: .sender, selected: [0], receivedLamports: 10,
-            nullifierCount: 1
+            testDescription: "transfer to the sender", notes: [10], lamports: 4, destination: .sender, selected: [0], receivedLamports: 10
         ),
         Spend(
             testDescription: "funded transfer", notes: [3, 10, 5], lamports: 6, destination: .fundedRecipient(publicLamports: 5),
-            selected: [1, 2], receivedLamports: 4, nullifierCount: 2
+            selected: [1, 2], receivedLamports: 4
         ),
         Spend(
             testDescription: "withdrawal with a padding input", notes: [1, 1, 1, 1, 1, 1, 1], lamports: 7, destination: .withdrawal,
-            selected: [0, 1, 2, 3, 4, 5, 6], receivedLamports: 0, nullifierCount: 8
+            selected: [0, 1, 2, 3, 4, 5, 6], receivedLamports: 0
         ),
     ]
 
@@ -85,29 +82,41 @@ struct NoteSyncStateSpendTests {
         #expect(result.nullifiers == selected.map(\.nullifier))
         #expect(result.lamports == spend.lamports)
         #expect(result.receivedLamports == spend.receivedLamports)
-        #expect(result.nullifierCount == spend.nullifierCount)
-        #expect(result.nullifierCount == plan.shape.inputs)
-        #expect(result.inputTreeID == 0)
+        #expect(result.treeIDs == [0])
     }
 
     @Test
-    func `Spends name the tree of their selected notes`() async throws {
+    func `Spends name the tree of their selected notes and their output tree`() async throws {
         let notes = [try note(3, leaf: 0), try note(4, leaf: 1), try note(10, leaf: 2, treeID: 2)]
-        let state = try NoteSyncState(
-            position: nil, notes: notes, unconfirmedNotes: [], outputTreeID: 0, pending: [], localSpends: [],
-            rejectedSpends: [], missingSpendReads: [:]
-        )
-        let destination = PrivateSpend.Destination.transfer(try TransferVectors.recipient())
-        let transport = try Self.transport()
-        var spendGenerator = SeededGenerator(seed: 7)
 
-        let result = try await state.spend(
-            9, to: destination, from: sender, rpc: SolanaRPC.devnet(transport: transport),
-            prover: Self.prover(transport), using: &spendGenerator
-        )
+        let result = try await spend(9, of: notes)
 
-        #expect(result.inputTreeID == 2)
+        #expect(result.treeIDs == [2, 0])
         #expect(result.nullifiers == [notes[2].nullifier])
+    }
+
+    @Test
+    func `Spends take the output tree's notes over another tree's fewer notes`() async throws {
+        let notes = [
+            try note(4, leaf: 0), try note(4, leaf: 1), try note(4, leaf: 2), try note(9, leaf: 3, treeID: 1),
+            try note(2, leaf: 4, treeID: 1),
+        ]
+
+        let result = try await spend(10, of: notes)
+
+        #expect(result.treeIDs == [0])
+        #expect(result.nullifiers == notes.prefix(3).map(\.nullifier))
+    }
+
+    @Test
+    func `Spends draw from two trees when no one tree covers them`() async throws {
+        let notes = [try note(6, leaf: 0, treeID: 1), try note(6, leaf: 1, treeID: 2)]
+
+        let result = try await spend(10, of: notes)
+
+        #expect(result.treeIDs == [0, 1, 2])
+        #expect(result.nullifiers == notes.map(\.nullifier))
+        #expect(result.receivedLamports == 2)
     }
 
     @Test
@@ -223,6 +232,19 @@ struct NoteSyncStateSpendTests {
         }
         #expect(state.spendableLamports == 0)
         #expect(await transport.requests.isEmpty)
+    }
+
+    private func spend(_ lamports: UInt64, of notes: [ReceivedNote]) async throws -> PrivateSpend {
+        let state = try NoteSyncState(
+            position: nil, notes: notes, unconfirmedNotes: [], outputTreeID: 0, pending: [], localSpends: [],
+            rejectedSpends: [], missingSpendReads: [:]
+        )
+        let transport = try Self.transport()
+        var generator = SeededGenerator(seed: 7)
+        return try await state.spend(
+            lamports, to: .transfer(try TransferVectors.recipient()), from: sender, rpc: SolanaRPC.devnet(transport: transport),
+            prover: Self.prover(transport), using: &generator
+        )
     }
 
     private func note(_ lamports: UInt64, leaf: UInt64, treeID: UInt16 = 0) throws -> ReceivedNote {

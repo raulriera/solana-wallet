@@ -105,29 +105,28 @@ nonisolated struct Redemption: Sendable {
     /// - Parameters:
     ///   - lamports: The one-time account's lamports.
     ///   - registrationCost: The lamports that registering the receiving account moves, or zero when it's registered.
-    ///   - treeFee: The fee per nullifier of the tree that holds the notes, in lamports.
-    ///   - nullifierCount: The number of nullifiers that the spend uses.
+    ///   - treeFee: The fee of the trees that the spend writes, in lamports.
     /// - Returns: The lamports less the registration and the tree fees.
     /// - Throws: ``PrivateBalanceError/codeUnderfunded`` if the costs exceed the lamports or a 64-bit integer.
-    static func availableLamports(of lamports: UInt64, registrationCost: UInt64, treeFee: UInt64,
-                                  nullifierCount: Int) throws -> UInt64 {
-        let (treeFees, multiplied) = treeFee.multipliedReportingOverflow(by: UInt64(nullifierCount))
-        let (costs, added) = treeFees.addingReportingOverflow(registrationCost)
-        guard !multiplied, !added, costs <= lamports else { throw PrivateBalanceError.codeUnderfunded }
+    static func availableLamports(of lamports: UInt64, registrationCost: UInt64, treeFee: UInt64) throws -> UInt64 {
+        let (costs, overflow) = treeFee.addingReportingOverflow(registrationCost)
+        guard !overflow, costs <= lamports else { throw PrivateBalanceError.codeUnderfunded }
         return lamports - costs
     }
 
-    /// Returns the public lamports that pay for redeeming a new code into any account.
+    /// Returns the public lamports that pay for redeeming a new code into any account, including into another output
+    /// tree whose fee is at most the code tree's.
     ///
     /// - Parameters:
     ///   - rent: The rent of a registration record, in lamports.
-    ///   - treeFee: The fee per nullifier of the tree that receives the code's note, in lamports.
-    /// - Returns: The reserve, in lamports.
+    ///   - treeFee: The fee of the tree that receives the code's note, in lamports.
+    /// - Returns: The reserve: the rent, two signatures, and two tree fees, in lamports.
     /// - Throws: ``Transactions/ValidationError/invalidAmount`` if the reserve exceeds a 64-bit integer.
     static func reserve(rent: UInt64, treeFee: UInt64) throws -> UInt64 {
+        let (treeFees, treeFeesOverflow) = treeFee.multipliedReportingOverflow(by: 2)
         let (fees, feesOverflow) = rent.addingReportingOverflow(2 * signatureFee)
-        let (reserve, overflow) = fees.addingReportingOverflow(treeFee)
-        guard !feesOverflow, !overflow else { throw Transactions.ValidationError.invalidAmount }
+        let (reserve, overflow) = fees.addingReportingOverflow(treeFees)
+        guard !treeFeesOverflow, !feesOverflow, !overflow else { throw Transactions.ValidationError.invalidAmount }
         return reserve
     }
 }

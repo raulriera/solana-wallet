@@ -1,36 +1,52 @@
 /// The choice of the notes that a spend consumes.
 enum NoteSelection {
-    static let maximumNotes = 40
-
-    /// Chooses the notes that cover an amount.
+    /// Chooses the notes that cover an amount for the fewest tree fees.
     ///
     /// - Parameters:
     ///   - lamports: The amount to cover.
     ///   - notes: The unspent notes.
-    /// - Returns: The chosen notes of one tree, largest first.
-    /// - Throws: ``PrivateSpend/ValidationError/tooManyNotes`` if the chosen tree needs more than 40 notes, or
-    ///   ``PrivateSpend/ValidationError/insufficientFunds`` if no tree covers the amount.
-    static func notes(covering lamports: UInt64, from notes: [ReceivedNote]) throws -> [ReceivedNote] {
-        let candidates = Dictionary(grouping: notes, by: \.utxo.treeID)
-            .compactMap { treeID, notes in covering(lamports, from: notes).map { (treeID: treeID, notes: $0) } }
-        guard let best = candidates.min(by: { ($0.notes.count, $0.treeID) < ($1.notes.count, $1.treeID) }) else {
-            throw PrivateSpend.ValidationError.insufficientFunds
+    ///   - outputTreeID: The ID of the tree that receives the spend's outputs.
+    /// - Returns: The chosen notes, largest first, that cover the amount within one transaction's inputs and write
+    ///   the fewest trees with the output tree; of those, the fewest notes from the fewest trees, with ties going to
+    ///   the lower trees.
+    /// - Throws: ``PrivateSpend/ValidationError/tooManyNotes`` if covering the amount needs more notes than one
+    ///   transaction spends, or ``PrivateSpend/ValidationError/insufficientFunds`` if the trees that one transaction
+    ///   spends from don't cover it.
+    static func notes(covering lamports: UInt64, from notes: [ReceivedNote], writingTo outputTreeID: UInt16) throws
+        -> [ReceivedNote] {
+        let trees = Dictionary(grouping: notes, by: \.utxo.treeID).sorted { $0.key < $1.key }.map(\.value)
+        let candidates = (1...TransactPlan.maximumInputTrees).flatMap(trees.combinations(ofCount:))
+            .compactMap { combination in covering(lamports, from: Array(combination.joined())) }
+        guard !candidates.isEmpty else { throw PrivateSpend.ValidationError.insufficientFunds }
+        let ranked = candidates.sorted { rank(of: $0, writingTo: outputTreeID) < rank(of: $1, writingTo: outputTreeID) }
+        guard let best = ranked.first(where: { $0.count <= TransactPlan.maximumInputs }) else {
+            throw PrivateSpend.ValidationError.tooManyNotes
         }
-        guard best.notes.count <= maximumNotes else { throw PrivateSpend.ValidationError.tooManyNotes }
-        return best.notes
+        return best
     }
 
-    /// Takes one tree's largest notes until they cover an amount.
+    /// Ranks notes by what spending them costs.
+    ///
+    /// - Parameters:
+    ///   - notes: The notes to spend.
+    ///   - outputTreeID: The ID of the tree that receives the spend's outputs.
+    /// - Returns: The number of trees that the spend writes, the number of notes, and the number of their trees.
+    private static func rank(of notes: [ReceivedNote], writingTo outputTreeID: UInt16) -> (Int, Int, Int) {
+        let inputTreeIDs = Set(notes.map(\.utxo.treeID))
+        let writtenTreeIDs = TransactPlan.writtenTreeIDs(inputs: inputTreeIDs, output: outputTreeID)
+        return (writtenTreeIDs.count, notes.count, inputTreeIDs.count)
+    }
+
+    /// Takes the largest notes until they cover an amount.
     ///
     /// - Parameters:
     ///   - lamports: The amount to cover.
-    ///   - notes: One tree's notes.
+    ///   - notes: The notes to take from.
     /// - Returns: The taken notes, largest first, or `nil` if they don't cover the amount.
     private static func covering(_ lamports: UInt64, from notes: [ReceivedNote]) -> [ReceivedNote]? {
-        let ordered = notes.enumerated().sorted { ($1.element.lamports, $0.offset) < ($0.element.lamports, $1.offset) }.map(\.element)
         var total: UInt64 = 0
         var taken: [ReceivedNote] = []
-        for note in ordered where total < lamports {
+        for note in notes.sorted(by: { $0.lamports > $1.lamports }) where total < lamports {
             total += note.lamports
             taken.append(note)
         }

@@ -5,7 +5,11 @@ import Testing
 struct NoteSyncPositionTests {
     @Test
     func `Positions survive storage`() throws {
-        let position = NoteSyncPosition(tags: [[1], [2]], transactionCursors: ["AQ==", nil], outputCursors: [nil, "Ag=="])
+        let position = NoteSyncPosition(
+            tags: [[1], [2]],
+            transactionCheckpoints: [IndexerCheckpoint(afterSlot: 9, paginationToken: "1:10:s"), .start],
+            outputCheckpoints: [.start, IndexerCheckpoint(afterSlot: 4, paginationToken: nil)]
+        )
 
         let restored = try JSONDecoder().decode(NoteSyncPosition.self, from: try JSONEncoder().encode(position))
 
@@ -16,7 +20,7 @@ struct NoteSyncPositionTests {
     @Test
     func `First reads start each group from the beginning`() {
         #expect(NoteSyncPosition(tags: [[1]], groupCount: 2)
-            == NoteSyncPosition(tags: [[1]], transactionCursors: [nil, nil], outputCursors: [nil, nil]))
+            == NoteSyncPosition(tags: [[1]], transactionCheckpoints: [.start, .start], outputCheckpoints: [.start, .start]))
     }
 
     @Test(arguments: [

@@ -16,7 +16,7 @@ nonisolated enum PageCursor {
 
     static func page(of request: URLRequest) throws -> Int {
         let params = try #require(try requestBody(request)["params"] as? [String: Any])
-        return try page(of: params["cursor"] as? String)
+        return try page(of: params["paginationToken"] as? String)
     }
 
     static func pages<Row>(of rows: [Row], perPage: Int?) -> [(rows: [Row], next: String?)] {

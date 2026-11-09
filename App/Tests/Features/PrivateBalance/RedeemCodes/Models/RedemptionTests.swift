@@ -8,30 +8,23 @@ import Wallet
 
 struct RedemptionTests {
     @Test(arguments: [
-        (UInt64(1_341_068), UInt64(0), UInt64(108), 1, UInt64(5_000), UInt64(1_335_960)),
-        (1_341_068, 1_330_960, 108, 1, 10_000, 0),
-        (2_000_000, 1_330_960, 0, 2, 10_000, 659_040),
-        (UInt64.max, UInt64.max - 1_000, 100, 4, 600, 0),
+        (UInt64(1_341_068), UInt64(0), UInt64(108), UInt64(5_000), UInt64(1_335_960)),
+        (1_341_068, 1_330_960, 108, 10_000, 0),
+        (2_000_000, 1_330_960, 0, 10_000, 659_040),
+        (UInt64.max, UInt64.max - 1_000, 400, 600, 0),
     ])
     func `The costs and the deposit add up to the one-time account's lamports`(
-        balance: UInt64, registrationCost: UInt64, treeFee: UInt64, nullifierCount: Int, networkFee: UInt64, deposit: UInt64
+        balance: UInt64, registrationCost: UInt64, treeFee: UInt64, networkFee: UInt64, deposit: UInt64
     ) throws {
-        let available = try Redemption.availableLamports(of: balance, registrationCost: registrationCost,
-                                                         treeFee: treeFee, nullifierCount: nullifierCount)
+        let available = try Redemption.availableLamports(of: balance, registrationCost: registrationCost, treeFee: treeFee)
 
         #expect(try Self.redemption(noteLamports: 0, available: available).charging(networkFee).depositLamports == deposit)
     }
 
-    @Test(arguments: [
-        (UInt64(1_000), UInt64(900), UInt64(101), 1),
-        (1_000, 0, UInt64.max / 2 + 1, 2),
-        (UInt64.max, UInt64.max, 1, 1),
-    ])
-    func `Costs above the lamports are underfunded`(balance: UInt64, registrationCost: UInt64, treeFee: UInt64,
-                                                    nullifierCount: Int) {
+    @Test(arguments: [(1_000, 900, 101), (1_000, 1, .max), (.max, .max, 1)] as [(UInt64, UInt64, UInt64)])
+    func `Costs above the lamports are underfunded`(balance: UInt64, registrationCost: UInt64, treeFee: UInt64) {
         #expect(throws: PrivateBalanceError.codeUnderfunded) {
-            try Redemption.availableLamports(of: balance, registrationCost: registrationCost, treeFee: treeFee,
-                                             nullifierCount: nullifierCount)
+            try Redemption.availableLamports(of: balance, registrationCost: registrationCost, treeFee: treeFee)
         }
     }
 
@@ -74,11 +67,11 @@ struct RedemptionTests {
     }
 
     @Test
-    func `A reserve pays the rent, two signatures, and one tree fee`() throws {
-        #expect(try Redemption.reserve(rent: 1_330_960, treeFee: 108) == 1_341_068)
+    func `A reserve pays the rent, two signatures, and two tree fees`() throws {
+        #expect(try Redemption.reserve(rent: 1_330_960, treeFee: 108) == 1_341_176)
     }
 
-    @Test(arguments: [(.max, 0), (.max - 10_000, 1)] as [(UInt64, UInt64)])
+    @Test(arguments: [(.max, 0), (.max - 10_000, 1), (0, .max)] as [(UInt64, UInt64)])
     func `Reserves above a 64-bit integer are rejected`(rent: UInt64, treeFee: UInt64) {
         #expect(throws: Transactions.ValidationError.invalidAmount) { try Redemption.reserve(rent: rent, treeFee: treeFee) }
     }

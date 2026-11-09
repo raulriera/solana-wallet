@@ -62,7 +62,7 @@ extension NoteSyncState {
         guard withdrawal?.lamports != 0 else { throw Transactions.ValidationError.invalidAmount }
         let (covered, overflow) = (transfer?.lamports ?? 0).addingReportingOverflow(withdrawal?.lamports ?? 0)
         guard !overflow else { throw Transactions.ValidationError.invalidAmount }
-        let selected = try await unqueuedNotes(covering: covered, using: rpc)
+        let selected = try await unqueuedNotes(covering: covered, writingTo: outputTreeID, using: rpc)
         let plan = try TransactPlan(
             spending: selected.map(\.utxo), sender: account, transfer: transfer, withdrawal: withdrawal, outputTreeID: outputTreeID,
             using: &generator
@@ -71,8 +71,9 @@ extension NoteSyncState {
         let receivedLamports = plan.outputs.filter { $0.owner?.owner == sender }.reduce(0) { $0 + ($1.utxo?.amount ?? 0) }
         return PrivateSpend(
             instruction: try await plan.instruction(nullifierKey: account.nullifierKey, prover: prover),
-            lamports: lamports, receivedLamports: receivedLamports, nullifierCount: plan.inputs.count,
-            inputTreeID: selected[0].treeID, nullifiers: selected.map(\.nullifier)
+            lamports: lamports, receivedLamports: receivedLamports,
+            treeIDs: TransactPlan.writtenTreeIDs(inputs: plan.inputTreeIDs, output: plan.outputTreeID),
+            nullifiers: selected.map(\.nullifier)
         )
     }
 
@@ -80,14 +81,17 @@ extension NoteSyncState {
     ///
     /// - Parameters:
     ///   - lamports: The amount to cover.
+    ///   - outputTreeID: The ID of the tree that receives the spend's outputs.
     ///   - rpc: The client of the notes' network.
     /// - Returns: The selected notes, whose nullifiers aren't queued.
-    /// - Throws: An error from ``NoteSelection/notes(covering:from:)`` if the unqueued notes can't
+    /// - Throws: An error from ``NoteSelection/notes(covering:from:writingTo:)`` if the unqueued notes can't
     ///   cover the amount, or from ``ShieldedPool/queuedNullifiers(of:using:)``.
-    private func unqueuedNotes(covering lamports: UInt64, using rpc: some RPC) async throws -> [ReceivedNote] {
+    private func unqueuedNotes(
+        covering lamports: UInt64, writingTo outputTreeID: UInt16, using rpc: some RPC
+    ) async throws -> [ReceivedNote] {
         var available = notes
         while true {
-            let selected = try NoteSelection.notes(covering: lamports, from: available)
+            let selected = try NoteSelection.notes(covering: lamports, from: available, writingTo: outputTreeID)
             let queued = try await ShieldedPool.queuedNullifiers(of: selected, using: rpc)
             guard !queued.isEmpty else { return selected }
             available.removeAll { queued.contains($0.nullifier.bigEndianBytes) }

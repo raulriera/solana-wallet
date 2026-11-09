@@ -169,7 +169,7 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
                 guard utxo.mint == ConfidentialPlaintext.Asset.sol.mint else { throw ValidationError.unsupportedAsset }
                 if !inputTreeIDs.contains(utxo.treeID) { inputTreeIDs.append(utxo.treeID) }
             }
-            guard inputTreeIDs.count <= 2 else { throw ValidationError.tooManyInputTrees }
+            guard inputTreeIDs.count <= TransactPlan.maximumInputTrees else { throw ValidationError.tooManyInputTrees }
             guard transfer?.lamports != 0, withdrawal?.lamports != 0 else { throw Transactions.ValidationError.invalidAmount }
             guard transfer != nil || withdrawal != nil else { throw ValidationError.nothingToSend }
             let available = try Self.sum(utxos.map(\.amount))
@@ -219,7 +219,21 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
         }
     }
 
-    private static let maximumInputs = 40
+    /// The most notes that one transact spends.
+    static let maximumInputs = 40
+
+    /// The most trees that one transact spends notes from.
+    static let maximumInputTrees = 2
+
+    /// Returns the trees that a transact writes, each of which charges its fee once.
+    ///
+    /// - Parameters:
+    ///   - inputs: The IDs of the trees whose notes the transact spends.
+    ///   - output: The ID of the tree that receives the outputs.
+    /// - Returns: The input trees and the output tree.
+    static func writtenTreeIDs(inputs: some Sequence<UInt16>, output: UInt16) -> Set<UInt16> {
+        Set(inputs).union([output])
+    }
 
     let shape: Shape
 

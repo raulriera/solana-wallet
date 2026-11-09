@@ -1,7 +1,7 @@
 import Foundation
 
 nonisolated enum IndexerReplies {
-    static let scannedThrough = "AQ=="
+    static let contextSlot: UInt64 = 2
 
     static func output(viewTag: String, hash: String, treeID: UInt16, leafIndex: UInt64, payload: String) -> String {
         """
@@ -31,16 +31,29 @@ nonisolated enum IndexerReplies {
     }
 
     static func page(_ rows: [String], in field: String, next: String? = nil,
-                     scannedThrough: String? = IndexerReplies.scannedThrough, outputTreeID: UInt16? = nil) -> String {
-        var fields = [#""context":{"blockTime":1,"slot":2}"#, #""\#(field)":[\#(rows.joined(separator: ","))]"#]
-        if let next {
-            fields.append(#""nextCursor":"\#(next)""#)
-        } else {
-            fields.append(#""nextCursor":null"#)
-            if let scannedThrough { fields.append(#""scannedThrough":"\#(scannedThrough)""#) }
-        }
+                     contextSlot: UInt64 = IndexerReplies.contextSlot, outputTreeID: UInt16? = nil) -> String {
+        var fields = [#""context":{"blockTime":1,"slot":\#(contextSlot)}"#,
+                      #""data":[\#(transactions(of: rows, in: field).joined(separator: ","))]"#,
+                      #""paginationToken":\#(quoted(next))"#]
         if let outputTreeID { fields.append(#""outputTreeId":\#(outputTreeID)"#) }
         return "{\(fields.joined(separator: ","))}"
+    }
+
+    private static func transactions(of rows: [String], in field: String) -> [String] {
+        var groups: [(slot: Substring, signature: Substring, rows: [String])] = []
+        for row in rows {
+            let slot = row.firstMatch(of: /"slot":(\d+)/)?.output.1 ?? ""
+            let signature = row.firstMatch(of: /"txSignature":"([^"]+)"/)?.output.1 ?? ""
+            if let last = groups.last, last.signature == signature {
+                groups[groups.count - 1].rows.append(row)
+            } else {
+                groups.append((slot, signature, [row]))
+            }
+        }
+        return groups.map { group in
+            let rows = group.rows.joined(separator: ",")
+            return #"{"slot":\#(group.slot),"signature":"\#(group.signature)","\#(field)":[\#(rows)]}"#
+        }
     }
 
     private static func quoted(_ text: String?) -> String {

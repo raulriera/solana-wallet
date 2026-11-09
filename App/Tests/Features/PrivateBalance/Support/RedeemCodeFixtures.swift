@@ -12,11 +12,11 @@ enum RedeemCodeFixtures {
 
     static let treeFee: UInt64 = 108
 
-    static let reserve: UInt64 = rent + 10_000 + treeFee
+    static let reserve: UInt64 = rent + 10_000 + 2 * treeFee
 
     static func responses(accounts: [String: String], deposits: [String], spends: [String] = [],
                           outputTreeID: UInt16? = 1, isFinalized: Bool = true) throws -> HTTPResponses {
-        let trees = UTXOTrees(rows: deposits + spends, isFinalized: isFinalized, feePerNullifier: treeFee)
+        let trees = UTXOTrees(rows: deposits + spends, isFinalized: isFinalized, feePerTree: treeFee)
         return HTTPResponses.privateNotes(deposits: deposits, spends: spends, outputTreeID: outputTreeID,
                                           prover: try IndexedProofs.prover(), trees: trees) { request in
             switch try request.jsonBody()["method"] as? String {

@@ -3,21 +3,21 @@ import CryptoKit
 /// The position where a read of shielded transactions by view tag stopped.
 public struct NoteSyncPosition: Sendable, Hashable, Codable {
     let tagDigest: [UInt8]
-    /// The cursor of each tag group's confidential-transaction stream, or `nil` for the start.
-    let transactionCursors: [String?]
-    /// The cursor of each tag group's encrypted-output stream, or `nil` for the start.
-    let outputCursors: [String?]
+    /// The checkpoint of each tag group's confidential-transaction stream.
+    let transactionCheckpoints: [IndexerCheckpoint]
+    /// The checkpoint of each tag group's encrypted-output stream.
+    let outputCheckpoints: [IndexerCheckpoint]
 
-    /// Creates a position for view tags from each tag group's cursors.
+    /// Creates a position for view tags from each tag group's checkpoints.
     ///
     /// - Parameters:
     ///   - tags: The view tags, in request order.
-    ///   - transactionCursors: The confidential-transaction cursors, one per tag group.
-    ///   - outputCursors: The encrypted-output cursors, one per tag group.
-    init(tags: [[UInt8]], transactionCursors: [String?], outputCursors: [String?]) {
+    ///   - transactionCheckpoints: The confidential-transaction checkpoints, one per tag group.
+    ///   - outputCheckpoints: The encrypted-output checkpoints, one per tag group.
+    init(tags: [[UInt8]], transactionCheckpoints: [IndexerCheckpoint], outputCheckpoints: [IndexerCheckpoint]) {
         tagDigest = Self.digest(of: tags)
-        self.transactionCursors = transactionCursors
-        self.outputCursors = outputCursors
+        self.transactionCheckpoints = transactionCheckpoints
+        self.outputCheckpoints = outputCheckpoints
     }
 
     /// Creates the position before the first row.
@@ -26,8 +26,8 @@ public struct NoteSyncPosition: Sendable, Hashable, Codable {
     ///   - tags: The view tags, in request order.
     ///   - groupCount: The number of tag groups that the read requests.
     init(tags: [[UInt8]], groupCount: Int) {
-        self.init(tags: tags, transactionCursors: Array(repeating: nil, count: groupCount),
-                  outputCursors: Array(repeating: nil, count: groupCount))
+        self.init(tags: tags, transactionCheckpoints: Array(repeating: .start, count: groupCount),
+                  outputCheckpoints: Array(repeating: .start, count: groupCount))
     }
 
     /// Returns whether the position came from a read of these view tags, in this order and number of groups.
@@ -37,7 +37,8 @@ public struct NoteSyncPosition: Sendable, Hashable, Codable {
     ///   - groupCount: The number of tag groups of the new read.
     /// - Returns: `true` when the digest and both streams' group counts match.
     func matches(_ tags: [[UInt8]], groupCount: Int) -> Bool {
-        tagDigest == Self.digest(of: tags) && transactionCursors.count == groupCount && outputCursors.count == groupCount
+        tagDigest == Self.digest(of: tags) && transactionCheckpoints.count == groupCount
+            && outputCheckpoints.count == groupCount
     }
 
     /// Returns the SHA-256 digest of view tags concatenated in order.

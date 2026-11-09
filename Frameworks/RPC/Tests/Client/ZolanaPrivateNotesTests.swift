@@ -6,6 +6,8 @@ import Testing
 struct ZolanaPrivateNotesTests {
     private typealias Fixture = IndexerFixtures
 
+    private static let caughtUp = IndexerCheckpoint(afterSlot: IndexerReplies.contextSlot, paginationToken: nil)
+
     private static let unansweredProofs: [([String], [(leaf: UInt8, tree: UInt8)])] = [
         ([IndexerFixtures.merkleProof(leaf: 8), IndexerFixtures.merkleProof(leaf: 7)], [(8, 9), (7, 9)]),
         ([IndexerFixtures.merkleProof(leaf: 7)], [(7, 9)]),
@@ -29,19 +31,20 @@ struct ZolanaPrivateNotesTests {
         ])
         let bodies = try requests.map(requestBody)
         #expect(bodies.map { $0["method"] as? String } == [GetEncryptedUtxosByTags.method, GetShieldedTransactionsByTags.method])
-        #expect(bodies.map { $0["params"] as? [String: [String]] } == Array(repeating: ["tags": [Fixture.hash(1)]], count: 2))
+        #expect(bodies.map { $0["params"] as? [String: AnyHashable] }
+            == Array(repeating: ["tags": [Fixture.hash(1)], "limit": 250], count: 2))
         #expect(requests.map(\.httpMethod) == ["POST", "POST"])
     }
 
     @Test
-    func `Tag reads follow cursors until a page has none`() async throws {
+    func `Tag reads follow tokens until a page has none`() async throws {
         let transport = StubTransport { request in
             let (route, params) = try Fixture.call(request)
-            guard route == GetShieldedTransactionsByTags.method else { return try reply(to: request, payload: Fixture.page(in: "matches")) }
-            return switch params["cursor"] as? String {
+            guard route == GetShieldedTransactionsByTags.method else { return try reply(to: request, payload: Fixture.page(in: "outputs")) }
+            return switch params["paginationToken"] as? String {
             case nil: try reply(to: request, payload: Fixture.page([Fixture.transaction(signature: 1, slot: 10)], next: "AQ=="))
             case "AQ==": try reply(to: request, payload: Fixture.page([Fixture.transaction(signature: 2, slot: 11)], next: "Ag=="))
-            default: try reply(to: request, payload: Fixture.page(scannedThrough: "Aw=="))
+            default: try reply(to: request, payload: Fixture.page())
             }
         }
         let rpc = Zolana(network: .devnet, transport: transport)
@@ -50,9 +53,9 @@ struct ZolanaPrivateNotesTests {
 
         #expect(batch.transactions.map(\.signature) == [Fixture.signature(1), Fixture.signature(2)])
         #expect(!batch.moreComing)
-        let cursors = try await transport.requests.map(Fixture.call)
-            .filter { $0.route == GetShieldedTransactionsByTags.method }.map { $0.params["cursor"] as? String }
-        #expect(cursors == [nil, "AQ==", "Ag=="])
+        let tokens = try await transport.requests.map(Fixture.call)
+            .filter { $0.route == GetShieldedTransactionsByTags.method }.map { $0.params["paginationToken"] as? String }
+        #expect(tokens == [nil, "AQ==", "Ag=="])
     }
 
     @Test
@@ -65,9 +68,9 @@ struct ZolanaPrivateNotesTests {
 
         #expect(batch.moreComing)
         #expect(batch.transactions.map(\.slot) == [1, 2, 3, 4, 5, 6, 7, 8])
-        let resumed = PageCursor.cursor(forPage: 8)
-        #expect(batch.position == NoteSyncPosition(tags: tags, transactionCursors: [resumed],
-                                                   outputCursors: [IndexerReplies.scannedThrough]))
+        let resumed = IndexerCheckpoint(afterSlot: nil, paginationToken: PageCursor.cursor(forPage: 8))
+        #expect(batch.position == NoteSyncPosition(tags: tags, transactionCheckpoints: [resumed],
+                                                   outputCheckpoints: [Self.caughtUp]))
         let routes = await transport.requests.map { $0.url?.lastPathComponent }
         #expect(routes.filter { $0 == GetShieldedTransactionsByTags.method }.count == 8)
     }
@@ -83,36 +86,35 @@ struct ZolanaPrivateNotesTests {
         #expect(first.moreComing)
         #expect(!second.moreComing)
         #expect((first.transactions + second.transactions).map(\.slot) == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-        #expect(second.position == NoteSyncPosition(tags: tags, transactionCursors: [IndexerReplies.scannedThrough],
-                                                    outputCursors: [IndexerReplies.scannedThrough]))
+        #expect(second.position == NoteSyncPosition(tags: tags, transactionCheckpoints: [Self.caughtUp],
+                                                    outputCheckpoints: [Self.caughtUp]))
     }
 
-    @Test(arguments: [
-        (["start": ("AQ==", nil), "AQ==": (nil, "Aw==")], "Aw=="),
-        (["start": ("AQ==", nil), "AQ==": (nil, nil)], "AQ=="),
-        (["start": (nil, nil)], "start"),
-    ] as [([String: (String?, String?)], String)])
-    func `Positions resume after the furthest point each stream reached`(
-        pages: [String: (String?, String?)], expected: String
-    ) async throws {
+    @Test
+    func `A finished read resumes after its last page's slot, and the next read starts there`() async throws {
         let transport = StubTransport { request in
             let (route, params) = try Fixture.call(request)
-            let cursor = try #require(params["cursor"] as? String)
-            let page = try #require(pages[cursor])
             let isTransactions = route == GetShieldedTransactionsByTags.method
-            let row = isTransactions ? Fixture.transaction(signature: 1, slot: 1)
-                : Fixture.match(signature: 1, slot: 1, output: Fixture.output(tag: 1, hash: 1, leafIndex: 1))
-            return try reply(to: request, payload: Fixture.page(page.0 == nil ? [] : [row],
-                                                                in: isTransactions ? "transactions" : "matches",
-                                                                next: page.0, scannedThrough: page.1))
+            let row = isTransactions ? Fixture.transaction(signature: 1, slot: 6)
+                : Fixture.match(signature: 1, slot: 6, output: Fixture.output(tag: 1, hash: 1, leafIndex: 1))
+            let rows = isTransactions ? "events" : "outputs"
+            return try params["paginationToken"] == nil
+                ? reply(to: request, payload: Fixture.page([row], in: rows, next: "AQ=="))
+                : reply(to: request, payload: Fixture.page(in: rows, contextSlot: 9))
         }
         let rpc = Zolana(network: .devnet, transport: transport)
         let tags = [Fixture.bytes(1)]
-        let start = NoteSyncPosition(tags: tags, transactionCursors: ["start"], outputCursors: ["start"])
+        let start = IndexerCheckpoint(afterSlot: 5, paginationToken: nil)
 
-        let batch = try await rpc.shieldedTransactions(taggedWith: tags, after: start)
+        let batch = try await rpc.shieldedTransactions(
+            taggedWith: tags, after: NoteSyncPosition(tags: tags, transactionCheckpoints: [start], outputCheckpoints: [start])
+        )
 
-        #expect(batch.position == NoteSyncPosition(tags: tags, transactionCursors: [expected], outputCursors: [expected]))
+        let caughtUp = IndexerCheckpoint(afterSlot: 9, paginationToken: nil)
+        #expect(batch.position == NoteSyncPosition(tags: tags, transactionCheckpoints: [caughtUp],
+                                                   outputCheckpoints: [caughtUp]))
+        let filters = try await transport.requests.map { try Fixture.call($0).params["filters"] as? [String: AnyHashable] }
+        #expect(filters == Array(repeating: ["slot": ["gt": 5]], count: 4))
     }
 
     @Test
@@ -124,7 +126,7 @@ struct ZolanaPrivateNotesTests {
                 ? Fixture.page([Fixture.transaction(signature: 1, slot: 10, proofless: true, outputs: [deposit]),
                                 Fixture.transaction(signature: 2, slot: 12, outputs: [deposit], nullifiers: [8])])
                 : Fixture.page([Fixture.match(signature: 1, slot: 10, output: deposit),
-                                Fixture.match(signature: 2, slot: 12, output: deposit, keyed: true)], in: "matches"))
+                                Fixture.match(signature: 2, slot: 12, output: deposit, keyed: true)], in: "outputs"))
         }
         let rpc = Zolana(network: .devnet, transport: transport)
 
@@ -148,11 +150,11 @@ struct ZolanaPrivateNotesTests {
             let (route, params) = try Fixture.call(request)
             let tags = try #require(params["tags"] as? [String])
             guard route == GetShieldedTransactionsByTags.method else {
-                return try reply(to: request, payload: Fixture.page(in: "matches", scannedThrough: tags.count == 1 ? "Ag==" : "AQ=="))
+                return try reply(to: request, payload: Fixture.page(in: "outputs", contextSlot: tags.count == 1 ? 2 : 1))
             }
             let shared = Fixture.transaction(signature: 3, slot: 20)
             let own = tags.count == 1 ? Fixture.transaction(signature: 1, slot: 30) : Fixture.transaction(signature: 2, slot: 5)
-            return try reply(to: request, payload: Fixture.page([shared, own], scannedThrough: tags.count == 1 ? "Ag==" : "AQ=="))
+            return try reply(to: request, payload: Fixture.page([shared, own], contextSlot: tags.count == 1 ? 2 : 1))
         }
         let rpc = Zolana(network: .devnet, transport: transport)
         let tags = (0..<1_001).map { [UInt8](repeating: 0, count: 30) + [UInt8($0 >> 8), UInt8($0 & 0xff)] }
@@ -160,8 +162,9 @@ struct ZolanaPrivateNotesTests {
         let batch = try await rpc.shieldedTransactions(taggedWith: tags, after: nil)
 
         #expect(batch.transactions.map(\.slot) == [5, 20, 30])
-        #expect(batch.position == NoteSyncPosition(tags: tags, transactionCursors: ["AQ==", "Ag=="],
-                                                   outputCursors: ["AQ==", "Ag=="]))
+        let checkpoints = [1, 2].map { IndexerCheckpoint(afterSlot: $0, paginationToken: nil) }
+        #expect(batch.position == NoteSyncPosition(tags: tags, transactionCheckpoints: checkpoints,
+                                                   outputCheckpoints: checkpoints))
         let groups = try await transport.requests.map(Fixture.call)
             .filter { $0.route == GetShieldedTransactionsByTags.method }.compactMap { $0.params["tags"] as? [String] }
         #expect(groups.map(\.count).sorted() == [1, 1_000])
@@ -176,7 +179,7 @@ struct ZolanaPrivateNotesTests {
             let (route, _) = try Fixture.call(request)
             return try route == GetShieldedTransactionsByTags.method
                 ? reply(to: request, payload: Fixture.page(outputTreeID: transactionTree))
-                : reply(to: request, payload: Fixture.page(in: "matches", outputTreeID: depositTree))
+                : reply(to: request, payload: Fixture.page(in: "outputs", outputTreeID: depositTree))
         }
         let rpc = Zolana(network: .devnet, transport: transport)
 
@@ -216,12 +219,12 @@ struct ZolanaPrivateNotesTests {
     }
 
     @Test(arguments: [[IndexerFixtures.transaction(signature: 1, slot: 1)], []])
-    func `A cursor that can't advance fails the read`(rows: [String]) async {
+    func `A token that can't advance fails the read`(rows: [String]) async {
         let transport = StubTransport { request in
             let (route, _) = try Fixture.call(request)
             return try route == GetShieldedTransactionsByTags.method
                 ? reply(to: request, payload: Fixture.page(rows, next: "AQ=="))
-                : reply(to: request, payload: Fixture.page(in: "matches"))
+                : reply(to: request, payload: Fixture.page(in: "outputs"))
         }
         let rpc = Zolana(network: .devnet, transport: transport)
 
@@ -234,7 +237,7 @@ struct ZolanaPrivateNotesTests {
     func `Tag reads drop transactions of other rings`() async throws {
         let transport = StubTransport { request in
             let (route, _) = try Fixture.call(request)
-            guard route == GetShieldedTransactionsByTags.method else { return try reply(to: request, payload: Fixture.page(in: "matches")) }
+            guard route == GetShieldedTransactionsByTags.method else { return try reply(to: request, payload: Fixture.page(in: "outputs")) }
             let withConfig = Fixture.transaction(signature: 1, slot: 1)
                 .replacingOccurrences(of: #""proofless":false"#, with: #""proofless":false,"ringConfig":"\#(Fixture.hash(3))""#)
             let withProgram = Fixture.transaction(signature: 2, slot: 2)
@@ -269,7 +272,7 @@ struct ZolanaPrivateNotesTests {
             guard route == GetShieldedTransactionsByTags.method else {
                 continuation.yield()
                 try await Task.sleep(for: .seconds(3_600))
-                return try reply(to: request, payload: Fixture.page(in: "matches"))
+                return try reply(to: request, payload: Fixture.page(in: "outputs"))
             }
             var signals = inFlight.makeAsyncIterator()
             await signals.next()
@@ -289,7 +292,7 @@ struct ZolanaPrivateNotesTests {
             let (_, params) = try Fixture.call(request)
             let nullifiers = try #require(params["nullifiers"] as? [String])
             let shared = Fixture.transaction(signature: 4, slot: 40, nullifiers: [1])
-            return switch (nullifiers.count, params["cursor"] as? String) {
+            return switch (nullifiers.count, params["paginationToken"] as? String) {
             case (1, _): try reply(to: request, payload: Fixture.page([shared]))
             case (_, nil): try reply(to: request, payload: Fixture.page([Fixture.transaction(signature: 9, slot: 40)], next: "AQ=="))
             default: try reply(to: request, payload: Fixture.page([shared, Fixture.transaction(signature: 5, slot: 2)]))
@@ -354,6 +357,24 @@ struct ZolanaPrivateNotesTests {
         await #expect(throws: RPCError.invalidResponse(.oversized)) {
             try await rpc.shieldedTransactions(spending: [Fixture.bytes(1)])
         }
+    }
+
+    @Test
+    func `A page longer than 1 MiB is asked for again with half the limit`() async throws {
+        let transport = StubTransport { request in
+            let (route, params) = try Fixture.call(request)
+            let (data, response) = try reply(to: request, payload: Fixture.page(in: rows(for: request)))
+            let limit = try #require(params["limit"] as? Int)
+            guard route == GetShieldedTransactionsByTags.method, limit > 100 else { return (data, response) }
+            return (data + Data(repeating: 0x20, count: 1_048_577 - data.count), response)
+        }
+        let rpc = Zolana(network: .devnet, transport: transport)
+
+        _ = try await rpc.shieldedTransactions(taggedWith: [Fixture.bytes(1)], after: nil)
+
+        let limits = try await transport.requests.map(Fixture.call)
+            .filter { $0.route == GetShieldedTransactionsByTags.method }.map { $0.params["limit"] as? Int }
+        #expect(limits == [250, 125, 62])
     }
 
     @Test
@@ -464,13 +485,13 @@ struct ZolanaPrivateNotesTests {
 }
 
 private func rows(for request: URLRequest) -> String {
-    request.url?.lastPathComponent == GetEncryptedUtxosByTags.method ? "matches" : "transactions"
+    request.url?.lastPathComponent == GetEncryptedUtxosByTags.method ? "outputs" : "events"
 }
 
 private func pagedTransactions(endingAt lastPage: Int?) -> StubTransport {
     StubTransport { request in
         guard try IndexerFixtures.call(request).route == GetShieldedTransactionsByTags.method else {
-            return try reply(to: request, payload: IndexerFixtures.page(in: "matches"))
+            return try reply(to: request, payload: IndexerFixtures.page(in: "outputs"))
         }
         let page = try PageCursor.page(of: request)
         let row = IndexerFixtures.transaction(signature: UInt8(page + 1), slot: page + 1)
