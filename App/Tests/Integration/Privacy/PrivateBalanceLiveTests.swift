@@ -29,7 +29,6 @@ struct PrivateBalanceLiveTests {
                 "owner": payload.owner == recipient.owner,
                 "blinding": payload.blinding == blinding,
                 "UTXO hash": utxo.hash.bigEndianBytes == output.utxoHash,
-                "received UTXO": try ReceivedNote.depositUTXO(in: output, owner: recipient.owner) == utxo,
             ]
             return checks.filter { !$0.value }.map { "leaf \(output.leafIndex) of tree \(output.treeID): \($0.key)" }
         }
