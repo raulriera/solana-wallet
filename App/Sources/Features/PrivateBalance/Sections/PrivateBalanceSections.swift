@@ -19,13 +19,7 @@ struct PrivateBalanceSections: View {
                 Button {
                     turnOn()
                 } label: {
-                    HStack {
-                        Text("Turn On Private Balance")
-                        Spacer()
-                        if isTurningOn {
-                            ProgressView()
-                        }
-                    }
+                    PendingLabel(title: "Turn On Private Balance", isPending: isTurningOn)
                 }
                 .foregroundStyle(palette.primary)
                 .disabled(isTurningOn)

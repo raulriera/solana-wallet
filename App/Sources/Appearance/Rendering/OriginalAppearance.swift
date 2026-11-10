@@ -16,7 +16,7 @@ nonisolated enum OriginalAppearance {
         case .primary: .system(.systemBlue)
         case .onPrimary: .system(.white)
         case .secondary: .system(.tertiarySystemFill)
-        case .onSecondary: .system(.systemBlue)
+        case .onSecondary: .system(.label)
         case .destructive: .system(.systemRed)
         case .onDestructive: .system(.white)
         case .border: .system(.clear)

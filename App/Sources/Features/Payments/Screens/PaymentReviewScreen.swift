@@ -47,12 +47,19 @@ struct PaymentReviewScreen: TransactionReviewContent {
                         .foregroundStyle(palette.secondaryText)
                 }
             }
+
+            Section {
+                Button(action: review.approve) {
+                    PendingLabel(title: "Send", isPending: review.isSending)
+                }
+                .foregroundStyle(palette.primary)
+                .lineLimit(1)
+                .disabled(!review.canApprove)
+            }
         }
         .monospacedDigit()
         .animation(.default, value: costs)
         .navigationTitle("Review")
         .toolbarTitleDisplayMode(.inline)
-        .confirmationAction("Send", isEnabled: review.canApprove, isPending: review.isSending,
-                            action: review.approve)
     }
 }

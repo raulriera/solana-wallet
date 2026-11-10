@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// Shows how a sent balance move settled, with its explorer link and a retry for a dropped move.
+/// Shows how a sent balance move settled, with its explorer link, a retry for a dropped move, and a way to close it.
 struct BalanceMoveResultScreen: TransactionResultContent {
     @Environment(\.palette) private var palette
+    @Environment(\.dismissParentContainer) private var dismissParentContainer
     @AccessibilityFocusState private var isFocused: Bool
     let review: TransactionReviewModel<BalanceMoveProposal>
     let outcome: TransactionOutcome
@@ -16,15 +17,19 @@ struct BalanceMoveResultScreen: TransactionResultContent {
                     .accessibilityFocused($isFocused)
             }
 
-            if let submission = review.submission {
-                Section {
+            Section {
+                if let submission = review.submission {
                     if outcome == .dropped {
                         Button("Try Again", action: review.tryAgain)
                     }
                     Link("View in Explorer", destination: submission.explorerURL)
                 }
-                .foregroundStyle(palette.primary)
+                if let dismissParentContainer {
+                    Button("Done") { dismissParentContainer() }
+                }
             }
+            .foregroundStyle(palette.primary)
+            .lineLimit(1)
         }
         .navigationTitle(Text(review.proposal.direction.title))
         .toolbarTitleDisplayMode(.inline)

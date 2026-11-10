@@ -87,6 +87,7 @@ struct ContactsSplitView: View {
         .environment(\.contactFavorite, ContactFavoriteAction(contacts: contacts, lists: lists, store: store))
         .environment(\.contactDeletion,
                      ContactDeletionAction(contacts: contacts, lists: lists, store: store, selection: $selection))
+        .environment(\.newPayment, NewPaymentAction(selection: $selection))
         .sheet(item: $entry) { RecipientEntrySheet(entry: $0, lists: lists) }
         .onChange(of: entry?.confirmation) { _, confirmation in
             guard let confirmation else { return }

@@ -50,13 +50,19 @@ struct BalanceMoveReviewScreen: TransactionReviewContent {
                         .foregroundStyle(palette.secondaryText)
                 }
             }
+
+            Section {
+                Button(action: review.approve) {
+                    PendingLabel(title: move.direction.title, isPending: review.attempt != nil || review.isSending)
+                }
+                .foregroundStyle(palette.primary)
+                .lineLimit(1)
+                .disabled(!review.canApprove)
+            }
         }
         .monospacedDigit()
         .animation(.default, value: costs)
         .navigationTitle("Review")
         .toolbarTitleDisplayMode(.inline)
-        .confirmationAction(move.direction.title, systemImage: move.direction == .toPrivate ? "eye.slash" : "eye",
-                            isEnabled: review.canApprove, isPending: review.attempt != nil || review.isSending,
-                            action: review.approve)
     }
 }

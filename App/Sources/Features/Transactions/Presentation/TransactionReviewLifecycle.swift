@@ -24,11 +24,13 @@ private struct TransactionReviewLifecycle<Proposal: TransactionProposal>: ViewMo
     }
 }
 
-extension TransactionReviewSheet {
-    /// Runs the review's steps and refreshes while the sheet shows.
+extension View {
+    /// Runs a transaction review's steps and refreshes while this view shows.
     ///
-    /// - Returns: The sheet with the review's tasks, haptics, and alerts.
-    func transactionReviewLifecycle() -> some View {
+    /// - Parameter review: The review to run.
+    /// - Returns: The view with the review's tasks, haptics, and alerts.
+    func transactionReviewLifecycle<Proposal: TransactionProposal>(of review: TransactionReviewModel<Proposal>)
+        -> some View {
         modifier(TransactionReviewLifecycle(review: review))
     }
 }

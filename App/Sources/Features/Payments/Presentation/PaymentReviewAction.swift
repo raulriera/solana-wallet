@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// An action that opens the review of the typed payment.
-struct SendPaymentAction {
+struct PaymentReviewAction {
     let sender: PaymentSender
     let payment: PaymentModel
     let recipient: PaymentRecipient

@@ -15,7 +15,6 @@ struct RecipientPaymentStack<Details: View>: View {
     @State private var presentedReview: TransactionReviewModel<PaymentProposal>?
     @State private var sendError: SendError?
     @State private var showsDetails = false
-    @Namespace private var reviewTransition
 
     /// Creates the keypad for a recipient.
     ///
@@ -41,16 +40,13 @@ struct RecipientPaymentStack<Details: View>: View {
             Group {
                 if let payment {
                     PaymentAmountScreen(payment: payment, recipient: recipient) {
-                        SendButton(payment: payment,
-                                   send: SendPaymentAction(sender: sender, payment: payment, recipient: recipient,
-                                                           context: context, review: $review,
-                                                           presented: $presentedReview, error: $sendError))
-                            .matchedTransitionSource(id: ObjectIdentifier(payment), in: reviewTransition)
-                    }
-                    .sheet(item: $presentedReview) { review in
-                        TransactionReviewSheet<PaymentReviewScreen, PaymentResultScreen>(review: review)
-                            .transactionReviewLifecycle()
-                            .navigationTransition(.zoom(sourceID: ObjectIdentifier(payment), in: reviewTransition))
+                        let openReview = PaymentReviewAction(sender: sender, payment: payment, recipient: recipient,
+                                                             context: context, review: $review,
+                                                             presented: $presentedReview, error: $sendError)
+                        Button("Review") { openReview() }
+                            .buttonStyle(.secondary)
+                            .keyboardShortcut(.defaultAction)
+                            .disabled(!payment.canSend)
                     }
                     .alert(error: $sendError)
                 } else {
@@ -69,6 +65,9 @@ struct RecipientPaymentStack<Details: View>: View {
                 }
             }
             .navigationDestination(isPresented: $showsDetails) { details }
+            .navigationDestination(item: $presentedReview) { review in
+                TransactionReviewScreen<PaymentReviewScreen, PaymentResultScreen>(review: review)
+            }
         }
     }
 }

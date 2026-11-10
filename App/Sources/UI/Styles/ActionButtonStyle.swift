@@ -4,6 +4,7 @@ import Themes
 /// A full-width button style that adds theme colors and a border to a native style.
 struct ActionButtonStyle<Base: PrimitiveButtonStyle>: PrimitiveButtonStyle {
     @Environment(\.palette) private var palette
+    @Environment(\.isEnabled) private var isEnabled
     private let base: Base
     private let fill: Palette.Role
     private let content: Palette.Role
@@ -28,7 +29,7 @@ struct ActionButtonStyle<Base: PrimitiveButtonStyle>: PrimitiveButtonStyle {
         .buttonSizing(.flexible)
         .buttonStyle(base)
         .tint(palette[fill])
-        .foregroundStyle(palette[content])
+        .foregroundStyle(isEnabled ? AnyShapeStyle(palette[content]) : AnyShapeStyle(.tertiary))
         .themedButtonBorder()
     }
 }
@@ -42,9 +43,4 @@ extension PrimitiveButtonStyle where Self == ActionButtonStyle<BorderedProminent
 
     /// A prominent destructive action in the theme's destructive colors.
     static var destructive: Self { Self(base: .borderedProminent, fill: .destructive, content: .onDestructive) }
-}
-
-extension PrimitiveButtonStyle where Self == ActionButtonStyle<GlassProminentButtonStyle> {
-    /// A prominent glass action in the theme's primary colors.
-    static var glassPrimary: Self { Self(base: .glassProminent, fill: .primary, content: .onPrimary) }
 }

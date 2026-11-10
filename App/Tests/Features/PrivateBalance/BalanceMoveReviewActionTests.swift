@@ -8,7 +8,6 @@ import Transactions
 struct BalanceMoveReviewActionTests {
     @MainActor
     private final class Presented {
-        var review: TransactionReviewModel<BalanceMoveProposal>?
         var presented: TransactionReviewModel<BalanceMoveProposal>?
         var error: PrivateBalanceError?
     }
@@ -20,8 +19,7 @@ struct BalanceMoveReviewActionTests {
 
         Self.action(for: move, presented: presented)()
 
-        let review = try #require(presented.review)
-        #expect(presented.presented === review)
+        let review = try #require(presented.presented)
         #expect(review.attempt?.work == .review)
         #expect(review.proposal.direction == .toPrivate)
         #expect(review.proposal.amount.quantity == 1)
@@ -34,16 +32,16 @@ struct BalanceMoveReviewActionTests {
         move.payment.press(.digit(1))
         let action = Self.action(for: move, presented: presented)
         action()
-        let first = try #require(presented.review)
+        let first = try #require(presented.presented)
 
         action()
-        #expect(presented.review === first)
+        #expect(presented.presented === first)
 
         presented.presented = nil
         action()
 
-        #expect(presented.review !== first)
-        #expect(presented.presented === presented.review)
+        let second = try #require(presented.presented)
+        #expect(second !== first)
     }
 
     @Test func `Reviewing an empty amount opens nothing`() async throws {
@@ -51,7 +49,6 @@ struct BalanceMoveReviewActionTests {
 
         Self.action(for: try await Self.move(), presented: presented)()
 
-        #expect(presented.review == nil)
         #expect(presented.presented == nil)
     }
 
@@ -62,7 +59,6 @@ struct BalanceMoveReviewActionTests {
 
         Self.action(for: move, presented: presented)()
 
-        #expect(presented.review == nil)
         #expect(presented.presented == nil)
         #expect(presented.error == .preparationFailed)
     }
@@ -82,7 +78,6 @@ struct BalanceMoveReviewActionTests {
 
     private static func action(for move: BalanceMove, presented: Presented) -> BalanceMoveReviewAction {
         BalanceMoveReviewAction(move: move,
-                                review: Binding { presented.review } set: { presented.review = $0 },
                                 presented: Binding { presented.presented } set: { presented.presented = $0 },
                                 error: Binding { presented.error } set: { presented.error = $0 })
     }

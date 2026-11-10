@@ -5,7 +5,7 @@ import Transactions
 @testable import widgets
 
 @MainActor
-struct SendPaymentActionTests {
+struct PaymentReviewActionTests {
     private static let sol = PaymentToken(mint: nil, symbol: "SOL", balance: 2, price: nil, decimals: 9)
 
     @MainActor
@@ -15,7 +15,7 @@ struct SendPaymentActionTests {
         var error: SendError?
     }
 
-    @Test func `Sending opens the review and starts simulating it`() throws {
+    @Test func `Reviewing opens the review and starts simulating it`() throws {
         let presented = Presented()
         let payment = PaymentModel(tokens: [Self.sol], currencyCode: "USD")
         payment.press(.digit(1))
@@ -84,14 +84,14 @@ struct SendPaymentActionTests {
 
     private static func action(payment: PaymentModel, presented: Presented,
                                context: RecipientContext = RecipientContext(knownAddresses: [], paidAddresses: []),
-                               transactions: TransactionStore? = nil) throws -> SendPaymentAction {
+                               transactions: TransactionStore? = nil) throws -> PaymentReviewAction {
         let fixture = try SigningFixture()
         let preparation = try HTTPResponses.preparation(fixture: fixture.preparation)
         let local = TransactionStore.inMemory { _ in
             try TransactionCoordinator(rpc: preparation.client, store: SigningRecoveryStore(recovery: fixture.recovery))
         }
         let sender = PaymentSender(account: fixture.account, network: .devnet, transactions: transactions ?? local)
-        return SendPaymentAction(sender: sender, payment: payment,
+        return PaymentReviewAction(sender: sender, payment: payment,
                                  recipient: PaymentRecipient(address: fixture.transfer.accounts[1].address, name: nil),
                                  context: context,
                                  review: Binding { presented.review } set: { presented.review = $0 },

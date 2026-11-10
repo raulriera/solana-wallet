@@ -4,7 +4,7 @@ import Observation
 /// Checks and saves a provider entry, such as an API key or a URL.
 @MainActor
 @Observable
-final class ProviderSetupModel<EntryError: ProviderEntryError>: ProviderSubmitting, Identifiable, Equatable {
+final class ProviderSetupModel<EntryError: ProviderEntryError>: ProviderSubmitting, Identifiable {
     private(set) var rejection: EntryError?
     private(set) var rejectionCount = 0
     var error: EntryError?
@@ -19,10 +19,6 @@ final class ProviderSetupModel<EntryError: ProviderEntryError>: ProviderSubmitti
     /// - Parameter connection: The connection that checks and saves the entry.
     init(connection: any ProviderConnecting<EntryError>) {
         self.connection = connection
-    }
-
-    nonisolated static func == (lhs: ProviderSetupModel, rhs: ProviderSetupModel) -> Bool {
-        lhs === rhs
     }
 
     func submit(_ entry: String) {
@@ -51,3 +47,5 @@ final class ProviderSetupModel<EntryError: ProviderEntryError>: ProviderSubmitti
         }
     }
 }
+
+extension ProviderSetupModel: IdentityHashable {}

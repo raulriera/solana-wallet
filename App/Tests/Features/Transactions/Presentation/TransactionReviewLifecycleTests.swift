@@ -11,8 +11,9 @@ struct TransactionReviewLifecycleTests {
     func `Showing the review simulates it`() async throws {
         let payment = try LocalPaymentReview()
         payment.model.prepareReview()
-        let hosted = try HostedWindow(TransactionReviewSheet<PaymentReviewScreen, PaymentResultScreen>(review: payment.model)
-            .transactionReviewLifecycle())
+        let hosted = try HostedWindow(NavigationStack {
+            TransactionReviewScreen<PaymentReviewScreen, PaymentResultScreen>(review: payment.model)
+        })
         defer { hosted.close() }
         try #require(try await hosted.appears())
 
@@ -25,8 +26,9 @@ struct TransactionReviewLifecycleTests {
         let error = TransactionError(name: "InsufficientFundsForFee", details: nil)
         let payment = try LocalPaymentReview(simulation: .failure(error, fee: LocalPaymentReview.networkFee))
         payment.model.prepareReview()
-        let hosted = try HostedWindow(TransactionReviewSheet<PaymentReviewScreen, PaymentResultScreen>(review: payment.model)
-            .transactionReviewLifecycle())
+        let hosted = try HostedWindow(NavigationStack {
+            TransactionReviewScreen<PaymentReviewScreen, PaymentResultScreen>(review: payment.model)
+        })
         defer { hosted.close() }
         try #require(try await hosted.appears())
 
@@ -40,8 +42,9 @@ struct TransactionReviewLifecycleTests {
         let sockets = SocketSequence { $0 == 0 ? SocketSequence.failing(with: refusal) : SocketSequence.watch() }
         let payment = try LocalPaymentReview(statuses: [.status(.finalized)], sockets: sockets)
         try await payment.model.runReview()
-        let hosted = try HostedWindow(TransactionReviewSheet<PaymentReviewScreen, PaymentResultScreen>(review: payment.model)
-            .transactionReviewLifecycle())
+        let hosted = try HostedWindow(NavigationStack {
+            TransactionReviewScreen<PaymentReviewScreen, PaymentResultScreen>(review: payment.model)
+        })
         defer { hosted.close() }
         try #require(try await hosted.appears())
 

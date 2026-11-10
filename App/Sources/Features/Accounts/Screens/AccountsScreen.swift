@@ -31,13 +31,7 @@ struct AccountsScreen: View {
 
             Section {
                 Button { addition.add(to: selection.recoveryID) } label: {
-                    HStack {
-                        Text("Add Account")
-                        Spacer()
-                        if isAdding {
-                            ProgressView()
-                        }
-                    }
+                    PendingLabel(title: "Add Account", isPending: isAdding)
                 }
                 .foregroundStyle(palette.primary)
                 .lineLimit(1)

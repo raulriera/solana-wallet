@@ -189,3 +189,5 @@ final class TransactionReviewModel<Proposal: TransactionProposal>: Identifiable 
         error as? Proposal.Error ?? .preparationFailed
     }
 }
+
+extension TransactionReviewModel: IdentityHashable {}
