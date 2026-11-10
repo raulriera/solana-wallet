@@ -34,3 +34,14 @@ extension View {
         modifier(ContactDeletion(removal: removal, contact: contact))
     }
 }
+
+nonisolated private extension Optional where Wrapped: Equatable {
+    /// Accesses whether a specific value is present; setting it to `false` clears that value.
+    ///
+    /// - Parameter value: The value to look for.
+    /// - Returns: `true` when the optional holds `value`.
+    subscript(isPresenting value: Wrapped) -> Bool {
+        get { self == value }
+        set { if !newValue, self == value { self = nil } }
+    }
+}

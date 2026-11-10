@@ -35,6 +35,7 @@
           "children": [
             { "kind": "folder", "path": "Application", "target-membership": [ "widgetsTests" ] },
             { "kind": "folder", "path": "Appearance", "target-membership": [ "widgetsTests" ] },
+            { "kind": "folder", "path": "Extensions", "target-membership": [ "widgetsTests" ] },
             { "kind": "folder", "path": "Features", "target-membership": [ "widgetsTests" ] },
             { "kind": "folder", "path": "Integration", "target-membership": [ "widgetsTests" ] },
             { "kind": "folder", "path": "TestSupport", "target-membership": [ "widgetsTests" ] },

@@ -3,7 +3,7 @@ import Testing
 @testable import widgets
 
 @Suite(.timeLimit(.minutes(1)))
-struct StorageDirectoriesTests {
+struct URLStorageDirectoriesTests {
     @Test
     func `Kept files stay in Application Support and cached files in Caches`() {
         #expect(URL.persistentDirectory.deletingLastPathComponent().standardizedFileURL

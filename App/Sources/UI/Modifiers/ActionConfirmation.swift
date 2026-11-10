@@ -77,3 +77,11 @@ extension View {
                                     perform: { perform() }, message: { message() }))
     }
 }
+
+nonisolated private extension Bool {
+    /// An empty value while `true` and `nil` while `false`; setting it stores whether a value is present.
+    var presented: Void? {
+        get { self ? () : nil }
+        set { self = newValue != nil }
+    }
+}

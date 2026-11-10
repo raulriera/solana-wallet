@@ -45,8 +45,3 @@ nonisolated extension FormatStyle where Self == ValueFormatStyle {
     /// - Returns: The format style.
     static func price(code: String) -> Self { Self(code: code, isPrice: true) }
 }
-
-extension Decimal {
-    /// The size from which abbreviated values and balances shorten.
-    nonisolated static let abbreviationThreshold: Decimal = 10_000
-}
