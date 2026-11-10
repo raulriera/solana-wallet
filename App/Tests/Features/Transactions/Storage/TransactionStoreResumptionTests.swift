@@ -11,7 +11,7 @@ struct TransactionStoreResumptionTests {
     @Test
     func `The index lists only keys with pending records`() async throws {
         let settledKey = TransactionRecord.Key(account: UUID(), network: .devnet)
-        let settled = StoredValue([TransactionRecord.fixture(.privateDeposit(lamports: 1), signature: "settled",
+        let settled = StoredValue([TransactionRecord.fixture(.privateDeposit, signature: "settled",
                                                              account: settledKey.account, status: .succeeded,
                                                              settled: 10)])
         let gate = Suspension()

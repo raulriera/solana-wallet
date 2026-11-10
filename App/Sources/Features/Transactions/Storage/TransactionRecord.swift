@@ -19,10 +19,10 @@ nonisolated struct TransactionRecord: Codable, Identifiable, Equatable, Sendable
     enum Kind: Equatable, Sendable {
         /// A payment to a recipient, of SOL when `mint` is `nil`.
         case payment(recipient: Address, mint: Address?, units: UInt64)
-        /// A move of the account's public SOL into its private balance.
-        case privateDeposit(lamports: UInt64)
-        /// A move of the account's private SOL to its own public address.
-        case privateWithdrawal(lamports: UInt64)
+        /// A move of the account's public asset into its private balance.
+        case privateDeposit
+        /// A move of the account's private asset to its own public balance.
+        case privateWithdrawal
 
         /// The address that a payment went to, or `nil` for other kinds.
         var recipient: Address? {
@@ -76,8 +76,7 @@ nonisolated struct TransactionRecord: Codable, Identifiable, Equatable, Sendable
 
     /// The record's persisted field names.
     private enum CodingKeys: String, CodingKey {
-        case account, network, kind, recipient, mint, units, lamports, signature, lastValidBlockHeight, status, created,
-             settled
+        case account, network, kind, recipient, mint, units, signature, lastValidBlockHeight, status, created, settled
     }
 
     /// The persisted name of each kind.
@@ -94,8 +93,8 @@ nonisolated struct TransactionRecord: Codable, Identifiable, Equatable, Sendable
             .payment(recipient: try container.decode(Address.self, forKey: .recipient),
                      mint: try container.decodeIfPresent(Address.self, forKey: .mint),
                      units: try container.decode(UInt64.self, forKey: .units))
-        case .privateDeposit: .privateDeposit(lamports: try container.decode(UInt64.self, forKey: .lamports))
-        case .privateWithdrawal: .privateWithdrawal(lamports: try container.decode(UInt64.self, forKey: .lamports))
+        case .privateDeposit: .privateDeposit
+        case .privateWithdrawal: .privateWithdrawal
         }
         signature = try container.decode(String.self, forKey: .signature)
         lastValidBlockHeight = try container.decode(UInt64.self, forKey: .lastValidBlockHeight)
@@ -114,12 +113,10 @@ nonisolated struct TransactionRecord: Codable, Identifiable, Equatable, Sendable
             try container.encode(recipient, forKey: .recipient)
             try container.encodeIfPresent(mint, forKey: .mint)
             try container.encode(units, forKey: .units)
-        case .privateDeposit(let lamports):
+        case .privateDeposit:
             try container.encode(KindName.privateDeposit, forKey: .kind)
-            try container.encode(lamports, forKey: .lamports)
-        case .privateWithdrawal(let lamports):
+        case .privateWithdrawal:
             try container.encode(KindName.privateWithdrawal, forKey: .kind)
-            try container.encode(lamports, forKey: .lamports)
         }
         try container.encode(signature, forKey: .signature)
         try container.encode(lastValidBlockHeight, forKey: .lastValidBlockHeight)

@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import Portfolio
 import RPC
 
 /// Keeps each account's private balance on each network.
@@ -70,26 +71,46 @@ final class PrivateBalanceStore: Erasable {
         try await shared(account, on: network).turnOn()
     }
 
-    /// Creates a move of an account's SOL between its balances, while private balances are on.
+    /// Creates a move of a holding's asset between an account's balances, while private balances are on.
     ///
     /// - Parameters:
-    ///   - direction: Which balance the SOL leaves, and which one it reaches.
-    ///   - publicLamports: The account's public SOL, in lamports.
-    ///   - account: The account whose SOL moves.
-    ///   - network: The network that the SOL moves on.
-    /// - Returns: The move, or `nil` while private balances are off or unread, or without SOL to withdraw.
-    func move(_ direction: BalanceMoveProposal.Direction, publicLamports: UInt64, for account: Account,
-              on network: Network) -> BalanceMove? {
-        guard let balance = balance(for: account, on: network) else { return nil }
+    ///   - direction: Which balance the asset leaves, and which one it reaches.
+    ///   - holding: The account's public holding of the asset.
+    ///   - account: The account whose asset moves.
+    ///   - network: The network that the asset moves on.
+    /// - Returns: The move, or `nil` while private balances are off or unread, for another owner's holding or an
+    ///   asset that private balances don't hold, or without a private amount to withdraw.
+    func move(
+        _ direction: BalanceMoveProposal.Direction,
+        of holding: Holding,
+        for account: Account,
+        on network: Network
+    ) -> BalanceMove? {
+        guard let balance = balance(for: account, on: network), let publicAmount = holding.amount,
+            let asset = PrivateAsset(holding.id)
+        else { return nil }
         switch balance.status {
         case .unregistered?, .balance?:
-            let spendable = switch direction {
-            case .toPrivate: publicLamports
-            case .toPublic: balance.availableLamports
-            }
-            guard let spendable else { return nil }
-            return BalanceMove(direction: direction, account: account, network: network, spendableLamports: spendable,
-                               balances: privateBalances, transactions: transactions)
+            let units =
+                switch direction {
+                case .toPrivate: publicAmount.units
+                case .toPublic: balance.available(of: asset)
+                }
+            guard let units,
+                let token = PaymentToken(
+                    holding: holding,
+                    balance: Amount(units: units, decimals: publicAmount.decimals),
+                    price: nil
+                )
+            else { return nil }
+            return BalanceMove(
+                direction: direction,
+                token: token,
+                account: account,
+                network: network,
+                balances: privateBalances,
+                transactions: transactions
+            )
         case .off?, .unavailable?, nil:
             return nil
         }

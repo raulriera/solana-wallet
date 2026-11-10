@@ -8,15 +8,15 @@ struct TokenCardFigures: View {
     let value: (total: Decimal, currency: String)?
     /// The price's 24-hour change as a fraction, or `nil` when unknown.
     let change: Decimal?
-    /// Whether the account also holds private SOL.
-    let hasPrivateBalance: Bool
+    /// Whether the account also holds the token privately.
+    let isHeldPrivately: Bool
     /// The card's color for supporting text.
     let secondary: ReadableSecondary
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 2) {
             HStack(spacing: 6) {
-                if hasPrivateBalance {
+                if isHeldPrivately {
                     PrivateBalanceSign()
                         .foregroundStyle(secondary)
                 }

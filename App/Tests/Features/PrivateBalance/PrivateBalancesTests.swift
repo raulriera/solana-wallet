@@ -669,6 +669,22 @@ struct PrivateBalancesTests {
     }
 
     @Test
+    func `Preparing a token deposit deposits the token into its own balance`() async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let record = try await PrivateBalanceFixtures.keys(for: account)
+        let shielded = try record.shieldedAccount(for: account.address)
+        let responses = HTTPResponses.privateNotes(outputTreeID: 1)
+        let notes = StoredValue<PrivateBalances.Notes>([PrivateBalances.noteID(of: account, on: .devnet): NoteSyncState()])
+        let balances = try await Self.balances(responses, keys: StoredValue([account.address.value: record]),
+                                               notes: notes)
+
+        let prepared = try await balances.prepare(.deposit(5_000, of: .token(.devnetUSDC)), from: account, on: .devnet)
+
+        #expect(prepared.instructions == [try ShieldedPool.deposit(5_000, of: .devnetUSDC, from: account.address,
+                                                                   to: shielded.recipient, treeID: 1)])
+    }
+
+    @Test
     func `Preparing an unregistered account's first deposit registers it without saving notes`() async throws {
         let account = try await PrivateBalanceFixtures.account()
         let record = try await PrivateBalanceFixtures.keys(for: account)
@@ -767,13 +783,10 @@ struct PrivateBalancesTests {
 
         let prepared = try await balances.prepare(.send(400_000, to: recipient.address), from: sender.account, on: .devnet)
 
-        guard case .spend(let spend) = prepared.effect else {
-            Issue.record("Expected a spend.")
-            return
-        }
+        let spend = try #require(prepared.effect.spend)
         #expect(prepared.instructions == [spend.instruction])
-        #expect(spend.lamports == 400_000)
-        #expect(spend.receivedLamports == 600_000)
+        #expect(spend.amount == 400_000)
+        #expect(spend.receivedAmount == 600_000)
         #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 1)
         #expect(try await balances.complete(prepared, with: PrivateBalanceFixtures.confirmation(.succeeded)) == .balance(available: 0, pending: 600_000))
         #expect(await sender.notes.value?[sender.id]?.notes.isEmpty == true)
@@ -791,13 +804,30 @@ struct PrivateBalancesTests {
         let prepared = try await Self.balances(responses, keys: sender.keys, notes: sender.notes)
             .prepare(.withdraw(1_000_000, to: destination.address), from: sender.account, on: .devnet)
 
-        guard case .spend(let spend) = prepared.effect else {
-            Issue.record("Expected a spend.")
-            return
-        }
-        #expect(spend.lamports == 1_000_000)
-        #expect(spend.receivedLamports == 0)
+        let spend = try #require(prepared.effect.spend)
+        #expect(spend.amount == 1_000_000)
+        #expect(spend.receivedAmount == 0)
         #expect(spend.instruction.accounts.last?.address == destination.address)
+    }
+
+    @Test
+    func `Preparing a token withdrawal proves a withdrawal to the owner's token account`() async throws {
+        let sender = try await Self.fundedAccount(lamports: 1_000_000, of: .devnetUSDC)
+        let responses = HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered], deposits: [sender.deposit],
+                                                   outputTreeID: 1, prover: try IndexedProofs.prover())
+        let balances = try await Self.balances(responses, keys: sender.keys, notes: sender.notes)
+
+        let prepared = try await balances.prepare(.withdraw(400_000, of: .token(.devnetUSDC), to: sender.account.address),
+                                                  from: sender.account, on: .devnet)
+
+        let spend = try #require(prepared.effect.spend)
+        let tokenAccount = try TokenProgram.token.associatedAccount(owner: sender.account.address,
+                                                                    mint: PrivateToken.devnetUSDC.mint)
+        #expect(spend.amount == 400_000)
+        #expect(spend.receivedAmount == 600_000)
+        #expect(spend.instruction.accounts.map(\.address).contains(tokenAccount))
+        #expect(try await balances.complete(prepared, with: PrivateBalanceFixtures.confirmation(.succeeded))
+            == .balance(available: 0, pending: 600_000, of: .token(.devnetUSDC)))
     }
 
     @Test(arguments: [true, false])
@@ -815,17 +845,18 @@ struct PrivateBalancesTests {
         #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 0)
     }
 
-    @Test
-    func `Completing a succeeded deposit keeps it pending`() async throws {
+    @Test(arguments: [PrivateAsset.sol, .token(.devnetUSDC)])
+    func `Completing a succeeded deposit keeps it pending in its asset`(asset: PrivateAsset) async throws {
         let account = try await PrivateBalanceFixtures.account()
         let id = PrivateBalances.noteID(of: account, on: .devnet)
         let notes = StoredValue<PrivateBalances.Notes>([id: NoteSyncState()])
         let balances = try await Self.balances(HTTPResponses.privateNotes(), notes: notes)
 
-        let status = try await balances.complete(PrivateBalanceFixtures.preparedDeposit(5_000, from: account), with: PrivateBalanceFixtures.confirmation(.succeeded))
+        let status = try await balances.complete(PrivateBalanceFixtures.preparedDeposit(5_000, of: asset, from: account),
+                                                 with: PrivateBalanceFixtures.confirmation(.succeeded))
 
-        #expect(status == .balance(available: 0, pending: 5_000))
-        #expect(await notes.value?[id]?.pendingLamports == 5_000)
+        #expect(status == .balance(available: 0, pending: 5_000, of: asset))
+        #expect(await notes.value?[id].map(PrivateBalanceStatus.balance(of:)) == status)
     }
 
     @Test
@@ -998,18 +1029,18 @@ struct PrivateBalancesTests {
                                  provider: provider)
     }
 
-    private static func registeredAccount(index: UInt32, lamports: UInt64) async throws
+    private static func registeredAccount(index: UInt32, lamports: UInt64, of token: PrivateToken? = nil) async throws
         -> (account: widgets.Account, keys: PrivateBalanceKeyRecord, registry: String, deposit: String) {
         let account = try await PrivateBalanceFixtures.account(index: index)
         let keys = try await PrivateBalanceFixtures.keys(for: account)
         let shielded = try keys.shieldedAccount(for: account.address)
         return (account, keys, try PrivateBalanceFixtures.registry(publishing: shielded),
-                try PrivateBalanceFixtures.deposit(lamports, to: shielded, leafIndex: UInt64(index) + 1))
+                try PrivateBalanceFixtures.deposit(lamports, to: shielded, leafIndex: UInt64(index) + 1, of: token))
     }
 
-    private static func fundedAccount(lamports: UInt64) async throws -> (account: widgets.Account,
+    private static func fundedAccount(lamports: UInt64, of token: PrivateToken? = nil) async throws -> (account: widgets.Account,
         keys: StoredValue<PrivateBalances.Keys>, notes: StoredValue<PrivateBalances.Notes>, id: String, deposit: String) {
-        let registered = try await registeredAccount(index: 0, lamports: lamports)
+        let registered = try await registeredAccount(index: 0, lamports: lamports, of: token)
         let id = PrivateBalances.noteID(of: registered.account, on: .devnet)
         return (registered.account, StoredValue([registered.account.address.value: registered.keys]),
                 StoredValue([id: NoteSyncState()]), id, registered.deposit)

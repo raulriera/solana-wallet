@@ -6,6 +6,11 @@ public enum TokenProgram: String, Sendable, CaseIterable, Codable {
 }
 
 extension TokenProgram {
+    /// The program's address.
+    public var address: Address {
+        get throws { try Address(rawValue) }
+    }
+
     /// The Associated Token Account program's address.
     static let associatedAccountProgram = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
 
@@ -17,7 +22,7 @@ extension TokenProgram {
     /// - Returns: The canonical associated token account address.
     /// - Throws: ``ValidationError/addressDerivationFailed`` if no valid bump exists.
     public func associatedAccount(owner: Address, mint: Address) throws -> Address {
-        let program = try Address(rawValue)
+        let program = try address
         let associatedProgram = try Address(Self.associatedAccountProgram)
         return try ProgramAddress.find(seeds: [owner.bytes, program.bytes, mint.bytes], program: associatedProgram).address
     }

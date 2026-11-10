@@ -236,7 +236,7 @@ struct TransactionStoreTests {
                          settled: 30),
                 .fixture(LocalSending.payment(to: dana), signature: "dana-failed", account: first, status: .failed,
                          settled: 60),
-                .fixture(.privateDeposit(lamports: 1), signature: "deposit", account: first, status: .succeeded,
+                .fixture(.privateDeposit, signature: "deposit", account: first, status: .succeeded,
                          settled: 70),
             ]),
             TransactionRecord.Key(account: second, network: .devnet): StoredValue<[TransactionRecord]>([

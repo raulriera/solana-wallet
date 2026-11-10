@@ -6,8 +6,8 @@ struct PrivateSpendTests {
     @Test
     func `Spend diagnostics omit the values`() throws {
         let spend = PrivateSpend(
-            instruction: Instruction(program: try ShieldedPool.program), lamports: 4, receivedLamports: 6,
-            treeIDs: [0], nullifiers: [TransferVectors.blinding(0x11)]
+            instruction: Instruction(program: try ShieldedPool.program), amount: 4, receivedAmount: 6,
+            treeIDs: [0], nullifiers: [TransferVectors.blinding(0x11)], asset: .sol
         )
         var dumped = ""
         dump(spend, to: &dumped)

@@ -14,8 +14,8 @@ struct TokenCard: View {
     /// The price's 24-hour change as a fraction, or `nil` when unknown.
     let change: Decimal?
     let imageURL: URL?
-    /// Whether the account also holds private SOL.
-    var hasPrivateBalance = false
+    /// Whether the account also holds the token privately.
+    var isHeldPrivately = false
 
     var body: some View {
         let tint = CardTint(logo: logoColor ?? .placeholder, colors: style.colors)
@@ -25,7 +25,7 @@ struct TokenCard: View {
         HStack(spacing: 12) {
             TokenCardIdentity(symbol: symbol, name: name, imageURL: imageURL, secondary: secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            TokenCardFigures(amount: amount, value: value, change: change, hasPrivateBalance: hasPrivateBalance,
+            TokenCardFigures(amount: amount, value: value, change: change, isHeldPrivately: isHeldPrivately,
                              secondary: secondary)
                 .fixedSize()
         }

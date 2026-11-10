@@ -158,7 +158,7 @@ extension PrivateBalances {
         let available = try Redemption.availableLamports(of: balance, registrationCost: registers ? registrationCost : 0,
                                                          treeFee: treeFee)
         let registration = registers ? [try shielded.register(paidBy: code.signingAddress)] : []
-        let redemption = try Redemption(instructions: registration + [spend.instruction], noteLamports: spend.lamports,
+        let redemption = try Redemption(instructions: registration + [spend.instruction], noteLamports: spend.amount,
                                         availableLamports: available, source: code.signingAddress, recipient: recipient,
                                         treeID: outputTree, takenBackIndex: index)
         return PreparedPrivateTransaction(instructions: try redemption.transactionInstructions, account: account,
@@ -179,7 +179,7 @@ extension PrivateBalances {
                     id: String, from generation: Int) async throws {
         switch (effect, outcome) {
         case (.createCode(let spend, let index, let reserve), .succeeded):
-            let record = RedeemCodeRecord(index: index, amount: spend.lamports, reserve: reserve, created: .now,
+            let record = RedeemCodeRecord(index: index, amount: spend.amount, reserve: reserve, created: .now,
                                           fundingSignature: signature)
             try await update(codes, .codes, from: generation) { entries in
                 var ledger = entries[id] ?? RedeemCodeLedger(isDiscovered: false)

@@ -1,4 +1,5 @@
 import Foundation
+import Portfolio
 import Privacy
 import RPC
 import Testing
@@ -7,6 +8,15 @@ import Transactions
 
 @MainActor
 struct PrivateBalanceModelTests {
+    private static let sol = Holding(
+        id: .nativeSOL,
+        amount: Amount(units: 2_000_000_000, decimals: 9),
+        name: "Solana",
+        symbol: "SOL",
+        imageURL: nil,
+        valuation: nil
+    )
+
     @Test
     func `Opening keeps the store's move`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -14,7 +24,7 @@ struct PrivateBalanceModelTests {
         let model = PrivateBalanceModel()
         await store.refresh(account, on: .devnet)
 
-        model.open(.toPublic, publicLamports: 2_000_000_000, in: store, for: account, on: .devnet)
+        model.open(.toPublic, of: Self.sol, in: store, for: account, on: .devnet)
 
         let move = try #require(model.move)
         #expect(move.direction == .toPublic)
@@ -28,10 +38,10 @@ struct PrivateBalanceModelTests {
         let store = try await PrivateBalanceFixtures.store(holding: .available, of: account)
         let model = PrivateBalanceModel()
         await store.refresh(account, on: .devnet)
-        model.open(.toPrivate, publicLamports: 2_000_000_000, in: store, for: account, on: .devnet)
+        model.open(.toPrivate, of: Self.sol, in: store, for: account, on: .devnet)
         let first = try #require(model.move)
 
-        model.open(.toPublic, publicLamports: 2_000_000_000, in: store, for: account, on: .devnet)
+        model.open(.toPublic, of: Self.sol, in: store, for: account, on: .devnet)
 
         #expect(model.move?.id == first.id)
         #expect(model.move?.direction == .toPrivate)

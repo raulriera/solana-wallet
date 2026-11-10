@@ -14,7 +14,8 @@ struct TokenDetailScreen: View {
     let privateBalance: PrivateBalanceModel
 
     var body: some View {
-        let walletPrivateBalance = holding.id == .nativeSOL ? privateBalances.balance(for: account, on: network) : nil
+        let privateAsset = holding.otherOwner == nil ? PrivateAsset(holding.id) : nil
+        let walletPrivateBalance = privateAsset != nil ? privateBalances.balance(for: account, on: network) : nil
         let privateStatus = walletPrivateBalance?.status
         let isPrivateBalanceStale = walletPrivateBalance?.isStale ?? false
         Form {
@@ -79,22 +80,31 @@ struct TokenDetailScreen: View {
                 .foregroundStyle(palette.secondaryText)
             }
 
-            if holding.id == .nativeSOL {
-                PrivateBalanceSections(isTurningOn: privateBalance.isTurningOn,
-                                       turnOn: PrivateBalanceTurnOnAction(model: privateBalance),
-                                       status: privateStatus,
-                                       symbol: holding.displaySymbol,
-                                       isStale: isPrivateBalanceStale)
-                    .environment(\.moveBalance,
-                                 PrivateBalanceMoveAction(model: privateBalance, privateBalances: privateBalances,
-                                                          account: account, network: network,
-                                                          publicLamports: holding.amount?.units ?? 0))
+            if let privateAsset {
+                PrivateBalanceSections(
+                    isTurningOn: privateBalance.isTurningOn,
+                    turnOn: PrivateBalanceTurnOnAction(model: privateBalance),
+                    status: privateStatus,
+                    asset: privateAsset,
+                    symbol: holding.displaySymbol,
+                    isStale: isPrivateBalanceStale
+                )
+                .environment(
+                    \.moveBalance,
+                    PrivateBalanceMoveAction(
+                        model: privateBalance,
+                        privateBalances: privateBalances,
+                        account: account,
+                        network: network,
+                        holding: holding
+                    )
+                )
             }
         }
         .animation(.default, value: privateStatus)
         .animation(.default, value: isPrivateBalanceStale)
         .task(id: holding.id) {
-            if holding.id == .nativeSOL { await privateBalances.refresh(account, on: network) }
+            if privateAsset != nil { await privateBalances.refresh(account, on: network) }
         }
         .monospacedDigit()
         .navigationTitle(holding.displayName)

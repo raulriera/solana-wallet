@@ -21,7 +21,7 @@ struct PortfolioSplitView: View {
     var body: some View {
         let portfolio = portfolios.portfolio(for: account, on: network)
         let presentation = portfolio?.presentation ?? .blank
-        let hasPrivateBalance = privateBalances.balance(for: account, on: network)?.hasBalance ?? false
+        let privateHoldings = privateBalances.balance(for: account, on: network)?.privateHoldings ?? []
 
         ZStack {
             switch presentation {
@@ -42,10 +42,10 @@ struct PortfolioSplitView: View {
                         switch cardStyle.layout {
                         case .cards:
                             TokenCardStack(selection: $selection, preferredColumn: $preferredColumn,
-                                           holdings: holdings, hasPrivateBalance: hasPrivateBalance)
+                                           holdings: holdings, privateHoldings: privateHoldings)
                         case .rows:
                             TokenList(selection: $selection, holdings: holdings,
-                                      hasPrivateBalance: hasPrivateBalance)
+                                      privateHoldings: privateHoldings)
                         }
                     }
                     .animation(.default, value: portfolio?.snapshotRevision)
@@ -100,11 +100,11 @@ struct PortfolioSplitView: View {
         await portfolios.refresh(account, on: network)
     }
 
-    /// Reads a token's details again, with the private balance for SOL.
+    /// Reads a token's details again, with the private balance for a token that private balances hold.
     ///
     /// - Parameter holding: The token whose details to read.
     private func refreshDetail(of holding: Holding) async {
-        guard holding.id == .nativeSOL else { return await refresh() }
+        guard PrivateAsset(holding.id) != nil else { return await refresh() }
         async let privateRefresh: Void = privateBalances.refresh(account, on: network)
         await refresh()
         await privateRefresh

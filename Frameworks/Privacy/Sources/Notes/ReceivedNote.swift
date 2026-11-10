@@ -4,7 +4,7 @@ import ModularArithmetic
 import RPC
 import Transactions
 
-/// A SOL UTXO that an account received, with its position, its transaction, and its nullifier.
+/// A UTXO of a supported asset that an account received, with its position, its transaction, and its nullifier.
 public struct ReceivedNote: Sendable, Equatable, Codable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
     /// The keys of a note's encoded fields.
     private enum CodingKeys: String, CodingKey {
@@ -23,7 +23,8 @@ public struct ReceivedNote: Sendable, Equatable, Codable, CustomStringConvertibl
 
     let nullifier: Poseidon.Element
 
-    public var lamports: UInt64 { utxo.amount }
+    /// The amount, in the asset's smallest unit.
+    public var amount: UInt64 { utxo.amount }
 
     public var treeID: UInt16 { utxo.treeID }
 
@@ -52,8 +53,8 @@ public struct ReceivedNote: Sendable, Equatable, Codable, CustomStringConvertibl
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let mint = [UInt8](try container.decode(Data.self, forKey: .mint))
-        guard mint == ConfidentialPlaintext.Asset.sol.mint else {
-            throw DecodingError.dataCorruptedError(forKey: .mint, in: container, debugDescription: "A note holds SOL.")
+        guard ConfidentialPlaintext.Asset(mint: mint) != nil else {
+            throw DecodingError.dataCorruptedError(forKey: .mint, in: container, debugDescription: "A note holds a supported asset.")
         }
         utxo = UTXO(
             owner: try Self.decodeElement(forKey: .owner, in: container), mint: mint,
@@ -163,11 +164,11 @@ public struct ReceivedNote: Sendable, Equatable, Codable, CustomStringConvertibl
     /// - Parameters:
     ///   - output: A proofless deposit's output.
     ///   - owner: The owner hash.
-    /// - Returns: The UTXO, or `nil` if the output isn't a valid SOL deposit for `owner`.
+    /// - Returns: The UTXO, or `nil` if the output isn't a valid deposit of a supported asset for `owner`.
     /// - Throws: A ``Transactions/ValidationError`` if the tree account's derivation fails.
     static func depositUTXO(in output: ShieldedOutput, owner: Poseidon.Element) throws -> UTXO? {
         guard let deposit = try? ProoflessOutput(decoding: output.payload),
-              deposit.owner == owner, deposit.mint == ConfidentialPlaintext.Asset.sol.mint,
+              deposit.owner == owner, ConfidentialPlaintext.Asset(mint: deposit.mint) != nil,
               deposit.blinding == ShieldedPool.depositBlinding(tree: try ShieldedPool.tree(id: output.treeID), leafIndex: output.leafIndex),
               let utxoHash = Poseidon.Element(bigEndianBytes: output.utxoHash) else { return nil }
         let utxo = UTXO(owner: owner, mint: deposit.mint, amount: deposit.amount, blinding: deposit.blinding, treeID: output.treeID)

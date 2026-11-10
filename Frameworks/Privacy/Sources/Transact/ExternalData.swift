@@ -3,15 +3,63 @@ import Transactions
 
 /// The public part of a transact that its proof commits to, and its hash.
 struct ExternalData: Sendable {
-    /// A withdrawal of SOL from the shielded pool to a public account.
+    /// A withdrawal from the shielded pool to a public account.
     struct Withdrawal: Sendable, Equatable {
+        /// The wallet that receives SOL, or the token account that receives the token.
         let recipient: Address
-        let lamports: UInt64
+
+        /// The amount, in the asset's smallest unit.
+        let amount: UInt64
+
+        /// The withdrawn token, or `nil` for SOL.
+        var token: PrivateToken?
+
+        /// The withdrawn asset.
+        var asset: ConfidentialPlaintext.Asset {
+            token?.asset ?? .sol
+        }
+
+        /// The accounts that the external data hash commits to.
+        var committedAccounts: [Address] {
+            get throws { [try token?.mint ?? ShieldedPool.solInterface, recipient] }
+        }
+
+        /// The accounts of the withdrawal's settlement, which end the transact instruction's accounts.
+        var settlementAccounts: [Transaction.Account] {
+            get throws {
+                guard let token else {
+                    return [
+                        .init(address: try ShieldedPool.solInterface, isSigner: false, isWritable: true),
+                        .init(address: recipient, isSigner: false, isWritable: true),
+                    ]
+                }
+                let mint = try token.mint
+                return [
+                    .init(address: try ShieldedPool.cpiAuthority, isSigner: false, isWritable: false),
+                    .init(address: mint, isSigner: false, isWritable: false),
+                    .init(address: try ShieldedPool.splInterface(of: mint).address, isSigner: false, isWritable: true),
+                    .init(address: recipient, isSigner: false, isWritable: true),
+                    .init(address: try TokenProgram.token.address, isSigner: false, isWritable: false),
+                ]
+            }
+        }
+
+        /// Writes the withdrawal's interface transfer: its kind, its amount, and a token's interface bump.
+        ///
+        /// - Parameter writer: The writer of the external data.
+        /// - Throws: A ``Transactions/ValidationError`` if the token's interface derivation fails.
+        func write(to writer: inout WincodeWriter) throws {
+            writer.append(token == nil ? ExternalData.solWithdrawalVariant : ExternalData.splWithdrawalVariant)
+            writer.append(amount)
+            if let token { writer.append(try ShieldedPool.splInterface(of: token.mint).bump) }
+        }
     }
 
     private static let noExpiry = UInt64.max
 
     static let solWithdrawalVariant: UInt8 = 1
+
+    static let splWithdrawalVariant: UInt8 = 3
 
     /// The encoded prefix of the transact instruction's data, after its tag.
     let encoded: [UInt8]
@@ -25,11 +73,11 @@ struct ExternalData: Sendable {
     ///   - transactionViewingPublicKey: The public key of the transaction viewing key that sealed
     ///     the outputs' notes.
     ///   - salt: The 16-byte salt of the outputs' notes.
-    ///   - withdrawal: The SOL withdrawal, if any.
+    ///   - withdrawal: The withdrawal, if any.
     ///   - outputs: The outputs, padding included, in slot order.
     ///   - payer: The fee payer.
     /// - Throws: ``WincodeWriter/ValidationError/lengthOverflow`` for more than 255 outputs, or a
-    ///   ``Transactions/ValidationError`` if the SOL interface's derivation fails.
+    ///   ``Transactions/ValidationError`` if a settlement account's derivation fails.
     init(
         transactionViewingPublicKey: Curve25519.KeyAgreement.PublicKey,
         salt: [UInt8],
@@ -45,9 +93,8 @@ struct ExternalData: Sendable {
         var accounts: [[UInt8]] = []
         if let withdrawal {
             try writer.appendCount(1)
-            writer.append(Self.solWithdrawalVariant)
-            writer.append(withdrawal.lamports)
-            accounts += [try ShieldedPool.solInterface.bytes, withdrawal.recipient.bytes]
+            try withdrawal.write(to: &writer)
+            accounts += try withdrawal.committedAccounts.map(\.bytes)
         } else {
             try writer.appendCount(0)
         }

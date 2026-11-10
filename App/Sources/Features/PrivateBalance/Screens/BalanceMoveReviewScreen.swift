@@ -45,15 +45,15 @@ struct BalanceMoveReviewScreen: TransactionReviewContent {
                          comment: "Footer under the registration fee of an account's first deposit into its private balance.")
                         .foregroundStyle(palette.secondaryText)
                 } else if costs?.privacyFee != nil {
-                    Text("The network fee pays Solana to process this transaction. The privacy fee goes to the private balance pool, which uses it to record spent SOL so it can't be spent twice. This app takes no fee.",
-                         comment: "Footer under the fees of moving private SOL to the public balance, when the private balance pool charges a privacy fee.")
+                    Text("The network fee pays Solana to process this transaction. The privacy fee goes to the private balance pool, which uses it to record what was spent so it can't be spent twice. This app takes no fee.",
+                         comment: "Footer under the fees of moving a private token to the public balance, when the private balance pool charges a privacy fee.")
                         .foregroundStyle(palette.secondaryText)
                 }
             }
 
             Section {
                 Button(action: review.approve) {
-                    PendingLabel(title: move.direction.title, isPending: review.attempt != nil || review.isSending)
+                    PendingLabel(title: move.title, isPending: review.attempt != nil || review.isSending)
                 }
                 .foregroundStyle(palette.primary)
                 .lineLimit(1)

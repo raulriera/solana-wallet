@@ -3,17 +3,29 @@ import Privacy
 import RPC
 import Transactions
 
-/// A proposed move of the account's SOL between its public and private balances.
+/// A proposed move of the account's asset between its public and private balances.
 struct BalanceMoveProposal: TransactionProposal {
-    /// The balance that the SOL leaves and the one that it reaches.
+    /// The balance that the asset leaves and the one that it reaches.
     nonisolated enum Direction: Hashable, Sendable {
         case toPrivate
         case toPublic
 
-        var title: LocalizedStringResource {
+        /// Returns the title of a move of a token in this direction.
+        ///
+        /// - Parameter symbol: The token's symbol, such as SOL.
+        /// - Returns: The title, such as Make SOL Private.
+        func title(of symbol: String) -> LocalizedStringResource {
             switch self {
-            case .toPrivate: "Make SOL Private"
-            case .toPublic: "Make SOL Public"
+            case .toPrivate:
+                LocalizedStringResource(
+                    "Make \(symbol) Private",
+                    comment: "Title of moving a token into the private balance. The variable is the token's symbol, such as SOL or USDC."
+                )
+            case .toPublic:
+                LocalizedStringResource(
+                    "Make \(symbol) Public",
+                    comment: "Title of moving a token out of the private balance. The variable is the token's symbol, such as SOL or USDC."
+                )
             }
         }
     }
@@ -26,23 +38,28 @@ struct BalanceMoveProposal: TransactionProposal {
         let registrationFee: UInt64?
         /// The pool's fee for the trees that the spend writes, in lamports, or `nil` when there's none.
         let privacyFee: UInt64?
-        /// The change returned to the private balance, in lamports, or `nil` when there's none.
+        /// The change returned to the private balance, in the asset's smallest unit, or `nil` when there's none.
         let pendingChange: UInt64?
     }
 
     typealias Error = PrivateBalanceError
 
     let direction: Direction
+    let asset: PrivateAsset
     let amount: PaymentAmount
     let balances: any PrivateBalancing
+
+    /// The move's title, such as Make USDC Private.
+    var title: LocalizedStringResource { direction.title(of: amount.token.symbol) }
 
     var refreshInterval: Duration { .seconds(30) }
 
     func prepare(from account: Account, on network: Network) async throws -> PreparedPrivateTransaction {
-        let request: PrivateTransactionRequest = switch direction {
-        case .toPrivate: .deposit(amount.units)
-        case .toPublic: .withdraw(amount.units, to: account.address)
-        }
+        let request: PrivateTransactionRequest =
+            switch direction {
+            case .toPrivate: .deposit(amount.units, of: asset)
+            case .toPublic: .withdraw(amount.units, of: asset, to: account.address)
+            }
         return try await balances.prepare(request, from: account, on: network)
     }
 
@@ -53,26 +70,35 @@ struct BalanceMoveProposal: TransactionProposal {
         guard execution.error == nil else {
             guard execution.lacksFunds else { throw PrivateBalanceError.preparationFailed }
             throw switch direction {
-            case .toPrivate: PrivateBalanceError.insufficientPublicBalance
-            case .toPublic: PrivateBalanceError.insufficientPublicBalanceForFees
+            case .toPrivate where asset == .sol: PrivateBalanceError.insufficientPublicBalance
+            case .toPrivate, .toPublic: PrivateBalanceError.insufficientPublicBalanceForFees
             }
         }
         guard let networkFee = simulation.networkFee else { throw PrivateBalanceError.preparationFailed }
+        let movedLamports = asset.lamports(moving: amount.units)
         let review: Review
         let kind: TransactionRecord.Kind
         switch preparation.effect {
-        case .deposit(let lamports):
+        case .deposit:
             let registrationFee = preparation.registers
-                ? try otherFee(of: simulation, for: account, paying: lamports, networkFee: networkFee) : nil
+                ? try otherFee(of: simulation, for: account, paying: movedLamports, networkFee: networkFee) : nil
             review = Review(networkFee: networkFee, registrationFee: registrationFee, privacyFee: nil,
                             pendingChange: nil)
-            kind = .privateDeposit(lamports: lamports)
+            kind = .privateDeposit
         case .spend(let spend):
-            let privacyFee = try otherFee(of: simulation, for: account, receiving: spend.lamports,
-                                          networkFee: networkFee)
-            review = Review(networkFee: networkFee, registrationFee: nil, privacyFee: privacyFee > 0 ? privacyFee : nil,
-                            pendingChange: spend.receivedLamports > 0 ? spend.receivedLamports : nil)
-            kind = .privateWithdrawal(lamports: spend.lamports)
+            let privacyFee = try otherFee(
+                of: simulation,
+                for: account,
+                receiving: movedLamports,
+                networkFee: networkFee
+            )
+            review = Review(
+                networkFee: networkFee,
+                registrationFee: nil,
+                privacyFee: privacyFee > 0 ? privacyFee : nil,
+                pendingChange: spend.receivedAmount > 0 ? spend.receivedAmount : nil
+            )
+            kind = .privateWithdrawal
         case .createCode, .redeem:
             throw PrivateBalanceError.preparationFailed
         }

@@ -52,12 +52,7 @@ extension TransactPlan {
             )
         }
         accounts.append(.init(address: payer, isSigner: true, isWritable: false))
-        if let withdrawal {
-            accounts += [
-                .init(address: try ShieldedPool.solInterface, isSigner: false, isWritable: true),
-                .init(address: withdrawal.recipient, isSigner: false, isWritable: true),
-            ]
-        }
+        if let withdrawal { accounts += try withdrawal.settlementAccounts }
         return Instruction(program: try ShieldedPool.program, accounts: accounts, data: Data(writer.bytes))
     }
 }

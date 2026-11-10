@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import Portfolio
 import Privacy
 import Storage
 import Testing
@@ -98,7 +99,7 @@ struct WalletPrivateBalanceTests {
     }
 
     @Test
-    func `Only private SOL counts as a balance`() async throws {
+    func `Only an asset with a private amount is held`() async throws {
         let account = try await PrivateBalanceFixtures.account()
         let funded = try await PrivateBalanceFixtures.read(account, in: try await PrivateBalanceFixtures.store(holding: .available,
                                                                                                              of: account))
@@ -107,15 +108,26 @@ struct WalletPrivateBalanceTests {
                                                                                                         of: account))
 
         #expect(funded.status == .balance(available: 1_000_000, pending: 0))
-        #expect(funded.hasBalance)
-        #expect(funded.availableLamports == 1_000_000)
+        #expect(funded.privateHoldings == [.nativeSOL])
+        #expect(funded.available(of: .sol) == 1_000_000)
         #expect(unfunded.status == .unregistered)
-        #expect(!unfunded.hasBalance)
-        #expect(unfunded.availableLamports == nil)
+        #expect(unfunded.privateHoldings.isEmpty)
+        #expect(unfunded.available(of: .sol) == nil)
     }
 
-    @Test(arguments: [TransactionRecord.Kind.privateDeposit(lamports: 1_000_000),
-                      .privateWithdrawal(lamports: 1_000_000)])
+    @Test
+    func `Private tokens are available and held in their token only`() async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let balance = try await PrivateBalanceFixtures.read(account, in: try await PrivateBalanceFixtures.store(
+            holding: .availableToken, of: account))
+
+        #expect(balance.available(of: .token(.devnetUSDC)) == 1_000_000)
+        #expect(balance.available(of: .sol) == nil)
+        #expect(balance.privateHoldings == [.asset("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU")])
+    }
+
+    @Test(arguments: [TransactionRecord.Kind.privateDeposit,
+                      .privateWithdrawal])
     func `A settled private move becomes the last settled move`(kind: TransactionRecord.Kind) async throws {
         let account = try await PrivateBalanceFixtures.account()
         let sent = try PendingMove(kind, from: account.id)
@@ -147,12 +159,12 @@ struct WalletPrivateBalanceTests {
         let account = try await PrivateBalanceFixtures.account()
         let key = TransactionRecord.Key(account: account.id, network: .devnet)
         let records: [TransactionRecord] = [
-            .fixture(.privateDeposit(lamports: 1), signature: "pending deposit", account: account.id, created: 40),
+            .fixture(.privateDeposit, signature: "pending deposit", account: account.id, created: 40),
             .fixture(.payment(recipient: account.address, mint: nil, units: 1), signature: "payment",
                      account: account.id, status: .succeeded, created: 30, settled: 35),
-            .fixture(.privateWithdrawal(lamports: 1), signature: "withdrawal", account: account.id,
+            .fixture(.privateWithdrawal, signature: "withdrawal", account: account.id,
                      status: .failed, created: 20, settled: 25),
-            .fixture(.privateDeposit(lamports: 1), signature: "deposit", account: account.id, status: .succeeded,
+            .fixture(.privateDeposit, signature: "deposit", account: account.id, status: .succeeded,
                      created: 10, settled: 28),
         ]
         let store = try await PrivateBalanceFixtures.store(holding: .available, of: account,

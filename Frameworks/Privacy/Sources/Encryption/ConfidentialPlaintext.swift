@@ -2,14 +2,42 @@ import ModularArithmetic
 
 /// The plaintext note of a confidential output, with its UTXO's asset, amount, and blinding.
 struct ConfidentialPlaintext: Sendable, Equatable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
-    /// The assets that confidential outputs carry, with their asset IDs as raw values.
-    enum Asset: UInt64, Sendable {
+    /// The assets that private balances hold, with their pool asset IDs as raw values.
+    enum Asset: UInt64, Sendable, CaseIterable, Codable {
         case sol = 1
+        /// Mainnet USDC.
+        case usdc = 3
+        /// Mainnet USDT.
+        case usdt = 19
+        /// Devnet USDC.
+        case devnetUSDC = 59
 
+        /// The mint's 32 bytes, which are all zero for SOL.
         var mint: [UInt8] {
             switch self {
             case .sol: [UInt8](repeating: 0, count: 32)
+            case .usdc: [
+                198, 250, 122, 243, 190, 219, 173, 58, 61, 101, 243, 106, 171, 201, 116, 49,
+                177, 187, 228, 194, 210, 246, 224, 228, 124, 166, 2, 3, 69, 47, 93, 97,
+            ]
+            case .usdt: [
+                206, 1, 14, 96, 175, 237, 178, 39, 23, 189, 99, 25, 47, 84, 20, 90,
+                63, 150, 90, 51, 187, 130, 210, 199, 2, 158, 178, 206, 30, 32, 130, 100,
+            ]
+            case .devnetUSDC: [
+                59, 68, 44, 179, 145, 33, 87, 241, 58, 147, 61, 1, 52, 40, 45, 3,
+                43, 95, 254, 205, 1, 162, 219, 241, 183, 121, 6, 8, 223, 0, 46, 167,
+            ]
             }
+        }
+
+        /// Returns the asset of a mint.
+        ///
+        /// - Parameter mint: The mint's 32 bytes.
+        /// - Returns: The asset, or `nil` for a mint that private balances don't hold.
+        init?(mint: [UInt8]) {
+            guard let asset = Self.allCases.first(where: { $0.mint == mint }) else { return nil }
+            self = asset
         }
     }
 
@@ -75,7 +103,7 @@ struct ConfidentialPlaintext: Sendable, Equatable, CustomStringConvertible, Cust
     ///
     /// - Parameter bytes: The 50-byte encoding.
     /// - Throws: ``ValidationError/invalidLength`` for another length, ``ValidationError/unsupportedAsset``
-    ///   for an asset other than SOL, ``ValidationError/nonCanonicalBlinding`` for a blinding at or above r,
+    ///   for an asset that private balances don't hold, ``ValidationError/nonCanonicalBlinding`` for a blinding at or above r,
     ///   ``ValidationError/unsupportedRingProgram`` for a ring program, or ``ValidationError/unsupportedData``
     ///   for data records.
     init(decoding bytes: [UInt8]) throws {

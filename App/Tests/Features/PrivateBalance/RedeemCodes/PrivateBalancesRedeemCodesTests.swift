@@ -23,14 +23,11 @@ struct PrivateBalancesRedeemCodesTests {
 
         let prepared = try await balances.prepare(.createCode(1_000_000), from: sender.account, on: .devnet)
 
-        guard case .createCode(let spend, let index, let reserve) = prepared.effect else {
-            Issue.record("Expected a code's creation.")
-            return
-        }
+        let (spend, index, reserve) = try #require(prepared.effect.codeCreation)
         #expect(index == 1)
         #expect(reserve == RedeemCodeFixtures.reserve)
-        #expect(spend.lamports == 1_000_000)
-        #expect(spend.receivedLamports == Self.senderLamports - 1_000_000 - reserve)
+        #expect(spend.amount == 1_000_000)
+        #expect(spend.receivedAmount == Self.senderLamports - 1_000_000 - reserve)
         #expect(spend.instruction.accounts.last?.address.value == (try sender.keys.oneTimeAccount(at: 1)).address)
         #expect(try prepared.authorities.map { try $0.address } == [sender.account.address])
         #expect(prepared.instructions == [spend.instruction])

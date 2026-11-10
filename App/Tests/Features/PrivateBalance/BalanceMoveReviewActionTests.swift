@@ -1,3 +1,4 @@
+import Portfolio
 import RPC
 import SwiftUI
 import Testing
@@ -6,6 +7,15 @@ import Transactions
 
 @MainActor
 struct BalanceMoveReviewActionTests {
+    private static let sol = Holding(
+        id: .nativeSOL,
+        amount: Amount(units: 2_000_000_000, decimals: 9),
+        name: "Solana",
+        symbol: "SOL",
+        imageURL: nil,
+        valuation: nil
+    )
+
     @MainActor
     private final class Presented {
         var presented: TransactionReviewModel<BalanceMoveProposal>?
@@ -72,7 +82,7 @@ struct BalanceMoveReviewActionTests {
         )
         let model = PrivateBalanceModel()
         await store.refresh(account, on: .devnet)
-        model.open(.toPrivate, publicLamports: 2_000_000_000, in: store, for: account, on: .devnet)
+        model.open(.toPrivate, of: Self.sol, in: store, for: account, on: .devnet)
         return try #require(model.move)
     }
 

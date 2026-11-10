@@ -16,6 +16,8 @@ enum PrivateBalanceFixtures {
 
     static let unregistered = AccountReplies.accounts([nil])
 
+    private static let solMint = [UInt8](repeating: 0, count: 32)
+
     static func recovery() throws -> Recovery {
         try PublicWallet.recovery()
     }
@@ -51,8 +53,9 @@ enum PrivateBalanceFixtures {
                              outcome: outcome)
     }
 
-    static func preparedDeposit(_ lamports: UInt64, from account: widgets.Account) -> PreparedPrivateTransaction {
-        PreparedPrivateTransaction(instructions: [], account: account, network: .devnet, effect: .deposit(lamports),
+    static func preparedDeposit(_ amount: UInt64, of asset: PrivateAsset = .sol,
+                                from account: widgets.Account) -> PreparedPrivateTransaction {
+        PreparedPrivateTransaction(instructions: [], account: account, network: .devnet, effect: .deposit(amount, of: asset),
                                    registers: false, authorities: [.account(account)])
     }
 
@@ -72,8 +75,11 @@ enum PrivateBalanceFixtures {
 
     enum Balance: Sendable {
         case available
+        case availableToken
         case pending
         case unregistered
+
+        var token: PrivateToken? { self == .availableToken ? .devnetUSDC : nil }
     }
 
     @MainActor
@@ -82,10 +88,10 @@ enum PrivateBalanceFixtures {
         let record = try await keys(for: account)
         let keys = StoredValue([account.address.value: record])
         switch balance {
-        case .available:
+        case .available, .availableToken:
             let shielded = try record.shieldedAccount(for: account.address)
-            let responses = HTTPResponses.privateNotes(registry: [try registry(publishing: shielded)],
-                                                       deposits: [try deposit(1_000_000, to: shielded, leafIndex: 4)])
+            let deposit = try deposit(1_000_000, to: shielded, leafIndex: 4, of: balance.token)
+            let responses = HTTPResponses.privateNotes(registry: [try registry(publishing: shielded)], deposits: [deposit])
             return try PrivateBalanceStore.fixture(responses, keys: keys, transactions: transactions)
         case .pending:
             return try await pendingDeposit(of: account, transactions: transactions).store
@@ -133,8 +139,9 @@ enum PrivateBalanceFixtures {
         return AccountReplies.account(owner: try UserRegistry.program.value, lamports: 1_586_880, data: data)
     }
 
-    static func deposit(_ lamports: UInt64, to account: ShieldedAccount, leafIndex: UInt64) throws -> String {
-        let utxo = try utxo(lamports, of: account, leafIndex: leafIndex)
+    static func deposit(_ lamports: UInt64, to account: ShieldedAccount, leafIndex: UInt64,
+                        of token: PrivateToken? = nil) throws -> String {
+        let utxo = try utxo(lamports, of: account, leafIndex: leafIndex, token: token)
         var body = [0] + utxo.owner.bigEndianBytes + utxo.blinding.bigEndianBytes + utxo.mint
         body.appendLittleEndian(lamports)
         body += [UInt8](repeating: 0, count: 5) + [0]
@@ -157,17 +164,18 @@ enum PrivateBalanceFixtures {
 
     static func proofRequest(spending account: ShieldedAccount) throws -> IndexedTransferProofRequest {
         var generator = SystemRandomNumberGenerator()
-        let utxo = UTXO(owner: try account.recipient.owner, mint: [UInt8](repeating: 0, count: 32), amount: 10,
+        let utxo = UTXO(owner: try account.recipient.owner, mint: solMint, amount: 10,
                         blinding: Poseidon.Element(UInt64(7)), treeID: 1)
         let plan = try TransactPlan(spending: [utxo], sender: account, transfer: nil,
-                                    withdrawal: ExternalData.Withdrawal(recipient: account.signingAddress, lamports: 10),
+                                    withdrawal: ExternalData.Withdrawal(recipient: account.signingAddress, amount: 10),
                                     outputTreeID: 1, using: &generator)
         return try plan.proofRequest(nullifierKey: account.nullifierKey)
     }
 
-    private static func utxo(_ lamports: UInt64, of account: ShieldedAccount, leafIndex: UInt64) throws -> UTXO {
+    private static func utxo(_ lamports: UInt64, of account: ShieldedAccount, leafIndex: UInt64,
+                             token: PrivateToken? = nil) throws -> UTXO {
         let blinding = ShieldedPool.depositBlinding(tree: try ShieldedPool.tree(id: 1), leafIndex: leafIndex)
-        return UTXO(owner: try account.recipient.owner, mint: [UInt8](repeating: 0, count: 32), amount: lamports,
+        return UTXO(owner: try account.recipient.owner, mint: try token?.mint.bytes ?? solMint, amount: lamports,
                     blinding: blinding, treeID: 1)
     }
 }

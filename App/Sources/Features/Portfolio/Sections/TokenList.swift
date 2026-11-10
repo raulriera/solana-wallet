@@ -5,14 +5,14 @@ import SwiftUI
 struct TokenList: View {
     @Binding var selection: Holding.Identity?
     let holdings: [Holding]
-    /// Whether the account also holds private SOL.
-    let hasPrivateBalance: Bool
+    /// The holdings that the account also holds privately.
+    let privateHoldings: Set<Holding.Identity>
 
     var body: some View {
         List(holdings, selection: $selection) { holding in
             TokenRow(symbol: holding.displaySymbol, name: holding.displayName, amount: holding.amount,
                      value: holding.knownValue, change: holding.valuation?.dayChange, imageURL: holding.logoURL,
-                     hasPrivateBalance: hasPrivateBalance && holding.id == .nativeSOL)
+                     isHeldPrivately: privateHoldings.contains(holding.id))
         }
         .listStyle(.sidebar)
     }

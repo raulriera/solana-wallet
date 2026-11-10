@@ -20,6 +20,34 @@ struct ShieldedPoolDepositTests {
     }
 
     @Test
+    func `Token deposits match a devnet deposit`() throws {
+        let recipient = try TransferVectors.recipient()
+        let depositor = try Address("9Vrvyr8YURu79z4sTrgcL9aYXARxfuNgrhZpJnJTrAPD")
+
+        let instruction = try ShieldedPool.deposit(1_000_000, of: .devnetUSDC, from: depositor, to: recipient, treeID: 0)
+
+        #expect(instruction.accounts.map(\.address.value) == [
+            try ShieldedPool.tree(id: 0).value, depositor.value, "ring1GaLCuJnkUMVkX2JeZLTTX17wKsV4fZmPVzXANW",
+            "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+            "H2gYgZ72JHp2UyJAuvLZm9cayVqLy1LnuLENXpYjjrRq", "DG6W5q9LyFgy6oPAePqh9CXyh4JgqzWqVTEBqGiHpdz",
+        ])
+        #expect(instruction.accounts.map(\.isSigner) == [false, true, false, false, false, false, false])
+        #expect(instruction.accounts.map(\.isWritable) == [true, true, false, false, false, true, true])
+        #expect(Array(instruction.data) == [0x0f, 1, 1, 0xff, 1, 0] + recipient.viewTag + recipient.owner.bigEndianBytes
+            + [0x40, 0x42, 0x0f, 0, 0, 0, 0, 0, 0])
+    }
+
+    @Test
+    func `Zero-amount token deposits are rejected`() throws {
+        let recipient = try TransferVectors.recipient()
+        let depositor = try Address(TransferVectors.senderSigningAddress)
+
+        #expect(throws: ValidationError.invalidAmount) {
+            try ShieldedPool.deposit(0, of: .usdc, from: depositor, to: recipient, treeID: 0)
+        }
+    }
+
+    @Test
     func `Zero-lamport deposits are rejected`() throws {
         let recipient = try TransferVectors.recipient()
         let depositor = try Address(TransferVectors.senderSigningAddress)

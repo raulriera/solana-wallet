@@ -607,6 +607,22 @@ struct NoteSyncStateTests {
     }
 
     @Test
+    func `Recorded token spends keep their change pending in their token`() throws {
+        let vector = try #require(try DepositNoteVectors.load().deposits.first)
+        let token = try vector.transaction(signature: IndexerResponses.signature(9), mint: ConfidentialPlaintext.Asset.usdc.mint)
+        let held = try NoteSyncState(
+            position: nil, notes: notes(in: token), unconfirmedNotes: [], outputTreeID: nil, pending: [], localSpends: [],
+            rejectedSpends: [], missingSpendReads: [:]
+        )
+
+        let state = try held.recording(privateSpend(of: held.notes, receiving: 5, asset: .usdc), signature: IndexerResponses.signature(8))
+
+        #expect(state.notes.isEmpty)
+        #expect(state.pendingAmount(of: .usdc) == 5)
+        #expect(state.pendingLamports == 0)
+    }
+
+    @Test
     func `Recorded spends stay hidden until the indexer reports them`() async throws {
         let (first, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit]))
         let recorded = try first.recording(privateSpend(of: first.notes, receiving: 0), signature: IndexerResponses.signature(8))
@@ -729,8 +745,8 @@ struct NoteSyncStateTests {
         let (respent, _) = try await sync(synced, with: Indexer(transactions: [transfer], spends: [spend(of: synced.notes)]))
         let spent = try transfer.nullifiers.prefix(1).map { try #require(Poseidon.Element(bigEndianBytes: $0)) }
         let spend = PrivateSpend(
-            instruction: Instruction(program: try ShieldedPool.program), lamports: 4, receivedLamports: 6, treeIDs: [0],
-            nullifiers: spent
+            instruction: Instruction(program: try ShieldedPool.program), amount: 4, receivedAmount: 6, treeIDs: [0],
+            nullifiers: spent, asset: .sol
         )
 
         let state = try respent.recording(spend, signature: transfer.signature)
@@ -746,7 +762,8 @@ struct NoteSyncStateTests {
         let (synced, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit]))
         let pending = try NoteSyncState(
             position: synced.position, notes: synced.notes, unconfirmedNotes: [], outputTreeID: nil,
-            pending: [PendingAmount(signature: deposit.signature, lamports: 1_000_000)], localSpends: [],
+            pending: [PendingAmount(signature: deposit.signature, asset: .sol, amount: 1_000_000)],
+            localSpends: [],
             rejectedSpends: [], missingSpendReads: [:]
         )
 
@@ -761,6 +778,43 @@ struct NoteSyncStateTests {
         #expect(throws: ValidationError.invalidAmount) {
             try NoteSyncState().recording(depositOf: 0, signature: IndexerResponses.signature(8))
         }
+    }
+
+    @Test
+    func `Token notes count only toward their own token`() throws {
+        let vector = try #require(try DepositNoteVectors.load().deposits.first)
+        let token = try vector.transaction(signature: IndexerResponses.signature(9), mint: ConfidentialPlaintext.Asset.usdc.mint)
+        let state = try NoteSyncState(
+            position: nil, notes: notes(in: deposit) + notes(in: token), unconfirmedNotes: [], outputTreeID: nil, pending: [],
+            localSpends: [], rejectedSpends: [], missingSpendReads: [:]
+        )
+
+        #expect(state.spendableLamports == (try notes(in: deposit).reduce(0) { $0 + $1.amount }))
+        #expect(state.spendableAmount(of: .usdc) == (try notes(in: token).reduce(0) { $0 + $1.amount }))
+        #expect(state.spendableAmount(of: .usdt) == 0)
+    }
+
+    @Test
+    func `Recorded token deposits stay pending in their token`() throws {
+        let state = try NoteSyncState().recording(depositOf: 7, of: .usdc, signature: IndexerResponses.signature(8))
+
+        #expect(state.pendingAmount(of: .usdc) == 7)
+        #expect(state.pendingAmount(of: .usdt) == 0)
+        #expect(state.pendingLamports == 0)
+    }
+
+    @Test
+    func `Each asset's total has its own 64 bits`() throws {
+        let largest = try largestState()
+        let token = try #require(try DepositNoteVectors.load().deposits.first)
+            .transaction(signature: IndexerResponses.signature(9), mint: ConfidentialPlaintext.Asset.usdc.mint)
+
+        let state = try NoteSyncState(
+            position: nil, notes: largest.notes + notes(in: token), unconfirmedNotes: [], outputTreeID: nil, pending: [],
+            localSpends: [], rejectedSpends: [], missingSpendReads: [:]
+        )
+
+        #expect(state.spendableLamports == largest.spendableLamports)
     }
 
     @Test
@@ -887,10 +941,12 @@ struct NoteSyncStateTests {
         )
     }
 
-    private func privateSpend(of notes: [ReceivedNote], receiving lamports: UInt64) throws -> PrivateSpend {
+    private func privateSpend(
+        of notes: [ReceivedNote], receiving lamports: UInt64, asset: ConfidentialPlaintext.Asset = .sol
+    ) throws -> PrivateSpend {
         PrivateSpend(
-            instruction: Instruction(program: try ShieldedPool.program), lamports: 1, receivedLamports: lamports,
-            treeIDs: [0], nullifiers: notes.map(\.nullifier)
+            instruction: Instruction(program: try ShieldedPool.program), amount: 1, receivedAmount: lamports,
+            treeIDs: [0], nullifiers: notes.map(\.nullifier), asset: asset
         )
     }
 

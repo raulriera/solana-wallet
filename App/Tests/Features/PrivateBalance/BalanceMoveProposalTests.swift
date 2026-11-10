@@ -1,4 +1,5 @@
 import Foundation
+import Privacy
 import Testing
 import Transactions
 @testable import RPC
@@ -9,9 +10,11 @@ import Transactions
 struct BalanceMoveProposalTests {
     private static let rateLimit = RPCError.http(statusCode: 429, retryAfter: "3")
 
-    @Test
-    func `Reviewing a deposit shows its network fee`() async throws {
-        let deposit = try await LocalBalanceMove.deposit()
+    private nonisolated static let assets = [PrivateAsset.sol, .token(.devnetUSDC)]
+
+    @Test(arguments: Self.assets)
+    func `Reviewing a deposit shows its network fee`(asset: PrivateAsset) async throws {
+        let deposit = try await LocalBalanceMove.deposit(of: asset)
         let model = deposit.model
 
         model.prepareReview()
@@ -25,9 +28,9 @@ struct BalanceMoveProposalTests {
         #expect(model.canApprove)
     }
 
-    @Test
-    func `A first deposit shows the registration fee`() async throws {
-        let deposit = try await LocalBalanceMove.deposit(registered: false)
+    @Test(arguments: Self.assets)
+    func `A first deposit shows the registration fee`(asset: PrivateAsset) async throws {
+        let deposit = try await LocalBalanceMove.deposit(of: asset, registered: false)
         let model = deposit.model
 
         model.prepareReview()
@@ -40,17 +43,47 @@ struct BalanceMoveProposalTests {
     }
 
     @Test(arguments: [
-        (TransactionError(name: "InsufficientFundsForFee", details: nil), [String](),
-         PrivateBalanceError.insufficientPublicBalance),
-        (TransactionError(name: "InstructionError", details: .array([.integer(0), .object(["Custom": .integer(1)])])),
-         ["Transfer: insufficient lamports 0, need 1000000000"], .insufficientPublicBalance),
-        (TransactionError(name: "InstructionError", details: .array([.integer(1), .object(["Custom": .integer(6001)])])),
-         ["Program failed: custom program error: 0x1771"], .preparationFailed),
+        (
+            PrivateAsset.sol, TransactionError(name: "InsufficientFundsForFee", details: nil), [String](),
+            PrivateBalanceError.insufficientPublicBalance
+        ),
+        (
+            .sol,
+            TransactionError(
+                name: "InstructionError",
+                details: .array([.integer(0), .object(["Custom": .integer(1)])])
+            ),
+            ["Transfer: insufficient lamports 0, need 1000000000"], .insufficientPublicBalance
+        ),
+        (
+            .sol,
+            TransactionError(
+                name: "InstructionError",
+                details: .array([.integer(1), .object(["Custom": .integer(6001)])])
+            ),
+            ["Program failed: custom program error: 0x1771"], .preparationFailed
+        ),
+        (
+            .token(.devnetUSDC), TransactionError(name: "InsufficientFundsForFee", details: nil), [],
+            .insufficientPublicBalanceForFees
+        ),
     ])
-    func `A failed simulation shows its error without a review`(error: TransactionError, logs: [String],
-                                                                 expected: PrivateBalanceError) async throws {
-        let deposit = try await LocalBalanceMove.deposit(simulation: .failure(error, logs: logs,
-                                                                              fee: LocalBalanceMove.networkFee))
+    func `A failed simulation shows its error without a review`(
+        asset: PrivateAsset,
+        error: TransactionError,
+        logs: [String],
+        expected: PrivateBalanceError
+    )
+        async throws
+    {
+        let deposit = try await LocalBalanceMove.deposit(
+            of: asset,
+            simulation: .failure(
+                error,
+                logs: logs,
+                fee: LocalBalanceMove.networkFee
+            )
+        )
         let model = deposit.model
 
         model.prepareReview()
@@ -81,7 +114,7 @@ struct BalanceMoveProposalTests {
 
         let record = try await deposit.model.runApproval()
 
-        #expect(record.kind == .privateDeposit(lamports: LocalBalanceMove.lamports))
+        #expect(record.kind == .privateDeposit)
         #expect(deposit.model.submission?.network == .devnet)
         #expect(try await deposit.transactions.watch(record.id, for: record.key) == .succeeded)
         #expect(deposit.model.outcome == .succeeded)
@@ -117,16 +150,21 @@ struct BalanceMoveProposalTests {
         await sockets.waitUntilClosed()
     }
 
-    @Test(arguments: [UInt64(0), 3_000])
-    func `Reviewing a withdrawal shows a privacy fee only when it has one`(privacyFee: UInt64) async throws {
-        let withdrawal = try await LocalBalanceMove.withdrawal(privacyFee: privacyFee)
+    @Test(arguments: Self.assets, [UInt64(0), 3_000])
+    func `Reviewing a withdrawal shows a privacy fee only when it has one`(
+        asset: PrivateAsset,
+        privacyFee: UInt64
+    )
+        async throws
+    {
+        let withdrawal = try await LocalBalanceMove.withdrawal(of: asset, privacyFee: privacyFee)
         let model = withdrawal.model
 
         model.prepareReview()
         await model.run(model.attempt)
 
         #expect(withdrawal.move.payment.source == .privateBalance)
-        #expect(withdrawal.move.payment.token.balance == 2)
+        #expect(withdrawal.move.payment.token.balance == (asset == .sol ? 2 : 2_000))
         #expect(model.review == BalanceMoveProposal.Review(
             networkFee: LocalBalanceMove.networkFee, registrationFee: nil,
             privacyFee: privacyFee > 0 ? privacyFee : nil,
@@ -168,7 +206,7 @@ struct BalanceMoveProposalTests {
 
         let record = try await withdrawal.model.runApproval()
 
-        #expect(record.kind == .privateWithdrawal(lamports: LocalBalanceMove.lamports))
+        #expect(record.kind == .privateWithdrawal)
         #expect(try await withdrawal.transactions.watch(record.id, for: record.key) == .succeeded)
         #expect(withdrawal.model.outcome == .succeeded)
         #expect(try await withdrawal.balances.refresh(withdrawal.account, on: .devnet)

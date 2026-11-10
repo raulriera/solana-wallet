@@ -1,13 +1,15 @@
 import Portfolio
 import SwiftUI
 
-/// Shows SOL's private balance: a Turn On button while it's off, or the available and pending SOL with its actions.
+/// Shows an asset's private balance: a Turn On button while it's off, or the available and pending amounts with their
+/// actions.
 struct PrivateBalanceSections: View {
     @Environment(\.palette) private var palette
     let isTurningOn: Bool
     let turnOn: PrivateBalanceTurnOnAction
     /// The account's private balance, or `nil` before the first read.
     let status: PrivateBalanceStatus?
+    let asset: PrivateAsset
     let symbol: String
     /// Whether the last read failed.
     let isStale: Bool
@@ -37,11 +39,10 @@ struct PrivateBalanceSections: View {
                 }
                 .foregroundStyle(palette.secondaryText)
             }
-        case .balance(let available, let pending)?:
-            PrivateBalanceAmountSection(available: Amount(lamports: available), pending: Amount(lamports: pending),
-                                        symbol: symbol, isStale: isStale)
-        case .unregistered?:
-            PrivateBalanceAmountSection(available: Amount(lamports: 0), pending: Amount(lamports: 0),
+        case .balance?, .unregistered?:
+            let balance = status?.balance(of: asset) ?? .zero
+            PrivateBalanceAmountSection(available: Amount(units: balance.available, decimals: asset.decimals),
+                                        pending: Amount(units: balance.pending, decimals: asset.decimals),
                                         symbol: symbol, isStale: isStale)
         case nil where isStale:
             PrivateBalanceAmountSection(available: nil, pending: nil,

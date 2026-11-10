@@ -138,6 +138,8 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
     private struct Layout {
         let senderOwner: Recipient
         let utxos: [UTXO]
+        /// The asset that the transact spends: the withdrawal's, or SOL without one.
+        let asset: ConfidentialPlaintext.Asset
         /// The declared input trees, in first-use order.
         let inputTreeIDs: [UInt16]
         /// The owner and the amount of each real output, in slot order.
@@ -163,17 +165,18 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
             guard !utxos.isEmpty else { throw ValidationError.noInputs }
             guard utxos.count <= TransactPlan.maximumInputs else { throw ValidationError.tooManyInputs }
             let senderOwner = try sender.recipient
+            let asset = withdrawal?.asset ?? .sol
             var inputTreeIDs: [UInt16] = []
             for utxo in utxos {
                 guard utxo.owner == senderOwner.owner else { throw ValidationError.foreignInput }
-                guard utxo.mint == ConfidentialPlaintext.Asset.sol.mint else { throw ValidationError.unsupportedAsset }
+                guard utxo.mint == asset.mint else { throw ValidationError.unsupportedAsset }
                 if !inputTreeIDs.contains(utxo.treeID) { inputTreeIDs.append(utxo.treeID) }
             }
             guard inputTreeIDs.count <= TransactPlan.maximumInputTrees else { throw ValidationError.tooManyInputTrees }
-            guard transfer?.lamports != 0, withdrawal?.lamports != 0 else { throw Transactions.ValidationError.invalidAmount }
+            guard transfer?.lamports != 0, withdrawal?.amount != 0 else { throw Transactions.ValidationError.invalidAmount }
             guard transfer != nil || withdrawal != nil else { throw ValidationError.nothingToSend }
             let available = try Self.sum(utxos.map(\.amount))
-            let spent = try Self.sum([transfer?.lamports ?? 0, withdrawal?.lamports ?? 0])
+            let spent = try Self.sum([transfer?.lamports ?? 0, withdrawal?.amount ?? 0])
             guard available >= spent else { throw ValidationError.insufficientFunds }
             var outputs: [(owner: Recipient, lamports: UInt64)] = []
             if let transfer { outputs.append((transfer.recipient, transfer.lamports)) }
@@ -191,6 +194,7 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
             }
             self.senderOwner = senderOwner
             self.utxos = utxos
+            self.asset = asset
             self.inputTreeIDs = inputTreeIDs
             self.outputs = outputs
             self.shape = shape
@@ -377,10 +381,10 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
             }
             let (owner, lamports) = layout.outputs[slot]
             let utxo = UTXO(
-                owner: owner.owner, mint: ConfidentialPlaintext.Asset.sol.mint, amount: lamports, blinding: blinding, treeID: outputTreeID
+                owner: owner.owner, mint: layout.asset.mint, amount: lamports, blinding: blinding, treeID: outputTreeID
             )
             let note = try ConfidentialOutput.seal(
-                ConfidentialPlaintext(asset: .sol, amount: lamports, blinding: blinding), for: owner.viewingPublicKey,
+                ConfidentialPlaintext(asset: layout.asset, amount: lamports, blinding: blinding), for: owner.viewingPublicKey,
                 transactionViewingKey: transactionViewingKey, salt: randomness.salt, slot: UInt32(slot)
             )
             return Output(utxo: utxo, published: TransactOutput(

@@ -7,12 +7,17 @@ struct PrivateBalanceActions: View {
     @Environment(\.moveBalance) private var moveBalance
     /// The spendable private balance.
     let available: Amount
+    let symbol: String
 
     var body: some View {
         Group {
-            Button("Make SOL Private", systemImage: "eye.slash") { moveBalance?(.toPrivate) }
+            Button(BalanceMoveProposal.Direction.toPrivate.title(of: symbol), systemImage: "eye.slash") {
+                moveBalance?(.toPrivate)
+            }
             if available.units > 0 {
-                Button("Make SOL Public", systemImage: "eye") { moveBalance?(.toPublic) }
+                Button(BalanceMoveProposal.Direction.toPublic.title(of: symbol), systemImage: "eye") {
+                    moveBalance?(.toPublic)
+                }
             }
         }
         .foregroundStyle(palette.primary)

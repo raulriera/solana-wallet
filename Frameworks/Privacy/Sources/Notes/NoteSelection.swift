@@ -3,7 +3,7 @@ enum NoteSelection {
     /// Chooses the notes that cover an amount for the fewest tree fees.
     ///
     /// - Parameters:
-    ///   - lamports: The amount to cover.
+    ///   - amount: The amount to cover, in the asset's smallest unit.
     ///   - notes: The unspent notes.
     ///   - outputTreeID: The ID of the tree that receives the spend's outputs.
     /// - Returns: The chosen notes, largest first, that cover the amount within one transaction's inputs and write
@@ -12,11 +12,11 @@ enum NoteSelection {
     /// - Throws: ``PrivateSpend/ValidationError/tooManyNotes`` if covering the amount needs more notes than one
     ///   transaction spends, or ``PrivateSpend/ValidationError/insufficientFunds`` if the trees that one transaction
     ///   spends from don't cover it.
-    static func notes(covering lamports: UInt64, from notes: [ReceivedNote], writingTo outputTreeID: UInt16) throws
+    static func notes(covering amount: UInt64, from notes: [ReceivedNote], writingTo outputTreeID: UInt16) throws
         -> [ReceivedNote] {
         let trees = Dictionary(grouping: notes, by: \.utxo.treeID).sorted { $0.key < $1.key }.map(\.value)
         let candidates = (1...TransactPlan.maximumInputTrees).flatMap(trees.combinations(ofCount:))
-            .compactMap { combination in covering(lamports, from: Array(combination.joined())) }
+            .compactMap { combination in covering(amount, from: Array(combination.joined())) }
         guard !candidates.isEmpty else { throw PrivateSpend.ValidationError.insufficientFunds }
         let ranked = candidates.sorted { rank(of: $0, writingTo: outputTreeID) < rank(of: $1, writingTo: outputTreeID) }
         guard let best = ranked.first(where: { $0.count <= TransactPlan.maximumInputs }) else {
@@ -40,16 +40,16 @@ enum NoteSelection {
     /// Takes the largest notes until they cover an amount.
     ///
     /// - Parameters:
-    ///   - lamports: The amount to cover.
+    ///   - amount: The amount to cover, in the asset's smallest unit.
     ///   - notes: The notes to take from.
     /// - Returns: The taken notes, largest first, or `nil` if they don't cover the amount.
-    private static func covering(_ lamports: UInt64, from notes: [ReceivedNote]) -> [ReceivedNote]? {
+    private static func covering(_ amount: UInt64, from notes: [ReceivedNote]) -> [ReceivedNote]? {
         var total: UInt64 = 0
         var taken: [ReceivedNote] = []
-        for note in notes.sorted(by: { $0.lamports > $1.lamports }) where total < lamports {
-            total += note.lamports
+        for note in notes.sorted(by: { $0.amount > $1.amount }) where total < amount {
+            total += note.amount
             taken.append(note)
         }
-        return total >= lamports ? taken : nil
+        return total >= amount ? taken : nil
     }
 }

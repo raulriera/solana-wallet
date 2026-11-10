@@ -7,8 +7,8 @@ nonisolated struct PreparedPrivateTransaction: Sendable, CustomStringConvertible
     CustomReflectable {
     /// What a succeeded transaction changes in the account's private balance.
     enum Effect: Sendable {
-        /// A deposit of lamports into the account's private balance.
-        case deposit(UInt64)
+        /// A deposit of an amount of an asset, in its smallest unit, into the account's private balance.
+        case deposit(UInt64, of: PrivateAsset = .sol)
         /// A spend of the account's notes into a private transfer or a public withdrawal.
         case spend(PrivateSpend)
         /// A spend that funds a new redeem code at an index of the code root, with a reserve in lamports.

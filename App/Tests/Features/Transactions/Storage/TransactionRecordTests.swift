@@ -22,12 +22,12 @@ struct TransactionRecordTests {
             """))
     }
 
-    @Test(arguments: [(TransactionRecord.Kind.privateDeposit(lamports: 1_000), "privateDeposit"),
-                      (.privateWithdrawal(lamports: 1_000), "privateWithdrawal")])
-    func `A pending private move saves its lamports`(kind: TransactionRecord.Kind, name: String) throws {
+    @Test(arguments: [(TransactionRecord.Kind.privateDeposit, "privateDeposit"),
+                      (.privateWithdrawal, "privateWithdrawal")])
+    func `A pending private move saves its kind`(kind: TransactionRecord.Kind, name: String) throws {
         try #expect(Self.object(JSONEncoder().encode(Self.record(kind))) == Self.object("""
             {"account": "E621E1F8-C36C-495A-93FC-0C247A3E6E5F", "network": "devnet", "kind": "\(name)",
-             "lamports": 1000, "signature": "signature", "lastValidBlockHeight": 550, "status": "pending",
+             "signature": "signature", "lastValidBlockHeight": 550, "status": "pending",
              "created": 800000000}
             """))
     }

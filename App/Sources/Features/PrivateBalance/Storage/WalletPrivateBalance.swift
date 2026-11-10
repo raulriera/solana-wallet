@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import Portfolio
 import RPC
 import Wallet
 
@@ -9,15 +10,17 @@ import Wallet
 final class WalletPrivateBalance {
     /// The last read balance, or `nil` before the first read.
     private(set) var status: PrivateBalanceStatus? {
-        didSet { hasBalance = Self.holdsSOL(status) }
+        didSet {
+            privateHoldings = if case .balance(let balances)? = status { Set(balances.assets.map(\.holding)) } else { [] }
+        }
     }
-    /// Whether the account holds any available or pending private SOL.
-    private(set) var hasBalance = false
+    /// The portfolio holdings whose asset the account holds an available or pending private amount of.
+    private(set) var privateHoldings: Set<Holding.Identity> = []
     /// Whether the last read failed.
     private(set) var isStale = false
     /// Whether polls wait for a refresh after a failure that reading again can't fix.
     private(set) var isPollingPaused = false
-    /// The quick reads left in a follow-up on pending SOL.
+    /// The quick reads left in a follow-up on pending assets.
     private(set) var followUpReadsLeft = 0
 
     private let account: Account
@@ -38,9 +41,12 @@ final class WalletPrivateBalance {
 
     var isFollowingUp: Bool { followUpReadsLeft > 0 }
 
-    /// The available private SOL, in lamports, or `nil` when there's none.
-    var availableLamports: UInt64? {
-        guard case .balance(let available, _)? = status, available > 0 else { return nil }
+    /// Returns the available private amount of an asset.
+    ///
+    /// - Parameter asset: The asset.
+    /// - Returns: The available amount, in the asset's smallest unit, or `nil` when there's none.
+    func available(of asset: PrivateAsset) -> UInt64? {
+        guard let available = status?.balance(of: asset)?.available, available > 0 else { return nil }
         return available
     }
 
@@ -56,7 +62,7 @@ final class WalletPrivateBalance {
             .max { ($0.settled ?? .distantPast) < ($1.settled ?? .distantPast) }
     }
 
-    /// The most quick reads that follow up on pending SOL.
+    /// The most quick reads that follow up on pending assets.
     private static let followUpReads = 10
 
     private static let pollInterval = Duration.seconds(30)
@@ -213,7 +219,7 @@ final class WalletPrivateBalance {
         }
     }
 
-    /// Shows a read balance as current, resumes polling, and starts or ends a follow-up on its pending SOL.
+    /// Shows a read balance as current, resumes polling, and starts or ends a follow-up on its pending assets.
     ///
     /// - Parameters:
     ///   - status: The read balance.
@@ -226,7 +232,7 @@ final class WalletPrivateBalance {
         isPollingPaused = false
         let settledSinceRead = if let lastReadStarted, let settled { settled > lastReadStarted } else { false }
         lastReadStarted = started
-        guard case .balance(_, let pending) = status, pending > 0 else {
+        guard case .balance(let balances) = status, balances.hasPending else {
             followUpReadsLeft = 0
             return
         }
@@ -240,14 +246,5 @@ final class WalletPrivateBalance {
     private func isStale(_ started: Date) -> Bool {
         guard let lastReadStarted else { return false }
         return started < lastReadStarted
-    }
-
-    /// Returns whether a status holds any private SOL.
-    ///
-    /// - Parameter status: A status, or `nil` before the first read.
-    /// - Returns: Whether the balance's available or pending SOL is above zero.
-    private static func holdsSOL(_ status: PrivateBalanceStatus?) -> Bool {
-        guard case .balance(let available, let pending) = status else { return false }
-        return available > 0 || pending > 0
     }
 }

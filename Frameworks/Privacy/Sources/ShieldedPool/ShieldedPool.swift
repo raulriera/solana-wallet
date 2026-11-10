@@ -13,6 +13,10 @@ public enum ShieldedPool {
 
     private static let solInterfaceSeeds = [Array("sol_interface".utf8), [0]]
 
+    private static let splInterfaceSeed = Array("spl_asset_vault".utf8)
+
+    private static let cpiAuthoritySeed = Array("cpi_authority".utf8)
+
     private static let treeSeed = Array("tree".utf8)
 
     private static let nullifierSeed = Array("nullifier".utf8)
@@ -28,6 +32,20 @@ public enum ShieldedPool {
     /// The account that holds the pool's native SOL.
     static var solInterface: Address {
         get throws { try ProgramAddress.find(seeds: solInterfaceSeeds, program: program).address }
+    }
+
+    /// The program's authority over the token accounts that hold the pool's tokens, which signs token withdrawals.
+    static var cpiAuthority: Address {
+        get throws { try ProgramAddress.find(seeds: [cpiAuthoritySeed], program: program).address }
+    }
+
+    /// Returns the token account that holds the pool's tokens of a mint, with its bump.
+    ///
+    /// - Parameter mint: The token's mint.
+    /// - Returns: The interface account's address and bump.
+    /// - Throws: A ``Transactions/ValidationError`` if the derivation fails.
+    static func splInterface(of mint: Address) throws -> (address: Address, bump: UInt8) {
+        try ProgramAddress.find(seeds: [splInterfaceSeed, mint.bytes], program: program)
     }
 
     /// Derives a UTXO tree's account.

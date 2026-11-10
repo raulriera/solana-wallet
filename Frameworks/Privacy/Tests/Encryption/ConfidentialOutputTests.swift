@@ -91,6 +91,29 @@ struct ConfidentialOutputTests {
         #expect(utxo == UTXO(owner: owner, mint: [UInt8](repeating: 0, count: 32), amount: 6, blinding: note.blinding, treeID: 0))
     }
 
+    @Test(arguments: [ConfidentialPlaintext.Asset.usdc, .usdt, .devnetUSDC])
+    func `Recipients receive token notes only under their asset's mint`(asset: ConfidentialPlaintext.Asset) throws {
+        let token = ConfidentialPlaintext(asset: asset, amount: 6, blinding: note.blinding)
+        let expected = UTXO(owner: owner, mint: asset.mint, amount: 6, blinding: note.blinding, treeID: output.treeID)
+        let sealed = try ConfidentialOutput(decoding: ConfidentialOutput.seal(
+            token, for: viewingKey.publicKey, transactionViewingKey: transactionViewingKey, salt: salt, slot: output.index
+        ).encoded)
+
+        let received = try sealed.receive(
+            viewingKey: viewingKey, owner: owner, transactionViewingPublicKey: transactionViewingKey.publicKey,
+            salt: salt, slot: output.index, treeID: output.treeID, utxoHash: expected.hash
+        )
+        let otherMint = UTXO(owner: owner, mint: ConfidentialPlaintext.Asset.sol.mint, amount: 6, blinding: note.blinding,
+                             treeID: output.treeID)
+        let mismatched = try sealed.receive(
+            viewingKey: viewingKey, owner: owner, transactionViewingPublicKey: transactionViewingKey.publicKey,
+            salt: salt, slot: output.index, treeID: output.treeID, utxoHash: otherMint.hash
+        )
+
+        #expect(received == expected)
+        #expect(mismatched == nil)
+    }
+
     @Test
     func `Payloads for another viewing key aren't addressed to it`() throws {
         let otherKey = try TransferVectors.recipientViewingKey()

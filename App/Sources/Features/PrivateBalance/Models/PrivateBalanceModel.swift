@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import Portfolio
 import RPC
 
 /// A Portfolio tab's private-balance workflows: turning private balances on and opening balance moves.
@@ -17,18 +18,23 @@ final class PrivateBalanceModel {
 
     var isTurningOn: Bool { attempt != nil }
 
-    /// Opens a move of an account's SOL between its balances, unless one is open.
+    /// Opens a move of a holding's asset between an account's balances, unless one is open.
     ///
     /// - Parameters:
-    ///   - direction: Which balance the SOL leaves, and which one it reaches.
-    ///   - publicLamports: The account's public SOL, in lamports.
+    ///   - direction: Which balance the asset leaves, and which one it reaches.
+    ///   - holding: The account's public holding of the asset.
     ///   - privateBalances: The store of every account's private balance.
-    ///   - account: The account whose SOL moves.
-    ///   - network: The network the SOL moves on.
-    func open(_ direction: BalanceMoveProposal.Direction, publicLamports: UInt64,
-              in privateBalances: PrivateBalanceStore, for account: Account, on network: Network) {
+    ///   - account: The account whose asset moves.
+    ///   - network: The network the asset moves on.
+    func open(
+        _ direction: BalanceMoveProposal.Direction,
+        of holding: Holding,
+        in privateBalances: PrivateBalanceStore,
+        for account: Account,
+        on network: Network
+    ) {
         guard move == nil else { return }
-        move = privateBalances.move(direction, publicLamports: publicLamports, for: account, on: network)
+        move = privateBalances.move(direction, of: holding, for: account, on: network)
     }
 
     /// Asks to turn private balances on, unless an attempt is already waiting or running.

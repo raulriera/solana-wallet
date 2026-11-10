@@ -10,8 +10,8 @@ extension Zolana {
     /// The most nullifiers that one request of a spends read names.
     private static let nullifierGroupSize = 400
 
-    /// The most leaves that one request of a proof read names, which keeps a response under the length limit.
-    private static let leafGroupSize = 400
+    /// The most leaves that one request of a proof read names, which is the indexer's limit.
+    private static let leafGroupSize = 64
 
     @concurrent
     public func shieldedTransactions(taggedWith tags: [[UInt8]], after position: NoteSyncPosition?) async throws

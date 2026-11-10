@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Presents the keypad of a move of SOL between the account's balances, and pushes its review.
+/// Presents the keypad of a move of a token between the account's balances, and pushes its review.
 struct BalanceMoveSheet: View {
     @Environment(\.dismiss) private var dismiss
     let move: BalanceMove
@@ -11,7 +11,7 @@ struct BalanceMoveSheet: View {
 
     var body: some View {
         NavigationStack {
-            PaymentAmountScreen(payment: move.payment, title: move.direction.title) {
+            PaymentAmountScreen(payment: move.payment, title: move.direction.title(of: move.payment.token.symbol)) {
                 let openReview = BalanceMoveReviewAction(move: move, presented: $presentedReview, error: $reviewError)
                 Button("Review") { openReview() }
                     .buttonStyle(.secondary)

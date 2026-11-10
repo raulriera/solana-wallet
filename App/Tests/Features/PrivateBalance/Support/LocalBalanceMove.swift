@@ -1,5 +1,7 @@
 import Foundation
+import Portfolio
 import Privacy
+import Testing
 import Transactions
 @testable import RPC
 @testable import widgets
@@ -21,10 +23,15 @@ struct LocalBalanceMove {
 
     var account: widgets.Account { move.account }
 
-    static func deposit(registered: Bool = true, simulation: SimulateTransaction.Value? = nil,
-                        provider: RPCSettings.Provider = .helius, statuses: [GetSignatureStatuses.Response] = [],
-                        height: UInt64 = 500,
-                        sockets: SocketSequence = SocketSequence()) async throws -> LocalBalanceMove {
+    static func deposit(
+        of asset: PrivateAsset = .sol,
+        registered: Bool = true,
+        simulation: SimulateTransaction.Value? = nil,
+        provider: RPCSettings.Provider = .helius,
+        statuses: [GetSignatureStatuses.Response] = [],
+        height: UInt64 = 500,
+        sockets: SocketSequence = SocketSequence()
+    ) async throws -> LocalBalanceMove {
         let account = try await PrivateBalanceFixtures.account()
         let record = try await PrivateBalanceFixtures.keys(for: account)
         let shielded = try record.shieldedAccount(for: account.address)
@@ -39,26 +46,46 @@ struct LocalBalanceMove {
             provider: provider
         )
         let fixture = try SigningFixture()
-        var instructions = [try ShieldedPool.deposit(lamports: lamports, from: account.address, to: shielded.recipient,
-                                                     treeID: 1)]
+        var instructions = [try asset.deposit(lamports, from: account.address, to: shielded.recipient, treeID: 1)]
         if !registered { instructions.insert(try shielded.register(paidBy: account.address), at: 0) }
-        let spent = lamports + networkFee + (registered ? 0 : registrationRent)
+        let spent = asset.lamports(moving: lamports) + networkFee + (registered ? 0 : registrationRent)
         return try LocalBalanceMove(
-            .toPrivate, of: account, spendableLamports: publicLamports, balances: balances,
-            simulation: try simulation ?? success(of: instructions, paidBy: account.address,
-                                                  leaving: publicLamports - spent, fixture: fixture),
-            fixture: fixture, statuses: statuses, height: height, sockets: sockets
+            .toPrivate,
+            of: asset,
+            from: account,
+            spendableLamports: publicLamports,
+            balances: balances,
+            simulation: try simulation
+                ?? success(
+                    of: instructions,
+                    paidBy: account.address,
+                    leaving: publicLamports - spent,
+                    fixture: fixture
+                ),
+            fixture: fixture,
+            statuses: statuses,
+            height: height,
+            sockets: sockets
         )
     }
 
-    static func withdrawal(privateLamports: UInt64 = LocalBalanceMove.privateLamports, privacyFee: UInt64 = 0,
-                           simulation: SimulateTransaction.Value? = nil,
-                           statuses: [GetSignatureStatuses.Response] = [],
-                           sockets: SocketSequence = SocketSequence()) async throws -> LocalBalanceMove {
+    static func withdrawal(
+        of asset: PrivateAsset = .sol,
+        privateLamports: UInt64 = LocalBalanceMove.privateLamports,
+        privacyFee: UInt64 = 0,
+        simulation: SimulateTransaction.Value? = nil,
+        statuses: [GetSignatureStatuses.Response] = [],
+        sockets: SocketSequence = SocketSequence()
+    ) async throws -> LocalBalanceMove {
         let account = try await PrivateBalanceFixtures.account()
         let record = try await PrivateBalanceFixtures.keys(for: account)
-        let note = try PrivateBalanceFixtures.deposit(privateLamports, to: record.shieldedAccount(for: account.address),
-                                                      leafIndex: 1)
+        let token: PrivateToken? = if case .token(let token) = asset { token } else { nil }
+        let note = try PrivateBalanceFixtures.deposit(
+            privateLamports,
+            to: record.shieldedAccount(for: account.address),
+            leafIndex: 1,
+            of: token
+        )
         let balances = {
             PrivateBalances.inMemory(
                 keys: StoredValue([account.address.value: record]),
@@ -69,20 +96,43 @@ struct LocalBalanceMove {
             )
         }
         let fixture = try SigningFixture()
-        let instructions = try await balances().prepare(.withdraw(lamports, to: account.address), from: account,
-                                                        on: .devnet).instructions
-        let kept = publicLamports + lamports - networkFee - privacyFee
+        let instructions = try await balances().prepare(
+            .withdraw(lamports, of: asset, to: account.address),
+            from: account,
+            on: .devnet
+        ).instructions
+        let kept = publicLamports + asset.lamports(moving: lamports) - networkFee - privacyFee
         return try LocalBalanceMove(
-            .toPublic, of: account, spendableLamports: privateLamports, balances: try balances(),
-            simulation: try simulation ?? success(of: instructions, paidBy: account.address, leaving: kept,
-                                                  fixture: fixture),
-            fixture: fixture, statuses: statuses, sockets: sockets
+            .toPublic,
+            of: asset,
+            from: account,
+            spendableLamports: privateLamports,
+            balances: try balances(),
+            simulation: try simulation
+                ?? success(
+                    of: instructions,
+                    paidBy: account.address,
+                    leaving: kept,
+                    fixture: fixture
+                ),
+            fixture: fixture,
+            statuses: statuses,
+            sockets: sockets
         )
     }
 
-    private init(_ direction: BalanceMoveProposal.Direction, of account: widgets.Account, spendableLamports: UInt64,
-                 balances: PrivateBalances, simulation: SimulateTransaction.Value, fixture: SigningFixture,
-                 statuses: [GetSignatureStatuses.Response], height: UInt64 = 500, sockets: SocketSequence) throws {
+    private init(
+        _ direction: BalanceMoveProposal.Direction,
+        of asset: PrivateAsset,
+        from account: widgets.Account,
+        spendableLamports: UInt64,
+        balances: PrivateBalances,
+        simulation: SimulateTransaction.Value,
+        fixture: SigningFixture,
+        statuses: [GetSignatureStatuses.Response],
+        height: UInt64 = 500,
+        sockets: SocketSequence
+    ) throws {
         var fixture = fixture
         fixture.simulation = SimulateTransaction.Response(context: Context(slot: 402), value: simulation)
         let recovery = try SigningRecoveryStore(recovery: PrivateBalanceFixtures.recovery())
@@ -90,9 +140,31 @@ struct LocalBalanceMove {
                                           sockets: sockets)
         let coordinator = local.coordinator
         let transactions = TransactionStore.inMemory { _ in coordinator }
-        move = BalanceMove(direction: direction, account: account, network: .devnet,
-                           spendableLamports: spendableLamports, balances: balances, transactions: transactions)
+        let (mint, symbol, decimals): (Address?, String, UInt8) =
+            switch asset {
+            case .sol: (nil, "SOL", 9)
+            case .token(let token): (try token.mint, "USDC", 6)
+            }
+        let spendable = Amount(units: spendableLamports, decimals: decimals)
+        let token = PaymentToken(
+            mint: mint,
+            symbol: symbol,
+            balance: Decimal(spendable),
+            price: nil,
+            decimals: Int(decimals)
+        )
+        move = try #require(
+            BalanceMove(
+                direction: direction,
+                token: token,
+                account: account,
+                network: .devnet,
+                balances: balances,
+                transactions: transactions
+            )
+        )
         move.payment.press(.digit(1))
+        for _ in decimals..<9 { move.payment.press(.digit(0)) }
         model = try move.review()
         self.balances = balances
         self.transactions = transactions

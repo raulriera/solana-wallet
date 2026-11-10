@@ -11,35 +11,45 @@ struct NoteSyncStateSpendTests {
             case recipient
             case sender
             case withdrawal
+            case tokenWithdrawal
             case fundedRecipient(publicLamports: UInt64)
+
+            var asset: ConfidentialPlaintext.Asset {
+                guard case .tokenWithdrawal = self else { return .sol }
+                return .usdc
+            }
         }
 
         let testDescription: String
         let notes: [UInt64]
-        let lamports: UInt64
+        let amount: UInt64
         let destination: Destination
         let selected: [Int]
-        let receivedLamports: UInt64
+        let receivedAmount: UInt64
     }
 
     static let spends = [
         Spend(
-            testDescription: "transfer with change", notes: [3, 10, 5], lamports: 12, destination: .recipient, selected: [1, 2],
-            receivedLamports: 3
+            testDescription: "transfer with change", notes: [3, 10, 5], amount: 12, destination: .recipient, selected: [1, 2],
+            receivedAmount: 3
         ),
         Spend(
-            testDescription: "exact withdrawal", notes: [3, 10], lamports: 10, destination: .withdrawal, selected: [1], receivedLamports: 0
+            testDescription: "exact withdrawal", notes: [3, 10], amount: 10, destination: .withdrawal, selected: [1], receivedAmount: 0
         ),
         Spend(
-            testDescription: "transfer to the sender", notes: [10], lamports: 4, destination: .sender, selected: [0], receivedLamports: 10
+            testDescription: "transfer to the sender", notes: [10], amount: 4, destination: .sender, selected: [0], receivedAmount: 10
         ),
         Spend(
-            testDescription: "funded transfer", notes: [3, 10, 5], lamports: 6, destination: .fundedRecipient(publicLamports: 5),
-            selected: [1, 2], receivedLamports: 4
+            testDescription: "funded transfer", notes: [3, 10, 5], amount: 6, destination: .fundedRecipient(publicLamports: 5),
+            selected: [1, 2], receivedAmount: 4
         ),
         Spend(
-            testDescription: "withdrawal with a padding input", notes: [1, 1, 1, 1, 1, 1, 1], lamports: 7, destination: .withdrawal,
-            selected: [0, 1, 2, 3, 4, 5, 6], receivedLamports: 0
+            testDescription: "token withdrawal with change", notes: [10], amount: 4, destination: .tokenWithdrawal, selected: [0],
+            receivedAmount: 6
+        ),
+        Spend(
+            testDescription: "withdrawal with a padding input", notes: [1, 1, 1, 1, 1, 1, 1], amount: 7, destination: .withdrawal,
+            selected: [0, 1, 2, 3, 4, 5, 6], receivedAmount: 0
         ),
     ]
 
@@ -51,7 +61,7 @@ struct NoteSyncStateSpendTests {
 
     @Test(arguments: spends)
     func `Spends prove a plan of the selected notes`(_ spend: Spend) async throws {
-        let notes = try spend.notes.enumerated().map { try note($1, leaf: UInt64($0)) }
+        let notes = try spend.notes.enumerated().map { try note($1, leaf: UInt64($0), asset: spend.destination.asset) }
         let state = try NoteSyncState(
             position: nil, notes: notes, unconfirmedNotes: [], outputTreeID: 0, pending: [], localSpends: [],
             rejectedSpends: [], missingSpendReads: [:]
@@ -59,9 +69,10 @@ struct NoteSyncStateSpendTests {
         let destination = try destination(spend.destination)
         let selected = spend.selected.map { notes[$0] }
         var planGenerator = SeededGenerator(seed: 7)
+        let (transfer, withdrawal) = try destination.parts(moving: spend.amount)
         let plan = try TransactPlan(
-            spending: selected.map(\.utxo), sender: sender, transfer: Self.transfer(destination, lamports: spend.lamports),
-            withdrawal: Self.withdrawal(destination, lamports: spend.lamports), outputTreeID: 0, using: &planGenerator
+            spending: selected.map(\.utxo), sender: sender, transfer: transfer, withdrawal: withdrawal, outputTreeID: 0,
+            using: &planGenerator
         )
         let proof = try plan.proof(from: IndexedProofs.proof(for: plan.shape))
         let context = TreeContext(
@@ -71,7 +82,7 @@ struct NoteSyncStateSpendTests {
         var spendGenerator = SeededGenerator(seed: 7)
 
         let result = try await state.spend(
-            spend.lamports, to: destination, from: sender, rpc: SolanaRPC.devnet(transport: transport), prover: Self.prover(transport),
+            spend.amount, to: destination, from: sender, rpc: SolanaRPC.devnet(transport: transport), prover: Self.prover(transport),
             using: &spendGenerator
         )
 
@@ -80,8 +91,8 @@ struct NoteSyncStateSpendTests {
         #expect(routes == ["", "/attestation", route])
         #expect(result.instruction == (try plan.instruction(proof: proof, treeContexts: [context])))
         #expect(result.nullifiers == selected.map(\.nullifier))
-        #expect(result.lamports == spend.lamports)
-        #expect(result.receivedLamports == spend.receivedLamports)
+        #expect(result.amount == spend.amount)
+        #expect(result.receivedAmount == spend.receivedAmount)
         #expect(result.treeIDs == [0])
     }
 
@@ -116,7 +127,7 @@ struct NoteSyncStateSpendTests {
 
         #expect(result.treeIDs == [0, 1, 2])
         #expect(result.nullifiers == notes.map(\.nullifier))
-        #expect(result.receivedLamports == 2)
+        #expect(result.receivedAmount == 2)
     }
 
     @Test
@@ -137,7 +148,7 @@ struct NoteSyncStateSpendTests {
 
         #expect(result.instruction.accounts.suffix(2).map(\.address) == [solInterface, recipient.signingAddress])
         #expect(result.nullifiers == notes.map(\.nullifier))
-        #expect(result.receivedLamports == 4)
+        #expect(result.receivedAmount == 4)
     }
 
     @Test
@@ -156,7 +167,7 @@ struct NoteSyncStateSpendTests {
         )
 
         #expect(result.nullifiers == [notes[1].nullifier])
-        #expect(result.receivedLamports == 1)
+        #expect(result.receivedAmount == 1)
     }
 
     @Test
@@ -208,7 +219,7 @@ struct NoteSyncStateSpendTests {
         let state = try NoteSyncState(
             position: nil, notes: notes.enumerated().map { try note($1, leaf: UInt64($0)) }, unconfirmedNotes: [],
             outputTreeID: outputTreeID,
-            pending: pendingLamports.map { PendingAmount(signature: IndexerResponses.signature(1), lamports: $0) }, localSpends: [],
+            pending: pendingLamports.map { PendingAmount(signature: IndexerResponses.signature(1), asset: .sol, amount: $0) }, localSpends: [],
             rejectedSpends: [], missingSpendReads: [:]
         )
         let destination = try self.destination(destination)
@@ -217,6 +228,21 @@ struct NoteSyncStateSpendTests {
             try await state.spend(lamports, to: destination, from: sender, rpc: SolanaRPC.devnet(transport: transport),
                                   prover: Self.prover(transport))
         }
+        #expect(await transport.requests.isEmpty)
+    }
+
+    @Test
+    func `SOL spends leave token notes out`() async throws {
+        let transport = StubTransport { _ in throw CancellationError() }
+        let token = try note(10, leaf: 0, asset: .usdc)
+        let state = try NoteSyncState(position: nil, notes: [token], unconfirmedNotes: [], outputTreeID: 0, pending: [],
+                                      localSpends: [], rejectedSpends: [], missingSpendReads: [:])
+
+        await #expect(throws: PrivateSpend.ValidationError.insufficientFunds) {
+            try await state.spend(4, to: .transfer(try TransferVectors.recipient()), from: sender, rpc: SolanaRPC.devnet(transport: transport),
+                                  prover: Self.prover(transport))
+        }
+        #expect(state.spendableLamports == 0)
         #expect(await transport.requests.isEmpty)
     }
 
@@ -247,8 +273,10 @@ struct NoteSyncStateSpendTests {
         )
     }
 
-    private func note(_ lamports: UInt64, leaf: UInt64, treeID: UInt16 = 0) throws -> ReceivedNote {
-        let utxo = try PlanFixtures.utxo(lamports: lamports, treeID: treeID, blindingByte: 0xa1 + UInt8(leaf))
+    private func note(
+        _ lamports: UInt64, leaf: UInt64, treeID: UInt16 = 0, asset: ConfidentialPlaintext.Asset = .sol
+    ) throws -> ReceivedNote {
+        let utxo = try PlanFixtures.utxo(lamports: lamports, treeID: treeID, blindingByte: 0xa1 + UInt8(leaf), asset: asset)
         return ReceivedNote(
             utxo: utxo, leafIndex: leaf, signature: IndexerResponses.signature(1), slot: 1, nullifier: utxo.nullifier(using: sender.nullifierKey)
         )
@@ -259,22 +287,8 @@ struct NoteSyncStateSpendTests {
         case .recipient: .transfer(try TransferVectors.recipient())
         case .sender: .transfer(try sender.recipient)
         case .withdrawal: .withdrawal(try Address(TransferVectors.transfers[1].payer))
+        case .tokenWithdrawal: .tokenWithdrawal(.usdc, owner: try Address(TransferVectors.transfers[1].payer))
         case .fundedRecipient(let publicLamports): .fundedTransfer(try TransferVectors.recipient(), publicLamports: publicLamports)
-        }
-    }
-
-    private static func transfer(_ destination: PrivateSpend.Destination, lamports: UInt64) -> TransactPlan.Transfer? {
-        switch destination {
-        case .transfer(let recipient), .fundedTransfer(let recipient, _): TransactPlan.Transfer(recipient: recipient, lamports: lamports)
-        case .withdrawal: nil
-        }
-    }
-
-    private static func withdrawal(_ destination: PrivateSpend.Destination, lamports: UInt64) -> ExternalData.Withdrawal? {
-        switch destination {
-        case .transfer: nil
-        case .withdrawal(let address): ExternalData.Withdrawal(recipient: address, lamports: lamports)
-        case .fundedTransfer(let recipient, let publicLamports): ExternalData.Withdrawal(recipient: recipient.signingAddress, lamports: publicLamports)
         }
     }
 

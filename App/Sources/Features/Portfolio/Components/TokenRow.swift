@@ -11,14 +11,14 @@ struct TokenRow: View {
     /// The price's 24-hour change as a fraction, or `nil` when unknown.
     let change: Decimal?
     let imageURL: URL?
-    /// Whether the account also holds private SOL.
-    var hasPrivateBalance = false
+    /// Whether the account also holds the token privately.
+    var isHeldPrivately = false
 
     var body: some View {
         HStack(spacing: 12) {
             TokenRowIdentity(symbol: symbol, name: name, imageURL: imageURL)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            TokenRowFigures(amount: amount, value: value, change: change, hasPrivateBalance: hasPrivateBalance)
+            TokenRowFigures(amount: amount, value: value, change: change, isHeldPrivately: isHeldPrivately)
                 .fixedSize()
         }
         .accessibilityElement(children: .combine)

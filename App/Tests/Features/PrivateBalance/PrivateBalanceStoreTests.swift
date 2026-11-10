@@ -1,4 +1,5 @@
 import Foundation
+import Portfolio
 import Privacy
 import Testing
 import Transactions
@@ -8,6 +9,24 @@ import Transactions
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct PrivateBalanceStoreTests {
+    nonisolated private static let sol = Holding(
+        id: .nativeSOL,
+        amount: Amount(units: 2_000_000_000, decimals: 9),
+        name: "Solana",
+        symbol: "SOL",
+        imageURL: nil,
+        valuation: nil
+    )
+
+    nonisolated private static let devnetUSDC = Holding(
+        id: .asset("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU"),
+        amount: Amount(units: 5_000_000, decimals: 6),
+        name: "USD Coin",
+        symbol: "USDC",
+        imageURL: nil,
+        valuation: nil
+    )
+
     @Test
     func `Nothing shows before a window observes the account`() async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -87,21 +106,60 @@ struct PrivateBalanceStoreTests {
         #expect(await PrivateBalanceFixtures.nonTreeAccountReads(of: responses) == 1)
     }
 
-    @Test
-    func `Moves take the SOL of the balance they leave`() async throws {
+    @Test(arguments: [
+        (PrivateBalanceFixtures.Balance.available, Self.sol, Decimal(2), Decimal(string: "0.001")!),
+        (.availableToken, Self.devnetUSDC, 5, 1),
+    ])
+    func `Moves take the balance they leave`(
+        fixture: PrivateBalanceFixtures.Balance,
+        holding: Holding,
+        publicBalance: Decimal,
+        privateBalance: Decimal
+    ) async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let store = try await PrivateBalanceFixtures.store(holding: fixture, of: account)
+        await store.refresh(account, on: .devnet)
+
+        let deposit = store.move(.toPrivate, of: holding, for: account, on: .devnet)
+        let withdrawal = store.move(.toPublic, of: holding, for: account, on: .devnet)
+
+        #expect(deposit?.direction == .toPrivate)
+        #expect(deposit?.payment.source == .publicBalance)
+        #expect(deposit?.payment.token.balance == publicBalance)
+        #expect(withdrawal?.direction == .toPublic)
+        #expect(withdrawal?.payment.source == .privateBalance)
+        #expect(withdrawal?.payment.token.balance == privateBalance)
+    }
+
+    @Test(arguments: [
+        Holding(
+            id: .asset("So11111111111111111111111111111111111111112"),
+            amount: Amount(units: 1, decimals: 9),
+            name: nil,
+            symbol: "wSOL",
+            imageURL: nil,
+            valuation: nil
+        ),
+        Holding(
+            id: .nativeSOL,
+            amount: Amount(units: 1, decimals: 9),
+            otherOwner: try? Address("4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T"),
+            name: nil,
+            symbol: "SOL",
+            imageURL: nil,
+            valuation: nil
+        ),
+    ])
+    func `No move opens for another owner's holding or a token private balances don't hold`(
+        holding: Holding
+    )
+        async throws
+    {
         let account = try await PrivateBalanceFixtures.account()
         let store = try await PrivateBalanceFixtures.store(holding: .available, of: account)
         await store.refresh(account, on: .devnet)
 
-        let deposit = store.move(.toPrivate, publicLamports: 2_000_000_000, for: account, on: .devnet)
-        let withdrawal = store.move(.toPublic, publicLamports: 2_000_000_000, for: account, on: .devnet)
-
-        #expect(deposit?.direction == .toPrivate)
-        #expect(deposit?.payment.source == .publicBalance)
-        #expect(deposit?.payment.token.balance == 2)
-        #expect(withdrawal?.direction == .toPublic)
-        #expect(withdrawal?.payment.source == .privateBalance)
-        #expect(withdrawal?.payment.token.balance == Decimal(string: "0.001"))
+        #expect(store.move(.toPrivate, of: holding, for: account, on: .devnet) == nil)
     }
 
     @Test(arguments: [PrivateBalanceFixtures.Balance.pending, .unregistered])
@@ -110,18 +168,18 @@ struct PrivateBalanceStoreTests {
         let store = try await PrivateBalanceFixtures.store(holding: holding, of: account)
         await store.refresh(account, on: .devnet)
 
-        #expect(store.move(.toPublic, publicLamports: 2_000_000_000, for: account, on: .devnet) == nil)
-        #expect(store.move(.toPrivate, publicLamports: 2_000_000_000, for: account, on: .devnet) != nil)
+        #expect(store.move(.toPublic, of: Self.sol, for: account, on: .devnet) == nil)
+        #expect(store.move(.toPrivate, of: Self.sol, for: account, on: .devnet) != nil)
     }
 
     @Test
     func `No move opens while private balances are off or unread`() async throws {
         let account = try await PrivateBalanceFixtures.account()
         let store = try PrivateBalanceStore.fixture(HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered]))
-        let unread = store.move(.toPrivate, publicLamports: 2_000_000_000, for: account, on: .devnet)
+        let unread = store.move(.toPrivate, of: Self.sol, for: account, on: .devnet)
         await store.refresh(account, on: .devnet)
 
-        let off = store.move(.toPrivate, publicLamports: 2_000_000_000, for: account, on: .devnet)
+        let off = store.move(.toPrivate, of: Self.sol, for: account, on: .devnet)
 
         #expect(unread == nil)
         #expect(off == nil)

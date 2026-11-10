@@ -4,20 +4,20 @@ import Testing
 
 struct PendingAmountTests {
     @Test
-    func `Amounts survive encoding and require both fields`() throws {
-        let amount = PendingAmount(signature: IndexerResponses.signature(1), lamports: 42)
+    func `Amounts survive encoding and require their asset`() throws {
+        let amount = PendingAmount(signature: IndexerResponses.signature(1), asset: .usdc, amount: 42)
 
         let decoded = try JSONDecoder().decode(PendingAmount.self, from: JSONEncoder().encode(amount))
 
         #expect(decoded == amount)
         #expect(throws: DecodingError.self) {
-            try JSONDecoder().decode(PendingAmount.self, from: Data(#"{"lamports":42}"#.utf8))
+            try JSONDecoder().decode(PendingAmount.self, from: Data(#"{"signature":"a","amount":42}"#.utf8))
         }
     }
 
     @Test
     func `Amount diagnostics omit the values`() {
-        let amount = PendingAmount(signature: IndexerResponses.signature(1), lamports: 42)
+        let amount = PendingAmount(signature: IndexerResponses.signature(1), asset: .usdc, amount: 42)
         var dumped = ""
         dump(amount, to: &dumped)
 

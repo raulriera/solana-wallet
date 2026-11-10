@@ -6,9 +6,11 @@ import Testing
 import Transactions
 
 enum PlanFixtures {
-    static func utxo(lamports: UInt64, treeID: UInt16 = 0, blindingByte: UInt8 = 0xa1) throws -> UTXO {
+    static func utxo(
+        lamports: UInt64, treeID: UInt16 = 0, blindingByte: UInt8 = 0xa1, asset: ConfidentialPlaintext.Asset = .sol
+    ) throws -> UTXO {
         UTXO(
-            owner: try CommitmentVectors.load().ed25519Rail.ownerHash(), mint: Array(repeating: 0, count: 32), amount: lamports,
+            owner: try CommitmentVectors.load().ed25519Rail.ownerHash(), mint: asset.mint, amount: lamports,
             blinding: TransferVectors.blinding(blindingByte), treeID: treeID
         )
     }
@@ -63,6 +65,6 @@ enum PlanFixtures {
     }
 
     static func withdrawal(lamports: UInt64) throws -> ExternalData.Withdrawal {
-        ExternalData.Withdrawal(recipient: try Address(TransferVectors.transfers[1].payer), lamports: lamports)
+        ExternalData.Withdrawal(recipient: try Address(TransferVectors.transfers[1].payer), amount: lamports)
     }
 }

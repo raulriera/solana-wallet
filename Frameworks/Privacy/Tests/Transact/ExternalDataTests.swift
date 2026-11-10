@@ -64,6 +64,23 @@ struct ExternalDataTests {
     }
 
     @Test
+    func `Token withdrawals settle like a devnet withdrawal`() throws {
+        let account = try Address("H2gYgZ72JHp2UyJAuvLZm9cayVqLy1LnuLENXpYjjrRq")
+        let withdrawal = ExternalData.Withdrawal(recipient: account, amount: 400_000, token: .devnetUSDC)
+        var writer = WincodeWriter()
+
+        try withdrawal.write(to: &writer)
+
+        #expect(writer.bytes == [3, 0x80, 0x1a, 0x06, 0, 0, 0, 0, 0, 0xff])
+        #expect(try withdrawal.committedAccounts.map(\.value) == ["4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU", account.value])
+        #expect(try withdrawal.settlementAccounts.map(\.address.value) == [
+            "CaM8DbtJ2mSecgaHYo9xeT7VSKq7AnaqEUm5p7e5LW4a", "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+            "DG6W5q9LyFgy6oPAePqh9CXyh4JgqzWqVTEBqGiHpdz", account.value, "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+        ])
+        #expect(try withdrawal.settlementAccounts.map(\.isWritable) == [false, false, true, true, false])
+    }
+
+    @Test
     func `Hashes cover the withdrawal recipient`() throws {
         let key = Curve25519.KeyAgreement.PrivateKey().publicKey
         let payer = try Address(TransferVectors.senderSigningAddress)
@@ -72,7 +89,7 @@ struct ExternalDataTests {
             outputs: [], payer: payer
         )
         let toSender = try ExternalData(
-            transactionViewingPublicKey: key, salt: TransferVectors.salt, withdrawal: .init(recipient: payer, lamports: 5),
+            transactionViewingPublicKey: key, salt: TransferVectors.salt, withdrawal: .init(recipient: payer, amount: 5),
             outputs: [], payer: payer
         )
 

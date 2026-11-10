@@ -14,9 +14,9 @@ nonisolated enum PrivateBalanceError: TransactionReviewError, CaseIterable {
     case insufficientBalance
     /// The amount needs more of the account's private notes than one transaction spends.
     case tooManyNotes
-    /// The account's public SOL doesn't cover the amount and the fees.
+    /// The account's public SOL doesn't cover the amount and the fees of moving SOL to its private balance.
     case insufficientPublicBalance
-    /// The account's public SOL doesn't cover the fees of moving private SOL to it.
+    /// The account's public SOL doesn't cover the fees of moving a token between its balances.
     case insufficientPublicBalanceForFees
     case preparationFailed
     case notSent

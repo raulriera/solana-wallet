@@ -231,19 +231,18 @@ actor PrivateBalances: PrivateBalancing {
         let instructions: [Instruction]
         let effect: PreparedPrivateTransaction.Effect
         switch request {
-        case .deposit(let lamports):
+        case .deposit(let amount, let asset):
             guard let treeID = state.outputTreeID else { throw PrivateBalanceError.unavailable }
-            let deposit = try ShieldedPool.deposit(lamports: lamports, from: account.address, to: shielded.recipient,
-                                                   treeID: treeID)
+            let deposit = try asset.deposit(amount, from: account.address, to: shielded.recipient, treeID: treeID)
             instructions = (registers ? [try shielded.register(paidBy: account.address)] : []) + [deposit]
-            effect = .deposit(lamports)
+            effect = .deposit(amount, of: asset)
         case .send(let lamports, _):
             guard let recipient else { throw PrivateBalanceError.recipientUnregistered }
             let spend = try await state.spend(lamports, to: .transfer(recipient), from: shielded, rpc: client,
                                               prover: client)
             (instructions, effect) = ([spend.instruction], .spend(spend))
-        case .withdraw(let lamports, let destination):
-            let spend = try await state.spend(lamports, to: .withdrawal(destination), from: shielded, rpc: client,
+        case .withdraw(let amount, let asset, let owner):
+            let spend = try await state.spend(amount, to: asset.withdrawal(to: owner), from: shielded, rpc: client,
                                               prover: client)
             (instructions, effect) = ([spend.instruction], .spend(spend))
         case .createCode, .redeem, .takeBack:
@@ -335,7 +334,7 @@ actor PrivateBalances: PrivateBalancing {
         async let recordedNotes = update(notes, .notes, from: generation) { entries in
             let saved = entries[id] ?? NoteSyncState()
             let state = switch effect {
-            case .deposit(let lamports): try saved.recording(depositOf: lamports, signature: signature)
+            case .deposit(let amount, let asset): try asset.recording(depositOf: amount, in: saved, signature: signature)
             case .spend(let spend), .createCode(let spend, _, _): try saved.recording(spend, signature: signature)
             case .redeem(let redemption): try saved.recording(depositOf: redemption.lamports, signature: signature)
             }

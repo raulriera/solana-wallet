@@ -4,7 +4,6 @@ import Transactions
 extension TransactPlan {
     /// The statement that the plan's proof commits to, without the tree roots.
     var publicInputs: PublicInputs {
-        let solAsset = PackedBytes.hash32(ConfidentialPlaintext.Asset.sol.mint)
         let unusedSlots = Array(repeating: Poseidon.Element.zero, count: PublicInputs.publicSlotCount - 1)
         let signers = [OwnerIdentity.solana(signingPublicKey: payer.bytes)]
             + Array(repeating: .zero, count: shape.signerWidth - 1)
@@ -14,8 +13,8 @@ extension TransactPlan {
             outputTreeID: outputTreeID,
             privateTransactionHash: privateTransactionHash,
             externalDataHash: Poseidon.Element(reducing: externalData.hash),
-            publicAssets: [withdrawal == nil ? .zero : solAsset] + unusedSlots,
-            publicAmounts: [withdrawal.map { -Poseidon.Element($0.lamports) } ?? .zero] + unusedSlots,
+            publicAssets: [withdrawal.map { PackedBytes.hash32($0.asset.mint) } ?? .zero] + unusedSlots,
+            publicAmounts: [withdrawal.map { -Poseidon.Element($0.amount) } ?? .zero] + unusedSlots,
             ringProgramID: .zero,
             signerIdentities: signers,
             inputFlags: InputFlags.pack(treeIndexes: inputs.map(\.treeIndex)),

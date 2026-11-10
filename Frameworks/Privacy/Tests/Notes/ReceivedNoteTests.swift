@@ -21,6 +21,23 @@ struct ReceivedNoteTests {
         #expect(notes.map(\.treeID) == (vector.ownedBySender ? [vector.treeID] : []))
     }
 
+    @Test(arguments: [ConfidentialPlaintext.Asset.usdc, .usdt, .devnetUSDC])
+    func `Deposits of supported tokens are received`(asset: ConfidentialPlaintext.Asset) throws {
+        let vector = try #require(try DepositNoteVectors.load().deposits.first)
+
+        let notes = try ReceivedNote.notes(in: vector.transaction(mint: asset.mint), of: TransferVectors.sender())
+
+        #expect(notes.map(\.utxo.mint) == [asset.mint])
+        #expect(notes.map(\.amount) == [try #require(UInt64(vector.lamports))])
+    }
+
+    @Test
+    func `Deposits of other tokens are skipped`() throws {
+        let vector = try #require(try DepositNoteVectors.load().deposits.first)
+
+        #expect(try ReceivedNote.notes(in: vector.transaction(mint: [UInt8](repeating: 7, count: 32)), of: TransferVectors.sender()).isEmpty)
+    }
+
     @Test
     func `Deposits at another position are skipped`() throws {
         let vector = try #require(try DepositNoteVectors.load().deposits.first)

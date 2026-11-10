@@ -7,7 +7,7 @@ extension TokenTransfer {
     /// - Throws: An address validation error if a program identifier is invalid.
     public func instructions() throws -> [Instruction] {
         let transfer = self
-        let program = try Address(transfer.mint.program.rawValue)
+        let program = try transfer.mint.program.address
         var instructions: [Instruction] = []
         if transfer.createsDestination {
             instructions.append(.init(

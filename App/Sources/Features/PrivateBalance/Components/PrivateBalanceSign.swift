@@ -1,11 +1,11 @@
 import SwiftUI
 
-/// Shows that the account also holds private SOL, without its amount.
+/// Shows that the account also holds the token privately, without its amount.
 struct PrivateBalanceSign: View {
     var body: some View {
         Image(systemName: "eye.slash")
             .accessibilityLabel(Text("and a private balance",
-                                     comment: "VoiceOver, after SOL's balance in the token list, when the account also holds private SOL."))
+                                     comment: "VoiceOver, after a token's balance in the token list or card stack, when the account also holds that token privately."))
             .accessibilitySortPriority(-1)
     }
 }

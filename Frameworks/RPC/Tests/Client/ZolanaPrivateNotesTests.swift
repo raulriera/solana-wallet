@@ -439,8 +439,8 @@ struct ZolanaPrivateNotesTests {
     }
 
     @Test
-    func `Merkle proof reads send groups of 400 leaves and keep the leaves' order`() async throws {
-        let leaves = (0..<1_001).map(Self.leaf)
+    func `Merkle proof reads send groups of 64 leaves and keep the leaves' order`() async throws {
+        let leaves = (0..<129).map(Self.leaf)
         let encoded = leaves.map(Base58.encode)
         let transport = Self.answeringProofs { $0 }
         let rpc = Zolana(network: .devnet, transport: transport)
@@ -449,7 +449,7 @@ struct ZolanaPrivateNotesTests {
 
         #expect(proofs.map(\.leaf) == leaves)
         let groups = try await transport.requests.map { try #require(try Fixture.call($0).params["leaves"] as? [String]) }
-        #expect(Set(groups) == [Array(encoded[0..<400]), Array(encoded[400..<800]), Array(encoded[800...])])
+        #expect(Set(groups) == [Array(encoded[0..<64]), Array(encoded[64..<128]), Array(encoded[128...])])
     }
 
     @Test
@@ -457,9 +457,9 @@ struct ZolanaPrivateNotesTests {
         let transport = Self.answeringProofs { $0.count == 1 ? [Fixture.hash(0xee), Fixture.hash(0xef)] : $0 }
         let rpc = Zolana(network: .devnet, transport: transport)
 
-        let proofs = try await rpc.merkleProofs(for: (0..<401).map(Self.leaf), inTree: Fixture.hash(9))
+        let proofs = try await rpc.merkleProofs(for: (0..<65).map(Self.leaf), inTree: Fixture.hash(9))
 
-        #expect(proofs.map(\.leaf) == (0..<400).map(Self.leaf) + [Fixture.bytes(0xee), Fixture.bytes(0xef)])
+        #expect(proofs.map(\.leaf) == (0..<64).map(Self.leaf) + [Fixture.bytes(0xee), Fixture.bytes(0xef)])
     }
 
     @Test
