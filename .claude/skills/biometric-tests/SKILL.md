@@ -12,8 +12,8 @@ description: Run this project's real Vault tests with or without simulator biome
 3. Run [scripts/test.sh](scripts/test.sh) from the repository root:
 
    ```sh
-   bash .agents/skills/biometric-tests/scripts/test.sh <UUID> unenrolled
-   bash .agents/skills/biometric-tests/scripts/test.sh <UUID> enrolled
+   bash .claude/skills/biometric-tests/scripts/test.sh <UUID> unenrolled
+   bash .claude/skills/biometric-tests/scripts/test.sh <UUID> enrolled
    ```
 
 The script boots the selected device if needed, reports enrollment, runs the
