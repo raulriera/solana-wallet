@@ -33,6 +33,7 @@ struct AmountUnitMenu<Label: View>: View {
         } label: {
             label
         }
+        .accessibilityValue(unit == .currency ? Text(token.symbol) : Text(verbatim: ""))
         .accessibilityHint(token.price == nil ? Text("Chooses the token.")
                                               : Text("Chooses the token and what you type the amount in."))
     }

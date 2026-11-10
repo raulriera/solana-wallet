@@ -21,12 +21,7 @@ struct DayChangeLabel: View {
     }
 
     /// The change rounded to two decimal places of a percent.
-    var shownChange: Decimal {
-        var change = change
-        var shown = Decimal()
-        NSDecimalRound(&shown, &change, 4, .plain)
-        return shown
-    }
+    var shownChange: Decimal { change.rounded(scale: 4, .plain) }
 
     private var spokenChange: LocalizedStringResource {
         let shown = shownChange

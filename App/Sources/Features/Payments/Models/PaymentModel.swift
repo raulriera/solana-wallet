@@ -23,20 +23,21 @@ final class PaymentModel {
         /// Returns the named balance that the payment spends.
         ///
         /// - Parameters:
-        ///   - quantity: The balance.
-        ///   - token: The token that the balance counts.
+        ///   - balance: The balance.
+        ///   - format: The style that formats the balance in its unit, such as 1.2 SOL or $172.64.
         /// - Returns: The balance with its name, such as "Public balance: 1.2 SOL".
-        func balance(_ quantity: Decimal, of token: PaymentToken) -> LocalizedStringResource {
+        func balance<Style: FormatStyle & Sendable>(_ balance: Decimal, format: Style) -> LocalizedStringResource
+        where Style.FormatInput == Decimal, Style.FormatOutput == String {
             switch self {
             case .account:
-                LocalizedStringResource("Balance: \(quantity, format: .quantity(of: token))",
-                                        comment: "Line under a payment's amount. The variable is the balance with its symbol, such as 1.2 SOL.")
+                LocalizedStringResource("Balance: \(balance, format: format)",
+                                        comment: "Line under a payment's amount. The variable is the balance in the unit of the amount, such as 1.2 SOL or $172.64.")
             case .publicBalance:
-                LocalizedStringResource("Public balance: \(quantity, format: .quantity(of: token))",
-                                        comment: "Line under the amount added to a private balance. The variable is the public balance with its symbol, such as 1.2 SOL.")
+                LocalizedStringResource("Public balance: \(balance, format: format)",
+                                        comment: "Line under the amount added to a private balance. The variable is the public balance in the unit of the amount, such as 1.2 SOL or $172.64.")
             case .privateBalance:
-                LocalizedStringResource("Private balance: \(quantity, format: .quantity(of: token))",
-                                        comment: "Line under the amount moved to the public balance. The variable is the available private balance with its symbol, such as 1.2 SOL.")
+                LocalizedStringResource("Private balance: \(balance, format: format)",
+                                        comment: "Line under the amount moved to the public balance. The variable is the available private balance in the unit of the amount, such as 1.2 SOL or $172.64.")
             }
         }
 
@@ -117,7 +118,7 @@ final class PaymentModel {
     var value: Decimal? {
         switch unit {
         case .currency: entry.value
-        case .token: token.price.map { entry.value * $0 }
+        case .token: worth(of: entry.value)
         }
     }
 
@@ -132,7 +133,23 @@ final class PaymentModel {
         }
     }
 
-    var exceedsBalance: Bool { quantity > token.balance }
+    /// The token's balance in the unit that the amount is typed in, rounded down to the digits that unit allows.
+    var entryBalance: Decimal {
+        switch unit {
+        case .token: token.balance
+        case .currency: currencyBalance(digits: entry.maximumFractionDigits)
+        }
+    }
+
+    /// The named balance in the unit that the amount is typed in, such as "Balance: $172.64".
+    var balanceText: LocalizedStringResource {
+        switch unit {
+        case .currency: source.balance(entryBalance, format: .value(code: currencyCode))
+        case .token: source.balance(entryBalance, format: .quantity(of: token))
+        }
+    }
+
+    var exceedsBalance: Bool { entry.value > entryBalance }
 
     /// Whether the amount is more than zero and no more than the balance.
     var canSend: Bool { quantity > 0 && !exceedsBalance }
@@ -231,7 +248,8 @@ final class PaymentModel {
         case .currency:
             let worth = value ?? 0
             let nearest = AmountEntry(worth, maximumFractionDigits: digits, rounding: .plain, padsFraction: true)
-            converted = nearest.flatMap { quantity(worth: $0.value) <= quantity ? $0 : nil }
+            let balance = currencyBalance(digits: digits)
+            converted = nearest.flatMap { quantity(worth: $0.value) <= quantity && $0.value <= balance ? $0 : nil }
                 ?? AmountEntry(worth, maximumFractionDigits: digits, padsFraction: true)
         }
         guard let converted else {
@@ -252,10 +270,23 @@ final class PaymentModel {
     /// - Returns: The quantity, or zero when the token has no price.
     private func quantity(worth value: Decimal) -> Decimal {
         guard let price = token.price, price > 0 else { return 0 }
-        var exact = value / price
-        var rounded = Decimal()
-        NSDecimalRound(&rounded, &exact, token.decimals, .down)
-        return rounded
+        return (value / price).rounded(scale: token.decimals, .down)
+    }
+
+    /// Returns what a token quantity is worth in the person's currency.
+    ///
+    /// - Parameter quantity: The token quantity.
+    /// - Returns: The value, or `nil` when the token has no price.
+    private func worth(of quantity: Decimal) -> Decimal? {
+        token.price.map { quantity * $0 }
+    }
+
+    /// Returns the token's balance in the person's currency, rounded down so that typing it never exceeds the balance.
+    ///
+    /// - Parameter digits: The currency's fraction digits.
+    /// - Returns: The balance, or zero when the token has no price.
+    private func currencyBalance(digits: Int) -> Decimal {
+        (worth(of: token.balance) ?? 0).rounded(scale: digits, .down)
     }
 
     /// Records and counts a rejection.

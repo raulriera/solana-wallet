@@ -1,7 +1,7 @@
 import Accessibility
 import SwiftUI
 
-/// The typed amount over the line that converts it, shows the balance, or warns that it's more than the balance.
+/// The typed amount over the line that shows the balance in the amount's unit, or warns that it's more than the balance.
 struct AmountSummary: View {
     @Environment(\.locale) private var locale
     let payment: PaymentModel

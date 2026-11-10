@@ -24,12 +24,10 @@ nonisolated struct AmountEntry: Equatable, Sendable {
     ///   - maximumFractionDigits: How many digits the unit allows after the separator.
     ///   - rounding: The rounding mode for extra digits.
     ///   - padsFraction: Whether a fraction shows every digit the unit allows.
-    init?(_ value: Decimal, maximumFractionDigits: Int, rounding: NSDecimalNumber.RoundingMode = .down,
+    init?(_ value: Decimal, maximumFractionDigits: Int, rounding: Decimal.RoundingMode = .down,
           padsFraction: Bool = false) {
         self.init(maximumFractionDigits: maximumFractionDigits)
-        var source = value
-        var rounded = Decimal()
-        NSDecimalRound(&rounded, &source, maximumFractionDigits, rounding)
+        let rounded = value.rounded(scale: maximumFractionDigits, rounding)
         guard rounded > 0 else { return }
         let parts = NSDecimalNumber(decimal: rounded).stringValue.split(separator: ".", omittingEmptySubsequences: false)
         guard parts[0].count <= Self.maximumIntegerDigits else { return nil }

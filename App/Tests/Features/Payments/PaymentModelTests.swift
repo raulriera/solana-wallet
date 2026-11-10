@@ -12,6 +12,8 @@ struct PaymentModelTests {
                                                        price: 1, decimals: 6)
     nonisolated private static let unpriced = PaymentToken(mint: PaymentFixtures.unpriced, symbol: "NOPRICE",
                                                            balance: 1_000, price: nil, decimals: 5)
+    nonisolated private static let otherUnpriced = PaymentToken(mint: PaymentFixtures.half, symbol: "UNLISTED",
+                                                                balance: 25, price: nil, decimals: 6)
     nonisolated private static let tiny = PaymentToken(mint: PaymentFixtures.tiny, symbol: "TINY",
                                                        balance: 10_000_000_000, price: Decimal(string: "0.00002"),
                                                        decimals: 5)
@@ -52,6 +54,11 @@ struct PaymentModelTests {
           .digit(0), .digit(1)]),
         (sol, [.digit(1), .digit(7), .digit(6), .decimalSeparator, .digit(9), .digit(6)],
          [.digit(1), .digit(7), .digit(6), .decimalSeparator, .digit(9), .digit(7)]),
+        (PaymentToken(mint: PaymentFixtures.half, symbol: "HALF", balance: 1, price: Decimal(string: "0.999"),
+                      decimals: 6),
+         [.decimalSeparator, .digit(9), .digit(9)], [.digit(1)]),
+        (PaymentToken(mint: PaymentFixtures.coarse, symbol: "COARSE", balance: 1, price: 50, decimals: 2),
+         [.digit(5), .digit(0)], [.digit(5), .digit(0), .decimalSeparator, .digit(4), .digit(9)]),
     ])
     func `The balance is the limit`(token: PaymentToken, within: [KeypadKey], past: [KeypadKey]) {
         let atLimit = Self.payment(in: token)
@@ -116,6 +123,9 @@ struct PaymentModelTests {
                       price: Decimal(string: "143.875"),
                       decimals: 9),
          [.digit(1), .decimalSeparator, .digit(2), .digit(3)]),
+        (PaymentToken(mint: PaymentFixtures.coarse, symbol: "COARSE", balance: 1, price: Decimal(string: "50.006"),
+                      decimals: 2),
+         [.digit(1)]),
     ])
     func `Switching to currency never grows the payment`(token: PaymentToken, keys: [KeypadKey]) {
         let payment = Self.payment(in: token)
@@ -140,6 +150,7 @@ struct PaymentModelTests {
 
     @Test(arguments: [
         ([Self.sol, Self.unpriced], true),
+        ([Self.unpriced, Self.otherUnpriced], true),
         ([Self.sol], true),
         ([Self.unpriced], false),
     ])
@@ -241,5 +252,32 @@ struct PaymentModelTests {
         #expect(payment.entry.value == 0)
         #expect(payment.token == Self.usdc)
         #expect(payment.unit == .currency)
+    }
+
+    @Test(arguments: [
+        ([Self.unpriced], PaymentModel.Unit.token, "USD", Decimal(1_000)),
+        ([Self.sol, Self.usdc], .token, "USD", Decimal(string: "1.23")!),
+        ([Self.sol, Self.usdc], .currency, "USD", Decimal(string: "176.96")!),
+        ([Self.sol, Self.usdc], .currency, "JPY", 176),
+    ])
+    func `The balance is in the unit the amount is typed in`(tokens: [PaymentToken], unit: PaymentModel.Unit,
+                                                              currencyCode: String, balance: Decimal) throws {
+        let payment = PaymentModel(tokens: tokens, currencyCode: currencyCode)
+        payment.unitChoice = unit
+        try #require(payment.unit == unit)
+        #expect(payment.entryBalance == balance)
+    }
+
+    @Test(arguments: [
+        (PaymentModel.Unit.token, "Balance: 1.23 SOL"),
+        (.currency, "Balance: $176.96"),
+    ])
+    func `The balance line shows the balance in the unit the amount is typed in`(unit: PaymentModel.Unit,
+                                                                                  text: String) {
+        let payment = PaymentModel(tokens: [Self.sol, Self.usdc], currencyCode: "USD")
+        payment.unitChoice = unit
+        var balance = payment.balanceText
+        balance.locale = Locale(identifier: "en_US")
+        #expect(String(localized: balance) == text)
     }
 }

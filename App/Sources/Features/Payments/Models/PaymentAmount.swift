@@ -12,9 +12,6 @@ nonisolated struct PaymentAmount: Equatable, Sendable {
 
     /// The quantity in the token's smallest units, such as lamports for SOL.
     var units: UInt64 {
-        var exact = quantity * pow(10, token.decimals)
-        var whole = Decimal()
-        NSDecimalRound(&whole, &exact, 0, .down)
-        return NSDecimalNumber(decimal: whole).uint64Value
+        NSDecimalNumber(decimal: (quantity * pow(10, token.decimals)).rounded(scale: 0, .down)).uint64Value
     }
 }
