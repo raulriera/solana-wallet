@@ -4,20 +4,14 @@ extension TokenTransfer {
     /// Returns the instructions that perform the transfer.
     ///
     /// - Returns: The account creation, memo, and checked-transfer instructions, in order.
-    /// - Throws: An address validation error if a program identifier is invalid.
+    /// - Throws: A ``ValidationError`` if a program identifier is invalid or the new account's derivation fails.
     public func instructions() throws -> [Instruction] {
         let transfer = self
         let program = try transfer.mint.program.address
         var instructions: [Instruction] = []
         if transfer.createsDestination {
-            instructions.append(.init(
-                program: try Address(TokenProgram.associatedAccountProgram),
-                accounts: [.init(address: transfer.sender, isSigner: true, isWritable: true),
-                           .init(address: transfer.destination, isSigner: false, isWritable: true),
-                           .init(address: transfer.recipient, isSigner: false, isWritable: false),
-                           .init(address: transfer.mint.address, isSigner: false, isWritable: false),
-                           .init(address: try Address(SystemProgram.id), isSigner: false, isWritable: false),
-                           .init(address: program, isSigner: false, isWritable: false)], data: Data([1])
+            instructions.append(try transfer.mint.program.createAssociatedAccount(
+                owner: transfer.recipient, mint: transfer.mint.address, payer: transfer.sender
             ))
         }
         if let memo = transfer.memo {

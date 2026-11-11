@@ -91,8 +91,8 @@ struct SubmissionLiveTests {
         if wrapped > 0 {
             var setup: [Instruction] = []
             if accounts.value[0] == nil {
-                setup.append(try createAssociatedAccount(source, owner: sender.address, mint: mintAddress,
-                                                         program: program))
+                setup.append(try program.createAssociatedAccount(owner: sender.address, mint: mintAddress,
+                                                                 payer: sender.address))
             }
             setup.append(try SystemProgram.transfer(from: sender.address, to: source, lamports: wrapped))
             setup.append(try Instruction(program: Address(program.rawValue), accounts: [
@@ -134,18 +134,6 @@ struct SubmissionLiveTests {
         let response = try await rpc.accounts(at: addresses.map(\.value), minContextSlot: slot)
         #expect(Set(response.value.map { $0?.owner }) == [program.rawValue])
         return try tokenAmounts(at: addresses, in: response)
-    }
-
-    private func createAssociatedAccount(_ address: Address, owner: Address, mint: Address,
-                                          program: TokenProgram) throws -> Instruction {
-        try Instruction(program: Address("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"), accounts: [
-            .init(address: owner, isSigner: true, isWritable: true),
-            .init(address: address, isSigner: false, isWritable: true),
-            .init(address: owner, isSigner: false, isWritable: false),
-            .init(address: mint, isSigner: false, isWritable: false),
-            .init(address: Address("11111111111111111111111111111111"), isSigner: false, isWritable: false),
-            .init(address: Address(program.rawValue), isSigner: false, isWritable: false),
-        ], data: Data([1]))
     }
 
     private func tokenAmounts(at addresses: [Address], in response: GetMultipleAccounts.Response) throws -> [UInt64] {

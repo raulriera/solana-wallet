@@ -1,6 +1,6 @@
 # Transactions
 
-Solana instructions, V1 message compilation, transaction decoding, and signature assembly. It does no networking and holds no private keys.
+Builds Solana instructions, compiles them into V1 messages, decodes transactions, and assembles signatures. Token instructions support SPL Token and Token-2022. It does no networking and holds no private keys.
 
 ## Usage
 
@@ -18,5 +18,3 @@ let message = try compiler.message(
 )
 let unsigned = try assembler.simulationTransaction(for: message)
 ```
-
-`SystemProgram`, `MemoProgram`, and `TokenTransfer` make `Instruction` values that compose into one message. `TokenTransfer` supports SPL Token and Token-2022.

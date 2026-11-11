@@ -40,6 +40,8 @@ struct BalanceMoveProposal: TransactionProposal {
         let privacyFee: UInt64?
         /// The change returned to the private balance, in the asset's smallest unit, or `nil` when there's none.
         let pendingChange: UInt64?
+        /// The rent that opens the account's token account for a withdrawal, in lamports, or `nil` when it has one.
+        let accountDeposit: UInt64?
     }
 
     typealias Error = PrivateBalanceError
@@ -83,12 +85,16 @@ struct BalanceMoveProposal: TransactionProposal {
             let registrationFee = preparation.registers
                 ? try otherFee(of: simulation, for: account, paying: movedLamports, networkFee: networkFee) : nil
             review = Review(networkFee: networkFee, registrationFee: registrationFee, privacyFee: nil,
-                            pendingChange: nil)
+                            pendingChange: nil, accountDeposit: nil)
             kind = .privateDeposit
         case .spend(let spend):
+            let accountDeposit = try asset.withdrawal(to: account.address).tokenAccount.flatMap {
+                openingDeposit(of: $0, in: simulation)
+            }
             let privacyFee = try otherFee(
                 of: simulation,
                 for: account,
+                paying: accountDeposit ?? 0,
                 receiving: movedLamports,
                 networkFee: networkFee
             )
@@ -96,7 +102,8 @@ struct BalanceMoveProposal: TransactionProposal {
                 networkFee: networkFee,
                 registrationFee: nil,
                 privacyFee: privacyFee > 0 ? privacyFee : nil,
-                pendingChange: spend.receivedAmount > 0 ? spend.receivedAmount : nil
+                pendingChange: spend.receivedAmount > 0 ? spend.receivedAmount : nil,
+                accountDeposit: accountDeposit
             )
             kind = .privateWithdrawal
         case .createCode, .redeem:
@@ -111,7 +118,8 @@ struct BalanceMoveProposal: TransactionProposal {
     /// - Parameters:
     ///   - simulation: The simulated move.
     ///   - account: The account whose public SOL pays.
-    ///   - paid: The SOL that the public balance pays into the private balance, in lamports.
+    ///   - paid: The SOL that the public balance pays beyond the fees, such as into the private balance or a new token
+    ///     account, in lamports.
     ///   - received: The SOL that the public balance receives from the private balance, in lamports.
     ///   - networkFee: The network fee and the service tip, in lamports.
     /// - Returns: The other fees, in lamports.
@@ -119,8 +127,7 @@ struct BalanceMoveProposal: TransactionProposal {
     ///   reports too little.
     private func otherFee(of simulation: Simulation, for account: Account, paying paid: UInt64 = 0,
                           receiving received: UInt64 = 0, networkFee: UInt64) throws -> UInt64 {
-        guard let change = simulation.balanceChanges?.first(where: { $0.owner == account.address && $0.asset == .sol })
-        else { throw PrivateBalanceError.preparationFailed }
+        guard let change = solChange(of: account.address, in: simulation) else { throw PrivateBalanceError.preparationFailed }
         let (incoming, incomingOverflow) = change.before.addingReportingOverflow(received)
         let (kept, keptOverflow) = change.after.addingReportingOverflow(paid)
         let (outgoing, outgoingOverflow) = kept.addingReportingOverflow(networkFee)
@@ -128,5 +135,26 @@ struct BalanceMoveProposal: TransactionProposal {
             throw PrivateBalanceError.preparationFailed
         }
         return incoming - outgoing
+    }
+
+    /// Returns the rent that a simulation pays into a token account that it opens.
+    ///
+    /// - Parameters:
+    ///   - tokenAccount: The token account.
+    ///   - simulation: The simulated move.
+    /// - Returns: The account's rent in lamports, or `nil` when the simulation doesn't open it.
+    private func openingDeposit(of tokenAccount: Address, in simulation: Simulation) -> UInt64? {
+        guard let change = solChange(of: tokenAccount, in: simulation), change.before == 0 else { return nil }
+        return change.after
+    }
+
+    /// Returns the change that a simulation shows in an account's SOL.
+    ///
+    /// - Parameters:
+    ///   - address: The account.
+    ///   - simulation: The simulated move.
+    /// - Returns: The change, or `nil` when the simulation doesn't change or report it.
+    private func solChange(of address: Address, in simulation: Simulation) -> BalanceChange? {
+        simulation.balanceChanges?.first { $0.owner == address && $0.asset == .sol }
     }
 }

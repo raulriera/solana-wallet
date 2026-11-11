@@ -808,10 +808,11 @@ struct PrivateBalancesTests {
         #expect(spend.amount == 1_000_000)
         #expect(spend.receivedAmount == 0)
         #expect(spend.instruction.accounts.last?.address == destination.address)
+        #expect(prepared.instructions == [spend.instruction])
     }
 
     @Test
-    func `Preparing a token withdrawal proves a withdrawal to the owner's token account`() async throws {
+    func `Preparing a token withdrawal opens the owner's missing token account and withdraws to it`() async throws {
         let sender = try await Self.fundedAccount(lamports: 1_000_000, of: .devnetUSDC)
         let responses = HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered], deposits: [sender.deposit],
                                                    outputTreeID: 1, prover: try IndexedProofs.prover())
@@ -823,11 +824,35 @@ struct PrivateBalancesTests {
         let spend = try #require(prepared.effect.spend)
         let tokenAccount = try TokenProgram.token.associatedAccount(owner: sender.account.address,
                                                                     mint: PrivateToken.devnetUSDC.mint)
+        let opening = try TokenProgram.token.createAssociatedAccount(owner: sender.account.address,
+                                                                     mint: PrivateToken.devnetUSDC.mint,
+                                                                     payer: sender.account.address)
+        #expect(prepared.instructions == [opening, spend.instruction])
         #expect(spend.amount == 400_000)
         #expect(spend.receivedAmount == 600_000)
         #expect(spend.instruction.accounts.map(\.address).contains(tokenAccount))
         #expect(try await balances.complete(prepared, with: PrivateBalanceFixtures.confirmation(.succeeded))
             == .balance(available: 0, pending: 600_000, of: .token(.devnetUSDC)))
+    }
+
+    @Test
+    func `Preparing a token withdrawal to an existing token account only withdraws`() async throws {
+        let sender = try await Self.fundedAccount(lamports: 1_000_000, of: .devnetUSDC)
+        let tokenAccount = try TokenProgram.token.associatedAccount(owner: sender.account.address,
+                                                                    mint: PrivateToken.devnetUSDC.mint)
+        let responses = HTTPResponses.privateNotes(deposits: [sender.deposit], outputTreeID: 1,
+                                                   prover: try IndexedProofs.prover()) { request in
+            let addresses = try #require(try request.rpcParameters.first as? [String])
+            return AccountReplies.accounts(addresses.map {
+                $0 == tokenAccount.value ? AccountReplies.account(owner: TokenProgram.token.rawValue) : nil
+            })
+        }
+        let balances = try await Self.balances(responses, keys: sender.keys, notes: sender.notes)
+
+        let prepared = try await balances.prepare(.withdraw(400_000, of: .token(.devnetUSDC), to: sender.account.address),
+                                                  from: sender.account, on: .devnet)
+
+        #expect(prepared.instructions == [try #require(prepared.effect.spend).instruction])
     }
 
     @Test(arguments: [true, false])

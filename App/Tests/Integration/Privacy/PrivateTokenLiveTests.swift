@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 import Transactions
+import Wallet
 @testable import Privacy
 @testable import RPC
 @testable import widgets
@@ -49,6 +50,38 @@ struct PrivateTokenLiveTests {
         #expect(state.pendingAmount(of: .devnetUSDC) == spend.receivedAmount)
         state = try await Self.settled(state, of: shielded, using: rpc)
         #expect(state.spendableAmount(of: .devnetUSDC) == spendable - Self.withdrawalUnits)
+    }
+
+    @Test
+    func `A devnet USDC withdrawal opens a missing token account in the same transaction`() async throws {
+        async let configured = DevnetWallets.configured()
+        async let store = RPCStore.inMemory(selection: .helius, key: try LiveClients.heliusAPIKey())
+        let (wallets, rpcStore) = try await (configured, store)
+        let rpc = SelectedRPCProvider(network: .devnet, rpcStore: rpcStore, rings: Zolana(network: .devnet))
+        let (owner, recipient) = (wallets.sender, wallets.recipient)
+        let mint = try PrivateToken.devnetUSDC.mint
+        let tokenAccount = try TokenProgram.token.associatedAccount(owner: recipient.address, mint: mint)
+        let accounts = try await rpc.accounts(at: [tokenAccount.value, mint.value])
+        try #require(accounts.value[0] == nil, "The second test account must have no devnet USDC account.")
+        let mintAccount = try #require(accounts.value[1])
+        let tokenMint = try TokenMint(address: mint, owner: Address(mintAccount.owner), data: mintAccount.data)
+        let recovery = SigningRecoveryStore(recovery: wallets.recovery)
+        let coordinator = try TransactionCoordinator(rpc: rpc, store: recovery, strategy: .none)
+        let balances = PrivateBalances(recovery: recovery, wallet: Wallet(), keys: StoredValue(), notes: StoredValue(),
+                                       codes: StoredValue()) { _ in rpc }
+        try await balances.enable(owner, on: .devnet)
+        let status = try await balances.refresh(owner, on: .devnet)
+        try #require((status.balance(of: .token(.devnetUSDC))?.available ?? 0) > 0, "The first test account must hold private devnet USDC.")
+
+        let withdrawal = try await balances.prepare(.withdraw(1, of: .token(.devnetUSDC), to: recipient.address), from: owner,
+                                                    on: .devnet)
+        let (simulation, _) = try await coordinator.simulate(withdrawal)
+
+        #expect(withdrawal.instructions.first
+            == (try TokenProgram.token.createAssociatedAccount(owner: recipient.address, mint: mint, payer: owner.address)))
+        #expect(simulation.diagnostics.value.error == nil)
+        let rent = try await rpc.send(GetMinimumBalanceForRentExemption(dataLength: tokenMint.associatedAccountSize))
+        #expect(simulation.balanceChanges?.contains(BalanceChange(owner: tokenAccount, asset: .sol, before: 0, after: rent)) == true)
     }
 
     private static func settled(

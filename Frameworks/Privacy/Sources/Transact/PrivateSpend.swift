@@ -53,6 +53,30 @@ public struct PrivateSpend: Sendable, CustomStringConvertible, CustomDebugString
 }
 
 extension PrivateSpend.Destination {
+    /// The program that owns the accounts of tokens that private balances hold.
+    private static let tokenProgram = TokenProgram.token
+
+    /// The token account that a token withdrawal pays into, or `nil` for other destinations.
+    ///
+    /// - Throws: A ``Transactions/ValidationError`` if the account's derivation fails.
+    public var tokenAccount: Address? {
+        get throws {
+            guard case .tokenWithdrawal(let token, let owner) = self else { return nil }
+            return try Self.tokenProgram.associatedAccount(owner: owner, mint: token.mint)
+        }
+    }
+
+    /// Returns the instruction that opens the token account that a token withdrawal pays into, and that succeeds
+    /// without a change when the account exists.
+    ///
+    /// - Parameter payer: The account that signs and pays the new account's rent.
+    /// - Returns: The create instruction, or `nil` for other destinations.
+    /// - Throws: A ``Transactions/ValidationError`` if an address or the account's derivation is invalid.
+    public func openingTokenAccount(paidBy payer: Address) throws -> Instruction? {
+        guard case .tokenWithdrawal(let token, let owner) = self else { return nil }
+        return try Self.tokenProgram.createAssociatedAccount(owner: owner, mint: token.mint, payer: payer)
+    }
+
     /// Returns the private transfer and the public withdrawal that move an amount to the destination.
     ///
     /// - Parameter amount: The amount to transfer or withdraw, in the asset's smallest unit.
@@ -63,7 +87,7 @@ extension PrivateSpend.Destination {
         case .transfer(let recipient): (TransactPlan.Transfer(recipient: recipient, lamports: amount), nil)
         case .withdrawal(let address): (nil, ExternalData.Withdrawal(recipient: address, amount: amount))
         case .tokenWithdrawal(let token, let owner): (nil, ExternalData.Withdrawal(
-            recipient: try TokenProgram.token.associatedAccount(owner: owner, mint: token.mint), amount: amount, token: token
+            recipient: try Self.tokenProgram.associatedAccount(owner: owner, mint: token.mint), amount: amount, token: token
         ))
         case .fundedTransfer(let recipient, let publicLamports): (
             TransactPlan.Transfer(recipient: recipient, lamports: amount),

@@ -60,6 +60,7 @@ struct LocalBalanceMove {
                     of: instructions,
                     paidBy: account.address,
                     leaving: publicLamports - spent,
+                    depositing: [:],
                     fixture: fixture
                 ),
             fixture: fixture,
@@ -73,6 +74,7 @@ struct LocalBalanceMove {
         of asset: PrivateAsset = .sol,
         privateLamports: UInt64 = LocalBalanceMove.privateLamports,
         privacyFee: UInt64 = 0,
+        accountDeposit: UInt64 = 0,
         simulation: SimulateTransaction.Value? = nil,
         statuses: [GetSignatureStatuses.Response] = [],
         sockets: SocketSequence = SocketSequence()
@@ -101,7 +103,7 @@ struct LocalBalanceMove {
             from: account,
             on: .devnet
         ).instructions
-        let kept = publicLamports + asset.lamports(moving: lamports) - networkFee - privacyFee
+        let kept = publicLamports + asset.lamports(moving: lamports) - networkFee - privacyFee - accountDeposit
         return try LocalBalanceMove(
             .toPublic,
             of: asset,
@@ -113,6 +115,7 @@ struct LocalBalanceMove {
                     of: instructions,
                     paidBy: account.address,
                     leaving: kept,
+                    depositing: try asset.withdrawal(to: account.address).tokenAccount.map { [$0: accountDeposit] } ?? [:],
                     fixture: fixture
                 ),
             fixture: fixture,
@@ -173,15 +176,17 @@ struct LocalBalanceMove {
     }
 
     private static func success(of instructions: [Instruction], paidBy payer: Address, leaving kept: UInt64,
+                                depositing deposits: [Address: UInt64],
                                 fixture: SigningFixture) throws -> SimulateTransaction.Value {
         let message = try MessageBuilder().message(instructions: instructions, payer: payer,
                                                    recentBlockhash: fixture.blockhash.value.blockhash,
                                                    configuration: fixture.configuration)
         let others = try TransactionDecoder().decode(TransactionBuilder().simulationTransaction(for: message))
-            .accounts.dropFirst().map { _ in UInt64(0) }
+            .accounts.dropFirst()
         return SimulateTransaction.Value(error: nil, logs: ["Program completed"], unitsConsumed: 150,
                                          loadedAccountsDataSize: 256, fee: networkFee, replacementBlockhash: nil,
-                                         preBalances: [publicLamports] + others, postBalances: [kept] + others,
+                                         preBalances: [publicLamports] + others.map { _ in 0 },
+                                         postBalances: [kept] + others.map { deposits[$0.address] ?? 0 },
                                          preTokenBalances: [], postTokenBalances: [])
     }
 }

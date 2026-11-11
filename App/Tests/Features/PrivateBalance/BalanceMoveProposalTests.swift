@@ -22,7 +22,8 @@ struct BalanceMoveProposalTests {
         await model.run(model.attempt)
 
         #expect(model.review == BalanceMoveProposal.Review(networkFee: LocalBalanceMove.networkFee,
-                                                           registrationFee: nil, privacyFee: nil, pendingChange: nil))
+                                                           registrationFee: nil, privacyFee: nil, pendingChange: nil,
+                                                           accountDeposit: nil))
         #expect(model.proposal.amount.units == LocalBalanceMove.lamports)
         #expect(model.error == nil)
         #expect(model.canApprove)
@@ -38,7 +39,7 @@ struct BalanceMoveProposalTests {
 
         #expect(model.review == BalanceMoveProposal.Review(networkFee: LocalBalanceMove.networkFee,
                                                            registrationFee: LocalBalanceMove.registrationRent,
-                                                           privacyFee: nil, pendingChange: nil))
+                                                           privacyFee: nil, pendingChange: nil, accountDeposit: nil))
         #expect(model.error == nil)
     }
 
@@ -150,25 +151,28 @@ struct BalanceMoveProposalTests {
         await sockets.waitUntilClosed()
     }
 
-    @Test(arguments: Self.assets, [UInt64(0), 3_000])
-    func `Reviewing a withdrawal shows a privacy fee only when it has one`(
-        asset: PrivateAsset,
+    @Test(arguments: [(PrivateAsset.sol, UInt64(0)), (.token(.devnetUSDC), 0), (.token(.devnetUSDC), 1_488_440)],
+          [UInt64(0), 3_000])
+    func `Reviewing a withdrawal shows a privacy fee and an account deposit only when it has them`(
+        withdrawn: (asset: PrivateAsset, accountDeposit: UInt64),
         privacyFee: UInt64
     )
         async throws
     {
-        let withdrawal = try await LocalBalanceMove.withdrawal(of: asset, privacyFee: privacyFee)
+        let withdrawal = try await LocalBalanceMove.withdrawal(of: withdrawn.asset, privacyFee: privacyFee,
+                                                               accountDeposit: withdrawn.accountDeposit)
         let model = withdrawal.model
 
         model.prepareReview()
         await model.run(model.attempt)
 
         #expect(withdrawal.move.payment.source == .privateBalance)
-        #expect(withdrawal.move.payment.token.balance == (asset == .sol ? 2 : 2_000))
+        #expect(withdrawal.move.payment.token.balance == (withdrawn.asset == .sol ? 2 : 2_000))
         #expect(model.review == BalanceMoveProposal.Review(
             networkFee: LocalBalanceMove.networkFee, registrationFee: nil,
             privacyFee: privacyFee > 0 ? privacyFee : nil,
-            pendingChange: LocalBalanceMove.privateLamports - LocalBalanceMove.lamports
+            pendingChange: LocalBalanceMove.privateLamports - LocalBalanceMove.lamports,
+            accountDeposit: withdrawn.accountDeposit > 0 ? withdrawn.accountDeposit : nil
         ))
         #expect(model.error == nil)
     }

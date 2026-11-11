@@ -242,14 +242,30 @@ actor PrivateBalances: PrivateBalancing {
                                               prover: client)
             (instructions, effect) = ([spend.instruction], .spend(spend))
         case .withdraw(let amount, let asset, let owner):
-            let spend = try await state.spend(amount, to: asset.withdrawal(to: owner), from: shielded, rpc: client,
-                                              prover: client)
-            (instructions, effect) = ([spend.instruction], .spend(spend))
+            let destination = asset.withdrawal(to: owner)
+            async let opening = Self.opening(destination, paidBy: account.address, client: client)
+            let spend = try await state.spend(amount, to: destination, from: shielded, rpc: client, prover: client)
+            (instructions, effect) = ([try await opening, spend.instruction].compactMap(\.self), .spend(spend))
         case .createCode, .redeem, .takeBack:
             throw Transactions.ValidationError.invalidTransaction
         }
         return PreparedPrivateTransaction(instructions: instructions, account: account, network: network, effect: effect,
                                           registers: registers, authorities: [.account(account)])
+    }
+
+    /// Returns the instruction that opens the token account that a withdrawal pays into, when the account is missing.
+    ///
+    /// - Parameters:
+    ///   - destination: The withdrawal's destination.
+    ///   - payer: The account that pays the new account's rent.
+    ///   - client: The network's client.
+    /// - Returns: The create instruction, or `nil` for a SOL withdrawal or a token account that exists.
+    /// - Throws: A validation, provider, or cancellation error.
+    private static func opening(_ destination: PrivateSpend.Destination, paidBy payer: Address,
+                                client: Client) async throws -> Instruction? {
+        guard let tokenAccount = try destination.tokenAccount,
+              (try await client.accounts(at: [tokenAccount.value]).value.first ?? nil) == nil else { return nil }
+        return try destination.openingTokenAccount(paidBy: payer)
     }
 
     /// Reads an account's registration where the selected provider can read it.
