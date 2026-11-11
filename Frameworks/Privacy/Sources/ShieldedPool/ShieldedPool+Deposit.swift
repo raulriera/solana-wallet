@@ -24,8 +24,8 @@ extension ShieldedPool {
     ///   ``Transactions/ValidationError`` if an account's derivation fails.
     public static func deposit(lamports: UInt64, from depositor: Address, to recipient: Recipient, treeID: UInt16) throws -> Instruction {
         try deposit(lamports, kind: [solAssetKind], from: depositor, to: recipient, treeID: treeID, settlement: [
-            .init(address: try systemProgram, isSigner: false, isWritable: false),
-            .init(address: try solInterface, isSigner: false, isWritable: true),
+            .readonly(try SystemProgram.address),
+            .writable(try solInterface),
         ])
     }
 
@@ -47,10 +47,10 @@ extension ShieldedPool {
         let mint = try token.mint
         let interface = try splInterface(of: mint)
         return try deposit(amount, kind: [splAssetKind, interface.bump], from: depositor, to: recipient, treeID: treeID, settlement: [
-            .init(address: try TokenProgram.token.address, isSigner: false, isWritable: false),
-            .init(address: mint, isSigner: false, isWritable: false),
-            .init(address: try TokenProgram.token.associatedAccount(owner: depositor, mint: mint), isSigner: false, isWritable: true),
-            .init(address: interface.address, isSigner: false, isWritable: true),
+            .readonly(try TokenProgram.token.address),
+            .readonly(mint),
+            .writable(try TokenProgram.token.associatedAccount(owner: depositor, mint: mint)),
+            .writable(interface.address),
         ])
     }
 
@@ -86,9 +86,9 @@ extension ShieldedPool {
         writer.append(amount)
         writer.appendNone()
         return Instruction(program: try program, accounts: [
-            .init(address: try tree(id: treeID), isSigner: false, isWritable: true),
-            .init(address: depositor, isSigner: true, isWritable: true),
-            .init(address: try program, isSigner: false, isWritable: false),
+            .writable(try tree(id: treeID)),
+            .writable(depositor, isSigner: true),
+            .readonly(try program),
         ] + settlement, data: Data(writer.bytes))
     }
 

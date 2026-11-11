@@ -89,7 +89,7 @@ struct BalanceChangeTests {
 
     private static func transaction() throws -> Transaction {
         Transaction(message: Data(), lifetimeSpecifier: "11111111111111111111111111111111",
-                    accounts: try ([payer, recipient] + others).map { .init(address: try Address($0), isSigner: false, isWritable: true) },
+                    accounts: try ([payer, recipient] + others).map { .writable(try Address($0)) },
                     requests: .init(priorityFeeLamports: nil, computeUnitLimit: nil, loadedAccountsDataSizeLimit: nil, heapSize: nil),
                     instructions: [], signatures: [])
     }

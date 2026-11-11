@@ -74,7 +74,7 @@ extension PrivateSpend.Destination {
     /// - Throws: A ``Transactions/ValidationError`` if an address or the account's derivation is invalid.
     public func openingTokenAccount(paidBy payer: Address) throws -> Instruction? {
         guard case .tokenWithdrawal(let token, let owner) = self else { return nil }
-        return try Self.tokenProgram.createAssociatedAccount(owner: owner, mint: token.mint, payer: payer)
+        return try AssociatedTokenProgram.createIdempotent(owner: owner, mint: token.mint, program: Self.tokenProgram, payer: payer)
     }
 
     /// Returns the private transfer and the public withdrawal that move an amount to the destination.

@@ -9,8 +9,6 @@ public enum ShieldedPool {
 
     static let mergeTransactTag: UInt8 = 17
 
-    private static let systemProgramID = "11111111111111111111111111111111"
-
     private static let solInterfaceSeeds = [Array("sol_interface".utf8), [0]]
 
     private static let splInterfaceSeed = Array("spl_asset_vault".utf8)
@@ -23,10 +21,6 @@ public enum ShieldedPool {
 
     static var program: Address {
         get throws { try Address(programID) }
-    }
-
-    static var systemProgram: Address {
-        get throws { try Address(systemProgramID) }
     }
 
     /// The account that holds the pool's native SOL.

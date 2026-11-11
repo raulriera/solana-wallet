@@ -20,10 +20,10 @@ struct UserRegistryRegisterTests {
         #expect(Array(instruction.data) == (try fixtureBytes("00" + vector.nullifierPublicKey + vector.viewingPublicKey)))
         #expect(instruction.data.count == 66)
         #expect(instruction.accounts == [
-            .init(address: try Address(vector.record), isSigner: false, isWritable: true),
-            .init(address: try Address(vector.owner), isSigner: true, isWritable: false),
-            .init(address: payer, isSigner: true, isWritable: true),
-            .init(address: try Address("11111111111111111111111111111111"), isSigner: false, isWritable: false),
+            .writable(try Address(vector.record)),
+            .readonly(try Address(vector.owner), isSigner: true),
+            .writable(payer, isSigner: true),
+            .readonly(try Address("11111111111111111111111111111111")),
         ])
     }
 }

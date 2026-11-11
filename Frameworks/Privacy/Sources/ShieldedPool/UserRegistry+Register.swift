@@ -17,10 +17,10 @@ extension UserRegistry {
         let data: [UInt8] = [registerTag] + recipient.nullifierPublicKey.bigEndianBytes
             + Array(recipient.viewingPublicKey.taggedRepresentation)
         return Instruction(program: try program, accounts: [
-            .init(address: try record(of: recipient.signingAddress).address, isSigner: false, isWritable: true),
-            .init(address: recipient.signingAddress, isSigner: true, isWritable: false),
-            .init(address: payer, isSigner: true, isWritable: true),
-            .init(address: try ShieldedPool.systemProgram, isSigner: false, isWritable: false),
+            .writable(try record(of: recipient.signingAddress).address),
+            .readonly(recipient.signingAddress, isSigner: true),
+            .writable(payer, isSigner: true),
+            .readonly(try SystemProgram.address),
         ], data: Data(data))
     }
 }

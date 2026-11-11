@@ -13,9 +13,9 @@ struct CompositionTests {
             SystemProgram.transfer(from: authority, to: payer, lamports: 1),
             MemoProgram.memo("composed", signers: [readonlySigner]),
             Instruction(program: program, accounts: [
-                .init(address: authority, isSigner: false, isWritable: false),
-                .init(address: payer, isSigner: false, isWritable: false),
-                .init(address: authority, isSigner: false, isWritable: false),
+                .readonly(authority),
+                .readonly(payer),
+                .readonly(authority),
             ], data: Data([255, 0, 127])),
         ]
         let message = try MessageBuilder().message(instructions: instructions, payer: payer,
@@ -43,7 +43,7 @@ struct CompositionTests {
         let payer = try Address(MessageFixture.sender)
         let authority = try Address(MessageFixture.recipient)
         let instruction = Instruction(program: try Address(DecodingFixture.program),
-            accounts: [.init(address: authority, isSigner: true, isWritable: false)],
+            accounts: [.readonly(authority, isSigner: true)],
             data: Data(repeating: 0, count: 3_820))
         #expect(throws: ValidationError.invalidMessage) {
             try MessageBuilder().message(instructions: [instruction], payer: payer,
@@ -59,7 +59,7 @@ struct CompositionTests {
         let instructions = try [
             MemoProgram.memo("first"),
             Instruction(program: Address("11111111111111111111111111111111"),
-                accounts: [.init(address: program, isSigner: false, isWritable: true)]),
+                accounts: [.writable(program)]),
         ]
         #expect(throws: ValidationError.invalidMessage) {
             try MessageBuilder().message(instructions: instructions, payer: payer,

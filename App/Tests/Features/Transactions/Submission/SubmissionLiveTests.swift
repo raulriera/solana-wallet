@@ -91,12 +91,12 @@ struct SubmissionLiveTests {
         if wrapped > 0 {
             var setup: [Instruction] = []
             if accounts.value[0] == nil {
-                setup.append(try program.createAssociatedAccount(owner: sender.address, mint: mintAddress,
-                                                                 payer: sender.address))
+                setup.append(try AssociatedTokenProgram.createIdempotent(owner: sender.address, mint: mintAddress,
+                                                                         program: program, payer: sender.address))
             }
             setup.append(try SystemProgram.transfer(from: sender.address, to: source, lamports: wrapped))
             setup.append(try Instruction(program: Address(program.rawValue), accounts: [
-                .init(address: source, isSigner: false, isWritable: true)
+                .writable(source)
             ], data: Data([17])))
             let setupReview = try await coordinator.simulate(setup, using: sender)
             let setupResult = try await coordinator.confirm(coordinator.submit(setupReview))

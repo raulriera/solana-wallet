@@ -824,9 +824,9 @@ struct PrivateBalancesTests {
         let spend = try #require(prepared.effect.spend)
         let tokenAccount = try TokenProgram.token.associatedAccount(owner: sender.account.address,
                                                                     mint: PrivateToken.devnetUSDC.mint)
-        let opening = try TokenProgram.token.createAssociatedAccount(owner: sender.account.address,
-                                                                     mint: PrivateToken.devnetUSDC.mint,
-                                                                     payer: sender.account.address)
+        let opening = try AssociatedTokenProgram.createIdempotent(owner: sender.account.address,
+                                                                 mint: PrivateToken.devnetUSDC.mint, program: .token,
+                                                                 payer: sender.account.address)
         #expect(prepared.instructions == [opening, spend.instruction])
         #expect(spend.amount == 400_000)
         #expect(spend.receivedAmount == 600_000)

@@ -27,7 +27,7 @@ struct PrivateSpendTests {
         #expect(try destination.tokenAccount == tokenAccount)
         #expect(try destination.parts(moving: 1).withdrawal?.recipient == tokenAccount)
         #expect(try destination.openingTokenAccount(paidBy: payer)
-            == TokenProgram.token.createAssociatedAccount(owner: owner, mint: token.mint, payer: payer))
+            == AssociatedTokenProgram.createIdempotent(owner: owner, mint: token.mint, program: .token, payer: payer))
     }
 
     @Test

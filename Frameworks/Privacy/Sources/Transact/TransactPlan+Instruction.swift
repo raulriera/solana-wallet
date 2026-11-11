@@ -39,19 +39,17 @@ extension TransactPlan {
         }
         let inputTrees = try inputTreeIDs.map { try ShieldedPool.tree(id: $0) }
         var accounts: [Transaction.Account] = [
-            .init(address: payer, isSigner: true, isWritable: true),
-            .init(address: try ShieldedPool.tree(id: outputTreeID), isSigner: false, isWritable: true),
-            .init(address: try ShieldedPool.program, isSigner: false, isWritable: false),
-            .init(address: try ShieldedPool.systemProgram, isSigner: false, isWritable: false),
+            .writable(payer, isSigner: true),
+            .writable(try ShieldedPool.tree(id: outputTreeID)),
+            .readonly(try ShieldedPool.program),
+            .readonly(try SystemProgram.address),
         ]
-        accounts += inputTrees.map { .init(address: $0, isSigner: false, isWritable: true) }
+        accounts += inputTrees.map { .writable($0) }
         accounts += try inputs.map { input in
             let tree = inputTrees[Int(input.treeIndex)]
-            return .init(
-                address: try ShieldedPool.nullifierAccount(tree: tree, nullifier: input.nullifier), isSigner: false, isWritable: true
-            )
+            return .writable(try ShieldedPool.nullifierAccount(tree: tree, nullifier: input.nullifier))
         }
-        accounts.append(.init(address: payer, isSigner: true, isWritable: false))
+        accounts.append(.readonly(payer, isSigner: true))
         if let withdrawal { accounts += try withdrawal.settlementAccounts }
         return Instruction(program: try ShieldedPool.program, accounts: accounts, data: Data(writer.bytes))
     }

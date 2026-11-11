@@ -143,13 +143,7 @@
               ],
               "membership-exceptions": [
                 {
-                  "target": "AttestationTests",
-                  "exclusions": [
-                    "StubProver.swift",
-                    "TestProver.swift",
-                  ],
-                }, {
-                  "target": "PrivacyTests",
+                  "target": "widgetsTests",
                   "exclusions": [
                     "DevnetNitroPolicy.json",
                     "MainnetNitroPolicy.json",
@@ -159,7 +153,13 @@
                     "RecordedNitroAttestation.swift",
                   ],
                 }, {
-                  "target": "widgetsTests",
+                  "target": "AttestationTests",
+                  "exclusions": [
+                    "StubProver.swift",
+                    "TestProver.swift",
+                  ],
+                }, {
+                  "target": "PrivacyTests",
                   "exclusions": [
                     "DevnetNitroPolicy.json",
                     "MainnetNitroPolicy.json",
@@ -291,8 +291,8 @@
             "Portfolio/frameworks",
             "Wallet/frameworks",
             "Transactions/frameworks",
-            "Privacy/frameworks",
             "Attestation/frameworks",
+            "Privacy/frameworks",
             "RPCTests/frameworks",
             "EncodingTests/frameworks",
           ],

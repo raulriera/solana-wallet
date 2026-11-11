@@ -14,7 +14,7 @@ extension ShieldedPool {
     static func queuedNullifiers(of notes: [ReceivedNote], using rpc: some RPC) async throws -> Set<[UInt8]> {
         let addresses = try notes.map { try nullifierAccount(tree: tree(id: $0.treeID), nullifier: $0.nullifier).value }
         let accounts = try await rpc.accounts(at: addresses).value
-        let systemOwner = try systemProgram.value
+        let systemOwner = try SystemProgram.address.value
         return Set(zip(notes, accounts).compactMap { note, account in
             guard let account, account.owner != systemOwner || !account.data.isEmpty else { return nil }
             return note.nullifier.bigEndianBytes

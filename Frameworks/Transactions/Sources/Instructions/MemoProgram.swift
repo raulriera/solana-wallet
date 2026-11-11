@@ -2,6 +2,14 @@ import Foundation
 
 /// Instruction constructors for the Memo Program.
 public enum MemoProgram {
+    /// The Memo Program's address.
+    static let id = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr"
+
+    /// The program's address.
+    public static var address: Address {
+        get throws { try Address(id) }
+    }
+
     /// Creates a memo instruction.
     ///
     /// - Parameters:
@@ -10,8 +18,8 @@ public enum MemoProgram {
     /// - Returns: The memo instruction.
     /// - Throws: An address validation error if the program identifier is invalid.
     public static func memo(_ text: String, signers: [Address] = []) throws -> Instruction {
-        Instruction(program: try Address("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr"),
-                    accounts: signers.map { .init(address: $0, isSigner: true, isWritable: false) },
+        Instruction(program: try address,
+                    accounts: signers.map { .readonly($0, isSigner: true) },
                     data: Data(text.utf8))
     }
 }

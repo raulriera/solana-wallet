@@ -1,12 +1,12 @@
 import Testing
 import Transactions
 
-struct TokenProgramTests {
+struct AssociatedTokenProgramTests {
     @Test(arguments: TokenFixtures.transfers.filter(\.createsDestination))
     func `Associated account creation matches the SDK's idempotent instruction`(_ fixture: TokenFixture) throws {
         let mint = try fixture.mint()
-        let instruction = try mint.program.createAssociatedAccount(owner: Address(TokenFixtures.recipient),
-                                                                   mint: mint.address, payer: Address(TokenFixtures.sender))
+        let instruction = try AssociatedTokenProgram.createIdempotent(owner: Address(TokenFixtures.recipient), mint: mint.address,
+                                                                       program: mint.program, payer: Address(TokenFixtures.sender))
         let reference = try TransactionDecoder().decode(base64: fixture.wire)
         let expected = try #require(reference.instructions.first)
 

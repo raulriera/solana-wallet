@@ -78,7 +78,7 @@ struct PrivateTokenLiveTests {
         let (simulation, _) = try await coordinator.simulate(withdrawal)
 
         #expect(withdrawal.instructions.first
-            == (try TokenProgram.token.createAssociatedAccount(owner: recipient.address, mint: mint, payer: owner.address)))
+            == (try AssociatedTokenProgram.createIdempotent(owner: recipient.address, mint: mint, program: .token, payer: owner.address)))
         #expect(simulation.diagnostics.value.error == nil)
         let rent = try await rpc.send(GetMinimumBalanceForRentExemption(dataLength: tokenMint.associatedAccountSize))
         #expect(simulation.balanceChanges?.contains(BalanceChange(owner: tokenAccount, asset: .sol, before: 0, after: rent)) == true)

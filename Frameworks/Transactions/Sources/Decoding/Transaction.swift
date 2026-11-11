@@ -59,6 +59,26 @@ public struct Transaction: Sendable, Equatable {
             self.isSigner = isSigner
             self.isWritable = isWritable
         }
+
+        /// Returns an account that the message requests write access to.
+        ///
+        /// - Parameters:
+        ///   - address: The account address.
+        ///   - isSigner: Whether the message requires its signature.
+        /// - Returns: The writable account.
+        public static func writable(_ address: Address, isSigner: Bool = false) -> Self {
+            Self(address: address, isSigner: isSigner, isWritable: true)
+        }
+
+        /// Returns an account that the message only reads.
+        ///
+        /// - Parameters:
+        ///   - address: The account address.
+        ///   - isSigner: Whether the message requires its signature.
+        /// - Returns: The read-only account.
+        public static func readonly(_ address: Address, isSigner: Bool = false) -> Self {
+            Self(address: address, isSigner: isSigner, isWritable: false)
+        }
     }
 
     /// The V1 configuration fields as encoded, with `nil` for omitted ones.

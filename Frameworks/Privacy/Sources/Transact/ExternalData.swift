@@ -29,17 +29,17 @@ struct ExternalData: Sendable {
             get throws {
                 guard let token else {
                     return [
-                        .init(address: try ShieldedPool.solInterface, isSigner: false, isWritable: true),
-                        .init(address: recipient, isSigner: false, isWritable: true),
+                        .writable(try ShieldedPool.solInterface),
+                        .writable(recipient),
                     ]
                 }
                 let mint = try token.mint
                 return [
-                    .init(address: try ShieldedPool.cpiAuthority, isSigner: false, isWritable: false),
-                    .init(address: mint, isSigner: false, isWritable: false),
-                    .init(address: try ShieldedPool.splInterface(of: mint).address, isSigner: false, isWritable: true),
-                    .init(address: recipient, isSigner: false, isWritable: true),
-                    .init(address: try TokenProgram.token.address, isSigner: false, isWritable: false),
+                    .readonly(try ShieldedPool.cpiAuthority),
+                    .readonly(mint),
+                    .writable(try ShieldedPool.splInterface(of: mint).address),
+                    .writable(recipient),
+                    .readonly(try TokenProgram.token.address),
                 ]
             }
         }
