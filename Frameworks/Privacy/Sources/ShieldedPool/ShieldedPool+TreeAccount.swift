@@ -8,8 +8,6 @@ extension ShieldedPool {
         /// The shielded-pool program doesn't own the account at the tree's address.
         case foreignOwner
         case invalidLength
-        /// The provider returned a different number of accounts than the read asked for.
-        case mismatchedResponse
         /// The account's UTXO root history doesn't have the program's capacity or a consistent cursor and length.
         case invalidRootHistory
         /// The account's fee per tree exceeds the program's cap.
@@ -52,15 +50,13 @@ extension ShieldedPool {
     ///   - trees: One through 100 tree accounts.
     ///   - rpc: The client of the network whose trees to read.
     /// - Returns: Each account's 40,080 bytes of data, in the order of `trees`.
-    /// - Throws: An RPC error, ``RPC/GetMultipleAccountsError/invalidAddressCount`` without trees or for more than
-    ///   100, ``TreeError/mismatchedResponse`` if the provider returns another number of accounts,
-    ///   ``TreeError/missingTree`` without an account, ``TreeError/foreignOwner`` if the program doesn't own one, or
-    ///   ``TreeError/invalidLength`` for data of another length.
+    /// - Throws: An error from ``RPC/RPC/accounts(at:minContextSlot:)``, ``TreeError/missingTree`` without an account,
+    ///   ``TreeError/foreignOwner`` if the program doesn't own one, or ``TreeError/invalidLength`` for data of another
+    ///   length.
     static func treeAccountData(at trees: [Address], using rpc: some RPC) async throws -> [[UInt8]] {
-        let response = try await rpc.send(GetMultipleAccounts(addresses: trees.map(\.value)))
-        guard response.value.count == trees.count else { throw TreeError.mismatchedResponse }
+        let accounts = try await rpc.accounts(at: trees.map(\.value)).value
         let owner = try program.value
-        return try response.value.map { account in
+        return try accounts.map { account in
             guard let account else { throw TreeError.missingTree }
             guard account.owner == owner else { throw TreeError.foreignOwner }
             guard account.data.count == TreeAccount.length else { throw TreeError.invalidLength }

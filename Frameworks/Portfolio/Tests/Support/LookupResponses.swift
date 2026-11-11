@@ -24,7 +24,7 @@ actor LookupResponses: HTTPTransport {
     }
 
     func data(for request: URLRequest) async throws -> (Data, URLResponse) {
-        let body = try rpcBody(request)
+        let body = try requestBody(request)
         let result: Any
         if body["method"] as? String == "getAssetBatch" {
             let mints = try #require((body["params"] as? [String: Any])?["ids"] as? [String])
@@ -32,7 +32,7 @@ actor LookupResponses: HTTPTransport {
             result = assetBatch(for: mints, logos: try await logos(mints))
         } else {
             try #require(body["method"] as? String == "getMultipleAccounts")
-            let addresses = try #require((body["params"] as? [Any])?.first as? [String])
+            let addresses = try requestedAddresses(request)
             requests.append(addresses)
             let values = addresses.map { address -> Any in
                 guard let account = accounts[address] else { return NSNull() }

@@ -10,7 +10,7 @@ struct SolanaRPCLiveTests {
         let rpc = try #require(SolanaRPC(endpoint: endpoint, network: .mainnet))
         let nativeMint = "So11111111111111111111111111111111111111112"
 
-        let response = try await rpc.send(GetMultipleAccounts(addresses: [nativeMint]))
+        let response = try await rpc.accounts(at: [nativeMint])
         _ = try await rpc.changedSlots(for: [nativeMint])
 
         #expect(response.value.first??.owner == "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")

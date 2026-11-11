@@ -44,7 +44,7 @@ struct ReceivedNoteInclusionStatusTests {
             Self.firstTree: [includedNote, refutedNote].map { Base58.encode($0.utxo.hash.bigEndianBytes) },
             Self.seventhTree: [Base58.encode(unconfirmedNote.utxo.hash.bigEndianBytes)],
         ])
-        #expect((bodies.last?["params"] as? [Any])?.first as? [String] == [Self.firstTree, Self.seventhTree])
+        #expect(try requestedAddresses(try #require(requests.last)) == [Self.firstTree, Self.seventhTree])
     }
 
     @Test
@@ -103,7 +103,7 @@ struct ReceivedNoteInclusionStatusTests {
             let body = try requestBody(request)
             guard body["method"] as? String == GetMerkleProofs.method else {
                 let values = accounts.map { AccountReplies.account(owner: ShieldedPool.programID, data: $0) }
-                return try reply(to: request, payload: #""result":\#(AccountReplies.accounts(values))"#)
+                return try reply(to: request, accounts: values)
             }
             let tree = try MerkleProofReplies.requestedLeaves(in: request).tree
             let entries = try #require(proofs[tree]).map(Self.entry(for:))

@@ -304,8 +304,7 @@ extension PrivateBalances {
     ///   - addresses: The accounts' addresses.
     ///   - client: The network's client.
     /// - Returns: Each account's lamports, zero for a missing account, in the addresses' order.
-    /// - Throws: ``PreparerError/inconsistentResponse`` if the provider returns another number of accounts, or a
-    ///   provider error.
+    /// - Throws: An error from ``RPC/RPC/accounts(at:minContextSlot:)``.
     @concurrent
     private static func lamports(of addresses: [Address], using client: Client) async throws -> [UInt64] {
         let groups = stride(from: 0, to: addresses.count, by: 100).map {
@@ -314,9 +313,8 @@ extension PrivateBalances {
         return try await withThrowingTaskGroup(of: (Int, [UInt64]).self) { group in
             for (position, batch) in groups.enumerated() {
                 group.addTask {
-                    let response = try await client.send(GetMultipleAccounts(addresses: batch.map(\.value)))
-                    guard response.value.count == batch.count else { throw PreparerError.inconsistentResponse }
-                    return (position, response.value.map { $0?.lamports ?? 0 })
+                    let accounts = try await client.accounts(at: batch.map(\.value)).value
+                    return (position, accounts.map { $0?.lamports ?? 0 })
                 }
             }
             var reads = [[UInt64]](repeating: [], count: groups.count)

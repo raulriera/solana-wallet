@@ -92,11 +92,11 @@ struct UTXOTrees: Sendable {
             let proofs = try requested.leaves.map { try tree.proof(of: $0, rootIndex: 1) }
             return try reply(to: request, payload: #""result":\#(MerkleProofReplies.result(proofs))"#)
         case GetMultipleAccounts.method?:
-            let addresses = try #require((body["params"] as? [Any])?.first as? [String])
+            let addresses = try requestedAddresses(request)
             let trees = try trees()
             let read = addresses.compactMap { trees[$0] }
             guard !read.isEmpty, read.count == addresses.count else { return nil }
-            return try reply(to: request, payload: #""result":\#(AccountReplies.accounts(read.map(account(of:))))"#)
+            return try reply(to: request, accounts: read.map(account(of:)))
         case GetTransaction.method?:
             let signature = try #require((body["params"] as? [Any])?.first as? String)
             let nullifiers = try rows.compactMap(Self.spend(in:)).first { $0.signature == signature }?.nullifiers

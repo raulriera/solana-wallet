@@ -10,19 +10,17 @@ struct RegistrationTests {
     @Test
     func `Records with the account's keys register it`() async throws {
         let vector = try #require(try RegistryVectors.load().records.first)
-        let transport = try Self.transport(returning: Self.record(fixtureBytes(vector.data)))
+        let transport = StubTransport.replying(accounts: [try Self.record(fixtureBytes(vector.data))])
 
         let registration = try await TransferVectors.sender().registration(using: SolanaRPC(network: .devnet, transport: transport))
 
-        let requests = try await transport.requests.map(requestBody)
         #expect(registration == .registered)
-        #expect(requests.map { $0["method"] as? String } == ["getMultipleAccounts"])
-        #expect(requests.first.flatMap { ($0["params"] as? [Any])?.first as? [String] } == [vector.record])
+        #expect(try await transport.requests.map(requestedAddresses) == [[vector.record]])
     }
 
     @Test
     func `Accounts without a record are unregistered`() async throws {
-        let transport = Self.transport(returning: "null")
+        let transport = StubTransport.replying(accounts: [nil])
 
         let registration = try await TransferVectors.sender().registration(using: SolanaRPC(network: .devnet, transport: transport))
 
@@ -38,7 +36,7 @@ struct RegistrationTests {
             nullifierSecret: otherNullifierSecret ? SymmetricKey(data: [UInt8](repeating: 1, count: 31)) : rail.nullifierSecretKey(),
             viewingKey: otherViewingKey ? TransferVectors.recipientViewingKey() : rail.viewingKey()
         )
-        let transport = try Self.transport(returning: Self.record(fixtureBytes(vector.data)))
+        let transport = StubTransport.replying(accounts: [try Self.record(fixtureBytes(vector.data))])
 
         let registration = try await account.registration(using: SolanaRPC(network: .devnet, transport: transport))
 
@@ -48,7 +46,7 @@ struct RegistrationTests {
     @Test
     func `Malformed records fail`() async throws {
         let vector = try #require(try RegistryVectors.load().records.first)
-        let transport = try Self.transport(returning: Self.record(Array(fixtureBytes(vector.data).dropLast())))
+        let transport = StubTransport.replying(accounts: [try Self.record(Array(fixtureBytes(vector.data).dropLast()))])
 
         await #expect(throws: UserRegistry.ValidationError.invalidLength) {
             try await TransferVectors.sender().registration(using: SolanaRPC(network: .devnet, transport: transport))
@@ -56,13 +54,6 @@ struct RegistrationTests {
     }
 
     private static func record(_ data: [UInt8]) throws -> String {
-        #"{"owner":"\#(try RegistryVectors.load().program)","lamports":1,"executable":false,"#
-            + #""data":["\#(Data(data).base64EncodedString())","base64"]}"#
-    }
-
-    private static func transport(returning account: String) -> StubTransport {
-        StubTransport { request in
-            try reply(to: request, payload: #""result":{"context":{"slot":7},"value":[\#(account)]}"#)
-        }
+        AccountReplies.account(owner: try RegistryVectors.load().program, data: data)
     }
 }

@@ -45,6 +45,7 @@ struct RedeemCodeLiveTests {
             let (confirmation, _) = try await Self.run(deposit, through: coordinator)
             _ = try await balances.complete(deposit, with: confirmation)
             log.append("deposit \(confirmation.submission.signature)")
+            _ = try await balances.settledBalance(of: sender, on: .devnet)
         }
 
         let redeemed = try await Self.createCode(of: Self.redeemedLamports, from: sender, in: balances, through: coordinator,
@@ -115,8 +116,8 @@ struct RedeemCodeLiveTests {
     private static func lamports(of code: RedeemCode, after confirmation: widgets.Confirmation,
                                  using rpc: some RPC) async throws -> UInt64 {
         let address = try OneTimeAccount(secret: code.secret).address
-        let slot = try await confirmation.executionSlot(through: rpc)
-        let response = try await rpc.send(GetMultipleAccounts(addresses: [address], minContextSlot: slot))
+        let slot = try #require(confirmation.slot)
+        let response = try await rpc.accounts(at: [address], minContextSlot: slot)
         return (response.value.first ?? nil)?.lamports ?? 0
     }
 }

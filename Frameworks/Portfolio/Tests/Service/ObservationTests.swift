@@ -24,7 +24,7 @@ struct ObservationTests {
         fixture.gate.resume()
         let failed = try await nextResult(&updates)
 
-        #expect(failed.error as? AccountReadError == .staleContext)
+        #expect(failed.error as? RPCError == .invalidResponse(.staleContext))
         #expect(failed.snapshot == original)
         #expect(fixture.store.snapshot(for: fixture.key) == original)
         #expect(await http.minimumSlots == [nil, 110])
@@ -177,7 +177,7 @@ struct ObservationTests {
         fixture.gate.resume()
         let failed = try await nextResult(&updates)
 
-        #expect(failed.error as? AccountReadError == .staleContext)
+        #expect(failed.error as? RPCError == .invalidResponse(.staleContext))
         #expect(failed.snapshot == current)
         #expect(fixture.store.snapshot(for: fixture.key) == current)
         #expect(await http.minimumSlots == [nil, 110, 110, 110])

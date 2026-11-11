@@ -46,7 +46,7 @@ actor AccountResponses: HTTPTransport {
     }
 
     func data(for request: URLRequest) async throws -> (Data, URLResponse) {
-        let body = try rpcBody(request)
+        let body = try requestBody(request)
         let result: Any
         if body["method"] as? String == "getAssetBatch" {
             result = try await assets(for: try #require((body["params"] as? [String: Any])?["ids"] as? [String]))
@@ -54,7 +54,7 @@ actor AccountResponses: HTTPTransport {
             try #require(body["method"] as? String == "getMultipleAccounts")
             let params = try #require(body["params"] as? [Any])
             minimumSlots.append((params.last as? [String: Any])?["minContextSlot"] as? UInt64)
-            result = try await accounts(at: try #require(params.first as? [String]))
+            result = try await accounts(at: try requestedAddresses(request))
         }
         return try rpcReply(to: body, result: result, request: request)
     }

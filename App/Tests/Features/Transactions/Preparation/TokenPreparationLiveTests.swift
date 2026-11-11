@@ -2,6 +2,7 @@ import Foundation
 import RPC
 import Testing
 import Transactions
+import Vault
 import Wallet
 @testable import widgets
 
@@ -12,12 +13,11 @@ struct TokenPreparationLiveTests {
     ])
     func `Mainnet token preparation reports a missing source account`(_ mintAddress: String) async throws {
         let rpc = try LiveClients.client()
-        let account = Account(id: UUID(), recoveryID: UUID(), address: try Address(PublicWallet.address),
-                              path: try DerivationPath("m/44'/501'/0'"))
+        let wallets = try await DevnetWallets.configured()
+        let account = wallets.sender
         let mint = try Address(mintAddress)
-        let coordinator = try TransactionCoordinator(rpc: rpc,
-            store: UnavailableRecoveryStore())
-        let source = try #require(try await Wallet().accounts(for: RecoveryPhrase(PublicWallet.words),
+        let coordinator = try TransactionCoordinator(rpc: rpc, store: UnavailableRecoveryStore())
+        let source = try #require(try await Wallet().accounts(for: wallets.recovery.phrase,
                                                               passphrase: "missing-token-source", paths: [.solana]).first)
         let absent = try Address(source.address)
 

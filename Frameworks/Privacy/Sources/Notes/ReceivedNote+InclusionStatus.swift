@@ -24,9 +24,9 @@ extension ReceivedNote {
     ///   - indexer: The indexer of the notes' network, which reads each tree's proofs.
     /// - Returns: Each note's status, in note order.
     /// - Throws: A ``Transactions/ValidationError`` if a tree's derivation fails, a proof read's error,
-    ///   ``RPC/RPCError/InvalidResponse/mismatchedProofs`` if the indexer doesn't return one proof per note, an RPC
-    ///   error, ``RPC/GetMultipleAccountsError/invalidAddressCount`` for notes of more than 100 trees, a
-    ///   ``ShieldedPool/TreeError`` for an account that isn't a valid tree, or `CancellationError`.
+    ///   ``RPC/RPCError/InvalidResponse/mismatchedProofs`` if the indexer doesn't return one proof per note, an error
+    ///   from ``RPC/RPC/accounts(at:minContextSlot:)`` for the trees' accounts, a ``ShieldedPool/TreeError`` for an
+    ///   account that isn't a valid tree, or `CancellationError`.
     @concurrent
     static func inclusionStatuses(
         of notes: [ReceivedNote],

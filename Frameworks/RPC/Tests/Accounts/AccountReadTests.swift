@@ -70,4 +70,30 @@ struct AccountReadTests {
         let params = try #require(body["params"] as? [[String: Any]])
         #expect(params.first?["minContextSlot"] as? UInt64 == 43200000)
     }
+
+    @Test
+    func `Shared account reads return accounts in request order, missing ones as nil, with their slot`() async throws {
+        let transport = StubTransport.replying(accounts: [AccountReplies.account(owner: "program", data: [1]), nil])
+        let rpc = SolanaRPC.devnet(transport: transport)
+
+        let response = try await rpc.accounts(at: ["first", "second"], minContextSlot: 7)
+
+        #expect(response.value.map { $0?.data } == [Data([1]), nil])
+        #expect(response.context.slot == 7)
+        #expect(try await transport.requests.map(requestedAddresses) == [["first", "second"]])
+    }
+
+    @Test(arguments: [
+        ([nil, nil], nil, RPCError.InvalidResponse.mismatchedAccounts),
+        ([nil], 8, .staleContext),
+    ] as [([String?], UInt64?, RPCError.InvalidResponse)])
+    func `Shared account reads reject responses that don't match the request`(
+        accounts: [String?], minContextSlot: UInt64?, reason: RPCError.InvalidResponse
+    ) async {
+        let rpc = SolanaRPC.devnet(transport: .replying(accounts: accounts))
+
+        await #expect(throws: RPCError.invalidResponse(reason)) {
+            try await rpc.accounts(at: ["first"], minContextSlot: minContextSlot)
+        }
+    }
 }

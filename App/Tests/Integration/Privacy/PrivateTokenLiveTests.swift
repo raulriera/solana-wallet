@@ -43,7 +43,7 @@ struct PrivateTokenLiveTests {
         let (publicUnits, spend) = try await (publicRead, proved)
         let withdrawn = try await coordinator.run([spend.instruction], signedBy: [owner])
         try #require(withdrawn.outcome == .succeeded)
-        let slot = try await withdrawn.executionSlot(through: rpc)
+        let slot = try #require(withdrawn.slot)
         #expect(try await Self.balance(of: tokenAccount, using: rpc, minContextSlot: slot) == publicUnits + Self.withdrawalUnits)
         state = try funded.recording(spend, signature: withdrawn.submission.signature)
         #expect(state.pendingAmount(of: .devnetUSDC) == spend.receivedAmount)
@@ -64,7 +64,7 @@ struct PrivateTokenLiveTests {
     private static func balance(
         of tokenAccount: Address, using rpc: some RPC, minContextSlot: UInt64? = nil
     ) async throws -> UInt64 {
-        let response = try await rpc.send(GetMultipleAccounts(addresses: [tokenAccount.value], minContextSlot: minContextSlot))
+        let response = try await rpc.accounts(at: [tokenAccount.value], minContextSlot: minContextSlot)
         let account = try #require(response.value.first ?? nil)
         return try TokenAccount(address: tokenAccount, programOwner: Address(account.owner), data: account.data).amount
     }

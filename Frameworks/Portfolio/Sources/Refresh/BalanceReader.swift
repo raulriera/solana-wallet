@@ -27,7 +27,7 @@ struct BalanceReader: BalanceReading {
         let wallet = try Address(owner)
         let accounts = try list.accounts(of: wallet)
         try Task.checkCancellation()
-        let contents = try await rpc.accounts(at: accounts, minContextSlot: minContextSlot)
+        let contents = try await rpc.accounts(at: accounts.map(\.value), minContextSlot: minContextSlot).value
         let native = Holding(id: .nativeSOL, amount: Amount(units: contents[0]?.lamports ?? 0, decimals: 9),
                              name: "Solana", symbol: "SOL", imageURL: nil, valuation: nil)
         let tokens = list.tokens.indices.map { index in

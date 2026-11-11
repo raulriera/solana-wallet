@@ -18,7 +18,8 @@ struct SignatureWatch: SubscriptionGroup {
 
     mutating func event(for notification: SubscriptionNotification) throws -> SignatureEvent? {
         if notification.request.method == "signatureSubscribe" {
-            return .landed(error: try notification.result(Landing.self).value.error)
+            let landing = try notification.result(Landing.self)
+            return .landed(slot: landing.context.slot, error: landing.value.error)
         }
         let root = try notification.result(UInt64.self)
         if let latestRoot, root <= latestRoot { return nil }
@@ -26,8 +27,9 @@ struct SignatureWatch: SubscriptionGroup {
         return .rooted(root)
     }
 
-    /// The part of a signature notification's result that carries the execution result.
+    /// The parts of a signature notification's result that carry its slot and the execution result.
     private struct Landing: Decodable {
+        let context: Context
         let value: Execution
     }
 

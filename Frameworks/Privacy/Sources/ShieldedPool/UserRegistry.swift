@@ -18,8 +18,6 @@ public enum UserRegistry {
         case invalidViewingPublicKey
         /// The record's merging flag isn't 0 or 1.
         case invalidMergingFlag
-        /// The provider returned a different number of accounts than the lookup asked for.
-        case mismatchedResponse
     }
 
     private static let programID = "regy3WAeRXMYuMYxr5iK3Bf9Arr3PcxGxyzAddbiqDQ"
@@ -89,14 +87,11 @@ public enum UserRegistry {
     ///   - rpc: The client that reads the records.
     /// - Returns: Each owner as a recipient, or `nil` if the owner hasn't registered, in the
     ///   owners' order.
-    /// - Throws: ``RPC/GetMultipleAccountsError/invalidAddressCount`` for no owners or more than
-    ///   100, an RPC error, ``ValidationError/mismatchedResponse`` if the provider returns another
-    ///   number of accounts, or a validation error from ``recipient(of:from:)``.
+    /// - Throws: An error from ``RPC/RPC/accounts(at:minContextSlot:)``, or a validation error from
+    ///   ``recipient(of:from:)``.
     @concurrent
     static func recipients(of owners: [Address], using rpc: some RPC) async throws -> [Recipient?] {
-        let records = try owners.map { try record(of: $0).address.value }
-        let response = try await rpc.send(GetMultipleAccounts(addresses: records))
-        guard response.value.count == owners.count else { throw ValidationError.mismatchedResponse }
-        return try zip(owners, response.value).map { try recipient(of: $0, from: $1) }
+        let accounts = try await rpc.accounts(at: owners.map { try record(of: $0).address.value }).value
+        return try zip(owners, accounts).map { try recipient(of: $0, from: $1) }
     }
 }

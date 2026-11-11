@@ -11,7 +11,7 @@ nonisolated struct Confirmation: Sendable, Equatable {
     }
 
     let submission: Submission
-    /// The slot in which the transaction executed, or `nil` if unknown.
+    /// A slot whose ledger state includes the transaction, or `nil` if it never landed.
     let slot: UInt64?
     let outcome: Outcome
 
@@ -19,7 +19,7 @@ nonisolated struct Confirmation: Sendable, Equatable {
     ///
     /// - Parameters:
     ///   - submission: The transaction's receipt.
-    ///   - slot: The transaction's execution slot, or `nil` if unknown.
+    ///   - slot: A slot whose ledger state includes the transaction, or `nil` if it never landed.
     ///   - outcome: How the transaction settled.
     init(submission: Submission, slot: UInt64?, outcome: Outcome) {
         self.submission = submission

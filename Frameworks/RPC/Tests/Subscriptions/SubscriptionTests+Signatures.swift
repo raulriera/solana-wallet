@@ -35,7 +35,7 @@ extension SubscriptionTests {
         let events = try await client(socket: socket).events(for: "fixture-signature")
         socket.notifyLanding(error: error)
         var iterator = events.makeAsyncIterator()
-        #expect(try await iterator.next() == .landed(error: expected))
+        #expect(try await iterator.next() == .landed(slot: 5, error: expected))
     }
 
     @Test(.timeLimit(.minutes(1)))
@@ -64,7 +64,7 @@ extension SubscriptionTests {
         socket.fail(URLError(.networkConnectionLost))
         await socket.waitUntilCancelled()
         var iterator = events.makeAsyncIterator()
-        #expect(try await iterator.next() == .landed(error: nil))
+        #expect(try await iterator.next() == .landed(slot: 5, error: nil))
         #expect(try await iterator.next() == .rooted(10))
         #expect(try await iterator.next() == .rooted(12))
         await #expect(throws: RPCError.transport(.networkConnectionLost)) { try await iterator.next() }

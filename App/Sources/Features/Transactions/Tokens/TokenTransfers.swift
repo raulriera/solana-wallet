@@ -78,13 +78,11 @@ nonisolated struct TokenTransfers {
     ///
     /// - Parameter addresses: The account addresses.
     /// - Returns: The accounts, with `nil` for missing ones.
-    /// - Throws: An inconsistent-response, executable-account, RPC, or cancellation error.
+    /// - Throws: An error from ``RPC/RPC/accounts(at:minContextSlot:)``, an executable-account error, or a
+    ///   cancellation error.
     private func accounts(at addresses: [Address]) async throws -> GetMultipleAccounts.Response {
-        let response = try await rpc.send(GetMultipleAccounts(addresses: addresses.map(\.value)))
+        let response = try await rpc.accounts(at: addresses.map(\.value))
         try Task.checkCancellation()
-        guard response.value.count == addresses.count else {
-            throw TokenTransfersError.inconsistentAccounts
-        }
         guard !response.value.contains(where: { $0?.executable == true }) else { throw TokenError.invalidAccount }
         return response
     }

@@ -56,6 +56,10 @@ func httpReply(to request: URLRequest, body: String, status: Int = 200,
     return (Data(body.utf8), response)
 }
 
+func requestedAddresses(_ request: URLRequest) throws -> [String] {
+    try #require((requestBody(request)["params"] as? [Any])?.first as? [String])
+}
+
 func requestedMints(_ request: URLRequest, query name: String) throws -> [String] {
     let url = try #require(request.url)
     let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems

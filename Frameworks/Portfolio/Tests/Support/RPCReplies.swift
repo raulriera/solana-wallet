@@ -1,11 +1,6 @@
 import Foundation
 import Testing
 
-func rpcBody(_ request: URLRequest) throws -> [String: Any] {
-    let data = try #require(request.httpBody)
-    return try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
-}
-
 func rpcReply(to body: [String: Any], result: Any, request: URLRequest) throws -> (Data, URLResponse) {
     let envelope: [String: Any] = ["jsonrpc": "2.0", "id": try #require(body["id"]), "result": result]
     let url = try #require(request.url)

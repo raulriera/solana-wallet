@@ -78,6 +78,21 @@ struct CustomRPCConnectionTests {
         #expect(await settings.value == nil)
     }
 
+    @Test
+    func `An RPC that answers with another number of accounts is unreachable`() async {
+        let settings = StoredValue<RPCSettings>()
+        let sockets = SocketSequence()
+        let responses = HTTPResponses(["getMultipleAccounts": [#"{"context":{"slot":1},"value":[null,null]}"#]])
+
+        await #expect(throws: CustomRPCError.unreachable) {
+            try await makeConnection(rpcStore: .inMemory(settings), responses: responses, sockets: sockets)
+                .connect("https://rpc.example.com")
+        }
+
+        #expect(sockets.sockets.isEmpty)
+        #expect(await settings.value == nil)
+    }
+
     @Test(arguments: [
         ("accountSubscribe", -32601, CustomRPCError.noLiveUpdates), ("signatureSubscribe", -32601, .noLiveUpdates),
         ("rootSubscribe", -32601, .noLiveUpdates), ("accountSubscribe", 429, .rateLimited),

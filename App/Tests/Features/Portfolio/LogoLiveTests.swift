@@ -25,7 +25,7 @@ struct LogoLiveTests {
         let bonk = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"
         let provider: any LogoProviding = HeliusRPC(apiKey: try LiveClients.heliusAPIKey(), network: .mainnet)
 
-        let logos = try await provider.logos(for: [usdc, bonk, PublicWallet.address])
+        let logos = try await provider.logos(for: [usdc, bonk])
 
         #expect(Set(logos.keys) == [usdc, bonk])
         #expect(Set(logos.values.map(\.scheme)) == ["https"])

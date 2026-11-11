@@ -14,8 +14,8 @@ extension ShieldedAccount {
     ///
     /// - Parameter rpc: The client of the network whose registry to read.
     /// - Returns: The state of the account's record.
-    /// - Throws: An RPC error, or a validation error if the provider returns another number of
-    ///   accounts or the account at the record's address isn't a valid record of the account.
+    /// - Throws: An error from ``RPC/RPC/accounts(at:minContextSlot:)``, or a ``UserRegistry/ValidationError`` if the
+    ///   account at the record's address isn't a valid record of the account.
     @concurrent
     public func registration(using rpc: some RPC) async throws -> Registration {
         guard let record = try await UserRegistry.recipients(of: [signingAddress], using: rpc).first ?? nil else {

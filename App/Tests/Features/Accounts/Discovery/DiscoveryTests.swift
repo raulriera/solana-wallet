@@ -37,16 +37,6 @@ struct DiscoveryTests {
     }
 
     @Test
-    func `Discovery rejects a truncated native account response`() async throws {
-        let http = HTTPResponses(["getMultipleAccounts": [accountResponse([nativeAccount(lamports: 1)])]])
-        let phrase = try publicPhrase()
-        await #expect(throws: AccountDiscoveryError.mismatchedAccounts) {
-            try await AccountDiscovery(rpc: http.client).discover(for: phrase, passphrase: "")
-        }
-        #expect(await http.requests.count == 1)
-    }
-
-    @Test
     func `Discovery surfaces rate limits without retrying`() async throws {
         let error = RPCError.http(statusCode: 429, retryAfter: "3")
         let http = HTTPResponses([:], error: error)

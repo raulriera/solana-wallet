@@ -1,23 +1,18 @@
 import RPC
 import Testing
-import Wallet
+import Vault
 @testable import widgets
 
 @Suite(.tags(.network))
 struct DiscoveryLiveTests {
     @Test(.timeLimit(.minutes(1)), arguments: [true, false])
-    func `Mainnet discovery matches observed SOL balances for a public phrase`(helius: Bool) async throws {
+    func `Mainnet discovery reads twenty addresses with one request`(helius: Bool) async throws {
         let transport = LiveResponses<GetMultipleAccounts>()
         let rpc = try LiveClients.client(helius: helius, transport: transport)
-        let phrase = try RecoveryPhrase(PublicWallet.words)
+        let recovery = try await DevnetWallets.configured().recovery
 
-        let accounts = try await AccountDiscovery(rpc: rpc).discover(for: phrase, passphrase: "")
+        _ = try await AccountDiscovery(rpc: rpc).discover(for: recovery.phrase, passphrase: recovery.passphrase)
 
-        let responses = await transport.responses
-        try #require(responses.count == 1)
-        let observed = responses[0]
-        #expect(observed.value.count == 20)
-        #expect(accounts.count == observed.value.count { ($0?.lamports ?? 0) > 0 })
-        #expect(Set(accounts.map(\.address)).count == accounts.count)
+        #expect(await transport.responses.map(\.value.count) == [20])
     }
 }

@@ -26,7 +26,7 @@ struct DevnetWallets {
     }
 
     func requireFunds(_ lamports: UInt64, using rpc: some RPC) async throws {
-        let funds = try await rpc.send(GetMultipleAccounts(addresses: [sender.address.value]))
+        let funds = try await rpc.accounts(at: [sender.address.value])
         try #require((funds.value.first ?? nil)?.lamports ?? 0 >= lamports,
                      "Account 0 must hold \(lamports) lamports of devnet SOL; fund \(sender.address.value)")
     }

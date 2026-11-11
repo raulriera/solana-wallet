@@ -67,8 +67,8 @@ nonisolated struct Confirmer: TransactionConfirming {
         while let event = try await next(from: events) {
             try Task.checkCancellation()
             switch event {
-            case .landed(let error):
-                return Confirmation(submission: submission, slot: nil,
+            case .landed(let slot, let error):
+                return Confirmation(submission: submission, slot: slot,
                                     outcome: error.map(Confirmation.Outcome.failed) ?? .succeeded)
             case .rooted(let root):
                 schedule.root = root

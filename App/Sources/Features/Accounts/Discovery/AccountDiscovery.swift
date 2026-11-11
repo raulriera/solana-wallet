@@ -23,12 +23,10 @@ nonisolated struct AccountDiscovery: AccountDiscovering {
             [.solana(account: index), try DerivationPath("m/44'/501'/\(index)'")]
         }
         let candidates = try await wallet.accounts(for: phrase, passphrase: passphrase, paths: paths)
-        guard candidates.map(\.path) == paths else { throw AccountDiscoveryError.mismatchedAccounts }
         try Task.checkCancellation()
-        let native = try await rpc.send(GetMultipleAccounts(addresses: candidates.map(\.address)))
-        guard native.value.count == candidates.count else { throw AccountDiscoveryError.mismatchedAccounts }
+        let native = try await rpc.accounts(at: candidates.map(\.address)).value
 
-        let matches = zip(candidates, native.value).compactMap { candidate, account in
+        let matches = zip(candidates, native).compactMap { candidate, account in
             (account?.lamports ?? 0) > 0 ? candidate : nil
         }
         try Task.checkCancellation()

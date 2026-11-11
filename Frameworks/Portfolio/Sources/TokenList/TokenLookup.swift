@@ -15,7 +15,7 @@ struct TokenLookup: Sendable {
     @concurrent
     func preview(of mint: Address) async throws -> TokenPreview {
         async let logoLookup = logos?.logos(for: [mint.value])
-        let accounts = try await rpc.accounts(at: [mint, TokenMetadata.metaplexAccount(for: mint)])
+        let accounts = try await rpc.accounts(at: [mint.value, TokenMetadata.metaplexAccount(for: mint).value]).value
         guard let account = accounts[0], let owner = try? Address(account.owner),
               let tokenMint = try? TokenMint(address: mint, owner: owner, data: account.data) else {
             throw TokenLookupError.notToken

@@ -16,8 +16,7 @@ struct SubmissionLiveTests {
         try await wallets.requireFunds(1_100_000, using: rpc)
         let coordinator: any TransactionCoordinating = try TransactionCoordinator(
             rpc: rpc, store: SigningRecoveryStore(recovery: wallets.recovery))
-        let initialAccounts = try await rpc.send(GetMultipleAccounts(addresses: [sender.value, recipient.value]))
-        try #require(initialAccounts.value.count == 2)
+        let initialAccounts = try await rpc.accounts(at: [sender.value, recipient.value])
         let senderBalance = try #require(initialAccounts.value[0]).lamports
         let recipientBalance = initialAccounts.value[1]?.lamports ?? 0
         let simulation = try await coordinator.simulate([
@@ -37,9 +36,8 @@ struct SubmissionLiveTests {
         let submission = try await coordinator.submit(simulation)
         let result = try await coordinator.confirm(submission)
         try #require(result.outcome == .succeeded)
-        let slot = try await result.executionSlot(through: rpc)
-        let accounts = try await rpc.send(GetMultipleAccounts(addresses: [sender.value, recipient.value], minContextSlot: slot))
-        try #require(accounts.value.count == 2)
+        let slot = try #require(result.slot)
+        let accounts = try await rpc.accounts(at: [sender.value, recipient.value], minContextSlot: slot)
         #expect(accounts.value[0]?.lamports == senderBalance - 1_000_000 - fee)
         #expect(accounts.value[1]?.lamports == recipientBalance + 1_000_000)
     }
@@ -83,8 +81,7 @@ struct SubmissionLiveTests {
         let mintAddress = try Address(mint)
         let source = try program.associatedAccount(owner: sender.address, mint: mintAddress)
         let destination = try program.associatedAccount(owner: recipient.address, mint: mintAddress)
-        let accounts = try await rpc.send(GetMultipleAccounts(addresses: [source.value, destination.value]))
-        try #require(accounts.value.count == 2)
+        let accounts = try await rpc.accounts(at: [source.value, destination.value])
         let initialBalances = try tokenAmounts(at: [source, destination], in: accounts)
         let sourceBalance = initialBalances[0]
         let destinationBalance = initialBalances[1]
@@ -133,8 +130,8 @@ struct SubmissionLiveTests {
 
     private func tokenBalances(_ addresses: [Address], through rpc: some RPC, after confirmation: widgets.Confirmation,
                                program: TokenProgram) async throws -> [UInt64] {
-        let slot = try await confirmation.executionSlot(through: rpc)
-        let response = try await rpc.send(GetMultipleAccounts(addresses: addresses.map(\.value), minContextSlot: slot))
+        let slot = try #require(confirmation.slot)
+        let response = try await rpc.accounts(at: addresses.map(\.value), minContextSlot: slot)
         #expect(Set(response.value.map { $0?.owner }) == [program.rawValue])
         return try tokenAmounts(at: addresses, in: response)
     }

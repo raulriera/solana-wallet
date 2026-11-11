@@ -13,8 +13,7 @@ struct SenderTests {
         let rpc = try LiveClients.client()
         let wallets = try await DevnetWallets.configured()
         let account = wallets.sender
-        let balance = try await rpc.send(GetMultipleAccounts(addresses: [account.address.value]))
-        try #require(balance.value.count == 1)
+        let balance = try await rpc.accounts(at: [account.address.value])
         let initial = try #require(balance.value[0]).lamports
         let coordinator = try TransactionCoordinator(rpc: rpc, store: SigningRecoveryStore(recovery: wallets.recovery),
                                                      strategy: strategy)
@@ -28,9 +27,8 @@ struct SenderTests {
         let submission = try await coordinator.submit(review)
         let result = try await coordinator.confirm(submission)
         try #require(result.outcome == .succeeded)
-        let slot = try await result.executionSlot(through: rpc)
-        let final = try await rpc.send(GetMultipleAccounts(addresses: [account.address.value], minContextSlot: slot))
-        try #require(final.value.count == 1)
+        let slot = try #require(result.slot)
+        let final = try await rpc.accounts(at: [account.address.value], minContextSlot: slot)
         #expect(final.value[0]?.lamports == initial - fee - tip)
     }
 }

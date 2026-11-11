@@ -30,9 +30,8 @@ nonisolated struct CustomRPCConnection: ProviderConnecting {
             throw CustomRPCError.unavailable
         }
         guard !listed.contains(url) else { throw CustomRPCError.duplicate }
-        let request = try GetMultipleAccounts(addresses: [Self.checkedAccount])
         do {
-            _ = try await rpc.send(request)
+            _ = try await rpc.accounts(at: [Self.checkedAccount])
         } catch {
             try Task.checkCancellation()
             throw (error as? RPCError)?.isRateLimited == true ? CustomRPCError.rateLimited : .unreachable

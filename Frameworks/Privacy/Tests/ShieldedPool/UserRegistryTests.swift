@@ -59,14 +59,11 @@ struct UserRegistryTests {
         let vectors = try RegistryVectors.load().records
         let owners = try [vectors[0].owner, vectors[1].owner, vectors[0].owner].map(Address.init)
         let record = try fixtureBytes(vectors[0].data)
-        let accounts = [
-            #"{"owner":"\#(try RegistryVectors.load().program)","lamports":1,"executable":false,"#
-                + #""data":["\#(Data(record).base64EncodedString())","base64"]}"#,
-            "null",
-            #"{"owner":"11111111111111111111111111111111","lamports":1,"executable":false,"data":["","base64"]}"#,
-        ]
-        let payload = #""result":{"context":{"slot":7},"value":[\#(accounts.joined(separator: ","))]}"#
-        let transport = StubTransport { request in try reply(to: request, payload: payload) }
+        let transport = StubTransport.replying(accounts: [
+            AccountReplies.account(owner: try RegistryVectors.load().program, data: record),
+            nil,
+            AccountReplies.account(owner: "11111111111111111111111111111111"),
+        ])
 
         let recipients = try await UserRegistry.recipients(of: owners, using: SolanaRPC(network: .devnet, transport: transport))
 
@@ -76,21 +73,9 @@ struct UserRegistryTests {
         let params = try #require(body["params"] as? [Any])
         #expect(requests.count == 1)
         #expect(body["method"] as? String == "getMultipleAccounts")
-        #expect(params.first as? [String] == [vectors[0].record, vectors[1].record, vectors[0].record])
+        #expect(try requestedAddresses(request) == [vectors[0].record, vectors[1].record, vectors[0].record])
         #expect((params.last as? [String: Any])?["commitment"] as? String == "finalized")
         #expect(recipients.map { $0?.signingAddress.value } == [vectors[0].owner, nil, nil])
-    }
-
-    @Test
-    func `Mismatched responses are rejected`() async throws {
-        let owner = try Address(try #require(try RegistryVectors.load().records.first).owner)
-        let transport = StubTransport { request in
-            try reply(to: request, payload: #""result":{"context":{"slot":7},"value":[null,null]}"#)
-        }
-
-        await #expect(throws: UserRegistry.ValidationError.mismatchedResponse) {
-            try await UserRegistry.recipients(of: [owner], using: SolanaRPC(network: .devnet, transport: transport))
-        }
     }
 
     private static func account(_ data: [UInt8]) throws -> Account {

@@ -25,7 +25,7 @@ struct ConfirmationTests {
 
         let confirmation = try await confirmer(http, sockets).confirm(submission)
 
-        #expect(confirmation == Confirmation(submission: submission, slot: nil, outcome: outcome))
+        #expect(confirmation == Confirmation(submission: submission, slot: 5, outcome: outcome))
         let requests = await http.requests
         try #require(requests.count == 2)
         let statusRead = try #require(requests.first { try $0.rpcMethod == "getSignatureStatuses" })
@@ -66,7 +66,7 @@ struct ConfirmationTests {
 
         let confirmation = try await confirmer(http, sockets).confirm(submission)
 
-        #expect(confirmation == Confirmation(submission: submission, slot: nil, outcome: .succeeded))
+        #expect(confirmation == Confirmation(submission: submission, slot: 5, outcome: .succeeded))
         #expect(try await reads(of: http) == ["getSignatureStatuses": 1, "getEpochInfo": 1])
     }
 
@@ -150,7 +150,7 @@ struct ConfirmationTests {
 
         let confirmation = try await confirmer(http, sockets).confirm(receipt)
 
-        #expect(confirmation == Confirmation(submission: receipt, slot: nil, outcome: .succeeded))
+        #expect(confirmation == Confirmation(submission: receipt, slot: 5, outcome: .succeeded))
         #expect(try await reads(of: http) == methods)
         await sockets.waitUntilClosed()
     }

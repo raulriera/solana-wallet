@@ -67,7 +67,7 @@ struct PrivateTransferLiveTests {
             == PrivateBalanceStatus.Balance(available: privateLamports - Self.transferLamports - sentChange, pending: sentChange))
         privateLamports = try await balances.settledBalance(of: sender, on: .devnet)
 
-        let before = try await rpc.send(GetMultipleAccounts(addresses: [recipient.address.value]))
+        let before = try await rpc.accounts(at: [recipient.address.value])
         let publicLamports = (before.value.first ?? nil)?.lamports ?? 0
         let withdrawal = try await balances.prepare(.withdraw(Self.transferLamports, to: recipient.address), from: sender,
                                                     on: .devnet)
@@ -76,8 +76,8 @@ struct PrivateTransferLiveTests {
         let withdrawnChange = try #require(withdrawal.effect.spend).receivedAmount
         #expect(try await balances.complete(withdrawal, with: withdrawn).balance(of: .sol)
             == PrivateBalanceStatus.Balance(available: privateLamports - Self.transferLamports - withdrawnChange, pending: withdrawnChange))
-        let slot = try await withdrawn.executionSlot(through: rpc)
-        let after = try await rpc.send(GetMultipleAccounts(addresses: [recipient.address.value], minContextSlot: slot))
+        let slot = try #require(withdrawn.slot)
+        let after = try await rpc.accounts(at: [recipient.address.value], minContextSlot: slot)
         #expect((after.value.first ?? nil)?.lamports == publicLamports + Self.transferLamports)
     }
 

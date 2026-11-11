@@ -28,6 +28,10 @@ public enum RPCError: Error, Sendable, Equatable {
         case oversized
         /// The provider returned another number of proofs than the request named leaves.
         case mismatchedProofs
+        /// The provider returned another number of accounts than the request named addresses.
+        case mismatchedAccounts
+        /// The response comes from a slot before the request's minimum context slot.
+        case staleContext
         /// The prover's attestation doesn't prove that the expected enclave holds its key.
         case untrustedProver
         /// The prover's encrypted answer doesn't open under the request's key or holds no status.

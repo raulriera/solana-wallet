@@ -19,7 +19,7 @@ public struct GetMultipleAccounts: RPCRequest {
     ///   - addresses: One through 100 account addresses.
     ///   - minContextSlot: The minimum evaluation slot, or `nil` for no minimum.
     /// - Throws: ``GetMultipleAccountsError/invalidAddressCount`` for an empty or oversized request.
-    public init(addresses: [String], minContextSlot: UInt64? = nil) throws {
+    init(addresses: [String], minContextSlot: UInt64? = nil) throws {
         guard (1...100).contains(addresses.count) else { throw GetMultipleAccountsError.invalidAddressCount }
         self.addresses = addresses
         self.minContextSlot = minContextSlot
