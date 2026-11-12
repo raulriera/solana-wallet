@@ -1,6 +1,6 @@
 import ModularArithmetic
-@testable import Privacy
 import Testing
+@testable import Privacy
 
 struct PackedBytesTests {
     @Test(arguments: try CommitmentVectors.load().hashBytes.filter { $0.input.count <= 62 })

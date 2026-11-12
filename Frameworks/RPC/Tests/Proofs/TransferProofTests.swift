@@ -1,5 +1,5 @@
-import Testing
 import RPC
+import Testing
 
 struct TransferProofTests {
     private static func proof(a: [UInt8] = [1], b: [UInt8] = [2], c: [UInt8] = [5], digest: [UInt8] = [3]) -> TransferProof {

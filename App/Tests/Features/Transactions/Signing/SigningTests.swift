@@ -3,9 +3,9 @@ import Foundation
 import RPC
 import Testing
 import Transactions
-@testable import widgets
 import Vault
 import Wallet
+@testable import widgets
 
 struct SigningTests {
     @Test

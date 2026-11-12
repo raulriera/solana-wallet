@@ -1,7 +1,7 @@
+import Darwin
 import Foundation
 import Testing
 @testable import Themes
-import Darwin
 
 struct AssetTests {
     @Test func `Named pipe is rejected as an asset`() async throws {

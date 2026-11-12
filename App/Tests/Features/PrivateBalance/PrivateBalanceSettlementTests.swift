@@ -1,6 +1,6 @@
 import Privacy
-@testable import RPC
 import Testing
+@testable import RPC
 @testable import widgets
 
 @Suite(.timeLimit(.minutes(1)))

@@ -1,6 +1,6 @@
 import CryptoKit
-@testable import Privacy
 import Testing
+@testable import Privacy
 
 struct SlotCipherTests {
     private let vector: EncryptionVectors.Slot

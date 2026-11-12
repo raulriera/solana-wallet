@@ -1,6 +1,6 @@
 import ModularArithmetic
-@testable import Privacy
 import Testing
+@testable import Privacy
 
 struct PrivateTransactionHashTests {
     @Test(arguments: try NonzeroHashChainVectors.load().vectors)

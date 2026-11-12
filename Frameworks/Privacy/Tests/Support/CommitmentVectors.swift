@@ -1,7 +1,7 @@
 import CryptoKit
 import ModularArithmetic
-@testable import Privacy
 import Testing
+@testable import Privacy
 
 struct CommitmentVectors: Decodable, Sendable {
     let hashBytes: [ByteHash]

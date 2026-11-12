@@ -2,8 +2,8 @@ import Foundation
 import RPC
 import Testing
 import Transactions
-import Wallet
 import Vault
+import Wallet
 @testable import widgets
 
 struct StrategyTests {

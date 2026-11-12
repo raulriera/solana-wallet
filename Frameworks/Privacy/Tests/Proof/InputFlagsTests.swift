@@ -1,6 +1,6 @@
 import ModularArithmetic
-@testable import Privacy
 import Testing
+@testable import Privacy
 
 struct InputFlagsTests {
     @Test(arguments: try PublicInputVectors.load().inputFlags.filter(\.allowsDummyInputs))

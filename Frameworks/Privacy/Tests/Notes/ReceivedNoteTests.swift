@@ -1,10 +1,10 @@
 import CryptoKit
 import Foundation
 import ModularArithmetic
-@testable import Privacy
 import RPC
 import Testing
 import Transactions
+@testable import Privacy
 
 struct ReceivedNoteTests {
     @Test(arguments: try DepositNoteVectors.load().deposits)

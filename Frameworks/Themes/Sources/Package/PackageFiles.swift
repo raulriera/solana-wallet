@@ -1,7 +1,7 @@
+import Darwin
 import Foundation
 import ImageIO
 import UniformTypeIdentifiers
-import Darwin
 
 /// A namespace for reading and building theme package files.
 enum PackageFiles {

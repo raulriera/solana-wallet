@@ -1,6 +1,6 @@
 import Foundation
-@testable import Storage
 import Testing
+@testable import Storage
 
 @Suite(.timeLimit(.minutes(1)))
 struct FileItemTests {

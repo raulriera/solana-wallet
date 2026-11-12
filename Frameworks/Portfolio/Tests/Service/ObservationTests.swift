@@ -1,9 +1,9 @@
 import Foundation
-@testable import RPC
 import Synchronization
 import Testing
 import Transactions
 @testable import Portfolio
+@testable import RPC
 
 struct ObservationTests {
     @Test(.timeLimit(.minutes(1)), arguments: [100, 109] as [UInt64])

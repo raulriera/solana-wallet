@@ -1,5 +1,5 @@
-import Foundation
 import CoreFoundation
+import Foundation
 
 /// A theme package's manifest.
 struct Manifest: Sendable, Equatable {

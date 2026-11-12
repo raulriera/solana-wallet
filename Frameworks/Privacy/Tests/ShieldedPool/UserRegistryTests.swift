@@ -1,10 +1,10 @@
 import CryptoKit
 import Foundation
 import ModularArithmetic
-@testable import Privacy
-@testable import RPC
 import Testing
 import Transactions
+@testable import Privacy
+@testable import RPC
 
 struct UserRegistryTests {
     @Test(arguments: try RegistryVectors.load().records)

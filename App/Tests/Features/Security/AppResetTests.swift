@@ -1,8 +1,8 @@
 import Foundation
-@testable import Portfolio
-@testable import RPC
 import Testing
 import Transactions
+@testable import Portfolio
+@testable import RPC
 @testable import widgets
 
 @MainActor

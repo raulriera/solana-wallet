@@ -1,10 +1,10 @@
 import CryptoKit
 import Foundation
 import Privacy
-@testable import RPC
 import Testing
 import Transactions
 import Wallet
+@testable import RPC
 @testable import widgets
 
 struct TransactionCoordinatingPrivateTransactionTests {

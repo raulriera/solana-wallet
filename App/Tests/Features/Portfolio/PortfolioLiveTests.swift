@@ -1,8 +1,8 @@
 import Foundation
-@testable import Portfolio
 import RPC
 import Testing
 import Transactions
+@testable import Portfolio
 @testable import widgets
 
 @Suite(.tags(.network))

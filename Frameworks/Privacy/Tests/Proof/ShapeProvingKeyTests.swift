@@ -1,5 +1,5 @@
-@testable import Privacy
 import Testing
+@testable import Privacy
 
 struct ShapeProvingKeyTests {
     @Test(arguments: Shape.supported)

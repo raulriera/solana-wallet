@@ -1,6 +1,6 @@
 import ModularArithmetic
-@testable import Privacy
 import Testing
+@testable import Privacy
 
 struct TransactBlindingTests {
     private let vector: CommitmentVectors.BlindingSeed

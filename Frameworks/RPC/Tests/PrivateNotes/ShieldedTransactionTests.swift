@@ -1,5 +1,5 @@
-import Testing
 import RPC
+import Testing
 
 struct ShieldedTransactionTests {
     private static let output = ShieldedOutput(viewTag: [1], utxoHash: [2], treeID: 0, leafIndex: 0, payload: [])

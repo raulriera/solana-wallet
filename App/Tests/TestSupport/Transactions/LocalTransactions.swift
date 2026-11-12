@@ -1,5 +1,5 @@
-@testable import RPC
 import Transactions
+@testable import RPC
 @testable import widgets
 
 struct LocalTransactions {

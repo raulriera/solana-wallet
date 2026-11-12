@@ -1,6 +1,6 @@
 import Foundation
-@testable import RPC
 import Testing
+@testable import RPC
 @testable import widgets
 
 @MainActor
