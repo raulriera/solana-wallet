@@ -386,6 +386,8 @@
             "widgets/frameworks",
             { "build-phase": "widgets/copy/Embed Frameworks", "code-sign-on-copy": true, "header-preservation": "remove-on-copy" },
             "Wallet/frameworks",
+            "ModularArithmetic/frameworks",
+            "Vault/frameworks",
             "RedactionTests/frameworks",
           ],
         },
@@ -703,6 +705,9 @@
       "id": "A80000000000000000000014",
       "product": "Products/ModularArithmetic.framework",
       "product-type": "framework",
+      "dependencies": [
+        "Redaction",
+      ],
       "build-phases": [
         "compile-sources",
         "frameworks",
@@ -823,6 +828,7 @@
       "product": "Products/Vault.framework",
       "product-type": "framework",
       "dependencies": [
+        "Redaction",
         "Wallet",
       ],
       "build-phases": [

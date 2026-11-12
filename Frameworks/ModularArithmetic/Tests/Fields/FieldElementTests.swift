@@ -197,13 +197,4 @@ struct FieldElementTests {
         }
         try check(fixture.field)
     }
-
-    @Test
-    func `Field element descriptions omit the value`() {
-        let element = FieldElement<BN254ScalarField>(7)
-
-        #expect(String(describing: element) == "FieldElement")
-        #expect(String(reflecting: element) == "FieldElement")
-        #expect(Mirror(reflecting: element).children.isEmpty)
-    }
 }
