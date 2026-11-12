@@ -385,6 +385,7 @@
           "target-membership": [
             "widgets/frameworks",
             { "build-phase": "widgets/copy/Embed Frameworks", "code-sign-on-copy": true, "header-preservation": "remove-on-copy" },
+            "Wallet/frameworks",
             "RedactionTests/frameworks",
           ],
         },
@@ -554,6 +555,7 @@
       "product-type": "framework",
       "dependencies": [
         "Encoding",
+        "Redaction",
       ],
       "build-phases": [
         "compile-sources",

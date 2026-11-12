@@ -1,8 +1,9 @@
 import CryptoKit
 import Foundation
+public import Redaction
 
 /// A validated English BIP-39 recovery phrase.
-public struct RecoveryPhrase: Sendable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
+public struct RecoveryPhrase: Sendable, Redacted {
     /// A supported BIP-39 phrase length.
     public enum WordCount: Int, CaseIterable, Sendable {
         case twelve = 12
@@ -25,12 +26,6 @@ public struct RecoveryPhrase: Sendable, CustomStringConvertible, CustomDebugStri
     }
 
     public let words: [String]
-
-    public var description: String { "RecoveryPhrase" }
-
-    public var debugDescription: String { description }
-
-    public var customMirror: Mirror { Mirror(self, children: [:]) }
 
     /// Creates a recovery phrase by validating and normalizing its words.
     ///

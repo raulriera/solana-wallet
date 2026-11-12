@@ -126,17 +126,4 @@ struct OneTimeAccountTests {
 
         #expect(throws: SigningError.reservedMessage) { try account.signature(for: message) }
     }
-
-    @Test
-    func `One-time account diagnostics omit the secrets`() throws {
-        let account = try OneTimeAccount(secret: SymmetricKey(data: fixtureBytes(Self.vectors[0].secret)))
-        var output = ""
-        dump(account, to: &output)
-
-        #expect(account.description == "OneTimeAccount")
-        #expect(account.debugDescription == "OneTimeAccount")
-        #expect(String(reflecting: account) == "OneTimeAccount")
-        #expect(output == "- OneTimeAccount\n")
-        #expect(Mirror(reflecting: account).children.isEmpty)
-    }
 }

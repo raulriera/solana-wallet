@@ -40,19 +40,6 @@ struct RecoveryPhraseTests {
     }
 
     @Test
-    func `Recovery phrase diagnostics omit recovery words`() throws {
-        let phrase = try PublicRecovery.phrase()
-        var output = ""
-        dump(phrase, to: &output)
-
-        #expect(String(describing: phrase) == "RecoveryPhrase")
-        #expect(String(reflecting: phrase) == "RecoveryPhrase")
-        #expect(Mirror(reflecting: phrase).children.isEmpty)
-        #expect(!output.contains("abandon"))
-        #expect(!output.contains("about"))
-    }
-
-    @Test
     func `Unavailable secure randomness prevents phrase creation`() {
         let wallet = Wallet(entropy: UnavailableEntropy())
         #expect(throws: UnavailableEntropyError.unavailable) {

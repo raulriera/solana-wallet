@@ -1,7 +1,8 @@
 public import CryptoKit
+public import Redaction
 
 /// An account's Solana Rings private-balance secrets.
-public struct PrivateBalanceKeys: Sendable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
+public struct PrivateBalanceKeys: Sendable, Redacted {
     /// The 31-byte secret that derives the account's nullifiers.
     public let nullifierSecret: SymmetricKey
 
@@ -9,12 +10,6 @@ public struct PrivateBalanceKeys: Sendable, CustomStringConvertible, CustomDebug
 
     /// The 32-byte root that derives the account's one-time accounts.
     public let codeRoot: SymmetricKey
-
-    public var description: String { "PrivateBalanceKeys" }
-
-    public var debugDescription: String { description }
-
-    public var customMirror: Mirror { Mirror(self, children: [:]) }
 
     /// Creates an account's keys from a SLIP-0010 seed.
     ///
