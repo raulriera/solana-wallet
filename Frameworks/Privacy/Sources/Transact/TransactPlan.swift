@@ -1,10 +1,11 @@
 import CryptoKit
 import ModularArithmetic
+import Redaction
 import Transactions
 
 /// A default-ring SOL transact before its proof: the sender spends UTXOs into a transfer, a public
 /// withdrawal, or both, and keeps the change.
-struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
+struct TransactPlan: Sendable, Redacted {
     /// A transact that the plan can't build.
     enum ValidationError: Error, Equatable {
         case noInputs
@@ -32,19 +33,13 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
     }
 
     /// A transfer of SOL to another owner's shielded address.
-    struct Transfer: Sendable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
+    struct Transfer: Sendable, Redacted {
         let recipient: Recipient
         let lamports: UInt64
-
-        var description: String { "TransactPlan.Transfer" }
-
-        var debugDescription: String { description }
-
-        var customMirror: Mirror { Mirror(self, children: [:]) }
     }
 
     /// The random values of one plan: the blinding seed, the salt, and the padding.
-    struct Randomness: Sendable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
+    struct Randomness: Sendable, Redacted {
         /// The proof's private blinding seed, below 2^248.
         let blindingSeed: Poseidon.Element
         /// The 16-byte salt of the notes.
@@ -53,12 +48,6 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
         let paddingInputBlindings: [Poseidon.Element]
         /// The payload of each padding output, as long as a note.
         let paddingOutputData: [[UInt8]]
-
-        var description: String { "TransactPlan.Randomness" }
-
-        var debugDescription: String { description }
-
-        var customMirror: Mirror { Mirror(self, children: [:]) }
 
         /// Draws random values for a plan.
         ///
@@ -100,7 +89,7 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
     }
 
     /// One input slot: a spent UTXO, or padding.
-    struct Input: Sendable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
+    struct Input: Sendable, Redacted {
         /// The spent UTXO, or `nil` for padding.
         let utxo: UTXO?
         /// The position of the slot's tree among the declared input trees.
@@ -109,16 +98,10 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
         let hash: Poseidon.Element
         let nullifier: Poseidon.Element
         let blinding: Poseidon.Element
-
-        var description: String { "TransactPlan.Input" }
-
-        var debugDescription: String { description }
-
-        var customMirror: Mirror { Mirror(self, children: [:]) }
     }
 
     /// One output slot: a new UTXO, or padding.
-    struct Output: Sendable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
+    struct Output: Sendable, Redacted {
         /// The new UTXO, or `nil` for padding.
         let utxo: UTXO?
         /// The slot as the instruction publishes it.
@@ -126,12 +109,6 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
         let blinding: Poseidon.Element
         /// The owner of the new UTXO, or `nil` for padding.
         let owner: Recipient?
-
-        var description: String { "TransactPlan.Output" }
-
-        var debugDescription: String { description }
-
-        var customMirror: Mirror { Mirror(self, children: [:]) }
     }
 
     /// The validated slots of a plan before its random values.
@@ -270,12 +247,6 @@ struct TransactPlan: Sendable, CustomStringConvertible, CustomDebugStringConvert
     var commitments: [Poseidon.Element] { outputs.map(\.published.utxoHash) }
 
     var payloads: [[UInt8]] { outputs.map(\.published.data) }
-
-    var description: String { "TransactPlan" }
-
-    var debugDescription: String { description }
-
-    var customMirror: Mirror { Mirror(self, children: [:]) }
 
     /// Creates a plan with random blindings, salt, and padding.
     ///

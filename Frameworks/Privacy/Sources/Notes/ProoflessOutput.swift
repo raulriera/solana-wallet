@@ -1,8 +1,9 @@
 import ModularArithmetic
 import RPC
+import Redaction
 
 /// The payload of a proofless deposit's output, with the UTXO in the clear.
-struct ProoflessOutput: Sendable, Equatable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
+struct ProoflessOutput: Sendable, Equatable, Redacted {
     /// An error that rejects a payload as a proofless output.
     enum ValidationError: Error, Equatable {
         case invalidLength
@@ -32,12 +33,6 @@ struct ProoflessOutput: Sendable, Equatable, CustomStringConvertible, CustomDebu
 
     /// The amount, in the asset's smallest unit.
     let amount: UInt64
-
-    var description: String { "ProoflessOutput" }
-
-    var debugDescription: String { description }
-
-    var customMirror: Mirror { Mirror(self, children: [:]) }
 
     /// Creates an output by decoding a published payload.
     ///
