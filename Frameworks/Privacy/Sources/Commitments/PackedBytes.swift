@@ -1,3 +1,4 @@
+import Algorithms
 import Foundation
 import ModularArithmetic
 
@@ -29,10 +30,10 @@ enum PackedBytes {
     /// - Parameter bytes: The value.
     /// - Returns: The first chunk's field value, folded with each later chunk.
     private static func fold(_ bytes: [UInt8]) -> Poseidon.Element {
-        stride(from: chunkLength, to: bytes.count, by: chunkLength)
-            .reduce(field(of: bytes.prefix(chunkLength))) { hash, start in
-                Poseidon.hash(hash, field(of: bytes.dropFirst(start).prefix(chunkLength)))
-            }
+        let chunks = bytes.chunks(ofCount: chunkLength)
+        return chunks.dropFirst().reduce(field(of: chunks.first ?? [])) { hash, chunk in
+            Poseidon.hash(hash, field(of: chunk))
+        }
     }
 
     /// Right-aligns at most 31 bytes in a field element.

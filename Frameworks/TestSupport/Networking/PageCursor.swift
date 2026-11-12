@@ -1,3 +1,4 @@
+import Algorithms
 import Foundation
 import Testing
 @testable import RPC
@@ -21,7 +22,7 @@ nonisolated enum PageCursor {
 
     static func pages<Row>(of rows: [Row], perPage: Int?) -> [(rows: [Row], next: String?)] {
         guard let perPage, rows.count > perPage else { return [(rows, nil)] }
-        let pages = rows.batches(of: perPage)
+        let pages = rows.chunks(ofCount: perPage).map(Array.init)
         return pages.enumerated().map { number, page in
             (page, number < pages.count - 1 ? cursor(forPage: number + 1) : nil)
         }

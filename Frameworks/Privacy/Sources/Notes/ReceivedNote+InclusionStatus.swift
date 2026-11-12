@@ -1,3 +1,4 @@
+import Algorithms
 import ModularArithmetic
 import RPC
 import Transactions
@@ -38,15 +39,8 @@ extension ReceivedNote {
         let trees = try treeIDs.map(ShieldedPool.tree(id:))
         let leaves = notes.map(\.utxo.hash)
         let positions = treeIDs.map { treeID in notes.indices.filter { notes[$0].treeID == treeID } }
-        let proofs = try await withThrowingTaskGroup(of: (Int, [MerkleProof]).self) { group in
-            for (index, tree) in trees.enumerated() {
-                let address = tree.value
-                let treeLeaves = positions[index].map { leaves[$0].bigEndianBytes }
-                group.addTask { (index, try await indexer.merkleProofs(for: treeLeaves, inTree: address)) }
-            }
-            var proofs = [[MerkleProof]](repeating: [], count: trees.count)
-            for try await (index, treeProofs) in group { proofs[index] = treeProofs }
-            return proofs
+        let proofs = try await zip(trees, positions).concurrentMap { tree, treePositions in
+            try await indexer.merkleProofs(for: treePositions.map { leaves[$0].bigEndianBytes }, inTree: tree.value)
         }
         guard zip(proofs, positions).allSatisfy({ $0.count == $1.count }) else {
             throw RPCError.invalidResponse(.mismatchedProofs)

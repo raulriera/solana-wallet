@@ -1,3 +1,4 @@
+import Algorithms
 import ModularArithmetic
 
 /// The Poseidon hash chains that fold a transact proof's public inputs.
@@ -8,8 +9,8 @@ enum HashChain {
     /// - Returns: The chain.
     static func left4(_ elements: [Poseidon.Element]) -> Poseidon.Element {
         guard let first = elements.first else { return .zero }
-        return stride(from: 1, to: elements.count, by: 3).reduce(first) { chain, start in
-            let group = groupOfThree(elements[start..<min(start + 3, elements.count)])
+        return elements.dropFirst().chunks(ofCount: 3).reduce(first) { chain, chunk in
+            let group = groupOfThree(chunk)
             return Poseidon.hash(chain, group[0], group[1], group[2])
         }
     }

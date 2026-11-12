@@ -1,3 +1,4 @@
+import Algorithms
 public import Foundation
 
 /// A client that sends typed JSON-RPC requests to Helius on a selected Solana network.
@@ -61,12 +62,12 @@ public struct HeliusRPC: RPC, AccountChangeProviding, SignatureEventProviding, L
     }
 
     public func logos(for mints: [String]) async throws -> [String: URL] {
-        let unique = mints.uniqued()
+        let unique = Array(mints.uniqued())
         let requested = Set(unique)
         var logos: [String: URL] = [:]
-        for batch in unique.batches(of: 1_000) {
+        for batch in unique.chunks(ofCount: 1_000) {
             try Task.checkCancellation()
-            for case let asset? in try await send(GetAssetBatch(ids: batch)) where requested.contains(asset.id) {
+            for case let asset? in try await send(GetAssetBatch(ids: Array(batch))) where requested.contains(asset.id) {
                 logos[asset.id] = asset.imageURL
             }
         }

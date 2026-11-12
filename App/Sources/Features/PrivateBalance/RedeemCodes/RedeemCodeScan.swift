@@ -1,3 +1,4 @@
+import Algorithms
 import Privacy
 import RPC
 import Transactions
@@ -72,17 +73,9 @@ nonisolated enum RedeemCodeScan {
     @concurrent
     static func fundings(of indices: [UInt32], from keys: PrivateBalanceKeyRecord,
                          using provider: some PrivateNoteProviding) async throws -> [Funding] {
-        let batches = stride(from: 0, to: indices.count, by: discoveryBatchSize).map {
-            Array(indices[$0..<min($0 + discoveryBatchSize, indices.count)])
-        }
-        return try await withThrowingTaskGroup(of: (Int, [Funding]).self) { group in
-            for (position, batch) in batches.enumerated() {
-                group.addTask { (position, try await fundings(ofBatch: batch, from: keys, using: provider)) }
-            }
-            var found = [[Funding]](repeating: [], count: batches.count)
-            for try await (position, fundings) in group { found[position] = fundings }
-            return found.flatMap(\.self)
-        }
+        try await indices.chunks(ofCount: discoveryBatchSize).concurrentMap { batch in
+            try await fundings(ofBatch: Array(batch), from: keys, using: provider)
+        }.flatMap(\.self)
     }
 
     /// Reads the statuses of checked indices from the notes of their paid one-time accounts.

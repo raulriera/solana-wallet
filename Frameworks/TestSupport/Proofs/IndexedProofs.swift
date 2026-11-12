@@ -1,3 +1,4 @@
+import Algorithms
 import Encoding
 import Foundation
 import ModularArithmetic
@@ -32,7 +33,7 @@ enum IndexedProofs {
         }
         let hash = PublicInputs.hash(elements: elements, treeSlots: slots)
         let proof = proof(for: Shape(inputs: request.prepared.nInputs, outputs: request.prepared.nOutputs))
-        let words = stride(from: 0, to: proof.b.count, by: 32).map { ProverAnswer.word(Array(proof.b[$0..<$0 + 32])) }
+        let words = proof.b.chunks(ofCount: 32).map { ProverAnswer.word(Array($0)) }
         let trees = request.trees.map {
             ProverAnswer.tree(
                 tree: .string($0.tree), id: .number(Double($0.id)),

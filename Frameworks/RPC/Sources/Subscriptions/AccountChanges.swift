@@ -1,3 +1,5 @@
+import Algorithms
+
 /// Finalized account subscriptions whose notifications coalesce into increasing change slots.
 struct AccountChanges: SubscriptionGroup {
     let requests: [SubscriptionRequest]

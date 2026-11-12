@@ -1,3 +1,5 @@
+import Algorithms
+
 nonisolated extension AsyncSequence {
     /// Creates an asynchronous sequence of the known values that replace another known value.
     ///

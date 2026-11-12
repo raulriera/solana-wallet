@@ -1,3 +1,4 @@
+import Algorithms
 import Foundation
 
 /// A source of market prices for token mints.
@@ -42,9 +43,9 @@ extension PriceProviding {
     public func prices(for mints: [String]) async throws -> [String: Quote] {
         try Task.checkCancellation()
         var result: [String: Quote] = [:]
-        for batch in mints.uniqued().batches(of: batchSize) {
+        for batch in Array(mints.uniqued()).chunks(ofCount: batchSize) {
             try Task.checkCancellation()
-            let quotes = try await quotes(from: response(for: batch))
+            let quotes = try await quotes(from: response(for: Array(batch)))
             let requested = Set(batch)
             guard quotes.allSatisfy({ requested.contains($0.key) && $0.value.isValid }) else { throw RPCError.decoding }
             result.merge(quotes) { $1 }

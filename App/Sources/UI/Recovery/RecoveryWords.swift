@@ -1,3 +1,4 @@
+import Algorithms
 import SwiftUI
 import Wallet
 
@@ -10,7 +11,7 @@ struct RecoveryWords: View {
     var body: some View {
         let visibleWords = canDisplayRecovery ? phrase.words : Array(repeating: String(localized: "Hidden"), count: phrase.words.count)
         let numberedWords = zip(1..., visibleWords).map { (position: $0.0, word: $0.1) }
-        let rows = stride(from: 0, to: numberedWords.count, by: 2).map { numberedWords[$0..<min($0 + 2, numberedWords.count)] }
+        let rows = numberedWords.chunks(ofCount: 2)
         Grid(alignment: .trailingFirstTextBaseline) {
             ForEach(rows, id: \.startIndex) { row in
                 GridRow {

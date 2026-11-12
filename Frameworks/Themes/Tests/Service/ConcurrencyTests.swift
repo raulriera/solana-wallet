@@ -1,3 +1,4 @@
+import Algorithms
 import Foundation
 import Testing
 @testable import Themes
@@ -143,22 +144,13 @@ struct ConcurrencyTests {
         defer { fixture.remove() }
         let service: any PackServicing = PackService()
         let directory = fixture.directory
-        let results = try await withThrowingTaskGroup(of: (Int, Pack).self) { group in
-            for index in 0..<8 {
-                group.addTask {
-                    let destination = directory.appendingPathComponent("Export-\(index)")
-                    try await service.exportTemplate(named: "Theme \(index)", defaults: Fixture.defaults,
-                                                     to: destination)
-                    return (index, try await service.read(from: destination))
-                }
-            }
-            var results: [(Int, Pack)] = []
-            for try await result in group { results.append(result) }
-            return results
+        let packs = try await (0..<8).concurrentMap { index in
+            let destination = directory.appendingPathComponent("Export-\(index)")
+            try await service.exportTemplate(named: "Theme \(index)", defaults: Fixture.defaults, to: destination)
+            return try await service.read(from: destination)
         }
-        #expect(results.count == 8)
-        #expect(Set(results.map { $0.1.id }).count == 8)
-        for (index, pack) in results {
+        #expect(Set(packs.map(\.id)).count == 8)
+        for (index, pack) in packs.enumerated() {
             #expect(pack.name == "Theme \(index)")
             #expect(Fixture.defaults.applying(pack) == Fixture.defaults)
         }

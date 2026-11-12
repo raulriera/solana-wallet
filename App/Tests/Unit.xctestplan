@@ -49,6 +49,18 @@
       },
       "target" : {
         "containerPath" : "container:widgets.xcodeproj",
+        "identifier" : "AE0000000000000000000015",
+        "name" : "AlgorithmsTests"
+      }
+    },
+    {
+      "skippedTags" : {
+        "tags" : [
+          ".network"
+        ]
+      },
+      "target" : {
+        "containerPath" : "container:widgets.xcodeproj",
         "identifier" : "A60000000000000000000015",
         "name" : "EncodingTests"
       }

@@ -52,6 +52,14 @@
       "children": [
         {
           "kind": "group",
+          "path": "Algorithms",
+          "children": [
+            { "kind": "folder", "path": "Sources", "target-membership": [ "Algorithms" ] },
+            { "kind": "folder", "path": "Tests", "target-membership": [ "AlgorithmsTests" ] },
+            { "path": "README.md" },
+          ],
+        }, {
+          "kind": "group",
           "path": "Attestation",
           "children": [
             { "kind": "folder", "path": "Sources", "target-membership": [ "Attestation" ] },
@@ -270,6 +278,23 @@
             "PrivacyTests/frameworks",
           ],
         }, {
+          "path": "<PRODUCTS>/Algorithms.framework",
+          "id": "AE0000000000000000000001",
+          "type": "wrapper.framework",
+          "target-membership": [
+            "widgets/frameworks",
+            { "build-phase": "widgets/copy/Embed Frameworks", "code-sign-on-copy": true, "header-preservation": "remove-on-copy" },
+            "RPC/frameworks",
+            "Attestation/frameworks",
+            "Privacy/frameworks",
+            "RPCTests/frameworks",
+            "PortfolioTests/frameworks",
+            "widgetsTests/frameworks",
+            "AlgorithmsTests/frameworks",
+            "PrivacyTests/frameworks",
+            "ThemesTests/frameworks",
+          ],
+        }, {
           "path": "<PRODUCTS>/Attestation.framework",
           "id": "AD0000000000000000000001",
           "type": "wrapper.framework",
@@ -352,6 +377,7 @@
         { "path": "<PRODUCTS>/widgetsUITests.xctest", "id": "AA0000000000000000000002", "type": "wrapper.cfbundle" },
         { "path": "<PRODUCTS>/WalletTests.xctest", "id": "A30000000000000000000002", "type": "wrapper.cfbundle" },
         { "path": "<PRODUCTS>/TransactionsTests.xctest", "id": "A50000000000000000000002", "type": "wrapper.cfbundle" },
+        { "path": "<PRODUCTS>/AlgorithmsTests.xctest", "id": "AE0000000000000000000002", "type": "wrapper.cfbundle" },
         { "path": "<PRODUCTS>/AttestationTests.xctest", "id": "AD0000000000000000000002", "type": "wrapper.cfbundle" },
         { "path": "<PRODUCTS>/EncodingTests.xctest", "id": "A60000000000000000000002", "type": "wrapper.cfbundle" },
         { "path": "<PRODUCTS>/ModularArithmeticTests.xctest", "id": "A80000000000000000000002", "type": "wrapper.cfbundle" },
@@ -373,6 +399,7 @@
         { "name": "Release", "file": "Configuration/App.xcconfig" },
       ],
       "dependencies": [
+        "Algorithms",
         "Attestation",
         "Encoding",
         "ModularArithmetic",
@@ -439,6 +466,7 @@
       "product": "Products/RPC.framework",
       "product-type": "framework",
       "dependencies": [
+        "Algorithms",
         "Attestation",
         "Encoding",
       ],
@@ -570,6 +598,7 @@
       "product": "Products/Attestation.framework",
       "product-type": "framework",
       "dependencies": [
+        "Algorithms",
         "Encoding",
       ],
       "build-phases": [
@@ -588,6 +617,33 @@
         "INSTALL_PATH": "$(LOCAL_LIBRARY_DIR)/Frameworks",
         "MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS": "gnu17 gnu++20",
         "PRODUCT_BUNDLE_IDENTIFIER": "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).Attestation",
+        "PRODUCT_NAME": "$(TARGET_NAME)",
+        "SDKROOT": "iphoneos",
+        "SKIP_INSTALL": "YES",
+        "SUPPORTED_PLATFORMS": "iphoneos iphonesimulator",
+        "TARGETED_DEVICE_FAMILY": "1,2",
+      },
+    }, {
+      "name": "Algorithms",
+      "id": "AE0000000000000000000014",
+      "product": "Products/Algorithms.framework",
+      "product-type": "framework",
+      "build-phases": [
+        "compile-sources",
+        "frameworks",
+        "resources",
+      ],
+      "build-settings": {
+        "CODE_SIGN_IDENTITY": "",
+        "CODE_SIGN_STYLE": "Automatic",
+        "DEFINES_MODULE": "YES",
+        "DEVELOPMENT_TEAM": "R64MTWS872",
+        "ENABLE_HARDWARE_CHECKED_POINTER_ARITHMETIC_SLICE": "YES",
+        "ENABLE_MODULE_VERIFIER": "YES",
+        "GENERATE_INFOPLIST_FILE": "YES",
+        "INSTALL_PATH": "$(LOCAL_LIBRARY_DIR)/Frameworks",
+        "MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS": "gnu17 gnu++20",
+        "PRODUCT_BUNDLE_IDENTIFIER": "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).Algorithms",
         "PRODUCT_NAME": "$(TARGET_NAME)",
         "SDKROOT": "iphoneos",
         "SKIP_INSTALL": "YES",
@@ -656,6 +712,7 @@
       "product": "Products/Privacy.framework",
       "product-type": "framework",
       "dependencies": [
+        "Algorithms",
         "Encoding",
         "ModularArithmetic",
         "RPC",
@@ -989,6 +1046,38 @@
           "@loader_path/Frameworks",
         ],
         "PRODUCT_BUNDLE_IDENTIFIER": "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).AttestationTests",
+        "PRODUCT_NAME": "$(TARGET_NAME)",
+        "SDKROOT": "iphoneos",
+        "SKIP_INSTALL": "YES",
+        "SUPPORTED_PLATFORMS": "iphoneos iphonesimulator",
+        "TARGETED_DEVICE_FAMILY": "1,2",
+        "TEST_HOST": "",
+      },
+    }, {
+      "name": "AlgorithmsTests",
+      "id": "AE0000000000000000000015",
+      "product": "Products/AlgorithmsTests.xctest",
+      "product-type": "bundle.unit-test",
+      "dependencies": [
+        "Algorithms",
+      ],
+      "build-phases": [
+        "compile-sources",
+        "frameworks",
+        "resources",
+      ],
+      "build-settings": {
+        "BUNDLE_LOADER": "",
+        "CODE_SIGN_STYLE": "Automatic",
+        "DEVELOPMENT_TEAM": "R64MTWS872",
+        "ENABLE_HARDWARE_CHECKED_POINTER_ARITHMETIC_SLICE": "YES",
+        "GENERATE_INFOPLIST_FILE": "YES",
+        "LD_RUNPATH_SEARCH_PATHS": [
+          "$(inherited)",
+          "@executable_path/Frameworks",
+          "@loader_path/Frameworks",
+        ],
+        "PRODUCT_BUNDLE_IDENTIFIER": "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).AlgorithmsTests",
         "PRODUCT_NAME": "$(TARGET_NAME)",
         "SDKROOT": "iphoneos",
         "SKIP_INSTALL": "YES",

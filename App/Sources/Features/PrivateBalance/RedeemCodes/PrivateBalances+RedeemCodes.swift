@@ -1,3 +1,4 @@
+import Algorithms
 import Foundation
 import Privacy
 import RPC
@@ -307,19 +308,8 @@ extension PrivateBalances {
     /// - Throws: An error from ``RPC/RPC/accounts(at:minContextSlot:)``.
     @concurrent
     private static func lamports(of addresses: [Address], using client: Client) async throws -> [UInt64] {
-        let groups = stride(from: 0, to: addresses.count, by: 100).map {
-            Array(addresses[$0..<min($0 + 100, addresses.count)])
-        }
-        return try await withThrowingTaskGroup(of: (Int, [UInt64]).self) { group in
-            for (position, batch) in groups.enumerated() {
-                group.addTask {
-                    let accounts = try await client.accounts(at: batch.map(\.value)).value
-                    return (position, accounts.map { $0?.lamports ?? 0 })
-                }
-            }
-            var reads = [[UInt64]](repeating: [], count: groups.count)
-            for try await (position, lamports) in group { reads[position] = lamports }
-            return reads.flatMap(\.self)
-        }
+        try await addresses.chunks(ofCount: 100).concurrentMap { batch in
+            try await client.accounts(at: batch.map(\.value)).value.map { $0?.lamports ?? 0 }
+        }.flatMap(\.self)
     }
 }

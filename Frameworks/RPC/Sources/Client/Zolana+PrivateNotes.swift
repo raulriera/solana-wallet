@@ -1,3 +1,4 @@
+import Algorithms
 import Encoding
 
 extension Zolana {
@@ -17,7 +18,7 @@ extension Zolana {
     public func shieldedTransactions(taggedWith tags: [[UInt8]], after position: NoteSyncPosition?) async throws
         -> ShieldedTransactionBatch {
         guard tags.allSatisfy({ $0.count == 32 }) else { throw PrivateNoteError.invalidTag }
-        let groups = tags.map(Base58.encode).batches(of: 1_000)
+        let groups = tags.map(Base58.encode).chunks(ofCount: 1_000).map(Array.init)
         let start = position ?? NoteSyncPosition(tags: tags, groupCount: groups.count)
         guard start.matches(tags, groupCount: groups.count) else { throw PrivateNoteError.mismatchedPosition }
         let indexer = indexer
@@ -31,8 +32,8 @@ extension Zolana {
 
         let confidential = transactions.flatMap(\.items).filter { !$0.isInRing }.map(\.value)
             .filter { !$0.isProofless }
-            .uniqued(by: { TransactionKey(signature: $0.signature, eventIndex: $0.eventIndex) })
-        let deposits = outputs.flatMap(\.items).compactMap(\.deposit).uniqued(by: DepositKey.init)
+            .uniqued(on: { TransactionKey(signature: $0.signature, eventIndex: $0.eventIndex) })
+        let deposits = outputs.flatMap(\.items).compactMap(\.deposit).uniqued(on: DepositKey.init)
         return ShieldedTransactionBatch(
             transactions: Self.ordered(confidential + deposits),
             outputTreeID: transactions.lazy.compactMap(\.outputTreeID).first
@@ -46,7 +47,7 @@ extension Zolana {
     @concurrent
     public func shieldedTransactions(spending nullifiers: [[UInt8]]) async throws -> [ShieldedTransaction] {
         guard nullifiers.allSatisfy({ $0.count == 32 }) else { throw PrivateNoteError.invalidNullifier }
-        let groups = nullifiers.map(Base58.encode).batches(of: Self.nullifierGroupSize)
+        let groups = nullifiers.map(Base58.encode).chunks(ofCount: Self.nullifierGroupSize).map(Array.init)
         let indexer = indexer
         let checkpoints = [IndexerCheckpoint](repeating: .start, count: groups.count)
         let reads = try await Self.read(groups, after: checkpoints) { nullifiers, checkpoint, limit in
@@ -54,7 +55,7 @@ extension Zolana {
                                 limit: limit, from: indexer)
         }
         return Self.ordered(reads.flatMap(\.items).map(\.value)
-            .uniqued(by: { TransactionKey(signature: $0.signature, eventIndex: $0.eventIndex) }))
+            .uniqued(on: { TransactionKey(signature: $0.signature, eventIndex: $0.eventIndex) }))
     }
 
     @concurrent
@@ -62,7 +63,7 @@ extension Zolana {
         guard leaves.allSatisfy({ $0.count == 32 }) else { throw PrivateNoteError.invalidLeaf }
         guard Base58.decode(tree, byteCount: 32) != nil else { throw PrivateNoteError.invalidTree }
         let indexer = indexer
-        return try await Self.map(leaves.batches(of: Self.leafGroupSize)) { batch in
+        return try await leaves.chunks(ofCount: Self.leafGroupSize).concurrentMap { batch in
             try await indexer.send(GetMerkleProofs(treeAccount: tree, leaves: batch.map(Base58.encode)),
                                    at: GetMerkleProofs.method).proofs.map(\.proof)
         }.flatMap(\.self)
@@ -96,31 +97,10 @@ extension Zolana {
         after checkpoints: [IndexerCheckpoint],
         page: @escaping @Sendable ([String], IndexerCheckpoint, Int) async throws -> Page
     ) async throws -> [IndexerRead<Page.Item>] {
-        try await Self.map(Array(zip(groups, checkpoints))) { values, checkpoint in
+        try await zip(groups, checkpoints).concurrentMap { values, checkpoint in
             try await Page.read(from: checkpoint, pageLimit: Self.indexerPageLimit, pageSize: Self.indexerPageSize) {
                 try await page(values, $0, $1)
             }
-        }
-    }
-
-    /// Transforms each group concurrently.
-    ///
-    /// - Parameters:
-    ///   - groups: The groups to transform.
-    ///   - transform: The work for one group.
-    /// - Returns: Each group's result, in group order.
-    /// - Throws: The first error of any group.
-    private static func map<Group: Sendable, Result: Sendable>(
-        _ groups: [Group],
-        _ transform: @escaping @Sendable (Group) async throws -> Result
-    ) async throws -> [Result] {
-        try await withThrowingTaskGroup(of: (Int, Result).self) { group in
-            for (index, value) in groups.enumerated() {
-                group.addTask { (index, try await transform(value)) }
-            }
-            var results = [Result?](repeating: nil, count: groups.count)
-            for try await (index, result) in group { results[index] = result }
-            return results.compactMap(\.self)
         }
     }
 

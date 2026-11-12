@@ -1,3 +1,5 @@
+import Algorithms
+
 /// The choice of the notes that a spend consumes.
 enum NoteSelection {
     /// Chooses the notes that cover an amount for the fewest tree fees.
@@ -15,7 +17,7 @@ enum NoteSelection {
     static func notes(covering amount: UInt64, from notes: [ReceivedNote], writingTo outputTreeID: UInt16) throws
         -> [ReceivedNote] {
         let trees = Dictionary(grouping: notes, by: \.utxo.treeID).sorted { $0.key < $1.key }.map(\.value)
-        let candidates = (1...TransactPlan.maximumInputTrees).flatMap(trees.combinations(ofCount:))
+        let candidates = trees.combinations(ofCount: 1...TransactPlan.maximumInputTrees)
             .compactMap { combination in covering(amount, from: Array(combination.joined())) }
         guard !candidates.isEmpty else { throw PrivateSpend.ValidationError.insufficientFunds }
         let ranked = candidates.sorted { rank(of: $0, writingTo: outputTreeID) < rank(of: $1, writingTo: outputTreeID) }

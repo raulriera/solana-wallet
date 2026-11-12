@@ -1,3 +1,4 @@
+import Algorithms
 import Encoding
 import Foundation
 
@@ -173,7 +174,7 @@ struct NitroCertificate: Sendable {
         let digits = bytes.dropLast().map { Int($0) - Int(UInt8(ascii: "0")) }
         guard digits.allSatisfy((0...9).contains) else { throw ValidationError.invalidTime }
         let year = digits.prefix(yearDigitCount).reduce(0) { $0 * 10 + $1 }
-        let fields = stride(from: yearDigitCount, to: digits.count, by: 2).map { digits[$0] * 10 + digits[$0 + 1] }
+        let fields = digits.dropFirst(yearDigitCount).chunks(ofCount: 2).map { pair in pair.reduce(0) { $0 * 10 + $1 } }
         guard yearDigitCount == 2 || year >= 2050 else { throw ValidationError.invalidTime }
         let components = DateComponents(
             year: yearDigitCount == 4 ? year : year + (year < 50 ? 2000 : 1900),

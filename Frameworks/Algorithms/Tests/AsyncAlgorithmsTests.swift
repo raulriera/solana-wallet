@@ -1,5 +1,5 @@
+import Algorithms
 import Testing
-@testable import widgets
 
 struct AsyncAlgorithmsTests {
     @Test
@@ -27,6 +27,14 @@ struct AsyncAlgorithmsTests {
         for await _ in [1].async.adjacentPairs() { count += 1 }
 
         #expect(count == 0)
+    }
+
+    @Test
+    func `A synchronous sequence yields its elements asynchronously`() async {
+        var elements: [Int] = []
+        for await element in [1, 2, 3].async { elements.append(element) }
+
+        #expect(elements == [1, 2, 3])
     }
 
     private struct Pair: Equatable {

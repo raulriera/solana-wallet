@@ -1,3 +1,4 @@
+import Algorithms
 import Foundation
 import Testing
 @testable import RPC
@@ -30,8 +31,8 @@ struct URLSessionTransportTests {
                 client?.urlProtocol(self, didLoad: body.prefix(16))
                 return
             }
-            for start in stride(from: 0, to: length, by: 16) {
-                client?.urlProtocol(self, didLoad: body.subdata(in: start..<min(start + 16, length)))
+            for chunk in body.chunks(ofCount: 16) {
+                client?.urlProtocol(self, didLoad: chunk)
             }
             client?.urlProtocolDidFinishLoading(self)
         }
