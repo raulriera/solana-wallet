@@ -1,14 +1,9 @@
 import Foundation
 
 /// Instruction constructors for the Associated Token Account Program.
-public enum AssociatedTokenProgram {
+public enum AssociatedTokenProgram: Program {
     /// The Associated Token Account Program's address.
-    static let id = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
-
-    /// The program's address.
-    public static var address: Address {
-        get throws { try Address(id) }
-    }
+    public static let id = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
 
     /// Creates an instruction that creates a wallet's associated token account, and succeeds if it already exists.
     ///

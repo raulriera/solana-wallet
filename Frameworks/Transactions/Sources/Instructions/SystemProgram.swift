@@ -2,14 +2,9 @@ import Encoding
 import Foundation
 
 /// Instruction constructors for the System Program.
-public enum SystemProgram {
+public enum SystemProgram: Program {
     /// The System Program's address.
-    static let id = "11111111111111111111111111111111"
-
-    /// The program's address.
-    public static var address: Address {
-        get throws { try Address(id) }
-    }
+    public static let id = "11111111111111111111111111111111"
 
     /// Creates a native SOL transfer instruction.
     ///

@@ -1,14 +1,9 @@
 import Foundation
 
 /// Instruction constructors for the Memo Program.
-public enum MemoProgram {
+public enum MemoProgram: Program {
     /// The Memo Program's address.
-    static let id = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr"
-
-    /// The program's address.
-    public static var address: Address {
-        get throws { try Address(id) }
-    }
+    public static let id = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr"
 
     /// Creates a memo instruction.
     ///
