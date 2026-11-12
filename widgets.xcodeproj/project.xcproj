@@ -385,6 +385,7 @@
           "target-membership": [
             "widgets/frameworks",
             { "build-phase": "widgets/copy/Embed Frameworks", "code-sign-on-copy": true, "header-preservation": "remove-on-copy" },
+            "RPC/frameworks",
             "Wallet/frameworks",
             "ModularArithmetic/frameworks",
             "Privacy/frameworks",
@@ -492,6 +493,7 @@
         "Algorithms",
         "Attestation",
         "Encoding",
+        "Redaction",
       ],
       "build-phases": [
         "compile-sources",

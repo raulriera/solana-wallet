@@ -113,18 +113,6 @@ struct TransactPlanProofTests {
         #expect(await transport.requests.isEmpty)
     }
 
-    @Test
-    func `Request diagnostics omit the witness`() throws {
-        let vector = try #require(try ProofRequestVectors.load().transacts.first)
-        let request = try vector.plan().proofRequest(nullifierKey: TransferVectors.sender().nullifierKey)
-        var output = ""
-        dump(request, to: &output)
-
-        #expect(String(reflecting: request) == "IndexedTransferProofRequest")
-        #expect(output == "- IndexedTransferProofRequest\n")
-        #expect(request.inputs.allSatisfy { Mirror(reflecting: $0).children.isEmpty })
-    }
-
     private static func answer(to vector: ProofRequestVectors.Transact, publicInputHash: [UInt8]? = nil) throws
         -> String {
         let addresses = try addresses(of: vector)

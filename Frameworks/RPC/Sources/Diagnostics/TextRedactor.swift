@@ -1,4 +1,5 @@
 import Foundation
+import Redaction
 
 /// A type that removes sensitive values from diagnostic text.
 protocol TextRedactor: Sendable {
@@ -10,7 +11,7 @@ protocol TextRedactor: Sendable {
 }
 
 /// A redactor that replaces configured secrets with a placeholder.
-struct SecretRedactor: TextRedactor, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
+struct SecretRedactor: TextRedactor, Redacted {
     private let secrets: [String]
 
     /// Creates a redactor for sensitive values.
@@ -30,12 +31,6 @@ struct SecretRedactor: TextRedactor, CustomStringConvertible, CustomDebugStringC
                 + url.pathComponents.filter { $0 != "/" } + queries.map { $0.value ?? $0.name }
         })
     }
-
-    var description: String { "SecretRedactor" }
-
-    var debugDescription: String { description }
-
-    var customMirror: Mirror { Mirror(self, children: [:]) }
 
     func redact(_ text: String) -> String {
         secrets.reduce(text) { result, secret in

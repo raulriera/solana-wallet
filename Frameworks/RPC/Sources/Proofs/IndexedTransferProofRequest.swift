@@ -1,7 +1,8 @@
+public import Redaction
+
 /// A request for the Groth16 proof of a default-ring confidential transfer whose prover reads the inputs' Merkle and
 /// non-inclusion proofs from its indexer.
-public struct IndexedTransferProofRequest: Sendable, Equatable, CustomStringConvertible, CustomDebugStringConvertible,
-                                           CustomReflectable {
+public struct IndexedTransferProofRequest: Sendable, Equatable, Redacted {
     /// An error for a value that can't form a request.
     public enum ValidationError: Error, Sendable, Equatable {
         /// A field element, commitment, or tree address isn't 32 bytes.
@@ -46,7 +47,7 @@ public struct IndexedTransferProofRequest: Sendable, Equatable, CustomStringConv
     }
 
     /// One input slot and the commitment that the prover reads its proofs for.
-    public struct Input: Sendable, Equatable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
+    public struct Input: Sendable, Equatable, Redacted {
         /// The spent UTXO, or padding.
         public let utxo: UTXO
         /// Whether the slot is padding.
@@ -94,12 +95,6 @@ public struct IndexedTransferProofRequest: Sendable, Equatable, CustomStringConv
             self.nullifierSecret = nullifierSecret
             self.commitment = commitment
         }
-
-        public var description: String { "IndexedTransferProofRequest.Input" }
-
-        public var debugDescription: String { description }
-
-        public var customMirror: Mirror { Mirror(self, children: [:]) }
     }
 
     /// The number of field elements in a transfer's statement without its tree slots.
@@ -209,12 +204,6 @@ public struct IndexedTransferProofRequest: Sendable, Equatable, CustomStringConv
         self.publishedOutputOwnerPublicKeyHashes = publishedOutputOwnerPublicKeyHashes
     }
 
-    public var description: String { "IndexedTransferProofRequest" }
-
-    public var debugDescription: String { description }
-
-    public var customMirror: Mirror { Mirror(self, children: [:]) }
-
     /// Checks that every value in each list is 32 bytes.
     ///
     /// - Parameter lists: The values to check.
@@ -245,7 +234,7 @@ public struct IndexedTransferProofRequest: Sendable, Equatable, CustomStringConv
 
 extension IndexedTransferProofRequest {
     /// A UTXO as the eight field elements that the circuit reads.
-    public struct UTXO: Sendable, Equatable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
+    public struct UTXO: Sendable, Equatable, Redacted {
         /// The domain: 3 for a UTXO, or 1 for padding.
         public let domain: [UInt8]
         /// The owner hash, or zero for padding.
@@ -288,17 +277,10 @@ extension IndexedTransferProofRequest {
             self.ringDataHash = ringDataHash
             self.ringProgramID = ringProgramID
         }
-
-        public var description: String { "IndexedTransferProofRequest.UTXO" }
-
-        public var debugDescription: String { description }
-
-        public var customMirror: Mirror { Mirror(self, children: [:]) }
     }
 
     /// One output slot of the witness.
-    public struct Output: Sendable, Equatable, CustomStringConvertible, CustomDebugStringConvertible,
-                          CustomReflectable {
+    public struct Output: Sendable, Equatable, Redacted {
         /// The created UTXO, or padding.
         public let utxo: UTXO
         /// Whether the slot is padding.
@@ -328,11 +310,5 @@ extension IndexedTransferProofRequest {
             self.ownerPublicKeyHash = ownerPublicKeyHash
             self.nullifierPublicKey = nullifierPublicKey
         }
-
-        public var description: String { "IndexedTransferProofRequest.Output" }
-
-        public var debugDescription: String { description }
-
-        public var customMirror: Mirror { Mirror(self, children: [:]) }
     }
 }

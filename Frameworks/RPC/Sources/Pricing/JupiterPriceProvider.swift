@@ -1,7 +1,8 @@
 public import Foundation
+public import Redaction
 
 /// A price provider that supplies Jupiter's mainnet USD quotes.
-public struct JupiterPriceProvider: PriceProviding, CustomStringConvertible, CustomDebugStringConvertible {
+public struct JupiterPriceProvider: PriceProviding, Redacted {
     public let network: Network = .mainnet
 
     private let apiKey: String?
@@ -28,9 +29,6 @@ public struct JupiterPriceProvider: PriceProviding, CustomStringConvertible, Cus
                             redactor: SecretRedactor(secrets: apiKey.map { [$0] } ?? []))
         pacer = RequestPacer(interval: apiKey == nil ? .seconds(3) : .milliseconds(1_500), clock: clock)
     }
-
-    public var description: String { "JupiterPriceProvider(mainnet)" }
-    public var debugDescription: String { description }
 
     public var batchSize: Int { 50 }
 
