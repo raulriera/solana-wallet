@@ -12,7 +12,7 @@ struct JupiterPriceProviderTests {
                  "null-price":{"usdPrice":null},"null-record":null}
                 """#)
         }
-        let source: any PriceProviding = JupiterPriceProvider(apiKey: "fixture-key", transport: transport)
+        let source: any PriceProviding = JupiterPriceProvider(transport: transport)
 
         let quotes = try await source.prices(for: ["mint-a", "mint-b", "metadata-only", "null-price", "null-record", "unpriced"])
 
@@ -31,8 +31,6 @@ struct JupiterPriceProviderTests {
         #expect(request.httpBody == nil)
         #expect(url.host() == "api.jup.ag")
         #expect(url.path() == "/price/v3")
-        #expect(request.value(forHTTPHeaderField: "x-api-key") == "fixture-key")
-        #expect(!url.absoluteString.contains("fixture-key"))
     }
 
     @Test
@@ -55,30 +53,25 @@ struct JupiterPriceProviderTests {
         #expect(malformed.dayChange == nil)
     }
 
-    @Test(.timeLimit(.minutes(1)), arguments: [(false, Duration.seconds(3)), (true, .milliseconds(1_500))])
-    func `Price batches respect the keyless and free-key budgets`(
-        authenticated: Bool, interval: Duration
-    ) async throws {
+    @Test(.timeLimit(.minutes(1)))
+    func `Price batches respect the request budget`() async throws {
         let transport = StubTransport { request in
             let values = try requestedMints(request, query: "ids").map { #""\#($0)":{"usdPrice":1}"# }
             return try httpReply(to: request, body: "{" + values.joined(separator: ",") + "}")
         }
         let mints = (0..<51).map { "mint-\($0)" }
         let clock = ManualClock()
-        let source = JupiterPriceProvider(apiKey: authenticated ? "fixture-key" : nil, transport: transport,
-                                          clock: clock)
+        let source = JupiterPriceProvider(transport: transport, clock: clock)
         async let pricing = source.prices(for: mints + mints)
         var waits = clock.waits.makeAsyncIterator()
 
-        #expect(try await clock.advanceToNextWait(&waits) == interval)
+        #expect(try await clock.advanceToNextWait(&waits) == .seconds(3))
         let quotes = try await pricing
 
         #expect(Set(quotes.keys) == Set(mints))
         let requests = await transport.requests
         #expect(try requests.map { try requestedMints($0, query: "ids").count } == [50, 1])
         #expect(try requests.flatMap { try requestedMints($0, query: "ids") } == mints)
-        let key: String? = authenticated ? "fixture-key" : nil
-        #expect(requests.map { $0.value(forHTTPHeaderField: "x-api-key") } == [key, key])
     }
 
     @Test(.timeLimit(.minutes(1)))
@@ -133,24 +126,22 @@ struct JupiterPriceProviderTests {
         let transport = StubTransport { request in
             if try requestedMints(request, query: "ids").first == "mint-50" {
                 return try httpReply(to: request, body: "{}", status: 429,
-                                      headers: ["Retry-After": "5 fixture-key"])
+                                      headers: ["Retry-After": "5"])
             }
             return try httpReply(to: request, body: #"{"mint-0":{"usdPrice":2}}"#)
         }
         let clock = ManualClock()
-        let source = JupiterPriceProvider(apiKey: "fixture-key", transport: transport, clock: clock)
+        let source = JupiterPriceProvider(transport: transport, clock: clock)
         let pricing = Task { try await source.prices(for: (0..<101).map { "mint-\($0)" }) }
         defer { pricing.cancel() }
         var waits = clock.waits.makeAsyncIterator()
         try await clock.advanceToNextWait(&waits)
 
-        await #expect(throws: RPCError.http(statusCode: 429, retryAfter: "5 [redacted]")) {
+        await #expect(throws: RPCError.http(statusCode: 429, retryAfter: "5")) {
             try await pricing.value
         }
 
         #expect(await transport.requests.count == 2)
-        #expect(!String(describing: source).contains("fixture-key"))
-        #expect(!String(reflecting: source).contains("fixture-key"))
     }
 
     @Test(arguments: [
@@ -193,13 +184,4 @@ struct JupiterPriceProviderTests {
         #expect(await transport.requests.count == 1)
     }
 
-    @Test
-    func `Price transport failures omit credential-bearing diagnostics`() async {
-        let transport = StubTransport { _ in
-            throw URLError(.notConnectedToInternet, userInfo: [NSLocalizedDescriptionKey: "fixture-key"])
-        }
-        await #expect(throws: RPCError.transport(.notConnectedToInternet)) {
-            try await JupiterPriceProvider(apiKey: "fixture-key", transport: transport).prices(for: ["mint"])
-        }
-    }
 }

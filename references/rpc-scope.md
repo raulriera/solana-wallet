@@ -10,5 +10,5 @@
 ## Rate limits
 
 - Send RPC and DAS requests once, without throttling or cooldowns. HTTP `429` surfaces as `RPCError.http(statusCode:retryAfter:)`. Subscriptions don't reconnect themselves; consumers reconnect only after errors that `RPCError.isRecoverable` accepts.
-- Price providers pace batches within their request budget. Jupiter sends at most fifty mints per request, at twenty requests a minute without a key or forty with one; custom price servers get fifty mints every three seconds. A failed batch throws without partial results. Reuse a provider to share its budget.
+- Price providers pace batches within their request budget. Jupiter and custom price servers get fifty mints per request, three seconds apart, which fits Jupiter's keyless limit. A failed batch throws without partial results. Reuse a provider to share its budget.
 - Prices come from Jupiter or a custom HTTPS price server that answers in `Quote`'s shape.

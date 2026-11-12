@@ -45,7 +45,7 @@ nonisolated enum TokenAdditionError: RetryableError, Equatable {
             String(localized: "Custom RPCs use mainnet. Choose another RPC or switch this window to Mainnet in Settings.")
         case .lookupUnavailable: String(localized: "Couldn't check this address. Check your connection and try again.")
         case .limitReached:
-            String(localized: "You can add up to \(Portfolio::TokenList.addedTokenLimit) tokens. Remove one to add another.")
+            String(localized: "Your list holds up to \(Portfolio::TokenList.tokenLimit) tokens, including SOL. Remove one to add another.")
         case .listUnreadable: String(localized: "Your token list can't be read, so no token can be added.")
         case .saveFailed: String(localized: "Your token list couldn't be saved. Try again.")
         }

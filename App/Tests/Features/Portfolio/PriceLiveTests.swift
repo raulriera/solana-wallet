@@ -6,7 +6,7 @@ import Testing
 struct PriceLiveTests {
     @Test(.timeLimit(.minutes(1)))
     func `Live price provider returns normalized SOL and USDC quotes`() async throws {
-        let source: any PriceProviding = JupiterPriceProvider(apiKey: ProcessInfo.processInfo.environment["JUPITER_API_KEY"])
+        let source: any PriceProviding = JupiterPriceProvider()
         let mints = ["So11111111111111111111111111111111111111112",
                      "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"]
         let quotes = try await source.prices(for: mints)

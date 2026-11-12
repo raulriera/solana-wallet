@@ -3,8 +3,8 @@ import Transactions
 
 /// The tokens an account lists besides native SOL.
 public struct TokenList: Sendable, Equatable {
-    /// The most tokens a person can add, not counting the network's defaults.
-    public static let addedTokenLimit = 50
+    /// The most tokens a list holds, counting native SOL.
+    public static let tokenLimit = 50
 
     public let network: Network
     /// The remaining default tokens, followed by added tokens in the order they were added.
@@ -31,14 +31,10 @@ public struct TokenList: Sendable, Equatable {
     /// Adds a token after the listed ones, if it isn't listed yet.
     ///
     /// - Parameter token: The token to add.
-    /// - Throws: ``TokenListError/limitReached`` if the list already holds ``addedTokenLimit`` added tokens.
+    /// - Throws: ``TokenListError/limitReached`` if the list, with native SOL, already holds ``tokenLimit`` tokens.
     mutating func add(_ token: ListedToken) throws {
         guard !tokens.contains(where: { $0.mint == token.mint }) else { return }
-        let defaults = Set(try Self.defaultTokens(for: network).map(\.mint))
-        let addedCount = tokens.count { !defaults.contains($0.mint) }
-        guard defaults.contains(token.mint) || addedCount < Self.addedTokenLimit else {
-            throw TokenListError.limitReached
-        }
+        guard tokens.count + 1 < Self.tokenLimit else { throw TokenListError.limitReached }
         tokens.append(token)
     }
 

@@ -71,31 +71,31 @@ struct TokenListTests {
     }
 
     @Test
-    func `A list takes fifty added tokens and refuses the fifty-first`() async throws {
+    func `A list holds fifty tokens with native SOL and refuses another`() async throws {
         let fixture = TokenListFixture()
         defer { fixture.removeFiles() }
         let service = fixture.portfolio()
-        for index in 1...TokenList.addedTokenLimit {
+        for index in 1...(TokenList.tokenLimit - 3) {
             try await service.addToken(token(index), for: "wallet")
         }
-        let extra = try token(TokenList.addedTokenLimit + 1)
+        let extra = try token(TokenList.tokenLimit - 2)
         await #expect(throws: TokenListError.limitReached) { try await service.addToken(extra, for: "wallet") }
         let list = try await fixture.list(for: "wallet")
-        #expect(list.tokens.count == TokenList.addedTokenLimit + 2)
+        #expect(list.tokens.count + 1 == TokenList.tokenLimit)
     }
 
     @Test
-    func `A removed default token fits again in a full list`() async throws {
+    func `A removed default token frees a place for another`() async throws {
         let fixture = TokenListFixture()
         defer { fixture.removeFiles() }
         let service = fixture.portfolio()
         let usdc = try #require(try await fixture.list(for: "wallet").tokens.first)
         try await service.removeToken(usdc.mint, for: "wallet")
-        for index in 1...TokenList.addedTokenLimit {
+        for index in 1...(TokenList.tokenLimit - 2) {
             try await service.addToken(token(index), for: "wallet")
         }
-        try await service.addToken(usdc, for: "wallet")
-        #expect(try await fixture.list(for: "wallet").tokens.last == usdc)
+        await #expect(throws: TokenListError.limitReached) { try await service.addToken(usdc, for: "wallet") }
+        #expect(try await fixture.list(for: "wallet").tokens.last == token(TokenList.tokenLimit - 2))
     }
 
     @Test(arguments: UnreadableFile.allCases)
