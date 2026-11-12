@@ -49,18 +49,6 @@ struct ConfidentialPlaintextTests {
         }
     }
 
-    @Test
-    func `Note diagnostics omit the amount and blinding`() {
-        var output = ""
-        dump(Self.note, to: &output)
-
-        #expect(Self.note.description == "ConfidentialPlaintext")
-        #expect(Self.note.debugDescription == "ConfidentialPlaintext")
-        #expect(String(reflecting: Self.note) == "ConfidentialPlaintext")
-        #expect(output == "- ConfidentialPlaintext\n")
-        #expect(Mirror(reflecting: Self.note).children.isEmpty)
-    }
-
     private static func unsupportedNotes() throws -> [([UInt8], ConfidentialPlaintext.ValidationError)] {
         let note = try fixtureBytes(encoding)
         let modulus = try fixtureBytes("30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001")

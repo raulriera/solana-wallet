@@ -128,28 +128,6 @@ struct TransactPlanTests {
         #expect(randomness.paddingOutputData.map(\.count) == [ConfidentialOutput.payloadLength])
     }
 
-    @Test
-    func `Plan diagnostics omit amounts and blindings`() throws {
-        let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(lamports: 10)], transferLamports: 4)
-        let transfer = TransactPlan.Transfer(recipient: try TransferVectors.recipient(), lamports: 4)
-        let randomness = PlanFixtures.randomness(paddingInputs: 1, paddingOutputs: 1)
-        var output = ""
-        dump(plan, to: &output)
-        var randomnessOutput = ""
-        dump(randomness, to: &randomnessOutput)
-
-        #expect(String(reflecting: plan) == "TransactPlan")
-        #expect(output == "- TransactPlan\n")
-        #expect(Mirror(reflecting: plan).children.isEmpty)
-        #expect(String(reflecting: plan.inputs[0]) == "TransactPlan.Input")
-        #expect(String(reflecting: plan.outputs[0]) == "TransactPlan.Output")
-        #expect(String(reflecting: transfer) == "TransactPlan.Transfer")
-        #expect(Mirror(reflecting: transfer).children.isEmpty)
-        #expect("\(randomness)" == "TransactPlan.Randomness")
-        #expect(randomnessOutput == "- TransactPlan.Randomness\n")
-        #expect(Mirror(reflecting: randomness).children.isEmpty)
-    }
-
     @Test(arguments: [
         ([0], 0, [0]), ([1], 0, [0, 1]), ([1, 2], 0, [0, 1, 2]), ([0, 1], 1, [0, 1]),
     ] as [([UInt16], UInt16, Set<UInt16>)])

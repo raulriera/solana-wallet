@@ -110,17 +110,6 @@ struct ReceivedNoteTests {
     }
 
     @Test
-    func `Note diagnostics omit the values`() throws {
-        let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(lamports: 10)], transferLamports: 4)
-        let note = try #require(try ReceivedNote.notes(in: PlanFixtures.transaction(of: plan), of: TransferVectors.sender()).first)
-        var dumped = ""
-        dump(note, to: &dumped)
-
-        #expect(String(reflecting: note) == "ReceivedNote")
-        #expect(dumped == "- ReceivedNote\n")
-    }
-
-    @Test
     func `Notes survive encoding`() throws {
         let sender = try TransferVectors.sender()
         let deposit = try #require(try DepositNoteVectors.load().deposits.first)

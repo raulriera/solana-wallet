@@ -1,7 +1,8 @@
 import Foundation
+import Redaction
 
 /// A client that sends JSON-RPC and JSON requests to an endpoint or to paths below it.
-struct HTTPClient: Sendable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
+struct HTTPClient: Sendable, Redacted {
     private let endpoint: URL
     private let transport: any HTTPTransport
     private let redactor: any TextRedactor
@@ -17,12 +18,6 @@ struct HTTPClient: Sendable, CustomStringConvertible, CustomDebugStringConvertib
         self.transport = transport
         self.redactor = redactor
     }
-
-    var description: String { "HTTPClient" }
-
-    var debugDescription: String { description }
-
-    var customMirror: Mirror { Mirror(self, children: [:]) }
 
     /// Sends one request to the endpoint and decodes its response.
     ///

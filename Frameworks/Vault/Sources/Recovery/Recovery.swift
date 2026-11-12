@@ -1,14 +1,11 @@
+public import Redaction
 public import Wallet
 
 /// The recovery material shared by accounts derived from one seed.
-public struct Recovery: Sendable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
+public struct Recovery: Sendable, Redacted {
     public let phrase: RecoveryPhrase
     /// The BIP-39 passphrase, or an empty string for none.
     public let passphrase: String
-
-    public var description: String { "Recovery" }
-    public var debugDescription: String { description }
-    public var customMirror: Mirror { Mirror(self, children: [:]) }
 
     /// Creates recovery material.
     ///

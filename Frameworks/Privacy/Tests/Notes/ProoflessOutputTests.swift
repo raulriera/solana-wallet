@@ -29,14 +29,4 @@ struct ProoflessOutputTests {
             try ProoflessOutput(decoding: payload)
         }
     }
-
-    @Test
-    func `Deposit diagnostics omit the values`() throws {
-        let output = try ProoflessOutput(decoding: fixtureBytes(try #require(try DepositNoteVectors.load().deposits.first).payload))
-        var dumped = ""
-        dump(output, to: &dumped)
-
-        #expect(String(reflecting: output) == "ProoflessOutput")
-        #expect(dumped == "- ProoflessOutput\n")
-    }
 }

@@ -10,19 +10,10 @@ struct RecoveryWords: View {
 
     var body: some View {
         let visibleWords = canDisplayRecovery ? phrase.words : Array(repeating: String(localized: "Hidden"), count: phrase.words.count)
-        let numberedWords = zip(1..., visibleWords).map { (position: $0.0, word: $0.1) }
-        let rows = numberedWords.chunks(ofCount: 2)
+        let numberedWords = zip(1..., visibleWords).map { NumberedWord(position: $0, text: $1) }
         Grid(alignment: .trailingFirstTextBaseline) {
-            ForEach(rows, id: \.startIndex) { row in
-                GridRow {
-                    ForEach(row, id: \.position) { word in
-                        Text("\(word.position).")
-                            .accessibilityHidden(true)
-                        Text(word.word)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .accessibilityLabel("\(word.position). \(word.word)")
-                    }
-                }
+            ForEach(numberedWords.chunks(ofCount: 2), id: \.startIndex) { words in
+                RecoveryWordsRow(words: words)
             }
         }
         .foregroundStyle(palette.text)

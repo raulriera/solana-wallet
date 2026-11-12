@@ -1,7 +1,8 @@
 import ModularArithmetic
+import Redaction
 
 /// An amount of one asset that one owner can spend in the default ring.
-struct UTXO: Sendable, Equatable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
+struct UTXO: Sendable, Equatable, Redacted {
     static let hashDomain: UInt64 = 3
 
     static let dummyHashDomain: UInt64 = 1
@@ -21,12 +22,6 @@ struct UTXO: Sendable, Equatable, CustomStringConvertible, CustomDebugStringConv
     let blinding: Poseidon.Element
 
     let treeID: UInt16
-
-    var description: String { "UTXO" }
-
-    var debugDescription: String { description }
-
-    var customMirror: Mirror { Mirror(self, children: [:]) }
 
     /// The commitment that the UTXO tree holds.
     var hash: Poseidon.Element {

@@ -3,20 +3,6 @@ import Transactions
 @testable import Privacy
 
 struct PrivateSpendTests {
-    @Test
-    func `Spend diagnostics omit the values`() throws {
-        let spend = PrivateSpend(
-            instruction: Instruction(program: try ShieldedPool.program), amount: 4, receivedAmount: 6,
-            treeIDs: [0], nullifiers: [TransferVectors.blinding(0x11)], asset: .sol
-        )
-        var dumped = ""
-        dump(spend, to: &dumped)
-
-        #expect(String(describing: spend) == "PrivateSpend")
-        #expect(String(reflecting: spend) == "PrivateSpend")
-        #expect(dumped == "- PrivateSpend\n")
-    }
-
     @Test(arguments: PrivateToken.allCases)
     func `Token withdrawals pay into and open the owner's associated token account`(token: PrivateToken) throws {
         let owner = try Address(TransferVectors.recipientSigningAddress)

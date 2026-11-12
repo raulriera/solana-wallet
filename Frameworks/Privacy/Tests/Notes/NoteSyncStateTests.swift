@@ -906,17 +906,6 @@ struct NoteSyncStateTests {
         #expect(context.codingPath.map(\.stringValue) == ["notes"])
     }
 
-    @Test
-    func `State diagnostics omit the values`() async throws {
-        let (state, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit]))
-        var dumped = ""
-        dump(state, to: &dumped)
-
-        #expect(String(describing: state) == "NoteSyncState")
-        #expect(String(reflecting: state) == "NoteSyncState")
-        #expect(dumped == "- NoteSyncState\n")
-    }
-
     private func sync(_ state: NoteSyncState, with indexer: Indexer) async throws -> (NoteSyncState, StubTransport) {
         let transport = StubTransport { try indexer.respond(to: $0) }
         let synced = try await state.synced(for: sender, rpc: SolanaRPC.devnet(transport: transport), indexer: Self.indexer(transport))

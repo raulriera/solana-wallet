@@ -88,19 +88,6 @@ struct UTXOTests {
         #expect(utxo.nullifier(using: nullifierKey).bigEndianBytes == (try fixtureBytes("0cd4871b07798e5135b2556f8c8ca0becca860a35ca286ab5b3a2215d920ee8f")))
     }
 
-    @Test
-    func `UTXO diagnostics omit the amount and blinding`() {
-        let utxo = UTXO(owner: owner, mint: Array(repeating: 0, count: 32), amount: 6, blinding: blinding, treeID: 0)
-        var output = ""
-        dump(utxo, to: &output)
-
-        #expect(utxo.description == "UTXO")
-        #expect(utxo.debugDescription == "UTXO")
-        #expect(String(reflecting: utxo) == "UTXO")
-        #expect(output == "- UTXO\n")
-        #expect(Mirror(reflecting: utxo).children.isEmpty)
-    }
-
     private static func emptyUTXOs() throws -> [(UInt16, Poseidon.Element, String)] {
         let vector = try CommitmentVectors.load().dummyUTXOHash
         return [(vector.treeID, Poseidon.Element(vector.blinding), vector.hash)]

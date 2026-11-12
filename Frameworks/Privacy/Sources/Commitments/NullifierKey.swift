@@ -1,8 +1,9 @@
 import CryptoKit
 import ModularArithmetic
+import Redaction
 
 /// The key that derives an account's nullifiers.
-struct NullifierKey: Sendable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
+struct NullifierKey: Sendable, Redacted {
     /// An error that rejects a nullifier secret.
     enum ValidationError: Error, Equatable {
         case invalidSecretLength
@@ -15,12 +16,6 @@ struct NullifierKey: Sendable, CustomStringConvertible, CustomDebugStringConvert
 
     /// The published half of the key, `Poseidon(secret)`.
     let publicKey: Poseidon.Element
-
-    var description: String { "NullifierKey" }
-
-    var debugDescription: String { description }
-
-    var customMirror: Mirror { Mirror(self, children: [:]) }
 
     /// Creates a key from an account's nullifier secret.
     ///

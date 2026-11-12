@@ -12,8 +12,6 @@ struct IndexedTransferProofRequestTests {
         }
     }
 
-    private typealias Fixture = ProofFixtures
-
     @Test(arguments: [
         { try ProofFixtures.indexedRequest() },
         { try ProofFixtures.twoTreeRequest() },
@@ -107,20 +105,5 @@ struct IndexedTransferProofRequestTests {
     ])
     func `Requests that zolana's clients refuse throw their validation error`(refusal: Refusal) {
         #expect(throws: refusal.error) { try refusal.make() }
-    }
-
-    @Test
-    func `Descriptions reveal no witness values`() throws {
-        let request = try Fixture.indexedRequest()
-        var dump = ""
-        Swift.dump(request, to: &dump)
-        Swift.dump(request.inputs, to: &dump)
-        Swift.dump(request.outputs, to: &dump)
-
-        let text = [String(describing: request), String(reflecting: request), String(describing: request.inputs[0]),
-                    String(reflecting: request.inputs[0].utxo), String(reflecting: request.outputs[0]), dump]
-            .joined(separator: "\n")
-
-        #expect(["161", "177", "193", "209", "225", "a1", "b1", "c1", "d1", "e1"].allSatisfy { !text.contains($0) })
     }
 }

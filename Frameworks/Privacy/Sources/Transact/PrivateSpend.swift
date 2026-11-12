@@ -1,9 +1,10 @@
 import ModularArithmetic
+public import Redaction
 public import Transactions
 
 /// A proved transact that spends an account's notes into a private transfer, a public withdrawal,
 /// or both, with the change back to the account.
-public struct PrivateSpend: Sendable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
+public struct PrivateSpend: Sendable, Redacted {
     /// The destination of a spend.
     public enum Destination: Sendable {
         /// A private transfer to an owner's shielded address.
@@ -44,12 +45,6 @@ public struct PrivateSpend: Sendable, CustomStringConvertible, CustomDebugString
 
     /// The asset that the spend spends.
     let asset: ConfidentialPlaintext.Asset
-
-    public var description: String { "PrivateSpend" }
-
-    public var debugDescription: String { description }
-
-    public var customMirror: Mirror { Mirror(self, children: [:]) }
 }
 
 extension PrivateSpend.Destination {

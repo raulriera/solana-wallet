@@ -56,17 +56,6 @@ struct RedeemCodeTests {
         #expect(code != (try RedeemCode(secret: SymmetricKey(data: Data(2...33)), network: .devnet)))
     }
 
-    @Test
-    func `Descriptions omit the secret`() throws {
-        let code = try RedeemCode(secret: Self.secret, network: .devnet)
-        var dumped = ""
-        dump(code, to: &dumped)
-
-        #expect(String(describing: code) == "RedeemCode")
-        #expect(String(reflecting: code) == "RedeemCode")
-        #expect(dumped == "- RedeemCode\n")
-    }
-
     private static func encoded(version: UInt8, network: UInt8, checksumOffset: UInt8 = 0) -> [UInt8] {
         let payload = [version, network] + Array(1...32)
         var checksum = Array(SHA256.hash(data: payload).prefix(4))

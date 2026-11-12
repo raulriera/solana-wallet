@@ -1,7 +1,8 @@
 import ModularArithmetic
+import Redaction
 
 /// The plaintext note of a confidential output, with its UTXO's asset, amount, and blinding.
-struct ConfidentialPlaintext: Sendable, Equatable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
+struct ConfidentialPlaintext: Sendable, Equatable, Redacted {
     /// The assets that private balances hold, with their pool asset IDs as raw values.
     enum Asset: UInt64, Sendable, CaseIterable, Codable {
         case sol = 1
@@ -70,12 +71,6 @@ struct ConfidentialPlaintext: Sendable, Equatable, CustomStringConvertible, Cust
     let amount: UInt64
 
     let blinding: Poseidon.Element
-
-    var description: String { "ConfidentialPlaintext" }
-
-    var debugDescription: String { description }
-
-    var customMirror: Mirror { Mirror(self, children: [:]) }
 
     var encoded: [UInt8] {
         var bytes = [UInt8]()

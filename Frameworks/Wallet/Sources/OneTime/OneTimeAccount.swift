@@ -1,9 +1,10 @@
 public import CryptoKit
 import Encoding
 public import Foundation
+public import Redaction
 
 /// A Solana account that a 32-byte secret alone recovers.
-public struct OneTimeAccount: Sendable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
+public struct OneTimeAccount: Sendable, Redacted {
     public let secret: SymmetricKey
 
     public let privateBalanceKeys: PrivateBalanceKeys
@@ -12,12 +13,6 @@ public struct OneTimeAccount: Sendable, CustomStringConvertible, CustomDebugStri
 
     /// The Base58-encoded Ed25519 public key.
     public var address: String { Base58.encode(Array(signingKey.publicKey.rawRepresentation)) }
-
-    public var description: String { "OneTimeAccount" }
-
-    public var debugDescription: String { description }
-
-    public var customMirror: Mirror { Mirror(self, children: [:]) }
 
     /// Creates the one-time account at an index of a code root.
     ///

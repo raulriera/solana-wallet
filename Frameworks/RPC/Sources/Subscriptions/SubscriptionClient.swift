@@ -1,7 +1,8 @@
 import Foundation
+import Redaction
 
 /// A client that opens standard Solana subscriptions over a WebSocket connection.
-struct SubscriptionClient: Sendable, CustomReflectable {
+struct SubscriptionClient: Sendable, Redacted {
     let endpoint: URL
     let connect: @Sendable (URL) -> any WebSocketConnection
     let redactor: any TextRedactor
@@ -11,8 +12,6 @@ struct SubscriptionClient: Sendable, CustomReflectable {
     private static let setupTimeout = Duration.seconds(30)
     private static let pingInterval = Duration.seconds(30)
     private static let pongTimeout = Duration.seconds(10)
-
-    var customMirror: Mirror { Mirror(self, children: [:]) }
 
     /// Opens one finalized subscription per account on one connection and streams their increasing change slots.
     ///

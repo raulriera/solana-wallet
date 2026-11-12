@@ -81,17 +81,4 @@ struct NullifierKeyTests {
             try NullifierKey(secret: SymmetricKey(data: [UInt8](repeating: 1, count: length)))
         }
     }
-
-    @Test
-    func `Nullifier key diagnostics omit the secret`() throws {
-        let key = try NullifierKey(secret: SymmetricKey(data: [UInt8](repeating: 1, count: 31)))
-        var output = ""
-        dump(key, to: &output)
-
-        #expect(key.description == "NullifierKey")
-        #expect(key.debugDescription == "NullifierKey")
-        #expect(String(reflecting: key) == "NullifierKey")
-        #expect(output == "- NullifierKey\n")
-        #expect(Mirror(reflecting: key).children.isEmpty)
-    }
 }

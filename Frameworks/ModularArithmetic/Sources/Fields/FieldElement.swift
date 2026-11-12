@@ -1,6 +1,7 @@
+public import Redaction
+
 /// An element of a prime field, stored as four 64-bit limbs in Montgomery form.
-public struct FieldElement<Field: PrimeField>: Sendable, Equatable, AdditiveArithmetic,
-    CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
+public struct FieldElement<Field: PrimeField>: Sendable, Equatable, AdditiveArithmetic, Redacted {
     /// The value times R = 2^256, modulo the field's modulus.
     private let montgomery: Limbs
 
@@ -12,12 +13,6 @@ public struct FieldElement<Field: PrimeField>: Sendable, Equatable, AdditiveArit
     public var bigEndianBytes: [UInt8] {
         Field.modulus.canonical(montgomery).bigEndianBytes
     }
-
-    public var description: String { "FieldElement" }
-
-    public var debugDescription: String { description }
-
-    public var customMirror: Mirror { Mirror(self, children: [:]) }
 
     /// Creates an element from its Montgomery form.
     ///
