@@ -7,7 +7,7 @@
 - Test internal workflows in app-hosted tests with `@testable` imports. Use ordinary imports for framework APIs, and existing transport or storage seams without widening the production API.
 - Check workflow models through their typed state, such as a rejection case, not message text.
 - Derive expected values independently: published specs, SDK fixtures, or hand-worked examples. Never compute them with the production formula or the function under test.
-- Don't restate source: skip assertions that a constant or raw value equals its declared literal. Literals with outside authority, such as program IDs, wire encodings, and endpoints, are valid expectations.
+- Literals with outside authority, such as program IDs, wire encodings, and endpoints, are valid expectations, not restated source.
 - Test values headlessly through models and formatters, not rendered views. Don't assert system behavior the app can't change, such as font metrics or presentation timing; verify layout in the simulator.
 - Check instruction compilation against independent SDK fixtures with mixed programs and several signers.
 
