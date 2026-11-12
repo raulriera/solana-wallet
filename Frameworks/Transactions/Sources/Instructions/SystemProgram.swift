@@ -3,7 +3,7 @@ import Foundation
 
 /// Instruction constructors for the System Program.
 public enum SystemProgram: Program {
-    /// The System Program's address.
+    /// The System Program's address as Base58 text.
     public static let id = "11111111111111111111111111111111"
 
     /// Creates a native SOL transfer instruction.

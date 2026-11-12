@@ -2,7 +2,7 @@ import Foundation
 
 /// Instruction constructors for the Memo Program.
 public enum MemoProgram: Program {
-    /// The Memo Program's address.
+    /// The Memo Program's address as Base58 text.
     public static let id = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr"
 
     /// Creates a memo instruction.

@@ -4,7 +4,7 @@ public import Transactions
 
 /// The shielded-pool program and the accounts that its instructions use.
 public enum ShieldedPool: Program {
-    /// The shielded-pool program's address.
+    /// The shielded-pool program's address as Base58 text.
     public static let id = "ring1GaLCuJnkUMVkX2JeZLTTX17wKsV4fZmPVzXANW"
 
     static let transactTag: UInt8 = 16

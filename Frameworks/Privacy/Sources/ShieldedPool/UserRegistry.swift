@@ -20,7 +20,7 @@ public enum UserRegistry: Program {
         case invalidMergingFlag
     }
 
-    /// The user-registry program's address.
+    /// The user-registry program's address as Base58 text.
     public static let id = "regy3WAeRXMYuMYxr5iK3Bf9Arr3PcxGxyzAddbiqDQ"
 
     private static let recordSeed = Array("zolana/registry/v0".utf8)
