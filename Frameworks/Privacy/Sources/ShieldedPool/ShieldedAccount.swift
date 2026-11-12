@@ -1,20 +1,15 @@
 public import CryptoKit
 import ModularArithmetic
+public import Redaction
 public import Transactions
 
 /// An account's signing address and the keys that spend its UTXOs and open its notes.
-public struct ShieldedAccount: Sendable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
+public struct ShieldedAccount: Sendable, Redacted {
     public let signingAddress: Address
 
     let nullifierKey: NullifierKey
 
     let viewingKey: Curve25519.KeyAgreement.PrivateKey
-
-    public var description: String { "ShieldedAccount" }
-
-    public var debugDescription: String { description }
-
-    public var customMirror: Mirror { Mirror(self, children: [:]) }
 
     /// The account's view tags: its signing address, then the `u`-coordinate of its viewing public key.
     var viewTags: [[UInt8]] {

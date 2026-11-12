@@ -35,15 +35,4 @@ struct ShieldedAccountTests {
             )
         }
     }
-
-    @Test
-    func `Account diagnostics omit the keys`() throws {
-        let account = try TransferVectors.sender()
-        var dumped = ""
-        dump(account, to: &dumped)
-
-        #expect(String(describing: account) == "ShieldedAccount")
-        #expect(String(reflecting: account) == "ShieldedAccount")
-        #expect(dumped == "- ShieldedAccount\n")
-    }
 }

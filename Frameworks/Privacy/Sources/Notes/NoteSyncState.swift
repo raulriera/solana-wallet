@@ -1,11 +1,12 @@
 import Foundation
 import ModularArithmetic
 public import RPC
+public import Redaction
 import Transactions
 
 /// An account's unspent notes, the received notes it hasn't confirmed yet, its pending amounts, and where its next read
 /// of the indexer resumes.
-public struct NoteSyncState: Sendable, Equatable, Codable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
+public struct NoteSyncState: Sendable, Equatable, Codable, Redacted {
     /// An error in a state's amounts.
     public enum ValidationError: Error, Equatable {
         /// The notes and pending amounts of one asset total more than a 64-bit integer holds.
@@ -105,12 +106,6 @@ public struct NoteSyncState: Sendable, Equatable, Codable, CustomStringConvertib
     public var hasUnconfirmedNotes: Bool {
         !unconfirmedNotes.isEmpty
     }
-
-    public var description: String { "NoteSyncState" }
-
-    public var debugDescription: String { description }
-
-    public var customMirror: Mirror { Mirror(self, children: [:]) }
 
     /// Creates the state of an account that hasn't synced.
     public init() {

@@ -2,10 +2,11 @@ import CryptoKit
 import Foundation
 import ModularArithmetic
 import RPC
+public import Redaction
 import Transactions
 
 /// A UTXO of a supported asset that an account received, with its position, its transaction, and its nullifier.
-public struct ReceivedNote: Sendable, Equatable, Codable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
+public struct ReceivedNote: Sendable, Equatable, Codable, Redacted {
     /// The keys of a note's encoded fields.
     private enum CodingKeys: String, CodingKey {
         case owner, mint, amount, blinding, treeID, leafIndex, signature, slot, nullifier
@@ -27,12 +28,6 @@ public struct ReceivedNote: Sendable, Equatable, Codable, CustomStringConvertibl
     public var amount: UInt64 { utxo.amount }
 
     public var treeID: UInt16 { utxo.treeID }
-
-    public var description: String { "ReceivedNote" }
-
-    public var debugDescription: String { description }
-
-    public var customMirror: Mirror { Mirror(self, children: [:]) }
 
     /// Creates a note.
     ///

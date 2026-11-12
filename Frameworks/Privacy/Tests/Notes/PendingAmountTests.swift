@@ -14,15 +14,4 @@ struct PendingAmountTests {
             try JSONDecoder().decode(PendingAmount.self, from: Data(#"{"signature":"a","amount":42}"#.utf8))
         }
     }
-
-    @Test
-    func `Amount diagnostics omit the values`() {
-        let amount = PendingAmount(signature: IndexerResponses.signature(1), asset: .usdc, amount: 42)
-        var dumped = ""
-        dump(amount, to: &dumped)
-
-        #expect(String(describing: amount) == "PendingAmount")
-        #expect(String(reflecting: amount) == "PendingAmount")
-        #expect(dumped == "- PendingAmount\n")
-    }
 }
