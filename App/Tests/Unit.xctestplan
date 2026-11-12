@@ -109,6 +109,18 @@
       },
       "target" : {
         "containerPath" : "container:widgets.xcodeproj",
+        "identifier" : "AF0000000000000000000015",
+        "name" : "RedactionTests"
+      }
+    },
+    {
+      "skippedTags" : {
+        "tags" : [
+          ".network"
+        ]
+      },
+      "target" : {
+        "containerPath" : "container:widgets.xcodeproj",
         "identifier" : "A10000000000000000000015",
         "name" : "RPCTests"
       }
