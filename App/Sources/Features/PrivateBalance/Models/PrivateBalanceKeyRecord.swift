@@ -1,12 +1,12 @@
 import CryptoKit
 import Foundation
 import Privacy
+import Redaction
 import Transactions
 import Wallet
 
 /// An account's stored private-balance keys: the nullifier secret, the viewing key's raw scalar, and the code root.
-nonisolated struct PrivateBalanceKeyRecord: Codable, Equatable, Sendable, CustomStringConvertible,
-    CustomDebugStringConvertible, CustomReflectable {
+nonisolated struct PrivateBalanceKeyRecord: Codable, Equatable, Sendable, Redacted {
     /// The encoded fields of a record.
     private enum CodingKeys: String, CodingKey {
         case nullifierSecret, viewingSecret, codeRoot
@@ -25,12 +25,6 @@ nonisolated struct PrivateBalanceKeyRecord: Codable, Equatable, Sendable, Custom
     private let viewingSecret: Data
     /// The root that derives the account's one-time accounts.
     private let codeRoot: Data
-
-    var description: String { "PrivateBalanceKeyRecord" }
-
-    var debugDescription: String { description }
-
-    var customMirror: Mirror { Mirror(self, children: [:]) }
 
     /// Creates a record of an account's keys.
     ///

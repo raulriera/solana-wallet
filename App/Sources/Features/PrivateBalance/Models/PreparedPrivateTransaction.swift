@@ -1,10 +1,10 @@
 import Privacy
 import RPC
+import Redaction
 import Transactions
 
 /// A private-balance transaction ready for review.
-nonisolated struct PreparedPrivateTransaction: Sendable, CustomStringConvertible, CustomDebugStringConvertible,
-    CustomReflectable {
+nonisolated struct PreparedPrivateTransaction: Sendable, Redacted {
     /// What a succeeded transaction changes in the account's private balance.
     enum Effect: Sendable {
         /// A deposit of an amount of an asset, in its smallest unit, into the account's private balance.
@@ -26,12 +26,6 @@ nonisolated struct PreparedPrivateTransaction: Sendable, CustomStringConvertible
     let registers: Bool
     /// The accounts that sign, in signing order, where the first pays.
     let authorities: [Authority]
-
-    var description: String { "PreparedPrivateTransaction" }
-
-    var debugDescription: String { description }
-
-    var customMirror: Mirror { Mirror(self, children: [:]) }
 
     /// Returns the transaction with a redeem or take-back's network fee charged to its trailing deposit.
     ///

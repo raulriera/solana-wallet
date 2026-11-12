@@ -60,13 +60,4 @@ struct PrivateBalanceKeyRecordTests {
 
         #expect(oneTime.address == (try OneTimeAccount(codeRoot: keys.codeRoot, index: 3)).address)
     }
-
-    @Test
-    func `Descriptions omit the keys`() async throws {
-        let record = try await PrivateBalanceFixtures.keys(for: PrivateBalanceFixtures.account())
-
-        #expect(String(describing: record) == "PrivateBalanceKeyRecord")
-        #expect(String(reflecting: record) == "PrivateBalanceKeyRecord")
-        #expect(Mirror(reflecting: record).children.isEmpty)
-    }
 }

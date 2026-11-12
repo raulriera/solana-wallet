@@ -2,10 +2,10 @@ import CryptoKit
 import Encoding
 import Foundation
 import RPC
+import Redaction
 
 /// A redeem code: the secret of a one-time account that holds private and public SOL, and its network.
-nonisolated struct RedeemCode: Sendable, Equatable, CustomStringConvertible, CustomDebugStringConvertible,
-    CustomReflectable {
+nonisolated struct RedeemCode: Sendable, Equatable, Redacted {
     private static let version: UInt8 = 1
 
     /// The length of a secret, in bytes.
@@ -27,12 +27,6 @@ nonisolated struct RedeemCode: Sendable, Equatable, CustomStringConvertible, Cus
         let payload = [Self.version, network.redeemCodeByte] + secret.withUnsafeBytes { Array($0) }
         return Base58.encode(payload + Self.checksum(of: payload))
     }
-
-    var description: String { "RedeemCode" }
-
-    var debugDescription: String { description }
-
-    var customMirror: Mirror { Mirror(self, children: [:]) }
 
     /// Creates a code from a one-time account's secret and network.
     ///
