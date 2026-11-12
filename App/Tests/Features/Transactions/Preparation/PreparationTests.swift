@@ -26,16 +26,19 @@ struct PreparationTests {
     }
 
     @Test(arguments: [
-        #"{"context":{"slot":399},"value":{"err":null}}"#,
-        #"{"context":{"slot":401},"value":{"err":null,"replacementBlockhash":{"blockhash":"11111111111111111111111111111111","lastValidBlockHeight":600}}}"#,
+        (#"{"context":{"slot":399},"value":{"err":null}}"#, RPCError.InvalidResponse.staleContext),
+        (#"{"context":{"slot":401},"value":{"err":null,"replacementBlockhash":{"blockhash":"11111111111111111111111111111111","lastValidBlockHeight":600}}}"#,
+         .replacedBlockhash),
     ])
-    func `Stale or blockhash-replacing estimates cannot produce a review`(_ response: String) async throws {
+    func `Stale or blockhash-replacing estimates cannot produce a review`(
+        _ response: String, reason: RPCError.InvalidResponse
+    ) async throws {
         let fixture = try SigningFixture()
         let http = HTTPResponses([
             "getLatestBlockhash": [#"{"context":{"slot":400},"value":{"blockhash":"11111111111111111111111111111111","lastValidBlockHeight":550}}"#],
             "simulateTransaction": [response],
         ])
-        await #expect(throws: PreparerError.inconsistentResponse) {
+        await #expect(throws: RPCError.invalidResponse(reason)) {
             try await Preparer(rpc: http.client).prepare([fixture.transfer],
                 payer: fixture.transfer.accounts[0].address, signer: fixture.transfer.accounts[0].address)
         }

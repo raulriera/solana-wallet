@@ -79,16 +79,12 @@ struct SigningTests {
         #expect(await http.requests.isEmpty)
     }
 
-    @Test(arguments: [
-        "failed simulation", "unknown fee", "conflicting fee", "replacement blockhash", "stale context", "understated fee"
-    ])
+    @Test(arguments: ["failed simulation", "unknown fee", "conflicting fee", "understated fee"])
     func `Failed or inconsistent review results cannot unlock recovery`(_ condition: String) async throws {
         var fixture = try SigningFixture()
         var expected = PreparationValidatorError.inconsistentPreparation
         var error: TransactionError?
         var simulationFee: UInt64? = 10_000
-        var replacement: GetLatestBlockhash.Value?
-        var slot: UInt64 = 402
         switch condition {
         case "failed simulation":
             error = TransactionError(name: "InsufficientFundsForFee", details: nil)
@@ -97,13 +93,11 @@ struct SigningTests {
             fixture.fee = .init(context: Context(slot: 401), value: nil)
             expected = .feeUnavailable
         case "conflicting fee": simulationFee = 20_000
-        case "replacement blockhash": replacement = fixture.blockhash.value
-        case "stale context": slot = 399
         default: fixture.fee = .init(context: Context(slot: 401), value: 1)
         }
-        fixture.simulation = .init(context: Context(slot: slot), value: .init(
+        fixture.simulation = .init(context: Context(slot: 402), value: .init(
             error: error, logs: nil, unitsConsumed: nil, loadedAccountsDataSize: nil,
-            fee: simulationFee, replacementBlockhash: replacement,
+            fee: simulationFee, replacementBlockhash: nil,
             preBalances: nil, postBalances: nil, preTokenBalances: nil, postTokenBalances: nil
         ))
         let http = try HTTPResponses.signing()

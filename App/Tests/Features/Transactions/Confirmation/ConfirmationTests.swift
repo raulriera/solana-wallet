@@ -381,18 +381,13 @@ struct ConfirmationTests {
         await sockets.waitUntilClosed()
     }
 
-    @Test(.timeLimit(.minutes(1)), arguments: [
-        ([GetSignatureStatuses.Status?](), 406),
-        ([Self.finalizedStatus, nil], 406),
-        ([Self.finalizedStatus], 404),
-    ] as [([GetSignatureStatuses.Status?], UInt64)])
-    func `Inconsistent status responses cannot confirm a transaction`(statuses: [GetSignatureStatuses.Status?],
-                                                                     contextSlot: UInt64) async throws {
-        let http = try HTTPResponses.confirmation(statuses: [.init(context: Context(slot: contextSlot), value: statuses)],
+    @Test(.timeLimit(.minutes(1)))
+    func `An invalid status response cannot confirm a transaction`() async throws {
+        let http = try HTTPResponses.confirmation(statuses: [.init(context: Context(slot: 404), value: [Self.finalizedStatus])],
                                                   epochs: [epoch(slot: 1_000, height: 600)])
         let sockets = SocketSequence()
 
-        await #expect(throws: ConfirmerError.invalidResponse) {
+        await #expect(throws: RPCError.invalidResponse(.statusAfterContext)) {
             try await confirmer(http, sockets).confirm(submission)
         }
 

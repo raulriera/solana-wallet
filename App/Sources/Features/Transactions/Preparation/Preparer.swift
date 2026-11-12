@@ -35,7 +35,6 @@ nonisolated struct Preparer: TransactionPreparing {
         }
         let blockhash = try await rpc.send(GetLatestBlockhash(minContextSlot: minimumSlot))
         try Task.checkCancellation()
-        guard blockhash.context.slot >= (minimumSlot ?? 0) else { throw PreparerError.inconsistentResponse }
         var transaction = try simulationTransaction(invocations, payer: payer, blockhash: blockhash.value.blockhash,
                                                     requests: requests, signer: signer)
         var context = blockhash.context.slot
@@ -43,9 +42,6 @@ nonisolated struct Preparer: TransactionPreparing {
             let estimate = try await rpc.send(SimulateTransaction(transaction: transaction.serializedRepresentation,
                 minContextSlot: context))
             try Task.checkCancellation()
-            guard estimate.context.slot >= context, estimate.value.replacementBlockhash == nil else {
-                throw PreparerError.inconsistentResponse
-            }
             context = estimate.context.slot
             if estimate.value.error == nil {
                 guard let units = estimate.value.unitsConsumed, let bytes = estimate.value.loadedAccountsDataSize else {
@@ -110,7 +106,7 @@ nonisolated struct Preparer: TransactionPreparing {
         let height = try await rpc.send(GetBlockHeight(minContextSlot: validity.context.slot))
         try Task.checkCancellation()
         let (lastValidBlockHeight, overflow) = height.addingReportingOverflow(150)
-        guard !overflow else { throw PreparerError.inconsistentResponse }
+        guard !overflow else { throw PreparerError.expiryOutOfRange }
         return try await evaluate(transaction, source: .external(validity.context, lastValidBlockHeight: lastValidBlockHeight),
                                   signer: signer, network: network)
     }
@@ -125,7 +121,7 @@ nonisolated struct Preparer: TransactionPreparing {
     ///   - minimumSlot: The earliest slot for the reads, or `nil` for the source's context.
     ///   - requirements: The submitting service's requirements, whose tip the transaction pays, or `nil` for none.
     /// - Returns: The preparation.
-    /// - Throws: An RPC, response, or cancellation error.
+    /// - Throws: An RPC or cancellation error.
     private func evaluate(_ transaction: Transaction, source: Preparation.Source, signer: Address,
                   network: Network, minimumSlot: UInt64? = nil,
                   requirements: SubmissionRequirements? = nil) async throws -> Preparation {
@@ -138,9 +134,6 @@ nonisolated struct Preparer: TransactionPreparing {
         ))
         let observations = try await (fee, simulation)
         try Task.checkCancellation()
-        let floor = minimumSlot ?? source.context.slot
-        guard observations.0.context.slot >= floor, observations.1.context.slot >= floor,
-              observations.1.value.replacementBlockhash == nil else { throw PreparerError.inconsistentResponse }
         return Preparation(
             source: source, signer: signer, transaction: transaction, network: network,
             fee: observations.0, simulation: observations.1, requirements: requirements

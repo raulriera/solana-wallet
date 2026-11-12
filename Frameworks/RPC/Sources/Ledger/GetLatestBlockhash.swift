@@ -1,9 +1,9 @@
 /// A request for a recent blockhash and the block height through which it remains valid.
-public struct GetLatestBlockhash: RPCRequest {
+public struct GetLatestBlockhash: ContextualRequest {
     public static let method = "getLatestBlockhash"
 
     /// A blockhash and its expiry, with the ledger context in which they were read.
-    public struct Response: Decodable, Sendable {
+    public struct Response: Decodable, Sendable, ContextualResponse {
         public let context: Context
 
         public let value: Value

@@ -192,6 +192,16 @@ public struct SimulateTransaction: RPCRequest {
         try parameters.encode(Configuration(minContextSlot: minContextSlot))
     }
 
+    /// Checks that the simulation comes from the minimum slot or later and kept the transaction's blockhash.
+    ///
+    /// - Parameter response: The decoded response.
+    /// - Throws: ``RPCError/InvalidResponse/staleContext`` if the simulation comes from an earlier slot, or
+    ///   ``RPCError/InvalidResponse/replacedBlockhash`` if it replaced the blockhash.
+    public func validate(_ response: Response) throws {
+        try LedgerConfiguration(minContextSlot: minContextSlot).validate(contextSlot: response.context.slot)
+        guard response.value.replacementBlockhash == nil else { throw RPCError.invalidResponse(.replacedBlockhash) }
+    }
+
     /// The simulation options for the serialized transaction.
     private struct Configuration: Encodable {
         let encoding = "base64"

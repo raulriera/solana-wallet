@@ -7,6 +7,7 @@ struct RPCErrorTests {
         RPCError.transport(.networkConnectionLost), .transport(.timedOut), .http(statusCode: 408, retryAfter: nil),
         .http(statusCode: 500, retryAfter: nil), .http(statusCode: 503, retryAfter: "5"),
         .http(statusCode: 599, retryAfter: nil), .server(code: -32005, message: "Node is behind by 42 slots"),
+        .server(code: -32016, message: "Minimum context slot has not been reached"), .invalidResponse(.staleContext),
     ])
     func `Transport failures, timeouts, server errors, and a node that is behind are recoverable`(_ error: RPCError) {
         #expect(error.isRecoverable)

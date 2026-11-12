@@ -61,17 +61,12 @@ nonisolated struct TokenTransfers {
             ? rpc.send(GetMinimumBalanceForRentExemption(dataLength: tokenMint.associatedAccountSize)) : nil
         let (epoch, minimumBalance) = try await (epochRead, rentRead)
         try Task.checkCancellation()
-        var minimumSlot = snapshot.context.slot
-        if let epoch {
-            guard epoch.absoluteSlot >= minimumSlot else { throw TokenTransfersError.inconsistentAccounts }
-            minimumSlot = epoch.absoluteSlot
-        }
         let transfer = try TokenTransfer(sender: sender, recipient: owner, mint: tokenMint, source: tokenSource,
                                          destination: destination, amount: amount, epoch: epoch?.epoch, memo: memo)
         let deposit = minimumBalance.map { max(1, $0) } ?? 0
         let existingBalance = destinationAccount?.lamports ?? 0
         let rent = existingBalance < deposit ? deposit - existingBalance : 0
-        return (transfer, minimumSlot, rent)
+        return (transfer, epoch?.absoluteSlot ?? snapshot.context.slot, rent)
     }
 
     /// Reads accounts at one finalized context.

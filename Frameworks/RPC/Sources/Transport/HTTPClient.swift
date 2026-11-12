@@ -147,6 +147,7 @@ struct HTTPClient: Sendable, CustomStringConvertible, CustomDebugStringConvertib
         switch reply.result {
         case .success(let value):
             guard reply.id == id else { throw RPCError.invalidResponse(.mismatchedID) }
+            try request.validate(value)
             return value
         case .failure(let error):
             guard reply.id == nil || reply.id == id else { throw RPCError.invalidResponse(.mismatchedID) }

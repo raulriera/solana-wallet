@@ -10,11 +10,6 @@ extension RPC {
     ///   doesn't match the request, or another RPC error.
     public func accounts(at addresses: [String], minContextSlot: UInt64? = nil) async throws
         -> GetMultipleAccounts.Response {
-        let response = try await send(GetMultipleAccounts(addresses: addresses, minContextSlot: minContextSlot))
-        if let minContextSlot, response.context.slot < minContextSlot {
-            throw RPCError.invalidResponse(.staleContext)
-        }
-        guard response.value.count == addresses.count else { throw RPCError.invalidResponse(.mismatchedAccounts) }
-        return response
+        try await send(GetMultipleAccounts(addresses: addresses, minContextSlot: minContextSlot))
     }
 }

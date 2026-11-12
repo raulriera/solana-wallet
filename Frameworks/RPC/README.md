@@ -12,10 +12,6 @@ let response = try await client.send(GetLatestBlockhash())
 let blockhash = response.value.blockhash
 ```
 
-`accounts(at:minContextSlot:)` reads one through 100 accounts with one request, in request order, and throws `RPCError.invalidResponse` if the response holds another number of accounts or comes from an earlier slot.
-
-The module includes `SolanaRPC` and `HeliusRPC` for RPC, `SenderSubmissionProvider` for paid transaction submission, `Zolana` for Solana Rings indexer reads and encrypted proofs, `JupiterPriceProvider` and `CustomPriceProvider` for prices, and `EuropeanCentralBankExchangeRateProvider` and `CoinbaseExchangeRateProvider` for exchange rates.
-
 ## Use a custom RPC URL
 
 `SolanaRPC(endpoint:network:)` accepts an HTTPS URL with a host and returns `nil` otherwise. The server must serve standard JSON-RPC requests at that URL, and `accountSubscribe`, `signatureSubscribe`, and `rootSubscribe` over WSS at the same URL.

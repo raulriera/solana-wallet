@@ -34,4 +34,12 @@ public struct GetEpochInfo: RPCRequest {
         var parameters = encoder.unkeyedContainer()
         try parameters.encode(configuration)
     }
+
+    /// Checks that the epoch observation comes from the minimum slot or later.
+    ///
+    /// - Parameter response: The decoded response.
+    /// - Throws: ``RPCError/InvalidResponse/staleContext`` if the observation comes from an earlier slot.
+    public func validate(_ response: Response) throws {
+        try configuration.validate(contextSlot: response.absoluteSlot)
+    }
 }

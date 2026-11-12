@@ -4,8 +4,8 @@ import Transactions
 
 /// An actor that shares each wallet's finalized subscription and reloads its balances after finalized changes.
 actor ObservationCoordinator {
-    private static let firstReconnectDelay = Duration.seconds(2)
-    private static let longestReconnectDelay = Duration.seconds(60)
+    /// How long a read after a change waits for nearby changes.
+    private static let coalescingDelay = Duration.seconds(2)
 
     private let refresh: RefreshCoordinator
     private let tokenLists: TokenListCoordinator
@@ -45,7 +45,7 @@ actor ObservationCoordinator {
             if watch.state == .disconnected {
                 restart(for: owner)
             } else if watch.reloadRequested {
-                schedule(owner: owner, generation: watch.generation, delayed: false)
+                schedule(owner: owner, generation: watch.generation, after: .immediate)
             }
             return stream
         }
@@ -61,7 +61,7 @@ actor ObservationCoordinator {
     func restart(for owner: String) {
         guard let watch = watches[owner] else { return }
         watch.connection?.cancel()
-        watch.reconciliation?.cancel()
+        watch.reconciliation?.task.cancel()
         connect(owner: owner, consumers: watch.consumers, latest: watch.latest, minContextSlot: watch.minContextSlot,
                 reloads: watch.reloads)
     }
@@ -82,7 +82,7 @@ actor ObservationCoordinator {
         switch watch.state {
         case .connected:
             watches[owner]?.reloadRequested = true
-            schedule(owner: owner, generation: watch.generation, delayed: false)
+            schedule(owner: owner, generation: watch.generation, after: .immediate)
         case .disconnected:
             restart(for: owner)
         case .connecting:
@@ -108,7 +108,7 @@ actor ObservationCoordinator {
     func stop(for owner: String) {
         guard let watch = watches.removeValue(forKey: owner) else { return }
         watch.connection?.cancel()
-        watch.reconciliation?.cancel()
+        watch.reconciliation?.task.cancel()
         watch.consumers.finish()
         for reload in watch.reloads.values { reload.continuation.resume() }
     }
@@ -159,9 +159,10 @@ actor ObservationCoordinator {
                 publish(failed, owner: owner, generation: generation)
                 endWaits(of: owner) { _ in true }
                 guard (error as? RPCError)?.isRecoverable == true,
-                      await waitToReconnect(owner: owner, generation: generation) else {
+                      await waitForBackoff(owner: owner, generation: generation) else {
                     return
                 }
+                watches[owner]?.state = .connecting
             }
         }
     }
@@ -179,14 +180,14 @@ actor ObservationCoordinator {
         try Task.checkCancellation()
         guard watches[owner]?.generation == generation else { return }
         watches[owner]?.state = .connected
-        schedule(owner: owner, generation: generation, delayed: false)
+        schedule(owner: owner, generation: generation, after: .immediate)
         for try await slot in slots {
             try Task.checkCancellation()
             guard watches[owner]?.generation == generation else { return }
             watches[owner]?.revision = UUID()
             let minContextSlot = max(watches[owner]?.minContextSlot ?? 0, slot)
             watches[owner]?.minContextSlot = minContextSlot
-            schedule(owner: owner, generation: generation, delayed: true)
+            schedule(owner: owner, generation: generation, after: .coalescing)
         }
         try Task.checkCancellation()
         throw RPCError.transport(.networkConnectionLost)
@@ -197,76 +198,111 @@ actor ObservationCoordinator {
     /// - Parameters:
     ///   - owner: The wallet address.
     ///   - generation: The observation's generation.
-    /// - Returns: Whether the observation connects again.
-    private func waitToReconnect(owner: String, generation: UUID) async -> Bool {
-        guard let watch = watches[owner], watch.generation == generation else { return false }
-        watches[owner]?.reconnectDelay = min(watch.reconnectDelay * 2, Self.longestReconnectDelay)
+    /// - Returns: Whether the observation's generation is still current after the wait.
+    private func waitForBackoff(owner: String, generation: UUID) async -> Bool {
+        guard !Task.isCancelled, watches[owner]?.generation == generation,
+              let delay = watches[owner]?.backoff.next() else { return false }
         do {
-            try await clock.sleep(for: watch.reconnectDelay)
+            try await clock.sleep(for: delay)
         } catch {
             return false
         }
-        guard watches[owner]?.generation == generation else { return false }
-        watches[owner]?.state = .connecting
-        return true
+        return watches[owner]?.generation == generation
     }
 
-    /// Starts a reconciliation for the wallet unless one is running.
+    /// Starts a reconciliation for the wallet unless one is reading or is waiting no longer than this delay.
     ///
     /// - Parameters:
     ///   - owner: The wallet address.
     ///   - generation: The observation's generation.
-    ///   - delayed: Whether to wait two seconds for nearby changes.
-    private func schedule(owner: String, generation: UUID, delayed: Bool) {
-        guard watches[owner]?.generation == generation, watches[owner]?.reconciliation == nil else { return }
-        watches[owner]?.reconciliation = Task { await reconcile(owner: owner, generation: generation, delayed: delayed) }
+    ///   - delay: The wait before the read.
+    private func schedule(owner: String, generation: UUID, after delay: ReadDelay) {
+        guard let watch = watches[owner], watch.generation == generation else { return }
+        if let current = watch.reconciliation {
+            guard let waiting = current.waiting, delay < waiting else { return }
+            current.task.cancel()
+        }
+        let task = Task { await reconcile(owner: owner, generation: generation, after: delay) }
+        watches[owner]?.reconciliation = Reconciliation(task: task, waiting: delay)
     }
 
-    /// Reloads the wallet's balances after an optional wait that gathers nearby changes.
+    /// Reloads the wallet's balances after a wait, then schedules the read that the result calls for.
     ///
     /// - Parameters:
     ///   - owner: The wallet address.
     ///   - generation: The observation's generation.
-    ///   - delayed: Whether to wait for nearby changes first.
-    private func reconcile(owner: String, generation: UUID, delayed: Bool) async {
-        guard watches[owner]?.generation == generation else { return }
+    ///   - delay: The wait before the read.
+    private func reconcile(owner: String, generation: UUID, after delay: ReadDelay) async {
+        guard await wait(delay, owner: owner, generation: generation) else { return }
+        watches[owner]?.reconciliation?.waiting = nil
         watches[owner]?.reloadRequested = false
         let read = UUID()
         for (id, reload) in watches[owner]?.reloads ?? [:] where reload.read == nil {
             watches[owner]?.reloads[id]?.read = read
         }
-        var handledRevision: UUID?
-        var requestFailed = false
+        let handledRevision = watches[owner]?.revision
+        var readError: (any Error)?
         defer {
-            if let watch = watches[owner], watch.generation == generation {
-                watches[owner]?.reconciliation = nil
-                endWaits(of: owner) { $0.read == read }
-                if !Task.isCancelled,
-                   watch.reloadRequested || (!requestFailed && watch.revision != handledRevision) {
-                    schedule(owner: owner, generation: generation, delayed: !watch.reloadRequested)
-                }
-            }
+            finish(read, owner: owner, generation: generation, handledRevision: handledRevision, readError: readError)
         }
         do {
-            if delayed { try await clock.sleep(for: .seconds(2)) }
-            try Task.checkCancellation()
-            guard watches[owner]?.generation == generation else { return }
-            handledRevision = watches[owner]?.revision
             let minContextSlot = watches[owner]?.minContextSlot
             for await update in await refresh.updates(for: owner, minContextSlot: minContextSlot) {
                 try Task.checkCancellation()
                 if case .ready = update.phase, let watch = watches[owner], watch.generation == generation,
                    watch.state == .connected {
-                    watches[owner]?.reconnectDelay = Self.firstReconnectDelay
+                    watches[owner]?.backoff.reset()
                 }
                 publish(update, owner: owner, generation: generation)
-                if case .failed = update.phase { requestFailed = true }
+                if case .failed(let error) = update.phase { readError = error }
             }
         } catch {
-            requestFailed = true
+            readError = error
             guard !Task.isCancelled else { return }
             let failed = await refresh.status(for: owner, phase: .failed(error))
             publish(failed, owner: owner, generation: generation)
+        }
+    }
+
+    /// Waits before a reconciliation's read.
+    ///
+    /// - Parameters:
+    ///   - delay: How long to wait.
+    ///   - owner: The wallet address.
+    ///   - generation: The observation's generation.
+    /// - Returns: Whether the reconciliation still reads: no shorter wait replaced it and its generation is current.
+    private func wait(_ delay: ReadDelay, owner: String, generation: UUID) async -> Bool {
+        switch delay {
+        case .immediate:
+            break
+        case .coalescing:
+            guard (try? await clock.sleep(for: Self.coalescingDelay)) != nil else { return false }
+        case .backoff:
+            guard await waitForBackoff(owner: owner, generation: generation) else { return false }
+        }
+        return !Task.isCancelled && watches[owner]?.generation == generation
+    }
+
+    /// Ends a reconciliation's reload waits, then schedules a read for a reload, a newer change, or a recoverable
+    /// failure on a live connection.
+    ///
+    /// - Parameters:
+    ///   - read: The identifier that marks the reloads this read answers.
+    ///   - owner: The wallet address.
+    ///   - generation: The observation's generation.
+    ///   - handledRevision: The change revision the read handled.
+    ///   - readError: The error that ended the read, or `nil` if it succeeded.
+    private func finish(_ read: UUID, owner: String, generation: UUID, handledRevision: UUID?, readError: (any Error)?) {
+        guard let watch = watches[owner], watch.generation == generation else { return }
+        watches[owner]?.reconciliation = nil
+        endWaits(of: owner) { $0.read == read }
+        guard !Task.isCancelled else { return }
+        if watch.reloadRequested {
+            schedule(owner: owner, generation: generation, after: .immediate)
+        } else if readError == nil, watch.revision != handledRevision {
+            schedule(owner: owner, generation: generation, after: .coalescing)
+        } else if watch.state == .connected, (readError as? RPCError)?.isRecoverable == true {
+            schedule(owner: owner, generation: generation, after: .backoff)
         }
     }
 
@@ -326,15 +362,32 @@ actor ObservationCoordinator {
 
         let generation: UUID
         var state = State.connecting
-        var reconnectDelay = ObservationCoordinator.firstReconnectDelay
+        /// The wait before the next reconnection or retried read.
+        var backoff = Backoff.reconnection
         var reloadRequested = false
         var revision = UUID()
         var minContextSlot: UInt64?
         var consumers: UpdateConsumers
         var latest: Update?
         var connection: Task<Void, Never>?
-        var reconciliation: Task<Void, Never>?
+        var reconciliation: Reconciliation?
         var reloads: [UUID: Reload] = [:]
+    }
+
+    /// A wallet's balance read and the wait before it.
+    private struct Reconciliation {
+        let task: Task<Void, Never>
+        /// The wait that hasn't ended, or `nil` once the read has started.
+        var waiting: ReadDelay?
+    }
+
+    /// The wait before a reconciliation reads, from shortest to longest.
+    private enum ReadDelay: Comparable {
+        case immediate
+        /// Two seconds that gather nearby changes.
+        case coalescing
+        /// The reconnection delay after a recoverable failure.
+        case backoff
     }
 
     /// A caller waiting for a reload, with the read that answers it.

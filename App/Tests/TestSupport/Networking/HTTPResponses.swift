@@ -101,10 +101,10 @@ actor HTTPResponses: HTTPTransport {
     }
 
     static func signing(heights: [UInt64] = [500, 500], fee: UInt64? = 10_000,
-                        validities: [Bool] = [true, true], validitySlot: UInt64 = 403) throws -> HTTPResponses {
+                        validities: [Bool] = [true, true]) throws -> HTTPResponses {
         HTTPResponses([
             "getBlockHeight": heights.map(String.init),
-            "isBlockhashValid": try validities.map { try json(["context": ["slot": validitySlot], "value": $0]) },
+            "isBlockhashValid": try validities.map { try json(["context": ["slot": 403], "value": $0]) },
             "getFeeForMessage": [try json(["context": ["slot": 403], "value": fee as Any? ?? NSNull()])],
         ])
     }

@@ -32,6 +32,12 @@ public enum RPCError: Error, Sendable, Equatable {
         case mismatchedAccounts
         /// The response comes from a slot before the request's minimum context slot.
         case staleContext
+        /// The simulation replaced the transaction's blockhash, which the request doesn't allow.
+        case replacedBlockhash
+        /// The provider returned another number of statuses than the request named signatures.
+        case mismatchedStatuses
+        /// A status comes from a slot after the response's own context.
+        case statusAfterContext
         /// The prover's attestation doesn't prove that the expected enclave holds its key.
         case untrustedProver
         /// The prover's encrypted answer doesn't open under the request's key or holds no status.
@@ -42,7 +48,7 @@ public enum RPCError: Error, Sendable, Equatable {
     public var isRecoverable: Bool {
         switch self {
         case .transport, .http(statusCode: 408, retryAfter: _), .http(statusCode: 500..<600, retryAfter: _),
-            .server(code: -32005, message: _):
+            .server(code: -32005, message: _), .server(code: -32016, message: _), .invalidResponse(.staleContext):
             true
         case .encoding, .decoding, .http, .server, .preflight, .invalidResponse: false
         }

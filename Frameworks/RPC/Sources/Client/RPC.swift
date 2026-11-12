@@ -20,8 +20,16 @@ public protocol RPCRequest: Encodable, Sendable {
 
     /// The longest response body, in bytes, to accept, or `nil` for a body of any length.
     static var maximumResponseLength: Int? { get }
+
+    /// Checks that a decoded response answers the request.
+    ///
+    /// - Parameter response: The decoded response.
+    /// - Throws: An ``RPCError/invalidResponse(_:)`` error if the response can't be the request's result.
+    func validate(_ response: Response) throws
 }
 
 extension RPCRequest {
     public static var maximumResponseLength: Int? { nil }
+
+    public func validate(_ response: Response) throws {}
 }

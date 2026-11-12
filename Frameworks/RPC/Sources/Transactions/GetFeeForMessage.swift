@@ -1,11 +1,11 @@
 public import Foundation
 
 /// A request for the network fee of a serialized transaction message.
-public struct GetFeeForMessage: RPCRequest {
+public struct GetFeeForMessage: ContextualRequest {
     public static let method = "getFeeForMessage"
 
     /// A fee and the ledger context of its calculation.
-    public struct Response: Decodable, Sendable {
+    public struct Response: Decodable, Sendable, ContextualResponse {
         public let context: Context
 
         /// The fee in lamports, or `nil` if the node can't determine it.

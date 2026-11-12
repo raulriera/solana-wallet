@@ -7,7 +7,7 @@ import Transactions
 
 struct ObservationTests {
     @Test(.timeLimit(.minutes(1)), arguments: [100, 109] as [UInt64])
-    func `Finalized changes reject older balance responses`(slot: UInt64) async throws {
+    func `Finalized changes reject older balance responses and read again after a delay`(slot: UInt64) async throws {
         let fixture = ObservationFixture()
         defer { fixture.cleanUp() }
         let ledger = ObservedLedger()
@@ -28,9 +28,66 @@ struct ObservationTests {
         #expect(failed.snapshot == original)
         #expect(fixture.store.snapshot(for: fixture.key) == original)
         #expect(await http.minimumSlots == [nil, 110])
-        #expect(await ledger.readCount == 2)
+
+        await ledger.set(lamports: 200, slot: 110)
+        #expect(await delays.next() == .seconds(2))
+        fixture.gate.resume()
+        let retried = try await nextResult(&updates)
+
+        #expect(retried.error == nil)
+        #expect(retried.holdings.first?.amount?.units == 200)
+        #expect(await http.minimumSlots == [nil, 110, 110])
         try await service.removeData(for: testWallet)
         await fixture.socket.waitUntilCancelled()
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func `A reload during a retry's wait reads at once`() async throws {
+        let fixture = ObservationFixture()
+        defer { fixture.cleanUp() }
+        let ledger = ObservedLedger()
+        let service = fixture.service(ledger: ledger)
+        var updates = await service.observations(for: testWallet).makeAsyncIterator()
+        try await nextResult(&updates)
+        fixture.socket.notify(slot: 110)
+        var delays = fixture.gate.delays.makeAsyncIterator()
+        _ = try #require(await delays.next())
+        fixture.gate.resume()
+        try #require(try await nextResult(&updates).error as? RPCError == .invalidResponse(.staleContext))
+        _ = try #require(await delays.next())
+
+        await ledger.set(lamports: 200, slot: 110)
+        await service.reload(for: testWallet)
+        let reloaded = try await nextResult(&updates)
+
+        #expect(reloaded.error == nil)
+        #expect(reloaded.holdings.first?.amount?.units == 200)
+        #expect(await ledger.readCount == 3)
+        try await service.removeData(for: testWallet)
+        await fixture.socket.waitUntilCancelled()
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func `A change's pending read still runs after the connection is refused`() async throws {
+        let fixture = ObservationFixture()
+        defer { fixture.cleanUp() }
+        let ledger = ObservedLedger()
+        let service = fixture.service(ledger: ledger)
+        var updates = await service.observations(for: testWallet).makeAsyncIterator()
+        try await nextResult(&updates)
+        await ledger.set(lamports: 200)
+        fixture.socket.notify(slot: 110)
+        var delays = fixture.gate.delays.makeAsyncIterator()
+        _ = try #require(await delays.next())
+        fixture.socket.fail(RPCError.http(statusCode: 401, retryAfter: nil))
+        try #require(try await nextResult(&updates).error as? RPCError == .http(statusCode: 401, retryAfter: nil))
+
+        fixture.gate.resume()
+        let read = try await nextResult(&updates)
+
+        #expect(read.error == nil)
+        #expect(read.holdings.first?.amount?.units == 200)
+        try await service.removeData(for: testWallet)
     }
 
     @Test(.timeLimit(.minutes(1)))
@@ -484,20 +541,20 @@ struct ObservationTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
-    func `Observation does not retry failed RPC requests`() async throws {
+    func `Observation does not retry refused RPC requests`() async throws {
         let fixture = ObservationFixture()
         defer { fixture.cleanUp() }
         let ledger = ObservedLedger()
         let service = fixture.service(ledger: ledger)
         var updates = await service.observations(for: testWallet).makeAsyncIterator()
         let initial = try await nextResult(&updates)
-        await ledger.fail()
+        await ledger.fail(with: RPCError.http(statusCode: 401, retryAfter: nil))
         fixture.socket.notify(slot: 101)
         var delays = fixture.gate.delays.makeAsyncIterator()
         _ = try #require(await delays.next())
         fixture.gate.resume()
         let failed = try await nextResult(&updates)
-        #expect(failed.error as? RPCError == .transport(.notConnectedToInternet))
+        #expect(failed.error as? RPCError == .http(statusCode: 401, retryAfter: nil))
         #expect(failed.snapshot == initial.snapshot)
         #expect(await ledger.readCount == 2)
         fixture.gate.finish()
@@ -849,7 +906,7 @@ struct ObservationTests {
 private actor ObservedLedger {
     private var lamports: UInt64 = 100
     private var slot: UInt64 = 100
-    private var offline = false
+    private var error: (any Error)?
     private(set) var reads: [[String]] = []
     var readCount: Int { reads.count }
 
@@ -858,11 +915,11 @@ private actor ObservedLedger {
         self.slot = slot
     }
 
-    func fail() { offline = true }
+    func fail(with error: any Error = URLError(.notConnectedToInternet)) { self.error = error }
 
     func response(for accounts: [String]) throws -> Ledger {
         reads.append(accounts)
-        if offline { throw URLError(.notConnectedToInternet) }
+        if let error { throw error }
         return Ledger(slot: slot, lamports: lamports)
     }
 }

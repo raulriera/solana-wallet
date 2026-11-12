@@ -1,9 +1,9 @@
 /// A request that checks whether a recent blockhash is still valid.
-public struct IsBlockhashValid: RPCRequest {
+public struct IsBlockhashValid: ContextualRequest {
     public static let method = "isBlockhashValid"
 
     /// The validity of a blockhash at a ledger context.
-    public struct Response: Decodable, Sendable {
+    public struct Response: Decodable, Sendable, ContextualResponse {
         public let context: Context
         /// Whether the blockhash is valid.
         public let value: Bool

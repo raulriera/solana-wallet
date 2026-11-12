@@ -77,4 +77,16 @@ public struct GetSignatureStatuses: RPCRequest {
         try parameters.encode(signatures)
         try parameters.encode(["searchTransactionHistory": true])
     }
+
+    /// Checks that the response holds one status per signature, none from after the response's context.
+    ///
+    /// - Parameter response: The decoded response.
+    /// - Throws: ``RPCError/InvalidResponse/mismatchedStatuses`` if the response holds another number of statuses,
+    ///   or ``RPCError/InvalidResponse/statusAfterContext`` if a status comes from a later slot than the response.
+    public func validate(_ response: Response) throws {
+        guard response.value.count == signatures.count else { throw RPCError.invalidResponse(.mismatchedStatuses) }
+        guard response.value.allSatisfy({ ($0?.slot ?? 0) <= response.context.slot }) else {
+            throw RPCError.invalidResponse(.statusAfterContext)
+        }
+    }
 }

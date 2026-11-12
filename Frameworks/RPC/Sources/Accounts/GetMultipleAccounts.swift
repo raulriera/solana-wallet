@@ -11,7 +11,7 @@ public struct GetMultipleAccounts: RPCRequest {
 
     /// The addresses to read, in response order.
     public let addresses: [String]
-    private let minContextSlot: UInt64?
+    private let configuration: LedgerConfiguration
 
     /// Creates an account read at finalized commitment.
     ///
@@ -22,12 +22,22 @@ public struct GetMultipleAccounts: RPCRequest {
     init(addresses: [String], minContextSlot: UInt64? = nil) throws {
         guard (1...100).contains(addresses.count) else { throw GetMultipleAccountsError.invalidAddressCount }
         self.addresses = addresses
-        self.minContextSlot = minContextSlot
+        configuration = LedgerConfiguration(minContextSlot: minContextSlot, includesAccountData: true)
     }
 
     public func encode(to encoder: any Encoder) throws {
         var parameters = encoder.unkeyedContainer()
         try parameters.encode(addresses)
-        try parameters.encode(LedgerConfiguration(minContextSlot: minContextSlot, includesAccountData: true))
+        try parameters.encode(configuration)
+    }
+
+    /// Checks that the response comes from the minimum slot or later and holds one entry per address.
+    ///
+    /// - Parameter response: The decoded response.
+    /// - Throws: ``RPCError/InvalidResponse/staleContext`` if the response comes from an earlier slot, or
+    ///   ``RPCError/InvalidResponse/mismatchedAccounts`` if it holds another number of accounts.
+    public func validate(_ response: Response) throws {
+        try configuration.validate(contextSlot: response.context.slot)
+        guard response.value.count == addresses.count else { throw RPCError.invalidResponse(.mismatchedAccounts) }
     }
 }

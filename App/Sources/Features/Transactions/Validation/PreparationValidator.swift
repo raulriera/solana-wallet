@@ -38,8 +38,7 @@ nonisolated struct PreparationValidator: PreparationValidating {
                                                          minContextSlot: preparation.minimumSlot))
         let (_, fee) = try await (lifetime, currentFee)
         try Task.checkCancellation()
-        guard fee.context.slot >= preparation.minimumSlot,
-              fee.value == preparation.fee.value else { throw PreparationValidatorError.feeChanged }
+        guard fee.value == preparation.fee.value else { throw PreparationValidatorError.feeChanged }
     }
 
     /// Checks that a preparation's details match its message and any local instructions.
@@ -50,10 +49,7 @@ nonisolated struct PreparationValidator: PreparationValidating {
         guard preparation.simulation.value.error == nil else { throw PreparationValidatorError.simulationFailed }
         guard let fee = preparation.fee.value else { throw PreparationValidatorError.feeUnavailable }
         guard fee >= (preparation.transaction.requests.priorityFeeLamports ?? 0),
-              preparation.simulation.value.fee.map({ $0 == fee }) ?? true,
-              preparation.simulation.value.replacementBlockhash == nil,
-              preparation.fee.context.slot >= preparation.source.context.slot,
-              preparation.simulation.context.slot >= preparation.source.context.slot else {
+              preparation.simulation.value.fee.map({ $0 == fee }) ?? true else {
             throw PreparationValidatorError.inconsistentPreparation
         }
         switch preparation.source {
@@ -79,7 +75,7 @@ nonisolated struct PreparationValidator: PreparationValidating {
                 blockhash: preparation.transaction.lifetimeSpecifier, minContextSlot: preparation.minimumSlot
             ))
             try Task.checkCancellation()
-            guard validity.value, validity.context.slot >= preparation.minimumSlot else { throw PreparationValidatorError.expired }
+            guard validity.value else { throw PreparationValidatorError.expired }
         }
     }
 }

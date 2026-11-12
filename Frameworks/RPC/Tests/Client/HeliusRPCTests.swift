@@ -55,6 +55,18 @@ struct HeliusRPCTests {
     }
 
     @Test
+    func `Get latest blockhash rejects a response from before the minimum slot`() async {
+        let transport = StubTransport { request in
+            try reply(to: request, payload: #""result":{"context":{"slot":12339},"value":{"blockhash":"EkSnNWid2cvwEVnVx9aBqawnmiCNiDgp3gUdkDPTKN1N","lastValidBlockHeight":12000}}"#)
+        }
+        let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
+
+        await #expect(throws: RPCError.invalidResponse(.staleContext)) {
+            try await rpc.send(GetLatestBlockhash(minContextSlot: 12340))
+        }
+    }
+
+    @Test
     func `Get latest blockhash rejects a response without an expiry height`() async {
         let transport = StubTransport { request in
             try reply(to: request, payload: #""result":{"context":{"slot":12345},"value":{"blockhash":"EkSnNWid2cvwEVnVx9aBqawnmiCNiDgp3gUdkDPTKN1N"}}"#)
@@ -116,6 +128,18 @@ struct HeliusRPCTests {
 
         #expect(response.value == nil)
         #expect(response.context.slot == 12345)
+    }
+
+    @Test
+    func `Get fee for message rejects a response from before the minimum slot`() async {
+        let transport = StubTransport { request in
+            try reply(to: request, payload: #""result":{"context":{"slot":12339},"value":5000}"#)
+        }
+        let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
+
+        await #expect(throws: RPCError.invalidResponse(.staleContext)) {
+            try await rpc.send(GetFeeForMessage(message: Data([0x81, 0xFB, 0xFF, 0x00]), minContextSlot: 12340))
+        }
     }
 
     @Test
@@ -193,27 +217,22 @@ struct HeliusRPCTests {
         #expect(response.value.replacementBlockhash == nil)
     }
 
-    @Test
-    func `Simulation returns the replacement blockhash and expiry height`() async throws {
+    @Test(arguments: [
+        (UInt64(12339), #"{"err":null}"#, RPCError.InvalidResponse.staleContext),
+        (12345, #"{"err":null,"replacementBlockhash":{"blockhash":"EkSnNWid2cvwEVnVx9aBqawnmiCNiDgp3gUdkDPTKN1N","lastValidBlockHeight":12000}}"#,
+         .replacedBlockhash),
+    ] as [(UInt64, String, RPCError.InvalidResponse)])
+    func `Simulation rejects a stale response or a replaced blockhash`(
+        slot: UInt64, value: String, reason: RPCError.InvalidResponse
+    ) async {
         let transport = StubTransport { request in
-            try reply(to: request, payload: #"""
-                "result":{"context":{"slot":12345},"value":{"err":null,"replacementBlockhash":{
-                    "blockhash":"EkSnNWid2cvwEVnVx9aBqawnmiCNiDgp3gUdkDPTKN1N","lastValidBlockHeight":12000
-                }}}
-                """#)
+            try reply(to: request, payload: #""result":{"context":{"slot":\#(slot)},"value":\#(value)}"#)
         }
         let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
 
-        let response = try await rpc.send(SimulateTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00])))
-
-        let replacement = try #require(response.value.replacementBlockhash)
-        #expect(replacement.blockhash == "EkSnNWid2cvwEVnVx9aBqawnmiCNiDgp3gUdkDPTKN1N")
-        #expect(replacement.lastValidBlockHeight == 12000)
-        let request = try #require(await transport.requests.first)
-        let parameters = try #require(try requestBody(request)["params"] as? [Any])
-        let configuration = try #require(parameters.last as? [String: Any])
-        #expect(configuration["replaceRecentBlockhash"] as? Bool == false)
-        #expect(configuration["sigVerify"] as? Bool == false)
+        await #expect(throws: RPCError.invalidResponse(reason)) {
+            try await rpc.send(SimulateTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00]), minContextSlot: 12340))
+        }
     }
 
     @Test
@@ -342,6 +361,24 @@ struct HeliusRPCTests {
         #expect(parameters.count == 2)
         #expect(parameters.first as? [String] == signatures)
         #expect(parameters.last as? [String: Bool] == ["searchTransactionHistory": true])
+    }
+
+    @Test(arguments: [
+        (UInt64(12345), "", RPCError.InvalidResponse.mismatchedStatuses),
+        (12345, #"{"slot":12344,"confirmations":0,"err":null,"confirmationStatus":"processed"},null"#, .mismatchedStatuses),
+        (12343, #"{"slot":12344,"confirmations":0,"err":null,"confirmationStatus":"processed"}"#, .statusAfterContext),
+    ] as [(UInt64, String, RPCError.InvalidResponse)])
+    func `Get signature statuses reject a response that doesn't match the request`(
+        contextSlot: UInt64, statuses: String, reason: RPCError.InvalidResponse
+    ) async {
+        let transport = StubTransport { request in
+            try reply(to: request, payload: #""result":{"context":{"slot":\#(contextSlot)},"value":[\#(statuses)]}"#)
+        }
+        let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
+
+        await #expect(throws: RPCError.invalidResponse(reason)) {
+            try await rpc.send(GetSignatureStatuses(signatures: ["example-signature"]))
+        }
     }
 
     @Test

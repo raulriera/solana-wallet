@@ -88,7 +88,7 @@ struct ExternalTransactionTests {
             "getBlockHeight": [String(UInt64.max)],
         ])
 
-        await #expect(throws: PreparerError.inconsistentResponse) {
+        await #expect(throws: PreparerError.expiryOutOfRange) {
             try await Preparer(rpc: http.client).prepare(expected.transaction, for: expected.signer)
         }
 
@@ -148,14 +148,11 @@ struct ExternalTransactionTests {
         #expect(await store.reads.isEmpty)
     }
 
-    @Test(arguments: [
-        "preparation", "before authentication", "during authentication", "stale context"
-    ])
+    @Test(arguments: ["preparation", "before authentication", "during authentication"])
     func `An unavailable external blockhash stops signing without substitution`(_ stage: String) async throws {
         let expected = try ExternalFixture.preparation()
         let preparationHTTP = try HTTPResponses.preparation(fixture: expected, blockhashValid: stage != "preparation")
-        let signingHTTP = try HTTPResponses.signing(fee: 15_000, validities: stage == "during authentication" ? [true, false] : [stage == "stale context"],
-                                    validitySlot: stage == "stale context" ? 399 : 403)
+        let signingHTTP = try HTTPResponses.signing(fee: 15_000, validities: stage == "during authentication" ? [true, false] : [false])
         let store = SigningRecoveryStore(recovery: try SigningFixture().recovery)
         let wallet = RecordingWallet()
         let coordinator = TransactionCoordinator(rpc: preparationHTTP.client, preparer: Preparer(rpc: preparationHTTP.client),

@@ -17,4 +17,12 @@ struct LedgerConfiguration: Encodable {
         self.minContextSlot = minContextSlot
         encoding = includesAccountData ? "base64" : nil
     }
+
+    /// Checks that a response comes from the minimum slot or later.
+    ///
+    /// - Parameter contextSlot: The slot the response comes from.
+    /// - Throws: ``RPCError/InvalidResponse/staleContext`` if the response comes from an earlier slot.
+    func validate(contextSlot: UInt64) throws {
+        if let minContextSlot, contextSlot < minContextSlot { throw RPCError.invalidResponse(.staleContext) }
+    }
 }
