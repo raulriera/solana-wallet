@@ -3,9 +3,8 @@ import Foundation
 import Security
 
 /// A value saved as one Keychain item that never leaves this device.
-public struct KeychainItem<Coding: ValueCoding>: ValueStoring {
-    /// Blocking Security work that runs on the Keychain queue.
-    private typealias Operation<Result: Sendable> = @Sendable () throws -> Result
+public struct KeychainItem<Coding: ValueCoding>: BlockingValueStoring {
+    public typealias Value = Coding.Value
 
     public let service: String
     public let account: String
@@ -23,36 +22,13 @@ public struct KeychainItem<Coding: ValueCoding>: ValueStoring {
         self.coding = coding
     }
 
-    public func load() async throws -> Coding.Value? {
-        try await perform { [self] in try read() }
-    }
-
-    public func save(_ value: Coding.Value) async throws {
-        try await perform { [self] in try write(value) }
-    }
-
-    public func delete() async throws {
-        try await perform { [self] in try remove() }
-    }
-
-    public func update<Result: Sendable>(
-        _ change: @escaping @Sendable (inout Coding.Value?) throws -> Result
-    ) async throws -> Result {
-        try await perform { [self] in
-            let saved = try read()
-            var value = saved
-            let result = try change(&value)
-            guard value != saved else { return result }
-            if let value { try write(value) } else { try remove() }
-            return result
-        }
-    }
+    static var queue: DispatchQueue { KeychainQueue.shared }
 
     /// Reads the saved value.
     ///
     /// - Returns: The value, or `nil` before one is saved.
     /// - Throws: ``KeychainItemError``.
-    private func read() throws -> Coding.Value? {
+    func read() throws -> Coding.Value? {
         var query = identity
         query[kSecMatchLimit as String] = kSecMatchLimitOne
         query[kSecReturnData as String] = true
@@ -68,7 +44,7 @@ public struct KeychainItem<Coding: ValueCoding>: ValueStoring {
     ///
     /// - Parameter value: The new value.
     /// - Throws: ``KeychainItemError`` or an encoding error.
-    private func write(_ value: Coding.Value) throws {
+    func write(_ value: Coding.Value) throws {
         let data = try coding.encode(value)
         guard coding.decode(data) == value else { throw KeychainItemError.unencodable }
         let value = [kSecValueData as String: data]
@@ -85,7 +61,7 @@ public struct KeychainItem<Coding: ValueCoding>: ValueStoring {
     /// Deletes the saved value if it exists.
     ///
     /// - Throws: ``KeychainItemError``.
-    private func remove() throws {
+    func remove() throws {
         let status = SecItemDelete(identity as CFDictionary)
         if status != errSecItemNotFound { try check(status) }
     }
@@ -99,18 +75,6 @@ public struct KeychainItem<Coding: ValueCoding>: ValueStoring {
             kSecAttrSynchronizable as String: false,
             kSecUseDataProtectionKeychain as String: true,
         ]
-    }
-
-    /// Runs a blocking Keychain operation on the Keychain queue.
-    ///
-    /// - Parameter operation: The blocking Security work.
-    /// - Returns: The operation's result.
-    /// - Throws: The operation's error or `CancellationError`.
-    private func perform<Result: Sendable>(_ operation: @escaping Operation<Result>) async throws -> Result {
-        try Task.checkCancellation()
-        return try await withCheckedThrowingContinuation { continuation in
-            KeychainQueue.shared.async { continuation.resume(with: Swift.Result(catching: operation)) }
-        }
     }
 }
 
