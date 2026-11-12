@@ -28,6 +28,15 @@ struct CoinbaseExchangeRateProviderTests {
         #expect(request.url?.absoluteString == "https://api.coinbase.com/v2/exchange-rates?currency=USD")
     }
 
+    @Test func `Answers longer than one mebibyte fail`() async {
+        let padding = String(repeating: " ", count: 1_048_576)
+        let body = #"{"data":{"currency":"USD","rates":{}}"# + padding + "}"
+        let transport = StubTransport { try httpReply(to: $0, body: body) }
+        await #expect(throws: RPCError.invalidResponse(.oversized)) {
+            try await CoinbaseExchangeRateProvider(transport: transport).rates(from: "USD")
+        }
+    }
+
     @Test func `A currency outside ISO codes has no rates`() async throws {
         let transport = StubTransport { try httpReply(to: $0, body: "{}") }
         #expect(try await CoinbaseExchangeRateProvider(transport: transport).rates(from: "SOL").isEmpty)

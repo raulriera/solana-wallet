@@ -2,7 +2,7 @@ public import Foundation
 
 /// An exchange-rate provider backed by the European Central Bank's daily euro reference rates.
 public struct EuropeanCentralBankExchangeRateProvider: ExchangeRateProviding {
-    private let transport: any HTTPTransport
+    private let client: HTTPClient
 
     /// Creates a rate provider.
     public init() {
@@ -13,18 +13,16 @@ public struct EuropeanCentralBankExchangeRateProvider: ExchangeRateProviding {
     ///
     /// - Parameter transport: The transport that performs HTTP requests.
     init(transport: any HTTPTransport) {
-        self.transport = transport
+        // swift-format-ignore: NeverForceUnwrap
+        client = HTTPClient(endpoint: URL(string: "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml")!,
+                            transport: transport, redactor: SecretRedactor(secrets: []))
     }
 
     @concurrent
     public func rates(from currency: String) async throws -> [String: Decimal] {
         try Task.checkCancellation()
-        // swift-format-ignore: NeverForceUnwrap
-        var request = URLRequest(url: URL(string: "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml")!,
-                                 timeoutInterval: 30)
-        request.httpMethod = "GET"
-        request.setValue("application/xml", forHTTPHeaderField: "Accept")
-        let data = try await transport.responseData(for: request, redactor: SecretRedactor(secrets: []))
+        let data = try await client.get(query: [], headers: ["Accept": "application/xml"],
+                                        maximumLength: maximumPricingResponseLength)
         let euroRates = try ReferenceRates.decode(data)
         try Task.checkCancellation()
         guard let base = euroRates[currency] else { return [:] }
@@ -53,9 +51,7 @@ public struct EuropeanCentralBankExchangeRateProvider: ExchangeRateProviding {
         func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?,
                     qualifiedName qName: String?, attributes attributeDict: [String: String] = [:]) {
             guard elementName == "Cube", let code = attributeDict["currency"] else { return }
-            guard let text = attributeDict["rate"],
-                  let rate = Decimal(string: text, locale: Locale(identifier: "en_US_POSIX")),
-                  !rate.isNaN, rate > 0 else {
+            guard let text = attributeDict["rate"], let rate = Decimal(exchangeRate: text) else {
                 isValid = false
                 parser.abortParsing()
                 return

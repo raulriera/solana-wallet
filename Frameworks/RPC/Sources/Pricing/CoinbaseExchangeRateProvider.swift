@@ -2,7 +2,7 @@ public import Foundation
 
 /// An exchange-rate provider backed by Coinbase's public rates.
 public struct CoinbaseExchangeRateProvider: ExchangeRateProviding {
-    private let transport: any HTTPTransport
+    private let client: HTTPClient
 
     /// Creates a rate provider.
     public init() {
@@ -13,7 +13,9 @@ public struct CoinbaseExchangeRateProvider: ExchangeRateProviding {
     ///
     /// - Parameter transport: The transport that performs HTTP requests.
     init(transport: any HTTPTransport) {
-        self.transport = transport
+        // swift-format-ignore: NeverForceUnwrap
+        client = HTTPClient(endpoint: URL(string: "https://api.coinbase.com/v2/exchange-rates")!, transport: transport,
+                            redactor: SecretRedactor(secrets: []))
     }
 
     @concurrent
@@ -21,25 +23,14 @@ public struct CoinbaseExchangeRateProvider: ExchangeRateProviding {
         try Task.checkCancellation()
         let codes = Set(Locale.commonISOCurrencyCodes)
         guard codes.contains(currency) else { return [:] }
-        // swift-format-ignore: NeverForceUnwrap
-        let url = URL(string: "https://api.coinbase.com/v2/exchange-rates")!
-            .appending(queryItems: [URLQueryItem(name: "currency", value: currency)])
-        var request = URLRequest(url: url, timeoutInterval: 30)
-        request.httpMethod = "GET"
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        let data = try await transport.responseData(for: request, redactor: SecretRedactor(secrets: []))
-        let response: Response
-        do {
-            response = try JSONDecoder().decode(Response.self, from: data)
-        } catch {
-            try Task.checkCancellation()
-            throw RPCError.decoding
-        }
+        let data = try await client.get(query: [URLQueryItem(name: "currency", value: currency)],
+                                        headers: ["Accept": "application/json"],
+                                        maximumLength: maximumPricingResponseLength)
+        let response = try HTTPClient.decode(Response.self, from: data)
         guard response.data.currency == currency else { throw RPCError.decoding }
         var rates = [currency: Decimal(1)]
         for (code, text) in response.data.rates where codes.contains(code) && code != currency {
-            guard let rate = Decimal(string: text, locale: Locale(identifier: "en_US_POSIX")),
-                  !rate.isNaN, rate > 0 else { throw RPCError.decoding }
+            guard let rate = Decimal(exchangeRate: text) else { throw RPCError.decoding }
             rates[code] = rate
         }
         try Task.checkCancellation()

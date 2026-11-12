@@ -38,6 +38,13 @@ struct EuropeanCentralBankExchangeRateProviderTests {
         #expect(request.url?.absoluteString == "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml")
     }
 
+    @Test func `Answers longer than one mebibyte fail`() async {
+        let transport = StubTransport { try httpReply(to: $0, body: String(repeating: " ", count: 1_048_577)) }
+        await #expect(throws: RPCError.invalidResponse(.oversized)) {
+            try await EuropeanCentralBankExchangeRateProvider(transport: transport).rates(from: "USD")
+        }
+    }
+
     @Test func `An unpublished currency has no rates`() async throws {
         let transport = StubTransport { try httpReply(to: $0, body: Self.referenceRates) }
         #expect(try await EuropeanCentralBankExchangeRateProvider(transport: transport).rates(from: "ARS").isEmpty)

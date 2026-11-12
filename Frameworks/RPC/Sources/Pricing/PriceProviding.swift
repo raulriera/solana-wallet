@@ -70,12 +70,12 @@ extension PriceProviding {
         headers["Accept"] = "application/json"
         try await pacer.wait()
         return try await client.get(query: [URLQueryItem(name: name, value: mints.joined(separator: ","))],
-                                    headers: headers, maximumLength: maximumResponseLength)
+                                    headers: headers, maximumLength: maximumPricingResponseLength)
     }
 }
 
-/// The longest price response body, in bytes, to accept.
-private let maximumResponseLength = 1_048_576
+/// The longest price or exchange-rate response body, in bytes, to accept.
+let maximumPricingResponseLength = 1_048_576
 
 extension PriceProviding where Response == [String: Quote] {
     /// Returns a response that is already quotes.
