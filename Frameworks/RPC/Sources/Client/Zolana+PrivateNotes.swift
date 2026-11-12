@@ -33,7 +33,7 @@ extension Zolana {
         let confidential = transactions.flatMap(\.items).filter { !$0.isInRing }.map(\.value)
             .filter { !$0.isProofless }
             .uniqued(on: { TransactionKey(signature: $0.signature, eventIndex: $0.eventIndex) })
-        let deposits = outputs.flatMap(\.items).compactMap(\.deposit).uniqued(on: DepositKey.init)
+        let deposits = outputs.flatMap(\.items).uniqued(on: DepositKey.init).compactMap(\.deposit)
         return ShieldedTransactionBatch(
             transactions: Self.ordered(confidential + deposits),
             outputTreeID: transactions.lazy.compactMap(\.outputTreeID).first
@@ -120,7 +120,7 @@ private struct TransactionKey: Hashable {
     let eventIndex: UInt16?
 }
 
-/// The identity of a proofless deposit's output.
+/// The identity of an output that matched a view tag.
 private struct DepositKey: Hashable {
     let signature: String
     let treeID: UInt16
@@ -129,13 +129,13 @@ private struct DepositKey: Hashable {
 }
 
 extension DepositKey {
-    /// Creates the identity of a deposit's output.
+    /// Creates the identity of a matched output.
     ///
-    /// - Parameter deposit: A proofless deposit with one output.
-    init(_ deposit: ShieldedTransaction) {
-        signature = deposit.signature
-        treeID = deposit.outputs.first?.treeID ?? 0
-        leafIndex = deposit.outputs.first?.leafIndex ?? 0
-        utxoHash = deposit.outputs.first?.utxoHash ?? []
+    /// - Parameter match: An output that matched a view tag.
+    init(_ match: EncryptedOutput) {
+        signature = match.signature
+        treeID = match.output.treeID
+        leafIndex = match.output.leafIndex
+        utxoHash = match.output.utxoHash
     }
 }
