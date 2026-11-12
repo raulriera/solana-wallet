@@ -136,7 +136,7 @@ enum PrivateBalanceFixtures {
         var data = [1] + owner + [try UserRegistry.record(of: account.signingAddress).bump]
         data += account.nullifierKey.publicKey.bigEndianBytes
         data += Array(account.viewingKey.publicKey.taggedRepresentation) + [0]
-        return AccountReplies.account(owner: try UserRegistry.program.value, lamports: 1_586_880, data: data)
+        return AccountReplies.account(owner: try UserRegistry.address.value, lamports: 1_586_880, data: data)
     }
 
     static func deposit(_ lamports: UInt64, to account: ShieldedAccount, leafIndex: UInt64,

@@ -2,10 +2,10 @@ import CryptoKit
 import Foundation
 import ModularArithmetic
 import RPC
-import Transactions
+public import Transactions
 
 /// The user registry, whose program-derived records publish owners' shielded addresses.
-public enum UserRegistry {
+public enum UserRegistry: Program {
     /// A registry read that didn't return a valid record of the requested owner.
     public enum ValidationError: Error, Equatable {
         case invalidLength
@@ -20,7 +20,8 @@ public enum UserRegistry {
         case invalidMergingFlag
     }
 
-    private static let programID = "regy3WAeRXMYuMYxr5iK3Bf9Arr3PcxGxyzAddbiqDQ"
+    /// The user-registry program's address.
+    public static let id = "regy3WAeRXMYuMYxr5iK3Bf9Arr3PcxGxyzAddbiqDQ"
 
     private static let recordSeed = Array("zolana/registry/v0".utf8)
 
@@ -39,17 +40,13 @@ public enum UserRegistry {
 
     private static let mergingFlagIndex = 99
 
-    static var program: Address {
-        get throws { try Address(programID) }
-    }
-
     /// Derives an owner's record and its canonical bump.
     ///
     /// - Parameter owner: The owner's signing address.
     /// - Returns: The record's address and bump.
     /// - Throws: A ``Transactions/ValidationError`` if the derivation fails.
     static func record(of owner: Address) throws -> (address: Address, bump: UInt8) {
-        try ProgramAddress.find(seeds: [recordSeed, owner.bytes], program: program)
+        try ProgramAddress.find(seeds: [recordSeed, owner.bytes], program: address)
     }
 
     /// Reads an owner's shielded address from the account at its record.
@@ -61,7 +58,7 @@ public enum UserRegistry {
     /// - Throws: A ``ValidationError`` if the account isn't a valid record of the owner, or a
     ///   ``Recipient/ValidationError`` if no key can sign for the owner's address.
     static func recipient(of owner: Address, from account: Account?) throws -> Recipient? {
-        guard let account, account.owner == programID else { return nil }
+        guard let account, account.owner == id else { return nil }
         let data = [UInt8](account.data)
         guard data.count == recordLength else { throw ValidationError.invalidLength }
         guard data[0] == discriminator else { throw ValidationError.invalidDiscriminator }

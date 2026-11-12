@@ -470,6 +470,6 @@ actor PrivateBalances: PrivateBalancing {
     ///   - network: The network.
     /// - Returns: The network's name, the shielded-pool program's address, and the account's base-58 address.
     static func noteID(of account: Account, on network: Network) -> String {
-        "\(network.rawValue)/\(ShieldedPool.programID)/\(account.address.value)"
+        "\(network.rawValue)/\(ShieldedPool.id)/\(account.address.value)"
     }
 }

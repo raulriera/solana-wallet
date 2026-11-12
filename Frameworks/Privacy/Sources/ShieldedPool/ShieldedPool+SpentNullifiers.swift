@@ -61,7 +61,7 @@ extension ShieldedPool {
     ///   ring merge transact instruction of the shielded-pool program; other instructions add none.
     /// - Throws: ``InstructionError/unknownLayout`` if a spend instruction's data doesn't follow its layout.
     static func nullifiers(spentBy transaction: GetTransaction.Value) throws -> Set<[UInt8]> {
-        Set(try transaction.instructionData(invoking: programID).flatMap { try spentNullifiers(in: [UInt8]($0)) })
+        Set(try transaction.instructionData(invoking: id).flatMap { try spentNullifiers(in: [UInt8]($0)) })
     }
 
     /// Reads the nullifiers that a shielded-pool instruction's data spends.

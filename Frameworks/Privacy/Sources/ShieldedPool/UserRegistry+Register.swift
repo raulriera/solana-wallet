@@ -16,7 +16,7 @@ extension UserRegistry {
     static func register(_ recipient: Recipient, paidBy payer: Address) throws -> Instruction {
         let data: [UInt8] = [registerTag] + recipient.nullifierPublicKey.bigEndianBytes
             + Array(recipient.viewingPublicKey.taggedRepresentation)
-        return Instruction(program: try program, accounts: [
+        return Instruction(program: try address, accounts: [
             .writable(try record(of: recipient.signingAddress).address),
             .readonly(recipient.signingAddress, isSigner: true),
             .writable(payer, isSigner: true),

@@ -16,7 +16,7 @@ struct SpentNullifiersLiveTests {
 
         for spend in spends {
             let transaction = try #require(try await rpc.send(GetTransaction(signature: spend.signature)))
-            tags.formUnion(transaction.instructionData(invoking: ShieldedPool.programID).compactMap(\.first))
+            tags.formUnion(transaction.instructionData(invoking: ShieldedPool.id).compactMap(\.first))
 
             #expect(transaction.error == nil)
             #expect(try ShieldedPool.nullifiers(spentBy: transaction) == Set(spend.nullifiers))

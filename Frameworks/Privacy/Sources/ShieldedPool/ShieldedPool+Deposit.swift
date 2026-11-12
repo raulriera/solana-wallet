@@ -86,10 +86,10 @@ extension ShieldedPool {
         writer.append(array: recipient.owner.bigEndianBytes)
         writer.append(amount)
         writer.appendNone()
-        return Instruction(program: try program, accounts: [
+        return Instruction(program: try address, accounts: [
             .writable(try tree(id: treeID)),
             .writable(depositor, isSigner: true),
-            .readonly(try program),
+            .readonly(try address),
         ] + settlement, data: Data(writer.bytes))
     }
 

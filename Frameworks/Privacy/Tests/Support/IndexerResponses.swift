@@ -9,7 +9,7 @@ enum IndexerResponses {
     static func spendReads(answering request: URLRequest, queued: Set<String> = []) throws -> (Data, URLResponse) {
         try #require(try requestBody(request)["method"] as? String == GetMultipleAccounts.method)
         let addresses = try requestedAddresses(request)
-        let account = AccountReplies.account(owner: try ShieldedPool.program.value, data: [UInt8](repeating: 0, count: 8))
+        let account = AccountReplies.account(owner: try ShieldedPool.address.value, data: [UInt8](repeating: 0, count: 8))
         let accounts = addresses.map { queued.contains($0) ? account : nil }
         return try reply(to: request, accounts: accounts)
     }

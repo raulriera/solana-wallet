@@ -399,7 +399,7 @@ struct PrivateBalancesTests {
     func `Note IDs name the shielded-pool program`() async throws {
         let account = try await PrivateBalanceFixtures.account()
 
-        #expect(PrivateBalances.noteID(of: account, on: .devnet).contains(ShieldedPool.programID))
+        #expect(PrivateBalances.noteID(of: account, on: .devnet).contains(ShieldedPool.id))
     }
 
     @Test
