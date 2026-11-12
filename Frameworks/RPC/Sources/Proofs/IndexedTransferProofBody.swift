@@ -1,7 +1,8 @@
 import Encoding
+import Redaction
 
 /// The JSON body of an indexed transfer proof request.
-struct IndexedTransferProofBody: Encodable, Sendable {
+struct IndexedTransferProofBody: Encodable, Sendable, Redacted {
     let circuitType = "transfer-confidential"
     let prepared: Prepared
     let trees: [Tree]
@@ -19,7 +20,7 @@ struct IndexedTransferProofBody: Encodable, Sendable {
     }
 
     /// The witness without tree slots, paths, a public input hash, or read cache entries.
-    struct Prepared: Encodable, Sendable {
+    struct Prepared: Encodable, Sendable, Redacted {
         let circuitType = "transfer-confidential"
         let nInputs: Int
         let nOutputs: Int
@@ -64,7 +65,7 @@ struct IndexedTransferProofBody: Encodable, Sendable {
     }
 
     /// One input slot without its paths.
-    struct PreparedInput: Encodable, Sendable {
+    struct PreparedInput: Encodable, Sendable, Redacted {
         let utxo: UTXO
         let isDummy: String
         let treeSlot: String
@@ -106,7 +107,7 @@ struct IndexedTransferProofBody: Encodable, Sendable {
     }
 
     /// A UTXO's eight field elements.
-    struct UTXO: Encodable, Sendable {
+    struct UTXO: Encodable, Sendable, Redacted {
         let domain: String
         let owner: String
         let asset: String
