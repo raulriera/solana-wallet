@@ -94,7 +94,7 @@ struct NoteSyncStateSpendClaimsTests {
     ) throws -> NoteSyncState {
         try NoteSyncState(
             position: nil, notes: notes, unconfirmedNotes: [], outputTreeID: nil, pending: [], localSpends: [],
-            rejectedSpends: rejected, missingSpendReads: missingReads
+            claimedSpends: [], rejectedSpends: rejected, missingSpendReads: missingReads
         )
     }
 

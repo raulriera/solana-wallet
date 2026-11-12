@@ -144,7 +144,7 @@ extension PrivateBalances {
         let (state, outcome, lamports, registrationCost) = try await (codeNotes, synced, balances, cost)
         guard !state.hasUnconfirmedNotes else { throw PrivateBalanceError.codeNotReady }
         guard let balance = lamports.first, balance > 0 else { throw PrivateBalanceError.codeRedeemed }
-        guard !state.notes.isEmpty else { throw PrivateBalanceError.codeNotReady }
+        guard state.spendableLamports > 0 else { throw PrivateBalanceError.codeNotReady }
         guard let outputTree = state.outputTreeID else { throw PrivateBalanceError.unavailable }
         let registers = switch outcome {
         case .off: throw PrivateBalanceError.turnedOff

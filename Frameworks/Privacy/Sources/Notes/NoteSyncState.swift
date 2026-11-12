@@ -15,7 +15,8 @@ public struct NoteSyncState: Sendable, Equatable, Codable, Redacted {
 
     /// The keys of a state's encoded fields.
     private enum CodingKeys: String, CodingKey {
-        case position, notes, unconfirmedNotes, outputTreeID, pending, localSpends, rejectedSpends, missingSpendReads
+        case position, notes, unconfirmedNotes, outputTreeID, pending, localSpends, claimedSpends, rejectedSpends
+        case missingSpendReads
     }
 
     /// The length of a nullifier, in bytes.
@@ -43,6 +44,10 @@ public struct NoteSyncState: Sendable, Equatable, Codable, Redacted {
     /// The nullifiers of recorded spends whose notes a sync returned before it reported the spend.
     let localSpends: Set<[UInt8]>
 
+    /// The nullifiers of counted notes that a claimed spend names and no read confirmed or refuted yet, which no amount
+    /// counts and no spend selects.
+    let claimedSpends: Set<[UInt8]>
+
     /// The signatures of claimed spends of counted notes whose finalized transactions failed or don't spend the
     /// claimed nullifiers, or whose transactions ten reads in a row didn't find, while a claim still names them.
     let rejectedSpends: Set<String>
@@ -56,12 +61,12 @@ public struct NoteSyncState: Sendable, Equatable, Codable, Redacted {
         pendingAmount(of: .sol)
     }
 
-    /// The total of the unspent SOL notes, which a spend can use, in lamports.
+    /// The total of the unspent SOL notes that no unsettled claimed spend names, which a spend can use, in lamports.
     public var spendableLamports: UInt64 {
         spendableAmount(of: .sol)
     }
 
-    /// Returns the total of a token's unspent notes.
+    /// Returns the total of a token's unspent notes that no unsettled claimed spend names.
     ///
     /// - Parameter token: The token.
     /// - Returns: The total, in the token's smallest unit.
@@ -77,7 +82,7 @@ public struct NoteSyncState: Sendable, Equatable, Codable, Redacted {
         pendingAmount(of: token.asset)
     }
 
-    /// Returns the total of an asset's unspent notes.
+    /// Returns the total of an asset's unspent notes that no unsettled claimed spend names.
     ///
     /// - Parameter asset: The asset.
     /// - Returns: The total, in the asset's smallest unit.
@@ -93,12 +98,12 @@ public struct NoteSyncState: Sendable, Equatable, Codable, Redacted {
         pending.filter { $0.asset == asset }.reduce(0) { $0 + $1.amount }
     }
 
-    /// Returns the unspent notes of an asset.
+    /// Returns the unspent notes of an asset that no unsettled claimed spend names.
     ///
     /// - Parameter asset: The asset.
     /// - Returns: The asset's notes, in slot, signature, leaf, and tree order.
     func notes(of asset: ConfidentialPlaintext.Asset) -> [ReceivedNote] {
-        notes.filter { $0.utxo.mint == asset.mint }
+        notes.filter { $0.utxo.mint == asset.mint && !claimedSpends.contains($0.nullifier.bigEndianBytes) }
     }
 
     /// Whether the state holds received notes whose roots their trees' accounts didn't hold yet, which no amount
@@ -115,6 +120,7 @@ public struct NoteSyncState: Sendable, Equatable, Codable, Redacted {
         outputTreeID = nil
         pending = []
         localSpends = []
+        claimedSpends = []
         rejectedSpends = []
         missingSpendReads = [:]
     }
@@ -128,6 +134,7 @@ public struct NoteSyncState: Sendable, Equatable, Codable, Redacted {
     ///   - outputTreeID: The ID of the tree that receives new outputs, if known.
     ///   - pending: The pending amounts.
     ///   - localSpends: The nullifiers of recorded spends to keep hiding.
+    ///   - claimedSpends: The nullifiers of counted notes that unsettled claimed spends name.
     ///   - rejectedSpends: The signatures of claimed spends that count as refuted.
     ///   - missingSpendReads: The number of reads in a row that found no transaction for each claimed spend.
     /// - Throws: ``ValidationError/amountOverflow`` if an asset's total exceeds a 64-bit integer.
@@ -138,6 +145,7 @@ public struct NoteSyncState: Sendable, Equatable, Codable, Redacted {
         outputTreeID: UInt16?,
         pending: [PendingAmount],
         localSpends: Set<[UInt8]>,
+        claimedSpends: Set<[UInt8]>,
         rejectedSpends: Set<String>,
         missingSpendReads: [String: Int]
     ) throws {
@@ -153,6 +161,7 @@ public struct NoteSyncState: Sendable, Equatable, Codable, Redacted {
         self.outputTreeID = outputTreeID
         self.pending = pending
         self.localSpends = localSpends
+        self.claimedSpends = claimedSpends
         self.rejectedSpends = rejectedSpends
         self.missingSpendReads = missingSpendReads
     }
@@ -164,16 +173,15 @@ public struct NoteSyncState: Sendable, Equatable, Codable, Redacted {
         let unconfirmedNotes = try container.decode([ReceivedNote].self, forKey: .unconfirmedNotes)
         let outputTreeID = try container.decode(UInt16?.self, forKey: .outputTreeID)
         let pending = try container.decode([PendingAmount].self, forKey: .pending)
-        let localSpends = try container.decode([Data].self, forKey: .localSpends).map { [UInt8]($0) }
-        guard localSpends.allSatisfy({ $0.count == Self.nullifierLength }) else {
-            throw DecodingError.dataCorruptedError(forKey: .localSpends, in: container, debugDescription: "A nullifier has 32 bytes.")
-        }
+        let localSpends = try Self.nullifiers(forKey: .localSpends, in: container)
+        let claimedSpends = try Self.nullifiers(forKey: .claimedSpends, in: container)
         let rejectedSpends = try container.decode([String].self, forKey: .rejectedSpends)
         let missingSpendReads = try container.decode([String: Int].self, forKey: .missingSpendReads)
         do {
             try self.init(
                 position: position, notes: notes, unconfirmedNotes: unconfirmedNotes, outputTreeID: outputTreeID, pending: pending,
-                localSpends: Set(localSpends), rejectedSpends: Set(rejectedSpends), missingSpendReads: missingSpendReads
+                localSpends: localSpends, claimedSpends: claimedSpends, rejectedSpends: Set(rejectedSpends),
+                missingSpendReads: missingSpendReads
             )
         } catch {
             throw DecodingError.dataCorruptedError(forKey: .notes, in: container, debugDescription: "The total overflows.")
@@ -187,7 +195,8 @@ public struct NoteSyncState: Sendable, Equatable, Codable, Redacted {
         try container.encode(unconfirmedNotes, forKey: .unconfirmedNotes)
         try container.encode(outputTreeID, forKey: .outputTreeID)
         try container.encode(pending, forKey: .pending)
-        try container.encode(localSpends.sorted { $0.lexicographicallyPrecedes($1) }.map { Data($0) }, forKey: .localSpends)
+        try container.encode(Self.encoded(localSpends), forKey: .localSpends)
+        try container.encode(Self.encoded(claimedSpends), forKey: .claimedSpends)
         try container.encode(rejectedSpends.sorted(), forKey: .rejectedSpends)
         try container.encode(missingSpendReads, forKey: .missingSpendReads)
     }
@@ -206,7 +215,8 @@ public struct NoteSyncState: Sendable, Equatable, Codable, Redacted {
             position: position, notes: notes.filter { !spent.contains($0.nullifier.bigEndianBytes) },
             unconfirmedNotes: unconfirmedNotes, outputTreeID: outputTreeID,
             pending: isHeld ? pending(adding: spend.receivedAmount, of: spend.asset, signature: signature) : pending,
-            localSpends: localSpends.union(spent), rejectedSpends: rejectedSpends, missingSpendReads: missingSpendReads
+            localSpends: localSpends.union(spent), claimedSpends: claimedSpends.subtracting(spent),
+            rejectedSpends: rejectedSpends, missingSpendReads: missingSpendReads
         )
     }
 
@@ -251,7 +261,7 @@ public struct NoteSyncState: Sendable, Equatable, Codable, Redacted {
         return try NoteSyncState(
             position: position, notes: notes, unconfirmedNotes: unconfirmedNotes, outputTreeID: outputTreeID,
             pending: pending(adding: amount, of: asset, signature: signature), localSpends: localSpends,
-            rejectedSpends: rejectedSpends, missingSpendReads: missingSpendReads
+            claimedSpends: claimedSpends, rejectedSpends: rejectedSpends, missingSpendReads: missingSpendReads
         )
     }
 
@@ -381,20 +391,51 @@ public struct NoteSyncState: Sendable, Equatable, Codable, Redacted {
         let uncounted = Set((unconfirmedNotes + delivered).map(\.nullifier.bigEndianBytes))
         let spent = proven.union(uncounted.intersection(claims.flatMap(\.nullifiers)))
         let confirmed = notes + checked.filter { $0.status == .included }.map(\.note)
+        let counted = Self.unspent(confirmed, excluding: spent)
+        let unsettled = SpendClaim.claims(in: claims, of: Set(counted.map(\.nullifier.bigEndianBytes)))
+            .filter { !rejected.contains($0.signature) }
         let seen = held + delivered
         let waiting = Set(seen.filter { !spent.contains($0.nullifier.bigEndianBytes) }.map(\.signature))
         let settled = Set(confirmed.map(\.signature)).union(Set(seen.map(\.signature)).subtracting(waiting))
         let state = try NoteSyncState(
             position: batch?.position ?? position,
-            notes: Self.unspent(confirmed, excluding: spent),
+            notes: counted,
             unconfirmedNotes: Self.unspent(checked.filter { $0.status == .unconfirmed }.map(\.note), excluding: spent),
             outputTreeID: batch?.outputTreeID,
             pending: pending.filter { !settled.contains($0.signature) },
             localSpends: respent.subtracting(spent),
+            claimedSpends: Set(unsettled.flatMap(\.nullifiers)),
             rejectedSpends: rejected,
             missingSpendReads: missingReads
         )
         return (state, batch?.moreComing ?? false)
+    }
+
+    /// Decodes a set of nullifiers.
+    ///
+    /// - Parameters:
+    ///   - key: The key of the nullifiers.
+    ///   - container: The container that holds them.
+    /// - Returns: The nullifiers.
+    /// - Throws: A `DecodingError` if the key is missing or a nullifier doesn't have 32 bytes.
+    private static func nullifiers(
+        forKey key: CodingKeys, in container: KeyedDecodingContainer<CodingKeys>
+    ) throws -> Set<[UInt8]> {
+        let nullifiers = try container.decode([Data].self, forKey: key).map { [UInt8]($0) }
+        guard nullifiers.allSatisfy({ $0.count == nullifierLength }) else {
+            throw DecodingError.dataCorruptedError(
+                forKey: key, in: container, debugDescription: "A nullifier has 32 bytes."
+            )
+        }
+        return Set(nullifiers)
+    }
+
+    /// Returns nullifiers in a stable order for encoding.
+    ///
+    /// - Parameter nullifiers: The nullifiers.
+    /// - Returns: The nullifiers in byte order.
+    private static func encoded(_ nullifiers: Set<[UInt8]>) -> [Data] {
+        nullifiers.sorted { $0.lexicographicallyPrecedes($1) }.map { Data($0) }
     }
 
     /// Returns the notes that no nullifier spent, in slot, signature, leaf, and tree order.
