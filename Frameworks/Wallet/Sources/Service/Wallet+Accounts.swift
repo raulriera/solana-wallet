@@ -1,5 +1,6 @@
 import CryptoKit
 import Encoding
+import Redaction
 
 extension Wallet {
     @concurrent

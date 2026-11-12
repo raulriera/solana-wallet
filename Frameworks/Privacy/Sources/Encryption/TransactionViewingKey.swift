@@ -1,6 +1,7 @@
 import CryptoKit
 import Foundation
 import ModularArithmetic
+import Redaction
 
 /// The per-transaction viewing key that seals the notes of a transaction's outputs.
 enum TransactionViewingKey {

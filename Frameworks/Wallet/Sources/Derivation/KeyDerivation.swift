@@ -1,5 +1,6 @@
 import CryptoKit
 import Encoding
+import Redaction
 
 /// Hardened SLIP-0010 key derivation on Ed25519.
 enum KeyDerivation {

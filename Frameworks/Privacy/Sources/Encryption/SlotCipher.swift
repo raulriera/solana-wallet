@@ -2,6 +2,7 @@ import CommonCrypto
 import CryptoKit
 import Encoding
 import Foundation
+import Redaction
 
 /// The cipher of one output slot's note, with X25519, HKDF-SHA256, and AES-256-CTR.
 enum SlotCipher {
