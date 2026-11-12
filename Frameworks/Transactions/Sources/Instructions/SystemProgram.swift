@@ -1,3 +1,4 @@
+import Encoding
 import Foundation
 
 /// Instruction constructors for the System Program.
@@ -23,8 +24,8 @@ public enum SystemProgram {
         let program = try address
         guard sender != program, recipient != program else { throw ValidationError.programAddressAsTransferAccount }
         var data = Data()
-        data.appendLittleEndian(UInt32(2))
-        data.appendLittleEndian(lamports)
+        data.append(littleEndian: UInt32(2))
+        data.append(littleEndian: lamports)
         return Instruction(program: program, accounts: [
             .writable(sender, isSigner: true),
             .writable(recipient),

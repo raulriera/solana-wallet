@@ -1,3 +1,4 @@
+import Encoding
 import ModularArithmetic
 import Transactions
 
@@ -49,7 +50,7 @@ public enum ShieldedPool {
     /// - Throws: A ``ValidationError`` if the derivation fails.
     static func tree(id: UInt16) throws -> Address {
         var idBytes: [UInt8] = []
-        idBytes.appendLittleEndian(id)
+        idBytes.append(littleEndian: id)
         return try ProgramAddress.find(seeds: [treeSeed, idBytes], program: program).address
     }
 

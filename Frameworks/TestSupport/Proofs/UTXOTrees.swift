@@ -68,11 +68,11 @@ struct UTXOTrees: Sendable {
     static func account(cursor: UInt16, count: UInt16, capacity: UInt16 = 500, roots: [[UInt8]],
                         feePerTree: UInt64 = 0) -> [UInt8] {
         var data = [1] + [UInt8](repeating: 0, count: 7)
-        data.appendLittleEndian(feePerTree)
+        data.append(littleEndian: feePerTree)
         data += [UInt8](repeating: 0, count: 96)
-        data.appendLittleEndian(cursor)
-        data.appendLittleEndian(count)
-        data.appendLittleEndian(capacity)
+        data.append(littleEndian: cursor)
+        data.append(littleEndian: count)
+        data.append(littleEndian: capacity)
         data += [UInt8](repeating: 0, count: 1_152 - data.count) + roots.joined()
         return data + [UInt8](repeating: 0, count: 40_080 - data.count)
     }

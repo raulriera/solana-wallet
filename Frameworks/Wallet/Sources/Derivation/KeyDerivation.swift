@@ -1,4 +1,5 @@
 import CryptoKit
+import Encoding
 
 /// Hardened SLIP-0010 key derivation on Ed25519.
 enum KeyDerivation {
@@ -63,7 +64,7 @@ enum KeyDerivation {
         message.reserveCapacity(1 + parent.count + MemoryLayout<UInt32>.size)
         message.append(0)
         message.append(contentsOf: parent)
-        withUnsafeBytes(of: index.bigEndian) { message.append(contentsOf: $0) }
+        message.append(bigEndian: index)
         return message
     }
 }

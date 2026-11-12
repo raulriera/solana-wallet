@@ -1,3 +1,5 @@
+import Encoding
+
 /// A writer of the wincode encoding of the shielded-pool program's instruction data.
 struct WincodeWriter {
     /// A value that the encoding can't represent.
@@ -14,7 +16,7 @@ struct WincodeWriter {
     ///
     /// - Parameter value: The integer.
     mutating func append(_ value: some FixedWidthInteger) {
-        bytes.appendLittleEndian(value)
+        bytes.append(littleEndian: value)
     }
 
     /// Appends a fixed-size byte array without a length.

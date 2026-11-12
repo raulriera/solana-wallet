@@ -1,4 +1,5 @@
 import CryptoKit
+import Encoding
 import Foundation
 import ModularArithmetic
 import RPC
@@ -33,7 +34,7 @@ struct ConfidentialOutput: Sendable {
     var encoded: [UInt8] {
         var bytes = [ShieldedOutput.Encoding.encrypted.rawValue]
         bytes.reserveCapacity(Self.payloadLength)
-        bytes.appendLittleEndian(UInt32(Self.bodyLength))
+        bytes.append(littleEndian: UInt32(Self.bodyLength))
         bytes.append(Self.confidentialScheme)
         bytes += recipientViewingPublicKey.taggedRepresentation
         bytes += ciphertext

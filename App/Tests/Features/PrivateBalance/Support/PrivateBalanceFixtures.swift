@@ -143,10 +143,10 @@ enum PrivateBalanceFixtures {
                         of token: PrivateToken? = nil) throws -> String {
         let utxo = try utxo(lamports, of: account, leafIndex: leafIndex, token: token)
         var body = [0] + utxo.owner.bigEndianBytes + utxo.blinding.bigEndianBytes + utxo.mint
-        body.appendLittleEndian(lamports)
+        body.append(littleEndian: lamports)
         body += [UInt8](repeating: 0, count: 5) + [0]
         var payload: [UInt8] = [0]
-        payload.appendLittleEndian(UInt32(body.count))
+        payload.append(littleEndian: UInt32(body.count))
         payload += body
         let output = IndexerReplies.output(viewTag: account.signingAddress.value, hash: Base58.encode(utxo.hash.bigEndianBytes),
                                            treeID: utxo.treeID, leafIndex: leafIndex,
