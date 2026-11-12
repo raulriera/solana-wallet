@@ -1,8 +1,8 @@
 import Algorithms
 import Foundation
+import Synchronization
 import Testing
 @testable import Themes
-import Synchronization
 
 struct ConcurrencyTests {
     @Test(.timeLimit(.minutes(1))) func `Pending cancellation does not wait for another import`() async throws {

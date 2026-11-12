@@ -1,6 +1,6 @@
 import Foundation
-@testable import RPC
 import Testing
+@testable import RPC
 
 enum LiveClients {
     static func client(helius: Bool = true, network: Network = .mainnet,

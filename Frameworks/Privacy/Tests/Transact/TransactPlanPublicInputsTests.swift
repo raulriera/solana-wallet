@@ -1,7 +1,7 @@
 import ModularArithmetic
-@testable import Privacy
 import Testing
 import Transactions
+@testable import Privacy
 
 struct TransactPlanPublicInputsTests {
     @Test(arguments: try ProofRequestVectors.load().transacts)

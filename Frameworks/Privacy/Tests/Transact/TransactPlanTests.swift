@@ -1,9 +1,9 @@
 import CryptoKit
 import Encoding
 import ModularArithmetic
-@testable import Privacy
 import Testing
 import Transactions
+@testable import Privacy
 
 struct TransactPlanTests {
     @Test

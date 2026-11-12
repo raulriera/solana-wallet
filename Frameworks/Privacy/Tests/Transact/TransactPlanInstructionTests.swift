@@ -1,8 +1,8 @@
 import Foundation
 import ModularArithmetic
-@testable import Privacy
 import Testing
 import Transactions
+@testable import Privacy
 
 struct TransactPlanInstructionTests {
     @Test(arguments: try InstructionVectors.load().transacts)

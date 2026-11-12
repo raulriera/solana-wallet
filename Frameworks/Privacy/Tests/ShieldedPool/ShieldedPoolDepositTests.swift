@@ -1,9 +1,9 @@
 import CryptoKit
 import Foundation
 import ModularArithmetic
-@testable import Privacy
 import Testing
 import Transactions
+@testable import Privacy
 
 struct ShieldedPoolDepositTests {
     @Test(arguments: try InstructionVectors.load().deposits)

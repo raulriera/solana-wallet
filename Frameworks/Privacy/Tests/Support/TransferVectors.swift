@@ -1,8 +1,8 @@
 import CryptoKit
 import ModularArithmetic
-@testable import Privacy
 import Testing
 import Transactions
+@testable import Privacy
 
 enum TransferVectors {
     struct Input: Sendable, CustomTestStringConvertible {

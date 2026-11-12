@@ -1,7 +1,7 @@
 import Foundation
+import Testing
 @testable import Privacy
 @testable import RPC
-import Testing
 
 struct ShieldedPoolRegistryRentTests {
     @Test

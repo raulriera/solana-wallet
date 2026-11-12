@@ -1,9 +1,9 @@
 import CryptoKit
 import ModularArithmetic
-@testable import Privacy
 import RPC
 import Testing
 import Transactions
+@testable import Privacy
 
 enum PlanFixtures {
     static func utxo(

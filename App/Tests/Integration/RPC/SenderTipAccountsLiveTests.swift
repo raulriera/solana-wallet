@@ -1,6 +1,6 @@
 import Foundation
-@testable import RPC
 import Testing
+@testable import RPC
 
 @Suite(.tags(.network), .timeLimit(.minutes(1)))
 struct SenderTipAccountsLiveTests {

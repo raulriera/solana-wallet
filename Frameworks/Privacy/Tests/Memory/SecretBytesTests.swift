@@ -1,5 +1,5 @@
-@testable import Privacy
 import Testing
+@testable import Privacy
 
 struct SecretBytesTests {
     @Test(arguments: [[], [0xff], Array(UInt8.min...UInt8.max)] as [[UInt8]])

@@ -1,6 +1,6 @@
 import ModularArithmetic
-@testable import Privacy
 import Testing
+@testable import Privacy
 
 struct PoseidonParametersTests {
     @Test(arguments: try PoseidonParity.load().parameters.perArity)

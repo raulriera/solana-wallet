@@ -1,7 +1,7 @@
 import CryptoKit
 import ModularArithmetic
-@testable import Privacy
 import Testing
+@testable import Privacy
 
 struct PublicInputsTests {
     @Test(arguments: try PublicInputVectors.load().transfers.filter { $0.outputOwnerIdentities != nil })

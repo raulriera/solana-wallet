@@ -1,8 +1,8 @@
 import ModularArithmetic
-@testable import Privacy
 import RPC
 import Testing
 import Transactions
+@testable import Privacy
 
 struct DepositNoteVectors: Decodable, Sendable {
     let deposits: [Deposit]

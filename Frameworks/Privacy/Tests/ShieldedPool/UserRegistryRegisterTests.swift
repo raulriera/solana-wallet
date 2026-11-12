@@ -1,9 +1,9 @@
 import CryptoKit
 import Foundation
 import ModularArithmetic
-@testable import Privacy
 import Testing
 import Transactions
+@testable import Privacy
 
 struct UserRegistryRegisterTests {
     @Test(arguments: try RegistryVectors.load().records)

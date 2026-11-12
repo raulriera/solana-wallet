@@ -1,6 +1,6 @@
-@testable import Privacy
 import Testing
 import Transactions
+@testable import Privacy
 
 struct PrivateSpendTests {
     @Test

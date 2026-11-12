@@ -1,6 +1,6 @@
 import ModularArithmetic
-@testable import Privacy
 import Testing
+@testable import Privacy
 
 struct ProoflessOutputTests {
     @Test(arguments: try DepositNoteVectors.load().deposits)

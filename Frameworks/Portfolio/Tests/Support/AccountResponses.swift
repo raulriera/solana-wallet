@@ -1,6 +1,6 @@
 import Foundation
-@testable import Portfolio
 import Testing
+@testable import Portfolio
 @testable import RPC
 @testable import Transactions
 

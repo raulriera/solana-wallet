@@ -1,7 +1,7 @@
 import Foundation
 import RPC
-import Transactions
 import Testing
+import Transactions
 @testable import Portfolio
 
 struct PriceRefreshTests {

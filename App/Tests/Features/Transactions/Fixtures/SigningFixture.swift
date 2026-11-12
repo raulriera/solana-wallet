@@ -2,9 +2,9 @@ import CryptoKit
 import Foundation
 import RPC
 import Transactions
-@testable import widgets
 import Vault
 import Wallet
+@testable import widgets
 
 struct SigningFixture {
     let recovery: Recovery

@@ -1,6 +1,6 @@
-@testable import RPC
 import Testing
 import Transactions
+@testable import RPC
 @testable import widgets
 
 @MainActor

@@ -1,7 +1,7 @@
 import Foundation
-@testable import RPC
 import SwiftUI
 import Testing
+@testable import RPC
 @testable import widgets
 
 @MainActor

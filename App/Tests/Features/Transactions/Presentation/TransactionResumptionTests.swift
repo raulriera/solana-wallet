@@ -1,9 +1,9 @@
 import Foundation
 import Observation
-@testable import RPC
 import SwiftUI
 import Testing
 import Transactions
+@testable import RPC
 @testable import widgets
 
 @MainActor

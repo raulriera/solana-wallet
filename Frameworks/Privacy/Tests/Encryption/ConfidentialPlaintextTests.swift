@@ -1,7 +1,7 @@
 import ModularArithmetic
-@testable import Privacy
 import Testing
 import Transactions
+@testable import Privacy
 
 struct ConfidentialPlaintextTests {
     private static let encoding = "0100000000000000efcdab896745230130644e72e131a029b85045b68181585d2833e84879b9709143e1f593f00000000000"

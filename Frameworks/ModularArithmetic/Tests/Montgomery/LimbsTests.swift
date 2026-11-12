@@ -1,5 +1,5 @@
-@testable import ModularArithmetic
 import Testing
+@testable import ModularArithmetic
 
 struct LimbsTests {
     @Test(arguments: [

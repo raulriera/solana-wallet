@@ -1,7 +1,7 @@
 import Foundation
+import Testing
 @testable import Privacy
 @testable import RPC
-import Testing
 
 struct ShieldedAccountRegistrationCostTests {
     static let rent: UInt64 = 1_586_880

@@ -1,9 +1,9 @@
 import Foundation
-@testable import RPC
 import Synchronization
 import Testing
 import Transactions
 @testable import Portfolio
+@testable import RPC
 
 struct PortfolioTests {
     @Test(.timeLimit(.minutes(1)))
