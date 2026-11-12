@@ -23,6 +23,20 @@ The app uses Solana's public RPC by default, so it needs no API key. To use Heli
 
 To run on a device, choose your team and a unique bundle identifier in the `widgets` target's Signing & Capabilities settings.
 
+## Security
+
+The app turns on Apple's [Enhanced Security](https://developer.apple.com/documentation/xcode/enabling-enhanced-security-for-your-app) protections:
+
+- Pointer authentication and hardware-checked pointer arithmetic.
+- Hardware memory tagging, a hardened heap, and read-only dyld data.
+- Platform restrictions.
+
+Recovery phrases stay in Keychain items on the device. Reading them needs Face ID, Touch ID, or the device passcode. They never sync to iCloud and are not in backups.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Tests
 
 ⌘U runs the Unit test plan, which never uses the network.
