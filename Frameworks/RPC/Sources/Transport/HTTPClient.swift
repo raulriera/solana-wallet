@@ -1,7 +1,7 @@
 import Foundation
 import Redaction
 
-/// A client that sends JSON-RPC and JSON requests to an endpoint or to paths below it.
+/// A client that sends JSON-RPC requests, JSON requests, and plain `GET` requests to an endpoint or to paths below it.
 struct HTTPClient: Sendable, Redacted {
     private let endpoint: URL
     private let transport: any HTTPTransport

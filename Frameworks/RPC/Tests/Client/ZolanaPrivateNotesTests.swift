@@ -145,6 +145,22 @@ struct ZolanaPrivateNotesTests {
     }
 
     @Test
+    func `A deposit that the deposit stream reports twice comes back once`() async throws {
+        let deposit = Fixture.output(tag: 1, hash: 7, leafIndex: 4, payload: "AAID")
+        let match = Fixture.match(signature: 1, slot: 10, output: deposit)
+        let transport = StubTransport { request in
+            let (route, _) = try Fixture.call(request)
+            return try reply(to: request, payload: route == GetShieldedTransactionsByTags.method
+                ? Fixture.page() : Fixture.page([match, match], in: "outputs"))
+        }
+        let rpc = Zolana(network: .devnet, transport: transport)
+
+        let batch = try await rpc.shieldedTransactions(taggedWith: [Fixture.bytes(1)], after: nil)
+
+        #expect(batch.transactions.map(\.signature) == [Fixture.signature(1)])
+    }
+
+    @Test
     func `Tag groups of a thousand read separately and merge without repeats`() async throws {
         let transport = StubTransport { request in
             let (route, params) = try Fixture.call(request)
