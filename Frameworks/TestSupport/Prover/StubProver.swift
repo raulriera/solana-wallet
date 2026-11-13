@@ -23,6 +23,10 @@ struct StubProver: Sendable {
         Zolana(network: network, transport: transport, verify: claimedKey)
     }
 
+    static func helius(on network: Network = .devnet, transport: any HTTPTransport) -> HeliusRPC {
+        HeliusRPC(apiKey: "test-key", network: network, transport: transport, verify: claimedKey)
+    }
+
     static func attestation(of key: Curve25519.KeyAgreement.PublicKey) -> String {
         let hex = Hex.encode(Array(key.rawRepresentation))
         return #"{"platform":"aws-nitro","hpke_public_key":"\#(hex)","gpu":null,"evidence":{"document":"00"}}"#

@@ -2,9 +2,11 @@ import Algorithms
 public import Foundation
 
 /// A client that sends typed JSON-RPC requests to Helius on a selected Solana network.
-public struct HeliusRPC: RPC, AccountChangeProviding, SignatureEventProviding, LogoProviding,
+public struct HeliusRPC: RPC, AccountChangeProviding, SignatureEventProviding, LogoProviding, RingsProviding,
                          CustomStringConvertible, CustomDebugStringConvertible {
     public var network: Network { rpc.network }
+
+    public let rings: Zolana
 
     private let rpc: SolanaRPC
 
@@ -17,18 +19,20 @@ public struct HeliusRPC: RPC, AccountChangeProviding, SignatureEventProviding, L
         self.init(apiKey: apiKey, network: network, transport: URLSessionTransport())
     }
 
-    /// Creates a client with an injected transport and subscription connection factory.
+    /// Creates a client with an injected transport, subscription connection factory, and attestation check.
     ///
     /// - Parameters:
     ///   - apiKey: The Helius API key.
     ///   - network: The Solana network to query.
     ///   - transport: The transport that performs HTTP requests.
     ///   - socket: The factory for a subscription connection.
+    ///   - verify: The check that returns the key a prover attestation binds to its nonce under the network's policy.
     init(
         apiKey: String,
         network: Network,
         transport: any HTTPTransport,
-        socket: @escaping @Sendable (URL) -> any WebSocketConnection = { URLSessionSocket(endpoint: $0) }
+        socket: @escaping @Sendable (URL) -> any WebSocketConnection = { URLSessionSocket(endpoint: $0) },
+        verify: @escaping AttestedProverKey.Verification = { try $0.publicKey(for: $1, under: $2, at: $3) }
     ) {
         let host = switch network {
         case .mainnet: "mainnet.helius-rpc.com"
@@ -43,6 +47,8 @@ public struct HeliusRPC: RPC, AccountChangeProviding, SignatureEventProviding, L
         let redactor = SecretRedactor(urls: [endpoint, socketEndpoint])
         rpc = SolanaRPC(network: network, endpoint: endpoint, socketEndpoint: socketEndpoint,
                      redactor: redactor, transport: transport, socket: socket)
+        rings = Zolana(network: network, endpoint: endpoint.appending(path: "v1/spr"), redactor: redactor,
+                       transport: transport, verify: verify)
     }
 
     public var description: String { "HeliusRPC(\(network))" }

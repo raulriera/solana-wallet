@@ -33,5 +33,6 @@ A provider is a type in this module that conforms to [`RPC`](Sources/Client/RPC.
 | [`PriceProviding`](Sources/Pricing/PriceProviding.swift) | Token prices keyed by mint |
 | [`ExchangeRateProviding`](Sources/Pricing/ExchangeRateProviding.swift) | Currency exchange rates |
 | [`SubmissionProviding`](Sources/Client/SubmissionProviding.swift) | Transaction submission for a tip and a minimum priority fee |
+| [`RingsProviding`](Sources/Client/RingsProviding.swift) | Solana Rings private notes and proofs, through a `Zolana` client for the provider's endpoint |
 
 Throw `RPCError` for failures, and send each request once: callers handle rate limits and retries.

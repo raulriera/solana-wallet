@@ -56,8 +56,9 @@ struct TestProver: Sendable {
         try #require(request.value(forHTTPHeaderField: "Spr-Tee") == "v1")
         let encapsulatedKey = try Self.headerBytes("Spr-Tee-Enc", of: request)
         let ciphertext = try #require(request.httpBody)
-        let path = url.path(percentEncoded: true)
-        let target = (path.isEmpty ? "/" : path) + (url.query(percentEncoded: true).map { "?" + $0 } ?? "")
+        let path = String(url.path(percentEncoded: true).trimmingPrefix("/v1/spr"))
+        let query = (url.query(percentEncoded: true) ?? "").split(separator: "&").filter { !$0.hasPrefix("api-key=") }
+        let target = (path.isEmpty ? "/" : path) + (query.isEmpty ? "" : "?" + query.joined(separator: "&"))
         var recipient = try HPKE.Recipient(
             privateKey: privateKey,
             ciphersuite: Self.ciphersuite,

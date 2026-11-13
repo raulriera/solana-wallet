@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 import Testing
 @testable import RPC
 
@@ -24,6 +25,42 @@ struct HeliusRPCTests {
         let url = try #require(request.url)
         let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
         #expect(query == [URLQueryItem(name: "api-key", value: "test-key")])
+    }
+
+    @Test(arguments: [
+        (Network.mainnet, "mainnet.helius-rpc.com"),
+        (.devnet, "devnet.helius-rpc.com"),
+    ])
+    func `Private-note reads go below the network's Solana Rings path with the key`(network: Network,
+                                                                                   expectedHost: String) async throws {
+        let transport = StubTransport { try reply(to: $0, payload: IndexerFixtures.page()) }
+        let rpc: any PrivateNoteProviding = HeliusRPC(apiKey: "test-key", network: network, transport: transport)
+
+        _ = try await rpc.shieldedTransactions(spending: [IndexerFixtures.bytes(1)])
+
+        #expect(await transport.requests.map { $0.url?.absoluteString } == [
+            "https://\(expectedHost)/v1/spr/getShieldedTransactionsByNullifiers?api-key=test-key",
+        ])
+    }
+
+    @Test
+    func `Proof requests go sealed below the Solana Rings path with the key`() async throws {
+        let opened = Mutex<Data?>(nil)
+        let prover = try StubProver { body in
+            opened.withLock { $0 = body }
+            return (503, "{}")
+        }
+        let transport = prover.transport()
+        let rpc: any ProofProviding = StubProver.helius(transport: transport)
+
+        await #expect(throws: RPCError.http(statusCode: 503, retryAfter: nil)) {
+            try await rpc.proveTransfer(ProofFixtures.indexedRequest())
+        }
+
+        let urls = await transport.requests.compactMap(\.url)
+        #expect(urls.map { $0.path() } == ["/v1/spr/attestation", "/v1/spr/prove/transfer_confidential_1_2/indexed"])
+        #expect(urls.map { $0.query()?.hasPrefix("api-key=test-key") } == [true, true])
+        #expect(opened.withLock { $0 } != nil)
     }
 
     @Test(arguments: [
