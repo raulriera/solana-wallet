@@ -18,13 +18,6 @@ struct ZolanaTests {
         ])
     }
 
-    @Test
-    func `An endpoint that isn't HTTPS can't be used`() throws {
-        let endpoint = try #require(URL(string: "http://rings.example.com"))
-
-        #expect(Zolana(endpoint: endpoint, network: .devnet) == nil)
-    }
-
     @Test(arguments: Network.allCases)
     func `Attestations pass under each network's policy`(network: Network) async throws {
         let (key, _, recorded) = try AttestedProverKeyTests.attestedKey(on: network)

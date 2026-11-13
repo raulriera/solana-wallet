@@ -32,7 +32,7 @@ public struct HeliusRPC: RPC, AccountChangeProviding, SignatureEventProviding, L
         network: Network,
         transport: any HTTPTransport,
         socket: @escaping @Sendable (URL) -> any WebSocketConnection = { URLSessionSocket(endpoint: $0) },
-        verify: @escaping AttestedProverKey.Verification = { try $0.publicKey(for: $1, under: $2, at: $3) }
+        verify: @escaping AttestedProverKey.Verification = AttestedProverKey.verification
     ) {
         let host = switch network {
         case .mainnet: "mainnet.helius-rpc.com"
