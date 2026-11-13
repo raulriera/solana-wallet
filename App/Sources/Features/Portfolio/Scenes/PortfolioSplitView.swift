@@ -12,6 +12,7 @@ struct PortfolioSplitView: View {
     @State private var preferredColumn = NavigationSplitViewColumn.sidebar
     @State private var providerSetup: ProviderSetupModel<RPCConnectionError>?
     @State private var tokenAddition: TokenAdditionModel?
+    @State private var isReceiving = false
     let account: Account
     let network: Network
     let connection: any ProviderConnecting<RPCConnectionError>
@@ -54,6 +55,10 @@ struct PortfolioSplitView: View {
                     .navigationSubtitle(Text(portfolio?.error?.staleStatus ?? ""))
                     .toolbar {
                         ToolbarItem(placement: .primaryAction) {
+                            Button("Receive", systemImage: "qrcode", action: receive)
+                                .tint(.primary)
+                        }
+                        ToolbarItem(placement: .primaryAction) {
                             Button("Add Token", systemImage: "plus", action: addToken)
                                 .tint(.primary)
                         }
@@ -83,6 +88,12 @@ struct PortfolioSplitView: View {
         .environment(\.removeToken, TokenRemovalAction(removal: removal))
         .sheet(item: $providerSetup) { APIKeySheet(submission: $0) }
         .sheet(item: $tokenAddition) { TokenAdditionSheet(addition: $0, account: account, network: network) }
+        .sheet(isPresented: $isReceiving) { ReceiveSheet(address: account.address, network: network) }
+    }
+
+    /// Opens the receive sheet.
+    private func receive() {
+        isReceiving = true
     }
 
     /// Opens the add-token sheet.

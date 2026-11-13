@@ -14,7 +14,9 @@ struct RecipientScreen: View {
         let saved = lists.saved(at: address)
         let contact = lists.contacts.first { $0.address == address }
         Form {
-            FullAddressSection(address: address)
+            Section("Address") {
+                FullAddress(text: address.value)
+            }
 
             Section {
                 Group {

@@ -1,0 +1,46 @@
+import RPC
+import SwiftUI
+import Transactions
+
+/// Shows an account's address as a QR code and as text, with a way to share it.
+struct ReceiveScreen: View {
+    @Environment(\.palette) private var palette
+    let address: Address
+    let network: Network
+
+    var body: some View {
+        Form {
+            Section {
+                QRCode(text: address.value)
+                    .frame(maxWidth: 240)
+                    .padding(24)
+                    .background(.white, in: .rect(cornerRadius: 24))
+                    .frame(maxWidth: .infinity)
+                    .listRowBackground(Color.clear)
+            } footer: {
+                if network == .devnet {
+                    Text("This address is on Devnet. Devnet tokens are for testing and have no monetary value.",
+                         comment: "Footer under an account's QR code in a window on Devnet, Solana's test network.")
+                        .foregroundStyle(palette.secondaryText)
+                }
+            }
+
+            Section("Address") {
+                FullAddress(text: address.value)
+                ShareLink(item: address.value)
+                    .foregroundStyle(palette.primary)
+                    .lineLimit(1)
+            }
+        }
+        .navigationTitle("Receive")
+        .toolbarTitleDisplayMode(.inline)
+    }
+}
+
+#Preview {
+    if let address = try? Address("6d8tEyrqPqVbEr6Jpuc7BEyYekeMUTyzHEwdmcAYEmtK") {
+        NavigationStack {
+            ReceiveScreen(address: address, network: .devnet)
+        }
+    }
+}

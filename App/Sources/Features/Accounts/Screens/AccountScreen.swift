@@ -46,7 +46,9 @@ struct AccountScreen: View {
                     .foregroundStyle(palette.secondaryText)
             }
 
-            FullAddressSection(address: account.address)
+            Section("Address") {
+                FullAddress(text: account.address.value)
+            }
 
             Section {
                 LabeledContent("Account Path") {

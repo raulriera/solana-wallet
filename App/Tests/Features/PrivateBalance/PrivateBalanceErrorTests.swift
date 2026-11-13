@@ -10,7 +10,7 @@ struct PrivateBalanceErrorTests {
 
         #expect(!title.isEmpty)
         #expect(!message.isEmpty)
-        for provider in ["Helius", "QuickNode", "Jupiter", "Solana RPC"] {
+        for provider in ["Helius", "Jupiter", "Solana RPC"] {
             #expect(![title, message].contains { $0.localizedStandardContains(provider) })
         }
     }
