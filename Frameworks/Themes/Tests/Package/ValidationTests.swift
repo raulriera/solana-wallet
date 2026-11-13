@@ -30,8 +30,7 @@ struct ValidationTests {
         defer { fixture.remove() }
         try fixture.manifest(fields)
         await #expect { try await PackService().read(from: fixture.source) } throws: { error in
-            guard let error = error as? ValidationError else { return false }
-            return error.path == path && !error.reason.isEmpty
+            (error as? ValidationError)?.path == path
         }
     }
 

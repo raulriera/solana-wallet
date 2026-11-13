@@ -82,7 +82,7 @@ final class FileAccess: Sendable {
                                        continuation: CheckedContinuation<Value, any Error>) throws {
         try checkCancellation()
         guard url.isFileURL else {
-            throw ValidationError(path: "package", reason: "Expected a local file URL.")
+            throw ValidationError(path: "package", kind: .unreadable)
         }
         let scoped = url.startAccessingSecurityScopedResource()
         do {

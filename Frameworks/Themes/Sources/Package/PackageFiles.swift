@@ -21,7 +21,7 @@ enum PackageFiles {
             path.map { open($0, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC) } ?? -1
         }
         guard directory >= 0 else {
-            throw ValidationError(path: "package", reason: "Expected a readable directory; symbolic links are unsupported.")
+            throw ValidationError(path: "package", kind: .unreadable)
         }
         defer { close(directory) }
         let manifest = try Manifest.decode(readFile(["manifest.json"], in: directory, path: "manifest.json",
@@ -118,7 +118,7 @@ enum PackageFiles {
         guard components.count > 1, components.first == "Assets",
               !path.contains("\\"), !path.contains("\0"),
               components.allSatisfy({ !$0.isEmpty && $0 != "." && $0 != ".." }) else {
-            throw ValidationError(path: field, reason: "Expected a relative file path inside Assets without traversal.")
+            throw ValidationError(path: field, kind: .invalid)
         }
         return components
     }
@@ -135,7 +135,7 @@ enum PackageFiles {
     /// - Throws: A validation or cancellation error.
     private static func readFile(_ components: [String], in root: Int32, path: String, byteLimit: Int,
                                  checkCancellation: () throws -> Void) throws -> Data {
-        let unreadable = ValidationError(path: path, reason: "Expected a readable regular file inside the package; symbolic links are unsupported.")
+        let unreadable = ValidationError(path: path, kind: .unreadable)
         var directory = root
         defer { if directory != root { close(directory) } }
         for component in components.dropLast() {
@@ -184,20 +184,20 @@ enum PackageFiles {
               CGImageSourceGetStatus(source) == .statusComplete,
               CGImageSourceGetCount(source) > 0,
               CGImageSourceGetStatusAtIndex(source, 0) == .statusComplete else {
-            throw ValidationError(path: path, reason: "Expected a readable PNG or JPEG image.")
+            throw ValidationError(path: path, kind: .unreadable)
         }
         let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, options) as? [CFString: Any]
         guard let width = properties?[kCGImagePropertyPixelWidth] as? Int,
               let height = properties?[kCGImagePropertyPixelHeight] as? Int,
               width > 0, height > 0, width <= ResourceLimits.imagePixels / height else {
-            throw ValidationError(path: path, reason: "Image exceeds the \(ResourceLimits.imagePixels)-pixel limit or has invalid dimensions.")
+            throw ValidationError(path: path, kind: .tooLarge)
         }
         guard CGImageSourceCreateThumbnailAtIndex(source, 0, [
                 kCGImageSourceCreateThumbnailFromImageAlways: true,
                 kCGImageSourceThumbnailMaxPixelSize: 1,
                 kCGImageSourceShouldCache: false
               ] as CFDictionary) != nil else {
-            throw ValidationError(path: path, reason: "Expected a readable PNG or JPEG image.")
+            throw ValidationError(path: path, kind: .unreadable)
         }
     }
 }

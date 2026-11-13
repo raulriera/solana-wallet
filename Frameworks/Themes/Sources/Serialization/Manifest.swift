@@ -20,19 +20,19 @@ struct Manifest: Sendable, Equatable {
         do {
             json = try JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])
         } catch {
-            throw ValidationError(path: "manifest.json", reason: "Expected valid JSON.")
+            throw ValidationError(path: "manifest.json", kind: .invalid)
         }
         let root = try object(json, at: "manifest.json", keys: ["version", "id", "name", "tokens", "assets"])
         let version = try number(root["version"], at: "version")
         guard version.doubleValue.rounded(.towardZero) == version.doubleValue else {
-            throw ValidationError(path: "version", reason: "Expected an integer.")
+            throw ValidationError(path: "version", kind: .invalid)
         }
         guard version == 1 else {
-            throw ValidationError(path: "version", reason: "Unsupported format version \(version); expected 1.")
+            throw ValidationError(path: "version", kind: .unsupported)
         }
         let identifier = try string(root["id"], at: "id")
         guard let id = UUID(uuidString: identifier) else {
-            throw ValidationError(path: "id", reason: "Expected a UUID string.")
+            throw ValidationError(path: "id", kind: .invalid)
         }
         let name = try string(root["name"], at: "name")
         try validateName(name)
@@ -56,7 +56,7 @@ struct Manifest: Sendable, Equatable {
                 }
             }
             if let suppliedDesign = tokens["fontDesign"] {
-                overrides.fontDesign = try supported(suppliedDesign, at: "tokens.fontDesign", kind: "font design")
+                overrides.fontDesign = try supported(suppliedDesign, at: "tokens.fontDesign")
             }
         }
         var assets: [String: String] = [:]
@@ -99,7 +99,7 @@ struct Manifest: Sendable, Equatable {
     /// - Throws: A validation error if the name is empty or only whitespace.
     static func validateName(_ name: String) throws {
         guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw ValidationError(path: "name", reason: "Expected a nonempty display name.")
+            throw ValidationError(path: "name", kind: .invalid)
         }
     }
 
@@ -113,11 +113,11 @@ struct Manifest: Sendable, Equatable {
     /// - Throws: A validation error for a wrong type or unknown key.
     private static func object(_ value: Any, at path: String, keys: [String]? = nil) throws -> [String: Any] {
         guard let object = value as? [String: Any] else {
-            throw ValidationError(path: path, reason: "Expected an object; null is not supported.")
+            throw ValidationError(path: path, kind: .invalid)
         }
         if let keys, let unknown = object.keys.sorted().first(where: { !keys.contains($0) }) {
             let prefix = path == "manifest.json" ? "" : "\(path)."
-            throw ValidationError(path: "\(prefix)\(unknown)", reason: "Unknown setting.")
+            throw ValidationError(path: "\(prefix)\(unknown)", kind: .unsupported)
         }
         return object
     }
@@ -131,7 +131,7 @@ struct Manifest: Sendable, Equatable {
     /// - Throws: A validation error for a missing or non-string value.
     private static func string(_ value: Any?, at path: String) throws -> String {
         guard let value = value as? String else {
-            throw ValidationError(path: path, reason: "Expected a string.")
+            throw ValidationError(path: path, kind: .invalid)
         }
         return value
     }
@@ -145,7 +145,7 @@ struct Manifest: Sendable, Equatable {
     /// - Throws: A validation error for a missing, Boolean, or non-number value.
     private static func number(_ value: Any?, at path: String) throws -> NSNumber {
         guard let number = value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID() else {
-            throw ValidationError(path: path, reason: "Expected a number.")
+            throw ValidationError(path: path, kind: .invalid)
         }
         return number
     }
@@ -155,13 +155,12 @@ struct Manifest: Sendable, Equatable {
     /// - Parameters:
     ///   - value: The decoded value, or `nil` if the field is missing.
     ///   - path: The value's manifest location.
-    ///   - kind: The name of the value's kind for the error message, such as "font design".
     /// - Returns: The value for the string.
     /// - Throws: A validation error for a missing, non-string, or unsupported value.
-    private static func supported<Value: RawRepresentable<String>>(_ value: Any?, at path: String, kind: String) throws -> Value {
+    private static func supported<Value: RawRepresentable<String>>(_ value: Any?, at path: String) throws -> Value {
         let name = try string(value, at: path)
         guard let supported = Value(rawValue: name) else {
-            throw ValidationError(path: path, reason: "Unsupported \(kind): \(name).")
+            throw ValidationError(path: path, kind: .unsupported)
         }
         return supported
     }
@@ -176,17 +175,17 @@ struct Manifest: Sendable, Equatable {
     private static func color(_ value: Any, at path: String) throws -> Color {
         let object = try object(value, at: path, keys: ["system", "srgb"])
         guard object.count == 1 else {
-            throw ValidationError(path: path, reason: "Expected exactly one of system or srgb.")
+            throw ValidationError(path: path, kind: .invalid)
         }
         if let system = object["system"] {
-            return .system(try supported(system, at: "\(path).system", kind: "system color"))
+            return .system(try supported(system, at: "\(path).system"))
         }
         let hex = try string(object["srgb"], at: "\(path).srgb")
         let digits = hex.dropFirst()
         guard hex.first == "#", hex.utf8.count == 7,
               digits.utf8.allSatisfy({ (48...57).contains($0) || (65...70).contains($0) || (97...102).contains($0) }),
               let number = UInt32(digits, radix: 16) else {
-            throw ValidationError(path: "\(path).srgb", reason: "Expected an opaque six-digit #RRGGBB color.")
+            throw ValidationError(path: "\(path).srgb", kind: .invalid)
         }
         return .srgb(red: UInt8((number >> 16) & 255), green: UInt8((number >> 8) & 255), blue: UInt8(number & 255))
     }
