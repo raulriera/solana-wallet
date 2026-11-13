@@ -7,7 +7,7 @@ import Testing
 struct ProverAttestationLiveTests {
     @Test(arguments: [Network.mainnet, .devnet])
     func `The network's prover passes its policy now`(network: Network) async throws {
-        let key = try await Zolana(network: network).attestedKey.key()
+        let key = try await LiveClients.rings(network: network).attestedKey.key()
 
         #expect(key.rawRepresentation.count == 32)
     }

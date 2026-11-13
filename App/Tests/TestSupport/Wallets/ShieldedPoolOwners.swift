@@ -14,7 +14,7 @@ enum ShieldedPoolOwners {
     static func deposits(of owner: String) async throws -> (recipient: Recipient, deposits: [ShieldedTransaction]) {
         let address = try Address(owner)
         async let records = UserRegistry.recipients(of: [address], using: SolanaRPC(network: .devnet))
-        async let batch = Zolana(network: .devnet).shieldedTransactions(taggedWith: [address.bytes], after: nil)
+        async let batch = LiveClients.rings().shieldedTransactions(taggedWith: [address.bytes], after: nil)
         let recipient = try #require(try await records.first ?? nil)
         let deposits = try await batch.transactions.filter { $0.isProofless && $0.outputs.first?.viewTag == address.bytes }
         try #require(!deposits.isEmpty, "The owner must have a deposit")

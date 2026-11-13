@@ -16,7 +16,7 @@ struct ProverIndexedLiveTests {
             answerVersions.withLock { $0.append(version) }
             return (data, response)
         }
-        let zolana = Zolana(network: network, transport: transport)
+        let zolana = try LiveClients.rings(network: network, transport: transport)
         let request = try Self.request()
 
         let error = try await #require(throws: RPCError.self) { try await zolana.proveTransfer(request) }
