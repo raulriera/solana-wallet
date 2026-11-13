@@ -1,8 +1,9 @@
 import Foundation
+import Redaction
 import Wallet
 
 /// The versioned recovery payload stored in the Keychain.
-struct StoredRecovery: Codable {
+struct StoredRecovery: Codable, Redacted {
     let version: Int
     let phrase: String
     let passphrase: String

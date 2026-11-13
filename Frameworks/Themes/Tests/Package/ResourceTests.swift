@@ -20,9 +20,8 @@ struct ResourceTests {
             defer { try? handle.close() }
             try handle.truncate(atOffset: UInt64(limit + 1))
         }
-        await #expect { try await PackService().read(from: fixture.source) } throws: { error in
-            guard let error = error as? ValidationError else { return false }
-            return error.path == path && error.reason.contains("byte limit")
+        await #expect(throws: ValidationError(path: path, kind: .tooLarge)) {
+            try await PackService().read(from: fixture.source)
         }
     }
 
@@ -31,13 +30,10 @@ struct ResourceTests {
         defer { fixture.remove() }
         let name = String(repeating: "x", count: 1_000)
         try fixture.rawManifest(#"{"version":1,"id":"\#(Fixture.id)","name":"\#(name)"}"#)
-        await #expect {
+        await #expect(throws: ValidationError(path: "manifest.json", kind: .tooLarge)) {
             try await FileAccess.perform(at: fixture.source) { url, access in
                 try PackageFiles.read(at: url, checkCancellation: access.checkCancellation, manifestByteBudget: 1_500)
             }
-        } throws: { error in
-            guard let error = error as? ValidationError else { return false }
-            return error.path == "manifest.json" && error.reason.contains("byte limit")
         }
     }
 
@@ -55,13 +51,10 @@ struct ResourceTests {
         #expect(count == 5)
         try fixture.asset(Fixture.image(), path: "Assets/extra.png")
         try fixture.manifest(#""assets":{\#(declarations),"extra":"Assets/extra.png"}"#)
-        await #expect {
+        await #expect(throws: ValidationError(path: "Assets/extra.png", kind: .tooLarge)) {
             try await FileAccess.perform(at: fixture.source) { url, access in
                 try PackageFiles.read(at: url, checkCancellation: access.checkCancellation, assetByteBudget: budget)
             }
-        } throws: { error in
-            guard let error = error as? ValidationError else { return false }
-            return error.path == "Assets/extra.png" && error.reason.contains("byte limit")
         }
     }
 
@@ -70,9 +63,8 @@ struct ResourceTests {
         defer { fixture.remove() }
         try fixture.asset(Fixture.image(width: 4096, height: 4097))
         try fixture.manifest(#""assets":{"background":"Assets/image.png"}"#)
-        await #expect { try await PackService().read(from: fixture.source) } throws: { error in
-            guard let error = error as? ValidationError else { return false }
-            return error.path == "Assets/image.png" && error.reason.contains("pixel limit")
+        await #expect(throws: ValidationError(path: "Assets/image.png", kind: .tooLarge)) {
+            try await PackService().read(from: fixture.source)
         }
     }
 

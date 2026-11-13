@@ -37,11 +37,11 @@ nonisolated enum SpendTransactions {
         data += [UInt8(transfers.count)] + transfers.joined() + hashes
         data += [UInt8(outputs.count)] + outputs.joined() + [UInt8(messages.count)] + messages.joined()
         data += [UInt8](repeating: 16, count: 32)
-        data.appendLittleEndian(circuit)
+        data.append(littleEndian: circuit)
         data += [UInt8(nullifiers.count), 2, 3]
         if [7, 8].contains(circuit) { data += [UInt8](repeating: 0x51, count: 96) }
         if [4, 5, 8].contains(circuit) {
-            data.appendLittleEndian(UInt64(1))
+            data.append(littleEndian: UInt64(1))
             data += [0, 0] + [UInt8](repeating: 0xff, count: 30)
         }
         data += [UInt8](repeating: 17, count: 192)
@@ -83,7 +83,7 @@ nonisolated enum SpendTransactions {
 
     private static func amount(_ kind: UInt8, _ lamports: UInt64) -> [UInt8] {
         var bytes = [kind]
-        bytes.appendLittleEndian(lamports)
+        bytes.append(littleEndian: lamports)
         return bytes
     }
 }

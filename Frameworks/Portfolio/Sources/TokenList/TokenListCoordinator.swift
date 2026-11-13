@@ -3,7 +3,7 @@ import Transactions
 
 /// An actor that serializes changes to each account's token list.
 actor TokenListCoordinator {
-    private let store: any TokenListStoring
+    private let store: FileTokenListStore
     private let network: Network
 
     /// Creates a coordinator for one network's lists.
@@ -11,7 +11,7 @@ actor TokenListCoordinator {
     /// - Parameters:
     ///   - store: The token-list store.
     ///   - network: The network whose lists the coordinator keeps.
-    init(store: any TokenListStoring, network: Network) {
+    init(store: FileTokenListStore, network: Network) {
         self.store = store
         self.network = network
     }
@@ -25,7 +25,7 @@ actor TokenListCoordinator {
         try store.tokenList(for: key(for: owner)) ?? TokenList(defaultsFor: network)
     }
 
-    /// Adds a token to an account's list and saves the list.
+    /// Adds a token to an account's list and saves the list if the token was new.
     ///
     /// - Parameters:
     ///   - token: The token to add.
@@ -33,14 +33,10 @@ actor TokenListCoordinator {
     /// - Returns: `true` if the token was new to the list.
     /// - Throws: A ``TokenListError`` or a file-system error.
     func add(_ token: ListedToken, for owner: String) throws -> Bool {
-        let saved = try list(for: owner)
-        var list = saved
-        try list.add(token)
-        try store.save(list, for: key(for: owner))
-        return list != saved
+        try change(for: owner) { try $0.add(token) }
     }
 
-    /// Removes a token from an account's list and saves the list.
+    /// Removes a token from an account's list and saves the list if the token was listed.
     ///
     /// - Parameters:
     ///   - mint: The mint address of the token to remove.
@@ -48,11 +44,7 @@ actor TokenListCoordinator {
     /// - Returns: `true` if the token was listed.
     /// - Throws: ``TokenListError/unreadable`` or a file-system error.
     func remove(_ mint: Address, for owner: String) throws -> Bool {
-        let saved = try list(for: owner)
-        var list = saved
-        list.remove(mint)
-        try store.save(list, for: key(for: owner))
-        return list != saved
+        try change(for: owner) { $0.remove(mint) }
     }
 
     /// Removes an account's saved list.
@@ -61,6 +53,22 @@ actor TokenListCoordinator {
     /// - Throws: A file-system error.
     func removeList(for owner: String) throws {
         try store.remove(for: key(for: owner))
+    }
+
+    /// Changes an account's list and saves it if the change altered it.
+    ///
+    /// - Parameters:
+    ///   - owner: The account's wallet address.
+    ///   - change: The change to the account's list.
+    /// - Returns: `true` if the change altered the list.
+    /// - Throws: The change's error, ``TokenListError/unreadable``, or a file-system error.
+    private func change(for owner: String, _ change: (inout TokenList) throws -> Void) throws -> Bool {
+        let saved = try list(for: owner)
+        var list = saved
+        try change(&list)
+        guard list != saved else { return false }
+        try store.save(list, for: key(for: owner))
+        return true
     }
 
     /// Returns the storage key of an account's list.

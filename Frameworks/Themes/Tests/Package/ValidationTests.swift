@@ -4,51 +4,51 @@ import Testing
 
 struct ValidationTests {
     @Test(arguments: [
-        (#""tokens":null"#, "tokens"),
-        (#""tokens":[]"#, "tokens"),
-        (#""tokens":{"colors":null}"#, "tokens.colors"),
-        (#""tokens":{"colors":{"light":null}}"#, "tokens.colors.light"),
-        (#""tokens":{"colors":{"light":{"primary":null}}}"#, "tokens.colors.light.primary"),
-        (#""tokens":{"colors":{"light":{"primary":{}}}}"#, "tokens.colors.light.primary"),
-        (##""tokens":{"colors":{"light":{"primary":{"system":"label","srgb":"#123456"}}}}"##, "tokens.colors.light.primary"),
-        (#""tokens":{"colors":{"light":{"primary":{"system":null}}}}"#, "tokens.colors.light.primary.system"),
-        (#""tokens":{"colors":{"light":{"primary":{"system":"invented"}}}}"#, "tokens.colors.light.primary.system"),
-        (#""tokens":{"colors":{"light":{"primary":{"srgb":42}}}}"#, "tokens.colors.light.primary.srgb"),
-        (##""tokens":{"colors":{"light":{"primary":{"rgb":"#123456"}}}}"##, "tokens.colors.light.primary.rgb"),
-        (#""tokens":{"colors":{"light":{"invented":{"system":"label"}}}}"#, "tokens.colors.light.invented"),
-        (#""tokens":{"colors":{"invented":{}}}"#, "tokens.colors.invented"),
-        (#""tokens":{"typography":{}}"#, "tokens.typography"),
-        (#""tokens":{"fontDesign":null}"#, "tokens.fontDesign"),
-        (#""tokens":{"fontDesign":1}"#, "tokens.fontDesign"),
-        (#""tokens":{"fontDesign":"Menlo"}"#, "tokens.fontDesign"),
-        (#""formatVersion":1"#, "formatVersion"),
-        (#""assets":null"#, "assets"),
-        (#""assets":{"background":null}"#, "assets.background")
-    ])
-    func `Invalid fields identify their path`(fields: String, path: String) async throws {
+        (#""tokens":null"#, "tokens", .invalid),
+        (#""tokens":[]"#, "tokens", .invalid),
+        (#""tokens":{"colors":null}"#, "tokens.colors", .invalid),
+        (#""tokens":{"colors":{"light":null}}"#, "tokens.colors.light", .invalid),
+        (#""tokens":{"colors":{"light":{"primary":null}}}"#, "tokens.colors.light.primary", .invalid),
+        (#""tokens":{"colors":{"light":{"primary":{}}}}"#, "tokens.colors.light.primary", .invalid),
+        (##""tokens":{"colors":{"light":{"primary":{"system":"label","srgb":"#123456"}}}}"##, "tokens.colors.light.primary", .invalid),
+        (#""tokens":{"colors":{"light":{"primary":{"system":null}}}}"#, "tokens.colors.light.primary.system", .invalid),
+        (#""tokens":{"colors":{"light":{"primary":{"system":"invented"}}}}"#, "tokens.colors.light.primary.system", .unsupported),
+        (#""tokens":{"colors":{"light":{"primary":{"srgb":42}}}}"#, "tokens.colors.light.primary.srgb", .invalid),
+        (##""tokens":{"colors":{"light":{"primary":{"rgb":"#123456"}}}}"##, "tokens.colors.light.primary.rgb", .unsupported),
+        (#""tokens":{"colors":{"light":{"invented":{"system":"label"}}}}"#, "tokens.colors.light.invented", .unsupported),
+        (#""tokens":{"colors":{"invented":{}}}"#, "tokens.colors.invented", .unsupported),
+        (#""tokens":{"typography":{}}"#, "tokens.typography", .unsupported),
+        (#""tokens":{"fontDesign":null}"#, "tokens.fontDesign", .invalid),
+        (#""tokens":{"fontDesign":1}"#, "tokens.fontDesign", .invalid),
+        (#""tokens":{"fontDesign":"Menlo"}"#, "tokens.fontDesign", .unsupported),
+        (#""formatVersion":1"#, "formatVersion", .unsupported),
+        (#""assets":null"#, "assets", .invalid),
+        (#""assets":{"background":null}"#, "assets.background", .invalid)
+    ] as [(String, String, ValidationError.Kind)])
+    func `Invalid fields identify their path and kind`(fields: String, path: String, kind: ValidationError.Kind) async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
         try fixture.manifest(fields)
-        await #expect { try await PackService().read(from: fixture.source) } throws: { error in
-            guard let error = error as? ValidationError else { return false }
-            return error.path == path && !error.reason.isEmpty
+        await #expect(throws: ValidationError(path: path, kind: kind)) {
+            try await PackService().read(from: fixture.source)
         }
     }
 
     @Test(arguments: [
-        ("{}", "version"), ("[]", "manifest.json"), ("not JSON", "manifest.json"), ("", "manifest.json"),
-        (#"{"version":true}"#, "version"), (#"{"version":1.5}"#, "version"),
-        (#"{"version":"1"}"#, "version"), (#"{"version":2}"#, "version"),
-        (#"{"version":1}"#, "id"), (#"{"version":1,"id":"invalid"}"#, "id"),
-        (#"{"version":1,"id":"\#(Fixture.id)"}"#, "name"),
-        (#"{"version":1,"id":"\#(Fixture.id)","name":"  "}"#, "name")
-    ])
-    func `Invalid header identifies its field`(json: String, path: String) async throws {
+        ("{}", "version", .invalid), ("[]", "manifest.json", .invalid), ("not JSON", "manifest.json", .invalid),
+        ("", "manifest.json", .invalid), (#"{"version":true}"#, "version", .invalid),
+        (#"{"version":1.5}"#, "version", .invalid), (#"{"version":"1"}"#, "version", .invalid),
+        (#"{"version":2}"#, "version", .unsupported), (#"{"version":1}"#, "id", .invalid),
+        (#"{"version":1,"id":"invalid"}"#, "id", .invalid),
+        (#"{"version":1,"id":"\#(Fixture.id)"}"#, "name", .invalid),
+        (#"{"version":1,"id":"\#(Fixture.id)","name":"  "}"#, "name", .invalid)
+    ] as [(String, String, ValidationError.Kind)])
+    func `Invalid header identifies its field and kind`(json: String, path: String, kind: ValidationError.Kind) async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
         try fixture.rawManifest(json)
-        await #expect { try await PackService().read(from: fixture.source) } throws: { error in
-            (error as? ValidationError)?.path == path
+        await #expect(throws: ValidationError(path: path, kind: kind)) {
+            try await PackService().read(from: fixture.source)
         }
     }
 

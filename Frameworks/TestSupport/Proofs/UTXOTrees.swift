@@ -68,17 +68,17 @@ struct UTXOTrees: Sendable {
     static func account(cursor: UInt16, count: UInt16, capacity: UInt16 = 500, roots: [[UInt8]],
                         feePerTree: UInt64 = 0) -> [UInt8] {
         var data = [1] + [UInt8](repeating: 0, count: 7)
-        data.appendLittleEndian(feePerTree)
+        data.append(littleEndian: feePerTree)
         data += [UInt8](repeating: 0, count: 96)
-        data.appendLittleEndian(cursor)
-        data.appendLittleEndian(count)
-        data.appendLittleEndian(capacity)
+        data.append(littleEndian: cursor)
+        data.append(littleEndian: count)
+        data.append(littleEndian: capacity)
         data += [UInt8](repeating: 0, count: 1_152 - data.count) + roots.joined()
         return data + [UInt8](repeating: 0, count: 40_080 - data.count)
     }
 
     static func emptyTree(feePerTree: UInt64) -> String {
-        AccountReplies.account(owner: ShieldedPool.programID, data: account(cursor: 0, count: 0, roots: [], feePerTree: feePerTree))
+        AccountReplies.account(owner: ShieldedPool.id, data: account(cursor: 0, count: 0, roots: [], feePerTree: feePerTree))
     }
 
     func respond(to request: URLRequest) throws -> (Data, URLResponse)? {
@@ -130,7 +130,7 @@ struct UTXOTrees: Sendable {
         let roots = [Self.zeros[Self.height]] + (isFinalized ? [tree.root] : [])
         let data = Self.account(cursor: UInt16(roots.count - 1), count: UInt16(roots.count), roots: roots.map(\.bigEndianBytes),
                                 feePerTree: feePerTree)
-        return AccountReplies.account(owner: ShieldedPool.programID, data: data)
+        return AccountReplies.account(owner: ShieldedPool.id, data: data)
     }
 
     private static func spend(in row: String) throws -> (signature: String, nullifiers: [[UInt8]])? {

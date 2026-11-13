@@ -42,7 +42,7 @@ struct MessageBuilderTests {
 
     @Test(arguments: MessageFixture.transfers)
     func `SOL transfers match Solana SDK V1 message bytes`(_ fixture: MessageFixture) throws {
-        let builder: any MessageBuilding = MessageBuilder()
+        let builder = MessageBuilder()
         let transfer = try SystemProgram.transfer(from: Address(MessageFixture.sender), to: Address(MessageFixture.recipient), lamports: fixture.lamports)
         let message = try builder.message(instructions: [transfer], payer: transfer.accounts[0].address, recentBlockhash: fixture.blockhash,
                                           configuration: fixture.configuration())

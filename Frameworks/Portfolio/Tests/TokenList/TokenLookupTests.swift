@@ -1,3 +1,4 @@
+import Encoding
 import Foundation
 import Portfolio
 import RPC
@@ -83,7 +84,7 @@ private func lookupPortfolio(_ rpc: any RPC) -> Portfolio {
 
 private func mintAccount(decimals: UInt8, supply: UInt64) -> Account {
     var bytes = [UInt8](repeating: 0, count: 36)
-    bytes += withUnsafeBytes(of: supply.littleEndian, Array.init)
+    bytes.append(littleEndian: supply)
     bytes += [decimals, 1]
     bytes += [UInt8](repeating: 0, count: 36)
     return Account(owner: TokenProgram.token.rawValue, lamports: 1_461_600, executable: false, data: Data(bytes))
@@ -91,8 +92,9 @@ private func mintAccount(decimals: UInt8, supply: UInt64) -> Account {
 
 private func metaplexData(mint: Address, name: String, symbol: String) -> Data {
     func padded(_ text: String, to length: Int) -> [UInt8] {
-        let bytes = Array(text.utf8) + [UInt8](repeating: 0, count: length - text.utf8.count)
-        return withUnsafeBytes(of: UInt32(length).littleEndian, Array.init) + bytes
+        var bytes: [UInt8] = []
+        bytes.append(littleEndian: UInt32(length))
+        return bytes + Array(text.utf8) + [UInt8](repeating: 0, count: length - text.utf8.count)
     }
     return Data([4] + [UInt8](repeating: 0, count: 32) + mint.bytes + padded(name, to: 32) + padded(symbol, to: 10))
 }

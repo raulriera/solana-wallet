@@ -71,6 +71,17 @@ struct TokenListTests {
     }
 
     @Test
+    func `A change that alters nothing saves no list`() async throws {
+        let fixture = TokenListFixture()
+        defer { fixture.removeFiles() }
+        let service = fixture.portfolio()
+        let usdc = try #require(try await fixture.list(for: "wallet").tokens.first)
+        try await service.addToken(usdc, for: "wallet")
+        try await service.removeToken(try token(1).mint, for: "wallet")
+        #expect(try fixture.store.tokenList(for: CacheKey(owner: "wallet", network: .mainnet)) == nil)
+    }
+
+    @Test
     func `A list holds fifty tokens with native SOL and refuses another`() async throws {
         let fixture = TokenListFixture()
         defer { fixture.removeFiles() }

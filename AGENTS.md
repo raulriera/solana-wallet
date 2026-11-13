@@ -26,7 +26,7 @@
 - Don't restate what's already evident: no labels or accessibility labels that repeat visible text, a control's role, or the enclosing screen's title; no view types that only wrap a system view; no tests that assert a value equals its own declaration.
 - Prioritize developer experience: express intent with typed APIs and encapsulate serialization and transport details inside services.
 - Learn how Apple solves a problem and mirror its API shape and naming before inventing your own: extend the Apple type as Apple would, such as `URL.persistentDirectory` beside `URL.cachesDirectory`, instead of adding a wrapper type.
-- Use protocol-oriented programming throughout: depend on protocols and inject concrete implementations.
+- Use protocol-oriented programming where a role has more than one implementation, or where tests replace it: depend on the protocol and inject the implementation. Use the concrete type for a role with one implementation, and add the protocol together with the second.
 - Compose wallet workflows in internal app services/coordinators, outside views; keep frameworks focused on reusable concerns. Follow [references/architecture.md](references/architecture.md).
 - Expose only contracts and values needed across module boundaries; keep implementation helpers, and protocols used only within a module, internal or private.
 - iOS 27.1+ with full iPhone Duo support; no older-iOS compatibility paths.

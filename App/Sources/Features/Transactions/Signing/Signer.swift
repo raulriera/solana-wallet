@@ -9,7 +9,7 @@ nonisolated struct Signer: TransactionSigning {
     private let validator: any PreparationValidating
     private let store: any RecoveryStoring
     private let wallet: any MessageSigning
-    private let transactionBuilder: any TransactionBuilding = TransactionBuilder()
+    private let transactionBuilder = TransactionBuilder()
 
     /// Creates a signer.
     ///

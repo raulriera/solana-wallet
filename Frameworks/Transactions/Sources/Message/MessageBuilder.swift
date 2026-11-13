@@ -2,10 +2,19 @@ import Encoding
 public import Foundation
 
 /// A message builder that compiles instructions into V1 messages.
-public struct MessageBuilder: MessageBuilding {
+public struct MessageBuilder: Sendable {
     /// Creates a message builder.
     public init() {}
 
+    /// Compiles instructions into a V1 message.
+    ///
+    /// - Parameters:
+    ///   - instructions: The instructions in execution order.
+    ///   - payer: The signer that pays network fees.
+    ///   - recentBlockhash: The recent blockhash, in Base58.
+    ///   - configuration: The fee and resource requests.
+    /// - Returns: The message bytes, without signature slots.
+    /// - Throws: A validation error for invalid roles, blockhash, or transaction limits.
     public func message(instructions: [Instruction], payer: Address, recentBlockhash: String,
                         configuration: Configuration) throws -> Data {
         guard let blockhash = Base58.decode(recentBlockhash, byteCount: 32) else {
@@ -35,18 +44,18 @@ public struct MessageBuilder: MessageBuilding {
         let accounts = writableSigners + readonlySigners + writableOthers + readonlyOthers
         let indices = Dictionary(uniqueKeysWithValues: accounts.enumerated().map { ($0.element, UInt8($0.offset)) })
         var message = Data([0x81, UInt8(signers.count), UInt8(readonlySigners.count), UInt8(readonlyOthers.count)])
-        message.appendLittleEndian(UInt32(configuration.heapSize == nil ? 0x0f : 0x1f))
+        message.append(littleEndian: UInt32(configuration.heapSize == nil ? 0x0f : 0x1f))
         message.append(contentsOf: blockhash)
         message.append(contentsOf: [UInt8(instructions.count), UInt8(accounts.count)])
         for account in accounts { message.append(contentsOf: account.bytes) }
-        message.appendLittleEndian(configuration.priorityFeeLamports)
-        message.appendLittleEndian(configuration.computeUnitLimit)
-        message.appendLittleEndian(configuration.loadedAccountsDataSizeLimit)
-        if let heap = configuration.heapSize { message.appendLittleEndian(heap) }
+        message.append(littleEndian: configuration.priorityFeeLamports)
+        message.append(littleEndian: configuration.computeUnitLimit)
+        message.append(littleEndian: configuration.loadedAccountsDataSizeLimit)
+        if let heap = configuration.heapSize { message.append(littleEndian: heap) }
         for instruction in instructions {
             guard let program = indices[instruction.program] else { throw ValidationError.invalidMessage }
             message.append(contentsOf: [program, UInt8(instruction.accounts.count)])
-            message.appendLittleEndian(UInt16(instruction.data.count))
+            message.append(littleEndian: UInt16(instruction.data.count))
         }
         for instruction in instructions {
             for account in instruction.accounts {

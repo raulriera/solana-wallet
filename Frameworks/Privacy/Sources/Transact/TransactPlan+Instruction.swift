@@ -41,7 +41,7 @@ extension TransactPlan {
         var accounts: [Transaction.Account] = [
             .writable(payer, isSigner: true),
             .writable(try ShieldedPool.tree(id: outputTreeID)),
-            .readonly(try ShieldedPool.program),
+            .readonly(try ShieldedPool.address),
             .readonly(try SystemProgram.address),
         ]
         accounts += inputTrees.map { .writable($0) }
@@ -51,6 +51,6 @@ extension TransactPlan {
         }
         accounts.append(.readonly(payer, isSigner: true))
         if let withdrawal { accounts += try withdrawal.settlementAccounts }
-        return Instruction(program: try ShieldedPool.program, accounts: accounts, data: Data(writer.bytes))
+        return Instruction(program: try ShieldedPool.address, accounts: accounts, data: Data(writer.bytes))
     }
 }

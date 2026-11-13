@@ -36,7 +36,7 @@ struct ShieldedPoolTreeFeeTests {
     @Test
     func `Accounts shorter than a tree account fail`() async throws {
         let transport = StubTransport.replying(accounts: [
-            AccountReplies.account(owner: ShieldedPool.programID, data: [UInt8](repeating: 0, count: 16)),
+            AccountReplies.account(owner: ShieldedPool.id, data: [UInt8](repeating: 0, count: 16)),
         ])
 
         await #expect(throws: ShieldedPool.TreeError.invalidLength) {

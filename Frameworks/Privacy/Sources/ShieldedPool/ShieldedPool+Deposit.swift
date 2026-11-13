@@ -1,4 +1,5 @@
 import CryptoKit
+import Encoding
 import Foundation
 import ModularArithmetic
 public import Transactions
@@ -85,10 +86,10 @@ extension ShieldedPool {
         writer.append(array: recipient.owner.bigEndianBytes)
         writer.append(amount)
         writer.appendNone()
-        return Instruction(program: try program, accounts: [
+        return Instruction(program: try address, accounts: [
             .writable(try tree(id: treeID)),
             .writable(depositor, isSigner: true),
-            .readonly(try program),
+            .readonly(try address),
         ] + settlement, data: Data(writer.bytes))
     }
 
@@ -99,7 +100,8 @@ extension ShieldedPool {
     ///   - leafIndex: The UTXO's position in the tree.
     /// - Returns: The blinding.
     static func depositBlinding(tree: Address, leafIndex: UInt64) -> Poseidon.Element {
-        let preimage = depositBlindingDomain + tree.bytes + Swift.withUnsafeBytes(of: leafIndex.bigEndian, Array.init)
+        var preimage = depositBlindingDomain + tree.bytes
+        preimage.append(bigEndian: leafIndex)
         var digest = Array(SHA256.hash(data: preimage))
         digest[0] = 0
         return Poseidon.Element(reducing: digest)

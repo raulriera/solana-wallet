@@ -1,5 +1,6 @@
 import Foundation
 import ModularArithmetic
+import Redaction
 
 extension FieldElement {
     /// Creates an element by reducing at most 32 right-aligned big-endian bytes modulo the field's modulus.

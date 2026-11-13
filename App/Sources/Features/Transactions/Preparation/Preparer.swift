@@ -5,8 +5,8 @@ import Transactions
 /// A preparer that compiles and simulates transactions through a provider.
 nonisolated struct Preparer: TransactionPreparing {
     private let rpc: any RPC
-    private let messageBuilder: any MessageBuilding = MessageBuilder()
-    private let transactionBuilder: any TransactionBuilding = TransactionBuilder()
+    private let messageBuilder = MessageBuilder()
+    private let transactionBuilder = TransactionBuilder()
     private let requirements: SubmissionRequirements?
 
     /// Creates a preparer.

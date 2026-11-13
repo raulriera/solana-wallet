@@ -1,14 +1,10 @@
+import Encoding
 import Foundation
 
 /// Instruction constructors for the System Program.
-public enum SystemProgram {
-    /// The System Program's address.
-    static let id = "11111111111111111111111111111111"
-
-    /// The program's address.
-    public static var address: Address {
-        get throws { try Address(id) }
-    }
+public enum SystemProgram: Program {
+    /// The System Program's address as Base58 text.
+    public static let id = "11111111111111111111111111111111"
 
     /// Creates a native SOL transfer instruction.
     ///
@@ -23,8 +19,8 @@ public enum SystemProgram {
         let program = try address
         guard sender != program, recipient != program else { throw ValidationError.programAddressAsTransferAccount }
         var data = Data()
-        data.appendLittleEndian(UInt32(2))
-        data.appendLittleEndian(lamports)
+        data.append(littleEndian: UInt32(2))
+        data.append(littleEndian: lamports)
         return Instruction(program: program, accounts: [
             .writable(sender, isSigner: true),
             .writable(recipient),

@@ -1,3 +1,4 @@
+import Encoding
 import Foundation
 
 extension TokenProgram {
@@ -16,9 +17,9 @@ extension TokenProgram {
     public func transferChecked(_ amount: UInt64, decimals: UInt8, from source: Address, mint: Address,
                                 to destination: Address, authority: Address, fee: UInt64? = nil) throws -> Instruction {
         var data = Data(fee == nil ? [12] : [26, 1])
-        data.appendLittleEndian(amount)
+        data.append(littleEndian: amount)
         data.append(decimals)
-        if let fee { data.appendLittleEndian(fee) }
+        if let fee { data.append(littleEndian: fee) }
         return Instruction(program: try address, accounts: [
             .writable(source),
             .readonly(mint),

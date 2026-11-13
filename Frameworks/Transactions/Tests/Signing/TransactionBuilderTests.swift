@@ -6,7 +6,7 @@ struct TransactionBuilderTests {
     @Test
     func `Unsigned simulations preserve V1 messages with one empty signature slot`() throws {
         let message = try SignedTransferFixture.bytes(SignedTransferFixture.message)
-        let builder: any TransactionBuilding = TransactionBuilder()
+        let builder = TransactionBuilder()
 
         let transaction = try builder.simulationTransaction(for: message)
 
@@ -21,7 +21,7 @@ struct TransactionBuilderTests {
                                                loadedAccountsDataSizeLimit: 65_536)
         let message = try MessageBuilder().message(instructions: [transfer], payer: transfer.accounts[0].address, recentBlockhash: MessageFixture.zeroBlockhash,
                                                    configuration: configuration)
-        let builder: any TransactionBuilding = TransactionBuilder()
+        let builder = TransactionBuilder()
 
         let transaction = try builder.transaction(
             byAdding: SignedTransferFixture.bytes(SignedTransferFixture.signature),

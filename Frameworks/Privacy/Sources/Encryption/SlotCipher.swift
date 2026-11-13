@@ -1,6 +1,8 @@
 import CommonCrypto
 import CryptoKit
+import Encoding
 import Foundation
+import Redaction
 
 /// The cipher of one output slot's note, with X25519, HKDF-SHA256, and AES-256-CTR.
 enum SlotCipher {
@@ -117,7 +119,8 @@ enum SlotCipher {
         shared.withUnsafeBytes { keyMaterial.append(contentsOf: $0) }
         keyMaterial.append(contentsOf: ephemeral)
         keyMaterial.append(contentsOf: recipient)
-        let info = infoPrefix + salt + Swift.withUnsafeBytes(of: slot.bigEndian, Array.init)
+        var info = infoPrefix + salt
+        info.append(bigEndian: slot)
         let keyAndNonce = HKDF<SHA256>.deriveKey(
             inputKeyMaterial: SymmetricKey(data: keyMaterial), info: info, outputByteCount: keyAndNonceLength
         )

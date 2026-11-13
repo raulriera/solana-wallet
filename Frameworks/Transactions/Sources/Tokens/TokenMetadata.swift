@@ -7,16 +7,13 @@ public struct TokenMetadata: Sendable, Equatable {
     /// The ticker symbol.
     public let symbol: String?
 
-    /// The Metaplex Token Metadata program's address.
-    private static let metaplexProgram = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
-
     /// Derives the address of a mint's Metaplex metadata account.
     ///
     /// - Parameter mint: The token's mint address.
     /// - Returns: The metadata account address.
     /// - Throws: ``ValidationError/addressDerivationFailed`` if no valid bump exists.
     public static func metaplexAccount(for mint: Address) throws -> Address {
-        let program = try Address(metaplexProgram)
+        let program = try MetaplexProgram.address
         return try ProgramAddress.find(seeds: [Array("metadata".utf8), program.bytes, mint.bytes], program: program).address
     }
 
@@ -29,7 +26,7 @@ public struct TokenMetadata: Sendable, Equatable {
     /// - Throws: ``TokenError/invalidAccount`` if the account isn't valid metadata for the mint.
     public init(metaplexAccount data: Data, owner: Address, mint: Address) throws {
         let bytes = Array(data)
-        guard owner.value == Self.metaplexProgram, bytes.first == 4, bytes.count >= 65,
+        guard owner.value == MetaplexProgram.id, bytes.first == 4, bytes.count >= 65,
               Array(bytes[33..<65]) == mint.bytes else { throw TokenError.invalidAccount }
         try self.init(fields: bytes, at: 65)
     }

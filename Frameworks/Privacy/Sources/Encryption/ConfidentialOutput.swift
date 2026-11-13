@@ -1,4 +1,5 @@
 import CryptoKit
+import Encoding
 import Foundation
 import ModularArithmetic
 import RPC
@@ -33,7 +34,7 @@ struct ConfidentialOutput: Sendable {
     var encoded: [UInt8] {
         var bytes = [ShieldedOutput.Encoding.encrypted.rawValue]
         bytes.reserveCapacity(Self.payloadLength)
-        bytes.appendLittleEndian(UInt32(Self.bodyLength))
+        bytes.append(littleEndian: UInt32(Self.bodyLength))
         bytes.append(Self.confidentialScheme)
         bytes += recipientViewingPublicKey.taggedRepresentation
         bytes += ciphertext
@@ -121,24 +122,6 @@ struct ConfidentialOutput: Sendable {
         return try ConfidentialPlaintext(decoding: SlotCipher.applyAsRecipient(
             to: ciphertext, viewingKey: viewingKey, transactionViewingPublicKey: transactionViewingPublicKey,
             salt: salt, slot: slot
-        ))
-    }
-
-    /// Opens the note as the sender who sealed it.
-    ///
-    /// - Parameters:
-    ///   - transactionViewingKey: The transaction viewing key that sealed the note.
-    ///   - salt: The transaction's 16-byte salt.
-    ///   - slot: The output's position in the transaction.
-    /// - Returns: The note.
-    /// - Throws: ``SlotCipher/ValidationError/invalidSaltLength`` for a salt of another length,
-    ///   ``SlotCipher/ValidationError/lowOrderPublicKey`` for a low-order recipient key, a
-    ///   ``ConfidentialPlaintext/ValidationError`` if the opened note isn't a supported note, or
-    ///   ``SlotCipher/CipherError/cryptorFailed`` if CommonCrypto fails.
-    func openAsSender(transactionViewingKey: Curve25519.KeyAgreement.PrivateKey, salt: [UInt8], slot: UInt32) throws -> ConfidentialPlaintext {
-        try ConfidentialPlaintext(decoding: SlotCipher.applyAsSender(
-            to: ciphertext, transactionViewingKey: transactionViewingKey,
-            recipientViewingPublicKey: recipientViewingPublicKey, salt: salt, slot: slot
         ))
     }
 

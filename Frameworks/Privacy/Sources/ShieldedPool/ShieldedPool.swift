@@ -1,9 +1,11 @@
+import Encoding
 import ModularArithmetic
-import Transactions
+public import Transactions
 
 /// The shielded-pool program and the accounts that its instructions use.
-public enum ShieldedPool {
-    public static let programID = "ring1GaLCuJnkUMVkX2JeZLTTX17wKsV4fZmPVzXANW"
+public enum ShieldedPool: Program {
+    /// The shielded-pool program's address as Base58 text.
+    public static let id = "ring1GaLCuJnkUMVkX2JeZLTTX17wKsV4fZmPVzXANW"
 
     static let transactTag: UInt8 = 16
 
@@ -19,18 +21,14 @@ public enum ShieldedPool {
 
     private static let nullifierSeed = Array("nullifier".utf8)
 
-    static var program: Address {
-        get throws { try Address(programID) }
-    }
-
     /// The account that holds the pool's native SOL.
     static var solInterface: Address {
-        get throws { try ProgramAddress.find(seeds: solInterfaceSeeds, program: program).address }
+        get throws { try ProgramAddress.find(seeds: solInterfaceSeeds, program: address).address }
     }
 
     /// The program's authority over the token accounts that hold the pool's tokens, which signs token withdrawals.
     static var cpiAuthority: Address {
-        get throws { try ProgramAddress.find(seeds: [cpiAuthoritySeed], program: program).address }
+        get throws { try ProgramAddress.find(seeds: [cpiAuthoritySeed], program: address).address }
     }
 
     /// Returns the token account that holds the pool's tokens of a mint, with its bump.
@@ -39,7 +37,7 @@ public enum ShieldedPool {
     /// - Returns: The interface account's address and bump.
     /// - Throws: A ``Transactions/ValidationError`` if the derivation fails.
     static func splInterface(of mint: Address) throws -> (address: Address, bump: UInt8) {
-        try ProgramAddress.find(seeds: [splInterfaceSeed, mint.bytes], program: program)
+        try ProgramAddress.find(seeds: [splInterfaceSeed, mint.bytes], program: address)
     }
 
     /// Derives a UTXO tree's account.
@@ -49,8 +47,8 @@ public enum ShieldedPool {
     /// - Throws: A ``ValidationError`` if the derivation fails.
     static func tree(id: UInt16) throws -> Address {
         var idBytes: [UInt8] = []
-        idBytes.appendLittleEndian(id)
-        return try ProgramAddress.find(seeds: [treeSeed, idBytes], program: program).address
+        idBytes.append(littleEndian: id)
+        return try ProgramAddress.find(seeds: [treeSeed, idBytes], program: address).address
     }
 
     /// Derives the account that records a spent nullifier.
@@ -61,6 +59,6 @@ public enum ShieldedPool {
     /// - Returns: The nullifier's account address.
     /// - Throws: A ``ValidationError`` if the derivation fails.
     static func nullifierAccount(tree: Address, nullifier: Poseidon.Element) throws -> Address {
-        try ProgramAddress.find(seeds: [nullifierSeed, tree.bytes, nullifier.bigEndianBytes], program: program).address
+        try ProgramAddress.find(seeds: [nullifierSeed, tree.bytes, nullifier.bigEndianBytes], program: address).address
     }
 }

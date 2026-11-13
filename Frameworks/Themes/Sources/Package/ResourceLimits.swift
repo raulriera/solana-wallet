@@ -14,7 +14,7 @@ enum ResourceLimits {
     /// - Throws: A validation error if the byte count is outside the allowed range.
     static func checkBytes(_ count: Int64, limit: Int, path: String) throws {
         guard count >= 0, count <= limit else {
-            throw ValidationError(path: path, reason: "Exceeds the \(limit)-byte limit for this file or remaining package budget.")
+            throw ValidationError(path: path, kind: .tooLarge)
         }
     }
 }

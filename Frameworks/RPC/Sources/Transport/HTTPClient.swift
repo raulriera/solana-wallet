@@ -1,7 +1,7 @@
 import Foundation
 import Redaction
 
-/// A client that sends JSON-RPC and JSON requests to an endpoint or to paths below it.
+/// A client that sends JSON-RPC requests, JSON requests, and plain `GET` requests to an endpoint or to paths below it.
 struct HTTPClient: Sendable, Redacted {
     private let endpoint: URL
     private let transport: any HTTPTransport
@@ -75,7 +75,8 @@ struct HTTPClient: Sendable, Redacted {
              maximumLength: Int) async throws -> Data {
         try Task.checkCancellation()
         let url = path.map { endpoint.appending(path: $0) } ?? endpoint
-        let request = makeRequest(to: url.appending(queryItems: query), method: "GET", headers: headers)
+        let target = query.isEmpty ? url : url.appending(queryItems: query)
+        let request = makeRequest(to: target, method: "GET", headers: headers)
         return try await transport.responseData(for: request, maximumLength: maximumLength, redactor: redactor)
     }
 

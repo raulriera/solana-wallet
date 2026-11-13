@@ -55,7 +55,7 @@ extension ShieldedPool {
     ///   length.
     static func treeAccountData(at trees: [Address], using rpc: some RPC) async throws -> [[UInt8]] {
         let accounts = try await rpc.accounts(at: trees.map(\.value)).value
-        let owner = try program.value
+        let owner = try address.value
         return try accounts.map { account in
             guard let account else { throw TreeError.missingTree }
             guard account.owner == owner else { throw TreeError.foreignOwner }

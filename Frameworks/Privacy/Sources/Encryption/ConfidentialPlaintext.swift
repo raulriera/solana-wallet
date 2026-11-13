@@ -1,3 +1,4 @@
+import Encoding
 import ModularArithmetic
 import Redaction
 
@@ -75,8 +76,8 @@ struct ConfidentialPlaintext: Sendable, Equatable, Redacted {
     var encoded: [UInt8] {
         var bytes = [UInt8]()
         bytes.reserveCapacity(Self.length)
-        bytes.appendLittleEndian(asset.rawValue)
-        bytes.appendLittleEndian(amount)
+        bytes.append(littleEndian: asset.rawValue)
+        bytes.append(littleEndian: amount)
         bytes += blinding.bigEndianBytes
         bytes += [0, 0]
         return bytes

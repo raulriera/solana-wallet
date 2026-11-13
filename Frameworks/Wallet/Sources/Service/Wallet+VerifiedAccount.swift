@@ -1,5 +1,6 @@
 import CryptoKit
 import Encoding
+import Redaction
 
 extension Wallet {
     /// Recovers an account, checks its address, and runs work with its key and seed.

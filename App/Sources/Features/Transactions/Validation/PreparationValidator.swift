@@ -19,8 +19,8 @@ nonisolated protocol PreparationValidating: Sendable {
 /// A validator that checks a preparation against a provider.
 nonisolated struct PreparationValidator: PreparationValidating {
     private let rpc: any RPC
-    private let messageBuilder: any MessageBuilding = MessageBuilder()
-    private let transactionBuilder: any TransactionBuilding = TransactionBuilder()
+    private let messageBuilder = MessageBuilder()
+    private let transactionBuilder = TransactionBuilder()
 
     /// Creates a validator.
     ///

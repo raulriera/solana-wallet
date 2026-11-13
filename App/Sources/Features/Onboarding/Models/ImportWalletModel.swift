@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import Redaction
 import Vault
 import Wallet
 
@@ -21,7 +22,7 @@ final class ImportWalletModel: ImportSubmitting {
     private let coordinator: any OnboardingCoordinating
 
     /// The recovery words and passphrase of an import.
-    private struct Input {
+    private struct Input: Redacted {
         let phrase: String
         let passphrase: String
     }
