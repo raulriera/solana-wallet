@@ -183,10 +183,8 @@ struct PrivateBalancesTests {
         #expect(await responses.requests.isEmpty)
     }
 
-    @Test(arguments: zip([RPCSettings.Provider.helius, .solana], [Network.devnet, .mainnet]))
-    func `A registered account syncs and saves its notes, checking registration once`(
-        provider: RPCSettings.Provider, network: Network
-    ) async throws {
+    @Test(arguments: [Network.devnet, .mainnet])
+    func `A registered account syncs and saves its notes, checking registration once`(network: Network) async throws {
         let account = try await PrivateBalanceFixtures.account()
         let record = try await PrivateBalanceFixtures.keys(for: account)
         let shielded = try record.shieldedAccount(for: account.address)
@@ -195,8 +193,8 @@ struct PrivateBalancesTests {
             deposits: [try PrivateBalanceFixtures.deposit(1_000_000, to: shielded, leafIndex: 4)]
         )
         let notes = StoredValue<PrivateBalances.Notes>()
-        let balances = try await Self.balances(responses, provider: provider,
-                                               keys: StoredValue([account.address.value: record]), notes: notes)
+        let balances = try await Self.balances(responses, keys: StoredValue([account.address.value: record]),
+                                               notes: notes)
         let id = PrivateBalances.noteID(of: account, on: network)
 
         let first = try await balances.refresh(account, on: network)
@@ -769,8 +767,8 @@ struct PrivateBalancesTests {
         #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 0)
     }
 
-    @Test(arguments: [RPCSettings.Provider.helius, .solana])
-    func `Preparing a send proves a private transfer`(provider: RPCSettings.Provider) async throws {
+    @Test
+    func `Preparing a send proves a private transfer`() async throws {
         async let funded = Self.fundedAccount(lamports: 1_000_000)
         async let derivedRecipient = PrivateBalanceFixtures.account(index: 1)
         let (sender, recipient) = try await (funded, derivedRecipient)
@@ -779,7 +777,7 @@ struct PrivateBalancesTests {
         let responses = HTTPResponses.privateNotes(registry: [registry, PrivateBalanceFixtures.unregistered],
                                                    deposits: [sender.deposit], outputTreeID: 1,
                                                    prover: try IndexedProofs.prover())
-        let balances = try await Self.balances(responses, provider: provider, keys: sender.keys, notes: sender.notes)
+        let balances = try await Self.balances(responses, keys: sender.keys, notes: sender.notes)
 
         let prepared = try await balances.prepare(.send(400_000, to: recipient.address), from: sender.account, on: .devnet)
 

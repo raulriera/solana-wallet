@@ -59,14 +59,8 @@ struct AppServices {
                                                coding: .json(PrivateBalances.Codes.self))
         let rpcStore = RPCStore(service: rpcService)
         self.rpcStore = rpcStore
-        let mainnetRings = Zolana(network: .mainnet)
-        let devnetRings = Zolana(network: .devnet)
         let rpcProvider: @Sendable (Network) -> SelectedRPCProvider = { network in
-            let rings = switch network {
-            case .mainnet: mainnetRings
-            case .devnet: devnetRings
-            }
-            return SelectedRPCProvider(network: network, rpcStore: rpcStore, rings: rings)
+            SelectedRPCProvider(network: network, rpcStore: rpcStore)
         }
         rpcConnection = HeliusConnection(rpcStore: rpcStore)
         customRPCConnection = CustomRPCConnection(rpcStore: rpcStore)

@@ -17,7 +17,7 @@ enum LiveClients {
     }
 
     static func provider(network: Network = .devnet, rpcStore: RPCStore) throws -> SelectedRPCProvider {
-        SelectedRPCProvider(network: network, rpcStore: rpcStore, rings: try rings(network: network))
+        SelectedRPCProvider(network: network, rpcStore: rpcStore)
     }
 
     static func heliusAPIKey() throws -> String {

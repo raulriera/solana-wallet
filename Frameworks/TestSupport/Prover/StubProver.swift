@@ -7,7 +7,7 @@ import Testing
 struct StubProver: Sendable {
     typealias Answer = @Sendable (_ body: Data) throws -> (status: Int, body: String)
 
-    private static let claimedKey: AttestedProverKey.Verification = { attestation, _, _, _ in
+    static let claimedKey: AttestedProverKey.Verification = { attestation, _, _, _ in
         try Curve25519.KeyAgreement.PublicKey(rawRepresentation: Hex.decode(attestation.hpkePublicKey) ?? [])
     }
 

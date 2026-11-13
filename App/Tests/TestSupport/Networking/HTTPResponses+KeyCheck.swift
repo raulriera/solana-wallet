@@ -26,15 +26,13 @@ extension HTTPResponses {
         -> (any RPC & AccountChangeProviding & SignatureEventProviding)? {
         switch endpoint {
         case .solana: SolanaRPC(network: network, transport: self, socket: socket)
-        case .helius(let key): HeliusRPC(apiKey: key, network: network, transport: self, socket: socket)
+        case .helius(let key): HeliusRPC(apiKey: key, network: network, transport: self, socket: socket,
+                                         verify: StubProver.claimedKey)
         case .custom(let url): SolanaRPC(endpoint: url, network: network, transport: self, socket: socket)
         }
     }
 
     nonisolated func rpcProvider(network: Network = .mainnet, rpcStore: RPCStore) -> SelectedRPCProvider {
-        SelectedRPCProvider(network: network, rpcStore: rpcStore,
-                            rings: StubProver.zolana(on: network, transport: self)) {
-            self.client(for: $0, on: $1)
-        }
+        SelectedRPCProvider(network: network, rpcStore: rpcStore) { self.client(for: $0, on: $1) }
     }
 }
