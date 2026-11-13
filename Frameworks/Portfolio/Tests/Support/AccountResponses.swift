@@ -1,3 +1,4 @@
+import Encoding
 import Foundation
 import Testing
 @testable import Portfolio
@@ -103,7 +104,8 @@ actor AccountResponses: HTTPTransport {
 }
 
 func tokenAccountData(mint: Address, owner: Address, units: UInt64, program: TokenProgram) -> Data {
-    var bytes = mint.bytes + owner.bytes + withUnsafeBytes(of: units.littleEndian, Array.init)
+    var bytes = mint.bytes + owner.bytes
+    bytes.append(littleEndian: units)
     bytes += [UInt8](repeating: 0, count: 36)
     bytes += [1]
     bytes += [UInt8](repeating: 0, count: 20)
