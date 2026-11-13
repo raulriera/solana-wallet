@@ -75,13 +75,6 @@ struct ConfidentialOutputTests {
     }
 
     @Test
-    func `Senders reopen their own payloads`() throws {
-        let opened = try decodedPayload.openAsSender(transactionViewingKey: transactionViewingKey, salt: salt, slot: output.index)
-
-        #expect(opened == note)
-    }
-
-    @Test
     func `Recipients receive the published UTXO`() throws {
         let utxo = try decodedPayload.receive(
             viewingKey: viewingKey, owner: owner, transactionViewingPublicKey: transactionViewingKey.publicKey,

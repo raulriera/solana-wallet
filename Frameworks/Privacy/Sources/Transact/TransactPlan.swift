@@ -246,8 +246,6 @@ struct TransactPlan: Sendable, Redacted {
     /// The UTXO hashes of the output slots, in slot order.
     var commitments: [Poseidon.Element] { outputs.map(\.published.utxoHash) }
 
-    var payloads: [[UInt8]] { outputs.map(\.published.data) }
-
     /// Creates a plan with random blindings, salt, and padding.
     ///
     /// - Parameters:

@@ -125,24 +125,6 @@ struct ConfidentialOutput: Sendable {
         ))
     }
 
-    /// Opens the note as the sender who sealed it.
-    ///
-    /// - Parameters:
-    ///   - transactionViewingKey: The transaction viewing key that sealed the note.
-    ///   - salt: The transaction's 16-byte salt.
-    ///   - slot: The output's position in the transaction.
-    /// - Returns: The note.
-    /// - Throws: ``SlotCipher/ValidationError/invalidSaltLength`` for a salt of another length,
-    ///   ``SlotCipher/ValidationError/lowOrderPublicKey`` for a low-order recipient key, a
-    ///   ``ConfidentialPlaintext/ValidationError`` if the opened note isn't a supported note, or
-    ///   ``SlotCipher/CipherError/cryptorFailed`` if CommonCrypto fails.
-    func openAsSender(transactionViewingKey: Curve25519.KeyAgreement.PrivateKey, salt: [UInt8], slot: UInt32) throws -> ConfidentialPlaintext {
-        try ConfidentialPlaintext(decoding: SlotCipher.applyAsSender(
-            to: ciphertext, transactionViewingKey: transactionViewingKey,
-            recipientViewingPublicKey: recipientViewingPublicKey, salt: salt, slot: slot
-        ))
-    }
-
     /// Receives the output's UTXO if it belongs to an account.
     ///
     /// - Parameters:

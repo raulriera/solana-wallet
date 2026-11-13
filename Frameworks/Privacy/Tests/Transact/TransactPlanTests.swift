@@ -24,7 +24,7 @@ struct TransactPlanTests {
             viewingKey: TransferVectors.sender().viewingKey, firstNullifier: #require(plan.nullifiers.first)
         )
 
-        let received = try ConfidentialOutput(decoding: plan.payloads[0]).receive(
+        let received = try ConfidentialOutput(decoding: plan.outputs[0].published.data).receive(
             viewingKey: TransferVectors.recipientViewingKey(), owner: TransferVectors.recipient().owner,
             transactionViewingPublicKey: transactionViewingKey.publicKey, salt: TransferVectors.salt, slot: 0,
             treeID: plan.outputTreeID, utxoHash: plan.commitments[0]
@@ -40,7 +40,7 @@ struct TransactPlanTests {
         let sender = try TransferVectors.sender()
         let transactionViewingKey = try TransactionViewingKey.derive(viewingKey: sender.viewingKey, firstNullifier: #require(plan.nullifiers.first))
 
-        let received = try ConfidentialOutput(decoding: plan.payloads[1]).receive(
+        let received = try ConfidentialOutput(decoding: plan.outputs[1].published.data).receive(
             viewingKey: sender.viewingKey, owner: CommitmentVectors.load().ed25519Rail.ownerHash(),
             transactionViewingPublicKey: transactionViewingKey.publicKey, salt: TransferVectors.salt, slot: 1,
             treeID: plan.outputTreeID, utxoHash: plan.commitments[1]
@@ -120,7 +120,7 @@ struct TransactPlanTests {
             spending: utxos, sender: TransferVectors.sender(), transfer: transfer, withdrawal: nil, outputTreeID: 0, randomness: randomness
         )
 
-        #expect(random.payloads == explicit.payloads)
+        #expect(random.outputs.map(\.published.data) == explicit.outputs.map(\.published.data))
         #expect(random.externalData.hash == explicit.externalData.hash)
         #expect(random.privateTransactionHash == explicit.privateTransactionHash)
         #expect(randomness.blindingSeed.bigEndianBytes[0] == 0)
