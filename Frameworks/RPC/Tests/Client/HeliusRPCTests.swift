@@ -43,21 +43,26 @@ struct HeliusRPCTests {
         ])
     }
 
-    @Test
-    func `Proof requests go sealed below the Solana Rings path with the key`() async throws {
+    @Test(arguments: [
+        (Network.mainnet, "mainnet.helius-rpc.com"),
+        (.devnet, "devnet.helius-rpc.com"),
+    ])
+    func `Proof requests go sealed below the network's Solana Rings path with the key`(network: Network,
+                                                                                      expectedHost: String) async throws {
         let opened = Mutex<Data?>(nil)
         let prover = try StubProver { body in
             opened.withLock { $0 = body }
             return (503, "{}")
         }
         let transport = prover.transport()
-        let rpc: any ProofProviding = StubProver.helius(transport: transport)
+        let rpc: any ProofProviding = StubProver.helius(on: network, transport: transport)
 
         await #expect(throws: RPCError.http(statusCode: 503, retryAfter: nil)) {
             try await rpc.proveTransfer(ProofFixtures.indexedRequest())
         }
 
         let urls = await transport.requests.compactMap(\.url)
+        #expect(urls.map { $0.host() } == [expectedHost, expectedHost])
         #expect(urls.map { $0.path() } == ["/v1/spr/attestation", "/v1/spr/prove/transfer_confidential_1_2/indexed"])
         #expect(urls.map { $0.query()?.hasPrefix("api-key=test-key") } == [true, true])
         #expect(opened.withLock { $0 } != nil)

@@ -9,9 +9,9 @@ import Wallet
 
 @Suite(.timeLimit(.minutes(1)))
 struct PrivateBalancesTests {
-    private static let providersWithoutPrivateBalances: [RPCSettings.Provider] = [
-        .solana, .custom(URL(string: "https://rpc.example.com")!),
-    ]
+    private static var providersWithoutPrivateBalances: [RPCSettings.Provider] {
+        get throws { [.solana, try PrivateBalanceFixtures.customRPC()] }
+    }
 
     @Test(arguments: Network.allCases)
     func `Enabling keeps the keys of an unregistered account`(network: Network) async throws {
@@ -60,7 +60,7 @@ struct PrivateBalancesTests {
         #expect(try await Self.methods(of: responses) == [GetMultipleAccounts.method])
     }
 
-    @Test(arguments: providersWithoutPrivateBalances)
+    @Test(arguments: try providersWithoutPrivateBalances)
     func `Enabling with a provider that doesn't serve private balances keeps the keys unchecked`(
         provider: RPCSettings.Provider
     ) async throws {
@@ -164,7 +164,7 @@ struct PrivateBalancesTests {
         #expect(try await Self.balances(responses).refresh(account, on: .devnet) == .off(isRegistered: false))
     }
 
-    @Test(arguments: providersWithoutPrivateBalances)
+    @Test(arguments: try providersWithoutPrivateBalances)
     func `An account without keys is unavailable with a provider that doesn't serve private balances`(
         provider: RPCSettings.Provider
     ) async throws {
@@ -330,7 +330,7 @@ struct PrivateBalancesTests {
         #expect(await notes.value == nil)
     }
 
-    @Test(arguments: [false, true], providersWithoutPrivateBalances)
+    @Test(arguments: [false, true], try providersWithoutPrivateBalances)
     func `A provider that doesn't serve private balances is unavailable`(hasNotes: Bool,
                                                                         provider: RPCSettings.Provider) async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -734,7 +734,7 @@ struct PrivateBalancesTests {
         #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 0)
     }
 
-    @Test(arguments: providersWithoutPrivateBalances)
+    @Test(arguments: try providersWithoutPrivateBalances)
     func `Preparing a send with a provider that doesn't serve private balances is unavailable`(
         provider: RPCSettings.Provider
     ) async throws {

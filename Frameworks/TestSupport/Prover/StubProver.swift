@@ -19,9 +19,8 @@ struct StubProver: Sendable {
         self.answer = answer
     }
 
-    static func zolana(on network: Network = .devnet, transport: any HTTPTransport) -> Zolana {
-        Zolana(network: network, endpoint: Zolana.stubEndpoint, redactor: SecretRedactor(secrets: []),
-               transport: transport, verify: claimedKey)
+    static func zolana(transport: any HTTPTransport) -> Zolana {
+        Zolana.stub(transport: transport, verify: claimedKey)
     }
 
     static func helius(on network: Network = .devnet, transport: any HTTPTransport) -> HeliusRPC {

@@ -226,6 +226,27 @@ struct SelectedRPCProviderTests {
         #expect(await responses.requests.isEmpty)
     }
 
+    @Test
+    func `A key change proves with a new client that has the new key and its own attestation`() async throws {
+        let account = try await PrivateBalanceFixtures.account()
+        let shielded = try await PrivateBalanceFixtures.keys(for: account).shieldedAccount(for: account.address)
+        let responses = HTTPResponses.privateNotes(prover: try IndexedProofs.prover())
+        let rpcStore = RPCStore.inMemory(selection: .helius, key: "first-key")
+        let client = responses.rpcProvider(network: .devnet, rpcStore: rpcStore)
+        let request = try PrivateBalanceFixtures.proofRequest(spending: shielded)
+
+        _ = try await client.proveTransfer(request)
+        _ = try await client.proveTransfer(request)
+        try await rpcStore.save(key: "second-key")
+        _ = try await client.proveTransfer(request)
+
+        let urls = await responses.requests.compactMap(\.url)
+        let attestations = urls.filter { $0.path().hasSuffix("/attestation") }
+        #expect(attestations.map { $0.query()?.hasPrefix("api-key=first-key") } == [true, false])
+        #expect(urls.last?.query() == "api-key=second-key")
+        #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 3)
+    }
+
     @Test(arguments: [401, 403])
     func `A Solana Rings rejection with Helius selected is reported as a key error`(status: Int) async throws {
         let account = try await PrivateBalanceFixtures.account()

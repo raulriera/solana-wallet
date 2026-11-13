@@ -31,10 +31,19 @@ extension SolanaRPC {
 }
 
 extension Zolana {
-    static let stubEndpoint = URL(string: "https://rings.example.com")!
-
     static func devnet(transport: StubTransport) -> Zolana {
-        Zolana(network: .devnet, endpoint: stubEndpoint, redactor: SecretRedactor(secrets: []), transport: transport)
+        stub(transport: transport)
+    }
+
+    static func stub(
+        on network: Network = .devnet,
+        transport: any HTTPTransport,
+        nonce: @escaping @Sendable () -> [UInt8] = AttestedProverKey.randomNonce,
+        now: @escaping @Sendable () -> Date = { .now },
+        verify: @escaping AttestedProverKey.Verification = AttestedProverKey.verification
+    ) -> Zolana {
+        Zolana(network: network, endpoint: URL(string: "https://rings.example.com")!,
+               redactor: SecretRedactor(secrets: []), transport: transport, nonce: nonce, now: now, verify: verify)
     }
 }
 

@@ -75,10 +75,9 @@ nonisolated struct SelectedRPCProvider: RPC, AccountChangeProviding, SignatureEv
     /// anything.
     ///
     /// - Returns: `true` for a provider with both capabilities.
-    /// - Throws: The error of ``endpoint()``, or ``RPCProviderError/unusableEndpoint`` for a saved endpoint that can't
-    ///   be used.
+    /// - Throws: The error of ``perform(_:)``.
     func servesPrivateBalances() async throws -> Bool {
-        try await clients.client(for: endpoint()) is any PrivateNoteProviding & ProofProviding
+        try await perform { $0 is any PrivateNoteProviding & ProofProviding }
     }
 
     /// Runs a private-note read or proof on the selected provider's client.
