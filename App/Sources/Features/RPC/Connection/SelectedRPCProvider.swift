@@ -71,6 +71,16 @@ nonisolated struct SelectedRPCProvider: RPC, AccountChangeProviding, SignatureEv
         try await performRings { try await $0.proveTransfer(request) }
     }
 
+    /// Returns whether the selected provider reads private notes and proves private transfers, without sending
+    /// anything.
+    ///
+    /// - Returns: `true` for a provider with both capabilities.
+    /// - Throws: The error of ``endpoint()``, or ``RPCProviderError/unusableEndpoint`` for a saved endpoint that can't
+    ///   be used.
+    func servesPrivateBalances() async throws -> Bool {
+        try await clients.client(for: endpoint()) is any PrivateNoteProviding & ProofProviding
+    }
+
     /// Runs a private-note read or proof on the selected provider's client.
     ///
     /// - Parameter operation: The read or proof.

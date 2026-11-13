@@ -9,11 +9,11 @@ import Wallet
 extension PrivateBalances {
     func outstandingCodes(of account: Account, on network: Network) async throws -> [OutstandingRedeemCode] {
         let generation = generation
-        let client = client(for: network)
         let id = Self.noteID(of: account, on: network)
         async let savedKeys = keyRecord(of: account, from: generation)
         async let savedCodes = rebuilding(codes, .codes, from: generation) { try await $0.load() }
         do {
+            let client = try await client(for: network)
             guard let keys = try await savedKeys else { throw PrivateBalanceError.turnedOff }
             var ledger = try await savedCodes?[id]
             var known: (statuses: [UInt32: RedeemCodeScan.Status], lamports: [UInt32: UInt64]) = ([:], [:])

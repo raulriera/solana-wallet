@@ -156,6 +156,19 @@ struct SelectedRPCProviderTests {
         #expect(await responses.requests.count == lookups)
     }
 
+    @Test(arguments: [
+        (RPCSettings.Provider.helius, true), (.solana, false),
+        (.custom(URL(string: "https://rpc.example.com")!), false),
+    ])
+    func `Only a provider with private notes and proofs serves private balances`(provider: RPCSettings.Provider,
+                                                                              serves: Bool) async throws {
+        let responses = HTTPResponses.keyCheck()
+        let client = responses.rpcProvider(rpcStore: .inMemory(selection: provider, key: "fixture-key"))
+
+        #expect(try await client.servesPrivateBalances() == serves)
+        #expect(await responses.requests.isEmpty)
+    }
+
     @Test(arguments: Network.allCases)
     func `Helius reads private notes and proves private transfers with its key`(network: Network) async throws {
         let account = try await PrivateBalanceFixtures.account()

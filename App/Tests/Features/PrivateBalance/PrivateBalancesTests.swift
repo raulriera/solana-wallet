@@ -9,6 +9,10 @@ import Wallet
 
 @Suite(.timeLimit(.minutes(1)))
 struct PrivateBalancesTests {
+    private static let providersWithoutPrivateBalances: [RPCSettings.Provider] = [
+        .solana, .custom(URL(string: "https://rpc.example.com")!),
+    ]
+
     @Test(arguments: Network.allCases)
     func `Enabling keeps the keys of an unregistered account`(network: Network) async throws {
         let account = try await PrivateBalanceFixtures.account()
@@ -56,15 +60,16 @@ struct PrivateBalancesTests {
         #expect(try await Self.methods(of: responses) == [GetMultipleAccounts.method])
     }
 
-    @Test
-    func `Enabling with a custom RPC off mainnet keeps the keys unchecked`() async throws {
+    @Test(arguments: providersWithoutPrivateBalances)
+    func `Enabling with a provider that doesn't serve private balances keeps the keys unchecked`(
+        provider: RPCSettings.Provider
+    ) async throws {
         let account = try await PrivateBalanceFixtures.account()
         let responses = HTTPResponses.privateNotes()
         let keys = StoredValue<PrivateBalances.Keys>()
         let notes = StoredValue<PrivateBalances.Notes>()
 
-        try await Self.balances(responses, provider: try PrivateBalanceFixtures.customRPC(), keys: keys, notes: notes)
-            .enable(account, on: .devnet)
+        try await Self.balances(responses, provider: provider, keys: keys, notes: notes).enable(account, on: .devnet)
 
         #expect(await keys.value == [account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
         #expect(await notes.value == nil)
@@ -159,11 +164,13 @@ struct PrivateBalancesTests {
         #expect(try await Self.balances(responses).refresh(account, on: .devnet) == .off(isRegistered: false))
     }
 
-    @Test
-    func `An account without keys is unavailable with a custom RPC off mainnet`() async throws {
+    @Test(arguments: providersWithoutPrivateBalances)
+    func `An account without keys is unavailable with a provider that doesn't serve private balances`(
+        provider: RPCSettings.Provider
+    ) async throws {
         let account = try await PrivateBalanceFixtures.account()
         let responses = HTTPResponses.privateNotes()
-        let balances = try await Self.balances(responses, provider: try PrivateBalanceFixtures.customRPC())
+        let balances = try await Self.balances(responses, provider: provider)
 
         #expect(try await balances.refresh(account, on: .devnet) == .unavailable)
         #expect(await responses.requests.isEmpty)
@@ -323,16 +330,16 @@ struct PrivateBalancesTests {
         #expect(await notes.value == nil)
     }
 
-    @Test(arguments: [false, true])
-    func `A custom RPC off mainnet is unavailable`(hasNotes: Bool) async throws {
+    @Test(arguments: [false, true], providersWithoutPrivateBalances)
+    func `A provider that doesn't serve private balances is unavailable`(hasNotes: Bool,
+                                                                        provider: RPCSettings.Provider) async throws {
         let account = try await PrivateBalanceFixtures.account()
         let responses = HTTPResponses.privateNotes()
         let saved: PrivateBalances.Notes? = hasNotes ? [PrivateBalances.noteID(of: account, on: .devnet): NoteSyncState()] : nil
         let notes = StoredValue(saved)
         let keys = StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
 
-        let status = try await Self.balances(responses, provider: try PrivateBalanceFixtures.customRPC(), keys: keys,
-                                             notes: notes)
+        let status = try await Self.balances(responses, provider: provider, keys: keys, notes: notes)
             .refresh(account, on: .devnet)
 
         #expect(status == .unavailable)
@@ -727,15 +734,17 @@ struct PrivateBalancesTests {
         #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 0)
     }
 
-    @Test
-    func `Preparing a send with a custom RPC off mainnet is unavailable`() async throws {
+    @Test(arguments: providersWithoutPrivateBalances)
+    func `Preparing a send with a provider that doesn't serve private balances is unavailable`(
+        provider: RPCSettings.Provider
+    ) async throws {
         async let funded = Self.fundedAccount(lamports: 1_000_000)
         async let derivedRecipient = PrivateBalanceFixtures.account(index: 1)
         let (sender, recipient) = try await (funded, derivedRecipient)
 
         await #expect(throws: PrivateBalanceError.unavailable) {
-            try await Self.balances(HTTPResponses.privateNotes(), provider: try PrivateBalanceFixtures.customRPC(),
-                                    keys: sender.keys, notes: sender.notes)
+            try await Self.balances(HTTPResponses.privateNotes(), provider: provider, keys: sender.keys,
+                                    notes: sender.notes)
                 .prepare(.send(400_000, to: recipient.address), from: sender.account, on: .devnet)
         }
     }
