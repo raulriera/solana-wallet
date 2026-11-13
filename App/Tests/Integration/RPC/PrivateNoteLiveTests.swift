@@ -6,7 +6,7 @@ import Transactions
 struct PrivateNoteLiveTests {
     @Test(arguments: ShieldedPoolOwners.devnet)
     func `Tag reads return an owner's transactions and resume after them`(owner: String) async throws {
-        let provider = Zolana(network: .devnet)
+        let provider = try LiveClients.rings()
         let tags = [try Address(owner).bytes]
 
         let batch = try await provider.shieldedTransactions(taggedWith: tags, after: nil)
@@ -35,7 +35,7 @@ struct PrivateNoteLiveTests {
 
     @Test
     func `Nullifier reads return the transactions that spent them`() async throws {
-        let provider = Zolana(network: .devnet)
+        let provider = try LiveClients.rings()
         let batch = try await provider.shieldedTransactions(taggedWith: try ShieldedPoolOwners.devnet.map { try Address($0).bytes },
                                                             after: nil)
         let spenders = batch.transactions.filter { !$0.nullifiers.isEmpty }
@@ -50,7 +50,7 @@ struct PrivateNoteLiveTests {
 
     @Test(arguments: [Network.mainnet, .devnet])
     func `Reads of a random value find nothing`(network: Network) async throws {
-        let provider = Zolana(network: network)
+        let provider = try LiveClients.rings(network: network)
         let value = randomFieldElement()
 
         async let taggedRead = provider.shieldedTransactions(taggedWith: [value], after: nil)

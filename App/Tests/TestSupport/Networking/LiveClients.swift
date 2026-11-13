@@ -10,6 +10,11 @@ enum LiveClients {
         return HeliusRPC(apiKey: try heliusAPIKey(), network: network, transport: transport)
     }
 
+    static func rings(network: Network = .devnet,
+                      transport: any HTTPTransport = URLSessionTransport()) throws -> Zolana {
+        HeliusRPC(apiKey: try heliusAPIKey(), network: network, transport: transport).rings
+    }
+
     static func heliusAPIKey() throws -> String {
         let apiKey = try #require(ProcessInfo.processInfo.environment["HELIUS_API_KEY"],
                                   "HELIUS_API_KEY must be configured for live Helius tests")

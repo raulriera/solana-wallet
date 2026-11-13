@@ -100,8 +100,8 @@ struct AttestedProverKeyTests {
         let transport = StubTransport { request in
             try await respond(request) ?? httpReply(to: request, body: body)
         }
-        let zolana = Zolana(
-            network: network,
+        let zolana = Zolana.stub(
+            on: network,
             transport: transport,
             nonce: { nonce },
             now: { recorded.capturedDate.addingTimeInterval(elapsed()) }

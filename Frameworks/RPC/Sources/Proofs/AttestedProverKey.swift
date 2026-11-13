@@ -43,6 +43,9 @@ actor AttestedProverKey {
         self.verify = verify
     }
 
+    /// The check that verifies an attestation's AWS Nitro evidence against the policy.
+    static let verification: Verification = { try $0.publicKey(for: $1, under: $2, at: $3) }
+
     /// Draws a 32-byte nonce from the system's random number generator.
     ///
     /// - Returns: The nonce.

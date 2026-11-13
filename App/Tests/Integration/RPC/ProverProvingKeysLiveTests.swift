@@ -7,7 +7,7 @@ import Testing
 struct ProverProvingKeysLiveTests {
     @Test(arguments: Network.allCases)
     func `The network's prover serves the pinned proving keys`(network: Network) async throws {
-        let catalog = try await Zolana(network: network).prover.get(
+        let catalog = try await LiveClients.rings(network: network).client.get(
             at: "proving-keys", query: [], maximumLength: 1_048_576, decoding: ProvingKeyCatalog.self
         )
         let served = Dictionary(

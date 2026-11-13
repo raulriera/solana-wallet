@@ -83,7 +83,7 @@ struct UTXOTreesTests {
         let notes = try deposits.flatMap { try ReceivedNote.notes(in: $0, of: sender) }
         return try await ReceivedNote.inclusionStatuses(
             of: notes, rpc: SolanaRPC.devnet(transport: transport),
-            indexer: Zolana(network: .devnet, transport: transport)
+            indexer: Zolana.devnet(transport: transport)
         )
     }
 }

@@ -21,7 +21,7 @@ extension Zolana {
         let groups = tags.map(Base58.encode).chunks(ofCount: 1_000).map(Array.init)
         let start = position ?? NoteSyncPosition(tags: tags, groupCount: groups.count)
         guard start.matches(tags, groupCount: groups.count) else { throw PrivateNoteError.mismatchedPosition }
-        let indexer = indexer
+        let indexer = client
         async let transactionReads = Self.read(groups, after: start.transactionCheckpoints) { tags, checkpoint, limit in
             try await Self.page(GetShieldedTransactionsByTags(tags: tags), at: checkpoint, limit: limit, from: indexer)
         }
@@ -48,7 +48,7 @@ extension Zolana {
     public func shieldedTransactions(spending nullifiers: [[UInt8]]) async throws -> [ShieldedTransaction] {
         guard nullifiers.allSatisfy({ $0.count == 32 }) else { throw PrivateNoteError.invalidNullifier }
         let groups = nullifiers.map(Base58.encode).chunks(ofCount: Self.nullifierGroupSize).map(Array.init)
-        let indexer = indexer
+        let indexer = client
         let checkpoints = [IndexerCheckpoint](repeating: .start, count: groups.count)
         let reads = try await Self.read(groups, after: checkpoints) { nullifiers, checkpoint, limit in
             try await Self.page(GetShieldedTransactionsByNullifiers(nullifiers: nullifiers), at: checkpoint,
@@ -62,7 +62,7 @@ extension Zolana {
     public func merkleProofs(for leaves: [[UInt8]], inTree tree: String) async throws -> [MerkleProof] {
         guard leaves.allSatisfy({ $0.count == 32 }) else { throw PrivateNoteError.invalidLeaf }
         guard Base58.decode(tree, byteCount: 32) != nil else { throw PrivateNoteError.invalidTree }
-        let indexer = indexer
+        let indexer = client
         return try await leaves.chunks(ofCount: Self.leafGroupSize).concurrentMap { batch in
             try await indexer.send(GetMerkleProofs(treeAccount: tree, leaves: batch.map(Base58.encode)),
                                    at: GetMerkleProofs.method).proofs.map(\.proof)

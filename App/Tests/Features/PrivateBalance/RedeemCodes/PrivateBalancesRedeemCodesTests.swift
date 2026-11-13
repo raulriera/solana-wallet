@@ -553,6 +553,20 @@ struct PrivateBalancesRedeemCodesTests {
         #expect(await codes.deletions == 1)
     }
 
+    @Test
+    func `Outstanding codes with a provider that doesn't serve private balances are unavailable`() async throws {
+        let sender = try await Self.sender()
+        let responses = try RedeemCodeFixtures.responses(accounts: [:], deposits: [])
+        let balances = await PrivateBalances.inMemory(keys: sender.storedKeys, notes: sender.notes,
+                                                      recovery: try PrivateBalanceFixtures.recoveryStore(),
+                                                      responses: responses, provider: .solana)
+
+        await #expect(throws: PrivateBalanceError.unavailable) {
+            _ = try await balances.outstandingCodes(of: sender.account, on: .devnet)
+        }
+        #expect(await responses.requests.isEmpty)
+    }
+
     @MainActor
     private static func balances(_ responses: HTTPResponses, keys: StoredValue<PrivateBalances.Keys> = StoredValue(),
                                  notes: StoredValue<PrivateBalances.Notes> = StoredValue(),

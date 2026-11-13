@@ -7,7 +7,7 @@ import Testing
 struct StubProver: Sendable {
     typealias Answer = @Sendable (_ body: Data) throws -> (status: Int, body: String)
 
-    private static let claimedKey: AttestedProverKey.Verification = { attestation, _, _, _ in
+    static let claimedKey: AttestedProverKey.Verification = { attestation, _, _, _ in
         try Curve25519.KeyAgreement.PublicKey(rawRepresentation: Hex.decode(attestation.hpkePublicKey) ?? [])
     }
 
@@ -19,8 +19,12 @@ struct StubProver: Sendable {
         self.answer = answer
     }
 
-    static func zolana(on network: Network = .devnet, transport: any HTTPTransport) -> Zolana {
-        Zolana(network: network, transport: transport, verify: claimedKey)
+    static func zolana(transport: any HTTPTransport) -> Zolana {
+        Zolana.stub(transport: transport, verify: claimedKey)
+    }
+
+    static func helius(on network: Network = .devnet, transport: any HTTPTransport) -> HeliusRPC {
+        HeliusRPC(apiKey: "test-key", network: network, transport: transport, verify: claimedKey)
     }
 
     static func attestation(of key: Curve25519.KeyAgreement.PublicKey) -> String {

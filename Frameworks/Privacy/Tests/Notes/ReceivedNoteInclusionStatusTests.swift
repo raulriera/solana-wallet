@@ -32,7 +32,7 @@ struct ReceivedNoteInclusionStatusTests {
 
         let statuses = try await ReceivedNote.inclusionStatuses(
             of: [includedNote, unconfirmedNote, refutedNote], rpc: SolanaRPC.devnet(transport: transport),
-            indexer: Zolana(network: .devnet, transport: transport)
+            indexer: Zolana.devnet(transport: transport)
         )
 
         #expect(statuses == [.included, .unconfirmed, .refuted])
@@ -68,7 +68,7 @@ struct ReceivedNoteInclusionStatusTests {
 
         let statuses = try await ReceivedNote.inclusionStatuses(
             of: [includedNote, otherLeafNote, otherTreeNote], rpc: SolanaRPC.devnet(transport: transport),
-            indexer: Zolana(network: .devnet, transport: transport)
+            indexer: Zolana.devnet(transport: transport)
         )
 
         #expect(statuses == [.included, .refuted, .refuted])
@@ -79,7 +79,7 @@ struct ReceivedNoteInclusionStatusTests {
         let transport = StubTransport { _ in throw CancellationError() }
 
         let statuses = try await ReceivedNote.inclusionStatuses(
-            of: [], rpc: SolanaRPC.devnet(transport: transport), indexer: Zolana(network: .devnet, transport: transport)
+            of: [], rpc: SolanaRPC.devnet(transport: transport), indexer: Zolana.devnet(transport: transport)
         )
 
         #expect(statuses.isEmpty)

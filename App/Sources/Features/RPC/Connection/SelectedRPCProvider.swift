@@ -1,8 +1,7 @@
 import Foundation
 import RPC
 
-/// Sends one network's requests through the selected RPC provider, and its private-note reads and proofs through the
-/// network's Solana Rings provider.
+/// Sends one network's requests, private-note reads, and proofs through the selected RPC provider.
 nonisolated struct SelectedRPCProvider: RPC, AccountChangeProviding, SignatureEventProviding, LogoProviding,
     PrivateNoteProviding, ProofProviding {
     /// A provider that receives requests, with what it needs to accept them.
@@ -19,21 +18,17 @@ nonisolated struct SelectedRPCProvider: RPC, AccountChangeProviding, SignatureEv
     let network: Network
     private let rpcStore: RPCStore
     private let clients: ClientCache<Endpoint, Client>
-    /// The Solana Rings indexer and prover of the network, kept across provider and key changes.
-    private let rings: any PrivateNoteProviding & ProofProviding
 
     /// Creates a client that reads the selected provider before every request.
     ///
     /// - Parameters:
     ///   - network: The network that receives every request and subscription.
     ///   - rpcStore: The provider settings to read.
-    ///   - rings: The provider that reads the network's private notes and proves its private transfers.
     ///   - client: A function that creates the client for an endpoint on a network.
-    init(network: Network, rpcStore: RPCStore, rings: any PrivateNoteProviding & ProofProviding,
+    init(network: Network, rpcStore: RPCStore,
          client: @escaping @Sendable (Endpoint, Network) -> Client? = Self.client(for:on:)) {
         self.network = network
         self.rpcStore = rpcStore
-        self.rings = rings
         clients = ClientCache { endpoint in
             guard let made = client(endpoint, network) else { throw RPCProviderError.unusableEndpoint }
             return made
@@ -76,17 +71,30 @@ nonisolated struct SelectedRPCProvider: RPC, AccountChangeProviding, SignatureEv
         try await performRings { try await $0.proveTransfer(request) }
     }
 
-    /// Runs a private-note read or proof on the Solana Rings provider once the selected provider serves this network.
+    /// Returns whether the selected provider reads private notes and proves private transfers, without sending
+    /// anything.
+    ///
+    /// - Returns: `true` for a provider with both capabilities.
+    /// - Throws: The error of ``perform(_:)``.
+    func servesPrivateBalances() async throws -> Bool {
+        try await perform { $0 is any PrivateNoteProviding & ProofProviding }
+    }
+
+    /// Runs a private-note read or proof on the selected provider's client.
     ///
     /// - Parameter operation: The read or proof.
     /// - Returns: The operation's result.
-    /// - Throws: The error of ``endpoint()``, ``RPCProviderError/unusableEndpoint`` for a saved endpoint that can't
-    ///   be used, or the operation's error unchanged.
+    /// - Throws: ``RPCProviderError/unsupportedNetwork`` for a provider without private notes and proofs, or the
+    ///   error of ``perform(_:)``.
     private func performRings<Value: Sendable>(
         _ operation: (any PrivateNoteProviding & ProofProviding) async throws -> Value
     ) async throws -> Value {
-        _ = try await clients.client(for: endpoint())
-        return try await operation(rings)
+        try await perform { client in
+            guard let client = client as? any PrivateNoteProviding & ProofProviding else {
+                throw RPCProviderError.unsupportedNetwork
+            }
+            return try await operation(client)
+        }
     }
 
     /// Runs an operation on the selected provider's client.

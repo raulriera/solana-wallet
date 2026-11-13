@@ -17,7 +17,7 @@ extension Zolana: ProofProviding {
             at: path,
             to: try await attestedKey.key()
         )
-        return try await prover.post(
+        return try await client.post(
             sealed.body,
             at: path,
             headers: sealed.headers.merging(["X-Sync": "true"]) { $1 },

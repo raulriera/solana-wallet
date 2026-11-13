@@ -13,12 +13,9 @@ struct ZolanaProofsTests {
     ]
 
     @Test(arguments: [
-        (Network.devnet, "dd73hh473h6ha.cloudfront.net", false, "/prove/transfer_confidential_1_2/indexed"),
-        (.mainnet, "d3ky2kt0ntqxt1.cloudfront.net", true, "/prove/transfer_confidential_3_2/indexed"),
-    ] as [(Network, String, Bool, String)])
-    func `A proof request goes sealed to the shape's indexed route on the network's prover with synchronous delivery`(
-        network: Network,
-        host: String,
+        (false, "/prove/transfer_confidential_1_2/indexed"), (true, "/prove/transfer_confidential_3_2/indexed"),
+    ])
+    func `A proof request goes sealed to the shape's indexed route with synchronous delivery`(
         hasTwoTrees: Bool,
         path: String
     ) async throws {
@@ -30,12 +27,11 @@ struct ZolanaProofsTests {
         }
         let transport = prover.transport()
 
-        _ = try? await StubProver.zolana(on: network, transport: transport).proveTransfer(request)
+        _ = try? await StubProver.zolana(transport: transport).proveTransfer(request)
 
         let post = try #require(await transport.requests.last)
         let url = try #require(post.url)
         #expect(post.httpMethod == "POST")
-        #expect(url.host() == host)
         #expect(url.path() == path)
         #expect(url.query() == nil)
         #expect(post.value(forHTTPHeaderField: "X-Sync") == "true")

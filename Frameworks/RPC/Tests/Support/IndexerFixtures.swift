@@ -4,10 +4,6 @@ import Testing
 @testable import RPC
 
 enum IndexerFixtures {
-    static let hosts: [(Network, String)] = [
-        (.mainnet, "dgcj4pjarvo65.cloudfront.net"), (.devnet, "d34xe1hqb2ibg2.cloudfront.net"),
-    ]
-
     static func hash(_ byte: UInt8) -> String { Base58.encode(bytes(byte)) }
 
     static func bytes(_ byte: UInt8) -> [UInt8] { Array(repeating: byte, count: 32) }

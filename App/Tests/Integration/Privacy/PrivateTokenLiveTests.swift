@@ -17,7 +17,7 @@ struct PrivateTokenLiveTests {
         async let configured = DevnetWallets.configured()
         async let store = RPCStore.inMemory(selection: .helius, key: try LiveClients.heliusAPIKey())
         let (wallets, rpcStore) = try await (configured, store)
-        let rpc = SelectedRPCProvider(network: .devnet, rpcStore: rpcStore, rings: Zolana(network: .devnet))
+        let rpc = SelectedRPCProvider(network: .devnet, rpcStore: rpcStore)
         let owner = wallets.sender
         let coordinator = try TransactionCoordinator(rpc: rpc, store: SigningRecoveryStore(recovery: wallets.recovery),
                                                      strategy: .none)
@@ -57,7 +57,7 @@ struct PrivateTokenLiveTests {
         async let configured = DevnetWallets.configured()
         async let store = RPCStore.inMemory(selection: .helius, key: try LiveClients.heliusAPIKey())
         let (wallets, rpcStore) = try await (configured, store)
-        let rpc = SelectedRPCProvider(network: .devnet, rpcStore: rpcStore, rings: Zolana(network: .devnet))
+        let rpc = SelectedRPCProvider(network: .devnet, rpcStore: rpcStore)
         let (owner, recipient) = (wallets.sender, wallets.recipient)
         let mint = try PrivateToken.devnetUSDC.mint
         let tokenAccount = try TokenProgram.token.associatedAccount(owner: recipient.address, mint: mint)

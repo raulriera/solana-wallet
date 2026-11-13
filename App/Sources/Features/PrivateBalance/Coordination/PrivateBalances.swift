@@ -10,7 +10,7 @@ import Wallet
 /// records their private transactions.
 actor PrivateBalances: PrivateBalancing {
     /// A network's client for registry records, private notes, and proofs.
-    typealias Client = any RPC & PrivateNoteProviding & ProofProviding
+    typealias Client = SelectedRPCProvider
 
     /// Each account's keys, by base-58 address.
     typealias Keys = [String: PrivateBalanceKeyRecord]
@@ -144,8 +144,8 @@ actor PrivateBalances: PrivateBalancing {
     func prepare(_ request: PrivateTransactionRequest, from account: Account, on network: Network) async throws
         -> PreparedPrivateTransaction {
         if case .redeem(let code) = request, code.network != network { throw PrivateBalanceError.codeForOtherNetwork }
-        let client = client(for: network)
         do {
+            let client = try await client(for: network)
             switch request {
             case .deposit, .send, .withdraw:
                 return try await preparedTransfer(request, from: account, on: network, client: client)
@@ -194,14 +194,17 @@ actor PrivateBalances: PrivateBalancing {
         _ = try await (keysDeletion, notesDeletion, codesDeletion)
     }
 
-    /// Returns a network's client, creating it the first time the network is used.
+    /// Returns a network's client once the selected provider serves private balances, creating it the first time the
+    /// network is used.
     ///
     /// - Parameter network: The network whose client to return.
     /// - Returns: The network's client.
-    func client(for network: Network) -> Client {
-        if let client = clients[network] { return client }
-        let client = makeClient(network)
+    /// - Throws: ``RPCProviderError/unsupportedNetwork`` for a provider without private balances, or another
+    ///   ``RPCProviderError`` when the selected provider can't be used.
+    func client(for network: Network) async throws -> Client {
+        let client = clients[network] ?? makeClient(network)
         clients[network] = client
+        guard try await client.servesPrivateBalances() else { throw RPCProviderError.unsupportedNetwork }
         return client
     }
 
@@ -292,7 +295,7 @@ actor PrivateBalances: PrivateBalancing {
     /// - Throws: `CancellationError` if cancelled, or the sync's error.
     func sharedSync(of account: Account, on network: Network) async throws -> SyncOutcome {
         let id = Self.noteID(of: account, on: network)
-        let sync = syncs[id] ?? Task { try await synced(account, id: id, client: client(for: network)) }
+        let sync = syncs[id] ?? Task { try await synced(account, id: id, on: network) }
         syncs[id] = sync
         let result = await sync.result
         if syncs[id] == sync { syncs[id] = nil }
@@ -379,10 +382,10 @@ actor PrivateBalances: PrivateBalancing {
     /// - Parameters:
     ///   - account: The account whose notes to sync.
     ///   - id: The account's notes entry on the network.
-    ///   - client: The network's client.
+    ///   - network: The network of the account's private balance.
     /// - Returns: The account's keys and notes, or why it has none.
     /// - Throws: ``PrivateBalanceError/registeredWithOtherKeys``, or a storage, provider, or cancellation error.
-    private func synced(_ account: Account, id: String, client: Client) async throws -> SyncOutcome {
+    private func synced(_ account: Account, id: String, on network: Network) async throws -> SyncOutcome {
         let generation = generation
         await settle { completions[id] }
         async let savedKeys = rebuilding(keys, .keys, from: generation) { try await $0.load() }
@@ -390,6 +393,7 @@ actor PrivateBalances: PrivateBalancing {
         guard let record = try await savedKeys?[account.address.value] else { return .off }
         let shielded = try record.shieldedAccount(for: account.address)
         do {
+            let client = try await client(for: network)
             let saved = try await savedNotes?[id]
             if saved == nil {
                 switch try await shielded.registration(using: client) {

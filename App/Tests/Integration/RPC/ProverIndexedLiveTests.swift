@@ -7,8 +7,8 @@ import Transactions
 
 @Suite(.tags(.network), .timeLimit(.minutes(1)))
 struct ProverIndexedLiveTests {
-    @Test(arguments: Network.allCases)
-    func `A commitment outside the tree comes back as an encrypted refusal`(network: Network) async throws {
+    @Test
+    func `A commitment outside the tree comes back as an encrypted refusal`() async throws {
         let answerVersions = Mutex<[String?]>([])
         let transport = StubTransport { request in
             let (data, response) = try await URLSessionTransport().data(for: request)
@@ -16,14 +16,14 @@ struct ProverIndexedLiveTests {
             answerVersions.withLock { $0.append(version) }
             return (data, response)
         }
-        let zolana = Zolana(network: network, transport: transport)
+        let zolana = try LiveClients.rings(transport: transport)
         let request = try Self.request()
 
         let error = try await #require(throws: RPCError.self) { try await zolana.proveTransfer(request) }
 
         #expect(error.statusCode.map((400..<600).contains) == true, "Received \(String(describing: error))")
-        #expect(await transport.requests.last?.url?.path() == "/prove/transfer_confidential_1_2/indexed")
-        #expect(answerVersions.withLock { $0.last } == "v1")
+        #expect(await transport.requests.last?.url?.path() == "/v1/spr/prove/transfer_confidential_1_2/indexed")
+        #expect(answerVersions.withLock { $0.last } == "v1", "Received \(String(describing: error))")
     }
 
     private static func request() throws -> IndexedTransferProofRequest {

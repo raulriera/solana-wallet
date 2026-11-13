@@ -30,6 +30,23 @@ extension SolanaRPC {
     }
 }
 
+extension Zolana {
+    static func devnet(transport: StubTransport) -> Zolana {
+        stub(transport: transport)
+    }
+
+    static func stub(
+        on network: Network = .devnet,
+        transport: any HTTPTransport,
+        nonce: @escaping @Sendable () -> [UInt8] = AttestedProverKey.randomNonce,
+        now: @escaping @Sendable () -> Date = { .now },
+        verify: @escaping AttestedProverKey.Verification = AttestedProverKey.verification
+    ) -> Zolana {
+        Zolana(network: network, endpoint: URL(string: "https://rings.example.com")!,
+               redactor: SecretRedactor(secrets: []), transport: transport, nonce: nonce, now: now, verify: verify)
+    }
+}
+
 func requestBody(_ request: URLRequest) throws -> [String: Any] {
     let data = try #require(request.httpBody)
     return try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
