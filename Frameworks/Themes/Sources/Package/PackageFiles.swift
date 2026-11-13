@@ -188,8 +188,10 @@ enum PackageFiles {
         }
         let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, options) as? [CFString: Any]
         guard let width = properties?[kCGImagePropertyPixelWidth] as? Int,
-              let height = properties?[kCGImagePropertyPixelHeight] as? Int,
-              width > 0, height > 0, width <= ResourceLimits.imagePixels / height else {
+              let height = properties?[kCGImagePropertyPixelHeight] as? Int, width > 0, height > 0 else {
+            throw ValidationError(path: path, kind: .unreadable)
+        }
+        guard width <= ResourceLimits.imagePixels / height else {
             throw ValidationError(path: path, kind: .tooLarge)
         }
         guard CGImageSourceCreateThumbnailAtIndex(source, 0, [
