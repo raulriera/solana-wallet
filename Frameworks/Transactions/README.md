@@ -7,8 +7,8 @@ Builds Solana instructions, compiles them into V1 messages, decodes transactions
 ```swift
 import Transactions
 
-let compiler: any MessageBuilding = MessageBuilder()
-let assembler: any TransactionBuilding = TransactionBuilder()
+let compiler = MessageBuilder()
+let assembler = TransactionBuilder()
 let transfer = try SystemProgram.transfer(from: sender, to: recipient, lamports: 1_000_000)
 let message = try compiler.message(
     instructions: [transfer],

@@ -2,10 +2,19 @@ import Encoding
 public import Foundation
 
 /// A message builder that compiles instructions into V1 messages.
-public struct MessageBuilder: MessageBuilding {
+public struct MessageBuilder: Sendable {
     /// Creates a message builder.
     public init() {}
 
+    /// Compiles instructions into a V1 message.
+    ///
+    /// - Parameters:
+    ///   - instructions: The instructions in execution order.
+    ///   - payer: The signer that pays network fees.
+    ///   - recentBlockhash: The recent blockhash, in Base58.
+    ///   - configuration: The fee and resource requests.
+    /// - Returns: The message bytes, without signature slots.
+    /// - Throws: A validation error for invalid roles, blockhash, or transaction limits.
     public func message(instructions: [Instruction], payer: Address, recentBlockhash: String,
                         configuration: Configuration) throws -> Data {
         guard let blockhash = Base58.decode(recentBlockhash, byteCount: 32) else {

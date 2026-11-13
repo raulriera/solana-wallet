@@ -2,16 +2,26 @@ import Encoding
 public import Foundation
 
 /// A transaction decoder for V1 envelopes.
-public struct TransactionDecoder: TransactionDecoding {
+public struct TransactionDecoder: Sendable {
     /// Creates a transaction decoder.
     public init() {}
 
+    /// Decodes a Base64-encoded V1 transaction.
+    ///
+    /// - Parameter base64: The Base64-encoded V1 envelope.
+    /// - Returns: The decoded transaction.
+    /// - Throws: ``ValidationError`` for malformed Base64 or an invalid V1 envelope.
     public func decode(base64: String) throws -> Transaction {
         guard base64.utf8.prefix(5_465).count <= 5_464,
               let data = Data(base64Encoded: base64) else { throw ValidationError.invalidTransaction }
         return try decode(data)
     }
 
+    /// Decodes a V1 transaction.
+    ///
+    /// - Parameter data: A complete V1 envelope, including every signature slot.
+    /// - Returns: The message bytes, ordered accounts, requests, instructions, and signatures.
+    /// - Throws: ``ValidationError`` for unsupported or malformed input.
     public func decode(_ data: Data) throws -> Transaction {
         guard !data.isEmpty, data.count <= 4_096 else { throw ValidationError.invalidTransaction }
         var reader = ByteReader(Array(data), error: ValidationError.invalidTransaction)

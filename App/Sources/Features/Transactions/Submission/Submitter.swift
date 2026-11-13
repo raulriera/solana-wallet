@@ -4,7 +4,7 @@ import Transactions
 /// A submitter that sends a reviewed transaction once through one RPC, without retrying.
 nonisolated struct Submitter: TransactionSubmitting {
     private let rpc: any RPC
-    private let transactionBuilder: any TransactionBuilding = TransactionBuilder()
+    private let transactionBuilder = TransactionBuilder()
 
     /// Creates a submitter.
     ///

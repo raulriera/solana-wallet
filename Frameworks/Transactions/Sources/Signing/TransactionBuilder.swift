@@ -2,12 +2,17 @@ import CryptoKit
 public import Foundation
 
 /// A transaction builder that fills V1 signature slots with verified signatures.
-public struct TransactionBuilder: TransactionBuilding {
-    private let decoder: any TransactionDecoding = TransactionDecoder()
+public struct TransactionBuilder: Sendable {
+    private let decoder = TransactionDecoder()
 
     /// Creates a transaction builder.
     public init() {}
 
+    /// Returns a transaction with an empty signature slot for every required signer.
+    ///
+    /// - Parameter message: The V1 message bytes.
+    /// - Returns: The unsigned transaction bytes.
+    /// - Throws: A validation error for an unsupported header, size, or message.
     public func simulationTransaction(for message: Data) throws -> Data {
         guard message.count >= 2, message.first == 0x81 else { throw ValidationError.invalidMessage }
         let count = Int(message[message.startIndex + 1])
@@ -20,6 +25,11 @@ public struct TransactionBuilder: TransactionBuilding {
         return envelope
     }
 
+    /// Decodes an envelope and verifies each occupied signature slot.
+    ///
+    /// - Parameter transaction: The V1 transaction bytes.
+    /// - Returns: The decoded transaction.
+    /// - Throws: A structural or signature validation error.
     public func validateSignatures(in transaction: Data) throws -> Transaction {
         let decoded = try decoder.decode(transaction)
         for (index, signature) in decoded.signatures.enumerated() where signature.contains(where: { $0 != 0 }) {
@@ -28,12 +38,27 @@ public struct TransactionBuilder: TransactionBuilding {
         return decoded
     }
 
+    /// Decodes an envelope and verifies every signature that is already present.
+    ///
+    /// - Parameters:
+    ///   - transaction: The V1 transaction bytes.
+    ///   - signer: The required signer whose slot must still be empty.
+    /// - Returns: The decoded transaction.
+    /// - Throws: A validation error for malformed data, an invalid signature, or an unusable signer slot.
     public func validateSignatures(in transaction: Data, for signer: Address) throws -> Transaction {
         let decoded = try validateSignatures(in: transaction)
         try unsignedIndex(for: signer, in: decoded)
         return decoded
     }
 
+    /// Adds a verified signature to its signer's empty slot.
+    ///
+    /// - Parameters:
+    ///   - signature: The signature of the encoded message.
+    ///   - signer: The account whose signature slot to fill.
+    ///   - transaction: The unsigned or partially signed V1 transaction bytes.
+    /// - Returns: The transaction with the signature added.
+    /// - Throws: A validation error for malformed data, an invalid signature, or an unusable signer slot.
     public func transaction(byAdding signature: Data, for signer: Address, to transaction: Data) throws -> Transaction {
         let decoded = try validateSignatures(in: transaction)
         let index = try unsignedIndex(for: signer, in: decoded)

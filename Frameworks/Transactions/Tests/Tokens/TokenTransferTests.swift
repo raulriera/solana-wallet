@@ -9,7 +9,7 @@ struct TokenTransferTests {
         let transfer = try TokenTransfer(sender: sender, recipient: Address(TokenFixtures.recipient),
                                          mint: fixture.mint(), source: fixture.source(), destination: nil, amount: 1)
         let tip = try SystemProgram.transfer(from: sender, to: Address(TokenFixtures.recipient), lamports: 5_000)
-        let builder: any MessageBuilding = MessageBuilder()
+        let builder = MessageBuilder()
         let message = try builder.message(instructions: [tip] + transfer.instructions(), payer: transfer.sender, recentBlockhash: MessageFixture.zeroBlockhash,
                                           configuration: configuration())
         let transaction = try TransactionDecoder().decode(TransactionBuilder().simulationTransaction(for: message))
@@ -28,7 +28,7 @@ struct TokenTransferTests {
         let transfer = try TokenTransfer(sender: Address(TokenFixtures.sender), recipient: Address(TokenFixtures.recipient),
                                          mint: fixture.mint(), source: fixture.source(),
                                          destination: fixture.createsDestination ? nil : fixture.target(), amount: fixture.amount)
-        let builder: any MessageBuilding = MessageBuilder()
+        let builder = MessageBuilder()
         let message = try builder.message(instructions: transfer.instructions(), payer: transfer.sender, recentBlockhash: MessageFixture.zeroBlockhash,
                                           configuration: configuration())
         let decoder = TransactionDecoder()

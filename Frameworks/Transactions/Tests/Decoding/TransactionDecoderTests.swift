@@ -5,7 +5,7 @@ import Transactions
 struct TransactionDecoderTests {
     @Test
     func `Base64 imports preserve the complete V1 transaction`() throws {
-        let decoder: any TransactionDecoding = TransactionDecoder()
+        let decoder = TransactionDecoder()
 
         let transaction = try decoder.decode(base64: DecodingFixture.wire)
 
@@ -29,7 +29,7 @@ struct TransactionDecoderTests {
             input = input.dropFirst()
             #expect(input.startIndex != 0)
         }
-        let decoder: any TransactionDecoding = TransactionDecoder()
+        let decoder = TransactionDecoder()
 
         let transaction = try decoder.decode(input)
 
