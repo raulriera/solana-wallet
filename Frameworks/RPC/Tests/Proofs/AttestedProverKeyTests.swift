@@ -102,6 +102,8 @@ struct AttestedProverKeyTests {
         }
         let zolana = Zolana(
             network: network,
+            endpoint: Zolana.stubEndpoint,
+            redactor: SecretRedactor(secrets: []),
             transport: transport,
             nonce: { nonce },
             now: { recorded.capturedDate.addingTimeInterval(elapsed()) }

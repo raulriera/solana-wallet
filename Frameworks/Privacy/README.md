@@ -14,10 +14,10 @@ let account = try ShieldedAccount(
     nullifierSecret: keys.nullifierSecret,
     viewingKey: keys.viewingKey
 )
-let zolana = Zolana(network: .mainnet)
+let helius = HeliusRPC(apiKey: apiKey, network: .mainnet)
 let registration = try await account.registration(using: rpc)
-let notes = try await NoteSyncState().syncedToEnd(for: account, rpc: rpc, indexer: zolana)
-let spend = try await notes.spend(lamports, to: .transfer(recipient), from: account, rpc: rpc, prover: zolana)
+let notes = try await NoteSyncState().syncedToEnd(for: account, rpc: rpc, indexer: helius)
+let spend = try await notes.spend(lamports, to: .transfer(recipient), from: account, rpc: rpc, prover: helius)
 ```
 
-`keys` comes from Wallet's `privateBalanceKeys`. `syncedToEnd` reads the account's new notes and spends from the indexer; `synced` reads one batch, so a saved state catches up over several calls. Balances hold SOL and the `PrivateToken` assets.
+`keys` comes from Wallet's `privateBalanceKeys`. `syncedToEnd` reads the account's new notes and spends from the provider's indexer; `synced` reads one batch, so a saved state catches up over several calls. Balances hold SOL and the `PrivateToken` assets.

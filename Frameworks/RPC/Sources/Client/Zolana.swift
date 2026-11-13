@@ -1,7 +1,7 @@
 import Attestation
 public import Foundation
 
-/// A client that reads the Solana Rings indexer and proves transfers with its prover on a selected Solana network.
+/// A client that reads a Solana Rings indexer and proves transfers with its prover at an endpoint.
 public struct Zolana: PrivateNoteProviding {
     /// The client for the Solana Rings indexer.
     let indexer: HTTPClient
@@ -11,38 +11,6 @@ public struct Zolana: PrivateNoteProviding {
 
     /// The prover's HPKE key, attested under the network's policy.
     let attestedKey: AttestedProverKey
-
-    /// Creates a client for the selected network.
-    ///
-    /// - Parameter network: The Solana network to query.
-    public init(network: Network) {
-        self.init(network: network, transport: URLSessionTransport())
-    }
-
-    /// Creates a client with an injected transport, source of attestation nonces, clock, and attestation check.
-    ///
-    /// - Parameters:
-    ///   - network: The Solana network to query.
-    ///   - transport: The transport that performs HTTP requests.
-    ///   - nonce: The source of each prover attestation request's 32-byte nonce.
-    ///   - now: The source of the current time.
-    ///   - verify: The check that returns the key a prover attestation binds to its nonce under the network's policy.
-    init(
-        network: Network,
-        transport: any HTTPTransport,
-        nonce: @escaping @Sendable () -> [UInt8] = AttestedProverKey.randomNonce,
-        now: @escaping @Sendable () -> Date = { .now },
-        verify: @escaping AttestedProverKey.Verification = { try $0.publicKey(for: $1, under: $2, at: $3) }
-    ) {
-        let (indexerHost, proverHost, policy): (String, String, NitroPolicy) =
-            switch network {
-            case .mainnet: ("dgcj4pjarvo65.cloudfront.net", "d3ky2kt0ntqxt1.cloudfront.net", .mainnet)
-            case .devnet: ("d34xe1hqb2ibg2.cloudfront.net", "dd73hh473h6ha.cloudfront.net", .devnet)
-            }
-        indexer = Self.client(host: indexerHost, transport: transport)
-        prover = Self.client(host: proverHost, transport: transport)
-        attestedKey = AttestedProverKey(prover: prover, policy: policy, nonce: nonce, now: now, verify: verify)
-    }
 
     /// Creates a client for an endpoint that serves a network's Solana Rings indexer and prover, or `nil` unless the
     /// endpoint uses HTTPS and has a host.
@@ -84,20 +52,5 @@ public struct Zolana: PrivateNoteProviding {
         indexer = client
         prover = client
         attestedKey = AttestedProverKey(prover: client, policy: policy, nonce: nonce, now: now, verify: verify)
-    }
-
-    /// Creates a keyless client for an HTTPS host.
-    ///
-    /// - Parameters:
-    ///   - host: The host's name.
-    ///   - transport: The transport that performs HTTP requests.
-    /// - Returns: The client.
-    private static func client(host: String, transport: any HTTPTransport) -> HTTPClient {
-        // swift-format-ignore: NeverForceUnwrap
-        HTTPClient(
-            endpoint: URL(string: "https://\(host)")!,
-            transport: transport,
-            redactor: SecretRedactor(secrets: [])
-        )
     }
 }

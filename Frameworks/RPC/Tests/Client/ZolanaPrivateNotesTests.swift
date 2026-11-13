@@ -17,17 +17,17 @@ struct ZolanaPrivateNotesTests {
          [(7, 9), (8, 4)]),
     ]
 
-    @Test(arguments: IndexerFixtures.hosts)
-    func `Tag reads post to each stream's route at the network's indexer`(network: Network, host: String) async throws {
+    @Test
+    func `Tag reads post to each stream's route below the endpoint`() async throws {
         let transport = StubTransport { try reply(to: $0, payload: Fixture.page(in: rows(for: $0))) }
-        let rpc = Zolana(network: network, transport: transport)
+        let rpc = Zolana.devnet(transport: transport)
 
         _ = try await rpc.shieldedTransactions(taggedWith: [Fixture.bytes(1)], after: nil)
 
         let requests = await transport.requests.sorted { ($0.url?.path() ?? "") < ($1.url?.path() ?? "") }
         #expect(requests.map { $0.url?.absoluteString } == [
-            "https://\(host)/getEncryptedUtxosByTags",
-            "https://\(host)/getShieldedTransactionsByTags",
+            "https://rings.example.com/getEncryptedUtxosByTags",
+            "https://rings.example.com/getShieldedTransactionsByTags",
         ])
         let bodies = try requests.map(requestBody)
         #expect(bodies.map { $0["method"] as? String } == [GetEncryptedUtxosByTags.method, GetShieldedTransactionsByTags.method])
@@ -323,7 +323,7 @@ struct ZolanaPrivateNotesTests {
         let requests = await transport.requests
         #expect(requests.count == 3)
         #expect(requests.allSatisfy {
-            $0.url?.absoluteString == "https://d34xe1hqb2ibg2.cloudfront.net/getShieldedTransactionsByNullifiers"
+            $0.url?.absoluteString == "https://rings.example.com/getShieldedTransactionsByNullifiers"
         })
     }
 
@@ -405,20 +405,20 @@ struct ZolanaPrivateNotesTests {
         #expect(await transport.requests.isEmpty)
     }
 
-    @Test(arguments: IndexerFixtures.hosts)
-    func `Merkle proof reads post the tree and leaves to the network's indexer`(network: Network, host: String) async throws {
+    @Test
+    func `Merkle proof reads post the tree and leaves below the endpoint`() async throws {
         let transport = StubTransport { request in
             let leaves = try #require(try Fixture.call(request).params["leaves"] as? [String])
             let bytes = try leaves.map { try #require(Base58.decode($0, byteCount: 32)?.first) }
             return try reply(to: request, payload: Fixture.proofs(bytes.map { Fixture.merkleProof(leaf: $0) }))
         }
-        let rpc: any PrivateNoteProviding = Zolana(network: network, transport: transport)
+        let rpc: any PrivateNoteProviding = Zolana.devnet(transport: transport)
 
         let proofs = try await rpc.merkleProofs(for: [Fixture.bytes(7), Fixture.bytes(8)], inTree: Fixture.hash(9))
 
         #expect(proofs.map(\.leaf) == [Fixture.bytes(7), Fixture.bytes(8)])
         let requests = await transport.requests
-        #expect(requests.map { $0.url?.absoluteString } == ["https://\(host)/getMerkleProofs"])
+        #expect(requests.map { $0.url?.absoluteString } == ["https://rings.example.com/getMerkleProofs"])
         let bodies = try requests.map(requestBody)
         #expect(bodies.map { $0["method"] as? String } == [GetMerkleProofs.method])
         #expect(bodies.map { $0["params"] as? [String: AnyHashable] } == [

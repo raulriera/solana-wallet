@@ -31,8 +31,10 @@ extension SolanaRPC {
 }
 
 extension Zolana {
+    static let stubEndpoint = URL(string: "https://rings.example.com")!
+
     static func devnet(transport: StubTransport) -> Zolana {
-        Zolana(network: .devnet, transport: transport)
+        Zolana(network: .devnet, endpoint: stubEndpoint, redactor: SecretRedactor(secrets: []), transport: transport)
     }
 }
 
