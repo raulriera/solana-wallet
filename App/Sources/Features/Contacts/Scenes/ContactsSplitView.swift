@@ -47,13 +47,13 @@ struct ContactsSplitView: View {
                 NavigationSplitView(columnVisibility: $columnVisibility, preferredCompactColumn: $preferredColumn) {
                     RecipientList(selection: $selection, lists: lists)
                     .navigationTitle("Contacts")
+                    .sidebarColumn()
                     .toolbar {
                         ToolbarItem(placement: .primaryAction) {
                             Button("New Payment", systemImage: "plus", action: startPayment)
                                 .tint(.primary)
                         }
                     }
-                    .sidebarColumn()
                 } detail: {
                     if let selection, !payment.isLoading {
                         RecipientPaymentStack(recipient: lists.recipient(for: selection), payment: payment.model,

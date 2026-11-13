@@ -53,6 +53,7 @@ struct PortfolioSplitView: View {
                     .refreshable { await refresh() }
                     .navigationTitle("Portfolio")
                     .navigationSubtitle(Text(portfolio?.error?.staleStatus ?? ""))
+                    .sidebarColumn()
                     .toolbar {
                         ToolbarItem(placement: .primaryAction) {
                             Button("Receive", systemImage: "qrcode", action: receive)
@@ -63,7 +64,6 @@ struct PortfolioSplitView: View {
                                 .tint(.primary)
                         }
                     }
-                    .sidebarColumn()
                 } detail: {
                     if let holding = holdings.first(where: { $0.id == selection }) {
                         TokenDetailScreen(holding: holding, account: account, network: network,
