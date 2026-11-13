@@ -28,6 +28,19 @@ struct AppearanceSettingsModelTests {
         #expect(settings.canStartOperation)
     }
 
+    @Test func `Setting the token layout saves and publishes it`() async throws {
+        let fixture = try CatalogFixture()
+        defer { fixture.remove() }
+        let settings = makeSettings(fixture)
+        try await settings.appearance.activate()
+
+        settings.tokenLayout = .rows
+        await settings.waitForOperation()
+
+        #expect(settings.error == nil)
+        #expect(settings.tokenLayout == .rows)
+    }
+
     @Test func `Import installs without selecting`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }

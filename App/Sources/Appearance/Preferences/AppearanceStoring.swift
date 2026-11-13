@@ -1,10 +1,10 @@
 import Foundation
 
-/// A store of theme selections.
+/// A store of appearance preferences.
 nonisolated protocol AppearanceStoring: Sendable {
-    /// Loads the selections and clears those of unavailable themes.
+    /// Loads the preferences and clears the selection of an unavailable theme.
     ///
-    /// - Returns: The selections and catalog entries.
+    /// - Returns: The preferences and catalog entries.
     /// - Throws: A storage or cancellation error.
     func load() async throws -> AppearanceSnapshot
 
@@ -15,6 +15,13 @@ nonisolated protocol AppearanceStoring: Sendable {
     /// - Throws: An unavailable-theme, storage, or cancellation error.
     func select(_ themeID: UUID?) async throws -> AppearanceSnapshot
 
+    /// Saves the way the portfolio lists its tokens.
+    ///
+    /// - Parameter layout: The token layout.
+    /// - Returns: The saved snapshot.
+    /// - Throws: A storage or cancellation error.
+    func select(_ layout: CardStyle.Layout) async throws -> AppearanceSnapshot
+
     /// Clears the selection of a theme without removing the theme.
     ///
     /// - Parameter themeID: The theme to clear.
@@ -22,7 +29,7 @@ nonisolated protocol AppearanceStoring: Sendable {
     /// - Throws: A storage or cancellation error.
     func forget(_ themeID: UUID) async throws -> AppearanceSnapshot
 
-    /// Clears the theme selection.
+    /// Restores the default preferences.
     ///
     /// - Returns: The saved snapshot.
     /// - Throws: A storage or cancellation error.

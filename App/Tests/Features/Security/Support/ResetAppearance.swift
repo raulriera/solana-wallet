@@ -23,5 +23,9 @@ final class ResetAppearance: AppearanceCoordinating {
         Issue.record("A reset must not select a theme.")
     }
 
+    func select(_ layout: CardStyle.Layout) async throws {
+        Issue.record("A reset must not select a token layout.")
+    }
+
     func forget(_ themeID: UUID) async throws { Issue.record("A reset must not forget a theme.") }
 }

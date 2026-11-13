@@ -1,21 +1,21 @@
 import Foundation
 import Observation
 
-/// An observable source of the app's theme selection.
+/// An observable source of the app's appearance preferences.
 @MainActor protocol AppearanceCoordinating: AnyObject, Observable {
     var snapshot: AppearanceSnapshot? { get }
 
-    /// Loads the theme selections, first resetting them when the person requests it in Settings.
+    /// Loads the preferences, first resetting them when the person requests it in Settings.
     ///
     /// - Throws: A storage or preferences error.
     func activate() async throws
 
-    /// Loads the theme selections again.
+    /// Loads the preferences again.
     ///
     /// - Throws: A storage or cancellation error.
     func reload() async throws
 
-    /// Discards the loaded theme selections and loads them again.
+    /// Discards the loaded preferences and loads them again.
     ///
     /// - Throws: A storage or cancellation error.
     func restart() async throws
@@ -26,9 +26,20 @@ import Observation
     /// - Throws: A selection, storage, or cancellation error.
     func select(_ themeID: UUID?) async throws
 
+    /// Saves and publishes the way the portfolio lists its tokens.
+    ///
+    /// - Parameter layout: The token layout.
+    /// - Throws: A storage or cancellation error.
+    func select(_ layout: CardStyle.Layout) async throws
+
     /// Clears and publishes the selection of a theme.
     ///
     /// - Parameter themeID: The theme to clear.
     /// - Throws: A storage or cancellation error.
     func forget(_ themeID: UUID) async throws
+}
+
+extension AppearanceCoordinating {
+    /// The loaded preferences, or the defaults until they load.
+    var preferences: AppearancePreferences { snapshot?.preferences ?? AppearancePreferences() }
 }

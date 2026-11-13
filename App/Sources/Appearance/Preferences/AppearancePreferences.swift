@@ -1,11 +1,13 @@
 import Foundation
 
-/// The selected theme of the app.
+/// The selected theme and token layout of the app.
 nonisolated struct AppearancePreferences: Codable, Sendable, Equatable {
     /// The app's theme, or `nil` for the original appearance.
     var themeID: UUID?
+    /// The way the portfolio lists its tokens.
+    var tokenLayout = CardStyle.Layout.cards
 
-    /// Creates preferences that use the original appearance.
+    /// Creates preferences that use the original appearance and token cards.
     init() {}
 
     /// Clears the selection of a theme.

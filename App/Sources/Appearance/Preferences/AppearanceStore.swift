@@ -1,8 +1,8 @@
 import Foundation
 
-/// A store that saves theme selections in the theme catalog's folder.
+/// A store that saves appearance preferences in the theme catalog's folder.
 nonisolated struct AppearanceStore: AppearanceStoring {
-    /// A change to the selections, given the available entries.
+    /// A change to the preferences, given the available entries.
     private typealias Mutation = @Sendable (inout AppearancePreferences, [UUID: ThemeEntry]) throws -> Void
 
     private let storage: ThemeStorage
@@ -31,6 +31,11 @@ nonisolated struct AppearanceStore: AppearanceStoring {
     }
 
     @concurrent
+    func select(_ layout: CardStyle.Layout) async throws -> AppearanceSnapshot {
+        try await update { preferences, _ in preferences.tokenLayout = layout }
+    }
+
+    @concurrent
     func forget(_ themeID: UUID) async throws -> AppearanceSnapshot {
         try await update { preferences, _ in preferences.forget(themeID) }
     }
@@ -40,7 +45,7 @@ nonisolated struct AppearanceStore: AppearanceStoring {
         try await update { preferences, _ in preferences = AppearancePreferences() }
     }
 
-    /// Applies a change to the saved selections in one transaction.
+    /// Applies a change to the saved preferences in one transaction.
     ///
     /// - Parameter mutation: The change to apply.
     /// - Returns: The resulting snapshot.

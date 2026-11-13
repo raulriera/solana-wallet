@@ -1,6 +1,6 @@
 import Foundation
 
-/// The theme selection and catalog entries at one revision.
+/// The appearance preferences and catalog entries at one revision.
 nonisolated struct AppearanceSnapshot: Sendable, Equatable {
     let revision: UInt64
     let preferences: AppearancePreferences
@@ -13,7 +13,7 @@ nonisolated struct AppearanceSnapshot: Sendable, Equatable {
     ///
     /// - Parameters:
     ///   - revision: The revision of the saved state.
-    ///   - preferences: The app's theme selection.
+    ///   - preferences: The app's appearance preferences.
     ///   - entries: The bundled and installed entries, keyed by identity.
     init(revision: UInt64, preferences: AppearancePreferences, entries: [UUID: ThemeEntry]) {
         self.revision = revision

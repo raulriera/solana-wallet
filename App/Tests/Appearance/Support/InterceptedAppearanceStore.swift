@@ -22,6 +22,10 @@ nonisolated struct InterceptedAppearanceStore: AppearanceStoring {
         try await base.select(themeID)
     }
 
+    func select(_ layout: CardStyle.Layout) async throws -> AppearanceSnapshot {
+        try await base.select(layout)
+    }
+
     func forget(_ themeID: UUID) async throws -> AppearanceSnapshot {
         try await base.forget(themeID)
     }

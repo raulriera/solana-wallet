@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-/// A coordinator that loads, saves, and publishes theme selections.
+/// A coordinator that loads, saves, and publishes appearance preferences.
 @MainActor @Observable final class AppearanceCoordinator: AppearanceCoordinating {
     private(set) var snapshot: AppearanceSnapshot?
     private let store: any AppearanceStoring
@@ -11,7 +11,7 @@ import Observation
     /// Creates a coordinator.
     ///
     /// - Parameters:
-    ///   - store: The store that saves the selections.
+    ///   - store: The store that saves the preferences.
     ///   - recovery: The source of reset requests from Settings, or `nil` for none.
     init(store: any AppearanceStoring, recovery: (any RecoveryRequesting)?) {
         self.store = store
@@ -47,12 +47,17 @@ import Observation
         publish(try await store.select(themeID))
     }
 
+    func select(_ layout: CardStyle.Layout) async throws {
+        if let activation { try await activation.value }
+        publish(try await store.select(layout))
+    }
+
     func forget(_ themeID: UUID) async throws {
         if let activation { try await activation.value }
         publish(try await store.forget(themeID))
     }
 
-    /// Clears and publishes every theme selection.
+    /// Restores and publishes the default preferences.
     ///
     /// - Throws: A storage or cancellation error.
     func reset() async throws {

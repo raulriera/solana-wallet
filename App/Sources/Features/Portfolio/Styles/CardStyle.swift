@@ -3,7 +3,7 @@ import SwiftUI
 /// The way the portfolio presents its tokens.
 nonisolated struct CardStyle: Equatable, Sendable {
     /// The way the portfolio lists its tokens.
-    nonisolated enum Layout: Equatable, Sendable {
+    nonisolated enum Layout: String, Codable, Equatable, Sendable {
         /// Overlapping cards, each tinted from its logo.
         case cards
         /// Native list rows.

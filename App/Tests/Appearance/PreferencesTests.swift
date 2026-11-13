@@ -57,6 +57,24 @@ nonisolated struct PreferencesTests {
         #expect(cleared.preferences == AppearancePreferences())
     }
 
+    @Test func `The token layout persists apart from the theme and resets to cards`() async throws {
+        let fixture = try CatalogFixture()
+        defer { fixture.remove() }
+        let catalog = ThemeCatalog(directory: fixture.directory)
+        let entry = try await catalog.install(PackService().read(from: fixture.source()))
+        let store = AppearanceStore(directory: fixture.directory)
+        _ = try await store.select(entry.id)
+        let selected = try await store.select(.rows)
+        #expect(selected.theme == entry)
+        let reopened = AppearanceStore(directory: fixture.directory)
+        #expect(try await reopened.load() == selected)
+        let forgotten = try await reopened.forget(entry.id)
+        #expect(forgotten.theme == nil)
+        #expect(forgotten.preferences.tokenLayout == .rows)
+        let reset = try await reopened.reset()
+        #expect(reset.preferences.tokenLayout == .cards)
+    }
+
     @Test func `Preference edits during import survive catalog commit`() async throws {
         let fixture = try CatalogFixture()
         defer { fixture.remove() }

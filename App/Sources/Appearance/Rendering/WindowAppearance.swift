@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Loads a window's theme and applies it to the window's views.
+/// Loads a window's theme and applies it and the token layout to the window's views.
 private struct WindowAppearance: ViewModifier {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.colorScheme) private var colorScheme
@@ -15,6 +15,7 @@ private struct WindowAppearance: ViewModifier {
         content
             .alert(error: $error)
             .environment(\.palette, palette)
+            .environment(\.cardStyle.layout, services.appearance.preferences.tokenLayout)
             .tint(palette.primary)
             .fontDesign(rendered.fontDesign)
             .formStyle(.themed)
@@ -48,10 +49,10 @@ private struct WindowAppearance: ViewModifier {
 }
 
 extension View {
-    /// Loads a window's theme and applies it to this view's hierarchy.
+    /// Loads a window's theme and applies it and the token layout to this view's hierarchy.
     ///
     /// - Parameter services: The shared appearance services.
-    /// - Returns: A view in the window's theme.
+    /// - Returns: A view in the window's theme and token layout.
     func windowAppearance(services: AppearanceServices) -> some View {
         modifier(WindowAppearance(services: services))
     }

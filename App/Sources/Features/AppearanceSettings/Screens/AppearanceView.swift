@@ -1,22 +1,23 @@
 import SwiftUI
 
-/// Shows the appearance settings: the app theme and theme packs.
+/// Shows the appearance settings: the app theme, the token layout, and theme packs.
 struct AppearanceView: View {
-    let settings: AppearanceSettingsModel
+    @Bindable var settings: AppearanceSettingsModel
 
     var body: some View {
         Form {
             Section {
                 TitleCardContent(
                     title: "Appearance",
-                    message: "Choose the app's theme and import your own theme packs.",
+                    message: "Choose the app's theme and how the Portfolio shows tokens, and import your own theme packs.",
                     systemImage: "paintpalette.fill"
                 )
             }
 
             ThemeSelectionSection(entries: settings.entries,
-                                  selection: settings.appearance.snapshot?.preferences.themeID ?? OriginalAppearance.id,
+                                  selection: settings.appearance.preferences.themeID ?? OriginalAppearance.id,
                                   actions: settings)
+            TokenLayoutSection(selection: $settings.tokenLayout)
             ThemePacksSection(settings: settings)
         }
         .formStyle(.choices)

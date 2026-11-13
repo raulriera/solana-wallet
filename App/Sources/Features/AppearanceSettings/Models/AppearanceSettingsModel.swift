@@ -2,7 +2,7 @@ import Foundation
 import Observation
 import Themes
 
-/// A window's workflow for selecting, importing, exporting, and removing themes.
+/// A window's workflow for selecting the token layout and selecting, importing, exporting, and removing themes.
 @MainActor @Observable final class AppearanceSettingsModel: ThemeActions {
     /// An asynchronous action on the main actor.
     private typealias Action = @MainActor () async throws -> Void
@@ -37,6 +37,12 @@ import Themes
 
     var entries: [ThemeEntry] { appearance.snapshot?.orderedEntries ?? [] }
     var entryIDs: [UUID] { appearance.snapshot?.orderedEntryIDs ?? [] }
+
+    /// The way the portfolio lists its tokens; setting it saves the choice.
+    var tokenLayout: CardStyle.Layout {
+        get { appearance.preferences.tokenLayout }
+        set { run(defaultingTo: .saveFailed) { try await self.appearance.select(newValue) } }
+    }
 
     var canStartOperation: Bool { operation == nil && export == nil && replacement == nil }
 
