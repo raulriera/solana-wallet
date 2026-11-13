@@ -53,7 +53,7 @@ struct ContactsSplitView: View {
                                 .tint(.primary)
                         }
                     }
-                    .sidebarColumnWidth()
+                    .sidebarColumn()
                 } detail: {
                     if let selection, !payment.isLoading {
                         RecipientPaymentStack(recipient: lists.recipient(for: selection), payment: payment.model,

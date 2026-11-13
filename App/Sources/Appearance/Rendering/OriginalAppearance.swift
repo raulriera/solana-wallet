@@ -5,7 +5,6 @@ import Themes
 nonisolated enum OriginalAppearance {
     // swift-format-ignore: NeverForceUnwrap
     static let id = UUID(uuidString: "6833C0F7-9A25-47E8-8FA7-1694A40312B3")!
-    static let packageURL = Bundle.main.url(forResource: "Original", withExtension: "xtheme", subdirectory: "Themes.bundle")
     static let palette = Palette { role in
         switch role {
         case .background: .system(.systemGroupedBackground)
@@ -20,6 +19,7 @@ nonisolated enum OriginalAppearance {
         case .destructive: .system(.systemRed)
         case .onDestructive: .system(.white)
         case .border: .system(.clear)
+        case .sidebar: .system(.clear)
         }
     }
     static let tokens = Tokens(colors: Colors(light: palette, dark: palette), fontDesign: .default)

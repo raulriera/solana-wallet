@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "id": "3ce59f41-25a9-46b5-a2a2-0e76369fe403",
+  "name": "Solana",
+  "tokens": {
+    "colors": {
+      "light": {
+        "background": { "srgb": "#F3EFFB" },
+        "surface": { "srgb": "#FFFFFF" },
+        "text": { "srgb": "#1B1528" },
+        "separator": { "srgb": "#DDD3F0" },
+        "primary": { "srgb": "#8635EC" },
+        "onPrimary": { "srgb": "#FFFFFF" },
+        "secondary": { "srgb": "#14F195" },
+        "onSecondary": { "srgb": "#000000" },
+        "sidebar": { "srgb": "#EAE3F8" }
+      },
+      "dark": {
+        "background": { "srgb": "#0D0C11" },
+        "surface": { "srgb": "#17151E" },
+        "text": { "srgb": "#FFFFFF" },
+        "secondaryText": { "srgb": "#ABABBA" },
+        "separator": { "srgb": "#2E2A38" },
+        "primary": { "srgb": "#14F195" },
+        "onPrimary": { "srgb": "#000000" },
+        "secondary": { "srgb": "#9945FF" },
+        "onSecondary": { "srgb": "#FFFFFF" },
+        "sidebar": { "srgb": "#131118" }
+      }
+    },
+    "fontDesign": "monospaced"
+  }
+}

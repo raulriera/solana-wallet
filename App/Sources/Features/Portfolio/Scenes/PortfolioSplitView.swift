@@ -58,7 +58,7 @@ struct PortfolioSplitView: View {
                                 .tint(.primary)
                         }
                     }
-                    .sidebarColumnWidth()
+                    .sidebarColumn()
                 } detail: {
                     if let holding = holdings.first(where: { $0.id == selection }) {
                         TokenDetailScreen(holding: holding, account: account, network: network,

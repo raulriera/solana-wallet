@@ -9,8 +9,10 @@ struct AppearanceServices {
 
     /// Creates the production appearance services.
     init() {
-        guard let url = OriginalAppearance.packageURL else { preconditionFailure("The app bundle is missing the original theme.") }
-        let builtIns = [BundledTheme(id: OriginalAppearance.id, name: "Original", url: url)]
+        guard let original = BundledTheme.original, let solana = BundledTheme.solana else {
+            preconditionFailure("The app bundle is missing a built-in theme.")
+        }
+        let builtIns = [original, solana]
         let directory = URL.persistentDirectory.appending(path: "Themes", directoryHint: .isDirectory)
         packages = PackService()
         catalog = ThemeCatalog(directory: directory, builtIns: builtIns, packages: packages)

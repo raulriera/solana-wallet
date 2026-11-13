@@ -26,6 +26,8 @@ public struct Palette: Sendable, Equatable {
         case onDestructive
         /// The outline of buttons.
         case border
+        /// The background of sidebars.
+        case sidebar
     }
 
     /// Every color, by role.

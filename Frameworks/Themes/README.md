@@ -60,8 +60,8 @@ To start, export a template from the app: it holds every default color, the defa
 ### Colors
 
 - Appearances under `tokens.colors`: `light` and `dark`.
-- Roles in each appearance: `background`, `surface`, `text`, `secondaryText`, `separator`, `primary`, `onPrimary`, `secondary`, `onSecondary`, `destructive`, `onDestructive`, and `border`.
-- `primary`, `secondary`, and `destructive` fill their buttons. Each `on` role colors the text and symbols on that fill. `primary` also colors links and controls without a fill, and `destructive` colors destructive text without a fill. `border` outlines buttons; use `clear` for none.
+- Roles in each appearance: `background`, `surface`, `text`, `secondaryText`, `separator`, `primary`, `onPrimary`, `secondary`, `onSecondary`, `destructive`, `onDestructive`, `border`, and `sidebar`.
+- `primary`, `secondary`, and `destructive` fill their buttons. Each `on` role colors the text and symbols on that fill. `primary` also colors links and controls without a fill, and `destructive` colors destructive text without a fill. `border` outlines buttons; use `clear` for none. `sidebar` fills sidebars; use `clear` for the system sidebar.
 - Each color is a [system color](Sources/Colors/Color.swift), such as `{ "system": "systemBackground" }`, or an opaque sRGB color, such as `{ "srgb": "#26643E" }`.
 
 ### Font design

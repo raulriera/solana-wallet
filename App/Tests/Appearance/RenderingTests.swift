@@ -69,4 +69,21 @@ struct AppearanceRenderingTests {
         #expect(rendered.palette(scheme: .light).primary == RenderedPalette(OriginalAppearance.palette).primary)
         #expect(rendered.fontDesign == .default)
     }
+
+    @Test(arguments: [(Themes.Color.system(.clear), false), (.srgb(red: 18, green: 18, blue: 18), true)])
+    func `Only a clear sidebar color keeps the system sidebar`(color: Themes.Color, replacesSidebar: Bool) {
+        let palette = RenderedPalette(Palette { $0 == .sidebar ? color : .system(.label) })
+        #expect((palette.sidebar != nil) == replacesSidebar)
+    }
+
+    @Test func `The built-in Solana theme renders sidebar colors and a monospaced design`() async throws {
+        let fixture = try CatalogFixture()
+        defer { fixture.remove() }
+        let solana = try #require(BundledTheme.solana)
+        let rendered = RenderedAppearance()
+        try await rendered.load(solana.entry, catalog: ThemeCatalog(directory: fixture.directory, builtIns: [solana]))
+        #expect(rendered.palette(scheme: .light).sidebar != nil)
+        #expect(rendered.palette(scheme: .dark).sidebar != nil)
+        #expect(rendered.fontDesign == .monospaced)
+    }
 }

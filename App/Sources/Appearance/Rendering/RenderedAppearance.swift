@@ -18,6 +18,8 @@ struct RenderedPalette: Equatable {
     var destructive: SwiftUI.Color { self[.destructive] }
     var onDestructive: SwiftUI.Color { self[.onDestructive] }
     var border: SwiftUI.Color { self[.border] }
+    /// The sidebar's color, or `nil` for the system sidebar.
+    var sidebar: SwiftUI.Color? { palette[.sidebar] == .system(.clear) ? nil : self[.sidebar] }
 
     /// Creates SwiftUI colors from a theme palette.
     ///

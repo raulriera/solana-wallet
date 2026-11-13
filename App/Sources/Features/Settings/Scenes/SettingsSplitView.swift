@@ -37,7 +37,7 @@ struct SettingsSplitView: View {
 
         NavigationSplitView {
             SettingsSidebar(selection: $selection)
-                .sidebarColumnWidth()
+                .sidebarColumn()
         } detail: {
             switch selection ?? .accounts {
             case .accounts:

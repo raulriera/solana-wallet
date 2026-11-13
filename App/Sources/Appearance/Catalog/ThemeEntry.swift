@@ -43,4 +43,24 @@ nonisolated struct BundledTheme: Sendable {
         entry = ThemeEntry(id: id, name: name, origin: .builtIn, revision: id)
         self.url = url
     }
+
+    /// Creates a bundled theme from the package with its name among a bundle's themes.
+    ///
+    /// - Parameters:
+    ///   - id: The theme's identity.
+    ///   - name: The theme's display name, which is also its package's name.
+    ///   - bundle: The bundle that holds the themes.
+    /// - Returns: The theme, or `nil` when the bundle has no such package.
+    init?(id: UUID, name: String, bundle: Bundle = .main) {
+        guard let url = bundle.url(forResource: name, withExtension: "xtheme", subdirectory: "Themes.bundle") else {
+            return nil
+        }
+        self.init(id: id, name: name, url: url)
+    }
+
+    /// The built-in theme with the system's colors.
+    static let original = BundledTheme(id: OriginalAppearance.id, name: "Original")
+    /// The built-in Solana theme.
+    // swift-format-ignore: NeverForceUnwrap
+    static let solana = BundledTheme(id: UUID(uuidString: "3CE59F41-25A9-46B5-A2A2-0E76369FE403")!, name: "Solana")
 }
