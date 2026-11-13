@@ -13,6 +13,8 @@ struct PrivateBalanceSections: View {
     let symbol: String
     /// Whether the last read failed.
     let isStale: Bool
+    /// The action that reads the balance again, or `nil` where nothing can.
+    let refresh: RefreshAction?
 
     var body: some View {
         switch status {
@@ -43,10 +45,10 @@ struct PrivateBalanceSections: View {
             let balance = status?.balance(of: asset) ?? .zero
             PrivateBalanceAmountSection(available: Amount(units: balance.available, decimals: asset.decimals),
                                         pending: Amount(units: balance.pending, decimals: asset.decimals),
-                                        symbol: symbol, isStale: isStale)
+                                        symbol: symbol, isStale: isStale, refresh: refresh)
         case nil where isStale:
             PrivateBalanceAmountSection(available: nil, pending: nil,
-                                        symbol: symbol, isStale: isStale)
+                                        symbol: symbol, isStale: isStale, refresh: refresh)
         case .unavailable?, nil:
             EmptyView()
         }

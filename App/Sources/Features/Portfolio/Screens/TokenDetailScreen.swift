@@ -8,6 +8,7 @@ import Wallet
 struct TokenDetailScreen: View {
     @Environment(\.palette) private var palette
     @Environment(PrivateBalanceStore.self) private var privateBalances
+    @Environment(\.refresh) private var refresh
     let holding: Holding
     let account: Account
     let network: Network
@@ -87,7 +88,8 @@ struct TokenDetailScreen: View {
                     status: privateStatus,
                     asset: privateAsset,
                     symbol: holding.displaySymbol,
-                    isStale: isPrivateBalanceStale
+                    isStale: isPrivateBalanceStale,
+                    refresh: refresh
                 )
                 .environment(
                     \.moveBalance,
