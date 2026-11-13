@@ -3,7 +3,7 @@ import RPC
 
 /// An actor that serializes cache access and shares each wallet's refresh between its consumers.
 actor RefreshCoordinator {
-    private let source: any BalanceReading
+    private let source: BalanceReader
     private let tokenLists: TokenListCoordinator
     private let store: any SnapshotStoring
     private let pricer: SnapshotPricer?
@@ -20,7 +20,7 @@ actor RefreshCoordinator {
     ///   - store: The snapshot store.
     ///   - prices: The price provider, or `nil` for no prices.
     ///   - logos: The logo provider, or `nil` for no logos.
-    init(source: any BalanceReading, tokenLists: TokenListCoordinator, store: any SnapshotStoring,
+    init(source: BalanceReader, tokenLists: TokenListCoordinator, store: any SnapshotStoring,
          prices: (any PriceProviding)?, logos: (any LogoProviding)?) {
         self.source = source
         self.tokenLists = tokenLists

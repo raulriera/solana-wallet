@@ -30,7 +30,7 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
     ///   - prices: The price provider, or `nil` for no prices.
     ///   - clock: The clock that times change coalescing and reconnection waits.
     init(rpc: any RPC, store: any SnapshotStoring,
-         tokenLists: any TokenListStoring,
+         tokenLists: FileTokenListStore,
          prices: (any PriceProviding)? = nil,
          clock: any Clock<Duration> = ContinuousClock()) {
         precondition(prices.map { $0.network == rpc.network } ?? true, "Prices must describe the RPC client's network.")

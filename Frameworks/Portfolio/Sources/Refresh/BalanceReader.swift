@@ -2,9 +2,10 @@ import Foundation
 import RPC
 import Transactions
 
-/// A type that reads a wallet's native SOL and listed token balances.
-protocol BalanceReading: Sendable {
-    var network: Network { get }
+/// A balance reader that reads an account's balances with one standard RPC request.
+struct BalanceReader {
+    let rpc: any RPC
+    var network: Network { rpc.network }
 
     /// Reads native SOL and the balance of every token in the account's list.
     ///
@@ -14,14 +15,6 @@ protocol BalanceReading: Sendable {
     ///   - minContextSlot: The earliest slot the response may come from, or `nil` for any slot.
     /// - Returns: A snapshot without prices, with holdings in ``TokenList/holdingIDs`` order.
     /// - Throws: A cancellation, validation, or RPC error.
-    func snapshot(of list: TokenList, for owner: String, minContextSlot: UInt64?) async throws -> Snapshot
-}
-
-/// A balance reader that reads an account's balances with one standard RPC request.
-struct BalanceReader: BalanceReading {
-    let rpc: any RPC
-    var network: Network { rpc.network }
-
     @concurrent
     func snapshot(of list: TokenList, for owner: String, minContextSlot: UInt64?) async throws -> Snapshot {
         let wallet = try Address(owner)

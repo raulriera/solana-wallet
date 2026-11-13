@@ -3,7 +3,7 @@ import Transactions
 
 /// An actor that serializes changes to each account's token list.
 actor TokenListCoordinator {
-    private let store: any TokenListStoring
+    private let store: FileTokenListStore
     private let network: Network
 
     /// Creates a coordinator for one network's lists.
@@ -11,7 +11,7 @@ actor TokenListCoordinator {
     /// - Parameters:
     ///   - store: The token-list store.
     ///   - network: The network whose lists the coordinator keeps.
-    init(store: any TokenListStoring, network: Network) {
+    init(store: FileTokenListStore, network: Network) {
         self.store = store
         self.network = network
     }
