@@ -23,7 +23,7 @@ struct RedeemCodeLiveTests {
     func `Codes are redeemed and taken back to exactly zero lamports`() async throws {
         let wallets = try await DevnetWallets.configured()
         let rpcStore = await RPCStore.inMemory(selection: .helius, key: try LiveClients.heliusAPIKey())
-        let rpc = SelectedRPCProvider(network: .devnet, rpcStore: rpcStore, rings: Zolana(network: .devnet))
+        let rpc = try LiveClients.provider(rpcStore: rpcStore)
         let sender = wallets.sender
         let recipient = wallets.recipient
         try await wallets.requireFunds(Self.feeLamports, using: rpc)

@@ -17,7 +17,7 @@ struct UTXORootHistoryLiveTests {
         try #require(!notes.isEmpty, "The owner must have a received deposit")
 
         let statuses = try await ReceivedNote.inclusionStatuses(of: notes, rpc: SolanaRPC(network: .devnet),
-                                                                indexer: Zolana(network: .devnet))
+                                                                indexer: LiveClients.rings())
 
         #expect(statuses == Array(repeating: .included, count: notes.count))
     }
