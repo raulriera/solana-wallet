@@ -30,6 +30,12 @@ extension SolanaRPC {
     }
 }
 
+extension Zolana {
+    static func devnet(transport: StubTransport) -> Zolana {
+        Zolana(network: .devnet, transport: transport)
+    }
+}
+
 func requestBody(_ request: URLRequest) throws -> [String: Any] {
     let data = try #require(request.httpBody)
     return try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])

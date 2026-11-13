@@ -47,7 +47,7 @@ struct ZolanaPrivateNotesTests {
             default: try reply(to: request, payload: Fixture.page())
             }
         }
-        let rpc = Zolana(network: .devnet, transport: transport)
+        let rpc = Zolana.devnet(transport: transport)
 
         let batch = try await rpc.shieldedTransactions(taggedWith: [Fixture.bytes(1)], after: nil)
 
@@ -61,7 +61,7 @@ struct ZolanaPrivateNotesTests {
     @Test
     func `Tag reads stop at the page limit and say more is coming`() async throws {
         let transport = pagedTransactions(endingAt: nil)
-        let rpc = Zolana(network: .devnet, transport: transport)
+        let rpc = Zolana.devnet(transport: transport)
         let tags = [Fixture.bytes(1)]
 
         let batch = try await rpc.shieldedTransactions(taggedWith: tags, after: nil)
@@ -77,7 +77,7 @@ struct ZolanaPrivateNotesTests {
 
     @Test
     func `A backlog longer than one read is read over several reads`() async throws {
-        let rpc = Zolana(network: .devnet, transport: pagedTransactions(endingAt: 9))
+        let rpc = Zolana.devnet(transport: pagedTransactions(endingAt: 9))
         let tags = [Fixture.bytes(1)]
 
         let first = try await rpc.shieldedTransactions(taggedWith: tags, after: nil)
@@ -102,7 +102,7 @@ struct ZolanaPrivateNotesTests {
                 ? reply(to: request, payload: Fixture.page([row], in: rows, next: "AQ=="))
                 : reply(to: request, payload: Fixture.page(in: rows, contextSlot: 9))
         }
-        let rpc = Zolana(network: .devnet, transport: transport)
+        let rpc = Zolana.devnet(transport: transport)
         let tags = [Fixture.bytes(1)]
         let start = IndexerCheckpoint(afterSlot: 5, paginationToken: nil)
 
@@ -128,7 +128,7 @@ struct ZolanaPrivateNotesTests {
                 : Fixture.page([Fixture.match(signature: 1, slot: 10, output: deposit),
                                 Fixture.match(signature: 2, slot: 12, output: deposit, keyed: true)], in: "outputs"))
         }
-        let rpc = Zolana(network: .devnet, transport: transport)
+        let rpc = Zolana.devnet(transport: transport)
 
         let batch = try await rpc.shieldedTransactions(taggedWith: [Fixture.bytes(1)], after: nil)
 
@@ -153,7 +153,7 @@ struct ZolanaPrivateNotesTests {
             return try reply(to: request, payload: route == GetShieldedTransactionsByTags.method
                 ? Fixture.page() : Fixture.page([match, match], in: "outputs"))
         }
-        let rpc = Zolana(network: .devnet, transport: transport)
+        let rpc = Zolana.devnet(transport: transport)
 
         let batch = try await rpc.shieldedTransactions(taggedWith: [Fixture.bytes(1)], after: nil)
 
@@ -172,7 +172,7 @@ struct ZolanaPrivateNotesTests {
             let own = tags.count == 1 ? Fixture.transaction(signature: 1, slot: 30) : Fixture.transaction(signature: 2, slot: 5)
             return try reply(to: request, payload: Fixture.page([shared, own], contextSlot: tags.count == 1 ? 2 : 1))
         }
-        let rpc = Zolana(network: .devnet, transport: transport)
+        let rpc = Zolana.devnet(transport: transport)
         let tags = (0..<1_001).map { [UInt8](repeating: 0, count: 30) + [UInt8($0 >> 8), UInt8($0 & 0xff)] }
 
         let batch = try await rpc.shieldedTransactions(taggedWith: tags, after: nil)
@@ -197,7 +197,7 @@ struct ZolanaPrivateNotesTests {
                 ? reply(to: request, payload: Fixture.page(outputTreeID: transactionTree))
                 : reply(to: request, payload: Fixture.page(in: "outputs", outputTreeID: depositTree))
         }
-        let rpc = Zolana(network: .devnet, transport: transport)
+        let rpc = Zolana.devnet(transport: transport)
 
         let batch = try await rpc.shieldedTransactions(taggedWith: [Fixture.bytes(1)], after: nil)
 
@@ -207,7 +207,7 @@ struct ZolanaPrivateNotesTests {
     @Test
     func `A read without tags sends no request`() async throws {
         let transport = StubTransport { try reply(to: $0, payload: Fixture.page()) }
-        let rpc = Zolana(network: .devnet, transport: transport)
+        let rpc = Zolana.devnet(transport: transport)
 
         let batch = try await rpc.shieldedTransactions(taggedWith: [], after: nil)
 
@@ -228,7 +228,7 @@ struct ZolanaPrivateNotesTests {
         tags: [[UInt8]], position: NoteSyncPosition?, error: PrivateNoteError
     ) async {
         let transport = StubTransport { try reply(to: $0, payload: Fixture.page()) }
-        let rpc = Zolana(network: .devnet, transport: transport)
+        let rpc = Zolana.devnet(transport: transport)
 
         await #expect(throws: error) { try await rpc.shieldedTransactions(taggedWith: tags, after: position) }
         #expect(await transport.requests.isEmpty)
@@ -242,7 +242,7 @@ struct ZolanaPrivateNotesTests {
                 ? reply(to: request, payload: Fixture.page(rows, next: "AQ=="))
                 : reply(to: request, payload: Fixture.page(in: "outputs"))
         }
-        let rpc = Zolana(network: .devnet, transport: transport)
+        let rpc = Zolana.devnet(transport: transport)
 
         await #expect(throws: RPCError.invalidResponse(.invalidCursor)) {
             try await rpc.shieldedTransactions(taggedWith: [Fixture.bytes(1)], after: nil)
@@ -262,7 +262,7 @@ struct ZolanaPrivateNotesTests {
                 .replacingOccurrences(of: #""proofless":false"#, with: #""proofless":false,"ringConfig":null"#)
             return try reply(to: request, payload: Fixture.page([withConfig, withProgram, unnamed]))
         }
-        let rpc = Zolana(network: .devnet, transport: transport)
+        let rpc = Zolana.devnet(transport: transport)
 
         let batch = try await rpc.shieldedTransactions(taggedWith: [Fixture.bytes(1)], after: nil)
 
@@ -275,7 +275,7 @@ struct ZolanaPrivateNotesTests {
             try reply(to: request, payload: Fixture.page([Fixture.transaction(signature: 1, slot: 1, nullifiers: [1])
                 .replacingOccurrences(of: #""proofless":false"#, with: #""proofless":false,"ringConfig":"\#(Fixture.hash(3))""#)]))
         }
-        let rpc = Zolana(network: .devnet, transport: transport)
+        let rpc = Zolana.devnet(transport: transport)
 
         #expect(try await rpc.shieldedTransactions(spending: [Fixture.bytes(1)]).map(\.signature) == [Fixture.signature(1)])
     }
@@ -294,7 +294,7 @@ struct ZolanaPrivateNotesTests {
             await signals.next()
             return try reply(to: request, payload: Fixture.page(), status: 429)
         }
-        let rpc = Zolana(network: .devnet, transport: transport)
+        let rpc = Zolana.devnet(transport: transport)
 
         await #expect(throws: RPCError.http(statusCode: 429, retryAfter: nil)) {
             try await rpc.shieldedTransactions(taggedWith: [Fixture.bytes(1)], after: nil)
@@ -314,7 +314,7 @@ struct ZolanaPrivateNotesTests {
             default: try reply(to: request, payload: Fixture.page([shared, Fixture.transaction(signature: 5, slot: 2)]))
             }
         }
-        let rpc = Zolana(network: .devnet, transport: transport)
+        let rpc = Zolana.devnet(transport: transport)
         let nullifiers = (0..<401).map { [UInt8](repeating: 0, count: 30) + [UInt8($0 >> 8), UInt8($0 & 0xff)] }
 
         let transactions = try await rpc.shieldedTransactions(spending: nullifiers)
@@ -330,7 +330,7 @@ struct ZolanaPrivateNotesTests {
     @Test
     func `Nullifier reads send groups of 400`() async throws {
         let transport = StubTransport { try reply(to: $0, payload: Fixture.page()) }
-        let rpc = Zolana(network: .devnet, transport: transport)
+        let rpc = Zolana.devnet(transport: transport)
         let nullifiers = (0..<401).map { [UInt8](repeating: 0, count: 30) + [UInt8($0 >> 8), UInt8($0 & 0xff)] }
 
         _ = try await rpc.shieldedTransactions(spending: nullifiers)
@@ -347,7 +347,7 @@ struct ZolanaPrivateNotesTests {
             let row = Fixture.transaction(signature: UInt8(page + 1), slot: page + 1, nullifiers: [1])
             return try reply(to: request, payload: Fixture.page([row], next: PageCursor.cursor(forPage: page + 1)))
         }
-        let rpc = Zolana(network: .devnet, transport: transport)
+        let rpc = Zolana.devnet(transport: transport)
 
         let transactions = try await rpc.shieldedTransactions(spending: [Fixture.bytes(1)])
 
@@ -357,7 +357,7 @@ struct ZolanaPrivateNotesTests {
 
     @Test
     func `Indexer responses of up to 1 MiB are read`() async throws {
-        let rpc = Zolana(network: .devnet, transport: paddedReplies(length: 1_048_576))
+        let rpc = Zolana.devnet(transport: paddedReplies(length: 1_048_576))
 
         _ = try await rpc.shieldedTransactions(taggedWith: [Fixture.bytes(1)], after: nil)
         #expect(try await rpc.shieldedTransactions(spending: [Fixture.bytes(1)]).isEmpty)
@@ -365,7 +365,7 @@ struct ZolanaPrivateNotesTests {
 
     @Test
     func `Indexer responses longer than 1 MiB are refused`() async {
-        let rpc = Zolana(network: .devnet, transport: paddedReplies(length: 1_048_577))
+        let rpc = Zolana.devnet(transport: paddedReplies(length: 1_048_577))
 
         await #expect(throws: RPCError.invalidResponse(.oversized)) {
             try await rpc.shieldedTransactions(taggedWith: [Fixture.bytes(1)], after: nil)
@@ -384,7 +384,7 @@ struct ZolanaPrivateNotesTests {
             guard route == GetShieldedTransactionsByTags.method, limit > 100 else { return (data, response) }
             return (data + Data(repeating: 0x20, count: 1_048_577 - data.count), response)
         }
-        let rpc = Zolana(network: .devnet, transport: transport)
+        let rpc = Zolana.devnet(transport: transport)
 
         _ = try await rpc.shieldedTransactions(taggedWith: [Fixture.bytes(1)], after: nil)
 
@@ -396,7 +396,7 @@ struct ZolanaPrivateNotesTests {
     @Test
     func `Nullifier reads refuse invalid nullifiers and skip empty ones`() async throws {
         let transport = StubTransport { try reply(to: $0, payload: Fixture.page()) }
-        let rpc = Zolana(network: .devnet, transport: transport)
+        let rpc = Zolana.devnet(transport: transport)
 
         await #expect(throws: PrivateNoteError.invalidNullifier) {
             try await rpc.shieldedTransactions(spending: [[UInt8](repeating: 1, count: 33)])
@@ -432,7 +432,7 @@ struct ZolanaPrivateNotesTests {
         named: [(leaf: UInt8, tree: UInt8)]
     ) async throws {
         let transport = StubTransport { try reply(to: $0, payload: Fixture.proofs(proofs)) }
-        let rpc = Zolana(network: .devnet, transport: transport)
+        let rpc = Zolana.devnet(transport: transport)
 
         let returned = try await rpc.merkleProofs(for: [Fixture.bytes(7), Fixture.bytes(8)], inTree: Fixture.hash(9))
 
@@ -443,7 +443,7 @@ struct ZolanaPrivateNotesTests {
     @Test
     func `Invalid or empty Merkle proof reads send nothing`() async throws {
         let transport = StubTransport { _ in throw CancellationError() }
-        let rpc = Zolana(network: .devnet, transport: transport)
+        let rpc = Zolana.devnet(transport: transport)
         let tree = Fixture.hash(9)
 
         #expect(try await rpc.merkleProofs(for: [], inTree: tree).isEmpty)
@@ -459,7 +459,7 @@ struct ZolanaPrivateNotesTests {
         let leaves = (0..<129).map(Self.leaf)
         let encoded = leaves.map(Base58.encode)
         let transport = Self.answeringProofs { $0 }
-        let rpc = Zolana(network: .devnet, transport: transport)
+        let rpc = Zolana.devnet(transport: transport)
 
         let proofs = try await rpc.merkleProofs(for: leaves, inTree: Fixture.hash(9))
 
@@ -471,7 +471,7 @@ struct ZolanaPrivateNotesTests {
     @Test
     func `A group of proofs that doesn't answer its leaves keeps its place in request order`() async throws {
         let transport = Self.answeringProofs { $0.count == 1 ? [Fixture.hash(0xee), Fixture.hash(0xef)] : $0 }
-        let rpc = Zolana(network: .devnet, transport: transport)
+        let rpc = Zolana.devnet(transport: transport)
 
         let proofs = try await rpc.merkleProofs(for: (0..<65).map(Self.leaf), inTree: Fixture.hash(9))
 
@@ -481,7 +481,7 @@ struct ZolanaPrivateNotesTests {
     @Test
     func `Merkle proof responses longer than 1 MiB are refused`() async {
         let payload = Fixture.proofs([Fixture.merkleProof(leaf: 7)])
-        let rpc = Zolana(network: .devnet, transport: paddedReplies(length: 1_048_577, payload: payload))
+        let rpc = Zolana.devnet(transport: paddedReplies(length: 1_048_577, payload: payload))
 
         await #expect(throws: RPCError.invalidResponse(.oversized)) {
             try await rpc.merkleProofs(for: [Fixture.bytes(7)], inTree: Fixture.hash(9))

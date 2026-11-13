@@ -1007,6 +1007,6 @@ struct NoteSyncStateTests {
     }
 
     private static func indexer(_ transport: StubTransport) -> Zolana {
-        Zolana(network: .devnet, transport: transport)
+        Zolana.devnet(transport: transport)
     }
 }
