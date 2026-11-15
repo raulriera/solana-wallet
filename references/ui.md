@@ -19,8 +19,8 @@
 
 ## Windows
 
-- Support multiple windows through `WindowGroup` wherever the system allows. New-window availability can change as Duo closes.
-- Each window owns its account and network selection, navigation, and presented tasks. Provider and currency choices apply to every window.
+- Windows come from `WindowGroup`. New-window availability can change as Duo closes.
+- Each window's selection is its account and network. Provider and currency choices apply to every window.
 - Startup reads public account metadata only: open the restored account while it is saved, else the first saved account, and onboarding only after a successful empty read. A loading error offers a retry; it never resets storage or reads recovery.
 - Transaction review and approval stay bound to the initiating window.
 - `SceneStorage` restores each window's section, account ID, and network. Each container owns keys named after it and drops IDs that no longer resolve. Stored raw values are permanent: add cases, never rename or reuse them. Never store secrets, key input, transaction review, or provider data.
@@ -32,7 +32,6 @@ The [Themes framework](../Frameworks/Themes/README.md) defines the package forma
 
 - Packs are data and assets, never executable UI. The app owns rendering, adaptation, navigation, action meanings, Dynamic Type, accessibility, and transaction review; a theme can't remove required transaction information or approval controls.
 - Built-in themes can't be edited or removed; custom themes can. One app-wide theme applies to every window.
-- [WindowRoot](../App/Sources/Application/WindowRoot.swift) resolves the appearance once per window. Feature views read semantic colors from the environment where they use them.
 - Package I/O and validation run off the main actor and Swift's shared executor.
 - Validate only structure, supported settings and formats, and safe asset loading. Invalid settings fail with a clear error and leave the installed theme unchanged. Never reject a custom pack for contrast, aesthetics, or HIG conformance.
 
