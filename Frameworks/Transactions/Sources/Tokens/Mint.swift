@@ -97,6 +97,26 @@ public struct Mint: Codable, Hashable, Sendable {
         self.data = decoded
     }
 
+    /// Returns whether two mints have the same saved fields, whether or not either holds its account data.
+    ///
+    /// - Parameters:
+    ///   - lhs: A mint.
+    ///   - rhs: Another mint.
+    /// - Returns: Whether the address, program, decimals, and metadata match.
+    public static func == (lhs: Mint, rhs: Mint) -> Bool {
+        (lhs.address, lhs.program, lhs.decimals, lhs.metadata) == (rhs.address, rhs.program, rhs.decimals, rhs.metadata)
+    }
+
+    /// Hashes the mint's saved fields.
+    ///
+    /// - Parameter hasher: The hasher to combine the address, program, decimals, and metadata into.
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(address)
+        hasher.combine(program)
+        hasher.combine(decimals)
+        hasher.combine(metadata)
+    }
+
     /// Validates the mint's extensions for a transfer and returns its fee.
     ///
     /// - Parameters:

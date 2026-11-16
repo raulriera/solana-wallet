@@ -69,7 +69,6 @@ struct TokenListTests {
         var decoded = try Mint(address: facts.address, owner: Address(TokenProgram.token2022.rawValue),
                                data: Data(account))
         decoded.metadata = facts.metadata
-        try #require(decoded != facts)
 
         try await fixture.portfolio().addToken(decoded, for: "wallet")
 
