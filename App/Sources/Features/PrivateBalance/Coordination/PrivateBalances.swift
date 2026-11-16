@@ -239,13 +239,16 @@ actor PrivateBalances: PrivateBalancing {
             let deposit = try ShieldedPool.deposit(amount, of: asset, from: account.address, to: shielded.recipient, treeID: treeID)
             instructions = (registers ? [try shielded.register(paidBy: account.address)] : []) + [deposit]
             effect = .deposit(amount, of: asset)
-        case .send(let amount, let asset, _):
-            guard let recipient else { throw PrivateBalanceError.recipientUnregistered }
-            let spend = try await state.spend(amount, of: asset, to: .transfer(recipient), from: shielded, rpc: client,
-                                              prover: client)
-            (instructions, effect) = (spend.instructions, .spend(spend))
-        case .withdraw(let amount, let asset, let owner):
-            let spend = try await state.spend(amount, of: asset, to: .withdrawal(owner), from: shielded, rpc: client,
+        case .send(let amount, let asset, _), .withdraw(let amount, let asset, _):
+            let destination: PrivateSpend.Destination =
+                if case .withdraw(_, _, let owner) = request {
+                    .withdrawal(owner)
+                } else if let recipient {
+                    .transfer(recipient)
+                } else {
+                    throw PrivateBalanceError.recipientUnregistered
+                }
+            let spend = try await state.spend(amount, of: asset, to: destination, from: shielded, rpc: client,
                                               prover: client)
             (instructions, effect) = (spend.instructions, .spend(spend))
         case .createCode, .redeem, .takeBack:

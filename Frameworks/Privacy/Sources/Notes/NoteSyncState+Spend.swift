@@ -55,7 +55,8 @@ extension NoteSyncState {
     ) async throws -> PrivateSpend {
         guard let outputTreeID else { throw PrivateSpend.ValidationError.noOutputTree }
         guard amount > 0 else { throw Transactions.ValidationError.invalidAmount }
-        let (transfer, withdrawal) = try destination.parts(moving: amount, of: asset)
+        let (transfer, withdrawal, openings) = try destination.parts(moving: amount, of: asset,
+                                                                     paidBy: account.signingAddress)
         guard withdrawal?.amount != 0 else { throw Transactions.ValidationError.invalidAmount }
         let (covered, overflow) = (transfer?.amount ?? 0).addingReportingOverflow(withdrawal?.amount ?? 0)
         guard !overflow else { throw Transactions.ValidationError.invalidAmount }
@@ -67,7 +68,7 @@ extension NoteSyncState {
         let sender = try account.recipient.owner
         let receivedAmount = plan.outputs.filter { $0.owner?.owner == sender }.reduce(0) { $0 + ($1.utxo?.amount ?? 0) }
         return PrivateSpend(
-            openings: try destination.openings(of: asset, paidBy: account.signingAddress),
+            openings: openings,
             instruction: try await plan.instruction(nullifierKey: account.nullifierKey, prover: prover),
             amount: amount, receivedAmount: receivedAmount,
             treeIDs: TransactPlan.writtenTreeIDs(inputs: plan.inputTreeIDs, output: plan.outputTreeID),

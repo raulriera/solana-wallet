@@ -28,9 +28,11 @@ struct PrivateBalancesRedeemCodesTests {
         #expect(reserve == RedeemCodeFixtures.reserve)
         #expect(spend.amount == 1_000_000)
         #expect(spend.receivedAmount == Self.senderLamports - 1_000_000 - reserve)
-        #expect(spend.instruction.accounts.last?.address.value == (try sender.keys.oneTimeAccount(at: 1)).address)
+        let transact = try #require(spend.instructions.last)
+        #expect(spend.instructions.count == 1)
+        #expect(transact.accounts.last?.address.value == (try sender.keys.oneTimeAccount(at: 1)).address)
         #expect(try prepared.authorities.map { try $0.address } == [sender.account.address])
-        #expect(prepared.instructions == [spend.instruction])
+        #expect(prepared.instructions == spend.instructions)
         #expect(await codes.value?[sender.id]?.pending.map(\.index) == [1])
         #expect(await codes.value?[sender.id]?.nextIndex == 2)
 

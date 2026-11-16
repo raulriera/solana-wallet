@@ -59,53 +59,36 @@ public struct PrivateSpend: Sendable, Redacted {
 }
 
 extension PrivateSpend.Destination {
-    /// Returns the accounts that a spend of an asset to the destination pays into and opens, each with the instruction
-    /// that opens it and that succeeds without a change when the account exists.
-    ///
-    /// - Parameters:
-    ///   - asset: The asset to move.
-    ///   - payer: The account that signs and pays the new accounts' rent.
-    /// - Returns: The owner's associated token account and its opening for a token withdrawal, or none.
-    /// - Throws: A ``Transactions/ValidationError`` if an address or the account's derivation is invalid.
-    func openings(
-        of asset: PrivateAsset, paidBy payer: Address
-    ) throws -> [(account: Address, instruction: Instruction)] {
-        switch (self, asset) {
-        case (.withdrawal(let owner), .token(let token)):
-            [(
-                try PrivateToken.program.associatedAccount(owner: owner, mint: token.mint),
-                try AssociatedTokenProgram.createIdempotent(owner: owner, mint: token.mint,
-                                                            program: PrivateToken.program, payer: payer)
-            )]
-        case (.withdrawal, .nativeSOL), (.transfer, _), (.fundedTransfer, _):
-            []
-        }
-    }
-
-    /// Returns the private transfer and the public withdrawal that move an amount of an asset to the destination.
+    /// Returns the private transfer, the public withdrawal, and the account openings that move an amount of an asset to
+    /// the destination.
     ///
     /// - Parameters:
     ///   - amount: The amount to transfer or withdraw, in the asset's smallest unit.
     ///   - asset: The asset to move.
-    /// - Returns: The transfer and the withdrawal, either of which can be `nil`.
-    /// - Throws: A ``Transactions/ValidationError`` if a token account's derivation fails.
-    func parts(
-        moving amount: UInt64, of asset: PrivateAsset
-    ) throws -> (transfer: TransactPlan.Transfer?, withdrawal: ExternalData.Withdrawal?) {
-        switch self {
-        case .transfer(let recipient):
-            return (TransactPlan.Transfer(recipient: recipient, amount: amount), nil)
-        case .withdrawal(let owner):
-            let account =
-                switch asset {
-                case .nativeSOL: owner
-                case .token(let token): try PrivateToken.program.associatedAccount(owner: owner, mint: token.mint)
-                }
-            return (nil, ExternalData.Withdrawal(recipient: account, amount: amount, asset: asset))
-        case .fundedTransfer(let recipient, let publicLamports):
+    ///   - payer: The account that signs and pays the rent of the accounts that the spend opens.
+    /// - Returns: The transfer and the withdrawal, either of which can be `nil`, and for a token withdrawal the owner's
+    ///   associated token account with the instruction that opens it and succeeds without a change when it exists.
+    /// - Throws: A ``Transactions/ValidationError`` if an address or a token account's derivation is invalid.
+    func parts(moving amount: UInt64, of asset: PrivateAsset, paidBy payer: Address) throws -> (
+        transfer: TransactPlan.Transfer?, withdrawal: ExternalData.Withdrawal?,
+        openings: [(account: Address, instruction: Instruction)]
+    ) {
+        switch (self, asset) {
+        case (.transfer(let recipient), _):
+            return (TransactPlan.Transfer(recipient: recipient, amount: amount), nil, [])
+        case (.withdrawal(let owner), .nativeSOL):
+            return (nil, ExternalData.Withdrawal(recipient: owner, amount: amount, asset: asset), [])
+        case (.withdrawal(let owner), .token(let token)):
+            let account = try PrivateToken.program.associatedAccount(owner: owner, mint: token.mint)
+            let opening = try AssociatedTokenProgram.createIdempotent(owner: owner, mint: token.mint,
+                                                                      program: PrivateToken.program, payer: payer)
+            let withdrawal = ExternalData.Withdrawal(recipient: account, amount: amount, asset: asset)
+            return (nil, withdrawal, [(account, opening)])
+        case (.fundedTransfer(let recipient, let publicLamports), _):
             return (
                 TransactPlan.Transfer(recipient: recipient, amount: amount),
-                ExternalData.Withdrawal(recipient: recipient.signingAddress, amount: publicLamports, asset: .nativeSOL)
+                ExternalData.Withdrawal(recipient: recipient.signingAddress, amount: publicLamports, asset: .nativeSOL),
+                []
             )
         }
     }
