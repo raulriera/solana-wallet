@@ -98,7 +98,9 @@ struct NoteSyncStateSpendTests {
         let route = "/prove/transfer_confidential_\(plan.shape.inputs)_\(plan.shape.outputs)/indexed"
         #expect(routes == ["", "/attestation", route])
         let transact = try plan.instruction(proof: proof, treeContexts: [context])
-        #expect(result.instructions == (try openings(of: spend) + [transact]))
+        let openings = try openings(of: spend)
+        #expect(result.instructions == openings.map(\.instruction) + [transact])
+        #expect(result.openedAccounts == openings.map(\.account))
         #expect(result.nullifiers == selected.map(\.nullifier))
         #expect(result.amount == spend.amount)
         #expect(result.receivedAmount == spend.receivedAmount)
@@ -332,11 +334,14 @@ struct NoteSyncStateSpendTests {
         }
     }
 
-    private func openings(of spend: Spend) throws -> [Instruction] {
+    private func openings(of spend: Spend) throws -> [(account: Address, instruction: Instruction)] {
         guard case .withdrawal = spend.destination, case .token(let token) = spend.asset else { return [] }
         let owner = try Address(TransferVectors.transfers[1].payer)
-        return [try AssociatedTokenProgram.createIdempotent(owner: owner, mint: token.mint, program: .token,
-                                                            payer: sender.signingAddress)]
+        return [(
+            try TokenProgram.token.associatedAccount(owner: owner, mint: token.mint),
+            try AssociatedTokenProgram.createIdempotent(owner: owner, mint: token.mint, program: .token,
+                                                        payer: sender.signingAddress)
+        )]
     }
 
     private static func transport(queued: Set<String> = []) throws -> StubTransport {

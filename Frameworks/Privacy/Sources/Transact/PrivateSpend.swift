@@ -26,9 +26,9 @@ public struct PrivateSpend: Sendable, Redacted {
         case noOutputTree
     }
 
-    /// The instructions that open the accounts that the transact pays into, such as a token withdrawal's
-    /// associated token account.
-    let openings: [Instruction]
+    /// The accounts that the transact pays into and the spend opens, such as a token withdrawal's associated token
+    /// account, each with the instruction that opens it.
+    let openings: [(account: Address, instruction: Instruction)]
 
     /// The transact instruction.
     let instruction: Instruction
@@ -51,23 +51,32 @@ public struct PrivateSpend: Sendable, Redacted {
     let asset: PrivateAsset
 
     /// The spend's instructions in order: the account openings, then the transact.
-    public var instructions: [Instruction] { openings + [instruction] }
+    public var instructions: [Instruction] { openings.map(\.instruction) + [instruction] }
+
+    /// The accounts that the spend opens when they don't exist, such as a token withdrawal's associated token
+    /// account.
+    public var openedAccounts: [Address] { openings.map(\.account) }
 }
 
 extension PrivateSpend.Destination {
-    /// Returns the instructions that open the accounts that a spend of an asset to the destination pays into, each of
-    /// which succeeds without a change when the account exists.
+    /// Returns the accounts that a spend of an asset to the destination pays into and opens, each with the instruction
+    /// that opens it and that succeeds without a change when the account exists.
     ///
     /// - Parameters:
     ///   - asset: The asset to move.
     ///   - payer: The account that signs and pays the new accounts' rent.
-    /// - Returns: The instruction that opens the owner's associated token account for a token withdrawal, or none.
+    /// - Returns: The owner's associated token account and its opening for a token withdrawal, or none.
     /// - Throws: A ``Transactions/ValidationError`` if an address or the account's derivation is invalid.
-    func openings(of asset: PrivateAsset, paidBy payer: Address) throws -> [Instruction] {
+    func openings(
+        of asset: PrivateAsset, paidBy payer: Address
+    ) throws -> [(account: Address, instruction: Instruction)] {
         switch (self, asset) {
         case (.withdrawal(let owner), .token(let token)):
-            [try AssociatedTokenProgram.createIdempotent(owner: owner, mint: token.mint, program: PrivateToken.program,
-                                                         payer: payer)]
+            [(
+                try PrivateToken.program.associatedAccount(owner: owner, mint: token.mint),
+                try AssociatedTokenProgram.createIdempotent(owner: owner, mint: token.mint,
+                                                            program: PrivateToken.program, payer: payer)
+            )]
         case (.withdrawal, .nativeSOL), (.transfer, _), (.fundedTransfer, _):
             []
         }

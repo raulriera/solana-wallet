@@ -106,7 +106,7 @@ struct LocalBalanceMove {
             switch asset {
             case .nativeSOL: [:]
             case .token(let token):
-                [try PrivateToken.program.associatedAccount(owner: account.address, mint: token.mint): accountDeposit]
+                [try TokenProgram.token.associatedAccount(owner: account.address, mint: token.mint): accountDeposit]
             }
         return try LocalBalanceMove(
             .toPublic,
