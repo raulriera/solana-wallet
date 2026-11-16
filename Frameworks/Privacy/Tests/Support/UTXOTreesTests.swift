@@ -10,10 +10,11 @@ struct UTXOTreesTests {
 
     init() throws {
         let vectors = try DepositNoteVectors.load().deposits
+        let sol = PrivateAsset.nativeSOL.mintBytes
         sender = try TransferVectors.sender()
         deposits = [
-            try vectors[0].transaction(signature: IndexerResponses.signature(1)),
-            try vectors[1].transaction(signature: IndexerResponses.signature(2)),
+            try vectors[0].transaction(signature: IndexerResponses.signature(1), mint: sol),
+            try vectors[1].transaction(signature: IndexerResponses.signature(2), mint: sol),
         ]
     }
 

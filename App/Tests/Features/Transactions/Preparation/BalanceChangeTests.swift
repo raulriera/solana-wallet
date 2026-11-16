@@ -18,9 +18,11 @@ struct BalanceChangeTests {
         let transaction = try Self.transaction()
         let simulation = Self.value(
             before: [10_000_000, 0, 2_039_280, 2_039_280, 0, 1], after: [7_955_719, 1, 2_039_280, 2_039_280, 2_039_280, 1],
-            tokensBefore: [Self.balance(index: 2, owner: Self.payer, amount: 300), Self.balance(index: 3, owner: Self.payer, amount: 200)],
-            tokensAfter: [Self.balance(index: 2, owner: Self.payer, amount: 100), Self.balance(index: 3, owner: Self.payer, amount: 200),
-                          Self.balance(index: 4, owner: Self.recipient, amount: 200)]
+            tokensBefore: [Self.balance(index: 2, owner: Self.payer, mint: Self.mint, amount: 300),
+                           Self.balance(index: 3, owner: Self.payer, mint: Self.mint, amount: 200)],
+            tokensAfter: [Self.balance(index: 2, owner: Self.payer, mint: Self.mint, amount: 100),
+                          Self.balance(index: 3, owner: Self.payer, mint: Self.mint, amount: 200),
+                          Self.balance(index: 4, owner: Self.recipient, mint: Self.mint, amount: 200)]
         )
 
         let changes = BalanceChange.changes(in: transaction, from: simulation)
@@ -38,8 +40,8 @@ struct BalanceChangeTests {
     @Test
     func `Unchanged balances are omitted`() throws {
         let simulation = Self.value(before: [5, 0, 1, 1, 1, 1], after: [5, 0, 1, 1, 1, 1],
-                                    tokensBefore: [Self.balance(index: 2, owner: Self.payer, amount: 300)],
-                                    tokensAfter: [Self.balance(index: 2, owner: Self.payer, amount: 300)])
+                                    tokensBefore: [Self.balance(index: 2, owner: Self.payer, mint: Self.mint, amount: 300)],
+                                    tokensAfter: [Self.balance(index: 2, owner: Self.payer, mint: Self.mint, amount: 300)])
 
         #expect(BalanceChange.changes(in: try Self.transaction(), from: simulation) == [])
     }
@@ -49,16 +51,18 @@ struct BalanceChangeTests {
         ("missing token balances", BalanceChangeTests.value(tokensAfter: nil)),
         ("lamports for a different account count", BalanceChangeTests.value(after: [1, 2])),
         ("a token account outside the transaction",
-         BalanceChangeTests.value(tokensAfter: [BalanceChangeTests.balance(index: 6, owner: BalanceChangeTests.payer, amount: 1)])),
+         BalanceChangeTests.value(tokensAfter: [
+             BalanceChangeTests.balance(index: 6, owner: BalanceChangeTests.payer, mint: BalanceChangeTests.mint, amount: 1),
+         ])),
         ("a token balance without an owner",
-         BalanceChangeTests.value(tokensAfter: [BalanceChangeTests.balance(index: 2, owner: nil, amount: 1)])),
+         BalanceChangeTests.value(tokensAfter: [BalanceChangeTests.balance(index: 2, owner: nil, mint: BalanceChangeTests.mint, amount: 1)])),
         ("a malformed owner",
-         BalanceChangeTests.value(tokensAfter: [BalanceChangeTests.balance(index: 2, owner: "owner", amount: 1)])),
+         BalanceChangeTests.value(tokensAfter: [BalanceChangeTests.balance(index: 2, owner: "owner", mint: BalanceChangeTests.mint, amount: 1)])),
         ("a malformed mint",
          BalanceChangeTests.value(tokensAfter: [BalanceChangeTests.balance(index: 2, owner: BalanceChangeTests.payer, mint: "mint", amount: 1)])),
         ("summed units beyond the raw range", BalanceChangeTests.value(tokensAfter: [
-            BalanceChangeTests.balance(index: 2, owner: BalanceChangeTests.payer, amount: .max),
-            BalanceChangeTests.balance(index: 3, owner: BalanceChangeTests.payer, amount: 1),
+            BalanceChangeTests.balance(index: 2, owner: BalanceChangeTests.payer, mint: BalanceChangeTests.mint, amount: .max),
+            BalanceChangeTests.balance(index: 3, owner: BalanceChangeTests.payer, mint: BalanceChangeTests.mint, amount: 1),
         ])),
     ])
     func `Changes are unknown when balances are missing or can't be attributed`(reason: String, simulation: SimulateTransaction.Value) throws {
@@ -102,7 +106,7 @@ struct BalanceChangeTests {
                                   preTokenBalances: tokensBefore, postTokenBalances: tokensAfter)
     }
 
-    private static func balance(index: Int, owner: String?, mint: String = mint, amount: UInt64) -> SimulateTransaction.TokenBalance {
+    private static func balance(index: Int, owner: String?, mint: String, amount: UInt64) -> SimulateTransaction.TokenBalance {
         SimulateTransaction.TokenBalance(accountIndex: index, mint: mint, owner: owner, amount: amount, decimals: 6)
     }
 }

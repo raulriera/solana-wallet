@@ -62,11 +62,12 @@ struct NoteSyncStateTests {
 
     init() throws {
         let vectors = try DepositNoteVectors.load().deposits
+        let sol = PrivateAsset.nativeSOL.mintBytes
         sender = try TransferVectors.sender()
-        deposit = try vectors[0].transaction(signature: IndexerResponses.signature(1), slot: 3)
-        laterDeposit = try vectors[1].transaction(signature: IndexerResponses.signature(2), slot: 12)
-        largestDeposit = try vectors[2].transaction(signature: IndexerResponses.signature(3), slot: 13)
-        foreignDeposit = try vectors[3].transaction(signature: IndexerResponses.signature(4), slot: 4)
+        deposit = try vectors[0].transaction(signature: IndexerResponses.signature(1), slot: 3, mint: sol)
+        laterDeposit = try vectors[1].transaction(signature: IndexerResponses.signature(2), slot: 12, mint: sol)
+        largestDeposit = try vectors[2].transaction(signature: IndexerResponses.signature(3), slot: 13, mint: sol)
+        foreignDeposit = try vectors[3].transaction(signature: IndexerResponses.signature(4), slot: 4, mint: sol)
         let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(amount: 10, asset: .nativeSOL)], transferLamports: 4)
         transfer = try PlanFixtures.transaction(of: plan, signature: IndexerResponses.signature(5), slot: 9)
     }
@@ -443,7 +444,8 @@ struct NoteSyncStateTests {
     @Test
     func `Repeated notes are kept once`() async throws {
         let vector = try #require(try DepositNoteVectors.load().deposits.first)
-        let resent = try vector.transaction(signature: IndexerResponses.signature(6), slot: 14)
+        let resent = try vector.transaction(signature: IndexerResponses.signature(6), slot: 14,
+                                            mint: PrivateAsset.nativeSOL.mintBytes)
 
         let (first, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit, resent]))
         let (state, _) = try await sync(first, with: Indexer(deposits: [deposit]))
