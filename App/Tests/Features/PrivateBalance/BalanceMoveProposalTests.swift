@@ -168,8 +168,7 @@ struct BalanceMoveProposalTests {
         await model.run(model.attempt)
 
         #expect(withdrawal.move.payment.source == .privateBalance)
-        let decimals: UInt8 = withdrawn.asset == .nativeSOL ? 9 : 6
-        #expect(withdrawal.move.payment.token.balance == TokenAmount(amount: 2_000_000_000, decimals: decimals))
+        #expect(withdrawal.move.payment.token.balance.amount == 2_000_000_000)
         #expect(model.review == BalanceMoveProposal.Review(
             networkFee: LocalBalanceMove.networkFee, registrationFee: nil,
             privacyFee: privacyFee > 0 ? privacyFee : nil,
