@@ -100,8 +100,8 @@ nonisolated enum RedeemCodeScan {
                     let state = try await NoteSyncState().syncedToEnd(for: account, rpc: rpc, indexer: indexer)
                     let status: Status = if state.hasUnconfirmedNotes {
                         .unconfirmed
-                    } else if state.spendableLamports > 0 {
-                        .unspent(lamports: state.spendableLamports, signature: funding.signature)
+                    } else if state.spendableAmount(of: .nativeSOL) > 0 {
+                        .unspent(lamports: state.spendableAmount(of: .nativeSOL), signature: funding.signature)
                     } else {
                         .spent
                     }

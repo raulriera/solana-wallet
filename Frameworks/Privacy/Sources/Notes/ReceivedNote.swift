@@ -48,7 +48,7 @@ public struct ReceivedNote: Sendable, Equatable, Codable, Redacted {
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let mint = [UInt8](try container.decode(Data.self, forKey: .mint))
-        guard ConfidentialPlaintext.Asset(mint: mint) != nil else {
+        guard PrivateAsset(mintBytes: mint) != nil else {
             throw DecodingError.dataCorruptedError(forKey: .mint, in: container, debugDescription: "A note holds a supported asset.")
         }
         utxo = UTXO(
@@ -163,7 +163,7 @@ public struct ReceivedNote: Sendable, Equatable, Codable, Redacted {
     /// - Throws: A ``Transactions/ValidationError`` if the tree account's derivation fails.
     static func depositUTXO(in output: ShieldedOutput, owner: Poseidon.Element) throws -> UTXO? {
         guard let deposit = try? ProoflessOutput(decoding: output.payload),
-              deposit.owner == owner, ConfidentialPlaintext.Asset(mint: deposit.mint) != nil,
+              deposit.owner == owner, PrivateAsset(mintBytes: deposit.mint) != nil,
               deposit.blinding == ShieldedPool.depositBlinding(tree: try ShieldedPool.tree(id: output.treeID), leafIndex: output.leafIndex),
               let utxoHash = Poseidon.Element(bigEndianBytes: output.utxoHash) else { return nil }
         let utxo = UTXO(owner: owner, mint: deposit.mint, amount: deposit.amount, blinding: deposit.blinding, treeID: output.treeID)

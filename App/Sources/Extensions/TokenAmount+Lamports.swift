@@ -1,10 +1,10 @@
-import Portfolio
+import Transactions
 
-nonisolated extension Amount {
+nonisolated extension TokenAmount {
     /// Creates a SOL amount from lamports.
     ///
     /// - Parameter lamports: The amount in lamports, SOL's smallest unit.
     init(lamports: UInt64) {
-        self.init(units: lamports, decimals: 9)
+        self.init(amount: lamports, decimals: 9)
     }
 }

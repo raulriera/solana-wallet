@@ -1,11 +1,11 @@
 import Foundation
+import Privacy
 import RPC
 
 /// A move of an account's asset between its public and private balances, with the amount being typed.
 @MainActor
 struct BalanceMove: Identifiable {
     let direction: BalanceMoveProposal.Direction
-    let asset: PrivateAsset
     /// The amount being typed.
     let payment: PaymentModel
     let account: Account
@@ -32,14 +32,13 @@ struct BalanceMove: Identifiable {
         balances: any PrivateBalancing,
         transactions: TransactionStore
     ) {
-        guard let asset = PrivateAsset(mint: token.mint) else { return nil }
+        guard PrivateAsset(token.id) != nil else { return nil }
         let source: PaymentModel.Source = switch direction {
         case .toPrivate: .publicBalance
         case .toPublic: .privateBalance
         }
         payment = PaymentModel(tokens: [token], currencyCode: "USD", source: source)
         self.direction = direction
-        self.asset = asset
         self.account = account
         self.network = network
         self.balances = balances
@@ -49,12 +48,14 @@ struct BalanceMove: Identifiable {
     /// Creates the review of the typed amount.
     ///
     /// - Returns: The move's review.
-    /// - Throws: The error of creating the network's transaction coordinator.
+    /// - Throws: ``PrivateBalanceError/preparationFailed`` for an amount that can't be sent, or the error of
+    ///   creating the network's transaction coordinator.
     func review() throws -> TransactionReviewModel<BalanceMoveProposal> {
+        guard let sent = payment.sent else { throw PrivateBalanceError.preparationFailed }
         let proposal = BalanceMoveProposal(
             direction: direction,
-            asset: asset,
-            amount: payment.amount,
+            asset: payment.token.asset,
+            sent: sent,
             balances: balances
         )
         return try TransactionReviewModel(proposal, from: account, on: network, transactions: transactions)

@@ -1,36 +1,80 @@
 public import Foundation
 
-/// A token mint decoded from its account data.
-public struct TokenMint: Sendable {
+/// A token mint.
+///
+/// A saved mint keeps its address, program, decimals, and metadata, and not its account data.
+public struct Mint: Codable, Hashable, Sendable {
     public let address: Address
     public let program: TokenProgram
     public let decimals: UInt8
-    let data: TokenData
+    /// The name and symbol from the mint's metadata extension or its Metaplex account, or `nil` without either.
+    public var metadata: TokenMetadata?
+    /// The validated account data, or `nil` for a mint created from known facts or read from a saved value.
+    private(set) var data: TokenData?
 
-    /// A Boolean value that indicates whether the mint has no decimals and a supply of one.
-    public var isNonFungible: Bool {
-        decimals == 0 && (try? TokenData.integer(data.bytes, at: 36) as UInt64) == 1
+    /// The saved fields, which leave out the account data.
+    private enum CodingKeys: String, CodingKey {
+        case address, program, decimals, metadata
     }
 
-    /// The name and symbol from the mint's Token-2022 metadata extension, or `nil` without one.
-    public var metadata: TokenMetadata? {
-        data.extensions[19].flatMap { try? TokenMetadata(metadataExtension: $0, mint: address) }
+    /// The mint's account data.
+    ///
+    /// - Throws: ``TokenError/invalidAccount`` for a mint without account data.
+    private var accountData: TokenData {
+        get throws {
+            guard let data else { throw TokenError.invalidAccount }
+            return data
+        }
+    }
+
+    /// A Boolean value that indicates whether the mint has no decimals and a supply of one.
+    ///
+    /// - Throws: ``TokenError/invalidAccount`` for a mint without account data.
+    public var isNonFungible: Bool {
+        get throws {
+            let supply: UInt64 = try TokenData.integer(accountData.bytes, at: 36)
+            return decimals == 0 && supply == 1
+        }
     }
 
     /// The account extensions, with their lengths, that the mint's extensions require.
+    ///
+    /// - Throws: ``TokenError/invalidAccount`` for a mint without account data.
     private var requiredAccountExtensions: [(type: UInt16, length: UInt64)] {
-        let extensions: [(mint: UInt16, account: UInt16, length: UInt64)] = [
-            (1, 2, 8),
-            (14, 15, 1),
-            (26, 27, 0),
-        ]
-        return extensions.filter { data.extensions[$0.mint] != nil }.map { ($0.account, $0.length) }
+        get throws {
+            let data = try accountData
+            let extensions: [(mint: UInt16, account: UInt16, length: UInt64)] = [
+                (1, 2, 8),
+                (14, 15, 1),
+                (26, 27, 0),
+            ]
+            return extensions.filter { data.extensions[$0.mint] != nil }.map { ($0.account, $0.length) }
+        }
     }
 
     /// The size in bytes of a new associated token account for the mint.
+    ///
+    /// - Throws: ``TokenError/invalidAccount`` for a mint without account data.
     public var associatedAccountSize: UInt64 {
-        guard program == .token2022 else { return 165 }
-        return requiredAccountExtensions.reduce(170) { $0 + 4 + $1.length }
+        get throws {
+            let required = try requiredAccountExtensions
+            guard program == .token2022 else { return 165 }
+            return required.reduce(170) { $0 + 4 + $1.length }
+        }
+    }
+
+    /// Creates a mint from known facts, without account data.
+    ///
+    /// - Parameters:
+    ///   - address: The mint address.
+    ///   - program: The program that owns the mint.
+    ///   - decimals: The number of decimal places in base-unit amounts.
+    ///   - metadata: The name and symbol, or `nil` if unknown.
+    public init(address: Address, program: TokenProgram, decimals: UInt8, metadata: TokenMetadata?) {
+        self.address = address
+        self.program = program
+        self.decimals = decimals
+        self.metadata = metadata
     }
 
     /// Creates a mint by decoding its account data.
@@ -49,6 +93,7 @@ public struct TokenMint: Sendable {
         self.address = address
         self.program = program
         decimals = decoded.bytes[44]
+        metadata = decoded.extensions[19].flatMap { try? TokenMetadata(metadataExtension: $0, mint: address) }
         self.data = decoded
     }
 
@@ -59,8 +104,9 @@ public struct TokenMint: Sendable {
     ///   - epoch: The current epoch, or `nil` for a mint without transfer fees.
     ///   - createsDestination: Whether the transfer creates the destination account.
     /// - Returns: The transfer fee, or `nil` for a mint without transfer fees.
-    /// - Throws: A ``TokenError`` for an unsupported or blocking extension.
+    /// - Throws: A ``TokenError`` for an unsupported or blocking extension, or for a mint without account data.
     func transferFee(amount: UInt64, epoch: UInt64?, createsDestination: Bool) throws -> UInt64? {
+        let data = try accountData
         for type in data.extensions.keys.sorted() {
             switch type {
             case 1: _ = try data.value(type, length: 108)
@@ -105,9 +151,10 @@ public struct TokenMint: Sendable {
     /// Checks that an account has the extensions the mint requires.
     ///
     /// - Parameter account: A source or destination account for the mint.
-    /// - Throws: ``TokenError/accountMismatch`` if a required extension is missing.
-    func validateExtensions(of account: TokenAccount) throws {
-        for entry in requiredAccountExtensions where account.data.extensions[entry.type] == nil {
+    /// - Throws: ``TokenError/accountMismatch`` if a required extension is missing, or
+    ///   ``TokenError/invalidAccount`` for a mint without account data.
+    func validateExtensions(of account: Token) throws {
+        for entry in try requiredAccountExtensions where account.data.extensions[entry.type] == nil {
             throw TokenError.accountMismatch
         }
     }

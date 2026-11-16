@@ -3,7 +3,7 @@ import ModularArithmetic
 import Redaction
 import Transactions
 
-/// A default-ring SOL transact before its proof: the sender spends UTXOs into a transfer, a public
+/// A default-ring transact of one asset before its proof: the sender spends UTXOs into a transfer, a public
 /// withdrawal, or both, and keeps the change.
 struct TransactPlan: Sendable, Redacted {
     /// A transact that the plan can't build.
@@ -13,7 +13,7 @@ struct TransactPlan: Sendable, Redacted {
         case nothingToSend
         /// An input isn't owned by the sender.
         case foreignInput
-        /// An input isn't SOL.
+        /// An input or the withdrawal isn't the plan's asset.
         case unsupportedAsset
         /// The inputs come from more than two trees.
         case tooManyInputTrees
@@ -32,10 +32,11 @@ struct TransactPlan: Sendable, Redacted {
         case mismatchedPublicInputHash
     }
 
-    /// A transfer of SOL to another owner's shielded address.
+    /// A transfer of the plan's asset to another owner's shielded address.
     struct Transfer: Sendable, Redacted {
         let recipient: Recipient
-        let lamports: UInt64
+        /// The amount, in the asset's smallest unit.
+        let amount: UInt64
     }
 
     /// The random values of one plan: the blinding seed, the salt, and the padding.
@@ -115,12 +116,11 @@ struct TransactPlan: Sendable, Redacted {
     private struct Layout {
         let senderOwner: Recipient
         let utxos: [UTXO]
-        /// The asset that the transact spends: the withdrawal's, or SOL without one.
-        let asset: ConfidentialPlaintext.Asset
+        let asset: PrivateAsset
         /// The declared input trees, in first-use order.
         let inputTreeIDs: [UInt16]
         /// The owner and the amount of each real output, in slot order.
-        let outputs: [(owner: Recipient, lamports: UInt64)]
+        let outputs: [(owner: Recipient, amount: UInt64)]
         let paddingViewTag: [UInt8]
         let shape: Shape
 
@@ -132,31 +132,35 @@ struct TransactPlan: Sendable, Redacted {
         ///
         /// - Parameters:
         ///   - utxos: The spent UTXOs.
+        ///   - asset: The asset that the transact spends.
         ///   - sender: The sender.
         ///   - transfer: The transfer, if any.
         ///   - withdrawal: The withdrawal, if any.
         /// - Throws: A ``ValidationError`` if the plan can't be built,
-        ///   ``Transactions/ValidationError/invalidAmount`` for a zero-lamport transfer or withdrawal,
+        ///   ``Transactions/ValidationError/invalidAmount`` for a zero transfer or withdrawal,
         ///   or a ``Recipient/ValidationError`` if no key can sign for the sender's signing address.
-        init(utxos: [UTXO], sender: ShieldedAccount, transfer: Transfer?, withdrawal: ExternalData.Withdrawal?) throws {
+        init(
+            utxos: [UTXO], asset: PrivateAsset, sender: ShieldedAccount, transfer: Transfer?, withdrawal: ExternalData.Withdrawal?
+        ) throws {
             guard !utxos.isEmpty else { throw ValidationError.noInputs }
             guard utxos.count <= TransactPlan.maximumInputs else { throw ValidationError.tooManyInputs }
             let senderOwner = try sender.recipient
-            let asset = withdrawal?.asset ?? .sol
+            let mint = asset.mintBytes
             var inputTreeIDs: [UInt16] = []
             for utxo in utxos {
                 guard utxo.owner == senderOwner.owner else { throw ValidationError.foreignInput }
-                guard utxo.mint == asset.mint else { throw ValidationError.unsupportedAsset }
+                guard utxo.mint == mint else { throw ValidationError.unsupportedAsset }
                 if !inputTreeIDs.contains(utxo.treeID) { inputTreeIDs.append(utxo.treeID) }
             }
             guard inputTreeIDs.count <= TransactPlan.maximumInputTrees else { throw ValidationError.tooManyInputTrees }
-            guard transfer?.lamports != 0, withdrawal?.amount != 0 else { throw Transactions.ValidationError.invalidAmount }
+            if let withdrawal, withdrawal.asset != asset { throw ValidationError.unsupportedAsset }
+            guard transfer?.amount != 0, withdrawal?.amount != 0 else { throw Transactions.ValidationError.invalidAmount }
             guard transfer != nil || withdrawal != nil else { throw ValidationError.nothingToSend }
             let available = try Self.sum(utxos.map(\.amount))
-            let spent = try Self.sum([transfer?.lamports ?? 0, withdrawal?.amount ?? 0])
+            let spent = try Self.sum([transfer?.amount ?? 0, withdrawal?.amount ?? 0])
             guard available >= spent else { throw ValidationError.insufficientFunds }
-            var outputs: [(owner: Recipient, lamports: UInt64)] = []
-            if let transfer { outputs.append((transfer.recipient, transfer.lamports)) }
+            var outputs: [(owner: Recipient, amount: UInt64)] = []
+            if let transfer { outputs.append((transfer.recipient, transfer.amount)) }
             if available > spent { outputs.append((senderOwner, available - spent)) }
             guard let shape = Shape.fitting(inputs: utxos.count, outputs: outputs.count) else {
                 preconditionFailure("A supported shape holds every allowed input and two outputs.")
@@ -188,7 +192,7 @@ struct TransactPlan: Sendable, Redacted {
 
         /// Adds amounts without overflow.
         ///
-        /// - Parameter amounts: The amounts, in lamports.
+        /// - Parameter amounts: The amounts, in the asset's smallest unit.
         /// - Returns: Their sum.
         /// - Throws: ``ValidationError/amountOverflow`` if the sum exceeds a 64-bit integer.
         private static func sum(_ amounts: [UInt64]) throws -> UInt64 {
@@ -249,25 +253,27 @@ struct TransactPlan: Sendable, Redacted {
     /// Creates a plan with random blindings, salt, and padding.
     ///
     /// - Parameters:
-    ///   - utxos: The sender's SOL UTXOs to spend, in slot order.
+    ///   - utxos: The sender's UTXOs of the asset to spend, in slot order.
+    ///   - asset: The asset that the transact spends.
     ///   - sender: The sender, who pays the fee.
     ///   - transfer: The transfer to another owner, if any.
     ///   - withdrawal: The withdrawal to a public account, if any.
     ///   - outputTreeID: The ID of the tree that receives the outputs.
     ///   - generator: The source of randomness.
     /// - Throws: A ``ValidationError`` if the plan can't be built,
-    ///   ``Transactions/ValidationError/invalidAmount`` for a zero-lamport transfer or withdrawal, a
+    ///   ``Transactions/ValidationError/invalidAmount`` for a zero transfer or withdrawal, a
     ///   ``Recipient/ValidationError`` if no key can sign for the sender's signing address, or an
     ///   error from sealing the notes or deriving the accounts.
     init(
         spending utxos: [UTXO],
+        of asset: PrivateAsset,
         sender: ShieldedAccount,
         transfer: Transfer?,
         withdrawal: ExternalData.Withdrawal?,
         outputTreeID: UInt16,
         using generator: inout some RandomNumberGenerator
     ) throws {
-        let layout = try Layout(utxos: utxos, sender: sender, transfer: transfer, withdrawal: withdrawal)
+        let layout = try Layout(utxos: utxos, asset: asset, sender: sender, transfer: transfer, withdrawal: withdrawal)
         let randomness = Randomness.random(
             paddingInputs: layout.paddingInputCount, paddingOutputs: layout.paddingOutputCount, using: &generator
         )
@@ -277,7 +283,8 @@ struct TransactPlan: Sendable, Redacted {
     /// Creates a plan with the given random values.
     ///
     /// - Parameters:
-    ///   - utxos: The sender's SOL UTXOs to spend, in slot order.
+    ///   - utxos: The sender's UTXOs of the asset to spend, in slot order.
+    ///   - asset: The asset that the transact spends.
     ///   - sender: The sender, who pays the fee.
     ///   - transfer: The transfer to another owner, if any.
     ///   - withdrawal: The withdrawal to a public account, if any.
@@ -285,18 +292,19 @@ struct TransactPlan: Sendable, Redacted {
     ///   - randomness: The random values, with one blinding per padding input and one payload per
     ///     padding output.
     /// - Throws: A ``ValidationError`` if the plan can't be built,
-    ///   ``Transactions/ValidationError/invalidAmount`` for a zero-lamport transfer or withdrawal, a
+    ///   ``Transactions/ValidationError/invalidAmount`` for a zero transfer or withdrawal, a
     ///   ``Recipient/ValidationError`` if no key can sign for the sender's signing address, or an
     ///   error from sealing the notes or deriving the accounts.
     init(
         spending utxos: [UTXO],
+        of asset: PrivateAsset,
         sender: ShieldedAccount,
         transfer: Transfer?,
         withdrawal: ExternalData.Withdrawal?,
         outputTreeID: UInt16,
         randomness: Randomness
     ) throws {
-        let layout = try Layout(utxos: utxos, sender: sender, transfer: transfer, withdrawal: withdrawal)
+        let layout = try Layout(utxos: utxos, asset: asset, sender: sender, transfer: transfer, withdrawal: withdrawal)
         try self.init(layout: layout, sender: sender, withdrawal: withdrawal, outputTreeID: outputTreeID, randomness: randomness)
     }
 
@@ -348,12 +356,12 @@ struct TransactPlan: Sendable, Redacted {
                     data: randomness.paddingOutputData[slot - layout.outputs.count]
                 ), blinding: blinding, owner: nil)
             }
-            let (owner, lamports) = layout.outputs[slot]
+            let (owner, amount) = layout.outputs[slot]
             let utxo = UTXO(
-                owner: owner.owner, mint: layout.asset.mint, amount: lamports, blinding: blinding, treeID: outputTreeID
+                owner: owner.owner, mint: layout.asset.mintBytes, amount: amount, blinding: blinding, treeID: outputTreeID
             )
             let note = try ConfidentialOutput.seal(
-                ConfidentialPlaintext(asset: layout.asset, amount: lamports, blinding: blinding), for: owner.viewingPublicKey,
+                ConfidentialPlaintext(asset: layout.asset, amount: amount, blinding: blinding), for: owner.viewingPublicKey,
                 transactionViewingKey: transactionViewingKey, salt: randomness.salt, slot: UInt32(slot)
             )
             return Output(utxo: utxo, published: TransactOutput(

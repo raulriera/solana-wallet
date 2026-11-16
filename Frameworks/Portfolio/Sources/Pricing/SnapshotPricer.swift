@@ -1,5 +1,6 @@
 import Foundation
 import RPC
+import Transactions
 
 /// A service that looks up quotes for holdings and values them.
 struct SnapshotPricer: Sendable {
@@ -11,7 +12,7 @@ struct SnapshotPricer: Sendable {
     /// - Returns: Quotes keyed by mint.
     /// - Throws: A provider or cancellation error.
     @concurrent
-    func quotes(for holdings: [Holding.Identity]) async throws -> [String: Quote] {
+    func quotes(for holdings: [Asset.ID]) async throws -> [String: Quote] {
         try Task.checkCancellation()
         return try await provider.prices(for: holdings.map { mint(for: $0) })
     }
@@ -41,13 +42,13 @@ struct SnapshotPricer: Sendable {
         var priced = snapshot
         for index in priced.holdings.indices {
             let holding = priced.holdings[index]
-            guard let amount = holding.amount, let quote = quotes[mint(for: holding.id)] else {
+            guard let balance = holding.balance, let quote = quotes[mint(for: holding.id)] else {
                 priced.holdings[index].valuation = nil
                 continue
             }
             priced.holdings[index].valuation = Valuation(
                 pricePerUnit: quote.pricePerUnit,
-                total: total(for: amount, price: quote.pricePerUnit),
+                total: total(for: balance, price: quote.pricePerUnit),
                 currency: quote.currency,
                 dayChange: quote.dayChange.flatMap { $0.isNaN ? nil : $0 })
         }
@@ -58,24 +59,24 @@ struct SnapshotPricer: Sendable {
     ///
     /// - Parameter identity: The holding's identity.
     /// - Returns: The holding's mint, or Wrapped SOL's mint for native SOL.
-    private func mint(for identity: Holding.Identity) -> String {
+    private func mint(for identity: Asset.ID) -> String {
         switch identity {
         case .nativeSOL: "So11111111111111111111111111111111111111112"
-        case .asset(let mint): mint
+        case .token(let mint): mint.value
         }
     }
 
-    /// Returns the exact value of an amount at a price.
+    /// Returns the exact value of a balance at a price.
     ///
     /// - Parameters:
-    ///   - amount: The holding's amount.
+    ///   - balance: The holding's balance.
     ///   - price: The price of one whole token.
     /// - Returns: The total, or `nil` if `Decimal` can't represent it.
-    private func total(for amount: Amount, price: Decimal) -> Decimal? {
-        if amount.units == 0 || price == 0 { return 0 }
-        var units = Decimal(amount.units)
+    private func total(for balance: TokenAmount, price: Decimal) -> Decimal? {
+        if balance.amount == 0 || price == 0 { return 0 }
+        var units = Decimal(balance.amount)
         var quantity = Decimal()
-        guard NSDecimalMultiplyByPowerOf10(&quantity, &units, -Int16(amount.decimals), .plain) == .noError else { return nil }
+        guard NSDecimalMultiplyByPowerOf10(&quantity, &units, -Int16(balance.decimals), .plain) == .noError else { return nil }
         var price = price
         var total = Decimal()
         guard NSDecimalMultiply(&total, &quantity, &price, .plain) == .noError else { return nil }

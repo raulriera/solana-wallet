@@ -1,4 +1,6 @@
+import Encoding
 import Foundation
+import Testing
 import Transactions
 
 struct TokenTransferResponses {
@@ -25,7 +27,7 @@ struct TokenTransferResponses {
     let program: TokenProgram
     let sender: Address
     let recipient: Address
-    let mint: Address
+    let mint: Mint
     let source: Address
     let tokenAccount: Address
 
@@ -33,18 +35,23 @@ struct TokenTransferResponses {
         self.program = program
         sender = try Address("4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T")
         recipient = try Address("9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM")
-        mint = try Address("A9ZcnduP9GUGGRLZk9zR2KPGuJnmLCz4Te5umhBKYhpX")
+        mint = .fixture("A9ZcnduP9GUGGRLZk9zR2KPGuJnmLCz4Te5umhBKYhpX", program: program, decimals: 6)
         source = try Address("5HHw6ucspj8GLw691ziae7j9grFjcWoS3tmKStMLfGPD")
-        tokenAccount = try program.associatedAccount(owner: recipient, mint: mint)
+        tokenAccount = try program.associatedAccount(owner: recipient, mint: mint.address)
     }
 
-    func http(destination: Destination, recipient: Recipient = .wallet, defaultFrozen: Bool = false) throws -> HTTPResponses {
-        let mintAccount = account(owner: program.rawValue, data: defaultFrozen ? Self.frozenMint : Self.mintData)
-        let sourceAccount = account(owner: program.rawValue, data: Self.sourceData)
+    func http(destination: Destination, recipient: Recipient = .wallet, defaultFrozen: Bool = false,
+              transferFee: (basisPoints: UInt16, maximum: UInt64)? = nil) throws -> HTTPResponses {
+        let plainMint = defaultFrozen ? Self.frozenMint : Self.mintData
+        let mintAccount = account(owner: program.rawValue, data: try transferFee.map(Self.feeMint) ?? plainMint)
+        let hasFee = transferFee != nil
+        let sourceData = try hasFee ? Self.feeAccount(Self.sourceData) : Self.sourceData
+        let destinationData = try hasFee ? Self.feeAccount(Self.destinationData) : Self.destinationData
+        let sourceAccount = account(owner: program.rawValue, data: sourceData)
         let destinationAccount: Any = switch destination {
         case .absent: NSNull()
         case .funded(let lamports): account(owner: Self.systemProgram, lamports: lamports)
-        case .initialized: account(owner: program.rawValue, data: Self.destinationData)
+        case .initialized: account(owner: program.rawValue, data: destinationData)
         case .unsupportedOwner: account(owner: "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL")
         case .nonemptySystem: account(owner: Self.systemProgram, data: "AA==")
         case .executable: account(owner: Self.systemProgram, executable: true)
@@ -61,8 +68,8 @@ struct TokenTransferResponses {
         }
         return HTTPResponses([
             "getMultipleAccounts": [try HTTPResponses.json(["context": ["slot": 101], "value": [
-                mintAccount, recipientAccount, sourceAccount,
-            ] + TokenProgram.allCases.map { $0 == program ? destinationAccount : NSNull() }])],
+                mintAccount, recipientAccount, sourceAccount, destinationAccount,
+            ]])],
             "getEpochInfo": [#"{"epoch":1,"absoluteSlot":101,"blockHeight":91}"#],
             "getMinimumBalanceForRentExemption": ["2100000"],
         ])
@@ -72,6 +79,25 @@ struct TokenTransferResponses {
                          executable: Bool = false) -> [String: Any] {
         ["owner": owner, "lamports": lamports, "executable": executable, "rentEpoch": 0,
          "data": [data, "base64"]]
+    }
+
+    private static func feeMint(_ fee: (basisPoints: UInt16, maximum: UInt64)) throws -> String {
+        var schedule = [UInt8](repeating: 0, count: 8)
+        schedule.append(littleEndian: fee.maximum)
+        schedule.append(littleEndian: fee.basisPoints)
+        let configuration = [UInt8](repeating: 0, count: 72) + schedule + schedule
+        return try extended(mintData, accountType: 1, entry: 1, value: configuration)
+    }
+
+    private static func feeAccount(_ account: String) throws -> String {
+        try extended(account, accountType: 2, entry: 2, value: [UInt8](repeating: 0, count: 8))
+    }
+
+    private static func extended(_ account: String, accountType: UInt8, entry: UInt8, value: [UInt8]) throws -> String {
+        var bytes = Array(try #require(Data(base64Encoded: account)))
+        bytes += [UInt8](repeating: 0, count: 165 - bytes.count)
+        bytes += [accountType, entry, 0, UInt8(value.count), 0] + value
+        return Data(bytes).base64EncodedString()
     }
 
     private static let systemProgram = "11111111111111111111111111111111"

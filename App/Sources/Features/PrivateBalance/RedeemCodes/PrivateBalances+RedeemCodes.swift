@@ -79,7 +79,7 @@ extension PrivateBalances {
         let reserve = try Redemption.reserve(rent: try await rent, treeFee: try await treeFee)
         let index = try await chosenIndex
         let recipient = try keys.oneTimeAccount(at: index).shieldedAccount.recipient
-        let spend = try await state.spend(lamports, to: .fundedTransfer(recipient, publicLamports: reserve),
+        let spend = try await state.spend(lamports, of: .nativeSOL, to: .fundedTransfer(recipient, publicLamports: reserve),
                                           from: shielded, rpc: client, prover: client)
         return PreparedPrivateTransaction(instructions: [spend.instruction], account: account, network: network,
                                           effect: .createCode(spend, index: index, reserve: reserve), registers: false,
@@ -144,7 +144,7 @@ extension PrivateBalances {
         let (state, outcome, lamports, registrationCost) = try await (codeNotes, synced, balances, cost)
         guard !state.hasUnconfirmedNotes else { throw PrivateBalanceError.codeNotReady }
         guard let balance = lamports.first, balance > 0 else { throw PrivateBalanceError.codeRedeemed }
-        guard state.spendableLamports > 0 else { throw PrivateBalanceError.codeNotReady }
+        guard state.spendableAmount(of: .nativeSOL) > 0 else { throw PrivateBalanceError.codeNotReady }
         guard let outputTree = state.outputTreeID else { throw PrivateBalanceError.unavailable }
         let registers = switch outcome {
         case .off: throw PrivateBalanceError.turnedOff
@@ -153,8 +153,8 @@ extension PrivateBalances {
         case .synced: false
         }
         let recipient = try shielded.recipient
-        let spend = try await state.spend(state.spendableLamports, to: .transfer(recipient), from: code, rpc: client,
-                                          prover: client)
+        let spend = try await state.spend(state.spendableAmount(of: .nativeSOL), of: .nativeSOL, to: .transfer(recipient), from: code,
+                                          rpc: client, prover: client)
         let treeFee = try await ShieldedPool.treeFee(of: spend.treeIDs, using: client)
         let available = try Redemption.availableLamports(of: balance, registrationCost: registers ? registrationCost : 0,
                                                          treeFee: treeFee)

@@ -103,8 +103,8 @@ struct TransactPlanResolutionTests {
     private static func plan() throws -> TransactPlan {
         try PlanFixtures.plan(
             spending: [
-                PlanFixtures.utxo(lamports: 4, treeID: 3),
-                PlanFixtures.utxo(lamports: 6, treeID: 1, blindingByte: 0xa2),
+                PlanFixtures.utxo(amount: 4, treeID: 3, asset: .nativeSOL),
+                PlanFixtures.utxo(amount: 6, treeID: 1, blindingByte: 0xa2, asset: .nativeSOL),
             ],
             transferLamports: 7
         )

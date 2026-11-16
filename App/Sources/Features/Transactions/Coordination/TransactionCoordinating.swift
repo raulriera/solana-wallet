@@ -24,14 +24,15 @@ nonisolated protocol TransactionCoordinating: TransactionConfirming {
     ///
     /// - Parameters:
     ///   - amount: The amount in lamports or raw token units.
-    ///   - token: The token mint, or `nil` for SOL.
+    ///   - asset: The asset to pay, as the person reviewed it.
     ///   - wallet: The account that signs and pays the fees.
-    ///   - recipient: The receiving wallet, or a token account for `token`.
+    ///   - recipient: The receiving wallet, or a token account for a token.
     ///   - source: The token account to pay from, or `nil` for the associated account.
     ///   - memo: The payment's memo, or `nil` for none.
     /// - Returns: The simulation to review.
-    /// - Throws: A resolution, preparation, RPC, or cancellation error.
-    func transfer(_ amount: UInt64, token: Address?, using wallet: Account, to recipient: Address,
+    /// - Throws: ``Transactions/TokenError/accountMismatch`` if a token's mint account differs from the reviewed mint,
+    ///   or a resolution, preparation, RPC, or cancellation error.
+    func transfer(_ amount: UInt64, of asset: Asset, using wallet: Account, to recipient: Address,
                   source: Address?, memo: String?) async throws -> Simulation
 
     /// Signs an approved simulation without sending it.
@@ -54,14 +55,14 @@ extension TransactionCoordinating {
     ///
     /// - Parameters:
     ///   - amount: The amount in lamports or raw token units.
-    ///   - token: The token mint, or `nil` for SOL.
+    ///   - asset: The asset to pay, as the person reviewed it.
     ///   - wallet: The account that signs and pays the fees.
-    ///   - recipient: The receiving wallet, or a token account for `token`.
+    ///   - recipient: The receiving wallet, or a token account for a token.
     /// - Returns: The simulation to review.
     /// - Throws: A resolution, preparation, or cancellation error.
-    func transfer(_ amount: UInt64, token: Address? = nil, using wallet: Account,
+    func transfer(_ amount: UInt64, of asset: Asset, using wallet: Account,
                   to recipient: Address) async throws -> Simulation {
-        try await transfer(amount, token: token, using: wallet, to: recipient, source: nil, memo: nil)
+        try await transfer(amount, of: asset, using: wallet, to: recipient, source: nil, memo: nil)
     }
 
     /// Simulates instructions, with the first account paying the fees.

@@ -42,7 +42,7 @@ nonisolated struct Redemption: Sendable {
     var transactionInstructions: [Instruction] {
         get throws {
             guard depositLamports > 0 else { return instructions }
-            return instructions + [try ShieldedPool.deposit(lamports: depositLamports, from: source, to: recipient,
+            return instructions + [try ShieldedPool.deposit(depositLamports, of: .nativeSOL, from: source, to: recipient,
                                                             treeID: treeID)]
         }
     }

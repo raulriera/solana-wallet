@@ -1,5 +1,5 @@
-import Portfolio
 import SwiftUI
+import Transactions
 
 /// One token as a card: its logo, symbol, and name, with its value and 24-hour change on the trailing side.
 struct TokenCard: View {
@@ -8,7 +8,7 @@ struct TokenCard: View {
     @State private var logoColor: ArtworkColor?
     let symbol: String
     let name: String
-    let amount: Amount?
+    let balance: TokenAmount?
     /// The token's total value and its quote currency, or `nil` when either is unknown.
     let value: (total: Decimal, currency: String)?
     /// The price's 24-hour change as a fraction, or `nil` when unknown.
@@ -25,7 +25,7 @@ struct TokenCard: View {
         HStack(spacing: 12) {
             TokenCardIdentity(symbol: symbol, name: name, imageURL: imageURL, secondary: secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            TokenCardFigures(amount: amount, value: value, change: change, isHeldPrivately: isHeldPrivately,
+            TokenCardFigures(balance: balance, value: value, change: change, isHeldPrivately: isHeldPrivately,
                              secondary: secondary)
                 .fixedSize()
         }
@@ -56,9 +56,9 @@ struct TokenCard: View {
 
 #Preview {
     VStack(spacing: 0) {
-        TokenCard(symbol: "SOL", name: "Solana", amount: Amount(units: 12_500_000_000, decimals: 9),
+        TokenCard(symbol: "SOL", name: "Solana", balance: TokenAmount(amount: 12_500_000_000, decimals: 9),
                   value: (total: 2_075, currency: "USD"), change: Decimal(string: "0.0129"), imageURL: nil)
-        TokenCard(symbol: "MYST", name: "Mystery Token", amount: Amount(units: 42, decimals: 0), value: nil,
+        TokenCard(symbol: "MYST", name: "Mystery Token", balance: TokenAmount(amount: 42, decimals: 0), value: nil,
                   change: nil, imageURL: nil)
     }
     .padding(.bottom, 24)

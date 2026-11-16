@@ -22,7 +22,7 @@ struct TokenRentTests {
             mint: fixture.mint(mint.base64EncodedString()), source: fixture.source(source),
             destination: nil, amount: 1, epoch: 100)
 
-        #expect(transfer.mint.associatedAccountSize == expectedSize)
+        #expect(try transfer.mint.associatedAccountSize == expectedSize)
     }
 
     @Test(arguments: TokenFixtures.transfers)
@@ -32,7 +32,7 @@ struct TokenRentTests {
             destination: fixture.createsDestination ? nil : fixture.target(), amount: 1)
 
         #expect(transfer.createsDestination == fixture.createsDestination)
-        #expect(transfer.mint.associatedAccountSize == (transfer.mint.program == .token ? 165 : 170))
+        #expect(try transfer.mint.associatedAccountSize == (transfer.mint.program == .token ? 165 : 170))
     }
 
     private static let extensions = [

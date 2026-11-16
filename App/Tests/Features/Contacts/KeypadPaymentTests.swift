@@ -1,13 +1,12 @@
 import Foundation
 import Testing
+import Transactions
 @testable import widgets
 
 @MainActor
 struct KeypadPaymentTests {
-    private static let sol = PaymentToken(mint: nil, symbol: "SOL", balance: 2, price: nil, decimals: 9)
-
     @Test func `Each state reports its payment and whether it's loading`() {
-        let model = PaymentModel(tokens: [Self.sol], currencyCode: "USD")
+        let model = PaymentModel(tokens: [PaymentFixtures.sol], currencyCode: "USD")
 
         #expect(KeypadPayment.loading.model == nil)
         #expect(KeypadPayment.loading.isLoading)

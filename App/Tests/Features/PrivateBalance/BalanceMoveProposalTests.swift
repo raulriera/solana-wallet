@@ -10,7 +10,7 @@ import Transactions
 struct BalanceMoveProposalTests {
     private static let rateLimit = RPCError.http(statusCode: 429, retryAfter: "3")
 
-    private nonisolated static let assets = [PrivateAsset.sol, .token(.devnetUSDC)]
+    private nonisolated static let assets = [PrivateAsset.nativeSOL, .token(.devnetUSDC)]
 
     @Test(arguments: Self.assets)
     func `Reviewing a deposit shows its network fee`(asset: PrivateAsset) async throws {
@@ -24,7 +24,8 @@ struct BalanceMoveProposalTests {
         #expect(model.review == BalanceMoveProposal.Review(networkFee: LocalBalanceMove.networkFee,
                                                            registrationFee: nil, privacyFee: nil, pendingChange: nil,
                                                            accountDeposit: nil))
-        #expect(model.proposal.amount.units == LocalBalanceMove.lamports)
+        let sent = model.proposal.sent
+        #expect(sent.amount == LocalBalanceMove.amount)
         #expect(model.error == nil)
         #expect(model.canApprove)
     }
@@ -45,11 +46,11 @@ struct BalanceMoveProposalTests {
 
     @Test(arguments: [
         (
-            PrivateAsset.sol, TransactionError(name: "InsufficientFundsForFee", details: nil), [String](),
+            PrivateAsset.nativeSOL, TransactionError(name: "InsufficientFundsForFee", details: nil), [String](),
             PrivateBalanceError.insufficientPublicBalance
         ),
         (
-            .sol,
+            .nativeSOL,
             TransactionError(
                 name: "InstructionError",
                 details: .array([.integer(0), .object(["Custom": .integer(1)])])
@@ -57,7 +58,7 @@ struct BalanceMoveProposalTests {
             ["Transfer: insufficient lamports 0, need 1000000000"], .insufficientPublicBalance
         ),
         (
-            .sol,
+            .nativeSOL,
             TransactionError(
                 name: "InstructionError",
                 details: .array([.integer(1), .object(["Custom": .integer(6001)])])
@@ -97,7 +98,7 @@ struct BalanceMoveProposalTests {
 
     @Test
     func `A preparation error reaches the review unchanged`() async throws {
-        let deposit = try await LocalBalanceMove.deposit(provider: try PrivateBalanceFixtures.customRPC())
+        let deposit = try await LocalBalanceMove.deposit(of: .nativeSOL, provider: try PrivateBalanceFixtures.customRPC())
         let model = deposit.model
 
         model.prepareReview()
@@ -110,7 +111,7 @@ struct BalanceMoveProposalTests {
 
     @Test
     func `Approving sends the deposit and leaves it pending`() async throws {
-        let deposit = try await LocalBalanceMove.deposit(statuses: [.status(.finalized)])
+        let deposit = try await LocalBalanceMove.deposit(of: .nativeSOL, statuses: [.status(.finalized)])
         try await deposit.model.runReview()
 
         let record = try await deposit.model.runApproval()
@@ -120,7 +121,7 @@ struct BalanceMoveProposalTests {
         #expect(try await deposit.transactions.watch(record.id, for: record.key) == .succeeded)
         #expect(deposit.model.outcome == .succeeded)
         #expect(try await deposit.balances.refresh(deposit.account, on: .devnet)
-            == .balance(available: 0, pending: LocalBalanceMove.lamports))
+            == .balance(available: 0, pending: LocalBalanceMove.amount, of: .nativeSOL))
         #expect(deposit.model.error == nil)
         await deposit.sockets.waitUntilClosed()
     }
@@ -129,7 +130,7 @@ struct BalanceMoveProposalTests {
     func `A stopped watch keeps the review waiting until a later watch settles it`() async throws {
         let refusal = Self.rateLimit
         let sockets = SocketSequence { $0 == 0 ? SocketSequence.failing(with: refusal) : SocketSequence.watch() }
-        let deposit = try await LocalBalanceMove.deposit(statuses: [.status(.finalized)], sockets: sockets)
+        let deposit = try await LocalBalanceMove.deposit(of: .nativeSOL, statuses: [.status(.finalized)], sockets: sockets)
         let model = deposit.model
         try await deposit.model.runReview()
         let record = try await deposit.model.runApproval()
@@ -146,12 +147,12 @@ struct BalanceMoveProposalTests {
         #expect(model.outcome == .succeeded)
         #expect(!model.isSending)
         #expect(try await deposit.balances.refresh(deposit.account, on: .devnet)
-            == .balance(available: 0, pending: LocalBalanceMove.lamports))
+            == .balance(available: 0, pending: LocalBalanceMove.amount, of: .nativeSOL))
         #expect(sockets.sockets.count == 2)
         await sockets.waitUntilClosed()
     }
 
-    @Test(arguments: [(PrivateAsset.sol, UInt64(0)), (.token(.devnetUSDC), 0), (.token(.devnetUSDC), 1_488_440)],
+    @Test(arguments: [(PrivateAsset.nativeSOL, UInt64(0)), (.token(.devnetUSDC), 0), (.token(.devnetUSDC), 1_488_440)],
           [UInt64(0), 3_000])
     func `Reviewing a withdrawal shows a privacy fee and an account deposit only when it has them`(
         withdrawn: (asset: PrivateAsset, accountDeposit: UInt64),
@@ -167,11 +168,12 @@ struct BalanceMoveProposalTests {
         await model.run(model.attempt)
 
         #expect(withdrawal.move.payment.source == .privateBalance)
-        #expect(withdrawal.move.payment.token.balance == (withdrawn.asset == .sol ? 2 : 2_000))
+        let decimals: UInt8 = withdrawn.asset == .nativeSOL ? 9 : 6
+        #expect(withdrawal.move.payment.token.balance == TokenAmount(amount: 2_000_000_000, decimals: decimals))
         #expect(model.review == BalanceMoveProposal.Review(
             networkFee: LocalBalanceMove.networkFee, registrationFee: nil,
             privacyFee: privacyFee > 0 ? privacyFee : nil,
-            pendingChange: LocalBalanceMove.privateLamports - LocalBalanceMove.lamports,
+            pendingChange: LocalBalanceMove.privateAmount - LocalBalanceMove.amount,
             accountDeposit: withdrawn.accountDeposit > 0 ? withdrawn.accountDeposit : nil
         ))
         #expect(model.error == nil)
@@ -179,7 +181,7 @@ struct BalanceMoveProposalTests {
 
     @Test
     func `A withdrawal of a whole note has no pending change`() async throws {
-        let withdrawal = try await LocalBalanceMove.withdrawal(privateLamports: LocalBalanceMove.lamports)
+        let withdrawal = try await LocalBalanceMove.withdrawal(of: .nativeSOL, privateAmount: LocalBalanceMove.amount)
         let model = withdrawal.model
 
         model.prepareReview()
@@ -193,7 +195,7 @@ struct BalanceMoveProposalTests {
     func `A withdrawal that the public balance can't pay for shows the fees error`() async throws {
         let failure = SimulateTransaction.Value.failure(TransactionError(name: "InsufficientFundsForFee", details: nil),
                                                         fee: LocalBalanceMove.networkFee)
-        let withdrawal = try await LocalBalanceMove.withdrawal(simulation: failure)
+        let withdrawal = try await LocalBalanceMove.withdrawal(of: .nativeSOL, simulation: failure)
         let model = withdrawal.model
 
         model.prepareReview()
@@ -205,7 +207,7 @@ struct BalanceMoveProposalTests {
 
     @Test
     func `Approving sends the withdrawal and keeps its change pending`() async throws {
-        let withdrawal = try await LocalBalanceMove.withdrawal(statuses: [.status(.finalized)])
+        let withdrawal = try await LocalBalanceMove.withdrawal(of: .nativeSOL, statuses: [.status(.finalized)])
         try await withdrawal.model.runReview()
 
         let record = try await withdrawal.model.runApproval()
@@ -214,7 +216,7 @@ struct BalanceMoveProposalTests {
         #expect(try await withdrawal.transactions.watch(record.id, for: record.key) == .succeeded)
         #expect(withdrawal.model.outcome == .succeeded)
         #expect(try await withdrawal.balances.refresh(withdrawal.account, on: .devnet)
-            == .balance(available: 0, pending: LocalBalanceMove.privateLamports - LocalBalanceMove.lamports))
+            == .balance(available: 0, pending: LocalBalanceMove.privateAmount - LocalBalanceMove.amount, of: .nativeSOL))
         #expect(withdrawal.model.error == nil)
         await withdrawal.sockets.waitUntilClosed()
     }

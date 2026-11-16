@@ -1,5 +1,6 @@
 import Foundation
 import Transactions
+@testable import widgets
 
 // swift-format-ignore: NeverUseForceTry
 nonisolated enum PaymentFixtures {
@@ -9,4 +10,6 @@ nonisolated enum PaymentFixtures {
     static let coarse = try! Address("3Y3fit9UqsAHqs6rhSGaLxA4VUwWRPj9cfQKuTmbAGsw")
     static let half = try! Address("8Gh4z5ndD3dLuKNvKX9fRbsFR4i188WRb9UAdEX5oumv")
     static let lookAlike = try! Address("ChearUeBgrvrS2a421vA9nenKMQB1wADs9aAqPabeAaV")
+    static let sol = PaymentToken(asset: .nativeSOL, balance: TokenAmount(amount: 2_000_000_000, decimals: 9),
+                                  price: nil)
 }

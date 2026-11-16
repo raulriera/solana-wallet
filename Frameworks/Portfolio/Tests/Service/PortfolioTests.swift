@@ -11,7 +11,7 @@ struct PortfolioTests {
         let fixture = Fixture()
         defer { fixture.removeFiles() }
         let key = CacheKey(owner: testWallet, network: .mainnet)
-        let cached = snapshot(owner: testWallet, network: .mainnet, units: 3)
+        let cached = snapshot(owner: testWallet, network: .mainnet, amount: 3)
         try fixture.store.save(cached, for: key)
         let (pending, release) = AsyncStream<Void>.makeStream()
         defer { release.finish() }
@@ -30,11 +30,16 @@ struct PortfolioTests {
         let updated = try #require(await iterator.next())
         let result = try #require(updated.snapshot)
 
-        #expect(result.holdings.map(\.id) == [.nativeSOL, .asset(usdcMint), .asset(usdtMint)])
-        #expect(result.holdings.map(\.symbol) == ["SOL", "USDC", "USDT"])
-        #expect(result.holdings.map(\.amount) == [Amount(units: 100, decimals: 9),
-                                                  Amount(units: 9_007_199_254_740_993, decimals: 6),
-                                                  Amount(units: 0, decimals: 6)])
+        let tokens = try [usdcMint, usdtMint].map { Asset.ID.token(mint: try Address($0)) }
+        #expect(result.holdings.map(\.id) == [.nativeSOL] + tokens)
+        #expect(result.holdings.map(\.asset) == [
+            .nativeSOL,
+            .token(.fixture(usdcMint, decimals: 6, name: "USD Coin", symbol: "USDC")),
+            .token(.fixture(usdtMint, decimals: 6, name: "Tether USD", symbol: "USDT")),
+        ])
+        #expect(result.holdings.map(\.balance) == [TokenAmount(amount: 100, decimals: 9),
+                                                  TokenAmount(amount: 9_007_199_254_740_993, decimals: 6),
+                                                  TokenAmount(amount: 0, decimals: 6)])
         #expect(result.holdings.allSatisfy { $0.valuation == nil })
         #expect(!updated.isRefreshing)
         #expect(updated.error == nil)
@@ -54,16 +59,15 @@ struct PortfolioTests {
         let mint = pyusdMint
         let http = AccountResponses { _ in Ledger(lamports: 1, tokens: [mint: 42]) }
         let service = fixture.portfolio(rpc: http.client)
-        let token = ListedToken(mint: try Address(mint), program: .token2022, decimals: 6, symbol: "PYUSD", name: "PayPal USD")
-        try await service.addToken(token, for: testWallet)
+        try await service.addToken(.fixture(pyusdMint, program: .token2022, decimals: 6), for: testWallet)
         var updates = await service.updates(for: testWallet).makeAsyncIterator()
         _ = try #require(await updates.next())
 
         let updated = try #require(await updates.next())
 
         #expect(updated.error == nil)
-        #expect(updated.holdings.last?.id == .asset(mint))
-        #expect(updated.holdings.last?.amount == Amount(units: 42, decimals: 6))
+        #expect(try updated.holdings.last?.id == .token(mint: Address(mint)))
+        #expect(updated.holdings.last?.balance == TokenAmount(amount: 42, decimals: 6))
         let tokenAccount = try TokenProgram.token2022.associatedAccount(owner: Address(testWallet), mint: Address(mint))
         #expect(await http.requests.first?.last == tokenAccount.value)
     }
@@ -88,13 +92,13 @@ struct PortfolioTests {
         var reading = started.makeAsyncIterator()
         _ = try #require(await reading.next())
 
-        let token = ListedToken(mint: try Address(pyusdMint), program: .token2022, decimals: 6, symbol: "PYUSD", name: "PayPal USD")
-        try await service.addToken(token, for: testWallet)
+        try await service.addToken(.fixture(pyusdMint, program: .token2022, decimals: 6), for: testWallet)
         let updated = try #require(await updates.next())
 
         #expect(updated.error == nil)
-        #expect(updated.holdings.map(\.id) == [.nativeSOL, .asset(usdcMint), .asset(usdtMint), .asset(pyusdMint)])
-        #expect(updated.holdings.last?.amount == Amount(units: 42, decimals: 6))
+        let tokens = try [usdcMint, usdtMint, pyusdMint].map { Asset.ID.token(mint: try Address($0)) }
+        #expect(updated.holdings.map(\.id) == [.nativeSOL] + tokens)
+        #expect(updated.holdings.last?.balance == TokenAmount(amount: 42, decimals: 6))
         #expect(await updates.next() == nil)
         #expect(await http.requests.map(\.count) == [3, 4])
     }
@@ -111,7 +115,7 @@ struct PortfolioTests {
         let updated = try #require(await updates.next())
 
         #expect(updated.error == nil)
-        #expect(updated.holdings.map(\.amount) == [Amount(units: 100, decimals: 9), nil, Amount(units: 7, decimals: 6)])
+        #expect(updated.holdings.map(\.balance) == [TokenAmount(amount: 100, decimals: 9), nil, TokenAmount(amount: 7, decimals: 6)])
         #expect(updated.holdings.allSatisfy { $0.otherOwner == nil })
     }
 
@@ -129,7 +133,7 @@ struct PortfolioTests {
         let updated = try #require(await updates.next())
 
         #expect(updated.error == nil)
-        #expect(updated.holdings.map(\.amount) == [Amount(units: 100, decimals: 9), Amount(units: 5, decimals: 6), nil])
+        #expect(updated.holdings.map(\.balance) == [TokenAmount(amount: 100, decimals: 9), TokenAmount(amount: 5, decimals: 6), nil])
         #expect(updated.holdings.map(\.otherOwner) == [nil, nil, try Address(otherWallet)])
     }
 
@@ -145,8 +149,8 @@ struct PortfolioTests {
         let updated = try #require(await updates.next())
 
         #expect(updated.error == nil)
-        #expect(updated.holdings.map(\.amount) == [
-            Amount(units: 100, decimals: 9), Amount(units: 0, decimals: 6), Amount(units: 7, decimals: 6),
+        #expect(updated.holdings.map(\.balance) == [
+            TokenAmount(amount: 100, decimals: 9), TokenAmount(amount: 0, decimals: 6), TokenAmount(amount: 7, decimals: 6),
         ])
     }
 
@@ -174,7 +178,7 @@ struct PortfolioTests {
     func `A failed balance read preserves the previous complete snapshot`() async throws {
         let fixture = Fixture()
         defer { fixture.removeFiles() }
-        let cached = snapshot(owner: testWallet, network: .mainnet, units: 3)
+        let cached = snapshot(owner: testWallet, network: .mainnet, amount: 3)
         let key = CacheKey(owner: testWallet, network: .mainnet)
         try fixture.store.save(cached, for: key)
         let http = AccountResponses { _ in throw URLError(.notConnectedToInternet) }
@@ -191,10 +195,10 @@ struct PortfolioTests {
     }
 
     @Test(arguments: [nil, UInt64(3)])
-    func `Cache write failures retain freshly retrieved holdings`(cachedUnits: UInt64?) async throws {
+    func `Cache write failures retain freshly retrieved holdings`(cachedAmount: UInt64?) async throws {
         let fixture = Fixture()
         defer { fixture.removeFiles() }
-        let cached = cachedUnits.map { snapshot(owner: testWallet, network: .mainnet, units: $0) }
+        let cached = cachedAmount.map { snapshot(owner: testWallet, network: .mainnet, amount: $0) }
         let http = AccountResponses { _ in Ledger() }
         let service = fixture.portfolio(rpc: http.client, store: WriteFailingStore(cached: cached))
         let updates = await service.updates(for: testWallet)
@@ -204,7 +208,7 @@ struct PortfolioTests {
 
         let updated = try #require(await iterator.next())
 
-        #expect(updated.holdings.first?.amount == Amount(units: 100, decimals: 9))
+        #expect(updated.holdings.first?.balance == TokenAmount(amount: 100, decimals: 9))
         #expect((updated.error as? CocoaError)?.code == .fileWriteOutOfSpace)
         #expect(!updated.isRefreshing)
         #expect(updated.revision > initial.revision)
@@ -223,14 +227,14 @@ struct PortfolioTests {
     func `A removal stands when cached holdings can't be saved`() async throws {
         let fixture = Fixture()
         defer { fixture.removeFiles() }
-        let cached = snapshot(owner: testWallet, network: .mainnet, units: 3)
+        let cached = snapshot(owner: testWallet, network: .mainnet, amount: 3)
         let service = fixture.portfolio(rpc: AccountResponses { _ in Ledger() }.client,
                                         store: WriteFailingStore(cached: cached))
 
         try await service.removeToken(Address(usdcMint), for: testWallet)
 
         let saved = try fixture.tokenLists.tokenList(for: CacheKey(owner: testWallet, network: .mainnet))
-        #expect(saved?.tokens.map(\.mint.value) == [DefaultToken.usdt.rawValue])
+        #expect(saved?.mints.map(\.address.value) == [usdtMint])
     }
 
     @Test
@@ -238,7 +242,7 @@ struct PortfolioTests {
         let fixture = Fixture()
         defer { fixture.removeFiles() }
         let key = CacheKey(owner: testWallet, network: .mainnet)
-        try fixture.store.save(snapshot(owner: testWallet, network: .mainnet, units: 3), for: key)
+        try fixture.store.save(snapshot(owner: testWallet, network: .mainnet, amount: 3), for: key)
         let http = AccountResponses { _ in Ledger(lamports: nil) }
         let service = fixture.portfolio(rpc: http.client)
         let updates = await service.updates(for: testWallet)
@@ -247,8 +251,8 @@ struct PortfolioTests {
 
         let updated = try #require(await iterator.next())
 
-        #expect(updated.holdings.map(\.amount) == [Amount(units: 0, decimals: 9), Amount(units: 0, decimals: 6),
-                                                   Amount(units: 0, decimals: 6)])
+        #expect(updated.holdings.map(\.balance) == [TokenAmount(amount: 0, decimals: 9), TokenAmount(amount: 0, decimals: 6),
+                                                   TokenAmount(amount: 0, decimals: 6)])
         #expect(updated.error == nil)
         #expect(fixture.store.snapshot(for: key) == updated.snapshot)
     }
@@ -258,7 +262,7 @@ struct PortfolioTests {
         let fixture = Fixture()
         defer { fixture.removeFiles() }
         let key = CacheKey(owner: testWallet, network: .mainnet)
-        try fixture.store.save(snapshot(owner: testWallet, network: .mainnet, units: 3), for: key)
+        try fixture.store.save(snapshot(owner: testWallet, network: .mainnet, amount: 3), for: key)
         let (pending, release) = AsyncStream<Void>.makeStream()
         let (started, startedContinuation) = AsyncStream<Void>.makeStream()
         let (cancelled, cancelledContinuation) = AsyncStream<Void>.makeStream()
@@ -290,7 +294,7 @@ struct PortfolioTests {
         let fixture = Fixture()
         defer { fixture.removeFiles() }
         let key = CacheKey(owner: testWallet, network: .mainnet)
-        try fixture.store.save(snapshot(owner: testWallet, network: .mainnet, units: 3), for: key)
+        try fixture.store.save(snapshot(owner: testWallet, network: .mainnet, amount: 3), for: key)
         let (pending, release) = AsyncStream<Void>.makeStream()
         defer { release.finish() }
         let http = AccountResponses { _ in
@@ -312,12 +316,12 @@ struct PortfolioTests {
         (.devnet, testWallet, UInt64(22)),
         (.mainnet, otherWallet, UInt64(33)),
     ])
-    func `Persisted snapshots stay isolated by wallet and network`(network: Network, owner: String, expectedUnits: UInt64) async throws {
+    func `Persisted snapshots stay isolated by wallet and network`(network: Network, owner: String, expectedAmount: UInt64) async throws {
         let fixture = Fixture()
         defer { fixture.removeFiles() }
-        for (savedNetwork, savedOwner, units) in [(Network.mainnet, testWallet, UInt64(11)), (.devnet, testWallet, 22),
+        for (savedNetwork, savedOwner, amount) in [(Network.mainnet, testWallet, UInt64(11)), (.devnet, testWallet, 22),
                                                   (.mainnet, otherWallet, 33)] {
-            try fixture.store.save(snapshot(owner: savedOwner, network: savedNetwork, units: units),
+            try fixture.store.save(snapshot(owner: savedOwner, network: savedNetwork, amount: amount),
                                    for: CacheKey(owner: savedOwner, network: savedNetwork))
         }
         let http = AccountResponses(network: network) { _ in throw URLError(.notConnectedToInternet) }
@@ -330,7 +334,7 @@ struct PortfolioTests {
 
         #expect(initial.snapshot?.owner == owner)
         #expect(initial.snapshot?.network == network)
-        #expect(initial.holdings.first?.amount?.units == expectedUnits)
+        #expect(initial.holdings.first?.balance?.amount == expectedAmount)
         #expect(failed.snapshot == initial.snapshot)
     }
 
@@ -339,7 +343,7 @@ struct PortfolioTests {
         let fixture = Fixture()
         defer { fixture.removeFiles() }
         let key = CacheKey(owner: testWallet, network: .mainnet)
-        let cached = snapshot(owner: testWallet, network: .mainnet, units: 3)
+        let cached = snapshot(owner: testWallet, network: .mainnet, amount: 3)
         try fixture.store.save(cached, for: key)
         let (pending, release) = AsyncStream<Void>.makeStream()
         let (started, startedContinuation) = AsyncStream<Void>.makeStream()
@@ -404,7 +408,8 @@ struct PortfolioTests {
         release.finish()
 
         let updated = try #require(await second.next())
-        #expect(updated.holdings.first { $0.id == .asset(usdcMint) }?.amount?.units == 7)
+        let usdc = Asset.ID.token(mint: try Address(usdcMint))
+        #expect(updated.holdings.first { $0.id == usdc }?.balance?.amount == 7)
         #expect(updated.error == nil)
         #expect(await second.next() == nil)
         #expect(await http.requests.count == 1)
@@ -415,7 +420,7 @@ struct PortfolioTests {
         let fixture = Fixture()
         defer { fixture.removeFiles() }
         let key = CacheKey(owner: testWallet, network: .mainnet)
-        try fixture.store.save(snapshot(owner: testWallet, network: .mainnet, units: 3), for: key)
+        try fixture.store.save(snapshot(owner: testWallet, network: .mainnet, amount: 3), for: key)
         let file = try #require(FileManager.default.contentsOfDirectory(at: fixture.directory,
                                                                         includingPropertiesForKeys: nil).first)
         var envelope = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any])
@@ -489,8 +494,8 @@ struct PortfolioTests {
         let recovered = try #require(try await reload(service).snapshot)
 
         #expect(failed.error == nil)
-        #expect(failed.snapshot?.holdings.map(\.amount) == [Amount(units: 100, decimals: 9), Amount(units: 5, decimals: 6),
-                                                              Amount(units: 0, decimals: 6)])
+        #expect(failed.snapshot?.holdings.map(\.balance) == [TokenAmount(amount: 100, decimals: 9), TokenAmount(amount: 5, decimals: 6),
+                                                              TokenAmount(amount: 0, decimals: 6)])
         #expect(failed.snapshot?.holdings.allSatisfy { $0.imageURL == nil } == true)
         #expect(recovered.holdings.map(\.imageURL) == [nil, usdcLogo, nil])
         #expect(await http.logoRequests == [[usdcMint, usdtMint], [usdcMint, usdtMint]])
@@ -502,8 +507,9 @@ struct PortfolioTests {
         defer { fixture.removeFiles() }
         let logo = try #require(URL(string: "https://cdn.example.com/usdc.png"))
         let cached = Snapshot(owner: testWallet, network: .mainnet,
-                              holdings: [Holding(id: .asset(usdcMint), amount: Amount(units: 1, decimals: 6),
-                                                 name: "USD Coin", symbol: "USDC", imageURL: logo, valuation: nil)])
+                              holdings: [Holding(asset: .token(.fixture(usdcMint, decimals: 6)),
+                                                 balance: TokenAmount(amount: 1, decimals: 6), imageURL: logo,
+                                                 valuation: nil)])
         try fixture.store.save(cached, for: CacheKey(owner: testWallet, network: .mainnet))
         let http = AccountResponses { _ in Ledger() }
 
@@ -527,8 +533,9 @@ struct PortfolioTests {
         let otherKey = CacheKey(owner: otherWallet, network: .mainnet)
         let logo = try #require(URL(string: "https://old.example.com/usdc.png"))
         let other = Snapshot(owner: otherWallet, network: .mainnet,
-                             holdings: [Holding(id: .asset(usdcMint), amount: Amount(units: 1, decimals: 6),
-                                                name: "USD Coin", symbol: "USDC", imageURL: logo, valuation: nil)])
+                             holdings: [Holding(asset: .token(.fixture(usdcMint, decimals: 6)),
+                                                 balance: TokenAmount(amount: 1, decimals: 6), imageURL: logo,
+                                                 valuation: nil)])
         try fixture.store.save(other, for: otherKey)
 
         try await service.providerDidChange()
@@ -537,9 +544,9 @@ struct PortfolioTests {
         let saved = try #require(fixture.store.snapshot(for: CacheKey(owner: testWallet, network: .mainnet)))
         let otherSaved = try #require(fixture.store.snapshot(for: otherKey))
         #expect(saved.holdings.allSatisfy { $0.imageURL == nil })
-        #expect(saved.holdings.map(\.amount) == original.holdings.map(\.amount))
+        #expect(saved.holdings.map(\.balance) == original.holdings.map(\.balance))
         #expect(otherSaved.holdings.map(\.imageURL) == [nil])
-        #expect(otherSaved.holdings.map(\.amount) == other.holdings.map(\.amount))
+        #expect(otherSaved.holdings.map(\.balance) == other.holdings.map(\.balance))
         host.withLock { $0 = "new.example.com" }
         var updates = await service.updates(for: testWallet).makeAsyncIterator()
         let initial = try #require(await updates.next())
@@ -566,7 +573,7 @@ struct PortfolioTests {
     func `A provider change reports a snapshot whose logos can't be removed and still ends its work`() async throws {
         let fixture = Fixture()
         defer { fixture.removeFiles() }
-        let cached = snapshot(owner: testWallet, network: .mainnet, units: 3,
+        let cached = snapshot(owner: testWallet, network: .mainnet, amount: 3,
                               imageURL: URL(string: "https://old.example.com/usdc.png"))
         let (pending, release) = AsyncStream<Void>.makeStream()
         let (started, announce) = AsyncStream<Void>.makeStream()
@@ -618,8 +625,8 @@ private func reload(_ service: Portfolio) async throws -> Update {
     return try #require(last)
 }
 
-private func snapshot(owner: String, network: Network, units: UInt64, imageURL: URL? = nil) -> Snapshot {
+private func snapshot(owner: String, network: Network, amount: UInt64, imageURL: URL? = nil) -> Snapshot {
     Snapshot(owner: owner, network: network,
-             holdings: [Holding(id: .asset(usdcMint), amount: Amount(units: units, decimals: 6),
-                                name: nil, symbol: nil, imageURL: imageURL, valuation: nil)])
+             holdings: [Holding(asset: .token(.fixture(usdcMint, decimals: 6)),
+                                balance: TokenAmount(amount: amount, decimals: 6), imageURL: imageURL, valuation: nil)])
 }

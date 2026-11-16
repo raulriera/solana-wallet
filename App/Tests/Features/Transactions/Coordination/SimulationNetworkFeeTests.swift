@@ -41,12 +41,7 @@ struct SimulationNetworkFeeTests {
     }
 
     private static func transfer(_ fixture: SigningFixture, preparer: Preparer) async throws -> Simulation {
-        let signing = try HTTPResponses.signing()
-        let coordinator = TransactionCoordinator(
-            rpc: signing.client, configuration: fixture.configuration, preparer: preparer,
-            signer: Signer(validator: PreparationValidator(rpc: signing.client), store: UnavailableRecoveryStore()),
-            submitter: Submitter(rpc: signing.client), confirmer: Confirmer(rpc: signing.client)
-        )
-        return try await coordinator.transfer(1, using: fixture.account, to: fixture.transfer.accounts[1].address)
+        let coordinator = try TransactionCoordinator.simulating(with: preparer, configuration: fixture.configuration)
+        return try await coordinator.transfer(1, of: .nativeSOL, using: fixture.account, to: fixture.transfer.accounts[1].address)
     }
 }

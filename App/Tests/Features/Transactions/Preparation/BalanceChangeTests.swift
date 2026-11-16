@@ -25,11 +25,11 @@ struct BalanceChangeTests {
 
         let changes = BalanceChange.changes(in: transaction, from: simulation)
 
-        let token = BalanceChange.Asset.token(mint: try Address(Self.mint), decimals: 6)
+        let token = Asset.ID.token(mint: try Address(Self.mint))
         #expect(changes == [
-            BalanceChange(owner: try Address(Self.payer), asset: .sol, before: 10_000_000, after: 7_955_719),
-            BalanceChange(owner: try Address(Self.recipient), asset: .sol, before: 0, after: 1),
-            BalanceChange(owner: try Address(Self.others[2]), asset: .sol, before: 0, after: 2_039_280),
+            BalanceChange(owner: try Address(Self.payer), asset: .nativeSOL, before: 10_000_000, after: 7_955_719),
+            BalanceChange(owner: try Address(Self.recipient), asset: .nativeSOL, before: 0, after: 1),
+            BalanceChange(owner: try Address(Self.others[2]), asset: .nativeSOL, before: 0, after: 2_039_280),
             BalanceChange(owner: try Address(Self.payer), asset: token, before: 500, after: 300),
             BalanceChange(owner: try Address(Self.recipient), asset: token, before: 0, after: 200),
         ])
@@ -82,8 +82,8 @@ struct BalanceChangeTests {
         let review = try await coordinator.simulate([fixture.transfer], using: fixture.account)
 
         #expect(review.balanceChanges == [
-            BalanceChange(owner: payer, asset: .sol, before: 1_000_000, after: 989_999),
-            BalanceChange(owner: recipient, asset: .sol, before: 0, after: 1),
+            BalanceChange(owner: payer, asset: .nativeSOL, before: 1_000_000, after: 989_999),
+            BalanceChange(owner: recipient, asset: .nativeSOL, before: 0, after: 1),
         ])
     }
 

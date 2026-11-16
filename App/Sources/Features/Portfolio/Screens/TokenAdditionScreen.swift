@@ -42,7 +42,8 @@ struct TokenAdditionScreen: View {
             if let preview = addition.preview {
                 let token = Holding(preview: preview)
                 Section {
-                    TokenTitleCard(symbol: token.displaySymbol, name: token.displayName, logoURL: token.logoURL)
+                    TokenTitleCard(symbol: token.asset.displaySymbol, name: token.asset.displayName,
+                                   logoURL: token.logoURL)
                 } footer: {
                     Text("Anyone can name a token anything. Add only addresses you trust.")
                         .foregroundStyle(palette.secondaryText)

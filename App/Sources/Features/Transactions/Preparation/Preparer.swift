@@ -56,7 +56,8 @@ nonisolated struct Preparer: TransactionPreparing {
                                   signer: signer, network: rpc.network, minimumSlot: context, requirements: requirements)
     }
 
-    /// Returns a priority fee with the network's resource limits, or with a tenth more than the measured usage.
+    /// Returns a priority fee with the network's resource limits, or with a tenth more than the measured usage, where
+    /// the account bytes round up to a 32 KiB page.
     ///
     /// - Parameters:
     ///   - priorityFee: The priority fee in lamports.
@@ -70,8 +71,10 @@ nonisolated struct Preparer: TransactionPreparing {
         guard (measured?.units ?? 0) <= limits.units, (measured?.bytes ?? 0) <= limits.bytes else {
             throw PreparerError.resourceUsageUnavailable
         }
-        let units = measured.map { min(limits.units, max(1, $0.units + ($0.units + 9) / 10)) } ?? limits.units
-        let bytes = measured.map { min(limits.bytes, max(1, $0.bytes + ($0.bytes + 9) / 10)) } ?? limits.bytes
+        func padded(_ usage: UInt64) -> UInt64 { usage + (usage + 9) / 10 }
+        let units = measured.map { min(limits.units, max(1, padded($0.units))) } ?? limits.units
+        let bytes = measured.map { min(limits.bytes, max(1, (padded($0.bytes) + 32_767) / 32_768) * 32_768) }
+            ?? limits.bytes
         return try Configuration(priorityFeeLamports: priorityFee, computeUnitLimit: UInt32(units),
                                  loadedAccountsDataSizeLimit: UInt32(bytes))
     }

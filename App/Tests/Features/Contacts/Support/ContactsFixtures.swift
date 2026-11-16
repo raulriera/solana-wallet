@@ -39,7 +39,7 @@ nonisolated enum ContactsFixtures {
     @MainActor
     static func payment(to recipient: Address, signature: String, account: UUID = main.id, network: Network = .mainnet,
                         settled: TimeInterval) -> TransactionRecord {
-        .fixture(.payment(recipient: recipient, mint: nil, units: 1), signature: signature, account: account,
+        .fixture(.payment(recipient: recipient, asset: .nativeSOL, amount: 1), signature: signature, account: account,
                  network: network, status: .succeeded, created: settled - 1, settled: settled)
     }
 

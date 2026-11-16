@@ -11,36 +11,37 @@ struct ExternalData: Sendable {
         /// The amount, in the asset's smallest unit.
         let amount: UInt64
 
-        /// The withdrawn token, or `nil` for SOL.
-        var token: PrivateToken?
-
-        /// The withdrawn asset.
-        var asset: ConfidentialPlaintext.Asset {
-            token?.asset ?? .sol
-        }
+        let asset: PrivateAsset
 
         /// The accounts that the external data hash commits to.
         var committedAccounts: [Address] {
-            get throws { [try token?.mint ?? ShieldedPool.solInterface, recipient] }
+            get throws {
+                switch asset {
+                case .nativeSOL: [try ShieldedPool.solInterface, recipient]
+                case .token(let token): [token.mint, recipient]
+                }
+            }
         }
 
         /// The accounts of the withdrawal's settlement, which end the transact instruction's accounts.
         var settlementAccounts: [Transaction.Account] {
             get throws {
-                guard let token else {
+                switch asset {
+                case .nativeSOL:
                     return [
                         .writable(try ShieldedPool.solInterface),
                         .writable(recipient),
                     ]
+                case .token(let token):
+                    let mint = token.mint
+                    return [
+                        .readonly(try ShieldedPool.cpiAuthority),
+                        .readonly(mint),
+                        .writable(try ShieldedPool.splInterface(of: mint).address),
+                        .writable(recipient),
+                        .readonly(try PrivateToken.program.address),
+                    ]
                 }
-                let mint = try token.mint
-                return [
-                    .readonly(try ShieldedPool.cpiAuthority),
-                    .readonly(mint),
-                    .writable(try ShieldedPool.splInterface(of: mint).address),
-                    .writable(recipient),
-                    .readonly(try TokenProgram.token.address),
-                ]
             }
         }
 
@@ -49,9 +50,12 @@ struct ExternalData: Sendable {
         /// - Parameter writer: The writer of the external data.
         /// - Throws: A ``Transactions/ValidationError`` if the token's interface derivation fails.
         func write(to writer: inout WincodeWriter) throws {
-            writer.append(token == nil ? ExternalData.solWithdrawalVariant : ExternalData.splWithdrawalVariant)
+            switch asset {
+            case .nativeSOL: writer.append(ExternalData.solWithdrawalVariant)
+            case .token: writer.append(ExternalData.splWithdrawalVariant)
+            }
             writer.append(amount)
-            if let token { writer.append(try ShieldedPool.splInterface(of: token.mint).bump) }
+            if case .token(let token) = asset { writer.append(try ShieldedPool.splInterface(of: token.mint).bump) }
         }
     }
 

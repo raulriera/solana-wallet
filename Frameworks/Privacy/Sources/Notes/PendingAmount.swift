@@ -5,7 +5,7 @@ import Redaction
 struct PendingAmount: Sendable, Equatable, Codable, Redacted {
     let signature: String
 
-    let asset: ConfidentialPlaintext.Asset
+    let asset: PrivateAsset
 
     /// The amount, in the asset's smallest unit.
     let amount: UInt64

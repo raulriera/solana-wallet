@@ -49,32 +49,32 @@ struct PrivateTransferLiveTests {
 
         var privateLamports = try await balances.settledBalance(of: sender, on: .devnet)
         if privateLamports < Self.minimumPrivateLamports {
-            let deposit = try await balances.prepare(.deposit(Self.depositLamports), from: sender, on: .devnet)
+            let deposit = try await balances.prepare(.deposit(Self.depositLamports, of: .nativeSOL), from: sender, on: .devnet)
             let rent = deposit.registers ? PrivateBalances.registrationLamports : 0
             try await wallets.requireFunds(Self.depositLamports + rent + Self.feeLamports, using: rpc)
             let confirmation = try await coordinator.run(deposit.instructions, signedBy: [sender])
             try #require(confirmation.outcome == .succeeded)
-            #expect(try await balances.complete(deposit, with: confirmation).balance(of: .sol)
+            #expect(try await balances.complete(deposit, with: confirmation).balance(of: .nativeSOL)
                 == PrivateBalanceStatus.Balance(available: privateLamports, pending: Self.depositLamports))
             privateLamports = try await balances.settledBalance(of: sender, on: .devnet)
         }
 
-        let send = try await balances.prepare(.send(Self.transferLamports, to: recipient.address), from: sender, on: .devnet)
+        let send = try await balances.prepare(.send(Self.transferLamports, of: .nativeSOL, to: recipient.address), from: sender, on: .devnet)
         let sent = try await coordinator.run(send.instructions, signedBy: [sender])
         try #require(sent.outcome == .succeeded)
         let sentChange = try #require(send.effect.spend).receivedAmount
-        #expect(try await balances.complete(send, with: sent).balance(of: .sol)
+        #expect(try await balances.complete(send, with: sent).balance(of: .nativeSOL)
             == PrivateBalanceStatus.Balance(available: privateLamports - Self.transferLamports - sentChange, pending: sentChange))
         privateLamports = try await balances.settledBalance(of: sender, on: .devnet)
 
         let before = try await rpc.accounts(at: [recipient.address.value])
         let publicLamports = (before.value.first ?? nil)?.lamports ?? 0
-        let withdrawal = try await balances.prepare(.withdraw(Self.transferLamports, to: recipient.address), from: sender,
+        let withdrawal = try await balances.prepare(.withdraw(Self.transferLamports, of: .nativeSOL, to: recipient.address), from: sender,
                                                     on: .devnet)
         let withdrawn = try await coordinator.run(withdrawal.instructions, signedBy: [sender])
         try #require(withdrawn.outcome == .succeeded)
         let withdrawnChange = try #require(withdrawal.effect.spend).receivedAmount
-        #expect(try await balances.complete(withdrawal, with: withdrawn).balance(of: .sol)
+        #expect(try await balances.complete(withdrawal, with: withdrawn).balance(of: .nativeSOL)
             == PrivateBalanceStatus.Balance(available: privateLamports - Self.transferLamports - withdrawnChange, pending: withdrawnChange))
         let slot = try #require(withdrawn.slot)
         let after = try await rpc.accounts(at: [recipient.address.value], minContextSlot: slot)

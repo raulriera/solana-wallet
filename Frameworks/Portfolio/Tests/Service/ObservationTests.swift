@@ -35,7 +35,7 @@ struct ObservationTests {
         let retried = try await nextResult(&updates)
 
         #expect(retried.error == nil)
-        #expect(retried.holdings.first?.amount?.units == 200)
+        #expect(retried.holdings.first?.balance?.amount == 200)
         #expect(await http.minimumSlots == [nil, 110, 110])
         try await service.removeData(for: testWallet)
         await fixture.socket.waitUntilCancelled()
@@ -61,7 +61,7 @@ struct ObservationTests {
         let reloaded = try await nextResult(&updates)
 
         #expect(reloaded.error == nil)
-        #expect(reloaded.holdings.first?.amount?.units == 200)
+        #expect(reloaded.holdings.first?.balance?.amount == 200)
         #expect(await ledger.readCount == 3)
         try await service.removeData(for: testWallet)
         await fixture.socket.waitUntilCancelled()
@@ -86,7 +86,7 @@ struct ObservationTests {
         let read = try await nextResult(&updates)
 
         #expect(read.error == nil)
-        #expect(read.holdings.first?.amount?.units == 200)
+        #expect(read.holdings.first?.balance?.amount == 200)
         try await service.removeData(for: testWallet)
     }
 
@@ -129,7 +129,7 @@ struct ObservationTests {
         let observedResult = try await nextResult(&observed)
         #expect(manualResult.error == nil)
         #expect(observedResult.error == nil)
-        #expect(manualResult.holdings.first?.amount?.units == 300)
+        #expect(manualResult.holdings.first?.balance?.amount == 300)
         #expect(observedResult.snapshot == manualResult.snapshot)
         #expect(fixture.store.snapshot(for: fixture.key) == manualResult.snapshot)
         #expect(await http.minimumSlots == [nil, nil, 110])
@@ -225,7 +225,7 @@ struct ObservationTests {
         let changed = try await nextResult(&updates)
         let current = try #require(changed.snapshot)
         try #require(changed.error == nil)
-        #expect(changed.holdings.map(\.id) == [.nativeSOL, .asset(usdtMint)])
+        #expect(try changed.holdings.map(\.id) == [.nativeSOL, .token(mint: Address(usdtMint))])
         #expect(await http.minimumSlots == [nil, 110, 110])
 
         await ledger.set(lamports: 300, slot: 109)
@@ -282,7 +282,7 @@ struct ObservationTests {
         let second = try #require(await sockets.next())
         let result = try await nextResult(&observed)
         #expect(result.error == nil)
-        #expect(result.holdings.first?.amount?.units == 300)
+        #expect(result.holdings.first?.balance?.amount == 300)
         #expect(fixture.store.snapshot(for: fixture.key) == result.snapshot)
         #expect(await http.minimumSlots == [nil, 110, nil])
         try await service.removeData(for: testWallet)
@@ -308,7 +308,7 @@ struct ObservationTests {
         let initial = try #require(await joined.next())
         try #require(initial.isRefreshing)
         let refreshed = try await nextResult(&joined)
-        #expect(refreshed.holdings.first?.amount?.units == 200)
+        #expect(refreshed.holdings.first?.balance?.amount == 200)
         #expect(await ledger.readCount == 2)
         #expect(fixture.socket.requests.count == 3)
         try await service.removeData(for: testWallet)
@@ -345,7 +345,7 @@ struct ObservationTests {
         fixture.gate.resume()
         let updated = try await nextResult(&updates)
         #expect(updated.error == nil)
-        #expect(updated.holdings.first?.amount?.units == 200)
+        #expect(updated.holdings.first?.balance?.amount == 200)
         #expect(fixture.store.snapshot(for: fixture.key) == updated.snapshot)
         #expect(await http.minimumSlots == [nil, 110])
         #expect(await ledger.readCount == 2)
@@ -386,11 +386,11 @@ struct ObservationTests {
         release.finish()
 
         let earlier = try await nextResult(&updates)
-        #expect(earlier.holdings.first?.amount?.units == 200)
+        #expect(earlier.holdings.first?.balance?.amount == 200)
         #expect(await delays.next() == .seconds(2))
         fixture.gate.resume()
         let latest = try await nextResult(&updates)
-        #expect(latest.holdings.first?.amount?.units == 300)
+        #expect(latest.holdings.first?.balance?.amount == 300)
         #expect(fixture.store.snapshot(for: fixture.key) == latest.snapshot)
         #expect(await ledger.readCount == 3)
         try await service.removeData(for: testWallet)
@@ -428,15 +428,15 @@ struct ObservationTests {
         try await nextResult(&updates)
         let first = try #require(await sockets.next())
 
-        let expected: [Holding.Identity]
+        let expected: [Asset.ID]
         switch change {
         case .addition:
-            try await service.addToken(ListedToken(mint: Address(pyusdMint), program: .token2022, decimals: 6,
-                                                   symbol: "PYUSD", name: "PayPal USD"), for: testWallet)
-            expected = [.nativeSOL, .asset(usdcMint), .asset(usdtMint), .asset(pyusdMint)]
+            try await service.addToken(.fixture(pyusdMint, program: .token2022, decimals: 6), for: testWallet)
+            expected = try [.nativeSOL]
+                + [usdcMint, usdtMint, pyusdMint].map { Asset.ID.token(mint: try Address($0)) }
         case .removal:
             try await service.removeToken(Address(usdcMint), for: testWallet)
-            expected = [.nativeSOL, .asset(usdtMint)]
+            expected = [.nativeSOL, .token(mint: try Address(usdtMint))]
         }
         await first.waitUntilCancelled()
         let second = try #require(await sockets.next())
@@ -465,7 +465,8 @@ struct ObservationTests {
         try await service.removeToken(Address(usdcMint), for: testWallet)
         let removed = try #require(await updates.next())
 
-        let remaining = initial.holdings.map(\.id).filter { $0 != .asset(usdcMint) }
+        let usdc = Asset.ID.token(mint: try Address(usdcMint))
+        let remaining = initial.holdings.map(\.id).filter { $0 != usdc }
         #expect(removed.isRefreshing)
         #expect(removed.holdings.map(\.id) == remaining)
         #expect(removed.snapshotRevision.map { $0 > initial.snapshotRevision ?? 0 } == true)
@@ -505,7 +506,8 @@ struct ObservationTests {
         release.finish()
         let result = try await nextResult(&reload)
 
-        let remaining = cached.holdings.map(\.id).filter { $0 != .asset(usdcMint) }
+        let usdc = Asset.ID.token(mint: try Address(usdcMint))
+        let remaining = cached.holdings.map(\.id).filter { $0 != usdc }
         #expect(edited.isRefreshing)
         #expect(edited.holdings.map(\.id) == remaining)
         #expect(result.error == nil)
@@ -523,7 +525,7 @@ struct ObservationTests {
         var updates = await service.observations(for: testWallet).makeAsyncIterator()
         try await nextResult(&updates)
 
-        let usdc = try #require(try TokenList(defaultsFor: .mainnet).tokens.first)
+        let usdc = try #require(try TokenList(defaultsFor: .mainnet).mints.first)
         try await service.addToken(usdc, for: testWallet)
         try await service.removeToken(Address(pyusdMint), for: testWallet)
         await ledger.set(lamports: 200)
@@ -533,7 +535,7 @@ struct ObservationTests {
         fixture.gate.resume()
         let updated = try await nextResult(&updates)
 
-        #expect(updated.holdings.first?.amount?.units == 200)
+        #expect(updated.holdings.first?.balance?.amount == 200)
         #expect(await ledger.readCount == 2)
         #expect(fixture.socket.requests.count == 3)
         try await service.removeData(for: testWallet)
@@ -636,7 +638,7 @@ struct ObservationTests {
         let reconnected = try await nextResult(&updates)
 
         #expect(reconnected.error == nil)
-        #expect(reconnected.holdings.first?.amount?.units == 200)
+        #expect(reconnected.holdings.first?.balance?.amount == 200)
         #expect(second.subscribedAddresses == first.subscribedAddresses)
         #expect(await ledger.readCount == 2)
         try await service.removeData(for: testWallet)
@@ -723,9 +725,9 @@ struct ObservationTests {
         let reloaded = try await nextResult(&manual)
         let observed = try await nextResult(&updates)
 
-        #expect(reloaded.holdings.first?.amount?.units == 200)
+        #expect(reloaded.holdings.first?.balance?.amount == 200)
         #expect(observed.error == nil)
-        #expect(observed.holdings.first?.amount?.units == 200)
+        #expect(observed.holdings.first?.balance?.amount == 200)
         fixture.gate.finish()
         var waited: [Duration] = []
         for await delay in fixture.gate.delays { waited.append(delay) }
@@ -746,13 +748,13 @@ struct ObservationTests {
         try await nextResult(&updates)
         _ = try #require(await sockets.next())
 
-        try await service.addToken(ListedToken(mint: Address(pyusdMint), program: .token2022, decimals: 6,
-                                               symbol: "PYUSD", name: "PayPal USD"), for: testWallet)
+        try await service.addToken(.fixture(pyusdMint, program: .token2022, decimals: 6), for: testWallet)
         let second = try #require(await sockets.next())
         let changed = try await nextResult(&updates)
 
         #expect(changed.error == nil)
-        #expect(changed.holdings.map(\.id) == [.nativeSOL, .asset(usdcMint), .asset(usdtMint), .asset(pyusdMint)])
+        let tokens = try [usdcMint, usdtMint, pyusdMint].map { Asset.ID.token(mint: try Address($0)) }
+        #expect(changed.holdings.map(\.id) == [.nativeSOL] + tokens)
         #expect(await ledger.reads == [second.subscribedAddresses])
         try await service.removeData(for: testWallet)
         await second.waitUntilCancelled()
@@ -803,7 +805,7 @@ struct ObservationTests {
         let observed = try await nextResult(&updates)
 
         #expect(observed.error == nil)
-        #expect(observed.holdings.first?.amount?.units == 200)
+        #expect(observed.holdings.first?.balance?.amount == 200)
         try await service.removeData(for: testWallet)
         await second.waitUntilCancelled()
     }
@@ -823,8 +825,8 @@ struct ObservationTests {
 
         await service.reload(for: testWallet)
 
-        #expect(try await nextResult(&first).holdings.first?.amount?.units == 200)
-        #expect(try await nextResult(&second).holdings.first?.amount?.units == 200)
+        #expect(try await nextResult(&first).holdings.first?.balance?.amount == 200)
+        #expect(try await nextResult(&second).holdings.first?.balance?.amount == 200)
         #expect(await ledger.readCount == 3)
         try await service.removeData(for: testWallet)
         await fixture.socket.waitUntilCancelled()
@@ -861,7 +863,7 @@ struct ObservationTests {
         await reloading.value
         release.finish()
 
-        #expect(try await nextResult(&observed).holdings.first?.amount?.units == 200)
+        #expect(try await nextResult(&observed).holdings.first?.balance?.amount == 200)
         #expect(await ledger.readCount == 2)
         try await service.removeData(for: testWallet)
         await fixture.socket.waitUntilCancelled()
@@ -885,7 +887,7 @@ struct ObservationTests {
         let second = try #require(await sockets.next())
         let reloaded = try await nextResult(&updates)
         #expect(reloaded.error == nil)
-        #expect(reloaded.holdings.first?.amount?.units == 200)
+        #expect(reloaded.holdings.first?.balance?.amount == 200)
         try await service.removeData(for: testWallet)
         await second.waitUntilCancelled()
     }

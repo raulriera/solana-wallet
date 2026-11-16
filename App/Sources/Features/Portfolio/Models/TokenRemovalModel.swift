@@ -15,10 +15,9 @@ final class TokenRemovalModel {
 
     /// Accepts a confirmed removal of a token.
     ///
-    /// - Parameter token: The token to remove.
-    func remove(_ token: Holding.Identity) {
-        guard case .asset(let mint) = token, let address = try? Address(mint) else { return }
-        request = address
+    /// - Parameter mint: The mint address of the token to remove.
+    func remove(_ mint: Address) {
+        request = mint
         attempt = UUID()
     }
 

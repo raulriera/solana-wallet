@@ -27,7 +27,7 @@ struct ProofRequestVectors: Decodable, Sendable {
 
         func plan() throws -> TransactPlan {
             try PlanFixtures.plan(
-                spending: inputs.map { try PlanFixtures.utxo(lamports: $0.lamports, treeID: $0.treeID, blindingByte: $0.blindingByte) },
+                spending: inputs.map { try PlanFixtures.utxo(amount: $0.lamports, treeID: $0.treeID, blindingByte: $0.blindingByte, asset: .nativeSOL) },
                 transferLamports: transferLamports, withdrawal: try withdrawalLamports.map { try PlanFixtures.withdrawal(lamports: $0) },
                 outputTreeID: outputTreeID, paddingInputs: paddingInputs, paddingOutputs: paddingOutputs
             )

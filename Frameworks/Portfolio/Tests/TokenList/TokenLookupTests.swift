@@ -25,8 +25,11 @@ struct TokenLookupTests {
 
         let preview = try await lookupPortfolio(http.client).token(at: mint)
 
-        #expect(preview == TokenPreview(token: ListedToken(mint: mint, program: .token, decimals: 6,
-                                                           symbol: "USDC", name: "USD Coin"), logo: nil))
+        #expect(preview.mint.address == mint)
+        #expect(preview.mint.program == .token)
+        #expect(preview.mint.decimals == 6)
+        #expect(preview.mint.metadata == TokenMetadata(name: "USD Coin", symbol: "USDC"))
+        #expect(preview.logo == nil)
         #expect(await http.requests == [[usdcMint, metadataAccount.value]])
     }
 
@@ -37,7 +40,10 @@ struct TokenLookupTests {
 
         let preview = try await lookupPortfolio(http.client).token(at: mint)
 
-        #expect(preview.token == ListedToken(mint: mint, program: .token, decimals: 6, symbol: nil, name: nil))
+        #expect(preview.mint.address == mint)
+        #expect(preview.mint.program == .token)
+        #expect(preview.mint.decimals == 6)
+        #expect(preview.mint.metadata == nil)
     }
 
     @Test(arguments: Refusal.allCases, [false, true])
@@ -71,7 +77,7 @@ struct TokenLookupTests {
         let preview = try await lookupPortfolio(http.heliusClient).token(at: mint)
 
         #expect(preview.logo == (logoFails ? nil : URL(string: "https://cdn.example.com/usdc.png")))
-        #expect(preview.token.decimals == 6)
+        #expect(preview.mint.decimals == 6)
         #expect(await http.logoRequests == [[usdcMint]])
     }
 }

@@ -38,7 +38,7 @@ struct ConfidentialOutputTests {
         viewingKey = try rail.viewingKey()
         try #require([UInt8](viewingKey.publicKey.taggedRepresentation) == (try fixtureBytes(rail.viewingPubkey)))
         owner = try rail.ownerHash()
-        note = ConfidentialPlaintext(asset: .sol, amount: output.amount, blinding: try output.blinding())
+        note = ConfidentialPlaintext(asset: .nativeSOL, amount: output.amount, blinding: try output.blinding())
         transactionViewingKey = try TransactionViewingKey.derive(
             viewingKey: viewingKey, firstNullifier: Poseidon.Element(hex: output.firstNullifier)
         )
@@ -84,10 +84,10 @@ struct ConfidentialOutputTests {
         #expect(utxo == UTXO(owner: owner, mint: [UInt8](repeating: 0, count: 32), amount: 6, blinding: note.blinding, treeID: 0))
     }
 
-    @Test(arguments: [ConfidentialPlaintext.Asset.usdc, .usdt, .devnetUSDC])
-    func `Recipients receive token notes only under their asset's mint`(asset: ConfidentialPlaintext.Asset) throws {
+    @Test(arguments: PrivateToken.supported.map(PrivateAsset.token))
+    func `Recipients receive token notes only under their asset's mint`(asset: PrivateAsset) throws {
         let token = ConfidentialPlaintext(asset: asset, amount: 6, blinding: note.blinding)
-        let expected = UTXO(owner: owner, mint: asset.mint, amount: 6, blinding: note.blinding, treeID: output.treeID)
+        let expected = UTXO(owner: owner, mint: asset.mintBytes, amount: 6, blinding: note.blinding, treeID: output.treeID)
         let sealed = try ConfidentialOutput(decoding: ConfidentialOutput.seal(
             token, for: viewingKey.publicKey, transactionViewingKey: transactionViewingKey, salt: salt, slot: output.index
         ).encoded)
@@ -96,7 +96,7 @@ struct ConfidentialOutputTests {
             viewingKey: viewingKey, owner: owner, transactionViewingPublicKey: transactionViewingKey.publicKey,
             salt: salt, slot: output.index, treeID: output.treeID, utxoHash: expected.hash
         )
-        let otherMint = UTXO(owner: owner, mint: ConfidentialPlaintext.Asset.sol.mint, amount: 6, blinding: note.blinding,
+        let otherMint = UTXO(owner: owner, mint: PrivateAsset.nativeSOL.mintBytes, amount: 6, blinding: note.blinding,
                              treeID: output.treeID)
         let mismatched = try sealed.receive(
             viewingKey: viewingKey, owner: owner, transactionViewingPublicKey: transactionViewingKey.publicKey,

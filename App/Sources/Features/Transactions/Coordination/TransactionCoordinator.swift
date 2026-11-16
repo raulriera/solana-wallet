@@ -88,20 +88,22 @@ nonisolated struct TransactionCoordinator: TransactionCoordinating {
         return try review(preparation, authorities: authorities)
     }
 
-    func transfer(_ amount: UInt64, token: Address?, using wallet: Account, to recipient: Address,
+    func transfer(_ amount: UInt64, of asset: Asset, using wallet: Account, to recipient: Address,
                   source: Address?, memo: String?) async throws -> Simulation {
-        if let token {
-            let resolved = try await tokens.transfer(mint: token, amount: amount, from: wallet.address,
+        switch asset {
+        case .token(let mint):
+            let resolved = try await tokens.transfer(mint: mint, amount: amount, from: wallet.address,
                 to: recipient, source: source, memo: memo)
             let preparation = try await preparer.prepare(resolved.transfer.instructions(), payer: wallet.address,
                 signer: wallet.address, configuration: configuration, minimumSlot: resolved.slot)
             return try review(preparation, authorities: [.account(wallet)], token: resolved.transfer, rent: resolved.rent)
+        case .nativeSOL:
+            guard source == nil else { throw ValidationError.invalidMessage }
+            var instructions: [Instruction] = []
+            if let memo { instructions.append(try MemoProgram.memo(memo, signers: [wallet.address])) }
+            instructions.append(try SystemProgram.transfer(from: wallet.address, to: recipient, lamports: amount))
+            return try await simulate(instructions, using: [.account(wallet)])
         }
-        guard source == nil else { throw ValidationError.invalidMessage }
-        var instructions: [Instruction] = []
-        if let memo { instructions.append(try MemoProgram.memo(memo, signers: [wallet.address])) }
-        instructions.append(try SystemProgram.transfer(from: wallet.address, to: recipient, lamports: amount))
-        return try await simulate(instructions, using: [.account(wallet)])
     }
 
     func sign(_ simulation: Simulation) async throws -> Transaction {

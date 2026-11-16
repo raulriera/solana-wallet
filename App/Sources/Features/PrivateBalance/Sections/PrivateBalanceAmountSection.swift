@@ -1,15 +1,15 @@
-import Portfolio
 import SwiftUI
+import Transactions
 
 /// Shows an asset's available and pending private amounts with their actions, or a failed read with a Try Again button.
 struct PrivateBalanceAmountSection: View {
     @Environment(\.palette) private var palette
     @State private var isRefreshing = false
     /// The spendable private balance, or `nil` without a balance.
-    let available: Amount?
+    let available: TokenAmount?
     /// The private balance the network hasn't reported yet, or `nil` without a balance.
-    let pending: Amount?
-    let symbol: String
+    let pending: TokenAmount?
+    let asset: Asset
     /// Whether the last read failed.
     let isStale: Bool
     /// The action that reads the balance again, or `nil` where nothing can.
@@ -19,13 +19,13 @@ struct PrivateBalanceAmountSection: View {
         Section {
             if let available {
                 LabeledContent("Available") {
-                    TokenBalance(amount: available, symbol: symbol)
+                    TokenBalance(balance: available, asset: asset)
                         .textSelection(.enabled)
                 }
             }
-            if let pending, pending.units > 0 {
+            if let pending, pending.amount > 0 {
                 LabeledContent("Pending") {
-                    TokenBalance(amount: pending, symbol: symbol)
+                    TokenBalance(balance: pending, asset: asset)
                         .foregroundStyle(palette.secondaryText)
                 }
             }
@@ -44,13 +44,13 @@ struct PrivateBalanceAmountSection: View {
                 .foregroundStyle(palette.primary)
                 .disabled(isRefreshing)
             } else if let available {
-                PrivateBalanceActions(available: available, symbol: symbol)
+                PrivateBalanceActions(available: available, asset: asset)
             }
         } header: {
             Text("Private Balance")
         } footer: {
-            if !isStale, let pending, pending.units > 0 {
-                Text("Pending \(symbol) becomes available when the network reports it, usually within a minute.",
+            if !isStale, let pending, pending.amount > 0 {
+                Text("Pending \(asset.displaySymbol) becomes available when the network reports it, usually within a minute.",
                      comment: "Footer under a private balance with a pending amount, such as a recent deposit. The variable is the token's symbol, such as SOL or USDC.")
                     .foregroundStyle(palette.secondaryText)
             }

@@ -8,10 +8,8 @@ import Transactions
 @MainActor
 struct PrivateBalanceMoveActionTests {
     private static let sol = Holding(
-        id: .nativeSOL,
-        amount: Amount(units: 2_000_000_000, decimals: 9),
-        name: "Solana",
-        symbol: "SOL",
+        asset: .nativeSOL,
+        balance: TokenAmount(amount: 2_000_000_000, decimals: 9),
         imageURL: nil,
         valuation: nil
     )
@@ -48,6 +46,6 @@ struct PrivateBalanceMoveActionTests {
 
         let move = try #require(model.move)
         #expect(move.direction == direction)
-        #expect(move.payment.token.balance == balance)
+        #expect(Decimal(move.payment.token.balance) == balance)
     }
 }

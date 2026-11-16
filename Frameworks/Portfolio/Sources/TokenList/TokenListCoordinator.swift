@@ -28,12 +28,12 @@ actor TokenListCoordinator {
     /// Adds a token to an account's list and saves the list if the token was new.
     ///
     /// - Parameters:
-    ///   - token: The token to add.
+    ///   - mint: The mint of the token to add.
     ///   - owner: The account's wallet address.
     /// - Returns: `true` if the token was new to the list.
     /// - Throws: A ``TokenListError`` or a file-system error.
-    func add(_ token: ListedToken, for owner: String) throws -> Bool {
-        try change(for: owner) { try $0.add(token) }
+    func add(_ mint: Mint, for owner: String) throws -> Bool {
+        try change(for: owner) { try $0.add(mint) }
     }
 
     /// Removes a token from an account's list and saves the list if the token was listed.

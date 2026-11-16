@@ -10,19 +10,24 @@ import Transactions
 @Suite(.timeLimit(.minutes(1)))
 struct PrivateBalanceStoreTests {
     nonisolated private static let sol = Holding(
-        id: .nativeSOL,
-        amount: Amount(units: 2_000_000_000, decimals: 9),
-        name: "Solana",
-        symbol: "SOL",
+        asset: .nativeSOL,
+        balance: TokenAmount(amount: 2_000_000_000, decimals: 9),
         imageURL: nil,
         valuation: nil
     )
 
     nonisolated private static let devnetUSDC = Holding(
-        id: .asset("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU"),
-        amount: Amount(units: 5_000_000, decimals: 6),
-        name: "USD Coin",
-        symbol: "USDC",
+        asset: .token(.fixture("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU", decimals: 6,
+                                 name: "USD Coin", symbol: "USDC")),
+        balance: TokenAmount(amount: 5_000_000, decimals: 6),
+        imageURL: nil,
+        valuation: nil
+    )
+
+    nonisolated private static let twoDecimalToken = Holding(
+        asset: .token(.fixture("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU", decimals: 2,
+                                 symbol: "TWO")),
+        balance: TokenAmount(amount: 5_000_000, decimals: 2),
         imageURL: nil,
         valuation: nil
     )
@@ -69,7 +74,7 @@ struct PrivateBalanceStoreTests {
 
         #expect(try await sent.settle() == .succeeded)
 
-        try await PrivateBalanceFixtures.status(of: account, in: store, becomes: .balance(available: 0, pending: 0))
+        try await PrivateBalanceFixtures.status(of: account, in: store, becomes: .balance(available: 0, pending: 0, of: .nativeSOL))
     }
 
     @Test
@@ -88,7 +93,7 @@ struct PrivateBalanceStoreTests {
 
         try await rpcStore.select(.solana)
 
-        try await PrivateBalanceFixtures.status(of: account, in: store, becomes: .balance(available: 0, pending: 0))
+        try await PrivateBalanceFixtures.status(of: account, in: store, becomes: .balance(available: 0, pending: 0, of: .nativeSOL))
     }
 
     @Test
@@ -109,6 +114,7 @@ struct PrivateBalanceStoreTests {
     @Test(arguments: [
         (PrivateBalanceFixtures.Balance.available, Self.sol, Decimal(2), Decimal(string: "0.001")!),
         (.availableToken, Self.devnetUSDC, 5, 1),
+        (.availableToken, Self.twoDecimalToken, 50_000, 10_000),
     ])
     func `Moves take the balance they leave`(
         fixture: PrivateBalanceFixtures.Balance,
@@ -125,27 +131,24 @@ struct PrivateBalanceStoreTests {
 
         #expect(deposit?.direction == .toPrivate)
         #expect(deposit?.payment.source == .publicBalance)
-        #expect(deposit?.payment.token.balance == publicBalance)
+        #expect(deposit.map { Decimal($0.payment.token.balance) } == publicBalance)
         #expect(withdrawal?.direction == .toPublic)
         #expect(withdrawal?.payment.source == .privateBalance)
-        #expect(withdrawal?.payment.token.balance == privateBalance)
+        #expect(withdrawal.map { Decimal($0.payment.token.balance) } == privateBalance)
     }
 
     @Test(arguments: [
         Holding(
-            id: .asset("So11111111111111111111111111111111111111112"),
-            amount: Amount(units: 1, decimals: 9),
-            name: nil,
-            symbol: "wSOL",
+            asset: .token(.fixture("So11111111111111111111111111111111111111112", decimals: 9,
+                                     symbol: "wSOL")),
+            balance: TokenAmount(amount: 1, decimals: 9),
             imageURL: nil,
             valuation: nil
         ),
         Holding(
-            id: .nativeSOL,
-            amount: Amount(units: 1, decimals: 9),
+            asset: .nativeSOL,
+            balance: TokenAmount(amount: 1, decimals: 9),
             otherOwner: try? Address("4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T"),
-            name: nil,
-            symbol: "SOL",
             imageURL: nil,
             valuation: nil
         ),

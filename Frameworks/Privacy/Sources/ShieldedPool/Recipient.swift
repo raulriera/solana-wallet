@@ -3,7 +3,7 @@ import ModularArithmetic
 public import RPC
 public import Transactions
 
-/// A default-ring owner that can receive SOL: the public half of a shielded address.
+/// A default-ring owner that can receive private transfers: the public half of a shielded address.
 public struct Recipient: Sendable {
     /// Keys that can't own a default-ring UTXO.
     public enum ValidationError: Error, Equatable {

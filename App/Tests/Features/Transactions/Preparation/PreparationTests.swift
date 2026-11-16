@@ -26,6 +26,28 @@ struct PreparationTests {
     }
 
     @Test(arguments: [
+        (measured: 256, limit: UInt32(32_768)),
+        (measured: 30_000, limit: 65_536),
+        (measured: 65_000_000, limit: 67_108_864),
+    ])
+    func `Estimated account data limits add a tenth and round up to a 32 KiB page`(
+        measured: Int, limit: UInt32
+    ) async throws {
+        let fixture = try SigningFixture()
+        let payer = fixture.transfer.accounts[0].address
+        let usage = #""unitsConsumed":150,"loadedAccountsDataSize":\#(measured)"#
+        let http = HTTPResponses([
+            "getLatestBlockhash": [#"{"context":{"slot":400},"value":{"blockhash":"11111111111111111111111111111111","lastValidBlockHeight":550}}"#],
+            "simulateTransaction": [#"{"context":{"slot":401},"value":{"err":null,\#(usage)}}"#],
+            "getFeeForMessage": [#"{"context":{"slot":401},"value":5000}"#],
+        ])
+
+        let preparation = try await Preparer(rpc: http.client).prepare([fixture.transfer], payer: payer, signer: payer)
+
+        #expect(preparation.transaction.requests.loadedAccountsDataSizeLimit == limit)
+    }
+
+    @Test(arguments: [
         (#"{"context":{"slot":399},"value":{"err":null}}"#, RPCError.InvalidResponse.staleContext),
         (#"{"context":{"slot":401},"value":{"err":null,"replacementBlockhash":{"blockhash":"11111111111111111111111111111111","lastValidBlockHeight":600}}}"#,
          .replacedBlockhash),

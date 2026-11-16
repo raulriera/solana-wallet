@@ -8,10 +8,8 @@ import Transactions
 @MainActor
 struct BalanceMoveReviewActionTests {
     private static let sol = Holding(
-        id: .nativeSOL,
-        amount: Amount(units: 2_000_000_000, decimals: 9),
-        name: "Solana",
-        symbol: "SOL",
+        asset: .nativeSOL,
+        balance: TokenAmount(amount: 2_000_000_000, decimals: 9),
         imageURL: nil,
         valuation: nil
     )
@@ -32,7 +30,7 @@ struct BalanceMoveReviewActionTests {
         let review = try #require(presented.presented)
         #expect(review.attempt?.work == .review)
         #expect(review.proposal.direction == .toPrivate)
-        #expect(review.proposal.amount.quantity == 1)
+        #expect(Decimal(review.proposal.sent) == 1)
         #expect(presented.error == nil)
     }
 

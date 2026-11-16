@@ -56,37 +56,11 @@ public struct NoteSyncState: Sendable, Equatable, Codable, Redacted {
     /// while a claim still names it.
     let missingSpendReads: [String: Int]
 
-    /// The SOL that recorded transactions gave the account and no note counts yet, in lamports.
-    public var pendingLamports: UInt64 {
-        pendingAmount(of: .sol)
-    }
-
-    /// The total of the unspent SOL notes that no unsettled claimed spend names, which a spend can use, in lamports.
-    public var spendableLamports: UInt64 {
-        spendableAmount(of: .sol)
-    }
-
-    /// Returns the total of a token's unspent notes that no unsettled claimed spend names.
-    ///
-    /// - Parameter token: The token.
-    /// - Returns: The total, in the token's smallest unit.
-    public func spendableAmount(of token: PrivateToken) -> UInt64 {
-        spendableAmount(of: token.asset)
-    }
-
-    /// Returns the amount of a token that recorded transactions gave the account and no note counts yet.
-    ///
-    /// - Parameter token: The token.
-    /// - Returns: The amount, in the token's smallest unit.
-    public func pendingAmount(of token: PrivateToken) -> UInt64 {
-        pendingAmount(of: token.asset)
-    }
-
     /// Returns the total of an asset's unspent notes that no unsettled claimed spend names.
     ///
     /// - Parameter asset: The asset.
     /// - Returns: The total, in the asset's smallest unit.
-    private func spendableAmount(of asset: ConfidentialPlaintext.Asset) -> UInt64 {
+    public func spendableAmount(of asset: PrivateAsset) -> UInt64 {
         notes(of: asset).reduce(0) { $0 + $1.amount }
     }
 
@@ -94,7 +68,7 @@ public struct NoteSyncState: Sendable, Equatable, Codable, Redacted {
     ///
     /// - Parameter asset: The asset.
     /// - Returns: The amount, in the asset's smallest unit.
-    private func pendingAmount(of asset: ConfidentialPlaintext.Asset) -> UInt64 {
+    public func pendingAmount(of asset: PrivateAsset) -> UInt64 {
         pending.filter { $0.asset == asset }.reduce(0) { $0 + $1.amount }
     }
 
@@ -102,8 +76,9 @@ public struct NoteSyncState: Sendable, Equatable, Codable, Redacted {
     ///
     /// - Parameter asset: The asset.
     /// - Returns: The asset's notes, in slot, signature, leaf, and tree order.
-    func notes(of asset: ConfidentialPlaintext.Asset) -> [ReceivedNote] {
-        notes.filter { $0.utxo.mint == asset.mint && !claimedSpends.contains($0.nullifier.bigEndianBytes) }
+    func notes(of asset: PrivateAsset) -> [ReceivedNote] {
+        let mint = asset.mintBytes
+        return notes.filter { $0.utxo.mint == mint && !claimedSpends.contains($0.nullifier.bigEndianBytes) }
     }
 
     /// Whether the state holds received notes whose roots their trees' accounts didn't hold yet, which no amount
@@ -149,7 +124,7 @@ public struct NoteSyncState: Sendable, Equatable, Codable, Redacted {
         rejectedSpends: Set<String>,
         missingSpendReads: [String: Int]
     ) throws {
-        let amounts = notes.map { ($0.utxo.mint, $0.amount) } + pending.map { ($0.asset.mint, $0.amount) }
+        let amounts = notes.map { ($0.utxo.mint, $0.amount) } + pending.map { ($0.asset.mintBytes, $0.amount) }
         _ = try Dictionary(amounts) { total, amount in
             let (sum, overflow) = total.addingReportingOverflow(amount)
             guard !overflow else { throw ValidationError.amountOverflow }
@@ -206,7 +181,7 @@ public struct NoteSyncState: Sendable, Equatable, Codable, Redacted {
     /// - Parameters:
     ///   - spend: The spend whose transaction succeeded.
     ///   - signature: The transaction's signature.
-    /// - Returns: The state without the spent notes and with the spend's received lamports pending.
+    /// - Returns: The state without the spent notes and with the spend's received amount pending.
     /// - Throws: ``ValidationError/amountOverflow`` if the total would exceed a 64-bit integer.
     public func recording(_ spend: PrivateSpend, signature: String) throws -> NoteSyncState {
         let spent = Set(spend.nullifiers.map(\.bigEndianBytes))
@@ -220,31 +195,6 @@ public struct NoteSyncState: Sendable, Equatable, Codable, Redacted {
         )
     }
 
-    /// Records a SOL deposit's successful transaction to the account.
-    ///
-    /// - Parameters:
-    ///   - lamports: The deposited amount.
-    ///   - signature: The transaction's signature.
-    /// - Returns: The state with the deposit pending.
-    /// - Throws: ``Transactions/ValidationError/invalidAmount`` for zero lamports, or
-    ///   ``ValidationError/amountOverflow`` if SOL's total would exceed a 64-bit integer.
-    public func recording(depositOf lamports: UInt64, signature: String) throws -> NoteSyncState {
-        try recording(depositOf: lamports, of: .sol, signature: signature)
-    }
-
-    /// Records a token deposit's successful transaction to the account.
-    ///
-    /// - Parameters:
-    ///   - amount: The deposited amount, in the token's smallest unit.
-    ///   - token: The deposited token.
-    ///   - signature: The transaction's signature.
-    /// - Returns: The state with the deposit pending.
-    /// - Throws: ``Transactions/ValidationError/invalidAmount`` for a zero amount, or
-    ///   ``ValidationError/amountOverflow`` if the token's total would exceed a 64-bit integer.
-    public func recording(depositOf amount: UInt64, of token: PrivateToken, signature: String) throws -> NoteSyncState {
-        try recording(depositOf: amount, of: token.asset, signature: signature)
-    }
-
     /// Records a deposit's successful transaction to the account.
     ///
     /// - Parameters:
@@ -254,8 +204,8 @@ public struct NoteSyncState: Sendable, Equatable, Codable, Redacted {
     /// - Returns: The state with the deposit pending.
     /// - Throws: ``Transactions/ValidationError/invalidAmount`` for a zero amount, or
     ///   ``ValidationError/amountOverflow`` if the asset's total would exceed a 64-bit integer.
-    private func recording(
-        depositOf amount: UInt64, of asset: ConfidentialPlaintext.Asset, signature: String
+    public func recording(
+        depositOf amount: UInt64, of asset: PrivateAsset, signature: String
     ) throws -> NoteSyncState {
         guard amount > 0 else { throw Transactions.ValidationError.invalidAmount }
         return try NoteSyncState(
@@ -272,7 +222,7 @@ public struct NoteSyncState: Sendable, Equatable, Codable, Redacted {
     ///   - asset: The asset of the amount.
     ///   - signature: The transaction's signature.
     /// - Returns: The pending amounts.
-    private func pending(adding amount: UInt64, of asset: ConfidentialPlaintext.Asset, signature: String) -> [PendingAmount] {
+    private func pending(adding amount: UInt64, of asset: PrivateAsset, signature: String) -> [PendingAmount] {
         let isCounted = notes.contains { $0.signature == signature } || pending.contains { $0.signature == signature }
         return amount == 0 || isCounted
             ? pending : pending + [PendingAmount(signature: signature, asset: asset, amount: amount)]

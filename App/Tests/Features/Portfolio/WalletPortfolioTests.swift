@@ -2,6 +2,7 @@ import Foundation
 import Observation
 import RPC
 import Testing
+import Transactions
 @testable import Portfolio
 @testable import widgets
 
@@ -96,12 +97,12 @@ struct WalletPortfolioTests {
         let first = pricedSnapshot(["low": 1, "high": 5])
         observation.continuation.yield(Update(snapshot: first, phase: .ready, revision: 1))
         await waitForSnapshot(first, in: portfolio)
-        #expect(portfolio.holdings.map(\.id) == [.asset("high"), .asset("low"), .nativeSOL])
+        #expect(portfolio.holdings.map(\.asset.displaySymbol) == ["high", "low", "SOL"])
 
         let second = pricedSnapshot(["low": 9, "high": 5])
         observation.continuation.yield(Update(snapshot: second, phase: .ready, revision: 2))
         await waitForSnapshot(second, in: portfolio)
-        #expect(portfolio.holdings.map(\.id) == [.asset("low"), .asset("high"), .nativeSOL])
+        #expect(portfolio.holdings.map(\.asset.displaySymbol) == ["low", "high", "SOL"])
         viewing.cancel()
         await viewing.value
     }
@@ -135,11 +136,11 @@ struct WalletPortfolioTests {
     }
 
     private func pricedSnapshot(_ values: KeyValuePairs<String, Decimal>) -> Snapshot {
-        let tokens = values.map { mint, total in
-            Holding(id: .asset(mint), amount: Amount(units: 1, decimals: 0), name: nil, symbol: nil, imageURL: nil,
-                    valuation: Valuation(pricePerUnit: total, total: total, currency: "USD"))
+        let tokens = values.map { symbol, total in
+            Holding(asset: .token(.fixture(symbol: symbol)), balance: TokenAmount(amount: 1, decimals: 0),
+                    imageURL: nil, valuation: Valuation(pricePerUnit: total, total: total, currency: "USD"))
         }
-        let solana = Holding(id: .nativeSOL, amount: Amount(units: 0, decimals: 9), name: "Solana", symbol: "SOL",
+        let solana = Holding(asset: .nativeSOL, balance: TokenAmount(amount: 0, decimals: 9),
                              imageURL: nil, valuation: nil)
         return Snapshot(owner: "wallet-a", network: .devnet, holdings: tokens + [solana])
     }

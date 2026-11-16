@@ -9,10 +9,8 @@ import Transactions
 @MainActor
 struct PrivateBalanceModelTests {
     private static let sol = Holding(
-        id: .nativeSOL,
-        amount: Amount(units: 2_000_000_000, decimals: 9),
-        name: "Solana",
-        symbol: "SOL",
+        asset: .nativeSOL,
+        balance: TokenAmount(amount: 2_000_000_000, decimals: 9),
         imageURL: nil,
         valuation: nil
     )
@@ -28,7 +26,7 @@ struct PrivateBalanceModelTests {
 
         let move = try #require(model.move)
         #expect(move.direction == .toPublic)
-        #expect(move.payment.token.balance == Decimal(string: "0.001"))
+        #expect(move.payment.token.balance == TokenAmount(lamports: 1_000_000))
         #expect(model.error == nil)
     }
 

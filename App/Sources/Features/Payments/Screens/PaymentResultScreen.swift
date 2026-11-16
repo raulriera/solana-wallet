@@ -43,7 +43,7 @@ struct PaymentResultScreen: TransactionResultContent {
         return switch outcome {
         case .succeeded:
             ("Sent",
-             LocalizedStringResource("\(payment.recipient.title) received \(payment.amount.quantity, format: .quantity(of: payment.amount.token)).",
+             LocalizedStringResource("\(payment.recipient.title) received \(payment.sent, format: .amount(of: payment.asset)).",
                                      comment: "Message after a payment landed. The variables are the recipient's name or short address and the amount with its symbol, such as 0.5 SOL."),
              "checkmark.circle.fill")
         case .failed:

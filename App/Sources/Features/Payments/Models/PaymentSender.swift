@@ -8,17 +8,20 @@ struct PaymentSender {
     let network: Network
     let transactions: TransactionStore
 
-    /// Creates the review of a payment to a recipient.
+    /// Creates the review of the typed payment to a recipient.
     ///
     /// - Parameters:
-    ///   - amount: The amount to pay.
+    ///   - payment: The payment being typed.
     ///   - recipient: The recipient of the payment.
     ///   - context: The context to check the recipient against.
     /// - Returns: The payment's review, before it's simulated.
-    /// - Throws: An error creating the network's transaction coordinator.
-    func review(_ amount: PaymentAmount, to recipient: PaymentRecipient, in context: RecipientContext) throws
+    /// - Throws: ``SendError/preparationFailed`` for an amount that can't be sent, or an error creating the
+    ///   network's transaction coordinator.
+    func review(_ payment: PaymentModel, to recipient: PaymentRecipient, in context: RecipientContext) throws
         -> TransactionReviewModel<PaymentProposal> {
-        let proposal = PaymentProposal(amount: amount, recipient: recipient,
+        guard let sent = payment.sent else { throw SendError.preparationFailed }
+        let proposal = PaymentProposal(asset: payment.token.asset, sent: sent, value: payment.value,
+                                       currencyCode: payment.currencyCode, recipient: recipient,
                                        warnings: RecipientClassifier.review.warnings(for: recipient.address,
                                                                                      in: context))
         return try TransactionReviewModel(proposal, from: account, on: network, transactions: transactions)

@@ -1,7 +1,7 @@
 public import Foundation
 
 /// An initialized token account with its balance and owner.
-public struct TokenAccount: Sendable {
+public struct Token: Sendable {
     public let address: Address
     public let program: TokenProgram
     public let mint: Address

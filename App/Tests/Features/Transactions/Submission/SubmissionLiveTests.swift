@@ -29,8 +29,8 @@ struct SubmissionLiveTests {
         #expect(simulation.transaction.instructions.count == 2)
         #expect(simulation.transaction.signatures.count == 2)
         #expect(simulation.balanceChanges == [
-            BalanceChange(owner: sender, asset: .sol, before: senderBalance, after: senderBalance - 1_000_000 - fee),
-            BalanceChange(owner: recipient, asset: .sol, before: recipientBalance, after: recipientBalance + 1_000_000),
+            BalanceChange(owner: sender, asset: .nativeSOL, before: senderBalance, after: senderBalance - 1_000_000 - fee),
+            BalanceChange(owner: recipient, asset: .nativeSOL, before: recipientBalance, after: recipientBalance + 1_000_000),
         ])
 
         let submission = try await coordinator.submit(simulation)
@@ -104,7 +104,8 @@ struct SubmissionLiveTests {
         }
         let held = sourceBalance + wrapped
 
-        let review = try await coordinator.transfer(amount, token: mintAddress, using: sender, to: recipient.address)
+        let reviewed = Mint(address: mintAddress, program: program, decimals: 9, metadata: nil)
+        let review = try await coordinator.transfer(amount, of: .token(reviewed), using: sender, to: recipient.address)
         let transfer = try #require(review.tokenTransfer)
         #expect(transfer.mint.program == program)
         #expect(transfer.amount == amount)
@@ -115,9 +116,9 @@ struct SubmissionLiveTests {
         #expect(review.destinationAccountRent == rent)
         let changes = try #require(review.balanceChanges)
         let fee = try #require(review.fee)
-        let senderLamports = try #require(changes.first { $0.owner == sender.address && $0.asset == .sol })
+        let senderLamports = try #require(changes.first { $0.owner == sender.address && $0.asset == .nativeSOL })
         #expect(senderLamports.after == senderLamports.before - fee - rent)
-        let token = BalanceChange.Asset.token(mint: mintAddress, decimals: transfer.mint.decimals)
+        let token = Asset.ID.token(mint: mintAddress)
         #expect(changes.contains(BalanceChange(owner: sender.address, asset: token, before: held,
                                                after: held - amount)))
         #expect(changes.contains(BalanceChange(owner: recipient.address, asset: token, before: destinationBalance,
@@ -139,7 +140,7 @@ struct SubmissionLiveTests {
     private func tokenAmounts(at addresses: [Address], in response: GetMultipleAccounts.Response) throws -> [UInt64] {
         try zip(addresses, response.value).map { address, account in
             guard let account else { return 0 }
-            return try TokenAccount(address: address, programOwner: Address(account.owner), data: account.data).amount
+            return try Token(address: address, programOwner: Address(account.owner), data: account.data).amount
         }
     }
 

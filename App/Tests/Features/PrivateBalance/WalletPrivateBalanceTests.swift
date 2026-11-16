@@ -58,7 +58,7 @@ struct WalletPrivateBalanceTests {
 
         let balance = try await PrivateBalanceFixtures.read(account, in: store)
 
-        #expect(balance.status == .balance(available: 0, pending: 1_000_000))
+        #expect(balance.status == .balance(available: 0, pending: 1_000_000, of: .nativeSOL))
         #expect(balance.isStale)
     }
 
@@ -107,12 +107,12 @@ struct WalletPrivateBalanceTests {
                                                              in: try await PrivateBalanceFixtures.store(holding: .unregistered,
                                                                                                         of: account))
 
-        #expect(funded.status == .balance(available: 1_000_000, pending: 0))
+        #expect(funded.status == .balance(available: 1_000_000, pending: 0, of: .nativeSOL))
         #expect(funded.privateHoldings == [.nativeSOL])
-        #expect(funded.available(of: .sol) == 1_000_000)
+        #expect(funded.available(of: .nativeSOL) == 1_000_000)
         #expect(unfunded.status == .unregistered)
         #expect(unfunded.privateHoldings.isEmpty)
-        #expect(unfunded.available(of: .sol) == nil)
+        #expect(unfunded.available(of: .nativeSOL) == nil)
     }
 
     @Test
@@ -122,8 +122,8 @@ struct WalletPrivateBalanceTests {
             holding: .availableToken, of: account))
 
         #expect(balance.available(of: .token(.devnetUSDC)) == 1_000_000)
-        #expect(balance.available(of: .sol) == nil)
-        #expect(balance.privateHoldings == [.asset("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU")])
+        #expect(balance.available(of: .nativeSOL) == nil)
+        #expect(try balance.privateHoldings == [.token(mint: Address("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU"))])
     }
 
     @Test(arguments: [TransactionRecord.Kind.privateDeposit,
@@ -160,7 +160,7 @@ struct WalletPrivateBalanceTests {
         let key = TransactionRecord.Key(account: account.id, network: .devnet)
         let records: [TransactionRecord] = [
             .fixture(.privateDeposit, signature: "pending deposit", account: account.id, created: 40),
-            .fixture(.payment(recipient: account.address, mint: nil, units: 1), signature: "payment",
+            .fixture(.payment(recipient: account.address, asset: .nativeSOL, amount: 1), signature: "payment",
                      account: account.id, status: .succeeded, created: 30, settled: 35),
             .fixture(.privateWithdrawal, signature: "withdrawal", account: account.id,
                      status: .failed, created: 20, settled: 25),
@@ -174,7 +174,7 @@ struct WalletPrivateBalanceTests {
         await balance.readAfterSettling()
 
         #expect(balance.lastSettledMove?.id == "deposit")
-        #expect(balance.status == .balance(available: 1_000_000, pending: 0))
+        #expect(balance.status == .balance(available: 1_000_000, pending: 0, of: .nativeSOL))
     }
 
     @Test
@@ -200,7 +200,7 @@ struct WalletPrivateBalanceTests {
         await settling.value
 
         #expect(await PrivateBalanceFixtures.nonTreeAccountReads(of: responses) == 2)
-        #expect(balance.status == .balance(available: 0, pending: 0))
+        #expect(balance.status == .balance(available: 0, pending: 0, of: .nativeSOL))
     }
 
     @Test
@@ -247,7 +247,7 @@ struct WalletPrivateBalanceTests {
         try await notes.save([PrivateBalances.noteID(of: account, on: .devnet): NoteSyncState()])
         await balance.poll()
 
-        #expect(balance.status == .balance(available: 0, pending: 0))
+        #expect(balance.status == .balance(available: 0, pending: 0, of: .nativeSOL))
         #expect(!balance.isFollowingUp)
     }
 

@@ -21,7 +21,7 @@ actor PortfolioResponses: PortfolioProviding {
     private let requested: AsyncStream<Request>.Continuation
     private(set) var calls: [Request] = []
     private(set) var lookups: [Address] = []
-    private(set) var added: [ListedToken] = []
+    private(set) var added: [Mint] = []
     private(set) var removed: [Address] = []
     private let registration: Registration?
     private let preview: TokenPreview?
@@ -107,9 +107,9 @@ actor PortfolioResponses: PortfolioProviding {
 }
 
 extension PortfolioResponses: TokenListProviding {
-    func addToken(_ token: ListedToken, for owner: String) async throws {
+    func addToken(_ mint: Mint, for owner: String) async throws {
         if let addError { throw addError }
-        added.append(token)
+        added.append(mint)
     }
 
     func removeToken(_ mint: Address, for owner: String) async throws {

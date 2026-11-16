@@ -1,5 +1,7 @@
+import Foundation
 import Testing
 import Transactions
+import Wallet
 @testable import RPC
 @testable import widgets
 
@@ -12,9 +14,35 @@ struct PaymentProposalTests {
 
         let proposed = try await Self.simulate(proposal, in: payment)
 
-        #expect(proposed.review == PaymentProposal.Review(networkFee: 10_000, accountDeposit: nil))
-        #expect(proposed.kind == .payment(recipient: proposal.recipient.address, mint: nil, units: 1_000_000_000))
+        #expect(proposed.review == PaymentProposal.Review(networkFee: 10_000, accountDeposit: nil, transferFee: nil))
+        #expect(proposed.kind == .payment(recipient: proposal.recipient.address, asset: .nativeSOL, amount: 1_000_000_000))
         #expect(proposed.settling == nil)
+    }
+
+    @Test(arguments: [
+        (basisPoints: UInt16(250), maximum: UInt64(1_000_000), shown: UInt64?(25)),
+        (basisPoints: 0, maximum: 0, shown: nil),
+    ])
+    func `A token payment's review shows the fee that the mint withholds`(
+        basisPoints: UInt16, maximum: UInt64, shown: UInt64?
+    ) async throws {
+        let fixture = try SigningFixture()
+        let tokens = try TokenTransferResponses(program: .token2022)
+        let accounts = try tokens.http(destination: .initialized, transferFee: (basisPoints, maximum))
+        let preparation = try HTTPResponses.preparation(fixture: fixture.preparation)
+        let coordinator = try TransactionCoordinator.simulating(
+            with: Preparer(rpc: preparation.client), configuration: fixture.configuration, accounts: accounts.client)
+        let proposal = PaymentProposal(
+            asset: .token(tokens.mint), sent: TokenAmount(amount: 1_000, decimals: 6), value: nil, currencyCode: "USD",
+            recipient: PaymentRecipient(address: tokens.recipient, name: nil), warnings: [])
+
+        let sender = widgets.Account(id: UUID(), recoveryID: UUID(), address: tokens.sender, path: .solana)
+
+        let proposed = try await proposal.simulate((), with: coordinator, from: sender)
+
+        let review = PaymentProposal.Review(networkFee: 10_000, accountDeposit: nil,
+                                            transferFee: shown.map { TokenAmount(amount: $0, decimals: 6) })
+        #expect(proposed.review == review)
     }
 
     @Test(arguments: [

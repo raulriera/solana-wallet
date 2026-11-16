@@ -7,10 +7,10 @@ import Transactions
 
 enum PlanFixtures {
     static func utxo(
-        lamports: UInt64, treeID: UInt16 = 0, blindingByte: UInt8 = 0xa1, asset: ConfidentialPlaintext.Asset = .sol
+        amount: UInt64, treeID: UInt16 = 0, blindingByte: UInt8 = 0xa1, asset: PrivateAsset
     ) throws -> UTXO {
         UTXO(
-            owner: try CommitmentVectors.load().ed25519Rail.ownerHash(), mint: asset.mint, amount: lamports,
+            owner: try CommitmentVectors.load().ed25519Rail.ownerHash(), mint: asset.mintBytes, amount: amount,
             blinding: TransferVectors.blinding(blindingByte), treeID: treeID
         )
     }
@@ -32,8 +32,8 @@ enum PlanFixtures {
         paddingOutputs: Int = 0
     ) throws -> TransactPlan {
         try TransactPlan(
-            spending: utxos, sender: TransferVectors.sender(),
-            transfer: try transferLamports.map { TransactPlan.Transfer(recipient: try TransferVectors.recipient(), lamports: $0) },
+            spending: utxos, of: .nativeSOL, sender: TransferVectors.sender(),
+            transfer: try transferLamports.map { TransactPlan.Transfer(recipient: try TransferVectors.recipient(), amount: $0) },
             withdrawal: withdrawal, outputTreeID: outputTreeID,
             randomness: randomness(paddingInputs: paddingInputs, paddingOutputs: paddingOutputs)
         )
@@ -65,6 +65,6 @@ enum PlanFixtures {
     }
 
     static func withdrawal(lamports: UInt64) throws -> ExternalData.Withdrawal {
-        ExternalData.Withdrawal(recipient: try Address(TransferVectors.transfers[1].payer), amount: lamports)
+        ExternalData.Withdrawal(recipient: try Address(TransferVectors.transfers[1].payer), amount: lamports, asset: .nativeSOL)
     }
 }

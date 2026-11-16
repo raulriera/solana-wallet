@@ -1,5 +1,6 @@
 import Foundation
 import RPC
+import Transactions
 
 /// An actor that serializes cache access and shares each wallet's refresh between its consumers.
 actor RefreshCoordinator {
@@ -77,7 +78,7 @@ actor RefreshCoordinator {
     ///   - id: The holding's identity.
     ///   - owner: The account's wallet address.
     /// - Throws: An encoding or file-system error.
-    func removeHolding(_ id: Holding.Identity, for owner: String) throws {
+    func removeHolding(_ id: Asset.ID, for owner: String) throws {
         let key = CacheKey(owner: owner, network: source.network)
         defer {
             if var flight = flights[key] {

@@ -2,10 +2,20 @@ import Encoding
 public import Foundation
 
 /// A token's display name and ticker symbol, read from its on-chain metadata.
-public struct TokenMetadata: Sendable, Equatable {
+public struct TokenMetadata: Codable, Hashable, Sendable {
     public let name: String?
     /// The ticker symbol.
     public let symbol: String?
+
+    /// Creates metadata.
+    ///
+    /// - Parameters:
+    ///   - name: The display name, or `nil` if unknown.
+    ///   - symbol: The ticker symbol, or `nil` if unknown.
+    public init(name: String?, symbol: String?) {
+        self.name = name
+        self.symbol = symbol
+    }
 
     /// Derives the address of a mint's Metaplex metadata account.
     ///

@@ -2,7 +2,7 @@ import Encoding
 import Foundation
 
 /// The validated bytes and extensions of a token account or mint.
-struct TokenData: Sendable {
+struct TokenData: Hashable, Sendable {
     let bytes: [UInt8]
     let extensions: [UInt16: [UInt8]]
 

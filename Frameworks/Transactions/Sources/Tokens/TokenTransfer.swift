@@ -4,8 +4,8 @@ public struct TokenTransfer: Sendable {
     public let sender: Address
     /// The wallet that owns the destination account.
     public let recipient: Address
-    public let mint: TokenMint
-    public let source: TokenAccount
+    public let mint: Mint
+    public let source: Token
     /// The token account that receives the tokens.
     public let destination: Address
     /// The debit in base units, before any transfer fee.
@@ -27,8 +27,8 @@ public struct TokenTransfer: Sendable {
     ///   - epoch: The current epoch, or `nil` for a mint without transfer fees.
     ///   - memo: A memo, or `nil` for none.
     /// - Throws: A ``TokenError`` for inconsistent or unsupported accounts, or ``ValidationError/invalidAmount``.
-    public init(sender: Address, recipient: Address, mint: TokenMint, source: TokenAccount,
-                destination: TokenAccount?, amount: UInt64, epoch: UInt64? = nil, memo: String? = nil) throws {
+    public init(sender: Address, recipient: Address, mint: Mint, source: Token,
+                destination: Token?, amount: UInt64, epoch: UInt64? = nil, memo: String? = nil) throws {
         guard amount > 0 else { throw ValidationError.invalidAmount }
         let target = try destination?.address ?? mint.program.associatedAccount(owner: recipient, mint: mint.address)
         guard source.program == mint.program, source.mint == mint.address, source.owner == sender,

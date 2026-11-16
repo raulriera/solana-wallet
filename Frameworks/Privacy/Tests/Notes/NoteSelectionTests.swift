@@ -153,7 +153,7 @@ struct NoteSelectionTests {
         let entries = trees.flatMap { tree, amounts in amounts.map { (tree: tree, lamports: $0) } }
         return try entries.enumerated().map { leaf, note in
             ReceivedNote(
-                utxo: try PlanFixtures.utxo(lamports: note.lamports, treeID: note.tree), leafIndex: UInt64(leaf),
+                utxo: try PlanFixtures.utxo(amount: note.lamports, treeID: note.tree, asset: .nativeSOL), leafIndex: UInt64(leaf),
                 signature: IndexerResponses.signature(1), slot: 1, nullifier: Poseidon.Element(UInt64(leaf))
             )
         }

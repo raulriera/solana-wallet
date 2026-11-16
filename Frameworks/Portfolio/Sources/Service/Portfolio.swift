@@ -74,13 +74,13 @@ public struct Portfolio: PortfolioProviding, TokenListProviding {
         await observer.restartAll()
     }
 
-    public func addToken(_ token: ListedToken, for owner: String) async throws {
-        if try await tokenLists.add(token, for: owner) { await listChanged(for: owner) }
+    public func addToken(_ mint: Mint, for owner: String) async throws {
+        if try await tokenLists.add(mint, for: owner) { await listChanged(for: owner) }
     }
 
     public func removeToken(_ mint: Address, for owner: String) async throws {
         guard try await tokenLists.remove(mint, for: owner) else { return }
-        try? await coordinator.removeHolding(.asset(mint.value), for: owner)
+        try? await coordinator.removeHolding(.token(mint: mint), for: owner)
         await observer.restart(for: owner)
     }
 

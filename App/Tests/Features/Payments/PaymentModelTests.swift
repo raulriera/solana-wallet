@@ -2,23 +2,28 @@ import Foundation
 import Observation
 import Synchronization
 import Testing
+import Transactions
 @testable import widgets
 
 @MainActor
 struct PaymentModelTests {
-    nonisolated private static let sol = PaymentToken(mint: nil, symbol: "SOL", balance: Decimal(string: "1.23")!,
-                                                      price: Decimal(string: "143.87"), decimals: 9)
-    nonisolated private static let usdc = PaymentToken(mint: PaymentFixtures.usdc, symbol: "USDC", balance: 40,
-                                                       price: 1, decimals: 6)
-    nonisolated private static let unpriced = PaymentToken(mint: PaymentFixtures.unpriced, symbol: "NOPRICE",
-                                                           balance: 1_000, price: nil, decimals: 5)
-    nonisolated private static let otherUnpriced = PaymentToken(mint: PaymentFixtures.half, symbol: "UNLISTED",
-                                                                balance: 25, price: nil, decimals: 6)
-    nonisolated private static let tiny = PaymentToken(mint: PaymentFixtures.tiny, symbol: "TINY",
-                                                       balance: 10_000_000_000, price: Decimal(string: "0.00002"),
-                                                       decimals: 5)
+    nonisolated private static let sol = PaymentToken(
+        asset: .nativeSOL,
+        balance: TokenAmount(amount: 1_230_000_000, decimals: 9), price: Decimal(string: "143.87"))
+    nonisolated private static let usdc = PaymentToken(
+        asset: .token(.fixture(PaymentFixtures.usdc.value, decimals: 6, symbol: "USDC")),
+        balance: TokenAmount(amount: 40_000_000, decimals: 6), price: 1)
+    nonisolated private static let unpriced = PaymentToken(
+        asset: .token(.fixture(PaymentFixtures.unpriced.value, decimals: 5, symbol: "NOPRICE")),
+        balance: TokenAmount(amount: 100_000_000, decimals: 5), price: nil)
+    nonisolated private static let otherUnpriced = PaymentToken(
+        asset: .token(.fixture(PaymentFixtures.half.value, decimals: 6, symbol: "UNLISTED")),
+        balance: TokenAmount(amount: 25_000_000, decimals: 6), price: nil)
+    nonisolated private static let tiny = PaymentToken(
+        asset: .token(.fixture(PaymentFixtures.tiny.value, decimals: 5, symbol: "TINY")),
+        balance: TokenAmount(amount: 1_000_000_000_000_000, decimals: 5), price: Decimal(string: "0.00002"))
 
-    private static func payment(in token: PaymentToken = sol, currencyCode: String = "USD") -> PaymentModel {
+    private static func payment(in token: PaymentToken, currencyCode: String = "USD") -> PaymentModel {
         PaymentModel(tokens: [token] + [sol, usdc, unpriced, tiny].filter { $0 != token }, currencyCode: currencyCode)
     }
 
@@ -27,20 +32,35 @@ struct PaymentModelTests {
     }
 
     @Test func `A currency amount converts to tokens`() {
-        let payment = Self.payment()
+        let payment = Self.payment(in: Self.sol)
         Self.type([.digit(1), .digit(2)], into: payment)
         #expect(payment.value == 12)
         #expect(payment.quantity == Decimal(string: "0.083408632"))
         #expect(payment.canSend)
     }
 
+    @Test(arguments: [
+        (sol, [KeypadKey.digit(1), .digit(2)], TokenAmount(amount: 83_408_632, decimals: 9), Decimal?.some(12)),
+        (usdc, [.digit(2), .decimalSeparator, .digit(5)], TokenAmount(amount: 2_500_000, decimals: 6),
+         Decimal(string: "2.5")),
+        (unpriced, [.digit(1), .decimalSeparator, .digit(5)], TokenAmount(amount: 150_000, decimals: 5), nil),
+    ])
+    func `The typed amount is sent in the token's decimals with its value`(token: PaymentToken, keys: [KeypadKey],
+                                                                         sent: TokenAmount, value: Decimal?) {
+        let payment = Self.payment(in: token)
+        Self.type(keys, into: payment)
+        #expect(payment.sent == sent)
+        #expect(payment.value == value)
+    }
+
     @Test func `An empty amount can't be sent`() {
-        #expect(!Self.payment().canSend)
+        #expect(!Self.payment(in: Self.sol).canSend)
     }
 
     @Test func `An amount below the token's smallest unit can't be sent`() {
-        let coarse = PaymentToken(mint: PaymentFixtures.coarse, symbol: "COARSE", balance: 10, price: 100_000,
-                                  decimals: 2)
+        let coarse = PaymentToken(
+            asset: .token(.fixture(PaymentFixtures.coarse.value, decimals: 2, symbol: "COARSE")),
+            balance: TokenAmount(amount: 1_000, decimals: 2), price: 100_000)
         let payment = Self.payment(in: coarse)
         Self.type([.decimalSeparator, .digit(5), .digit(0)], into: payment)
         #expect(payment.value == Decimal(string: "0.5"))
@@ -54,10 +74,13 @@ struct PaymentModelTests {
           .digit(0), .digit(1)]),
         (sol, [.digit(1), .digit(7), .digit(6), .decimalSeparator, .digit(9), .digit(6)],
          [.digit(1), .digit(7), .digit(6), .decimalSeparator, .digit(9), .digit(7)]),
-        (PaymentToken(mint: PaymentFixtures.half, symbol: "HALF", balance: 1, price: Decimal(string: "0.999"),
-                      decimals: 6),
+        (PaymentToken(
+            asset: .token(.fixture(PaymentFixtures.half.value, decimals: 6, symbol: "HALF")),
+            balance: TokenAmount(amount: 1_000_000, decimals: 6), price: Decimal(string: "0.999")),
          [.decimalSeparator, .digit(9), .digit(9)], [.digit(1)]),
-        (PaymentToken(mint: PaymentFixtures.coarse, symbol: "COARSE", balance: 1, price: 50, decimals: 2),
+        (PaymentToken(
+            asset: .token(.fixture(PaymentFixtures.coarse.value, decimals: 2, symbol: "COARSE")),
+            balance: TokenAmount(amount: 100, decimals: 2), price: 50),
          [.digit(5), .digit(0)], [.digit(5), .digit(0), .decimalSeparator, .digit(4), .digit(9)]),
     ])
     func `The balance is the limit`(token: PaymentToken, within: [KeypadKey], past: [KeypadKey]) {
@@ -71,7 +94,7 @@ struct PaymentModelTests {
     }
 
     @Test func `Key presses and rejections are counted`() {
-        let payment = Self.payment()
+        let payment = Self.payment(in: Self.sol)
         Self.type([.decimalSeparator, .decimalSeparator], into: payment)
         #expect(payment.pressCount == 2)
         #expect(payment.rejectionCount == 1)
@@ -81,7 +104,7 @@ struct PaymentModelTests {
     }
 
     @Test func `A currency without minor units rejects the separator`() {
-        let payment = Self.payment(currencyCode: "JPY")
+        let payment = Self.payment(in: Self.sol, currencyCode: "JPY")
         payment.press(.decimalSeparator)
         #expect(payment.rejectionCount == 1)
         #expect(payment.rejection == .key)
@@ -90,16 +113,16 @@ struct PaymentModelTests {
 
     @Test(arguments: [(PaymentModel.Unit.currency, unpriced), (.token, usdc)])
     func `An amount that can't carry over starts over in tokens`(unit: PaymentModel.Unit, token: PaymentToken) {
-        let payment = Self.payment()
+        let payment = Self.payment(in: Self.sol)
         payment.unitChoice = unit
         Self.type([.digit(5)], into: payment)
         payment.tokenChoice = token
         #expect(payment.unit == .token)
-        #expect(payment.entry == AmountEntry(maximumFractionDigits: token.decimals))
+        #expect(payment.entry == AmountEntry(maximumFractionDigits: Int(token.balance.decimals)))
     }
 
     @Test func `A currency amount carries over to a priced token`() {
-        let payment = Self.payment()
+        let payment = Self.payment(in: Self.sol)
         Self.type([.digit(5)], into: payment)
         payment.tokenChoice = Self.usdc
         #expect(payment.unit == .currency)
@@ -107,7 +130,7 @@ struct PaymentModelTests {
     }
 
     @Test func `Switching units converts the amount`() {
-        let payment = Self.payment()
+        let payment = Self.payment(in: Self.sol)
         Self.type([.digit(1), .digit(2), .decimalSeparator, .digit(5), .digit(0)], into: payment)
         payment.unitChoice = .token
         #expect(payment.unit == .token)
@@ -119,12 +142,13 @@ struct PaymentModelTests {
 
     @Test(arguments: [
         (tiny, [KeypadKey.digit(2), .digit(5), .digit(0)]),
-        (PaymentToken(mint: PaymentFixtures.half, symbol: "HALF", balance: Decimal(string: "1.23")!,
-                      price: Decimal(string: "143.875"),
-                      decimals: 9),
+        (PaymentToken(
+            asset: .token(.fixture(PaymentFixtures.half.value, decimals: 9, symbol: "HALF")),
+            balance: TokenAmount(amount: 1_230_000_000, decimals: 9), price: Decimal(string: "143.875")),
          [.digit(1), .decimalSeparator, .digit(2), .digit(3)]),
-        (PaymentToken(mint: PaymentFixtures.coarse, symbol: "COARSE", balance: 1, price: Decimal(string: "50.006"),
-                      decimals: 2),
+        (PaymentToken(
+            asset: .token(.fixture(PaymentFixtures.coarse.value, decimals: 2, symbol: "COARSE")),
+            balance: TokenAmount(amount: 100, decimals: 2), price: Decimal(string: "50.006")),
          [.digit(1)]),
     ])
     func `Switching to currency never grows the payment`(token: PaymentToken, keys: [KeypadKey]) {
@@ -161,7 +185,9 @@ struct PaymentModelTests {
     @Test func `New balances keep the selected token and amount`() {
         let payment = Self.payment(in: Self.usdc)
         Self.type([.digit(1), .digit(2)], into: payment)
-        let richer = PaymentToken(mint: PaymentFixtures.usdc, symbol: "USDC", balance: 100, price: 1, decimals: 6)
+        let richer = PaymentToken(
+            asset: .token(.fixture(PaymentFixtures.usdc.value, decimals: 6, symbol: "USDC")),
+            balance: TokenAmount(amount: 100_000_000, decimals: 6), price: 1)
 
         payment.update([Self.sol, richer], currencyCode: "USD")
 
@@ -173,7 +199,9 @@ struct PaymentModelTests {
 
     @Test func `Updates follow the selected token's mint, not its symbol`() {
         let payment = Self.payment(in: Self.usdc)
-        let lookAlike = PaymentToken(mint: PaymentFixtures.lookAlike, symbol: "USDC", balance: 5, price: 1, decimals: 6)
+        let lookAlike = PaymentToken(
+            asset: .token(.fixture(PaymentFixtures.lookAlike.value, decimals: 6, symbol: "USDC")),
+            balance: TokenAmount(amount: 5_000_000, decimals: 6), price: 1)
 
         payment.update([lookAlike, Self.usdc], currencyCode: "USD")
 
@@ -192,11 +220,12 @@ struct PaymentModelTests {
     }
 
     @Test func `A token that loses its price keeps the quantity in tokens`() {
-        let payment = Self.payment()
+        let payment = Self.payment(in: Self.sol)
         Self.type([.digit(1), .digit(2)], into: payment)
         let typed = payment.quantity
-        let unpricedSOL = PaymentToken(mint: nil, symbol: "SOL", balance: Decimal(string: "1.23")!, price: nil,
-                                       decimals: 9)
+        let unpricedSOL = PaymentToken(
+            asset: .nativeSOL,
+            balance: TokenAmount(amount: 1_230_000_000, decimals: 9), price: nil)
 
         payment.update([unpricedSOL], currencyCode: "USD")
 
@@ -218,9 +247,11 @@ struct PaymentModelTests {
     }
 
     @Test func `A currency change starts a currency amount again`() {
-        let payment = Self.payment()
+        let payment = Self.payment(in: Self.sol)
         Self.type([.digit(1), .digit(2)], into: payment)
-        let euroSOL = PaymentToken(mint: nil, symbol: "SOL", balance: Decimal(string: "1.23")!, price: 120, decimals: 9)
+        let euroSOL = PaymentToken(
+            asset: .nativeSOL,
+            balance: TokenAmount(amount: 1_230_000_000, decimals: 9), price: 120)
 
         payment.update([euroSOL, Self.usdc], currencyCode: "EUR")
 
@@ -231,10 +262,12 @@ struct PaymentModelTests {
     }
 
     @Test func `A currency change keeps a token amount`() {
-        let payment = Self.payment()
+        let payment = Self.payment(in: Self.sol)
         payment.unitChoice = .token
         Self.type([.digit(1)], into: payment)
-        let euroSOL = PaymentToken(mint: nil, symbol: "SOL", balance: Decimal(string: "1.23")!, price: 120, decimals: 9)
+        let euroSOL = PaymentToken(
+            asset: .nativeSOL,
+            balance: TokenAmount(amount: 1_230_000_000, decimals: 9), price: 120)
 
         payment.update([euroSOL, Self.usdc], currencyCode: "EUR")
 

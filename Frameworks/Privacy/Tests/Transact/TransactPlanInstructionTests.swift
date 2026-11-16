@@ -8,7 +8,7 @@ struct TransactPlanInstructionTests {
     @Test(arguments: try InstructionVectors.load().transacts)
     func `Transacts match the independent reference`(_ vector: InstructionVectors.Transact) throws {
         let utxos = try vector.inputs.map {
-            try PlanFixtures.utxo(lamports: $0.lamports, treeID: $0.treeID, blindingByte: $0.blindingByte)
+            try PlanFixtures.utxo(amount: $0.lamports, treeID: $0.treeID, blindingByte: $0.blindingByte, asset: .nativeSOL)
         }
         let plan = try PlanFixtures.plan(
             spending: utxos, transferLamports: vector.transferLamports,
@@ -29,7 +29,7 @@ struct TransactPlanInstructionTests {
 
     @Test(arguments: [0, 2])
     func `Instructions need one tree context per input tree`(count: Int) throws {
-        let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(lamports: 10)], transferLamports: 4)
+        let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(amount: 10, asset: .nativeSOL)], transferLamports: 4)
         let proof = try TransactProof(a: Array(repeating: 0, count: 32), b: Array(repeating: 0, count: 128), c: Array(repeating: 0, count: 32))
         let contexts = Array(repeating: TreeContext(utxoTreeRootIndex: 0, nullifierTreeRootIndex: 0), count: count)
 

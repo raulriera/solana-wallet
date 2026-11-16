@@ -15,7 +15,7 @@ struct TransactionCoordinatingPrivateTransactionTests {
         let fixture = try SigningFixture()
         let responses = try Self.responses(fees: [10_000])
         let prepared = PreparedPrivateTransaction(instructions: [fixture.transfer], account: fixture.account,
-                                                  network: .devnet, effect: .deposit(1), registers: false,
+                                                  network: .devnet, effect: .deposit(1, of: .nativeSOL), registers: false,
                                                   authorities: [.account(fixture.account)])
 
         let (simulation, transaction) = try await Self.coordinator(fixture, responses).simulate(prepared)
@@ -69,12 +69,8 @@ struct TransactionCoordinatingPrivateTransactionTests {
 
     private static func coordinator(_ fixture: SigningFixture, _ responses: HTTPResponses) throws
         -> any TransactionCoordinating {
-        let signing = try HTTPResponses.signing()
-        return TransactionCoordinator(
-            rpc: signing.client, configuration: fixture.configuration, preparer: Preparer(rpc: responses.client),
-            signer: Signer(validator: PreparationValidator(rpc: signing.client), store: UnavailableRecoveryStore()),
-            submitter: Submitter(rpc: signing.client), confirmer: Confirmer(rpc: signing.client)
-        )
+        try TransactionCoordinator.simulating(with: Preparer(rpc: responses.client),
+                                              configuration: fixture.configuration)
     }
 
     private static func responses(fees: [UInt64?]) throws -> HTTPResponses {

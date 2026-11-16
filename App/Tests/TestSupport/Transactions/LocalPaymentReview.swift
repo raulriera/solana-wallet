@@ -7,7 +7,7 @@ import Transactions
 @MainActor
 struct LocalPaymentReview {
     static let networkFee: UInt64 = 10_000
-    static let costs = PaymentProposal.Review(networkFee: networkFee, accountDeposit: nil)
+    static let costs = PaymentProposal.Review(networkFee: networkFee, accountDeposit: nil, transferFee: nil)
     static let success = SimulateTransaction.Value(
         error: nil, logs: ["Program completed"], unitsConsumed: 150, loadedAccountsDataSize: 256, fee: networkFee,
         replacementBlockhash: nil, preBalances: nil, postBalances: nil, preTokenBalances: nil, postTokenBalances: nil
@@ -30,9 +30,8 @@ struct LocalPaymentReview {
         let coordinator = local.coordinator
         let records = StoredValue<[TransactionRecord]>()
         let transactions = TransactionStore.inMemory(records) { _ in coordinator }
-        let sol = PaymentToken(mint: nil, symbol: "SOL", balance: 2, price: nil, decimals: 9)
         let proposal = PaymentProposal(
-            amount: PaymentAmount(token: sol, quantity: 1, value: nil, currencyCode: "USD"),
+            asset: .nativeSOL, sent: TokenAmount(lamports: 1_000_000_000), value: nil, currencyCode: "USD",
             recipient: PaymentRecipient(address: fixture.transfer.accounts[1].address, name: "Bruno"), warnings: [])
         model = try TransactionReviewModel(proposal, from: fixture.account, on: .devnet, transactions: transactions)
         account = fixture.account

@@ -50,7 +50,7 @@ final class TokenAdditionModel: Identifiable {
     func lookUp(_ lookup: UUID?, in portfolios: PortfolioStore, for account: Account, on network: Network) async {
         guard let lookup, self.lookup == lookup, let address else { return }
         let holdings = portfolios.portfolio(for: account, on: network)?.holdings ?? []
-        guard !holdings.contains(where: { $0.id == .asset(address.value) }) else {
+        guard !holdings.contains(where: { $0.id == .token(mint: address) }) else {
             return reject(.alreadyListed)
         }
         do {
@@ -87,9 +87,9 @@ final class TokenAdditionModel: Identifiable {
     func run(_ attempt: UUID?, in portfolios: PortfolioStore, for account: Account, on network: Network) async {
         guard let attempt, self.attempt == attempt else { return }
         defer { self.attempt = nil }
-        guard let token = preview?.token else { return }
+        guard let mint = preview?.mint else { return }
         do {
-            try await portfolios.add(token, for: account, on: network)
+            try await portfolios.add(mint, for: account, on: network)
             isAdded = true
         } catch TokenListError.limitReached {
             self.error = .limitReached

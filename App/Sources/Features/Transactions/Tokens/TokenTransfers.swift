@@ -13,55 +13,58 @@ nonisolated struct TokenTransfers {
     /// Reads a token transfer's accounts and builds the transfer.
     ///
     /// - Parameters:
-    ///   - mint: The token mint.
+    ///   - reviewed: The token's mint as the person reviewed it, whose program and decimals the mint account must match.
     ///   - amount: The amount in raw token units.
     ///   - sender: The token owner that authorizes the transfer.
     ///   - recipient: The receiving wallet, or a token account for the mint.
     ///   - source: The token account to pay from, or `nil` for the sender's associated account.
     ///   - memo: The memo before the transfer, or `nil` for none.
     /// - Returns: The transfer, the minimum slot for later reads, and the new destination's rent in lamports.
-    /// - Throws: An account, token validation, construction, RPC, or cancellation error.
+    /// - Throws: ``Transactions/TokenError/accountMismatch`` if the mint account's program or decimals differ from the
+    ///   reviewed mint, or an account, token validation, construction, RPC, or cancellation error.
     @concurrent
-    func transfer(mint: Address, amount: UInt64, from sender: Address, to recipient: Address,
+    func transfer(mint reviewed: Mint, amount: UInt64, from sender: Address, to recipient: Address,
                   source: Address?, memo: String? = nil) async throws -> (transfer: TokenTransfer, slot: UInt64, rent: UInt64) {
         try Task.checkCancellation()
         guard amount > 0 else { throw ValidationError.invalidAmount }
-        let programs = TokenProgram.allCases
-        let sources = try source.map { [$0] } ?? programs.map { try $0.associatedAccount(owner: sender, mint: mint) }
-        let destinations = try programs.map { try $0.associatedAccount(owner: recipient, mint: mint) }
-        let addresses = [mint, recipient] + sources + destinations
+        let mint = reviewed.address
+        let sourceAddress = try source ?? reviewed.program.associatedAccount(owner: sender, mint: mint)
+        let destinationAddress = try reviewed.program.associatedAccount(owner: recipient, mint: mint)
+        let addresses = [mint, recipient, sourceAddress, destinationAddress]
         let snapshot = try await accounts(at: addresses)
         let observed = Dictionary(zip(addresses, snapshot.value)) { first, _ in first }
         guard let mintAccount = observed[mint] ?? nil else { throw TokenTransfersError.missingAccount(mint) }
-        let tokenMint = try TokenMint(address: mint, owner: Address(mintAccount.owner), data: mintAccount.data)
-        guard let index = programs.firstIndex(of: tokenMint.program) else { throw TokenError.unsupportedProgram }
-        let sourceAddress = source ?? sources[index]
-        let destinationAddress = destinations[index]
+        let decoded = try Mint(address: mint, owner: Address(mintAccount.owner), data: mintAccount.data)
+        guard decoded.program == reviewed.program, decoded.decimals == reviewed.decimals else {
+            throw TokenError.accountMismatch
+        }
         guard let sourceAccount = observed[sourceAddress] ?? nil else {
             throw TokenTransfersError.missingAccount(sourceAddress)
         }
-        let tokenSource = try TokenAccount(address: sourceAddress, programOwner: Address(sourceAccount.owner), data: sourceAccount.data)
+        let sourceToken = try Token(address: sourceAddress, programOwner: Address(sourceAccount.owner),
+                                    data: sourceAccount.data)
         let destinationAccount = observed[destinationAddress] ?? nil
         let owner: Address
-        let destination: TokenAccount?
+        let destination: Token?
         if let recipientAccount = observed[recipient] ?? nil, TokenProgram(rawValue: recipientAccount.owner) != nil {
-            let tokenAccount = try TokenAccount(address: recipient, programOwner: Address(recipientAccount.owner),
-                                                data: recipientAccount.data)
-            owner = tokenAccount.owner
-            destination = tokenAccount
+            let recipientToken = try Token(address: recipient, programOwner: Address(recipientAccount.owner),
+                                           data: recipientAccount.data)
+            owner = recipientToken.owner
+            destination = recipientToken
         } else {
             owner = recipient
             destination = try destinationAccount.flatMap {
-                try TokenAccount(associatedAt: destinationAddress, programOwner: Address($0.owner), data: $0.data)
+                try Token(associatedAt: destinationAddress, programOwner: Address($0.owner), data: $0.data)
             }
         }
-        async let epochRead = tokenMint.program == .token2022
+        async let epochRead = decoded.program == .token2022
             ? rpc.send(GetEpochInfo(minContextSlot: snapshot.context.slot)) : nil
+        let accountSize = try decoded.associatedAccountSize
         async let rentRead = destination == nil
-            ? rpc.send(GetMinimumBalanceForRentExemption(dataLength: tokenMint.associatedAccountSize)) : nil
+            ? rpc.send(GetMinimumBalanceForRentExemption(dataLength: accountSize)) : nil
         let (epoch, minimumBalance) = try await (epochRead, rentRead)
         try Task.checkCancellation()
-        let transfer = try TokenTransfer(sender: sender, recipient: owner, mint: tokenMint, source: tokenSource,
+        let transfer = try TokenTransfer(sender: sender, recipient: owner, mint: decoded, source: sourceToken,
                                          destination: destination, amount: amount, epoch: epoch?.epoch, memo: memo)
         let deposit = minimumBalance.map { max(1, $0) } ?? 0
         let existingBalance = destinationAccount?.lamports ?? 0

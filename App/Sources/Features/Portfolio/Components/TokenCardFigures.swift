@@ -1,9 +1,9 @@
-import Portfolio
 import SwiftUI
+import Transactions
 
 /// A token card's value, or its balance when the value is unknown, with the 24-hour change under the value.
 struct TokenCardFigures: View {
-    let amount: Amount?
+    let balance: TokenAmount?
     /// The token's total value and its quote currency, or `nil` when either is unknown.
     let value: (total: Decimal, currency: String)?
     /// The price's 24-hour change as a fraction, or `nil` when unknown.
@@ -22,8 +22,8 @@ struct TokenCardFigures: View {
                 }
                 if let value {
                     TokenValue(total: value.total, currency: value.currency, abbreviates: true)
-                } else if let amount {
-                    TokenBalance(amount: amount, abbreviates: true)
+                } else if let balance {
+                    TokenBalance(balance: balance, abbreviates: true)
                 }
             }
             .font(.title3.weight(.semibold))

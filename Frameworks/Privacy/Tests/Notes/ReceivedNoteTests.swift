@@ -21,13 +21,13 @@ struct ReceivedNoteTests {
         #expect(notes.map(\.treeID) == (vector.ownedBySender ? [vector.treeID] : []))
     }
 
-    @Test(arguments: [ConfidentialPlaintext.Asset.usdc, .usdt, .devnetUSDC])
-    func `Deposits of supported tokens are received`(asset: ConfidentialPlaintext.Asset) throws {
+    @Test(arguments: PrivateToken.supported.map(PrivateAsset.token))
+    func `Deposits of supported tokens are received`(asset: PrivateAsset) throws {
         let vector = try #require(try DepositNoteVectors.load().deposits.first)
 
-        let notes = try ReceivedNote.notes(in: vector.transaction(mint: asset.mint), of: TransferVectors.sender())
+        let notes = try ReceivedNote.notes(in: vector.transaction(mint: asset.mintBytes), of: TransferVectors.sender())
 
-        #expect(notes.map(\.utxo.mint) == [asset.mint])
+        #expect(notes.map(\.utxo.mint) == [asset.mintBytes])
         #expect(notes.map(\.amount) == [try #require(UInt64(vector.lamports))])
     }
 
@@ -47,7 +47,7 @@ struct ReceivedNoteTests {
 
     @Test
     func `Senders receive their change`() throws {
-        let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(lamports: 10)], transferLamports: 4)
+        let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(amount: 10, asset: .nativeSOL)], transferLamports: 4)
         let sender = try TransferVectors.sender()
 
         let notes = try ReceivedNote.notes(in: PlanFixtures.transaction(of: plan), of: sender)
@@ -75,7 +75,7 @@ struct ReceivedNoteTests {
     @Test
     func `Padding outputs are skipped`() throws {
         let plan = try PlanFixtures.plan(
-            spending: [PlanFixtures.utxo(lamports: 10)], transferLamports: nil, withdrawal: PlanFixtures.withdrawal(lamports: 10), paddingOutputs: 1
+            spending: [PlanFixtures.utxo(amount: 10, asset: .nativeSOL)], transferLamports: nil, withdrawal: PlanFixtures.withdrawal(lamports: 10), paddingOutputs: 1
         )
 
         let notes = try ReceivedNote.notes(in: PlanFixtures.transaction(of: plan), of: TransferVectors.sender())
@@ -85,7 +85,7 @@ struct ReceivedNoteTests {
 
     @Test
     func `Unreadable transactions yield no notes`() throws {
-        let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(lamports: 10)], transferLamports: 4)
+        let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(amount: 10, asset: .nativeSOL)], transferLamports: 4)
         let sender = try TransferVectors.sender()
         let sealed = try PlanFixtures.transaction(of: plan)
         let withoutKey = ShieldedTransaction(
@@ -99,7 +99,7 @@ struct ReceivedNoteTests {
 
     @Test(arguments: X25519Fixtures.lowOrderCoordinates)
     func `Transactions under a low-order viewing key yield no notes`(u: [UInt8]) throws {
-        let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(lamports: 10)], transferLamports: 4)
+        let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(amount: 10, asset: .nativeSOL)], transferLamports: 4)
         let sealed = try PlanFixtures.transaction(of: plan)
         let lowOrder = ShieldedTransaction(
             signature: sealed.signature, slot: sealed.slot, eventIndex: nil, transactionViewingKey: [4] + u, salt: sealed.salt,
@@ -113,7 +113,7 @@ struct ReceivedNoteTests {
     func `Notes survive encoding`() throws {
         let sender = try TransferVectors.sender()
         let deposit = try #require(try DepositNoteVectors.load().deposits.first)
-        let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(lamports: 10)], transferLamports: 4)
+        let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(amount: 10, asset: .nativeSOL)], transferLamports: 4)
         let notes = try ReceivedNote.notes(in: deposit.transaction(), of: sender) + ReceivedNote.notes(in: PlanFixtures.transaction(of: plan), of: sender)
 
         let decoded = try JSONDecoder().decode([ReceivedNote].self, from: JSONEncoder().encode(notes))
@@ -148,7 +148,7 @@ struct ReceivedNoteTests {
     }
 
     private static func change(taggedWith tag: [UInt8]) throws -> (plan: TransactPlan, notes: [ReceivedNote]) {
-        let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(lamports: 10)], transferLamports: 4)
+        let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(amount: 10, asset: .nativeSOL)], transferLamports: 4)
         let transaction = try PlanFixtures.transaction(of: plan)
         let retagged = ShieldedTransaction(
             signature: transaction.signature, slot: transaction.slot, eventIndex: transaction.eventIndex,

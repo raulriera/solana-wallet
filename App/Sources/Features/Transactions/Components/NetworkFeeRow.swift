@@ -1,5 +1,5 @@
-import Portfolio
 import SwiftUI
+import Transactions
 
 /// Shows a review's network fee in SOL, or a placeholder while it's unknown.
 struct NetworkFeeRow: View {
@@ -8,7 +8,7 @@ struct NetworkFeeRow: View {
 
     var body: some View {
         LabeledContent("Network Fee") {
-            TokenBalance(amount: Amount(lamports: fee ?? Self.placeholderFee), symbol: "SOL")
+            TokenBalance(balance: TokenAmount(lamports: fee ?? Self.placeholderFee), asset: .nativeSOL)
                 .redacted(reason: fee == nil ? .placeholder : [])
                 .accessibilityHidden(fee == nil)
         }

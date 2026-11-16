@@ -4,45 +4,6 @@ import Redaction
 
 /// The plaintext note of a confidential output, with its UTXO's asset, amount, and blinding.
 struct ConfidentialPlaintext: Sendable, Equatable, Redacted {
-    /// The assets that private balances hold, with their pool asset IDs as raw values.
-    enum Asset: UInt64, Sendable, CaseIterable, Codable {
-        case sol = 1
-        /// Mainnet USDC.
-        case usdc = 3
-        /// Mainnet USDT.
-        case usdt = 19
-        /// Devnet USDC.
-        case devnetUSDC = 59
-
-        /// The mint's 32 bytes, which are all zero for SOL.
-        var mint: [UInt8] {
-            switch self {
-            case .sol: [UInt8](repeating: 0, count: 32)
-            case .usdc: [
-                198, 250, 122, 243, 190, 219, 173, 58, 61, 101, 243, 106, 171, 201, 116, 49,
-                177, 187, 228, 194, 210, 246, 224, 228, 124, 166, 2, 3, 69, 47, 93, 97,
-            ]
-            case .usdt: [
-                206, 1, 14, 96, 175, 237, 178, 39, 23, 189, 99, 25, 47, 84, 20, 90,
-                63, 150, 90, 51, 187, 130, 210, 199, 2, 158, 178, 206, 30, 32, 130, 100,
-            ]
-            case .devnetUSDC: [
-                59, 68, 44, 179, 145, 33, 87, 241, 58, 147, 61, 1, 52, 40, 45, 3,
-                43, 95, 254, 205, 1, 162, 219, 241, 183, 121, 6, 8, 223, 0, 46, 167,
-            ]
-            }
-        }
-
-        /// Returns the asset of a mint.
-        ///
-        /// - Parameter mint: The mint's 32 bytes.
-        /// - Returns: The asset, or `nil` for a mint that private balances don't hold.
-        init?(mint: [UInt8]) {
-            guard let asset = Self.allCases.first(where: { $0.mint == mint }) else { return nil }
-            self = asset
-        }
-    }
-
     /// An error that rejects bytes as a note.
     enum ValidationError: Error, Equatable {
         case invalidLength
@@ -66,7 +27,7 @@ struct ConfidentialPlaintext: Sendable, Equatable, Redacted {
     /// The offset of the data record count.
     private static let dataOffset = 49
 
-    let asset: Asset
+    let asset: PrivateAsset
 
     /// The amount, in the asset's smallest unit.
     let amount: UInt64
@@ -76,7 +37,7 @@ struct ConfidentialPlaintext: Sendable, Equatable, Redacted {
     var encoded: [UInt8] {
         var bytes = [UInt8]()
         bytes.reserveCapacity(Self.length)
-        bytes.append(littleEndian: asset.rawValue)
+        bytes.append(littleEndian: asset.poolID)
         bytes.append(littleEndian: amount)
         bytes += blinding.bigEndianBytes
         bytes += [0, 0]
@@ -89,7 +50,7 @@ struct ConfidentialPlaintext: Sendable, Equatable, Redacted {
     ///   - asset: The asset.
     ///   - amount: The amount, in the asset's smallest unit.
     ///   - blinding: The UTXO's blinding.
-    init(asset: Asset, amount: UInt64, blinding: Poseidon.Element) {
+    init(asset: PrivateAsset, amount: UInt64, blinding: Poseidon.Element) {
         self.asset = asset
         self.amount = amount
         self.blinding = blinding
@@ -104,7 +65,7 @@ struct ConfidentialPlaintext: Sendable, Equatable, Redacted {
     ///   for data records.
     init(decoding bytes: [UInt8]) throws {
         guard bytes.count >= Self.length else { throw ValidationError.invalidLength }
-        guard let asset = Asset(rawValue: bytes.littleEndian(at: 0)) else { throw ValidationError.unsupportedAsset }
+        guard let asset = PrivateAsset(poolID: bytes.littleEndian(at: 0)) else { throw ValidationError.unsupportedAsset }
         guard let blinding = Poseidon.Element(bigEndianBytes: Array(bytes[Self.blindingRange])) else {
             throw ValidationError.nonCanonicalBlinding
         }

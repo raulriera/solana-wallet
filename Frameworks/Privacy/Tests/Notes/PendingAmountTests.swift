@@ -5,7 +5,7 @@ import Testing
 struct PendingAmountTests {
     @Test
     func `Amounts survive encoding and require their asset`() throws {
-        let amount = PendingAmount(signature: IndexerResponses.signature(1), asset: .usdc, amount: 42)
+        let amount = PendingAmount(signature: IndexerResponses.signature(1), asset: .token(.usdc), amount: 42)
 
         let decoded = try JSONDecoder().decode(PendingAmount.self, from: JSONEncoder().encode(amount))
 

@@ -221,7 +221,7 @@ actor PrivateBalances: PrivateBalancing {
                                   client: Client) async throws -> PreparedPrivateTransaction {
         let outcome: SyncOutcome
         var recipient: Recipient?
-        if case .send(_, let destination) = request {
+        if case .send(_, _, let destination) = request {
             async let synced = sharedSync(of: account, on: network)
             async let recipients = Recipient.lookup([destination], using: client)
             let found: [Recipient?]
@@ -236,39 +236,24 @@ actor PrivateBalances: PrivateBalancing {
         switch request {
         case .deposit(let amount, let asset):
             guard let treeID = state.outputTreeID else { throw PrivateBalanceError.unavailable }
-            let deposit = try asset.deposit(amount, from: account.address, to: shielded.recipient, treeID: treeID)
+            let deposit = try ShieldedPool.deposit(amount, of: asset, from: account.address, to: shielded.recipient, treeID: treeID)
             instructions = (registers ? [try shielded.register(paidBy: account.address)] : []) + [deposit]
             effect = .deposit(amount, of: asset)
-        case .send(let lamports, _):
+        case .send(let amount, let asset, _):
             guard let recipient else { throw PrivateBalanceError.recipientUnregistered }
-            let spend = try await state.spend(lamports, to: .transfer(recipient), from: shielded, rpc: client,
+            let spend = try await state.spend(amount, of: asset, to: .transfer(recipient), from: shielded, rpc: client,
                                               prover: client)
             (instructions, effect) = ([spend.instruction], .spend(spend))
         case .withdraw(let amount, let asset, let owner):
-            let destination = asset.withdrawal(to: owner)
-            async let opening = Self.opening(destination, paidBy: account.address, client: client)
-            let spend = try await state.spend(amount, to: destination, from: shielded, rpc: client, prover: client)
-            (instructions, effect) = ([try await opening, spend.instruction].compactMap(\.self), .spend(spend))
+            let spend = try await state.spend(amount, of: asset, to: .withdrawal(owner), from: shielded, rpc: client,
+                                              prover: client)
+            let opening = try asset.openingTokenAccount(of: owner, paidBy: account.address)
+            (instructions, effect) = ([opening, spend.instruction].compactMap(\.self), .spend(spend))
         case .createCode, .redeem, .takeBack:
             throw Transactions.ValidationError.invalidTransaction
         }
         return PreparedPrivateTransaction(instructions: instructions, account: account, network: network, effect: effect,
                                           registers: registers, authorities: [.account(account)])
-    }
-
-    /// Returns the instruction that opens the token account that a withdrawal pays into, when the account is missing.
-    ///
-    /// - Parameters:
-    ///   - destination: The withdrawal's destination.
-    ///   - payer: The account that pays the new account's rent.
-    ///   - client: The network's client.
-    /// - Returns: The create instruction, or `nil` for a SOL withdrawal or a token account that exists.
-    /// - Throws: A validation, provider, or cancellation error.
-    private static func opening(_ destination: PrivateSpend.Destination, paidBy payer: Address,
-                                client: Client) async throws -> Instruction? {
-        guard let tokenAccount = try destination.tokenAccount,
-              (try await client.accounts(at: [tokenAccount.value]).value.first ?? nil) == nil else { return nil }
-        return try destination.openingTokenAccount(paidBy: payer)
     }
 
     /// Reads an account's registration where the selected provider can read it.
@@ -353,9 +338,9 @@ actor PrivateBalances: PrivateBalancing {
         async let recordedNotes = update(notes, .notes, from: generation) { entries in
             let saved = entries[id] ?? NoteSyncState()
             let state = switch effect {
-            case .deposit(let amount, let asset): try asset.recording(depositOf: amount, in: saved, signature: signature)
+            case .deposit(let amount, let asset): try saved.recording(depositOf: amount, of: asset, signature: signature)
             case .spend(let spend), .createCode(let spend, _, _): try saved.recording(spend, signature: signature)
-            case .redeem(let redemption): try saved.recording(depositOf: redemption.lamports, signature: signature)
+            case .redeem(let redemption): try saved.recording(depositOf: redemption.lamports, of: .nativeSOL, signature: signature)
             }
             entries[id] = state
             return state

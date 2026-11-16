@@ -11,13 +11,13 @@ struct TransactionRecordTests {
 
     @Test
     func `A settled token payment saves every fact under its permanent name`() throws {
-        let record = try Self.record(.payment(recipient: Address(Self.recipient), mint: Address(Self.mint),
-                                              units: 2_500_000),
+        let record = try Self.record(.payment(recipient: Address(Self.recipient),
+                                              asset: .token(mint: Address(Self.mint)), amount: 2_500_000),
                                      status: .succeeded, settled: 800_000_060)
 
         try #expect(Self.object(JSONEncoder().encode(record)) == Self.object("""
             {"account": "E621E1F8-C36C-495A-93FC-0C247A3E6E5F", "network": "devnet", "kind": "payment",
-             "recipient": "\(Self.recipient)", "mint": "\(Self.mint)", "units": 2500000, "signature": "signature",
+             "recipient": "\(Self.recipient)", "asset": {"token": {"mint": "\(Self.mint)"}}, "amount": 2500000, "signature": "signature",
              "lastValidBlockHeight": 550, "status": "succeeded", "created": 800000000, "settled": 800000060}
             """))
     }
@@ -45,13 +45,38 @@ struct TransactionRecordTests {
     func `A saved SOL payment reads back`() throws {
         let saved = Data("""
             {"account": "E621E1F8-C36C-495A-93FC-0C247A3E6E5F", "network": "devnet", "kind": "payment",
-             "recipient": "\(Self.recipient)", "units": 1000000000, "signature": "signature",
+             "recipient": "\(Self.recipient)", "asset": {"nativeSOL": {}}, "amount": 1000000000, "signature": "signature",
              "lastValidBlockHeight": 550, "status": "pending", "created": 800000000}
             """.utf8)
 
         let record = try JSONDecoder().decode(TransactionRecord.self, from: saved)
 
-        #expect(try record == Self.record(.payment(recipient: Address(Self.recipient), mint: nil, units: 1_000_000_000)))
+        #expect(try record == Self.record(.payment(recipient: Address(Self.recipient), asset: .nativeSOL, amount: 1_000_000_000)))
+    }
+
+    @Test
+    func `A saved token payment reads back`() throws {
+        let saved = Data("""
+            {"account": "E621E1F8-C36C-495A-93FC-0C247A3E6E5F", "network": "devnet", "kind": "payment",
+             "recipient": "\(Self.recipient)", "asset": {"token": {"mint": "\(Self.mint)"}}, "amount": 2500000,
+             "signature": "signature", "lastValidBlockHeight": 550, "status": "pending", "created": 800000000}
+            """.utf8)
+
+        let record = try JSONDecoder().decode(TransactionRecord.self, from: saved)
+
+        #expect(try record == Self.record(.payment(recipient: Address(Self.recipient),
+                                                   asset: .token(mint: Address(Self.mint)), amount: 2_500_000)))
+    }
+
+    @Test
+    func `A saved payment without an asset can't be read`() {
+        let saved = Data("""
+            {"account": "E621E1F8-C36C-495A-93FC-0C247A3E6E5F", "network": "devnet", "kind": "payment",
+             "recipient": "\(Self.recipient)", "amount": 1000000000, "signature": "signature",
+             "lastValidBlockHeight": 550, "status": "pending", "created": 800000000}
+            """.utf8)
+
+        #expect(throws: DecodingError.self) { try JSONDecoder().decode(TransactionRecord.self, from: saved) }
     }
 
     @Test

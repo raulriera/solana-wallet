@@ -1,6 +1,8 @@
 import Portfolio
+import Privacy
 import RPC
 import SwiftUI
+import Transactions
 
 /// Presents an account's portfolio on a network in a split view: its tokens and their details, or why they can't load.
 struct PortfolioSplitView: View {
@@ -8,7 +10,7 @@ struct PortfolioSplitView: View {
     @Environment(\.cardStyle) private var cardStyle
     @Environment(PortfolioStore.self) private var portfolios
     @Environment(PrivateBalanceStore.self) private var privateBalances
-    @State private var selection: Holding.Identity?
+    @State private var selection: Asset.ID?
     @State private var preferredColumn = NavigationSplitViewColumn.sidebar
     @State private var providerSetup: ProviderSetupModel<RPCConnectionError>?
     @State private var tokenAddition: TokenAdditionModel?

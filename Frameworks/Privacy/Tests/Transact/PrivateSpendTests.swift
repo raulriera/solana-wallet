@@ -3,24 +3,33 @@ import Transactions
 @testable import Privacy
 
 struct PrivateSpendTests {
-    @Test(arguments: PrivateToken.allCases)
-    func `Token withdrawals pay into and open the owner's associated token account`(token: PrivateToken) throws {
+    @Test
+    func `Withdrawals pay SOL to the owner and a token to the owner's token account`() throws {
         let owner = try Address(TransferVectors.recipientSigningAddress)
-        let payer = try Address(TransferVectors.senderSigningAddress)
-        let destination = PrivateSpend.Destination.tokenWithdrawal(token, owner: owner)
+        let destination = PrivateSpend.Destination.withdrawal(owner)
+        let tokenAccount = try TokenProgram.token.associatedAccount(owner: owner, mint: PrivateToken.usdc.mint)
 
-        let tokenAccount = try TokenProgram.token.associatedAccount(owner: owner, mint: token.mint)
-        #expect(try destination.tokenAccount == tokenAccount)
-        #expect(try destination.parts(moving: 1).withdrawal?.recipient == tokenAccount)
-        #expect(try destination.openingTokenAccount(paidBy: payer)
-            == AssociatedTokenProgram.createIdempotent(owner: owner, mint: token.mint, program: .token, payer: payer))
+        #expect(try destination.parts(moving: 1, of: .nativeSOL).withdrawal
+            == ExternalData.Withdrawal(recipient: owner, amount: 1, asset: .nativeSOL))
+        #expect(try destination.parts(moving: 1, of: .token(.usdc)).withdrawal
+            == ExternalData.Withdrawal(recipient: tokenAccount, amount: 1, asset: .token(.usdc)))
+    }
+
+    @Test(arguments: [PrivateAsset.nativeSOL, .token(.usdc)])
+    func `Transfers carry no withdrawal`(asset: PrivateAsset) throws {
+        let parts = try PrivateSpend.Destination.transfer(try TransferVectors.recipient()).parts(moving: 7, of: asset)
+
+        #expect(parts.transfer?.amount == 7)
+        #expect(parts.withdrawal == nil)
     }
 
     @Test
-    func `Other destinations have no token account to open`() throws {
-        let destination = PrivateSpend.Destination.withdrawal(try Address(TransferVectors.recipientSigningAddress))
+    func `Funded transfers withdraw SOL to the recipient's signing address`() throws {
+        let recipient = try TransferVectors.recipient()
 
-        #expect(try destination.tokenAccount == nil)
-        #expect(try destination.openingTokenAccount(paidBy: Address(TransferVectors.senderSigningAddress)) == nil)
+        let parts = try PrivateSpend.Destination.fundedTransfer(recipient, publicLamports: 5).parts(moving: 7, of: .nativeSOL)
+
+        #expect(parts.transfer?.amount == 7)
+        #expect(parts.withdrawal == ExternalData.Withdrawal(recipient: recipient.signingAddress, amount: 5, asset: .nativeSOL))
     }
 }

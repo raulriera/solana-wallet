@@ -115,6 +115,17 @@ struct TokenTransferTests {
     }
 
     @Test
+    func `Token transfers reject a mint without account data`() throws {
+        let fixture = TokenFixtures.transfers[0]
+        let decoded = try fixture.mint()
+        let facts = Mint(address: decoded.address, program: decoded.program, decimals: decoded.decimals, metadata: nil)
+        #expect(throws: TokenError.invalidAccount) {
+            try TokenTransfer(sender: Address(TokenFixtures.sender), recipient: Address(TokenFixtures.recipient),
+                              mint: facts, source: fixture.source(), destination: nil, amount: 1)
+        }
+    }
+
+    @Test
     func `Token transfers reject a sender who does not own the source account`() throws {
         let fixture = TokenFixtures.transfers[0]
         #expect(throws: TokenError.accountMismatch) {
@@ -135,7 +146,7 @@ struct TokenTransferTests {
     @Test
     func `Token transfers reject a destination controlled by another wallet`() throws {
         let fixture = TokenFixtures.transfers[0]
-        let wrongOwner = try TokenAccount(address: Address(fixture.destination), programOwner: Address(fixture.program),
+        let wrongOwner = try Token(address: Address(fixture.destination), programOwner: Address(fixture.program),
                                           data: #require(Data(base64Encoded: fixture.sourceData)))
         #expect(throws: TokenError.accountMismatch) {
             try TokenTransfer(sender: Address(TokenFixtures.sender), recipient: Address(TokenFixtures.recipient),
@@ -145,7 +156,7 @@ struct TokenTransferTests {
 
     @Test(arguments: TokenFixtures.transfers.filter { !$0.createsDestination })
     func `Token transfers send directly to another token account the recipient owns`(_ fixture: TokenFixture) throws {
-        let account = try TokenAccount(address: Address("7HYrVp9r32ggmv4UHmNh8EKJjg91Cqf8CF2WfT684eXb"),
+        let account = try Token(address: Address("7HYrVp9r32ggmv4UHmNh8EKJjg91Cqf8CF2WfT684eXb"),
                                        programOwner: Address(fixture.program),
                                        data: #require(Data(base64Encoded: fixture.destinationData)))
         let transfer = try TokenTransfer(sender: Address(TokenFixtures.sender), recipient: Address(TokenFixtures.recipient),
@@ -201,7 +212,7 @@ struct TokenTransferTests {
         let bytes = try #require(Data(base64Encoded: TokenFixtures.feeMint))
         let data = duplicatesExtension ? bytes + bytes.dropFirst(166) : Data(bytes.dropLast())
         #expect(throws: TokenError.invalidAccount) {
-            try TokenMint(address: Address(TokenFixtures.mint), owner: Address(fixture.program), data: data)
+            try Mint(address: Address(TokenFixtures.mint), owner: Address(fixture.program), data: data)
         }
     }
 

@@ -1,8 +1,9 @@
 import Algorithms
 import Foundation
 import Observation
-import Portfolio
+import Privacy
 import RPC
+import Transactions
 import Wallet
 
 /// An account's private balance on a network, read and polled while it has observers.
@@ -12,11 +13,11 @@ final class WalletPrivateBalance {
     /// The last read balance, or `nil` before the first read.
     private(set) var status: PrivateBalanceStatus? {
         didSet {
-            privateHoldings = if case .balance(let balances)? = status { Set(balances.assets.map(\.holding)) } else { [] }
+            privateHoldings = if case .balance(let balances)? = status { Set(balances.assets.map(\.asset)) } else { [] }
         }
     }
-    /// The portfolio holdings whose asset the account holds an available or pending private amount of.
-    private(set) var privateHoldings: Set<Holding.Identity> = []
+    /// The assets that the account holds an available or pending private amount of.
+    private(set) var privateHoldings: Set<Asset.ID> = []
     /// Whether the last read failed.
     private(set) var isStale = false
     /// Whether polls wait for a refresh after a failure that reading again can't fix.

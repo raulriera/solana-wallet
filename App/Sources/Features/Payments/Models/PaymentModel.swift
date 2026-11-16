@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import Transactions
 
 /// A model of a payment's typed amount, its token, and the unit it's typed in.
 @MainActor
@@ -26,8 +27,9 @@ final class PaymentModel {
         ///   - balance: The balance.
         ///   - format: The style that formats the balance in its unit, such as 1.2 SOL or $172.64.
         /// - Returns: The balance with its name, such as "Public balance: 1.2 SOL".
-        func balance<Style: FormatStyle & Sendable>(_ balance: Decimal, format: Style) -> LocalizedStringResource
-        where Style.FormatInput == Decimal, Style.FormatOutput == String {
+        func balance<Style: FormatStyle & Sendable>(_ balance: Style.FormatInput,
+                                                    format: Style) -> LocalizedStringResource
+        where Style.FormatInput: Sendable, Style.FormatOutput == String {
             switch self {
             case .account:
                 LocalizedStringResource("Balance: \(balance, format: format)",
@@ -122,21 +124,23 @@ final class PaymentModel {
         }
     }
 
-    var amount: PaymentAmount {
-        PaymentAmount(token: token, quantity: quantity, value: value, currencyCode: currencyCode)
+    /// The typed amount of the token, or `nil` when it is zero, more than the balance, or too large for 64 bits.
+    var sent: TokenAmount? {
+        guard quantity > 0, !exceedsBalance else { return nil }
+        return TokenAmount(quantity, decimals: token.balance.decimals)
     }
 
     var entryUnit: AmountEntryFormatStyle.Unit {
         switch unit {
         case .currency: .currency(code: currencyCode)
-        case .token: .token(symbol: token.symbol)
+        case .token: .token(symbol: token.asset.displaySymbol)
         }
     }
 
     /// The token's balance in the unit that the amount is typed in, rounded down to the digits that unit allows.
     var entryBalance: Decimal {
         switch unit {
-        case .token: token.balance
+        case .token: Decimal(token.balance)
         case .currency: currencyBalance(digits: entry.maximumFractionDigits)
         }
     }
@@ -145,14 +149,14 @@ final class PaymentModel {
     var balanceText: LocalizedStringResource {
         switch unit {
         case .currency: source.balance(entryBalance, format: .value(code: currencyCode))
-        case .token: source.balance(entryBalance, format: .quantity(of: token))
+        case .token: source.balance(token.balance, format: .amount(of: token.asset))
         }
     }
 
     var exceedsBalance: Bool { entry.value > entryBalance }
 
     /// Whether the amount is more than zero and no more than the balance.
-    var canSend: Bool { quantity > 0 && !exceedsBalance }
+    var canSend: Bool { sent != nil }
 
     /// Whether the person can pay with another token or type the amount in another unit.
     var offersChoices: Bool { tokens.count > 1 || token.price != nil }
@@ -207,9 +211,10 @@ final class PaymentModel {
         }
         guard updated != token else { return }
         if unit == .currency, updated.price == nil {
-            let typed = AmountEntry(quantity, maximumFractionDigits: updated.decimals)
+            let digits = Self.fractionDigits(of: .token, token: updated, currencyCode: currencyCode)
+            let typed = AmountEntry(quantity, maximumFractionDigits: digits)
             unit = .token
-            entry = typed ?? AmountEntry(maximumFractionDigits: updated.decimals)
+            entry = typed ?? AmountEntry(maximumFractionDigits: digits)
         }
         token = updated
     }
@@ -270,7 +275,7 @@ final class PaymentModel {
     /// - Returns: The quantity, or zero when the token has no price.
     private func quantity(worth value: Decimal) -> Decimal {
         guard let price = token.price, price > 0 else { return 0 }
-        return (value / price).rounded(scale: token.decimals, .down)
+        return (value / price).rounded(scale: Int(token.balance.decimals), .down)
     }
 
     /// Returns what a token quantity is worth in the person's currency.
@@ -286,7 +291,7 @@ final class PaymentModel {
     /// - Parameter digits: The currency's fraction digits.
     /// - Returns: The balance, or zero when the token has no price.
     private func currencyBalance(digits: Int) -> Decimal {
-        (worth(of: token.balance) ?? 0).rounded(scale: digits, .down)
+        (worth(of: Decimal(token.balance)) ?? 0).rounded(scale: digits, .down)
     }
 
     /// Records and counts a rejection.
@@ -307,7 +312,7 @@ final class PaymentModel {
     private static func fractionDigits(of unit: Unit, token: PaymentToken, currencyCode: String) -> Int {
         switch unit {
         case .token:
-            return token.decimals
+            return Int(token.balance.decimals)
         case .currency:
             let formatter = NumberFormatter()
             formatter.numberStyle = .currency

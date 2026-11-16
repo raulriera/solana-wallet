@@ -18,12 +18,12 @@ struct TokenLookupLiveTests {
         async let pyusdLookup = portfolio.token(at: Address("2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo"))
         let (bonk, pyusd) = try await (bonkLookup, pyusdLookup)
 
-        #expect(bonk.token.program == .token)
-        #expect(bonk.token.decimals == 5)
-        #expect(bonk.token.name == "Bonk")
-        #expect(pyusd.token.program == .token2022)
-        #expect(pyusd.token.decimals == 6)
-        #expect(pyusd.token.name == "PayPal USD")
+        #expect(bonk.mint.program == .token)
+        #expect(bonk.mint.decimals == 5)
+        #expect(bonk.mint.metadata?.name == "Bonk")
+        #expect(pyusd.mint.program == .token2022)
+        #expect(pyusd.mint.decimals == 6)
+        #expect(pyusd.mint.metadata?.name == "PayPal USD")
         #expect(bonk.logo == nil)
         #expect(pyusd.logo == nil)
     }
