@@ -84,12 +84,13 @@ struct TokenDetailScreen: View {
                 .foregroundStyle(palette.secondaryText)
             }
 
-            if privateAsset != nil {
+            if privateAsset != nil, let publicBalance {
                 PrivateBalanceSections(
                     isTurningOn: privateBalance.isTurningOn,
                     turnOn: PrivateBalanceTurnOnAction(model: privateBalance),
                     status: privateStatus,
                     asset: holding.asset,
+                    publicBalance: publicBalance,
                     isStale: isPrivateBalanceStale,
                     refresh: refresh
                 )

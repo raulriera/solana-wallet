@@ -101,7 +101,7 @@ final class PrivateBalanceStore: Erasable {
             guard let amount,
                 let token = PaymentToken(
                     holding: holding,
-                    balance: TokenAmount(amount: amount, decimals: holding.asset.decimals),
+                    balance: TokenAmount(amount: amount, decimals: publicBalance.decimals),
                     price: nil
                 )
             else { return nil }

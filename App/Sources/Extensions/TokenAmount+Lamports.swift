@@ -5,6 +5,6 @@ nonisolated extension TokenAmount {
     ///
     /// - Parameter lamports: The amount in lamports, SOL's smallest unit.
     init(lamports: UInt64) {
-        self.init(amount: lamports, decimals: Asset.nativeSOL.decimals)
+        self.init(amount: lamports, decimals: 9)
     }
 }

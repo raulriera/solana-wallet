@@ -11,6 +11,8 @@ struct PrivateBalanceSections: View {
     /// The account's private balance, or `nil` before the first read.
     let status: PrivateBalanceStatus?
     let asset: Asset
+    /// The account's public balance of the asset, whose decimals the private amounts share.
+    let publicBalance: TokenAmount
     /// Whether the last read failed.
     let isStale: Bool
     /// The action that reads the balance again, or `nil` where nothing can.
@@ -43,9 +45,11 @@ struct PrivateBalanceSections: View {
             }
         case .balance?, .unregistered?:
             let balance = PrivateAsset(asset.id).flatMap { status?.balance(of: $0) } ?? .zero
-            PrivateBalanceAmountSection(available: TokenAmount(amount: balance.available, decimals: asset.decimals),
-                                        pending: TokenAmount(amount: balance.pending, decimals: asset.decimals),
-                                        asset: asset, isStale: isStale, refresh: refresh)
+            PrivateBalanceAmountSection(
+                available: TokenAmount(amount: balance.available, decimals: publicBalance.decimals),
+                pending: TokenAmount(amount: balance.pending, decimals: publicBalance.decimals),
+                asset: asset, isStale: isStale, refresh: refresh
+            )
         case nil where isStale:
             PrivateBalanceAmountSection(available: nil, pending: nil,
                                         asset: asset, isStale: isStale, refresh: refresh)

@@ -21,8 +21,8 @@ struct BalanceReader {
         let accounts = try list.accounts(of: wallet)
         try Task.checkCancellation()
         let contents = try await rpc.accounts(at: accounts.map(\.value), minContextSlot: minContextSlot).value
-        let solBalance = TokenAmount(amount: contents[0]?.lamports ?? 0, decimals: Asset.nativeSOL.decimals)
-        let native = Holding(asset: .nativeSOL, balance: solBalance, imageURL: nil, valuation: nil)
+        let native = Holding(asset: .nativeSOL, balance: TokenAmount(amount: contents[0]?.lamports ?? 0, decimals: 9),
+                             imageURL: nil, valuation: nil)
         let tokens = list.mints.indices.map { index in
             let mint = list.mints[index]
             let account = balance(of: mint, at: accounts[index + 1], in: contents[index + 1], owner: wallet)

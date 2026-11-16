@@ -16,13 +16,4 @@ public enum Asset: Codable, Sendable, Hashable, Identifiable {
         case .token(let mint): .token(mint: mint.address)
         }
     }
-
-    /// The number of decimal places in the asset's base-unit amounts: 9 for SOL, whose base unit is the lamport, or
-    /// the mint's for a token.
-    public var decimals: UInt8 {
-        switch self {
-        case .nativeSOL: 9
-        case .token(let mint): mint.decimals
-        }
-    }
 }

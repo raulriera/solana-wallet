@@ -147,13 +147,14 @@ struct LocalBalanceMove {
                                           sockets: sockets)
         let coordinator = local.coordinator
         let transactions = TransactionStore.inMemory { _ in coordinator }
-        let held: Asset =
+        let token: PaymentToken =
             switch asset {
-            case .nativeSOL: .nativeSOL
-            case .token(let token): .token(.fixture(token.mint.value, decimals: 6, symbol: "USDC"))
+            case .nativeSOL:
+                PaymentToken(asset: .nativeSOL, balance: TokenAmount(lamports: spendable), price: nil)
+            case .token(let token):
+                PaymentToken(asset: .token(.fixture(token.mint.value, decimals: 6, symbol: "USDC")),
+                             balance: TokenAmount(amount: spendable, decimals: 6), price: nil)
             }
-        let token = PaymentToken(asset: held, balance: TokenAmount(amount: spendable, decimals: held.decimals),
-                                 price: nil)
         move = try #require(
             BalanceMove(
                 direction: direction,
@@ -165,7 +166,7 @@ struct LocalBalanceMove {
             )
         )
         move.payment.press(.digit(1))
-        for _ in held.decimals..<9 { move.payment.press(.digit(0)) }
+        for _ in token.balance.decimals..<9 { move.payment.press(.digit(0)) }
         model = try move.review()
         self.balances = balances
         self.transactions = transactions
