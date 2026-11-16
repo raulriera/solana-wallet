@@ -31,14 +31,6 @@ struct BalanceMoveTests {
     }
 
     @Test
-    func `A token that private balances don't hold opens no move`() async throws {
-        let wrapped = Mint.fixture("So11111111111111111111111111111111111111112", decimals: 9)
-        let move = try await Self.optionalMove(.toPrivate, asset: .token(wrapped))
-
-        #expect(move == nil)
-    }
-
-    @Test
     func `A review freezes the typed amount`() async throws {
         let move = try await Self.move(.toPublic, asset: .nativeSOL)
         move.payment.press(.digit(1))
@@ -72,14 +64,6 @@ struct BalanceMoveTests {
         asset: Asset,
         transactions: TransactionStore = .unused
     ) async throws -> BalanceMove {
-        try #require(await optionalMove(direction, asset: asset, transactions: transactions))
-    }
-
-    private static func optionalMove(
-        _ direction: BalanceMoveProposal.Direction,
-        asset: Asset,
-        transactions: TransactionStore = .unused
-    ) async throws -> BalanceMove? {
         let balances = PrivateBalances.inMemory(
             keys: StoredValue(),
             notes: StoredValue(),
@@ -90,6 +74,7 @@ struct BalanceMoveTests {
         return BalanceMove(
             direction: direction,
             token: token,
+            privateAsset: try #require(PrivateAsset(asset.id)),
             account: try await PrivateBalanceFixtures.account(),
             network: .devnet,
             balances: balances,

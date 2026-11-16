@@ -108,6 +108,7 @@ final class PrivateBalanceStore: Erasable {
             return BalanceMove(
                 direction: direction,
                 token: token,
+                privateAsset: asset,
                 account: account,
                 network: network,
                 balances: privateBalances,

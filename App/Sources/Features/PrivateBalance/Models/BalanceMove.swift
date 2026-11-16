@@ -6,6 +6,8 @@ import RPC
 @MainActor
 struct BalanceMove: Identifiable {
     let direction: BalanceMoveProposal.Direction
+    /// The pool's asset of the token that moves.
+    let privateAsset: PrivateAsset
     /// The amount being typed.
     let payment: PaymentModel
     let account: Account
@@ -15,30 +17,32 @@ struct BalanceMove: Identifiable {
 
     var id: ObjectIdentifier { ObjectIdentifier(payment) }
 
-    /// Creates a move with an empty amount, or `nil` for a token that private balances don't hold.
+    /// Creates a move with an empty amount.
     ///
     /// - Parameters:
     ///   - direction: Which balance the asset leaves, and which one it reaches.
     ///   - token: The asset that moves, whose balance is the most that the move can take.
+    ///   - privateAsset: The pool's asset of the token.
     ///   - account: The account whose asset moves.
     ///   - network: The network that the asset moves on.
     ///   - balances: The private balances of every account.
     ///   - transactions: The transaction store.
-    init?(
+    init(
         direction: BalanceMoveProposal.Direction,
         token: PaymentToken,
+        privateAsset: PrivateAsset,
         account: Account,
         network: Network,
         balances: any PrivateBalancing,
         transactions: TransactionStore
     ) {
-        guard PrivateAsset(token.id) != nil else { return nil }
         let source: PaymentModel.Source = switch direction {
         case .toPrivate: .publicBalance
         case .toPublic: .privateBalance
         }
         payment = PaymentModel(tokens: [token], currencyCode: "USD", source: source)
         self.direction = direction
+        self.privateAsset = privateAsset
         self.account = account
         self.network = network
         self.balances = balances
@@ -55,6 +59,7 @@ struct BalanceMove: Identifiable {
         let proposal = BalanceMoveProposal(
             direction: direction,
             asset: payment.token.asset,
+            privateAsset: privateAsset,
             sent: sent,
             balances: balances
         )

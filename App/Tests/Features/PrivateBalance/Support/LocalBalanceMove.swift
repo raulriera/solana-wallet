@@ -155,15 +155,14 @@ struct LocalBalanceMove {
                 PaymentToken(asset: .token(.fixture(token.mint.value, decimals: 6, symbol: "USDC")),
                              balance: TokenAmount(amount: spendable, decimals: 6), price: nil)
             }
-        move = try #require(
-            BalanceMove(
-                direction: direction,
-                token: token,
-                account: account,
-                network: .devnet,
-                balances: balances,
-                transactions: transactions
-            )
+        move = BalanceMove(
+            direction: direction,
+            token: token,
+            privateAsset: asset,
+            account: account,
+            network: .devnet,
+            balances: balances,
+            transactions: transactions
         )
         move.payment.press(.digit(1))
         for _ in token.balance.decimals..<9 { move.payment.press(.digit(0)) }

@@ -48,6 +48,8 @@ struct BalanceMoveProposal: TransactionProposal {
 
     let direction: Direction
     let asset: Asset
+    /// The pool's asset of ``asset``.
+    let privateAsset: PrivateAsset
     /// The amount of the asset that moves.
     let sent: TokenAmount
     let balances: any PrivateBalancing
@@ -58,7 +60,6 @@ struct BalanceMoveProposal: TransactionProposal {
     var refreshInterval: Duration { .seconds(30) }
 
     func prepare(from account: Account, on network: Network) async throws -> PreparedPrivateTransaction {
-        guard let privateAsset = PrivateAsset(asset.id) else { throw PrivateBalanceError.preparationFailed }
         let request: PrivateTransactionRequest =
             switch direction {
             case .toPrivate: .deposit(sent.amount, of: privateAsset)
@@ -69,7 +70,6 @@ struct BalanceMoveProposal: TransactionProposal {
 
     func simulate(_ preparation: PreparedPrivateTransaction, with coordinator: any TransactionCoordinating,
                   from account: Account) async throws -> ProposedTransaction<Review> {
-        guard let privateAsset = PrivateAsset(asset.id) else { throw PrivateBalanceError.preparationFailed }
         let (simulation, transaction) = try await coordinator.simulate(preparation)
         let execution = simulation.diagnostics.value
         guard execution.error == nil else {
