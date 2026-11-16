@@ -9,8 +9,8 @@ public struct PrivateSpend: Sendable, Redacted {
     public enum Destination: Sendable {
         /// A private transfer to an owner's shielded address.
         case transfer(Recipient)
-        /// A withdrawal to an owner's public balance: the owner's account for SOL, or the owner's associated token
-        /// account, which must exist, for a token.
+        /// A withdrawal to an owner's public balance: the owner's account for SOL, or for a token the owner's
+        /// associated token account, which the spend opens when it doesn't exist.
         case withdrawal(Address)
         /// A private transfer of SOL to an owner's shielded address and a public withdrawal of `publicLamports` to the
         /// owner's signing address.
@@ -26,7 +26,12 @@ public struct PrivateSpend: Sendable, Redacted {
         case noOutputTree
     }
 
-    public let instruction: Instruction
+    /// The instructions that open the accounts that the transact pays into, such as a token withdrawal's
+    /// associated token account.
+    let openings: [Instruction]
+
+    /// The transact instruction.
+    let instruction: Instruction
 
     /// The amount that the spend transfers or withdraws, in the asset's smallest unit, excluding a funded transfer's
     /// public withdrawal.
@@ -44,9 +49,30 @@ public struct PrivateSpend: Sendable, Redacted {
 
     /// The asset that the spend spends.
     let asset: PrivateAsset
+
+    /// The spend's instructions in order: the account openings, then the transact.
+    public var instructions: [Instruction] { openings + [instruction] }
 }
 
 extension PrivateSpend.Destination {
+    /// Returns the instructions that open the accounts that a spend of an asset to the destination pays into, each of
+    /// which succeeds without a change when the account exists.
+    ///
+    /// - Parameters:
+    ///   - asset: The asset to move.
+    ///   - payer: The account that signs and pays the new accounts' rent.
+    /// - Returns: The instruction that opens the owner's associated token account for a token withdrawal, or none.
+    /// - Throws: A ``Transactions/ValidationError`` if an address or the account's derivation is invalid.
+    func openings(of asset: PrivateAsset, paidBy payer: Address) throws -> [Instruction] {
+        switch (self, asset) {
+        case (.withdrawal(let owner), .token(let token)):
+            [try AssociatedTokenProgram.createIdempotent(owner: owner, mint: token.mint, program: PrivateToken.program,
+                                                         payer: payer)]
+        case (.withdrawal, .nativeSOL), (.transfer, _), (.fundedTransfer, _):
+            []
+        }
+    }
+
     /// Returns the private transfer and the public withdrawal that move an amount of an asset to the destination.
     ///
     /// - Parameters:

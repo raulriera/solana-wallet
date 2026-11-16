@@ -792,7 +792,8 @@ struct PrivateBalancesTests {
                                                   on: .devnet)
 
         let spend = try #require(prepared.effect.spend)
-        #expect(prepared.instructions == [spend.instruction])
+        #expect(spend.instructions.count == 1)
+        #expect(prepared.instructions == spend.instructions)
         #expect(spend.amount == 400_000)
         #expect(spend.receivedAmount == 600_000)
         #expect(await PrivateBalanceFixtures.proofRequests(of: responses) == 1)
@@ -816,8 +817,10 @@ struct PrivateBalancesTests {
         let spend = try #require(prepared.effect.spend)
         #expect(spend.amount == 1_000_000)
         #expect(spend.receivedAmount == 0)
-        #expect(spend.instruction.accounts.last?.address == destination.address)
-        #expect(prepared.instructions == [spend.instruction])
+        let transact = try #require(spend.instructions.last)
+        #expect(spend.instructions.count == 1)
+        #expect(transact.accounts.last?.address == destination.address)
+        #expect(prepared.instructions == spend.instructions)
     }
 
     @Test
@@ -836,10 +839,12 @@ struct PrivateBalancesTests {
         let opening = try AssociatedTokenProgram.createIdempotent(owner: sender.account.address,
                                                                  mint: PrivateToken.devnetUSDC.mint, program: .token,
                                                                  payer: sender.account.address)
-        #expect(prepared.instructions == [opening, spend.instruction])
+        let transact = try #require(spend.instructions.last)
+        #expect(prepared.instructions == [opening, transact])
+        #expect(spend.instructions == prepared.instructions)
         #expect(spend.amount == 400_000)
         #expect(spend.receivedAmount == 600_000)
-        #expect(spend.instruction.accounts.map(\.address).contains(tokenAccount))
+        #expect(transact.accounts.map(\.address).contains(tokenAccount))
         #expect(try await balances.complete(prepared, with: PrivateBalanceFixtures.confirmation(.succeeded))
             == .balance(available: 0, pending: 600_000, of: .token(.devnetUSDC)))
     }

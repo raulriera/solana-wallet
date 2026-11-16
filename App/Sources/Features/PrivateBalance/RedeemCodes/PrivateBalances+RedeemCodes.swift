@@ -81,7 +81,7 @@ extension PrivateBalances {
         let recipient = try keys.oneTimeAccount(at: index).shieldedAccount.recipient
         let spend = try await state.spend(lamports, of: .nativeSOL, to: .fundedTransfer(recipient, publicLamports: reserve),
                                           from: shielded, rpc: client, prover: client)
-        return PreparedPrivateTransaction(instructions: [spend.instruction], account: account, network: network,
+        return PreparedPrivateTransaction(instructions: spend.instructions, account: account, network: network,
                                           effect: .createCode(spend, index: index, reserve: reserve), registers: false,
                                           authorities: [.account(account)])
     }
@@ -159,7 +159,7 @@ extension PrivateBalances {
         let available = try Redemption.availableLamports(of: balance, registrationCost: registers ? registrationCost : 0,
                                                          treeFee: treeFee)
         let registration = registers ? [try shielded.register(paidBy: code.signingAddress)] : []
-        let redemption = try Redemption(instructions: registration + [spend.instruction], noteLamports: spend.amount,
+        let redemption = try Redemption(instructions: registration + spend.instructions, noteLamports: spend.amount,
                                         availableLamports: available, source: code.signingAddress, recipient: recipient,
                                         treeID: outputTree, takenBackIndex: index)
         return PreparedPrivateTransaction(instructions: try redemption.transactionInstructions, account: account,

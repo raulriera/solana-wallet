@@ -67,6 +67,7 @@ extension NoteSyncState {
         let sender = try account.recipient.owner
         let receivedAmount = plan.outputs.filter { $0.owner?.owner == sender }.reduce(0) { $0 + ($1.utxo?.amount ?? 0) }
         return PrivateSpend(
+            openings: try destination.openings(of: asset, paidBy: account.signingAddress),
             instruction: try await plan.instruction(nullifierKey: account.nullifierKey, prover: prover),
             amount: amount, receivedAmount: receivedAmount,
             treeIDs: TransactPlan.writtenTreeIDs(inputs: plan.inputTreeIDs, output: plan.outputTreeID),

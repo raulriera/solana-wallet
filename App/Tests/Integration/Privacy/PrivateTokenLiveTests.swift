@@ -44,7 +44,7 @@ struct PrivateTokenLiveTests {
         async let proved = funded.spend(Self.withdrawalUnits, of: .token(.devnetUSDC), to: .withdrawal(owner.address),
                                         from: shielded, rpc: rpc, prover: rpc)
         let (publicUnits, spend) = try await (publicRead, proved)
-        let withdrawn = try await coordinator.run([spend.instruction], signedBy: [owner])
+        let withdrawn = try await coordinator.run(spend.instructions, signedBy: [owner])
         try #require(withdrawn.outcome == .succeeded)
         let slot = try #require(withdrawn.slot)
         #expect(try await Self.balance(of: tokenAccount, using: rpc, minContextSlot: slot) == publicUnits + Self.withdrawalUnits)
@@ -105,7 +105,7 @@ struct PrivateTokenLiveTests {
 
         let spend = try await state.spend(Self.transferUnits, of: .token(.devnetUSDC), to: .transfer(try recipient.recipient),
                                           from: sender, rpc: rpc, prover: rpc)
-        let sent = try await coordinator.run([spend.instruction], signedBy: [wallets.sender])
+        let sent = try await coordinator.run(spend.instructions, signedBy: [wallets.sender])
         try #require(sent.outcome == .succeeded)
 
         let after = try await poll {

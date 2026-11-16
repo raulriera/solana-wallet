@@ -97,7 +97,8 @@ struct NoteSyncStateSpendTests {
         let routes = await transport.requests.compactMap { $0.url?.path() }
         let route = "/prove/transfer_confidential_\(plan.shape.inputs)_\(plan.shape.outputs)/indexed"
         #expect(routes == ["", "/attestation", route])
-        #expect(result.instruction == (try plan.instruction(proof: proof, treeContexts: [context])))
+        let transact = try plan.instruction(proof: proof, treeContexts: [context])
+        #expect(result.instructions == (try openings(of: spend) + [transact]))
         #expect(result.nullifiers == selected.map(\.nullifier))
         #expect(result.amount == spend.amount)
         #expect(result.receivedAmount == spend.receivedAmount)
@@ -329,6 +330,13 @@ struct NoteSyncStateSpendTests {
         case .nativeSOL: owner
         case .token(let token): try TokenProgram.token.associatedAccount(owner: owner, mint: token.mint)
         }
+    }
+
+    private func openings(of spend: Spend) throws -> [Instruction] {
+        guard case .withdrawal = spend.destination, case .token(let token) = spend.asset else { return [] }
+        let owner = try Address(TransferVectors.transfers[1].payer)
+        return [try AssociatedTokenProgram.createIdempotent(owner: owner, mint: token.mint, program: .token,
+                                                            payer: sender.signingAddress)]
     }
 
     private static func transport(queued: Set<String> = []) throws -> StubTransport {

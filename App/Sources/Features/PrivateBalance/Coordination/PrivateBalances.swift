@@ -243,18 +243,11 @@ actor PrivateBalances: PrivateBalancing {
             guard let recipient else { throw PrivateBalanceError.recipientUnregistered }
             let spend = try await state.spend(amount, of: asset, to: .transfer(recipient), from: shielded, rpc: client,
                                               prover: client)
-            (instructions, effect) = ([spend.instruction], .spend(spend))
+            (instructions, effect) = (spend.instructions, .spend(spend))
         case .withdraw(let amount, let asset, let owner):
             let spend = try await state.spend(amount, of: asset, to: .withdrawal(owner), from: shielded, rpc: client,
                                               prover: client)
-            let opening: [Instruction] =
-                switch asset {
-                case .nativeSOL: []
-                case .token(let token):
-                    [try AssociatedTokenProgram.createIdempotent(owner: owner, mint: token.mint,
-                                                                 program: PrivateToken.program, payer: account.address)]
-                }
-            (instructions, effect) = (opening + [spend.instruction], .spend(spend))
+            (instructions, effect) = (spend.instructions, .spend(spend))
         case .createCode, .redeem, .takeBack:
             throw Transactions.ValidationError.invalidTransaction
         }
