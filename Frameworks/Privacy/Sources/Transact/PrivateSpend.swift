@@ -58,14 +58,20 @@ extension PrivateSpend.Destination {
         moving amount: UInt64, of asset: PrivateAsset
     ) throws -> (transfer: TransactPlan.Transfer?, withdrawal: ExternalData.Withdrawal?) {
         switch self {
-        case .transfer(let recipient): (TransactPlan.Transfer(recipient: recipient, amount: amount), nil)
-        case .withdrawal(let owner): (nil, ExternalData.Withdrawal(
-            recipient: try asset.tokenAccount(of: owner) ?? owner, amount: amount, asset: asset
-        ))
-        case .fundedTransfer(let recipient, let publicLamports): (
-            TransactPlan.Transfer(recipient: recipient, amount: amount),
-            ExternalData.Withdrawal(recipient: recipient.signingAddress, amount: publicLamports, asset: .nativeSOL)
-        )
+        case .transfer(let recipient):
+            return (TransactPlan.Transfer(recipient: recipient, amount: amount), nil)
+        case .withdrawal(let owner):
+            let account =
+                switch asset {
+                case .nativeSOL: owner
+                case .token(let token): try PrivateToken.program.associatedAccount(owner: owner, mint: token.mint)
+                }
+            return (nil, ExternalData.Withdrawal(recipient: account, amount: amount, asset: asset))
+        case .fundedTransfer(let recipient, let publicLamports):
+            return (
+                TransactPlan.Transfer(recipient: recipient, amount: amount),
+                ExternalData.Withdrawal(recipient: recipient.signingAddress, amount: publicLamports, asset: .nativeSOL)
+            )
         }
     }
 }

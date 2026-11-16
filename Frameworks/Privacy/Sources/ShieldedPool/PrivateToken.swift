@@ -25,7 +25,7 @@ public struct PrivateToken: Hashable, Sendable {
     static let supported = [usdc, usdt, devnetUSDC]
 
     /// The token program of every token that private balances hold.
-    static let program = TokenProgram.token
+    public static let program = TokenProgram.token
 
     public let mint: Address
 

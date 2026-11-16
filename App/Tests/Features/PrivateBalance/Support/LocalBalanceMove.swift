@@ -102,6 +102,12 @@ struct LocalBalanceMove {
             on: .devnet
         ).instructions
         let kept = publicLamports + asset.lamports(moving: amount) - networkFee - privacyFee - accountDeposit
+        let deposits: [Address: UInt64] =
+            switch asset {
+            case .nativeSOL: [:]
+            case .token(let token):
+                [try PrivateToken.program.associatedAccount(owner: account.address, mint: token.mint): accountDeposit]
+            }
         return try LocalBalanceMove(
             .toPublic,
             of: asset,
@@ -113,7 +119,7 @@ struct LocalBalanceMove {
                     of: instructions,
                     paidBy: account.address,
                     leaving: kept,
-                    depositing: try asset.tokenAccount(of: account.address).map { [$0: accountDeposit] } ?? [:],
+                    depositing: deposits,
                     fixture: fixture
                 ),
             fixture: fixture,

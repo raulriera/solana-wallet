@@ -91,9 +91,15 @@ struct BalanceMoveProposal: TransactionProposal {
                             pendingChange: nil, accountDeposit: nil)
             kind = .privateDeposit
         case .spend(let spend):
-            let accountDeposit = try privateAsset.tokenAccount(of: account.address).flatMap {
-                openingDeposit(of: $0, in: simulation)
-            }
+            let accountDeposit: UInt64? =
+                switch privateAsset {
+                case .nativeSOL: nil
+                case .token(let token):
+                    openingDeposit(
+                        of: try PrivateToken.program.associatedAccount(owner: account.address, mint: token.mint),
+                        in: simulation
+                    )
+                }
             let privacyFee = try otherFee(
                 of: simulation,
                 for: account,

@@ -247,8 +247,14 @@ actor PrivateBalances: PrivateBalancing {
         case .withdraw(let amount, let asset, let owner):
             let spend = try await state.spend(amount, of: asset, to: .withdrawal(owner), from: shielded, rpc: client,
                                               prover: client)
-            let opening = try asset.openingTokenAccount(of: owner, paidBy: account.address)
-            (instructions, effect) = ([opening, spend.instruction].compactMap(\.self), .spend(spend))
+            let opening: [Instruction] =
+                switch asset {
+                case .nativeSOL: []
+                case .token(let token):
+                    [try AssociatedTokenProgram.createIdempotent(owner: owner, mint: token.mint,
+                                                                 program: PrivateToken.program, payer: account.address)]
+                }
+            (instructions, effect) = (opening + [spend.instruction], .spend(spend))
         case .createCode, .redeem, .takeBack:
             throw Transactions.ValidationError.invalidTransaction
         }

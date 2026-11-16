@@ -60,29 +60,6 @@ extension PrivateAsset {
         case .token(let token): .token(mint: token.mint)
         }
     }
-
-    /// Returns the token account that a withdrawal of the asset to an owner pays into.
-    ///
-    /// - Parameter owner: The account whose public balance receives the asset.
-    /// - Returns: The owner's associated token account, or `nil` for SOL, which pays the owner's account.
-    /// - Throws: A ``Transactions/ValidationError`` if the account's derivation fails.
-    public func tokenAccount(of owner: Address) throws -> Address? {
-        guard case .token(let token) = self else { return nil }
-        return try PrivateToken.program.associatedAccount(owner: owner, mint: token.mint)
-    }
-
-    /// Returns the instruction that opens the token account that a withdrawal of the asset to an owner pays into,
-    /// and that succeeds without a change when the account exists.
-    ///
-    /// - Parameters:
-    ///   - owner: The account whose public balance receives the asset.
-    ///   - payer: The account that signs and pays the new account's rent.
-    /// - Returns: The create instruction, or `nil` for SOL.
-    /// - Throws: A ``Transactions/ValidationError`` if an address or the account's derivation is invalid.
-    public func openingTokenAccount(of owner: Address, paidBy payer: Address) throws -> Instruction? {
-        guard case .token(let token) = self else { return nil }
-        return try AssociatedTokenProgram.createIdempotent(owner: owner, mint: token.mint, program: PrivateToken.program, payer: payer)
-    }
 }
 
 extension PrivateAsset: Codable {
