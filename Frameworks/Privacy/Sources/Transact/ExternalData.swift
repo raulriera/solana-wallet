@@ -51,11 +51,14 @@ struct ExternalData: Sendable {
         /// - Throws: A ``Transactions/ValidationError`` if the token's interface derivation fails.
         func write(to writer: inout WincodeWriter) throws {
             switch asset {
-            case .nativeSOL: writer.append(ExternalData.solWithdrawalVariant)
-            case .token: writer.append(ExternalData.splWithdrawalVariant)
+            case .nativeSOL:
+                writer.append(ExternalData.solWithdrawalVariant)
+                writer.append(amount)
+            case .token(let token):
+                writer.append(ExternalData.splWithdrawalVariant)
+                writer.append(amount)
+                writer.append(try ShieldedPool.splInterface(of: token.mint).bump)
             }
-            writer.append(amount)
-            if case .token(let token) = asset { writer.append(try ShieldedPool.splInterface(of: token.mint).bump) }
         }
     }
 
