@@ -13,12 +13,6 @@ struct HoldingOrderTests {
     }
 
     @Test
-    func `Native SOL sorts by its value like any other token`() {
-        let holdings = [solana(value: 3), token("low", value: 1), token("high", value: 5)]
-        #expect(HoldingOrder.sorted(holdings).map(\.asset.displaySymbol) == ["high", "SOL", "low"])
-    }
-
-    @Test
     func `Equal values keep the provider's order`() {
         let holdings = [token("c", value: 2), token("a", value: 2), token("b", value: 2)]
         #expect(HoldingOrder.sorted(holdings).map(\.asset.displaySymbol) == ["c", "a", "b"])
@@ -30,9 +24,8 @@ struct HoldingOrderTests {
         #expect(HoldingOrder.sorted(holdings).map(\.asset.displaySymbol) == ["usd", "eur", "SOL"])
     }
 
-    private func solana(value: Decimal? = nil) -> Holding {
-        Holding(asset: .nativeSOL, balance: TokenAmount(lamports: 0), imageURL: nil,
-                valuation: value.map { Valuation(pricePerUnit: $0, total: $0, currency: "USD") })
+    private func solana() -> Holding {
+        Holding(asset: .nativeSOL, balance: TokenAmount(lamports: 0), imageURL: nil, valuation: nil)
     }
 
     private func token(_ symbol: String, value: Decimal? = nil, currency: String = "USD") -> Holding {

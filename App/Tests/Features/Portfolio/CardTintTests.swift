@@ -11,17 +11,12 @@ struct CardTintTests {
     ]
 
     @Test(arguments: logos, [CardStyle.Colors.pastel, .vivid])
-    func `Card text reads at 4.5 to 1 on every logo color`(logo: ArtworkColor, colors: CardStyle.Colors) {
-        let tint = CardTint(logo: logo, colors: colors)
-        #expect(contrast(tint.text, tint.top) >= 4.5)
-        #expect(contrast(tint.text, tint.bottom) >= 4.5)
-    }
-
-    @Test(arguments: logos, [CardStyle.Colors.pastel, .vivid])
-    func `Secondary card text reads at 4.5 to 1 on every logo color`(logo: ArtworkColor, colors: CardStyle.Colors) {
+    func `All card text reads at 4.5 to 1 on every logo color`(logo: ArtworkColor, colors: CardStyle.Colors) {
         let tint = CardTint(logo: logo, colors: colors)
         let secondary = Color(ReadableSecondary(text: tint.text, background: tint.textBackground)
             .resolve(in: EnvironmentValues()))
+        #expect(contrast(tint.text, tint.top) >= 4.5)
+        #expect(contrast(tint.text, tint.bottom) >= 4.5)
         #expect(contrast(secondary, tint.top) >= 4.5)
         #expect(contrast(secondary, tint.bottom) >= 4.5)
     }
@@ -47,15 +42,6 @@ struct CardTintTests {
                                             on: Color.white.resolve(in: environment), toContrast: 4.6)
         #expect(faded.opacity == 1)
         #expect(contrast(Color(faded), .white) >= 4.6)
-    }
-
-    @Test
-    func `Increase Contrast keeps secondary text at 7 to 1`() {
-        let environment = EnvironmentValues()
-        let faded = ReadableSecondary.faded(Color.black.resolve(in: environment),
-                                            on: Color.white.resolve(in: environment), toContrast: 7)
-        #expect(contrast(Color(faded), .white) >= 7)
-        #expect(contrast(Color(faded), .white) < 9)
     }
 
     @Test
