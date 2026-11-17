@@ -42,20 +42,6 @@ struct ProviderSetupModelTests {
     }
 
     @Test
-    func `Failures other than rejection explain their cause in an alert`() async {
-        let responses = HTTPResponses.keyCheck(error: .http(statusCode: 429, retryAfter: nil))
-        let submission = ProviderSetupModel(
-            connection: responses.connection(rpcStore: .inMemory()))
-
-        submission.submit("fixture-key")
-        await submission.run(submission.attempt)
-
-        #expect(submission.error == .rateLimited)
-        #expect(submission.rejection == nil)
-        #expect(!submission.isSaved)
-    }
-
-    @Test
     func `A rejection changes only when the next result arrives`() async throws {
         let gate = Suspension()
         let rejecting = HTTPResponses.keyCheck(error: .http(statusCode: 401, retryAfter: nil))

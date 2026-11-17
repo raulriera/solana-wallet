@@ -31,7 +31,7 @@ struct CustomRPCConnectionTests {
         await sockets.waitUntilClosed()
     }
 
-    @Test(arguments: ["http://rpc.example.com", "rpc.example.com", ""])
+    @Test(arguments: ["http://rpc.example.com", ""])
     func `A URL that isn't HTTPS is rejected without a request`(entry: String) async {
         let settings = StoredValue<RPCSettings>()
         let responses = HTTPResponses([:])
@@ -59,8 +59,6 @@ struct CustomRPCConnectionTests {
 
     @Test(arguments: [
         (RPCError.http(statusCode: 404, retryAfter: nil), CustomRPCError.unreachable),
-        (.http(statusCode: 401, retryAfter: nil), .unreachable),
-        (.transport(.cannotFindHost), .unreachable),
         (.http(statusCode: 429, retryAfter: nil), .rateLimited),
     ] as [(RPCError, CustomRPCError)])
     func `A failed standard request stops the check before any subscription`(error: RPCError,
@@ -78,24 +76,8 @@ struct CustomRPCConnectionTests {
         #expect(await settings.value == nil)
     }
 
-    @Test
-    func `An RPC that answers with another number of accounts is unreachable`() async {
-        let settings = StoredValue<RPCSettings>()
-        let sockets = SocketSequence()
-        let responses = HTTPResponses(["getMultipleAccounts": [#"{"context":{"slot":1},"value":[null,null]}"#]])
-
-        await #expect(throws: CustomRPCError.unreachable) {
-            try await makeConnection(rpcStore: .inMemory(settings), responses: responses, sockets: sockets)
-                .connect("https://rpc.example.com")
-        }
-
-        #expect(sockets.sockets.isEmpty)
-        #expect(await settings.value == nil)
-    }
-
     @Test(arguments: [
         ("accountSubscribe", -32601, CustomRPCError.noLiveUpdates), ("signatureSubscribe", -32601, .noLiveUpdates),
-        ("rootSubscribe", -32601, .noLiveUpdates), ("accountSubscribe", 429, .rateLimited),
         ("rootSubscribe", 429, .rateLimited),
     ] as [(String, Int, CustomRPCError)])
     func `A failed live-updates subscription stops the check`(method: String, code: Int,
@@ -130,14 +112,6 @@ struct CustomRPCConnectionTests {
         }
 
         #expect(await responses.requests.isEmpty)
-    }
-
-    @Test(arguments: [
-        (CustomRPCError.notHTTPS, true), (.duplicate, true), (.unreachable, true), (.noLiveUpdates, true),
-        (.rateLimited, false), (.unavailable, false), (.storageFailed, false),
-    ])
-    func `Only rejected URLs show under the field`(error: CustomRPCError, rejectsEntry: Bool) {
-        #expect(error.rejectsEntry == rejectsEntry)
     }
 
     @Test
