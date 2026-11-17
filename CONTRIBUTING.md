@@ -37,4 +37,4 @@ The full rules are in [AGENTS.md](AGENTS.md) and [references/](references/). Thi
 
 - The Unit test plan must pass. It never uses the network.
 - Write new tests following [references/testing.md](references/testing.md).
-- Do not add fake RPC clients. Integration tests use live providers; see [Tests](README.md#tests).
+- Never reimplement a server's logic in a test RPC. Use a mock RPC when the code under test only needs one injected.

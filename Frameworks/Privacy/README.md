@@ -20,4 +20,4 @@ let notes = try await NoteSyncState().syncedToEnd(for: account, rpc: rpc, indexe
 let spend = try await notes.spend(amount, of: .token(.usdc), to: .transfer(recipient), from: account, rpc: rpc, prover: rpc)
 ```
 
-`keys` comes from Wallet's `privateBalanceKeys`. Balances hold SOL and the `PrivateToken` assets.
+`keys` comes from Wallet's `privateBalanceKeys`.

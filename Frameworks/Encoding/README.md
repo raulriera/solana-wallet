@@ -1,6 +1,6 @@
 # Encoding
 
-Base58 encoding and decoding for Solana addresses, blockhashes, and signatures, lowercase hexadecimal encoding and decoding, a bounds-checked byte reader, fixed-width integer appends in either byte order, a strict CBOR decoder with a deterministic encoder, and a DER decoder.
+Base58, hexadecimal, CBOR, and DER coding, with helpers to read and write bytes.
 
 ## Usage
 

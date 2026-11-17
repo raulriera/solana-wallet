@@ -13,7 +13,7 @@ let tokens = defaults.applying(pack)
 try await service.exportTemplate(named: "My Theme", defaults: defaults, to: templateURL)
 ```
 
-`defaults` is the app's `Tokens`: a complete `Palette` for each appearance and a `FontDesign`. `applying(_:)` keeps every default the pack omits.
+`defaults` is the app's `Tokens`.
 
 ## Build a theme pack
 

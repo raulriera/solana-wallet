@@ -12,4 +12,4 @@ let phrase = try RecoveryPhrase(recoveryText)
 let accounts = try await wallet.accounts(for: phrase, passphrase: passphrase, paths: [.solana])
 ```
 
-`Wallet` implements `WalletProviding` for phrases and accounts, `MessageSigning` for signatures, and `PrivateBalanceKeyDeriving` for private-balance keys. Store phrases with [Vault](../Vault/README.md).
+Store phrases with [Vault](../Vault/README.md).

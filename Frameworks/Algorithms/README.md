@@ -1,6 +1,6 @@
 # Algorithms
 
-Sequence and asynchronous sequence algorithms copied from Apple's open-source [Swift Algorithms](https://github.com/apple/swift-algorithms) and [Swift Async Algorithms](https://github.com/apple/swift-async-algorithms) packages, with their license headers. The code builds with the app's own security settings and keeps the packages' API, so code reads as it would with them.
+Sequence and asynchronous sequence algorithms copied from Apple's open-source [Swift Algorithms](https://github.com/apple/swift-algorithms) and [Swift Async Algorithms](https://github.com/apple/swift-async-algorithms) packages, with their license headers and API.
 
 ## Usage
 
