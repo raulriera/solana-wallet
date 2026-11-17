@@ -112,18 +112,6 @@ struct TransactionStoreResumptionTests {
     }
 
     @Test
-    func `Erasing clears the index`() async throws {
-        let resuming = try LocalSending(statuses: [.status(nil)])
-        _ = try await resuming.send()
-        for await _ in resuming.sockets.openings { break }
-
-        try await resuming.store.erase()
-
-        await resuming.sockets.waitUntilClosed()
-        #expect(await resuming.pending.value == nil)
-    }
-
-    @Test
     func `Erasing an account removes only its keys from the index`() async throws {
         let (erased, kept) = (UUID(), UUID())
         let keptKey = TransactionRecord.Key(account: kept, network: .devnet)

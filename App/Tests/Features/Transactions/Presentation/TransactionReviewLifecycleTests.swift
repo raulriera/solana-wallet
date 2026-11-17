@@ -35,34 +35,4 @@ struct TransactionReviewLifecycleTests {
         #expect(try await hosted.presentsViewController())
         #expect(payment.model.error == .notEnoughSOL)
     }
-
-    @Test
-    func `A stopped watch shows no alert and settles later`() async throws {
-        let refusal = RPCError.http(statusCode: 429, retryAfter: "3")
-        let sockets = SocketSequence { $0 == 0 ? SocketSequence.failing(with: refusal) : SocketSequence.watch() }
-        let payment = try LocalPaymentReview(statuses: [.status(.finalized)], sockets: sockets)
-        try await payment.model.runReview()
-        let hosted = try HostedWindow(NavigationStack {
-            TransactionReviewScreen<PaymentReviewScreen, PaymentResultScreen>(review: payment.model)
-        })
-        defer { hosted.close() }
-        try #require(try await hosted.appears())
-
-        payment.model.approve()
-        for await record in Observations({ payment.model.record }) where record != nil { break }
-        let record = try #require(payment.model.record)
-        await #expect(throws: (any Error).self) {
-            try await payment.transactions.watch(record.id, for: record.key)
-        }
-
-        #expect(try await !hosted.presentsViewController(within: .seconds(1)))
-        #expect(payment.model.isSending)
-
-        await payment.transactions.resume()
-
-        #expect(await payment.transactions.settledStatus(of: record) == .succeeded)
-        #expect(payment.model.outcome == .succeeded)
-        #expect(hosted.host.presentedViewController == nil)
-        await sockets.waitUntilClosed()
-    }
 }

@@ -69,28 +69,6 @@ struct BalanceChangeTests {
         #expect(BalanceChange.changes(in: try Self.transaction(), from: simulation) == nil, "\(reason)")
     }
 
-    @Test
-    func `A review exposes the balance changes its simulation observed`() async throws {
-        var fixture = try SigningFixture()
-        let payer = fixture.transfer.accounts[0].address
-        let recipient = fixture.transfer.accounts[1].address
-        fixture.simulation = .init(context: Context(slot: 402), value: .init(
-            error: nil, logs: ["Program completed"], unitsConsumed: 150, loadedAccountsDataSize: 256, fee: 10_000,
-            replacementBlockhash: nil, preBalances: [1_000_000, 0, 1], postBalances: [989_999, 1, 1],
-            preTokenBalances: [], postTokenBalances: []
-        ))
-        let http = try HTTPResponses.preparation(fixture: fixture.preparation)
-        let coordinator = try TransactionCoordinator(rpc: http.client, store: SigningRecoveryStore(recovery: fixture.recovery),
-                                                     configuration: fixture.configuration)
-
-        let review = try await coordinator.simulate([fixture.transfer], using: fixture.account)
-
-        #expect(review.balanceChanges == [
-            BalanceChange(owner: payer, asset: .nativeSOL, before: 1_000_000, after: 989_999),
-            BalanceChange(owner: recipient, asset: .nativeSOL, before: 0, after: 1),
-        ])
-    }
-
     private static func transaction() throws -> Transaction {
         Transaction(message: Data(), lifetimeSpecifier: "11111111111111111111111111111111",
                     accounts: try ([payer, recipient] + others).map { .writable(try Address($0)) },

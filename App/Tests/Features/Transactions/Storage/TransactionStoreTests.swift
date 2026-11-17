@@ -25,23 +25,14 @@ struct TransactionStoreTests {
         #expect(try await sending.settle(record) == .succeeded)
     }
 
-    @Test
-    func `A cancelled authentication records nothing`() async throws {
+    @Test(arguments: [CancellationError(), CocoaError(.fileReadUnknown)] as [any Error])
+    func `A payment that isn't signed records nothing`(_ error: any Error) async throws {
         let sending = try LocalSending(recovery: SigningRecoveryStore(recovery: try SigningFixture().recovery,
-                                                                      error: CancellationError()))
+                                                                      error: error))
 
-        await #expect(throws: CancellationError.self) { try await sending.send() }
+        let thrown = try await #require(throws: (any Error).self) { try await sending.send() }
 
-        await Self.expectNothingSent(by: sending)
-    }
-
-    @Test
-    func `A payment that can't be signed records nothing`() async throws {
-        let sending = try LocalSending(recovery: SigningRecoveryStore(recovery: try SigningFixture().recovery,
-                                                                      error: CocoaError(.fileReadUnknown)))
-
-        await #expect(throws: CocoaError(.fileReadUnknown)) { try await sending.send() }
-
+        #expect(type(of: thrown) == type(of: error))
         await Self.expectNothingSent(by: sending)
     }
 
@@ -176,6 +167,7 @@ struct TransactionStoreTests {
         await sending.sockets.waitUntilClosed()
         #expect(sending.store.records(for: sending.key).isEmpty)
         #expect(await sending.records.value == nil)
+        #expect(await sending.pending.value == nil)
         await #expect(throws: TransactionStoreError.missingRecord) {
             try await sending.store.watch(record.id, for: sending.key)
         }
