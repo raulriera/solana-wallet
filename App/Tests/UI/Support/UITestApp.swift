@@ -162,10 +162,11 @@ struct UITestApp {
         field.typeText(text)
     }
 
-    func tap(_ element: XCUIElement, file: StaticString = #filePath, line: UInt = #line) throws {
-        let predicate = NSPredicate(format: "exists == true AND isHittable == true AND isEnabled == true")
+    func tap(_ element: XCUIElement, within timeout: TimeInterval = 10, file: StaticString = #filePath,
+             line: UInt = #line) throws {
+        let predicate = NSPredicate(format: "exists == true AND isEnabled == true AND isHittable == true")
         let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
-        guard XCTWaiter.wait(for: [expectation], timeout: 10) == .completed else {
+        guard XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed else {
             XCTFail("Expected control did not become ready", file: file, line: line)
             throw Error.unavailableControl
         }
