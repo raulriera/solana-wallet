@@ -137,7 +137,7 @@ struct TransactPlan: Sendable, Redacted {
         ///   - transfer: The transfer, if any.
         ///   - withdrawal: The withdrawal, if any.
         /// - Throws: A ``ValidationError`` if the plan can't be built,
-        ///   ``Transactions/ValidationError/invalidAmount`` for a zero transfer or withdrawal,
+        ///   ``Transactions/ValidationError/invalidAmount`` for a zero or overflowing transfer or withdrawal,
         ///   or a ``Recipient/ValidationError`` if no key can sign for the sender's signing address.
         init(
             utxos: [UTXO], asset: PrivateAsset, sender: ShieldedAccount, transfer: Transfer?, withdrawal: ExternalData.Withdrawal?
@@ -152,11 +152,9 @@ struct TransactPlan: Sendable, Redacted {
                 if !inputTreeIDs.contains(utxo.treeID) { inputTreeIDs.append(utxo.treeID) }
             }
             guard inputTreeIDs.count <= TransactPlan.maximumInputTrees else { throw ValidationError.tooManyInputTrees }
-            if let withdrawal, withdrawal.asset != asset { throw ValidationError.unsupportedAsset }
-            guard transfer?.amount != 0, withdrawal?.amount != 0 else { throw Transactions.ValidationError.invalidAmount }
-            guard transfer != nil || withdrawal != nil else { throw ValidationError.nothingToSend }
-            let available = try Self.sum(utxos.map(\.amount))
-            let spent = try Self.sum([transfer?.amount ?? 0, withdrawal?.amount ?? 0])
+            let spent = try TransactPlan.spentAmount(transfer: transfer, withdrawal: withdrawal, of: asset)
+            let (available, overflow) = utxos.map(\.amount).sumReportingOverflow()
+            guard !overflow else { throw ValidationError.amountOverflow }
             guard available >= spent else { throw ValidationError.insufficientFunds }
             var outputs: [(owner: Recipient, amount: UInt64)] = []
             if let transfer { outputs.append((transfer.recipient, transfer.amount)) }
@@ -188,19 +186,6 @@ struct TransactPlan: Sendable, Redacted {
         func ownerTag(for viewTag: [UInt8]) -> TransactOutput.OwnerTag {
             viewTag == senderOwner.viewTag ? .payer : .inline(viewTag)
         }
-
-        /// Adds amounts without overflow.
-        ///
-        /// - Parameter amounts: The amounts, in the asset's smallest unit.
-        /// - Returns: Their sum.
-        /// - Throws: ``ValidationError/amountOverflow`` if the sum exceeds a 64-bit integer.
-        private static func sum(_ amounts: [UInt64]) throws -> UInt64 {
-            try amounts.reduce(0) { total, amount in
-                let (sum, overflow) = total.addingReportingOverflow(amount)
-                guard !overflow else { throw ValidationError.amountOverflow }
-                return sum
-            }
-        }
     }
 
     /// The most notes that one transact spends.
@@ -208,6 +193,26 @@ struct TransactPlan: Sendable, Redacted {
 
     /// The most trees that one transact spends notes from.
     static let maximumInputTrees = 2
+
+    /// Returns the amount of an asset that a transfer and a withdrawal spend together.
+    ///
+    /// - Parameters:
+    ///   - transfer: The transfer, if any.
+    ///   - withdrawal: The withdrawal, if any.
+    ///   - asset: The asset that the transact spends.
+    /// - Returns: The amount, in the asset's smallest unit.
+    /// - Throws: ``ValidationError/unsupportedAsset`` for a withdrawal of another asset,
+    ///   ``Transactions/ValidationError/invalidAmount`` for a zero transfer or withdrawal or an amount that exceeds a
+    ///   64-bit integer, or ``ValidationError/nothingToSend`` without either.
+    static func spentAmount(transfer: Transfer?, withdrawal: ExternalData.Withdrawal?, of asset: PrivateAsset) throws
+        -> UInt64 {
+        if let withdrawal, withdrawal.asset != asset { throw ValidationError.unsupportedAsset }
+        guard transfer?.amount != 0, withdrawal?.amount != 0 else { throw Transactions.ValidationError.invalidAmount }
+        guard transfer != nil || withdrawal != nil else { throw ValidationError.nothingToSend }
+        let (spent, overflow) = (transfer?.amount ?? 0).addingReportingOverflow(withdrawal?.amount ?? 0)
+        guard !overflow else { throw Transactions.ValidationError.invalidAmount }
+        return spent
+    }
 
     /// Returns the trees that a transact writes, each of which charges its fee once.
     ///
@@ -260,7 +265,7 @@ struct TransactPlan: Sendable, Redacted {
     ///   - outputTreeID: The ID of the tree that receives the outputs.
     ///   - generator: The source of randomness.
     /// - Throws: A ``ValidationError`` if the plan can't be built,
-    ///   ``Transactions/ValidationError/invalidAmount`` for a zero transfer or withdrawal, a
+    ///   ``Transactions/ValidationError/invalidAmount`` for a zero or overflowing transfer or withdrawal, a
     ///   ``Recipient/ValidationError`` if no key can sign for the sender's signing address, or an
     ///   error from sealing the notes or deriving the accounts.
     init(
@@ -291,7 +296,7 @@ struct TransactPlan: Sendable, Redacted {
     ///   - randomness: The random values, with one blinding per padding input and one payload per
     ///     padding output.
     /// - Throws: A ``ValidationError`` if the plan can't be built,
-    ///   ``Transactions/ValidationError/invalidAmount`` for a zero transfer or withdrawal, a
+    ///   ``Transactions/ValidationError/invalidAmount`` for a zero or overflowing transfer or withdrawal, a
     ///   ``Recipient/ValidationError`` if no key can sign for the sender's signing address, or an
     ///   error from sealing the notes or deriving the accounts.
     init(

@@ -123,11 +123,11 @@ public struct NoteSyncState: Sendable, Equatable, Codable, Redacted {
         rejectedSpends: Set<String>,
         missingSpendReads: [String: Int]
     ) throws {
-        let amounts = notes.map { ($0.utxo.asset, $0.amount) } + pending.map { ($0.asset, $0.amount) }
-        _ = try Dictionary(amounts) { total, amount in
-            let (sum, overflow) = total.addingReportingOverflow(amount)
-            guard !overflow else { throw ValidationError.amountOverflow }
-            return sum
+        let amounts: [(asset: PrivateAsset, amount: UInt64)] =
+            notes.map { ($0.utxo.asset, $0.amount) } + pending.map { ($0.asset, $0.amount) }
+        let groups = Dictionary(grouping: amounts, by: \.asset).values
+        guard !groups.contains(where: { $0.lazy.map(\.amount).sumReportingOverflow().overflow }) else {
+            throw ValidationError.amountOverflow
         }
         self.position = position
         self.notes = notes

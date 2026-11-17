@@ -145,7 +145,6 @@ struct TransactPlanTests {
         ([(10, 0)], 11, nil, .insufficientFunds),
         ([(10, 0)], 6, 5, .insufficientFunds),
         ([(.max, 0), (1, 0)], 1, nil, .amountOverflow),
-        ([(10, 0)], .max, 1, .amountOverflow),
     ] as [([(UInt64, UInt16)], UInt64?, UInt64?, TransactPlan.ValidationError)])
     func `Invalid plans are rejected`(
         inputs: [(UInt64, UInt16)],
@@ -161,8 +160,8 @@ struct TransactPlanTests {
         }
     }
 
-    @Test(arguments: [(0, nil), (nil, 0)] as [(UInt64?, UInt64?)])
-    func `Zero amounts are rejected`(transferLamports: UInt64?, withdrawalLamports: UInt64?) throws {
+    @Test(arguments: [(0, nil), (nil, 0), (.max, 1)] as [(UInt64?, UInt64?)])
+    func `Zero and overflowing amounts are rejected`(transferLamports: UInt64?, withdrawalLamports: UInt64?) throws {
         let withdrawal = try withdrawalLamports.map { try PlanFixtures.withdrawal(lamports: $0) }
 
         #expect(throws: ValidationError.invalidAmount) {

@@ -1,6 +1,5 @@
 import ModularArithmetic
 public import RPC
-import Transactions
 
 extension NoteSyncState {
     /// Spends the account's notes into a private transfer, a public withdrawal, or both, and proves the spend.
@@ -54,12 +53,9 @@ extension NoteSyncState {
         using generator: inout some RandomNumberGenerator
     ) async throws -> PrivateSpend {
         guard let outputTreeID else { throw PrivateSpend.ValidationError.noOutputTree }
-        guard amount > 0 else { throw Transactions.ValidationError.invalidAmount }
         let (transfer, withdrawal, openings) = try destination.parts(moving: amount, of: asset,
                                                                      paidBy: account.signingAddress)
-        guard withdrawal?.amount != 0 else { throw Transactions.ValidationError.invalidAmount }
-        let (covered, overflow) = (transfer?.amount ?? 0).addingReportingOverflow(withdrawal?.amount ?? 0)
-        guard !overflow else { throw Transactions.ValidationError.invalidAmount }
+        let covered = try TransactPlan.spentAmount(transfer: transfer, withdrawal: withdrawal, of: asset)
         let selected = try await unqueuedNotes(of: asset, covering: covered, writingTo: outputTreeID, using: rpc)
         let plan = try TransactPlan(
             spending: selected.map(\.utxo), of: asset, sender: account, transfer: transfer, withdrawal: withdrawal, outputTreeID: outputTreeID,
