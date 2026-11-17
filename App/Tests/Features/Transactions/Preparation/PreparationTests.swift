@@ -33,7 +33,7 @@ struct PreparationTests {
         (measured: 30_000, limit: 65_536),
         (measured: 65_000_000, limit: 67_108_864),
     ])
-    func `Estimated account data limits add a tenth and round up to a 32 KiB page`(
+    func `Estimated account data limits add a tenth, round up to a 32 KiB page, and stop at 64 MiB`(
         measured: Int, limit: UInt32
     ) async throws {
         let fixture = try SigningFixture()

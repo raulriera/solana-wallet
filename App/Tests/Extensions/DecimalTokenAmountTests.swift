@@ -11,7 +11,7 @@ struct DecimalTokenAmountTests {
         (TokenAmount(amount: 0, decimals: 9), Decimal(0)),
         (TokenAmount(amount: .max, decimals: 9), Decimal(string: "18446744073.709551615")!),
     ])
-    func `Units become a quantity at the amount's decimals`(balance: TokenAmount, expected: Decimal) {
-        #expect(Decimal(balance) == expected)
+    func `Units become a quantity at the amount's decimals`(amount: TokenAmount, expected: Decimal) {
+        #expect(Decimal(amount) == expected)
     }
 }
