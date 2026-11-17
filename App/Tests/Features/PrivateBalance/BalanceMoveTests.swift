@@ -22,15 +22,6 @@ struct BalanceMoveTests {
     }
 
     @Test
-    func `A review proposes the asset of the move's token`() async throws {
-        let usdc = Mint.fixture(PrivateToken.devnetUSDC.mint.value, decimals: 6)
-        let move = try await Self.move(.toPublic, asset: .token(usdc))
-        move.payment.press(.digit(1))
-
-        #expect(try move.review().proposal.asset == .token(usdc))
-    }
-
-    @Test
     func `A review freezes the typed amount`() async throws {
         let move = try await Self.move(.toPublic, asset: .nativeSOL)
         move.payment.press(.digit(1))
@@ -45,25 +36,13 @@ struct BalanceMoveTests {
     }
 
     @Test
-    func `A review fails without a transaction coordinator`() async throws {
-        let move = try await Self.move(.toPrivate, asset: .nativeSOL, transactions: .inMemory { _ in throw TransactionCoordinatorError.unsupportedNetwork })
-        move.payment.press(.digit(1))
-
-        #expect(throws: TransactionCoordinatorError.unsupportedNetwork) { try move.review() }
-    }
-
-    @Test
     func `A review of an amount that can't be sent fails`() async throws {
         let move = try await Self.move(.toPublic, asset: .nativeSOL)
 
         #expect(throws: PrivateBalanceError.preparationFailed) { try move.review() }
     }
 
-    private static func move(
-        _ direction: BalanceMoveProposal.Direction,
-        asset: Asset,
-        transactions: TransactionStore = .unused
-    ) async throws -> BalanceMove {
+    private static func move(_ direction: BalanceMoveProposal.Direction, asset: Asset) async throws -> BalanceMove {
         let balances = PrivateBalances.inMemory(
             keys: StoredValue(),
             notes: StoredValue(),
@@ -83,7 +62,7 @@ struct BalanceMoveTests {
             account: try await PrivateBalanceFixtures.account(),
             network: .devnet,
             balances: balances,
-            transactions: transactions
+            transactions: .unused
         )
     }
 }

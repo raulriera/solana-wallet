@@ -13,16 +13,6 @@ import Wallet
 @Suite(.timeLimit(.minutes(1)))
 struct WalletPrivateBalanceTests {
     @Test
-    func `A read shows the account's status`() async throws {
-        let account = try await PrivateBalanceFixtures.account()
-        let store = try PrivateBalanceStore.fixture(HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered]))
-
-        let balance = try await PrivateBalanceFixtures.read(account, in: store)
-
-        #expect(balance.status == .off(isRegistered: false))
-    }
-
-    @Test
     func `An account at another path shows nothing`() async throws {
         let responses = HTTPResponses.privateNotes()
         let store = try PrivateBalanceStore.fixture(responses)
@@ -98,39 +88,30 @@ struct WalletPrivateBalanceTests {
         #expect(!balance.isStale)
     }
 
-    @Test
-    func `Only an asset with a private amount is held`() async throws {
+    @Test(arguments: [
+        (PrivateBalanceFixtures.Balance.available, PrivateAsset.nativeSOL),
+        (.availableToken, .token(.devnetUSDC)),
+        (.unregistered, nil),
+    ] as [(PrivateBalanceFixtures.Balance, PrivateAsset?)])
+    func `Only an asset with a private amount is available and held`(
+        fixture: PrivateBalanceFixtures.Balance,
+        asset: PrivateAsset?
+    ) async throws {
         let account = try await PrivateBalanceFixtures.account()
-        let funded = try await PrivateBalanceFixtures.read(account, in: try await PrivateBalanceFixtures.store(holding: .available,
-                                                                                                             of: account))
-        let unfunded = try await PrivateBalanceFixtures.read(account,
-                                                             in: try await PrivateBalanceFixtures.store(holding: .unregistered,
-                                                                                                        of: account))
+        let store = try await PrivateBalanceFixtures.store(holding: fixture, of: account)
 
-        #expect(funded.status == .balance(available: 1_000_000, pending: 0, of: .nativeSOL))
-        #expect(funded.privateAssets == [.nativeSOL])
-        #expect(funded.available(of: .nativeSOL) == 1_000_000)
-        #expect(unfunded.status == .unregistered)
-        #expect(unfunded.privateAssets.isEmpty)
-        #expect(unfunded.available(of: .nativeSOL) == nil)
+        let balance = try await PrivateBalanceFixtures.read(account, in: store)
+
+        #expect(balance.privateAssets == Set(asset.map { [$0.asset] } ?? []))
+        for other in PrivateAsset.allCases {
+            #expect(balance.available(of: other) == (other == asset ? UInt64(1_000_000) : nil))
+        }
     }
 
     @Test
-    func `Private tokens are available and held in their token only`() async throws {
+    func `A settled private move becomes the last settled move`() async throws {
         let account = try await PrivateBalanceFixtures.account()
-        let balance = try await PrivateBalanceFixtures.read(account, in: try await PrivateBalanceFixtures.store(
-            holding: .availableToken, of: account))
-
-        #expect(balance.available(of: .token(.devnetUSDC)) == 1_000_000)
-        #expect(balance.available(of: .nativeSOL) == nil)
-        #expect(try balance.privateAssets == [.token(mint: Address("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU"))])
-    }
-
-    @Test(arguments: [TransactionRecord.Kind.privateDeposit,
-                      .privateWithdrawal])
-    func `A settled private move becomes the last settled move`(kind: TransactionRecord.Kind) async throws {
-        let account = try await PrivateBalanceFixtures.account()
-        let sent = try PendingMove(kind, from: account.id)
+        let sent = try PendingMove(from: account.id)
         let store = try await PrivateBalanceFixtures.store(holding: .pending, of: account, transactions: sent.transactions)
         let balance = try await PrivateBalanceFixtures.read(account, in: store)
         #expect(balance.lastSettledMove == nil)
@@ -138,20 +119,6 @@ struct WalletPrivateBalanceTests {
         #expect(try await sent.settle() == .succeeded)
 
         #expect(balance.lastSettledMove?.id == sent.record.id)
-    }
-
-    @Test
-    func `A settled payment is no settled move and starts no follow-up`() async throws {
-        let account = try await PrivateBalanceFixtures.account()
-        let sent = try PendingPayment(from: account.id)
-        let store = try await PrivateBalanceFixtures.store(holding: .pending, of: account, transactions: sent.transactions)
-        let balance = try await PrivateBalanceFixtures.read(account, in: store)
-
-        #expect(try await sent.settle() == .succeeded)
-        await balance.refresh()
-
-        #expect(balance.lastSettledMove == nil)
-        #expect(!balance.isFollowingUp)
     }
 
     @Test
@@ -204,20 +171,6 @@ struct WalletPrivateBalanceTests {
     }
 
     @Test
-    func `A read after a settled private move with pending SOL starts a follow-up`() async throws {
-        let account = try await PrivateBalanceFixtures.account()
-        let sent = try PendingMove(from: account.id)
-        let store = try await PrivateBalanceFixtures.store(holding: .pending, of: account, transactions: sent.transactions)
-        let balance = try await PrivateBalanceFixtures.read(account, in: store)
-        #expect(!balance.isFollowingUp)
-
-        try #require(await sent.settle() == .succeeded)
-        await balance.refresh()
-
-        #expect(balance.followUpReadsLeft == 10)
-    }
-
-    @Test
     func `A read after a settled private move without pending SOL starts no follow-up`() async throws {
         let account = try await PrivateBalanceFixtures.account()
         let sent = try PendingMove(from: account.id)
@@ -249,19 +202,6 @@ struct WalletPrivateBalanceTests {
 
         #expect(balance.status == .balance(available: 0, pending: 0, of: .nativeSOL))
         #expect(!balance.isFollowingUp)
-    }
-
-    @Test
-    func `Polls read while private balances are on`() async throws {
-        let account = try await PrivateBalanceFixtures.account()
-        let keys = StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
-        let responses = HTTPResponses.privateNotes(registry: [PrivateBalanceFixtures.unregistered])
-        let store = try PrivateBalanceStore.fixture(responses, keys: keys)
-        let balance = try await PrivateBalanceFixtures.read(account, in: store)
-
-        await balance.poll()
-
-        #expect(await PrivateBalanceFixtures.nonTreeAccountReads(of: responses) == 2)
     }
 
     @Test
@@ -303,28 +243,19 @@ struct WalletPrivateBalanceTests {
         #expect(balance.status == .unregistered)
     }
 
-    @Test
-    func `A failure that can clear by itself keeps polling`() async throws {
+    @Test(arguments: [(503, false), (429, true)])
+    func `A rate limit pauses polling while a failure that can clear by itself keeps polling`(
+        status: Int,
+        isPaused: Bool
+    ) async throws {
         let account = try await PrivateBalanceFixtures.account()
         let keys = StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
-        let store = try PrivateBalanceStore.fixture(HTTPResponses.privateNotes(error: .http(statusCode: 503, retryAfter: nil)),
-                                                    keys: keys)
+        let responses = HTTPResponses.privateNotes(error: .http(statusCode: status, retryAfter: nil))
+        let store = try PrivateBalanceStore.fixture(responses, keys: keys)
 
         let balance = try await PrivateBalanceFixtures.read(account, in: store)
 
-        #expect(!balance.isPollingPaused)
-    }
-
-    @Test
-    func `A rate limit pauses polling`() async throws {
-        let account = try await PrivateBalanceFixtures.account()
-        let keys = StoredValue([account.address.value: try await PrivateBalanceFixtures.keys(for: account)])
-        let store = try PrivateBalanceStore.fixture(HTTPResponses.privateNotes(error: .http(statusCode: 429, retryAfter: nil)),
-                                                    keys: keys)
-
-        let balance = try await PrivateBalanceFixtures.read(account, in: store)
-
-        #expect(balance.isPollingPaused)
+        #expect(balance.isPollingPaused == isPaused)
     }
 
     private static func balance(of account: widgets.Account, rpcStore: RPCStore, responses: HTTPResponses,

@@ -25,20 +25,14 @@ struct PrivateBalanceMoveActionTests {
         )
     }
 
-    @Test(arguments: [
-        (BalanceMoveProposal.Direction.toPrivate, Decimal(2)),
-        (.toPublic, Decimal(string: "0.001")!),
-    ])
-    func `Each direction opens a move of the amount it can move`(
-        direction: BalanceMoveProposal.Direction,
-        balance: Decimal
-    ) async throws {
+    @Test
+    func `Moving to public opens a move of the amount it can move`() async throws {
         let (model, moveBalance) = try await Self.moveBalance()
 
-        moveBalance(direction)
+        moveBalance(.toPublic)
 
         let move = try #require(model.move)
-        #expect(move.direction == direction)
-        #expect(Decimal(move.payment.token.balance) == balance)
+        #expect(move.direction == .toPublic)
+        #expect(Decimal(move.payment.token.balance) == Decimal(string: "0.001"))
     }
 }

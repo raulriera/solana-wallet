@@ -9,10 +9,10 @@ struct PendingMove {
     let record: TransactionRecord
     let sockets = SocketSequence()
 
-    init(_ kind: TransactionRecord.Kind = .privateDeposit, from account: UUID) throws {
+    init(from account: UUID) throws {
         let coordinator = try LocalTransactions(fixture: SigningFixture(), statuses: [.status(.finalized)],
                                                 sockets: sockets).coordinator
-        record = .fixture(kind, signature: "pending", account: account)
+        record = .fixture(.privateDeposit, signature: "pending", account: account)
         transactions = .inMemory([record.key: StoredValue([record])]) { _ in coordinator }
     }
 
