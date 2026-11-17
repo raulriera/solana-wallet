@@ -8,7 +8,7 @@ struct TokenPrice: View {
 
     var body: some View {
         Text(price, format: .price(code: currency))
-            .contentTransition(.numericText(value: NSDecimalNumber(decimal: price).doubleValue))
+            .contentTransition(.numericText(value: price))
     }
 }
 

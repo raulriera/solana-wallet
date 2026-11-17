@@ -2,7 +2,7 @@ import Foundation
 import SwiftUI
 import Transactions
 
-/// Shows an exact token quantity.
+/// Shows a token quantity, exactly or shortened from 10,000 up, with or without the asset's symbol.
 struct TokenBalance: View {
     let balance: TokenAmount
     /// The asset whose symbol follows the quantity, or `nil` for the quantity alone.
@@ -19,7 +19,7 @@ struct TokenBalance: View {
                     .accessibilityLabel(Text(balance, format: .amount))
             }
         }
-        .contentTransition(.numericText(value: Double(balance.amount) / pow(10, Double(balance.decimals))))
+        .contentTransition(.numericText(value: Decimal(balance)))
     }
 }
 

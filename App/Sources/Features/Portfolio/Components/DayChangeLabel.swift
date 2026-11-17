@@ -14,7 +14,7 @@ struct DayChangeLabel: View {
                 .opacity(shown == 0 ? 0 : 1)
                 .contentTransition(.symbolEffect(.replace))
             Text(abs(shown), format: .percent.precision(.fractionLength(2)))
-                .contentTransition(.numericText(value: NSDecimalNumber(decimal: shown).doubleValue))
+                .contentTransition(.numericText(value: shown))
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(spokenChange)
