@@ -17,9 +17,20 @@ struct UITestApp {
             case .importedWallet(let phrase): phrase
             }
         }
+
+        static func devWallet(file: StaticString = #filePath, line: UInt = #line) throws -> Self {
+            let seed = ProcessInfo.processInfo.environment["DEVNET_TEST_SEED", default: ""]
+            guard !seed.isEmpty else {
+                XCTFail("Set DEVNET_TEST_SEED in Configuration/Local.xcconfig", file: file, line: line)
+                throw Error.missingConfiguration
+            }
+            return .importedWallet(seed)
+        }
     }
 
-    private enum Error: Swift.Error { case missingElement, unexpectedElement, unavailableControl, reportedError, unexpectedState }
+    private enum Error: Swift.Error {
+        case missingElement, unexpectedElement, unavailableControl, reportedError, unexpectedState, missingConfiguration
+    }
 
     let app = XCUIApplication()
 
@@ -128,10 +139,11 @@ struct UITestApp {
     }
 
     func expectOutcome(_ destination: XCUIElement, matching outcome: NSPredicate, unless alerts: [String],
-                       file: StaticString = #filePath, line: UInt = #line) throws {
+                       within timeout: TimeInterval = 10, file: StaticString = #filePath, line: UInt = #line) throws {
         let reports = alerts.map { NSPredicate(format: "label == %@", $0) }
         let either = NSCompoundPredicate(orPredicateWithSubpredicates: [outcome] + reports)
-        try waitFor(app.descendants(matching: .any).matching(either).firstMatch, file: file, line: line)
+        let result = app.descendants(matching: .any).matching(either).firstMatch
+        try waitFor(result, within: timeout, file: file, line: line)
         if let alert = alerts.first(where: { app.alerts[$0].exists }) {
             XCTFail("The app reported \(alert) instead of the expected result.", file: file, line: line)
             throw Error.reportedError
@@ -139,8 +151,9 @@ struct UITestApp {
         try waitFor(destination, file: file, line: line)
     }
 
-    func waitFor(_ element: XCUIElement, file: StaticString = #filePath, line: UInt = #line) throws {
-        guard element.waitForExistence(timeout: 10) else {
+    func waitFor(_ element: XCUIElement, within timeout: TimeInterval = 10, file: StaticString = #filePath,
+                 line: UInt = #line) throws {
+        guard element.waitForExistence(timeout: timeout) else {
             XCTFail("Expected UI did not appear", file: file, line: line)
             throw Error.missingElement
         }
