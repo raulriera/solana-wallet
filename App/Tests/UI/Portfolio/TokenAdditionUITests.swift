@@ -17,7 +17,7 @@ final class TokenAdditionUITests: XCTestCase {
         try portfolio.addToken(Self.bonk, previewing: "Bonk · Solana")
 
         let token = try portfolio.expectAddedToken("Bonk")
-        try app.waitForAbsence(portfolio.pasteButton)
+        try app.waitForAbsence(app.pasteButton)
 
         try portfolio.removeToken(token, named: "Bonk")
         try app.waitForAbsence(token)

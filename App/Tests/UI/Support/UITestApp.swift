@@ -13,6 +13,15 @@ struct UITestApp {
     var portfolioTab: XCUIElement { app.buttons["Portfolio"].firstMatch }
     var contactsTab: XCUIElement { app.buttons["Contacts"].firstMatch }
     var settingsTab: XCUIElement { app.buttons["Settings"].firstMatch }
+    var pasteButton: XCUIElement { app.buttons["Paste"] }
+
+    private static func buttonLabel(beginningWith prefix: String) -> NSPredicate {
+        NSPredicate(
+            format: "elementType == %lu AND label BEGINSWITH %@",
+            XCUIElement.ElementType.button.rawValue,
+            prefix
+        )
+    }
 
     init() {
         app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
@@ -46,8 +55,35 @@ struct UITestApp {
         }
     }
 
-    func reveal(_ element: XCUIElement, swiping swipe: Swipe) {
-        guard !element.isHittable else { return }
+    func button(beginningWith prefix: String) -> XCUIElement {
+        app.buttons.matching(Self.buttonLabel(beginningWith: prefix)).firstMatch
+    }
+
+    @discardableResult
+    func expectButton(
+        beginningWith prefix: String,
+        unless alerts: [String],
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) throws -> XCUIElement {
+        let button = button(beginningWith: prefix)
+        let label = Self.buttonLabel(beginningWith: prefix)
+        try expectOutcome(button, matching: label, unless: alerts, file: file, line: line)
+        return button
+    }
+
+    func text(containing text: String) -> XCUIElement {
+        app.descendants(matching: .any).matching(
+            NSPredicate(format: "label CONTAINS %@ OR value CONTAINS %@", text, text)
+        ).firstMatch
+    }
+
+    func reveal(
+        _ element: XCUIElement,
+        swiping swipe: Swipe,
+        until isShown: KeyPath<XCUIElement, Bool> = \.isHittable
+    ) {
+        guard !element[keyPath: isShown] else { return }
         switch swipe {
         case .up: app.swipeUp()
         case .down: app.swipeDown()
@@ -61,7 +97,7 @@ struct UITestApp {
 
     func paste(_ text: String) throws {
         UIPasteboard.general.string = text
-        try tap(app.buttons["Paste"])
+        try tap(pasteButton)
         let banner = XCUIApplication(bundleIdentifier: "com.apple.springboard").descendants(matching: .any)
             .matching(NSPredicate(format: "label CONTAINS %@", "pasted from")).firstMatch
         _ = banner.waitForExistence(timeout: 2)

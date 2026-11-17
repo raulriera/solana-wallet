@@ -6,18 +6,17 @@ struct AccountsPage {
 
     let driver: UITestApp
 
+    private static func rowPrefix(_ name: String) -> String {
+        name + ","
+    }
+
     var addAccountButton: XCUIElement { driver.app.buttons["Add Account"] }
     var nameField: XCUIElement { driver.app.textFields["Name"] }
     var deleteAccountButton: XCUIElement { driver.app.buttons["Delete Account"] }
     var deletionError: XCUIElement { driver.app.alerts["Couldn't Delete Account"] }
 
-    private static func rowLabel(beginningWith name: String) -> NSPredicate {
-        NSPredicate(format: "elementType == %lu AND label BEGINSWITH %@", XCUIElement.ElementType.button.rawValue,
-                    name + ",")
-    }
-
     func row(_ name: String) -> XCUIElement {
-        driver.app.buttons.matching(Self.rowLabel(beginningWith: name)).firstMatch
+        driver.button(beginningWith: Self.rowPrefix(name))
     }
 
     func infoButton(for name: String) -> XCUIElement {
@@ -29,8 +28,7 @@ struct AccountsPage {
     }
 
     func expectAccount(_ name: String, file: StaticString = #filePath, line: UInt = #line) throws {
-        try driver.expectOutcome(row(name), matching: Self.rowLabel(beginningWith: name), unless: Self.errorTitles,
-                                 file: file, line: line)
+        try driver.expectButton(beginningWith: Self.rowPrefix(name), unless: Self.errorTitles, file: file, line: line)
     }
 
     func rename(_ name: String, to newName: String, file: StaticString = #filePath, line: UInt = #line) throws {

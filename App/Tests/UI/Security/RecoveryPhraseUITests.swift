@@ -22,8 +22,8 @@ final class RecoveryPhraseUITests: XCTestCase {
         for (position, word) in zip(1..., OnboardingPage.phrase.split(separator: " ")) {
             try app.waitFor(security.recoveryWord(word, at: position))
         }
-        security.scrollToAccountPath()
-        try app.waitFor(security.text(containing: "TrEzOr"))
+        app.reveal(security.accountPath, swiping: .up, until: \.exists)
+        try app.waitFor(app.text(containing: "TrEzOr"))
         try app.waitFor(security.accountPath)
     }
 }

@@ -7,14 +7,9 @@ struct PortfolioPage {
     let driver: UITestApp
 
     var addTokenButton: XCUIElement { driver.app.navigationBars.buttons["Add Token"] }
-    var pasteButton: XCUIElement { driver.app.buttons["Paste"] }
-
-    static func holdingLabel(beginningWith prefix: String) -> NSPredicate {
-        NSPredicate(format: "elementType == %lu AND label BEGINSWITH %@", XCUIElement.ElementType.button.rawValue, prefix)
-    }
 
     func holding(_ prefix: String) -> XCUIElement {
-        driver.app.buttons.matching(Self.holdingLabel(beginningWith: prefix)).firstMatch
+        driver.button(beginningWith: prefix)
     }
 
     func tokenDetails(_ name: String) -> XCUIElement {
@@ -35,10 +30,7 @@ struct PortfolioPage {
 
     @discardableResult
     func expectAddedToken(_ prefix: String, file: StaticString = #filePath, line: UInt = #line) throws -> XCUIElement {
-        let token = holding(prefix)
-        try driver.expectOutcome(token, matching: Self.holdingLabel(beginningWith: prefix),
-                                 unless: [Self.additionErrorTitle], file: file, line: line)
-        return token
+        try driver.expectButton(beginningWith: prefix, unless: [Self.additionErrorTitle], file: file, line: line)
     }
 
     func removeToken(_ token: XCUIElement, named name: String, file: StaticString = #filePath, line: UInt = #line) throws {
