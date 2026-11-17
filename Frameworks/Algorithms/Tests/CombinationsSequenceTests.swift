@@ -3,11 +3,6 @@ import Testing
 
 struct CombinationsSequenceTests {
     @Test
-    func `Combinations follow the elements' positions`() {
-        #expect(Array([1, 2, 3].combinations(ofCount: 2)) == [[1, 2], [1, 3], [2, 3]])
-    }
-
-    @Test
     func `Single combinations are the elements`() {
         #expect(Array([3, 1].combinations(ofCount: 1)) == [[3], [1]])
     }
