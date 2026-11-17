@@ -8,7 +8,7 @@ import Transactions
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct TokenRemovalModelTests {
-    private static let bonk = Holding.Identity.asset("DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263")
+    private static let bonk = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"
 
     @Test
     func `Removing a token removes it from the wallet's list`() async throws {
@@ -16,25 +16,12 @@ struct TokenRemovalModelTests {
         let portfolios = PortfolioStore.serving(service)
         let removal = TokenRemovalModel()
 
-        removal.remove(Self.bonk)
+        removal.remove(try Address(Self.bonk))
         try await removal.run(in: portfolios)
 
-        #expect(await service.removed.map(\.value) == ["DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"])
+        #expect(await service.removed.map(\.value) == [Self.bonk])
         #expect(removal.error == nil)
         #expect(removal.attempt == nil)
-    }
-
-    @Test
-    func `Native SOL stays`() async throws {
-        let service = PortfolioResponses()
-        let portfolios = PortfolioStore.serving(service)
-        let removal = TokenRemovalModel()
-
-        removal.remove(.nativeSOL)
-        try await removal.run(in: portfolios)
-
-        #expect(removal.attempt == nil)
-        #expect(await service.removed.isEmpty)
     }
 
     @Test(arguments: [
@@ -49,7 +36,7 @@ struct TokenRemovalModelTests {
         let portfolios = PortfolioStore.serving(service)
         let removal = TokenRemovalModel()
 
-        removal.remove(Self.bonk)
+        removal.remove(try Address(Self.bonk))
         try await removal.run(in: portfolios)
 
         #expect(removal.error == expected.error)
@@ -63,14 +50,14 @@ struct TokenRemovalModelTests {
         await service.failRemovals(with: CocoaError(.fileWriteUnknown))
         let portfolios = PortfolioStore.serving(service)
         let removal = TokenRemovalModel()
-        removal.remove(Self.bonk)
+        removal.remove(try Address(Self.bonk))
         try await removal.run(in: portfolios)
 
         await service.failRemovals(with: nil)
         removal.retry()
         try await removal.run(in: portfolios)
 
-        #expect(await service.removed.map(\.value) == ["DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"])
+        #expect(await service.removed.map(\.value) == [Self.bonk])
         #expect(removal.attempt == nil)
     }
 
@@ -80,7 +67,7 @@ struct TokenRemovalModelTests {
         await service.failRemovals(with: CocoaError(.fileWriteUnknown))
         let portfolios = PortfolioStore.serving(service)
         let removal = TokenRemovalModel()
-        removal.remove(Self.bonk)
+        removal.remove(try Address(Self.bonk))
         let attempt = removal.attempt
 
         let account = try Account.fixture(index: 1)
@@ -97,7 +84,7 @@ struct TokenRemovalModelTests {
         let service = PortfolioResponses(removalGate: gate)
         let portfolios = PortfolioStore.serving(service)
         let removal = TokenRemovalModel()
-        removal.remove(Self.bonk)
+        removal.remove(try Address(Self.bonk))
         let attempt = removal.attempt
         let account = try Account.fixture(index: 1)
         let first = Task { await removal.run(attempt, in: portfolios, for: account, on: .devnet) }

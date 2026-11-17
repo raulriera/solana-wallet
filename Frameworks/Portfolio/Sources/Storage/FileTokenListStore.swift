@@ -1,5 +1,6 @@
 import Foundation
 import RPC
+import Transactions
 
 /// A store that saves one versioned JSON token list per account and network.
 struct FileTokenListStore {
@@ -23,7 +24,7 @@ struct FileTokenListStore {
         guard let data else { return nil }
         guard let envelope = try? JSONDecoder().decode(Envelope.self, from: data), envelope.version == Self.version,
               envelope.owner == key.owner, envelope.network == key.network else { throw TokenListError.unreadable }
-        return TokenList(network: envelope.network, tokens: envelope.tokens)
+        return TokenList(network: envelope.network, mints: envelope.mints)
     }
 
     /// Replaces an account's saved list.
@@ -33,7 +34,7 @@ struct FileTokenListStore {
     ///   - key: The account and network under which to save it.
     /// - Throws: An encoding or file-system error.
     func save(_ list: TokenList, for key: CacheKey) throws {
-        let envelope = Envelope(version: Self.version, owner: key.owner, network: key.network, tokens: list.tokens)
+        let envelope = Envelope(version: Self.version, owner: key.owner, network: key.network, mints: list.mints)
         try files.write(JSONEncoder().encode(envelope), for: key)
     }
 
@@ -50,6 +51,6 @@ struct FileTokenListStore {
         let version: Int
         let owner: String
         let network: Network
-        let tokens: [ListedToken]
+        let mints: [Mint]
     }
 }

@@ -166,7 +166,7 @@ struct ContactsModelTests {
             TransactionRecord.Key(account: ContactsFixtures.main.id, network: .mainnet):
                 StoredValue(ContactsFixtures.records),
             TransactionRecord.Key(account: ContactsFixtures.savingsAccount.id, network: .mainnet): StoredValue([
-                .fixture(.payment(recipient: ContactsFixtures.recent, mint: nil, units: 1), signature: "savings",
+                .fixture(.payment(recipient: ContactsFixtures.recent, asset: .nativeSOL, amount: 1), signature: "savings",
                          account: ContactsFixtures.savingsAccount.id, network: .mainnet, status: .succeeded,
                          settled: 3_000),
             ]),

@@ -1,23 +1,28 @@
 import SwiftUI
+import Transactions
 
 /// A payment's value in large digits over its token quantity, or the quantity alone when the token has no price.
 struct ReviewAmount: View {
     @Environment(\.palette) private var palette
-    let amount: PaymentAmount
+    let sent: TokenAmount
+    let asset: Asset
+    /// What the sent amount is worth, or `nil` when the asset has no price.
+    var value: Decimal?
+    /// The code of the currency that ``value`` is in, or `nil` without a value.
+    var currencyCode: String?
 
     var body: some View {
-        let token = amount.token
         VStack(spacing: 8) {
             Group {
-                if let value = amount.value {
-                    Text(value, format: .value(code: amount.currencyCode))
+                if let value, let currencyCode {
+                    Text(value, format: .value(code: currencyCode))
                 } else {
-                    Text(amount.quantity, format: .quantity(of: token))
+                    Text(sent, format: .amount(of: asset))
                 }
             }
             .font(.system(.largeTitle, design: .rounded, weight: .bold))
-            if amount.value != nil {
-                Text(amount.quantity, format: .quantity(of: token))
+            if value != nil, currencyCode != nil {
+                Text(sent, format: .amount(of: asset))
                     .foregroundStyle(palette.secondaryText)
             }
         }

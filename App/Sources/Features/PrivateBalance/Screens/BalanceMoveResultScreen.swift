@@ -39,28 +39,28 @@ struct BalanceMoveResultScreen: TransactionResultContent {
     /// The result's title, message, and symbol.
     private var card: (title: LocalizedStringResource, message: LocalizedStringResource, systemImage: String) {
         let move = review.proposal
-        let amount = move.amount.quantity
-        let token = move.amount.token
+        let sent = move.sent
+        let asset = move.asset
         switch (move.direction, outcome) {
         case (.toPrivate, .succeeded):
             let title = LocalizedStringResource(
-                "\(token.symbol) Is Private",
+                "\(asset.displaySymbol) Is Private",
                 comment: "Title after a deposit into the private balance succeeded. The variable is the token's symbol, such as SOL or USDC."
             )
             return (title,
-                    LocalizedStringResource("\(amount, format: .quantity(of: token)) is pending. It becomes available when the network reports it, usually within a minute.",
+                    LocalizedStringResource("\(sent, format: .amount(of: asset)) is pending. It becomes available when the network reports it, usually within a minute.",
                                             comment: "Message after a deposit into the private balance succeeded. The variable is the amount with its symbol, such as 0.5 SOL."),
                     "eye.slash.circle.fill")
         case (.toPublic, .succeeded):
             let message: LocalizedStringResource = if review.review?.pendingChange != nil {
-                LocalizedStringResource("\(amount, format: .quantity(of: token)) is in your public balance. The rest of your private balance becomes available within a minute.",
+                LocalizedStringResource("\(sent, format: .amount(of: asset)) is in your public balance. The rest of your private balance becomes available within a minute.",
                                         comment: "Message after a private token moved to the public balance, when the rest of the private balance is pending. The variable is the amount with its symbol, such as 0.5 SOL.")
             } else {
-                LocalizedStringResource("\(amount, format: .quantity(of: token)) is in your public balance.",
+                LocalizedStringResource("\(sent, format: .amount(of: asset)) is in your public balance.",
                                         comment: "Message after a private token moved to the public balance. The variable is the amount with its symbol, such as 0.5 SOL.")
             }
             let title = LocalizedStringResource(
-                "\(token.symbol) Is Public",
+                "\(asset.displaySymbol) Is Public",
                 comment: "Title after a private token moved to the public balance. The variable is the token's symbol, such as SOL or USDC."
             )
             return (title, message, "eye.circle.fill")

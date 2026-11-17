@@ -95,7 +95,7 @@ struct TokenTransfersTests {
     ) async throws {
         let fixture = try TokenTransferResponses(program: program)
         let http = try fixture.http(destination: .absent, recipient: rejection.recipient)
-        let address = rejection.recipient == .mint ? fixture.mint : fixture.recipient
+        let address = rejection.recipient == .mint ? fixture.mint.address : fixture.recipient
 
         await #expect(throws: rejection.error) {
             try await TokenTransfers(rpc: http.client).transfer(
@@ -144,6 +144,26 @@ struct TokenTransfersTests {
             try await TokenTransfers(rpc: http.client).transfer(
                 mint: fixture.mint, amount: 1, from: fixture.sender, to: fixture.recipient, source: fixture.source)
         }
+    }
+
+    @Test(arguments: [
+        (TokenProgram.token2022, reviewedProgram: TokenProgram.token2022, reviewedDecimals: UInt8(9)),
+        (.token2022, reviewedProgram: .token, reviewedDecimals: 6),
+        (.token, reviewedProgram: .token2022, reviewedDecimals: 6),
+    ])
+    func `A mint whose program or decimals differ from the reviewed mint's is rejected`(
+        program: TokenProgram, reviewedProgram: TokenProgram, reviewedDecimals: UInt8
+    ) async throws {
+        let fixture = try TokenTransferResponses(program: program)
+        let http = try fixture.http(destination: .initialized)
+        let reviewed = Mint.fixture(fixture.mint.address.value, program: reviewedProgram, decimals: reviewedDecimals)
+
+        await #expect(throws: TokenError.accountMismatch) {
+            try await TokenTransfers(rpc: http.client).transfer(
+                mint: reviewed, amount: 1, from: fixture.sender, to: fixture.recipient, source: fixture.source)
+        }
+
+        #expect(await http.requests.count == 1)
     }
 
     @Test

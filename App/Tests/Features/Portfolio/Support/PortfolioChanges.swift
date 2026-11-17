@@ -59,7 +59,7 @@ actor PortfolioChanges: PortfolioProviding {
 }
 
 extension PortfolioChanges: TokenListProviding {
-    func addToken(_ token: ListedToken, for owner: String) async throws {
+    func addToken(_ mint: Mint, for owner: String) async throws {
         Issue.record("Changing settings must not edit token lists.")
         throw TokenListError.unreadable
     }

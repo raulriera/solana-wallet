@@ -1,11 +1,11 @@
 import Foundation
 import Testing
+import Transactions
 @testable import widgets
 
 @MainActor
 struct KeypadPressActionTests {
-    private static let usdc = PaymentToken(mint: PaymentFixtures.usdc, symbol: "USDC", balance: 40, price: 1,
-                                           decimals: 6)
+    private static let usdc = PaymentFixtures.usdcToken
 
     @Test func `Pressing keys types the amount`() {
         let payment = PaymentModel(tokens: [Self.usdc], currencyCode: "USD")

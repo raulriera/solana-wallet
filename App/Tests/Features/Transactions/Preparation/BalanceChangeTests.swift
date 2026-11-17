@@ -18,18 +18,20 @@ struct BalanceChangeTests {
         let transaction = try Self.transaction()
         let simulation = Self.value(
             before: [10_000_000, 0, 2_039_280, 2_039_280, 0, 1], after: [7_955_719, 1, 2_039_280, 2_039_280, 2_039_280, 1],
-            tokensBefore: [Self.balance(index: 2, owner: Self.payer, amount: 300), Self.balance(index: 3, owner: Self.payer, amount: 200)],
-            tokensAfter: [Self.balance(index: 2, owner: Self.payer, amount: 100), Self.balance(index: 3, owner: Self.payer, amount: 200),
-                          Self.balance(index: 4, owner: Self.recipient, amount: 200)]
+            tokensBefore: [Self.balance(index: 2, owner: Self.payer, mint: Self.mint, amount: 300),
+                           Self.balance(index: 3, owner: Self.payer, mint: Self.mint, amount: 200)],
+            tokensAfter: [Self.balance(index: 2, owner: Self.payer, mint: Self.mint, amount: 100),
+                          Self.balance(index: 3, owner: Self.payer, mint: Self.mint, amount: 200),
+                          Self.balance(index: 4, owner: Self.recipient, mint: Self.mint, amount: 200)]
         )
 
         let changes = BalanceChange.changes(in: transaction, from: simulation)
 
-        let token = BalanceChange.Asset.token(mint: try Address(Self.mint), decimals: 6)
+        let token = Asset.ID.token(mint: try Address(Self.mint))
         #expect(changes == [
-            BalanceChange(owner: try Address(Self.payer), asset: .sol, before: 10_000_000, after: 7_955_719),
-            BalanceChange(owner: try Address(Self.recipient), asset: .sol, before: 0, after: 1),
-            BalanceChange(owner: try Address(Self.others[2]), asset: .sol, before: 0, after: 2_039_280),
+            BalanceChange(owner: try Address(Self.payer), asset: .nativeSOL, before: 10_000_000, after: 7_955_719),
+            BalanceChange(owner: try Address(Self.recipient), asset: .nativeSOL, before: 0, after: 1),
+            BalanceChange(owner: try Address(Self.others[2]), asset: .nativeSOL, before: 0, after: 2_039_280),
             BalanceChange(owner: try Address(Self.payer), asset: token, before: 500, after: 300),
             BalanceChange(owner: try Address(Self.recipient), asset: token, before: 0, after: 200),
         ])
@@ -38,8 +40,8 @@ struct BalanceChangeTests {
     @Test
     func `Unchanged balances are omitted`() throws {
         let simulation = Self.value(before: [5, 0, 1, 1, 1, 1], after: [5, 0, 1, 1, 1, 1],
-                                    tokensBefore: [Self.balance(index: 2, owner: Self.payer, amount: 300)],
-                                    tokensAfter: [Self.balance(index: 2, owner: Self.payer, amount: 300)])
+                                    tokensBefore: [Self.balance(index: 2, owner: Self.payer, mint: Self.mint, amount: 300)],
+                                    tokensAfter: [Self.balance(index: 2, owner: Self.payer, mint: Self.mint, amount: 300)])
 
         #expect(BalanceChange.changes(in: try Self.transaction(), from: simulation) == [])
     }
@@ -49,16 +51,18 @@ struct BalanceChangeTests {
         ("missing token balances", BalanceChangeTests.value(tokensAfter: nil)),
         ("lamports for a different account count", BalanceChangeTests.value(after: [1, 2])),
         ("a token account outside the transaction",
-         BalanceChangeTests.value(tokensAfter: [BalanceChangeTests.balance(index: 6, owner: BalanceChangeTests.payer, amount: 1)])),
+         BalanceChangeTests.value(tokensAfter: [
+             BalanceChangeTests.balance(index: 6, owner: BalanceChangeTests.payer, mint: BalanceChangeTests.mint, amount: 1),
+         ])),
         ("a token balance without an owner",
-         BalanceChangeTests.value(tokensAfter: [BalanceChangeTests.balance(index: 2, owner: nil, amount: 1)])),
+         BalanceChangeTests.value(tokensAfter: [BalanceChangeTests.balance(index: 2, owner: nil, mint: BalanceChangeTests.mint, amount: 1)])),
         ("a malformed owner",
-         BalanceChangeTests.value(tokensAfter: [BalanceChangeTests.balance(index: 2, owner: "owner", amount: 1)])),
+         BalanceChangeTests.value(tokensAfter: [BalanceChangeTests.balance(index: 2, owner: "owner", mint: BalanceChangeTests.mint, amount: 1)])),
         ("a malformed mint",
          BalanceChangeTests.value(tokensAfter: [BalanceChangeTests.balance(index: 2, owner: BalanceChangeTests.payer, mint: "mint", amount: 1)])),
         ("summed units beyond the raw range", BalanceChangeTests.value(tokensAfter: [
-            BalanceChangeTests.balance(index: 2, owner: BalanceChangeTests.payer, amount: .max),
-            BalanceChangeTests.balance(index: 3, owner: BalanceChangeTests.payer, amount: 1),
+            BalanceChangeTests.balance(index: 2, owner: BalanceChangeTests.payer, mint: BalanceChangeTests.mint, amount: .max),
+            BalanceChangeTests.balance(index: 3, owner: BalanceChangeTests.payer, mint: BalanceChangeTests.mint, amount: 1),
         ])),
     ])
     func `Changes are unknown when balances are missing or can't be attributed`(reason: String, simulation: SimulateTransaction.Value) throws {
@@ -82,8 +86,8 @@ struct BalanceChangeTests {
         let review = try await coordinator.simulate([fixture.transfer], using: fixture.account)
 
         #expect(review.balanceChanges == [
-            BalanceChange(owner: payer, asset: .sol, before: 1_000_000, after: 989_999),
-            BalanceChange(owner: recipient, asset: .sol, before: 0, after: 1),
+            BalanceChange(owner: payer, asset: .nativeSOL, before: 1_000_000, after: 989_999),
+            BalanceChange(owner: recipient, asset: .nativeSOL, before: 0, after: 1),
         ])
     }
 
@@ -102,7 +106,7 @@ struct BalanceChangeTests {
                                   preTokenBalances: tokensBefore, postTokenBalances: tokensAfter)
     }
 
-    private static func balance(index: Int, owner: String?, mint: String = mint, amount: UInt64) -> SimulateTransaction.TokenBalance {
+    private static func balance(index: Int, owner: String?, mint: String, amount: UInt64) -> SimulateTransaction.TokenBalance {
         SimulateTransaction.TokenBalance(accountIndex: index, mint: mint, owner: owner, amount: amount, decimals: 6)
     }
 }

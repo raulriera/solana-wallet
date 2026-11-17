@@ -47,20 +47,23 @@ struct BalanceMoveProposal: TransactionProposal {
     typealias Error = PrivateBalanceError
 
     let direction: Direction
-    let asset: PrivateAsset
-    let amount: PaymentAmount
+    let asset: Asset
+    /// The pool's asset of ``asset``.
+    let privateAsset: PrivateAsset
+    /// The amount of the asset that moves.
+    let sent: TokenAmount
     let balances: any PrivateBalancing
 
     /// The move's title, such as Make USDC Private.
-    var title: LocalizedStringResource { direction.title(of: amount.token.symbol) }
+    var title: LocalizedStringResource { direction.title(of: asset.displaySymbol) }
 
     var refreshInterval: Duration { .seconds(30) }
 
     func prepare(from account: Account, on network: Network) async throws -> PreparedPrivateTransaction {
         let request: PrivateTransactionRequest =
             switch direction {
-            case .toPrivate: .deposit(amount.units, of: asset)
-            case .toPublic: .withdraw(amount.units, of: asset, to: account.address)
+            case .toPrivate: .deposit(sent.amount, of: privateAsset)
+            case .toPublic: .withdraw(sent.amount, of: privateAsset, to: account.address)
             }
         return try await balances.prepare(request, from: account, on: network)
     }
@@ -72,12 +75,12 @@ struct BalanceMoveProposal: TransactionProposal {
         guard execution.error == nil else {
             guard execution.lacksFunds else { throw PrivateBalanceError.preparationFailed }
             throw switch direction {
-            case .toPrivate where asset == .sol: PrivateBalanceError.insufficientPublicBalance
+            case .toPrivate where privateAsset == .nativeSOL: PrivateBalanceError.insufficientPublicBalance
             case .toPrivate, .toPublic: PrivateBalanceError.insufficientPublicBalanceForFees
             }
         }
         guard let networkFee = simulation.networkFee else { throw PrivateBalanceError.preparationFailed }
-        let movedLamports = asset.lamports(moving: amount.units)
+        let movedLamports = privateAsset.lamports(moving: sent.amount)
         let review: Review
         let kind: TransactionRecord.Kind
         switch preparation.effect {
@@ -88,9 +91,8 @@ struct BalanceMoveProposal: TransactionProposal {
                             pendingChange: nil, accountDeposit: nil)
             kind = .privateDeposit
         case .spend(let spend):
-            let accountDeposit = try asset.withdrawal(to: account.address).tokenAccount.flatMap {
-                openingDeposit(of: $0, in: simulation)
-            }
+            let accountDeposit = spend.openedAccounts.compactMap { openingDeposit(of: $0, in: simulation) }
+                .reduce(0, +).nonZero
             let privacyFee = try otherFee(
                 of: simulation,
                 for: account,
@@ -101,8 +103,8 @@ struct BalanceMoveProposal: TransactionProposal {
             review = Review(
                 networkFee: networkFee,
                 registrationFee: nil,
-                privacyFee: privacyFee > 0 ? privacyFee : nil,
-                pendingChange: spend.receivedAmount > 0 ? spend.receivedAmount : nil,
+                privacyFee: privacyFee.nonZero,
+                pendingChange: spend.receivedAmount.nonZero,
                 accountDeposit: accountDeposit
             )
             kind = .privateWithdrawal
@@ -155,6 +157,6 @@ struct BalanceMoveProposal: TransactionProposal {
     ///   - simulation: The simulated move.
     /// - Returns: The change, or `nil` when the simulation doesn't change or report it.
     private func solChange(of address: Address, in simulation: Simulation) -> BalanceChange? {
-        simulation.balanceChanges?.first { $0.owner == address && $0.asset == .sol }
+        simulation.balanceChanges?.first { $0.owner == address && $0.asset == .nativeSOL }
     }
 }

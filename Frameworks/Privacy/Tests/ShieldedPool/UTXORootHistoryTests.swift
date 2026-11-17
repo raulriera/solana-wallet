@@ -80,7 +80,7 @@ struct UTXORootHistoryTests {
     }
 
     private static func status(after change: Change) throws -> ReceivedNote.InclusionStatus {
-        let (proof, note) = try proofOfFifthLeaf(of: try PlanFixtures.utxo(lamports: 10, treeID: 0, blindingByte: 161))
+        let (proof, note) = try proofOfFifthLeaf(of: try PlanFixtures.utxo(amount: 10, treeID: 0, blindingByte: 161, asset: .nativeSOL))
         var leaf = note.utxo.hash
         var proofTree = proof.tree
         var proofLeaf = proof.leaf
@@ -101,9 +101,9 @@ struct UTXORootHistoryTests {
             roots = Array(roots.prefix(9))
             roots[0] = proof.root
         case .leafOfOtherNote:
-            leaf = try PlanFixtures.utxo(lamports: 10, treeID: 0, blindingByte: 162).hash
+            leaf = try PlanFixtures.utxo(amount: 10, treeID: 0, blindingByte: 162, asset: .nativeSOL).hash
         case .otherLeaf:
-            leaf = try PlanFixtures.utxo(lamports: 10, treeID: 0, blindingByte: 162).hash
+            leaf = try PlanFixtures.utxo(amount: 10, treeID: 0, blindingByte: 162, asset: .nativeSOL).hash
             proofLeaf = leaf.bigEndianBytes
         case .otherProofIndex:
             proofIndex += 1

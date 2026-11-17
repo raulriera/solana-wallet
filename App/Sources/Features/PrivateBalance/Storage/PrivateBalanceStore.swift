@@ -1,7 +1,9 @@
 import Foundation
 import Observation
 import Portfolio
+import Privacy
 import RPC
+import Transactions
 
 /// Keeps each account's private balance on each network.
 @MainActor
@@ -86,26 +88,27 @@ final class PrivateBalanceStore: Erasable {
         for account: Account,
         on network: Network
     ) -> BalanceMove? {
-        guard let balance = balance(for: account, on: network), let publicAmount = holding.amount,
+        guard let balance = balance(for: account, on: network), let publicBalance = holding.balance,
             let asset = PrivateAsset(holding.id)
         else { return nil }
         switch balance.status {
         case .unregistered?, .balance?:
-            let units =
+            let amount =
                 switch direction {
-                case .toPrivate: publicAmount.units
+                case .toPrivate: publicBalance.amount
                 case .toPublic: balance.available(of: asset)
                 }
-            guard let units,
+            guard let amount,
                 let token = PaymentToken(
                     holding: holding,
-                    balance: Amount(units: units, decimals: publicAmount.decimals),
+                    balance: TokenAmount(amount: amount, decimals: publicBalance.decimals),
                     price: nil
                 )
             else { return nil }
             return BalanceMove(
                 direction: direction,
                 token: token,
+                privateAsset: asset,
                 account: account,
                 network: network,
                 balances: privateBalances,

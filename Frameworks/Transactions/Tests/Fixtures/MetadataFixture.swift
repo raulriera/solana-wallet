@@ -47,7 +47,8 @@ enum MetadataFixtures {
         "D4UwuQtYew==",
     ].joined()
 
-    static func mint(_ mint: String, program: TokenProgram, data: String) throws -> TokenMint {
-        try TokenMint(address: Address(mint), owner: Address(program.rawValue), data: #require(Data(base64Encoded: data)))
+    static func mint(_ mint: String, program: TokenProgram, data: String) throws -> Mint {
+        try Mint(address: Address(mint), programAddress: Address(program.rawValue),
+                 data: #require(Data(base64Encoded: data)))
     }
 }

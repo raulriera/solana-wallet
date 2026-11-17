@@ -13,7 +13,7 @@ struct AmountUnitMenu<Label: View>: View {
             Section("Pay With") {
                 Picker("Token", selection: $token.animation(.snappy)) {
                     ForEach(tokens) { token in
-                        Text(token.symbol)
+                        Text(token.asset.displaySymbol)
                             .tag(token)
                     }
                 }
@@ -24,7 +24,7 @@ struct AmountUnitMenu<Label: View>: View {
                     Picker("Unit", selection: $unit.animation(.snappy)) {
                         Text(currencyCode)
                             .tag(PaymentModel.Unit.currency)
-                        Text(token.symbol)
+                        Text(token.asset.displaySymbol)
                             .tag(PaymentModel.Unit.token)
                     }
                     .pickerStyle(.inline)
@@ -33,7 +33,7 @@ struct AmountUnitMenu<Label: View>: View {
         } label: {
             label
         }
-        .accessibilityValue(unit == .currency ? Text(token.symbol) : Text(verbatim: ""))
+        .accessibilityValue(unit == .currency ? Text(token.asset.displaySymbol) : Text(verbatim: ""))
         .accessibilityHint(token.price == nil ? Text("Chooses the token.")
                                               : Text("Chooses the token and what you type the amount in."))
     }

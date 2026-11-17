@@ -1,7 +1,7 @@
 public import Foundation
 
 /// An initialized token account with its balance and owner.
-public struct TokenAccount: Sendable {
+public struct Token: Sendable {
     public let address: Address
     public let program: TokenProgram
     public let mint: Address
@@ -16,16 +16,15 @@ public struct TokenAccount: Sendable {
     ///
     /// - Parameters:
     ///   - address: The account address.
-    ///   - programOwner: The account's owner program.
+    ///   - programAddress: The account's owner program.
     ///   - data: The account's raw data.
     /// - Throws: A ``TokenError`` for an unsupported owner or malformed data.
-    public init(address: Address, programOwner: Address, data: Data) throws {
-        guard let program = TokenProgram(rawValue: programOwner.value) else { throw TokenError.unsupportedProgram }
-        let decoded = try TokenData(data, program: program, isMint: false)
+    public init(address: Address, programAddress: Address, data: Data) throws {
+        let decoded = try TokenData(data, programAddress: programAddress, isMint: false)
         for offset in [72, 109, 129] { try decoded.validateOption(at: offset) }
         guard decoded.bytes[108] == 1 || decoded.bytes[108] == 2 else { throw TokenError.invalidAccount }
         self.address = address
-        self.program = program
+        program = decoded.program
         mint = try Address(bytes: decoded.bytes[0..<32])
         owner = try Address(bytes: decoded.bytes[32..<64])
         amount = try TokenData.integer(decoded.bytes, at: 64)
@@ -37,15 +36,15 @@ public struct TokenAccount: Sendable {
     ///
     /// - Parameters:
     ///   - address: The associated token account address.
-    ///   - programOwner: The account's owner program.
+    ///   - programAddress: The account's owner program.
     ///   - data: The account's raw data.
     /// - Throws: A ``TokenError`` for an unsupported owner, malformed data, or a System Program account with data.
-    public init?(associatedAt address: Address, programOwner: Address, data: Data) throws {
-        if programOwner.value == SystemProgram.id {
+    public init?(associatedAt address: Address, programAddress: Address, data: Data) throws {
+        if programAddress.value == SystemProgram.id {
             guard data.isEmpty else { throw TokenError.invalidAccount }
             return nil
         }
-        try self.init(address: address, programOwner: programOwner, data: data)
+        try self.init(address: address, programAddress: programAddress, data: data)
     }
 
     /// Checks the account's state and extensions for a transfer.

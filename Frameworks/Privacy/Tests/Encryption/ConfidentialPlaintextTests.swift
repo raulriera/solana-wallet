@@ -1,12 +1,11 @@
 import ModularArithmetic
 import Testing
-import Transactions
 @testable import Privacy
 
 struct ConfidentialPlaintextTests {
     private static let encoding = "0100000000000000efcdab896745230130644e72e131a029b85045b68181585d2833e84879b9709143e1f593f00000000000"
 
-    private static let note = ConfidentialPlaintext(asset: .sol, amount: 0x0123_4567_89ab_cdef, blinding: -.one)
+    private static let note = ConfidentialPlaintext(asset: .nativeSOL, amount: 0x0123_4567_89ab_cdef, blinding: -.one)
 
     @Test
     func `Notes encode to independently derived bytes`() throws {
@@ -18,28 +17,11 @@ struct ConfidentialPlaintextTests {
         #expect(try ConfidentialPlaintext(decoding: fixtureBytes(Self.encoding)) == Self.note)
     }
 
-    @Test(arguments: ConfidentialPlaintext.Asset.allCases)
-    func `Notes of every supported asset round-trip`(asset: ConfidentialPlaintext.Asset) throws {
+    @Test(arguments: PrivateAsset.allCases)
+    func `Notes of every supported asset round-trip`(asset: PrivateAsset) throws {
         let note = ConfidentialPlaintext(asset: asset, amount: 42, blinding: .one)
 
         #expect(try ConfidentialPlaintext(decoding: note.encoded) == note)
-    }
-
-    @Test(arguments: [
-        (ConfidentialPlaintext.Asset.usdc, "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"),
-        (.usdt, "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"),
-        (.devnetUSDC, "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU"),
-    ])
-    func `Token assets carry their mints`(asset: ConfidentialPlaintext.Asset, mint: String) throws {
-        let bytes = try Address(mint).bytes
-
-        #expect(asset.mint == bytes)
-        #expect(ConfidentialPlaintext.Asset(mint: bytes) == asset)
-    }
-
-    @Test
-    func `Other mints have no asset`() {
-        #expect(ConfidentialPlaintext.Asset(mint: [UInt8](repeating: 7, count: 32)) == nil)
     }
 
     @Test(arguments: try ConfidentialPlaintextTests.unsupportedNotes())

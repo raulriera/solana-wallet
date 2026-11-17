@@ -178,7 +178,7 @@ struct PortfolioStoreTests {
 
         let holdings = portfolios.portfolio(for: account, on: .devnet)?.holdings ?? []
         #expect(portfolios.portfolio(for: account, on: .devnet)?.update?.snapshot?.network == .devnet)
-        #expect(holdings.map(\.symbol) == ["SOL"])
+        #expect(holdings.map(\.asset) == [.nativeSOL])
         #expect(holdings.allSatisfy { $0.valuation == nil })
         #expect(await responses.requests.map { $0.url?.host() } == ["api.devnet.solana.com"])
         viewing.cancel()
@@ -391,12 +391,12 @@ struct PortfolioStoreTests {
         let directory = URL.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
         let portfolios = PortfolioStore.serving(filePortfolio(in: directory))
-        let bonk = ListedToken(mint: try Address("DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"), program: .token,
-                               decimals: 5, symbol: "Bonk", name: "Bonk")
+        let bonk = Mint.fixture("DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263", decimals: 5,
+                                name: "Bonk", symbol: "Bonk")
 
         try await portfolios.add(bonk, for: Account.publicWallet(), on: .mainnet)
 
-        #expect(try savedList(in: directory)?.tokens.last == bonk)
+        #expect(try savedList(in: directory)?.mints.last == bonk)
     }
 
     @Test
@@ -404,10 +404,12 @@ struct PortfolioStoreTests {
         let directory = URL.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
         let portfolios = PortfolioStore.serving(filePortfolio(in: directory))
+        let usdc = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+        let usdt = "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"
 
-        try await portfolios.remove(Address(DefaultToken.usdt.rawValue), for: Account.publicWallet(), on: .mainnet)
+        try await portfolios.remove(Address(usdt), for: Account.publicWallet(), on: .mainnet)
 
-        #expect(try savedList(in: directory)?.tokens.map(\.mint.value) == [DefaultToken.usdc.rawValue])
+        #expect(try savedList(in: directory)?.mints.map(\.address.value) == [usdc])
     }
 
     private func filePortfolio(in directory: URL) -> Portfolio {

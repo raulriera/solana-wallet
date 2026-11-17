@@ -11,6 +11,10 @@ import Transactions
 struct TokenAdditionModelTests {
     private static let bonk = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"
     private static let jup = "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN"
+    private static let bonkPreview = TokenPreview(mint: .fixture(bonk, decimals: 5, name: "Bonk", symbol: "Bonk"),
+                                                  logo: nil)
+    private static let jupPreview = TokenPreview(mint: .fixture(jup, decimals: 6, name: "Jupiter", symbol: "JUP"),
+                                                 logo: nil)
 
     @Test
     func `Pasted text that isn't an address asks for one without a lookup`() {
@@ -38,7 +42,7 @@ struct TokenAdditionModelTests {
 
     @Test
     func `A pasted address shows its token`() async throws {
-        let preview = try Self.preview(Self.bonk)
+        let preview = Self.bonkPreview
         let service = PortfolioResponses(preview: preview)
         let portfolios = PortfolioStore.serving(service)
         let addition = TokenAdditionModel()
@@ -54,7 +58,7 @@ struct TokenAdditionModelTests {
 
     @Test
     func `A rejection stays until the next lookup answers`() async throws {
-        let preview = try Self.preview(Self.jup)
+        let preview = Self.jupPreview
         let service = PortfolioResponses(preview: preview)
         await service.failLookups(with: TokenLookupError.notToken)
         let portfolios = PortfolioStore.serving(service)
@@ -80,8 +84,7 @@ struct TokenAdditionModelTests {
         let viewing = Task { await portfolios.observe(account, on: .devnet) }
         defer { viewing.cancel() }
         let observation = try #require(await requests.next())
-        let bonk = Holding(id: .asset(Self.bonk), amount: nil, name: "Bonk", symbol: "Bonk", imageURL: nil,
-                           valuation: nil)
+        let bonk = Holding.fixture(.fixture(Self.bonk, decimals: 5), amount: nil)
         observation.continuation.yield(Update(snapshot: Snapshot(owner: account.address.value, network: .devnet,
                                                                  holdings: [bonk]),
                                               phase: .ready, revision: 1))
@@ -117,7 +120,7 @@ struct TokenAdditionModelTests {
 
     @Test
     func `A new address replaces the previous preview`() async throws {
-        let preview = try Self.preview(Self.bonk)
+        let preview = Self.bonkPreview
         let service = PortfolioResponses(preview: preview)
         let portfolios = PortfolioStore.serving(service)
         let addition = TokenAdditionModel()
@@ -135,7 +138,7 @@ struct TokenAdditionModelTests {
     @Test(arguments: [nil, TokenLookupError.notToken, RPCError.http(statusCode: 503, retryAfter: nil)] as [(any Error)?])
     func `A lookup that ends after a newer paste is ignored`(error: (any Error)?) async throws {
         let gate = Suspension()
-        let service = PortfolioResponses(preview: try Self.preview(Self.bonk), lookupGate: gate)
+        let service = PortfolioResponses(preview: Self.bonkPreview, lookupGate: gate)
         await service.failLookups(with: error)
         let portfolios = PortfolioStore.serving(service)
         let addition = TokenAdditionModel()
@@ -158,7 +161,7 @@ struct TokenAdditionModelTests {
 
     @Test
     func `Adding the previewed token closes the sheet`() async throws {
-        let preview = try Self.preview(Self.bonk)
+        let preview = Self.bonkPreview
         let service = PortfolioResponses(preview: preview)
         let portfolios = PortfolioStore.serving(service)
         let addition = TokenAdditionModel()
@@ -168,7 +171,7 @@ struct TokenAdditionModelTests {
         addition.add()
         try await addition.run(in: portfolios)
 
-        #expect(await service.added == [preview.token])
+        #expect(await service.added == [preview.mint])
         #expect(addition.isAdded)
         #expect(addition.attempt == nil)
     }
@@ -178,7 +181,7 @@ struct TokenAdditionModelTests {
         (.unreadable, .listUnreadable),
     ])
     func `A list that can't take the token explains why`(error: TokenListError, expected: TokenAdditionError) async throws {
-        let service = PortfolioResponses(preview: try Self.preview(Self.bonk))
+        let service = PortfolioResponses(preview: Self.bonkPreview)
         await service.failAdds(with: error)
         let portfolios = PortfolioStore.serving(service)
         let addition = TokenAdditionModel()
@@ -195,7 +198,7 @@ struct TokenAdditionModelTests {
 
     @Test
     func `A failed save can try again`() async throws {
-        let preview = try Self.preview(Self.bonk)
+        let preview = Self.bonkPreview
         let service = PortfolioResponses(preview: preview)
         await service.failAdds(with: CocoaError(.fileWriteUnknown))
         let portfolios = PortfolioStore.serving(service)
@@ -213,7 +216,7 @@ struct TokenAdditionModelTests {
         addition.retry()
         try await addition.run(in: portfolios)
 
-        #expect(await service.added == [preview.token])
+        #expect(await service.added == [preview.mint])
         #expect(addition.isAdded)
     }
 
@@ -223,7 +226,7 @@ struct TokenAdditionModelTests {
     ])
     func `A provider setup failure offers no retry until the address is pasted again`(error: RPCProviderError,
                                                                                       expected: TokenAdditionError) async throws {
-        let preview = try Self.preview(Self.bonk)
+        let preview = Self.bonkPreview
         let service = PortfolioResponses(preview: preview)
         await service.failLookups(with: error)
         let portfolios = PortfolioStore.serving(service)
@@ -243,7 +246,7 @@ struct TokenAdditionModelTests {
 
     @Test
     func `A failed lookup can try again`() async throws {
-        let preview = try Self.preview(Self.bonk)
+        let preview = Self.bonkPreview
         let service = PortfolioResponses(preview: preview)
         await service.failLookups(with: RPCError.http(statusCode: 503, retryAfter: nil))
         let portfolios = PortfolioStore.serving(service)
@@ -261,10 +264,6 @@ struct TokenAdditionModelTests {
         #expect(await service.lookups.count == 2)
     }
 
-    private static func preview(_ mint: String) throws -> TokenPreview {
-        TokenPreview(token: ListedToken(mint: try Address(mint), program: .token, decimals: 5, symbol: "Bonk",
-                                        name: "Bonk"), logo: nil)
-    }
 }
 
 private extension TokenAdditionModel {

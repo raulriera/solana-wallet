@@ -11,7 +11,8 @@ struct BalanceMoveSheet: View {
 
     var body: some View {
         NavigationStack {
-            PaymentAmountScreen(payment: move.payment, title: move.direction.title(of: move.payment.token.symbol)) {
+            PaymentAmountScreen(payment: move.payment,
+                                title: move.direction.title(of: move.payment.token.asset.displaySymbol)) {
                 let openReview = BalanceMoveReviewAction(move: move, presented: $presentedReview, error: $reviewError)
                 Button("Review") { openReview() }
                     .buttonStyle(.secondary)

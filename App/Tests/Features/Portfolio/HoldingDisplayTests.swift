@@ -1,24 +1,25 @@
 import Foundation
 import Portfolio
 import Testing
+import Transactions
 @testable import widgets
 
 struct HoldingDisplayTests {
     private static let providerLogo = URL(string: "https://cdn.example.com/logo.png")!
     private static let mint = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU"
+    private static let short = "4zMM…ncDU"
 
     @Test(arguments: [
-        (Holding.Identity.nativeSOL, nil as String?, nil as String?, "SOL", "Solana"),
-        (.asset(mint), "", "", "4zMM…ncDU", "4zMM…ncDU"),
-        (.asset(mint), nil, nil, "4zMM…ncDU", "4zMM…ncDU"),
-        (.asset("mint"), "JUP", nil, "JUP", "JUP"),
-        (.asset("mint"), "JUP", "Jupiter", "JUP", "Jupiter"),
+        (Asset.nativeSOL, "SOL", "Solana"),
+        (.token(.fixture(mint, decimals: 0, name: "", symbol: "")), short, short),
+        (.token(.fixture(mint, decimals: 0)), short, short),
+        (.token(.fixture(mint, decimals: 0, symbol: "JUP")), "JUP", "JUP"),
+        (.token(.fixture(mint, decimals: 0, name: "Jupiter", symbol: "JUP")), "JUP",
+         "Jupiter"),
     ])
-    func `Names fall back to the asset's identity`(id: Holding.Identity, symbol: String?, name: String?,
-                                                   shownSymbol: String, shownName: String) {
-        let holding = Holding(id: id, amount: nil, name: name, symbol: symbol, imageURL: nil, valuation: nil)
-        #expect(holding.displaySymbol == shownSymbol)
-        #expect(holding.displayName == shownName)
+    func `Names fall back to the asset's identity`(asset: Asset, shownSymbol: String, shownName: String) {
+        #expect(asset.displaySymbol == shownSymbol)
+        #expect(asset.displayName == shownName)
     }
 
     @Test(arguments: [
@@ -29,18 +30,17 @@ struct HoldingDisplayTests {
         (nil, false),
     ])
     func `Values need a total and a currency`(valuation: Valuation?, isKnown: Bool) {
-        let holding = Holding(id: .asset("mint"), amount: nil, name: nil, symbol: nil, imageURL: nil,
-                              valuation: valuation)
+        let holding = Holding.fixture(.fixture(Self.mint, decimals: 0), amount: nil, valuation: valuation)
         #expect((holding.knownValue != nil) == isKnown)
     }
 
     @Test(arguments: [
-        (Holding.Identity.nativeSOL, "sol.png"),
-        (.asset(DefaultToken.usdc.rawValue), "usdc.png"),
-        (.asset(DefaultToken.usdt.rawValue), "usdt.png"),
+        (Asset.nativeSOL, "sol.png"),
+        (.token(.fixture("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", decimals: 6)), "usdc.png"),
+        (.token(.fixture("Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB", decimals: 6)), "usdt.png"),
     ])
-    func `Bundled logos win over the provider's copy`(id: Holding.Identity, file: String) throws {
-        let holding = Holding(id: id, amount: nil, name: nil, symbol: nil, imageURL: Self.providerLogo, valuation: nil)
+    func `Bundled logos win over the provider's copy`(asset: Asset, file: String) throws {
+        let holding = Holding(asset: asset, balance: nil, imageURL: Self.providerLogo, valuation: nil)
         let logo = try #require(holding.logoURL)
         #expect(logo.isFileURL)
         #expect(logo.lastPathComponent == file)
@@ -48,9 +48,8 @@ struct HoldingDisplayTests {
 
     @Test
     func `Other tokens show the provider's copy when it has one`() {
-        let listed = Holding(id: .asset("mint"), amount: nil, name: nil, symbol: nil, imageURL: Self.providerLogo,
-                             valuation: nil)
-        let unknown = Holding(id: .asset("mint"), amount: nil, name: nil, symbol: nil, imageURL: nil, valuation: nil)
+        let listed = Holding.fixture(.fixture(Self.mint, decimals: 0), amount: nil, imageURL: Self.providerLogo)
+        let unknown = Holding.fixture(.fixture(Self.mint, decimals: 0), amount: nil)
         #expect(listed.logoURL == Self.providerLogo)
         #expect(unknown.logoURL == nil)
     }
@@ -62,15 +61,8 @@ struct HoldingDisplayTests {
         (nil, false),
     ])
     func `Prices need a unit price and a currency`(valuation: Valuation?, isKnown: Bool) {
-        let holding = Holding(id: .asset("mint"), amount: nil, name: nil, symbol: nil, imageURL: nil,
-                              valuation: valuation)
+        let holding = Holding.fixture(.fixture(Self.mint, decimals: 0), amount: nil, valuation: valuation)
         #expect((holding.knownPrice != nil) == isKnown)
-    }
-
-    @Test(arguments: [("en_US", "1,234.5"), ("de_DE", "1.234,5")])
-    func `Amounts use the text environment's locale`(identifier: String, shown: String) {
-        let amount = Amount(units: 1_234_500_000_000, decimals: 9)
-        #expect(AmountFormatStyle().locale(Locale(identifier: identifier)).format(amount) == shown)
     }
 
     @Test(arguments: [
@@ -95,12 +87,5 @@ struct HoldingDisplayTests {
     ])
     func `Prices show enough digits to be useful`(price: Decimal, shown: String) {
         #expect(ValueFormatStyle.price(code: "USD").locale(Locale(identifier: "en_US")).format(price) == shown)
-    }
-
-    @Test(arguments: [
-        (Amount(units: 9_999_123_456, decimals: 6), "9,999.123456"), (Amount(units: 1_100_000_000_000, decimals: 5), "11M"),
-    ])
-    func `Cards shorten balances from 10,000 up`(amount: Amount, shown: String) {
-        #expect(AmountFormatStyle.abbreviatedAmount.locale(Locale(identifier: "en_US")).format(amount) == shown)
     }
 }

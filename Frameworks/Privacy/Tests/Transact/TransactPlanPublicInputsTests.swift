@@ -16,7 +16,7 @@ struct TransactPlanPublicInputsTests {
 
     @Test
     func `Padding slots take the identity of their view tag`() throws {
-        let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(lamports: 10)], transferLamports: 10, paddingOutputs: 1)
+        let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(amount: 10, asset: .nativeSOL)], of: .nativeSOL, transfer: 10, paddingOutputs: 1)
         let recipient = OwnerIdentity.solana(signingPublicKey: try TransferVectors.recipient().viewTag)
 
         #expect(plan.outputOwnerIdentities == [recipient, recipient])
@@ -25,7 +25,7 @@ struct TransactPlanPublicInputsTests {
     @Test
     func `Withdrawals fill the first public slot`() throws {
         let plan = try PlanFixtures.plan(
-            spending: [PlanFixtures.utxo(lamports: 10)], transferLamports: nil, withdrawal: PlanFixtures.withdrawal(lamports: 10), paddingOutputs: 1
+            spending: [PlanFixtures.utxo(amount: 10, asset: .nativeSOL)], of: .nativeSOL, transfer: nil, withdrawal: PlanFixtures.withdrawal(10, of: .nativeSOL), paddingOutputs: 1
         )
 
         #expect(plan.publicInputs.publicAssets == [Poseidon.hash(.zero, .zero), .zero, .zero])

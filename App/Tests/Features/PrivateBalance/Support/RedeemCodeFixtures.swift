@@ -40,7 +40,7 @@ enum RedeemCodeFixtures {
     }
 
     static func deposit(_ lamports: UInt64, to oneTime: OneTimeAccount, leafIndex: UInt64) throws -> String {
-        try PrivateBalanceFixtures.deposit(lamports, to: oneTime.shieldedAccount, leafIndex: leafIndex)
+        try PrivateBalanceFixtures.deposit(lamports, to: oneTime.shieldedAccount, leafIndex: leafIndex, of: .nativeSOL)
     }
 
     static func spend(of lamports: UInt64, to oneTime: OneTimeAccount, leafIndex: UInt64) throws -> String {

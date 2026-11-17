@@ -1,6 +1,6 @@
 import Foundation
 
-extension Asset {
+extension DigitalAsset {
     public init(from decoder: any Decoder) throws {
         let root = try Fields(from: decoder)
         let files = root.object("content")?.objects("files") ?? []

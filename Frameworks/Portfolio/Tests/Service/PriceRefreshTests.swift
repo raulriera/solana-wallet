@@ -11,24 +11,22 @@ struct PriceRefreshTests {
         defer { fixture.removeFiles() }
         let stalePrice = Valuation(pricePerUnit: 20, total: 20, currency: "USD")
         try fixture.store.save(Snapshot(owner: testWallet, network: .mainnet, holdings: [
-            Holding(id: .asset(usdtMint), amount: Amount(units: 1, decimals: 6), name: "Tether USD", symbol: "USDT",
-                    imageURL: nil, valuation: stalePrice),
+            .fixture(.fixture(usdtMint, decimals: 6), amount: 1, valuation: stalePrice),
         ]), for: fixture.key)
         let accounts = AccountResponses { _ in
             Ledger(lamports: 1_000_000_000, tokens: [usdcMint: 3_000_000, nativeMint: 2_000_000_000])
         }
         let prices = PriceResponses { _ in Data(#"{"\#(nativeMint)":{"usdPrice":100},"\#(usdcMint)":{"usdPrice":4}}"#.utf8) }
         let service = fixture.portfolio(rpc: accounts.client, prices: prices.client)
-        let wrapped = ListedToken(mint: try Address(nativeMint), program: .token, decimals: 9, symbol: "WSOL",
-                                  name: "Wrapped SOL")
-        try await service.addToken(wrapped, for: testWallet)
+        try await service.addToken(.fixture(nativeMint, decimals: 9), for: testWallet)
         var updates = await service.updates(for: testWallet).makeAsyncIterator()
         _ = try #require(await updates.next())
         let update = try #require(await updates.next())
         if let error = update.error { throw error }
         let snapshot = try #require(update.snapshot)
 
-        #expect(snapshot.holdings.map(\.id) == [.nativeSOL, .asset(usdcMint), .asset(usdtMint), .asset(nativeMint)])
+        let tokens = try [usdcMint, usdtMint, nativeMint].map { Asset.ID.token(mint: try Address($0)) }
+        #expect(snapshot.holdings.map(\.id) == [.nativeSOL] + tokens)
         #expect(snapshot.holdings.map(\.valuation?.total) == [100, 12, nil, 200])
         #expect(snapshot.holdings.map(\.valuation?.currency) == ["USD", "USD", nil, "USD"])
         #expect(await prices.requests == [[nativeMint, usdcMint, usdtMint]])
@@ -63,7 +61,7 @@ struct PriceRefreshTests {
         if let error = update.error { throw error }
         let snapshot = try #require(update.snapshot)
 
-        #expect(snapshot.holdings.map(\.amount?.units) == [1_000_000_000, 3_000_000, 0])
+        #expect(snapshot.holdings.map(\.balance?.amount) == [1_000_000_000, 3_000_000, 0])
         #expect(snapshot.holdings.map(\.imageURL) == [nil, URL(string: "https://cdn.example.com/usdc.png"), nil])
         #expect(snapshot.holdings.map(\.valuation?.total) == [nil, 12, nil])
         #expect(await accounts.requests.count == 1)
@@ -83,8 +81,7 @@ struct PriceRefreshTests {
         defer { fixture.removeFiles() }
         if let cachedPrice {
             try fixture.store.save(Snapshot(owner: testWallet, network: .mainnet, holdings: [
-                Holding(id: .asset(usdcMint), amount: Amount(units: 1_000_000, decimals: 6), name: "USD Coin",
-                        symbol: "USDC", imageURL: nil, valuation: cachedPrice),
+                .fixture(.fixture(usdcMint, decimals: 6), amount: 1_000_000, valuation: cachedPrice),
             ]), for: fixture.key)
         }
         let accounts = AccountResponses { _ in freshLedger }
@@ -96,7 +93,7 @@ struct PriceRefreshTests {
 
         #expect(failed.error as? RPCError == .http(statusCode: 429, retryAfter: "2"))
         let snapshot = try #require(failed.snapshot)
-        #expect(snapshot.holdings.map(\.amount?.units) == [1_000_000_000, 3_000_000, 0])
+        #expect(snapshot.holdings.map(\.balance?.amount) == [1_000_000_000, 3_000_000, 0])
         #expect(snapshot.holdings.map(\.valuation) == valuations)
         #expect(fixture.store.snapshot(for: fixture.key) == snapshot)
         #expect(await prices.requests.count == 1)
@@ -177,7 +174,7 @@ struct PriceRefreshTests {
             announce.yield(())
             for await _ in pending {}
             if Task.isCancelled { cancelledContinuation.yield(()) }
-            return Data(#"{"mint":{"usdPrice":0.1}}"#.utf8)
+            return Data(#"{"\#(pyusdMint)":{"usdPrice":0.1}}"#.utf8)
         }
         let service = fixture.portfolio(rpc: accounts.client, prices: prices.client)
         var updates = await service.updates(for: testWallet).makeAsyncIterator()
@@ -192,7 +189,7 @@ struct PriceRefreshTests {
         #expect(await updates.next() == nil)
         let saved = try #require(fixture.store.snapshot(for: fixture.key))
         #expect(saved.holdings.allSatisfy { $0.imageURL == nil })
-        #expect(saved.holdings.map(\.amount) == cached.holdings.map(\.amount))
+        #expect(saved.holdings.map(\.balance) == cached.holdings.map(\.balance))
         #expect(saved.holdings.map(\.valuation) == cached.holdings.map(\.valuation))
     }
 }
@@ -213,14 +210,13 @@ private let freshLedger = Ledger(lamports: 1_000_000_000, tokens: [usdcMint: 3_0
 
 private func pricingSnapshot() -> Snapshot {
     let holdings = [
-        Holding(id: .nativeSOL, amount: Amount(units: 1_000_000_000, decimals: 9), name: "Solana", symbol: "SOL",
+        Holding(asset: .nativeSOL, balance: TokenAmount(lamports: 1_000_000_000),
                 imageURL: nil, valuation: nil),
-        Holding(id: .asset(nativeMint), amount: Amount(units: 2_000_000_000, decimals: 9), name: "Wrapped SOL",
-                symbol: "WSOL", imageURL: nil, valuation: nil),
-        Holding(id: .asset("mint"), amount: Amount(units: 1_250_000, decimals: 6), name: "Token", symbol: "TOK",
-                imageURL: URL(string: "https://example.com/token.png"), valuation: nil),
-        Holding(id: .asset("missing"), amount: Amount(units: 1, decimals: 0), name: nil, symbol: nil, imageURL: nil,
-                valuation: Valuation(pricePerUnit: 20, total: 20, currency: "USDC")),
+        .fixture(.fixture(nativeMint, decimals: 9), amount: 2_000_000_000),
+        .fixture(.fixture(pyusdMint, decimals: 6), amount: 1_250_000,
+                 imageURL: URL(string: "https://example.com/token.png")),
+        .fixture(.fixture(usdtMint, decimals: 0), amount: 1,
+                 valuation: Valuation(pricePerUnit: 20, total: 20, currency: "USDC")),
     ]
     return Snapshot(owner: testWallet, network: .mainnet, holdings: holdings)
 }

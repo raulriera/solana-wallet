@@ -1,23 +1,24 @@
 import Portfolio
 import SwiftUI
+import Transactions
 
 /// Lists the wallet's tokens as overlapping cards tucked into a pocket.
 struct TokenCardStack: View {
-    @Binding var selection: Holding.Identity?
+    @Binding var selection: Asset.ID?
     @Binding var preferredColumn: NavigationSplitViewColumn
     let holdings: [Holding]
-    /// The holdings that the account also holds privately.
-    let privateHoldings: Set<Holding.Identity>
+    /// The assets that the account also holds privately.
+    let privateAssets: Set<Asset.ID>
 
     var body: some View {
         List {
             VStack(spacing: 0) {
                 ForEach(holdings) { holding in
                     TokenCardOption(selection: $selection, preferredColumn: $preferredColumn, id: holding.id) {
-                        TokenCard(symbol: holding.displaySymbol, name: holding.displayName, amount: holding.amount,
-                                  value: holding.knownValue, change: holding.valuation?.dayChange,
-                                  imageURL: holding.logoURL,
-                                  isHeldPrivately: privateHoldings.contains(holding.id))
+                        TokenCard(symbol: holding.asset.displaySymbol, name: holding.asset.displayName,
+                                  balance: holding.balance, value: holding.knownValue,
+                                  change: holding.valuation?.dayChange, imageURL: holding.logoURL,
+                                  isHeldPrivately: privateAssets.contains(holding.id))
                     }
                 }
             }

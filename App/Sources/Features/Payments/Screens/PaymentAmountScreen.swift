@@ -73,8 +73,8 @@ struct PaymentAmountScreen<Action: View>: View {
 }
 
 #Preview("Glass keys") {
-    let payment = PaymentModel(tokens: [PaymentToken(mint: nil, symbol: "SOL", balance: 1.2,
-                                                     price: 150, decimals: 9)],
+    let payment = PaymentModel(tokens: [PaymentToken(asset: .nativeSOL,
+                                                     balance: TokenAmount(lamports: 1_200_000_000), price: 150)],
                                currencyCode: "USD")
     NavigationStack {
         PaymentAmountScreen(payment: payment, title: "Send") {
@@ -85,8 +85,8 @@ struct PaymentAmountScreen<Action: View>: View {
 }
 
 #Preview("Plain keys") {
-    let payment = PaymentModel(tokens: [PaymentToken(mint: nil, symbol: "SOL", balance: 1.2,
-                                                     price: 150, decimals: 9)],
+    let payment = PaymentModel(tokens: [PaymentToken(asset: .nativeSOL,
+                                                     balance: TokenAmount(lamports: 1_200_000_000), price: 150)],
                                currencyCode: "USD")
     NavigationStack {
         PaymentAmountScreen(payment: payment, title: "Send") {
@@ -98,8 +98,8 @@ struct PaymentAmountScreen<Action: View>: View {
 }
 
 #Preview("One balance") {
-    let payment = PaymentModel(tokens: [PaymentToken(mint: nil, symbol: "SOL", balance: 1.2,
-                                                     price: nil, decimals: 9)],
+    let payment = PaymentModel(tokens: [PaymentToken(asset: .nativeSOL,
+                                                     balance: TokenAmount(lamports: 1_200_000_000), price: nil)],
                                currencyCode: "USD", source: .publicBalance)
     NavigationStack {
         PaymentAmountScreen(payment: payment, title: "Make SOL Private") {

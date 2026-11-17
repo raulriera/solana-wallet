@@ -7,15 +7,6 @@ import Transactions
 
 @MainActor
 struct PrivateBalanceMoveActionTests {
-    private static let sol = Holding(
-        id: .nativeSOL,
-        amount: Amount(units: 2_000_000_000, decimals: 9),
-        name: "Solana",
-        symbol: "SOL",
-        imageURL: nil,
-        valuation: nil
-    )
-
     private static func moveBalance() async throws
         -> (model: PrivateBalanceModel, moveBalance: PrivateBalanceMoveAction) {
         let account = try await PrivateBalanceFixtures.account()
@@ -29,7 +20,7 @@ struct PrivateBalanceMoveActionTests {
                 privateBalances: store,
                 account: account,
                 network: .devnet,
-                holding: Self.sol
+                holding: PrivateBalanceFixtures.solHolding
             )
         )
     }
@@ -48,6 +39,6 @@ struct PrivateBalanceMoveActionTests {
 
         let move = try #require(model.move)
         #expect(move.direction == direction)
-        #expect(move.payment.token.balance == balance)
+        #expect(Decimal(move.payment.token.balance) == balance)
     }
 }

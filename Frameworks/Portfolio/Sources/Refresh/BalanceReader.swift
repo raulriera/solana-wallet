@@ -21,13 +21,13 @@ struct BalanceReader {
         let accounts = try list.accounts(of: wallet)
         try Task.checkCancellation()
         let contents = try await rpc.accounts(at: accounts.map(\.value), minContextSlot: minContextSlot).value
-        let native = Holding(id: .nativeSOL, amount: Amount(units: contents[0]?.lamports ?? 0, decimals: 9),
-                             name: "Solana", symbol: "SOL", imageURL: nil, valuation: nil)
-        let tokens = list.tokens.indices.map { index in
-            let token = list.tokens[index]
-            let account = balance(of: token, at: accounts[index + 1], in: contents[index + 1], owner: wallet)
-            return Holding(id: .asset(token.mint.value), amount: account.amount, otherOwner: account.otherOwner,
-                           name: token.name, symbol: token.symbol, imageURL: nil, valuation: nil)
+        let native = Holding(asset: .nativeSOL, balance: TokenAmount(lamports: contents[0]?.lamports ?? 0),
+                             imageURL: nil, valuation: nil)
+        let tokens = list.mints.indices.map { index in
+            let mint = list.mints[index]
+            let account = balance(of: mint, at: accounts[index + 1], in: contents[index + 1], owner: wallet)
+            return Holding(asset: .token(mint), balance: account.balance, otherOwner: account.otherOwner, imageURL: nil,
+                           valuation: nil)
         }
         try Task.checkCancellation()
         return Snapshot(owner: owner, network: network, holdings: [native] + tokens)
@@ -36,31 +36,31 @@ struct BalanceReader {
     /// Reads a listed token's balance from its associated token account.
     ///
     /// - Parameters:
-    ///   - token: The listed token.
+    ///   - mint: The listed token's mint.
     ///   - address: The token's associated token account address.
     ///   - tokenAccount: The account's contents, or `nil` if it doesn't exist.
     ///   - owner: The wallet that must own the token account.
     /// - Returns: The balance, or `nil` if unknown, and the token account's owner if it isn't the wallet.
-    private func balance(of token: ListedToken, at address: Address, in tokenAccount: Account?,
-                         owner: Address) -> (amount: Amount?, otherOwner: Address?) {
-        let decoded: TokenAccount?
+    private func balance(of mint: Mint, at address: Address, in tokenAccount: Account?,
+                         owner: Address) -> (balance: TokenAmount?, otherOwner: Address?) {
+        let decoded: Token?
         do {
             decoded = try tokenAccount.flatMap {
-                try TokenAccount(associatedAt: address, programOwner: Address($0.owner), data: $0.data)
+                try Token(associatedAt: address, programAddress: Address($0.owner), data: $0.data)
             }
         } catch {
             return (nil, nil)
         }
-        guard let decoded else { return (Amount(units: 0, decimals: token.decimals), nil) }
-        guard decoded.mint == token.mint else { return (nil, nil) }
+        guard let decoded else { return (TokenAmount(amount: 0, decimals: mint.decimals), nil) }
+        guard decoded.mint == mint.address else { return (nil, nil) }
         guard decoded.owner == owner else { return (nil, decoded.owner) }
-        return (Amount(units: decoded.amount, decimals: token.decimals), nil)
+        return (TokenAmount(amount: decoded.amount, decimals: mint.decimals), nil)
     }
 }
 
 extension TokenList {
     /// The identities of native SOL and each listed token, in order.
-    var holdingIDs: [Holding.Identity] {
-        [.nativeSOL] + tokens.map { .asset($0.mint.value) }
+    var holdingIDs: [Asset.ID] {
+        [.nativeSOL] + mints.map { .token(mint: $0.address) }
     }
 }

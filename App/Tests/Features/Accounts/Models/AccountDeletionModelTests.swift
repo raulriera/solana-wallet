@@ -1,6 +1,7 @@
 import Foundation
 import RPC
 import Testing
+import Transactions
 @testable import widgets
 
 @MainActor
@@ -94,7 +95,7 @@ struct AccountDeletionModelTests {
         for account in accounts {
             for network in Network.allCases {
                 records[TransactionRecord.Key(account: account.id, network: network)] = StoredValue([
-                    .fixture(.payment(recipient: account.address, mint: nil, units: 1), account: account.id,
+                    .fixture(.payment(recipient: account.address, asset: .nativeSOL, amount: 1), account: account.id,
                              network: network),
                 ])
             }

@@ -47,12 +47,11 @@ public struct ReceivedNote: Sendable, Equatable, Codable, Redacted {
 
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        let mint = [UInt8](try container.decode(Data.self, forKey: .mint))
-        guard ConfidentialPlaintext.Asset(mint: mint) != nil else {
+        guard let asset = PrivateAsset(mintBytes: [UInt8](try container.decode(Data.self, forKey: .mint))) else {
             throw DecodingError.dataCorruptedError(forKey: .mint, in: container, debugDescription: "A note holds a supported asset.")
         }
         utxo = UTXO(
-            owner: try Self.decodeElement(forKey: .owner, in: container), mint: mint,
+            owner: try Self.decodeElement(forKey: .owner, in: container), asset: asset,
             amount: try container.decode(UInt64.self, forKey: .amount), blinding: try Self.decodeElement(forKey: .blinding, in: container),
             treeID: try container.decode(UInt16.self, forKey: .treeID)
         )
@@ -65,7 +64,7 @@ public struct ReceivedNote: Sendable, Equatable, Codable, Redacted {
     public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(Data(utxo.owner.bigEndianBytes), forKey: .owner)
-        try container.encode(Data(utxo.mint), forKey: .mint)
+        try container.encode(Data(utxo.asset.mintBytes), forKey: .mint)
         try container.encode(utxo.amount, forKey: .amount)
         try container.encode(Data(utxo.blinding.bigEndianBytes), forKey: .blinding)
         try container.encode(utxo.treeID, forKey: .treeID)
@@ -163,10 +162,12 @@ public struct ReceivedNote: Sendable, Equatable, Codable, Redacted {
     /// - Throws: A ``Transactions/ValidationError`` if the tree account's derivation fails.
     static func depositUTXO(in output: ShieldedOutput, owner: Poseidon.Element) throws -> UTXO? {
         guard let deposit = try? ProoflessOutput(decoding: output.payload),
-              deposit.owner == owner, ConfidentialPlaintext.Asset(mint: deposit.mint) != nil,
+              deposit.owner == owner, let asset = PrivateAsset(mintBytes: deposit.mint),
               deposit.blinding == ShieldedPool.depositBlinding(tree: try ShieldedPool.tree(id: output.treeID), leafIndex: output.leafIndex),
               let utxoHash = Poseidon.Element(bigEndianBytes: output.utxoHash) else { return nil }
-        let utxo = UTXO(owner: owner, mint: deposit.mint, amount: deposit.amount, blinding: deposit.blinding, treeID: output.treeID)
+        let utxo = UTXO(
+            owner: owner, asset: asset, amount: deposit.amount, blinding: deposit.blinding, treeID: output.treeID
+        )
         return utxo.hash == utxoHash ? utxo : nil
     }
 }

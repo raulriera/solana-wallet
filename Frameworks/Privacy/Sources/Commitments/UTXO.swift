@@ -13,8 +13,7 @@ struct UTXO: Sendable, Equatable, Redacted {
     /// The recipient's owner hash.
     let owner: Poseidon.Element
 
-    /// The asset's 32-byte mint address, all zeros for SOL.
-    let mint: [UInt8]
+    let asset: PrivateAsset
 
     /// The amount, in the asset's smallest unit.
     let amount: UInt64
@@ -26,7 +25,7 @@ struct UTXO: Sendable, Equatable, Redacted {
     /// The commitment that the UTXO tree holds.
     var hash: Poseidon.Element {
         Self.commitment(
-            domain: Self.hashDomain, treeID: treeID, asset: PackedBytes.hash32(mint),
+            domain: Self.hashDomain, treeID: treeID, asset: asset.commitment,
             amount: Poseidon.Element(amount), owner: owner, blinding: blinding
         )
     }

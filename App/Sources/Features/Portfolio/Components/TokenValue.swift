@@ -10,7 +10,7 @@ struct TokenValue: View {
 
     var body: some View {
         Text(total, format: abbreviates ? .abbreviatedValue(code: currency) : .value(code: currency))
-            .contentTransition(.numericText(value: NSDecimalNumber(decimal: total).doubleValue))
+            .contentTransition(.numericText(value: total))
             .accessibilityLabel(Text(total, format: .value(code: currency)))
     }
 }

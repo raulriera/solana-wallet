@@ -16,7 +16,7 @@ struct PaymentReviewAction {
     func callAsFunction() {
         guard presented.wrappedValue == nil, payment.canSend else { return }
         do {
-            let model = try sender.review(payment.amount, to: recipient, in: context)
+            let model = try sender.review(payment, to: recipient, in: context)
             model.prepareReview()
             review.wrappedValue = model
             presented.wrappedValue = model

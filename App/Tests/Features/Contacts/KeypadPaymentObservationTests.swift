@@ -10,10 +10,10 @@ import Transactions
 @Suite(.timeLimit(.minutes(1)))
 struct KeypadPaymentObservationTests {
     private static let network = Network.mainnet
-    private static let sol = Holding(id: .nativeSOL, amount: Amount(units: 1_500_000_000, decimals: 9), name: nil,
-                                     symbol: "SOL", imageURL: nil, valuation: nil)
-    private static let lessSOL = Holding(id: .nativeSOL, amount: Amount(units: 500_000_000, decimals: 9), name: nil,
-                                         symbol: "SOL", imageURL: nil, valuation: nil)
+    private static let sol = Holding(asset: .nativeSOL, balance: TokenAmount(lamports: 1_500_000_000),
+                                     imageURL: nil, valuation: nil)
+    private static let lessSOL = Holding(asset: .nativeSOL, balance: TokenAmount(lamports: 500_000_000),
+                                         imageURL: nil, valuation: nil)
 
     @Test func `The payment starts with the first balances and follows later ones`() async throws {
         try await withKeypad { account, observation, received in
@@ -21,12 +21,12 @@ struct KeypadPaymentObservationTests {
 
             observation.continuation.yield(update([Self.sol], of: account, revision: 1))
 
-            for await balance in balances where balance == Decimal(string: "1.5") { break }
+            for await balance in balances where balance == TokenAmount(lamports: 1_500_000_000) { break }
             let started = try #require(received.payment.model)
 
             observation.continuation.yield(update([Self.lessSOL], of: account, revision: 2))
 
-            for await balance in balances where balance == Decimal(string: "0.5") { break }
+            for await balance in balances where balance == TokenAmount(lamports: 500_000_000) { break }
             #expect(received.payment.model === started)
         }
     }

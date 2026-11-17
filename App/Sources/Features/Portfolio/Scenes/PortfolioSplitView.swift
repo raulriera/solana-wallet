@@ -1,6 +1,8 @@
 import Portfolio
+import Privacy
 import RPC
 import SwiftUI
+import Transactions
 
 /// Presents an account's portfolio on a network in a split view: its tokens and their details, or why they can't load.
 struct PortfolioSplitView: View {
@@ -8,7 +10,7 @@ struct PortfolioSplitView: View {
     @Environment(\.cardStyle) private var cardStyle
     @Environment(PortfolioStore.self) private var portfolios
     @Environment(PrivateBalanceStore.self) private var privateBalances
-    @State private var selection: Holding.Identity?
+    @State private var selection: Asset.ID?
     @State private var preferredColumn = NavigationSplitViewColumn.sidebar
     @State private var providerSetup: ProviderSetupModel<RPCConnectionError>?
     @State private var tokenAddition: TokenAdditionModel?
@@ -22,7 +24,7 @@ struct PortfolioSplitView: View {
     var body: some View {
         let portfolio = portfolios.portfolio(for: account, on: network)
         let presentation = portfolio?.presentation ?? .blank
-        let privateHoldings = privateBalances.balance(for: account, on: network)?.privateHoldings ?? []
+        let privateAssets = privateBalances.balance(for: account, on: network)?.privateAssets ?? []
 
         ZStack {
             switch presentation {
@@ -43,10 +45,10 @@ struct PortfolioSplitView: View {
                         switch cardStyle.layout {
                         case .cards:
                             TokenCardStack(selection: $selection, preferredColumn: $preferredColumn,
-                                           holdings: holdings, privateHoldings: privateHoldings)
+                                           holdings: holdings, privateAssets: privateAssets)
                         case .rows:
                             TokenList(selection: $selection, holdings: holdings,
-                                      privateHoldings: privateHoldings)
+                                      privateAssets: privateAssets)
                         }
                     }
                     .animation(.default, value: portfolio?.snapshotRevision)

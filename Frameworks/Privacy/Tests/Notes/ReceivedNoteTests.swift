@@ -9,10 +9,11 @@ import Transactions
 struct ReceivedNoteTests {
     @Test(arguments: try DepositNoteVectors.load().deposits)
     func `Deposits match the independent reference`(_ vector: DepositNoteVectors.Deposit) throws {
-        let transaction = try vector.transaction()
+        let transaction = try vector.transaction(mint: PrivateAsset.nativeSOL.mintBytes)
 
         let notes = try ReceivedNote.notes(in: transaction, of: TransferVectors.sender())
 
+        #expect(notes.allSatisfy { $0.utxo.asset == .nativeSOL })
         #expect(notes.map(\.utxo.hash.bigEndianBytes) == (vector.ownedBySender ? [try fixtureBytes(vector.utxoHash)] : []))
         #expect(notes.map(\.nullifier.bigEndianBytes) == (try vector.nullifier.map { [try fixtureBytes($0)] } ?? []))
         #expect(notes.map(\.utxo.amount) == (vector.ownedBySender ? [try #require(UInt64(vector.lamports))] : []))
@@ -21,13 +22,13 @@ struct ReceivedNoteTests {
         #expect(notes.map(\.treeID) == (vector.ownedBySender ? [vector.treeID] : []))
     }
 
-    @Test(arguments: [ConfidentialPlaintext.Asset.usdc, .usdt, .devnetUSDC])
-    func `Deposits of supported tokens are received`(asset: ConfidentialPlaintext.Asset) throws {
+    @Test(arguments: PrivateToken.supported.map(PrivateAsset.token))
+    func `Deposits of supported tokens are received`(asset: PrivateAsset) throws {
         let vector = try #require(try DepositNoteVectors.load().deposits.first)
 
-        let notes = try ReceivedNote.notes(in: vector.transaction(mint: asset.mint), of: TransferVectors.sender())
+        let notes = try ReceivedNote.notes(in: vector.transaction(mint: asset.mintBytes), of: TransferVectors.sender())
 
-        #expect(notes.map(\.utxo.mint) == [asset.mint])
+        #expect(notes.map(\.utxo.asset) == [asset])
         #expect(notes.map(\.amount) == [try #require(UInt64(vector.lamports))])
     }
 
@@ -42,12 +43,14 @@ struct ReceivedNoteTests {
     func `Deposits at another position are skipped`() throws {
         let vector = try #require(try DepositNoteVectors.load().deposits.first)
 
-        #expect(try ReceivedNote.notes(in: vector.transaction(leafIndex: vector.leafIndex + 1), of: TransferVectors.sender()).isEmpty)
+        let moved = try vector.transaction(leafIndex: vector.leafIndex + 1, mint: PrivateAsset.nativeSOL.mintBytes)
+
+        #expect(try ReceivedNote.notes(in: moved, of: TransferVectors.sender()).isEmpty)
     }
 
     @Test
     func `Senders receive their change`() throws {
-        let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(lamports: 10)], transferLamports: 4)
+        let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(amount: 10, asset: .nativeSOL)], of: .nativeSOL, transfer: 4)
         let sender = try TransferVectors.sender()
 
         let notes = try ReceivedNote.notes(in: PlanFixtures.transaction(of: plan), of: sender)
@@ -75,7 +78,7 @@ struct ReceivedNoteTests {
     @Test
     func `Padding outputs are skipped`() throws {
         let plan = try PlanFixtures.plan(
-            spending: [PlanFixtures.utxo(lamports: 10)], transferLamports: nil, withdrawal: PlanFixtures.withdrawal(lamports: 10), paddingOutputs: 1
+            spending: [PlanFixtures.utxo(amount: 10, asset: .nativeSOL)], of: .nativeSOL, transfer: nil, withdrawal: PlanFixtures.withdrawal(10, of: .nativeSOL), paddingOutputs: 1
         )
 
         let notes = try ReceivedNote.notes(in: PlanFixtures.transaction(of: plan), of: TransferVectors.sender())
@@ -85,7 +88,7 @@ struct ReceivedNoteTests {
 
     @Test
     func `Unreadable transactions yield no notes`() throws {
-        let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(lamports: 10)], transferLamports: 4)
+        let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(amount: 10, asset: .nativeSOL)], of: .nativeSOL, transfer: 4)
         let sender = try TransferVectors.sender()
         let sealed = try PlanFixtures.transaction(of: plan)
         let withoutKey = ShieldedTransaction(
@@ -99,7 +102,7 @@ struct ReceivedNoteTests {
 
     @Test(arguments: X25519Fixtures.lowOrderCoordinates)
     func `Transactions under a low-order viewing key yield no notes`(u: [UInt8]) throws {
-        let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(lamports: 10)], transferLamports: 4)
+        let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(amount: 10, asset: .nativeSOL)], of: .nativeSOL, transfer: 4)
         let sealed = try PlanFixtures.transaction(of: plan)
         let lowOrder = ShieldedTransaction(
             signature: sealed.signature, slot: sealed.slot, eventIndex: nil, transactionViewingKey: [4] + u, salt: sealed.salt,
@@ -113,8 +116,9 @@ struct ReceivedNoteTests {
     func `Notes survive encoding`() throws {
         let sender = try TransferVectors.sender()
         let deposit = try #require(try DepositNoteVectors.load().deposits.first)
-        let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(lamports: 10)], transferLamports: 4)
-        let notes = try ReceivedNote.notes(in: deposit.transaction(), of: sender) + ReceivedNote.notes(in: PlanFixtures.transaction(of: plan), of: sender)
+        let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(amount: 10, asset: .nativeSOL)], of: .nativeSOL, transfer: 4)
+        let notes = try ReceivedNote.notes(in: deposit.transaction(mint: PrivateAsset.nativeSOL.mintBytes), of: sender)
+            + ReceivedNote.notes(in: PlanFixtures.transaction(of: plan), of: sender)
 
         let decoded = try JSONDecoder().decode([ReceivedNote].self, from: JSONEncoder().encode(notes))
 
@@ -131,7 +135,8 @@ struct ReceivedNoteTests {
     ])
     func `Encoded notes with invalid fields are rejected`(key: String, bytes: [UInt8]) throws {
         let deposit = try #require(try DepositNoteVectors.load().deposits.first)
-        let note = try #require(try ReceivedNote.notes(in: deposit.transaction(), of: TransferVectors.sender()).first)
+        let transaction = try deposit.transaction(mint: PrivateAsset.nativeSOL.mintBytes)
+        let note = try #require(try ReceivedNote.notes(in: transaction, of: TransferVectors.sender()).first)
         var fields = try #require(try JSONSerialization.jsonObject(with: JSONEncoder().encode(note)) as? [String: Any])
         fields[key] = Data(bytes).base64EncodedString()
         let encoded = try JSONSerialization.data(withJSONObject: fields)
@@ -148,7 +153,7 @@ struct ReceivedNoteTests {
     }
 
     private static func change(taggedWith tag: [UInt8]) throws -> (plan: TransactPlan, notes: [ReceivedNote]) {
-        let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(lamports: 10)], transferLamports: 4)
+        let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(amount: 10, asset: .nativeSOL)], of: .nativeSOL, transfer: 4)
         let transaction = try PlanFixtures.transaction(of: plan)
         let retagged = ShieldedTransaction(
             signature: transaction.signature, slot: transaction.slot, eventIndex: transaction.eventIndex,

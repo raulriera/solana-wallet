@@ -1,6 +1,6 @@
-import Portfolio
 import SwiftUI
 import Testing
+import Transactions
 @testable import widgets
 
 @MainActor
@@ -10,7 +10,7 @@ struct TokenRowTests {
     private func height(atWidth width: CGFloat, symbol: String = "MYST", name: String = "Mystery Token")
         throws -> CGFloat {
         let renderer = ImageRenderer(content: TokenRow(symbol: symbol, name: name,
-                                                       amount: Amount(units: 42, decimals: 0),
+                                                       balance: TokenAmount(amount: 42, decimals: 0),
                                                        value: (total: 2_075, currency: "USD"),
                                                        change: Decimal(string: "0.0129"), imageURL: nil))
         renderer.proposedSize = ProposedViewSize(width: width, height: nil)

@@ -15,7 +15,7 @@ struct BalanceMoveTests {
         direction: BalanceMoveProposal.Direction,
         source: PaymentModel.Source
     ) async throws {
-        let move = try await Self.move(direction)
+        let move = try await Self.move(direction, asset: .nativeSOL)
 
         #expect(move.payment.source == source)
         #expect(move.payment.quantity == 0)
@@ -23,69 +23,63 @@ struct BalanceMoveTests {
 
     @Test
     func `A review proposes the asset of the move's token`() async throws {
-        let move = try await Self.move(.toPublic, mint: try PrivateToken.devnetUSDC.mint)
+        let usdc = Mint.fixture(PrivateToken.devnetUSDC.mint.value, decimals: 6)
+        let move = try await Self.move(.toPublic, asset: .token(usdc))
         move.payment.press(.digit(1))
 
-        #expect(try move.review().proposal.asset == .token(.devnetUSDC))
-    }
-
-    @Test
-    func `A token that private balances don't hold opens no move`() async throws {
-        let move = try await Self.optionalMove(.toPrivate, mint: Address("So11111111111111111111111111111111111111112"))
-
-        #expect(move == nil)
+        #expect(try move.review().proposal.asset == .token(usdc))
     }
 
     @Test
     func `A review freezes the typed amount`() async throws {
-        let move = try await Self.move(.toPublic)
+        let move = try await Self.move(.toPublic, asset: .nativeSOL)
         move.payment.press(.digit(1))
 
         let review = try move.review()
         move.payment.press(.digit(2))
 
         #expect(review.proposal.direction == .toPublic)
-        #expect(review.proposal.amount.quantity == 1)
+        #expect(Decimal(review.proposal.sent) == 1)
         #expect(review.review == nil)
         #expect(review.attempt == nil)
     }
 
     @Test
     func `A review fails without a transaction coordinator`() async throws {
-        let move = try await Self.move(.toPrivate, transactions: .inMemory { _ in throw TransactionCoordinatorError.unsupportedNetwork })
+        let move = try await Self.move(.toPrivate, asset: .nativeSOL, transactions: .inMemory { _ in throw TransactionCoordinatorError.unsupportedNetwork })
+        move.payment.press(.digit(1))
 
         #expect(throws: TransactionCoordinatorError.unsupportedNetwork) { try move.review() }
     }
 
-    private static func move(
-        _ direction: BalanceMoveProposal.Direction,
-        mint: Address? = nil,
-        transactions: TransactionStore = .unused
-    ) async throws -> BalanceMove {
-        try #require(await optionalMove(direction, mint: mint, transactions: transactions))
+    @Test
+    func `A review of an amount that can't be sent fails`() async throws {
+        let move = try await Self.move(.toPublic, asset: .nativeSOL)
+
+        #expect(throws: PrivateBalanceError.preparationFailed) { try move.review() }
     }
 
-    private static func optionalMove(
+    private static func move(
         _ direction: BalanceMoveProposal.Direction,
-        mint: Address?,
+        asset: Asset,
         transactions: TransactionStore = .unused
-    ) async throws -> BalanceMove? {
+    ) async throws -> BalanceMove {
         let balances = PrivateBalances.inMemory(
             keys: StoredValue(),
             notes: StoredValue(),
             recovery: try PrivateBalanceFixtures.recoveryStore(),
             responses: HTTPResponses([:])
         )
-        let token = PaymentToken(
-            mint: mint,
-            symbol: "SOL",
-            balance: Decimal(string: "1.5") ?? 0,
-            price: nil,
-            decimals: 9
-        )
+        let balance =
+            switch asset {
+            case .nativeSOL: TokenAmount(lamports: 1_500_000_000)
+            case .token(let mint): TokenAmount(amount: 1_500_000, decimals: mint.decimals)
+            }
+        let token = PaymentToken(asset: asset, balance: balance, price: nil)
         return BalanceMove(
             direction: direction,
             token: token,
+            privateAsset: try #require(PrivateAsset(asset.id)),
             account: try await PrivateBalanceFixtures.account(),
             network: .devnet,
             balances: balances,

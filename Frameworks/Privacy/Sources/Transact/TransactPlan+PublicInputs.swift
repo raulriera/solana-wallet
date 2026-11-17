@@ -13,7 +13,7 @@ extension TransactPlan {
             outputTreeID: outputTreeID,
             privateTransactionHash: privateTransactionHash,
             externalDataHash: Poseidon.Element(reducing: externalData.hash),
-            publicAssets: [withdrawal.map { PackedBytes.hash32($0.asset.mint) } ?? .zero] + unusedSlots,
+            publicAssets: [withdrawal?.asset.commitment ?? .zero] + unusedSlots,
             publicAmounts: [withdrawal.map { -Poseidon.Element($0.amount) } ?? .zero] + unusedSlots,
             ringProgramID: .zero,
             signerIdentities: signers,

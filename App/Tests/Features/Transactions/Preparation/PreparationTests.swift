@@ -5,6 +5,9 @@ import Transactions
 @testable import widgets
 
 struct PreparationTests {
+    private static let latestBlockhash =
+        #"{"context":{"slot":400},"value":{"blockhash":"11111111111111111111111111111111","lastValidBlockHeight":550}}"#
+
     @Test(arguments: [
         #""loadedAccountsDataSize":256"#, #""unitsConsumed":150"#,
         #""unitsConsumed":1400001,"loadedAccountsDataSize":256"#,
@@ -12,7 +15,7 @@ struct PreparationTests {
     func `Resource estimates without valid compute and account usage cannot produce a review`(_ usage: String) async throws {
         let fixture = try SigningFixture()
         let http = HTTPResponses([
-            "getLatestBlockhash": [#"{"context":{"slot":400},"value":{"blockhash":"11111111111111111111111111111111","lastValidBlockHeight":550}}"#],
+            "getLatestBlockhash": [Self.latestBlockhash],
             "simulateTransaction": [#"{"context":{"slot":401},"value":{"err":null,\#(usage)}}"#],
         ])
         let store = SigningRecoveryStore(recovery: fixture.recovery)
@@ -26,6 +29,28 @@ struct PreparationTests {
     }
 
     @Test(arguments: [
+        (measured: 256, limit: UInt32(32_768)),
+        (measured: 30_000, limit: 65_536),
+        (measured: 65_000_000, limit: 67_108_864),
+    ])
+    func `Estimated account data limits add a tenth, round up to a 32 KiB page, and stop at 64 MiB`(
+        measured: Int, limit: UInt32
+    ) async throws {
+        let fixture = try SigningFixture()
+        let payer = fixture.transfer.accounts[0].address
+        let usage = #""unitsConsumed":150,"loadedAccountsDataSize":\#(measured)"#
+        let http = HTTPResponses([
+            "getLatestBlockhash": [Self.latestBlockhash],
+            "simulateTransaction": [#"{"context":{"slot":401},"value":{"err":null,\#(usage)}}"#],
+            "getFeeForMessage": [#"{"context":{"slot":401},"value":5000}"#],
+        ])
+
+        let preparation = try await Preparer(rpc: http.client).prepare([fixture.transfer], payer: payer, signer: payer)
+
+        #expect(preparation.transaction.requests.loadedAccountsDataSizeLimit == limit)
+    }
+
+    @Test(arguments: [
         (#"{"context":{"slot":399},"value":{"err":null}}"#, RPCError.InvalidResponse.staleContext),
         (#"{"context":{"slot":401},"value":{"err":null,"replacementBlockhash":{"blockhash":"11111111111111111111111111111111","lastValidBlockHeight":600}}}"#,
          .replacedBlockhash),
@@ -35,7 +60,7 @@ struct PreparationTests {
     ) async throws {
         let fixture = try SigningFixture()
         let http = HTTPResponses([
-            "getLatestBlockhash": [#"{"context":{"slot":400},"value":{"blockhash":"11111111111111111111111111111111","lastValidBlockHeight":550}}"#],
+            "getLatestBlockhash": [Self.latestBlockhash],
             "simulateTransaction": [response],
         ])
         await #expect(throws: RPCError.invalidResponse(reason)) {

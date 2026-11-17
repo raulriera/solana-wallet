@@ -88,11 +88,11 @@ struct ShieldedPoolSpentNullifiersTests {
     @Test(arguments: try InstructionVectors.load().transacts)
     func `Transacts that the app writes spend their inputs' nullifiers`(_ vector: InstructionVectors.Transact) throws {
         let utxos = try vector.inputs.map {
-            try PlanFixtures.utxo(lamports: $0.lamports, treeID: $0.treeID, blindingByte: $0.blindingByte)
+            try PlanFixtures.utxo(amount: $0.lamports, treeID: $0.treeID, blindingByte: $0.blindingByte, asset: .nativeSOL)
         }
         let plan = try PlanFixtures.plan(
-            spending: utxos, transferLamports: vector.transferLamports,
-            withdrawal: try vector.withdrawalLamports.map { try PlanFixtures.withdrawal(lamports: $0) },
+            spending: utxos, of: .nativeSOL, transfer: vector.transferLamports,
+            withdrawal: try vector.withdrawalLamports.map { try PlanFixtures.withdrawal($0, of: .nativeSOL) },
             outputTreeID: vector.outputTreeID, paddingInputs: vector.paddingInputs, paddingOutputs: vector.paddingOutputs
         )
         let proof = try TransactProof(a: Array(repeating: 1, count: 32), b: Array(repeating: 2, count: 128), c: Array(repeating: 3, count: 32))

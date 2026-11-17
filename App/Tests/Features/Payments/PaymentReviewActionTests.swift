@@ -6,8 +6,6 @@ import Transactions
 
 @MainActor
 struct PaymentReviewActionTests {
-    private static let sol = PaymentToken(mint: nil, symbol: "SOL", balance: 2, price: nil, decimals: 9)
-
     @MainActor
     private final class Presented {
         var review: TransactionReviewModel<PaymentProposal>?
@@ -17,7 +15,7 @@ struct PaymentReviewActionTests {
 
     @Test func `Reviewing opens the review and starts simulating it`() throws {
         let presented = Presented()
-        let payment = PaymentModel(tokens: [Self.sol], currencyCode: "USD")
+        let payment = PaymentModel(tokens: [PaymentFixtures.sol], currencyCode: "USD")
         payment.press(.digit(1))
 
         try Self.action(payment: payment, presented: presented)()
@@ -25,14 +23,14 @@ struct PaymentReviewActionTests {
         let review = try #require(presented.review)
         #expect(presented.presented === review)
         #expect(review.attempt?.work == .review)
-        #expect(review.proposal.amount.quantity == 1)
+        #expect(Decimal(review.proposal.sent) == 1)
         #expect(presented.error == nil)
     }
 
     @Test(arguments: [false, true])
     func `The review checks the recipient against the person's history`(paid: Bool) throws {
         let presented = Presented()
-        let payment = PaymentModel(tokens: [Self.sol], currencyCode: "USD")
+        let payment = PaymentModel(tokens: [PaymentFixtures.sol], currencyCode: "USD")
         payment.press(.digit(1))
         let recipient = try SigningFixture().transfer.accounts[1].address
         let context = RecipientContext(knownAddresses: paid ? [recipient] : [], paidAddresses: paid ? [recipient] : [])
@@ -44,7 +42,7 @@ struct PaymentReviewActionTests {
 
     @Test func `Sending again replaces only a closed review`() throws {
         let presented = Presented()
-        let payment = PaymentModel(tokens: [Self.sol], currencyCode: "USD")
+        let payment = PaymentModel(tokens: [PaymentFixtures.sol], currencyCode: "USD")
         payment.press(.digit(1))
         let action = try Self.action(payment: payment, presented: presented)
         action()
@@ -63,7 +61,7 @@ struct PaymentReviewActionTests {
     @Test func `An empty amount opens nothing`() throws {
         let presented = Presented()
 
-        try Self.action(payment: PaymentModel(tokens: [Self.sol], currencyCode: "USD"), presented: presented)()
+        try Self.action(payment: PaymentModel(tokens: [PaymentFixtures.sol], currencyCode: "USD"), presented: presented)()
 
         #expect(presented.review == nil)
         #expect(presented.presented == nil)
@@ -71,7 +69,7 @@ struct PaymentReviewActionTests {
 
     @Test func `Unavailable transactions explain the failure`() throws {
         let presented = Presented()
-        let payment = PaymentModel(tokens: [Self.sol], currencyCode: "USD")
+        let payment = PaymentModel(tokens: [PaymentFixtures.sol], currencyCode: "USD")
         payment.press(.digit(1))
 
         try Self.action(payment: payment, presented: presented,

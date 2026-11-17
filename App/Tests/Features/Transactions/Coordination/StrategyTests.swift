@@ -28,7 +28,7 @@ struct StrategyTests {
     ])
     func `Sender preparation rejects a priority fee below its requirement`(strategy: TransactionCoordinator.Strategy,
                                           requestedFee: UInt64, minimumFee: UInt64) async throws {
-        let rpc = SolanaRPC()
+        let rpc = SolanaRPC(network: .mainnet)
         let transfer = try SystemProgram.transfer(from: Address("4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T"), to: Address("9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM"), lamports: 1)
         let configuration = try Configuration(priorityFeeLamports: requestedFee,
                                                computeUnitLimit: 20_000, loadedAccountsDataSizeLimit: 65_536)

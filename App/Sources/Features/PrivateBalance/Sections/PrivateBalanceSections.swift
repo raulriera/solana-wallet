@@ -1,5 +1,6 @@
-import Portfolio
+import Privacy
 import SwiftUI
+import Transactions
 
 /// Shows an asset's private balance: a Turn On button while it's off, or the available and pending amounts with their
 /// actions.
@@ -9,8 +10,11 @@ struct PrivateBalanceSections: View {
     let turnOn: PrivateBalanceTurnOnAction
     /// The account's private balance, or `nil` before the first read.
     let status: PrivateBalanceStatus?
-    let asset: PrivateAsset
-    let symbol: String
+    let asset: Asset
+    /// The pool's asset of ``asset``.
+    let privateAsset: PrivateAsset
+    /// The account's public balance of the asset, whose decimals the private amounts share.
+    let publicBalance: TokenAmount
     /// Whether the last read failed.
     let isStale: Bool
     /// The action that reads the balance again, or `nil` where nothing can.
@@ -42,13 +46,15 @@ struct PrivateBalanceSections: View {
                 .foregroundStyle(palette.secondaryText)
             }
         case .balance?, .unregistered?:
-            let balance = status?.balance(of: asset) ?? .zero
-            PrivateBalanceAmountSection(available: Amount(units: balance.available, decimals: asset.decimals),
-                                        pending: Amount(units: balance.pending, decimals: asset.decimals),
-                                        symbol: symbol, isStale: isStale, refresh: refresh)
+            let balance = status?.balance(of: privateAsset) ?? .zero
+            PrivateBalanceAmountSection(
+                available: TokenAmount(amount: balance.available, decimals: publicBalance.decimals),
+                pending: TokenAmount(amount: balance.pending, decimals: publicBalance.decimals),
+                asset: asset, isStale: isStale, refresh: refresh
+            )
         case nil where isStale:
             PrivateBalanceAmountSection(available: nil, pending: nil,
-                                        symbol: symbol, isStale: isStale, refresh: refresh)
+                                        asset: asset, isStale: isStale, refresh: refresh)
         case .unavailable?, nil:
             EmptyView()
         }

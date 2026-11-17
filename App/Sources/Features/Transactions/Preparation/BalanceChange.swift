@@ -3,17 +3,10 @@ import Transactions
 
 /// A balance change that a simulation shows for one owner and asset.
 nonisolated struct BalanceChange: Sendable, Equatable {
-    /// An asset whose balance changed.
-    enum Asset: Sendable, Hashable {
-        /// SOL in the owner's own account, in lamports.
-        case sol
-        /// One mint's raw units across the owner's token accounts.
-        case token(mint: Address, decimals: UInt8)
-    }
-
     /// The account that holds the SOL, or the owner of the token accounts.
     let owner: Address
-    let asset: Asset
+    /// SOL in the owner's own account, or one mint's tokens across the owner's token accounts.
+    let asset: Asset.ID
     /// The balance before execution, in lamports or raw token units.
     let before: UInt64
     /// The balance after execution, in lamports or raw token units.
@@ -32,7 +25,7 @@ nonisolated struct BalanceChange: Sendable, Equatable {
             return nil
         }
         var changes = zip(transaction.accounts, zip(lamportsBefore, lamportsAfter)).compactMap { account, lamports in
-            lamports.0 == lamports.1 ? nil : BalanceChange(owner: account.address, asset: .sol, before: lamports.0, after: lamports.1)
+            lamports.0 == lamports.1 ? nil : BalanceChange(owner: account.address, asset: .nativeSOL, before: lamports.0, after: lamports.1)
         }
         var holdings: [Holding] = []
         var totals: [Holding: Totals] = [:]
@@ -40,7 +33,7 @@ nonisolated struct BalanceChange: Sendable, Equatable {
             for balance in balances {
                 guard transaction.accounts.indices.contains(balance.accountIndex), let recordedOwner = balance.owner,
                       let owner = try? Address(recordedOwner), let mint = try? Address(balance.mint) else { return nil }
-                let holding = Holding(owner: owner, asset: .token(mint: mint, decimals: balance.decimals))
+                let holding = Holding(owner: owner, asset: .token(mint: mint))
                 var total = totals[holding] ?? Totals()
                 let (sum, overflow) = total[keyPath: phase].addingReportingOverflow(balance.amount)
                 guard !overflow else { return nil }
@@ -58,7 +51,7 @@ nonisolated struct BalanceChange: Sendable, Equatable {
     /// One owner's balance in one asset.
     private struct Holding: Hashable {
         let owner: Address
-        let asset: Asset
+        let asset: Asset.ID
     }
 
     /// Raw units summed across one holding's token accounts.

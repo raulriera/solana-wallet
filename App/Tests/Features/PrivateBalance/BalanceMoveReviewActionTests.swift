@@ -7,15 +7,6 @@ import Transactions
 
 @MainActor
 struct BalanceMoveReviewActionTests {
-    private static let sol = Holding(
-        id: .nativeSOL,
-        amount: Amount(units: 2_000_000_000, decimals: 9),
-        name: "Solana",
-        symbol: "SOL",
-        imageURL: nil,
-        valuation: nil
-    )
-
     @MainActor
     private final class Presented {
         var presented: TransactionReviewModel<BalanceMoveProposal>?
@@ -32,7 +23,7 @@ struct BalanceMoveReviewActionTests {
         let review = try #require(presented.presented)
         #expect(review.attempt?.work == .review)
         #expect(review.proposal.direction == .toPrivate)
-        #expect(review.proposal.amount.quantity == 1)
+        #expect(Decimal(review.proposal.sent) == 1)
         #expect(presented.error == nil)
     }
 
@@ -82,7 +73,7 @@ struct BalanceMoveReviewActionTests {
         )
         let model = PrivateBalanceModel()
         await store.refresh(account, on: .devnet)
-        model.open(.toPrivate, of: Self.sol, in: store, for: account, on: .devnet)
+        model.open(.toPrivate, of: PrivateBalanceFixtures.solHolding, in: store, for: account, on: .devnet)
         return try #require(model.move)
     }
 

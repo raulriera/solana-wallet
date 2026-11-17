@@ -1,5 +1,5 @@
-import Portfolio
 import SwiftUI
+import Transactions
 
 /// An action that removes a confirmed token from an account's list.
 struct TokenRemovalAction {
@@ -7,8 +7,8 @@ struct TokenRemovalAction {
 
     /// Removes a token the person confirmed.
     ///
-    /// - Parameter token: The token to remove.
-    func callAsFunction(_ token: Holding.Identity) {
-        removal.remove(token)
+    /// - Parameter mint: The mint address of the token to remove.
+    func callAsFunction(_ mint: Address) {
+        removal.remove(mint)
     }
 }

@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import RPC
 
-struct AssetTests {
+struct DigitalAssetTests {
     @Test
     func `An asset lookup keeps its identity and CDN image`() async throws {
         let transport = StubTransport { try reply(to: $0, payload: #""result":\#(providerAsset)"#) }
@@ -18,7 +18,7 @@ struct AssetTests {
 
     @Test
     func `Malformed files keep the valid image`() throws {
-        let asset = try JSONDecoder().decode(Asset.self, from: Data(#"""
+        let asset = try JSONDecoder().decode(DigitalAsset.self, from: Data(#"""
         {"id":"mint","interface":"FungibleToken",
          "content":{"files":[false,{"cdn_uri":false},{"cdn_uri":"https://example.com/sol.png","mime":"image/png"}]}}
         """#.utf8))
@@ -28,7 +28,7 @@ struct AssetTests {
 
     @Test
     func `The image is the provider's HTTPS CDN copy`() throws {
-        let asset = try JSONDecoder().decode(Asset.self, from: Data(#"""
+        let asset = try JSONDecoder().decode(DigitalAsset.self, from: Data(#"""
         {"id":"mint","interface":"FungibleToken",
          "content":{"links":{"image":"https://creator.example/logo.png"},
              "files":[{"uri":"https://creator.example/logo.png","cdn_uri":"https://cdn.example.com/logo.png","mime":"image/png"}]}}
@@ -41,7 +41,7 @@ struct AssetTests {
         #"[{"uri":"https://creator.example/logo.png","cdn_uri":"http://cdn.example.com/logo.png","mime":"image/png"}]"#,
     ])
     func `Creator links and plain HTTP copies are never the image`(files: String) throws {
-        let asset = try JSONDecoder().decode(Asset.self, from: Data(#"""
+        let asset = try JSONDecoder().decode(DigitalAsset.self, from: Data(#"""
         {"id":"mint","interface":"FungibleToken",
          "content":{"links":{"image":"https://creator.example/logo.png"},"files":\#(files)}}
         """#.utf8))

@@ -121,7 +121,7 @@ extension TransactPlan {
         return try IndexedTransferProofRequest.UTXO(
             domain: Poseidon.Element(utxo == nil ? UTXO.dummyHashDomain : UTXO.hashDomain).bigEndianBytes,
             owner: (utxo?.owner ?? .zero).bigEndianBytes,
-            asset: (utxo.map { PackedBytes.hash32($0.mint) } ?? .zero).bigEndianBytes,
+            asset: (utxo?.asset.commitment ?? .zero).bigEndianBytes,
             amount: Poseidon.Element(utxo?.amount ?? 0).bigEndianBytes,
             blinding: blinding.bigEndianBytes,
             dataHash: zero, ringDataHash: zero, ringProgramID: zero

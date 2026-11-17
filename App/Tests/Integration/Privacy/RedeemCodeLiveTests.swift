@@ -39,7 +39,7 @@ struct RedeemCodeLiveTests {
         var log: [String] = []
 
         if try await balances.settledBalance(of: sender, on: .devnet) < Self.minimumPrivateLamports {
-            let deposit = try await balances.prepare(.deposit(Self.depositLamports), from: sender, on: .devnet)
+            let deposit = try await balances.prepare(.deposit(Self.depositLamports, of: .nativeSOL), from: sender, on: .devnet)
             let rent = deposit.registers ? PrivateBalances.registrationLamports : 0
             try await wallets.requireFunds(Self.depositLamports + rent + Self.feeLamports, using: rpc)
             let (confirmation, _) = try await Self.run(deposit, through: coordinator)
@@ -54,7 +54,7 @@ struct RedeemCodeLiveTests {
         let redemption = try await Self.preparedWhenIndexed(.redeem(redeemed.code), into: recipient, in: balances)
         let (redeemedConfirmation, charged) = try await Self.run(redemption, through: coordinator)
         let swept = try #require(charged.effect.redemption)
-        #expect(try await balances.complete(charged, with: redeemedConfirmation).balance(of: .sol)
+        #expect(try await balances.complete(charged, with: redeemedConfirmation).balance(of: .nativeSOL)
             == PrivateBalanceStatus.Balance(available: recipientLamports, pending: swept.lamports))
         let redeemedFinal = try await Self.lamports(of: redeemed.code, after: redeemedConfirmation, using: rpc)
         log.append("redeem \(redeemedConfirmation.submission.signature) one-time final lamports \(redeemedFinal)")

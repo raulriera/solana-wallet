@@ -8,7 +8,7 @@ import Transactions
 struct TransactPlanTests {
     @Test
     func `Transfers with change lay out the recipient and then the change`() throws {
-        let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(lamports: 10)], transferLamports: 4)
+        let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(amount: 10, asset: .nativeSOL)], of: .nativeSOL, transfer: 4)
         let recipient = try TransferVectors.recipient()
 
         #expect(plan.shape == Shape(inputs: 1, outputs: 2))
@@ -19,7 +19,7 @@ struct TransactPlanTests {
 
     @Test
     func `Recipients receive the transfer`() throws {
-        let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(lamports: 10)], transferLamports: 4)
+        let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(amount: 10, asset: .nativeSOL)], of: .nativeSOL, transfer: 4)
         let transactionViewingKey = try TransactionViewingKey.derive(
             viewingKey: TransferVectors.sender().viewingKey, firstNullifier: #require(plan.nullifiers.first)
         )
@@ -36,7 +36,7 @@ struct TransactPlanTests {
 
     @Test
     func `Senders receive the change`() throws {
-        let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(lamports: 10)], transferLamports: 4)
+        let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(amount: 10, asset: .nativeSOL)], of: .nativeSOL, transfer: 4)
         let sender = try TransferVectors.sender()
         let transactionViewingKey = try TransactionViewingKey.derive(viewingKey: sender.viewingKey, firstNullifier: #require(plan.nullifiers.first))
 
@@ -52,7 +52,7 @@ struct TransactPlanTests {
 
     @Test
     func `Transfers without change pad with the recipient's view tag`() throws {
-        let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(lamports: 10)], transferLamports: 10, outputTreeID: 5, paddingOutputs: 1)
+        let plan = try PlanFixtures.plan(spending: [PlanFixtures.utxo(amount: 10, asset: .nativeSOL)], of: .nativeSOL, transfer: 10, outputTreeID: 5, paddingOutputs: 1)
         let recipient = try TransferVectors.recipient()
         let padding = try #require(plan.outputs.last)
 
@@ -64,21 +64,21 @@ struct TransactPlanTests {
     @Test
     func `Withdrawals of every lamport give the sender a zero-amount output`() throws {
         let plan = try PlanFixtures.plan(
-            spending: [PlanFixtures.utxo(lamports: 10)], transferLamports: nil, withdrawal: PlanFixtures.withdrawal(lamports: 10), paddingOutputs: 1
+            spending: [PlanFixtures.utxo(amount: 10, asset: .nativeSOL)], of: .nativeSOL, transfer: nil, withdrawal: PlanFixtures.withdrawal(10, of: .nativeSOL), paddingOutputs: 1
         )
 
         #expect(plan.shape == Shape(inputs: 1, outputs: 2))
         #expect(plan.outputs.map { $0.utxo?.amount } == [0, nil])
         #expect(plan.outputs.map(\.published.ownerTag) == [.payer, .payer])
-        #expect(plan.withdrawal == (try PlanFixtures.withdrawal(lamports: 10)))
+        #expect(plan.withdrawal == (try PlanFixtures.withdrawal(10, of: .nativeSOL)))
     }
 
     @Test
     func `Padding inputs join the last declared tree`() throws {
         let utxos = try [3, 1, 3, 1, 3, 1, 1].enumerated().map { index, tree in
-            try PlanFixtures.utxo(lamports: 1, treeID: UInt16(tree), blindingByte: 0xb0 + UInt8(index))
+            try PlanFixtures.utxo(amount: 1, treeID: UInt16(tree), blindingByte: 0xb0 + UInt8(index), asset: .nativeSOL)
         }
-        let plan = try PlanFixtures.plan(spending: utxos, transferLamports: 7, outputTreeID: 2, paddingInputs: 1, paddingOutputs: 1)
+        let plan = try PlanFixtures.plan(spending: utxos, of: .nativeSOL, transfer: 7, outputTreeID: 2, paddingInputs: 1, paddingOutputs: 1)
         let padding = try #require(plan.inputs.last)
 
         #expect(plan.shape == Shape(inputs: 8, outputs: 2))
@@ -90,8 +90,9 @@ struct TransactPlanTests {
 
     @Test
     func `Plans keep the witness values`() throws {
-        let utxos = try (0..<7).map { try PlanFixtures.utxo(lamports: 1, blindingByte: 0xb0 + UInt8($0)) }
-        let plan = try PlanFixtures.plan(spending: utxos, transferLamports: 7, paddingInputs: 1, paddingOutputs: 1)
+        let utxos = try (0..<7).map { try PlanFixtures.utxo(amount: 1, blindingByte: 0xb0 + UInt8($0), asset: .nativeSOL) }
+        let plan = try PlanFixtures.plan(spending: utxos, of: .nativeSOL, transfer: 7, paddingInputs: 1,
+                                         paddingOutputs: 1)
 
         #expect(plan.blindingSeed == TransferVectors.blindingSeed)
         #expect(plan.inputs.map(\.blinding) == (0..<7).map { TransferVectors.blinding(0xb0 + UInt8($0)) } + [TransferVectors.blinding(0xd0)])
@@ -100,24 +101,24 @@ struct TransactPlanTests {
 
     @Test
     func `Spent inputs publish the sender's nullifiers in order`() throws {
-        let utxos = try [PlanFixtures.utxo(lamports: 6, treeID: 3, blindingByte: 0xb1), PlanFixtures.utxo(lamports: 5, treeID: 1, blindingByte: 0xb2)]
-        let plan = try PlanFixtures.plan(spending: utxos, transferLamports: 4, outputTreeID: 2)
+        let utxos = try [PlanFixtures.utxo(amount: 6, treeID: 3, blindingByte: 0xb1, asset: .nativeSOL), PlanFixtures.utxo(amount: 5, treeID: 1, blindingByte: 0xb2, asset: .nativeSOL)]
+        let plan = try PlanFixtures.plan(spending: utxos, of: .nativeSOL, transfer: 4, outputTreeID: 2)
 
         #expect(plan.nullifiers == (try TransferVectors.spentInputs[1...2].map { try Poseidon.Element(hex: $0.nullifier) }))
     }
 
     @Test
     func `Random values give the same plan as explicit ones`() throws {
-        let utxos = [try PlanFixtures.utxo(lamports: 10)]
-        let transfer = TransactPlan.Transfer(recipient: try TransferVectors.recipient(), lamports: 10)
+        let utxos = [try PlanFixtures.utxo(amount: 10, asset: .nativeSOL)]
+        let transfer = TransactPlan.Transfer(recipient: try TransferVectors.recipient(), amount: 10)
         var generator = SeededGenerator(seed: 7)
         let random = try TransactPlan(
-            spending: utxos, sender: TransferVectors.sender(), transfer: transfer, withdrawal: nil, outputTreeID: 0, using: &generator
+            spending: utxos, of: .nativeSOL, sender: TransferVectors.sender(), transfer: transfer, withdrawal: nil, outputTreeID: 0, using: &generator
         )
         var replay = SeededGenerator(seed: 7)
         let randomness = TransactPlan.Randomness.random(paddingInputs: 0, paddingOutputs: 1, using: &replay)
         let explicit = try TransactPlan(
-            spending: utxos, sender: TransferVectors.sender(), transfer: transfer, withdrawal: nil, outputTreeID: 0, randomness: randomness
+            spending: utxos, of: .nativeSOL, sender: TransferVectors.sender(), transfer: transfer, withdrawal: nil, outputTreeID: 0, randomness: randomness
         )
 
         #expect(random.outputs.map(\.published.data) == explicit.outputs.map(\.published.data))
@@ -145,7 +146,6 @@ struct TransactPlanTests {
         ([(10, 0)], 11, nil, .insufficientFunds),
         ([(10, 0)], 6, 5, .insufficientFunds),
         ([(.max, 0), (1, 0)], 1, nil, .amountOverflow),
-        ([(10, 0)], .max, 1, .amountOverflow),
     ] as [([(UInt64, UInt16)], UInt64?, UInt64?, TransactPlan.ValidationError)])
     func `Invalid plans are rejected`(
         inputs: [(UInt64, UInt16)],
@@ -153,26 +153,26 @@ struct TransactPlanTests {
         withdrawalLamports: UInt64?,
         error: TransactPlan.ValidationError
     ) throws {
-        let utxos = try inputs.map { try PlanFixtures.utxo(lamports: $0.0, treeID: $0.1) }
-        let withdrawal = try withdrawalLamports.map { try PlanFixtures.withdrawal(lamports: $0) }
+        let utxos = try inputs.map { try PlanFixtures.utxo(amount: $0.0, treeID: $0.1, asset: .nativeSOL) }
+        let withdrawal = try withdrawalLamports.map { try PlanFixtures.withdrawal($0, of: .nativeSOL) }
 
         #expect(throws: error) {
-            try PlanFixtures.plan(spending: utxos, transferLamports: transferLamports, withdrawal: withdrawal)
+            try PlanFixtures.plan(spending: utxos, of: .nativeSOL, transfer: transferLamports, withdrawal: withdrawal)
         }
     }
 
-    @Test(arguments: [(0, nil), (nil, 0)] as [(UInt64?, UInt64?)])
-    func `Zero amounts are rejected`(transferLamports: UInt64?, withdrawalLamports: UInt64?) throws {
-        let withdrawal = try withdrawalLamports.map { try PlanFixtures.withdrawal(lamports: $0) }
+    @Test(arguments: [(0, nil), (nil, 0), (.max, 1)] as [(UInt64?, UInt64?)])
+    func `Zero and overflowing amounts are rejected`(transferLamports: UInt64?, withdrawalLamports: UInt64?) throws {
+        let withdrawal = try withdrawalLamports.map { try PlanFixtures.withdrawal($0, of: .nativeSOL) }
 
         #expect(throws: ValidationError.invalidAmount) {
-            try PlanFixtures.plan(spending: [PlanFixtures.utxo(lamports: 10)], transferLamports: transferLamports, withdrawal: withdrawal)
+            try PlanFixtures.plan(spending: [PlanFixtures.utxo(amount: 10, asset: .nativeSOL)], of: .nativeSOL, transfer: transferLamports, withdrawal: withdrawal)
         }
     }
 
     @Test
     func `Forty inputs fit the widest shape`() throws {
-        let plan = try PlanFixtures.plan(spending: Array(repeating: PlanFixtures.utxo(lamports: 1), count: 40), transferLamports: 1)
+        let plan = try PlanFixtures.plan(spending: Array(repeating: PlanFixtures.utxo(amount: 1, asset: .nativeSOL), count: 40), of: .nativeSOL, transfer: 1)
 
         #expect(plan.shape == Shape(inputs: 40, outputs: 2))
     }
@@ -180,24 +180,33 @@ struct TransactPlanTests {
     @Test
     func `Inputs of other owners are rejected`() throws {
         let foreign = UTXO(
-            owner: try TransferVectors.recipient().owner, mint: Array(repeating: 0, count: 32), amount: 10,
+            owner: try TransferVectors.recipient().owner, asset: .nativeSOL, amount: 10,
             blinding: TransferVectors.blinding(0xa1), treeID: 0
         )
 
         #expect(throws: TransactPlan.ValidationError.foreignInput) {
-            try PlanFixtures.plan(spending: [foreign], transferLamports: 4)
+            try PlanFixtures.plan(spending: [foreign], of: .nativeSOL, transfer: 4)
         }
     }
 
     @Test
     func `Inputs of other assets are rejected`() throws {
         let token = UTXO(
-            owner: try CommitmentVectors.load().ed25519Rail.ownerHash(), mint: Array(repeating: 1, count: 32), amount: 10,
+            owner: try CommitmentVectors.load().ed25519Rail.ownerHash(), asset: .token(.usdc), amount: 10,
             blinding: TransferVectors.blinding(0xa1), treeID: 0
         )
 
         #expect(throws: TransactPlan.ValidationError.unsupportedAsset) {
-            try PlanFixtures.plan(spending: [token], transferLamports: 4)
+            try PlanFixtures.plan(spending: [token], of: .nativeSOL, transfer: 4)
+        }
+    }
+
+    @Test
+    func `Withdrawals of another asset are rejected`() throws {
+        let withdrawal = try PlanFixtures.withdrawal(4, of: .token(.usdc))
+
+        #expect(throws: TransactPlan.ValidationError.unsupportedAsset) {
+            try PlanFixtures.plan(spending: [PlanFixtures.utxo(amount: 10, asset: .nativeSOL)], of: .nativeSOL, transfer: nil, withdrawal: withdrawal)
         }
     }
 
@@ -211,7 +220,7 @@ struct TransactPlanTests {
 
         #expect(throws: Recipient.ValidationError.offCurveSigningAddress) {
             try TransactPlan(
-                spending: [PlanFixtures.utxo(lamports: 10)], sender: sender, transfer: nil, withdrawal: nil, outputTreeID: 0,
+                spending: [PlanFixtures.utxo(amount: 10, asset: .nativeSOL)], of: .nativeSOL, sender: sender, transfer: nil, withdrawal: nil, outputTreeID: 0,
                 randomness: PlanFixtures.randomness(paddingInputs: 0, paddingOutputs: 1)
             )
         }
@@ -224,14 +233,14 @@ struct TransactPlanOwnerTagTests {
         let vectors = try DummyOwnerTagVectors.load()
         let sender = try Self.account(seed: vectors.senderSeed)
         let recipient = try Self.account(seed: vectors.recipientSeed).recipient
-        let utxo = UTXO(owner: try sender.recipient.owner, mint: Array(repeating: 0, count: 32), amount: vectors.inputAmount,
+        let utxo = UTXO(owner: try sender.recipient.owner, asset: .nativeSOL, amount: vectors.inputAmount,
                         blinding: TransferVectors.blinding(0xa1), treeID: 0)
         let resolved = try fixtureBytes(vector.resolved)
         let expected: TransactOutput.OwnerTag = vector.ownerTagKind == "account" ? .payer : .inline(resolved)
         var generator = SeededGenerator(seed: 432)
 
         let plan = try TransactPlan(
-            spending: [utxo], sender: sender, transfer: TransactPlan.Transfer(recipient: recipient, lamports: vector.sendAmount),
+            spending: [utxo], of: .nativeSOL, sender: sender, transfer: TransactPlan.Transfer(recipient: recipient, amount: vector.sendAmount),
             withdrawal: nil, outputTreeID: 0, using: &generator
         )
 
@@ -242,7 +251,7 @@ struct TransactPlanOwnerTagTests {
     @Test
     func `Padding with the sender's view tag refers to the payer`() throws {
         let plan = try PlanFixtures.plan(
-            spending: [PlanFixtures.utxo(lamports: 10)], transferLamports: nil, withdrawal: PlanFixtures.withdrawal(lamports: 4), paddingOutputs: 1
+            spending: [PlanFixtures.utxo(amount: 10, asset: .nativeSOL)], of: .nativeSOL, transfer: nil, withdrawal: PlanFixtures.withdrawal(4, of: .nativeSOL), paddingOutputs: 1
         )
 
         #expect(plan.outputs.map { $0.utxo?.amount } == [6, nil])

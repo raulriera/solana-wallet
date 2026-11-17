@@ -1,4 +1,5 @@
 import Portfolio
+import Privacy
 import RPC
 import SwiftUI
 import Transactions
@@ -15,19 +16,21 @@ struct TokenDetailScreen: View {
     let privateBalance: PrivateBalanceModel
 
     var body: some View {
-        let privateAsset = holding.otherOwner == nil ? PrivateAsset(holding.id) : nil
+        let publicBalance = holding.otherOwner == nil ? holding.balance : nil
+        let privateAsset = publicBalance == nil ? nil : PrivateAsset(holding.id)
         let walletPrivateBalance = privateAsset != nil ? privateBalances.balance(for: account, on: network) : nil
         let privateStatus = walletPrivateBalance?.status
         let isPrivateBalanceStale = walletPrivateBalance?.isStale ?? false
         Form {
             Section {
-                TokenTitleCard(symbol: holding.displaySymbol, name: holding.displayName, logoURL: holding.logoURL)
+                TokenTitleCard(symbol: holding.asset.displaySymbol, name: holding.asset.displayName,
+                               logoURL: holding.logoURL)
             }
 
             Section {
-                if let amount = holding.amount {
+                if let balance = holding.balance {
                     LabeledContent("Balance") {
-                        TokenBalance(amount: amount, symbol: holding.displaySymbol)
+                        TokenBalance(balance: balance, asset: holding.asset)
                             .textSelection(.enabled)
                     }
                 }
@@ -81,13 +84,14 @@ struct TokenDetailScreen: View {
                 .foregroundStyle(palette.secondaryText)
             }
 
-            if let privateAsset {
+            if let privateAsset, let publicBalance {
                 PrivateBalanceSections(
                     isTurningOn: privateBalance.isTurningOn,
                     turnOn: PrivateBalanceTurnOnAction(model: privateBalance),
                     status: privateStatus,
-                    asset: privateAsset,
-                    symbol: holding.displaySymbol,
+                    asset: holding.asset,
+                    privateAsset: privateAsset,
+                    publicBalance: publicBalance,
                     isStale: isPrivateBalanceStale,
                     refresh: refresh
                 )
@@ -109,12 +113,12 @@ struct TokenDetailScreen: View {
             if privateAsset != nil { await privateBalances.refresh(account, on: network) }
         }
         .monospacedDigit()
-        .navigationTitle(holding.displayName)
+        .navigationTitle(holding.asset.displayName)
         .toolbarTitleDisplayMode(.inline)
         .toolbar {
-            if holding.id != .nativeSOL {
+            if case .token(let mint) = holding.id {
                 ToolbarItem(placement: .primaryAction) {
-                    TokenActionsMenu(token: holding.id, symbol: holding.displaySymbol)
+                    TokenActionsMenu(mint: mint, symbol: holding.asset.displaySymbol)
                 }
             }
         }
@@ -125,8 +129,9 @@ struct TokenDetailScreen: View {
     let store = PrivateBalanceStore.preview
     if let address = try? Address("6d8tEyrqPqVbEr6Jpuc7BEyYekeMUTyzHEwdmcAYEmtK") {
         NavigationStack {
-            TokenDetailScreen(holding: Holding(id: .nativeSOL, amount: Amount(units: 12_500_000_000, decimals: 9),
-                                               name: "Solana", symbol: "SOL", imageURL: nil,
+            TokenDetailScreen(holding: Holding(asset: .nativeSOL,
+                                               balance: TokenAmount(lamports: 12_500_000_000),
+                                               imageURL: nil,
                                                valuation: Valuation(pricePerUnit: 166, total: 2_075, currency: "USD",
                                                                     dayChange: Decimal(string: "0.0129"))),
                               account: Account(id: UUID(), recoveryID: UUID(), address: address, path: .solana),
@@ -138,11 +143,14 @@ struct TokenDetailScreen: View {
 
 #Preview("Other owner") {
     let store = PrivateBalanceStore.preview
-    if let address = try? Address("6d8tEyrqPqVbEr6Jpuc7BEyYekeMUTyzHEwdmcAYEmtK") {
+    if let address = try? Address("6d8tEyrqPqVbEr6Jpuc7BEyYekeMUTyzHEwdmcAYEmtK"),
+       let usdt = try? Address("Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB") {
+        let mint = Mint(address: usdt, program: .token, decimals: 6,
+                        metadata: TokenMetadata(name: "Tether USD", symbol: "USDT"))
         NavigationStack {
-            TokenDetailScreen(holding: Holding(id: .asset("Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"), amount: nil,
+            TokenDetailScreen(holding: Holding(asset: .token(mint), balance: nil,
                                                otherOwner: try? Address("4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T"),
-                                               name: "Tether USD", symbol: "USDT", imageURL: nil, valuation: nil),
+                                               imageURL: nil, valuation: nil),
                               account: Account(id: UUID(), recoveryID: UUID(), address: address, path: .solana),
                               network: .devnet, privateBalance: PrivateBalanceModel())
         }

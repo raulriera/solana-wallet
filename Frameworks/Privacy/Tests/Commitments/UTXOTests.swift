@@ -19,7 +19,7 @@ struct UTXOTests {
     @Test(arguments: TransferVectors.spentInputs)
     func `Spent UTXO hashes match the published transfers`(_ input: TransferVectors.Input) throws {
         let utxo = UTXO(
-            owner: owner, mint: Array(repeating: 0, count: 32), amount: input.amount,
+            owner: owner, asset: .nativeSOL, amount: input.amount,
             blinding: TransferVectors.blinding(input.blindingByte), treeID: input.treeID
         )
 
@@ -29,7 +29,7 @@ struct UTXOTests {
     @Test(arguments: TransferVectors.outputs)
     func `Output commitments match the published transfers`(_ output: TransferVectors.Output) throws {
         let utxo = UTXO(
-            owner: owner, mint: Array(repeating: 0, count: 32), amount: output.amount, blinding: try output.blinding(),
+            owner: owner, asset: .nativeSOL, amount: output.amount, blinding: try output.blinding(),
             treeID: output.treeID
         )
 
@@ -47,43 +47,45 @@ struct UTXOTests {
 
     @Test(arguments: [
         (
-            "0000000000000000000000000000000000000000000000000000000000000000", 0, 0,
+            .nativeSOL, 0, 0,
             "254c1355cf5d096711abd71c874f815f5bf9a46fc70cc31d5e780458fefd2ec8"
         ),
         (
-            "0000000000000000000000000000000000000000000000000000000000000000", 1, .max,
+            .nativeSOL, 1, .max,
             "11641733195ca24d891dfaa6f7e98f53d2ac0ff62e518ed9375cc4c1954565fa"
         ),
         (
-            "0000000000000000000000000000000000000000000000000000000000000000", .max, 0,
+            .nativeSOL, .max, 0,
             "15d29a2046b1efa94321c8324f9e1449be37c7d6338198176970f709f3c1b3f8"
         ),
         (
-            "0000000000000000000000000000000000000000000000000000000000000000", 1, 258,
+            .nativeSOL, 1, 258,
             "2955117cb93fa5f46fb1b03f108904911f6dd874b98e75638407694251d40629"
         ),
         (
-            "c6fa7af3bedbad3a3d65f36aabc97431b1bbe4c2d2f6e0e47ca60203452f5d61", 0, .max,
+            .token(.usdc), 0, .max,
             "0a658aed74d0449f876305eb7fa90c859be24013cc1ee21c75658de3f50e8678"
         ),
         (
-            "c6fa7af3bedbad3a3d65f36aabc97431b1bbe4c2d2f6e0e47ca60203452f5d61", 1, 0,
+            .token(.usdc), 1, 0,
             "11bfdfed1491f99177a4aedf919fa43f140ec1ad30071744bd6601f4d2c9d32c"
         ),
         (
-            "c6fa7af3bedbad3a3d65f36aabc97431b1bbe4c2d2f6e0e47ca60203452f5d61", .max, .max,
+            .token(.usdc), .max, .max,
             "0d72ecb2cc24de96aeb1d604ddaac69d87e473fcf2dccd0f1e24a26643f2a911"
         ),
-    ] as [(String, UInt64, UInt16, String)])
-    func `Hashes match independently derived values`(mint: String, amount: UInt64, treeID: UInt16, hex: String) throws {
-        let utxo = UTXO(owner: owner, mint: try fixtureBytes(mint), amount: amount, blinding: blinding, treeID: treeID)
+    ] as [(PrivateAsset, UInt64, UInt16, String)])
+    func `Hashes match independently derived values`(
+        asset: PrivateAsset, amount: UInt64, treeID: UInt16, hex: String
+    ) throws {
+        let utxo = UTXO(owner: owner, asset: asset, amount: amount, blinding: blinding, treeID: treeID)
 
         #expect(utxo.hash.bigEndianBytes == (try fixtureBytes(hex)))
     }
 
     @Test
     func `Nullifiers match an independently derived value`() throws {
-        let utxo = UTXO(owner: owner, mint: Array(repeating: 0, count: 32), amount: 1, blinding: blinding, treeID: 0)
+        let utxo = UTXO(owner: owner, asset: .nativeSOL, amount: 1, blinding: blinding, treeID: 0)
 
         #expect(utxo.nullifier(using: nullifierKey).bigEndianBytes == (try fixtureBytes("0cd4871b07798e5135b2556f8c8ca0becca860a35ca286ab5b3a2215d920ee8f")))
     }

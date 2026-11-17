@@ -2,10 +2,20 @@ import Encoding
 public import Foundation
 
 /// A token's display name and ticker symbol, read from its on-chain metadata.
-public struct TokenMetadata: Sendable, Equatable {
+public struct TokenMetadata: Codable, Hashable, Sendable {
     public let name: String?
     /// The ticker symbol.
     public let symbol: String?
+
+    /// Creates metadata, keeping a name or symbol only when it has text other than whitespace and null characters.
+    ///
+    /// - Parameters:
+    ///   - name: The display name, or `nil` if unknown.
+    ///   - symbol: The ticker symbol, or `nil` if unknown.
+    public init(name: String?, symbol: String?) {
+        self.name = name.flatMap(Self.text)
+        self.symbol = symbol.flatMap(Self.text)
+    }
 
     /// Derives the address of a mint's Metaplex metadata account.
     ///
@@ -52,11 +62,18 @@ public struct TokenMetadata: Sendable, Equatable {
         var reader = ByteReader(bytes, at: offset, error: TokenError.invalidAccount)
         func text() throws -> String? {
             let length: UInt32 = try reader.integer()
-            let text = String(validating: try reader.read(count: Int(length)), as: UTF8.self)?
-                .trimmingCharacters(in: CharacterSet(charactersIn: "\0").union(.whitespacesAndNewlines))
-            return text?.isEmpty == false ? text : nil
+            return String(validating: try reader.read(count: Int(length)), as: UTF8.self)
         }
-        name = try text()
-        symbol = try text()
+        let name = try text()
+        try self.init(name: name, symbol: text())
+    }
+
+    /// Returns a name or symbol without surrounding whitespace and null characters.
+    ///
+    /// - Parameter text: The raw text.
+    /// - Returns: The trimmed text, or `nil` when nothing is left.
+    private static func text(_ text: String) -> String? {
+        let trimmed = text.trimmingCharacters(in: CharacterSet(charactersIn: "\0").union(.whitespacesAndNewlines))
+        return trimmed.isEmpty ? nil : trimmed
     }
 }

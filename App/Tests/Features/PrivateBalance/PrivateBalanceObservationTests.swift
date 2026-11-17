@@ -36,7 +36,7 @@ struct PrivateBalanceObservationTests {
 
         #expect(try await clock.advanceToNextWait(&waits) == .seconds(30))
 
-        try await PrivateBalanceFixtures.status(of: account, in: store, becomes: .balance(available: 0, pending: 0))
+        try await PrivateBalanceFixtures.status(of: account, in: store, becomes: .balance(available: 0, pending: 0, of: .nativeSOL))
     }
 
     @Test
@@ -52,7 +52,7 @@ struct PrivateBalanceObservationTests {
         defer { hosted.close() }
         try #require(try await hosted.appears())
         try await PrivateBalanceFixtures.status(of: account, in: store,
-                                                becomes: .balance(available: 0, pending: 1_000_000))
+                                                becomes: .balance(available: 0, pending: 1_000_000, of: .nativeSOL))
         let balance = try #require(store.balance(for: account, on: .devnet))
         #expect(!balance.isFollowingUp)
         #expect(try await clock.durationToNextWait(&waits) == .seconds(30))
@@ -62,7 +62,7 @@ struct PrivateBalanceObservationTests {
         for await isFollowingUp in Observations({ balance.isFollowingUp }) where isFollowingUp { break }
         try await notes.save([PrivateBalances.noteID(of: account, on: .devnet): NoteSyncState()])
         #expect(try await clock.advanceToNextWait(&waits) == .seconds(3))
-        for await status in Observations({ balance.status }) where status == .balance(available: 0, pending: 0) { break }
+        for await status in Observations({ balance.status }) where status == .balance(available: 0, pending: 0, of: .nativeSOL) { break }
         #expect(!balance.isFollowingUp)
     }
 

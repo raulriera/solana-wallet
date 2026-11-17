@@ -23,14 +23,18 @@ struct DepositNoteVectors: Decodable, Sendable {
         private static let mintRange = 70..<102
 
         func transaction(
-            leafIndex: UInt64? = nil, signature: String = "deposit", slot: UInt64 = 3, mint: [UInt8]? = nil
+            leafIndex: UInt64? = nil, signature: String = "deposit", slot: UInt64 = 3, mint: [UInt8]
         ) throws -> ShieldedTransaction {
             var (payload, utxoHash) = (try fixtureBytes(payload), try fixtureBytes(utxoHash))
-            if let mint {
+            if !payload[Self.mintRange].elementsEqual(mint) {
                 payload.replaceSubrange(Self.mintRange, with: mint)
-                let deposit = try ProoflessOutput(decoding: payload)
-                utxoHash = UTXO(owner: deposit.owner, mint: mint, amount: deposit.amount, blinding: deposit.blinding, treeID: treeID)
-                    .hash.bigEndianBytes
+                if let asset = PrivateAsset(mintBytes: mint) {
+                    let deposit = try ProoflessOutput(decoding: payload)
+                    utxoHash = UTXO(
+                        owner: deposit.owner, asset: asset, amount: deposit.amount, blinding: deposit.blinding,
+                        treeID: treeID
+                    ).hash.bigEndianBytes
+                }
             }
             let output = ShieldedOutput(
                 viewTag: try Address(TransferVectors.senderSigningAddress).bytes, utxoHash: utxoHash, treeID: treeID,

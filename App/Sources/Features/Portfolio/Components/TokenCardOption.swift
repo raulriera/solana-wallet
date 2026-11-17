@@ -1,11 +1,11 @@
-import Portfolio
 import SwiftUI
+import Transactions
 
 /// A token's card as a button that selects the token and shows its details.
 struct TokenCardOption<Card: View>: View {
-    @Binding var selection: Holding.Identity?
+    @Binding var selection: Asset.ID?
     @Binding var preferredColumn: NavigationSplitViewColumn
-    let id: Holding.Identity
+    let id: Asset.ID
     @ViewBuilder let card: Card
 
     var body: some View {

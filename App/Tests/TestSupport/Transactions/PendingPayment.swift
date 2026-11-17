@@ -15,7 +15,7 @@ struct PendingPayment {
         let fixture = try SigningFixture()
         self.sockets = sockets
         let coordinator = try LocalTransactions(fixture: fixture, statuses: statuses, sockets: sockets).coordinator
-        record = .fixture(.payment(recipient: recipient ?? fixture.transfer.accounts[1].address, mint: nil, units: 1),
+        record = .fixture(.payment(recipient: recipient ?? fixture.transfer.accounts[1].address, asset: .nativeSOL, amount: 1),
                           signature: "pending", account: account)
         transactions = .inMemory([record.key: StoredValue([record])], pending: StoredValue([record.key])) { _ in
             coordinator

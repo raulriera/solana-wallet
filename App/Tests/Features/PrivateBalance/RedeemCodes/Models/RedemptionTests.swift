@@ -39,7 +39,7 @@ struct RedemptionTests {
         #expect(charged.depositLamports == 6_000)
         #expect(charged.lamports == 2_006_000)
         #expect(try charged.transactionInstructions == [
-            memo, try ShieldedPool.deposit(lamports: 6_000, from: redemption.source, to: redemption.recipient, treeID: 1),
+            memo, try ShieldedPool.deposit(6_000, of: .nativeSOL, from: redemption.source, to: redemption.recipient, treeID: 1),
         ])
         #expect(drained.lamports == 2_000_000)
         #expect(try drained.transactionInstructions == [memo])

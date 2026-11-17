@@ -6,54 +6,47 @@ import Transactions
 
 struct PaymentTokenHoldingTests {
     nonisolated private static let dollars = Valuation(pricePerUnit: 2, total: nil, currency: "USD")
+    nonisolated private static let usdc = Mint(address: PaymentFixtures.usdc, program: .token, decimals: 6,
+                                               metadata: TokenMetadata(name: "USD Coin", symbol: "USDC"))
 
     @Test(arguments: [
-        (Holding(id: .asset(PaymentFixtures.usdc.value), amount: Amount(units: 1_234_567, decimals: 6),
-                 name: "USD Coin", symbol: "USDC", imageURL: nil, valuation: dollars),
-         PaymentToken(mint: PaymentFixtures.usdc, symbol: "USDC", balance: Decimal(string: "1.234567")!, price: 2,
-                      decimals: 6)),
-        (Holding(id: .nativeSOL, amount: Amount(units: 1, decimals: 9), name: nil, symbol: nil, imageURL: nil,
-                 valuation: nil),
-         PaymentToken(mint: nil, symbol: "SOL", balance: Decimal(string: "0.000000001")!, price: nil, decimals: 9)),
+        (Holding.fixture(usdc, amount: 1_234_567, valuation: dollars),
+         PaymentToken(
+             asset: .token(usdc),
+             balance: TokenAmount(amount: 1_234_567, decimals: 6), price: 2)),
+        (Holding(asset: .nativeSOL, balance: TokenAmount(lamports: 1), imageURL: nil, valuation: nil),
+         PaymentToken(asset: .nativeSOL, balance: TokenAmount(lamports: 1), price: nil)),
     ])
     func `A holding with a balance becomes a token`(holding: Holding, token: PaymentToken) {
         #expect(PaymentToken(holding: holding, currencyCode: "USD") == token)
     }
 
     @Test(arguments: [
-        Holding(id: .asset(PaymentFixtures.usdc.value), amount: Amount(units: 0, decimals: 6), name: nil,
-                symbol: "USDC", imageURL: nil, valuation: nil),
-        Holding(id: .asset(PaymentFixtures.usdc.value), amount: nil, name: nil, symbol: "USDC", imageURL: nil,
-                valuation: nil),
-        Holding(id: .asset(PaymentFixtures.usdc.value), amount: Amount(units: 5, decimals: 6),
-                otherOwner: PaymentFixtures.lookAlike, name: nil, symbol: "USDC", imageURL: nil, valuation: nil),
-        Holding(id: .asset("not-a-mint"), amount: Amount(units: 5, decimals: 0), name: nil, symbol: "BAD",
-                imageURL: nil, valuation: nil),
+        Holding.fixture(usdc, amount: 0),
+        Holding.fixture(usdc, amount: nil),
+        Holding.fixture(usdc, amount: 5, otherOwner: PaymentFixtures.lookAlike),
     ])
     func `A holding with nothing to spend is left out`(holding: Holding) {
         #expect(PaymentToken(holding: holding, currencyCode: "USD") == nil)
     }
 
-    @Test(arguments: [(UInt64(1_000_000), Decimal(1)), (0, 0)])
-    func `A holding becomes a price-less token of any balance`(units: UInt64, balance: Decimal) {
+    @Test(arguments: [UInt64(1_000_000), 0])
+    func `A holding becomes a price-less token of any balance`(amount: UInt64) {
         let holding = Holding(
-            id: .asset(PaymentFixtures.usdc.value),
-            amount: Amount(units: 5_000_000, decimals: 6),
-            name: "USD Coin",
-            symbol: "USDC",
+            asset: .token(Self.usdc),
+            balance: TokenAmount(amount: 5_000_000, decimals: 6),
             imageURL: nil,
             valuation: Self.dollars
         )
 
-        let token = PaymentToken(holding: holding, balance: Amount(units: units, decimals: 6), price: nil)
+        let token = PaymentToken(holding: holding, balance: TokenAmount(amount: amount, decimals: 6), price: nil)
 
-        #expect(
-            token == PaymentToken(mint: PaymentFixtures.usdc, symbol: "USDC", balance: balance, price: nil, decimals: 6)
-        )
+        #expect(token == PaymentToken(asset: .token(Self.usdc), balance: TokenAmount(amount: amount, decimals: 6),
+                                      price: nil))
     }
 
     @Test func `A price in another currency is left out`() throws {
-        let holding = Holding(id: .nativeSOL, amount: Amount(units: 1, decimals: 9), name: nil, symbol: "SOL",
+        let holding = Holding(asset: .nativeSOL, balance: TokenAmount(lamports: 1),
                               imageURL: nil, valuation: Self.dollars)
 
         let token = try #require(PaymentToken(holding: holding, currencyCode: "EUR"))

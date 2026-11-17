@@ -1,4 +1,3 @@
-import Portfolio
 import SwiftUI
 import Transactions
 
@@ -12,7 +11,8 @@ struct PaymentReviewScreen: TransactionReviewContent {
         let costs = review.review
         Form {
             Section {
-                ReviewAmount(amount: payment.amount)
+                ReviewAmount(sent: payment.sent, asset: payment.asset, value: payment.value,
+                             currencyCode: payment.currencyCode)
             }
             .listRowBackground(Color.clear)
 
@@ -32,17 +32,20 @@ struct PaymentReviewScreen: TransactionReviewContent {
 
             Section {
                 LabeledContent("Pay With") {
-                    Text(payment.amount.token.symbol)
+                    Text(payment.asset.displaySymbol)
                 }
-                NetworkFeeRow(fee: costs?.networkFee)
-                if let accountDeposit = costs?.accountDeposit {
-                    LabeledContent("Account Deposit") {
-                        TokenBalance(amount: Amount(lamports: accountDeposit), symbol: "SOL")
+                if let transferFee = costs?.transferFee {
+                    LabeledContent("Transfer Fee") {
+                        TokenBalance(balance: transferFee, asset: payment.asset)
                     }
+                }
+                CostRow(title: "Network Fee", lamports: costs?.networkFee)
+                if let accountDeposit = costs?.accountDeposit {
+                    CostRow(title: "Account Deposit", lamports: accountDeposit)
                 }
             } footer: {
                 if costs?.accountDeposit != nil {
-                    Text("A one-time deposit opens \(payment.recipient.title)'s \(payment.amount.token.symbol) account. It goes to that account, not to this app.",
+                    Text("A one-time deposit opens \(payment.recipient.title)'s \(payment.asset.displaySymbol) account. It goes to that account, not to this app.",
                          comment: "Footer under the deposit that opens a recipient's token account. The variables are the recipient's name or short address and the token's symbol, such as USDC.")
                         .foregroundStyle(palette.secondaryText)
                 }

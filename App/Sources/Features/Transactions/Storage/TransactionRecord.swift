@@ -17,8 +17,8 @@ nonisolated struct TransactionRecord: Codable, Identifiable, Equatable, Sendable
 
     /// What a transaction does.
     enum Kind: Equatable, Sendable {
-        /// A payment to a recipient, of SOL when `mint` is `nil`.
-        case payment(recipient: Address, mint: Address?, units: UInt64)
+        /// A payment of an asset to a recipient.
+        case payment(recipient: Address, asset: Asset.ID, amount: UInt64)
         /// A move of the account's public asset into its private balance.
         case privateDeposit
         /// A move of the account's private asset to its own public balance.
@@ -76,7 +76,7 @@ nonisolated struct TransactionRecord: Codable, Identifiable, Equatable, Sendable
 
     /// The record's persisted field names.
     private enum CodingKeys: String, CodingKey {
-        case account, network, kind, recipient, mint, units, signature, lastValidBlockHeight, status, created, settled
+        case account, network, kind, recipient, asset, amount, signature, lastValidBlockHeight, status, created, settled
     }
 
     /// The persisted name of each kind.
@@ -91,8 +91,8 @@ nonisolated struct TransactionRecord: Codable, Identifiable, Equatable, Sendable
         kind = switch try container.decode(KindName.self, forKey: .kind) {
         case .payment:
             .payment(recipient: try container.decode(Address.self, forKey: .recipient),
-                     mint: try container.decodeIfPresent(Address.self, forKey: .mint),
-                     units: try container.decode(UInt64.self, forKey: .units))
+                     asset: try container.decode(Asset.ID.self, forKey: .asset),
+                     amount: try container.decode(UInt64.self, forKey: .amount))
         case .privateDeposit: .privateDeposit
         case .privateWithdrawal: .privateWithdrawal
         }
@@ -108,11 +108,11 @@ nonisolated struct TransactionRecord: Codable, Identifiable, Equatable, Sendable
         try container.encode(key.account, forKey: .account)
         try container.encode(key.network, forKey: .network)
         switch kind {
-        case .payment(let recipient, let mint, let units):
+        case .payment(let recipient, let asset, let amount):
             try container.encode(KindName.payment, forKey: .kind)
             try container.encode(recipient, forKey: .recipient)
-            try container.encodeIfPresent(mint, forKey: .mint)
-            try container.encode(units, forKey: .units)
+            try container.encode(asset, forKey: .asset)
+            try container.encode(amount, forKey: .amount)
         case .privateDeposit:
             try container.encode(KindName.privateDeposit, forKey: .kind)
         case .privateWithdrawal:

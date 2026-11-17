@@ -13,13 +13,13 @@ struct ReceivedNoteInclusionStatusTests {
     @Test
     func `Each note gets its status after the proofs and then every tree's account are read`() async throws {
         let (included, includedNote) = try UTXORootHistoryTests.proofOfFifthLeaf(
-            of: try PlanFixtures.utxo(lamports: 10, treeID: 0, blindingByte: 0xa1)
+            of: try PlanFixtures.utxo(amount: 10, treeID: 0, blindingByte: 0xa1, asset: .nativeSOL)
         )
         let (unconfirmed, unconfirmedNote) = try UTXORootHistoryTests.proofOfFifthLeaf(
-            of: try PlanFixtures.utxo(lamports: 20, treeID: 7, blindingByte: 0xb2), rootIndex: 0
+            of: try PlanFixtures.utxo(amount: 20, treeID: 7, blindingByte: 0xb2, asset: .nativeSOL), rootIndex: 0
         )
         let (valid, refutedNote) = try UTXORootHistoryTests.proofOfFifthLeaf(
-            of: try PlanFixtures.utxo(lamports: 30, treeID: 0, blindingByte: 0xc3)
+            of: try PlanFixtures.utxo(amount: 30, treeID: 0, blindingByte: 0xc3, asset: .nativeSOL)
         )
         let refuted = MerkleProof(tree: valid.tree, leaf: valid.leaf, path: [UTXORootHistoryTests.root(1)] + valid.path.dropFirst(),
                                   leafIndex: valid.leafIndex, root: valid.root, rootIndex: valid.rootIndex)
@@ -50,13 +50,13 @@ struct ReceivedNoteInclusionStatusTests {
     @Test
     func `Proofs of another leaf or tree refute only their notes`() async throws {
         let (included, includedNote) = try UTXORootHistoryTests.proofOfFifthLeaf(
-            of: try PlanFixtures.utxo(lamports: 10, treeID: 0, blindingByte: 0xa1)
+            of: try PlanFixtures.utxo(amount: 10, treeID: 0, blindingByte: 0xa1, asset: .nativeSOL)
         )
         let (_, otherLeafNote) = try UTXORootHistoryTests.proofOfFifthLeaf(
-            of: try PlanFixtures.utxo(lamports: 20, treeID: 0, blindingByte: 0xb2)
+            of: try PlanFixtures.utxo(amount: 20, treeID: 0, blindingByte: 0xb2, asset: .nativeSOL)
         )
         let (valid, otherTreeNote) = try UTXORootHistoryTests.proofOfFifthLeaf(
-            of: try PlanFixtures.utxo(lamports: 30, treeID: 7, blindingByte: 0xc3)
+            of: try PlanFixtures.utxo(amount: 30, treeID: 7, blindingByte: 0xc3, asset: .nativeSOL)
         )
         let otherTree = MerkleProof(tree: included.tree, leaf: valid.leaf, path: valid.path, leafIndex: valid.leafIndex,
                                     root: valid.root, rootIndex: valid.rootIndex)
@@ -88,7 +88,7 @@ struct ReceivedNoteInclusionStatusTests {
 
     @Test
     func `An indexer without one proof per note fails before the trees are read`() async throws {
-        let (_, note) = try UTXORootHistoryTests.proofOfFifthLeaf(of: try PlanFixtures.utxo(lamports: 10, treeID: 0))
+        let (_, note) = try UTXORootHistoryTests.proofOfFifthLeaf(of: try PlanFixtures.utxo(amount: 10, treeID: 0, asset: .nativeSOL))
         let transport = StubTransport { _ in throw CancellationError() }
 
         await #expect(throws: RPCError.invalidResponse(.mismatchedProofs)) {

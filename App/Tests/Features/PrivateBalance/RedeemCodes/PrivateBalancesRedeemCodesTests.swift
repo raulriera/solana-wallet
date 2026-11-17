@@ -28,9 +28,11 @@ struct PrivateBalancesRedeemCodesTests {
         #expect(reserve == RedeemCodeFixtures.reserve)
         #expect(spend.amount == 1_000_000)
         #expect(spend.receivedAmount == Self.senderLamports - 1_000_000 - reserve)
-        #expect(spend.instruction.accounts.last?.address.value == (try sender.keys.oneTimeAccount(at: 1)).address)
+        let transact = try #require(spend.instructions.last)
+        #expect(spend.instructions.count == 1)
+        #expect(transact.accounts.last?.address.value == (try sender.keys.oneTimeAccount(at: 1)).address)
         #expect(try prepared.authorities.map { try $0.address } == [sender.account.address])
-        #expect(prepared.instructions == [spend.instruction])
+        #expect(prepared.instructions == spend.instructions)
         #expect(await codes.value?[sender.id]?.pending.map(\.index) == [1])
         #expect(await codes.value?[sender.id]?.nextIndex == 2)
 
@@ -147,7 +149,7 @@ struct PrivateBalancesRedeemCodesTests {
         #expect(try prepared.authorities.map { try $0.address } == [Address(oneTime.address)])
         #expect(prepared.instructions.count == 2)
         #expect(prepared.instructions.last == (try ShieldedPool.deposit(
-            lamports: redemption.availableLamports, from: Address(oneTime.address),
+            redemption.availableLamports, of: .nativeSOL, from: Address(oneTime.address),
             to: recipient.shielded.recipient, treeID: 1
         )))
 
@@ -155,8 +157,8 @@ struct PrivateBalancesRedeemCodesTests {
         let status = try await balances.complete(charged, with: PrivateBalanceFixtures.confirmation(.succeeded))
 
         let deposited = 1_000_000 + RedeemCodeFixtures.reserve - RedeemCodeFixtures.treeFee - 5_000
-        #expect(status == .balance(available: 0, pending: deposited))
-        #expect(await recipient.notes.value?[recipient.id]?.pendingLamports == deposited)
+        #expect(status == .balance(available: 0, pending: deposited, of: .nativeSOL))
+        #expect(await recipient.notes.value?[recipient.id]?.pendingAmount(of: .nativeSOL) == deposited)
     }
 
     @Test
@@ -199,8 +201,8 @@ struct PrivateBalancesRedeemCodesTests {
         #expect(try prepared.authorities.map { try $0.address } == [Address(oneTime.address), recipient.account.address])
         #expect(prepared.instructions.first == (try recipient.shielded.register(paidBy: Address(oneTime.address))))
         #expect(prepared.instructions.count == 3)
-        #expect(try await balances.complete(charged, with: PrivateBalanceFixtures.confirmation(.succeeded)) == .balance(available: 0, pending: deposited))
-        #expect(await recipient.notes.value?[recipient.id]?.pendingLamports == deposited)
+        #expect(try await balances.complete(charged, with: PrivateBalanceFixtures.confirmation(.succeeded)) == .balance(available: 0, pending: deposited, of: .nativeSOL))
+        #expect(await recipient.notes.value?[recipient.id]?.pendingAmount(of: .nativeSOL) == deposited)
     }
 
     @Test
@@ -309,7 +311,7 @@ struct PrivateBalancesRedeemCodesTests {
         #expect(try prepared.authorities.map { try $0.address } == [Address(oneTime.address)])
         #expect(await codes.value?[sender.id]?.records.map(\.index) == [0])
         #expect(await codes.value?[sender.id]?.nextIndex == 2)
-        #expect(await sender.notes.value?[sender.id]?.pendingLamports == 1_000 + RedeemCodeFixtures.reserve
+        #expect(await sender.notes.value?[sender.id]?.pendingAmount(of: .nativeSOL) == 1_000 + RedeemCodeFixtures.reserve
             - RedeemCodeFixtures.treeFee - 5_000)
     }
 
@@ -583,7 +585,7 @@ struct PrivateBalancesRedeemCodesTests {
         let shielded = try keys.shieldedAccount(for: account.address)
         let id = PrivateBalances.noteID(of: account, on: .devnet)
         return (account, keys, StoredValue([account.address.value: keys]), StoredValue([id: NoteSyncState()]), id,
-                try PrivateBalanceFixtures.deposit(senderLamports, to: shielded, leafIndex: 1),
+                try PrivateBalanceFixtures.deposit(senderLamports, to: shielded, leafIndex: 1, of: .nativeSOL),
                 try PrivateBalanceFixtures.registryRecord(publishing: shielded))
     }
 

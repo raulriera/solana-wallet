@@ -86,12 +86,12 @@ final class PortfolioStore: Erasable {
     /// Adds a token to an account's list on a network.
     ///
     /// - Parameters:
-    ///   - token: The token to add.
+    ///   - mint: The mint of the token to add.
     ///   - account: The account whose list to change.
     ///   - network: The network whose list to change.
     /// - Throws: `TokenListError` for a full or unreadable list, or a file-system error if the list can't be saved.
-    func add(_ token: ListedToken, for account: Account, on network: Network) async throws {
-        try await service(for: network).addToken(token, for: account.address.value)
+    func add(_ mint: Mint, for account: Account, on network: Network) async throws {
+        try await service(for: network).addToken(mint, for: account.address.value)
     }
 
     /// Removes a token from an account's list on a network.

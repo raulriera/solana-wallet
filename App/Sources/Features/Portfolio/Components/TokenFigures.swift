@@ -1,9 +1,13 @@
-import Portfolio
 import SwiftUI
+import Transactions
 
-/// A token row's value, or its balance when the value is unknown, with the 24-hour change under the value.
-struct TokenRowFigures: View {
-    let amount: Amount?
+/// A token's value, or its balance when the value is unknown, with the 24-hour change under the value.
+///
+/// The fonts follow the portfolio's layout, and the private balance sign and the 24-hour change use the secondary
+/// foreground style.
+struct TokenFigures: View {
+    @Environment(\.cardStyle.layout) private var layout
+    let balance: TokenAmount?
     /// The token's total value and its quote currency, or `nil` when either is unknown.
     let value: (total: Decimal, currency: String)?
     /// The price's 24-hour change as a fraction, or `nil` when unknown.
@@ -12,6 +16,11 @@ struct TokenRowFigures: View {
     let isHeldPrivately: Bool
 
     var body: some View {
+        let (valueFont, changeFont): (Font, Font) =
+            switch layout {
+            case .cards: (.title3.weight(.semibold), .caption.weight(.medium))
+            case .rows: (.headline, .subheadline)
+            }
         VStack(alignment: .trailing, spacing: 2) {
             HStack(spacing: 6) {
                 if isHeldPrivately {
@@ -20,14 +29,14 @@ struct TokenRowFigures: View {
                 }
                 if let value {
                     TokenValue(total: value.total, currency: value.currency, abbreviates: true)
-                } else if let amount {
-                    TokenBalance(amount: amount, abbreviates: true)
+                } else if let balance {
+                    TokenBalance(balance: balance, abbreviates: true)
                 }
             }
-            .font(.headline)
+            .font(valueFont)
             if value != nil, let change {
                 DayChangeLabel(change: change)
-                    .font(.subheadline)
+                    .font(changeFont)
                     .foregroundStyle(.secondary)
             }
         }

@@ -12,7 +12,7 @@ struct ShieldedPoolDepositTests {
         let owner = vector.toSender ? try sender.recipient : try TransferVectors.recipient()
         let lamports = try #require(UInt64(vector.lamports))
 
-        let instruction = try ShieldedPool.deposit(lamports: lamports, from: Address(vector.depositor), to: owner, treeID: vector.treeID)
+        let instruction = try ShieldedPool.deposit(lamports, of: .nativeSOL, from: Address(vector.depositor), to: owner, treeID: vector.treeID)
 
         #expect(instruction.program == (try Address(InstructionVectors.load().program)))
         #expect(Array(instruction.data) == (try fixtureBytes(vector.data)))
@@ -24,7 +24,7 @@ struct ShieldedPoolDepositTests {
         let recipient = try TransferVectors.recipient()
         let depositor = try Address("9Vrvyr8YURu79z4sTrgcL9aYXARxfuNgrhZpJnJTrAPD")
 
-        let instruction = try ShieldedPool.deposit(1_000_000, of: .devnetUSDC, from: depositor, to: recipient, treeID: 0)
+        let instruction = try ShieldedPool.deposit(1_000_000, of: .token(.devnetUSDC), from: depositor, to: recipient, treeID: 0)
 
         #expect(instruction.accounts.map(\.address.value) == [
             try ShieldedPool.tree(id: 0).value, depositor.value, "ring1GaLCuJnkUMVkX2JeZLTTX17wKsV4fZmPVzXANW",
@@ -43,7 +43,7 @@ struct ShieldedPoolDepositTests {
         let depositor = try Address(TransferVectors.senderSigningAddress)
 
         #expect(throws: ValidationError.invalidAmount) {
-            try ShieldedPool.deposit(0, of: .usdc, from: depositor, to: recipient, treeID: 0)
+            try ShieldedPool.deposit(0, of: .token(.usdc), from: depositor, to: recipient, treeID: 0)
         }
     }
 
@@ -53,7 +53,7 @@ struct ShieldedPoolDepositTests {
         let depositor = try Address(TransferVectors.senderSigningAddress)
 
         #expect(throws: ValidationError.invalidAmount) {
-            try ShieldedPool.deposit(lamports: 0, from: depositor, to: recipient, treeID: 0)
+            try ShieldedPool.deposit(0, of: .nativeSOL, from: depositor, to: recipient, treeID: 0)
         }
     }
 

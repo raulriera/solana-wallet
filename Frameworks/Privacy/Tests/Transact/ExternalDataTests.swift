@@ -18,7 +18,7 @@ struct ExternalDataTests {
             let owner = slot == 0 ? recipient.viewingPublicKey : sender.viewingKey.publicKey
             let blinding = TransactBlinding.outputBlinding(firstNullifier: firstNullifier, outputBlindingSeed: seed, index: UInt32(slot))
             let note = try ConfidentialOutput.seal(
-                ConfidentialPlaintext(asset: .sol, amount: values.0, blinding: blinding), for: owner,
+                ConfidentialPlaintext(asset: .nativeSOL, amount: values.0, blinding: blinding), for: owner,
                 transactionViewingKey: transactionViewingKey, salt: TransferVectors.salt, slot: UInt32(slot)
             )
             let viewTag = slot == 0 ? recipient.viewTag : sender.signingAddress.bytes
@@ -55,7 +55,7 @@ struct ExternalDataTests {
     func `Prefixes with a withdrawal carry one SOL withdrawal`() throws {
         let key = Curve25519.KeyAgreement.PrivateKey().publicKey
         let externalData = try ExternalData(
-            transactionViewingPublicKey: key, salt: TransferVectors.salt, withdrawal: PlanFixtures.withdrawal(lamports: 0x0102),
+            transactionViewingPublicKey: key, salt: TransferVectors.salt, withdrawal: PlanFixtures.withdrawal(0x0102, of: .nativeSOL),
             outputs: [], payer: Address(TransferVectors.senderSigningAddress)
         )
 
@@ -66,7 +66,7 @@ struct ExternalDataTests {
     @Test
     func `Token withdrawals settle like a devnet withdrawal`() throws {
         let account = try Address("H2gYgZ72JHp2UyJAuvLZm9cayVqLy1LnuLENXpYjjrRq")
-        let withdrawal = ExternalData.Withdrawal(recipient: account, amount: 400_000, token: .devnetUSDC)
+        let withdrawal = ExternalData.Withdrawal(recipient: account, amount: 400_000, asset: .token(.devnetUSDC))
         var writer = WincodeWriter()
 
         try withdrawal.write(to: &writer)
@@ -85,11 +85,11 @@ struct ExternalDataTests {
         let key = Curve25519.KeyAgreement.PrivateKey().publicKey
         let payer = try Address(TransferVectors.senderSigningAddress)
         let toRelayedPayer = try ExternalData(
-            transactionViewingPublicKey: key, salt: TransferVectors.salt, withdrawal: PlanFixtures.withdrawal(lamports: 5),
+            transactionViewingPublicKey: key, salt: TransferVectors.salt, withdrawal: PlanFixtures.withdrawal(5, of: .nativeSOL),
             outputs: [], payer: payer
         )
         let toSender = try ExternalData(
-            transactionViewingPublicKey: key, salt: TransferVectors.salt, withdrawal: .init(recipient: payer, amount: 5),
+            transactionViewingPublicKey: key, salt: TransferVectors.salt, withdrawal: .init(recipient: payer, amount: 5, asset: .nativeSOL),
             outputs: [], payer: payer
         )
 

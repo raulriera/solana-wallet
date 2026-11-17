@@ -2,13 +2,12 @@ import Foundation
 import Observation
 import RPC
 import Testing
+import Transactions
 @testable import widgets
 
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct SentAmountClearingTests {
-    private static let sol = PaymentToken(mint: nil, symbol: "SOL", balance: 2, price: nil, decimals: 9)
-
     @Test
     func `The amount clears on success after the review closed mid-send`() async throws {
         let sending = try Sending()
@@ -63,7 +62,7 @@ struct SentAmountClearingTests {
     @MainActor
     private struct Sending {
         let payment: LocalPaymentReview
-        let keypad = PaymentModel(tokens: [sol], currencyCode: "USD")
+        let keypad = PaymentModel(tokens: [PaymentFixtures.sol], currencyCode: "USD")
         let kept = KeptPaymentReview()
         let gate = Suspension()
 

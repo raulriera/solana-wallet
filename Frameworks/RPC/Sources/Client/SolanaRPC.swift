@@ -11,7 +11,7 @@ public struct SolanaRPC: RPC, AccountChangeProviding, SignatureEventProviding, C
     /// Creates a client for a network's public endpoint.
     ///
     /// - Parameter network: The Solana network to query.
-    public init(network: Network = .mainnet) {
+    public init(network: Network) {
         self.init(network: network, transport: URLSessionTransport())
     }
 

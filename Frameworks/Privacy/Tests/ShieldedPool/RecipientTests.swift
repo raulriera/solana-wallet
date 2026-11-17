@@ -25,7 +25,7 @@ struct RecipientTests {
         let firstNullifier = try Poseidon.Element(hex: transfer.firstNullifier)
         let seed = TransactBlinding.outputBlindingSeed(firstNullifier: firstNullifier, blindingSeed: TransferVectors.blindingSeed)
         let utxo = UTXO(
-            owner: recipient.owner, mint: Array(repeating: 0, count: 32), amount: transfer.recipientAmount,
+            owner: recipient.owner, asset: .nativeSOL, amount: transfer.recipientAmount,
             blinding: TransactBlinding.outputBlinding(firstNullifier: firstNullifier, outputBlindingSeed: seed, index: 0),
             treeID: transfer.outputTreeID
         )
