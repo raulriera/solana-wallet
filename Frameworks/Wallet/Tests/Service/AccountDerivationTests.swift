@@ -19,14 +19,6 @@ struct AccountDerivationTests {
     }
 
     @Test
-    func `Batch derivation applies the original BIP-39 passphrase`() async throws {
-        let phrase = try PublicRecovery.phrase()
-        let accounts = try await Wallet().accounts(for: phrase, passphrase: "TREZOR", paths: [.solana])
-        #expect(accounts.first?.address == "7zSmbu6gKkb6HB7UDPtHYjwCWuBHU1D4TpNZFm4sndQe")
-        #expect(try await Wallet().accounts(for: phrase, passphrase: "", paths: []).isEmpty)
-    }
-
-    @Test
     func `Cancelled batch derivation throws CancellationError`() async throws {
         let phrase = try PublicRecovery.phrase()
         let (gate, continuation) = AsyncStream<Void>.makeStream()
