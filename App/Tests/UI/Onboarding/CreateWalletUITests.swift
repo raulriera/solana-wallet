@@ -4,42 +4,40 @@ import XCTest
 final class CreateWalletUITests: XCTestCase {
     @objc(testDecliningBackupDoesNotPersistAndReturnError:)
     func `test Declining backup confirmation stays on recovery and does not persist a wallet`() throws {
-        let flow = OnboardingApp()
-        defer { flow.app.terminate() }
-        try flow.launch()
-        try flow.tap(flow.app.buttons["Create Wallet"])
-        try flow.expectRecovery()
-        try flow.tap(flow.app.buttons["Continue"])
-        try flow.waitFor(flow.backupConfirmation)
+        let app = UITestApp()
+        defer { app.terminate() }
+        app.launch()
+        let onboarding = OnboardingPage(driver: app)
+        try onboarding.expectWelcome()
+        try onboarding.reachBackupConfirmation()
 
-        try flow.tap(flow.backupConfirmation.buttons["No"])
+        try onboarding.answerBackupConfirmation(saved: false)
 
-        guard flow.backupConfirmation.waitForNonExistence(timeout: 5) else {
+        guard onboarding.backupConfirmation.waitForNonExistence(timeout: 5) else {
             XCTFail("Backup confirmation did not close")
             return
         }
-        try flow.waitFor(flow.app.buttons["Continue"])
-        XCTAssertFalse(flow.portfolioTab.exists)
-        flow.relaunch()
-        try flow.expectWelcome()
+        try app.waitFor(onboarding.continueButton)
+        XCTAssertFalse(app.portfolioTab.exists)
+        app.relaunch()
+        try onboarding.expectWelcome()
     }
 
     @objc(testConfirmingBackupRestoresAfterRelaunchAndReturnError:)
     func `test Confirming backup completes creation and restores after relaunch`() throws {
-        let flow = OnboardingApp()
-        defer { flow.app.terminate() }
-        try flow.launch()
-        try flow.tap(flow.app.buttons["Create Wallet"])
-        try flow.expectRecovery()
-        try flow.tap(flow.app.buttons["Continue"])
-        try flow.waitFor(flow.backupConfirmation)
+        let app = UITestApp()
+        defer { app.terminate() }
+        app.launch()
+        let onboarding = OnboardingPage(driver: app)
+        try onboarding.expectWelcome()
+        try onboarding.reachBackupConfirmation()
 
-        try flow.tap(flow.backupConfirmation.buttons["Yes"])
+        try onboarding.answerBackupConfirmation(saved: true)
 
-        try flow.expectRPC()
-        try flow.openWallet()
-        flow.relaunch()
-        try flow.expectWallet()
-        XCTAssertFalse(flow.app.buttons["Create Wallet"].exists)
+        try onboarding.expectRPC()
+        try onboarding.openWallet()
+        app.relaunch()
+        try onboarding.expectWallet()
+        XCTAssertFalse(onboarding.createWalletButton.exists)
     }
 }
