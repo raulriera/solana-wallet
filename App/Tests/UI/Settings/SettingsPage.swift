@@ -16,6 +16,15 @@ struct SettingsPage {
         try driver.waitFor(driver.app.buttons.matching(chosen).firstMatch, file: file, line: line)
     }
 
+    func useHelius(key: String, file: StaticString = #filePath, line: UInt = #line) throws {
+        try open(file: file, line: line)
+        try driver.tap(driver.app.buttons["RPC"], file: file, line: line)
+        let rpc = RPCPage(driver: driver)
+        try rpc.chooseHelius(file: file, line: line)
+        try rpc.submitKey(key, file: file, line: line)
+        try rpc.expectChosen("Helius", file: file, line: line)
+    }
+
     @discardableResult
     func openAccounts(file: StaticString = #filePath, line: UInt = #line) throws -> AccountsPage {
         try open(file: file, line: line)

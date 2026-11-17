@@ -6,14 +6,10 @@ final class SendPaymentUITests: XCTestCase {
     func `test Sending SOL to another account shows it sent`() throws {
         let app = UITestApp()
         defer { app.terminate() }
-        app.launch(with: try .devWallet())
+        app.launch(with: .devWallet)
         let settings = SettingsPage(driver: app)
         try settings.switchNetwork(to: "Devnet")
-        let accounts = try settings.openAccounts()
-        try app.tap(accounts.addAccountButton)
-        try accounts.expectAccount("Account 1")
-        try accounts.expectAccount("Account 2")
-        try app.tap(accounts.row("Account 1"))
+        try settings.openAccounts().chooseFirstAccount()
         let contacts = ContactsPage(driver: app)
         try contacts.open()
         try app.tap(contacts.contact("Account 2"))

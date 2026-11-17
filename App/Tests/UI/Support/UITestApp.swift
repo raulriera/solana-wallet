@@ -18,19 +18,10 @@ struct UITestApp {
             }
         }
 
-        static func devWallet(file: StaticString = #filePath, line: UInt = #line) throws -> Self {
-            let seed = ProcessInfo.processInfo.environment["DEVNET_TEST_SEED", default: ""]
-            guard !seed.isEmpty else {
-                XCTFail("Set DEVNET_TEST_SEED in Configuration/Local.xcconfig", file: file, line: line)
-                throw Error.missingConfiguration
-            }
-            return .importedWallet(seed)
-        }
+        static var devWallet: Self { .importedWallet(ProcessInfo.processInfo.environment["DEVNET_TEST_SEED"]!) }
     }
 
-    private enum Error: Swift.Error {
-        case missingElement, unexpectedElement, unavailableControl, reportedError, unexpectedState, missingConfiguration
-    }
+    private enum Error: Swift.Error { case missingElement, unexpectedElement, unavailableControl, reportedError, unexpectedState }
 
     let app = XCUIApplication()
 

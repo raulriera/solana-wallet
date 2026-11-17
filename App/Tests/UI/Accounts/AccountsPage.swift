@@ -31,6 +31,14 @@ struct AccountsPage {
         try driver.expectButton(beginningWith: Self.rowPrefix(name), unless: Self.errorTitles, file: file, line: line)
     }
 
+    func chooseFirstAccount(file: StaticString = #filePath, line: UInt = #line) throws {
+        try driver.tap(addAccountButton, file: file, line: line)
+        try expectAccount("Account 1", file: file, line: line)
+        try driver.tap(row("Account 1"), file: file, line: line)
+        let chosen = NSPredicate(format: "label BEGINSWITH %@ AND selected == true", Self.rowPrefix("Account 1"))
+        try driver.waitFor(driver.app.buttons.matching(chosen).firstMatch, file: file, line: line)
+    }
+
     func rename(_ name: String, to newName: String, file: StaticString = #filePath, line: UInt = #line) throws {
         try driver.tap(infoButton(for: name), file: file, line: line)
         try driver.type(newName, into: nameField, file: file, line: line)
