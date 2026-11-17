@@ -8,6 +8,7 @@ import Transactions
 @MainActor
 struct LocalBalanceMove {
     static let publicLamports: UInt64 = 2_000_000_000
+    static let publicTokenAmount: UInt64 = 2_000_000_000
     static let privateAmount: UInt64 = 2_000_000_000
     static let amount: UInt64 = 1_000_000_000
     static let networkFee: UInt64 = 10_000
@@ -52,7 +53,7 @@ struct LocalBalanceMove {
             .toPrivate,
             of: asset,
             from: account,
-            spendable: publicLamports,
+            spendable: asset == .nativeSOL ? publicLamports : publicTokenAmount,
             balances: balances,
             simulation: try simulation
                 ?? success(
@@ -152,8 +153,7 @@ struct LocalBalanceMove {
             case .nativeSOL:
                 PaymentToken(asset: .nativeSOL, balance: TokenAmount(lamports: spendable), price: nil)
             case .token(let token):
-                PaymentToken(asset: .token(.fixture(token.mint.value, decimals: 6, symbol: "USDC")),
-                             balance: TokenAmount(amount: spendable, decimals: 6), price: nil)
+                PaymentFixtures.token(token.mint, decimals: 6, symbol: "USDC", balance: spendable, price: nil)
             }
         move = BalanceMove(
             direction: direction,
