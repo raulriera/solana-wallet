@@ -18,4 +18,4 @@ for await update in await portfolio.updates(for: owner) {
 }
 ```
 
-Pass a `PriceProviding` client as `prices:` to value the holdings. `Portfolio` also implements `TokenListProviding`, which adds and removes the tokens each account shows.
+Pass a `PriceProviding` client as `prices:` to value the holdings.

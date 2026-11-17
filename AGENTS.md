@@ -145,7 +145,7 @@ Stop and ask the user before you break one of these.
 - Keep wallet recovery material device-only, excluded from iCloud sync and backups; follow [references/wallet.md](references/wallet.md).
 - Discover accounts with one SOL-only lookup for twenty addresses; intentionally ignore zero-SOL accounts.
 - Show a manual token list for each account; read its balances with standard RPC and use DAS only to look up logos on the selected provider's CDN, loaded over HTTPS. Never request creator-hosted or off-chain artwork URLs, which expose the user's IP address. Follow [references/portfolio.md](references/portfolio.md).
-- Save files the person would lose under `URL.persistentDirectory`, which only Reset App deletes, and files the app can create again, such as balances, under `URL.ephemeralDirectory`. Give each store its own subfolder; Reset deletes both directories, so a new store needs no reset change.
+- Save files the person would lose under `URL.persistentDirectory`, which only Reset App deletes, and files the app can create again, such as balances, under `URL.ephemeralDirectory`. Give each store its own subfolder; Reset deletes both directories, so a new store's files need no reset change.
 
 ## References
 

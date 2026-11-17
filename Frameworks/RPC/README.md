@@ -23,16 +23,6 @@ let prices = CustomPriceProvider(endpoint: URL(string: "https://prices.example.c
 
 ## Add a provider
 
-A provider is a type in this module that conforms to [`RPC`](Sources/Client/RPC.swift) and sends each `RPCRequest` to its endpoint. Wrap a `SolanaRPC` client for an endpoint that speaks standard Solana RPC, as `HeliusRPC` does. Add the optional capabilities that the provider serves:
-
-| Protocol | Capability |
-| --- | --- |
-| [`AccountChangeProviding`](Sources/Subscriptions/AccountChangeProviding.swift) | Finalized account change subscriptions |
-| [`SignatureEventProviding`](Sources/Subscriptions/SignatureEventProviding.swift) | Signature and root subscriptions |
-| [`LogoProviding`](Sources/Assets/LogoProviding.swift) | HTTPS token logos hosted by the provider |
-| [`PriceProviding`](Sources/Pricing/PriceProviding.swift) | Token prices keyed by mint |
-| [`ExchangeRateProviding`](Sources/Pricing/ExchangeRateProviding.swift) | Currency exchange rates |
-| [`SubmissionProviding`](Sources/Client/SubmissionProviding.swift) | Transaction submission for a tip and a minimum priority fee |
-| [`RingsProviding`](Sources/Client/RingsProviding.swift) | Solana Rings private notes and proofs, through a `Zolana` client for the provider's endpoint |
+A provider is a type in this module that conforms to [`RPC`](Sources/Client/RPC.swift) and sends each `RPCRequest` to its endpoint. Wrap a `SolanaRPC` client for an endpoint that speaks standard Solana RPC, as `HeliusRPC` does. Conform to the optional capability protocols for the features that the provider serves.
 
 Throw `RPCError` for failures, and send each request once: callers handle rate limits and retries.

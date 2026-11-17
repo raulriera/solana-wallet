@@ -1,6 +1,6 @@
 # Redaction
 
-Keeps secret values out of `print`, `dump`, string interpolation, logs, and the debugger. A type that adopts `Redacted` describes itself by its type name and reflects no stored properties. The framework also zeroes secret byte arrays with `erase()`.
+Keeps secret values out of `print`, `dump`, string interpolation, logs, and the debugger, and zeroes secret byte arrays.
 
 ## Usage
 
@@ -15,7 +15,7 @@ print(APIKey(value: "fixture-key"))
 // APIKey
 ```
 
-To show a different name, such as one that includes an enclosing type, implement `description`. The debug description and dumps use it too.
+To show a different name, such as one that includes an enclosing type, implement `description`.
 
 To zero a secret byte array in place:
 

@@ -12,19 +12,18 @@
 
 ## Layout
 
-- Lay content out against the container's margins, which on iPhone Duo are asymmetric: 0 pt beside a vertical bar. `Form` and `List` apply them, so custom rows keep the list's margins. Bars and other window-edge views use `contentMargins(for: .container, edges:)`, and layout reads `GeometryProxy.contentMargins(for:edges:)`. The guide is 0 pt where an `ArrangementView`'s regions meet, so content there keeps its own padding.
+- Lay content out against the container's margins. Custom rows keep the list's margins. Content where an `ArrangementView`'s regions meet keeps its own padding.
 - Cap Dynamic Type at xxxLarge with `limitedTextSize()` at each window's root and in each sheet. Accessibility sizes aren't supported; adapt with stacking, scrolling, and column collapse.
 - Use system semantic colors as Apple ships them. Contrast rules apply to colors the app computes.
 - Views own how a result feels: `withAnimation` where the view calls the model, `animation(_:value:)` for later results, `sensoryFeedback`, and VoiceOver announcements from `onChange`.
 
 ## Windows
 
-- Windows come from `WindowGroup`. New-window availability can change as Duo closes.
 - Each window's selection is its account and network. Provider and currency choices apply to every window.
-- Startup reads public account metadata only: open the restored account while it is saved, else the first saved account, and onboarding only after a successful empty read. A loading error offers a retry; it never resets storage or reads recovery.
+- Startup reads public account metadata only, and opens onboarding only after a successful empty read. A loading error never resets storage or reads recovery.
 - Transaction review and approval stay bound to the initiating window.
-- `SceneStorage` restores each window's section, account ID, and network. Each container owns keys named after it and drops IDs that no longer resolve. Stored raw values are permanent: add cases, never rename or reuse them. Never store secrets, key input, transaction review, or provider data.
-- Scene activity drives observation. Windows share services with the same configuration; networks stay isolated.
+- Each `SceneStorage` container owns keys named after it and drops IDs that no longer resolve. Stored raw values are permanent: add cases, never rename or reuse them. Never store secrets, key input, transaction review, or provider data.
+- Windows share services with the same configuration; networks stay isolated.
 
 ## Theme packs
 
