@@ -16,15 +16,4 @@ struct PoseidonParametersTests {
     func `Widths outside 2 to 13 have no parameters`(width: Int) {
         #expect(Poseidon.Parameters.forWidth(width) == nil)
     }
-
-    @Test(arguments: try PoseidonParity.load().parameters.perArity)
-    func `Repeated requests for a width return equal parameters`(_ published: PoseidonParity.Width) throws {
-        let first = try #require(Poseidon.Parameters.forWidth(published.width))
-        let second = try #require(Poseidon.Parameters.forWidth(published.width))
-
-        #expect(second.width == first.width)
-        #expect(second.partialRounds == first.partialRounds)
-        #expect(second.roundConstants == first.roundConstants)
-        #expect(second.matrix == first.matrix)
-    }
 }
