@@ -8,7 +8,7 @@ struct ProoflessOutputTests {
         let output = try ProoflessOutput(decoding: fixtureBytes(vector.payload))
 
         #expect(output.blinding.bigEndianBytes == (try fixtureBytes(vector.blinding)))
-        #expect(output.mint == [UInt8](repeating: 0, count: 32))
+        #expect(output.mint == PrivateAsset.nativeSOL.mintBytes)
         #expect(output.amount == (try #require(UInt64(vector.lamports))))
     }
 
