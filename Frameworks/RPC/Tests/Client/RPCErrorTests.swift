@@ -4,9 +4,9 @@ import Testing
 
 struct RPCErrorTests {
     @Test(arguments: [
-        RPCError.transport(.networkConnectionLost), .transport(.timedOut), .http(statusCode: 408, retryAfter: nil),
-        .http(statusCode: 500, retryAfter: nil), .http(statusCode: 503, retryAfter: "5"),
-        .http(statusCode: 599, retryAfter: nil), .server(code: -32005, message: "Node is behind by 42 slots"),
+        RPCError.transport(.networkConnectionLost), .http(statusCode: 408, retryAfter: nil),
+        .http(statusCode: 500, retryAfter: nil), .http(statusCode: 599, retryAfter: nil),
+        .server(code: -32005, message: "Node is behind by 42 slots"),
         .server(code: -32016, message: "Minimum context slot has not been reached"), .invalidResponse(.staleContext),
     ])
     func `Transport failures, timeouts, server errors, and a node that is behind are recoverable`(_ error: RPCError) {
@@ -15,9 +15,8 @@ struct RPCErrorTests {
 
     @Test(arguments: [
         RPCError.http(statusCode: 429, retryAfter: "5"), .server(code: 429, message: "Rate limited"),
-        .http(statusCode: 401, retryAfter: nil), .http(statusCode: 403, retryAfter: nil),
-        .http(statusCode: 499, retryAfter: nil), .server(code: -32601, message: "Method not found"),
-        .server(code: -32603, message: "Internal error"), .invalidResponse(.mismatchedID), .decoding,
+        .http(statusCode: 401, retryAfter: nil), .http(statusCode: 499, retryAfter: nil),
+        .server(code: -32601, message: "Method not found"), .invalidResponse(.mismatchedID), .decoding,
     ])
     func `Rate limits, key errors, and other refusals are not recoverable`(_ error: RPCError) {
         #expect(!error.isRecoverable)

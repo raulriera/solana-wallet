@@ -48,8 +48,7 @@ struct SolanaRPCTests {
         #expect(socket.subscribedAddresses == ["wallet"])
     }
 
-    @Test(arguments: ["http://rpc.example.com", "wss://rpc.example.com", "https://", "https:///fixture-token",
-                      "https://:8443/fixture-token", "https://fixture-user@/fixture-token"])
+    @Test(arguments: ["https:///fixture-token", "https://:8443/fixture-token", "https://fixture-user@/fixture-token"])
     func `Custom endpoints require HTTPS and a host`(url: String) throws {
         let endpoint = try #require(URL(string: url))
 

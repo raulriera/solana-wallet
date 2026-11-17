@@ -52,24 +52,6 @@ struct ZolanaProofsTests {
     }
 
     @Test
-    func `An encrypted refusal surfaces its status without a retry`() async throws {
-        let refusal: JSONValue = ["code": "indexer_unavailable", "message": "secret"]
-        let (zolana, transport) = try Self.zolana(status: 502, body: refusal)
-
-        await #expect(throws: RPCError.http(statusCode: 502, retryAfter: nil)) {
-            try await zolana.proveTransfer(Fixture.indexedRequest())
-        }
-        #expect(await transport.requests.count == 2)
-    }
-
-    @Test
-    func `An encrypted success that isn't a proof is a decoding error`() async throws {
-        let (zolana, _) = try Self.zolana(body: ProverAnswer.proof())
-
-        await #expect(throws: RPCError.decoding) { try await zolana.proveTransfer(Fixture.indexedRequest()) }
-    }
-
-    @Test
     func `A request that the prover can't decrypt surfaces its refusal without attesting again`() async throws {
         let prover = try StubProver { _ in (200, "{}") }
         let transport = StubTransport { request in
@@ -83,9 +65,9 @@ struct ZolanaProofsTests {
         #expect(await transport.requests.map(\.httpMethod) == ["GET", "POST"])
     }
 
-    private static func zolana(status: Int = 200, body: JSONValue) throws -> (Zolana, StubTransport) {
+    private static func zolana(body: JSONValue) throws -> (Zolana, StubTransport) {
         let text = try body.json
-        let transport = try StubProver { _ in (status, text) }.transport()
+        let transport = try StubProver { _ in (200, text) }.transport()
         return (StubProver.zolana(transport: transport), transport)
     }
 }

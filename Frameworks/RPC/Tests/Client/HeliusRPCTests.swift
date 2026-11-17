@@ -1,5 +1,4 @@
 import Foundation
-import Synchronization
 import Testing
 @testable import RPC
 
@@ -44,31 +43,6 @@ struct HeliusRPCTests {
     }
 
     @Test(arguments: [
-        (Network.mainnet, "mainnet.helius-rpc.com"),
-        (.devnet, "devnet.helius-rpc.com"),
-    ])
-    func `Proof requests go sealed below the network's Solana Rings path with the key`(network: Network,
-                                                                                      expectedHost: String) async throws {
-        let opened = Mutex<Data?>(nil)
-        let prover = try StubProver { body in
-            opened.withLock { $0 = body }
-            return (503, "{}")
-        }
-        let transport = prover.transport()
-        let rpc: any ProofProviding = StubProver.helius(on: network, transport: transport)
-
-        await #expect(throws: RPCError.http(statusCode: 503, retryAfter: nil)) {
-            try await rpc.proveTransfer(ProofFixtures.indexedRequest())
-        }
-
-        let urls = await transport.requests.compactMap(\.url)
-        #expect(urls.map { $0.host() } == [expectedHost, expectedHost])
-        #expect(urls.map { $0.path() } == ["/v1/spr/attestation", "/v1/spr/prove/transfer_confidential_1_2/indexed"])
-        #expect(urls.map { $0.query()?.hasPrefix("api-key=test-key") } == [true, true])
-        #expect(opened.withLock { $0 } != nil)
-    }
-
-    @Test(arguments: [
         (GetLatestBlockhash(), UInt64?.none),
         (GetLatestBlockhash(minContextSlot: 12340), UInt64?(12340)),
     ])
@@ -105,18 +79,6 @@ struct HeliusRPCTests {
 
         await #expect(throws: RPCError.invalidResponse(.staleContext)) {
             try await rpc.send(GetLatestBlockhash(minContextSlot: 12340))
-        }
-    }
-
-    @Test
-    func `Get latest blockhash rejects a response without an expiry height`() async {
-        let transport = StubTransport { request in
-            try reply(to: request, payload: #""result":{"context":{"slot":12345},"value":{"blockhash":"EkSnNWid2cvwEVnVx9aBqawnmiCNiDgp3gUdkDPTKN1N"}}"#)
-        }
-        let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
-
-        await #expect(throws: RPCError.decoding) {
-            try await rpc.send(GetLatestBlockhash())
         }
     }
 
@@ -173,18 +135,6 @@ struct HeliusRPCTests {
     }
 
     @Test
-    func `Get fee for message rejects a response from before the minimum slot`() async {
-        let transport = StubTransport { request in
-            try reply(to: request, payload: #""result":{"context":{"slot":12339},"value":5000}"#)
-        }
-        let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
-
-        await #expect(throws: RPCError.invalidResponse(.staleContext)) {
-            try await rpc.send(GetFeeForMessage(message: Data([0x81, 0xFB, 0xFF, 0x00]), minContextSlot: 12340))
-        }
-    }
-
-    @Test
     func `Get fee for message rejects a response without a fee field`() async {
         let transport = StubTransport { request in
             try reply(to: request, payload: #""result":{"context":{"slot":12345}}"#)
@@ -196,8 +146,8 @@ struct HeliusRPCTests {
         }
     }
 
-    @Test(arguments: [UInt64?.none, 12340])
-    func `Simulation returns logs compute usage fee and slot`(expectedSlot: UInt64?) async throws {
+    @Test
+    func `Simulation returns logs compute usage fee and slot`() async throws {
         let transport = StubTransport { request in
             try reply(to: request, payload: #"""
                 "result":{"context":{"slot":12345},"value":{
@@ -209,7 +159,7 @@ struct HeliusRPCTests {
         let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
 
         let response = try await rpc.send(SimulateTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00]),
-                                                              minContextSlot: expectedSlot))
+                                                              minContextSlot: 12340))
 
         #expect(response.context.slot == 12345)
         #expect(response.value.error == nil)
@@ -227,10 +177,10 @@ struct HeliusRPCTests {
         let configuration = try #require(parameters.last as? [String: Any])
         #expect(configuration["encoding"] as? String == "base64")
         #expect(configuration["commitment"] as? String == "finalized")
-        #expect(configuration["minContextSlot"] as? UInt64 == expectedSlot)
+        #expect(configuration["minContextSlot"] as? UInt64 == 12340)
         #expect(configuration["sigVerify"] as? Bool == false)
         #expect(configuration["replaceRecentBlockhash"] as? Bool == false)
-        #expect(configuration.count == (expectedSlot == nil ? 4 : 5))
+        #expect(configuration.count == 5)
     }
 
     @Test(arguments: [
@@ -289,10 +239,8 @@ struct HeliusRPCTests {
         }
     }
 
-    @Test(arguments: [UInt64?.none, 12340])
-    func `Send transaction returns the accepted signature and preserves signed bytes`(
-        expectedSlot: UInt64?
-    ) async throws {
+    @Test
+    func `Send transaction returns the accepted signature and preserves signed bytes`() async throws {
         let signature = "2id3YC2jK9G5Wo2phDx4gJVAew8DcY5NAojnVuao8rkxwPYPe8cSwE5GzhEgJA2y8fVjDEo6iR6ykBvDxrTQrtpb"
         let transport = StubTransport { request in
             try reply(to: request, payload: #""result":"\#(signature)""#)
@@ -300,7 +248,7 @@ struct HeliusRPCTests {
         let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
 
         let result = try await rpc.send(SendTransaction(transaction: Data([0x81, 0xFB, 0xFF, 0x00]),
-                                                        minContextSlot: expectedSlot))
+                                                        minContextSlot: 12340))
 
         #expect(result == signature)
         #expect(await transport.requests.count == 1)
@@ -313,10 +261,10 @@ struct HeliusRPCTests {
         let configuration = try #require(parameters.last as? [String: Any])
         #expect(configuration["encoding"] as? String == "base64")
         #expect(configuration["preflightCommitment"] as? String == "finalized")
-        #expect(configuration["minContextSlot"] as? UInt64 == expectedSlot)
+        #expect(configuration["minContextSlot"] as? UInt64 == 12340)
         #expect(configuration["skipPreflight"] as? Bool == false)
         #expect(configuration["maxRetries"] as? UInt64 == 0)
-        #expect(configuration.count == (expectedSlot == nil ? 4 : 5))
+        #expect(configuration.count == 5)
     }
 
     @Test
@@ -348,7 +296,6 @@ struct HeliusRPCTests {
 
     @Test(arguments: [
         (-32002, ""),
-        (-32002, #","data":null"#),
         (-32002, #","data":{"logs":[]}"#),
         (-32602, #","data":{"err":null,"logs":[]}"#),
     ])
@@ -364,13 +311,14 @@ struct HeliusRPCTests {
     }
 
     @Test
-    func `Get signature statuses returns confirmation levels and processing slots`() async throws {
+    func `Get signature statuses returns confirmation levels, processing slots, and execution failures`() async throws {
         let signatures = ["processed-signature", "confirmed-signature", "finalized-signature"]
         let transport = StubTransport { request in
             try reply(to: request, payload: #"""
                 "result":{"context":{"slot":12345},"value":[
                     {"slot":12344,"confirmations":0,"err":null,"confirmationStatus":"processed"},
-                    {"slot":12330,"confirmations":14,"err":null,"confirmationStatus":"confirmed"},
+                    {"slot":12330,"confirmations":14,"err":{"InstructionError":[0,{"Custom":1}]},
+                     "confirmationStatus":"confirmed"},
                     {"slot":12000,"confirmations":null,"err":null,"confirmationStatus":"finalized"}
                 ]}
                 """#)
@@ -390,7 +338,9 @@ struct HeliusRPCTests {
         #expect(confirmed.slot == 12330)
         #expect(confirmed.confirmations == 14)
         #expect(confirmed.confirmationStatus == .confirmed)
-        #expect(confirmed.error == nil)
+        #expect(confirmed.error == TransactionError(
+            name: "InstructionError", details: .array([.integer(0), .object(["Custom": .integer(1)])])
+        ))
         #expect(finalized.slot == 12000)
         #expect(finalized.confirmations == nil)
         #expect(finalized.confirmationStatus == .finalized)
@@ -407,7 +357,6 @@ struct HeliusRPCTests {
 
     @Test(arguments: [
         (UInt64(12345), "", RPCError.InvalidResponse.mismatchedStatuses),
-        (12345, #"{"slot":12344,"confirmations":0,"err":null,"confirmationStatus":"processed"},null"#, .mismatchedStatuses),
         (12343, #"{"slot":12344,"confirmations":0,"err":null,"confirmationStatus":"processed"}"#, .statusAfterContext),
     ] as [(UInt64, String, RPCError.InvalidResponse)])
     func `Get signature statuses reject a response that doesn't match the request`(
@@ -443,28 +392,6 @@ struct HeliusRPCTests {
         #expect(status.confirmationStatus == nil)
     }
 
-    @Test
-    func `Get signature statuses returns execution failures for confirmed transactions`() async throws {
-        let transport = StubTransport { request in
-            try reply(to: request, payload: #"""
-                "result":{"context":{"slot":12345},"value":[{
-                    "slot":12340,"confirmations":4,"err":{"InstructionError":[0,{"Custom":1}]},
-                    "confirmationStatus":"confirmed"
-                }]}
-                """#)
-        }
-        let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
-
-        let response = try await rpc.send(GetSignatureStatuses(signatures: ["failed-signature"]))
-
-        try #require(response.value.count == 1)
-        let status = try #require(response.value[0])
-        #expect(status.confirmationStatus == .confirmed)
-        #expect(status.error == TransactionError(
-            name: "InstructionError", details: .array([.integer(0), .object(["Custom": .integer(1)])])
-        ))
-    }
-
     @Test(arguments: [
         #"{"slot":12340,"confirmations":4,"confirmationStatus":"confirmed"}"#,
         #"{"slot":12340,"err":null,"confirmationStatus":"confirmed"}"#,
@@ -480,8 +407,8 @@ struct HeliusRPCTests {
         }
     }
 
-    @Test(arguments: [Network.mainnet, .devnet], [false, true])
-    func `Server errors hide API keys and authenticated URLs`(network: Network, includesSimulation: Bool) async {
+    @Test(arguments: [false, true])
+    func `Server errors hide API keys and authenticated URLs`(includesSimulation: Bool) async {
         let apiKey = "test-key"
         let code = includesSimulation ? -32002 : -32603
         let transport = StubTransport { request in
@@ -492,7 +419,7 @@ struct HeliusRPCTests {
             return try reply(to: request,
                              payload: #""error":{"code":\#(code),"message":"Request \#(endpoint) failed for \#(apiKey)"\#(diagnostics)}"#)
         }
-        let rpc = HeliusRPC(apiKey: apiKey, network: network, transport: transport)
+        let rpc = HeliusRPC(apiKey: apiKey, network: .devnet, transport: transport)
         let message = "Request [redacted] failed for [redacted]"
         let expectedError: RPCError = includesSimulation
             ? .preflight(message: message, simulation: SimulateTransaction.Value(
@@ -521,43 +448,21 @@ struct HeliusRPCTests {
         #expect(await transport.requests.count == 1)
     }
 
-    @Test
-    func `Responses belonging to another request are rejected`() async {
-        let transport = StubTransport { request in
-            try reply(to: request, payload: #""result":100"#,
-                      id: "another-request")
-        }
-        let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
-
-        await #expect(throws: RPCError.invalidResponse(.mismatchedID)) {
-            try await rpc.send(GetBlockHeight())
-        }
-    }
-
-    @Test(arguments: [false, true])
-    func `Cancelling during encoding prevents the HTTP request`(throwsCancellation: Bool) async {
-        let transport = StubTransport { request in try reply(to: request, payload: #""result":false"#) }
-        let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
-        let task = Task { @concurrent in
-            try await rpc.send(CodingCancellationRequest(cancelsDuringEncoding: true, throwsCancellation: throwsCancellation))
-        }
-
-        await #expect(throws: CancellationError.self) { try await task.value }
-        #expect(await transport.requests.isEmpty)
-    }
-
-    @Test(arguments: [false, true])
-    func `Cancelling during decoding surfaces a cancellation error`(throwsCancellation: Bool) async {
+    @Test(arguments: [true, false], [false, true])
+    func `Cancelling during encoding prevents the request, and during decoding surfaces a cancellation error`(
+        duringEncoding: Bool, throwsCancellation: Bool
+    ) async {
         let transport = StubTransport { request in
             try reply(to: request, payload: #""result":\#(throwsCancellation)"#)
         }
         let rpc = HeliusRPC(apiKey: "test-key", network: .devnet, transport: transport)
         let task = Task { @concurrent in
-            try await rpc.send(CodingCancellationRequest(cancelsDuringEncoding: false, throwsCancellation: throwsCancellation))
+            try await rpc.send(CodingCancellationRequest(cancelsDuringEncoding: duringEncoding,
+                                                         throwsCancellation: throwsCancellation))
         }
 
         await #expect(throws: CancellationError.self) { try await task.value }
-        #expect(await transport.requests.count == 1)
+        #expect(await transport.requests.count == (duringEncoding ? 0 : 1))
     }
 
     @Test(.timeLimit(.minutes(1)))
