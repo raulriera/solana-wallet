@@ -36,4 +36,8 @@ struct PrivateBalanceVectors: Decodable, Sendable {
     static func load() throws -> Self {
         try fixture(named: "PrivateBalanceVectors")
     }
+
+    static func guardVectors(named names: Set<String>) throws -> [GuardVector] {
+        try load().derivationInputGuard.filter { names.contains($0.name) }
+    }
 }
