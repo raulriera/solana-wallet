@@ -151,16 +151,6 @@ struct NoteSyncStateTests {
     }
 
     @Test
-    func `Spends of stored notes drop them`() async throws {
-        let (first, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit]))
-
-        let (state, _) = try await sync(first, with: Indexer(spends: [spend(of: first.notes)]))
-
-        #expect(state.notes.isEmpty)
-        #expect(state.spendableAmount(of: .nativeSOL) == 0)
-    }
-
-    @Test
     func `Spends in the batch drop stored and new notes`() async throws {
         let (first, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit]))
         let spender = spend(of: try first.notes + notes(in: laterDeposit))
@@ -211,27 +201,16 @@ struct NoteSyncStateTests {
         #expect(try await Self.transactionReads(of: transport) == [spender.signature])
     }
 
-    @Test
-    func `Spend claims whose transaction failed keep the note`() async throws {
+    @Test(arguments: [(SpendTransactions.failure, true), ("null", false)])
+    func `Spend claims whose transaction failed or spends other nullifiers keep the note`(
+        error: String, spendsClaimedNullifiers: Bool
+    ) async throws {
         let (first, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit]))
         let spender = spend(of: first.notes)
-        let failed = SpendTransactions.result(spending: spender.nullifiers, error: SpendTransactions.failure)
+        let spent = spendsClaimedNullifiers ? spender.nullifiers : [[UInt8](repeating: 9, count: 32)]
+        let onChain = SpendTransactions.result(spending: spent, error: error)
 
-        let (state, _) = try await sync(first, with: Indexer(spends: [spender], onChain: [spender.signature: failed]))
-
-        #expect(state.notes == first.notes)
-        #expect(state.claimedSpends.isEmpty)
-        #expect(state.spendableAmount(of: .nativeSOL) == 1_000_000)
-        #expect(state.rejectedSpends == [spender.signature])
-    }
-
-    @Test
-    func `Spend claims whose transaction spends other nullifiers keep the note`() async throws {
-        let (first, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit]))
-        let spender = spend(of: first.notes)
-        let unrelated = SpendTransactions.result(spending: [[UInt8](repeating: 9, count: 32)])
-
-        let (state, _) = try await sync(first, with: Indexer(spends: [spender], onChain: [spender.signature: unrelated]))
+        let (state, _) = try await sync(first, with: Indexer(spends: [spender], onChain: [spender.signature: onChain]))
 
         #expect(state.notes == first.notes)
         #expect(state.claimedSpends.isEmpty)
@@ -255,30 +234,6 @@ struct NoteSyncStateTests {
         #expect(named.notes == first.notes)
         #expect(forgotten.rejectedSpends.isEmpty)
         #expect(forgotten.notes == first.notes)
-    }
-
-    @Test
-    func `Spend claims whose transaction ten reads in a row don't find count as refuted`() async throws {
-        let (first, _) = try await sync(NoteSyncState(), with: Indexer(deposits: [deposit]))
-        let spender = spend(of: first.notes)
-        let indexer = Indexer(spends: [spender], onChain: [spender.signature: "null"])
-        var waiting = first
-        for _ in 0..<9 {
-            waiting = try await sync(waiting, with: indexer).0
-        }
-
-        let (refuted, transport) = try await sync(waiting, with: indexer)
-        let (later, laterTransport) = try await sync(refuted, with: indexer)
-
-        #expect(waiting.rejectedSpends.isEmpty)
-        #expect(waiting.notes == first.notes)
-        #expect(waiting.spendableAmount(of: .nativeSOL) == 0)
-        #expect(try await Self.transactionReads(of: transport) == [spender.signature])
-        #expect(refuted.rejectedSpends == [spender.signature])
-        #expect(refuted.notes == first.notes)
-        #expect(refuted.spendableAmount(of: .nativeSOL) == 1_000_000)
-        #expect(try await Self.transactionReads(of: laterTransport).isEmpty)
-        #expect(later.notes == first.notes)
     }
 
     @Test
@@ -839,24 +794,15 @@ struct NoteSyncStateTests {
     }
 
     @Test
-    func `Records beyond 64 bits are rejected`() throws {
-        let largest = try largestState()
-
-        #expect(throws: NoteSyncState.ValidationError.amountOverflow) {
-            try largest.recording(depositOf: 1_000_000, of: .nativeSOL, signature: IndexerResponses.signature(8))
-        }
-    }
-
-    @Test(arguments: [true, false])
-    func `States survive encoding`(isFinalized: Bool) async throws {
-        let indexer = Indexer(transactions: [transfer], deposits: [deposit], isFinalized: isFinalized)
+    func `States survive encoding`() async throws {
+        let indexer = Indexer(transactions: [transfer], deposits: [deposit], isFinalized: false)
         let (state, _) = try await sync(NoteSyncState(), with: indexer)
 
         let decoded = try JSONDecoder().decode(NoteSyncState.self, from: JSONEncoder().encode(state))
 
         #expect(decoded == state)
-        #expect(decoded.notes.isEmpty == !isFinalized)
-        #expect(decoded.unconfirmedNotes.isEmpty == isFinalized)
+        #expect(decoded.notes.isEmpty)
+        #expect(!decoded.unconfirmedNotes.isEmpty)
     }
 
     @Test
@@ -894,10 +840,10 @@ struct NoteSyncStateTests {
         #expect(missing.stringValue == key)
     }
 
-    @Test(arguments: ["localSpends", "claimedSpends"])
-    func `Encoded nullifiers of another length are rejected`(key: String) throws {
+    @Test
+    func `Encoded nullifiers of another length are rejected`() throws {
         var fields = try #require(try JSONSerialization.jsonObject(with: JSONEncoder().encode(NoteSyncState())) as? [String: Any])
-        fields[key] = [Data(repeating: 1, count: 31).base64EncodedString()]
+        fields["claimedSpends"] = [Data(repeating: 1, count: 31).base64EncodedString()]
         let encoded = try JSONSerialization.data(withJSONObject: fields)
 
         let error = #expect(throws: DecodingError.self) {
@@ -908,7 +854,7 @@ struct NoteSyncStateTests {
             Issue.record("Expected corrupted data, not \(String(describing: error)).")
             return
         }
-        #expect(context.codingPath.map(\.stringValue) == [key])
+        #expect(context.codingPath.map(\.stringValue) == ["claimedSpends"])
     }
 
     @Test

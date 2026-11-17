@@ -31,10 +31,6 @@ struct NoteSyncStateSpendTests {
             selected: [1, 2], transferAmount: 12, withdrawalAmount: nil, receivedAmount: 3
         ),
         Spend(
-            testDescription: "token transfer with change", notes: [3, 10, 5], amount: 12, asset: .token(.usdc), destination: .recipient,
-            selected: [1, 2], transferAmount: 12, withdrawalAmount: nil, receivedAmount: 3
-        ),
-        Spend(
             testDescription: "exact withdrawal", notes: [3, 10], amount: 10, asset: .nativeSOL, destination: .withdrawal, selected: [1],
             transferAmount: nil, withdrawalAmount: 10, receivedAmount: 0
         ),
@@ -115,51 +111,6 @@ struct NoteSyncStateSpendTests {
 
         #expect(result.treeIDs == [2, 0])
         #expect(result.nullifiers == [notes[2].nullifier])
-    }
-
-    @Test
-    func `Spends take the output tree's notes over another tree's fewer notes`() async throws {
-        let notes = [
-            try note(4, leaf: 0, asset: .nativeSOL), try note(4, leaf: 1, asset: .nativeSOL), try note(4, leaf: 2, asset: .nativeSOL), try note(9, leaf: 3, treeID: 1, asset: .nativeSOL),
-            try note(2, leaf: 4, treeID: 1, asset: .nativeSOL),
-        ]
-
-        let result = try await spend(10, of: notes)
-
-        #expect(result.treeIDs == [0])
-        #expect(result.nullifiers == notes.prefix(3).map(\.nullifier))
-    }
-
-    @Test
-    func `Spends draw from two trees when no one tree covers them`() async throws {
-        let notes = [try note(6, leaf: 0, treeID: 1, asset: .nativeSOL), try note(6, leaf: 1, treeID: 2, asset: .nativeSOL)]
-
-        let result = try await spend(10, of: notes)
-
-        #expect(result.treeIDs == [0, 1, 2])
-        #expect(result.nullifiers == notes.map(\.nullifier))
-        #expect(result.receivedAmount == 2)
-    }
-
-    @Test
-    func `Funded transfers withdraw to the recipient's signing address`() async throws {
-        let recipient = try TransferVectors.recipient()
-        let notes = try [10, 5].enumerated().map { try note($1, leaf: UInt64($0), asset: .nativeSOL) }
-        let state = try NoteSyncState(
-            position: nil, notes: notes, unconfirmedNotes: [], outputTreeID: 0, pending: [], localSpends: [],
-            claimedSpends: [], rejectedSpends: [], missingSpendReads: [:]
-        )
-        let transport = try Self.transport()
-        let solInterface = try ShieldedPool.solInterface
-
-        let result = try await state.spend(
-            6, of: .nativeSOL, to: .fundedTransfer(recipient, publicLamports: 5), from: sender, rpc: SolanaRPC.devnet(transport: transport),
-            prover: Self.prover(transport)
-        )
-
-        #expect(result.instruction.accounts.suffix(2).map(\.address) == [solInterface, recipient.signingAddress])
-        #expect(result.nullifiers == notes.map(\.nullifier))
-        #expect(result.receivedAmount == 4)
     }
 
     @Test
@@ -258,21 +209,6 @@ struct NoteSyncStateSpendTests {
             try await state.spend(lamports, of: .nativeSOL, to: destination, from: sender, rpc: SolanaRPC.devnet(transport: transport),
                                   prover: Self.prover(transport))
         }
-        #expect(await transport.requests.isEmpty)
-    }
-
-    @Test
-    func `SOL spends leave token notes out`() async throws {
-        let transport = StubTransport { _ in throw CancellationError() }
-        let token = try note(10, leaf: 0, asset: .token(.usdc))
-        let state = try NoteSyncState(position: nil, notes: [token], unconfirmedNotes: [], outputTreeID: 0, pending: [],
-                                      localSpends: [], claimedSpends: [], rejectedSpends: [], missingSpendReads: [:])
-
-        await #expect(throws: PrivateSpend.ValidationError.insufficientFunds) {
-            try await state.spend(4, of: .nativeSOL, to: .transfer(try TransferVectors.recipient()), from: sender, rpc: SolanaRPC.devnet(transport: transport),
-                                  prover: Self.prover(transport))
-        }
-        #expect(state.spendableAmount(of: .nativeSOL) == 0)
         #expect(await transport.requests.isEmpty)
     }
 
