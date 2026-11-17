@@ -18,9 +18,8 @@ struct HoldingDisplayTests {
          "Jupiter"),
     ])
     func `Names fall back to the asset's identity`(asset: Asset, shownSymbol: String, shownName: String) {
-        let holding = Holding(asset: asset, balance: nil, imageURL: nil, valuation: nil)
-        #expect(holding.asset.displaySymbol == shownSymbol)
-        #expect(holding.asset.displayName == shownName)
+        #expect(asset.displaySymbol == shownSymbol)
+        #expect(asset.displayName == shownName)
     }
 
     @Test(arguments: [
@@ -66,12 +65,6 @@ struct HoldingDisplayTests {
         #expect((holding.knownPrice != nil) == isKnown)
     }
 
-    @Test(arguments: [("en_US", "1,234.5"), ("de_DE", "1.234,5")])
-    func `Amounts use the text environment's locale`(identifier: String, shown: String) {
-        let balance = TokenAmount(amount: 1_234_500_000_000, decimals: 9)
-        #expect(TokenAmountFormatStyle().locale(Locale(identifier: identifier)).format(balance) == shown)
-    }
-
     @Test(arguments: [
         (Decimal(string: "9999.99")!, "$9,999.99"), (Decimal(string: "10234.56")!, "$10.2K"),
         (Decimal(100_200), "$100.2K"), (Decimal(string: "1234567.89")!, "$1.2M"),
@@ -94,12 +87,5 @@ struct HoldingDisplayTests {
     ])
     func `Prices show enough digits to be useful`(price: Decimal, shown: String) {
         #expect(ValueFormatStyle.price(code: "USD").locale(Locale(identifier: "en_US")).format(price) == shown)
-    }
-
-    @Test(arguments: [
-        (TokenAmount(amount: 9_999_123_456, decimals: 6), "9,999.123456"), (TokenAmount(amount: 1_100_000_000_000, decimals: 5), "11M"),
-    ])
-    func `Cards shorten balances from 10,000 up`(balance: TokenAmount, shown: String) {
-        #expect(TokenAmountFormatStyle.abbreviatedAmount.locale(Locale(identifier: "en_US")).format(balance) == shown)
     }
 }

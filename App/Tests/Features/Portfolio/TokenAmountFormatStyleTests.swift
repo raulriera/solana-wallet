@@ -42,4 +42,12 @@ struct TokenAmountFormatStyleTests {
         let style = TokenAmountFormatStyle.amount(of: asset).locale(Locale(identifier: locale))
         #expect(style.format(sent) == shown)
     }
+
+    @Test(arguments: [
+        (TokenAmount(amount: 9_999_123_456, decimals: 6), "9,999.123456"),
+        (TokenAmount(amount: 1_100_000_000_000, decimals: 5), "11M"),
+    ])
+    func `Cards shorten balances from 10,000 up`(balance: TokenAmount, shown: String) {
+        #expect(TokenAmountFormatStyle.abbreviatedAmount.locale(Locale(identifier: "en_US")).format(balance) == shown)
+    }
 }
