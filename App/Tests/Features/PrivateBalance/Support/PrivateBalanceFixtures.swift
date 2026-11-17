@@ -153,8 +153,8 @@ enum PrivateBalanceFixtures {
         let output = IndexerReplies.output(viewTag: account.signingAddress.value, hash: Base58.encode(utxo.hash.bigEndianBytes),
                                            treeID: utxo.treeID, leafIndex: leafIndex,
                                            payload: Data(payload).base64EncodedString())
-        let signature = Base58.encode([UInt8](repeating: UInt8(truncatingIfNeeded: leafIndex + 1), count: 64))
-        return IndexerReplies.match(signature: signature, slot: 3, output: output)
+        return IndexerReplies.match(signature: RedeemCodeFixtures.signature(ofDepositAt: leafIndex), slot: 3,
+                                    output: output)
     }
 
     static func spend(of lamports: UInt64, to account: ShieldedAccount, leafIndex: UInt64) throws -> String {
