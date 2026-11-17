@@ -3,6 +3,7 @@
 ## Coverage
 
 - Follow [Swift Testing Expert](plugin://swift-testing-expert@swift-testing-agent-skill): Swift Testing for unit tests, XCTest for UI automation. XCUITests need explicit Objective-C selectors.
+- Test only the app's own functionality, offline or in UI tests; never test a provider's API.
 - Test meaningful outcomes. Separate success and failure paths, cover shared behavior once, and skip initializer-assignment tests.
 - Test internal workflows in app-hosted tests with `@testable` imports. Use ordinary imports for framework APIs, and existing transport or storage seams without widening the production API.
 - Check workflow models through their typed state, such as a rejection case, not message text.
