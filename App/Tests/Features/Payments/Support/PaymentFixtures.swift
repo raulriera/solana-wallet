@@ -12,4 +12,12 @@ nonisolated enum PaymentFixtures {
     static let lookAlike = try! Address("ChearUeBgrvrS2a421vA9nenKMQB1wADs9aAqPabeAaV")
     static let sol = PaymentToken(asset: .nativeSOL, balance: TokenAmount(amount: 2_000_000_000, decimals: 9),
                                   price: nil)
+    static let usdcToken = token(usdc, decimals: 6, symbol: "USDC", balance: 40_000_000, price: 1)
+
+    static func token(_ mint: Address, decimals: UInt8, symbol: String, balance: UInt64, price: Decimal?)
+        -> PaymentToken {
+        let fixture = Mint.fixture(mint.value, decimals: decimals, symbol: symbol)
+        return PaymentToken(asset: .token(fixture), balance: TokenAmount(amount: balance, decimals: fixture.decimals),
+                            price: price)
+    }
 }

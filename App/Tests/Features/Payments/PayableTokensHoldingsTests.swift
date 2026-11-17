@@ -25,9 +25,7 @@ struct PayableTokensHoldingsTests {
 
         #expect(payable == PayableTokens(tokens: [
             PaymentToken(asset: .nativeSOL, balance: TokenAmount(amount: 1_500_000_000, decimals: 9), price: 150),
-            PaymentToken(
-                asset: .token(.fixture(PaymentFixtures.unpriced.value, decimals: 1, symbol: "NOPRICE")),
-                balance: TokenAmount(amount: 25, decimals: 1), price: nil),
+            PaymentFixtures.token(PaymentFixtures.unpriced, decimals: 1, symbol: "NOPRICE", balance: 25, price: nil),
         ], currencyCode: "USD"))
     }
 
