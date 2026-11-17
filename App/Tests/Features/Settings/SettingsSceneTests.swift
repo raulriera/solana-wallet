@@ -42,17 +42,12 @@ struct SettingsSceneTests {
     }
 
     @Test
-    func `An RPC read error shows its alert`() async throws {
+    func `RPC and Prices read errors show their alerts`() async throws {
         let rpc = RPCCoordinator.inMemory(.inMemory(StoredValue(failsLoading: true)))
+        let prices = PricesCoordinator.inMemory(.inMemory(StoredValue(failsLoading: true)))
 
         #expect(try await presentsAlert(rpc: rpc, prices: .inMemory()))
         #expect(rpc.error == .selectionUnreadable)
-    }
-
-    @Test
-    func `A Prices read error shows its alert`() async throws {
-        let prices = PricesCoordinator.inMemory(.inMemory(StoredValue(failsLoading: true)))
-
         #expect(try await presentsAlert(rpc: .inMemory(.inMemory()), prices: prices))
         #expect(prices.error == .settingsUnreadable)
     }

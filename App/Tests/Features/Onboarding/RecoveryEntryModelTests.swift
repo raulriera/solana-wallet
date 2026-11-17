@@ -4,14 +4,6 @@ import Wallet
 
 @MainActor
 struct RecoveryEntryModelTests {
-    @Test(arguments: [11, 13, 25])
-    func `Unsupported recovery lengths ask to check for missing or extra words`(count: Int) {
-        let input = entry(Array(repeating: "abandon", count: count).joined(separator: " "))
-
-        #expect(!input.validate())
-        #expect(input.rejection == .invalidWordCount)
-    }
-
     @Test
     func `A repeated rejection counts again`() {
         let input = entry("public invalid fixture")

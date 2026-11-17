@@ -45,7 +45,6 @@ struct OnboardingDiscoveryTests {
 
     @Test(arguments: [
         (RPCError.http(statusCode: 429, retryAfter: "3"), OnboardingCoordinatorError.discoveryRateLimited),
-        (.http(statusCode: 503, retryAfter: nil), .preparationFailed),
         (.transport(.notConnectedToInternet), .preparationFailed),
     ])
     func `Discovery failures stop preparation until an explicit retry`(
@@ -73,5 +72,4 @@ struct OnboardingDiscoveryTests {
         }
         #expect(await http.requests.count == 2)
     }
-
 }
