@@ -8,14 +8,14 @@ import Transactions
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct PortfolioObservationTests {
-    @Test
-    func `An inactive scene observes only once it's active`() async throws {
-        let shown = ShownWallet(try Account.fixture(index: 1), phase: .inactive)
+    @Test(arguments: [ScenePhase.active, .inactive])
+    func `A background scene observes only once it's in the foreground`(phase: ScenePhase) async throws {
+        let shown = ShownWallet(try Account.fixture(index: 1), phase: .background)
         let window = try await Window(showing: shown)
         defer { window.hosted.close() }
         #expect(await window.service.calls.isEmpty)
 
-        shown.phase = .active
+        shown.phase = phase
 
         var requests = window.service.requests.makeAsyncIterator()
         let observation = try #require(await requests.next())

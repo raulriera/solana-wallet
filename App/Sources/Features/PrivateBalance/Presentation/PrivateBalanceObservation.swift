@@ -1,7 +1,7 @@
 import RPC
 import SwiftUI
 
-/// Reads and polls the private balance of a window's account while the window is active.
+/// Reads and polls the private balance of a window's account while the window is in the foreground.
 private struct PrivateBalanceObservation: ViewModifier {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(PrivateBalanceStore.self) private var privateBalances
@@ -11,7 +11,7 @@ private struct PrivateBalanceObservation: ViewModifier {
 
     func body(content: Content) -> some View {
         let session = Session(accountID: account.id, network: network,
-                              isActive: scenePhase == .active && rpcStore.isRead)
+                              isActive: scenePhase != .background && rpcStore.isRead)
         content
             .task(id: session) {
                 guard session.isActive else { return }
@@ -28,7 +28,7 @@ private struct PrivateBalanceObservation: ViewModifier {
 }
 
 extension View {
-    /// Reads and polls the private balance of the window's account while the window is active.
+    /// Reads and polls the private balance of the window's account while the window is in the foreground.
     ///
     /// - Parameters:
     ///   - account: The window's account.

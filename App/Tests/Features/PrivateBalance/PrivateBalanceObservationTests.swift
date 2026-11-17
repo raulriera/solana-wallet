@@ -9,8 +9,8 @@ import Transactions
 @MainActor
 @Suite(.timeLimit(.minutes(1)))
 struct PrivateBalanceObservationTests {
-    @Test
-    func `An active window polls the private balance`() async throws {
+    @Test(arguments: [ScenePhase.active, .inactive])
+    func `A foreground window polls the private balance`(phase: ScenePhase) async throws {
         let account = try await PrivateBalanceFixtures.account()
         let record = try await PrivateBalanceFixtures.keys(for: account)
         let registry = try PrivateBalanceFixtures.registry(publishing: record.shieldedAccount(for: account.address))
@@ -19,7 +19,7 @@ struct PrivateBalanceObservationTests {
         var waits = clock.waits.makeAsyncIterator()
         let store = try PrivateBalanceStore.fixture(responses, keys: StoredValue([account.address.value: record]),
                                                     clock: clock)
-        let hosted = try HostedWindow(PrivateBalanceObservationRoot(store: store, account: account, scenePhase: .active))
+        let hosted = try HostedWindow(PrivateBalanceObservationRoot(store: store, account: account, scenePhase: phase))
         defer { hosted.close() }
         try #require(try await hosted.appears())
 
@@ -56,7 +56,7 @@ struct PrivateBalanceObservationTests {
     }
 
     @Test
-    func `An inactive window reads nothing`() async throws {
+    func `A background window reads nothing`() async throws {
         let account = try await PrivateBalanceFixtures.account()
         let responses = HTTPResponses.privateNotes()
         let store = try PrivateBalanceStore.fixture(responses)

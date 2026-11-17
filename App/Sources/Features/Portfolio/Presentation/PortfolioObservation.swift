@@ -1,7 +1,7 @@
 import RPC
 import SwiftUI
 
-/// Observes a wallet's portfolio while the scene is active and refreshes it after each transaction settles.
+/// Observes a wallet's portfolio while the scene is in the foreground and refreshes it after each transaction settles.
 private struct PortfolioObservation: ViewModifier {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(PortfolioStore.self) private var portfolios
@@ -12,7 +12,7 @@ private struct PortfolioObservation: ViewModifier {
 
     func body(content: Content) -> some View {
         let session = Session(accountID: account.id, network: network,
-                              isActive: scenePhase == .active && rpcStore.isRead)
+                              isActive: scenePhase != .background && rpcStore.isRead)
         let settledCount = transactions.settledCount(for: TransactionRecord.Key(account: account.id, network: network))
         content
             .task(id: session) {
@@ -34,7 +34,8 @@ private struct PortfolioObservation: ViewModifier {
 }
 
 extension View {
-    /// Observes a wallet's portfolio while the scene is active and refreshes it after each transaction settles.
+    /// Observes a wallet's portfolio while the scene is in the foreground and refreshes it after each transaction
+    /// settles.
     ///
     /// - Parameters:
     ///   - account: The account to observe.
