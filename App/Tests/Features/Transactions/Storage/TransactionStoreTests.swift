@@ -32,7 +32,7 @@ struct TransactionStoreTests {
 
         let thrown = try await #require(throws: (any Error).self) { try await sending.send() }
 
-        #expect(type(of: thrown) == type(of: error))
+        #expect(thrown as NSError == error as NSError)
         await Self.expectNothingSent(by: sending)
     }
 

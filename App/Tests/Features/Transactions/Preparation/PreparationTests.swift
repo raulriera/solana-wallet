@@ -1,7 +1,7 @@
 import Foundation
+import RPC
 import Testing
 import Transactions
-@testable import RPC
 @testable import widgets
 
 struct PreparationTests {
@@ -111,16 +111,14 @@ struct PreparationTests {
     }
 
     @Test
-    func `Service tips precede the caller's instructions`() async throws {
+    func `Sender tips precede the caller's instructions`() async throws {
         let fixture = try PreparationFixture.preparation()
         let transfer = try PreparationFixture.source(fixture).instruction
         let payer = transfer.accounts[0].address
         let memo = try MemoProgram.memo("widgets tip order", signers: [payer])
-        let requirements = SubmissionRequirements(tipRecipient: "4ACfpUFoaSD9bfPdeu6DBt89gB6ENTeHBXCAi87NhDEE",
-                                                  tipLamports: 5_000, minimumPriorityFeeLamports: 1)
-        let tip = try Instruction(program: Address("11111111111111111111111111111111"), accounts: [
-            .writable(payer, isSigner: true), .writable(Address("4ACfpUFoaSD9bfPdeu6DBt89gB6ENTeHBXCAi87NhDEE")),
-        ], data: Data([2, 0, 0, 0, 0x88, 0x13, 0, 0, 0, 0, 0, 0]))
+        let requirements = SenderSubmissionProvider(tier: .standard).submissionRequirements
+        let tip = try SystemProgram.transfer(from: payer, to: Address(requirements.tipRecipient),
+                                             lamports: requirements.tipLamports)
         let http = try HTTPResponses.preparation(fixture: fixture)
         let rpc = try #require(http.client(for: .solana, on: .mainnet))
 

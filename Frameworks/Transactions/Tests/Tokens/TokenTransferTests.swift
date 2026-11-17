@@ -94,23 +94,20 @@ struct TokenTransferTests {
         }
     }
 
-    @Test(arguments: [
-        "unowned source", "other program's source", "other wallet's destination", "mint recipient",
-        "destination without the fee extension",
-    ])
-    func `Token transfers reject accounts that don't match the transfer`(_ mismatch: String) throws {
-        let fixture = TokenFixtures.transfers[mismatch == "destination without the fee extension" ? 2 : 0]
+    @Test(arguments: Mismatch.allCases)
+    func `Token transfers reject accounts that don't match the transfer`(_ mismatch: Mismatch) throws {
+        let fixture = TokenFixtures.transfers[mismatch == .destinationWithoutFeeExtension ? 2 : 0]
         var sender = try Address(TokenFixtures.sender)
         var recipient = try Address(TokenFixtures.recipient)
         var mint = try fixture.mint()
         var source = try fixture.source()
         var destination: Token?
         switch mismatch {
-        case "unowned source": swap(&sender, &recipient)
-        case "other program's source": mint = try TokenFixtures.transfers[2].mint()
-        case "other wallet's destination": destination = try fixture.target(fixture.sourceData)
-        case "mint recipient": recipient = try Address(TokenFixtures.mint)
-        default:
+        case .unownedSource: swap(&sender, &recipient)
+        case .otherProgramsSource: mint = try TokenFixtures.transfers[2].mint()
+        case .otherWalletsDestination: destination = try fixture.target(fixture.sourceData)
+        case .mintRecipient: recipient = try Address(TokenFixtures.mint)
+        case .destinationWithoutFeeExtension:
             mint = try fixture.mint(TokenFixtures.feeMint)
             source = try fixture.source(Data(base64Encoded: TokenFixtures.feeSource))
             destination = try fixture.target()
@@ -178,5 +175,13 @@ struct TokenTransferTests {
 
     private func configuration() throws -> Configuration {
         try Configuration(priorityFeeLamports: 0, computeUnitLimit: 200_000, loadedAccountsDataSizeLimit: 65_536)
+    }
+
+    enum Mismatch: CaseIterable {
+        case unownedSource
+        case otherProgramsSource
+        case otherWalletsDestination
+        case mintRecipient
+        case destinationWithoutFeeExtension
     }
 }

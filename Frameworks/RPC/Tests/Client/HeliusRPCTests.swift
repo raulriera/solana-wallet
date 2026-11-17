@@ -448,7 +448,7 @@ struct HeliusRPCTests {
         #expect(await transport.requests.count == 1)
     }
 
-    @Test(arguments: [true, false], [false, true])
+    @Test(arguments: [false, true], [false, true])
     func `Cancelling during encoding prevents the request, and during decoding surfaces a cancellation error`(
         duringEncoding: Bool, throwsCancellation: Bool
     ) async {
