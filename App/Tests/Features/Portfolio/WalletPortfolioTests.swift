@@ -140,7 +140,7 @@ struct WalletPortfolioTests {
             Holding(asset: .token(.fixture(symbol: symbol)), balance: TokenAmount(amount: 1, decimals: 0),
                     imageURL: nil, valuation: Valuation(pricePerUnit: total, total: total, currency: "USD"))
         }
-        let solana = Holding(asset: .nativeSOL, balance: TokenAmount(amount: 0, decimals: 9),
+        let solana = Holding(asset: .nativeSOL, balance: TokenAmount(lamports: 0),
                              imageURL: nil, valuation: nil)
         return Snapshot(owner: "wallet-a", network: .devnet, holdings: tokens + [solana])
     }

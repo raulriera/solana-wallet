@@ -31,9 +31,9 @@ struct TokenAmountFormatStyleTests {
     }
 
     @Test(arguments: [
-        (TokenAmount(amount: 83_408_632, decimals: 9), Asset.nativeSOL, "en_US", "0.083408632 SOL"),
-        (TokenAmount(amount: 5_000_000_000, decimals: 9), .nativeSOL, "en_US", "5 SOL"),
-        (TokenAmount(amount: 1_234_500_000_000, decimals: 9), .nativeSOL, "de_DE", "1.234,5 SOL"),
+        (TokenAmount(lamports: 83_408_632), Asset.nativeSOL, "en_US", "0.083408632 SOL"),
+        (TokenAmount(lamports: 5_000_000_000), .nativeSOL, "en_US", "5 SOL"),
+        (TokenAmount(lamports: 1_234_500_000_000), .nativeSOL, "de_DE", "1.234,5 SOL"),
         (TokenAmount(amount: 1_234, decimals: 4), .token(.fixture(symbol: "TINY")), "en_US", "0.1234 TINY"),
         (TokenAmount(amount: 2_500_000, decimals: 6), .token(.fixture(symbol: "USDC")), "de_DE", "2,5 USDC"),
     ])

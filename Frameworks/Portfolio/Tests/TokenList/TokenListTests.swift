@@ -45,7 +45,7 @@ struct TokenListTests {
         defer { fixture.removeFiles() }
         let service = fixture.portfolio()
         let mints = try await fixture.list(for: "wallet").mints
-        let holdings = [Holding(asset: .nativeSOL, balance: TokenAmount(amount: 1, decimals: 9),
+        let holdings = [Holding(asset: .nativeSOL, balance: TokenAmount(lamports: 1),
                                 imageURL: nil, valuation: nil)]
             + mints.map { Holding(asset: .token($0), balance: TokenAmount(amount: 1, decimals: $0.decimals),
                                    imageURL: nil, valuation: nil) }

@@ -212,7 +212,7 @@ private let freshLedger = Ledger(lamports: 1_000_000_000, tokens: [usdcMint: 3_0
 
 private func pricingSnapshot() -> Snapshot {
     let holdings = [
-        Holding(asset: .nativeSOL, balance: TokenAmount(amount: 1_000_000_000, decimals: 9),
+        Holding(asset: .nativeSOL, balance: TokenAmount(lamports: 1_000_000_000),
                 imageURL: nil, valuation: nil),
         Holding(asset: .token(.fixture(nativeMint, decimals: 9)),
                 balance: TokenAmount(amount: 2_000_000_000, decimals: 9), imageURL: nil, valuation: nil),

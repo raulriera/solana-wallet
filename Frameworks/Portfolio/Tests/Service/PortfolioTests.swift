@@ -37,7 +37,7 @@ struct PortfolioTests {
             .token(.fixture(usdcMint, decimals: 6, name: "USD Coin", symbol: "USDC")),
             .token(.fixture(usdtMint, decimals: 6, name: "Tether USD", symbol: "USDT")),
         ])
-        #expect(result.holdings.map(\.balance) == [TokenAmount(amount: 100, decimals: 9),
+        #expect(result.holdings.map(\.balance) == [TokenAmount(lamports: 100),
                                                   TokenAmount(amount: 9_007_199_254_740_993, decimals: 6),
                                                   TokenAmount(amount: 0, decimals: 6)])
         #expect(result.holdings.allSatisfy { $0.valuation == nil })
@@ -115,7 +115,7 @@ struct PortfolioTests {
         let updated = try #require(await updates.next())
 
         #expect(updated.error == nil)
-        #expect(updated.holdings.map(\.balance) == [TokenAmount(amount: 100, decimals: 9), nil, TokenAmount(amount: 7, decimals: 6)])
+        #expect(updated.holdings.map(\.balance) == [TokenAmount(lamports: 100), nil, TokenAmount(amount: 7, decimals: 6)])
         #expect(updated.holdings.allSatisfy { $0.otherOwner == nil })
     }
 
@@ -133,7 +133,7 @@ struct PortfolioTests {
         let updated = try #require(await updates.next())
 
         #expect(updated.error == nil)
-        #expect(updated.holdings.map(\.balance) == [TokenAmount(amount: 100, decimals: 9), TokenAmount(amount: 5, decimals: 6), nil])
+        #expect(updated.holdings.map(\.balance) == [TokenAmount(lamports: 100), TokenAmount(amount: 5, decimals: 6), nil])
         #expect(updated.holdings.map(\.otherOwner) == [nil, nil, try Address(otherWallet)])
     }
 
@@ -150,7 +150,7 @@ struct PortfolioTests {
 
         #expect(updated.error == nil)
         #expect(updated.holdings.map(\.balance) == [
-            TokenAmount(amount: 100, decimals: 9), TokenAmount(amount: 0, decimals: 6), TokenAmount(amount: 7, decimals: 6),
+            TokenAmount(lamports: 100), TokenAmount(amount: 0, decimals: 6), TokenAmount(amount: 7, decimals: 6),
         ])
     }
 
@@ -208,7 +208,7 @@ struct PortfolioTests {
 
         let updated = try #require(await iterator.next())
 
-        #expect(updated.holdings.first?.balance == TokenAmount(amount: 100, decimals: 9))
+        #expect(updated.holdings.first?.balance == TokenAmount(lamports: 100))
         #expect((updated.error as? CocoaError)?.code == .fileWriteOutOfSpace)
         #expect(!updated.isRefreshing)
         #expect(updated.revision > initial.revision)
@@ -251,7 +251,7 @@ struct PortfolioTests {
 
         let updated = try #require(await iterator.next())
 
-        #expect(updated.holdings.map(\.balance) == [TokenAmount(amount: 0, decimals: 9), TokenAmount(amount: 0, decimals: 6),
+        #expect(updated.holdings.map(\.balance) == [TokenAmount(lamports: 0), TokenAmount(amount: 0, decimals: 6),
                                                    TokenAmount(amount: 0, decimals: 6)])
         #expect(updated.error == nil)
         #expect(fixture.store.snapshot(for: key) == updated.snapshot)
@@ -494,7 +494,7 @@ struct PortfolioTests {
         let recovered = try #require(try await reload(service).snapshot)
 
         #expect(failed.error == nil)
-        #expect(failed.snapshot?.holdings.map(\.balance) == [TokenAmount(amount: 100, decimals: 9), TokenAmount(amount: 5, decimals: 6),
+        #expect(failed.snapshot?.holdings.map(\.balance) == [TokenAmount(lamports: 100), TokenAmount(amount: 5, decimals: 6),
                                                               TokenAmount(amount: 0, decimals: 6)])
         #expect(failed.snapshot?.holdings.allSatisfy { $0.imageURL == nil } == true)
         #expect(recovered.holdings.map(\.imageURL) == [nil, usdcLogo, nil])

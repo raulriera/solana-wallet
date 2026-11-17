@@ -31,7 +31,7 @@ struct HoldingOrderTests {
     }
 
     private func solana(value: Decimal? = nil) -> Holding {
-        Holding(asset: .nativeSOL, balance: TokenAmount(amount: 0, decimals: 9), imageURL: nil,
+        Holding(asset: .nativeSOL, balance: TokenAmount(lamports: 0), imageURL: nil,
                 valuation: value.map { Valuation(pricePerUnit: $0, total: $0, currency: "USD") })
     }
 
