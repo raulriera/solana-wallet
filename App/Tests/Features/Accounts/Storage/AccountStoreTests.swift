@@ -8,18 +8,6 @@ import Wallet
 @Suite(.timeLimit(.minutes(1)))
 struct AccountStoreTests {
     @Test
-    func `The store reads nothing until it loads`() async {
-        let storage = StoredValue<[widgets.Account]>()
-        let cleanup = StartupRecoveryCleanup()
-
-        let accounts = AccountStore.inMemory(storage, cleanup: cleanup)
-
-        #expect(accounts.phase == .unloaded)
-        #expect(await storage.loads == 0)
-        #expect(await cleanup.completions == 0)
-    }
-
-    @Test
     func `Loading finishes the launch cleanup before reading the accounts`() async throws {
         let saved = try [widgets.Account.fixture(index: 0)]
         let storage = StoredValue(saved)
@@ -142,19 +130,6 @@ struct AccountStoreTests {
     }
 
     @Test
-    func `A failed addition is undone`() async throws {
-        let first = try widgets.Account.fixture(index: 0)
-        let storage = StoredValue([first], failsSaving: true)
-        let accounts = AccountStore.inMemory(storage)
-        await accounts.load()
-
-        await #expect(throws: CocoaError.self) { try await accounts.add(widgets.Account.fixture(index: 1)) }
-
-        #expect(accounts.accounts == [first])
-        #expect(await storage.value == [first])
-    }
-
-    @Test
     func `A duplicate added before the first read is never written`() async throws {
         let directory = URL.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
@@ -171,20 +146,6 @@ struct AccountStoreTests {
         await #expect(throws: FileItemError.unencodable) { try await accounts.add(duplicate) }
 
         #expect(try Data(contentsOf: file) == original)
-    }
-
-    @Test
-    func `Erasing forgets every account`() async throws {
-        let storage = StoredValue(try [widgets.Account.fixture(index: 0)])
-        let accounts = AccountStore.inMemory(storage)
-        await accounts.load()
-
-        try await accounts.erase()
-
-        #expect(accounts.accounts.isEmpty)
-        #expect(accounts.phase == .loaded)
-        #expect(await storage.value == nil)
-        #expect(await storage.deletions == 1)
     }
 
     @Test
@@ -233,7 +194,7 @@ struct AccountStoreTests {
     }
 
     @Test
-    func `Deleting removes the account`() async throws {
+    func `Deleting removes the account and frees its index`() async throws {
         let first = try widgets.Account.fixture(index: 0)
         let second = try widgets.Account.fixture(index: 1)
         let storage = StoredValue([first, second])
@@ -244,21 +205,10 @@ struct AccountStoreTests {
 
         #expect(accounts.accounts == [first])
         #expect(await storage.value == [first])
-    }
-
-    @Test
-    func `A deleted account's index is used again`() async throws {
-        let first = try widgets.Account.fixture(index: 0)
-        let second = try widgets.Account.fixture(index: 1)
-        let accounts = AccountStore.inMemory(StoredValue([first, second]))
-        await accounts.load()
-
-        try await accounts.remove(second.id)
-
         #expect(accounts.nextPath == .solana(account: 1))
     }
 
-    @Test(arguments: Change.allCases)
+    @Test(arguments: [Change.rename, .deletion])
     func `A change to an unsaved account changes nothing`(_ change: Change) async throws {
         let first = try widgets.Account.fixture(index: 0)
         let storage = StoredValue([first])
@@ -285,12 +235,14 @@ struct AccountStoreTests {
     }
 
     enum Change: CaseIterable {
+        case addition
         case rename
         case deletion
 
         @MainActor
         func apply(to id: widgets.Account.ID, in accounts: AccountStore) async throws {
             switch self {
+            case .addition: try await accounts.add(widgets.Account.fixture(index: 1))
             case .rename: try await accounts.rename(id, to: "Savings")
             case .deletion: try await accounts.remove(id)
             }

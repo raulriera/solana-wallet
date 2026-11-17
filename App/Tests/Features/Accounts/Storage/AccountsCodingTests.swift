@@ -24,16 +24,13 @@ struct AccountsCodingTests {
     }
 
     @Test
-    func `The existing file format decodes`() throws {
-        #expect(AccountsCoding().decode(Data(Self.file.utf8)) == (try Self.accounts))
-    }
-
-    @Test
-    func `Accounts encode to the existing file format`() throws {
-        let encoded = try #require(JSONSerialization.jsonObject(with: AccountsCoding().encode(Self.accounts))
+    func `Accounts decode from and encode to the existing file format`() throws {
+        let accounts = try Self.accounts
+        let encoded = try #require(JSONSerialization.jsonObject(with: AccountsCoding().encode(accounts))
             as? [[String: String]])
         let existing = try #require(JSONSerialization.jsonObject(with: Data(Self.file.utf8)) as? [[String: String]])
 
+        #expect(AccountsCoding().decode(Data(Self.file.utf8)) == accounts)
         #expect(encoded == existing)
     }
 

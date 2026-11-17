@@ -24,18 +24,14 @@ struct AccountCreationTests {
     }
 
     @Test
-    func `A missing recovery gives no account`() async {
-        let creation = AccountCreation(recovery: SecurityRecoveryStore(), wallet: Wallet())
+    func `A missing recovery or cancelled authentication gives no account`() async {
+        let missing = AccountCreation(recovery: SecurityRecoveryStore(), wallet: Wallet())
+        let cancelled = AccountCreation(
+            recovery: SecurityRecoveryStore(readError: CancellationError()), wallet: Wallet())
 
         await #expect(throws: KeychainStoreError.recoveryUnavailable) {
-            try await creation.account(at: .solana, inWallet: UUID())
+            try await missing.account(at: .solana, inWallet: UUID())
         }
-    }
-
-    @Test
-    func `Cancelled authentication gives no account`() async {
-        let creation = AccountCreation(recovery: SecurityRecoveryStore(readError: CancellationError()), wallet: Wallet())
-
-        await #expect(throws: CancellationError.self) { try await creation.account(at: .solana, inWallet: UUID()) }
+        await #expect(throws: CancellationError.self) { try await cancelled.account(at: .solana, inWallet: UUID()) }
     }
 }
